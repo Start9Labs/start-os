@@ -435,23 +435,24 @@ impl Service {
         let requested_actions: BTreeSet<_> = peek
             .as_public()
             .as_package_data()
-            .as_idx(&manifest.id)
-            .or_not_found(&manifest.id)?
-            .as_requested_actions()
             .as_entries()?
             .into_iter()
-            .map(|(_, r)| r.as_request().as_id().de())
-            .chain(
-                peek.as_public()
-                    .as_package_data()
+            .map(|(_, pde)| {
+                Ok(pde
+                    .as_requested_actions()
                     .as_entries()?
                     .into_iter()
-                    .filter_map(|(_, pde)| pde.as_current_dependencies().as_idx(&manifest.id))
-                    .map(|dep_info| dep_info.as_requested_actions().as_entries())
-                    .map_ok(|e| e.into_iter().map(|(_, r)| r.as_request().as_id().de()))
-                    .flatten_ok()
-                    .map(|a| a.and_then(|a| a)),
-            )
+                    .map(|(_, r)| {
+                        Ok::<_, Error>(if r.as_request().as_package_id().de()? == manifest.id {
+                            Some(r.as_request().as_action_id().de()?)
+                        } else {
+                            None
+                        })
+                    })
+                    .filter_map_ok(|a| a))
+            })
+            .flatten_ok()
+            .map(|a| a.and_then(|a| a))
             .try_collect()?;
         for action_id in requested_actions {
             if let Some(input) = service
@@ -465,23 +466,15 @@ impl Service {
         ctx.db
             .mutate(|db| {
                 for (action_id, input) in &action_input {
-                    for (_, dependent_pde) in
-                        db.as_public_mut().as_package_data_mut().as_entries_mut()?
-                    {
-                        if let Some(dep_info) = dependent_pde
-                            .as_current_dependencies_mut()
-                            .as_idx_mut(&manifest.id)
-                        {
-                            dep_info
-                                .as_requested_actions_mut()
-                                .mutate(|requested_actions| {
-                                    Ok(update_requested_actions(
-                                        requested_actions,
-                                        action_id,
-                                        input,
-                                    ))
-                                })?;
-                        }
+                    for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
+                        pde.as_requested_actions_mut().mutate(|requested_actions| {
+                            Ok(update_requested_actions(
+                                requested_actions,
+                                &manifest.id,
+                                action_id,
+                                input,
+                            ))
+                        })?;
                     }
                 }
                 let entry = db
@@ -489,17 +482,6 @@ impl Service {
                     .as_package_data_mut()
                     .as_idx_mut(&manifest.id)
                     .or_not_found(&manifest.id)?;
-                for (action_id, input) in &action_input {
-                    entry
-                        .as_requested_actions_mut()
-                        .mutate(|requested_actions| {
-                            Ok(update_requested_actions(
-                                requested_actions,
-                                action_id,
-                                input,
-                            ))
-                        })?;
-                }
                 entry
                     .as_state_info_mut()
                     .ser(&PackageState::Installed(InstalledState { manifest }))?;

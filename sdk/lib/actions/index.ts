@@ -60,7 +60,7 @@ export const requestAction = <
   const request = options.request as T
   const req = {
     ...request,
-    replayId: request.replayId || request.id,
+    replayId: request.replayId || `${request.packageId}:${request.actionId}`,
   }
   return options.effects.action.request(req)
 }

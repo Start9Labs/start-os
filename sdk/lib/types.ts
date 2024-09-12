@@ -5,12 +5,13 @@ import {
   NamedHealthCheckResult,
   Manifest,
   ServiceInterface,
+  ActionId,
 } from "./osBindings"
 import { MainEffects, Signals } from "./StartSdk"
 import { Daemons } from "./mainFn/Daemons"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { StringObject, ToKebab } from "./util"
-import { Actions } from "./actions/setupActions"
+import { Action, Actions } from "./actions/setupActions"
 import { Effects } from "./Effects"
 export { Effects }
 export * from "./osBindings"
@@ -69,7 +70,10 @@ export namespace ExpectedExports {
 
   export type manifest = Manifest
 
-  export type actions = Actions<any, any>
+  export type actions = Actions<
+    any,
+    Record<ActionId, Action<ActionId, any, any, any>>
+  >
 }
 export type ABI = {
   createBackup: ExpectedExports.createBackup

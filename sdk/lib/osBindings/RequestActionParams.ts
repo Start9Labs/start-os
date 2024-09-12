@@ -5,9 +5,9 @@ import type { ActionRequestTrigger } from "./ActionRequestTrigger"
 import type { PackageId } from "./PackageId"
 
 export type RequestActionParams = {
-  packageId?: PackageId
   replayId: string
-  id: ActionId
+  packageId: PackageId
+  actionId: ActionId
   description?: string
   when?: ActionRequestTrigger
   input?: ActionRequestInput

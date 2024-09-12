@@ -403,7 +403,7 @@ impl Map for CurrentDependencies {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, TS, HasModel)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS, HasModel)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct CurrentDependencyInfo {
@@ -414,26 +414,12 @@ pub struct CurrentDependencyInfo {
     pub kind: CurrentDependencyKind,
     #[ts(type = "string")]
     pub version_range: VersionRange,
-    #[ts(as = "BTreeMap::<String, ActionRequestEntry>")]
-    pub requested_actions: BTreeMap<InternedString, ActionRequestEntry>,
-}
-impl CurrentDependencyInfo {
-    pub fn update(&mut self, new: Self) {
-        self.title = new.title.or(self.title.take());
-        self.icon = new.icon.or(self.icon.take());
-        self.kind = new.kind;
-        self.version_range = new.version_range;
-        for (replay_id, req) in new.requested_actions {
-            self.requested_actions.insert(replay_id, req);
-        }
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "kind")]
 pub enum CurrentDependencyKind {
-    Optional,
     Exists,
     #[serde(rename_all = "camelCase")]
     Running {
@@ -441,11 +427,6 @@ pub enum CurrentDependencyKind {
         #[ts(type = "string[]")]
         health_checks: BTreeSet<HealthCheckId>,
     },
-}
-impl Default for CurrentDependencyKind {
-    fn default() -> Self {
-        Self::Optional
-    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS, HasModel)]
@@ -462,7 +443,8 @@ pub struct ActionRequestEntry {
 #[ts(export)]
 #[model = "Model<Self>"]
 pub struct ActionRequest {
-    pub id: ActionId,
+    pub package_id: PackageId,
+    pub action_id: ActionId,
     #[ts(optional)]
     pub description: Option<String>,
     #[ts(optional)]

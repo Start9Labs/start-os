@@ -195,8 +195,6 @@ pub struct RequestActionParams {
     #[serde(default)]
     #[ts(skip)]
     procedure_id: Guid,
-    #[ts(optional)]
-    package_id: Option<PackageId>,
     #[ts(type = "string")]
     replay_id: InternedString,
     #[serde(flatten)]
@@ -206,7 +204,6 @@ async fn request_action(
     context: EffectContext,
     RequestActionParams {
         procedure_id,
-        package_id,
         replay_id,
         request,
     }: RequestActionParams,
@@ -214,7 +211,6 @@ async fn request_action(
     let context = context.deref()?;
 
     let src_id = &context.seed.id;
-    let package_id = package_id.as_ref().unwrap_or(src_id);
     let active = match &request.when {
         Some(ActionRequestTrigger { once, condition }) => match condition {
             ActionRequestCondition::InputNotMatches => {
@@ -224,13 +220,24 @@ async fn request_action(
                         ErrorKind::InvalidRequest,
                     ));
                 };
-                if let Some(service) = context.seed.ctx.services.get(package_id).await.as_ref() {
+                if let Some(service) = context
+                    .seed
+                    .ctx
+                    .services
+                    .get(&request.package_id)
+                    .await
+                    .as_ref()
+                {
                     let Some(prev) = service
-                        .get_action_input(procedure_id, request.id.clone())
+                        .get_action_input(procedure_id, request.action_id.clone())
                         .await?
                     else {
                         return Err(Error::new(
-                            eyre!("action {} of {} has no input", request.id, package_id),
+                            eyre!(
+                                "action {} of {} has no input",
+                                request.action_id,
+                                request.package_id
+                            ),
                             ErrorKind::InvalidRequest,
                         ));
                     };
@@ -250,37 +257,18 @@ async fn request_action(
         },
         None => true,
     };
-    if package_id == src_id {
-        context
-            .seed
-            .ctx
-            .db
-            .mutate(|db| {
-                db.as_public_mut()
-                    .as_package_data_mut()
-                    .as_idx_mut(src_id)
-                    .or_not_found(src_id)?
-                    .as_requested_actions_mut()
-                    .insert(&replay_id, &ActionRequestEntry { active, request })
-            })
-            .await?;
-    } else {
-        context
-            .seed
-            .ctx
-            .db
-            .mutate(|db| {
-                db.as_public_mut()
-                    .as_package_data_mut()
-                    .as_idx_mut(src_id)
-                    .or_not_found(src_id)?
-                    .as_current_dependencies_mut()
-                    .as_idx_mut(package_id)
-                    .or_not_found(lazy_format!("{} current dependency {}", src_id, package_id))?
-                    .as_requested_actions_mut()
-                    .insert(&replay_id, &ActionRequestEntry { active, request })
-            })
-            .await?;
-    }
+    context
+        .seed
+        .ctx
+        .db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(src_id)
+                .or_not_found(src_id)?
+                .as_requested_actions_mut()
+                .insert(&replay_id, &ActionRequestEntry { active, request })
+        })
+        .await?;
     Ok(())
 }

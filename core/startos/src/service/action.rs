@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use imbl_value::{json, InternedString};
-use models::{ActionId, ProcedureName};
+use models::{ActionId, PackageId, ProcedureName};
 
 use crate::action::{ActionInput, ActionResult};
 use crate::db::model::package::{ActionRequestCondition, ActionRequestEntry, ActionRequestInput};
@@ -72,11 +72,12 @@ impl Service {
 
 pub fn update_requested_actions(
     requested_actions: &mut BTreeMap<InternedString, ActionRequestEntry>,
+    package_id: &PackageId,
     action_id: &ActionId,
     input: &Value,
 ) {
     requested_actions.retain(|_, v| {
-        if &v.request.id != action_id {
+        if &v.request.package_id != package_id || &v.request.action_id != action_id {
             return true;
         }
         if let Some(when) = &v.request.when {
@@ -144,35 +145,15 @@ impl Handler<RunAction> for ServiceActor {
             .ctx
             .db
             .mutate(|db| {
-                db.as_public_mut()
-                    .as_package_data_mut()
-                    .as_idx_mut(package_id)
-                    .or_not_found(package_id)?
-                    .as_requested_actions_mut()
-                    .mutate(|requested_actions| {
+                for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
+                    pde.as_requested_actions_mut().mutate(|requested_actions| {
                         Ok(update_requested_actions(
                             requested_actions,
+                            package_id,
                             &action_id,
                             &input,
                         ))
                     })?;
-                for (_, dependent_pde) in
-                    db.as_public_mut().as_package_data_mut().as_entries_mut()?
-                {
-                    if let Some(dep_info) = dependent_pde
-                        .as_current_dependencies_mut()
-                        .as_idx_mut(package_id)
-                    {
-                        dep_info
-                            .as_requested_actions_mut()
-                            .mutate(|requested_actions| {
-                                Ok(update_requested_actions(
-                                    requested_actions,
-                                    &action_id,
-                                    &input,
-                                ))
-                            })?;
-                    }
                 }
                 Ok(())
             })

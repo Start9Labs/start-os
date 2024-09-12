@@ -109,6 +109,9 @@ export class Actions<
     }
     await options.effects.action.clear({ except: Object.keys(this.actions) })
   }
+  get<Id extends T.ActionId>(actionId: Id): AllActions[Id] {
+    return this.actions[actionId]
+  }
 }
 
 export const setupActions = <

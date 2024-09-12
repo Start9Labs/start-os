@@ -11,7 +11,7 @@ use patch_db::json_ptr::JsonPointer;
 use tokio::process::Command;
 
 use crate::db::model::package::{
-    ActionRequest, ActionRequestEntry, CurrentDependencyInfo, CurrentDependencyKind,
+    ActionRequestEntry, CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
     ManifestPreference,
 };
 use crate::disk::mount::filesystem::bind::Bind;
@@ -197,7 +197,10 @@ pub struct SetDependenciesParams {
 }
 pub async fn set_dependencies(
     context: EffectContext,
-    SetDependenciesParams { dependencies, .. }: SetDependenciesParams,
+    SetDependenciesParams {
+        procedure_id,
+        dependencies,
+    }: SetDependenciesParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
     let id = &context.seed.id;
@@ -234,7 +237,6 @@ pub async fn set_dependencies(
                 .await?,
             kind,
             version_range,
-            requested_actions: BTreeMap::new(),
         };
         deps.insert(dep_id, info);
     }
@@ -242,24 +244,13 @@ pub async fn set_dependencies(
         .seed
         .ctx
         .db
-        .mutate(move |db| {
-            let mut current_deps = db
-                .as_public_mut()
+        .mutate(|db| {
+            db.as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(id)
                 .or_not_found(id)?
-                .as_current_dependencies_mut();
-            let dep_ids = current_deps
-                .keys()?
-                .into_iter()
-                .chain(deps.keys().cloned())
-                .collect::<BTreeSet<_>>();
-            for dep_id in dep_ids {
-                current_deps
-                    .upsert(&dep_id, || Ok(Default::default()))?
-                    .mutate(|cd| Ok(cd.update(deps.remove(&dep_id).unwrap_or_default())))?;
-            }
-            Ok(())
+                .as_current_dependencies_mut()
+                .ser(&CurrentDependencies(deps))
         })
         .await
 }
@@ -286,20 +277,18 @@ pub async fn get_dependencies(context: EffectContext) -> Result<Vec<DependencyRe
                 ..
             } = current_dependency_info;
             match kind {
-                CurrentDependencyKind::Optional => None,
                 CurrentDependencyKind::Exists => {
-                    Some(DependencyRequirement::Exists { id, version_range })
+                    DependencyRequirement::Exists { id, version_range }
                 }
                 CurrentDependencyKind::Running { health_checks } => {
-                    Some(DependencyRequirement::Running {
+                    DependencyRequirement::Running {
                         id,
                         health_checks,
                         version_range,
-                    })
+                    }
                 }
             }
         })
-        .filter_map(|a| a)
         .collect())
 }
 
@@ -333,13 +322,13 @@ pub async fn check_dependencies(
 ) -> Result<Vec<CheckDependenciesResult>, Error> {
     let context = context.deref()?;
     let db = context.seed.ctx.db.peek().await;
-    let current_dependencies = db
+    let pde = db
         .as_public()
         .as_package_data()
         .as_idx(&context.seed.id)
-        .or_not_found(&context.seed.id)?
-        .as_current_dependencies()
-        .de()?;
+        .or_not_found(&context.seed.id)?;
+    let current_dependencies = pde.as_current_dependencies().de()?;
+    let requested_actions = pde.as_requested_actions().de()?;
     let package_dependency_info: Vec<_> = package_ids
         .unwrap_or_else(|| current_dependencies.0.keys().cloned().collect())
         .into_iter()
@@ -353,13 +342,18 @@ pub async fn check_dependencies(
     for (package_id, dependency_info) in package_dependency_info {
         let title = dependency_info.title.clone();
         let Some(package) = db.as_public().as_package_data().as_idx(&package_id) else {
+            let requested_actions = requested_actions
+                .iter()
+                .filter(|(_, v)| v.request.package_id == package_id)
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
             results.push(CheckDependenciesResult {
                 package_id,
                 title,
                 installed_version: None,
                 satisfies: BTreeSet::new(),
                 is_running: false,
-                requested_actions: dependency_info.requested_actions.clone(),
+                requested_actions,
                 health_checks: Default::default(),
             });
             continue;
@@ -376,13 +370,18 @@ pub async fn check_dependencies(
             false
         };
         let health_checks = status.health().cloned().unwrap_or_default();
+        let requested_actions = requested_actions
+            .iter()
+            .filter(|(_, v)| v.request.package_id == package_id)
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
         results.push(CheckDependenciesResult {
             package_id,
             title,
             installed_version,
             satisfies,
             is_running,
-            requested_actions: dependency_info.requested_actions.clone(),
+            requested_actions,
             health_checks,
         });
     }
