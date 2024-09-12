@@ -190,6 +190,7 @@ jobs:
           mkdir -p container-runtime/dist
           mkdir -p core/startos/bindings
           mkdir -p sdk/dist
+          mkdir -p patch-db/client/node_modules/
           PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
 
       - name: Run iso build
