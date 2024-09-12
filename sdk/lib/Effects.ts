@@ -1,4 +1,3 @@
-import { T } from "."
 import {
   ActionId,
   ActionInput,
@@ -14,6 +13,7 @@ import {
   ExportServiceInterfaceParams,
   ServiceInterface,
   ActionRequest,
+  RequestActionParams,
 } from "./osBindings"
 import { StorePath } from "./store/PathBuilder"
 import {
@@ -45,7 +45,7 @@ export type Effects = {
       input?: Input
     }): Promise<ActionResult | null>
     request<Input extends Record<string, unknown>>(
-      options: T.RequestActionParams,
+      options: RequestActionParams,
     ): Promise<void>
   }
 

@@ -7,7 +7,6 @@ import {
   ServiceInterface,
 } from "./osBindings"
 import { MainEffects, Signals } from "./StartSdk"
-import { InputSpec } from "./actions/input/inputSpecTypes"
 import { Daemons } from "./mainFn/Daemons"
 import { ExposedStorePaths } from "./store/setupExposeStore"
 import { StringObject, ToKebab } from "./util"
