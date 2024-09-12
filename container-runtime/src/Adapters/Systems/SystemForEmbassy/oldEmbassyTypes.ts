@@ -201,9 +201,9 @@ export type WithDescription<T> = T & {
 }
 
 export type WithOptionalDescription<T> = T & {
-  /** _AT_ deprecated - optional only for backwards compatibility */
+  /** @deprecated - optional only for backwards compatibility */
   description?: string
-  /** _AT_ deprecated - optional only for backwards compatibility */
+  /** @deprecated - optional only for backwards compatibility */
   name?: string
   warning?: string
 }
