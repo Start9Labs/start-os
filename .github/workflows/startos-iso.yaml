@@ -192,6 +192,7 @@ jobs:
           mkdir -p sdk/dist
           mkdir -p patch-db/client/node_modules
           mkdir -p patch-db/client/dist
+          mkdir -p web/.angular
           PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
 
       - name: Run iso build
