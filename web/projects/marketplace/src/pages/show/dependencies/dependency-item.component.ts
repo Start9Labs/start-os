@@ -1,27 +1,17 @@
 import { CommonModule, KeyValue } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  Input,
-} from '@angular/core'
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { RouterModule } from '@angular/router'
 import { ExverPipesModule } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiLet } from '@taiga-ui/cdk'
 import { TuiAvatar, TuiLineClamp } from '@taiga-ui/kit'
-import { AbstractMarketplaceService } from '../../../services/marketplace.service'
-import { MarketplacePkg, StoreIdentity } from '../../../types'
+import { MarketplacePkg } from '../../../types'
 
 @Component({
   selector: 'marketplace-dep-item',
   template: `
-    <div class="outer-container" *tuiLet="marketplace$ | async as marketplace">
-      <tui-avatar
-        class="dep-img"
-        size="l"
-        [src]="getImage(dep.key, marketplace)"
-      />
+    <div class="outer-container">
+      <tui-avatar class="dep-img" size="l" [src]="getImage(dep.key)" />
       <div>
         <tui-line-clamp [linesLimit]="2" [content]="titleContent" />
         <ng-template #titleContent>
@@ -117,24 +107,9 @@ export class MarketplaceDepItemComponent {
   @Input({ required: true })
   dep!: KeyValue<string, T.DependencyMetadata>
 
-  private readonly marketplaceService = inject(AbstractMarketplaceService)
-  readonly marketplace$ = this.marketplaceService.getSelectedHost$()
-
-  getImage(key: string, marketplace: StoreIdentity | null) {
+  getImage(key: string) {
     const icon = this.pkg.dependencyMetadata[key]?.icon
-    const camelToSnakeCase = (str: string) =>
-      str.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)
-
-    if (icon) {
-      try {
-        const iconUrl = new URL(icon)
-        return iconUrl.href
-      } catch (e) {
-        return `${marketplace?.url}package/v0/icon/${camelToSnakeCase(key)}`
-      }
-    } else {
-      return key.substring(0, 2)
-    }
+    return icon ? icon : 'assets/img/service-icons/fallback.png'
   }
 
   getTitle(key: string): string {

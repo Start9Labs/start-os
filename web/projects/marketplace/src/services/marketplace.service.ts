@@ -1,5 +1,5 @@
 import { Observable } from 'rxjs'
-import { Marketplace, MarketplacePkg, StoreData, StoreIdentity } from '../types'
+import { MarketplacePkg, Marketplace, StoreData, StoreIdentity } from '../types'
 
 export abstract class AbstractMarketplaceService {
   abstract getKnownHosts$(): Observable<StoreIdentity[]>
