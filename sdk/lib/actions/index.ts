@@ -1,4 +1,5 @@
-import { T, IST } from ".."
+import * as T from "../types"
+import * as IST from "../actions/input/inputSpecTypes"
 
 export type RunActionInput<Input> =
   | Input

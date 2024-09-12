@@ -71,7 +71,7 @@ import { VersionGraph } from "./version"
 import { MaybeFn } from "./actions/setupActions"
 import { GetInput } from "./actions/setupActions"
 import { Run } from "./actions/setupActions"
-import { actions } from "."
+import * as actions from "./actions"
 
 export const SDKVersion = testTypeVersion("0.3.6")
 
