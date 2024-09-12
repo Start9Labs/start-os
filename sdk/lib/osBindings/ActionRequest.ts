@@ -5,6 +5,7 @@ import type { ActionRequestTrigger } from "./ActionRequestTrigger"
 
 export type ActionRequest = {
   id: ActionId
+  description?: string
   when?: ActionRequestTrigger
   input?: ActionRequestInput
 }

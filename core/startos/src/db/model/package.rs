@@ -464,6 +464,8 @@ pub struct ActionRequestEntry {
 pub struct ActionRequest {
     pub id: ActionId,
     #[ts(optional)]
+    pub description: Option<String>,
+    #[ts(optional)]
     pub when: Option<ActionRequestTrigger>,
     #[ts(optional)]
     pub input: Option<ActionRequestInput>,

@@ -8,6 +8,7 @@ export type RequestActionParams = {
   packageId?: PackageId
   replayId: string
   id: ActionId
+  description?: string
   when?: ActionRequestTrigger
   input?: ActionRequestInput
 }
