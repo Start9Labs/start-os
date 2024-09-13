@@ -109,7 +109,7 @@ export type SDKManifest = {
   /**
    * @description A mapping of service dependencies to be displayed to users when viewing the Marketplace
    * @property {string} description - An explanation of why this service is a dependency.
-   * @property {boolean} optional - Whether or not this dependency is required or contingent on user inputSpecuration.
+   * @property {boolean} optional - Whether or not this dependency is required or contingent on user configuration.
    * @property {string} s9pk - TODO Aiden what goes here?
    * @example
    * ```

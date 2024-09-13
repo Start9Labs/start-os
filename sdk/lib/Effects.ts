@@ -176,6 +176,6 @@ export type Effects = {
   getDataVersion(): Promise<string | null>
 
   // system
-  /** Returns globally inputSpecured SMTP settings, if they exist */
+  /** Returns globally configured SMTP settings, if they exist */
   getSystemSmtp(options: { callback?: () => void }): Promise<SmtpValue | null>
 }

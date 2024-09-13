@@ -241,10 +241,6 @@ export type Metadata = {
   mode: number
 }
 
-export type MigrationRes = {
-  inputSpecured: boolean
-}
-
 export type ActionResult = {
   version: "0"
   message: string

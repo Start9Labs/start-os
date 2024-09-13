@@ -29,7 +29,7 @@ import {
 } from "ts-matches"
 import { JsonPath, unNestPath } from "../../../Models/JsonPath"
 import { RpcResult, matchRpcResult } from "../../RpcListener"
-import { CT } from "@start9labs/start-sdk"
+import { IST } from "@start9labs/start-sdk"
 import {
   AddSslOptions,
   BindOptions,
@@ -248,42 +248,6 @@ export class SystemForEmbassy implements System {
     readonly moduleCode: Partial<U.ExpectedExports>,
   ) {}
 
-  async actionsMetadata(effects: T.Effects): Promise<T.ActionMetadata[]> {
-    const actions = Object.entries(this.manifest.actions ?? {})
-    return Promise.all(
-      actions.map(async ([actionId, action]): Promise<T.ActionMetadata> => {
-        const name = action.name ?? actionId
-        const description = action.description
-        const warning = action.warning ?? null
-        const disabled = false
-        const input = (await convertToNewConfig(action["input-spec"] as any))
-          .spec
-        const hasRunning = !!action["allowed-statuses"].find(
-          (x) => x === "running",
-        )
-        const hasStopped = !!action["allowed-statuses"].find(
-          (x) => x === "stopped",
-        )
-        // prettier-ignore
-        const allowedStatuses = 
-        hasRunning && hasStopped ? "any":
-        hasRunning ? "onlyRunning" :
-        "onlyStopped"
-
-        const group = null
-        return {
-          name,
-          description,
-          warning,
-          disabled,
-          allowedStatuses,
-          group,
-          input,
-        }
-      }),
-    )
-  }
-
   async containerInit(): Promise<void> {}
 
   async exit(): Promise<void> {
@@ -308,11 +272,8 @@ export class SystemForEmbassy implements System {
     }
   }
 
-  async packageInit(
-    effects: Effects,
-    previousVersion: Optional<string>,
-    timeoutMs: number | null,
-  ): Promise<void> {
+  async packageInit(effects: Effects, timeoutMs: number | null): Promise<void> {
+    const previousVersion = await effects.getDataVersion()
     if (previousVersion)
       await this.migration(effects, previousVersion, timeoutMs)
     await effects.setMainStatus({ status: "stopped" })
@@ -400,10 +361,50 @@ export class SystemForEmbassy implements System {
       )
     }
   }
+  async getActionInput(
+    effects: Effects,
+    actionId: string,
+    timeoutMs: number | null,
+  ): Promise<T.ActionInput | null> {
+    if (actionId === "config") {
+      const config = await this.getConfig(effects, timeoutMs)
+      return { spec: config.spec, value: config.config }
+    } else {
+      const oldSpec = this.manifest.actions?.[actionId]?.["input-spec"]
+      if (!oldSpec) return null
+      return {
+        spec: transformConfigSpec(oldSpec as OldConfigSpec),
+        value: null,
+      }
+    }
+  }
+  async runAction(
+    effects: Effects,
+    actionId: string,
+    _: T.ActionInput | null,
+    input: unknown,
+    timeoutMs: number | null,
+  ): Promise<T.ActionResult | null> {
+    if (actionId === "config") {
+      await this.setConfig(effects, input, timeoutMs)
+      return null
+    } else {
+      return this.action(effects, actionId, input, timeoutMs)
+    }
+  }
   async exportActions(effects: Effects) {
     const manifest = this.manifest
-    if (!manifest.actions) return
-    for (const [actionId, action] of Object.entries(manifest.actions)) {
+    const actions = {
+      ...manifest.actions,
+      config: {
+        name: "Configure",
+        description: "Edit the configuration of this service",
+        "allowed-statuses": ["running", "stopped"],
+        warning: null,
+        "input-spec": {},
+      },
+    }
+    for (const [actionId, action] of Object.entries(actions)) {
       const hasRunning = !!action["allowed-statuses"].find(
         (x) => x === "running",
       )
@@ -412,21 +413,22 @@ export class SystemForEmbassy implements System {
       )
       // prettier-ignore
       const allowedStatuses = hasRunning && hasStopped ? "any":
-        hasRunning ? "onlyRunning" :
-         "onlyStopped"
-      await effects.exportAction({
+        hasRunning ? "only-running" :
+         "only-stopped"
+      await effects.action.export({
         id: actionId,
         metadata: {
           name: action.name,
           description: action.description,
           warning: action.warning || null,
-          input: action["input-spec"] as CT.InputSpec,
-          disabled: false,
+          visibility: "enabled",
           allowedStatuses,
+          hasInput: !!action["input-spec"],
           group: null,
         },
       })
     }
+    await effects.action.clear({ except: Object.keys(actions) })
   }
   async packageUninit(
     effects: Effects,
@@ -482,10 +484,7 @@ export class SystemForEmbassy implements System {
       await moduleCode.restoreBackup?.(polyfillEffects(effects, this.manifest))
     }
   }
-  async getConfig(
-    effects: Effects,
-    timeoutMs: number | null,
-  ): Promise<T.ConfigRes> {
+  async getConfig(effects: Effects, timeoutMs: number | null) {
     return this.getConfigUncleaned(effects, timeoutMs).then(convertToNewConfig)
   }
   private async getConfigUncleaned(
@@ -619,7 +618,7 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     fromVersion: string,
     timeoutMs: number | null,
-  ): Promise<T.MigrationRes> {
+  ) {
     const fromEmver = ExtendedVersion.parseEmver(fromVersion)
     const currentEmver = ExtendedVersion.parseEmver(this.manifest.version)
     if (!this.manifest.migrations) return { configured: true }
@@ -1033,9 +1032,7 @@ function extractServiceInterfaceId(manifest: Manifest, specInterface: string) {
   const serviceInterfaceId = `${specInterface}-${internalPort}`
   return serviceInterfaceId
 }
-async function convertToNewConfig(
-  value: OldGetConfigRes,
-): Promise<T.ConfigRes> {
+async function convertToNewConfig(value: OldGetConfigRes) {
   const valueSpec: OldConfigSpec = matchOldConfigSpec.unsafeCast(value.spec)
   const spec = transformConfigSpec(valueSpec)
   if (!value.config) return { spec, config: null }

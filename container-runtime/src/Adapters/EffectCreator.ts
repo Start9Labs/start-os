@@ -103,6 +103,33 @@ const rpcRoundFor =
 function makeEffects(context: EffectContext): Effects {
   const rpcRound = rpcRoundFor(context.procedureId)
   const self: Effects = {
+    action: {
+      clear(...[options]: Parameters<T.Effects["action"]["clear"]>) {
+        return rpcRound("action.clear", {
+          ...options,
+        }) as ReturnType<T.Effects["action"]["clear"]>
+      },
+      export(...[options]: Parameters<T.Effects["action"]["export"]>) {
+        return rpcRound("action.export", {
+          ...options,
+        }) as ReturnType<T.Effects["action"]["export"]>
+      },
+      getInput(...[options]: Parameters<T.Effects["action"]["getInput"]>) {
+        return rpcRound("action.get-input", {
+          ...options,
+        }) as ReturnType<T.Effects["action"]["getInput"]>
+      },
+      request(...[options]: Parameters<T.Effects["action"]["request"]>) {
+        return rpcRound("action.request", {
+          ...options,
+        }) as ReturnType<T.Effects["action"]["request"]>
+      },
+      run(...[options]: Parameters<T.Effects["action"]["run"]>) {
+        return rpcRound("action.run", {
+          ...options,
+        }) as ReturnType<T.Effects["action"]["run"]>
+      },
+    },
     bind(...[options]: Parameters<T.Effects["bind"]>) {
       return rpcRound("bind", {
         ...options,
@@ -138,16 +165,6 @@ function makeEffects(context: EffectContext): Effects {
         >
       },
     },
-    executeAction(...[options]: Parameters<T.Effects["executeAction"]>) {
-      return rpcRound("execute-action", options) as ReturnType<
-        T.Effects["executeAction"]
-      >
-    },
-    exportAction(...[options]: Parameters<T.Effects["exportAction"]>) {
-      return rpcRound("export-action", options) as ReturnType<
-        T.Effects["exportAction"]
-      >
-    },
     exportServiceInterface: ((
       ...[options]: Parameters<Effects["exportServiceInterface"]>
     ) => {
@@ -160,11 +177,6 @@ function makeEffects(context: EffectContext): Effects {
     ) {
       return rpcRound("expose-for-dependents", options) as ReturnType<
         T.Effects["exposeForDependents"]
-      >
-    },
-    getConfigured(...[]: Parameters<T.Effects["getConfigured"]>) {
-      return rpcRound("get-configured", {}) as ReturnType<
-        T.Effects["getConfigured"]
       >
     },
     getContainerIp(...[]: Parameters<T.Effects["getContainerIp"]>) {
@@ -230,18 +242,8 @@ function makeEffects(context: EffectContext): Effects {
     mount(...[options]: Parameters<T.Effects["mount"]>) {
       return rpcRound("mount", options) as ReturnType<T.Effects["mount"]>
     },
-    clearActions(...[]: Parameters<T.Effects["clearActions"]>) {
-      return rpcRound("clear-actions", {}) as ReturnType<
-        T.Effects["clearActions"]
-      >
-    },
     restart(...[]: Parameters<T.Effects["restart"]>) {
       return rpcRound("restart", {}) as ReturnType<T.Effects["restart"]>
-    },
-    setConfigured(...[configured]: Parameters<T.Effects["setConfigured"]>) {
-      return rpcRound("set-configured", { configured }) as ReturnType<
-        T.Effects["setConfigured"]
-      >
     },
     setDependencies(
       dependencies: Parameters<T.Effects["setDependencies"]>[0],

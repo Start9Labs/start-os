@@ -350,12 +350,7 @@ function getResult(
   input: any,
 ) {
   const ensureResultTypeShape = (
-    result:
-      | void
-      | T.ConfigRes
-      | T.PropertiesReturn
-      | T.ActionMetadata[]
-      | T.ActionResult,
+    result: void | T.ActionInput | T.PropertiesReturn | T.ActionResult | null,
   ): { result: any } => {
     if (isResult(result)) return result
     return { result }
@@ -366,20 +361,10 @@ function getResult(
         return system.createBackup(effects, timeout || null)
       case "/backup/restore":
         return system.restoreBackup(effects, timeout || null)
-      case "/config/get":
-        return system.getConfig(effects, timeout || null)
-      case "/config/set":
-        return system.setConfig(effects, input, timeout || null)
       case "/properties":
         return system.properties(effects, timeout || null)
-      case "/actions/metadata":
-        return system.actionsMetadata(effects)
       case "/init":
-        return system.packageInit(
-          effects,
-          string.optional().unsafeCast(input),
-          timeout || null,
-        )
+        return system.packageInit(effects, timeout || null)
       case "/uninit":
         return system.packageUninit(
           effects,
@@ -390,22 +375,17 @@ function getResult(
         const procedures = unNestPath(procedure)
         switch (true) {
           case procedures[1] === "actions" && procedures[3] === "get":
-            return system.action(effects, procedures[2], input, timeout || null)
-          case procedures[1] === "actions" && procedures[3] === "run":
-            return system.action(effects, procedures[2], input, timeout || null)
-          case procedures[1] === "dependencies" && procedures[3] === "query":
-            return system.dependenciesAutoconfig(
+            return system.getActionInput(
               effects,
               procedures[2],
-              input,
               timeout || null,
             )
-
-          case procedures[1] === "dependencies" && procedures[3] === "update":
-            return system.dependenciesAutoconfig(
+          case procedures[1] === "actions" && procedures[3] === "run":
+            return system.runAction(
               effects,
               procedures[2],
-              input,
+              input.prev,
+              input.input,
               timeout || null,
             )
         }

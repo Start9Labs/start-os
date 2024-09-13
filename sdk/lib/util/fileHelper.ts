@@ -8,7 +8,7 @@ import * as fs from "node:fs/promises"
 const previousPath = /(.+?)\/([^/]*)$/
 
 /**
- * @description Use this class to read/write an underlying inputSpecuration file belonging to the upstream service.
+ * @description Use this class to read/write an underlying configuration file belonging to the upstream service.
  *
  * Using the static functions, choose between officially supported file formats (json, yaml, toml), or a custom format (raw).
  * @example
