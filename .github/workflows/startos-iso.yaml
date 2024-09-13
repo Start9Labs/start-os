@@ -193,6 +193,12 @@ jobs:
           mkdir -p patch-db/client/node_modules
           mkdir -p patch-db/client/dist
           mkdir -p web/.angular
+          mkdir -p web/dist/raw/ui
+          mkdir -p web/dist/raw/install-wizard
+          mkdir -p web/dist/raw/setup-wizard
+          mkdir -p web/dist/static/ui
+          mkdir -p web/dist/static/install-wizard
+          mkdir -p web/dist/static/setup-wizard
           PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
 
       - name: Run iso build
