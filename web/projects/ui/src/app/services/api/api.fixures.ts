@@ -9,6 +9,8 @@ import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { T, CB } from '@start9labs/start-sdk'
 import { GetPackagesRes } from '@start9labs/marketplace'
 
+import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
+
 const mockBlake3Commitment: T.Blake3Commitment = {
   hash: 'fakehash',
   size: 0,
