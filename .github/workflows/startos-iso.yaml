@@ -187,6 +187,7 @@ jobs:
         run: |
           mkdir -p web/node_modules
           mkdir -p web/dist/raw
+          mkdir -p container-runtime/node_modules
           mkdir -p container-runtime/dist
           mkdir -p core/startos/bindings
           mkdir -p sdk/dist
