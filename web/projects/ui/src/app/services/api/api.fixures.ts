@@ -1690,7 +1690,17 @@ export module Mock {
       started: new Date().toISOString(),
       health: {},
     },
-    actions: {},
+    actions: {
+      config: {
+        name: 'Bitcoin Config',
+        description: 'edit bitcoin.conf',
+        warning: null,
+        visibility: 'enabled',
+        allowedStatuses: 'any',
+        hasInput: true,
+        group: null,
+      },
+    },
     serviceInterfaces: {
       ui: {
         id: 'ui',

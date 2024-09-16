@@ -103,7 +103,7 @@ export class DepErrorService {
 
     // invalid config
     if (
-      !Object.values(pkg.requestedActions).some(
+      Object.values(pkg.requestedActions).some(
         a =>
           a.active &&
           a.request.packageId === depId &&

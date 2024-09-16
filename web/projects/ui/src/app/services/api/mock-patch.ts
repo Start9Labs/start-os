@@ -125,7 +125,17 @@ export const mockPatchData: DataModel = {
           },
         },
       },
-      actions: {},
+      actions: {
+        config: {
+          name: 'Bitcoin Config',
+          description: 'edit bitcoin.conf',
+          warning: null,
+          visibility: 'enabled',
+          allowedStatuses: 'any',
+          hasInput: true,
+          group: null,
+        },
+      },
       serviceInterfaces: {
         ui: {
           id: 'ui',
