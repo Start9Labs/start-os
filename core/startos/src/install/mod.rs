@@ -12,11 +12,12 @@ use itertools::Itertools;
 use models::VersionString;
 use reqwest::header::{HeaderMap, CONTENT_LENGTH};
 use reqwest::Url;
-use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::yajrc::{GenericRpcMethod, RpcError};
 use rpc_toolkit::HandlerArgs;
 use rustyline_async::ReadlineEvent;
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
+use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use tracing::instrument;
 use ts_rs::TS;
 
@@ -111,6 +112,7 @@ impl std::fmt::Display for MinMax {
 
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct InstallParams {
     #[ts(type = "string")]
     registry: Url,
@@ -156,7 +158,7 @@ pub async fn install(
         .services
         .install(
             ctx.clone(),
-            || asset.deserialize_s9pk(ctx.client.clone()),
+            || asset.deserialize_s9pk_buffered(ctx.client.clone()),
             None::<Never>,
             None,
         )
@@ -187,7 +189,7 @@ pub async fn sideload(
     SideloadParams { session }: SideloadParams,
 ) -> Result<SideloadResponse, Error> {
     let (upload, file) = upload(&ctx, session.clone()).await?;
-    let (err_send, err_recv) = oneshot::channel();
+    let (err_send, err_recv) = oneshot::channel::<Error>();
     let progress = Guid::new();
     let progress_tracker = FullProgressTracker::new();
     let mut progress_listener = progress_tracker.stream(Some(Duration::from_millis(200)));
@@ -201,11 +203,14 @@ pub async fn sideload(
                     use axum::extract::ws::Message;
                     async move {
                         if let Err(e) = async {
+                            type RpcResponse = rpc_toolkit::yajrc::RpcResponse<
+                                GenericRpcMethod<&'static str, (), FullProgress>,
+                            >;
                             tokio::select! {
                                 res = async {
                                     while let Some(progress) = progress_listener.next().await {
                                         ws.send(Message::Text(
-                                            serde_json::to_string(&Ok::<_, ()>(progress))
+                                            serde_json::to_string(&progress)
                                                 .with_kind(ErrorKind::Serialization)?,
                                         ))
                                         .await
@@ -215,12 +220,8 @@ pub async fn sideload(
                                 } => res?,
                                 err = err_recv => {
                                     if let Ok(e) = err {
-                                        ws.send(Message::Text(
-                                            serde_json::to_string(&Err::<(), _>(e))
-                                            .with_kind(ErrorKind::Serialization)?,
-                                        ))
-                                        .await
-                                        .with_kind(ErrorKind::Network)?;
+                                        ws.close_result(Err::<&str, _>(e.clone_output())).await?;
+                                        return Err(e)
                                     }
                                 }
                             }
@@ -258,7 +259,7 @@ pub async fn sideload(
         }
         .await
         {
-            let _ = err_send.send(RpcError::from(e.clone_output()));
+            let _ = err_send.send(e.clone_output());
             tracing::error!("Error sideloading package: {e}");
             tracing::debug!("{e:?}");
         }
@@ -409,11 +410,17 @@ pub async fn cli_install(
                     tokio::select! {
                         msg = ws.next() => {
                             if let Some(msg) = msg {
-                                if let Message::Text(t) = msg.with_kind(ErrorKind::Network)? {
-                                    progress =
-                                        serde_json::from_str::<Result<_, RpcError>>(&t)
-                                            .with_kind(ErrorKind::Deserialization)??;
-                                    bar.update(&progress);
+                                match msg.with_kind(ErrorKind::Network)? {
+                                    Message::Text(t) => {
+                                        progress =
+                                            serde_json::from_str::<FullProgress>(&t)
+                                                .with_kind(ErrorKind::Deserialization)?;
+                                        bar.update(&progress);
+                                    }
+                                    Message::Close(Some(c)) if c.code != CloseCode::Normal => {
+                                        return Err(Error::new(eyre!("{}", c.reason), ErrorKind::Network))
+                                    }
+                                    _ => (),
                                 }
                             } else {
                                 break;

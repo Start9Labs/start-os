@@ -1,8 +1,10 @@
+use std::any::Any;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::str::FromStr;
 
+use base64::Engine;
 use clap::builder::ValueParserFactory;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
@@ -37,7 +39,11 @@ pub fn deserialize_from_str<
     {
         type Value = T;
         fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(formatter, "a parsable string")
+            write!(
+                formatter,
+                "a string that can be parsed as a {}",
+                std::any::type_name::<T>()
+            )
         }
         fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
         where
@@ -562,6 +568,14 @@ where
 
 #[derive(Deserialize, Serialize, TS)]
 pub struct StdinDeserializable<T>(pub T);
+impl<T> Default for StdinDeserializable<T>
+where
+    T: Default,
+{
+    fn default() -> Self {
+        Self(T::default())
+    }
+}
 impl<T> FromArgMatches for StdinDeserializable<T>
 where
     T: DeserializeOwned,
@@ -988,18 +1002,24 @@ impl<T: AsRef<[u8]>> Serialize for Base32<T> {
     }
 }
 
+pub const BASE64: base64::engine::GeneralPurpose = base64::engine::GeneralPurpose::new(
+    &base64::alphabet::STANDARD,
+    base64::engine::GeneralPurposeConfig::new(),
+);
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TS)]
 #[ts(type = "string", concrete(T = Vec<u8>))]
 pub struct Base64<T>(pub T);
 impl<T: AsRef<[u8]>> std::fmt::Display for Base64<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&base64::encode(self.0.as_ref()))
+        f.write_str(&BASE64.encode(self.0.as_ref()))
     }
 }
 impl<T: TryFrom<Vec<u8>>> FromStr for Base64<T> {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        base64::decode(&s)
+        BASE64
+            .decode(&s)
             .with_kind(ErrorKind::Deserialization)?
             .apply(TryFrom::try_from)
             .map(Self)

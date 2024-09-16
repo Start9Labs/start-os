@@ -1,10 +1,12 @@
 import { polyfillEffects } from "./polyfillEffects"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { SystemForEmbassy } from "."
-import { hostSystemStartOs } from "../../HostSystemStartOs"
-import { Daemons, T, daemons } from "@start9labs/start-sdk"
+import { T, utils } from "@start9labs/start-sdk"
 import { Daemon } from "@start9labs/start-sdk/cjs/lib/mainFn/Daemon"
 import { Effects } from "../../../Models/Effects"
+import { off } from "node:process"
+import { CommandController } from "@start9labs/start-sdk/cjs/lib/mainFn/CommandController"
+import { asError } from "@start9labs/start-sdk/cjs/lib/util"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 const EMBASSY_PROPERTIES_LOOP = 30 * 1000
@@ -14,24 +16,31 @@ const EMBASSY_PROPERTIES_LOOP = 30 * 1000
  * Also, this has an ability to clean itself up too if need be.
  */
 export class MainLoop {
-  private healthLoops:
-    | {
-        name: string
-        interval: NodeJS.Timeout
-      }[]
-    | undefined
+  get mainSubContainerHandle() {
+    return this.mainEvent?.daemon?.subContainerHandle
+  }
+  private healthLoops?: {
+    name: string
+    interval: NodeJS.Timeout
+  }[]
 
-  private mainEvent:
-    | Promise<{
-        daemon: Daemon
-      }>
-    | undefined
-  constructor(
+  private mainEvent?: {
+    daemon: Daemon
+  }
+
+  private constructor(
     readonly system: SystemForEmbassy,
     readonly effects: Effects,
-  ) {
-    this.healthLoops = this.constructHealthLoops()
-    this.mainEvent = this.constructMainEvent()
+  ) {}
+
+  static async of(
+    system: SystemForEmbassy,
+    effects: Effects,
+  ): Promise<MainLoop> {
+    const res = new MainLoop(system, effects)
+    res.healthLoops = res.constructHealthLoops()
+    res.mainEvent = await res.constructMainEvent()
+    return res
   }
 
   private async constructMainEvent() {
@@ -44,22 +53,32 @@ export class MainLoop {
     await this.setupInterfaces(effects)
     await effects.setMainStatus({ status: "running" })
     const jsMain = (this.system.moduleCode as any)?.jsMain
-    const dockerProcedureContainer = await DockerProcedureContainer.of(
-      effects,
-      this.system.manifest.main,
-      this.system.manifest.volumes,
-    )
     if (jsMain) {
       throw new Error("Unreachable")
     }
-    const daemon = await Daemon.of()(
-      this.effects,
-      { id: this.system.manifest.main.image },
-      currentCommand,
-      {
-        overlay: dockerProcedureContainer.overlay,
-      },
-    )
+    const daemon = new Daemon(async () => {
+      const subcontainer = await DockerProcedureContainer.createSubContainer(
+        effects,
+        this.system.manifest.id,
+        this.system.manifest.main,
+        this.system.manifest.volumes,
+      )
+      return CommandController.of()(
+        this.effects,
+        subcontainer,
+        currentCommand,
+        {
+          runAsInit: true,
+          env: {
+            TINI_SUBREAPER: "true",
+          },
+          sigtermTimeout: utils.inMs(
+            this.system.manifest.main["sigterm-timeout"],
+          ),
+        },
+      )
+    })
+
     daemon.start()
     return {
       daemon,
@@ -115,7 +134,9 @@ export class MainLoop {
     const main = await mainEvent
     delete this.mainEvent
     delete this.healthLoops
-    await main?.daemon.stop().catch((e) => console.error(e))
+    await main?.daemon
+      .stop()
+      .catch((e) => console.error(`Main loop error`, utils.asError(e)))
     this.effects.setMainStatus({ status: "stopped" })
     if (healthLoops) healthLoops.forEach((x) => clearInterval(x.interval))
   }
@@ -126,26 +147,48 @@ export class MainLoop {
     const start = Date.now()
     return Object.entries(manifest["health-checks"]).map(
       ([healthId, value]) => {
+        effects
+          .setHealth({
+            id: healthId,
+            name: value.name,
+            result: "starting",
+            message: null,
+          })
+          .catch((e) => console.error(asError(e)))
         const interval = setInterval(async () => {
           const actionProcedure = value
           const timeChanged = Date.now() - start
           if (actionProcedure.type === "docker") {
-            const container = await DockerProcedureContainer.of(
-              effects,
-              actionProcedure,
-              manifest.volumes,
+            const subcontainer = actionProcedure.inject
+              ? this.mainSubContainerHandle
+              : undefined
+            // prettier-ignore
+            const container = 
+              await DockerProcedureContainer.of(
+                effects,
+                manifest.id,
+                actionProcedure,
+                manifest.volumes,
+                {
+                  subcontainer,
+                }
+              )
+            const env: Record<string, string> = actionProcedure.inject
+              ? {
+                  HOME: "/root",
+                }
+              : {}
+            const executed = await container.exec(
+              [actionProcedure.entrypoint, ...actionProcedure.args],
+              { input: JSON.stringify(timeChanged), env },
             )
-            const executed = await container.exec([
-              actionProcedure.entrypoint,
-              ...actionProcedure.args,
-              JSON.stringify(timeChanged),
-            ])
+
             if (executed.exitCode === 0) {
               await effects.setHealth({
                 id: healthId,
                 name: value.name,
                 result: "success",
-                message: actionProcedure["success-message"],
+                message: actionProcedure["success-message"] ?? null,
               })
               return
             }
@@ -187,6 +230,18 @@ export class MainLoop {
                 name: value.name,
                 result: "failure",
                 message: errorMessage,
+              })
+              return
+            }
+            if (executed.exitCode && executed.exitCode > 0) {
+              await effects.setHealth({
+                id: healthId,
+                name: value.name,
+                result: "failure",
+                message:
+                  executed.stderr.toString() ||
+                  executed.stdout.toString() ||
+                  `Program exited with code ${executed.exitCode}:`,
               })
               return
             }

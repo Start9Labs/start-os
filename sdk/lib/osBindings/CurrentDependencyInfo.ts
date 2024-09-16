@@ -2,9 +2,8 @@
 import type { DataUrl } from "./DataUrl"
 
 export type CurrentDependencyInfo = {
-  title: string
-  icon: DataUrl
-  registryUrl: string
-  versionSpec: string
+  title: string | null
+  icon: DataUrl | null
+  versionRange: string
   configSatisfied: boolean
 } & ({ kind: "exists" } | { kind: "running"; healthChecks: string[] })

@@ -49,6 +49,10 @@ export type PackageDataEntry<T extends StateInfo = StateInfo> =
     stateInfo: T
   }
 
+export type AllPackageData = NonNullable<
+  T.AllPackageData & Record<string, PackageDataEntry<StateInfo>>
+>
+
 export type StateInfo = InstalledState | InstallingState | UpdatingState
 
 export type InstalledState = {

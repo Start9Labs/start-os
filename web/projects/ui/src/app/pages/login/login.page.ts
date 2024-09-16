@@ -40,6 +40,7 @@ export class LoginPage {
       await this.api.login({
         password: this.password,
         metadata: { platforms: getPlatforms() },
+        ephemeral: window.location.host === 'localhost',
       })
 
       this.password = ''

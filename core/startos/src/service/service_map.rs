@@ -173,6 +173,7 @@ impl ServiceMap {
                                 } else {
                                     PackageState::Installing(installing)
                                 },
+                                data_version: None,
                                 status: Status {
                                     configured: false,
                                     main: MainStatus::Stopped,
@@ -265,35 +266,20 @@ impl ServiceMap {
                     } else {
                         None
                     };
-                    if let Some(recovery_source) = recovery_source {
-                        *service = Some(
-                            Service::restore(
-                                ctx,
-                                s9pk,
-                                recovery_source,
-                                Some(InstallProgressHandles {
-                                    finalization_progress,
-                                    progress,
-                                }),
-                            )
-                            .await?
-                            .into(),
-                        );
-                    } else {
-                        *service = Some(
-                            Service::install(
-                                ctx,
-                                s9pk,
-                                prev,
-                                Some(InstallProgressHandles {
-                                    finalization_progress,
-                                    progress,
-                                }),
-                            )
-                            .await?
-                            .into(),
-                        );
-                    }
+                    *service = Some(
+                        Service::install(
+                            ctx,
+                            s9pk,
+                            prev,
+                            recovery_source,
+                            Some(InstallProgressHandles {
+                                finalization_progress,
+                                progress,
+                            }),
+                        )
+                        .await?
+                        .into(),
+                    );
                     drop(service);
 
                     sync_progress_task.await.map_err(|_| {

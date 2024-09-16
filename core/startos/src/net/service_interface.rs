@@ -67,7 +67,6 @@ pub struct ServiceInterface {
     pub name: String,
     pub description: String,
     pub has_primary: bool,
-    pub disabled: bool,
     pub masked: bool,
     pub address_info: AddressInfo,
     #[serde(rename = "type")]

@@ -28,8 +28,6 @@ export const jsonPath = some(
   literals(
     "/init",
     "/uninit",
-    "/main/start",
-    "/main/stop",
     "/config/set",
     "/config/get",
     "/backup/create",

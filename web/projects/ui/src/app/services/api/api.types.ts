@@ -1,5 +1,4 @@
 import { Dump } from 'patch-db-client'
-import { MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
@@ -34,6 +33,7 @@ export module RR {
   export type LoginReq = {
     password: string
     metadata: SessionMetadata
+    ephemeral?: boolean
   } // auth.login - unauthed
   export type loginRes = null
 
@@ -223,19 +223,14 @@ export module RR {
   export type GetPackageMetricsReq = { id: string } // package.metrics
   export type GetPackageMetricsRes = Metric
 
-  export type InstallPackageReq = {
-    id: string
-    versionSpec?: string
-    versionPriority?: 'min' | 'max'
-    registry: string
-  } // package.install
+  export type InstallPackageReq = T.InstallParams
   export type InstallPackageRes = null
 
   export type GetPackageConfigReq = { id: string } // package.config.get
   export type GetPackageConfigRes = { spec: CT.InputSpec; config: object }
 
   export type DrySetPackageConfigReq = { id: string; config: object } // package.config.set.dry
-  export type DrySetPackageConfigRes = Breakages
+  export type DrySetPackageConfigRes = T.PackageId[]
 
   export type SetPackageConfigReq = DrySetPackageConfigReq // package.config.set
   export type SetPackageConfigRes = null
@@ -287,26 +282,13 @@ export module RR {
     progress: string // guid
   }
 
-  // marketplace
+  // registry
 
-  export type GetMarketplaceInfoReq = { serverId: string }
-  export type GetMarketplaceInfoRes = StoreInfo
+  /** these are returned in ASCENDING order. the newest available version will be the LAST in the object */
+  export type GetRegistryOsUpdateRes = { [version: string]: T.OsVersionInfo }
 
   export type CheckOSUpdateReq = { serverId: string }
   export type CheckOSUpdateRes = OSUpdate
-
-  export type GetMarketplacePackagesReq = {
-    ids?: { id: string; version: string }[]
-    // iff !ids
-    category?: string
-    query?: string
-    page?: number
-    perPage?: number
-  }
-  export type GetMarketplacePackagesRes = MarketplacePkg[]
-
-  export type GetReleaseNotesReq = { id: string }
-  export type GetReleaseNotesRes = { [version: string]: string }
 }
 
 export interface OSUpdate {
@@ -372,6 +354,7 @@ export interface Metric {
 }
 
 export interface Session {
+  loggedIn: string
   lastActive: string
   userAgent: string
   metadata: SessionMetadata
@@ -554,7 +537,7 @@ export interface DependencyErrorConfigUnsatisfied {
 
 export interface DependencyErrorHealthChecksFailed {
   type: 'healthChecksFailed'
-  check: T.HealthCheckResult
+  check: T.NamedHealthCheckResult
 }
 
 export interface DependencyErrorTransitive {

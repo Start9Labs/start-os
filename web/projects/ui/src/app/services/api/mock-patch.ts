@@ -73,7 +73,7 @@ export const mockPatchData: DataModel = {
     platform: 'x86_64-nonfree',
     zram: true,
     governor: 'performance',
-    smtp: 'todo',
+    smtp: null,
     wifi: {
       interface: 'wlan0',
       ssids: [],
@@ -87,9 +87,10 @@ export const mockPatchData: DataModel = {
         state: 'installed',
         manifest: {
           ...Mock.MockManifestBitcoind,
-          version: '0.20.0',
+          version: '0.20.0:0',
         },
       },
+      dataVersion: '0.20.0:0',
       icon: '/assets/img/service-icons/bitcoind.svg',
       lastBackup: null,
       status: {
@@ -131,7 +132,6 @@ export const mockPatchData: DataModel = {
         ui: {
           id: 'ui',
           hasPrimary: false,
-          disabled: false,
           masked: false,
           name: 'Web UI',
           description:
@@ -149,7 +149,6 @@ export const mockPatchData: DataModel = {
         rpc: {
           id: 'rpc',
           hasPrimary: false,
-          disabled: false,
           masked: false,
           name: 'RPC',
           description:
@@ -167,7 +166,6 @@ export const mockPatchData: DataModel = {
         p2p: {
           id: 'p2p',
           hasPrimary: true,
-          disabled: false,
           masked: false,
           name: 'P2P',
           description:
@@ -294,9 +292,10 @@ export const mockPatchData: DataModel = {
         state: 'installed',
         manifest: {
           ...Mock.MockManifestLnd,
-          version: '0.11.0',
+          version: '0.11.0:0.0.1',
         },
       },
+      dataVersion: '0.11.0:0.0.1',
       icon: '/assets/img/service-icons/lnd.png',
       lastBackup: null,
       status: {
@@ -310,7 +309,6 @@ export const mockPatchData: DataModel = {
         grpc: {
           id: 'grpc',
           hasPrimary: false,
-          disabled: false,
           masked: false,
           name: 'GRPC',
           description:
@@ -328,7 +326,6 @@ export const mockPatchData: DataModel = {
         lndconnect: {
           id: 'lndconnect',
           hasPrimary: false,
-          disabled: false,
           masked: true,
           name: 'LND Connect',
           description:
@@ -346,7 +343,6 @@ export const mockPatchData: DataModel = {
         p2p: {
           id: 'p2p',
           hasPrimary: true,
-          disabled: false,
           masked: false,
           name: 'P2P',
           description:
@@ -367,8 +363,7 @@ export const mockPatchData: DataModel = {
           title: 'Bitcoin Core',
           icon: 'assets/img/service-icons/bitcoind.svg',
           kind: 'running',
-          registryUrl: 'https://registry.start9.com',
-          versionSpec: '>=26.0.0',
+          versionRange: '>=26.0.0',
           healthChecks: [],
           configSatisfied: true,
         },
@@ -376,8 +371,7 @@ export const mockPatchData: DataModel = {
           title: 'Bitcoin Proxy',
           icon: 'assets/img/service-icons/btc-rpc-proxy.png',
           kind: 'running',
-          registryUrl: 'https://community-registry.start9.com',
-          versionSpec: '>2.0.0',
+          versionRange: '>2.0.0',
           healthChecks: [],
           configSatisfied: false,
         },

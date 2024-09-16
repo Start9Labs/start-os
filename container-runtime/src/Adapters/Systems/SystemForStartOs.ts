@@ -1,194 +1,177 @@
-import { ExecuteResult, System } from "../../Interfaces/System"
+import { ExecuteResult, Procedure, System } from "../../Interfaces/System"
 import { unNestPath } from "../../Models/JsonPath"
 import matches, { any, number, object, string, tuple } from "ts-matches"
-import { hostSystemStartOs } from "../HostSystemStartOs"
 import { Effects } from "../../Models/Effects"
 import { RpcResult, matchRpcResult } from "../RpcListener"
 import { duration } from "../../Models/Duration"
-import { T } from "@start9labs/start-sdk"
+import { T, utils } from "@start9labs/start-sdk"
+import { Volume } from "../../Models/Volume"
 import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
+import { CallbackHolder } from "../../Models/CallbackHolder"
+import { Optional } from "ts-matches/lib/parsers/interfaces"
+
 export const STARTOS_JS_LOCATION = "/usr/lib/startos/package/index.js"
+
+type RunningMain = {
+  effects: MainEffects
+  stop: () => Promise<void>
+  callbacks: CallbackHolder
+}
+
 export class SystemForStartOs implements System {
-  private onTerm: (() => Promise<void>) | undefined
+  private runningMain: RunningMain | undefined
+
   static of() {
     return new SystemForStartOs(require(STARTOS_JS_LOCATION))
   }
+
   constructor(readonly abi: T.ABI) {}
-  async execute(
-    effectCreator: ReturnType<typeof hostSystemStartOs>,
-    options: {
-      id: string
-      procedure:
-        | "/init"
-        | "/uninit"
-        | "/main/start"
-        | "/main/stop"
-        | "/config/set"
-        | "/config/get"
-        | "/backup/create"
-        | "/backup/restore"
-        | "/actions/metadata"
-        | `/actions/${string}/get`
-        | `/actions/${string}/run`
-        | `/dependencies/${string}/query`
-        | `/dependencies/${string}/update`
-      input: unknown
-      timeout?: number | undefined
-    },
-  ): Promise<RpcResult> {
-    const effects = effectCreator(options.id)
-    return this._execute(effects, options)
-      .then((x) =>
-        matches(x)
-          .when(
-            object({
-              result: any,
-            }),
-            (x) => x,
-          )
-          .when(
-            object({
-              error: string,
-            }),
-            (x) => ({
-              error: {
-                code: 0,
-                message: x.error,
-              },
-            }),
-          )
-          .when(
-            object({
-              "error-code": tuple(number, string),
-            }),
-            ({ "error-code": [code, message] }) => ({
-              error: {
-                code,
-                message,
-              },
-            }),
-          )
-          .defaultTo({ result: x }),
-      )
-      .catch((error: unknown) => {
-        if (error instanceof Error)
-          return {
-            error: {
-              code: 0,
-              message: error.name,
-              data: {
-                details: error.message,
-                debug: `${error?.cause ?? "[noCause]"}:${error?.stack ?? "[noStack]"}`,
-              },
-            },
-          }
-        if (matchRpcResult.test(error)) return error
-        return {
-          error: {
-            code: 0,
-            message: String(error),
-          },
-        }
-      })
+  containerInit(): Promise<void> {
+    throw new Error("Method not implemented.")
   }
-  async _execute(
+  async packageInit(
     effects: Effects,
-    options: {
-      procedure:
-        | "/init"
-        | "/uninit"
-        | "/main/start"
-        | "/main/stop"
-        | "/config/set"
-        | "/config/get"
-        | "/backup/create"
-        | "/backup/restore"
-        | "/actions/metadata"
-        | `/actions/${string}/get`
-        | `/actions/${string}/run`
-        | `/dependencies/${string}/query`
-        | `/dependencies/${string}/update`
-      input: unknown
-      timeout?: number | undefined
-    },
-  ): Promise<unknown> {
-    switch (options.procedure) {
-      case "/init": {
-        const previousVersion =
-          string.optional().unsafeCast(options.input) || null
-        return this.abi.init({ effects, previousVersion })
-      }
-      case "/uninit": {
-        const nextVersion = string.optional().unsafeCast(options.input) || null
-        return this.abi.uninit({ effects, nextVersion })
-      }
-      case "/main/start": {
-        if (this.onTerm) await this.onTerm()
-        const started = async (onTerm: () => Promise<void>) => {
-          await effects.setMainStatus({ status: "running" })
-          this.onTerm = onTerm
-        }
-        const daemons = await (
-          await this.abi.main({
-            effects: { ...effects, _type: "main" },
-            started,
-          })
-        ).build()
-        this.onTerm = daemons.term
-        return
-      }
-      case "/main/stop": {
-        if (this.onTerm) await this.onTerm()
-        await effects.setMainStatus({ status: "stopped" })
-        delete this.onTerm
-        return duration(30, "s")
-      }
-      case "/config/set": {
-        const input = options.input as any // TODO
-        return this.abi.setConfig({ effects, input })
-      }
-      case "/config/get": {
-        return this.abi.getConfig({ effects })
-      }
-      case "/backup/create":
-      case "/backup/restore":
-        throw new Error("this should be called with the init/unit")
-      case "/actions/metadata": {
-        return this.abi.actionsMetadata({ effects })
-      }
-      default:
-        const procedures = unNestPath(options.procedure)
-        const id = procedures[2]
-        switch (true) {
-          case procedures[1] === "actions" && procedures[3] === "get": {
-            const action = (await this.abi.actions({ effects }))[id]
-            if (!action) throw new Error(`Action ${id} not found`)
-            return action.getConfig({ effects })
-          }
-          case procedures[1] === "actions" && procedures[3] === "run": {
-            const action = (await this.abi.actions({ effects }))[id]
-            if (!action) throw new Error(`Action ${id} not found`)
-            return action.run({ effects, input: options.input as any }) // TODO
-          }
-          case procedures[1] === "dependencies" && procedures[3] === "query": {
-            const dependencyConfig = this.abi.dependencyConfig[id]
-            if (!dependencyConfig)
-              throw new Error(`dependencyConfig ${id} not found`)
-            const localConfig = options.input
-            return dependencyConfig.query({ effects })
-          }
-          case procedures[1] === "dependencies" && procedures[3] === "update": {
-            const dependencyConfig = this.abi.dependencyConfig[id]
-            if (!dependencyConfig)
-              throw new Error(`dependencyConfig ${id} not found`)
-            return dependencyConfig.update(options.input as any) // TODO
-          }
-        }
-        return
-    }
-    throw new Error(`Method ${options.procedure} not implemented.`)
+    previousVersion: Optional<string> = null,
+    timeoutMs: number | null = null,
+  ): Promise<void> {
+    return void (await this.abi.init({ effects }))
   }
-  async exit(effects: Effects): Promise<void> {
-    return void null
+  async packageUninit(
+    effects: Effects,
+    nextVersion: Optional<string> = null,
+    timeoutMs: number | null = null,
+  ): Promise<void> {
+    return void (await this.abi.uninit({ effects, nextVersion }))
+  }
+  async createBackup(
+    effects: T.Effects,
+    timeoutMs: number | null,
+  ): Promise<void> {
+    return void (await this.abi.createBackup({
+      effects,
+      pathMaker: ((options) =>
+        new Volume(options.volume, options.path).path) as T.PathMaker,
+    }))
+  }
+  async restoreBackup(
+    effects: T.Effects,
+    timeoutMs: number | null,
+  ): Promise<void> {
+    return void (await this.abi.restoreBackup({
+      effects,
+      pathMaker: ((options) =>
+        new Volume(options.volume, options.path).path) as T.PathMaker,
+    }))
+  }
+  getConfig(
+    effects: T.Effects,
+    timeoutMs: number | null,
+  ): Promise<T.ConfigRes> {
+    return this.abi.getConfig({ effects })
+  }
+  async setConfig(
+    effects: Effects,
+    input: { effects: Effects; input: Record<string, unknown> },
+    timeoutMs: number | null,
+  ): Promise<void> {
+    const _: unknown = await this.abi.setConfig({ effects, input })
+    return
+  }
+  migration(
+    effects: Effects,
+    fromVersion: string,
+    timeoutMs: number | null,
+  ): Promise<T.MigrationRes> {
+    throw new Error("Method not implemented.")
+  }
+  properties(
+    effects: Effects,
+    timeoutMs: number | null,
+  ): Promise<T.PropertiesReturn> {
+    throw new Error("Method not implemented.")
+  }
+  async action(
+    effects: Effects,
+    id: string,
+    formData: unknown,
+    timeoutMs: number | null,
+  ): Promise<T.ActionResult> {
+    const action = (await this.abi.actions({ effects }))[id]
+    if (!action) throw new Error(`Action ${id} not found`)
+    return action.run({ effects })
+  }
+  dependenciesCheck(
+    effects: Effects,
+    id: string,
+    oldConfig: unknown,
+    timeoutMs: number | null,
+  ): Promise<any> {
+    const dependencyConfig = this.abi.dependencyConfig[id]
+    if (!dependencyConfig) throw new Error(`dependencyConfig ${id} not found`)
+    return dependencyConfig.query({ effects })
+  }
+  async dependenciesAutoconfig(
+    effects: Effects,
+    id: string,
+    remoteConfig: unknown,
+    timeoutMs: number | null,
+  ): Promise<void> {
+    const dependencyConfig = this.abi.dependencyConfig[id]
+    if (!dependencyConfig) throw new Error(`dependencyConfig ${id} not found`)
+    const queryResults = await this.getConfig(effects, timeoutMs)
+    return void (await dependencyConfig.update({
+      queryResults,
+      remoteConfig,
+    })) // TODO
+  }
+  async actionsMetadata(effects: T.Effects): Promise<T.ActionMetadata[]> {
+    return this.abi.actionsMetadata({ effects })
+  }
+
+  async init(): Promise<void> {}
+
+  async exit(): Promise<void> {}
+
+  async start(effects: MainEffects): Promise<void> {
+    if (this.runningMain) await this.stop()
+    let mainOnTerm: () => Promise<void> | undefined
+    const started = async (onTerm: () => Promise<void>) => {
+      await effects.setMainStatus({ status: "running" })
+      mainOnTerm = onTerm
+    }
+    const daemons = await (
+      await this.abi.main({
+        effects: effects as MainEffects,
+        started,
+      })
+    ).build()
+    this.runningMain = {
+      effects,
+      stop: async () => {
+        if (mainOnTerm) await mainOnTerm()
+        await daemons.term()
+      },
+      callbacks: new CallbackHolder(),
+    }
+  }
+
+  callCallback(callback: number, args: any[]): void {
+    if (this.runningMain) {
+      this.runningMain.callbacks
+        .callCallback(callback, args)
+        .catch((error) =>
+          console.error(`callback ${callback} failed`, utils.asError(error)),
+        )
+    } else {
+      console.warn(`callback ${callback} ignored because system is not running`)
+    }
+  }
+
+  async stop(): Promise<void> {
+    if (this.runningMain) {
+      await this.runningMain.stop()
+      await this.runningMain.effects.clearCallbacks()
+      this.runningMain = undefined
+    }
   }
 }

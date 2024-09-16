@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use futures::{Future, StreamExt};
 use helpers::NonDetachingJoinHandle;
+use imbl_value::InternedString;
 use josekit::jwk::Jwk;
 use patch_db::PatchDb;
 use rpc_toolkit::Context;
@@ -40,7 +41,8 @@ lazy_static::lazy_static! {
 #[ts(export)]
 pub struct SetupResult {
     pub tor_address: String,
-    pub lan_address: String,
+    #[ts(type = "string")]
+    pub lan_address: InternedString,
     pub root_ca: String,
 }
 impl TryFrom<&AccountInfo> for SetupResult {
@@ -97,18 +99,6 @@ impl SetupContext {
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
         Ok(db)
-    }
-    #[instrument(skip_all)]
-    pub async fn secret_store(&self) -> Result<PgPool, Error> {
-        init_postgres(&self.datadir).await?;
-        let secret_store =
-            PgPool::connect_with(PgConnectOptions::new().database("secrets").username("root"))
-                .await?;
-        sqlx::migrate!()
-            .run(&secret_store)
-            .await
-            .with_kind(crate::ErrorKind::Database)?;
-        Ok(secret_store)
     }
 
     pub fn run_setup<F, Fut>(&self, f: F) -> Result<(), Error>

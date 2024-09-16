@@ -15,7 +15,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
     EmbassyLogger::init();
     if let Err(e) = CliApp::new(
         |cfg: ContainerClientConfig| Ok(ContainerCliContext::init(cfg)),
-        crate::service::service_effect_handler::service_effect_handler(),
+        crate::service::effects::handler(),
     )
     .run(args)
     {

@@ -49,9 +49,9 @@ managed=true
 EOF
 $SYSTEMCTL enable startd.service
 $SYSTEMCTL enable systemd-resolved.service
-$SYSTEMCTL enable systemd-networkd-wait-online.service
 $SYSTEMCTL enable ssh.service
 $SYSTEMCTL disable wpa_supplicant.service
+$SYSTEMCTL mask systemd-networkd-wait-online.service # currently use `NetworkManager-wait-online.service`
 
 $SYSTEMCTL disable docker.service
 $SYSTEMCTL disable postgresql.service
@@ -79,6 +79,7 @@ sed -i '/\(^\|#\)SystemMaxUse=/c\SystemMaxUse=1G' /etc/systemd/journald.conf
 sed -i '/\(^\|#\)ForwardToSyslog=/c\ForwardToSyslog=no' /etc/systemd/journald.conf
 sed -i '/^\s*#\?\s*issue_discards\s*=\s*/c\issue_discards = 1' /etc/lvm/lvm.conf
 sed -i '/\(^\|#\)\s*unqualified-search-registries\s*=\s*/c\unqualified-search-registries = ["docker.io"]' /etc/containers/registries.conf
+sed -i 's/\(#\|\^\)\s*\([^=]\+\)=\(suspend\|hibernate\)\s*$/\2=ignore/g' /etc/systemd/logind.conf
 
 mkdir -p /etc/nginx/ssl
 

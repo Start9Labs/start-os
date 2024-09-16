@@ -490,6 +490,7 @@ where
 {
     fn with_kind(self, kind: ErrorKind) -> Result<T, Error>;
     fn with_ctx<F: FnOnce(&E) -> (ErrorKind, D), D: Display>(self, f: F) -> Result<T, Error>;
+    fn log_err(self) -> Option<T>;
 }
 impl<T, E> ResultExt<T, E> for Result<T, E>
 where
@@ -516,6 +517,18 @@ where
             }
         })
     }
+
+    fn log_err(self) -> Option<T> {
+        match self {
+            Ok(a) => Some(a),
+            Err(e) => {
+                let e: color_eyre::eyre::Error = e.into();
+                tracing::error!("{e}");
+                tracing::debug!("{e:?}");
+                None
+            }
+        }
+    }
 }
 impl<T> ResultExt<T, Error> for Result<T, Error> {
     fn with_kind(self, kind: ErrorKind) -> Result<T, Error> {
@@ -538,6 +551,17 @@ impl<T> ResultExt<T, Error> for Result<T, Error> {
                 revision: e.revision,
             }
         })
+    }
+
+    fn log_err(self) -> Option<T> {
+        match self {
+            Ok(a) => Some(a),
+            Err(e) => {
+                tracing::error!("{e}");
+                tracing::debug!("{e:?}");
+                None
+            }
+        }
     }
 }
 

@@ -5,10 +5,12 @@ use std::task::Poll;
 use std::time::Duration;
 
 use axum::body::Body;
+use axum::extract::Request;
 use axum::response::Response;
-use futures::{ready, FutureExt, StreamExt};
+use bytes::Bytes;
+use futures::{ready, FutureExt, Stream, StreamExt};
 use http::header::CONTENT_LENGTH;
-use http::StatusCode;
+use http::{HeaderMap, StatusCode};
 use imbl_value::InternedString;
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncSeek, AsyncSeekExt, AsyncWrite, AsyncWriteExt};
@@ -34,51 +36,7 @@ pub async fn upload(
                 ctx,
                 session,
                 |request| async move {
-                    let headers = request.headers();
-                    let content_length = match headers.get(CONTENT_LENGTH).map(|a| a.to_str()) {
-                        None => {
-                            return Response::builder()
-                                .status(StatusCode::BAD_REQUEST)
-                                .body(Body::from("Content-Length is required"))
-                                .with_kind(ErrorKind::Network)
-                        }
-                        Some(Err(_)) => {
-                            return Response::builder()
-                                .status(StatusCode::BAD_REQUEST)
-                                .body(Body::from("Invalid Content-Length"))
-                                .with_kind(ErrorKind::Network)
-                        }
-                        Some(Ok(a)) => match a.parse::<u64>() {
-                            Err(_) => {
-                                return Response::builder()
-                                    .status(StatusCode::BAD_REQUEST)
-                                    .body(Body::from("Invalid Content-Length"))
-                                    .with_kind(ErrorKind::Network)
-                            }
-                            Ok(a) => a,
-                        },
-                    };
-
-                    handle
-                        .progress
-                        .send_modify(|p| p.expected_size = Some(content_length));
-
-                    let mut body = request.into_body().into_data_stream();
-                    while let Some(next) = body.next().await {
-                        if let Err(e) = async {
-                            handle
-                                .write_all(&next.map_err(|e| {
-                                    std::io::Error::new(std::io::ErrorKind::Other, e)
-                                })?)
-                                .await?;
-                            Ok(())
-                        }
-                        .await
-                        {
-                            handle.progress.send_if_modified(|p| p.handle_error(&e));
-                            break;
-                        }
-                    }
+                    handle.upload(request).await;
 
                     Response::builder()
                         .status(StatusCode::NO_CONTENT)
@@ -363,6 +321,46 @@ pub struct UploadHandle {
     #[pin]
     file: File,
     progress: watch::Sender<Progress>,
+}
+impl UploadHandle {
+    pub async fn upload(&mut self, request: Request) {
+        self.process_headers(request.headers());
+        self.process_body(request.into_body().into_data_stream())
+            .await;
+    }
+    pub async fn download(&mut self, response: reqwest::Response) {
+        self.process_headers(response.headers());
+        self.process_body(response.bytes_stream()).await;
+    }
+    fn process_headers(&mut self, headers: &HeaderMap) {
+        if let Some(content_length) = headers
+            .get(CONTENT_LENGTH)
+            .and_then(|a| a.to_str().log_err())
+            .and_then(|a| a.parse::<u64>().log_err())
+        {
+            self.progress
+                .send_modify(|p| p.expected_size = Some(content_length));
+        }
+    }
+    async fn process_body<E: Into<Box<(dyn std::error::Error + Send + Sync + 'static)>>>(
+        &mut self,
+        mut body: impl Stream<Item = Result<Bytes, E>> + Unpin,
+    ) {
+        while let Some(next) = body.next().await {
+            if let Err(e) = async {
+                self.write_all(
+                    &next.map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
+                )
+                .await?;
+                Ok(())
+            }
+            .await
+            {
+                self.progress.send_if_modified(|p| p.handle_error(&e));
+                break;
+            }
+        }
+    }
 }
 #[pin_project::pinned_drop]
 impl PinnedDrop for UploadHandle {

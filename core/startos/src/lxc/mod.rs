@@ -123,7 +123,11 @@ impl LxcManager {
             if !expected.contains(&ContainerId::try_from(container)?) {
                 let rootfs_path = Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs");
                 if tokio::fs::metadata(&rootfs_path).await.is_ok() {
-                    unmount(Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs")).await?;
+                    unmount(
+                        Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs"),
+                        true,
+                    )
+                    .await?;
                     if tokio_stream::wrappers::ReadDirStream::new(
                         tokio::fs::read_dir(&rootfs_path).await?,
                     )
@@ -264,9 +268,10 @@ impl LxcContainer {
                     .invoke(ErrorKind::Docker)
                     .await?,
             )?;
-            let out_str = output.trim();
-            if !out_str.is_empty() {
-                return Ok(out_str.parse()?);
+            for line in output.lines() {
+                if let Ok(ip) = line.trim().parse() {
+                    return Ok(ip);
+                }
             }
             if start.elapsed() > CONTAINER_DHCP_TIMEOUT {
                 return Err(Error::new(
@@ -284,6 +289,11 @@ impl LxcContainer {
 
     #[instrument(skip_all)]
     pub async fn exit(mut self) -> Result<(), Error> {
+        Command::new("lxc-stop")
+            .arg("--name")
+            .arg(&**self.guid)
+            .invoke(ErrorKind::Lxc)
+            .await?;
         self.rpc_bind.take().unmount().await?;
         if let Some(log_mount) = self.log_mount.take() {
             log_mount.unmount(true).await?;

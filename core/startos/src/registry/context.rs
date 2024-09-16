@@ -200,6 +200,19 @@ impl CallRemote<RegistryContext> for CliContext {
             .send()
             .await?;
 
+        if !res.status().is_success() {
+            let status = res.status();
+            let txt = res.text().await?;
+            let mut res = Err(Error::new(
+                eyre!("{}", status.canonical_reason().unwrap_or(status.as_str())),
+                ErrorKind::Network,
+            ));
+            if !txt.is_empty() {
+                res = res.with_ctx(|_| (ErrorKind::Network, txt));
+            }
+            return res.map_err(From::from);
+        }
+
         match res
             .headers()
             .get(CONTENT_TYPE)
@@ -210,7 +223,7 @@ impl CallRemote<RegistryContext> for CliContext {
                     .with_kind(ErrorKind::Deserialization)?
                     .result
             }
-            _ => Err(Error::new(eyre!("missing content type"), ErrorKind::Network).into()),
+            _ => Err(Error::new(eyre!("unknown content type"), ErrorKind::Network).into()),
         }
     }
 }
@@ -247,6 +260,19 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
             .send()
             .await?;
 
+        if !res.status().is_success() {
+            let status = res.status();
+            let txt = res.text().await?;
+            let mut res = Err(Error::new(
+                eyre!("{}", status.canonical_reason().unwrap_or(status.as_str())),
+                ErrorKind::Network,
+            ));
+            if !txt.is_empty() {
+                res = res.with_ctx(|_| (ErrorKind::Network, txt));
+            }
+            return res.map_err(From::from);
+        }
+
         match res
             .headers()
             .get(CONTENT_TYPE)
@@ -257,7 +283,7 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
                     .with_kind(ErrorKind::Deserialization)?
                     .result
             }
-            _ => Err(Error::new(eyre!("missing content type"), ErrorKind::Network).into()),
+            _ => Err(Error::new(eyre!("unknown content type"), ErrorKind::Network).into()),
         }
     }
 }

@@ -1,13 +1,16 @@
 use std::collections::{BTreeMap, VecDeque};
+use std::fmt;
 use std::future::Future;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::process::Stdio;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
+use ::serde::{Deserialize, Serialize};
 use async_trait::async_trait;
 use color_eyre::eyre::{self, eyre};
 use fd_lock_rs::FdLock;
@@ -24,12 +27,17 @@ use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
 use tokio::sync::{oneshot, Mutex, OwnedMutexGuard, RwLock};
 use tracing::instrument;
+use ts_rs::TS;
+use url::Url;
 
 use crate::shutdown::Shutdown;
 use crate::util::io::create_file;
+use crate::util::serde::{deserialize_from_str, serialize_display};
 use crate::{Error, ErrorKind, ResultExt as _};
+
 pub mod actor;
 pub mod clap;
+pub mod collections;
 pub mod cpupower;
 pub mod crypto;
 pub mod future;
@@ -41,6 +49,7 @@ pub mod net;
 pub mod rpc;
 pub mod rpc_client;
 pub mod serde;
+pub mod sync;
 
 #[derive(Clone, Copy, Debug, ::serde::Deserialize, ::serde::Serialize)]
 pub enum Never {}
@@ -555,7 +564,7 @@ impl<F: FnOnce() -> T, T> Drop for GeneralGuard<F, T> {
     }
 }
 
-pub struct FileLock(OwnedMutexGuard<()>, Option<FdLock<File>>);
+pub struct FileLock(#[allow(unused)] OwnedMutexGuard<()>, Option<FdLock<File>>);
 impl Drop for FileLock {
     fn drop(&mut self) {
         if let Some(fd_lock) = self.1.take() {
@@ -647,4 +656,49 @@ pub fn new_guid() -> InternedString {
         base32::Alphabet::Rfc4648 { padding: false },
         &buf,
     ))
+}
+
+#[derive(Debug, Clone, TS)]
+#[ts(type = "string")]
+pub enum PathOrUrl {
+    Path(PathBuf),
+    Url(Url),
+}
+impl FromStr for PathOrUrl {
+    type Err = <PathBuf as FromStr>::Err;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Ok(url) = s.parse::<Url>() {
+            if url.scheme() == "file" {
+                Ok(Self::Path(url.path().parse()?))
+            } else {
+                Ok(Self::Url(url))
+            }
+        } else {
+            Ok(Self::Path(s.parse()?))
+        }
+    }
+}
+impl fmt::Display for PathOrUrl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Path(p) => write!(f, "file://{}", p.display()),
+            Self::Url(u) => write!(f, "{u}"),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for PathOrUrl {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        deserialize_from_str(deserializer)
+    }
+}
+impl Serialize for PathOrUrl {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ::serde::Serializer,
+    {
+        serialize_display(self, serializer)
+    }
 }

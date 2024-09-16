@@ -1,115 +1,206 @@
+import { ExtendedVersion, VersionRange } from "../exver"
 import {
   Effects,
   PackageId,
   DependencyRequirement,
   SetHealth,
-  CheckDependencyResult,
+  CheckDependenciesResult,
+  HealthCheckId,
 } from "../types"
 
-export type CheckAllDependencies = {
-  notRunning: () => Promise<CheckDependencyResult[]>
+export type CheckDependencies<DependencyId extends PackageId = PackageId> = {
+  installedSatisfied: (packageId: DependencyId) => boolean
+  installedVersionSatisfied: (packageId: DependencyId) => boolean
+  runningSatisfied: (packageId: DependencyId) => boolean
+  configSatisfied: (packageId: DependencyId) => boolean
+  healthCheckSatisfied: (
+    packageId: DependencyId,
+    healthCheckId: HealthCheckId,
+  ) => boolean
+  satisfied: () => boolean
 
-  notInstalled: () => Promise<CheckDependencyResult[]>
-
-  healthErrors: () => Promise<{ [id: string]: SetHealth[] }>
-  throwIfNotRunning: () => Promise<void>
-  throwIfNotValid: () => Promise<undefined>
-  throwIfNotInstalled: () => Promise<void>
-  throwIfError: () => Promise<void>
-  isValid: () => Promise<boolean>
+  throwIfInstalledNotSatisfied: (packageId: DependencyId) => void
+  throwIfInstalledVersionNotSatisfied: (packageId: DependencyId) => void
+  throwIfRunningNotSatisfied: (packageId: DependencyId) => void
+  throwIfConfigNotSatisfied: (packageId: DependencyId) => void
+  throwIfHealthNotSatisfied: (
+    packageId: DependencyId,
+    healthCheckId?: HealthCheckId,
+  ) => void
+  throwIfNotSatisfied: (packageId?: DependencyId) => void
 }
-export function checkAllDependencies(effects: Effects): CheckAllDependencies {
-  const dependenciesPromise = effects.getDependencies()
-  const resultsPromise = dependenciesPromise.then((dependencies) =>
+export async function checkDependencies<
+  DependencyId extends PackageId = PackageId,
+>(
+  effects: Effects,
+  packageIds?: DependencyId[],
+): Promise<CheckDependencies<DependencyId>> {
+  let [dependencies, results] = await Promise.all([
+    effects.getDependencies(),
     effects.checkDependencies({
-      packageIds: dependencies.map((dep) => dep.id),
+      packageIds,
     }),
-  )
-
-  const dependenciesByIdPromise = dependenciesPromise.then((d) =>
-    d.reduce(
-      (acc, dep) => {
-        acc[dep.id] = dep
-        return acc
-      },
-      {} as { [id: PackageId]: DependencyRequirement },
-    ),
-  )
-
-  const healthErrors = async () => {
-    const results = await resultsPromise
-    const dependenciesById = await dependenciesByIdPromise
-    const answer: { [id: PackageId]: SetHealth[] } = {}
-    for (const result of results) {
-      const dependency = dependenciesById[result.packageId]
-      if (!dependency) continue
-      if (dependency.kind !== "running") continue
-
-      const healthChecks = result.healthChecks
-        .filter((x) => dependency.healthChecks.includes(x.id))
-        .filter((x) => !!x.message)
-      if (healthChecks.length === 0) continue
-      answer[result.packageId] = healthChecks
-    }
-    return answer
-  }
-  const notInstalled = () =>
-    resultsPromise.then((x) => x.filter((x) => !x.isInstalled))
-  const notRunning = async () => {
-    const results = await resultsPromise
-    const dependenciesById = await dependenciesByIdPromise
-    return results.filter((x) => {
-      const dependency = dependenciesById[x.packageId]
-      if (!dependency) return false
-      if (dependency.kind !== "running") return false
-      return !x.isRunning
-    })
-  }
-  const entries = <B>(x: { [k: string]: B }) => Object.entries(x)
-  const first = <A>(x: A[]): A | undefined => x[0]
-  const sinkVoid = <A>(x: A) => void 0
-  const throwIfError = () =>
-    healthErrors()
-      .then(entries)
-      .then(first)
-      .then((x) => {
-        if (!x) return
-        const [id, healthChecks] = x
-        if (healthChecks.length > 0)
-          throw `Package ${id} has the following errors: ${healthChecks.map((x) => x.message).join(", ")}`
-      })
-  const throwIfNotRunning = () =>
-    notRunning().then((results) => {
-      if (results[0])
-        throw new Error(`Package ${results[0].packageId} is not running`)
-    })
-
-  const throwIfNotInstalled = () =>
-    notInstalled().then((results) => {
-      if (results[0])
-        throw new Error(`Package ${results[0].packageId} is not installed`)
-    })
-  const throwIfNotValid = async () =>
-    Promise.all([
-      throwIfNotRunning(),
-      throwIfNotInstalled(),
-      throwIfError(),
-    ]).then(sinkVoid)
-
-  const isValid = () =>
-    throwIfNotValid().then(
-      () => true,
-      () => false,
+  ])
+  if (packageIds) {
+    dependencies = dependencies.filter((d) =>
+      (packageIds as PackageId[]).includes(d.id),
     )
+  }
+
+  const find = (packageId: DependencyId) => {
+    const dependencyRequirement = dependencies.find((d) => d.id === packageId)
+    const dependencyResult = results.find((d) => d.packageId === packageId)
+    if (!dependencyRequirement || !dependencyResult) {
+      throw new Error(`Unknown DependencyId ${packageId}`)
+    }
+    return { requirement: dependencyRequirement, result: dependencyResult }
+  }
+
+  const installedSatisfied = (packageId: DependencyId) =>
+    !!find(packageId).result.installedVersion
+  const installedVersionSatisfied = (packageId: DependencyId) => {
+    const dep = find(packageId)
+    return (
+      !!dep.result.installedVersion &&
+      ExtendedVersion.parse(dep.result.installedVersion).satisfies(
+        VersionRange.parse(dep.requirement.versionRange),
+      )
+    )
+  }
+  const runningSatisfied = (packageId: DependencyId) => {
+    const dep = find(packageId)
+    return dep.requirement.kind !== "running" || dep.result.isRunning
+  }
+  const configSatisfied = (packageId: DependencyId) =>
+    find(packageId).result.configSatisfied
+  const healthCheckSatisfied = (
+    packageId: DependencyId,
+    healthCheckId?: HealthCheckId,
+  ) => {
+    const dep = find(packageId)
+    if (
+      healthCheckId &&
+      (dep.requirement.kind !== "running" ||
+        !dep.requirement.healthChecks.includes(healthCheckId))
+    ) {
+      throw new Error(`Unknown HealthCheckId ${healthCheckId}`)
+    }
+    const errors = Object.entries(dep.result.healthChecks)
+      .filter(([id, _]) => (healthCheckId ? id === healthCheckId : true))
+      .filter(([_, res]) => res.result !== "success")
+    return errors.length === 0
+  }
+  const pkgSatisfied = (packageId: DependencyId) =>
+    installedSatisfied(packageId) &&
+    installedVersionSatisfied(packageId) &&
+    runningSatisfied(packageId) &&
+    configSatisfied(packageId) &&
+    healthCheckSatisfied(packageId)
+  const satisfied = (packageId?: DependencyId) =>
+    packageId
+      ? pkgSatisfied(packageId)
+      : dependencies.every((d) => pkgSatisfied(d.id as DependencyId))
+
+  const throwIfInstalledNotSatisfied = (packageId: DependencyId) => {
+    const dep = find(packageId)
+    if (!dep.result.installedVersion) {
+      throw new Error(`${dep.result.title || packageId} is not installed`)
+    }
+  }
+  const throwIfInstalledVersionNotSatisfied = (packageId: DependencyId) => {
+    const dep = find(packageId)
+    if (!dep.result.installedVersion) {
+      throw new Error(`${dep.result.title || packageId} is not installed`)
+    }
+    if (
+      ![dep.result.installedVersion, ...dep.result.satisfies].find((v) =>
+        ExtendedVersion.parse(v).satisfies(
+          VersionRange.parse(dep.requirement.versionRange),
+        ),
+      )
+    ) {
+      throw new Error(
+        `Installed version ${dep.result.installedVersion} of ${dep.result.title || packageId} does not match expected version range ${dep.requirement.versionRange}`,
+      )
+    }
+  }
+  const throwIfRunningNotSatisfied = (packageId: DependencyId) => {
+    const dep = find(packageId)
+    if (dep.requirement.kind === "running" && !dep.result.isRunning) {
+      throw new Error(`${dep.result.title || packageId} is not running`)
+    }
+  }
+  const throwIfConfigNotSatisfied = (packageId: DependencyId) => {
+    const dep = find(packageId)
+    if (!dep.result.configSatisfied) {
+      throw new Error(
+        `${dep.result.title || packageId}'s configuration does not satisfy requirements`,
+      )
+    }
+  }
+  const throwIfHealthNotSatisfied = (
+    packageId: DependencyId,
+    healthCheckId?: HealthCheckId,
+  ) => {
+    const dep = find(packageId)
+    if (
+      healthCheckId &&
+      (dep.requirement.kind !== "running" ||
+        !dep.requirement.healthChecks.includes(healthCheckId))
+    ) {
+      throw new Error(`Unknown HealthCheckId ${healthCheckId}`)
+    }
+    const errors = Object.entries(dep.result.healthChecks)
+      .filter(([id, _]) => (healthCheckId ? id === healthCheckId : true))
+      .filter(([_, res]) => res.result !== "success")
+    if (errors.length) {
+      throw new Error(
+        errors
+          .map(
+            ([_, e]) =>
+              `Health Check ${e.name} of ${dep.result.title || packageId} failed with status ${e.result}${e.message ? `: ${e.message}` : ""}`,
+          )
+          .join("; "),
+      )
+    }
+  }
+  const throwIfPkgNotSatisfied = (packageId: DependencyId) => {
+    throwIfInstalledNotSatisfied(packageId)
+    throwIfInstalledVersionNotSatisfied(packageId)
+    throwIfRunningNotSatisfied(packageId)
+    throwIfConfigNotSatisfied(packageId)
+    throwIfHealthNotSatisfied(packageId)
+  }
+  const throwIfNotSatisfied = (packageId?: DependencyId) =>
+    packageId
+      ? throwIfPkgNotSatisfied(packageId)
+      : (() => {
+          const err = dependencies.flatMap((d) => {
+            try {
+              throwIfPkgNotSatisfied(d.id as DependencyId)
+            } catch (e) {
+              if (e instanceof Error) return [e.message]
+              throw e
+            }
+            return []
+          })
+          if (err.length) {
+            throw new Error(err.join("; "))
+          }
+        })()
 
   return {
-    notRunning,
-    notInstalled,
-    healthErrors,
-    throwIfNotRunning,
-    throwIfNotValid,
-    throwIfNotInstalled,
-    throwIfError,
-    isValid,
+    installedSatisfied,
+    installedVersionSatisfied,
+    runningSatisfied,
+    configSatisfied,
+    healthCheckSatisfied,
+    satisfied,
+    throwIfInstalledNotSatisfied,
+    throwIfInstalledVersionNotSatisfied,
+    throwIfRunningNotSatisfied,
+    throwIfConfigNotSatisfied,
+    throwIfHealthNotSatisfied,
+    throwIfNotSatisfied,
   }
 }

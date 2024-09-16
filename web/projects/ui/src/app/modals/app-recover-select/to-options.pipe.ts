@@ -1,5 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { Emver } from '@start9labs/shared'
+import { Exver } from '@start9labs/shared'
 import { PackageBackupInfo } from 'src/app/services/api/api.types'
 import { ConfigService } from 'src/app/services/config.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -19,7 +19,7 @@ export interface AppRecoverOption extends PackageBackupInfo {
 export class ToOptionsPipe implements PipeTransform {
   constructor(
     private readonly config: ConfigService,
-    private readonly emver: Emver,
+    private readonly exver: Exver,
   ) {}
 
   transform(
@@ -44,7 +44,9 @@ export class ToOptionsPipe implements PipeTransform {
   }
 
   private compare(version: string): boolean {
-    // checks to see if backup was made on a newer version of eOS
-    return this.emver.compare(version, this.config.version) === 1
+    // checks to see if backup was made on a newer version of startOS
+    return (
+      this.exver.compareOsVersion(version, this.config.version) === 'greater'
+    )
   }
 }

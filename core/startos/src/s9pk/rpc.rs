@@ -15,14 +15,36 @@ use crate::s9pk::v2::pack::ImageConfig;
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::util::io::{create_file, open_file, TmpDir};
 use crate::util::serde::{apply_expr, HandlerExtSerde};
+use crate::util::Apply;
 
 pub const SKIP_ENV: &[&str] = &["TERM", "container", "HOME", "HOSTNAME"];
 
 pub fn s9pk() -> ParentHandler<CliContext> {
     ParentHandler::new()
         .subcommand("pack", from_fn_async(super::v2::pack::pack).no_display())
+        .subcommand(
+            "list-ingredients",
+            from_fn_async(super::v2::pack::list_ingredients).with_custom_display_fn(
+                |_, ingredients| {
+                    ingredients
+                        .into_iter()
+                        .map(Some)
+                        .apply(|i| itertools::intersperse(i, None))
+                        .for_each(|i| {
+                            if let Some(p) = i {
+                                print!("{}", p.display())
+                            } else {
+                                print!(" ")
+                            }
+                        });
+                    println!();
+                    Ok(())
+                },
+            ),
+        )
         .subcommand("edit", edit())
         .subcommand("inspect", inspect())
+        .subcommand("convert", from_fn_async(convert).no_display())
 }
 
 #[derive(Deserialize, Serialize, Parser)]
@@ -192,4 +214,18 @@ async fn inspect_manifest(
     )
     .await?;
     Ok(s9pk.as_manifest().clone())
+}
+
+async fn convert(ctx: CliContext, S9pkPath { s9pk: s9pk_path }: S9pkPath) -> Result<(), Error> {
+    let mut s9pk = super::load(
+        MultiCursorFile::from(open_file(&s9pk_path).await?),
+        || ctx.developer_key().cloned(),
+        None,
+    )
+    .await?;
+    let tmp_path = s9pk_path.with_extension("s9pk.tmp");
+    s9pk.serialize(&mut create_file(&tmp_path).await?, true)
+        .await?;
+    tokio::fs::rename(tmp_path, s9pk_path).await?;
+    Ok(())
 }

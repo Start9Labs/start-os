@@ -40,7 +40,6 @@ export class ServerShowPage {
   readonly server$ = this.patch.watch$('serverInfo')
   readonly showUpdate$ = this.eosService.showUpdate$
   readonly showDiskRepair$ = this.ClientStorageService.showDiskRepair$
-  readonly wifiConnected$ = this.patch.watch$('serverInfo', 'wifi', 'selected')
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -475,11 +474,14 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'WiFi',
-        description: 'WiFi is deprecated. Click to learn more.',
+        title: 'Wireless',
+        description:
+          'Connect your server to WiFi instead of Ethernet (not recommended)',
         icon: 'wifi',
         action: () =>
-          this.navCtrl.navigateForward(['wifi'], { relativeTo: this.route }),
+          this.navCtrl.navigateForward(['wireless'], {
+            relativeTo: this.route,
+          }),
         detail: true,
         disabled$: of(false),
       },

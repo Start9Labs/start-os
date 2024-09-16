@@ -74,7 +74,8 @@
                   "with": "projects/ui/src/environments/environment.prod.ts"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "extractLicenses": false
             },
             "development": {
               "buildOptimizer": false,

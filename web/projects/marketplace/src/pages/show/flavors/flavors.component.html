@@ -1,0 +1,21 @@
+<ion-item-divider>Alternative Implementations</ion-item-divider>
+<ion-grid>
+  <ion-row>
+    <ion-col *ngFor="let pkg of pkgs" responsiveCol sizeSm="12" sizeMd="6">
+      <ion-item
+        [routerLink]="['/marketplace', pkg.id]"
+        [queryParams]="{ flavor: pkg.flavor }"
+      >
+        <ion-thumbnail slot="start">
+          <img alt="" style="border-radius: 100%" [src]="pkg.icon | trustUrl" />
+        </ion-thumbnail>
+        <ion-label>
+          <h2>
+            {{ pkg.title }}
+          </h2>
+          <p>{{ pkg.version }}</p>
+        </ion-label>
+      </ion-item>
+    </ion-col>
+  </ion-row>
+</ion-grid>

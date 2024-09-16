@@ -5,6 +5,7 @@ import {
   Input,
   Output,
 } from '@angular/core'
+import { T } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'marketplace-categories',
@@ -17,7 +18,7 @@ import {
 })
 export class CategoriesComponent {
   @Input()
-  categories: readonly string[] = []
+  categories!: Map<string, T.Category>
 
   @Input()
   category = ''
@@ -28,5 +29,9 @@ export class CategoriesComponent {
   switchCategory(category: string): void {
     this.category = category
     this.categoryChange.emit(category)
+  }
+
+  originalOrder() {
+    return 0
   }
 }

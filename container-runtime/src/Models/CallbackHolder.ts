@@ -1,12 +1,14 @@
 export class CallbackHolder {
   constructor() {}
-  private root = (Math.random() + 1).toString(36).substring(7)
   private inc = 0
   private callbacks = new Map<number, Function>()
   private newId() {
     return this.inc++
   }
-  addCallback(callback: Function) {
+  addCallback(callback?: Function) {
+    if (!callback) {
+      return
+    }
     const id = this.newId()
     this.callbacks.set(id, callback)
     return id

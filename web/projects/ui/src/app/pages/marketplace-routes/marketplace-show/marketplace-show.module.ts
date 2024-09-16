@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common'
 import { RouterModule, Routes } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import {
-  EmverPipesModule,
+  ExverPipesModule,
   MarkdownPipeModule,
   SharedPipesModule,
   TextSpinnerComponentModule,
@@ -13,6 +13,7 @@ import {
   AdditionalModule,
   DependenciesModule,
   PackageModule,
+  FlavorsModule,
 } from '@start9labs/marketplace'
 import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
 import { MarketplaceShowPage } from './marketplace-show.page'
@@ -35,13 +36,14 @@ const routes: Routes = [
     RouterModule.forChild(routes),
     TextSpinnerComponentModule,
     SharedPipesModule,
-    EmverPipesModule,
+    ExverPipesModule,
     MarkdownPipeModule,
     MarketplaceStatusModule,
     PackageModule,
     AboutModule,
     DependenciesModule,
     AdditionalModule,
+    FlavorsModule,
     UiPipeModule,
   ],
   declarations: [

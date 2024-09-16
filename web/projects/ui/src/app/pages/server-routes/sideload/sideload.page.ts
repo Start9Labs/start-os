@@ -1,10 +1,12 @@
 import { Component } from '@angular/core'
-import { isPlatform, NavController } from '@ionic/angular'
+import { isPlatform } from '@ionic/angular'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { S9pk, T } from '@start9labs/start-sdk'
+import { S9pk } from '@start9labs/start-sdk'
 import cbor from 'cbor'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
+import { SideloadService } from './sideload.service'
+import { firstValueFrom } from 'rxjs'
 
 interface Positions {
   [key: string]: [bigint, bigint] // [position, length]
@@ -22,7 +24,7 @@ const VERSION_2 = new Uint8Array([2])
 export class SideloadPage {
   isMobile = isPlatform(window, 'ios') || isPlatform(window, 'android')
   toUpload: {
-    manifest: T.Manifest | null
+    manifest: { title: string; version: string } | null
     icon: string | null
     file: File | null
   } = {
@@ -36,12 +38,14 @@ export class SideloadPage {
     message: string
   }
 
+  readonly progress$ = this.sideloadService.progress$
+
   constructor(
     private readonly loader: LoadingService,
     private readonly api: ApiService,
-    private readonly navCtrl: NavController,
     private readonly errorService: ErrorService,
     private readonly config: ConfigService,
+    private readonly sideloadService: SideloadService,
   ) {}
 
   handleFileDrop(e: any) {
@@ -111,15 +115,15 @@ export class SideloadPage {
   }
 
   async handleUpload() {
-    const loader = this.loader.open('Uploading package').subscribe()
+    const loader = this.loader.open('Starting upload').subscribe()
 
     try {
       const res = await this.api.sideloadPackage()
+      this.sideloadService.followProgress(res.progress)
       this.api
         .uploadPackage(res.upload, this.toUpload.file!)
         .catch(e => console.error(e))
-
-      this.navCtrl.navigateRoot('/services')
+      await firstValueFrom(this.sideloadService.websocketConnected$)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -138,8 +142,8 @@ export class SideloadPage {
     ).getUint32(0, false)
     await getPositions(start, end, file, positions, tocLength as any)
 
-    await this.getManifest(positions, file)
-    await this.getIcon(positions, file)
+    await this.getManifestV1(positions, file)
+    await this.getIconV1(positions, file)
   }
 
   async parseS9pkV2(file: File) {
@@ -148,7 +152,7 @@ export class SideloadPage {
     this.toUpload.icon = await s9pk.icon()
   }
 
-  async getManifest(positions: Positions, file: Blob) {
+  private async getManifestV1(positions: Positions, file: Blob) {
     const data = await blobToBuffer(
       file.slice(
         Number(positions['manifest'][0]),
@@ -158,12 +162,11 @@ export class SideloadPage {
     this.toUpload.manifest = await cbor.decode(data, true)
   }
 
-  async getIcon(positions: Positions, file: Blob) {
-    const contentType = '' // @TODO
+  private async getIconV1(positions: Positions, file: Blob) {
     const data = file.slice(
       Number(positions['icon'][0]),
       Number(positions['icon'][0]) + Number(positions['icon'][1]),
-      contentType,
+      '',
     )
     this.toUpload.icon = await blobToDataURL(data)
   }

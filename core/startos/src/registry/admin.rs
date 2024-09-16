@@ -46,7 +46,7 @@ fn signers_api<C: Context>() -> ParentHandler<C> {
                 .with_metadata("admin", Value::Bool(true))
                 .no_cli(),
         )
-        .subcommand("add", from_fn_async(cli_add_signer).no_display())
+        .subcommand("add", from_fn_async(cli_add_signer))
 }
 
 impl Model<BTreeMap<Guid, SignerInfo>> {
@@ -71,7 +71,7 @@ impl Model<BTreeMap<Guid, SignerInfo>> {
             .ok_or_else(|| Error::new(eyre!("unknown signer"), ErrorKind::Authorization))
     }
 
-    pub fn add_signer(&mut self, signer: &SignerInfo) -> Result<(), Error> {
+    pub fn add_signer(&mut self, signer: &SignerInfo) -> Result<Guid, Error> {
         if let Some((guid, s)) = self
             .as_entries()?
             .into_iter()
@@ -89,7 +89,9 @@ impl Model<BTreeMap<Guid, SignerInfo>> {
                 ErrorKind::InvalidRequest,
             ));
         }
-        self.insert(&Guid::new(), signer)
+        let id = Guid::new();
+        self.insert(&id, signer)?;
+        Ok(id)
     }
 }
 
@@ -122,7 +124,7 @@ pub fn display_signers<T>(params: WithIoFormat<T>, signers: BTreeMap<Guid, Signe
     table.print_tty(false).unwrap();
 }
 
-pub async fn add_signer(ctx: RegistryContext, signer: SignerInfo) -> Result<(), Error> {
+pub async fn add_signer(ctx: RegistryContext, signer: SignerInfo) -> Result<Guid, Error> {
     ctx.db
         .mutate(|db| db.as_index_mut().as_signers_mut().add_signer(&signer))
         .await
@@ -155,7 +157,7 @@ pub async fn cli_add_signer(
             },
         ..
     }: HandlerArgs<CliContext, CliAddSignerParams>,
-) -> Result<(), Error> {
+) -> Result<Guid, Error> {
     let signer = SignerInfo {
         name,
         contact,
@@ -165,15 +167,16 @@ pub async fn cli_add_signer(
         TypedPatchDb::<RegistryDatabase>::load(PatchDb::open(database).await?)
             .await?
             .mutate(|db| db.as_index_mut().as_signers_mut().add_signer(&signer))
-            .await?;
+            .await
     } else {
-        ctx.call_remote::<RegistryContext>(
-            &parent_method.into_iter().chain(method).join("."),
-            to_value(&signer)?,
+        from_value(
+            ctx.call_remote::<RegistryContext>(
+                &parent_method.into_iter().chain(method).join("."),
+                to_value(&signer)?,
+            )
+            .await?,
         )
-        .await?;
     }
-    Ok(())
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]

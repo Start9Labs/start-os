@@ -6,7 +6,6 @@ BASENAME := $(shell ./basename.sh)
 PLATFORM := $(shell if [ -f ./PLATFORM.txt ]; then cat ./PLATFORM.txt; else echo unknown; fi)
 ARCH := $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo aarch64; else echo $(PLATFORM) | sed 's/-nonfree$$//g'; fi)
 IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
-BINS := core/target/$(ARCH)-unknown-linux-musl/release/startbox core/target/$(ARCH)-unknown-linux-musl/release/containerbox
 WEB_UIS := web/dist/raw/ui web/dist/raw/setup-wizard web/dist/raw/install-wizard
 FIRMWARE_ROMS := ./firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./firmware/$(PLATFORM)/" + .id + ".rom.gz"' build/lib/firmware.json)
 BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts $(FIRMWARE_ROMS)
@@ -16,7 +15,7 @@ STARTD_SRC := core/startos/startd.service $(BUILD_SRC)
 COMPAT_SRC := $(shell git ls-files system-images/compat/)
 UTILS_SRC := $(shell git ls-files system-images/utils/)
 BINFMT_SRC := $(shell git ls-files system-images/binfmt/)
-CORE_SRC := $(shell git ls-files core) $(shell git ls-files --recurse-submodules patch-db) web/dist/static web/patchdb-ui-seed.json $(GIT_HASH_FILE)
+CORE_SRC := $(shell git ls-files core) $(shell git ls-files --recurse-submodules patch-db) $(GIT_HASH_FILE)
 WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist web/patchdb-ui-seed.json sdk/dist
 WEB_UI_SRC := $(shell git ls-files web/projects/ui)
 WEB_SETUP_WIZARD_SRC := $(shell git ls-files web/projects/setup-wizard)
@@ -24,7 +23,7 @@ WEB_INSTALL_WIZARD_SRC := $(shell git ls-files web/projects/install-wizard)
 PATCH_DB_CLIENT_SRC := $(shell git ls-files --recurse-submodules patch-db/client)
 GZIP_BIN := $(shell which pigz || which gzip)
 TAR_BIN := $(shell which gtar || which tar)
-COMPILED_TARGETS := $(BINS) system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar container-runtime/rootfs.$(ARCH).squashfs
+COMPILED_TARGETS := core/target/$(ARCH)-unknown-linux-musl/release/startbox core/target/$(ARCH)-unknown-linux-musl/release/containerbox system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar container-runtime/rootfs.$(ARCH).squashfs
 ALL_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) cargo-deps/$(ARCH)-unknown-linux-musl/release/startos-backup-fs $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-musl/release/pi-beep; fi)  $(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]; then echo cargo-deps/$(ARCH)-unknown-linux-musl/release/tokio-console; fi') $(PLATFORM_FILE) 
 
 ifeq ($(REMOTE),)
@@ -48,7 +47,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole wormhole-deb test
+.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole wormhole-deb test test-core test-sdk test-container-runtime
 
 all: $(ALL_TARGETS)
 
@@ -90,9 +89,16 @@ clean:
 format:
 	cd core && cargo +nightly fmt
 
-test: $(CORE_SRC) $(ENVIRONMENT_FILE) 
-	(cd core && cargo build && cargo test)
-	(cd sdk && make test)
+test: | test-core test-sdk test-container-runtime
+
+test-core: $(CORE_SRC) $(ENVIRONMENT_FILE) 
+	./core/run-tests.sh
+
+test-sdk: $(shell git ls-files sdk) sdk/lib/osBindings
+	cd sdk && make test
+
+test-container-runtime: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
+	cd container-runtime && npm test
 
 cli:
 	cd core && ./install-cli.sh
@@ -225,7 +231,7 @@ sdk/lib/osBindings: core/startos/bindings
 
 core/startos/bindings: $(shell git ls-files core) $(ENVIRONMENT_FILE)
 	rm -rf core/startos/bindings
-	(cd core/ && cargo test --features=test '::export_bindings_')
+	./core/build-ts.sh
 	touch core/startos/bindings
 
 sdk/dist: $(shell git ls-files sdk) sdk/lib/osBindings
@@ -257,9 +263,13 @@ system-images/utils/docker-images/$(ARCH).tar: $(UTILS_SRC)
 system-images/binfmt/docker-images/$(ARCH).tar: $(BINFMT_SRC)
 	cd system-images/binfmt && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
 
-$(BINS): $(CORE_SRC) $(ENVIRONMENT_FILE)
-	cd core && ARCH=$(ARCH) ./build-startos-bins.sh
-	touch $(BINS)
+core/target/$(ARCH)-unknown-linux-musl/release/startbox: $(CORE_SRC) web/dist/static web/patchdb-ui-seed.json $(ENVIRONMENT_FILE)
+	ARCH=$(ARCH) ./core/build-startbox.sh
+	touch core/target/$(ARCH)-unknown-linux-musl/release/startbox
+
+core/target/$(ARCH)-unknown-linux-musl/release/containerbox: $(CORE_SRC) $(ENVIRONMENT_FILE)
+	ARCH=$(ARCH) ./core/build-containerbox.sh
+	touch core/target/$(ARCH)-unknown-linux-musl/release/containerbox
 
 web/node_modules/.package-lock.json: web/package.json sdk/dist
 	npm --prefix web ci

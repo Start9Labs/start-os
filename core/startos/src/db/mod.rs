@@ -10,10 +10,12 @@ use clap::Parser;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use patch_db::json_ptr::{JsonPointer, ROOT};
-use patch_db::{Dump, Revision};
+use patch_db::{DiffPatch, Dump, Revision};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
+use tokio::sync::mpsc::{self, UnboundedReceiver};
+use tokio::sync::watch;
 use tracing::instrument;
 use ts_rs::TS;
 
@@ -124,14 +126,56 @@ pub struct SubscribeRes {
     pub guid: Guid,
 }
 
+struct DbSubscriber {
+    rev: u64,
+    sub: UnboundedReceiver<Revision>,
+    sync_db: watch::Receiver<u64>,
+}
+impl DbSubscriber {
+    async fn recv(&mut self) -> Option<Revision> {
+        loop {
+            tokio::select! {
+                rev = self.sub.recv() => {
+                    if let Some(rev) = rev.as_ref() {
+                        self.rev = rev.id;
+                    }
+                    return rev
+                }
+                _ = self.sync_db.changed() => {
+                    let id = *self.sync_db.borrow();
+                    if id > self.rev {
+                        match self.sub.try_recv() {
+                            Ok(rev) => {
+                                self.rev = rev.id;
+                                return Some(rev)
+                            }
+                            Err(mpsc::error::TryRecvError::Disconnected) => {
+                                return None
+                            }
+                            Err(mpsc::error::TryRecvError::Empty) => {
+                                return Some(Revision { id, patch: DiffPatch::default() })
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 pub async fn subscribe(
     ctx: RpcContext,
     SubscribeParams { pointer, session }: SubscribeParams,
 ) -> Result<SubscribeRes, Error> {
-    let (dump, mut sub) = ctx
+    let (dump, sub) = ctx
         .db
         .dump_and_sub(pointer.unwrap_or_else(|| PUBLIC.clone()))
         .await;
+    let mut sub = DbSubscriber {
+        rev: dump.id,
+        sub,
+        sync_db: ctx.sync_db.subscribe(),
+    };
     let guid = Guid::new();
     ctx.rpc_continuations
         .add(

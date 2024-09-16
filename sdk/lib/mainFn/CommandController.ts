@@ -1,27 +1,40 @@
+import { DEFAULT_SIGTERM_TIMEOUT } from "."
 import { NO_TIMEOUT, SIGKILL, SIGTERM } from "../StartSdk"
-import { SDKManifest } from "../manifest/ManifestTypes"
-import { Effects, ImageId, ValidIfNoStupidEscape } from "../types"
-import { MountOptions, Overlay } from "../util/Overlay"
+
+import * as T from "../types"
+import { asError } from "../util/asError"
+import {
+  ExecSpawnable,
+  MountOptions,
+  SubContainerHandle,
+  SubContainer,
+} from "../util/SubContainer"
 import { splitCommand } from "../util/splitCommand"
-import { cpExecFile, cpExec } from "./Daemons"
+import * as cp from "child_process"
 
 export class CommandController {
   private constructor(
     readonly runningAnswer: Promise<unknown>,
-    readonly overlay: Overlay,
-    readonly pid: number | undefined,
+    private state: { exited: boolean },
+    private readonly subcontainer: SubContainer,
+    private process: cp.ChildProcessWithoutNullStreams,
+    readonly sigtermTimeout: number = DEFAULT_SIGTERM_TIMEOUT,
   ) {}
-  static of<Manifest extends SDKManifest>() {
+  static of<Manifest extends T.Manifest>() {
     return async <A extends string>(
-      effects: Effects,
-      imageId: {
-        id: keyof Manifest["images"] & ImageId
-        sharedRun?: boolean
-      },
-      command: ValidIfNoStupidEscape<A> | [string, ...string[]],
+      effects: T.Effects,
+      subcontainer:
+        | {
+            id: keyof Manifest["images"] & T.ImageId
+            sharedRun?: boolean
+          }
+        | SubContainer,
+      command: T.CommandType,
       options: {
+        // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
+        sigtermTimeout?: number
         mounts?: { path: string; options: MountOptions }[]
-        overlay?: Overlay
+        runAsInit?: boolean
         env?:
           | {
               [variable: string]: string
@@ -34,115 +47,93 @@ export class CommandController {
       },
     ) => {
       const commands = splitCommand(command)
-      const overlay = options.overlay || (await Overlay.of(effects, imageId))
-      for (let mount of options.mounts || []) {
-        await overlay.mount(mount.options, mount.path)
+      const subc =
+        subcontainer instanceof SubContainer
+          ? subcontainer
+          : await (async () => {
+              const subc = await SubContainer.of(effects, subcontainer)
+              for (let mount of options.mounts || []) {
+                await subc.mount(mount.options, mount.path)
+              }
+              return subc
+            })()
+      let childProcess: cp.ChildProcessWithoutNullStreams
+      if (options.runAsInit) {
+        childProcess = await subc.launch(commands, {
+          env: options.env,
+        })
+      } else {
+        childProcess = await subc.spawn(commands, {
+          env: options.env,
+        })
       }
-      const childProcess = await overlay.spawn(commands, {
-        env: options.env,
-      })
+      const state = { exited: false }
       const answer = new Promise<null>((resolve, reject) => {
-        childProcess.stdout.on(
-          "data",
-          options.onStdout ??
-            ((data: any) => {
-              console.log(data.toString())
-            }),
-        )
-        childProcess.stderr.on(
-          "data",
-          options.onStderr ??
-            ((data: any) => {
-              console.error(data.toString())
-            }),
-        )
-
-        childProcess.on("exit", (code: any) => {
-          if (code === 0) {
+        childProcess.on("exit", (code) => {
+          state.exited = true
+          if (
+            code === 0 ||
+            code === 143 ||
+            (code === null && childProcess.signalCode == "SIGTERM")
+          ) {
             return resolve(null)
           }
-          return reject(new Error(`${commands[0]} exited with code ${code}`))
+          if (code) {
+            return reject(new Error(`${commands[0]} exited with code ${code}`))
+          } else {
+            return reject(
+              new Error(
+                `${commands[0]} exited with signal ${childProcess.signalCode}`,
+              ),
+            )
+          }
         })
       })
 
-      const pid = childProcess.pid
-
-      return new CommandController(answer, overlay, pid)
+      return new CommandController(
+        answer,
+        state,
+        subc,
+        childProcess,
+        options.sigtermTimeout,
+      )
     }
   }
-  async wait() {
+  get subContainerHandle() {
+    return new SubContainerHandle(this.subcontainer)
+  }
+  async wait({ timeout = NO_TIMEOUT } = {}) {
+    if (timeout > 0)
+      setTimeout(() => {
+        this.term()
+      }, timeout)
     try {
       return await this.runningAnswer
     } finally {
-      if (this.pid !== undefined) {
-        await cpExecFile("pkill", ["-9", "-s", String(this.pid)]).catch(
-          (_) => {},
-        )
+      if (!this.state.exited) {
+        this.process.kill("SIGKILL")
       }
-      await this.overlay.destroy().catch((_) => {})
+      await this.subcontainer.destroy?.().catch((_) => {})
     }
   }
-  async term({ signal = SIGTERM, timeout = NO_TIMEOUT } = {}) {
-    if (this.pid === undefined) return
+  async term({ signal = SIGTERM, timeout = this.sigtermTimeout } = {}) {
     try {
-      await cpExecFile("pkill", [
-        `-${signal.replace("SIG", "")}`,
-        "-s",
-        String(this.pid),
-      ])
-
-      const didTimeout = await waitSession(this.pid, timeout)
-      if (didTimeout) {
-        await cpExecFile("pkill", [`-9`, "-s", String(this.pid)]).catch(
-          (_) => {},
-        )
+      if (!this.state.exited) {
+        if (!this.process.kill(signal)) {
+          console.error(
+            `failed to send signal ${signal} to pid ${this.process.pid}`,
+          )
+        }
       }
-    } finally {
-      await this.overlay.destroy()
-    }
-  }
-}
 
-function waitSession(
-  sid: number,
-  timeout = NO_TIMEOUT,
-  interval = 100,
-): Promise<boolean> {
-  let nextInterval = interval * 2
-  if (timeout >= 0 && timeout < nextInterval) {
-    nextInterval = timeout
-  }
-  let nextTimeout = timeout
-  if (timeout > 0) {
-    if (timeout >= interval) {
-      nextTimeout -= interval
-    } else {
-      nextTimeout = 0
+      if (signal !== "SIGKILL") {
+        setTimeout(() => {
+          this.process.kill("SIGKILL")
+        }, timeout)
+      }
+      await this.runningAnswer
+    } finally {
+      await this.subcontainer.destroy?.()
     }
   }
-  return new Promise((resolve, reject) => {
-    let next: NodeJS.Timeout | null = null
-    if (timeout !== 0) {
-      next = setTimeout(() => {
-        waitSession(sid, nextTimeout, nextInterval).then(resolve, reject)
-      }, interval)
-    }
-    cpExecFile("ps", [`--sid=${sid}`, "-o", "--pid="]).then(
-      (_) => {
-        if (timeout === 0) {
-          resolve(true)
-        }
-      },
-      (e) => {
-        if (next) {
-          clearTimeout(next)
-        }
-        if (typeof e === "object" && e && "code" in e && e.code) {
-          resolve(false)
-        } else {
-          reject(e)
-        }
-      },
-    )
-  })
 }

@@ -29,9 +29,7 @@ export class InitService extends Observable<MappedProgress> {
     from(this.api.initGetProgress()),
   ).pipe(
     switchMap(({ guid, progress }) =>
-      this.api
-        .openWebsocket$<T.FullProgress>(guid, {})
-        .pipe(startWith(progress)),
+      this.api.openWebsocket$<T.FullProgress>(guid).pipe(startWith(progress)),
     ),
     map(({ phases, overall }) => {
       return {
@@ -58,9 +56,7 @@ export class InitService extends Observable<MappedProgress> {
       }
     }),
     catchError(e => {
-      // @TODO this toast is presenting when we navigate away from init page. It seems other websockets exhibit the same behavior, but we never noticed because the error were not being caught and presented in this manner
-      this.errorService.handleError(e)
-
+      console.error(e)
       return EMPTY
     }),
   )

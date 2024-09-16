@@ -12,6 +12,7 @@ import {
   deferred,
   every,
   nill,
+  literal,
 } from "ts-matches"
 
 export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
@@ -38,7 +39,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
         values: oldVal.values.reduce(
           (obj, curr) => ({
             ...obj,
-            [curr]: oldVal["value-names"][curr],
+            [curr]: oldVal["value-names"][curr] || curr,
           }),
           {},
         ),
@@ -73,7 +74,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
         integer: oldVal.integral,
         step: null,
         units: oldVal.units || null,
-        placeholder: oldVal.placeholder || null,
+        placeholder: oldVal.placeholder ? String(oldVal.placeholder) : null,
       }
     } else if (oldVal.type === "object") {
       newVal = {
@@ -104,12 +105,12 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
             : [],
         minLength: null,
         maxLength: null,
-        masked: oldVal.masked,
+        masked: oldVal.masked || false,
         generate: null,
         inputmode: "text",
         placeholder: oldVal.placeholder || null,
       }
-    } else {
+    } else if (oldVal.type === "union") {
       newVal = {
         type: "union",
         name: oldVal.tag.name,
@@ -119,7 +120,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
           (obj, [id, spec]) => ({
             ...obj,
             [id]: {
-              name: oldVal.tag["variant-names"][id],
+              name: oldVal.tag["variant-names"][id] || id,
               spec: transformConfigSpec(matchOldConfigSpec.unsafeCast(spec)),
             },
           }),
@@ -130,6 +131,10 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
         default: oldVal.default,
         immutable: false,
       }
+    } else if (oldVal.type === "pointer") {
+      return inputSpec
+    } else {
+      throw new Error(`unknown spec ${JSON.stringify(oldVal)}`)
     }
 
     return {
@@ -175,6 +180,10 @@ export function transformOldConfigToNew(
       )
     }
 
+    if (isPointer(val)) {
+      return obj
+    }
+
     return {
       ...obj,
       [key]: newVal,
@@ -201,7 +210,7 @@ export function transformNewConfigToOld(
         [val.tag.id]: config[key].selection,
         ...transformNewConfigToOld(
           matchOldConfigSpec.unsafeCast(val.variants[config[key].selection]),
-          config[key].unionSelectValue,
+          config[key].value,
         ),
       }
     }
@@ -258,6 +267,31 @@ function getListSpec(
         {},
       ),
     }
+  } else if (isNumberList(oldVal)) {
+    return {
+      ...partial,
+      type: "list",
+      default: oldVal.default.map(String) as string[],
+      spec: {
+        type: "text",
+        patterns: oldVal.spec.integral
+          ? [{ regex: "[0-9]+", description: "Integral number type" }]
+          : [
+              {
+                regex: "[-+]?[0-9]*\\.?[0-9]+",
+                description: "Number type",
+              },
+            ],
+        minLength: null,
+        maxLength: null,
+        masked: false,
+        generate: null,
+        inputmode: "text",
+        placeholder: oldVal.spec.placeholder
+          ? String(oldVal.spec.placeholder)
+          : null,
+      },
+    }
   } else if (isStringList(oldVal)) {
     return {
       ...partial,
@@ -276,7 +310,7 @@ function getListSpec(
             : [],
         minLength: null,
         maxLength: null,
-        masked: oldVal.spec.masked,
+        masked: oldVal.spec.masked || false,
         generate: null,
         inputmode: "text",
         placeholder: oldVal.spec.placeholder || null,
@@ -292,7 +326,7 @@ function getListSpec(
         spec: transformConfigSpec(
           matchOldConfigSpec.unsafeCast(oldVal.spec.spec),
         ),
-        uniqueBy: oldVal.spec["unique-by"],
+        uniqueBy: oldVal.spec["unique-by"] || null,
         displayAs: oldVal.spec["display-as"] || null,
       },
     }
@@ -313,6 +347,10 @@ function isList(val: OldValueSpec): val is OldValueSpecList {
   return val.type === "list"
 }
 
+function isPointer(val: OldValueSpec): val is OldValueSpecPointer {
+  return val.type === "pointer"
+}
+
 function isEnumList(
   val: OldValueSpecList,
 ): val is OldValueSpecList & { subtype: "enum" } {
@@ -324,11 +362,16 @@ function isStringList(
 ): val is OldValueSpecList & { subtype: "string" } {
   return val.subtype === "string"
 }
+function isNumberList(
+  val: OldValueSpecList,
+): val is OldValueSpecList & { subtype: "number" } {
+  return val.subtype === "number"
+}
 
 function isObjectList(
   val: OldValueSpecList,
 ): val is OldValueSpecList & { subtype: "object" } {
-  if (["number", "union"].includes(val.subtype)) {
+  if (["union"].includes(val.subtype)) {
     throw new Error("Invalid list subtype. enum, string, and object permitted.")
   }
   return val.subtype === "object"
@@ -347,11 +390,11 @@ type OldDefaultString = typeof matchOldDefaultString._TYPE
 
 export const matchOldValueSpecString = object(
   {
+    type: literals("string"),
+    name: string,
     masked: boolean,
     copyable: boolean,
-    type: literals("string"),
     nullable: boolean,
-    name: string,
     placeholder: string,
     pattern: string,
     "pattern-description": string,
@@ -361,6 +404,9 @@ export const matchOldValueSpecString = object(
     warning: string,
   },
   [
+    "masked",
+    "copyable",
+    "nullable",
     "placeholder",
     "pattern",
     "pattern-description",
@@ -382,7 +428,7 @@ export const matchOldValueSpecNumber = object(
     description: string,
     warning: string,
     units: string,
-    placeholder: string,
+    placeholder: anyOf(number, string),
   },
   ["default", "description", "warning", "units", "placeholder"],
 )
@@ -466,7 +512,7 @@ const matchOldListValueSpecObject = object(
     "unique-by": matchOldUniqueBy, // indicates whether duplicates can be permitted in the list
     "display-as": string, // this should be a handlebars template which can make use of the entire config which corresponds to 'spec'
   },
-  ["display-as"],
+  ["display-as", "unique-by"],
 )
 const matchOldListValueSpecString = object(
   {
@@ -476,13 +522,22 @@ const matchOldListValueSpecString = object(
     "pattern-description": string,
     placeholder: string,
   },
-  ["pattern", "pattern-description", "placeholder"],
+  ["pattern", "pattern-description", "placeholder", "copyable", "masked"],
 )
 
 const matchOldListValueSpecEnum = object({
   values: array(string),
   "value-names": dictionary([string, string]),
 })
+const matchOldListValueSpecNumber = object(
+  {
+    range: string,
+    integral: boolean,
+    units: string,
+    placeholder: anyOf(number, string),
+  },
+  ["units", "placeholder"],
+)
 
 // represents a spec for a list
 const matchOldValueSpecList = every(
@@ -515,9 +570,35 @@ const matchOldValueSpecList = every(
       subtype: literals("object"),
       spec: matchOldListValueSpecObject,
     }),
+    object({
+      subtype: literals("number"),
+      spec: matchOldListValueSpecNumber,
+    }),
   ),
 )
 type OldValueSpecList = typeof matchOldValueSpecList._TYPE
+
+const matchOldValueSpecPointer = every(
+  object({
+    type: literal("pointer"),
+  }),
+  anyOf(
+    object({
+      subtype: literal("package"),
+      target: literals("tor-key", "tor-address", "lan-address"),
+      "package-id": string,
+      interface: string,
+    }),
+    object({
+      subtype: literal("package"),
+      target: literals("config"),
+      "package-id": string,
+      selector: string,
+      multi: boolean,
+    }),
+  ),
+)
+type OldValueSpecPointer = typeof matchOldValueSpecPointer._TYPE
 
 export const matchOldValueSpec = anyOf(
   matchOldValueSpecString,
@@ -527,6 +608,7 @@ export const matchOldValueSpec = anyOf(
   matchOldValueSpecEnum,
   matchOldValueSpecList,
   matchOldValueSpecUnion,
+  matchOldValueSpecPointer,
 )
 type OldValueSpec = typeof matchOldValueSpec._TYPE
 

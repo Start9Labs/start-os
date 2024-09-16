@@ -3,7 +3,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use chrono::{DateTime, Utc};
 use exver::VersionRange;
 use imbl_value::InternedString;
-use models::{ActionId, DataUrl, HealthCheckId, HostId, PackageId, ServiceInterfaceId};
+use models::{
+    ActionId, DataUrl, HealthCheckId, HostId, PackageId, ServiceInterfaceId, VersionString,
+};
 use patch_db::json_ptr::JsonPointer;
 use patch_db::HasModel;
 use reqwest::Url;
@@ -57,6 +59,18 @@ impl PackageState {
             _ => Err(Error::new(
                 eyre!(
                     "Package {} is not in installed state",
+                    self.as_manifest(ManifestPreference::Old).id
+                ),
+                ErrorKind::InvalidRequest,
+            )),
+        }
+    }
+    pub fn expect_removing(&self) -> Result<&InstalledState, Error> {
+        match self {
+            Self::Removing(a) => Ok(a),
+            _ => Err(Error::new(
+                eyre!(
+                    "Package {} is not in removing state",
                     self.as_manifest(ManifestPreference::Old).id
                 ),
                 ErrorKind::InvalidRequest,
@@ -323,6 +337,7 @@ pub struct ActionMetadata {
 #[ts(export)]
 pub struct PackageDataEntry {
     pub state_info: PackageState,
+    pub data_version: Option<VersionString>,
     pub status: Status,
     #[ts(type = "string | null")]
     pub registry: Option<Url>,
@@ -372,14 +387,13 @@ impl Map for CurrentDependencies {
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CurrentDependencyInfo {
+    #[ts(type = "string | null")]
+    pub title: Option<InternedString>,
+    pub icon: Option<DataUrl<'static>>,
     #[serde(flatten)]
     pub kind: CurrentDependencyKind,
-    pub title: String,
-    pub icon: DataUrl<'static>,
     #[ts(type = "string")]
-    pub registry_url: Url,
-    #[ts(type = "string")]
-    pub version_spec: VersionRange,
+    pub version_range: VersionRange,
     pub config_satisfied: bool,
 }
 

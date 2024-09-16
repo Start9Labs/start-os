@@ -5,6 +5,7 @@ import {
   bufferTime,
   catchError,
   filter,
+  skip,
   startWith,
   switchMap,
   take,
@@ -32,7 +33,7 @@ export class PatchDbSource extends Observable<Update<DataModel>[]> {
   private readonly stream$ = inject(AuthService).isVerified$.pipe(
     switchMap(verified => (verified ? this.api.subscribeToPatchDB({}) : EMPTY)),
     switchMap(({ dump, guid }) =>
-      this.api.openWebsocket$<Revision>(guid, {}).pipe(
+      this.api.openWebsocket$<Revision>(guid).pipe(
         bufferTime(250),
         filter(revisions => !!revisions.length),
         startWith([dump]),
@@ -41,8 +42,8 @@ export class PatchDbSource extends Observable<Update<DataModel>[]> {
     catchError((_, original$) => {
       this.state.retrigger()
 
-      // @TODO this is returning right away, but we need to wait until state emits again from the retrigger() above.
       return this.state.pipe(
+        skip(1), // skipping previous value stored due to shareReplay
         filter(current => current === 'running'),
         take(1),
         switchMap(() => original$),

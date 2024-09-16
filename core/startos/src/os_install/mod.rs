@@ -147,6 +147,23 @@ pub async fn execute<C: Context>(
 
     overwrite |= disk.guid.is_none() && disk.partitions.iter().all(|p| p.guid.is_none());
 
+    if !overwrite
+        && (disk
+            .guid
+            .as_ref()
+            .map_or(false, |g| g.starts_with("EMBASSY_"))
+            || disk
+                .partitions
+                .iter()
+                .flat_map(|p| p.guid.as_ref())
+                .any(|g| g.starts_with("EMBASSY_")))
+    {
+        return Err(Error::new(
+            eyre!("installing over versions before 0.3.6 is unsupported"),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+
     let part_info = partition(&mut disk, overwrite).await?;
 
     if let Some(efi) = &part_info.efi {

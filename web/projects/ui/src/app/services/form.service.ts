@@ -122,11 +122,6 @@ export class FormService {
           return this.getListItem(spec, entry)
         })
         return this.formBuilder.array(mapped, listValidators(spec))
-      case 'file':
-        return this.formBuilder.control(
-          currentValue || null,
-          fileValidators(spec),
-        )
       case 'union':
         const currentSelection = currentValue?.selection
         const isValid = !!spec.variants[currentSelection]
@@ -256,16 +251,6 @@ function listValidators(spec: CT.ValueSpecList): ValidatorFn[] {
   const validators: ValidatorFn[] = []
   validators.push(listInRange(spec.minLength, spec.maxLength))
   validators.push(listItemIssue())
-  return validators
-}
-
-function fileValidators(spec: CT.ValueSpecFile): ValidatorFn[] {
-  const validators: ValidatorFn[] = []
-
-  if (spec.required) {
-    validators.push(Validators.required)
-  }
-
   return validators
 }
 

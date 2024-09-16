@@ -184,7 +184,13 @@ fn deserialize_log_message<'de, D: serde::de::Deserializer<'de>>(
         where
             E: serde::de::Error,
         {
-            Ok(v.trim().to_owned())
+            Ok(v.to_owned())
+        }
+        fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+        where
+            E: de::Error,
+        {
+            Ok(v)
         }
         fn visit_unit<E>(self) -> Result<Self::Value, E>
         where
@@ -202,7 +208,7 @@ fn deserialize_log_message<'de, D: serde::de::Deserializer<'de>>(
                     .flatten()
                     .collect::<Result<Vec<u8>, _>>()?,
             )
-            .map(|s| s.trim().to_owned())
+            .map(|s| s.to_owned())
             .map_err(serde::de::Error::custom)
         }
     }

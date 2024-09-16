@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { Log, RPCErrorDetails, pauseFor } from '@start9labs/shared'
+import { Log, RPCErrorDetails, RPCOptions, pauseFor } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import {
   Operation,
@@ -30,8 +30,12 @@ import {
 } from 'rxjs'
 import { mockPatchData } from './mock-patch'
 import { AuthService } from '../auth.service'
-import { StoreInfo } from '@start9labs/marketplace'
 import { T } from '@start9labs/start-sdk'
+import {
+  GetPackageRes,
+  GetPackagesRes,
+  MarketplacePkg,
+} from '@start9labs/marketplace'
 
 const PROGRESS: T.FullProgress = {
   overall: {
@@ -48,10 +52,7 @@ const PROGRESS: T.FullProgress = {
     },
     {
       name: 'Validating',
-      progress: {
-        done: 0,
-        total: 40,
-      },
+      progress: null,
     },
     {
       name: 'Installing',
@@ -80,21 +81,31 @@ export class MockApiService extends ApiService {
       .subscribe()
   }
 
-  async getStatic(url: string): Promise<string> {
+  async uploadPackage(guid: string, body: Blob): Promise<void> {
+    await pauseFor(2000)
+  }
+
+  async getStaticProxy(
+    pkg: MarketplacePkg,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string> {
     await pauseFor(2000)
     return markdown
   }
 
-  async uploadPackage(guid: string, body: Blob): Promise<string> {
+  async getStaticInstalled(
+    id: T.PackageId,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string> {
     await pauseFor(2000)
-    return 'success'
+    return markdown
   }
 
   // websocket
 
   openWebsocket$<T>(
     guid: string,
-    config: RR.WebsocketConfig<T>,
+    config: RR.WebsocketConfig<T> = {},
   ): Observable<T> {
     if (guid === 'db-guid') {
       return this.mockWsSource$.pipe<any>(
@@ -110,6 +121,11 @@ export class MockApiService extends ApiService {
         }),
       )
     } else if (guid === 'init-progress-guid') {
+      return from(this.initProgress()).pipe(
+        startWith(PROGRESS),
+      ) as Observable<T>
+    } else if (guid === 'sideload-progress-guid') {
+      config.openObserver?.next(new Event(''))
       return from(this.initProgress()).pipe(
         startWith(PROGRESS),
       ) as Observable<T>
@@ -136,7 +152,7 @@ export class MockApiService extends ApiService {
 
     this.stateIndex++
 
-    return this.stateIndex === 1 ? 'initializing' : 'running'
+    return this.stateIndex === 1 ? 'running' : 'running'
   }
 
   // db
@@ -448,39 +464,41 @@ export class MockApiService extends ApiService {
 
   // marketplace URLs
 
-  async marketplaceProxy(
-    path: string,
-    params: Record<string, string>,
-    url: string,
+  async registryRequest(
+    registryUrl: string,
+    options: RPCOptions,
   ): Promise<any> {
     await pauseFor(2000)
 
-    if (path === '/package/v0/info') {
-      const info: StoreInfo = {
-        name: 'Start9 Registry',
-        categories: [
-          'bitcoin',
-          'lightning',
-          'data',
-          'featured',
-          'messaging',
-          'social',
-          'alt coin',
-        ],
-      }
-      return info
-    } else if (path === '/package/v0/index') {
-      return Mock.MarketplacePkgsList
-    } else if (path.startsWith('/package/v0/release-notes')) {
-      return Mock.ReleaseNotes
-    } else if (path.includes('instructions') || path.includes('license')) {
-      return markdown
-    }
+    return Error('do not call directly')
   }
 
   async checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes> {
     await pauseFor(2000)
     return Mock.MarketplaceEos
+  }
+
+  async getRegistryInfo(registryUrl: string): Promise<T.RegistryInfo> {
+    await pauseFor(2000)
+    return Mock.RegistryInfo
+  }
+
+  async getRegistryPackage(
+    url: string,
+    id: string,
+    versionRange: string,
+  ): Promise<GetPackageRes> {
+    await pauseFor(2000)
+    if (!versionRange) {
+      return Mock.RegistryPackages[id]
+    } else {
+      return Mock.OtherPackageVersions[id][versionRange]
+    }
+  }
+
+  async getRegistryPackages(registryUrl: string): Promise<GetPackagesRes> {
+    await pauseFor(2000)
+    return Mock.RegistryPackages
   }
 
   // notification
@@ -742,11 +760,11 @@ export class MockApiService extends ApiService {
           ...Mock.LocalPkgs[params.id],
           stateInfo: {
             // if installing
-            // state: PackageState.Installing,
+            state: 'installing',
 
             // if updating
-            state: 'updating',
-            manifest: mockPatchData.packageData[params.id].stateInfo.manifest!,
+            // state: 'updating',
+            // manifest: mockPatchData.packageData[params.id].stateInfo.manifest!,
 
             // both
             installingInfo: {
@@ -776,7 +794,7 @@ export class MockApiService extends ApiService {
     params: RR.DrySetPackageConfigReq,
   ): Promise<RR.DrySetPackageConfigRes> {
     await pauseFor(2000)
-    return {}
+    return []
   }
 
   async setPackageConfig(
@@ -1065,14 +1083,9 @@ export class MockApiService extends ApiService {
   async sideloadPackage(): Promise<RR.SideloadPackageRes> {
     await pauseFor(2000)
     return {
-      upload: '4120e092-05ab-4de2-9fbd-c3f1f4b1df9e', // no significance, randomly generated
-      progress: '5120e092-05ab-4de2-9fbd-c3f1f4b1df9e', // no significance, randomly generated
+      upload: 'sideload-upload-guid', // no significance, randomly generated
+      progress: 'sideload-progress-guid', // no significance, randomly generated
     }
-  }
-
-  async uploadFile(body: Blob): Promise<string> {
-    await pauseFor(2000)
-    return 'returnedhash'
   }
 
   private async initProgress(): Promise<T.FullProgress> {
@@ -1129,11 +1142,7 @@ export class MockApiService extends ApiService {
     const progress = JSON.parse(JSON.stringify(PROGRESS))
 
     for (let [i, phase] of progress.phases.entries()) {
-      if (
-        !phase.progress ||
-        typeof phase.progress !== 'object' ||
-        !phase.progress.total
-      ) {
+      if (!phase.progress || phase.progress === true || !phase.progress.total) {
         await pauseFor(2000)
 
         const patches: Operation<any>[] = [

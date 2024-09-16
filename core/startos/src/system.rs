@@ -5,6 +5,7 @@ use chrono::Utc;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
+use imbl::vector;
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::process::Command;
@@ -822,6 +823,51 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
         available: GigaBytes(total_available as f64 / 1_000_000_000.0),
         percentage_used: Percentage(total_percentage as f64),
     })
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct SmtpValue {
+    #[arg(long)]
+    pub server: String,
+    #[arg(long)]
+    pub port: u16,
+    #[arg(long)]
+    pub from: String,
+    #[arg(long)]
+    pub login: String,
+    #[arg(long)]
+    pub password: Option<String>,
+}
+pub async fn set_system_smtp(ctx: RpcContext, smtp: SmtpValue) -> Result<(), Error> {
+    let smtp = Some(smtp);
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_smtp_mut()
+                .ser(&smtp)
+        })
+        .await?;
+    if let Some(callbacks) = ctx.callbacks.get_system_smtp() {
+        callbacks.call(vector![to_value(&smtp)?]).await?;
+    }
+    Ok(())
+}
+pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_smtp_mut()
+                .ser(&None)
+        })
+        .await?;
+    if let Some(callbacks) = ctx.callbacks.get_system_smtp() {
+        callbacks.call(vector![Value::Null]).await?;
+    }
+    Ok(())
 }
 
 #[tokio::test]

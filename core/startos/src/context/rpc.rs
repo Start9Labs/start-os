@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
 use std::path::PathBuf;
@@ -6,17 +7,20 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use chrono::{TimeDelta, Utc};
+use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use josekit::jwk::Jwk;
 use reqwest::{Client, Proxy};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty};
-use tokio::sync::{broadcast, Mutex, RwLock};
+use tokio::sync::{broadcast, watch, Mutex, RwLock};
 use tokio::time::Instant;
 use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
+use crate::auth::Sessions;
 use crate::context::config::ServerConfig;
 use crate::db::model::Database;
 use crate::dependencies::compute_dependency_config_errs;
@@ -28,11 +32,13 @@ use crate::net::utils::{find_eth_iface, find_wifi_iface};
 use crate::net::wifi::WpaCli;
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};
-use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
+use crate::rpc_continuations::{Guid, OpenAuthedContinuations, RpcContinuations};
+use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
 use crate::system::get_mem_info;
 use crate::util::lshw::{lshw, LshwDevice};
+use crate::util::sync::SyncMutex;
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
@@ -41,7 +47,9 @@ pub struct RpcContextSeed {
     pub ethernet_interface: String,
     pub datadir: PathBuf,
     pub disk_guid: Arc<String>,
+    pub ephemeral_sessions: SyncMutex<Sessions>,
     pub db: TypedPatchDb<Database>,
+    pub sync_db: watch::Sender<u64>,
     pub account: RwLock<AccountInfo>,
     pub net_controller: Arc<NetController>,
     pub s9pk_arch: Option<&'static str>,
@@ -52,11 +60,13 @@ pub struct RpcContextSeed {
     pub lxc_manager: Arc<LxcManager>,
     pub open_authed_continuations: OpenAuthedContinuations<InternedString>,
     pub rpc_continuations: RpcContinuations,
+    pub callbacks: ServiceCallbacks,
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
     pub client: Client,
     pub hardware: Hardware,
     pub start_time: Instant,
+    pub crons: SyncMutex<BTreeMap<Guid, NonDetachingJoinHandle<()>>>,
     #[cfg(feature = "dev")]
     pub dev: Dev,
 }
@@ -88,12 +98,14 @@ impl InitRpcContextPhases {
 }
 
 pub struct CleanupInitPhases {
+    cleanup_sessions: PhaseProgressTrackerHandle,
     init_services: PhaseProgressTrackerHandle,
     check_dependencies: PhaseProgressTrackerHandle,
 }
 impl CleanupInitPhases {
     pub fn new(handle: &FullProgressTracker) -> Self {
         Self {
+            cleanup_sessions: handle.add_phase("Cleaning up sessions".into(), Some(1)),
             init_services: handle.add_phase("Initializing services".into(), Some(10)),
             check_dependencies: handle.add_phase("Checking dependencies".into(), Some(1)),
         }
@@ -168,6 +180,8 @@ impl RpcContext {
         let ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
         read_device_info.complete();
 
+        let crons = SyncMutex::new(BTreeMap::new());
+
         if !db
             .peek()
             .await
@@ -177,18 +191,24 @@ impl RpcContext {
             .de()?
         {
             let db = db.clone();
-            tokio::spawn(async move {
-                while !check_time_is_synchronized().await.unwrap() {
-                    tokio::time::sleep(Duration::from_secs(30)).await;
-                }
-                db.mutate(|v| {
-                    v.as_public_mut()
-                        .as_server_info_mut()
-                        .as_ntp_synced_mut()
-                        .ser(&true)
-                })
-                .await
-                .unwrap()
+            crons.mutate(|c| {
+                c.insert(
+                    Guid::new(),
+                    tokio::spawn(async move {
+                        while !check_time_is_synchronized().await.unwrap() {
+                            tokio::time::sleep(Duration::from_secs(30)).await;
+                        }
+                        db.mutate(|v| {
+                            v.as_public_mut()
+                                .as_server_info_mut()
+                                .as_ntp_synced_mut()
+                                .ser(&true)
+                        })
+                        .await
+                        .unwrap()
+                    })
+                    .into(),
+                )
             });
         }
 
@@ -210,6 +230,8 @@ impl RpcContext {
                 find_eth_iface().await?
             },
             disk_guid,
+            ephemeral_sessions: SyncMutex::new(Sessions::new()),
+            sync_db: watch::Sender::new(db.sequence().await),
             db,
             account: RwLock::new(account),
             net_controller,
@@ -225,6 +247,7 @@ impl RpcContext {
             lxc_manager: Arc::new(LxcManager::new()),
             open_authed_continuations: OpenAuthedContinuations::new(),
             rpc_continuations: RpcContinuations::new(),
+            callbacks: Default::default(),
             wifi_manager: wifi_interface
                 .clone()
                 .map(|i| Arc::new(RwLock::new(WpaCli::init(i)))),
@@ -250,6 +273,7 @@ impl RpcContext {
                 .with_kind(crate::ErrorKind::ParseUrl)?,
             hardware: Hardware { devices, ram },
             start_time: Instant::now(),
+            crons,
             #[cfg(feature = "dev")]
             dev: Dev {
                 lxc: Mutex::new(BTreeMap::new()),
@@ -264,6 +288,7 @@ impl RpcContext {
 
     #[instrument(skip_all)]
     pub async fn shutdown(self) -> Result<(), Error> {
+        self.crons.mutate(|c| std::mem::take(c));
         self.services.shutdown_all().await?;
         self.is_closed.store(true, Ordering::SeqCst);
         tracing::info!("RPC Context is shutdown");
@@ -271,14 +296,75 @@ impl RpcContext {
         Ok(())
     }
 
+    pub fn add_cron<F: Future<Output = ()> + Send + 'static>(&self, fut: F) -> Guid {
+        let guid = Guid::new();
+        self.crons
+            .mutate(|c| c.insert(guid.clone(), tokio::spawn(fut).into()));
+        guid
+    }
+
     #[instrument(skip_all)]
     pub async fn cleanup_and_initialize(
         &self,
         CleanupInitPhases {
+            mut cleanup_sessions,
             init_services,
             mut check_dependencies,
         }: CleanupInitPhases,
     ) -> Result<(), Error> {
+        cleanup_sessions.start();
+        self.db
+            .mutate(|db| {
+                if db.as_public().as_server_info().as_ntp_synced().de()? {
+                    for id in db.as_private().as_sessions().keys()? {
+                        if Utc::now()
+                            - db.as_private()
+                                .as_sessions()
+                                .as_idx(&id)
+                                .unwrap()
+                                .de()?
+                                .last_active
+                            > TimeDelta::days(30)
+                        {
+                            db.as_private_mut().as_sessions_mut().remove(&id)?;
+                        }
+                    }
+                }
+                Ok(())
+            })
+            .await?;
+        let db = self.db.clone();
+        self.add_cron(async move {
+            loop {
+                tokio::time::sleep(Duration::from_secs(86400)).await;
+                if let Err(e) = db
+                    .mutate(|db| {
+                        if db.as_public().as_server_info().as_ntp_synced().de()? {
+                            for id in db.as_private().as_sessions().keys()? {
+                                if Utc::now()
+                                    - db.as_private()
+                                        .as_sessions()
+                                        .as_idx(&id)
+                                        .unwrap()
+                                        .de()?
+                                        .last_active
+                                    > TimeDelta::days(30)
+                                {
+                                    db.as_private_mut().as_sessions_mut().remove(&id)?;
+                                }
+                            }
+                        }
+                        Ok(())
+                    })
+                    .await
+                {
+                    tracing::error!("Error in session cleanup cron: {e}");
+                    tracing::debug!("{e:?}");
+                }
+            }
+        });
+        cleanup_sessions.complete();
+
         self.services.init(&self, init_services).await?;
         tracing::info!("Initialized Package Managers");
 
@@ -288,7 +374,9 @@ impl RpcContext {
         for (package_id, package) in peek.as_public().as_package_data().as_entries()?.into_iter() {
             let package = package.clone();
             let mut current_dependencies = package.as_current_dependencies().de()?;
-            compute_dependency_config_errs(self, &package_id, &mut current_dependencies).await?;
+            compute_dependency_config_errs(self, &package_id, &mut current_dependencies)
+                .await
+                .log_err();
             updated_current_dependents.insert(package_id.clone(), current_dependencies);
         }
         self.db

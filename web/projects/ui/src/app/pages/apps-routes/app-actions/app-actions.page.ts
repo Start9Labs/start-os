@@ -20,6 +20,20 @@ import {
 import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 
+const allowedStatuses = {
+  onlyRunning: new Set(['running']),
+  onlyStopped: new Set(['stopped']),
+  any: new Set([
+    'running',
+    'stopped',
+    'restarting',
+    'restoring',
+    'stopping',
+    'starting',
+    'backingUp',
+  ]),
+}
+
 @Component({
   selector: 'app-actions',
   templateUrl: './app-actions.page.html',
@@ -46,7 +60,10 @@ export class AppActionsPage {
     status: T.Status,
     action: { key: string; value: T.ActionMetadata },
   ) {
-    if (status && action.value.allowedStatuses.includes(status.main.status)) {
+    if (
+      status &&
+      allowedStatuses[action.value.allowedStatuses].has(status.main.status)
+    ) {
       if (!isEmptyObject(action.value.input || {})) {
         this.formDialog.open(FormComponent, {
           label: action.value.name,
@@ -84,7 +101,7 @@ export class AppActionsPage {
         await alert.present()
       }
     } else {
-      const statuses = [...action.value.allowedStatuses]
+      const statuses = [...allowedStatuses[action.value.allowedStatuses]]
       const last = statuses.pop()
       let statusesStr = statuses.join(', ')
       let error = ''
@@ -150,7 +167,7 @@ export class AppActionsPage {
     try {
       await this.embassyApi.uninstallPackage({ id: this.pkgId })
       this.embassyApi
-        .setDbValue<boolean>(['ack-instructions', this.pkgId], false)
+        .setDbValue<boolean>(['ackInstructions', this.pkgId], false)
         .catch(e => console.error('Failed to mark instructions as unseen', e))
       this.navCtrl.navigateRoot('/services')
     } catch (e: any) {

@@ -65,7 +65,7 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
         .await?
         .success()
     {
-        unmount("/var/lib/postgresql").await?;
+        unmount("/var/lib/postgresql", true).await?;
     }
     let exists = tokio::fs::metadata(&db_dir).await.is_ok();
     if !exists {
@@ -235,7 +235,7 @@ impl InitPhases {
             sync_clock: handle.add_phase("Synchronizing system clock".into(), Some(10)),
             enable_zram: handle.add_phase("Enabling ZRAM".into(), Some(1)),
             update_server_info: handle.add_phase("Updating server info".into(), Some(1)),
-            launch_service_network: handle.add_phase("Launching service intranet".into(), Some(10)),
+            launch_service_network: handle.add_phase("Launching service intranet".into(), Some(1)),
             run_migrations: handle.add_phase("Running migrations".into(), Some(10)),
             validate_db: handle.add_phase("Validating database".into(), Some(1)),
             postinit: if Path::new("/media/startos/config/postinit.sh").exists() {
@@ -398,6 +398,20 @@ pub async fn init(
     Command::new("update-ca-certificates")
         .invoke(crate::ErrorKind::OpenSsl)
         .await?;
+    if tokio::fs::metadata("/home/kiosk/profile").await.is_ok() {
+        Command::new("certutil")
+            .arg("-A")
+            .arg("-n")
+            .arg("StartOS Local Root CA")
+            .arg("-t")
+            .arg("TCu,Cuw,Tuw")
+            .arg("-i")
+            .arg("/usr/local/share/ca-certificates/startos-root-ca.crt")
+            .arg("-d")
+            .arg("/home/kiosk/fx-profile")
+            .invoke(ErrorKind::OpenSsl)
+            .await?;
+    }
     load_ca_cert.complete();
 
     load_wifi.start();
@@ -422,6 +436,12 @@ pub async fn init(
         tokio::fs::remove_dir_all(&tmp_var).await?;
     }
     crate::disk::mount::util::bind(&tmp_var, "/var/tmp", false).await?;
+    let downloading = cfg
+        .datadir()
+        .join(format!("package-data/archive/downloading"));
+    if tokio::fs::metadata(&downloading).await.is_ok() {
+        tokio::fs::remove_dir_all(&downloading).await?;
+    }
     let tmp_docker = cfg
         .datadir()
         .join(format!("package-data/tmp/{CONTAINER_TOOL}"));
@@ -554,33 +574,54 @@ pub struct InitProgressRes {
 pub async fn init_progress(ctx: InitContext) -> Result<InitProgressRes, Error> {
     let progress_tracker = ctx.progress.clone();
     let progress = progress_tracker.snapshot();
+    let mut error = ctx.error.subscribe();
     let guid = Guid::new();
     ctx.rpc_continuations
         .add(
             guid.clone(),
             RpcContinuation::ws(
                 |mut ws| async move {
-                    if let Err(e) = async {
-                        let mut stream = progress_tracker.stream(Some(Duration::from_millis(100)));
-                        while let Some(progress) = stream.next().await {
-                            ws.send(ws::Message::Text(
-                                serde_json::to_string(&progress)
-                                    .with_kind(ErrorKind::Serialization)?,
-                            ))
-                            .await
-                            .with_kind(ErrorKind::Network)?;
-                            if progress.overall.is_complete() {
-                                break;
+                    let res = tokio::try_join!(
+                        async {
+                            let mut stream =
+                                progress_tracker.stream(Some(Duration::from_millis(100)));
+                            while let Some(progress) = stream.next().await {
+                                ws.send(ws::Message::Text(
+                                    serde_json::to_string(&progress)
+                                        .with_kind(ErrorKind::Serialization)?,
+                                ))
+                                .await
+                                .with_kind(ErrorKind::Network)?;
+                                if progress.overall.is_complete() {
+                                    break;
+                                }
+                            }
+
+                            Ok::<_, Error>(())
+                        },
+                        async {
+                            if let Some(e) = error
+                                .wait_for(|e| e.is_some())
+                                .await
+                                .ok()
+                                .and_then(|e| e.as_ref().map(|e| e.clone_output()))
+                            {
+                                Err::<(), _>(e)
+                            } else {
+                                Ok(())
                             }
                         }
+                    );
 
-                        ws.normal_close("complete").await?;
-
-                        Ok::<_, Error>(())
-                    }
-                    .await
+                    if let Err(e) = ws
+                        .close_result(res.map(|_| "complete").map_err(|e| {
+                            tracing::error!("error in init progress websocket: {e}");
+                            tracing::debug!("{e:?}");
+                            e
+                        }))
+                        .await
                     {
-                        tracing::error!("error in init progress websocket: {e}");
+                        tracing::error!("error closing init progress websocket: {e}");
                         tracing::debug!("{e:?}");
                     }
                 },

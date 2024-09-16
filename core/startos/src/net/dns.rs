@@ -34,7 +34,7 @@ struct Resolver {
 impl Resolver {
     async fn resolve(&self, name: &Name) -> Option<Vec<Ipv4Addr>> {
         match name.iter().next_back() {
-            Some(b"embassy") => {
+            Some(b"embassy") | Some(b"startos") => {
                 if let Some(pkg) = name.iter().rev().skip(1).next() {
                     if let Some(ip) = self.services.read().await.get(&Some(
                         std::str::from_utf8(pkg)
@@ -98,16 +98,8 @@ impl RequestHandler for Resolver {
                         )
                         .await
                 }
-                a => {
-                    if a != RecordType::AAAA {
-                        tracing::warn!(
-                            "Non A-Record requested for {}: {:?}",
-                            query.name(),
-                            query.query_type()
-                        );
-                    }
-                    let mut res = Header::response_from_request(request.header());
-                    res.set_response_code(ResponseCode::NXDomain);
+                _ => {
+                    let res = Header::response_from_request(request.header());
                     response_handle
                         .send_response(
                             MessageResponseBuilder::from_message_request(&*request).build(

@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { NavController } from '@ionic/angular'
 import { PatchDB } from 'patch-db-client'
 import {
+  AllPackageData,
   DataModel,
   InstallingState,
   PackageDataEntry,
@@ -47,17 +48,19 @@ export class AppShowPage {
   private readonly pkgId = getPkgId(this.route)
 
   readonly pkgPlus$ = combineLatest([
-    this.patch.watch$('packageData', this.pkgId),
+    this.patch.watch$('packageData'),
     this.depErrorService.getPkgDepErrors$(this.pkgId),
   ]).pipe(
-    tap(([pkg, _]) => {
+    tap(([allPkgs, _]) => {
+      const pkg = allPkgs[this.pkgId]
       // if package disappears, navigate to list page
       if (!pkg) this.navCtrl.navigateRoot('/services')
     }),
-    map(([pkg, depErrors]) => {
+    map(([allPkgs, depErrors]) => {
+      const pkg = allPkgs[this.pkgId]
       return {
         pkg,
-        dependencies: this.getDepInfo(pkg, depErrors),
+        dependencies: this.getDepInfo(pkg, allPkgs, depErrors),
         status: renderPkgStatus(pkg, depErrors),
       }
     }),
@@ -81,17 +84,45 @@ export class AppShowPage {
 
   private getDepInfo(
     pkg: PackageDataEntry,
+    allPkgs: AllPackageData,
     depErrors: PkgDependencyErrors,
   ): DependencyInfo[] {
     const manifest = getManifest(pkg)
 
     return Object.keys(pkg.currentDependencies)
       .filter(id => !!manifest.dependencies[id])
-      .map(id => this.getDepValues(pkg, manifest, id, depErrors))
+      .map(id => this.getDepValues(pkg, allPkgs, manifest, id, depErrors))
+  }
+
+  private getDepDetails(
+    pkg: PackageDataEntry,
+    allPkgs: AllPackageData,
+    depId: string,
+  ) {
+    const { title, icon, versionRange } = pkg.currentDependencies[depId]
+
+    if (
+      allPkgs[depId] &&
+      (allPkgs[depId].stateInfo.state === 'installed' ||
+        allPkgs[depId].stateInfo.state === 'updating')
+    ) {
+      return {
+        title: allPkgs[depId].stateInfo.manifest!.title,
+        icon: allPkgs[depId].icon,
+        versionRange,
+      }
+    } else {
+      return {
+        title: title ? title : depId,
+        icon: icon ? icon : 'assets/img/service-icons/fallback.png',
+        versionRange,
+      }
+    }
   }
 
   private getDepValues(
     pkg: PackageDataEntry,
+    allPkgs: AllPackageData,
     manifest: T.Manifest,
     depId: string,
     depErrors: PkgDependencyErrors,
@@ -103,11 +134,15 @@ export class AppShowPage {
       depErrors,
     )
 
-    const { title, icon, versionSpec } = pkg.currentDependencies[depId]
+    const { title, icon, versionRange } = this.getDepDetails(
+      pkg,
+      allPkgs,
+      depId,
+    )
 
     return {
       id: depId,
-      version: versionSpec,
+      version: versionRange,
       title,
       icon,
       errorText: errorText
@@ -190,7 +225,7 @@ export class AppShowPage {
     const dependentInfo: DependentInfo = {
       id: pkgManifest.id,
       title: pkgManifest.title,
-      version: pkg.currentDependencies[depId].versionSpec,
+      version: pkg.currentDependencies[depId].versionRange,
     }
     const navigationExtras: NavigationExtras = {
       state: { dependentInfo },

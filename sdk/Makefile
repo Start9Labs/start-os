@@ -3,6 +3,8 @@ version = $(shell git tag --sort=committerdate | tail -1)
 
 .PHONY: test clean bundle fmt buildOutput check
 
+all: bundle
+
 test: $(TS_FILES) lib/test/output.ts
 	npm test
 
@@ -16,6 +18,9 @@ lib/test/output.ts: node_modules lib/test/makeOutput.ts scripts/oldSpecToBuilder
 
 bundle: dist | test fmt
 	touch dist
+
+lib/exver/exver.ts: node_modules lib/exver/exver.pegjs
+	npx peggy --allowed-start-rules '*' --plugin ./node_modules/ts-pegjs/dist/tspegjs -o lib/exver/exver.ts lib/exver/exver.pegjs
 
 dist: $(TS_FILES) package.json node_modules README.md LICENSE
 	npx tsc
@@ -31,7 +36,7 @@ check:
 	npm run check
 
 fmt: node_modules
-	npx prettier --write "**/*.ts"
+	npx prettier . "**/*.ts" --write
 
 node_modules: package.json
 	npm ci

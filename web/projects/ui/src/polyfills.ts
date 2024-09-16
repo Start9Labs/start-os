@@ -52,8 +52,8 @@
  *
  */
 
-;(window as any).global = window
-;(window as any).process = { env: { DEBUG: undefined }, browser: true }
+(window as any).global = window
+; (window as any).process = { env: { DEBUG: undefined }, browser: true }
 
 import { Buffer } from 'buffer'
 window.Buffer = Buffer

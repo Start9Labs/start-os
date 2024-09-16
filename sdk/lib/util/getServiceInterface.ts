@@ -50,14 +50,12 @@ export type ServiceInterfaceFilled = {
   description: string
   /** Whether or not the interface has a primary URL */
   hasPrimary: boolean
-  /** Whether or not the interface disabled */
-  disabled: boolean
   /** Whether or not to mask the URIs for this interface. Useful if the URIs contain sensitive information, such as a password, macaroon, or API key */
   masked: boolean
   /** Information about the host for this binding */
-  host: Host
+  host: Host | null
   /** URI information */
-  addressInfo: FilledAddressInfo
+  addressInfo: FilledAddressInfo | null
   /** Indicates if we are a ui/p2p/api for the kind of interface that this is representing */
   type: ServiceInterfaceType
   /** The primary hostname for the service, as chosen by the user */
@@ -90,6 +88,8 @@ export const addressHostToUrl = (
     } else if (host.kind === "ip") {
       if (host.hostname.kind === "domain") {
         hostname = `${host.hostname.subdomain ? `${host.hostname.subdomain}.` : ""}${host.hostname.domain}`
+      } else if (host.hostname.kind === "ipv6") {
+        hostname = `[${host.hostname.value}]`
       } else {
         hostname = host.hostname.value
       }
@@ -183,33 +183,36 @@ const makeInterfaceFilled = async ({
 }: {
   effects: Effects
   id: string
-  packageId: string | null
-  callback: () => void
+  packageId?: string
+  callback?: () => void
 }) => {
   const serviceInterfaceValue = await effects.getServiceInterface({
     serviceInterfaceId: id,
     packageId,
     callback,
   })
+  if (!serviceInterfaceValue) {
+    return null
+  }
   const hostId = serviceInterfaceValue.addressInfo.hostId
   const host = await effects.getHostInfo({
     packageId,
     hostId,
     callback,
   })
-  const primaryUrl = await effects
-    .getPrimaryUrl({
-      serviceInterfaceId: id,
-      packageId,
-      callback,
-    })
-    .catch((e) => null)
+  const primaryUrl = await effects.getPrimaryUrl({
+    hostId,
+    packageId,
+    callback,
+  })
 
   const interfaceFilled: ServiceInterfaceFilled = {
     ...serviceInterfaceValue,
     primaryUrl: primaryUrl,
     host,
-    addressInfo: filledAddress(host, serviceInterfaceValue.addressInfo),
+    addressInfo: host
+      ? filledAddress(host, serviceInterfaceValue.addressInfo)
+      : null,
     get primaryHostname() {
       if (primaryUrl == null) return null
       return getHostname(primaryUrl)
@@ -221,7 +224,7 @@ const makeInterfaceFilled = async ({
 export class GetServiceInterface {
   constructor(
     readonly effects: Effects,
-    readonly opts: { id: string; packageId: string | null },
+    readonly opts: { id: string; packageId?: string },
   ) {}
 
   /**
@@ -230,7 +233,7 @@ export class GetServiceInterface {
   async const() {
     const { id, packageId } = this.opts
     const callback = this.effects.restart
-    const interfaceFilled: ServiceInterfaceFilled = await makeInterfaceFilled({
+    const interfaceFilled = await makeInterfaceFilled({
       effects: this.effects,
       id,
       packageId,
@@ -244,12 +247,10 @@ export class GetServiceInterface {
    */
   async once() {
     const { id, packageId } = this.opts
-    const callback = () => {}
-    const interfaceFilled: ServiceInterfaceFilled = await makeInterfaceFilled({
+    const interfaceFilled = await makeInterfaceFilled({
       effects: this.effects,
       id,
       packageId,
-      callback,
     })
 
     return interfaceFilled
@@ -277,7 +278,7 @@ export class GetServiceInterface {
 }
 export function getServiceInterface(
   effects: Effects,
-  opts: { id: string; packageId: string | null },
+  opts: { id: string; packageId?: string },
 ) {
   return new GetServiceInterface(effects, opts)
 }

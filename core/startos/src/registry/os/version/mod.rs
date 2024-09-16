@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use chrono::Utc;
 use clap::Parser;
-use exver::VersionRange;
+use exver::{Version, VersionRange};
 use itertools::Itertools;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,6 @@ use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfo;
 use crate::registry::signer::sign::AnyVerifyingKey;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
-use crate::util::VersionString;
 
 pub mod signer;
 
@@ -25,7 +24,7 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
             "add",
             from_fn_async(add_version)
                 .with_metadata("admin", Value::Bool(true))
-                .with_metadata("getSigner", Value::Bool(true))
+                .with_metadata("get_signer", Value::Bool(true))
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
@@ -53,7 +52,8 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct AddVersionParams {
-    pub version: VersionString,
+    #[ts(type = "string")]
+    pub version: Version,
     pub headline: String,
     pub release_notes: String,
     #[ts(type = "string")]
@@ -99,7 +99,8 @@ pub async fn add_version(
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct RemoveVersionParams {
-    pub version: VersionString,
+    #[ts(type = "string")]
+    pub version: Version,
 }
 
 pub async fn remove_version(
@@ -121,10 +122,10 @@ pub async fn remove_version(
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct GetVersionParams {
+pub struct GetOsVersionParams {
     #[ts(type = "string | null")]
     #[arg(long = "src")]
-    pub source: Option<VersionString>,
+    pub source: Option<Version>,
     #[ts(type = "string | null")]
     #[arg(long = "target")]
     pub target: Option<VersionRange>,
@@ -138,13 +139,13 @@ pub struct GetVersionParams {
 
 pub async fn get_version(
     ctx: RegistryContext,
-    GetVersionParams {
+    GetOsVersionParams {
         source,
         target,
         server_id,
         arch,
-    }: GetVersionParams,
-) -> Result<BTreeMap<VersionString, OsVersionInfo>, Error> {
+    }: GetOsVersionParams,
+) -> Result<BTreeMap<Version, OsVersionInfo>, Error> {
     if let (Some(pool), Some(server_id), Some(arch)) = (&ctx.pool, server_id, arch) {
         let created_at = Utc::now();
 
@@ -176,10 +177,7 @@ pub async fn get_version(
         .collect()
 }
 
-pub fn display_version_info<T>(
-    params: WithIoFormat<T>,
-    info: BTreeMap<VersionString, OsVersionInfo>,
-) {
+pub fn display_version_info<T>(params: WithIoFormat<T>, info: BTreeMap<Version, OsVersionInfo>) {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -197,7 +195,7 @@ pub fn display_version_info<T>(
     ]);
     for (version, info) in &info {
         table.add_row(row![
-            version.as_str(),
+            &version.to_string(),
             &info.headline,
             &info.release_notes,
             &info.iso.keys().into_iter().join(", "),

@@ -1,75 +1,61 @@
-import { InterfaceReceipt } from "../interfaces/interfaceReceipt"
-import { Daemon, Effects, SDKManifest } from "../types"
-import { CheckResult } from "./checkFns/CheckResult"
+import { Effects } from "../types"
+import { HealthCheckResult } from "./checkFns/HealthCheckResult"
 import { HealthReceipt } from "./HealthReceipt"
 import { Trigger } from "../trigger"
 import { TriggerInput } from "../trigger/TriggerInput"
 import { defaultTrigger } from "../trigger/defaultTrigger"
 import { once } from "../util/once"
-import { Overlay } from "../util/Overlay"
+import { SubContainer } from "../util/SubContainer"
 import { object, unknown } from "ts-matches"
-import { T } from ".."
+import * as T from "../types"
+import { asError } from "../util/asError"
 
-export type HealthCheckParams<Manifest extends SDKManifest> = {
+export type HealthCheckParams = {
   effects: Effects
   name: string
-  image: {
-    id: keyof Manifest["images"] & T.ImageId
-    sharedRun?: boolean
-  }
   trigger?: Trigger
-  fn(overlay: Overlay): Promise<CheckResult> | CheckResult
+  fn(): Promise<HealthCheckResult> | HealthCheckResult
   onFirstSuccess?: () => unknown | Promise<unknown>
 }
 
-export function healthCheck<Manifest extends SDKManifest>(
-  o: HealthCheckParams<Manifest>,
-) {
+export function healthCheck(o: HealthCheckParams) {
   new Promise(async () => {
-    const overlay = await Overlay.of(o.effects, o.image)
-    try {
-      let currentValue: TriggerInput = {
-        hadSuccess: false,
+    let currentValue: TriggerInput = {}
+    const getCurrentValue = () => currentValue
+    const trigger = (o.trigger ?? defaultTrigger)(getCurrentValue)
+    const triggerFirstSuccess = once(() =>
+      Promise.resolve(
+        "onFirstSuccess" in o && o.onFirstSuccess
+          ? o.onFirstSuccess()
+          : undefined,
+      ),
+    )
+    for (
+      let res = await trigger.next();
+      !res.done;
+      res = await trigger.next()
+    ) {
+      try {
+        const { result, message } = await o.fn()
+        await o.effects.setHealth({
+          name: o.name,
+          id: o.name,
+          result,
+          message: message || "",
+        })
+        currentValue.lastResult = result
+        await triggerFirstSuccess().catch((err) => {
+          console.error(asError(err))
+        })
+      } catch (e) {
+        await o.effects.setHealth({
+          name: o.name,
+          id: o.name,
+          result: "failure",
+          message: asMessage(e) || "",
+        })
+        currentValue.lastResult = "failure"
       }
-      const getCurrentValue = () => currentValue
-      const trigger = (o.trigger ?? defaultTrigger)(getCurrentValue)
-      const triggerFirstSuccess = once(() =>
-        Promise.resolve(
-          "onFirstSuccess" in o && o.onFirstSuccess
-            ? o.onFirstSuccess()
-            : undefined,
-        ),
-      )
-      for (
-        let res = await trigger.next();
-        !res.done;
-        res = await trigger.next()
-      ) {
-        try {
-          const { status, message } = await o.fn(overlay)
-          await o.effects.setHealth({
-            name: o.name,
-            id: o.name,
-            result: status,
-            message: message || "",
-          })
-          currentValue.hadSuccess = true
-          currentValue.lastResult = "success"
-          await triggerFirstSuccess().catch((err) => {
-            console.error(err)
-          })
-        } catch (e) {
-          await o.effects.setHealth({
-            name: o.name,
-            id: o.name,
-            result: "failure",
-            message: asMessage(e) || "",
-          })
-          currentValue.lastResult = "failure"
-        }
-      }
-    } finally {
-      await overlay.destroy()
     }
   })
   return {} as HealthReceipt

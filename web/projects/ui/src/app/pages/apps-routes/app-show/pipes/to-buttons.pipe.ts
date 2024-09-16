@@ -10,7 +10,6 @@ import {
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { from, map, Observable } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
-import { T } from '@start9labs/start-sdk'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { ConfigModal, PackageConfigData } from 'src/app/modals/config.component'
 
@@ -32,6 +31,7 @@ export class ToButtonsPipe implements PipeTransform {
     private readonly navCtrl: NavController,
     private readonly modalCtrl: ModalController,
     private readonly apiService: ApiService,
+    private readonly api: ApiService,
     private readonly patch: PatchDB<DataModel>,
     private readonly formDialog: FormDialogService,
   ) {}
@@ -42,7 +42,7 @@ export class ToButtonsPipe implements PipeTransform {
     return [
       // instructions
       {
-        action: () => this.presentModalInstructions(manifest),
+        action: () => this.presentModalInstructions(pkg),
         title: 'Instructions',
         description: `Understand how to use ${manifest.title}`,
         icon: 'list-outline',
@@ -103,17 +103,20 @@ export class ToButtonsPipe implements PipeTransform {
     ]
   }
 
-  private async presentModalInstructions(manifest: T.Manifest) {
+  private async presentModalInstructions(
+    pkg: PackageDataEntry<InstalledState>,
+  ) {
     this.apiService
-      .setDbValue<boolean>(['ack-instructions', manifest.id], true)
+      .setDbValue<boolean>(['ackInstructions', pkg.stateInfo.manifest.id], true)
       .catch(e => console.error('Failed to mark instructions as seen', e))
 
     const modal = await this.modalCtrl.create({
       componentProps: {
         title: 'Instructions',
         content: from(
-          this.apiService.getStatic(
-            `/public/package-data/${manifest.id}/${manifest.version}/INSTRUCTIONS.md`,
+          this.api.getStaticInstalled(
+            pkg.stateInfo.manifest.id,
+            'instructions.md',
           ),
         ),
       },

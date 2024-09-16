@@ -23,7 +23,7 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
         .status()
         .await?;
     if is_mountpoint.success() {
-        unmount(dst.as_ref()).await?;
+        unmount(dst.as_ref(), true).await?;
     }
     tokio::fs::create_dir_all(&src).await?;
     tokio::fs::create_dir_all(&dst).await?;
@@ -41,11 +41,14 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
 }
 
 #[instrument(skip_all)]
-pub async fn unmount<P: AsRef<Path>>(mountpoint: P) -> Result<(), Error> {
+pub async fn unmount<P: AsRef<Path>>(mountpoint: P, lazy: bool) -> Result<(), Error> {
     tracing::debug!("Unmounting {}.", mountpoint.as_ref().display());
-    tokio::process::Command::new("umount")
-        .arg("-Rl")
-        .arg(mountpoint.as_ref())
+    let mut cmd = tokio::process::Command::new("umount");
+    cmd.arg("-R");
+    if lazy {
+        cmd.arg("-l");
+    }
+    cmd.arg(mountpoint.as_ref())
         .invoke(crate::ErrorKind::Filesystem)
         .await?;
     Ok(())

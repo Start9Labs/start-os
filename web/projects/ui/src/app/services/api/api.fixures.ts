@@ -3,12 +3,26 @@ import {
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { Metric, NotificationLevel, RR, ServerNotifications } from './api.types'
-import { BTC_ICON, LND_ICON, PROXY_ICON } from './api-icons'
-import { DependencyMetadata, MarketplacePkg } from '@start9labs/marketplace'
+import { BTC_ICON, LND_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
 import { Log } from '@start9labs/shared'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { T, CB } from '@start9labs/start-sdk'
-import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
+import { GetPackagesRes } from '@start9labs/marketplace'
+
+const mockBlake3Commitment: T.Blake3Commitment = {
+  hash: 'fakehash',
+  size: 0,
+}
+
+const mockMerkleArchiveCommitment: T.MerkleArchiveCommitment = {
+  rootSighash: 'fakehash',
+  rootMaxsize: 0,
+}
+
+const mockDescription = {
+  short: 'Lorem ipsum dolor sit amet',
+  long: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+}
 
 export module Mock {
   export const ServerUpdated: T.ServerStatus = {
@@ -23,6 +37,7 @@ export module Mock {
     headline: 'Our biggest release ever.',
     releaseNotes: {
       '0.3.6': 'Some **Markdown** release _notes_ for 0.3.6',
+      '0.3.5.2': 'Some **Markdown** release _notes_ for 0.3.5.2',
       '0.3.5.1': 'Some **Markdown** release _notes_ for 0.3.5.1',
       '0.3.4.4': 'Some **Markdown** release _notes_ for 0.3.4.4',
       '0.3.4.3': 'Some **Markdown** release _notes_ for 0.3.4.3',
@@ -37,17 +52,44 @@ export module Mock {
     },
   }
 
-  export const ReleaseNotes: RR.GetReleaseNotesRes = {
-    '0.19.2':
-      'Contrary to popular belief, Lorem Ipsum is not simply random text.',
-    '0.19.1': 'release notes for Bitcoin 0.19.1',
-    '0.19.0': 'release notes for Bitcoin 0.19.0',
+  export const RegistryInfo: T.RegistryInfo = {
+    name: 'Start9 Registry',
+    icon: REGISTRY_ICON,
+    categories: {
+      bitcoin: {
+        name: 'Bitcoin',
+        description: mockDescription,
+      },
+      featured: {
+        name: 'Featured',
+        description: mockDescription,
+      },
+      lightning: {
+        name: 'Lightning',
+        description: mockDescription,
+      },
+      communications: {
+        name: 'Communications',
+        description: mockDescription,
+      },
+      data: {
+        name: 'Data',
+        description: mockDescription,
+      },
+      ai: {
+        name: 'AI',
+        description: mockDescription,
+      },
+    },
   }
 
   export const MockManifestBitcoind: T.Manifest = {
     id: 'bitcoind',
     title: 'Bitcoin Core',
-    version: '0.21.0',
+    version: '0.21.0:0',
+    satisfies: [],
+    canMigrateTo: '!',
+    canMigrateFrom: '*',
     gitHash: 'abcdefgh',
     description: {
       short: 'A Bitcoin full node by Bitcoin Core.',
@@ -90,7 +132,10 @@ export module Mock {
   export const MockManifestLnd: T.Manifest = {
     id: 'lnd',
     title: 'Lightning Network Daemon',
-    version: '0.11.1',
+    version: '0.11.1:0',
+    satisfies: [],
+    canMigrateTo: '!',
+    canMigrateFrom: '*',
     gitHash: 'abcdefgh',
     description: {
       short: 'A bolt spec compliant client.',
@@ -116,11 +161,13 @@ export module Mock {
       bitcoind: {
         description: 'LND needs bitcoin to live.',
         optional: true,
+        s9pk: '',
       },
       'btc-rpc-proxy': {
         description:
           'As long as Bitcoin is pruned, LND needs Bitcoin Proxy to fetch block over the P2P network.',
         optional: true,
+        s9pk: '',
       },
     },
     hasConfig: true,
@@ -143,7 +190,10 @@ export module Mock {
   export const MockManifestBitcoinProxy: T.Manifest = {
     id: 'btc-rpc-proxy',
     title: 'Bitcoin Proxy',
-    version: '0.2.2',
+    version: '0.2.2:0',
+    satisfies: [],
+    canMigrateTo: '!',
+    canMigrateFrom: '*',
     gitHash: 'lmnopqrx',
     description: {
       short: 'A super charger for your Bitcoin node.',
@@ -168,6 +218,7 @@ export module Mock {
       bitcoind: {
         description: 'Bitcoin Proxy requires a Bitcoin node.',
         optional: false,
+        s9pk: '',
       },
     },
     hasConfig: false,
@@ -187,149 +238,509 @@ export module Mock {
     },
   }
 
-  export const BitcoinDep: DependencyMetadata = {
+  export const BitcoinDep: T.DependencyMetadata = {
     title: 'Bitcoin Core',
     icon: BTC_ICON,
     optional: false,
-    hidden: true,
+    description: 'Needed to run',
   }
 
-  export const ProxyDep: DependencyMetadata = {
+  export const ProxyDep: T.DependencyMetadata = {
     title: 'Bitcoin Proxy',
     icon: PROXY_ICON,
     optional: true,
-    hidden: false,
+    description: 'Needed to run',
   }
 
-  export const MarketplacePkgs: {
-    [id: string]: {
-      [version: string]: MarketplacePkg
-    }
+  export const OtherPackageVersions: {
+    [id: T.PackageId]: GetPackagesRes
   } = {
     bitcoind: {
-      '0.19.0': {
-        icon: BTC_ICON,
-        license: 'licenseUrl',
-        instructions: 'instructionsUrl',
-        manifest: {
-          ...Mock.MockManifestBitcoind,
-          version: '0.19.0',
+      '=26.1.0:0.1.0': {
+        best: {
+          '26.1.0:0.1.0': {
+            title: 'Bitcoin Core',
+            description: mockDescription,
+            hardwareRequirements: { arch: null, device: {}, ram: null },
+            license: 'mit',
+            wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
+            upstreamRepo: 'https://github.com/bitcoin/bitcoin',
+            supportSite: 'https://bitcoin.org',
+            marketingSite: 'https://bitcoin.org',
+            releaseNotes: 'Even better support for Bitcoin and wallets!',
+            osVersion: '0.3.6',
+            gitHash: 'fakehash',
+            icon: BTC_ICON,
+            sourceVersion: null,
+            dependencyMetadata: {},
+            donationUrl: null,
+            alerts: {
+              install: 'test',
+              uninstall: 'test',
+              start: 'test',
+              stop: 'test',
+              restore: 'test',
+            },
+            s9pk: {
+              url: 'https://github.com/Start9Labs/bitcoind-startos/releases/download/v26.1.0/bitcoind.s9pk',
+              commitment: mockMerkleArchiveCommitment,
+              signatures: {},
+              publishedAt: Date.now().toString(),
+            },
+          },
+          '#knots:26.1.20240325:0': {
+            title: 'Bitcoin Knots',
+            description: {
+              short: 'An alternate fully verifying implementation of Bitcoin',
+              long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
+            },
+            hardwareRequirements: { arch: null, device: {}, ram: null },
+            license: 'mit',
+            wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
+            upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
+            supportSite: 'https://bitcoinknots.org',
+            marketingSite: 'https://bitcoinknots.org',
+            releaseNotes: 'Even better support for Bitcoin and wallets!',
+            osVersion: '0.3.6',
+            gitHash: 'fakehash',
+            icon: BTC_ICON,
+            sourceVersion: null,
+            dependencyMetadata: {},
+            donationUrl: null,
+            alerts: {
+              install: 'test',
+              uninstall: 'test',
+              start: 'test',
+              stop: 'test',
+              restore: 'test',
+            },
+            s9pk: {
+              url: 'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v26.1.20240513/bitcoind.s9pk',
+              commitment: mockMerkleArchiveCommitment,
+              signatures: {},
+              publishedAt: Date.now().toString(),
+            },
+          },
         },
-        categories: ['bitcoin', 'cryptocurrency'],
-        versions: ['0.19.0', '0.20.0', '0.21.0'],
-        dependencyMetadata: {},
-        publishedAt: new Date().toISOString(),
+        categories: ['bitcoin', 'featured'],
+        otherVersions: {
+          '27.0.0:1.0.0': {
+            releaseNotes: 'Even better support for Bitcoin and wallets!',
+          },
+          '#knots:27.1.0:0': {
+            releaseNotes: 'Even better support for Bitcoin and wallets!',
+          },
+        },
       },
-      '0.20.0': {
-        icon: BTC_ICON,
-        license: 'licenseUrl',
-        instructions: 'instructionsUrl',
-        manifest: {
-          ...Mock.MockManifestBitcoind,
-          version: '0.20.0',
+      '=#knots:26.1.20240325:0': {
+        best: {
+          '26.1.0:0.1.0': {
+            title: 'Bitcoin Core',
+            description: mockDescription,
+            hardwareRequirements: { arch: null, device: {}, ram: null },
+            license: 'mit',
+            wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
+            upstreamRepo: 'https://github.com/bitcoin/bitcoin',
+            supportSite: 'https://bitcoin.org',
+            marketingSite: 'https://bitcoin.org',
+            releaseNotes: 'Even better support for Bitcoin and wallets!',
+            osVersion: '0.3.6',
+            gitHash: 'fakehash',
+            icon: BTC_ICON,
+            sourceVersion: null,
+            dependencyMetadata: {},
+            donationUrl: null,
+            alerts: {
+              install: 'test',
+              uninstall: 'test',
+              start: 'test',
+              stop: 'test',
+              restore: 'test',
+            },
+            s9pk: {
+              url: 'https://github.com/Start9Labs/bitcoind-startos/releases/download/v26.1.0/bitcoind.s9pk',
+              commitment: mockMerkleArchiveCommitment,
+              signatures: {},
+              publishedAt: Date.now().toString(),
+            },
+          },
+          '#knots:26.1.20240325:0': {
+            title: 'Bitcoin Knots',
+            description: {
+              short: 'An alternate fully verifying implementation of Bitcoin',
+              long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
+            },
+            hardwareRequirements: { arch: null, device: {}, ram: null },
+            license: 'mit',
+            wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
+            upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
+            supportSite: 'https://bitcoinknots.org',
+            marketingSite: 'https://bitcoinknots.org',
+            releaseNotes: 'Even better support for Bitcoin and wallets!',
+            osVersion: '0.3.6',
+            gitHash: 'fakehash',
+            icon: BTC_ICON,
+            sourceVersion: null,
+            dependencyMetadata: {},
+            donationUrl: null,
+            alerts: {
+              install: 'test',
+              uninstall: 'test',
+              start: 'test',
+              stop: 'test',
+              restore: 'test',
+            },
+            s9pk: {
+              url: 'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v26.1.20240513/bitcoind.s9pk',
+              commitment: mockMerkleArchiveCommitment,
+              signatures: {},
+              publishedAt: Date.now().toString(),
+            },
+          },
         },
-        categories: ['bitcoin', 'cryptocurrency'],
-        versions: ['0.19.0', '0.20.0', '0.21.0'],
-        dependencyMetadata: {},
-        publishedAt: new Date().toISOString(),
-      },
-      '0.21.0': {
-        icon: BTC_ICON,
-        license: 'licenseUrl',
-        instructions: 'instructionsUrl',
-        manifest: {
-          ...Mock.MockManifestBitcoind,
-          version: '0.21.0',
-          releaseNotes:
-            'For a complete list of changes, please visit <a href="https://bitcoincore.org/en/releases/0.21.0/">https://bitcoincore.org/en/releases/0.21.0/</a><br /><ul><li>Taproot!</li><li>New RPCs</li><li>Experimental Descriptor Wallets</li></ul>',
+        categories: ['bitcoin', 'featured'],
+        otherVersions: {
+          '27.0.0:1.0.0': {
+            releaseNotes: 'Even better support for Bitcoin and wallets!',
+          },
+          '#knots:27.1.0:0': {
+            releaseNotes: 'Even better support for Bitcoin and wallets!',
+          },
         },
-        categories: ['bitcoin', 'cryptocurrency'],
-        versions: ['0.19.0', '0.20.0', '0.21.0'],
-        dependencyMetadata: {},
-        publishedAt: new Date().toISOString(),
-      },
-      latest: {
-        icon: BTC_ICON,
-        license: 'licenseUrl',
-        instructions: 'instructionsUrl',
-        manifest: {
-          ...Mock.MockManifestBitcoind,
-          releaseNotes:
-            'For a complete list of changes, please visit <a href="https://bitcoincore.org/en/releases/0.21.0/" target="_blank">https://bitcoincore.org/en/releases/0.21.0/</a><br />Or in [markdown](https://bitcoincore.org/en/releases/0.21.0/)<ul><li>Taproot!</li><li>New RPCs</li><li>Experimental Descriptor Wallets</li></ul>',
-        },
-        categories: ['bitcoin', 'cryptocurrency'],
-        versions: ['0.19.0', '0.20.0', '0.21.0'],
-        dependencyMetadata: {},
-        publishedAt: new Date().toISOString(),
       },
     },
     lnd: {
-      '0.11.0': {
-        icon: LND_ICON,
-        license: 'licenseUrl',
-        instructions: 'instructionsUrl',
-        manifest: {
-          ...Mock.MockManifestLnd,
-          version: '0.11.0',
-          releaseNotes: 'release notes for LND 0.11.0',
+      '=0.17.5:0': {
+        best: {
+          '0.17.5:0': {
+            title: 'LND',
+            description: mockDescription,
+            hardwareRequirements: { arch: null, device: {}, ram: null },
+            license: 'mit',
+            wrapperRepo: 'https://github.com/start9labs/lnd-startos',
+            upstreamRepo: 'https://github.com/lightningnetwork/lnd',
+            supportSite: 'https://lightning.engineering/slack.html',
+            marketingSite: 'https://lightning.engineering/',
+            releaseNotes: 'Upstream release to 0.17.5',
+            osVersion: '0.3.6',
+            gitHash: 'fakehash',
+            icon: LND_ICON,
+            sourceVersion: null,
+            dependencyMetadata: {
+              bitcoind: {
+                title: 'Bitcoin Core',
+                icon: BTC_ICON,
+                description: 'Used for RPC requests',
+                optional: false,
+              },
+              'btc-rpc-proxy': {
+                title: 'Bitcoin Proxy',
+                icon: PROXY_ICON,
+                description: 'Used for authorized proxying of RPC requests',
+                optional: true,
+              },
+            },
+            donationUrl: null,
+            alerts: {
+              install: 'test',
+              uninstall: 'test',
+              start: 'test',
+              stop: 'test',
+              restore: 'test',
+            },
+            s9pk: {
+              url: 'https://github.com/Start9Labs/lnd-startos/releases/download/v0.17.5/lnd.s9pk',
+              commitment: mockMerkleArchiveCommitment,
+              signatures: {},
+              publishedAt: Date.now().toString(),
+            },
+          },
         },
-        categories: ['bitcoin', 'lightning', 'cryptocurrency'],
-        versions: ['0.11.0', '0.11.1'],
-        dependencyMetadata: {
-          bitcoind: BitcoinDep,
-          'btc-rpc-proxy': ProxyDep,
+        categories: ['lightning'],
+        otherVersions: {
+          '0.18.0:0.0.1': {
+            releaseNotes: 'Upstream release and minor fixes.',
+          },
+          '0.17.4-beta:1.0-alpha': {
+            releaseNotes: 'Upstream release to 0.17.4',
+          },
         },
-        publishedAt: new Date().toISOString(),
       },
-      '0.11.1': {
-        icon: LND_ICON,
-        license: 'licenseUrl',
-        instructions: 'instructionsUrl',
-        manifest: {
-          ...Mock.MockManifestLnd,
-          version: '0.11.1',
-          releaseNotes: 'release notes for LND 0.11.1',
+      '=0.17.4-beta:1.0-alpha': {
+        best: {
+          '0.17.4-beta:1.0-alpha': {
+            title: 'LND',
+            description: mockDescription,
+            hardwareRequirements: { arch: null, device: {}, ram: null },
+            license: 'mit',
+            wrapperRepo: 'https://github.com/start9labs/lnd-startos',
+            upstreamRepo: 'https://github.com/lightningnetwork/lnd',
+            supportSite: 'https://lightning.engineering/slack.html',
+            marketingSite: 'https://lightning.engineering/',
+            releaseNotes: 'Upstream release to 0.17.4',
+            osVersion: '0.3.6',
+            gitHash: 'fakehash',
+            icon: LND_ICON,
+            sourceVersion: null,
+            dependencyMetadata: {
+              bitcoind: {
+                title: 'Bitcoin Core',
+                icon: BTC_ICON,
+                description: 'Used for RPC requests',
+                optional: false,
+              },
+              'btc-rpc-proxy': {
+                title: 'Bitcoin Proxy',
+                icon: PROXY_ICON,
+                description: 'Used for authorized proxying of RPC requests',
+                optional: true,
+              },
+            },
+            donationUrl: null,
+            alerts: {
+              install: 'test',
+              uninstall: 'test',
+              start: 'test',
+              stop: 'test',
+              restore: 'test',
+            },
+            s9pk: {
+              url: 'https://github.com/Start9Labs/lnd-startos/releases/download/v0.17.4/lnd.s9pk',
+              commitment: mockMerkleArchiveCommitment,
+              signatures: {},
+              publishedAt: Date.now().toString(),
+            },
+          },
         },
-        categories: ['bitcoin', 'lightning', 'cryptocurrency'],
-        versions: ['0.11.0', '0.11.1'],
-        dependencyMetadata: {
-          bitcoind: BitcoinDep,
-          'btc-rpc-proxy': ProxyDep,
+        categories: ['lightning'],
+        otherVersions: {
+          '0.18.0:0.0.1': {
+            releaseNotes: 'Upstream release and minor fixes.',
+          },
+          '0.17.5:0': {
+            releaseNotes: 'Upstream release to 0.17.5',
+          },
         },
-        publishedAt: new Date().toISOString(),
-      },
-      latest: {
-        icon: LND_ICON,
-        license: 'licenseUrl',
-        instructions: 'instructionsUrl',
-        manifest: Mock.MockManifestLnd,
-        categories: ['bitcoin', 'lightning', 'cryptocurrency'],
-        versions: ['0.11.0', '0.11.1'],
-        dependencyMetadata: {
-          bitcoind: BitcoinDep,
-          'btc-rpc-proxy': ProxyDep,
-        },
-        publishedAt: new Date(new Date().valueOf() + 10).toISOString(),
       },
     },
     'btc-rpc-proxy': {
-      latest: {
-        icon: PROXY_ICON,
-        license: 'licenseUrl',
-        instructions: 'instructionsUrl',
-        manifest: Mock.MockManifestBitcoinProxy,
-        categories: ['bitcoin'],
-        versions: ['0.2.2'],
-        dependencyMetadata: {
-          bitcoind: BitcoinDep,
+      '=0.3.2.6:0': {
+        best: {
+          '0.3.2.6:0': {
+            title: 'Bitcoin Proxy',
+            description: mockDescription,
+            hardwareRequirements: { arch: null, device: {}, ram: null },
+            license: 'mit',
+            wrapperRepo: 'https://github.com/Start9Labs/btc-rpc-proxy-wrappers',
+            upstreamRepo: 'https://github.com/Kixunil/btc-rpc-proxy',
+            supportSite: 'https://github.com/Kixunil/btc-rpc-proxy/issues',
+            marketingSite: '',
+            releaseNotes: 'Upstream release and minor fixes.',
+            osVersion: '0.3.6',
+            gitHash: 'fakehash',
+            icon: PROXY_ICON,
+            sourceVersion: null,
+            dependencyMetadata: {},
+            donationUrl: null,
+            alerts: {
+              install: 'test',
+              uninstall: 'test',
+              start: 'test',
+              stop: 'test',
+              restore: 'test',
+            },
+            s9pk: {
+              url: 'https://github.com/Start9Labs/btc-rpc-proxy-startos/releases/download/v0.3.2.7.1/btc-rpc-proxy.s9pk',
+              commitment: mockMerkleArchiveCommitment,
+              signatures: {},
+              publishedAt: Date.now().toString(),
+            },
+          },
         },
-        publishedAt: new Date().toISOString(),
+        categories: ['bitcoin'],
+        otherVersions: {
+          '0.3.2.7:0': {
+            releaseNotes: 'Upstream release and minor fixes.',
+          },
+        },
       },
     },
   }
 
-  export const MarketplacePkgsList: RR.GetMarketplacePackagesRes =
-    Object.values(Mock.MarketplacePkgs).map(service => service['latest'])
+  export const RegistryPackages: GetPackagesRes = {
+    bitcoind: {
+      best: {
+        '27.0.0:1.0.0': {
+          title: 'Bitcoin Core',
+          description: mockDescription,
+          hardwareRequirements: { arch: null, device: {}, ram: null },
+          license: 'mit',
+          wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
+          upstreamRepo: 'https://github.com/bitcoin/bitcoin',
+          supportSite: 'https://bitcoin.org',
+          marketingSite: 'https://bitcoin.org',
+          releaseNotes: 'Even better support for Bitcoin and wallets!',
+          osVersion: '0.3.6',
+          gitHash: 'fakehash',
+          icon: BTC_ICON,
+          sourceVersion: null,
+          dependencyMetadata: {},
+          donationUrl: null,
+          alerts: {
+            install: 'test',
+            uninstall: 'test',
+            start: 'test',
+            stop: 'test',
+            restore: 'test',
+          },
+          s9pk: {
+            url: 'https://github.com/Start9Labs/bitcoind-startos/releases/download/v27.0.0/bitcoind.s9pk',
+            commitment: mockMerkleArchiveCommitment,
+            signatures: {},
+            publishedAt: Date.now().toString(),
+          },
+        },
+        '#knots:27.1.0:0': {
+          title: 'Bitcoin Knots',
+          description: {
+            short: 'An alternate fully verifying implementation of Bitcoin',
+            long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
+          },
+          hardwareRequirements: { arch: null, device: {}, ram: null },
+          license: 'mit',
+          wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
+          upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
+          supportSite: 'https://bitcoinknots.org',
+          marketingSite: 'https://bitcoinknots.org',
+          releaseNotes: 'Even better support for Bitcoin and wallets!',
+          osVersion: '0.3.6',
+          gitHash: 'fakehash',
+          icon: BTC_ICON,
+          sourceVersion: null,
+          dependencyMetadata: {},
+          donationUrl: null,
+          alerts: {
+            install: 'test',
+            uninstall: 'test',
+            start: 'test',
+            stop: 'test',
+            restore: 'test',
+          },
+          s9pk: {
+            url: 'https://github.com/Start9Labs/bitcoinknots-startos/releases/download/v26.1.20240513/bitcoind.s9pk',
+            commitment: mockMerkleArchiveCommitment,
+            signatures: {},
+            publishedAt: Date.now().toString(),
+          },
+        },
+      },
+      categories: ['bitcoin', 'featured'],
+      otherVersions: {
+        '26.1.0:0.1.0': {
+          releaseNotes: 'Even better support for Bitcoin and wallets!',
+        },
+        '#knots:26.1.20240325:0': {
+          releaseNotes: 'Even better Knots support for Bitcoin and wallets!',
+        },
+      },
+    },
+    lnd: {
+      best: {
+        '0.18.0:0.0.1': {
+          title: 'LND',
+          description: mockDescription,
+          hardwareRequirements: { arch: null, device: {}, ram: null },
+          license: 'mit',
+          wrapperRepo: 'https://github.com/start9labs/lnd-startos',
+          upstreamRepo: 'https://github.com/lightningnetwork/lnd',
+          supportSite: 'https://lightning.engineering/slack.html',
+          marketingSite: 'https://lightning.engineering/',
+          releaseNotes: 'Upstream release and minor fixes.',
+          osVersion: '0.3.6',
+          gitHash: 'fakehash',
+          icon: LND_ICON,
+          sourceVersion: null,
+          dependencyMetadata: {
+            bitcoind: {
+              title: 'Bitcoin Core',
+              icon: BTC_ICON,
+              description: 'Used for RPC requests',
+              optional: false,
+            },
+            'btc-rpc-proxy': {
+              title: 'Bitcoin Proxy',
+              icon: null,
+              description: 'Used for authorized RPC requests',
+              optional: true,
+            },
+          },
+          donationUrl: null,
+          alerts: {
+            install: 'test',
+            uninstall: 'test',
+            start: 'test',
+            stop: 'test',
+            restore: 'test',
+          },
+          s9pk: {
+            url: 'https://github.com/Start9Labs/lnd-startos/releases/download/v0.18.0.1/lnd.s9pk',
+            commitment: mockMerkleArchiveCommitment,
+            signatures: {},
+            publishedAt: Date.now().toString(),
+          },
+        },
+      },
+      categories: ['lightning'],
+      otherVersions: {
+        '0.17.5:0': {
+          releaseNotes: 'Upstream release to 0.17.5',
+        },
+        '0.17.4-beta:1.0-alpha': {
+          releaseNotes: 'Upstream release to 0.17.4',
+        },
+      },
+    },
+    'btc-rpc-proxy': {
+      best: {
+        '0.3.2.7:0': {
+          title: 'Bitcoin Proxy',
+          description: mockDescription,
+          hardwareRequirements: { arch: null, device: {}, ram: null },
+          license: 'mit',
+          wrapperRepo: 'https://github.com/Start9Labs/btc-rpc-proxy-wrappers',
+          upstreamRepo: 'https://github.com/Kixunil/btc-rpc-proxy',
+          supportSite: 'https://github.com/Kixunil/btc-rpc-proxy/issues',
+          marketingSite: '',
+          releaseNotes: 'Upstream release and minor fixes.',
+          osVersion: '0.3.6',
+          gitHash: 'fakehash',
+          icon: PROXY_ICON,
+          sourceVersion: null,
+          dependencyMetadata: {},
+          donationUrl: null,
+          alerts: {
+            install: 'test',
+            uninstall: 'test',
+            start: 'test',
+            stop: 'test',
+            restore: 'test',
+          },
+          s9pk: {
+            url: 'https://github.com/Start9Labs/btc-rpc-proxy-startos/releases/download/v0.3.2.7/btc-rpc-proxy.s9pk',
+            commitment: mockMerkleArchiveCommitment,
+            signatures: {},
+            publishedAt: Date.now().toString(),
+          },
+        },
+      },
+      categories: ['bitcoin'],
+      otherVersions: {
+        '0.3.2.6:0': {
+          releaseNotes: 'Upstream release and minor fixes.',
+        },
+      },
+    },
+  }
 
   export const Notifications: ServerNotifications = [
     {
@@ -529,6 +940,7 @@ export module Mock {
     current: 'b7b1a9cef4284f00af9e9dda6e676177',
     sessions: {
       '9513226517c54ddd8107d6d7b9d8aed7': {
+        loggedIn: '2021-07-14T20:49:17.774Z',
         lastActive: '2021-07-14T20:49:17.774Z',
         userAgent: 'AppleWebKit/{WebKit Rev} (KHTML, like Gecko)',
         metadata: {
@@ -536,6 +948,7 @@ export module Mock {
         },
       },
       b7b1a9cef4284f00af9e9dda6e676177: {
+        loggedIn: '2021-07-14T20:49:17.774Z',
         lastActive: '2021-06-14T20:49:17.774Z',
         userAgent:
           'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0',
@@ -668,13 +1081,13 @@ export module Mock {
     packageBackups: {
       bitcoind: {
         title: 'Bitcoin Core',
-        version: '0.21.0',
+        version: '0.21.0:0',
         osVersion: '0.3.6',
         timestamp: new Date().toISOString(),
       },
       'btc-rpc-proxy': {
         title: 'Bitcoin Proxy',
-        version: '0.2.2',
+        version: '0.2.2:0',
         osVersion: '0.3.6',
         timestamp: new Date().toISOString(),
       },
@@ -1287,6 +1700,7 @@ export module Mock {
       state: 'installed',
       manifest: MockManifestBitcoind,
     },
+    dataVersion: MockManifestBitcoind.version,
     icon: '/assets/img/service-icons/bitcoind.svg',
     lastBackup: null,
     status: {
@@ -1302,7 +1716,6 @@ export module Mock {
       ui: {
         id: 'ui',
         hasPrimary: false,
-        disabled: false,
         masked: false,
         name: 'Web UI',
         description:
@@ -1320,7 +1733,6 @@ export module Mock {
       rpc: {
         id: 'rpc',
         hasPrimary: false,
-        disabled: false,
         masked: false,
         name: 'RPC',
         description:
@@ -1338,7 +1750,6 @@ export module Mock {
       p2p: {
         id: 'p2p',
         hasPrimary: true,
-        disabled: false,
         masked: false,
         name: 'P2P',
         description:
@@ -1466,6 +1877,7 @@ export module Mock {
       state: 'installed',
       manifest: MockManifestBitcoinProxy,
     },
+    dataVersion: MockManifestBitcoinProxy.version,
     icon: '/assets/img/service-icons/btc-rpc-proxy.png',
     lastBackup: null,
     status: {
@@ -1479,7 +1891,6 @@ export module Mock {
       ui: {
         id: 'ui',
         hasPrimary: false,
-        disabled: false,
         masked: false,
         name: 'Web UI',
         description: 'A launchable web app for Bitcoin Proxy',
@@ -1499,8 +1910,7 @@ export module Mock {
         title: Mock.MockManifestBitcoind.title,
         icon: 'assets/img/service-icons/bitcoind.svg',
         kind: 'running',
-        registryUrl: '',
-        versionSpec: '>=26.0.0',
+        versionRange: '>=26.0.0',
         healthChecks: [],
         configSatisfied: true,
       },
@@ -1516,6 +1926,7 @@ export module Mock {
       state: 'installed',
       manifest: MockManifestLnd,
     },
+    dataVersion: MockManifestLnd.version,
     icon: '/assets/img/service-icons/lnd.png',
     lastBackup: null,
     status: {
@@ -1529,7 +1940,6 @@ export module Mock {
       grpc: {
         id: 'grpc',
         hasPrimary: false,
-        disabled: false,
         masked: false,
         name: 'GRPC',
         description:
@@ -1547,7 +1957,6 @@ export module Mock {
       lndconnect: {
         id: 'lndconnect',
         hasPrimary: false,
-        disabled: false,
         masked: true,
         name: 'LND Connect',
         description:
@@ -1565,7 +1974,6 @@ export module Mock {
       p2p: {
         id: 'p2p',
         hasPrimary: true,
-        disabled: false,
         masked: false,
         name: 'P2P',
         description:
@@ -1586,8 +1994,7 @@ export module Mock {
         title: Mock.MockManifestBitcoind.title,
         icon: 'assets/img/service-icons/bitcoind.svg',
         kind: 'running',
-        registryUrl: 'https://registry.start9.com',
-        versionSpec: '>=26.0.0',
+        versionRange: '>=26.0.0',
         healthChecks: [],
         configSatisfied: true,
       },
@@ -1595,8 +2002,7 @@ export module Mock {
         title: Mock.MockManifestBitcoinProxy.title,
         icon: 'assets/img/service-icons/btc-rpc-proxy.png',
         kind: 'exists',
-        registryUrl: 'https://community-registry.start9.com',
-        versionSpec: '>2.0.0',
+        versionRange: '>2.0.0',
         configSatisfied: false,
       },
     },

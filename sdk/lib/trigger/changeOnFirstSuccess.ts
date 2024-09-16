@@ -5,10 +5,12 @@ export function changeOnFirstSuccess(o: {
   afterFirstSuccess: Trigger
 }): Trigger {
   return async function* (getInput) {
-    const beforeFirstSuccess = o.beforeFirstSuccess(getInput)
-    yield
     let currentValue = getInput()
-    beforeFirstSuccess.next()
+    while (!currentValue.lastResult) {
+      yield
+      currentValue = getInput()
+    }
+    const beforeFirstSuccess = o.beforeFirstSuccess(getInput)
     for (
       let res = await beforeFirstSuccess.next();
       currentValue?.lastResult !== "success" && !res.done;

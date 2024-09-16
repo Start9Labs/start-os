@@ -24,14 +24,16 @@ export class AppListPkgComponent {
   }
 
   get sigtermTimeout(): string | null {
-    return this.pkgMainStatus.status === 'stopping'
-      ? this.pkgMainStatus.timeout
-      : null
+    return this.pkgMainStatus.status === 'stopping' ? '30s' : null // @dr-bonez TODO
   }
 
-  launchUi(e: Event, interfaces: PackageDataEntry['serviceInterfaces']): void {
+  launchUi(
+    e: Event,
+    interfaces: PackageDataEntry['serviceInterfaces'],
+    hosts: PackageDataEntry['hosts'],
+  ): void {
     e.stopPropagation()
     e.preventDefault()
-    this.launcherService.launch(interfaces)
+    this.launcherService.launch(interfaces, hosts)
   }
 }

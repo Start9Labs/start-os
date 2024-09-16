@@ -1,32 +1,7 @@
 import { Trigger } from "."
+import { lastStatus } from "./lastStatus"
 
-export function successFailure(o: {
+export const successFailure = (o: {
   duringSuccess: Trigger
   duringError: Trigger
-}): Trigger {
-  return async function* (getInput) {
-    while (true) {
-      const beforeSuccess = o.duringSuccess(getInput)
-      yield
-      let currentValue = getInput()
-      beforeSuccess.next()
-      for (
-        let res = await beforeSuccess.next();
-        currentValue?.lastResult !== "success" && !res.done;
-        res = await beforeSuccess.next()
-      ) {
-        yield
-        currentValue = getInput()
-      }
-      const duringError = o.duringError(getInput)
-      for (
-        let res = await duringError.next();
-        currentValue?.lastResult === "success" && !res.done;
-        res = await duringError.next()
-      ) {
-        yield
-        currentValue = getInput()
-      }
-    }
-  }
-}
+}) => lastStatus({ success: o.duringSuccess, default: o.duringError })

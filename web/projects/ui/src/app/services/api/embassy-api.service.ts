@@ -1,22 +1,35 @@
 import { Observable } from 'rxjs'
 import { RR } from './api.types'
+import { RPCOptions } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
+import {
+  GetPackageRes,
+  GetPackagesRes,
+  MarketplacePkg,
+} from '@start9labs/marketplace'
 
 export abstract class ApiService {
   // http
 
-  // for getting static files: ex icons, instructions, licenses
-  abstract getStatic(url: string): Promise<string>
-
   // for sideloading packages
-  abstract uploadPackage(guid: string, body: Blob): Promise<string>
+  abstract uploadPackage(guid: string, body: Blob): Promise<void>
 
-  abstract uploadFile(body: Blob): Promise<string>
+  // for getting static files: ex icons, instructions, licenses
+  abstract getStaticProxy(
+    pkg: MarketplacePkg,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string>
+
+  abstract getStaticInstalled(
+    id: T.PackageId,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string>
 
   // websocket
 
   abstract openWebsocket$<T>(
     guid: string,
-    config: RR.WebsocketConfig<T>,
+    config?: RR.WebsocketConfig<T>,
   ): Observable<T>
 
   // state
@@ -120,13 +133,22 @@ export abstract class ApiService {
 
   // marketplace URLs
 
-  abstract marketplaceProxy<T>(
-    path: string,
-    params: Record<string, unknown>,
-    url: string,
+  abstract registryRequest<T>(
+    registryUrl: string,
+    options: RPCOptions,
   ): Promise<T>
 
   abstract checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes>
+
+  abstract getRegistryInfo(registryUrl: string): Promise<T.RegistryInfo>
+
+  abstract getRegistryPackage(
+    url: string,
+    id: string,
+    versionRange: string | null,
+  ): Promise<GetPackageRes>
+
+  abstract getRegistryPackages(registryUrl: string): Promise<GetPackagesRes>
 
   // notification
 

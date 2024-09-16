@@ -10,6 +10,7 @@ use models::{HealthCheckId, PackageId, ProcedureName};
 use persistent_container::PersistentContainer;
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
 use serde::{Deserialize, Serialize};
+use service_actor::ServiceActor;
 use start_stop::StartStop;
 use tokio::sync::Notify;
 use ts_rs::TS;
@@ -26,14 +27,11 @@ use crate::progress::{NamedProgress, Progress};
 use crate::rpc_continuations::Guid;
 use crate::s9pk::S9pk;
 use crate::service::service_map::InstallProgressHandles;
-use crate::service::transition::TransitionKind;
-use crate::status::health_check::HealthCheckResult;
-use crate::status::MainStatus;
-use crate::util::actor::background::BackgroundJobQueue;
+use crate::status::health_check::NamedHealthCheckResult;
 use crate::util::actor::concurrent::ConcurrentActor;
-use crate::util::actor::Actor;
 use crate::util::io::create_file;
-use crate::util::serde::Pem;
+use crate::util::serde::{NoOutput, Pem};
+use crate::util::Never;
 use crate::volume::data_dir;
 
 mod action;
@@ -41,12 +39,13 @@ pub mod cli;
 mod config;
 mod control;
 mod dependencies;
+pub mod effects;
 pub mod persistent_container;
 mod properties;
 mod rpc;
-pub mod service_effect_handler;
+mod service_actor;
 pub mod service_map;
-mod start_stop;
+pub mod start_stop;
 mod transition;
 mod util;
 
@@ -80,7 +79,7 @@ impl ServiceRef {
     ) -> Result<(), Error> {
         self.seed
             .persistent_container
-            .execute(
+            .execute::<NoOutput>(
                 Guid::new(),
                 ProcedureName::Uninit,
                 to_value(&target_version)?,
@@ -90,10 +89,60 @@ impl ServiceRef {
         let id = self.seed.persistent_container.s9pk.as_manifest().id.clone();
         let ctx = self.seed.ctx.clone();
         self.shutdown().await?;
+
         if target_version.is_none() {
-            ctx.db
-                .mutate(|d| d.as_public_mut().as_package_data_mut().remove(&id))
-                .await?;
+            if let Some(pde) = ctx
+                .db
+                .mutate(|d| {
+                    if let Some(pde) = d
+                        .as_public_mut()
+                        .as_package_data_mut()
+                        .remove(&id)?
+                        .map(|d| d.de())
+                        .transpose()?
+                    {
+                        d.as_private_mut().as_available_ports_mut().mutate(|p| {
+                            p.free(
+                                pde.hosts
+                                    .0
+                                    .values()
+                                    .flat_map(|h| h.bindings.values())
+                                    .flat_map(|b| {
+                                        b.lan
+                                            .assigned_port
+                                            .into_iter()
+                                            .chain(b.lan.assigned_ssl_port)
+                                    }),
+                            );
+                            Ok(())
+                        })?;
+                        Ok(Some(pde))
+                    } else {
+                        Ok(None)
+                    }
+                })
+                .await?
+            {
+                let state = pde.state_info.expect_removing()?;
+                for volume_id in &state.manifest.volumes {
+                    let path = data_dir(&ctx.datadir, &state.manifest.id, volume_id);
+                    if tokio::fs::metadata(&path).await.is_ok() {
+                        tokio::fs::remove_dir_all(&path).await?;
+                    }
+                }
+                let logs_dir = ctx.datadir.join("logs").join(&state.manifest.id);
+                if tokio::fs::metadata(&logs_dir).await.is_ok() {
+                    tokio::fs::remove_dir_all(&logs_dir).await?;
+                }
+                let archive_path = ctx
+                    .datadir
+                    .join("archive")
+                    .join("installed")
+                    .join(&state.manifest.id);
+                if tokio::fs::metadata(&archive_path).await.is_ok() {
+                    tokio::fs::remove_file(&archive_path).await?;
+                }
+            }
         }
         Ok(())
     }
@@ -187,10 +236,9 @@ impl Service {
             let ctx = ctx.clone();
             move |s9pk: S9pk, i: Model<PackageDataEntry>| async move {
                 for volume_id in &s9pk.as_manifest().volumes {
-                    let tmp_path =
-                        data_dir(&ctx.datadir, &s9pk.as_manifest().id.clone(), volume_id);
-                    if tokio::fs::metadata(&tmp_path).await.is_err() {
-                        tokio::fs::create_dir_all(&tmp_path).await?;
+                    let path = data_dir(&ctx.datadir, &s9pk.as_manifest().id, volume_id);
+                    if tokio::fs::metadata(&path).await.is_err() {
+                        tokio::fs::create_dir_all(&path).await?;
                     }
                 }
                 let start_stop = if i.as_status().as_main().de()?.running() {
@@ -220,12 +268,13 @@ impl Service {
                         tracing::error!("Error opening s9pk for install: {e}");
                         tracing::debug!("{e:?}")
                     }) {
-                        if let Ok(service) = Self::install(ctx.clone(), s9pk, None, None)
-                            .await
-                            .map_err(|e| {
-                                tracing::error!("Error installing service: {e}");
-                                tracing::debug!("{e:?}")
-                            })
+                        if let Ok(service) =
+                            Self::install(ctx.clone(), s9pk, None, None::<Never>, None)
+                                .await
+                                .map_err(|e| {
+                                    tracing::error!("Error installing service: {e}");
+                                    tracing::debug!("{e:?}")
+                                })
                         {
                             return Ok(Some(service));
                         }
@@ -257,6 +306,7 @@ impl Service {
                             ctx.clone(),
                             s9pk,
                             Some(s.as_manifest().as_version().de()?),
+                            None::<Never>,
                             None,
                         )
                         .await
@@ -334,17 +384,39 @@ impl Service {
     pub async fn install(
         ctx: RpcContext,
         s9pk: S9pk,
-        src_version: Option<models::VersionString>,
+        mut src_version: Option<models::VersionString>,
+        recovery_source: Option<impl GenericMountGuard>,
         progress: Option<InstallProgressHandles>,
     ) -> Result<ServiceRef, Error> {
         let manifest = s9pk.as_manifest().clone();
         let developer_key = s9pk.as_archive().signer();
         let icon = s9pk.icon_data_url().await?;
         let service = Self::new(ctx.clone(), s9pk, StartStop::Stop).await?;
+        if let Some(recovery_source) = recovery_source {
+            service
+                .actor
+                .send(
+                    Guid::new(),
+                    transition::restore::Restore {
+                        path: recovery_source.path().to_path_buf(),
+                    },
+                )
+                .await??;
+            recovery_source.unmount().await?;
+            src_version = Some(
+                service
+                    .seed
+                    .persistent_container
+                    .s9pk
+                    .as_manifest()
+                    .version
+                    .clone(),
+            );
+        }
         service
             .seed
             .persistent_container
-            .execute(
+            .execute::<NoOutput>(
                 Guid::new(),
                 ProcedureName::Init,
                 to_value(&src_version)?,
@@ -382,26 +454,6 @@ impl Service {
         Ok(service)
     }
 
-    pub async fn restore(
-        ctx: RpcContext,
-        s9pk: S9pk,
-        backup_source: impl GenericMountGuard,
-        progress: Option<InstallProgressHandles>,
-    ) -> Result<ServiceRef, Error> {
-        let service = Service::install(ctx.clone(), s9pk, None, progress).await?;
-
-        service
-            .actor
-            .send(
-                Guid::new(),
-                transition::restore::Restore {
-                    path: backup_source.path().to_path_buf(),
-                },
-            )
-            .await??;
-        Ok(service)
-    }
-
     #[instrument(skip_all)]
     pub async fn backup(&self, guard: impl GenericMountGuard) -> Result<(), Error> {
         let id = &self.seed.id;
@@ -417,10 +469,11 @@ impl Service {
             .send(
                 Guid::new(),
                 transition::backup::Backup {
-                    path: guard.path().to_path_buf(),
+                    path: guard.path().join("data"),
                 },
             )
-            .await??;
+            .await??
+            .await?;
         Ok(())
     }
 
@@ -440,7 +493,6 @@ impl Service {
 
 #[derive(Debug, Clone)]
 pub struct RunningStatus {
-    health: OrdMap<HealthCheckId, HealthCheckResult>,
     started: DateTime<Utc>,
 }
 
@@ -463,7 +515,6 @@ impl ServiceActorSeed {
                         .running_status
                         .take()
                         .unwrap_or_else(|| RunningStatus {
-                            health: Default::default(),
                             started: Utc::now(),
                         }),
                 );
@@ -474,116 +525,6 @@ impl ServiceActorSeed {
         self.persistent_container.state.send_modify(|state| {
             state.running_status = None;
         });
-    }
-}
-#[derive(Clone)]
-struct ServiceActor(Arc<ServiceActorSeed>);
-
-impl Actor for ServiceActor {
-    fn init(&mut self, jobs: &BackgroundJobQueue) {
-        let seed = self.0.clone();
-        jobs.add_job(async move {
-            let id = seed.id.clone();
-            let mut current = seed.persistent_container.state.subscribe();
-
-            loop {
-                let kinds = current.borrow().kinds();
-
-                if let Err(e) = async {
-                    let main_status = match (
-                        kinds.transition_state,
-                        kinds.desired_state,
-                        kinds.running_status,
-                    ) {
-                        (Some(TransitionKind::Restarting), StartStop::Stop, Some(_)) => {
-                            seed.persistent_container.stop().await?;
-                            MainStatus::Restarting
-                        }
-                        (Some(TransitionKind::Restarting), StartStop::Start, _) => {
-                            seed.persistent_container.start().await?;
-                            MainStatus::Restarting
-                        }
-                        (Some(TransitionKind::Restarting), _, _) => MainStatus::Restarting,
-                        (Some(TransitionKind::Restoring), _, _) => MainStatus::Restoring,
-                        (Some(TransitionKind::BackingUp), _, Some(status)) => {
-                            MainStatus::BackingUp {
-                                started: Some(status.started),
-                                health: status.health.clone(),
-                            }
-                        }
-                        (Some(TransitionKind::BackingUp), _, None) => MainStatus::BackingUp {
-                            started: None,
-                            health: OrdMap::new(),
-                        },
-                        (None, StartStop::Stop, None) => MainStatus::Stopped,
-                        (None, StartStop::Stop, Some(_)) => MainStatus::Stopping {
-                            timeout: seed.persistent_container.stop().await?.into(),
-                        },
-                        (None, StartStop::Start, Some(status)) => MainStatus::Running {
-                            started: status.started,
-                            health: status.health.clone(),
-                        },
-                        (None, StartStop::Start, None) => {
-                            seed.persistent_container.start().await?;
-                            MainStatus::Starting
-                        }
-                    };
-                    seed.ctx
-                        .db
-                        .mutate(|d| {
-                            if let Some(i) = d.as_public_mut().as_package_data_mut().as_idx_mut(&id)
-                            {
-                                let previous = i.as_status().as_main().de()?;
-                                let previous_health = previous.health();
-                                let previous_started = previous.started();
-                                let mut main_status = main_status;
-                                match &mut main_status {
-                                    &mut MainStatus::Running { ref mut health, .. }
-                                    | &mut MainStatus::BackingUp { ref mut health, .. } => {
-                                        *health = previous_health.unwrap_or(health).clone();
-                                    }
-                                    _ => (),
-                                };
-                                match &mut main_status {
-                                    MainStatus::Running {
-                                        ref mut started, ..
-                                    } => {
-                                        *started = previous_started.unwrap_or(*started);
-                                    }
-                                    MainStatus::BackingUp {
-                                        ref mut started, ..
-                                    } => {
-                                        *started = previous_started.map(Some).unwrap_or(*started);
-                                    }
-                                    _ => (),
-                                };
-                                i.as_status_mut().as_main_mut().ser(&main_status)?;
-                            }
-                            Ok(())
-                        })
-                        .await?;
-
-                    Ok::<_, Error>(())
-                }
-                .await
-                {
-                    tracing::error!("error synchronizing state of service: {e}");
-                    tracing::debug!("{e:?}");
-
-                    seed.synchronized.notify_waiters();
-
-                    tracing::error!("Retrying in {}s...", SYNC_RETRY_COOLDOWN_SECONDS);
-                    tokio::time::sleep(Duration::from_secs(SYNC_RETRY_COOLDOWN_SECONDS)).await;
-                    continue;
-                }
-
-                seed.synchronized.notify_waiters();
-
-                tokio::select! {
-                    _ = current.changed() => (),
-                }
-            }
-        })
     }
 }
 
