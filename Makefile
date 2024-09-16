@@ -94,7 +94,7 @@ test: | test-core test-sdk test-container-runtime
 test-core: $(CORE_SRC) $(ENVIRONMENT_FILE) 
 	./core/run-tests.sh
 
-test-sdk: $(shell git ls-files sdk) sdk/lib/osBindings
+test-sdk: $(shell git ls-files sdk) sdk/base/lib/osBindings
 	cd sdk && make test
 
 test-container-runtime: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
