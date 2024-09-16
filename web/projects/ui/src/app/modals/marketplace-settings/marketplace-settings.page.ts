@@ -7,7 +7,7 @@ import {
   sameUrl,
   toUrl,
 } from '@start9labs/shared'
-import { CT } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-sdk'
 import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
 import {
   TuiButtonModule,
@@ -182,7 +182,7 @@ export const MARKETPLACE_REGISTRY = new PolymorpheusComponent(
   MarketplaceSettingsPage,
 )
 
-function getMarketplaceValueSpec(): CT.ValueSpecObject {
+function getMarketplaceValueSpec(): IST.ValueSpecObject {
   return {
     type: 'object',
     name: 'Add Custom Registry',

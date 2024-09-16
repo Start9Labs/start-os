@@ -1,38 +1,17 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { AlertController, ModalController, NavController } from '@ionic/angular'
-import {
-  ErrorService,
-  getPkgId,
-  isEmptyObject,
-  LoadingService,
-} from '@start9labs/shared'
+import { AlertController, NavController } from '@ionic/angular'
+import { ErrorService, getPkgId, LoadingService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
-import { FormComponent } from 'src/app/components/form.component'
-import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { ActionService } from 'src/app/services/action.service'
 import {
   DataModel,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
-
-const allowedStatuses = {
-  onlyRunning: new Set(['running']),
-  onlyStopped: new Set(['stopped']),
-  any: new Set([
-    'running',
-    'stopped',
-    'restarting',
-    'restoring',
-    'stopping',
-    'starting',
-    'backingUp',
-  ]),
-}
 
 @Component({
   selector: 'app-actions',
@@ -46,86 +25,24 @@ export class AppActionsPage {
 
   constructor(
     private readonly route: ActivatedRoute,
-    private readonly embassyApi: ApiService,
-    private readonly modalCtrl: ModalController,
+    private readonly api: ApiService,
     private readonly alertCtrl: AlertController,
     private readonly errorService: ErrorService,
     private readonly loader: LoadingService,
     private readonly navCtrl: NavController,
     private readonly patch: PatchDB<DataModel>,
-    private readonly formDialog: FormDialogService,
+    private readonly actionService: ActionService,
   ) {}
 
   async handleAction(
-    status: T.Status,
+    pkg: PackageDataEntry,
     action: { key: string; value: T.ActionMetadata },
   ) {
-    if (
-      status &&
-      allowedStatuses[action.value.allowedStatuses].has(status.main.status)
-    ) {
-      if (!isEmptyObject(action.value.input || {})) {
-        this.formDialog.open(FormComponent, {
-          label: action.value.name,
-          data: {
-            spec: action.value.input,
-            buttons: [
-              {
-                text: 'Execute',
-                handler: async (value: any) =>
-                  this.executeAction(action.key, value),
-              },
-            ],
-          },
-        })
-      } else {
-        const alert = await this.alertCtrl.create({
-          header: 'Confirm',
-          message: `Are you sure you want to execute action "${
-            action.value.name
-          }"? ${action.value.warning || ''}`,
-          buttons: [
-            {
-              text: 'Cancel',
-              role: 'cancel',
-            },
-            {
-              text: 'Execute',
-              handler: () => {
-                this.executeAction(action.key)
-              },
-              cssClass: 'enter-click',
-            },
-          ],
-        })
-        await alert.present()
-      }
-    } else {
-      const statuses = [...allowedStatuses[action.value.allowedStatuses]]
-      const last = statuses.pop()
-      let statusesStr = statuses.join(', ')
-      let error = ''
-      if (statuses.length) {
-        if (statuses.length > 1) {
-          // oxford comma
-          statusesStr += ','
-        }
-        statusesStr += ` or ${last}`
-      } else if (last) {
-        statusesStr = `${last}`
-      } else {
-        error = `There is no status for which this action may be run. This is a bug. Please file an issue with the service maintainer.`
-      }
-      const alert = await this.alertCtrl.create({
-        header: 'Forbidden',
-        message:
-          error ||
-          `Action "${action.value.name}" can only be executed when service is ${statusesStr}`,
-        buttons: ['OK'],
-        cssClass: 'alert-error-message enter-click',
-      })
-      await alert.present()
-    }
+    const { title, id } = getManifest(pkg)
+    this.actionService.handleAction(
+      { id, title, mainStatus: pkg.status.main },
+      { id: action.key, metadata: action.value },
+    )
   }
 
   async tryUninstall(pkg: PackageDataEntry): Promise<void> {
@@ -165,8 +82,8 @@ export class AppActionsPage {
     const loader = this.loader.open(`Beginning uninstall...`).subscribe()
 
     try {
-      await this.embassyApi.uninstallPackage({ id: this.pkgId })
-      this.embassyApi
+      await this.api.uninstallPackage({ id: this.pkgId })
+      this.api
         .setDbValue<boolean>(['ackInstructions', this.pkgId], false)
         .catch(e => console.error('Failed to mark instructions as unseen', e))
       this.navCtrl.navigateRoot('/services')
@@ -177,45 +94,9 @@ export class AppActionsPage {
     }
   }
 
-  private async executeAction(
-    actionId: string,
-    input?: object,
-  ): Promise<boolean> {
-    const loader = this.loader.open('Executing action...').subscribe()
-
-    try {
-      const res = await this.embassyApi.executePackageAction({
-        id: this.pkgId,
-        actionId,
-        input,
-      })
-
-      const successModal = await this.modalCtrl.create({
-        component: ActionSuccessPage,
-        componentProps: {
-          actionRes: res,
-        },
-      })
-
-      setTimeout(() => successModal.present(), 500)
-      return true // needed to dismiss original modal/alert
-    } catch (e: any) {
-      this.errorService.handleError(e)
-      return false // don't dismiss original modal/alert
-    } finally {
-      loader.unsubscribe()
-    }
-  }
-
   asIsOrder() {
     return 0
   }
-}
-
-interface LocalAction {
-  name: string
-  description: string
-  icon: string
 }
 
 @Component({
@@ -225,5 +106,9 @@ interface LocalAction {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppActionsItemComponent {
-  @Input() action!: LocalAction
+  @Input() action!: {
+    name: string
+    description: string
+    icon: string
+  }
 }

@@ -1,11 +1,11 @@
 import { Pipe, PipeTransform } from '@angular/core'
-import { CT } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-sdk'
 
 @Pipe({
   name: 'hint',
 })
 export class HintPipe implements PipeTransform {
-  transform(spec: CT.ValueSpec): string {
+  transform(spec: IST.ValueSpec): string {
     const hint = []
 
     if (spec.description) {

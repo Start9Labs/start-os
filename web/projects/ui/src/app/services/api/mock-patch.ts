@@ -95,36 +95,33 @@ export const mockPatchData: DataModel = {
       icon: '/assets/img/service-icons/bitcoind.svg',
       lastBackup: null,
       status: {
-        configured: true,
-        main: {
-          status: 'running',
-          started: '2021-06-14T20:49:17.774Z',
-          health: {
-            'ephemeral-health-check': {
-              name: 'Ephemeral Health Check',
-              result: 'starting',
-              message: null,
-            },
-            'chain-state': {
-              name: 'Chain State',
-              result: 'loading',
-              message: 'Bitcoin is syncing from genesis',
-            },
-            'p2p-interface': {
-              name: 'P2P',
-              result: 'success',
-              message: 'Health check successful',
-            },
-            'rpc-interface': {
-              name: 'RPC',
-              result: 'failure',
-              message: 'RPC interface unreachable.',
-            },
-            'unnecessary-health-check': {
-              name: 'Unnecessary Health Check',
-              result: 'disabled',
-              message: null,
-            },
+        main: 'running',
+        started: '2021-06-14T20:49:17.774Z',
+        health: {
+          'ephemeral-health-check': {
+            name: 'Ephemeral Health Check',
+            result: 'starting',
+            message: null,
+          },
+          'chain-state': {
+            name: 'Chain State',
+            result: 'loading',
+            message: 'Bitcoin is syncing from genesis',
+          },
+          'p2p-interface': {
+            name: 'P2P',
+            result: 'success',
+            message: 'Health check successful',
+          },
+          'rpc-interface': {
+            name: 'RPC',
+            result: 'failure',
+            message: 'RPC interface unreachable.',
+          },
+          'unnecessary-health-check': {
+            name: 'Unnecessary Health Check',
+            result: 'disabled',
+            message: null,
           },
         },
       },
@@ -287,6 +284,7 @@ export const mockPatchData: DataModel = {
       storeExposedDependents: [],
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
+      requestedActions: {},
     },
     lnd: {
       stateInfo: {
@@ -300,10 +298,7 @@ export const mockPatchData: DataModel = {
       icon: '/assets/img/service-icons/lnd.png',
       lastBackup: null,
       status: {
-        configured: true,
-        main: {
-          status: 'stopped',
-        },
+        main: 'stopped',
       },
       actions: {},
       serviceInterfaces: {
@@ -366,7 +361,6 @@ export const mockPatchData: DataModel = {
           kind: 'running',
           versionRange: '>=26.0.0',
           healthChecks: [],
-          configSatisfied: true,
         },
         'btc-rpc-proxy': {
           title: 'Bitcoin Proxy',
@@ -374,13 +368,13 @@ export const mockPatchData: DataModel = {
           kind: 'running',
           versionRange: '>2.0.0',
           healthChecks: [],
-          configSatisfied: false,
         },
       },
       hosts: {},
       storeExposedDependents: [],
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
+      requestedActions: {},
     },
   },
 }

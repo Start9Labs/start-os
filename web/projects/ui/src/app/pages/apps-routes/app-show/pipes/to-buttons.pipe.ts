@@ -8,10 +8,9 @@ import {
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { from, map, Observable } from 'rxjs'
+import { from, map, Observable, of } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { ConfigModal, PackageConfigData } from 'src/app/modals/config.component'
+import { ActionService } from 'src/app/services/action.service'
 
 export interface Button {
   title: string
@@ -33,7 +32,7 @@ export class ToButtonsPipe implements PipeTransform {
     private readonly apiService: ApiService,
     private readonly api: ApiService,
     private readonly patch: PatchDB<DataModel>,
-    private readonly formDialog: FormDialogService,
+    private readonly actionService: ActionService,
   ) {}
 
   transform(pkg: PackageDataEntry<InstalledState>): Button[] {
@@ -53,13 +52,21 @@ export class ToButtonsPipe implements PipeTransform {
       // config
       {
         action: async () =>
-          this.formDialog.open<PackageConfigData>(ConfigModal, {
-            label: `${manifest.title} configuration`,
-            data: { pkgId: manifest.id },
-          }),
+          this.actionService.handleAction(
+            {
+              id: manifest.id,
+              title: manifest.title,
+              mainStatus: pkg.status.main,
+            },
+            {
+              id: 'config',
+              metadata: pkg.actions['config'],
+            },
+          ),
         title: 'Config',
         description: `Customize ${manifest.title}`,
         icon: 'options-outline',
+        highlighted$: of(pkg.requestedActions['config'].active),
       },
       // properties
       {
