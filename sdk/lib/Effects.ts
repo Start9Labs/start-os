@@ -47,6 +47,9 @@ export type Effects = {
     request<Input extends Record<string, unknown>>(
       options: RequestActionParams,
     ): Promise<void>
+    clearRequests(
+      options: { only: ActionId[] } | { except: ActionId[] },
+    ): Promise<void>
   }
 
   // control

@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use imbl_value::InternedString;
-use models::{ActionId, PackageId};
+use models::{ActionId, PackageId, ReplayId};
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 
 use crate::action::{display_action_result, ActionInput, ActionResult};
@@ -36,6 +36,12 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand("request", from_fn_async(request_action).no_cli())
+        .subcommand(
+            "clear-requests",
+            from_fn_async(clear_action_requests)
+                .no_display()
+                .with_call_remote::<ContainerCliContext>(),
+        )
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -195,8 +201,7 @@ pub struct RequestActionParams {
     #[serde(default)]
     #[ts(skip)]
     procedure_id: Guid,
-    #[ts(type = "string")]
-    replay_id: InternedString,
+    replay_id: ReplayId,
     #[serde(flatten)]
     request: ActionRequest,
 }
@@ -268,6 +273,45 @@ async fn request_action(
                 .or_not_found(src_id)?
                 .as_requested_actions_mut()
                 .insert(&replay_id, &ActionRequestEntry { active, request })
+        })
+        .await?;
+    Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
+#[ts(type = "{ only: string[] } | { except: string[] }")]
+#[ts(export)]
+pub struct ClearActionRequestsParams {
+    #[arg(long, conflicts_with = "except")]
+    pub only: Option<Vec<ReplayId>>,
+    #[arg(long, conflicts_with = "only")]
+    pub except: Option<Vec<ReplayId>>,
+}
+
+async fn clear_action_requests(
+    context: EffectContext,
+    ClearActionRequestsParams { only, except }: ClearActionRequestsParams,
+) -> Result<(), Error> {
+    let context = context.deref()?;
+    let package_id = context.seed.id.clone();
+    let only = only.map(|only| only.into_iter().collect::<BTreeSet<_>>());
+    let except = except.map(|except| except.into_iter().collect::<BTreeSet<_>>());
+    context
+        .seed
+        .ctx
+        .db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_requested_actions_mut()
+                .mutate(|a| {
+                    Ok(a.retain(|e, _| {
+                        only.as_ref().map_or(true, |only| !only.contains(e))
+                            && except.as_ref().map_or(true, |except| except.contains(e))
+                    }))
+                })
         })
         .await?;
     Ok(())

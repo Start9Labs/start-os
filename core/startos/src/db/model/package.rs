@@ -1,11 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::{DateTime, Utc};
-use clap::Parser;
 use exver::VersionRange;
 use imbl_value::InternedString;
 use models::{
-    ActionId, DataUrl, HealthCheckId, HostId, PackageId, ServiceInterfaceId, VersionString,
+    ActionId, DataUrl, HealthCheckId, HostId, PackageId, ReplayId, ServiceInterfaceId,
+    VersionString,
 };
 use patch_db::json_ptr::JsonPointer;
 use patch_db::HasModel;
@@ -13,7 +13,6 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::action::ActionInput;
 use crate::net::host::Hosts;
 use crate::net::service_interface::ServiceInterface;
 use crate::prelude::*;
@@ -366,7 +365,7 @@ pub struct PackageDataEntry {
     pub current_dependencies: CurrentDependencies,
     pub actions: BTreeMap<ActionId, ActionMetadata>,
     #[ts(as = "BTreeMap::<String, ActionRequestEntry>")]
-    pub requested_actions: BTreeMap<InternedString, ActionRequestEntry>,
+    pub requested_actions: BTreeMap<ReplayId, ActionRequestEntry>,
     pub service_interfaces: BTreeMap<ServiceInterfaceId, ServiceInterface>,
     pub hosts: Hosts,
     #[ts(type = "string[]")]

@@ -3,13 +3,15 @@ import type { ActionRequestEntry } from "./ActionRequestEntry"
 import type { HealthCheckId } from "./HealthCheckId"
 import type { NamedHealthCheckResult } from "./NamedHealthCheckResult"
 import type { PackageId } from "./PackageId"
+import type { ReplayId } from "./ReplayId"
+import type { Version } from "./Version"
 
 export type CheckDependenciesResult = {
   packageId: PackageId
   title: string | null
-  installedVersion: string | null
-  satisfies: string[]
+  installedVersion: Version | null
+  satisfies: Array<Version>
   isRunning: boolean
-  requestedActions: { [key: string]: ActionRequestEntry }
+  requestedActions: { [key: ReplayId]: ActionRequestEntry }
   healthChecks: { [key: HealthCheckId]: NamedHealthCheckResult }
 }

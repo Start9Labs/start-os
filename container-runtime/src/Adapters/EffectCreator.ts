@@ -129,6 +129,13 @@ function makeEffects(context: EffectContext): Effects {
           ...options,
         }) as ReturnType<T.Effects["action"]["run"]>
       },
+      clearRequests(
+        ...[options]: Parameters<T.Effects["action"]["clearRequests"]>
+      ) {
+        return rpcRound("action.clear-requests", {
+          ...options,
+        }) as ReturnType<T.Effects["action"]["clearRequests"]>
+      },
     },
     bind(...[options]: Parameters<T.Effects["bind"]>) {
       return rpcRound("bind", {

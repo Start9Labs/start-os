@@ -46,7 +46,6 @@ pub struct ActionInput {
 #[derive(Deserialize, Serialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
 pub struct GetActionInputParams {
-    #[serde(rename = "id")]
     pub package_id: PackageId,
     pub action_id: ActionId,
 }
@@ -123,7 +122,6 @@ pub fn display_action_result<T: Serialize>(params: WithIoFormat<T>, result: Opti
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RunActionParams {
-    #[serde(rename = "id")]
     pub package_id: PackageId,
     pub action_id: ActionId,
     #[ts(optional)]

@@ -274,8 +274,16 @@ export class SystemForEmbassy implements System {
 
   async packageInit(effects: Effects, timeoutMs: number | null): Promise<void> {
     const previousVersion = await effects.getDataVersion()
-    if (previousVersion)
-      await this.migration(effects, previousVersion, timeoutMs)
+    if (previousVersion) {
+      if (
+        (await this.migration(effects, previousVersion, timeoutMs)).configured
+      ) {
+        await effects.action.clearRequests({ only: ["needs-config"] })
+      }
+      await effects.setDataVersion({
+        version: ExtendedVersion.parseEmver(this.manifest.version).toString(),
+      })
+    }
     await effects.setMainStatus({ status: "stopped" })
     await this.exportActions(effects)
     await this.exportNetwork(effects)
@@ -396,13 +404,21 @@ export class SystemForEmbassy implements System {
     const manifest = this.manifest
     const actions = {
       ...manifest.actions,
-      config: {
+    }
+    if (manifest.config) {
+      actions.config = {
         name: "Configure",
         description: "Edit the configuration of this service",
         "allowed-statuses": ["running", "stopped"],
-        warning: null,
         "input-spec": {},
-      },
+        implementation: { type: "script", args: [] },
+      }
+      await effects.action.request({
+        packageId: this.manifest.id,
+        actionId: "config",
+        replayId: "needs-config",
+        description: "This service must be configured before it can be run",
+      })
     }
     for (const [actionId, action] of Object.entries(actions)) {
       const hasRunning = !!action["allowed-statuses"].find(
@@ -618,7 +634,7 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     fromVersion: string,
     timeoutMs: number | null,
-  ) {
+  ): Promise<{ configured: boolean }> {
     const fromEmver = ExtendedVersion.parseEmver(fromVersion)
     const currentEmver = ExtendedVersion.parseEmver(this.manifest.version)
     if (!this.manifest.migrations) return { configured: true }
