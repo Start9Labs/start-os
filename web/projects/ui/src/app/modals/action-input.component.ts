@@ -14,7 +14,15 @@ import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
 import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
 import { compare } from 'fast-json-patch'
 import { PatchDB } from 'patch-db-client'
-import { catchError, defer, EMPTY, endWith, firstValueFrom, map } from 'rxjs'
+import {
+  catchError,
+  defer,
+  EMPTY,
+  endWith,
+  firstValueFrom,
+  map,
+  of,
+} from 'rxjs'
 import { InvalidService } from 'src/app/components/form/invalid.service'
 import { ActionDepComponent } from 'src/app/modals/action-dep.component'
 import { UiPipeModule } from 'src/app/pipes/ui/ui.module'
@@ -24,6 +32,7 @@ import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
 import * as json from 'fast-json-patch'
 import { ActionService } from '../services/action.service'
 import { ActionButton, FormComponent } from '../components/form.component'
+import { TuiLetModule } from '@taiga-ui/cdk'
 
 export interface PackageActionData {
   readonly pkgInfo: {
@@ -39,35 +48,37 @@ export interface PackageActionData {
 
 @Component({
   template: `
-    <ng-container *ngIf="data$ | async as data; else loading">
+    <ng-container *tuiLet="res$ | async as res; else loading">
       <tui-notification *ngIf="error" status="error">
         <div [innerHTML]="error"></div>
       </tui-notification>
 
-      <action-dep
-        *ngIf="dependentInfo"
-        [pkgTitle]="pkgInfo.title"
-        [depTitle]="dependentInfo.title"
-        [originalValue]="data.originalValue || {}"
-        [operations]="data.operations || []"
-      ></action-dep>
+      <ng-container *ngIf="res">
+        <action-dep
+          *ngIf="dependentInfo"
+          [pkgTitle]="pkgInfo.title"
+          [depTitle]="dependentInfo.title"
+          [originalValue]="res.originalValue || {}"
+          [operations]="res.operations || []"
+        ></action-dep>
 
-      <app-form
-        tuiMode="onDark"
-        [spec]="data.spec"
-        [value]="data.originalValue || {}"
-        [buttons]="buttons"
-        [operations]="data.operations || []"
-      >
-        <button
-          tuiButton
-          appearance="flat"
-          type="reset"
-          [style.margin-right]="'auto'"
+        <app-form
+          tuiMode="onDark"
+          [spec]="res.spec"
+          [value]="res.originalValue || {}"
+          [buttons]="buttons"
+          [operations]="res.operations || []"
         >
-          Reset Defaults
-        </button>
-      </app-form>
+          <button
+            tuiButton
+            appearance="flat"
+            type="reset"
+            [style.margin-right]="'auto'"
+          >
+            Reset Defaults
+          </button>
+        </app-form>
+      </ng-container>
     </ng-container>
 
     <ng-template #loading>
@@ -92,6 +103,7 @@ export interface PackageActionData {
     ActionDepComponent,
     UiPipeModule,
     FormComponent,
+    TuiLetModule,
   ],
   providers: [InvalidService],
 })
@@ -102,15 +114,14 @@ export class ActionInputModal {
 
   buttons: ActionButton<any>[] = [
     {
-      text: 'Execute',
+      text: 'Submit',
       handler: value => this.execute(value),
     },
   ]
 
-  loading = true
   error = ''
 
-  data$ = defer(() =>
+  res$ = defer(() =>
     this.api.getActionInput({
       packageId: this.pkgInfo.id,
       actionId: this.actionId,
@@ -150,12 +161,12 @@ export class ActionInputModal {
 
   async execute(input: object) {
     if (await this.checkConflicts(input)) {
-      const data = await firstValueFrom(this.data$)
+      const res = await firstValueFrom(this.res$)
 
-      this.actionService.executeAction(this.pkgInfo.id, this.actionId, {
+      return this.actionService.executeAction(this.pkgInfo.id, this.actionId, {
         prev: {
-          spec: data.spec,
-          value: data.originalValue,
+          spec: res.spec,
+          value: res.originalValue,
         },
         curr: input,
       })
