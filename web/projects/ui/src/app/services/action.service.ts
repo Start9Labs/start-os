@@ -135,14 +135,16 @@ export class ActionService {
         input: inputs?.curr || null,
       })
 
-      const successModal = await this.modalCtrl.create({
-        component: ActionSuccessPage,
-        componentProps: {
-          actionRes: res,
-        },
-      })
+      if (res) {
+        const successModal = await this.modalCtrl.create({
+          component: ActionSuccessPage,
+          componentProps: {
+            actionRes: res,
+          },
+        })
 
-      setTimeout(() => successModal.present(), 500)
+        setTimeout(() => successModal.present(), 500)
+      }
       return true // needed to dismiss original modal/alert
     } catch (e: any) {
       this.errorService.handleError(e)
