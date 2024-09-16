@@ -14,15 +14,7 @@ import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
 import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
 import { compare } from 'fast-json-patch'
 import { PatchDB } from 'patch-db-client'
-import {
-  catchError,
-  defer,
-  EMPTY,
-  endWith,
-  firstValueFrom,
-  map,
-  of,
-} from 'rxjs'
+import { catchError, defer, EMPTY, endWith, firstValueFrom, map } from 'rxjs'
 import { InvalidService } from 'src/app/components/form/invalid.service'
 import { ActionDepComponent } from 'src/app/modals/action-dep.component'
 import { UiPipeModule } from 'src/app/pipes/ui/ui.module'
@@ -193,6 +185,8 @@ export class ActionInputModal {
           ),
       )
       .map(id => id)
+
+    if (!breakages.length) return true
 
     const message =
       'As a result of this change, the following services will no longer work properly and may crash:<ul>'
