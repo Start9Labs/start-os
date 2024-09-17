@@ -221,30 +221,33 @@ upload-ota: results/$(BASENAME).squashfs
 container-runtime/debian.$(ARCH).squashfs:
 	ARCH=$(ARCH) ./container-runtime/download-base-image.sh
 
-container-runtime/node_modules: container-runtime/package.json container-runtime/package-lock.json sdk/dist
+container-runtime/node_modules: container-runtime/package.json container-runtime/package-lock.json sdk/baseDist
 	npm --prefix container-runtime ci
 	touch container-runtime/node_modules
 
-sdk/lib/osBindings: core/startos/bindings
-	mkdir -p sdk/lib/osBindings
+sdk/base/lib/osBindings: core/startos/bindings
+	mkdir -p sdk/base/lib/osBindings
 	ls core/startos/bindings/*.ts | sed 's/core\/startos\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' > core/startos/bindings/index.ts
 	npm --prefix sdk exec -- prettier --config ./sdk/package.json -w ./core/startos/bindings/*.ts
-	rsync -ac --delete core/startos/bindings/ sdk/lib/osBindings/
-	touch sdk/lib/osBindings
+	rsync -ac --delete core/startos/bindings/ sdk/base/lib/osBindings/
+	touch sdk/base/lib/osBindings
 
 core/startos/bindings: $(shell git ls-files core) $(ENVIRONMENT_FILE)
 	rm -rf core/startos/bindings
 	./core/build-ts.sh
 	touch core/startos/bindings
 
-sdk/dist: $(shell git ls-files sdk) sdk/lib/osBindings
+sdk/dist: $(shell git ls-files sdk) sdk/base/lib/osBindings
+	(cd sdk && make bundle)
+
+sdk/baseDist: $(shell git ls-files sdk/base) sdk/base/lib/osBindings
 	(cd sdk && make bundle)
 
 # TODO: make container-runtime its own makefile?
 container-runtime/dist/index.js: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
 	npm --prefix container-runtime run build
 
-container-runtime/dist/node_modules container-runtime/dist/package.json container-runtime/dist/package-lock.json: container-runtime/package.json container-runtime/package-lock.json sdk/dist container-runtime/install-dist-deps.sh
+container-runtime/dist/node_modules container-runtime/dist/package.json container-runtime/dist/package-lock.json: container-runtime/package.json container-runtime/package-lock.json sdk/baseDist container-runtime/install-dist-deps.sh
 	./container-runtime/install-dist-deps.sh
 	touch container-runtime/dist/node_modules
 

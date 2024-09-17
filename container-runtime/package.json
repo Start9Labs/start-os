@@ -20,7 +20,7 @@
     "@iarna/toml": "^2.2.5",
     "@noble/curves": "^1.4.0",
     "@noble/hashes": "^1.4.0",
-    "@start9labs/start-sdk": "file:../sdk/dist",
+    "@start9labs/start-sdk": "file:../sdk/baseDist",
     "esbuild-plugin-resolve": "^2.0.0",
     "filebrowser": "^1.0.0",
     "isomorphic-fetch": "^3.0.0",

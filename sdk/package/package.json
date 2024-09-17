@@ -2,20 +2,20 @@
   "name": "@start9labs/start-sdk",
   "version": "0.3.6-alpha8",
   "description": "Software development kit to facilitate packaging services for StartOS",
-  "main": "./cjs/package/lib/index.js",
-  "types": "./cjs/package/lib/index.d.ts",
-  "module": "./mjs/package/lib/index.js",
+  "main": "./package/lib/index.js",
+  "types": "./package/lib/index.d.ts",
   "sideEffects": true,
   "typesVersion": {
     ">=3.1": {
       "*": [
-        "cjs/package/lib/*"
+        "package/lib/*",
+        "base/lib/*"
       ]
     }
   },
   "scripts": {
     "test": "jest -c ./jest.config.js --coverage",
-    "buildOutput": "ts-node --project ./tsconfig-cjs.json  ./lib/test/makeOutput.ts && npx prettier --write '**/*.ts'",
+    "buildOutput": "ts-node ./lib/test/makeOutput.ts && npx prettier --write '**/*.ts'",
     "check": "tsc --noEmit",
     "tsc": "tsc"
   },

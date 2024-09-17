@@ -17,23 +17,30 @@ test: package/test base/test
 clean:
 	rm -rf base/node_modules
 	rm -rf dist
+	rm -rf baseDist
 	rm -f package/lib/test/output.ts
 	rm -rf package/node_modules
 	
 package/lib/test/output.ts: package/node_modules package/lib/test/makeOutput.ts package/scripts/oldSpecToBuilder.ts
 	cd package && npm run buildOutput
 
-bundle: dist | test fmt
+bundle: dist baseDist | test fmt
 	touch dist
 
 base/lib/exver/exver.ts: base/node_modules base/lib/exver/exver.pegjs
 	cd base && npm run peggy
 
-# Need a dist for browser
+
+
+baseDist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) base/package.json base/node_modules base/README.md base/LICENSE	
+	(cd base && npm run tsc)
+	cp base/package.json baseDist/package.json
+	cp base/README.md baseDist/README.md
+	cp base/LICENSE baseDist/LICENSE
+	touch baseDist
 
 dist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) package/package.json package/node_modules package/README.md package/LICENSE	
 	(cd package && npm run tsc)
-	(cd package && npm run tsc -- --project tsconfig-cjs.json)
 	cp package/package.json dist/package.json
 	cp package/README.md dist/README.md
 	cp package/LICENSE dist/LICENSE

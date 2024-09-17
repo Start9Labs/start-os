@@ -4,7 +4,6 @@ import { object, string, number, literals, some, unknown } from "ts-matches"
 import { Effects } from "../Models/Effects"
 
 import { CallbackHolder } from "../Models/CallbackHolder"
-import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
 const matchRpcError = object({
   error: object(
     {
@@ -313,7 +312,7 @@ export function makeProcedureEffects(procedureId: string): Effects {
   return makeEffects({ procedureId, callbacks: null })
 }
 
-export function makeMainEffects(): MainEffects {
+export function makeMainEffects(): T.MainEffects {
   const rpcRound = rpcRoundFor(null)
   return {
     _type: "main",

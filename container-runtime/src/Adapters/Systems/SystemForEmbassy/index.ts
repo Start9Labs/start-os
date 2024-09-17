@@ -33,7 +33,7 @@ import { IST } from "@start9labs/start-sdk"
 import {
   AddSslOptions,
   BindOptions,
-} from "@start9labs/start-sdk/cjs/lib/osBindings"
+} from "@start9labs/start-sdk/cjs/base/lib/osBindings"
 import {
   BindOptionsByProtocol,
   Host,

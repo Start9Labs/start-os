@@ -1,21 +1,14 @@
 {
   "name": "@start9labs/start-sdk-base",
-  "main": "./cjs/lib/index.js",
-  "types": "./cjs/lib/index.d.ts",
-  "module": "./mjs/lib/index.js",
+  "main": "./index.js",
+  "types": "./index.d.ts",
   "sideEffects": true,
-  "typesVersion": {
-    ">=3.1": {
-      "*": [
-        "cjs/lib/*"
-      ]
-    }
-  },
   "scripts": {
     "peggy": "peggy --allowed-start-rules '*' --plugin ./node_modules/ts-pegjs/dist/tspegjs -o lib/exver/exver.ts lib/exver/exver.pegjs",
     "test": "jest -c ./jest.config.js --coverage",
     "buildOutput": "npx prettier --write '**/*.ts'",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "tsc": "tsc"
   },
   "repository": {
     "type": "git",
