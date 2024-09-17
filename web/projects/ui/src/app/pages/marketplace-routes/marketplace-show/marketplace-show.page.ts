@@ -51,15 +51,14 @@ export class MarketplaceShowPage {
 
   readonly flavors$ = this.route.queryParamMap.pipe(
     switchMap(paramMap =>
-      this.marketplaceService
-        .getSelectedStore$()
-        .pipe(
-          map(s =>
-            s.packages.filter(
-              p => p.id === this.pkgId && p.flavor !== paramMap.get('flavor'),
-            ),
+      this.marketplaceService.getSelectedStore$().pipe(
+        map(s =>
+          s.packages.filter(
+            p => p.id === this.pkgId && p.flavor !== paramMap.get('flavor'),
           ),
         ),
+        filter(p => p.length > 0),
+      ),
     ),
   )
 
