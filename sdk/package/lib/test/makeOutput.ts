@@ -59,7 +59,7 @@ oldSpecToBuilder(
     rpc: {
       type: "object",
       name: "RPC Settings",
-      description: "RPC inputSpecuration options.",
+      description: "RPC configuration options.",
       spec: {
         enable: {
           type: "boolean",

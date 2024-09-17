@@ -30,8 +30,8 @@ export class BackingUpComponent {
   name: 'pkgMainStatus',
 })
 export class PkgMainStatusPipe implements PipeTransform {
-  transform(pkgId: string): Observable<T.MainStatus['status']> {
-    return this.patch.watch$('packageData', pkgId, 'status', 'main', 'status')
+  transform(pkgId: string): Observable<T.MainStatus['main']> {
+    return this.patch.watch$('packageData', pkgId, 'status', 'main')
   }
 
   constructor(private readonly patch: PatchDB<DataModel>) {}

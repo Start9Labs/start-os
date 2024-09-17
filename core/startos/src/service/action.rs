@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::time::Duration;
 
-use imbl_value::{json, InternedString};
-use models::{ActionId, PackageId, ProcedureName};
+use imbl_value::json;
+use models::{ActionId, PackageId, ProcedureName, ReplayId};
 
 use crate::action::{ActionInput, ActionResult};
 use crate::db::model::package::{ActionRequestCondition, ActionRequestEntry, ActionRequestInput};
@@ -71,10 +71,11 @@ impl Service {
 }
 
 pub fn update_requested_actions(
-    requested_actions: &mut BTreeMap<InternedString, ActionRequestEntry>,
+    requested_actions: &mut BTreeMap<ReplayId, ActionRequestEntry>,
     package_id: &PackageId,
     action_id: &ActionId,
     input: &Value,
+    was_run: bool,
 ) {
     requested_actions.retain(|_, v| {
         if &v.request.package_id != package_id || &v.request.action_id != action_id {
@@ -86,7 +87,7 @@ pub fn update_requested_actions(
                     Some(ActionRequestInput::Partial { value }) => {
                         if is_partial_of(value, input) {
                             if when.once {
-                                return false;
+                                return !was_run;
                             } else {
                                 v.active = false;
                             }
@@ -102,8 +103,10 @@ pub fn update_requested_actions(
                     }
                 },
             }
+            true
+        } else {
+            !was_run
         }
-        true
     })
 }
 
@@ -152,6 +155,7 @@ impl Handler<RunAction> for ServiceActor {
                             package_id,
                             &action_id,
                             &input,
+                            true,
                         ))
                     })?;
                 }

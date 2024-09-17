@@ -12,7 +12,6 @@ export type Procedure =
   | "/config/get"
   | "/backup/create"
   | "/backup/restore"
-  | "/actions/metadata"
   | "/properties"
   | `/actions/${string}/get`
   | `/actions/${string}/run`
@@ -29,11 +28,7 @@ export type System = {
   callCallback(callback: number, args: any[]): void
   stop(): Promise<void>
 
-  packageInit(
-    effects: Effects,
-    previousVersion: Optional<string>,
-    timeoutMs: number | null,
-  ): Promise<void>
+  packageInit(effects: Effects, timeoutMs: number | null): Promise<void>
   packageUninit(
     effects: Effects,
     nextVersion: Optional<string>,
@@ -42,41 +37,22 @@ export type System = {
 
   createBackup(effects: T.Effects, timeoutMs: number | null): Promise<void>
   restoreBackup(effects: T.Effects, timeoutMs: number | null): Promise<void>
-  getConfig(effects: T.Effects, timeoutMs: number | null): Promise<T.ConfigRes>
-  setConfig(
-    effects: Effects,
-    input: { effects: Effects; input: Record<string, unknown> },
-    timeoutMs: number | null,
-  ): Promise<void>
-  migration(
-    effects: Effects,
-    fromVersion: string,
-    timeoutMs: number | null,
-  ): Promise<T.MigrationRes>
   properties(
     effects: Effects,
     timeoutMs: number | null,
   ): Promise<T.PropertiesReturn>
-  action(
+  runAction(
     effects: Effects,
     actionId: string,
-    formData: unknown,
+    prev: T.ActionInput | null,
+    input: unknown,
     timeoutMs: number | null,
-  ): Promise<T.ActionResult>
-
-  dependenciesCheck(
+  ): Promise<T.ActionResult | null>
+  getActionInput(
     effects: Effects,
-    id: string,
-    oldConfig: unknown,
+    actionId: string,
     timeoutMs: number | null,
-  ): Promise<any>
-  dependenciesAutoconfig(
-    effects: Effects,
-    id: string,
-    oldConfig: unknown,
-    timeoutMs: number | null,
-  ): Promise<void>
-  actionsMetadata(effects: T.Effects): Promise<T.ActionMetadata[]>
+  ): Promise<T.ActionInput | null>
 
   exit(): Promise<void>
 }

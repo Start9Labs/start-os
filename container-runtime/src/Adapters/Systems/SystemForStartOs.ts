@@ -31,7 +31,6 @@ export class SystemForStartOs implements System {
   }
   async packageInit(
     effects: Effects,
-    previousVersion: Optional<string> = null,
     timeoutMs: number | null = null,
   ): Promise<void> {
     return void (await this.abi.init({ effects }))
@@ -49,8 +48,6 @@ export class SystemForStartOs implements System {
   ): Promise<void> {
     return void (await this.abi.createBackup({
       effects,
-      pathMaker: ((options) =>
-        new Volume(options.volume, options.path).path) as T.PathMaker,
     }))
   }
   async restoreBackup(
@@ -59,30 +56,7 @@ export class SystemForStartOs implements System {
   ): Promise<void> {
     return void (await this.abi.restoreBackup({
       effects,
-      pathMaker: ((options) =>
-        new Volume(options.volume, options.path).path) as T.PathMaker,
     }))
-  }
-  getConfig(
-    effects: T.Effects,
-    timeoutMs: number | null,
-  ): Promise<T.ConfigRes> {
-    return this.abi.getConfig({ effects })
-  }
-  async setConfig(
-    effects: Effects,
-    input: { effects: Effects; input: Record<string, unknown> },
-    timeoutMs: number | null,
-  ): Promise<void> {
-    const _: unknown = await this.abi.setConfig({ effects, input })
-    return
-  }
-  migration(
-    effects: Effects,
-    fromVersion: string,
-    timeoutMs: number | null,
-  ): Promise<T.MigrationRes> {
-    throw new Error("Method not implemented.")
   }
   properties(
     effects: Effects,
@@ -90,42 +64,25 @@ export class SystemForStartOs implements System {
   ): Promise<T.PropertiesReturn> {
     throw new Error("Method not implemented.")
   }
-  async action(
+  getActionInput(
     effects: Effects,
     id: string,
-    formData: unknown,
     timeoutMs: number | null,
-  ): Promise<T.ActionResult> {
-    const action = (await this.abi.actions({ effects }))[id]
+  ): Promise<T.ActionInput | null> {
+    const action = this.abi.actions.get(id)
     if (!action) throw new Error(`Action ${id} not found`)
-    return action.run({ effects })
+    return action.getInput({ effects })
   }
-  dependenciesCheck(
+  runAction(
     effects: Effects,
     id: string,
-    oldConfig: unknown,
+    prev: T.ActionInput | null,
+    input: unknown,
     timeoutMs: number | null,
-  ): Promise<any> {
-    const dependencyConfig = this.abi.dependencyConfig[id]
-    if (!dependencyConfig) throw new Error(`dependencyConfig ${id} not found`)
-    return dependencyConfig.query({ effects })
-  }
-  async dependenciesAutoconfig(
-    effects: Effects,
-    id: string,
-    remoteConfig: unknown,
-    timeoutMs: number | null,
-  ): Promise<void> {
-    const dependencyConfig = this.abi.dependencyConfig[id]
-    if (!dependencyConfig) throw new Error(`dependencyConfig ${id} not found`)
-    const queryResults = await this.getConfig(effects, timeoutMs)
-    return void (await dependencyConfig.update({
-      queryResults,
-      remoteConfig,
-    })) // TODO
-  }
-  async actionsMetadata(effects: T.Effects): Promise<T.ActionMetadata[]> {
-    return this.abi.actionsMetadata({ effects })
+  ): Promise<T.ActionResult | null> {
+    const action = this.abi.actions.get(id)
+    if (!action) throw new Error(`Action ${id} not found`)
+    return action.run({ effects, input, prev: prev || undefined })
   }
 
   async init(): Promise<void> {}

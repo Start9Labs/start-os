@@ -584,7 +584,7 @@ impl Drop for NetService {
                     binds: BTreeMap::new(),
                 },
             );
-            tokio::spawn(async move { svc.remove_all().await.unwrap() });
+            tokio::spawn(async move { svc.remove_all().await.log_err() });
         }
     }
 }

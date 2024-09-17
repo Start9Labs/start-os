@@ -2,50 +2,49 @@ import {
   ChangeDetectionStrategy,
   Component,
   Input,
-  OnChanges,
+  OnInit,
 } from '@angular/core'
-import { compare, getValueByPointer, Operation } from 'fast-json-patch'
+import { getValueByPointer, Operation } from 'fast-json-patch'
 import { isObject } from '@start9labs/shared'
 import { tuiIsNumber } from '@taiga-ui/cdk'
 import { CommonModule } from '@angular/common'
 import { TuiNotificationModule } from '@taiga-ui/core'
 
 @Component({
-  selector: 'config-dep',
+  selector: 'action-dep',
   template: `
     <tui-notification>
       <h3 style="margin: 0 0 0.5rem; font-size: 1.25rem;">
-        {{ package }}
+        {{ pkgTitle }}
       </h3>
-      The following modifications have been made to {{ package }} to satisfy
-      {{ dep }}:
+      The following modifications have been made to {{ pkgTitle }} to satisfy
+      {{ depTitle }}:
       <ul>
         <li *ngFor="let d of diff" [innerHTML]="d"></li>
       </ul>
-      To accept these modifications, click "Save".
     </tui-notification>
   `,
   standalone: true,
   imports: [CommonModule, TuiNotificationModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class ConfigDepComponent implements OnChanges {
+export class ActionDepComponent implements OnInit {
   @Input()
-  package = ''
+  pkgTitle = ''
 
   @Input()
-  dep = ''
+  depTitle = ''
 
   @Input()
-  original: object = {}
+  originalValue: object = {}
 
   @Input()
-  value: object = {}
+  operations: Operation[] = []
 
   diff: string[] = []
 
-  ngOnChanges() {
-    this.diff = compare(this.original, this.value).map(
+  ngOnInit() {
+    this.diff = this.operations.map(
       op => `${this.getPath(op)}: ${this.getMessage(op)}`,
     )
   }
@@ -82,7 +81,7 @@ export class ConfigDepComponent implements OnChanges {
   }
 
   private getOldValue(path: any): string {
-    const val = getValueByPointer(this.original, path)
+    const val = getValueByPointer(this.originalValue, path)
     if (['string', 'number', 'boolean'].includes(typeof val)) {
       return val
     } else if (isObject(val)) {

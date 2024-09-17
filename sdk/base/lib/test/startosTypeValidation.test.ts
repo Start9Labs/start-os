@@ -1,6 +1,7 @@
 import { Effects } from "../types"
 import {
   CheckDependenciesParam,
+  ClearActionRequestsParams,
   ClearActionsParams,
   ClearBindingsParams,
   ClearServiceInterfacesParams,
@@ -51,6 +52,7 @@ describe("startosTypeValidation ", () => {
         getInput: {} as GetActionInputParams,
         run: {} as RunActionParams,
         request: {} as RequestActionParams,
+        clearRequests: {} as ClearActionRequestsParams,
       },
       subcontainer: {
         createFs: {} as CreateSubcontainerFsParams,

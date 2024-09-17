@@ -6,7 +6,7 @@ use clap::builder::ValueParserFactory;
 use exver::VersionRange;
 use imbl::OrdMap;
 use imbl_value::InternedString;
-use models::{FromStrParser, HealthCheckId, PackageId, VersionString, VolumeId};
+use models::{FromStrParser, HealthCheckId, PackageId, ReplayId, VersionString, VolumeId};
 use patch_db::json_ptr::JsonPointer;
 use tokio::process::Command;
 
@@ -112,6 +112,7 @@ pub async fn expose_for_dependents(
     context: EffectContext,
     ExposeForDependentsParams { paths }: ExposeForDependentsParams,
 ) -> Result<(), Error> {
+    // TODO
     Ok(())
 }
 
@@ -191,16 +192,11 @@ impl ValueParserFactory for DependencyRequirement {
 #[command(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SetDependenciesParams {
-    #[serde(default)]
-    procedure_id: Guid,
     dependencies: Vec<DependencyRequirement>,
 }
 pub async fn set_dependencies(
     context: EffectContext,
-    SetDependenciesParams {
-        procedure_id,
-        dependencies,
-    }: SetDependenciesParams,
+    SetDependenciesParams { dependencies }: SetDependenciesParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
     let id = &context.seed.id;
@@ -306,13 +302,10 @@ pub struct CheckDependenciesResult {
     package_id: PackageId,
     #[ts(type = "string | null")]
     title: Option<InternedString>,
-    #[ts(type = "string | null")]
-    installed_version: Option<exver::ExtendedVersion>,
-    #[ts(type = "string[]")]
+    installed_version: Option<VersionString>,
     satisfies: BTreeSet<VersionString>,
     is_running: bool,
-    #[ts(as = "BTreeMap::<String, ActionRequestEntry>")]
-    requested_actions: BTreeMap<InternedString, ActionRequestEntry>,
+    requested_actions: BTreeMap<ReplayId, ActionRequestEntry>,
     #[ts(as = "BTreeMap::<HealthCheckId, NamedHealthCheckResult>")]
     health_checks: OrdMap<HealthCheckId, NamedHealthCheckResult>,
 }
@@ -361,7 +354,7 @@ pub async fn check_dependencies(
         let manifest = package.as_state_info().as_manifest(ManifestPreference::New);
         let installed_version = manifest.as_version().de()?.into_version();
         let satisfies = manifest.as_satisfies().de()?;
-        let installed_version = Some(installed_version.clone());
+        let installed_version = Some(installed_version.clone().into());
         let is_installed = true;
         let status = package.as_status().de()?;
         let is_running = if is_installed {

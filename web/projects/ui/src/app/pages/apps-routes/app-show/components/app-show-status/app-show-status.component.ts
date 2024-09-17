@@ -3,10 +3,9 @@ import { AlertController } from '@ionic/angular'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
-import { ConfigModal, PackageConfigData } from 'src/app/modals/config.component'
+import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
 import {
   DataModel,
   PackageDataEntry,
@@ -20,6 +19,7 @@ import {
   getAllPackages,
   getManifest,
   isInstalled,
+  needsConfig,
 } from 'src/app/util/get-package-data'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 
@@ -39,6 +39,7 @@ export class AppShowStatusComponent {
   PR = PrimaryRendering
 
   isInstalled = isInstalled
+  needsConfig = needsConfig
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -46,9 +47,9 @@ export class AppShowStatusComponent {
     private readonly loader: LoadingService,
     private readonly embassyApi: ApiService,
     private readonly launcherService: UiLauncherService,
-    private readonly formDialog: FormDialogService,
     readonly connection$: ConnectionService,
     private readonly patch: PatchDB<DataModel>,
+    private readonly actionService: ActionService,
   ) {}
 
   get interfaces(): PackageDataEntry['serviceInterfaces'] {
@@ -59,7 +60,7 @@ export class AppShowStatusComponent {
     return this.pkg.hosts
   }
 
-  get pkgStatus(): T.Status {
+  get pkgStatus(): T.MainStatus {
     return this.pkg.status
   }
 
@@ -75,12 +76,15 @@ export class AppShowStatusComponent {
     return ['running', 'starting', 'restarting'].includes(this.status.primary)
   }
 
-  get isStopped(): boolean {
-    return this.status.primary === 'stopped'
+  get canStart(): boolean {
+    return (
+      this.status.primary === 'stopped' &&
+      !Object.keys(this.pkg.requestedActions).length
+    )
   }
 
   get sigtermTimeout(): string | null {
-    return this.pkgStatus?.main.status === 'stopping' ? '30s' : null // @dr-bonez TODO
+    return this.pkgStatus?.main === 'stopping' ? '30s' : null // @dr-bonez TODO
   }
 
   launchUi(
@@ -91,9 +95,14 @@ export class AppShowStatusComponent {
   }
 
   async presentModalConfig(): Promise<void> {
-    return this.formDialog.open<PackageConfigData>(ConfigModal, {
-      data: { pkgId: this.manifest.id },
-    })
+    return this.actionService.present(
+      {
+        id: this.manifest.id,
+        title: this.manifest.title,
+        mainStatus: this.pkg.status.main,
+      },
+      { id: 'config', metadata: this.pkg.actions['config'] },
+    )
   }
 
   async tryStart(): Promise<void> {

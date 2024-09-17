@@ -47,7 +47,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole wormhole-deb test test-core test-sdk test-container-runtime
+.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole wormhole-deb test test-core test-sdk test-container-runtime registry
 
 all: $(ALL_TARGETS)
 
@@ -102,6 +102,9 @@ test-container-runtime: container-runtime/node_modules $(shell git ls-files cont
 
 cli:
 	cd core && ./install-cli.sh
+
+registry:
+	cd core && ./build-registrybox.sh
 
 deb: results/$(BASENAME).deb
 

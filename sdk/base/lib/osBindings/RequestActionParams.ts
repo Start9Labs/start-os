@@ -3,9 +3,10 @@ import type { ActionId } from "./ActionId"
 import type { ActionRequestInput } from "./ActionRequestInput"
 import type { ActionRequestTrigger } from "./ActionRequestTrigger"
 import type { PackageId } from "./PackageId"
+import type { ReplayId } from "./ReplayId"
 
 export type RequestActionParams = {
-  replayId: string
+  replayId: ReplayId
   packageId: PackageId
   actionId: ActionId
   description?: string

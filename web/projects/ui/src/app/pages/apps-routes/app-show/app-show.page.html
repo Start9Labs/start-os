@@ -22,8 +22,8 @@
         >
           <!-- ** health checks ** -->
           <app-show-health-checks
-            *ngIf="pkg.status.main.status === 'running'"
-            [healthChecks]="pkg.status.main.health"
+            *ngIf="pkg.status.main === 'running'"
+            [healthChecks]="pkg.status.health"
           ></app-show-health-checks>
           <!-- ** dependencies ** -->
           <app-show-dependencies

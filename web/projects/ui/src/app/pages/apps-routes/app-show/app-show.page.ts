@@ -26,8 +26,7 @@ import {
   isUpdating,
 } from 'src/app/util/get-package-data'
 import { T } from '@start9labs/start-sdk'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { ConfigModal, PackageConfigData } from 'src/app/modals/config.component'
+import { ActionService } from 'src/app/services/action.service'
 
 export interface DependencyInfo {
   id: string
@@ -73,7 +72,7 @@ export class AppShowPage {
     private readonly navCtrl: NavController,
     private readonly patch: PatchDB<DataModel>,
     private readonly depErrorService: DepErrorService,
-    private readonly formDialog: FormDialogService,
+    private readonly actionService: ActionService,
   ) {}
 
   showProgress(
@@ -89,9 +88,12 @@ export class AppShowPage {
   ): DependencyInfo[] {
     const manifest = getManifest(pkg)
 
-    return Object.keys(pkg.currentDependencies)
-      .filter(id => !!manifest.dependencies[id])
-      .map(id => this.getDepValues(pkg, allPkgs, manifest, id, depErrors))
+    return (
+      Object.keys(pkg.currentDependencies)
+        // @TODO Aiden still need to filter self from currentDependencies?
+        .filter(id => !!manifest.dependencies[id])
+        .map(id => this.getDepValues(pkg, allPkgs, manifest, id, depErrors))
+    )
   }
 
   private getDepDetails(
@@ -200,20 +202,26 @@ export class AppShowPage {
     pkg: PackageDataEntry,
     pkgManifest: T.Manifest,
     action: 'install' | 'update' | 'configure',
-    id: string,
+    depId: string,
   ): Promise<void> {
     switch (action) {
       case 'install':
       case 'update':
-        return this.installDep(pkg, pkgManifest, id)
+        return this.installDep(pkg, pkgManifest, depId)
       case 'configure':
-        return this.formDialog.open<PackageConfigData>(ConfigModal, {
-          label: `${pkgManifest.title} config`,
-          data: {
-            pkgId: id,
-            dependentInfo: pkgManifest,
+        return this.actionService.present(
+          { id: depId, title: '', mainStatus: 'running' },
+          { id: 'config', metadata: pkg.actions['config'] },
+          {
+            title: pkgManifest.title,
+            request: Object.values(pkg.requestedActions).find(
+              r =>
+                r.active &&
+                r.request.packageId === depId &&
+                r.request.actionId === 'config',
+            )!.request,
           },
-        })
+        )
     }
   }
 

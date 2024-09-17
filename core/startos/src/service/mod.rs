@@ -16,7 +16,6 @@ use tokio::sync::Notify;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::db;
 use crate::db::model::package::{
     InstalledState, PackageDataEntry, PackageState, PackageStateMatchModelRef, UpdatingState,
 };
@@ -35,7 +34,7 @@ use crate::util::serde::{NoOutput, Pem};
 use crate::util::Never;
 use crate::volume::data_dir;
 
-mod action;
+pub mod action;
 pub mod cli;
 mod control;
 pub mod effects;
@@ -473,6 +472,7 @@ impl Service {
                                 &manifest.id,
                                 action_id,
                                 input,
+                                false,
                             ))
                         })?;
                     }
