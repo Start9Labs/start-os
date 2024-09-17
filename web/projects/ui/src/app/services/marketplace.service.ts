@@ -42,7 +42,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
   private readonly knownHosts$: Observable<StoreIdentity[]> = this.patch
     .watch$('ui', 'marketplace', 'knownHosts')
     .pipe(
-      map((hosts: { [url: string]: UIStore }) => {
+      map(hosts => {
         const { start9, community } = this.config.marketplace
         let arr = [
           toStoreIdentity(start9, hosts[start9]),
