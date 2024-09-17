@@ -12,6 +12,7 @@ const peggyParser: { parse: any; SyntaxError: any; DefaultTracer?: any } = // Ge
     function peg$subclass(child, parent) {
       // @ts-ignore
       function C() {
+        // @ts-ignore
         this.constructor = child
       }
       // @ts-ignore
