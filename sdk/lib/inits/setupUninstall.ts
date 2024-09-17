@@ -14,7 +14,7 @@ export class Uninstall<Manifest extends T.Manifest, Store> {
   async uninstall({
     effects,
     nextVersion,
-  }: Parameters<T.ExpectedExports.uninit>[0]) {
+  }: Parameters<T.ExpectedExports.packageUninit>[0]) {
     if (!nextVersion)
       await this.fn({
         effects,

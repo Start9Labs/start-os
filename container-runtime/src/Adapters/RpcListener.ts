@@ -280,7 +280,8 @@ export class RpcListener {
           (async () => {
             if (!this._system) {
               const system = await this.getDependencies.system()
-              await system.containerInit()
+              const effects = this.makeProcedureEffects("")
+              await system.containerInit(effects)
               this._system = system
             }
           })().then((result) => ({ result })),

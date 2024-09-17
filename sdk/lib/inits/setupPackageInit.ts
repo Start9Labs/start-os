@@ -7,7 +7,7 @@ import { VersionGraph } from "../version/VersionGraph"
 import { Install } from "./setupInstall"
 import { Uninstall } from "./setupUninstall"
 
-export function setupInit<Manifest extends T.Manifest, Store>(
+export function setupPackageInit<Manifest extends T.Manifest, Store>(
   versions: VersionGraph<Manifest["version"]>,
   install: Install<Manifest, Store>,
   uninstall: Uninstall<Manifest, Store>,
@@ -19,8 +19,8 @@ export function setupInit<Manifest extends T.Manifest, Store>(
   actions: Actions<Store, any>,
   exposedStore: ExposedStorePaths,
 ): {
-  init: T.ExpectedExports.init
-  uninit: T.ExpectedExports.uninit
+  init: T.ExpectedExports.packageInit
+  uninit: T.ExpectedExports.packageUninit
 } {
   return {
     init: async (opts) => {
@@ -40,6 +40,7 @@ export function setupInit<Manifest extends T.Manifest, Store>(
       await setServiceInterfaces({
         ...opts,
       })
+      await actions.update({ effects: opts.effects })
       await opts.effects.exposeForDependents({ paths: exposedStore })
       await setDependencies({ effects: opts.effects, input: null })
     },
