@@ -209,7 +209,7 @@ export class AppShowPage {
       case 'update':
         return this.installDep(pkg, pkgManifest, depId)
       case 'configure':
-        return this.actionService.handleAction(
+        return this.actionService.present(
           { id: depId, title: '', mainStatus: 'running' },
           { id: 'config', metadata: pkg.actions['config'] },
           {

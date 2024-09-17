@@ -155,7 +155,7 @@ export class ActionInputModal {
     if (await this.checkConflicts(input)) {
       const res = await firstValueFrom(this.res$)
 
-      return this.actionService.executeAction(this.pkgInfo.id, this.actionId, {
+      return this.actionService.execute(this.pkgInfo.id, this.actionId, {
         prev: {
           spec: res.spec,
           value: res.originalValue,

@@ -95,7 +95,7 @@ export class AppShowStatusComponent {
   }
 
   async presentModalConfig(): Promise<void> {
-    return this.actionService.handleAction(
+    return this.actionService.present(
       {
         id: this.manifest.id,
         title: this.manifest.title,

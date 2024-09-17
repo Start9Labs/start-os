@@ -55,7 +55,7 @@ export class ToButtonsPipe implements PipeTransform {
       {
         action: async () =>
           pkg.actions['config']
-            ? this.actionService.handleAction(
+            ? this.actionService.present(
                 {
                   id: manifest.id,
                   title: manifest.title,

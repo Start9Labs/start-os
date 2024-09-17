@@ -6,12 +6,10 @@ import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ActionService } from 'src/app/services/action.service'
-import {
-  DataModel,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
+import { filter, map } from 'rxjs'
 
 @Component({
   selector: 'app-actions',
@@ -21,7 +19,19 @@ import { hasCurrentDeps } from 'src/app/util/has-deps'
 })
 export class AppActionsPage {
   readonly pkgId = getPkgId(this.route)
-  readonly pkg$ = this.patch.watch$('packageData', this.pkgId)
+  readonly pkg$ = this.patch.watch$('packageData', this.pkgId).pipe(
+    filter(pkg => pkg.stateInfo.state === 'installed'),
+    map(pkg => ({
+      mainStatus: pkg.status.main,
+      manifest: getManifest(pkg),
+      actions: Object.keys(pkg.actions)
+        .filter(id => id !== 'config')
+        .map(id => ({
+          id,
+          ...pkg.actions[id],
+        })),
+    })),
+  )
 
   constructor(
     private readonly route: ActivatedRoute,
@@ -35,25 +45,23 @@ export class AppActionsPage {
   ) {}
 
   async handleAction(
-    pkg: PackageDataEntry,
-    action: { key: string; value: T.ActionMetadata },
+    mainStatus: T.MainStatus['main'],
+    manifest: T.Manifest,
+    action: T.ActionMetadata & { id: string },
   ) {
-    const { title, id } = getManifest(pkg)
-    this.actionService.handleAction(
-      { id, title, mainStatus: pkg.status.main },
-      { id: action.key, metadata: action.value },
+    this.actionService.present(
+      { id: manifest.id, title: manifest.title, mainStatus },
+      { id: action.id, metadata: action },
     )
   }
 
-  async tryUninstall(pkg: PackageDataEntry): Promise<void> {
-    const { title, alerts } = getManifest(pkg)
-
+  async tryUninstall(manifest: T.Manifest): Promise<void> {
     let message =
-      alerts.uninstall ||
-      `Uninstalling ${title} will permanently delete its data`
+      manifest.alerts.uninstall ||
+      `Uninstalling ${manifest.title} will permanently delete its data`
 
     if (hasCurrentDeps(this.pkgId, await getAllPackages(this.patch))) {
-      message = `${message}. Services that depend on ${title} will no longer work properly and may crash`
+      message = `${message}. Services that depend on ${manifest.title} will no longer work properly and may crash`
     }
 
     const alert = await this.alertCtrl.create({

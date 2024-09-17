@@ -38,7 +38,7 @@ export class ActionService {
     private readonly formDialog: FormDialogService,
   ) {}
 
-  async handleAction(
+  async present(
     pkgInfo: {
       id: string
       title: string
@@ -81,7 +81,7 @@ export class ActionService {
             {
               text: 'Execute',
               handler: () => {
-                this.executeAction(pkgInfo.id, actionInfo.id)
+                this.execute(pkgInfo.id, actionInfo.id)
               },
               cssClass: 'enter-click',
             },
@@ -117,7 +117,7 @@ export class ActionService {
     }
   }
 
-  async executeAction(
+  async execute(
     packageId: string,
     actionId: string,
     inputs?: {

@@ -8,32 +8,30 @@
 </ion-header>
 
 <ion-content class="ion-padding-top with-widgets">
-  <ng-container *ngIf="pkg$ | async as pkg">
-    <ion-item-group *ngIf="pkg.stateInfo.state === 'installed'">
-      <!-- ** standard actions ** -->
-      <ion-item-divider>Standard Actions</ion-item-divider>
-      <app-actions-item
-        [action]="{
-          name: 'Uninstall',
-          description: 'This will uninstall the service from StartOS and delete all data permanently.',
-          icon: 'trash-outline'
-        }"
-        (click)="tryUninstall(pkg)"
-      ></app-actions-item>
+  <ion-item-group *ngIf="pkg$ | async as pkg">
+    <!-- ** standard actions ** -->
+    <ion-item-divider>Standard Actions</ion-item-divider>
+    <app-actions-item
+      [action]="{
+        name: 'Uninstall',
+        description: 'This will uninstall the service from StartOS and delete all data permanently.',
+        icon: 'trash-outline'
+      }"
+      (click)="tryUninstall(pkg.manifest)"
+    ></app-actions-item>
 
-      <!-- ** specific actions ** -->
-      <ion-item-divider *ngIf="!(pkg.actions | empty)">
-        Actions for {{ pkg.stateInfo.manifest.title }}
-      </ion-item-divider>
-      <app-actions-item
-        *ngFor="let action of pkg.actions | keyvalue: asIsOrder"
-        [action]="{
-          name: action.value.name,
-          description: action.value.description,
-          icon: 'play-circle-outline'
-        }"
-        (click)="handleAction(pkg, action)"
-      ></app-actions-item>
-    </ion-item-group>
-  </ng-container>
+    <!-- ** specific actions ** -->
+    <ion-item-divider *ngIf="pkg.actions.length">
+      Actions for {{ pkg.manifest.title }}
+    </ion-item-divider>
+    <app-actions-item
+      *ngFor="let action of pkg.actions"
+      [action]="{
+        name: action.name,
+        description: action.description,
+        icon: 'play-circle-outline'
+      }"
+      (click)="handleAction(pkg.mainStatus, pkg.manifest, action)"
+    ></app-actions-item>
+  </ion-item-group>
 </ion-content>
