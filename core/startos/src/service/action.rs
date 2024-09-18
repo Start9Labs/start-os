@@ -112,7 +112,6 @@ pub fn update_requested_actions(
 
 pub(super) struct RunAction {
     id: ActionId,
-    prev: Option<ActionInput>,
     input: Value,
 }
 impl Handler<RunAction> for ServiceActor {
@@ -125,7 +124,6 @@ impl Handler<RunAction> for ServiceActor {
         id: Guid,
         RunAction {
             id: action_id,
-            prev,
             input,
         }: RunAction,
         _: &BackgroundJobQueue,
@@ -136,7 +134,6 @@ impl Handler<RunAction> for ServiceActor {
                 id,
                 ProcedureName::RunAction(action_id.clone()),
                 json!({
-                    "prev": prev,
                     "input": input,
                 }),
                 Some(Duration::from_secs(30)),
@@ -171,7 +168,6 @@ impl Service {
         &self,
         id: Guid,
         action_id: ActionId,
-        prev: Option<ActionInput>,
         input: Value,
     ) -> Result<Option<ActionResult>, Error> {
         self.actor
@@ -179,7 +175,6 @@ impl Service {
                 id,
                 RunAction {
                     id: action_id,
-                    prev,
                     input,
                 },
             )

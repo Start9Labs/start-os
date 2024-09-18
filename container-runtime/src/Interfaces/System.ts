@@ -1,5 +1,4 @@
 import { types as T } from "@start9labs/start-sdk"
-import { RpcResult } from "../Adapters/RpcListener"
 import { Effects } from "../Models/Effects"
 import { CallbackHolder } from "../Models/CallbackHolder"
 import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
@@ -13,10 +12,8 @@ export type Procedure =
   | "/backup/create"
   | "/backup/restore"
   | "/properties"
-  | `/actions/${string}/get`
+  | `/actions/${string}/getInput`
   | `/actions/${string}/run`
-  | `/dependencies/${string}/query`
-  | `/dependencies/${string}/update`
 
 export type ExecuteResult =
   | { ok: unknown }
@@ -44,7 +41,6 @@ export type System = {
   runAction(
     effects: Effects,
     actionId: string,
-    prev: T.ActionInput | null,
     input: unknown,
     timeoutMs: number | null,
   ): Promise<T.ActionResult | null>

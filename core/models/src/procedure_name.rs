@@ -26,7 +26,7 @@ impl ProcedureName {
             ProcedureName::Properties => "/properties".to_string(),
             ProcedureName::RestoreBackup => "/backup/restore".to_string(),
             ProcedureName::RunAction(id) => format!("/actions/{}/run", id),
-            ProcedureName::GetActionInput(id) => format!("/actions/{}/get", id),
+            ProcedureName::GetActionInput(id) => format!("/actions/{}/getInput", id),
         }
     }
 }

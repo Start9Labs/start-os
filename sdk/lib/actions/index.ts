@@ -27,7 +27,6 @@ export const runAction = async <
       return options.effects.action.run({
         // packageId: options.packageId,
         actionId: options.actionId,
-        prev: prev || undefined,
         input,
       })
     } else {

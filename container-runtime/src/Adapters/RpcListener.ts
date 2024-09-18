@@ -375,7 +375,7 @@ function getResult(
       default:
         const procedures = unNestPath(procedure)
         switch (true) {
-          case procedures[1] === "actions" && procedures[3] === "get":
+          case procedures[1] === "actions" && procedures[3] === "getInput":
             return system.getActionInput(
               effects,
               procedures[2],
@@ -385,7 +385,6 @@ function getResult(
             return system.runAction(
               effects,
               procedures[2],
-              input.prev,
               input.input,
               timeout || null,
             )

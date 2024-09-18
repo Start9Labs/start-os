@@ -12,6 +12,7 @@ export type ValueType =
   | "object"
   | "file"
   | "union"
+  | "hidden"
 export type ValueSpec = ValueSpecOf<ValueType>
 /** core spec types. These types provide the metadata for performing validations */
 // prettier-ignore
@@ -28,6 +29,7 @@ export type ValueSpecOf<T extends ValueType> =
   T extends "object" ? ValueSpecObject : 
   T extends "file" ? ValueSpecFile : 
   T extends "union" ? ValueSpecUnion : 
+  T extends "hidden" ? ValueSpecHidden :
   never
 
 export type ValueSpecText = {
@@ -174,6 +176,9 @@ export type ValueSpecObject = {
   warning: string | null
   type: "object"
   spec: InputSpec
+}
+export type ValueSpecHidden = {
+  type: "hidden"
 }
 export type ListValueSpecType = "text" | "object"
 // prettier-ignore

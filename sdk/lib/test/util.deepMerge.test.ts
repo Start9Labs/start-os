@@ -20,7 +20,11 @@ describe("deepMerge", () => {
       }),
     ).toBeTruthy()
   })
-  test("deepMerge([1,2,3], [2,3,4]) should equal [2,3,4]", () => {
-    expect(deepMerge([1, 2, 3], [2, 3, 4])).toEqual([2, 3, 4])
+  test("Test that merging lists has Set semantics", () => {
+    const merge = deepMerge(["a", "b"], ["b", "c"])
+    expect(merge).toHaveLength(3)
+    expect(merge).toContain("a")
+    expect(merge).toContain("b")
+    expect(merge).toContain("c")
   })
 })

@@ -2,8 +2,8 @@ import { ExtendedVersion, types as T, utils } from "@start9labs/start-sdk"
 import * as fs from "fs/promises"
 
 import { polyfillEffects } from "./polyfillEffects"
-import { Duration, duration, fromDuration } from "../../../Models/Duration"
-import { System, Procedure } from "../../../Interfaces/System"
+import { fromDuration } from "../../../Models/Duration"
+import { System } from "../../../Interfaces/System"
 import { matchManifest, Manifest } from "./matchManifest"
 import * as childProcess from "node:child_process"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
@@ -27,16 +27,9 @@ import {
   Parser,
   array,
 } from "ts-matches"
-import { JsonPath, unNestPath } from "../../../Models/JsonPath"
-import { RpcResult, matchRpcResult } from "../../RpcListener"
-import { IST } from "@start9labs/start-sdk"
-import {
-  AddSslOptions,
-  BindOptions,
-} from "@start9labs/start-sdk/cjs/lib/osBindings"
+import { AddSslOptions } from "@start9labs/start-sdk/cjs/lib/osBindings"
 import {
   BindOptionsByProtocol,
-  Host,
   MultiHost,
 } from "@start9labs/start-sdk/cjs/lib/interfaces/Host"
 import { ServiceInterfaceBuilder } from "@start9labs/start-sdk/cjs/lib/interfaces/ServiceInterfaceBuilder"
@@ -50,55 +43,11 @@ import {
 } from "./transformConfigSpec"
 import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
 import { StorePath } from "@start9labs/start-sdk/cjs/lib/store/PathBuilder"
+import { partialDiff } from "@start9labs/start-sdk/cjs/lib/util/deepMerge"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
   throw new Error("Not implemented")
-}
-const execFile = promisify(childProcess.execFile)
-
-function partialDiff<T>(prev: T, next: T): { diff: Partial<T> } | undefined {
-  if (prev === next) {
-    return
-  } else if (Array.isArray(prev) && Array.isArray(next)) {
-    const res = { diff: [] as any[] }
-    for (let newItem of next) {
-      let anyEq = false
-      for (let oldItem of prev) {
-        if (!partialDiff(oldItem, newItem)) {
-          anyEq = true
-          break
-        }
-      }
-      if (!anyEq) {
-        res.diff.push(newItem)
-      }
-    }
-    if (res.diff.length) {
-      return res as any
-    } else {
-      return
-    }
-  } else if (typeof prev === "object" && typeof next === "object") {
-    if (prev === null) {
-      return { diff: next }
-    }
-    if (next === null) return
-    const res = { diff: {} as Record<keyof T, any> }
-    for (let key in next) {
-      const diff = partialDiff(prev[key], next[key])
-      if (diff) {
-        res.diff[key] = diff.diff
-      }
-    }
-    if (Object.keys(res.diff).length) {
-      return res
-    } else {
-      return
-    }
-  } else {
-    return { diff: next }
-  }
 }
 
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
@@ -439,7 +388,6 @@ export class SystemForEmbassy implements System {
   async runAction(
     effects: Effects,
     actionId: string,
-    _: T.ActionInput | null,
     input: unknown,
     timeoutMs: number | null,
   ): Promise<T.ActionResult | null> {
