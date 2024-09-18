@@ -9,7 +9,7 @@ import {
   SubContainerHandle,
   SubContainer,
 } from "../util/SubContainer"
-import { splitCommand } from "../util/splitCommand"
+import { splitCommand } from "../util"
 import * as cp from "child_process"
 
 export class CommandController {

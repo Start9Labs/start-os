@@ -34,6 +34,7 @@ base/lib/exver/exver.ts: base/node_modules base/lib/exver/exver.pegjs
 
 baseDist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) base/package.json base/node_modules base/README.md base/LICENSE	
 	(cd base && npm run tsc)
+	rsync -ac base/node_modules baseDist/
 	cp base/package.json baseDist/package.json
 	cp base/README.md baseDist/README.md
 	cp base/LICENSE baseDist/LICENSE

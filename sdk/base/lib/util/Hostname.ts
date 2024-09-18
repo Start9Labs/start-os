@@ -1,4 +1,4 @@
-import { HostnameInfo } from "../../../base/lib/types"
+import { HostnameInfo } from "../types"
 
 export function hostnameInfoToAddress(hostInfo: HostnameInfo): string {
   if (hostInfo.kind === "onion") {

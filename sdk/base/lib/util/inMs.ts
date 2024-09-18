@@ -1,4 +1,4 @@
-import { DEFAULT_SIGTERM_TIMEOUT } from "../mainFn"
+import { DEFAULT_SIGTERM_TIMEOUT } from "../../../package/lib/mainFn"
 
 const matchTimeRegex = /^\s*(\d+)?(\.\d+)?\s*(ms|s|m|h|d)/
 

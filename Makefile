@@ -16,7 +16,7 @@ COMPAT_SRC := $(shell git ls-files system-images/compat/)
 UTILS_SRC := $(shell git ls-files system-images/utils/)
 BINFMT_SRC := $(shell git ls-files system-images/binfmt/)
 CORE_SRC := $(shell git ls-files core) $(shell git ls-files --recurse-submodules patch-db) $(GIT_HASH_FILE)
-WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist web/patchdb-ui-seed.json sdk/baseDist
+WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist web/patchdb-ui-seed.json sdk/baseDist sdk/dist
 WEB_UI_SRC := $(shell git ls-files web/projects/ui)
 WEB_SETUP_WIZARD_SRC := $(shell git ls-files web/projects/setup-wizard)
 WEB_INSTALL_WIZARD_SRC := $(shell git ls-files web/projects/install-wizard)
@@ -221,7 +221,7 @@ upload-ota: results/$(BASENAME).squashfs
 container-runtime/debian.$(ARCH).squashfs:
 	ARCH=$(ARCH) ./container-runtime/download-base-image.sh
 
-container-runtime/node_modules: container-runtime/package.json container-runtime/package-lock.json sdk/baseDist
+container-runtime/node_modules: container-runtime/package.json container-runtime/package-lock.json sdk/dist
 	npm --prefix container-runtime ci
 	touch container-runtime/node_modules
 
@@ -237,6 +237,8 @@ core/startos/bindings: $(shell git ls-files core) $(ENVIRONMENT_FILE)
 	./core/build-ts.sh
 	touch core/startos/bindings
 
+sdk/dist: sdk/baseDist
+
 sdk/baseDist: $(shell git ls-files sdk) sdk/base/lib/osBindings
 	(cd sdk && make bundle)
 
@@ -244,7 +246,7 @@ sdk/baseDist: $(shell git ls-files sdk) sdk/base/lib/osBindings
 container-runtime/dist/index.js: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
 	npm --prefix container-runtime run build
 
-container-runtime/dist/node_modules container-runtime/dist/package.json container-runtime/dist/package-lock.json: container-runtime/package.json container-runtime/package-lock.json sdk/baseDist container-runtime/install-dist-deps.sh
+container-runtime/dist/node_modules container-runtime/dist/package.json container-runtime/dist/package-lock.json: container-runtime/package.json container-runtime/package-lock.json sdk/dist container-runtime/install-dist-deps.sh
 	./container-runtime/install-dist-deps.sh
 	touch container-runtime/dist/node_modules
 

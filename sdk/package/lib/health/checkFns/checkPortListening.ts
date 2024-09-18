@@ -1,5 +1,5 @@
 import { Effects } from "../../../../base/lib/types"
-import { stringFromStdErrOut } from "../../util/stringFromStdErrOut"
+import { stringFromStdErrOut } from "../../util"
 import { HealthCheckResult } from "./HealthCheckResult"
 
 import { promisify } from "node:util"

@@ -33,13 +33,13 @@ import { IST } from "@start9labs/start-sdk"
 import {
   AddSslOptions,
   BindOptions,
-} from "@start9labs/start-sdk/cjs/base/lib/osBindings"
+} from "@start9labs/start-sdk/base/lib/osBindings"
 import {
   BindOptionsByProtocol,
   Host,
   MultiHost,
-} from "@start9labs/start-sdk/cjs/lib/interfaces/Host"
-import { ServiceInterfaceBuilder } from "@start9labs/start-sdk/cjs/lib/interfaces/ServiceInterfaceBuilder"
+} from "@start9labs/start-sdk/base/lib/interfaces/Host"
+import { ServiceInterfaceBuilder } from "@start9labs/start-sdk/base/lib/interfaces/ServiceInterfaceBuilder"
 import { Effects } from "../../../Models/Effects"
 import {
   OldConfigSpec,
@@ -48,9 +48,6 @@ import {
   transformNewConfigToOld,
   transformOldConfigToNew,
 } from "./transformConfigSpec"
-import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
-import { StorePath } from "@start9labs/start-sdk/cjs/lib/store/PathBuilder"
-
 type Optional<A> = A | undefined | null
 function todo(): never {
   throw new Error("Not implemented")
@@ -59,7 +56,7 @@ const execFile = promisify(childProcess.execFile)
 
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
 export const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
-const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig" as StorePath
+const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig" as utils.StorePath
 
 const matchResult = object({
   result: any,
@@ -255,7 +252,7 @@ export class SystemForEmbassy implements System {
     delete this.currentRunning
   }
 
-  async start(effects: MainEffects): Promise<void> {
+  async start(effects: T.MainEffects): Promise<void> {
     if (!!this.currentRunning) return
 
     this.currentRunning = await MainLoop.of(this, effects)

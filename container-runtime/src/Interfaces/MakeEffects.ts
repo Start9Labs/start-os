@@ -1,4 +1,4 @@
 import { Effects } from "../Models/Effects"
-import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
+import { T } from "@start9labs/start-sdk"
 export type MakeProcedureEffects = (procedureId: string) => Effects
-export type MakeMainEffects = () => MainEffects
+export type MakeMainEffects = () => T.MainEffects

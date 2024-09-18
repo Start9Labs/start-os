@@ -4,9 +4,7 @@
  * @param s
  * @returns
  */
-export default function nullIfEmpty<A extends Record<string, any>>(
-  s: null | A,
-) {
+export function nullIfEmpty<A extends Record<string, any>>(s: null | A) {
   if (s === null) return null
   return Object.keys(s).length === 0 ? null : s
 }

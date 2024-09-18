@@ -2,11 +2,10 @@ import { polyfillEffects } from "./polyfillEffects"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { SystemForEmbassy } from "."
 import { T, utils } from "@start9labs/start-sdk"
-import { Daemon } from "@start9labs/start-sdk/cjs/lib/mainFn/Daemon"
+import { Daemon } from "@start9labs/start-sdk/package/lib/mainFn/Daemon"
 import { Effects } from "../../../Models/Effects"
 import { off } from "node:process"
-import { CommandController } from "@start9labs/start-sdk/cjs/lib/mainFn/CommandController"
-import { asError } from "@start9labs/start-sdk/cjs/lib/util"
+import { CommandController } from "@start9labs/start-sdk/package/lib/mainFn/CommandController"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 const EMBASSY_PROPERTIES_LOOP = 30 * 1000
@@ -136,7 +135,7 @@ export class MainLoop {
     delete this.healthLoops
     await main?.daemon
       .stop()
-      .catch((e) => console.error(`Main loop error`, utils.asError(e)))
+      .catch((e: unknown) => console.error(`Main loop error`, utils.asError(e)))
     this.effects.setMainStatus({ status: "stopped" })
     if (healthLoops) healthLoops.forEach((x) => clearInterval(x.interval))
   }
@@ -154,7 +153,7 @@ export class MainLoop {
             result: "starting",
             message: null,
           })
-          .catch((e) => console.error(asError(e)))
+          .catch((e) => console.error(utils.asError(e)))
         const interval = setInterval(async () => {
           const actionProcedure = value
           const timeChanged = Date.now() - start
