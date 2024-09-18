@@ -1,2 +1,0 @@
-import "./checkFns"
-import "./HealthReceipt"

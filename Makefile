@@ -16,7 +16,7 @@ COMPAT_SRC := $(shell git ls-files system-images/compat/)
 UTILS_SRC := $(shell git ls-files system-images/utils/)
 BINFMT_SRC := $(shell git ls-files system-images/binfmt/)
 CORE_SRC := $(shell git ls-files core) $(shell git ls-files --recurse-submodules patch-db) $(GIT_HASH_FILE)
-WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist web/patchdb-ui-seed.json sdk/dist
+WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist web/patchdb-ui-seed.json sdk/baseDist sdk/dist
 WEB_UI_SRC := $(shell git ls-files web/projects/ui)
 WEB_SETUP_WIZARD_SRC := $(shell git ls-files web/projects/setup-wizard)
 WEB_INSTALL_WIZARD_SRC := $(shell git ls-files web/projects/install-wizard)
@@ -94,7 +94,7 @@ test: | test-core test-sdk test-container-runtime
 test-core: $(CORE_SRC) $(ENVIRONMENT_FILE) 
 	./core/run-tests.sh
 
-test-sdk: $(shell git ls-files sdk) sdk/lib/osBindings
+test-sdk: $(shell git ls-files sdk) sdk/base/lib/osBindings
 	cd sdk && make test
 
 test-container-runtime: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
@@ -225,19 +225,21 @@ container-runtime/node_modules: container-runtime/package.json container-runtime
 	npm --prefix container-runtime ci
 	touch container-runtime/node_modules
 
-sdk/lib/osBindings: core/startos/bindings
-	mkdir -p sdk/lib/osBindings
+sdk/base/lib/osBindings: core/startos/bindings
+	mkdir -p sdk/base/lib/osBindings
 	ls core/startos/bindings/*.ts | sed 's/core\/startos\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' > core/startos/bindings/index.ts
-	npm --prefix sdk exec -- prettier --config ./sdk/package.json -w ./core/startos/bindings/*.ts
-	rsync -ac --delete core/startos/bindings/ sdk/lib/osBindings/
-	touch sdk/lib/osBindings
+	npm --prefix sdk exec -- prettier --config ./sdk/base/package.json -w ./core/startos/bindings/*.ts
+	rsync -ac --delete core/startos/bindings/ sdk/base/lib/osBindings/
+	touch sdk/base/lib/osBindings
 
 core/startos/bindings: $(shell git ls-files core) $(ENVIRONMENT_FILE)
 	rm -rf core/startos/bindings
 	./core/build-ts.sh
 	touch core/startos/bindings
 
-sdk/dist: $(shell git ls-files sdk) sdk/lib/osBindings
+sdk/dist: sdk/baseDist
+
+sdk/baseDist: $(shell git ls-files sdk) sdk/base/lib/osBindings
 	(cd sdk && make bundle)
 
 # TODO: make container-runtime its own makefile?
@@ -274,11 +276,11 @@ core/target/$(ARCH)-unknown-linux-musl/release/containerbox: $(CORE_SRC) $(ENVIR
 	ARCH=$(ARCH) ./core/build-containerbox.sh
 	touch core/target/$(ARCH)-unknown-linux-musl/release/containerbox
 
-web/node_modules/.package-lock.json: web/package.json sdk/dist
+web/node_modules/.package-lock.json: web/package.json sdk/baseDist
 	npm --prefix web ci
 	touch web/node_modules/.package-lock.json
 
-web/.angular: patch-db/client/dist sdk/dist web/node_modules/.package-lock.json
+web/.angular: patch-db/client/dist sdk/baseDist web/node_modules/.package-lock.json
 	rm -rf web/.angular
 	mkdir -p web/.angular
 

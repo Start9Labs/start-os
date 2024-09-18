@@ -6,9 +6,10 @@ import { RpcResult, matchRpcResult } from "../RpcListener"
 import { duration } from "../../Models/Duration"
 import { T, utils } from "@start9labs/start-sdk"
 import { Volume } from "../../Models/Volume"
-import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
 import { CallbackHolder } from "../../Models/CallbackHolder"
 import { Optional } from "ts-matches/lib/parsers/interfaces"
+
+type MainEffects = T.MainEffects
 
 export const STARTOS_JS_LOCATION = "/usr/lib/startos/package/index.js"
 

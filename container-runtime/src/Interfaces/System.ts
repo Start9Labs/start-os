@@ -1,7 +1,6 @@
 import { types as T } from "@start9labs/start-sdk"
 import { Effects } from "../Models/Effects"
 import { CallbackHolder } from "../Models/CallbackHolder"
-import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
 import { Optional } from "ts-matches/lib/parsers/interfaces"
 
 export type Procedure =
@@ -19,7 +18,7 @@ export type ExecuteResult =
 export type System = {
   containerInit(effects: T.Effects): Promise<void>
 
-  start(effects: MainEffects): Promise<void>
+  start(effects: T.MainEffects): Promise<void>
   callCallback(callback: number, args: any[]): void
   stop(): Promise<void>
 

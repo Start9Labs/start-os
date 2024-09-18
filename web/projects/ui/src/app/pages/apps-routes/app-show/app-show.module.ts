@@ -56,5 +56,6 @@ const routes: Routes = [
     StatusComponentModule,
     SharedPipesModule,
   ],
+  exports: [AppShowProgressComponent],
 })
 export class AppShowPageModule {}
