@@ -564,7 +564,7 @@ where
     }
 }
 
-#[derive(Deserialize, Serialize, TS)]
+#[derive(Deserialize, Serialize, TS, Clone)]
 pub struct StdinDeserializable<T>(pub T);
 impl<T> Default for StdinDeserializable<T>
 where

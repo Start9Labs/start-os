@@ -237,9 +237,7 @@ core/startos/bindings: $(shell git ls-files core) $(ENVIRONMENT_FILE)
 	./core/build-ts.sh
 	touch core/startos/bindings
 
-sdk/dist: sdk/baseDist
-
-sdk/baseDist: $(shell git ls-files sdk) sdk/base/lib/osBindings
+sdk/dist sdk/baseDist: $(shell git ls-files sdk) sdk/base/lib/osBindings
 	(cd sdk && make bundle)
 
 # TODO: make container-runtime its own makefile?

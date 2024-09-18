@@ -827,20 +827,23 @@ export class SystemForEmbassy implements System {
       if ("error" in x) throw new Error("Error getting config: " + x.error)
       throw new Error("Error getting config: " + x["error-code"][1])
     })) as any
-    await effects.action.request({
-      actionId: "config",
-      packageId: id,
-      replayId: `${id}/autoconfig`,
-      description: `Configure this dependency for the needs of ${this.manifest.title}`,
-      input: {
-        kind: "partial",
-        value: partialDiff(oldConfig, newConfig) as any,
-      },
-      when: {
-        condition: "input-not-matches",
-        once: false,
-      },
-    })
+    const diff = partialDiff(oldConfig, newConfig)
+    if (diff) {
+      await effects.action.request({
+        actionId: "config",
+        packageId: id,
+        replayId: `${id}/config`,
+        description: `Configure this dependency for the needs of ${this.manifest.title}`,
+        input: {
+          kind: "partial",
+          value: diff.diff,
+        },
+        when: {
+          condition: "input-not-matches",
+          once: false,
+        },
+      })
+    }
   }
 }
 

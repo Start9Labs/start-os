@@ -30,8 +30,6 @@ bundle: dist baseDist | test fmt
 base/lib/exver/exver.ts: base/node_modules base/lib/exver/exver.pegjs
 	cd base && npm run peggy
 
-
-
 baseDist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) base/package.json base/node_modules base/README.md base/LICENSE	
 	(cd base && npm run tsc)
 	rsync -ac base/node_modules baseDist/

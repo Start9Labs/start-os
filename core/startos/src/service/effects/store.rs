@@ -33,8 +33,9 @@ pub async fn get_store(
         .as_private()
         .as_package_stores()
         .as_idx(&package_id)
-        .or_not_found(&package_id)?
-        .de()?;
+        .map(|s| s.de())
+        .transpose()?
+        .unwrap_or_default();
 
     if let Some(callback) = callback {
         let callback = callback.register(&context.seed.persistent_container);
@@ -45,10 +46,7 @@ pub async fn get_store(
         );
     }
 
-    Ok(path
-        .get(&value)
-        .ok_or_else(|| Error::new(eyre!("Did not find value at path"), ErrorKind::NotFound))?
-        .clone())
+    Ok(path.get(&value).cloned().unwrap_or_default())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

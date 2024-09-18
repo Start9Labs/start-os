@@ -1,6 +1,6 @@
 use std::fmt;
 
-use clap::Parser;
+use clap::{CommandFactory, FromArgMatches, Parser};
 pub use models::ActionId;
 use models::PackageId;
 use qrcode::QrCode;
@@ -27,6 +27,7 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "run",
             from_fn_async(run_action)
+                .with_display_serializable()
                 .with_custom_display_fn(|_, res| {
                     if let Some(res) = res {
                         println!("{res}")
@@ -123,14 +124,63 @@ pub fn display_action_result<T: Serialize>(params: WithIoFormat<T>, result: Opti
     println!("{result}")
 }
 
-#[derive(Deserialize, Serialize, TS, Parser)]
+#[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RunActionParams {
     pub package_id: PackageId,
     pub action_id: ActionId,
     #[ts(optional, type = "any")]
+    pub input: Option<Value>,
+}
+
+#[derive(Parser)]
+struct CliRunActionParams {
+    pub package_id: PackageId,
+    pub action_id: ActionId,
     #[command(flatten)]
-    pub input: Option<StdinDeserializable<Value>>,
+    pub input: StdinDeserializable<Option<Value>>,
+}
+impl From<CliRunActionParams> for RunActionParams {
+    fn from(
+        CliRunActionParams {
+            package_id,
+            action_id,
+            input,
+        }: CliRunActionParams,
+    ) -> Self {
+        Self {
+            package_id,
+            action_id,
+            input: input.0,
+        }
+    }
+}
+impl CommandFactory for RunActionParams {
+    fn command() -> clap::Command {
+        CliRunActionParams::command()
+    }
+    fn command_for_update() -> clap::Command {
+        CliRunActionParams::command_for_update()
+    }
+}
+impl FromArgMatches for RunActionParams {
+    fn from_arg_matches(matches: &clap::ArgMatches) -> Result<Self, clap::Error> {
+        CliRunActionParams::from_arg_matches(matches).map(Self::from)
+    }
+    fn from_arg_matches_mut(matches: &mut clap::ArgMatches) -> Result<Self, clap::Error> {
+        CliRunActionParams::from_arg_matches_mut(matches).map(Self::from)
+    }
+    fn update_from_arg_matches(&mut self, matches: &clap::ArgMatches) -> Result<(), clap::Error> {
+        *self = CliRunActionParams::from_arg_matches(matches).map(Self::from)?;
+        Ok(())
+    }
+    fn update_from_arg_matches_mut(
+        &mut self,
+        matches: &mut clap::ArgMatches,
+    ) -> Result<(), clap::Error> {
+        *self = CliRunActionParams::from_arg_matches_mut(matches).map(Self::from)?;
+        Ok(())
+    }
 }
 
 // #[command(about = "Executes an action", display(display_action_result))]
@@ -148,6 +198,6 @@ pub async fn run_action(
         .await
         .as_ref()
         .or_not_found(lazy_format!("Manager for {}", package_id))?
-        .run_action(Guid::new(), action_id, input.unwrap_or_default().0)
+        .run_action(Guid::new(), action_id, input.unwrap_or_default())
         .await
 }
