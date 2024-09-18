@@ -25,7 +25,7 @@ import { FORM_CONTROL_PROVIDERS } from './form-control.providers'
   providers: FORM_CONTROL_PROVIDERS,
 })
 export class FormControlComponent<
-  T extends IST.ValueSpec,
+  T extends Exclude<IST.ValueSpec, IST.ValueSpecHidden>,
   V,
 > extends AbstractTuiNullableControl<V> {
   @Input()
