@@ -12,7 +12,7 @@ export const FORM_CONTROL_PROVIDERS: Provider[] = [
   {
     provide: TUI_VALIDATION_ERRORS,
     deps: [forwardRef(() => FormControlComponent)],
-    useFactory: (control: FormControlComponent<IST.ValueSpec, string>) => ({
+    useFactory: (control: FormControlComponent<Exclude<IST.ValueSpec, IST.ValueSpecHidden>, string>) => ({
       required: 'Required',
       pattern: ({ requiredPattern }: ValidatorsPatternError) =>
         ('patterns' in control.spec &&

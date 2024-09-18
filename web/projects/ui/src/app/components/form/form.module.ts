@@ -50,6 +50,7 @@ import { ControlDirective } from './control.directive'
 import { FormColorComponent } from './form-color/form-color.component'
 import { FormDatetimeComponent } from './form-datetime/form-datetime.component'
 import { HintPipe } from './hint.pipe'
+import { FilterHiddenPipe } from './filter-hidden.pipe'
 
 @NgModule({
   imports: [
@@ -101,6 +102,7 @@ import { HintPipe } from './hint.pipe'
     MustachePipe,
     HintPipe,
     ControlDirective,
+    FilterHiddenPipe,
   ],
   exports: [FormGroupComponent],
 })

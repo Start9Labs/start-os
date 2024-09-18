@@ -5,7 +5,7 @@ import { IST } from '@start9labs/start-sdk'
   name: 'hint',
 })
 export class HintPipe implements PipeTransform {
-  transform(spec: IST.ValueSpec): string {
+  transform(spec: Exclude<IST.ValueSpec, IST.ValueSpecHidden>): string {
     const hint = []
 
     if (spec.description) {

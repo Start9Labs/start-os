@@ -2,7 +2,7 @@ import { inject } from '@angular/core'
 import { FormControlComponent } from './form-control/form-control.component'
 import { IST } from '@start9labs/start-sdk'
 
-export abstract class Control<Spec extends IST.ValueSpec, Value> {
+export abstract class Control<Spec extends Exclude<IST.ValueSpec, IST.ValueSpecHidden>, Value> {
   private readonly control: FormControlComponent<Spec, Value> =
     inject(FormControlComponent)
 

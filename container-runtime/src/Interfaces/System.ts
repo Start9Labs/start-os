@@ -6,8 +6,6 @@ import { Optional } from "ts-matches/lib/parsers/interfaces"
 export type Procedure =
   | "/init"
   | "/uninit"
-  | "/config/set"
-  | "/config/get"
   | "/backup/create"
   | "/backup/restore"
   | "/properties"
