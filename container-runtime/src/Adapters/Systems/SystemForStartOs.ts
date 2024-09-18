@@ -77,13 +77,12 @@ export class SystemForStartOs implements System {
   runAction(
     effects: Effects,
     id: string,
-    prev: T.ActionInput | null,
     input: unknown,
     timeoutMs: number | null,
   ): Promise<T.ActionResult | null> {
     const action = this.abi.actions.get(id)
     if (!action) throw new Error(`Action ${id} not found`)
-    return action.run({ effects, input, prev: prev || undefined })
+    return action.run({ effects, input })
   }
 
   async init(): Promise<void> {}

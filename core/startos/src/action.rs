@@ -1,6 +1,6 @@
 use std::fmt;
 
-use clap::{Arg, ArgAction, Args, FromArgMatches, Parser};
+use clap::Parser;
 pub use models::ActionId;
 use models::PackageId;
 use qrcode::QrCode;
@@ -12,9 +12,9 @@ use ts_rs::TS;
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
-use crate::util::io::BackTrackingIO;
-use crate::util::serde::{display_serializable, HandlerExtSerde, IoFormat, WithIoFormat};
-use crate::util::Apply;
+use crate::util::serde::{
+    display_serializable, HandlerExtSerde, StdinDeserializable, WithIoFormat,
+};
 
 pub fn action_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -24,12 +24,16 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
                 .with_display_serializable()
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("run", from_fn_async(run_action).no_cli())
         .subcommand(
             "run",
-            from_fn_async(cli_run_action)
-                .with_display_serializable()
-                .with_custom_display_fn(|args, res| Ok(display_action_result(args.params, res))),
+            from_fn_async(run_action)
+                .with_custom_display_fn(|_, res| {
+                    if let Some(res) = res {
+                        println!("{res}")
+                    }
+                    Ok(())
+                })
+                .with_call_remote::<CliContext>(),
         )
 }
 
@@ -119,15 +123,14 @@ pub fn display_action_result<T: Serialize>(params: WithIoFormat<T>, result: Opti
     println!("{result}")
 }
 
-#[derive(Deserialize, Serialize, TS)]
+#[derive(Deserialize, Serialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
 pub struct RunActionParams {
     pub package_id: PackageId,
     pub action_id: ActionId,
-    #[ts(optional)]
-    pub prev: Option<ActionInput>,
     #[ts(optional, type = "any")]
-    pub input: Option<Value>,
+    #[command(flatten)]
+    pub input: Option<StdinDeserializable<Value>>,
 }
 
 // #[command(about = "Executes an action", display(display_action_result))]
@@ -137,7 +140,6 @@ pub async fn run_action(
     RunActionParams {
         package_id,
         action_id,
-        prev,
         input,
     }: RunActionParams,
 ) -> Result<Option<ActionResult>, Error> {
@@ -146,87 +148,6 @@ pub async fn run_action(
         .await
         .as_ref()
         .or_not_found(lazy_format!("Manager for {}", package_id))?
-        .run_action(Guid::new(), action_id, prev, input.unwrap_or_default())
+        .run_action(Guid::new(), action_id, input.unwrap_or_default().0)
         .await
-}
-
-#[derive(Deserialize, Serialize, Parser)]
-pub struct CliRunActionParams {
-    package_id: PackageId,
-    action_id: ActionId,
-    #[command(flatten)]
-    input: CliActionInput,
-}
-
-#[derive(Deserialize, Serialize)]
-enum CliActionInput {
-    Interactive,
-    Stdin(Value),
-}
-impl Args for CliActionInput {
-    fn augment_args(cmd: clap::Command) -> clap::Command {
-        let cmd = cmd.arg(
-            Arg::new("interactive")
-                .short('i')
-                .long("interactive")
-                .action(ArgAction::SetTrue),
-        );
-        if !cmd.get_arguments().any(|a| a.get_id() == "format") {
-            cmd.arg(
-                clap::Arg::new("format")
-                    .long("format")
-                    .value_parser(|s: &str| s.parse::<IoFormat>().map_err(|e| eyre!("{e}"))),
-            )
-        } else {
-            cmd
-        }
-    }
-    fn augment_args_for_update(cmd: clap::Command) -> clap::Command {
-        Self::augment_args(cmd)
-    }
-}
-impl FromArgMatches for CliActionInput {
-    fn from_arg_matches(matches: &clap::ArgMatches) -> Result<Self, clap::Error> {
-        if matches.get_flag("interactive") {
-            Ok(Self::Interactive)
-        } else {
-            let format = matches
-                .get_one::<IoFormat>("format")
-                .copied()
-                .unwrap_or_default();
-            let mut rdr = BackTrackingIO::new(std::io::stdin());
-            match format.from_reader(&mut rdr) {
-                Ok(input) => Ok(CliActionInput::Stdin(input)),
-                Err(e) => {
-                    if rdr.read_buffer().is_empty()
-                        || rdr
-                            .read_buffer()
-                            .apply(std::str::from_utf8)
-                            .ok()
-                            .map_or(false, |s| s.trim().is_empty())
-                    {
-                        Ok(CliActionInput::Stdin(Value::Null))
-                    } else {
-                        Err(clap::Error::raw(clap::error::ErrorKind::Io, e))
-                    }
-                }
-            }
-        }
-    }
-    fn update_from_arg_matches(&mut self, matches: &clap::ArgMatches) -> Result<(), clap::Error> {
-        *self = Self::from_arg_matches(matches)?;
-        Ok(())
-    }
-}
-
-#[instrument(skip_all)]
-pub async fn cli_run_action(
-    ctx: CliContext,
-    CliRunActionParams {
-        package_id,
-        action_id,
-        input,
-    }: CliRunActionParams,
-) -> Result<Option<ActionResult>, Error> {
-    todo!()
 }

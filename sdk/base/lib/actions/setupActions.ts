@@ -10,7 +10,6 @@ export type Run<
 > = (options: {
   effects: T.Effects
   input: ExtractInputSpecType<A> & Record<string, any>
-  prev?: ExtractInputSpecType<A> & Record<string, any>
 }) => Promise<T.ActionResult | null>
 export type GetInput<
   A extends
@@ -84,7 +83,6 @@ export class Action<
   async run(options: {
     effects: T.Effects
     input: Type
-    prev?: Type
   }): Promise<T.ActionResult | null> {
     return this.runFn(options)
   }

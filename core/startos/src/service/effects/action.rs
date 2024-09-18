@@ -1,6 +1,5 @@
 use std::collections::BTreeSet;
 
-use imbl_value::InternedString;
 use models::{ActionId, PackageId, ReplayId};
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 
@@ -185,12 +184,10 @@ async fn run_action(
             .await
             .as_ref()
             .or_not_found(&package_id)?
-            .run_action(procedure_id, action_id, None, input)
+            .run_action(procedure_id, action_id, input)
             .await
     } else {
-        context
-            .run_action(procedure_id, action_id, None, input)
-            .await
+        context.run_action(procedure_id, action_id, input).await
     }
 }
 

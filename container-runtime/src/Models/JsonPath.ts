@@ -1,9 +1,7 @@
 import { literals, some, string } from "ts-matches"
 
 type NestedPath<A extends string, B extends string> = `/${A}/${string}/${B}`
-type NestedPaths =
-  | NestedPath<"actions", "run" | "get">
-  | NestedPath<"dependencies", "query" | "update">
+type NestedPaths = NestedPath<"actions", "run" | "getInput">
 // prettier-ignore
 type UnNestPaths<A> = 
   A extends `${infer A}/${infer B}` ? [...UnNestPaths<A>, ... UnNestPaths<B>] : 

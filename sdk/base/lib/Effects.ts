@@ -41,7 +41,6 @@ export type Effects = {
     run<Input extends Record<string, unknown>>(options: {
       packageId?: PackageId
       actionId: ActionId
-      prev?: ActionInput
       input?: Input
     }): Promise<ActionResult | null>
     request<Input extends Record<string, unknown>>(

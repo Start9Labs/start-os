@@ -7,6 +7,7 @@ import {
   RandomString,
   ValueSpec,
   ValueSpecDatetime,
+  ValueSpecHidden,
   ValueSpecText,
   ValueSpecTextarea,
 } from "../inputSpecTypes"
@@ -14,6 +15,7 @@ import { DefaultString } from "../inputSpecTypes"
 import { _, once } from "../../../util"
 import {
   Parser,
+  any,
   anyOf,
   arrayOf,
   boolean,
@@ -834,6 +836,15 @@ export class Value<Type, Store> {
 
   static list<Type, Store>(a: List<Type, Store>) {
     return new Value<Type, Store>((options) => a.build(options), a.validator)
+  }
+
+  static hidden<T>(parser: Parser<unknown, T> = any) {
+    return new Value<T, never>(async () => {
+      const built: ValueSpecHidden = {
+        type: "hidden" as const,
+      }
+      return built
+    }, parser)
   }
 
   /**
