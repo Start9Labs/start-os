@@ -27,21 +27,21 @@ export class SystemForStartOs implements System {
   }
 
   constructor(readonly abi: T.ABI) {}
-  containerInit(): Promise<void> {
-    throw new Error("Method not implemented.")
+  async containerInit(effects: Effects): Promise<void> {
+    return void (await this.abi.containerInit({ effects }))
   }
   async packageInit(
     effects: Effects,
     timeoutMs: number | null = null,
   ): Promise<void> {
-    return void (await this.abi.init({ effects }))
+    return void (await this.abi.packageInit({ effects }))
   }
   async packageUninit(
     effects: Effects,
     nextVersion: Optional<string> = null,
     timeoutMs: number | null = null,
   ): Promise<void> {
-    return void (await this.abi.uninit({ effects, nextVersion }))
+    return void (await this.abi.packageUninit({ effects, nextVersion }))
   }
   async createBackup(
     effects: T.Effects,

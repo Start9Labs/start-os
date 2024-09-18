@@ -21,7 +21,7 @@ export type ExecuteResult =
   | { ok: unknown }
   | { err: { code: number; message: string } }
 export type System = {
-  containerInit(): Promise<void>
+  containerInit(effects: T.Effects): Promise<void>
 
   start(effects: T.MainEffects): Promise<void>
   callCallback(callback: number, args: any[]): void

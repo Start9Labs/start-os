@@ -11,7 +11,7 @@ export class Install<Manifest extends T.Manifest, Store> {
     return new Install(fn)
   }
 
-  async install({ effects }: Parameters<T.ExpectedExports.init>[0]) {
+  async install({ effects }: Parameters<T.ExpectedExports.packageInit>[0]) {
     await this.fn({
       effects,
     })

@@ -41,7 +41,7 @@ import { checkWebUrl, runHealthScript } from "./health/checkFns"
 import { List } from "../../base/lib/actions/input/builder/list"
 import { Install, InstallFn } from "./inits/setupInstall"
 import { SetupBackupsParams, setupBackups } from "./backup/setupBackups"
-import { setupInit } from "./inits/setupInit"
+import { setupPackageInit } from "./inits/setupPackageInit"
 import { Uninstall, UninstallFn, setupUninstall } from "./inits/setupUninstall"
 import { setupMain } from "./mainFn"
 import { defaultTrigger } from "./trigger/defaultTrigger"
@@ -530,7 +530,13 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           })
         }
       },
-      setupInit: (
+      setupContainerInit:
+        (
+          fn: (options: { effects: Effects }) => Promise<void>,
+        ): T.ExpectedExports.containerInit =>
+        (options) =>
+          fn(options),
+      setupPackageInit: (
         versions: VersionGraph<Manifest["version"]>,
         install: Install<Manifest, Store>,
         uninstall: Uninstall<Manifest, Store>,
@@ -542,7 +548,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         actions: Actions<Store, any>,
         exposedStore: ExposedStorePaths,
       ) =>
-        setupInit<Manifest, Store>(
+        setupPackageInit<Manifest, Store>(
           versions,
           install,
           uninstall,

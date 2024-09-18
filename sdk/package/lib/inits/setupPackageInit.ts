@@ -7,7 +7,7 @@ import { VersionGraph } from "../version/VersionGraph"
 import { Install } from "./setupInstall"
 import { Uninstall } from "./setupUninstall"
 
-export function setupInit<Manifest extends T.Manifest, Store>(
+export function setupPackageInit<Manifest extends T.Manifest, Store>(
   versions: VersionGraph<Manifest["version"]>,
   install: Install<Manifest, Store>,
   uninstall: Uninstall<Manifest, Store>,

@@ -1,18 +1,18 @@
+use std::convert::Infallible;
 use std::path::Path;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
-
-use crate::{Id, InvalidId};
+use yasi::InternedString;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TS)]
 #[ts(type = "string")]
-pub struct ReplayId(Id);
+pub struct ReplayId(InternedString);
 impl FromStr for ReplayId {
-    type Err = InvalidId;
+    type Err = Infallible;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(ReplayId(Id::try_from(s.to_owned())?))
+        Ok(ReplayId(InternedString::intern(s)))
     }
 }
 impl AsRef<ReplayId> for ReplayId {
@@ -32,7 +32,7 @@ impl AsRef<str> for ReplayId {
 }
 impl AsRef<Path> for ReplayId {
     fn as_ref(&self) -> &Path {
-        self.0.as_ref().as_ref()
+        self.0.as_ref()
     }
 }
 impl<'de> Deserialize<'de> for ReplayId {

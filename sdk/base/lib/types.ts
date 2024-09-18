@@ -71,14 +71,22 @@ export namespace ExpectedExports {
   }) => Promise<unknown>
 
   /**
+   * Every time a service launches (both on startup, and on install) this function is called before packageInit
+   * Can be used to register callbacks
+   */
+  export type containerInit = (options: {
+    effects: Effects
+  }) => Promise<unknown>
+
+  /**
    * Every time a package completes an install, this function is called before the main.
    * Can be used to do migration like things.
    */
-  export type init = (options: { effects: Effects }) => Promise<unknown>
+  export type packageInit = (options: { effects: Effects }) => Promise<unknown>
   /** This will be ran during any time a package is uninstalled, for example during a update
    * this will be called.
    */
-  export type uninit = (options: {
+  export type packageUninit = (options: {
     effects: Effects
     nextVersion: null | string
   }) => Promise<unknown>
@@ -99,8 +107,9 @@ export type ABI = {
   restoreBackup: ExpectedExports.restoreBackup
   main: ExpectedExports.main
   afterShutdown: ExpectedExports.afterShutdown
-  init: ExpectedExports.init
-  uninit: ExpectedExports.uninit
+  containerInit: ExpectedExports.containerInit
+  packageInit: ExpectedExports.packageInit
+  packageUninit: ExpectedExports.packageUninit
   properties: ExpectedExports.properties
   manifest: ExpectedExports.manifest
   actions: ExpectedExports.actions

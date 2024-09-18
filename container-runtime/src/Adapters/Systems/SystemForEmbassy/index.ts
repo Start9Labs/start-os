@@ -54,6 +54,50 @@ function todo(): never {
 }
 const execFile = promisify(childProcess.execFile)
 
+function partialDiff<T>(prev: T, next: T): { diff: Partial<T> } | undefined {
+  if (prev === next) {
+    return
+  } else if (Array.isArray(prev) && Array.isArray(next)) {
+    const res = { diff: [] as any[] }
+    for (let newItem of next) {
+      let anyEq = false
+      for (let oldItem of prev) {
+        if (!partialDiff(oldItem, newItem)) {
+          anyEq = true
+          break
+        }
+      }
+      if (!anyEq) {
+        res.diff.push(newItem)
+      }
+    }
+    if (res.diff.length) {
+      return res as any
+    } else {
+      return
+    }
+  } else if (typeof prev === "object" && typeof next === "object") {
+    if (prev === null) {
+      return { diff: next }
+    }
+    if (next === null) return
+    const res = { diff: {} as Record<keyof T, any> }
+    for (let key in next) {
+      const diff = partialDiff(prev[key], next[key])
+      if (diff) {
+        res.diff[key] = diff.diff
+      }
+    }
+    if (Object.keys(res.diff).length) {
+      return res
+    } else {
+      return
+    }
+  } else {
+    return { diff: next }
+  }
+}
+
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
 export const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
 const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig" as utils.StorePath
@@ -245,7 +289,13 @@ export class SystemForEmbassy implements System {
     readonly moduleCode: Partial<U.ExpectedExports>,
   ) {}
 
-  async containerInit(): Promise<void> {}
+  async containerInit(effects: Effects): Promise<void> {
+    for (let depId in this.manifest.dependencies) {
+      if (this.manifest.dependencies[depId].config) {
+        await this.dependenciesAutoconfig(effects, depId, null)
+      }
+    }
+  }
 
   async exit(): Promise<void> {
     if (this.currentRunning) await this.currentRunning.clean()
@@ -804,73 +854,44 @@ export class SystemForEmbassy implements System {
         .then(toActionResult)
     }
   }
-  async dependenciesCheck(
-    effects: Effects,
-    id: string,
-    oldConfig: unknown,
-    timeoutMs: number | null,
-  ): Promise<object> {
-    const actionProcedure = this.manifest.dependencies?.[id]?.config?.check
-    if (!actionProcedure) return { message: "Action not found", value: null }
-    if (actionProcedure.type === "docker") {
-      const container = await DockerProcedureContainer.of(
-        effects,
-        this.manifest.id,
-        actionProcedure,
-        this.manifest.volumes,
-      )
-      return JSON.parse(
-        (
-          await container.execFail(
-            [
-              actionProcedure.entrypoint,
-              ...actionProcedure.args,
-              JSON.stringify(oldConfig),
-            ],
-            timeoutMs,
-          )
-        ).stdout.toString(),
-      )
-    } else if (actionProcedure.type === "script") {
-      const moduleCode = await this.moduleCode
-      const method = moduleCode.dependencies?.[id]?.check
-      if (!method)
-        throw new Error(
-          `Expecting that the method dependency check ${id} exists`,
-        )
-      return (await method(
-        polyfillEffects(effects, this.manifest),
-        oldConfig as any,
-      ).then((x) => {
-        if ("result" in x) return x.result
-        if ("error" in x) throw new Error("Error getting config: " + x.error)
-        throw new Error("Error getting config: " + x["error-code"][1])
-      })) as any
-    } else {
-      return {}
-    }
-  }
   async dependenciesAutoconfig(
     effects: Effects,
     id: string,
-    input: unknown,
     timeoutMs: number | null,
   ): Promise<void> {
-    const oldConfig = object({ remoteConfig: any }).unsafeCast(
-      input,
-    ).remoteConfig
     // TODO: docker
+    const oldConfig = (await effects.store.get({
+      packageId: id,
+      path: EMBASSY_POINTER_PATH_PREFIX,
+      callback: () => {
+        this.dependenciesAutoconfig(effects, id, timeoutMs)
+      },
+    })) as U.Config
     const moduleCode = await this.moduleCode
     const method = moduleCode.dependencies?.[id]?.autoConfigure
     if (!method) return
-    return (await method(
+    const newConfig = (await method(
       polyfillEffects(effects, this.manifest),
-      oldConfig,
+      JSON.parse(JSON.stringify(oldConfig)),
     ).then((x) => {
       if ("result" in x) return x.result
       if ("error" in x) throw new Error("Error getting config: " + x.error)
       throw new Error("Error getting config: " + x["error-code"][1])
     })) as any
+    await effects.action.request({
+      actionId: "config",
+      packageId: id,
+      replayId: `${id}/autoconfig`,
+      description: `Configure this dependency for the needs of ${this.manifest.title}`,
+      input: {
+        kind: "partial",
+        value: partialDiff(oldConfig, newConfig) as any,
+      },
+      when: {
+        condition: "input-not-matches",
+        once: false,
+      },
+    })
   }
 }
 
