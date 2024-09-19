@@ -9,7 +9,7 @@
         [marketplace]="iconConfig"
       />
       <h1 [class.tui-skeleton]="!store">
-        {{ store?.info?.name || 'Loading store' }}
+        {{ store?.info?.name || 'Loading store...' }}
       </h1>
       <!-- change registry modal -->
       <ng-content select="[slot=desktop]"></ng-content>
