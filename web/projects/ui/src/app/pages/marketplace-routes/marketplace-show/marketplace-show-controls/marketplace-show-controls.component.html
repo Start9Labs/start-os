@@ -11,49 +11,51 @@
         : 'View Installing'
     }}
   </ion-button>
-  <ng-container *ngIf="localPkg; else install">
-    <ng-container
-      *ngIf="
-        localPkg.stateInfo.state === 'installed' &&
-        (localPkg | toManifest) as manifest
-      "
-    >
-      <ion-button
-        *ngIf="(manifest.version | compareExver : pkg.version) === -1"
-        expand="block"
-        color="success"
-        (click)="tryInstall()"
+  <ng-container *ngIf="!conflict">
+    <ng-container *ngIf="localPkg; else install">
+      <ng-container
+        *ngIf="
+          localPkg.stateInfo.state === 'installed' &&
+          (localPkg | toManifest) as manifest
+        "
       >
-        Update
-      </ion-button>
-      <ion-button
-        *ngIf="(manifest.version | compareExver : pkg.version) === 1"
-        expand="block"
-        color="warning"
-        (click)="tryInstall()"
-      >
-        Downgrade
-      </ion-button>
-      <ng-container *ngIf="showDevTools$ | async">
         <ion-button
-          *ngIf="(manifest.version | compareExver : pkg.version) === 0"
+          *ngIf="(manifest.version | compareExver : pkg.version) === -1"
           expand="block"
           color="success"
           (click)="tryInstall()"
         >
-          Reinstall
+          Update
         </ion-button>
+        <ion-button
+          *ngIf="(manifest.version | compareExver : pkg.version) === 1"
+          expand="block"
+          color="warning"
+          (click)="tryInstall()"
+        >
+          Downgrade
+        </ion-button>
+        <ng-container *ngIf="showDevTools$ | async">
+          <ion-button
+            *ngIf="(manifest.version | compareExver : pkg.version) === 0"
+            expand="block"
+            color="success"
+            (click)="tryInstall()"
+          >
+            Reinstall
+          </ion-button>
+        </ng-container>
       </ng-container>
     </ng-container>
+  
+    <ng-template #install>
+      <ion-button
+        expand="block"
+        [color]="localFlavor ? 'warning' : 'success'"
+        (click)="tryInstall()"
+      >
+        {{ localFlavor ? 'Switch' : 'Install' }}
+      </ion-button>
+    </ng-template>
   </ng-container>
-
-  <ng-template #install>
-    <ion-button
-      expand="block"
-      [color]="localFlavor ? 'warning' : 'success'"
-      (click)="tryInstall()"
-    >
-      {{ localFlavor ? 'Switch' : 'Install' }}
-    </ion-button>
-  </ng-template>
 </div>
