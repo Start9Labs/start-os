@@ -203,6 +203,8 @@ jobs:
           mkdir -p web/dist/static/setup-wizard
           PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
 
+      - run: git status
+
       - name: Run iso build
         run: PLATFORM=${{ matrix.platform }} make iso
         if: ${{ matrix.platform != 'raspberrypi' }}
