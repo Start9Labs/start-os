@@ -1,3 +1,4 @@
+import { T } from ".."
 import { ImageId, ImageSource } from "../types"
 
 export type SDKManifest = {
@@ -110,7 +111,7 @@ export type SDKManifest = {
    * @description A mapping of service dependencies to be displayed to users when viewing the Marketplace
    * @property {string} description - An explanation of why this service is a dependency.
    * @property {boolean} optional - Whether or not this dependency is required or contingent on user configuration.
-   * @property {string} s9pk - TODO Aiden what goes here?
+   * @property {string} s9pk - A path or url to an s9pk of the dependency to extract metadata at build time
    * @example
    * ```
     dependencies: {
@@ -155,8 +156,4 @@ export type SDKImageInputSpec = {
   emulateMissingAs?: string | null
 }
 
-export type ManifestDependency = {
-  readonly description: string | null
-  readonly optional: boolean
-  readonly s9pk: string
-}
+export type ManifestDependency = T.Manifest["dependencies"][string]

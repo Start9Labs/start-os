@@ -88,11 +88,8 @@ export class AppShowPage {
   ): DependencyInfo[] {
     const manifest = getManifest(pkg)
 
-    return (
-      Object.keys(pkg.currentDependencies)
-        // @TODO Aiden still need to filter self from currentDependencies?
-        .filter(id => !!manifest.dependencies[id])
-        .map(id => this.getDepValues(pkg, allPkgs, manifest, id, depErrors))
+    return Object.keys(pkg.currentDependencies).map(id =>
+      this.getDepValues(pkg, allPkgs, manifest, id, depErrors),
     )
   }
 

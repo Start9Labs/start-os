@@ -55,12 +55,6 @@ type AsRequired<Type, MaybeRequiredType> = MaybeRequiredType extends
   ? Type
   : Type | null | undefined
 
-// TODO BluJ is this tech debt?
-type InputAsRequired<A, Type> = A extends
-  | { required: { default: any } | never }
-  | never
-  ? Type
-  : Type | null | undefined
 const testForAsRequiredParser = once(
   () => object({ required: object({ default: unknown }) }).test,
 )
@@ -695,12 +689,11 @@ export class Value<Type, Store> {
       }
     }, spec.validator)
   }
-  static file<Required extends RequiredDefault<string>, Store>(a: {
+  static file<Store>(a: {
     name: string
     description?: string | null
     extensions: string[]
-    // TODO BluJ similar to textarea, this should be a boolean. We can't provide a default file.
-    required: Required
+    required: boolean
   }) {
     const buildValue = {
       type: "file" as const,
@@ -708,11 +701,9 @@ export class Value<Type, Store> {
       warning: null,
       ...a,
     }
-    return new Value<AsRequired<FilePath, Required>, Store>(
+    return new Value<FilePath, Store>(
       () => ({
         ...buildValue,
-
-        ...requiredLikeToAbove(a.required),
       }),
       asRequiredParser(object({ filePath: string }), a),
     )
@@ -861,7 +852,6 @@ export class Value<Type, Store> {
   })
   ```
    */
-  // TODO BluJ are we using this?
   withStore<NewStore extends Store extends never ? any : Store>() {
     return this as any as Value<Type, NewStore>
   }
