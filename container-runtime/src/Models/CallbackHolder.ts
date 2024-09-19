@@ -1,9 +1,10 @@
+const CallbackIdCell = { inc: 0 }
+
 export class CallbackHolder {
   constructor() {}
-  private inc = 0
   private callbacks = new Map<number, Function>()
   private newId() {
-    return this.inc++
+    return CallbackIdCell.inc++
   }
   addCallback(callback?: Function) {
     if (!callback) {

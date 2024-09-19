@@ -308,17 +308,20 @@ function makeEffects(context: EffectContext): Effects {
   return self
 }
 
-export function makeProcedureEffects(procedureId: string): Effects {
-  return makeEffects({ procedureId, callbacks: null })
+export function makeProcedureEffects(
+  callbacks: CallbackHolder,
+  procedureId: string,
+): Effects {
+  return makeEffects({ procedureId, callbacks })
 }
 
-export function makeMainEffects(): T.MainEffects {
+export function makeMainEffects(callbacks: CallbackHolder): T.MainEffects {
   const rpcRound = rpcRoundFor(null)
   return {
     _type: "main",
     clearCallbacks: () => {
       return rpcRound("clearCallbacks", {}) as Promise<void>
     },
-    ...makeEffects({ procedureId: null, callbacks: new CallbackHolder() }),
+    ...makeEffects({ procedureId: null, callbacks }),
   }
 }

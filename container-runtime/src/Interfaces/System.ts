@@ -19,7 +19,6 @@ export type System = {
   containerInit(effects: T.Effects): Promise<void>
 
   start(effects: T.MainEffects): Promise<void>
-  callCallback(callback: number, args: any[]): void
   stop(): Promise<void>
 
   packageInit(effects: Effects, timeoutMs: number | null): Promise<void>

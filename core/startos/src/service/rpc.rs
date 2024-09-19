@@ -153,6 +153,11 @@ impl serde::Serialize for Sandbox {
 pub struct CallbackId(u64);
 impl CallbackId {
     pub fn register(self, container: &PersistentContainer) -> CallbackHandle {
+        dbg!(eyre!(
+            "callback {} registered for {}",
+            self.0,
+            container.s9pk.as_manifest().id
+        ));
         let this = Arc::new(self);
         let res = Arc::downgrade(&this);
         container

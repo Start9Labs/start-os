@@ -16,7 +16,6 @@ export const STARTOS_JS_LOCATION = "/usr/lib/startos/package/index.js"
 type RunningMain = {
   effects: MainEffects
   stop: () => Promise<void>
-  callbacks: CallbackHolder
 }
 
 export class SystemForStartOs implements System {
@@ -85,8 +84,6 @@ export class SystemForStartOs implements System {
     return action.run({ effects, input })
   }
 
-  async init(): Promise<void> {}
-
   async exit(): Promise<void> {}
 
   async start(effects: MainEffects): Promise<void> {
@@ -108,19 +105,6 @@ export class SystemForStartOs implements System {
         if (mainOnTerm) await mainOnTerm()
         await daemons.term()
       },
-      callbacks: new CallbackHolder(),
-    }
-  }
-
-  callCallback(callback: number, args: any[]): void {
-    if (this.runningMain) {
-      this.runningMain.callbacks
-        .callCallback(callback, args)
-        .catch((error) =>
-          console.error(`callback ${callback} failed`, utils.asError(error)),
-        )
-    } else {
-      console.warn(`callback ${callback} ignored because system is not running`)
     }
   }
 

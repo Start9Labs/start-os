@@ -14,7 +14,7 @@ import {
   anyOf,
 } from "ts-matches"
 
-import { types as T } from "@start9labs/start-sdk"
+import { types as T, utils } from "@start9labs/start-sdk"
 import * as fs from "fs"
 
 import { CallbackHolder } from "../Models/CallbackHolder"
@@ -146,6 +146,7 @@ export class RpcListener {
   private _system: System | undefined
   private _makeProcedureEffects: MakeProcedureEffects | undefined
   private _makeMainEffects: MakeMainEffects | undefined
+  private callbacks: CallbackHolder | undefined
 
   constructor(readonly getDependencies: AllGetDependencies) {
     if (!fs.existsSync(SOCKET_PARENT)) {
@@ -210,16 +211,34 @@ export class RpcListener {
 
   private get makeProcedureEffects() {
     if (!this._makeProcedureEffects) {
-      this._makeProcedureEffects = this.getDependencies.makeProcedureEffects()
+      this._makeProcedureEffects = this.getDependencies.makeProcedureEffects()(
+        this.callbacks!,
+      )
     }
     return this._makeProcedureEffects
   }
 
   private get makeMainEffects() {
     if (!this._makeMainEffects) {
-      this._makeMainEffects = this.getDependencies.makeMainEffects()
+      this._makeMainEffects = this.getDependencies.makeMainEffects()(
+        this.callbacks!,
+      )
     }
     return this._makeMainEffects
+  }
+
+  callCallback(callback: number, args: any[]): void {
+    if (this.callbacks) {
+      this.callbacks
+        .callCallback(callback, args)
+        .catch((error) =>
+          console.error(`callback ${callback} failed`, utils.asError(error)),
+        )
+    } else {
+      console.warn(
+        `callback ${callback} ignored because system is not initialized`,
+      )
+    }
   }
 
   private dealWithInput(input: unknown): MaybePromise<SocketResponse> {
@@ -227,7 +246,7 @@ export class RpcListener {
       .when(runType, async ({ id, params }) => {
         const system = this.system
         const procedure = jsonPath.unsafeCast(params.procedure)
-        const effects = this.getDependencies.makeProcedureEffects()(params.id)
+        const effects = this.makeProcedureEffects(params.id)
         const input = params.input
         const timeout = params.timeout
         const result = getResult(procedure, system, effects, timeout, input)
@@ -249,7 +268,7 @@ export class RpcListener {
         return handleRpc(id, result)
       })
       .when(callbackType, async ({ params: { callback, args } }) => {
-        this.system.callCallback(callback, args)
+        this.callCallback(callback, args)
         return null
       })
       .when(startType, async ({ id }) => {
@@ -280,6 +299,7 @@ export class RpcListener {
           (async () => {
             if (!this._system) {
               const system = await this.getDependencies.system()
+              this.callbacks = new CallbackHolder()
               const effects = this.makeProcedureEffects("")
               await system.containerInit(effects)
               this._system = system
