@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { MarketplacePkg } from '../../src/types'
 import { Exver, MarkdownPipeModule } from '@start9labs/shared'
 import { TuiButton, TuiDialogContext, TuiLoader } from '@taiga-ui/core'
 import { TuiAccordion } from '@taiga-ui/kit'
@@ -9,7 +10,6 @@ import {
 } from '@taiga-ui/polymorpheus'
 import { map } from 'rxjs'
 import { AbstractMarketplaceService } from '../services/marketplace.service'
-import { MarketplacePkg } from '../../src/types'
 
 @Component({
   standalone: true,
