@@ -1,12 +1,7 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  Input,
-} from '@angular/core'
-import { StoreIconComponentModule } from '@start9labs/marketplace'
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
-import { ConfigService } from 'src/app/services/config.service'
+import { StoreIconComponentModule } from './store-icon/store-icon.component.module'
+import { MarketplaceConfig } from '@start9labs/shared'
 
 @Component({
   standalone: true,
@@ -28,7 +23,8 @@ import { ConfigService } from 'src/app/services/config.service'
   imports: [StoreIconComponentModule, TuiIcon, TuiTitle],
 })
 export class MarketplaceRegistryComponent {
-  readonly marketplace = inject(ConfigService).marketplace
+  @Input()
+  marketplace!: MarketplaceConfig
 
   @Input()
   registry!: { url: string; selected: boolean; name?: string }
