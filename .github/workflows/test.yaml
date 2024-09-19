@@ -11,7 +11,7 @@ on:
       - next/*
 
 env:
-  NODEJS_VERSION: "v20.16.0"
+  NODEJS_VERSION: "20.16.0"
   ENVIRONMENT: dev-unstable
 
 jobs:
