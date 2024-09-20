@@ -1,11 +1,5 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  Input,
-  inject,
-} from '@angular/core'
-import { MarketplacePkg, StoreIdentity } from '../../../types'
-import { AbstractMarketplaceService } from '../../../services/marketplace.service'
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { MarketplacePkg } from '../../../types'
 
 @Component({
   selector: 'marketplace-item',
@@ -17,15 +11,9 @@ export class ItemComponent {
   @Input({ required: true })
   pkg!: MarketplacePkg
 
-  private readonly marketplaceService = inject(AbstractMarketplaceService)
-  readonly marketplace$ = this.marketplaceService.getSelectedHost$()
-
-  determineIcon(marketplace: StoreIdentity | null): string {
-    try {
-      const iconUrl = new URL(this.pkg.icon)
-      return iconUrl.href
-    } catch (e) {
-      return `${marketplace?.url}package/v0/icon/${this.pkg.id}`
-    }
+  determineIcon(): string {
+    return this.pkg.icon
+      ? this.pkg.icon
+      : 'assets/img/service-icons/fallback.png'
   }
 }

@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { MarketplacePkg } from '@start9labs/marketplace'
+import { MarketplacePkg } from '../../src/types'
 import { Exver, MarkdownPipeModule } from '@start9labs/shared'
 import { TuiButton, TuiDialogContext, TuiLoader } from '@taiga-ui/core'
 import { TuiAccordion } from '@taiga-ui/kit'

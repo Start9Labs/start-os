@@ -14,7 +14,7 @@
 ## Artifacts
 
 The StartOS backend is packed into a single binary `startbox` that is symlinked under
-several different names for different behaviour:
+several different names for different behavior:
 
 - `startd`: This is the main daemon of StartOS
 - `start-cli`: This is a CLI tool that will allow you to issue commands to

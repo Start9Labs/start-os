@@ -1,13 +1,13 @@
 {
   "name": "@start9labs/marketplace",
-  "version": "0.3.28",
+  "version": "0.3.32",
   "peerDependencies": {
     "@angular/common": ">=13.2.0",
     "@angular/core": ">=13.2.0",
     "@start9labs/shared": ">=0.3.2",
-    "@taiga-ui/cdk": "4.0.0-rc.6",
-    "@taiga-ui/core": "4.0.0-rc.6",
-    "@taiga-ui/layout": "4.0.0-rc.6",
+    "@taiga-ui/cdk": ">=4.0.0",
+    "@taiga-ui/core": ">=4.0.0",
+    "@taiga-ui/layout": ">=4.0.0",
     "@tinkoff/ng-dompurify": ">=4.0.0",
     "fuse.js": "^6.4.6"
   },

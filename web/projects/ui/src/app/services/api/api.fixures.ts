@@ -541,7 +541,14 @@ export module Mock {
             gitHash: 'fakehash',
             icon: PROXY_ICON,
             sourceVersion: null,
-            dependencyMetadata: {},
+            dependencyMetadata: {
+              bitcoind: {
+                title: 'Bitcoin Core',
+                icon: BTC_ICON,
+                description: 'Used for RPC requests',
+                optional: false,
+              },
+            },
             donationUrl: null,
             alerts: {
               install: 'test',
@@ -717,7 +724,14 @@ export module Mock {
           gitHash: 'fakehash',
           icon: PROXY_ICON,
           sourceVersion: null,
-          dependencyMetadata: {},
+          dependencyMetadata: {
+            bitcoind: {
+              title: 'Bitcoin Core',
+              icon: BTC_ICON,
+              description: 'Used for RPC requests',
+              optional: false,
+            },
+          },
           donationUrl: null,
           alerts: {
             install: 'test',

@@ -2,7 +2,13 @@
   <div class="box-container">
     <h2 class="additional-detail-title">New in {{ pkg.version }}</h2>
     <p [innerHTML]="pkg.releaseNotes | markdown"></p>
-    <button tuiButton iconEnd="@tui.chevron-right" (click)="onPast()">
+    <button
+      tuiButton
+      size="s"
+      appearance="whiteblock"
+      iconEnd="@tui.chevron-right"
+      (click)="onPast()"
+    >
       Past Release Notes
     </button>
     <h2 class="additional-detail-title" [style.margin-top.rem]="2">About</h2>
@@ -11,6 +17,8 @@
       *ngIf="pkg.marketingSite as url"
       tuiButton
       iconEnd="@tui.external-link"
+      size="s"
+      appearance="glass"
       target="_blank"
       rel="noreferrer"
       [href]="url"

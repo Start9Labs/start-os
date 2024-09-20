@@ -1,31 +1,18 @@
 import { CommonModule } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  Input,
-} from '@angular/core'
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { SharedPipesModule, TickerModule } from '@start9labs/shared'
 import { TuiLet } from '@taiga-ui/cdk'
-import { AbstractMarketplaceService } from '../../../services/marketplace.service'
-import { MarketplacePkg, StoreIdentity } from '../../../types'
 
 @Component({
   selector: 'marketplace-package-hero',
   template: `
-    <div class="outer-container" *tuiLet="marketplace$ | async as marketplace">
+    <div class="outer-container">
       <div class="inner-container box-shadow-lg">
         <!-- icon -->
-        <img
-          [src]="determineIcon(marketplace) | trustUrl"
-          alt="{{ pkg.title }} Icon"
-        />
+        <img [src]="determineIcon()" alt="{{ pkg.title }} Icon" />
         <!-- color background -->
         <div class="color-background">
-          <img
-            [src]="determineIcon(marketplace) | trustUrl"
-            alt="{{ pkg.title }} background image"
-          />
+          <img [src]="determineIcon()" alt="{{ pkg.title }} background image" />
         </div>
         <!-- background darkening overlay -->
         <div class="dark-overlay"></div>
@@ -158,7 +145,6 @@ import { MarketplacePkg, StoreIdentity } from '../../../types'
   imports: [CommonModule, SharedPipesModule, TickerModule, TuiLet],
 })
 export class MarketplacePackageHeroComponent {
-  // @TODO Matt this used to be MarketplacePkg
   @Input({ required: true })
   pkg!: {
     id: string
@@ -168,15 +154,9 @@ export class MarketplacePackageHeroComponent {
     icon: string
   }
 
-  private readonly marketplaceService = inject(AbstractMarketplaceService)
-  readonly marketplace$ = this.marketplaceService.getSelectedHost$()
-
-  determineIcon(marketplace: StoreIdentity | null) {
-    try {
-      const iconUrl = new URL(this.pkg.icon)
-      return iconUrl.href
-    } catch (e) {
-      return `${marketplace?.url}package/v0/icon/${this.pkg.id}`
-    }
+  determineIcon() {
+    return this.pkg.icon
+      ? this.pkg.icon
+      : 'assets/img/service-icons/fallback.png'
   }
 }

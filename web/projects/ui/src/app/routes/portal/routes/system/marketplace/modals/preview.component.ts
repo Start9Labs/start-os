@@ -31,11 +31,9 @@ import {
   BehaviorSubject,
   combineLatest,
   filter,
-  firstValueFrom,
   map,
   startWith,
   switchMap,
-  tap,
 } from 'rxjs'
 
 @Component({
@@ -204,15 +202,14 @@ export class MarketplacePreviewComponent {
 
   readonly flavors$ = this.flavor$.pipe(
     switchMap(current =>
-      this.marketplaceService
-        .getSelectedStore$()
-        .pipe(
-          map(({ packages }) =>
-            packages.filter(
-              ({ id, flavor }) => id === this.pkgId && flavor !== current,
-            ),
+      this.marketplaceService.getSelectedStore$().pipe(
+        map(({ packages }) =>
+          packages.filter(
+            ({ id, flavor }) => id === this.pkgId && flavor !== current,
           ),
         ),
+        filter(p => p.length > 0),
+      ),
     ),
   )
 

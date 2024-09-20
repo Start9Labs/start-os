@@ -11,6 +11,7 @@ import {
 import {
   AbstractMarketplaceService,
   StoreIconComponentModule,
+  MarketplaceRegistryComponent,
 } from '@start9labs/marketplace'
 import { TuiDialogService, TuiIcon, TuiTitle, TuiButton } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -21,8 +22,8 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { MarketplaceRegistryComponent } from '../components/registry.component'
 import { getMarketplaceValueSpec, getPromptOptions } from '../utils/registry'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   standalone: true,
@@ -33,6 +34,7 @@ import { getMarketplaceValueSpec, getPromptOptions } from '../utils/registry'
         <button
           tuiCell
           [disabled]="registry.selected"
+          [marketplace]="marketplaceConfig"
           [registry]="registry"
           (click)="connect(registry.url)"
         ></button>
@@ -47,6 +49,7 @@ import { getMarketplaceValueSpec, getPromptOptions } from '../utils/registry'
           <button
             tuiCell
             [registry]="registry"
+            [marketplace]="marketplaceConfig"
             (click)="connect(registry.url)"
           ></button>
           <button
@@ -95,6 +98,7 @@ export class MarketplaceRegistryModal {
     'marketplace',
     'knownHosts',
   )
+  readonly marketplaceConfig = inject(ConfigService).marketplace
 
   readonly stores$ = combineLatest([
     this.marketplace.getKnownHosts$(),
