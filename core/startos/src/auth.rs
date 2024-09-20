@@ -91,29 +91,41 @@ pub fn auth<C: Context>() -> ParentHandler<C> {
                 .with_metadata("login", Value::Bool(true))
                 .no_cli(),
         )
-        .subcommand("login", from_fn_async(cli_login).no_display())
+        .subcommand(
+            "login",
+            from_fn_async(cli_login)
+                .no_display()
+                .with_about("Log in to StartOS server allowing use of tools such as side-loading services via CLI"),
+        )
         .subcommand(
             "logout",
             from_fn_async(logout)
                 .with_metadata("get_session", Value::Bool(true))
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Log out of StartOS server"),
         )
-        .subcommand("session", session::<C>())
+        .subcommand(
+            "session",
+            session::<C>().with_about("List or Kill StartOS sessions"),
+        )
         .subcommand(
             "reset-password",
             from_fn_async(reset_password_impl).no_cli(),
         )
         .subcommand(
             "reset-password",
-            from_fn_async(cli_reset_password).no_display(),
+            from_fn_async(cli_reset_password)
+                .no_display()
+                .with_about("Reset StartOS password"),
         )
         .subcommand(
             "get-pubkey",
             from_fn_async(get_pubkey)
                 .with_metadata("authenticated", Value::Bool(false))
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Get public key derived from server private key"),
         )
 }
 
@@ -290,13 +302,15 @@ pub fn session<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_sessions(handle.params, result))
                 })
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Dispaly all server sessions"),
         )
         .subcommand(
             "kill",
             from_fn_async(kill)
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Terminate existing server session(s)"),
         )
 }
 

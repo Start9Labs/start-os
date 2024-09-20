@@ -121,7 +121,8 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
             "echo",
             from_fn(echo::<RpcContext>)
                 .with_metadata("authenticated", Value::Bool(false))
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Echo a message"),
         )
         .subcommand(
             "state",
@@ -129,10 +130,19 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("server", server::<C>())
+        .subcommand(
+            "server",
+            server::<C>()
+                .with_about("Commands related to the server i.e. restart, update, and shutdown"),
+        )
         .subcommand("package", package::<C>())
         .subcommand("net", net::net::<C>())
-        .subcommand("auth", auth::auth::<C>())
+        .subcommand(
+            "auth",
+            auth::auth::<C>().with_about(
+                "Commands related to Authentication such as logging in, resetting password, etc",
+            ),
+        )
         .subcommand("db", db::db::<C>())
         .subcommand("ssh", ssh::ssh::<C>())
         .subcommand("wifi", net::wifi::wifi::<C>())
@@ -162,15 +172,26 @@ pub fn server<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     Ok(system::display_time(handle.params, result))
                 })
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Display current time and server uptime"),
         )
-        .subcommand("experimental", system::experimental::<C>())
-        .subcommand("logs", system::logs::<RpcContext>())
+        .subcommand(
+            "experimental",
+            system::experimental::<C>()
+                .with_about("Experimental commands such as zram and governor"),
+        )
+        .subcommand(
+            "logs",
+            system::logs::<RpcContext>().with_about("Display OS logs"),
+        )
         .subcommand(
             "logs",
             from_fn_async(logs::cli_logs::<RpcContext, Empty>).no_display(),
         )
-        .subcommand("kernel-logs", system::kernel_logs::<RpcContext>())
+        .subcommand(
+            "kernel-logs",
+            system::kernel_logs::<RpcContext>().with_about("Display Kernel logs"),
+        )
         .subcommand(
             "kernel-logs",
             from_fn_async(logs::cli_logs::<RpcContext, Empty>).no_display(),
@@ -179,25 +200,29 @@ pub fn server<C: Context>() -> ParentHandler<C> {
             "metrics",
             from_fn_async(system::metrics)
                 .with_display_serializable()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Display information about the server i.e. temperature, RAM, CPU, and disk usage"),
         )
         .subcommand(
             "shutdown",
             from_fn_async(shutdown::shutdown)
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Shutdown the server"),
         )
         .subcommand(
             "restart",
             from_fn_async(shutdown::restart)
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Restart the server"),
         )
         .subcommand(
             "rebuild",
             from_fn_async(shutdown::rebuild)
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Teardown and rebuild service containers"),
         )
         .subcommand(
             "update",
@@ -207,7 +232,7 @@ pub fn server<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "update",
-            from_fn_async(update::cli_update_system).no_display(),
+            from_fn_async(update::cli_update_system).no_display().with_about("Check a given registry for StartOS updates and update if available"),
         )
         .subcommand(
             "update-firmware",
@@ -222,19 +247,22 @@ pub fn server<C: Context>() -> ParentHandler<C> {
             .with_custom_display_fn(|_handle, result| {
                 Ok(firmware::display_firmware_update_result(result))
             })
-            .with_call_remote::<CliContext>(),
+            .with_call_remote::<CliContext>()
+            .with_about("Check for firmware updates and update if available"),
         )
         .subcommand(
             "set-smtp",
             from_fn_async(system::set_system_smtp)
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Set system smtp server and credentials"),
         )
         .subcommand(
             "clear-smtp",
             from_fn_async(system::clear_system_smtp)
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Remove system smtp server and credentials"),
         )
 }
 
