@@ -2,17 +2,17 @@ PACKAGE_TS_FILES := $(shell git ls-files package/lib) package/lib/test/output.ts
 BASE_TS_FILES := $(shell git ls-files base/lib) package/lib/test/output.ts
 version = $(shell git tag --sort=committerdate | tail -1)
 
-.PHONY: test clean bundle fmt buildOutput check
+.PHONY: test base/test package/test clean bundle fmt buildOutput check
 
 all: bundle
 
-package/test: $(PACKAGE_TS_FILES) package/lib/test/output.ts package/node_modules
+package/test: $(PACKAGE_TS_FILES) package/lib/test/output.ts package/node_modules base/node_modules
 	cd package && npm test
 
 base/test: $(BASE_TS_FILES) base/node_modules
 	cd base && npm test
 
-test: package/test base/test
+test: base/test package/test
 
 clean:
 	rm -rf base/node_modules
@@ -70,5 +70,5 @@ publish: bundle package/package.json README.md LICENSE
 	npm publish --access=public
 
 link: bundle
-	cd dist
-	npm link
+	npm --prefix baseDist link
+	npm --prefix dist link
