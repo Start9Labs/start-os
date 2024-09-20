@@ -62,6 +62,7 @@ export class MainLoop {
         this.system.manifest.id,
         this.system.manifest.main,
         this.system.manifest.volumes,
+        `Main - ${currentCommand.join(" ")}`,
       )
       return CommandController.of()(
         this.effects,
@@ -162,26 +163,29 @@ export class MainLoop {
             const subcontainer = actionProcedure.inject
               ? this.mainSubContainerHandle
               : undefined
-            // prettier-ignore
-            const container = 
-              await DockerProcedureContainer.of(
-                effects,
-                manifest.id,
-                actionProcedure,
-                manifest.volumes,
-                {
-                  subcontainer,
-                }
-              )
+            const commands = [
+              actionProcedure.entrypoint,
+              ...actionProcedure.args,
+            ]
+            const container = await DockerProcedureContainer.of(
+              effects,
+              manifest.id,
+              actionProcedure,
+              manifest.volumes,
+              `Health Check - ${commands.join(" ")}`,
+              {
+                subcontainer,
+              },
+            )
             const env: Record<string, string> = actionProcedure.inject
               ? {
                   HOME: "/root",
                 }
               : {}
-            const executed = await container.exec(
-              [actionProcedure.entrypoint, ...actionProcedure.args],
-              { input: JSON.stringify(timeChanged), env },
-            )
+            const executed = await container.exec(commands, {
+              input: JSON.stringify(timeChanged),
+              env,
+            })
 
             if (executed.exitCode === 0) {
               await effects.setHealth({

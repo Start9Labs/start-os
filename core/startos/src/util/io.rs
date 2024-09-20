@@ -1,6 +1,7 @@
 use std::collections::VecDeque;
 use std::future::Future;
 use std::io::Cursor;
+use std::mem::MaybeUninit;
 use std::os::unix::prelude::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -11,7 +12,7 @@ use std::time::Duration;
 
 use bytes::{Buf, BytesMut};
 use futures::future::{BoxFuture, Fuse};
-use futures::{AsyncSeek, FutureExt, TryStreamExt};
+use futures::{AsyncSeek, FutureExt, Stream, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use nix::unistd::{Gid, Uid};
 use tokio::fs::File;
@@ -23,6 +24,7 @@ use tokio::sync::{Notify, OwnedMutexGuard};
 use tokio::time::{Instant, Sleep};
 
 use crate::prelude::*;
+use crate::{CAP_1_KiB, CAP_1_MiB};
 
 pub trait AsyncReadSeek: AsyncRead + AsyncSeek {}
 impl<T: AsyncRead + AsyncSeek> AsyncReadSeek for T {}
@@ -1265,5 +1267,35 @@ impl<W: AsyncWrite + Unpin> AsyncWrite for MutexIO<W> {
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
         Pin::new(&mut *self.get_mut().0).poll_shutdown(cx)
+    }
+}
+
+#[pin_project::pin_project]
+pub struct AsyncReadStream<T> {
+    buffer: Vec<MaybeUninit<u8>>,
+    #[pin]
+    pub io: T,
+}
+impl<T> AsyncReadStream<T> {
+    pub fn new(io: T, buffer_size: usize) -> Self {
+        Self {
+            buffer: vec![MaybeUninit::uninit(); buffer_size],
+            io,
+        }
+    }
+}
+impl<T: AsyncRead> Stream for AsyncReadStream<T> {
+    type Item = Result<Vec<u8>, Error>;
+    fn poll_next(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
+        let this = self.project();
+        let mut buf = ReadBuf::uninit(this.buffer);
+        match futures::ready!(this.io.poll_read(cx, &mut buf)) {
+            Ok(()) if buf.filled().is_empty() => Poll::Ready(None),
+            Ok(()) => Poll::Ready(Some(Ok(buf.filled().to_vec()))),
+            Err(e) => Poll::Ready(Some(Err(e.into()))),
+        }
     }
 }

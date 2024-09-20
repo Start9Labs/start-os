@@ -127,6 +127,7 @@ export class Daemons<Manifest extends T.Manifest, Ids extends string> {
     const daemon = Daemon.of()(this.effects, options.image, options.command, {
       ...options,
       mounts: options.mounts.build(),
+      subcontainerName: id,
     })
     const healthDaemon = new HealthDaemon(
       daemon,

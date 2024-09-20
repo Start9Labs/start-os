@@ -366,7 +366,10 @@ export type Effects = {
   // subcontainer
   subcontainer: {
     /** A low level api used by SubContainer */
-    createFs(options: { imageId: string }): Promise<[string, string]>
+    createFs(options: {
+      imageId: string
+      name: string | null
+    }): Promise<[string, string]>
     /** A low level api used by SubContainer */
     destroyFs(options: { guid: string }): Promise<void>
   }

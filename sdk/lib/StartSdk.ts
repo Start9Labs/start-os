@@ -782,6 +782,7 @@ export async function runCommand<Manifest extends T.Manifest>(
     effects,
     image,
     options.mounts || [],
+    commands.join(" "),
     (subcontainer) => subcontainer.exec(commands),
   )
 }

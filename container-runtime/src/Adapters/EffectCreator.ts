@@ -127,7 +127,7 @@ function makeEffects(context: EffectContext): Effects {
       >
     },
     subcontainer: {
-      createFs(options: { imageId: string }) {
+      createFs(options: { imageId: string; name: string }) {
         return rpcRound("subcontainer.create-fs", options) as ReturnType<
           T.Effects["subcontainer"]["createFs"]
         >

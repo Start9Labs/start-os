@@ -58,7 +58,7 @@ pub struct RpcContextSeed {
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
     pub tor_socks: SocketAddr,
     pub lxc_manager: Arc<LxcManager>,
-    pub open_authed_continuations: OpenAuthedContinuations<InternedString>,
+    pub open_authed_continuations: OpenAuthedContinuations<Option<InternedString>>,
     pub rpc_continuations: RpcContinuations,
     pub callbacks: ServiceCallbacks,
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
@@ -431,8 +431,8 @@ impl AsRef<RpcContinuations> for RpcContext {
         &self.rpc_continuations
     }
 }
-impl AsRef<OpenAuthedContinuations<InternedString>> for RpcContext {
-    fn as_ref(&self) -> &OpenAuthedContinuations<InternedString> {
+impl AsRef<OpenAuthedContinuations<Option<InternedString>>> for RpcContext {
+    fn as_ref(&self) -> &OpenAuthedContinuations<Option<InternedString>> {
         &self.open_authed_continuations
     }
 }

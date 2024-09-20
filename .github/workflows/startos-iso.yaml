@@ -78,7 +78,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: "3.x"
 
       - uses: actions/setup-node@v4
         with:
@@ -156,7 +156,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: "3.x"
 
       - name: Install dependencies
         run: |
@@ -187,10 +187,23 @@ jobs:
         run: |
           mkdir -p web/node_modules
           mkdir -p web/dist/raw
-          touch core/startos/bindings
-          touch sdk/lib/osBindings
+          mkdir -p container-runtime/node_modules
           mkdir -p container-runtime/dist
+          mkdir -p container-runtime/dist/node_modules
+          mkdir -p core/startos/bindings
+          mkdir -p sdk/dist
+          mkdir -p patch-db/client/node_modules
+          mkdir -p patch-db/client/dist
+          mkdir -p web/.angular
+          mkdir -p web/dist/raw/ui
+          mkdir -p web/dist/raw/install-wizard
+          mkdir -p web/dist/raw/setup-wizard
+          mkdir -p web/dist/static/ui
+          mkdir -p web/dist/static/install-wizard
+          mkdir -p web/dist/static/setup-wizard
           PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
+
+      - run: git status
 
       - name: Run iso build
         run: PLATFORM=${{ matrix.platform }} make iso

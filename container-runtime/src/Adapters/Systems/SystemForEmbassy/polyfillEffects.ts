@@ -129,6 +129,7 @@ export const polyfillEffects = (
         manifest.id,
         manifest.main,
         manifest.volumes,
+        [input.command, ...(input.args || [])].join(" "),
       )
       const daemon = promiseSubcontainer.then((subcontainer) =>
         daemons.runCommand()(
