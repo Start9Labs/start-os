@@ -20,11 +20,6 @@ export type HealthReceipt = {
   [HealthProof]: never
 }
 
-export type MainEffects = Effects & {
-  _type: "main"
-  clearCallbacks: () => Promise<void>
-}
-
 export type DaemonBuildable = {
   build(): Promise<{
     term(): Promise<void>
@@ -58,7 +53,7 @@ export namespace ExpectedExports {
    * package represents, like running a bitcoind in a bitcoind-wrapper.
    */
   export type main = (options: {
-    effects: MainEffects
+    effects: Effects
     started(onTerm: () => PromiseLike<void>): PromiseLike<void>
   }) => Promise<DaemonBuildable>
 

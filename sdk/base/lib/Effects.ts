@@ -28,6 +28,11 @@ import { UrlString } from "./util/getServiceInterface"
 /** Used to reach out from the pure js runtime */
 
 export type Effects = {
+  constRetry: () => void
+  clearCallbacks: (
+    options: { only: number[] } | { except: number[] },
+  ) => Promise<void>
+
   // action
   action: {
     /** Define an action that can be invoked by a user or service */

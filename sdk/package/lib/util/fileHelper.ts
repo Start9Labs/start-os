@@ -4,8 +4,44 @@ import * as TOML from "@iarna/toml"
 import merge from "lodash.merge"
 import * as T from "../../../base/lib/types"
 import * as fs from "node:fs/promises"
+import { asError } from "../../../base/lib/util"
 
 const previousPath = /(.+?)\/([^/]*)$/
+
+const exists = (path: string) =>
+  fs.access(path).then(
+    () => true,
+    () => false,
+  )
+
+async function onCreated(path: string) {
+  if (path === "/") return
+  if (!path.startsWith("/")) path = `${process.cwd()}/${path}`
+  if (await exists(path)) {
+    return
+  }
+  const split = path.split("/")
+  const filename = split.pop()
+  const parent = split.join("/")
+  await onCreated(parent)
+  const ctrl = new AbortController()
+  const watch = fs.watch(parent, { persistent: false, signal: ctrl.signal })
+  if (
+    await fs.access(path).then(
+      () => true,
+      () => false,
+    )
+  ) {
+    ctrl.abort("finished")
+    return
+  }
+  for await (let event of watch) {
+    if (event.filename === filename) {
+      ctrl.abort("finished")
+      return
+    }
+  }
+}
 
 /**
  * @description Use this class to read/write an underlying configuration file belonging to the upstream service.
@@ -46,10 +82,11 @@ export class FileHelper<A> {
     readonly writeData: (dataIn: A) => string,
     readonly readData: (stringValue: string) => A,
   ) {}
+
   /**
    * Accepts structured data and overwrites the existing file on disk.
    */
-  async write(data: A, effects: T.Effects) {
+  async write(data: A) {
     const parent = previousPath.exec(this.path)
     if (parent) {
       await fs.mkdir(parent[1], { recursive: true })
@@ -57,29 +94,60 @@ export class FileHelper<A> {
 
     await fs.writeFile(this.path, this.writeData(data))
   }
+
   /**
    * Reads the file from disk and converts it to structured data.
    */
-  async read(effects: T.Effects) {
-    if (
-      !(await fs.access(this.path).then(
-        () => true,
-        () => false,
-      ))
-    ) {
+  async read() {
+    if (!(await exists(this.path))) {
       return null
     }
     return this.readData(
       await fs.readFile(this.path).then((data) => data.toString("utf-8")),
     )
   }
+
+  async const(effects: T.Effects) {
+    const watch = this.watch()
+    const res = await watch.next()
+    watch.next().then(effects.constRetry)
+    return res.value
+  }
+
+  async *watch() {
+    let res
+    while (true) {
+      if (await exists(this.path)) {
+        const ctrl = new AbortController()
+        const watch = fs.watch(this.path, {
+          persistent: false,
+          signal: ctrl.signal,
+        })
+        res = await this.read()
+        const listen = Promise.resolve()
+          .then(async () => {
+            for await (const _ of watch) {
+              ctrl.abort("finished")
+              return
+            }
+          })
+          .catch((e) => console.error(asError(e)))
+        yield res
+        await listen
+      } else {
+        yield null
+        await onCreated(this.path).catch((e) => console.error(asError(e)))
+      }
+    }
+  }
+
   /**
    * Accepts structured data and performs a merge with the existing file on disk.
    */
-  async merge(data: A, effects: T.Effects) {
-    const fileData = (await this.read(effects).catch(() => ({}))) || {}
+  async merge(data: A) {
+    const fileData = (await this.read().catch(() => ({}))) || {}
     const mergeData = merge({}, fileData, data)
-    return await this.write(mergeData, effects)
+    return await this.write(mergeData)
   }
   /**
    * Create a File Helper for an arbitrary file type.

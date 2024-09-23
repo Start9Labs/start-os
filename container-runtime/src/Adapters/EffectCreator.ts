@@ -34,7 +34,8 @@ let hostSystemId = 0
 
 export type EffectContext = {
   procedureId: string | null
-  callbacks: CallbackHolder | null
+  callbacks?: CallbackHolder
+  constRetry: () => void
 }
 
 const rpcRoundFor =
@@ -99,9 +100,15 @@ const rpcRoundFor =
     })
   }
 
-function makeEffects(context: EffectContext): Effects {
+export function makeEffects(context: EffectContext): Effects {
   const rpcRound = rpcRoundFor(context.procedureId)
   const self: Effects = {
+    constRetry: context.constRetry,
+    clearCallbacks(...[options]: Parameters<T.Effects["clearCallbacks"]>) {
+      return rpcRound("clear-callbacks", {
+        ...options,
+      }) as ReturnType<T.Effects["clearCallbacks"]>
+    },
     action: {
       clear(...[options]: Parameters<T.Effects["action"]["clear"]>) {
         return rpcRound("action.clear", {
@@ -306,22 +313,4 @@ function makeEffects(context: EffectContext): Effects {
     },
   }
   return self
-}
-
-export function makeProcedureEffects(
-  callbacks: CallbackHolder,
-  procedureId: string,
-): Effects {
-  return makeEffects({ procedureId, callbacks })
-}
-
-export function makeMainEffects(callbacks: CallbackHolder): T.MainEffects {
-  const rpcRound = rpcRoundFor(null)
-  return {
-    _type: "main",
-    clearCallbacks: () => {
-      return rpcRound("clearCallbacks", {}) as Promise<void>
-    },
-    ...makeEffects({ procedureId: null, callbacks }),
-  }
 }

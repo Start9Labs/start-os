@@ -1,13 +1,10 @@
 import { RpcListener } from "./Adapters/RpcListener"
 import { SystemForEmbassy } from "./Adapters/Systems/SystemForEmbassy"
-import { makeMainEffects, makeProcedureEffects } from "./Adapters/EffectCreator"
 import { AllGetDependencies } from "./Interfaces/AllGetDependencies"
 import { getSystem } from "./Adapters/Systems"
 
 const getDependencies: AllGetDependencies = {
   system: getSystem,
-  makeProcedureEffects: () => makeProcedureEffects,
-  makeMainEffects: () => makeMainEffects,
 }
 
 new RpcListener(getDependencies)

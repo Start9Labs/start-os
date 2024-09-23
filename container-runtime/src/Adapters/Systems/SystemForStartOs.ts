@@ -9,12 +9,9 @@ import { Volume } from "../../Models/Volume"
 import { CallbackHolder } from "../../Models/CallbackHolder"
 import { Optional } from "ts-matches/lib/parsers/interfaces"
 
-type MainEffects = T.MainEffects
-
 export const STARTOS_JS_LOCATION = "/usr/lib/startos/package/index.js"
 
 type RunningMain = {
-  effects: MainEffects
   stop: () => Promise<void>
 }
 
@@ -25,7 +22,9 @@ export class SystemForStartOs implements System {
     return new SystemForStartOs(require(STARTOS_JS_LOCATION))
   }
 
-  constructor(readonly abi: T.ABI) {}
+  constructor(readonly abi: T.ABI) {
+    this
+  }
   async containerInit(effects: Effects): Promise<void> {
     return void (await this.abi.containerInit({ effects }))
   }
@@ -86,7 +85,8 @@ export class SystemForStartOs implements System {
 
   async exit(): Promise<void> {}
 
-  async start(effects: MainEffects): Promise<void> {
+  async start(effects: Effects): Promise<void> {
+    effects.constRetry = utils.once(() => effects.restart())
     if (this.runningMain) await this.stop()
     let mainOnTerm: () => Promise<void> | undefined
     const started = async (onTerm: () => Promise<void>) => {
@@ -95,12 +95,11 @@ export class SystemForStartOs implements System {
     }
     const daemons = await (
       await this.abi.main({
-        effects: effects as MainEffects,
+        effects,
         started,
       })
     ).build()
     this.runningMain = {
-      effects,
       stop: async () => {
         if (mainOnTerm) await mainOnTerm()
         await daemons.term()
@@ -111,7 +110,6 @@ export class SystemForStartOs implements System {
   async stop(): Promise<void> {
     if (this.runningMain) {
       await this.runningMain.stop()
-      await this.runningMain.effects.clearCallbacks()
       this.runningMain = undefined
     }
   }

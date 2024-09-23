@@ -101,11 +101,21 @@ export class Actions<
   ): Actions<Store, AllActions & { [id in Id]: A }> {
     return new Actions({ ...this.actions, [action.id]: action })
   }
-  async update(options: { effects: T.Effects }): Promise<void> {
-    for (let action of Object.values(this.actions)) {
-      await action.exportMetadata(options)
+  update(options: { effects: T.Effects }): Promise<void> {
+    const updater = async (options: { effects: T.Effects }) => {
+      for (let action of Object.values(this.actions)) {
+        await action.exportMetadata(options)
+      }
+      await options.effects.action.clear({ except: Object.keys(this.actions) })
     }
-    await options.effects.action.clear({ except: Object.keys(this.actions) })
+    const updaterCtx = { options }
+    updaterCtx.options = {
+      effects: {
+        ...options.effects,
+        constRetry: () => updater(updaterCtx.options),
+      },
+    }
+    return updater(updaterCtx.options)
   }
   get<Id extends T.ActionId>(actionId: Id): AllActions[Id] {
     return this.actions[actionId]

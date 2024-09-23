@@ -18,8 +18,8 @@ pub enum ProcedureName {
 impl ProcedureName {
     pub fn js_function_name(&self) -> String {
         match self {
-            ProcedureName::Init => "/init".to_string(),
-            ProcedureName::Uninit => "/uninit".to_string(),
+            ProcedureName::Init => "/packageInit".to_string(),
+            ProcedureName::Uninit => "/packageUninit".to_string(),
             ProcedureName::SetConfig => "/config/set".to_string(),
             ProcedureName::GetConfig => "/config/get".to_string(),
             ProcedureName::CreateBackup => "/backup/create".to_string(),

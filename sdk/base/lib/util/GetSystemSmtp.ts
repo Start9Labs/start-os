@@ -8,7 +8,7 @@ export class GetSystemSmtp {
    */
   const() {
     return this.effects.getSystemSmtp({
-      callback: this.effects.restart,
+      callback: () => this.effects.constRetry(),
     })
   }
   /**

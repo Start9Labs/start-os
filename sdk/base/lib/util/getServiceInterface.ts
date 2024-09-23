@@ -232,7 +232,7 @@ export class GetServiceInterface {
    */
   async const() {
     const { id, packageId } = this.opts
-    const callback = this.effects.restart
+    const callback = () => this.effects.constRetry()
     const interfaceFilled = await makeInterfaceFilled({
       effects: this.effects,
       id,

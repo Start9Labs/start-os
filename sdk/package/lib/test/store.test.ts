@@ -1,4 +1,4 @@
-import { MainEffects, Effects } from "../../../base/lib/types"
+import { Effects } from "../../../base/lib/types"
 import { extractJsonPath } from "../../../base/lib/util/PathBuilder"
 import { StartSdk } from "../StartSdk"
 
@@ -54,46 +54,43 @@ describe("Store", () => {
         value: "someValueIn",
       })
       ;(await sdk.store
-        .getOwn(todo<MainEffects>(), storePath.inputSpec.someValue)
+        .getOwn(todo<Effects>(), storePath.inputSpec.someValue)
         .const()) satisfies string
       ;(await sdk.store
-        .getOwn(todo<MainEffects>(), storePath.inputSpec)
+        .getOwn(todo<Effects>(), storePath.inputSpec)
         .const()) satisfies Store["inputSpec"]
       await sdk.store // @ts-expect-error Path is wrong
-        .getOwn(todo<MainEffects>(), "/inputSpec/somdsfeValue")
+        .getOwn(todo<Effects>(), "/inputSpec/somdsfeValue")
         .const()
       ///  ----------------- ERRORS -----------------
 
-      sdk.store.setOwn(todo<MainEffects>(), storePath, {
+      sdk.store.setOwn(todo<Effects>(), storePath, {
         // @ts-expect-error Type is wrong for the setting value
         inputSpec: { someValue: "notInAOrB" },
       })
       sdk.store.setOwn(
-        todo<MainEffects>(),
+        todo<Effects>(),
         sdk.StorePath.inputSpec.someValue,
         // @ts-expect-error Type is wrong for the setting value
         "notInAOrB",
       )
       ;(await sdk.store
         .getOwn(todo<Effects>(), storePath.inputSpec.someValue)
-        // @ts-expect-error Const should normally not be callable
         .const()) satisfies string
       ;(await sdk.store
         .getOwn(todo<Effects>(), storePath.inputSpec)
-        // @ts-expect-error Const should normally not be callable
         .const()) satisfies Store["inputSpec"]
       await sdk.store // @ts-expect-error Path is wrong
         .getOwn("/inputSpec/somdsfeValue")
-        // @ts-expect-error Const should normally not be callable
         .const()
 
       ///
       ;(await sdk.store
-        .getOwn(todo<MainEffects>(), storePath.inputSpec.someValue)
+        .getOwn(todo<Effects>(), storePath.inputSpec.someValue)
         // @ts-expect-error satisfies type is wrong
         .const()) satisfies number
       await sdk.store // @ts-expect-error Path is wrong
-        .getOwn(todo<MainEffects>(), extractJsonPath(storePath.inputSpec))
+        .getOwn(todo<Effects>(), extractJsonPath(storePath.inputSpec))
         .const()
       ;(await todo<Effects>().store.get({
         path: extractJsonPath(storePath.inputSpec.someValue),

@@ -27,7 +27,6 @@ import {
   ServiceInterfaceId,
   PackageId,
   HealthReceipt,
-  MainEffects,
   ServiceInterfaceType,
   Effects,
 } from "../../base/lib/types"
@@ -41,7 +40,6 @@ import { checkWebUrl, runHealthScript } from "./health/checkFns"
 import { List } from "../../base/lib/actions/input/builder/list"
 import { Install, InstallFn } from "./inits/setupInstall"
 import { SetupBackupsParams, setupBackups } from "./backup/setupBackups"
-import { setupPackageInit } from "./inits/setupPackageInit"
 import { Uninstall, UninstallFn, setupUninstall } from "./inits/setupUninstall"
 import { setupMain } from "./mainFn"
 import { defaultTrigger } from "./trigger/defaultTrigger"
@@ -62,6 +60,7 @@ import { CommandOptions, MountOptions, SubContainer } from "./util/SubContainer"
 import { splitCommand } from "./util"
 import { Mounts } from "./mainFn/Mounts"
 import { Dependency } from "../../base/lib/dependencies/Dependency"
+import { setupDependencies } from "../../base/lib/dependencies/setupDependencies"
 import * as T from "../../base/lib/types"
 import { testTypeVersion } from "../../base/lib/exver"
 import { ExposedStorePaths } from "./store/setupExposeStore"
@@ -80,6 +79,7 @@ import { MaybeFn } from "../../base/lib/actions/setupActions"
 import { GetInput } from "../../base/lib/actions/setupActions"
 import { Run } from "../../base/lib/actions/setupActions"
 import * as actions from "../../base/lib/actions"
+import { setupInit } from "./inits/setupInit"
 
 export const SDKVersion = testTypeVersion("0.3.6")
 
@@ -89,22 +89,6 @@ type AnyNeverCond<T extends any[], Then, Else> =
     T extends [never, ...Array<any>] ? Then :
     T extends [any, ...infer U] ? AnyNeverCond<U,Then, Else> :
     never
-
-function removeCallbackTypes<E extends Effects>(effects: E) {
-  return <T extends object>(t: T) => {
-    if ("_type" in effects && effects._type === "main") {
-      return t as E extends MainEffects ? T : Omit<T, "const" | "watch">
-    } else {
-      if ("const" in t) {
-        delete t.const
-      }
-      if ("watch" in t) {
-        delete t.watch
-      }
-      return t as E extends MainEffects ? T : Omit<T, "const" | "watch">
-    }
-  }
-}
 
 export class StartSdk<Manifest extends T.Manifest, Store> {
   private constructor(readonly manifest: Manifest) {}
@@ -119,20 +103,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
   }
 
   build(isReady: AnyNeverCond<[Manifest, Store], "Build not ready", true>) {
-    type DependencyType = {
-      [K in keyof {
-        [K in keyof Manifest["dependencies"]]: Manifest["dependencies"][K]["optional"] extends false
-          ? K
-          : never
-      }]: Dependency
-    } & {
-      [K in keyof {
-        [K in keyof Manifest["dependencies"]]: Manifest["dependencies"][K]["optional"] extends true
-          ? K
-          : never
-      }]?: Dependency
-    }
-
     type NestedEffects = "subcontainer" | "store" | "action"
     type InterfaceEffects =
       | "getServiceInterface"
@@ -143,11 +113,12 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       | "getHostInfo"
       | "getPrimaryUrl"
     type MainUsedEffects = "setMainStatus" | "setHealth"
+    type CallbackEffects = "constRetry" | "clearCallbacks"
     type AlreadyExposed = "getSslCertificate" | "getSystemSmtp"
 
     // prettier-ignore
     type StartSdkEffectWrapper = {
-      [K in keyof Omit<Effects, NestedEffects | InterfaceEffects | MainUsedEffects| AlreadyExposed>]: (effects: Effects, ...args: Parameters<Effects[K]>) => ReturnType<Effects[K]>
+      [K in keyof Omit<Effects, NestedEffects | InterfaceEffects | MainUsedEffects | CallbackEffects | AlreadyExposed>]: (effects: Effects, ...args: Parameters<Effects[K]>) => ReturnType<Effects[K]>
     }
     const startSdkEffectWrapper: StartSdkEffectWrapper = {
       restart: (effects, ...args) => effects.restart(...args),
@@ -185,23 +156,19 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       ) => Promise<CheckDependencies<DependencyId>>,
       serviceInterface: {
         getOwn: <E extends Effects>(effects: E, id: ServiceInterfaceId) =>
-          removeCallbackTypes<E>(effects)(
-            getServiceInterface(effects, {
-              id,
-            }),
-          ),
+          getServiceInterface(effects, {
+            id,
+          }),
         get: <E extends Effects>(
           effects: E,
           opts: { id: ServiceInterfaceId; packageId: PackageId },
-        ) =>
-          removeCallbackTypes<E>(effects)(getServiceInterface(effects, opts)),
+        ) => getServiceInterface(effects, opts),
         getAllOwn: <E extends Effects>(effects: E) =>
-          removeCallbackTypes<E>(effects)(getServiceInterfaces(effects, {})),
+          getServiceInterfaces(effects, {}),
         getAll: <E extends Effects>(
           effects: E,
           opts: { packageId: PackageId },
-        ) =>
-          removeCallbackTypes<E>(effects)(getServiceInterfaces(effects, opts)),
+        ) => getServiceInterfaces(effects, opts),
       },
 
       store: {
@@ -210,18 +177,13 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           packageId: string,
           path: PathBuilder<Store, StoreValue>,
         ) =>
-          removeCallbackTypes<E>(effects)(
-            getStore<Store, StoreValue>(effects, path, {
-              packageId,
-            }),
-          ),
+          getStore<Store, StoreValue>(effects, path, {
+            packageId,
+          }),
         getOwn: <E extends Effects, StoreValue = unknown>(
           effects: E,
           path: PathBuilder<Store, StoreValue>,
-        ) =>
-          removeCallbackTypes<E>(effects)(
-            getStore<Store, StoreValue>(effects, path),
-          ),
+        ) => getStore<Store, StoreValue>(effects, path),
         setOwn: <E extends Effects, Path extends PathBuilder<Store, unknown>>(
           effects: E,
           path: Path,
@@ -385,16 +347,12 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         },
       ) => new ServiceInterfaceBuilder({ ...options, effects }),
       getSystemSmtp: <E extends Effects>(effects: E) =>
-        removeCallbackTypes<E>(effects)(new GetSystemSmtp(effects)),
-
+        new GetSystemSmtp(effects),
       getSslCerificate: <E extends Effects>(
         effects: E,
         hostnames: string[],
         algorithm?: T.Algorithm,
-      ) =>
-        removeCallbackTypes<E>(effects)(
-          new GetSslCertificate(effects, hostnames, algorithm),
-        ),
+      ) => new GetSslCertificate(effects, hostnames, algorithm),
       HealthCheck: {
         of(o: HealthCheckParams) {
           return healthCheck(o)
@@ -479,12 +437,12 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         )
        * ```
        * @example
-       * In this example, we create a conditional dependency on Hello World based on a hypothetical "needsWorld" boolean from inputSpec.
+       * In this example, we create a conditional dependency on Hello World based on a hypothetical "needsWorld" boolean in the store.
        *
        * ```
         export const setDependencies = sdk.setupDependencies(
-          async ({ effects, input }) => {
-            if (input.needsWorld) {
+          async ({ effects }) => {
+            if (sdk.store.getOwn(sdk.StorePath.needsWorld).const()) {
               return {
                 'hello-world': sdk.Dependency.of({
                   type: 'running',
@@ -498,65 +456,8 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         )
        * ```
        */
-      setupDependencies: <Input extends Record<string, any>>(
-        fn: (options: {
-          effects: Effects
-          input: Input | null
-        }) => Promise<DependencyType>,
-      ) => {
-        return async (options: { effects: Effects; input: Input }) => {
-          const dependencyType = await fn(options)
-          return await options.effects.setDependencies({
-            dependencies: Object.entries(dependencyType).map(
-              ([
-                id,
-                {
-                  data: { versionRange, ...x },
-                },
-              ]) => ({
-                id,
-                ...x,
-                ...(x.type === "running"
-                  ? {
-                      kind: "running",
-                      healthChecks: x.healthChecks,
-                    }
-                  : {
-                      kind: "exists",
-                    }),
-                versionRange: versionRange.toString(),
-              }),
-            ),
-          })
-        }
-      },
-      setupContainerInit:
-        (
-          fn: (options: { effects: Effects }) => Promise<void>,
-        ): T.ExpectedExports.containerInit =>
-        (options) =>
-          fn(options),
-      setupPackageInit: (
-        versions: VersionGraph<Manifest["version"]>,
-        install: Install<Manifest, Store>,
-        uninstall: Uninstall<Manifest, Store>,
-        setInterfaces: UpdateServiceInterfaces<any>,
-        setDependencies: (options: {
-          effects: Effects
-          input: any
-        }) => Promise<void>,
-        actions: Actions<Store, any>,
-        exposedStore: ExposedStorePaths,
-      ) =>
-        setupPackageInit<Manifest, Store>(
-          versions,
-          install,
-          uninstall,
-          setInterfaces,
-          setDependencies,
-          actions,
-          exposedStore,
-        ),
+      setupDependencies: setupDependencies<Manifest>,
+      setupInit: setupInit<Manifest, Store>,
       /**
        * @description Use this function to execute arbitrary logic *once*, on initial install only.
        * @example
@@ -652,12 +553,10 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         )
        * ```
        */
-      setupInterfaces: <Output extends ServiceInterfacesReceipt>(
-        fn: UpdateServiceInterfaces<Output>,
-      ) => setupServiceInterfaces(fn),
+      setupInterfaces: setupServiceInterfaces,
       setupMain: (
         fn: (o: {
-          effects: MainEffects
+          effects: Effects
           started(onTerm: () => PromiseLike<void>): PromiseLike<void>
         }) => Promise<Daemons<Manifest, any>>,
       ) => setupMain<Manifest, Store>(fn),

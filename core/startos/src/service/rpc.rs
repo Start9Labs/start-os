@@ -1,10 +1,12 @@
 use std::collections::BTreeSet;
+use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
+use clap::builder::ValueParserFactory;
 use imbl::Vector;
 use imbl_value::Value;
-use models::ProcedureName;
+use models::{FromStrParser, ProcedureName};
 use rpc_toolkit::yajrc::RpcMethod;
 use rpc_toolkit::Empty;
 use ts_rs::TS;
@@ -164,6 +166,18 @@ impl CallbackId {
             .state
             .send_if_modified(|s| s.callbacks.insert(this));
         CallbackHandle(res)
+    }
+}
+impl FromStr for CallbackId {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        u64::from_str(s).map_err(Error::from).map(Self)
+    }
+}
+impl ValueParserFactory for CallbackId {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
     }
 }
 

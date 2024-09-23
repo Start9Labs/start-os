@@ -15,7 +15,7 @@ export class GetSslCertificate {
     return this.effects.getSslCertificate({
       hostnames: this.hostnames,
       algorithm: this.algorithm,
-      callback: this.effects.restart,
+      callback: () => this.effects.constRetry(),
     })
   }
   /**

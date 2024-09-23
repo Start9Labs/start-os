@@ -252,7 +252,8 @@ export class SystemForEmbassy implements System {
     delete this.currentRunning
   }
 
-  async start(effects: T.MainEffects): Promise<void> {
+  async start(effects: T.Effects): Promise<void> {
+    effects.constRetry = utils.once(() => effects.restart())
     if (!!this.currentRunning) return
 
     this.currentRunning = await MainLoop.of(this, effects)
