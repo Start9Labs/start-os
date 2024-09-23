@@ -95,7 +95,7 @@ pub fn auth<C: Context>() -> ParentHandler<C> {
             "login",
             from_fn_async(cli_login)
                 .no_display()
-                .with_about("Log in to StartOS server allowing use of tools such as side-loading services via CLI"),
+                .with_about("Log in to StartOS server"),
         )
         .subcommand(
             "logout",
@@ -303,7 +303,7 @@ pub fn session<C: Context>() -> ParentHandler<C> {
                     Ok(display_sessions(handle.params, result))
                 })
                 .with_call_remote::<CliContext>()
-                .with_about("Dispaly all server sessions"),
+                .with_about("Display all server sessions"),
         )
         .subcommand(
             "kill",

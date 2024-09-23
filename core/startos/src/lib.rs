@@ -178,7 +178,7 @@ pub fn server<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "experimental",
             system::experimental::<C>()
-                .with_about("Experimental commands such as zram and governor"),
+                .with_about("Commands related to configuring experimental options such as zram and cpu governor"),
         )
         .subcommand(
             "logs",
@@ -248,7 +248,7 @@ pub fn server<C: Context>() -> ParentHandler<C> {
                 Ok(firmware::display_firmware_update_result(result))
             })
             .with_call_remote::<CliContext>()
-            .with_about("Check for firmware updates and update if available"),
+            .with_about("Update the mainboard's firmware to the latest firmware available in this version of StartOS if available. Note: This command does not reach out to the Internet"),
         )
         .subcommand(
             "set-smtp",
