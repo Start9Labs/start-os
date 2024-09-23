@@ -31,6 +31,16 @@ function callMaybeFn<T>(
     return Promise.resolve(maybeFn)
   }
 }
+function mapMaybeFn<T, U>(
+  maybeFn: MaybeFn<T>,
+  map: (value: T) => U,
+): MaybeFn<U> {
+  if (maybeFn instanceof Function) {
+    return async (...args) => map(await maybeFn(...args))
+  } else {
+    return map(maybeFn)
+  }
+}
 
 export class Action<
   Id extends T.ActionId,
@@ -49,7 +59,7 @@ export class Action<
     private readonly getInputFn: GetInput<Type>,
     private readonly runFn: Run<Type>,
   ) {}
-  static of<
+  static withInput<
     Id extends T.ActionId,
     Store,
     InputSpecType extends
@@ -60,12 +70,31 @@ export class Action<
       ExtractInputSpecType<InputSpecType> = ExtractInputSpecType<InputSpecType>,
   >(
     id: Id,
-    metadata: MaybeFn<T.ActionMetadata>,
+    metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
     inputSpec: InputSpecType,
     getInput: GetInput<Type>,
     run: Run<Type>,
   ): Action<Id, Store, InputSpecType, Type> {
-    return new Action(id, metadata, inputSpec, getInput, run)
+    return new Action(
+      id,
+      mapMaybeFn(metadata, (m) => ({ ...m, hasInput: true })),
+      inputSpec,
+      getInput,
+      run,
+    )
+  }
+  static withoutInput<Id extends T.ActionId, Store>(
+    id: Id,
+    metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
+    run: Run<{}>,
+  ): Action<Id, Store, {}, {}> {
+    return new Action(
+      id,
+      mapMaybeFn(metadata, (m) => ({ ...m, hasInput: true })),
+      {},
+      async () => {},
+      run,
+    )
   }
   async exportMetadata(options: {
     effects: T.Effects
@@ -96,9 +125,9 @@ export class Actions<
   static of<Store>(): Actions<Store, {}> {
     return new Actions({})
   }
-  addAction<Id extends T.ActionId, A extends Action<Id, Store, any, any>>(
+  addAction<A extends Action<T.ActionId, Store, any, any>>(
     action: A,
-  ): Actions<Store, AllActions & { [id in Id]: A }> {
+  ): Actions<Store, AllActions & { [id in A["id"]]: A }> {
     return new Actions({ ...this.actions, [action.id]: action })
   }
   update(options: { effects: T.Effects }): Promise<void> {
@@ -121,10 +150,3 @@ export class Actions<
     return this.actions[actionId]
   }
 }
-
-export const setupActions = <
-  Store,
-  AllActions extends Record<T.ActionId, Action<T.ActionId, Store, any, any>>,
->(
-  actions: Actions<Store, AllActions>,
-) => actions

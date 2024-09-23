@@ -17,11 +17,7 @@ import {
   ValueSpecText,
 } from "../../base/lib/actions/input/inputSpecTypes"
 import { Variants } from "../../base/lib/actions/input/builder/variants"
-import {
-  Action,
-  Actions,
-  setupActions,
-} from "../../base/lib/actions/setupActions"
+import { Action, Actions } from "../../base/lib/actions/setupActions"
 import {
   SyncOptions,
   ServiceInterfaceId,
@@ -279,7 +275,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
        * ```
        */
       Action: {
-        of: <
+        withInput: <
           Id extends T.ActionId,
           InputSpecType extends
             | Record<string, any>
@@ -289,11 +285,16 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             ExtractInputSpecType<InputSpecType> = ExtractInputSpecType<InputSpecType>,
         >(
           id: Id,
-          metadata: MaybeFn<T.ActionMetadata>,
+          metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
           inputSpec: InputSpecType,
           getInput: GetInput<Type>,
           run: Run<Type>,
-        ) => Action.of(id, metadata, inputSpec, getInput, run),
+        ) => Action.withInput(id, metadata, inputSpec, getInput, run),
+        withoutInput: <Id extends T.ActionId>(
+          id: Id,
+          metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
+          run: Run<{}>,
+        ) => Action.withoutInput(id, metadata, run),
       },
       inputSpecConstants: { smtpInputSpec },
       /**
@@ -383,19 +384,13 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
        * 
        * ```
         import { sdk } from '../sdk'
+        import { config } from './config'
         import { nameToLogs } from './nameToLogs'
 
-        export const { actions, actionsMetadata } = sdk.setupActions(nameToLogs)
+        export const actions = sdk.Actions.of().addAction(config).addAction(nameToLogs)
        * ```
        */
-      setupActions: <
-        AllActions extends Record<
-          T.ActionId,
-          Action<T.ActionId, Store, any, any>
-        >,
-      >(
-        actions: Actions<Store, AllActions>,
-      ) => setupActions<Store, AllActions>(actions),
+      Actions: Actions<Store, {}>,
       /**
        * @description Use this function to determine which volumes are backed up when a user creates a backup, including advanced options.
        * @example
