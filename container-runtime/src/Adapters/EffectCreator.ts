@@ -50,7 +50,7 @@ const rpcRoundFor =
         JSON.stringify({
           id,
           method,
-          params: { ...params, procedureId },
+          params: { ...params, procedureId: procedureId || undefined },
         }) + "\n",
       )
     })
