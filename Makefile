@@ -6,7 +6,8 @@ BASENAME := $(shell ./basename.sh)
 PLATFORM := $(shell if [ -f ./PLATFORM.txt ]; then cat ./PLATFORM.txt; else echo unknown; fi)
 ARCH := $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo aarch64; else echo $(PLATFORM) | sed 's/-nonfree$$//g'; fi)
 IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
-WEB_UIS := web/dist/raw/ui web/dist/raw/setup-wizard web/dist/raw/install-wizard
+WEB_UIS := web/dist/raw/ui/index.html web/dist/raw/setup-wizard/index.html web/dist/raw/install-wizard/index.html
+COMPRESSED_WEB_UIS := web/dist/static/ui/index.html web/dist/static/setup-wizard/index.html web/dist/static/install-wizard/index.html
 FIRMWARE_ROMS := ./firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./firmware/$(PLATFORM)/" + .id + ".rom.gz"' build/lib/firmware.json)
 BUILD_SRC := $(shell git ls-files build) build/lib/depends build/lib/conflicts $(FIRMWARE_ROMS)
 DEBIAN_SRC := $(shell git ls-files debian/)
@@ -16,7 +17,7 @@ COMPAT_SRC := $(shell git ls-files system-images/compat/)
 UTILS_SRC := $(shell git ls-files system-images/utils/)
 BINFMT_SRC := $(shell git ls-files system-images/binfmt/)
 CORE_SRC := $(shell git ls-files core) $(shell git ls-files --recurse-submodules patch-db) $(GIT_HASH_FILE)
-WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist web/patchdb-ui-seed.json sdk/baseDist sdk/dist
+WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist/index.js sdk/baseDist web/patchdb-ui-seed.json sdk/dist
 WEB_UI_SRC := $(shell git ls-files web/projects/ui)
 WEB_SETUP_WIZARD_SRC := $(shell git ls-files web/projects/setup-wizard)
 WEB_INSTALL_WIZARD_SRC := $(shell git ls-files web/projects/install-wizard)
@@ -57,7 +58,7 @@ touch:
 metadata: $(VERSION_FILE) $(PLATFORM_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
 
 sudo:
-	sudo true
+	sudo -v
 
 clean:
 	rm -f system-images/**/*.tar
@@ -94,10 +95,10 @@ test: | test-core test-sdk test-container-runtime
 test-core: $(CORE_SRC) $(ENVIRONMENT_FILE) 
 	./core/run-tests.sh
 
-test-sdk: $(shell git ls-files sdk) sdk/base/lib/osBindings
+test-sdk: $(shell git ls-files sdk) sdk/base/lib/osBindings/index.ts
 	cd sdk && make test
 
-test-container-runtime: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
+test-container-runtime: container-runtime/node_modules/.package-lock.json $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
 	cd container-runtime && npm test
 
 cli:
@@ -221,34 +222,37 @@ upload-ota: results/$(BASENAME).squashfs
 container-runtime/debian.$(ARCH).squashfs:
 	ARCH=$(ARCH) ./container-runtime/download-base-image.sh
 
-container-runtime/node_modules: container-runtime/package.json container-runtime/package-lock.json sdk/dist
+container-runtime/node_modules/.package-lock.json: container-runtime/package.json container-runtime/package-lock.json sdk/dist/package.json
 	npm --prefix container-runtime ci
-	touch container-runtime/node_modules
+	touch container-runtime/node_modules/.package-lock.json
 
-sdk/base/lib/osBindings: core/startos/bindings
+sdk/base/lib/osBindings/index.ts: core/startos/bindings
 	mkdir -p sdk/base/lib/osBindings
 	ls core/startos/bindings/*.ts | sed 's/core\/startos\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' > core/startos/bindings/index.ts
 	npm --prefix sdk exec -- prettier --config ./sdk/base/package.json -w ./core/startos/bindings/*.ts
 	rsync -ac --delete core/startos/bindings/ sdk/base/lib/osBindings/
-	touch sdk/base/lib/osBindings
+	touch sdk/base/lib/osBindings/index.ts
 
-core/startos/bindings: $(shell git ls-files core) $(ENVIRONMENT_FILE)
+core/startos/bindings/index.ts: $(shell git ls-files core) $(ENVIRONMENT_FILE)
 	rm -rf core/startos/bindings
 	./core/build-ts.sh
-	touch core/startos/bindings
+	ls core/startos/bindings/*.ts | sed 's/core\/startos\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' > core/startos/bindings/index.ts
+	npm --prefix sdk exec -- prettier --config ./sdk/package.json -w ./core/startos/bindings/*.ts
+	touch core/startos/bindings/index.ts
 
-sdk/dist sdk/baseDist: $(shell git ls-files sdk) sdk/base/lib/osBindings
+sdk/dist/package.json: $(shell git ls-files sdk) sdk/base/lib/osBindings
 	(cd sdk && make bundle)
+	touch sdk/dist/package.json
 
 # TODO: make container-runtime its own makefile?
-container-runtime/dist/index.js: container-runtime/node_modules $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
+container-runtime/dist/index.js: container-runtime/node_modules/.package-lock.json $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
 	npm --prefix container-runtime run build
 
-container-runtime/dist/node_modules container-runtime/dist/package.json container-runtime/dist/package-lock.json: container-runtime/package.json container-runtime/package-lock.json sdk/dist container-runtime/install-dist-deps.sh
+container-runtime/dist/node_modules/.package-lock.json container-runtime/dist/package.json container-runtime/dist/package-lock.json: container-runtime/package.json container-runtime/package-lock.json sdk/dist/package.json container-runtime/install-dist-deps.sh
 	./container-runtime/install-dist-deps.sh
-	touch container-runtime/dist/node_modules
+	touch container-runtime/dist/node_modules/.package-lock.json
 
-container-runtime/rootfs.$(ARCH).squashfs: container-runtime/debian.$(ARCH).squashfs container-runtime/container-runtime.service container-runtime/update-image.sh container-runtime/deb-install.sh container-runtime/dist/index.js container-runtime/dist/node_modules core/target/$(ARCH)-unknown-linux-musl/release/containerbox | sudo
+container-runtime/rootfs.$(ARCH).squashfs: container-runtime/debian.$(ARCH).squashfs container-runtime/container-runtime.service container-runtime/update-image.sh container-runtime/deb-install.sh container-runtime/dist/index.js container-runtime/dist/node_modules/.package-lock.json core/target/$(ARCH)-unknown-linux-musl/release/containerbox | sudo
 	ARCH=$(ARCH) ./container-runtime/update-image.sh
 
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*
@@ -266,7 +270,7 @@ system-images/utils/docker-images/$(ARCH).tar: $(UTILS_SRC)
 system-images/binfmt/docker-images/$(ARCH).tar: $(BINFMT_SRC)
 	cd system-images/binfmt && make docker-images/$(ARCH).tar && touch docker-images/$(ARCH).tar
 
-core/target/$(ARCH)-unknown-linux-musl/release/startbox: $(CORE_SRC) web/dist/static web/patchdb-ui-seed.json $(ENVIRONMENT_FILE)
+core/target/$(ARCH)-unknown-linux-musl/release/startbox: $(CORE_SRC) $(COMPRESSED_WEB_UIS) web/patchdb-ui-seed.json $(ENVIRONMENT_FILE)
 	ARCH=$(ARCH) ./core/build-startbox.sh
 	touch core/target/$(ARCH)-unknown-linux-musl/release/startbox
 
@@ -274,27 +278,28 @@ core/target/$(ARCH)-unknown-linux-musl/release/containerbox: $(CORE_SRC) $(ENVIR
 	ARCH=$(ARCH) ./core/build-containerbox.sh
 	touch core/target/$(ARCH)-unknown-linux-musl/release/containerbox
 
-web/node_modules/.package-lock.json: web/package.json sdk/baseDist
+web/node_modules/.package-lock.json: web/package.json sdk/baseDist/package.json
 	npm --prefix web ci
 	touch web/node_modules/.package-lock.json
 
-web/.angular: patch-db/client/dist sdk/baseDist web/node_modules/.package-lock.json
+web/.angular/.updated: patch-db/client/dist/index.js sdk/baseDist/package.json web/node_modules/.package-lock.json
 	rm -rf web/.angular
 	mkdir -p web/.angular
+	touch web/.angular/.updated
 
-web/dist/raw/ui: $(WEB_UI_SRC) $(WEB_SHARED_SRC) web/.angular
+web/dist/raw/ui/index.html: $(WEB_UI_SRC) $(WEB_SHARED_SRC) web/.angular/.updated
 	npm --prefix web run build:ui
-	touch web/dist/raw/ui
+	touch web/dist/raw/ui/index.html
 
-web/dist/raw/setup-wizard: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC) web/.angular
+web/dist/raw/setup-wizard/index.html: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC) web/.angular/.updated
 	npm --prefix web run build:setup
-	touch web/dist/raw/setup-wizard
+	touch web/dist/raw/setup-wizard/index.html
 
-web/dist/raw/install-wizard: $(WEB_INSTALL_WIZARD_SRC) $(WEB_SHARED_SRC) web/.angular
+web/dist/raw/install-wizard/index.html: $(WEB_INSTALL_WIZARD_SRC) $(WEB_SHARED_SRC) web/.angular/.updated
 	npm --prefix web run build:install-wiz
-	touch web/dist/raw/install-wizard
+	touch web/dist/raw/install-wizard/index.html
 
-web/dist/static: $(WEB_UIS) $(ENVIRONMENT_FILE)
+$(COMPRESSED_WEB_UIS): $(WEB_UIS) $(ENVIRONMENT_FILE)
 	./compress-uis.sh
 
 web/config.json: $(GIT_HASH_FILE) web/config-sample.json
@@ -304,13 +309,14 @@ web/patchdb-ui-seed.json: web/package.json
 	jq '."ack-welcome" = $(shell jq '.version' web/package.json)' web/patchdb-ui-seed.json > ui-seed.tmp
 	mv ui-seed.tmp web/patchdb-ui-seed.json
 
-patch-db/client/node_modules: patch-db/client/package.json
+patch-db/client/node_modules/.package-lock.json: patch-db/client/package.json
 	npm --prefix patch-db/client ci
-	touch patch-db/client/node_modules
+	touch patch-db/client/node_modules/.package-lock.json
 
-patch-db/client/dist: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules
+patch-db/client/dist/index.js: $(PATCH_DB_CLIENT_SRC) patch-db/client/node_modules/.package-lock.json
 	rm -rf patch-db/client/dist
 	npm --prefix patch-db/client run build
+	touch patch-db/client/dist/index.js
 
 # used by github actions
 compiled-$(ARCH).tar: $(COMPILED_TARGETS) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE)

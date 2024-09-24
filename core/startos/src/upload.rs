@@ -25,7 +25,7 @@ use crate::util::io::{create_file, TmpDir};
 
 pub async fn upload(
     ctx: &RpcContext,
-    session: InternedString,
+    session: Option<InternedString>,
 ) -> Result<(Guid, UploadingFile), Error> {
     let guid = Guid::new();
     let (mut handle, file) = UploadingFile::new().await?;

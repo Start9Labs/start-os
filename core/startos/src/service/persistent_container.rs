@@ -4,9 +4,10 @@ use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use futures::future::ready;
-use futures::{Future, FutureExt};
+use futures::Future;
 use helpers::NonDetachingJoinHandle;
 use imbl::Vector;
+use imbl_value::InternedString;
 use models::{ImageId, ProcedureName, VolumeId};
 use rpc_toolkit::{Empty, Server, ShutdownHandle};
 use serde::de::DeserializeOwned;
@@ -36,7 +37,7 @@ use crate::service::{rpc, RunningStatus, Service};
 use crate::util::io::create_file;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::Invoke;
-use crate::volume::{asset_dir, data_dir};
+use crate::volume::data_dir;
 use crate::ARCH;
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -84,6 +85,14 @@ impl ServiceState {
     }
 }
 
+/// Want to have a wrapper for uses like the inject where we are going to be finding the subcontainer and doing some filtering on it.
+/// As well, the imageName is also used for things like env.
+pub struct Subcontainer {
+    pub(super) name: InternedString,
+    pub(super) image_id: ImageId,
+    pub(super) overlay: OverlayGuard<Arc<MountGuard>>,
+}
+
 // @DRB On top of this we need to also have  the procedures to have the effects and get the results back for them, maybe lock them to the running instance?
 /// This contains the LXC container running the javascript init system
 /// that can be used via a JSON RPC Client connected to a unix domain
@@ -98,7 +107,7 @@ pub struct PersistentContainer {
     volumes: BTreeMap<VolumeId, MountGuard>,
     assets: BTreeMap<VolumeId, MountGuard>,
     pub(super) images: BTreeMap<ImageId, Arc<MountGuard>>,
-    pub(super) subcontainers: Arc<Mutex<BTreeMap<Guid, OverlayGuard<Arc<MountGuard>>>>>,
+    pub(super) subcontainers: Arc<Mutex<BTreeMap<Guid, Subcontainer>>>,
     pub(super) state: Arc<watch::Sender<ServiceState>>,
     pub(super) net_service: Mutex<NetService>,
     destroyed: bool,
@@ -405,7 +414,7 @@ impl PersistentContainer {
                 errs.handle(assets.unmount(true).await);
             }
             for (_, overlay) in std::mem::take(&mut *subcontainers.lock().await) {
-                errs.handle(overlay.unmount(true).await);
+                errs.handle(overlay.overlay.unmount(true).await);
             }
             for (_, images) in images {
                 errs.handle(images.unmount().await);

@@ -311,6 +311,13 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             "connect",
             from_fn_async(service::connect_rpc_cli).no_display(),
         )
+        .subcommand(
+            "attach",
+            from_fn_async(service::attach)
+                .with_metadata("get_session", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand("attach", from_fn_async(service::cli_attach).no_display())
 }
 
 pub fn diagnostic_api() -> ParentHandler<DiagnosticContext> {
