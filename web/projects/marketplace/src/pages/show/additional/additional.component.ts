@@ -37,7 +37,7 @@ export class AdditionalComponent {
         label,
         size: 'l',
         data: {
-          content: this.marketplaceService.fetchStatic$(
+          content: this.marketplaceService.getStatic$(
             this.pkg,
             label === 'License' ? 'LICENSE.md' : 'instructions.md',
           ),

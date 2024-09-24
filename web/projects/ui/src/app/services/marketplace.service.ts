@@ -123,7 +123,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     ),
   )
 
-  private readonly selectedStore$: Observable<StoreData> =
+  private readonly selectedRegistry$: Observable<StoreData> =
     this.selectedHost$.pipe(
       switchMap(({ url }) =>
         this.marketplace$.pipe(
@@ -158,11 +158,11 @@ export class MarketplaceService implements AbstractMarketplaceService {
     return filtered ? this.filteredMarketplace$ : this.marketplace$
   }
 
-  getSelectedStore$(): Observable<StoreData> {
-    return this.selectedStore$
+  getSelectedRegistry$(): Observable<StoreData> {
+    return this.selectedRegistry$
   }
 
-  getSelectedStoreWithCategories$() {
+  getSelectedRegistryWithCategories$() {
     return this.selectedHost$.pipe(
       switchMap(({ url }) =>
         this.marketplace$.pipe(
@@ -240,7 +240,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     )
   }
 
-  fetchStatic$(
+  getStatic$(
     pkg: MarketplacePkg,
     type: 'LICENSE.md' | 'instructions.md',
   ): Observable<string> {

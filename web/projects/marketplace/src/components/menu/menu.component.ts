@@ -24,16 +24,7 @@ export class MenuComponent implements OnDestroy {
   private destroy$ = new Subject<void>()
   private readonly marketplaceService = inject(AbstractMarketplaceService)
   private readonly categoryService = inject(AbstractCategoryService)
-  readonly store$ = this.marketplaceService.getSelectedStoreWithCategories$()
-  readonly alt$ = combineLatest([
-    this.marketplaceService.getKnownHosts$(),
-    this.marketplaceService.getSelectedHost$(),
-  ]).pipe(
-    map(([stores, selected]) =>
-      stores.filter(({ url }) => url != selected.url),
-    ),
-  )
-  private hosts?: StoreIdentity[]
+  readonly store$ = this.marketplaceService.getSelectedRegistryWithCategories$()
   category = ''
   query = ''
   open = false
@@ -51,13 +42,6 @@ export class MenuComponent implements OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe(val => {
         this.category = val
-      })
-
-    this.marketplaceService
-      .getKnownHosts$()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(hosts => {
-        this.hosts = hosts
       })
   }
 

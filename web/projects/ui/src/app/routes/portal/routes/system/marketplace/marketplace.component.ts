@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import {
   AbstractCategoryService,
-  AbstractMarketplaceService,
   FilterPackagesPipe,
 } from '@start9labs/marketplace'
 import { combineLatest, map } from 'rxjs'
@@ -13,6 +12,7 @@ import { MarketplaceTileComponent } from './components/tile.component'
 import { MarketplaceControlsComponent } from './components/controls.component'
 import { MarketplacePreviewComponent } from './modals/preview.component'
 import { MarketplaceSidebarsComponent } from './components/sidebars.component'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
 
 @Component({
   standalone: true,
@@ -150,13 +150,13 @@ import { MarketplaceSidebarsComponent } from './components/sidebars.component'
 export class MarketplaceComponent {
   private readonly pipe = inject(FilterPackagesPipe)
   private readonly categoryService = inject(AbstractCategoryService)
-  private readonly marketplaceService = inject(AbstractMarketplaceService)
+  private readonly marketplaceService = inject(MarketplaceService)
 
   readonly details$ = this.marketplaceService.getSelectedHost$()
   readonly category$ = this.categoryService.getCategory$()
   readonly filtered$ = combineLatest([
     this.marketplaceService
-      .getSelectedStore$()
+      .getSelectedRegistry$()
       .pipe(map(({ packages }) => packages)),
     this.categoryService.getQuery$(),
     this.category$,
