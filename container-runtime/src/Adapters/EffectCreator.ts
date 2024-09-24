@@ -4,6 +4,7 @@ import { object, string, number, literals, some, unknown } from "ts-matches"
 import { Effects } from "../Models/Effects"
 
 import { CallbackHolder } from "../Models/CallbackHolder"
+import { asError } from "@start9labs/start-sdk/base/lib/util"
 const matchRpcError = object({
   error: object(
     {
@@ -67,7 +68,7 @@ const rpcRoundFor =
               let message = res.error.message
               console.error(
                 "Error in host RPC:",
-                utils.asError({ method, params }),
+                utils.asError({ method, params, error: res.error }),
               )
               if (string.test(res.error.data)) {
                 message += ": " + res.error.data

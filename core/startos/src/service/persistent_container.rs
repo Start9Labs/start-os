@@ -379,7 +379,11 @@ impl PersistentContainer {
             ));
         }
 
-        self.rpc_client.request(rpc::Init, Empty {}).await?;
+        self.rpc_client
+            .request(rpc::Init, Empty {})
+            .await
+            .map_err(Error::from)
+            .log_err();
 
         self.state.send_modify(|s| s.rt_initialized = true);
 
