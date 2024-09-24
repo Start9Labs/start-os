@@ -86,10 +86,12 @@ export class SubContainer implements ExecSpawnable {
   static async of(
     effects: T.Effects,
     image: { id: T.ImageId; sharedRun?: boolean },
+    name: string,
   ) {
     const { id, sharedRun } = image
     const [rootfs, guid] = await effects.subcontainer.createFs({
       imageId: id as string,
+      name,
     })
 
     const shared = ["dev", "sys"]
@@ -115,9 +117,10 @@ export class SubContainer implements ExecSpawnable {
     effects: T.Effects,
     image: { id: T.ImageId; sharedRun?: boolean },
     mounts: { options: MountOptions; path: string }[],
+    name: string,
     fn: (subContainer: SubContainer) => Promise<T>,
   ): Promise<T> {
-    const subContainer = await SubContainer.of(effects, image)
+    const subContainer = await SubContainer.of(effects, image, name)
     try {
       for (let mount of mounts) {
         await subContainer.mount(mount.options, mount.path)
@@ -179,10 +182,12 @@ export class SubContainer implements ExecSpawnable {
     }
     return new Promise<void>((resolve, reject) => {
       try {
+        let timeout = setTimeout(() => this.leader.kill("SIGKILL"), 30000)
         this.leader.on("exit", () => {
+          clearTimeout(timeout)
           resolve()
         })
-        if (!this.leader.kill("SIGKILL")) {
+        if (!this.leader.kill("SIGTERM")) {
           reject(new Error("kill(2) failed"))
         }
       } catch (e) {

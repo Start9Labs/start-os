@@ -209,8 +209,9 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         options: CommandOptions & {
           mounts?: { path: string; options: MountOptions }[]
         },
+        name: string,
       ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> => {
-        return runCommand<Manifest>(effects, image, command, options)
+        return runCommand<Manifest>(effects, image, command, options, name)
       },
       /**
        * TODO: rewrite this
@@ -1363,12 +1364,14 @@ export async function runCommand<Manifest extends T.Manifest>(
   options: CommandOptions & {
     mounts?: { path: string; options: MountOptions }[]
   },
+  name: string,
 ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
   const commands = splitCommand(command)
   return SubContainer.with(
     effects,
     image,
     options.mounts || [],
+    name,
     (subcontainer) => subcontainer.exec(commands),
   )
 }

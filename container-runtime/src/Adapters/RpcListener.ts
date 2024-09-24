@@ -52,33 +52,39 @@ const jsonrpc = "2.0" as const
 const isResult = object({ result: any }).test
 
 const idType = some(string, number, literal(null))
-type IdType = null | string | number
-const runType = object({
-  id: idType,
-  method: literal("execute"),
-  params: object(
-    {
-      id: string,
-      procedure: string,
-      input: any,
-      timeout: number,
-    },
-    ["timeout"],
-  ),
-})
-const sandboxRunType = object({
-  id: idType,
-  method: literal("sandbox"),
-  params: object(
-    {
-      id: string,
-      procedure: string,
-      input: any,
-      timeout: number,
-    },
-    ["timeout"],
-  ),
-})
+type IdType = null | string | number | undefined
+const runType = object(
+  {
+    id: idType,
+    method: literal("execute"),
+    params: object(
+      {
+        id: string,
+        procedure: string,
+        input: any,
+        timeout: number,
+      },
+      ["timeout"],
+    ),
+  },
+  ["id"],
+)
+const sandboxRunType = object(
+  {
+    id: idType,
+    method: literal("sandbox"),
+    params: object(
+      {
+        id: string,
+        procedure: string,
+        input: any,
+        timeout: number,
+      },
+      ["timeout"],
+    ),
+  },
+  ["id"],
+)
 const callbackType = object({
   method: literal("callback"),
   params: object({
@@ -86,29 +92,44 @@ const callbackType = object({
     args: array,
   }),
 })
-const initType = object({
-  id: idType,
-  method: literal("init"),
-})
-const startType = object({
-  id: idType,
-  method: literal("start"),
-})
-const stopType = object({
-  id: idType,
-  method: literal("stop"),
-})
-const exitType = object({
-  id: idType,
-  method: literal("exit"),
-})
-const evalType = object({
-  id: idType,
-  method: literal("eval"),
-  params: object({
-    script: string,
-  }),
-})
+const initType = object(
+  {
+    id: idType,
+    method: literal("init"),
+  },
+  ["id"],
+)
+const startType = object(
+  {
+    id: idType,
+    method: literal("start"),
+  },
+  ["id"],
+)
+const stopType = object(
+  {
+    id: idType,
+    method: literal("stop"),
+  },
+  ["id"],
+)
+const exitType = object(
+  {
+    id: idType,
+    method: literal("exit"),
+  },
+  ["id"],
+)
+const evalType = object(
+  {
+    id: idType,
+    method: literal("eval"),
+    params: object({
+      script: string,
+    }),
+  },
+  ["id"],
+)
 
 const jsonParse = (x: string) => JSON.parse(x)
 
@@ -194,7 +215,11 @@ export class RpcListener {
           .then((x) => this.dealWithInput(x))
           .catch(mapError)
           .then(logData("response"))
-          .then(writeDataToSocket),
+          .then(writeDataToSocket)
+          .catch((e) => {
+            console.error(`Major error in socket handling: ${e}`)
+            console.debug(`Data in: ${a.toString()}`)
+          }),
       )
     })
   }
@@ -345,17 +370,20 @@ export class RpcListener {
           })(),
         )
       })
-      .when(shape({ id: idType, method: string }), ({ id, method }) => ({
-        jsonrpc,
-        id,
-        error: {
-          code: -32601,
-          message: `Method not found`,
-          data: {
-            details: method,
+      .when(
+        shape({ id: idType, method: string }, ["id"]),
+        ({ id, method }) => ({
+          jsonrpc,
+          id,
+          error: {
+            code: -32601,
+            message: `Method not found`,
+            data: {
+              details: method,
+            },
           },
-        },
-      }))
+        }),
+      )
 
       .defaultToLazy(() => {
         console.warn(

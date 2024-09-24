@@ -533,7 +533,7 @@ dependencies = [
  "rustc-hash",
  "shlex",
  "syn 2.0.74",
- "which 4.4.2",
+ "which",
 ]
 
 [[package]]
@@ -3080,18 +3080,6 @@ dependencies = [
 
 [[package]]
 name = "nix"
-version = "0.20.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa9b4819da1bc61c0ea48b63b7bc8604064dd43013e7cc325df098d49cd7c18a"
-dependencies = [
- "bitflags 1.3.2",
- "cc",
- "cfg-if",
- "libc",
-]
-
-[[package]]
-name = "nix"
 version = "0.24.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fa52e972a9a719cecb6864fb88568781eb706bac2cd1d4f04a648542dbf78069"
@@ -5180,11 +5168,9 @@ dependencies = [
  "tty-spawn",
  "typed-builder",
  "unix-named-pipe",
- "unshare",
  "url",
  "urlencoding",
  "uuid",
- "which 6.0.3",
  "zeroize",
 ]
 
@@ -6085,16 +6071,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "unshare"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ceda295552a1eda89f8a748237654ad76b9c87e383fc07af5c4e423eb8e7b9b"
-dependencies = [
- "libc",
- "nix 0.20.0",
-]
-
-[[package]]
 name = "untrusted"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6309,18 +6285,6 @@ dependencies = [
  "home",
  "once_cell",
  "rustix",
-]
-
-[[package]]
-name = "which"
-version = "6.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4ee928febd44d98f2f459a4a79bd4d928591333a494a10a868418ac1b39cf1f"
-dependencies = [
- "either",
- "home",
- "rustix",
- "winsafe",
 ]
 
 [[package]]
@@ -6548,12 +6512,6 @@ dependencies = [
  "cfg-if",
  "windows-sys 0.48.0",
 ]
-
-[[package]]
-name = "winsafe"
-version = "0.0.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d135d17ab770252ad95e9a872d365cf3090e3be864a34ab46f48555993efc904"
 
 [[package]]
 name = "wyz"
