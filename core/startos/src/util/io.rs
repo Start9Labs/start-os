@@ -898,7 +898,7 @@ impl Drop for TmpDir {
         if self.path.exists() {
             let path = std::mem::take(&mut self.path);
             tokio::spawn(async move {
-                tokio::fs::remove_dir_all(&path).await.unwrap();
+                tokio::fs::remove_dir_all(&path).await.log_err();
             });
         }
     }

@@ -548,7 +548,7 @@ impl PersistentContainer {
 impl Drop for PersistentContainer {
     fn drop(&mut self) {
         if let Some(destroy) = self.destroy() {
-            tokio::spawn(async move { destroy.await.unwrap() });
+            tokio::spawn(async move { destroy.await.log_err() });
         }
     }
 }
