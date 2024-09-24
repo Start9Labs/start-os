@@ -567,7 +567,7 @@ pub struct FileLock(#[allow(unused)] OwnedMutexGuard<()>, Option<FdLock<File>>);
 impl Drop for FileLock {
     fn drop(&mut self) {
         if let Some(fd_lock) = self.1.take() {
-            tokio::task::spawn_blocking(|| fd_lock.unlock(true).map_err(|(_, e)| e).unwrap());
+            tokio::task::spawn_blocking(|| fd_lock.unlock(true).map_err(|(_, e)| e).log_err());
         }
     }
 }

@@ -364,7 +364,7 @@ impl Drop for LxcContainer {
                         tracing::error!("Error reading logs from crashed container: {e}");
                         tracing::debug!("{e:?}")
                     }
-                    rootfs.unmount(true).await.unwrap();
+                    rootfs.unmount(true).await.log_err();
                     drop(guid);
                     if let Err(e) = manager.gc().await {
                         tracing::error!("Error cleaning up dangling LXC containers: {e}");
