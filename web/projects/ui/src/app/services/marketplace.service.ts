@@ -162,7 +162,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     return this.selectedRegistry$
   }
 
-  getSelectedRegistryWithCategories$() {
+  getRegistry$() {
     return this.selectedHost$.pipe(
       switchMap(({ url }) =>
         this.marketplace$.pipe(

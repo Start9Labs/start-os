@@ -44,7 +44,7 @@ export class ReleaseNotesComponent {
     inject<TuiDialogContext<void, MarketplacePkg>>(POLYMORPHEUS_CONTEXT).data
 
   readonly notes$ = inject(AbstractMarketplaceService)
-    .getSelectedRegistry$()
+    .getRegistry$()
     .pipe(
       map(s => {
         return Object.entries(this.pkg.otherVersions)

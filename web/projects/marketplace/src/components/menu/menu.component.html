@@ -1,15 +1,15 @@
 <header>
-  <ng-container *tuiLet="store$ | async as store">
+  <ng-container *tuiLet="registry$ | async as registry">
     <div class="title">
       <store-icon
-        [class.tui-skeleton]="!store"
-        [class.tui-skeleton_rounded]="!store"
+        [class.tui-skeleton]="!registry"
+        [class.tui-skeleton_rounded]="!registry"
         size="60px"
-        [url]="store?.url || ''"
+        [url]="registry?.url || ''"
         [marketplace]="iconConfig"
       />
-      <h1 [class.tui-skeleton]="!store">
-        {{ store?.info?.name || 'Loading store...' }}
+      <h1 [class.tui-skeleton]="!registry">
+        {{ registry?.info?.name || 'Loading store...' }}
       </h1>
       <!-- change registry modal -->
       <ng-content select="[slot=desktop]"></ng-content>
@@ -34,18 +34,18 @@
             size="42px"
             [style.height]="'42px'"
             [style.border-radius]="'100%'"
-            [url]="store?.url || ''"
+            [url]="registry?.url || ''"
             [marketplace]="iconConfig"
-            [class.tui-skeleton]="!store"
-            [class.tui-skeleton_rounded]="!store"
+            [class.tui-skeleton]="!registry"
+            [class.tui-skeleton_rounded]="!registry"
           />
           <nav
             *tuiSidebar="open; direction: 'right'; autoWidth: true"
             class="nav-mobile-sidebar divide-bar"
           >
             <div class="nav-mobile-sidebar-top">
-              <h1 [class.tui-skeleton]="!store">
-                {{ store?.info?.name }}
+              <h1 [class.tui-skeleton]="!registry">
+                {{ registry?.info?.name }}
               </h1>
               <button
                 [style.--tui-padding]="0"
@@ -61,7 +61,7 @@
             <ng-content select="[slot=mobile]"></ng-content>
             <div class="nav-mobile-sidebar-bottom divide-bar">
               <marketplace-categories
-                [categories]="store?.info?.categories"
+                [categories]="registry?.info?.categories"
                 [category]="query ? '' : category"
                 (categoryChange)="onCategoryChange($event); toggleMenu(false)"
               />
@@ -91,7 +91,7 @@
       />
       <div class="nav-desktop-container">
         <marketplace-categories
-          [categories]="store?.info?.categories"
+          [categories]="registry?.info?.categories"
           [category]="query ? '' : category"
           (categoryChange)="onCategoryChange($event)"
         />

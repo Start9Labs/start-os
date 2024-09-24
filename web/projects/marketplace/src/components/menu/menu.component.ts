@@ -5,8 +5,7 @@ import {
   Input,
   OnDestroy,
 } from '@angular/core'
-import { combineLatest, map, Subject, takeUntil } from 'rxjs'
-import { StoreIdentity } from '../../types'
+import { Subject, takeUntil } from 'rxjs'
 import { AbstractMarketplaceService } from '../../services/marketplace.service'
 import { AbstractCategoryService } from '../../services/category.service'
 import { MarketplaceConfig } from '@start9labs/shared'
@@ -24,7 +23,7 @@ export class MenuComponent implements OnDestroy {
   private destroy$ = new Subject<void>()
   private readonly marketplaceService = inject(AbstractMarketplaceService)
   private readonly categoryService = inject(AbstractCategoryService)
-  readonly store$ = this.marketplaceService.getSelectedRegistryWithCategories$()
+  readonly registry$ = this.marketplaceService.getRegistry$()
   category = ''
   query = ''
   open = false
