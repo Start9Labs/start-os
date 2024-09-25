@@ -130,7 +130,7 @@ export class ActionInputModal {
               originalValue,
               utils.deepMerge(
                 originalValue,
-                this.dependentInfo.request.input,
+                this.dependentInfo.request.input.value,
               ) as object,
             )
           : null,

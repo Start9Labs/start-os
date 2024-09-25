@@ -20,6 +20,7 @@ import {
 import { combineLatest } from 'rxjs'
 import {
   getManifest,
+  getPackage,
   isInstalled,
   isInstalling,
   isRestoring,
@@ -112,8 +113,8 @@ export class AppShowPage {
       }
     } else {
       return {
-        title: title ? title : depId,
-        icon: icon ? icon : 'assets/img/service-icons/fallback.png',
+        title: title || depId,
+        icon: icon || 'assets/img/service-icons/fallback.png',
         versionRange,
       }
     }
@@ -200,14 +201,22 @@ export class AppShowPage {
     pkgManifest: T.Manifest,
     action: 'install' | 'update' | 'configure',
     depId: string,
-  ): Promise<void> {
+  ) {
     switch (action) {
       case 'install':
       case 'update':
         return this.installDep(pkg, pkgManifest, depId)
       case 'configure':
+        const depPkg = await getPackage(this.patch, depId)
+        if (!depPkg) return
+
+        const depManifest = getManifest(depPkg)
         return this.actionService.present(
-          { id: depId, title: '', mainStatus: 'running' },
+          {
+            id: depId,
+            title: depManifest.title,
+            mainStatus: depPkg.status.main,
+          },
           { id: 'config', metadata: pkg.actions['config'] },
           {
             title: pkgManifest.title,
