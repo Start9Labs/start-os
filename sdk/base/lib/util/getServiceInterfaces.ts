@@ -63,7 +63,7 @@ export class GetServiceInterfaces {
    */
   async const() {
     const { packageId } = this.opts
-    const callback = this.effects.restart
+    const callback = () => this.effects.constRetry()
     const interfaceFilled: ServiceInterfaceFilled[] =
       await makeManyInterfaceFilled({
         effects: this.effects,

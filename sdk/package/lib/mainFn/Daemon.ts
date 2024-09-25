@@ -28,6 +28,7 @@ export class Daemon {
         | SubContainer,
       command: T.CommandType,
       options: {
+        subcontainerName?: string
         mounts?: { path: string; options: MountOptions }[]
         env?:
           | {

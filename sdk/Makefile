@@ -72,5 +72,4 @@ publish: bundle package/package.json README.md LICENSE
 	npm publish --access=public
 
 link: bundle
-	npm --prefix baseDist link
-	npm --prefix dist link
+	cd dist && npm link

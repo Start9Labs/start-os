@@ -4,8 +4,8 @@ import { CallbackHolder } from "../Models/CallbackHolder"
 import { Optional } from "ts-matches/lib/parsers/interfaces"
 
 export type Procedure =
-  | "/init"
-  | "/uninit"
+  | "/packageInit"
+  | "/packageUninit"
   | "/backup/create"
   | "/backup/restore"
   | "/properties"
@@ -18,8 +18,7 @@ export type ExecuteResult =
 export type System = {
   containerInit(effects: T.Effects): Promise<void>
 
-  start(effects: T.MainEffects): Promise<void>
-  callCallback(callback: number, args: any[]): void
+  start(effects: T.Effects): Promise<void>
   stop(): Promise<void>
 
   packageInit(effects: Effects, timeoutMs: number | null): Promise<void>

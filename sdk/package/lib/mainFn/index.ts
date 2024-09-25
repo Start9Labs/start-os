@@ -3,8 +3,6 @@ import { Daemons } from "./Daemons"
 import "../../../base/lib/interfaces/ServiceInterfaceBuilder"
 import "../../../base/lib/interfaces/Origin"
 
-import { MainEffects } from "../../../base/lib/types"
-
 export const DEFAULT_SIGTERM_TIMEOUT = 30_000
 /**
  * Used to ensure that the main function is running with the valid proofs.
@@ -18,7 +16,7 @@ export const DEFAULT_SIGTERM_TIMEOUT = 30_000
  */
 export const setupMain = <Manifest extends T.Manifest, Store>(
   fn: (o: {
-    effects: MainEffects
+    effects: T.Effects
     started(onTerm: () => PromiseLike<void>): PromiseLike<void>
   }) => Promise<Daemons<Manifest, any>>,
 ): T.ExpectedExports.main => {

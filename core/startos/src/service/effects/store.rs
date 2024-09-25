@@ -26,6 +26,7 @@ pub async fn get_store(
         callback,
     }: GetStoreParams,
 ) -> Result<Value, Error> {
+    dbg!(&callback);
     let context = context.deref()?;
     let peeked = context.seed.ctx.db.peek().await;
     let package_id = package_id.unwrap_or(context.seed.id.clone());

@@ -12,18 +12,16 @@ export function setupInit<Manifest extends T.Manifest, Store>(
   install: Install<Manifest, Store>,
   uninstall: Uninstall<Manifest, Store>,
   setServiceInterfaces: UpdateServiceInterfaces<any>,
-  setDependencies: (options: {
-    effects: T.Effects
-    input: any
-  }) => Promise<void>,
+  setDependencies: (options: { effects: T.Effects }) => Promise<void>,
   actions: Actions<Store, any>,
   exposedStore: ExposedStorePaths,
 ): {
-  init: T.ExpectedExports.packageInit
-  uninit: T.ExpectedExports.packageUninit
+  packageInit: T.ExpectedExports.packageInit
+  packageUninit: T.ExpectedExports.packageUninit
+  containerInit: T.ExpectedExports.containerInit
 } {
   return {
-    init: async (opts) => {
+    packageInit: async (opts) => {
       const prev = await opts.effects.getDataVersion()
       if (prev) {
         await versions.migrate({
@@ -37,14 +35,8 @@ export function setupInit<Manifest extends T.Manifest, Store>(
           version: versions.current.options.version,
         })
       }
-      await setServiceInterfaces({
-        ...opts,
-      })
-      await actions.update({ effects: opts.effects })
-      await opts.effects.exposeForDependents({ paths: exposedStore })
-      await setDependencies({ effects: opts.effects, input: null })
     },
-    uninit: async (opts) => {
+    packageUninit: async (opts) => {
       if (opts.nextVersion) {
         const prev = await opts.effects.getDataVersion()
         if (prev) {
@@ -57,6 +49,14 @@ export function setupInit<Manifest extends T.Manifest, Store>(
       } else {
         await uninstall.uninstall(opts)
       }
+    },
+    containerInit: async (opts) => {
+      await setServiceInterfaces({
+        ...opts,
+      })
+      await actions.update({ effects: opts.effects })
+      await opts.effects.exposeForDependents({ paths: exposedStore })
+      await setDependencies({ effects: opts.effects })
     },
   }
 }

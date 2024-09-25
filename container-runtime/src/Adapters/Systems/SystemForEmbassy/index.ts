@@ -252,7 +252,8 @@ export class SystemForEmbassy implements System {
     delete this.currentRunning
   }
 
-  async start(effects: T.MainEffects): Promise<void> {
+  async start(effects: T.Effects): Promise<void> {
+    effects.constRetry = utils.once(() => effects.restart())
     if (!!this.currentRunning) return
 
     this.currentRunning = await MainLoop.of(this, effects)
@@ -457,6 +458,7 @@ export class SystemForEmbassy implements System {
   ): Promise<void> {
     const backup = this.manifest.backup.create
     if (backup.type === "docker") {
+      const commands = [backup.entrypoint, ...backup.args]
       const container = await DockerProcedureContainer.of(
         effects,
         this.manifest.id,
@@ -465,8 +467,9 @@ export class SystemForEmbassy implements System {
           ...this.manifest.volumes,
           BACKUP: { type: "backup", readonly: false },
         },
+        `Backup - ${commands.join(" ")}`,
       )
-      await container.execFail([backup.entrypoint, ...backup.args], timeoutMs)
+      await container.execFail(commands, timeoutMs)
     } else {
       const moduleCode = await this.moduleCode
       await moduleCode.createBackup?.(polyfillEffects(effects, this.manifest))
@@ -478,6 +481,7 @@ export class SystemForEmbassy implements System {
   ): Promise<void> {
     const restoreBackup = this.manifest.backup.restore
     if (restoreBackup.type === "docker") {
+      const commands = [restoreBackup.entrypoint, ...restoreBackup.args]
       const container = await DockerProcedureContainer.of(
         effects,
         this.manifest.id,
@@ -486,11 +490,9 @@ export class SystemForEmbassy implements System {
           ...this.manifest.volumes,
           BACKUP: { type: "backup", readonly: true },
         },
+        `Restore Backup - ${commands.join(" ")}`,
       )
-      await container.execFail(
-        [restoreBackup.entrypoint, ...restoreBackup.args],
-        timeoutMs,
-      )
+      await container.execFail(commands, timeoutMs)
     } else {
       const moduleCode = await this.moduleCode
       await moduleCode.restoreBackup?.(polyfillEffects(effects, this.manifest))
@@ -506,20 +508,17 @@ export class SystemForEmbassy implements System {
     const config = this.manifest.config?.get
     if (!config) return { spec: {} }
     if (config.type === "docker") {
+      const commands = [config.entrypoint, ...config.args]
       const container = await DockerProcedureContainer.of(
         effects,
         this.manifest.id,
         config,
         this.manifest.volumes,
+        `Get Config - ${commands.join(" ")}`,
       )
       // TODO: yaml
       return JSON.parse(
-        (
-          await container.execFail(
-            [config.entrypoint, ...config.args],
-            timeoutMs,
-          )
-        ).stdout.toString(),
+        (await container.execFail(commands, timeoutMs)).stdout.toString(),
       )
     } else {
       const moduleCode = await this.moduleCode
@@ -554,24 +553,21 @@ export class SystemForEmbassy implements System {
     const setConfigValue = this.manifest.config?.set
     if (!setConfigValue) return
     if (setConfigValue.type === "docker") {
+      const commands = [
+        setConfigValue.entrypoint,
+        ...setConfigValue.args,
+        JSON.stringify(newConfig),
+      ]
       const container = await DockerProcedureContainer.of(
         effects,
         this.manifest.id,
         setConfigValue,
         this.manifest.volumes,
+        `Set Config - ${commands.join(" ")}`,
       )
       const answer = matchSetResult.unsafeCast(
         JSON.parse(
-          (
-            await container.execFail(
-              [
-                setConfigValue.entrypoint,
-                ...setConfigValue.args,
-                JSON.stringify(newConfig),
-              ],
-              timeoutMs,
-            )
-          ).stdout.toString(),
+          (await container.execFail(commands, timeoutMs)).stdout.toString(),
         ),
       )
       const dependsOn = answer["depends-on"] ?? answer.dependsOn ?? {}
@@ -663,23 +659,20 @@ export class SystemForEmbassy implements System {
     if (migration) {
       const [version, procedure] = migration
       if (procedure.type === "docker") {
+        const commands = [
+          procedure.entrypoint,
+          ...procedure.args,
+          JSON.stringify(fromVersion),
+        ]
         const container = await DockerProcedureContainer.of(
           effects,
           this.manifest.id,
           procedure,
           this.manifest.volumes,
+          `Migration - ${commands.join(" ")}`,
         )
         return JSON.parse(
-          (
-            await container.execFail(
-              [
-                procedure.entrypoint,
-                ...procedure.args,
-                JSON.stringify(fromVersion),
-              ],
-              timeoutMs,
-            )
-          ).stdout.toString(),
+          (await container.execFail(commands, timeoutMs)).stdout.toString(),
         )
       } else if (procedure.type === "script") {
         const moduleCode = await this.moduleCode
@@ -706,20 +699,17 @@ export class SystemForEmbassy implements System {
     const setConfigValue = this.manifest.properties
     if (!setConfigValue) throw new Error("There is no properties")
     if (setConfigValue.type === "docker") {
+      const commands = [setConfigValue.entrypoint, ...setConfigValue.args]
       const container = await DockerProcedureContainer.of(
         effects,
         this.manifest.id,
         setConfigValue,
         this.manifest.volumes,
+        `Properties - ${commands.join(" ")}`,
       )
       const properties = matchProperties.unsafeCast(
         JSON.parse(
-          (
-            await container.execFail(
-              [setConfigValue.entrypoint, ...setConfigValue.args],
-              timeoutMs,
-            )
-          ).stdout.toString(),
+          (await container.execFail(commands, timeoutMs)).stdout.toString(),
         ),
       )
       return asProperty(properties.data)
@@ -772,6 +762,7 @@ export class SystemForEmbassy implements System {
         this.manifest.id,
         actionProcedure,
         this.manifest.volumes,
+        `Action ${actionId}`,
         {
           subcontainer,
         },
@@ -801,6 +792,49 @@ export class SystemForEmbassy implements System {
       )
         .then(fromReturnType)
         .then(toActionResult)
+    }
+  }
+  async dependenciesCheck(
+    effects: Effects,
+    id: string,
+    oldConfig: unknown,
+    timeoutMs: number | null,
+  ): Promise<object> {
+    const actionProcedure = this.manifest.dependencies?.[id]?.config?.check
+    if (!actionProcedure) return { message: "Action not found", value: null }
+    if (actionProcedure.type === "docker") {
+      const commands = [
+        actionProcedure.entrypoint,
+        ...actionProcedure.args,
+        JSON.stringify(oldConfig),
+      ]
+      const container = await DockerProcedureContainer.of(
+        effects,
+        this.manifest.id,
+        actionProcedure,
+        this.manifest.volumes,
+        `Dependencies Check - ${commands.join(" ")}`,
+      )
+      return JSON.parse(
+        (await container.execFail(commands, timeoutMs)).stdout.toString(),
+      )
+    } else if (actionProcedure.type === "script") {
+      const moduleCode = await this.moduleCode
+      const method = moduleCode.dependencies?.[id]?.check
+      if (!method)
+        throw new Error(
+          `Expecting that the method dependency check ${id} exists`,
+        )
+      return (await method(
+        polyfillEffects(effects, this.manifest),
+        oldConfig as any,
+      ).then((x) => {
+        if ("result" in x) return x.result
+        if ("error" in x) throw new Error("Error getting config: " + x.error)
+        throw new Error("Error getting config: " + x["error-code"][1])
+      })) as any
+    } else {
+      return {}
     }
   }
   async dependenciesAutoconfig(

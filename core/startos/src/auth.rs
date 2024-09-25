@@ -275,8 +275,8 @@ pub struct Session {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SessionList {
-    #[ts(type = "string")]
-    current: InternedString,
+    #[ts(type = "string | null")]
+    current: Option<InternedString>,
     sessions: Sessions,
 }
 
@@ -323,7 +323,7 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) {
             session.user_agent.as_deref().unwrap_or("N/A"),
             &format!("{}", session.metadata),
         ];
-        if id == arg.current {
+        if Some(id) == arg.current {
             row.iter_mut()
                 .map(|c| c.style(Attr::ForegroundColor(color::GREEN)))
                 .collect::<()>()
@@ -340,7 +340,7 @@ pub struct ListParams {
     #[arg(skip)]
     #[ts(skip)]
     #[serde(rename = "__auth_session")] // from Auth middleware
-    session: InternedString,
+    session: Option<InternedString>,
 }
 
 // #[command(display(display_sessions))]

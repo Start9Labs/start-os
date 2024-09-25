@@ -4,6 +4,7 @@ import { object, string, number, literals, some, unknown } from "ts-matches"
 import { Effects } from "../Models/Effects"
 
 import { CallbackHolder } from "../Models/CallbackHolder"
+import { asError } from "@start9labs/start-sdk/base/lib/util"
 const matchRpcError = object({
   error: object(
     {
@@ -34,7 +35,8 @@ let hostSystemId = 0
 
 export type EffectContext = {
   procedureId: string | null
-  callbacks: CallbackHolder | null
+  callbacks?: CallbackHolder
+  constRetry: () => void
 }
 
 const rpcRoundFor =
@@ -49,7 +51,7 @@ const rpcRoundFor =
         JSON.stringify({
           id,
           method,
-          params: { ...params, procedureId },
+          params: { ...params, procedureId: procedureId || undefined },
         }) + "\n",
       )
     })
@@ -66,7 +68,7 @@ const rpcRoundFor =
               let message = res.error.message
               console.error(
                 "Error in host RPC:",
-                utils.asError({ method, params }),
+                utils.asError({ method, params, error: res.error }),
               )
               if (string.test(res.error.data)) {
                 message += ": " + res.error.data
@@ -99,9 +101,15 @@ const rpcRoundFor =
     })
   }
 
-function makeEffects(context: EffectContext): Effects {
+export function makeEffects(context: EffectContext): Effects {
   const rpcRound = rpcRoundFor(context.procedureId)
   const self: Effects = {
+    constRetry: context.constRetry,
+    clearCallbacks(...[options]: Parameters<T.Effects["clearCallbacks"]>) {
+      return rpcRound("clear-callbacks", {
+        ...options,
+      }) as ReturnType<T.Effects["clearCallbacks"]>
+    },
     action: {
       clear(...[options]: Parameters<T.Effects["action"]["clear"]>) {
         return rpcRound("action.clear", {
@@ -160,7 +168,7 @@ function makeEffects(context: EffectContext): Effects {
       >
     },
     subcontainer: {
-      createFs(options: { imageId: string }) {
+      createFs(options: { imageId: string; name: string }) {
         return rpcRound("subcontainer.create-fs", options) as ReturnType<
           T.Effects["subcontainer"]["createFs"]
         >
@@ -306,19 +314,4 @@ function makeEffects(context: EffectContext): Effects {
     },
   }
   return self
-}
-
-export function makeProcedureEffects(procedureId: string): Effects {
-  return makeEffects({ procedureId, callbacks: null })
-}
-
-export function makeMainEffects(): T.MainEffects {
-  const rpcRound = rpcRoundFor(null)
-  return {
-    _type: "main",
-    clearCallbacks: () => {
-      return rpcRound("clearCallbacks", {}) as Promise<void>
-    },
-    ...makeEffects({ procedureId: null, callbacks: new CallbackHolder() }),
-  }
 }

@@ -19,8 +19,8 @@ function isNestedPath(path: string): path is NestedPaths {
 }
 export const jsonPath = some(
   literals(
-    "/init",
-    "/uninit",
+    "/packageInit",
+    "/packageUninit",
     "/backup/create",
     "/backup/restore",
     "/actions/metadata",

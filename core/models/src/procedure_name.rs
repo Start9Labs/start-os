@@ -11,15 +11,15 @@ pub enum ProcedureName {
     RestoreBackup,
     GetActionInput(ActionId),
     RunAction(ActionId),
-    Init,
-    Uninit,
+    PackageInit,
+    PackageUninit,
 }
 
 impl ProcedureName {
     pub fn js_function_name(&self) -> String {
         match self {
-            ProcedureName::Init => "/init".to_string(),
-            ProcedureName::Uninit => "/uninit".to_string(),
+            ProcedureName::PackageInit => "/packageInit".to_string(),
+            ProcedureName::PackageUninit => "/packageUninit".to_string(),
             ProcedureName::SetConfig => "/config/set".to_string(),
             ProcedureName::GetConfig => "/config/get".to_string(),
             ProcedureName::CreateBackup => "/backup/create".to_string(),

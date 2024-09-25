@@ -1,3 +1,3 @@
-import "./setupPackageInit"
+import "./setupInit"
 import "./setupUninstall"
 import "./setupInstall"

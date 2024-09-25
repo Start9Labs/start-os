@@ -172,7 +172,7 @@ pub async fn install(
 pub struct SideloadParams {
     #[ts(skip)]
     #[serde(rename = "__auth_session")]
-    session: InternedString,
+    session: Option<InternedString>,
 }
 
 #[derive(Deserialize, Serialize, TS)]

@@ -28,6 +28,11 @@ import { UrlString } from "./util/getServiceInterface"
 /** Used to reach out from the pure js runtime */
 
 export type Effects = {
+  constRetry: () => void
+  clearCallbacks: (
+    options: { only: number[] } | { except: number[] },
+  ) => Promise<void>
+
   // action
   action: {
     /** Define an action that can be invoked by a user or service */
@@ -90,7 +95,10 @@ export type Effects = {
   // subcontainer
   subcontainer: {
     /** A low level api used by SubContainer */
-    createFs(options: { imageId: string }): Promise<[string, string]>
+    createFs(options: {
+      imageId: string
+      name: string | null
+    }): Promise<[string, string]>
     /** A low level api used by SubContainer */
     destroyFs(options: { guid: string }): Promise<void>
   }

@@ -17,24 +17,38 @@ export type SetupServiceInterfaces = <Output extends ServiceInterfacesReceipt>(
   fn: SetServiceInterfaces<Output>,
 ) => UpdateServiceInterfaces<Output>
 export const NO_INTERFACE_CHANGES = {} as UpdateServiceInterfacesReceipt
-export const setupServiceInterfaces: SetupServiceInterfaces =
-  (fn) => async (opts: { effects: T.Effects }) => {
-    const bindings: T.BindId[] = []
-    const interfaces: T.ServiceInterfaceId[] = []
-    const res = await fn({
+export const setupServiceInterfaces: SetupServiceInterfaces = <
+  Output extends ServiceInterfacesReceipt,
+>(
+  fn: SetServiceInterfaces<Output>,
+) =>
+  ((options: { effects: T.Effects }) => {
+    const updater = async (options: { effects: T.Effects }) => {
+      const bindings: T.BindId[] = []
+      const interfaces: T.ServiceInterfaceId[] = []
+      const res = await fn({
+        effects: {
+          ...options.effects,
+          bind: (params: T.BindParams) => {
+            bindings.push({ id: params.id, internalPort: params.internalPort })
+            return options.effects.bind(params)
+          },
+          exportServiceInterface: (params: T.ExportServiceInterfaceParams) => {
+            interfaces.push(params.id)
+            return options.effects.exportServiceInterface(params)
+          },
+        },
+      })
+      await options.effects.clearBindings({ except: bindings })
+      await options.effects.clearServiceInterfaces({ except: interfaces })
+      return res
+    }
+    const updaterCtx = { options }
+    updaterCtx.options = {
       effects: {
-        ...opts.effects,
-        bind: (params: T.BindParams) => {
-          bindings.push({ id: params.id, internalPort: params.internalPort })
-          return opts.effects.bind(params)
-        },
-        exportServiceInterface: (params: T.ExportServiceInterfaceParams) => {
-          interfaces.push(params.id)
-          return opts.effects.exportServiceInterface(params)
-        },
+        ...options.effects,
+        constRetry: () => updater(updaterCtx.options),
       },
-    })
-    await opts.effects.clearBindings({ except: bindings })
-    await opts.effects.clearServiceInterfaces({ except: interfaces })
-    return res as typeof res & UpdateServiceInterfacesReceipt
-  }
+    }
+    return updater(updaterCtx.options)
+  }) as UpdateServiceInterfaces<Output>
