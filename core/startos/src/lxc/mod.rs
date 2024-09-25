@@ -7,7 +7,7 @@ use std::time::Duration;
 use clap::builder::ValueParserFactory;
 use futures::{AsyncWriteExt, StreamExt};
 use imbl_value::{InOMap, InternedString};
-use models::InvalidId;
+use models::{FromStrParser, InvalidId};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{GenericRpcMethod, RpcRequest, RpcResponse};
 use rustyline_async::{ReadlineEvent, SharedWriter};
@@ -28,7 +28,6 @@ use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::disk::mount::util::unmount;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation};
-use crate::util::clap::FromStrParser;
 use crate::util::io::open_file;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::{new_guid, Invoke};
@@ -365,7 +364,7 @@ impl Drop for LxcContainer {
                         tracing::error!("Error reading logs from crashed container: {e}");
                         tracing::debug!("{e:?}")
                     }
-                    rootfs.unmount(true).await.unwrap();
+                    rootfs.unmount(true).await.log_err();
                     drop(guid);
                     if let Err(e) = manager.gc().await {
                         tracing::error!("Error cleaning up dangling LXC containers: {e}");

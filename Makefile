@@ -17,7 +17,7 @@ COMPAT_SRC := $(shell git ls-files system-images/compat/)
 UTILS_SRC := $(shell git ls-files system-images/utils/)
 BINFMT_SRC := $(shell git ls-files system-images/binfmt/)
 CORE_SRC := $(shell git ls-files core) $(shell git ls-files --recurse-submodules patch-db) $(GIT_HASH_FILE)
-WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist/index.js web/patchdb-ui-seed.json sdk/dist/package.json
+WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist/index.js sdk/baseDist/package.json web/patchdb-ui-seed.json sdk/dist/package.json
 WEB_UI_SRC := $(shell git ls-files web/projects/ui)
 WEB_SETUP_WIZARD_SRC := $(shell git ls-files web/projects/setup-wizard)
 WEB_INSTALL_WIZARD_SRC := $(shell git ls-files web/projects/install-wizard)
@@ -48,7 +48,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole wormhole-deb test test-core test-sdk test-container-runtime
+.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole wormhole-deb test test-core test-sdk test-container-runtime registry
 
 all: $(ALL_TARGETS)
 
@@ -95,7 +95,7 @@ test: | test-core test-sdk test-container-runtime
 test-core: $(CORE_SRC) $(ENVIRONMENT_FILE) 
 	./core/run-tests.sh
 
-test-sdk: $(shell git ls-files sdk) sdk/lib/osBindings/index.ts
+test-sdk: $(shell git ls-files sdk) sdk/base/lib/osBindings/index.ts
 	cd sdk && make test
 
 test-container-runtime: container-runtime/node_modules/.package-lock.json $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
@@ -103,6 +103,9 @@ test-container-runtime: container-runtime/node_modules/.package-lock.json $(shel
 
 cli:
 	cd core && ./install-cli.sh
+
+registry:
+	cd core && ./build-registrybox.sh
 
 deb: results/$(BASENAME).deb
 
@@ -223,20 +226,22 @@ container-runtime/node_modules/.package-lock.json: container-runtime/package.jso
 	npm --prefix container-runtime ci
 	touch container-runtime/node_modules/.package-lock.json
 
-sdk/lib/osBindings/index.ts: core/startos/bindings/index.ts
-	rsync -ac --delete core/startos/bindings/ sdk/lib/osBindings/
-	touch sdk/lib/osBindings/index.ts
+sdk/base/lib/osBindings/index.ts: core/startos/bindings/index.ts
+	mkdir -p sdk/base/lib/osBindings
+	rsync -ac --delete core/startos/bindings/ sdk/base/lib/osBindings/
+	touch sdk/base/lib/osBindings/index.ts
 
 core/startos/bindings/index.ts: $(shell git ls-files core) $(ENVIRONMENT_FILE)
 	rm -rf core/startos/bindings
 	./core/build-ts.sh
-	ls core/startos/bindings/*.ts | sed 's/core\/startos\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' > core/startos/bindings/index.ts
-	npm --prefix sdk exec -- prettier --config ./sdk/package.json -w ./core/startos/bindings/*.ts
+	ls core/startos/bindings/*.ts | sed 's/core\/startos\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' | grep -v '"./index"' | tee core/startos/bindings/index.ts
+	npm --prefix sdk exec -- prettier --config ./sdk/base/package.json -w ./core/startos/bindings/*.ts
 	touch core/startos/bindings/index.ts
 
-sdk/dist/package.json: $(shell git ls-files sdk) sdk/lib/osBindings/index.ts
+sdk/dist/package.json sdk/baseDist/package.json: $(shell git ls-files sdk) sdk/base/lib/osBindings/index.ts
 	(cd sdk && make bundle)
 	touch sdk/dist/package.json
+	touch sdk/baseDist/package.json
 
 # TODO: make container-runtime its own makefile?
 container-runtime/dist/index.js: container-runtime/node_modules/.package-lock.json $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
@@ -272,11 +277,11 @@ core/target/$(ARCH)-unknown-linux-musl/release/containerbox: $(CORE_SRC) $(ENVIR
 	ARCH=$(ARCH) ./core/build-containerbox.sh
 	touch core/target/$(ARCH)-unknown-linux-musl/release/containerbox
 
-web/node_modules/.package-lock.json: web/package.json sdk/dist/package.json
+web/node_modules/.package-lock.json: web/package.json sdk/baseDist/package.json
 	npm --prefix web ci
 	touch web/node_modules/.package-lock.json
 
-web/.angular/.updated: patch-db/client/dist/index.js sdk/dist/package.json web/node_modules/.package-lock.json
+web/.angular/.updated: patch-db/client/dist/index.js sdk/baseDist/package.json web/node_modules/.package-lock.json
 	rm -rf web/.angular
 	mkdir -p web/.angular
 	touch web/.angular/.updated

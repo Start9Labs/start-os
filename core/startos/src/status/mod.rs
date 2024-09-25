@@ -11,17 +11,9 @@ use crate::service::start_stop::StartStop;
 use crate::status::health_check::NamedHealthCheckResult;
 
 pub mod health_check;
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
-#[serde(rename_all = "camelCase")]
-#[model = "Model<Self>"]
-#[ts(export)]
-pub struct Status {
-    pub configured: bool,
-    pub main: MainStatus,
-}
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]
-#[serde(tag = "status")]
+#[serde(tag = "main")]
 #[serde(rename_all = "camelCase")]
 #[serde(rename_all_fields = "camelCase")]
 pub enum MainStatus {

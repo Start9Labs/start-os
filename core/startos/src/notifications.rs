@@ -7,7 +7,7 @@ use clap::builder::ValueParserFactory;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use imbl_value::InternedString;
-use models::PackageId;
+use models::{FromStrParser, PackageId};
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -17,7 +17,6 @@ use crate::backup::BackupReport;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::DatabaseModel;
 use crate::prelude::*;
-use crate::util::clap::FromStrParser;
 use crate::util::serde::HandlerExtSerde;
 
 // #[command(subcommands(list, delete, delete_before, create))]

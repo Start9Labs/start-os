@@ -1,11 +1,12 @@
+use std::collections::{BTreeMap, BTreeSet};
+use std::ffi::OsString;
 use std::io::IsTerminal;
 use std::ops::Deref;
 use std::os::unix::process::ExitStatusExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
-use std::{ffi::OsString, path::PathBuf};
 
 use axum::extract::ws::WebSocket;
 use chrono::{DateTime, Utc};
@@ -15,7 +16,7 @@ use futures::stream::FusedStream;
 use futures::{SinkExt, StreamExt, TryStreamExt};
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
-use models::{ImageId, PackageId, ProcedureName};
+use models::{ActionId, ImageId, PackageId, ProcedureName};
 use nix::sys::signal::Signal;
 use persistent_container::{PersistentContainer, Subcontainer};
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
@@ -39,6 +40,7 @@ use crate::prelude::*;
 use crate::progress::{NamedProgress, Progress};
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::S9pk;
+use crate::service::action::update_requested_actions;
 use crate::service::service_map::InstallProgressHandles;
 use crate::util::actor::concurrent::ConcurrentActor;
 use crate::util::io::{create_file, AsyncReadStream};
@@ -48,11 +50,9 @@ use crate::util::Never;
 use crate::volume::data_dir;
 use crate::CAP_1_KiB;
 
-mod action;
+pub mod action;
 pub mod cli;
-mod config;
 mod control;
-mod dependencies;
 pub mod effects;
 pub mod persistent_container;
 mod properties;
@@ -97,7 +97,7 @@ impl ServiceRef {
             .persistent_container
             .execute::<NoOutput>(
                 Guid::new(),
-                ProcedureName::Uninit,
+                ProcedureName::PackageUninit,
                 to_value(&target_version)?,
                 None,
             ) // TODO timeout
@@ -257,7 +257,7 @@ impl Service {
                         tokio::fs::create_dir_all(&path).await?;
                     }
                 }
-                let start_stop = if i.as_status().as_main().de()?.running() {
+                let start_stop = if i.as_status().de()?.running() {
                     StartStop::Start
                 } else {
                     StartStop::Stop
@@ -429,12 +429,13 @@ impl Service {
                     .clone(),
             );
         }
+        let procedure_id = Guid::new();
         service
             .seed
             .persistent_container
             .execute::<NoOutput>(
-                Guid::new(),
-                ProcedureName::Init,
+                procedure_id.clone(),
+                ProcedureName::PackageInit,
                 to_value(&src_version)?,
                 None,
             ) // TODO timeout
@@ -445,16 +446,60 @@ impl Service {
             progress.progress.complete();
             tokio::task::yield_now().await;
         }
+
+        let peek = ctx.db.peek().await;
+        let mut action_input: BTreeMap<ActionId, Value> = BTreeMap::new();
+        let requested_actions: BTreeSet<_> = peek
+            .as_public()
+            .as_package_data()
+            .as_entries()?
+            .into_iter()
+            .map(|(_, pde)| {
+                Ok(pde
+                    .as_requested_actions()
+                    .as_entries()?
+                    .into_iter()
+                    .map(|(_, r)| {
+                        Ok::<_, Error>(if r.as_request().as_package_id().de()? == manifest.id {
+                            Some(r.as_request().as_action_id().de()?)
+                        } else {
+                            None
+                        })
+                    })
+                    .filter_map_ok(|a| a))
+            })
+            .flatten_ok()
+            .map(|a| a.and_then(|a| a))
+            .try_collect()?;
+        for action_id in requested_actions {
+            if let Some(input) = service
+                .get_action_input(procedure_id.clone(), action_id.clone())
+                .await?
+                .and_then(|i| i.value)
+            {
+                action_input.insert(action_id, input);
+            }
+        }
         ctx.db
-            .mutate(|d| {
-                let entry = d
+            .mutate(|db| {
+                for (action_id, input) in &action_input {
+                    for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
+                        pde.as_requested_actions_mut().mutate(|requested_actions| {
+                            Ok(update_requested_actions(
+                                requested_actions,
+                                &manifest.id,
+                                action_id,
+                                input,
+                                false,
+                            ))
+                        })?;
+                    }
+                }
+                let entry = db
                     .as_public_mut()
                     .as_package_data_mut()
                     .as_idx_mut(&manifest.id)
                     .or_not_found(&manifest.id)?;
-                if !manifest.has_config {
-                    entry.as_status_mut().as_configured_mut().ser(&true)?;
-                }
                 entry
                     .as_state_info_mut()
                     .ser(&PackageState::Installed(InstalledState { manifest }))?;

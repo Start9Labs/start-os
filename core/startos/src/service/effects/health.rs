@@ -29,7 +29,6 @@ pub async fn set_health(
                 .as_idx_mut(package_id)
                 .or_not_found(package_id)?
                 .as_status_mut()
-                .as_main_mut()
                 .mutate(|main| {
                     match main {
                         MainStatus::Running { ref mut health, .. }

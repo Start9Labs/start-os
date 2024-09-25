@@ -6,16 +6,13 @@ import { RpcResult, matchRpcResult } from "../RpcListener"
 import { duration } from "../../Models/Duration"
 import { T, utils } from "@start9labs/start-sdk"
 import { Volume } from "../../Models/Volume"
-import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
 import { CallbackHolder } from "../../Models/CallbackHolder"
 import { Optional } from "ts-matches/lib/parsers/interfaces"
 
 export const STARTOS_JS_LOCATION = "/usr/lib/startos/package/index.js"
 
 type RunningMain = {
-  effects: MainEffects
   stop: () => Promise<void>
-  callbacks: CallbackHolder
 }
 
 export class SystemForStartOs implements System {
@@ -25,23 +22,24 @@ export class SystemForStartOs implements System {
     return new SystemForStartOs(require(STARTOS_JS_LOCATION))
   }
 
-  constructor(readonly abi: T.ABI) {}
-  containerInit(): Promise<void> {
-    throw new Error("Method not implemented.")
+  constructor(readonly abi: T.ABI) {
+    this
+  }
+  async containerInit(effects: Effects): Promise<void> {
+    return void (await this.abi.containerInit({ effects }))
   }
   async packageInit(
     effects: Effects,
-    previousVersion: Optional<string> = null,
     timeoutMs: number | null = null,
   ): Promise<void> {
-    return void (await this.abi.init({ effects }))
+    return void (await this.abi.packageInit({ effects }))
   }
   async packageUninit(
     effects: Effects,
     nextVersion: Optional<string> = null,
     timeoutMs: number | null = null,
   ): Promise<void> {
-    return void (await this.abi.uninit({ effects, nextVersion }))
+    return void (await this.abi.packageUninit({ effects, nextVersion }))
   }
   async createBackup(
     effects: T.Effects,
@@ -49,8 +47,6 @@ export class SystemForStartOs implements System {
   ): Promise<void> {
     return void (await this.abi.createBackup({
       effects,
-      pathMaker: ((options) =>
-        new Volume(options.volume, options.path).path) as T.PathMaker,
     }))
   }
   async restoreBackup(
@@ -59,30 +55,7 @@ export class SystemForStartOs implements System {
   ): Promise<void> {
     return void (await this.abi.restoreBackup({
       effects,
-      pathMaker: ((options) =>
-        new Volume(options.volume, options.path).path) as T.PathMaker,
     }))
-  }
-  getConfig(
-    effects: T.Effects,
-    timeoutMs: number | null,
-  ): Promise<T.ConfigRes> {
-    return this.abi.getConfig({ effects })
-  }
-  async setConfig(
-    effects: Effects,
-    input: { effects: Effects; input: Record<string, unknown> },
-    timeoutMs: number | null,
-  ): Promise<void> {
-    const _: unknown = await this.abi.setConfig({ effects, input })
-    return
-  }
-  migration(
-    effects: Effects,
-    fromVersion: string,
-    timeoutMs: number | null,
-  ): Promise<T.MigrationRes> {
-    throw new Error("Method not implemented.")
   }
   properties(
     effects: Effects,
@@ -90,49 +63,30 @@ export class SystemForStartOs implements System {
   ): Promise<T.PropertiesReturn> {
     throw new Error("Method not implemented.")
   }
-  async action(
+  getActionInput(
     effects: Effects,
     id: string,
-    formData: unknown,
     timeoutMs: number | null,
-  ): Promise<T.ActionResult> {
-    const action = (await this.abi.actions({ effects }))[id]
+  ): Promise<T.ActionInput | null> {
+    const action = this.abi.actions.get(id)
     if (!action) throw new Error(`Action ${id} not found`)
-    return action.run({ effects })
+    return action.getInput({ effects })
   }
-  dependenciesCheck(
+  runAction(
     effects: Effects,
     id: string,
-    oldConfig: unknown,
+    input: unknown,
     timeoutMs: number | null,
-  ): Promise<any> {
-    const dependencyConfig = this.abi.dependencyConfig[id]
-    if (!dependencyConfig) throw new Error(`dependencyConfig ${id} not found`)
-    return dependencyConfig.query({ effects })
+  ): Promise<T.ActionResult | null> {
+    const action = this.abi.actions.get(id)
+    if (!action) throw new Error(`Action ${id} not found`)
+    return action.run({ effects, input })
   }
-  async dependenciesAutoconfig(
-    effects: Effects,
-    id: string,
-    remoteConfig: unknown,
-    timeoutMs: number | null,
-  ): Promise<void> {
-    const dependencyConfig = this.abi.dependencyConfig[id]
-    if (!dependencyConfig) throw new Error(`dependencyConfig ${id} not found`)
-    const queryResults = await this.getConfig(effects, timeoutMs)
-    return void (await dependencyConfig.update({
-      queryResults,
-      remoteConfig,
-    })) // TODO
-  }
-  async actionsMetadata(effects: T.Effects): Promise<T.ActionMetadata[]> {
-    return this.abi.actionsMetadata({ effects })
-  }
-
-  async init(): Promise<void> {}
 
   async exit(): Promise<void> {}
 
-  async start(effects: MainEffects): Promise<void> {
+  async start(effects: Effects): Promise<void> {
+    effects.constRetry = utils.once(() => effects.restart())
     if (this.runningMain) await this.stop()
     let mainOnTerm: () => Promise<void> | undefined
     const started = async (onTerm: () => Promise<void>) => {
@@ -141,36 +95,21 @@ export class SystemForStartOs implements System {
     }
     const daemons = await (
       await this.abi.main({
-        effects: effects as MainEffects,
+        effects,
         started,
       })
     ).build()
     this.runningMain = {
-      effects,
       stop: async () => {
         if (mainOnTerm) await mainOnTerm()
         await daemons.term()
       },
-      callbacks: new CallbackHolder(),
-    }
-  }
-
-  callCallback(callback: number, args: any[]): void {
-    if (this.runningMain) {
-      this.runningMain.callbacks
-        .callCallback(callback, args)
-        .catch((error) =>
-          console.error(`callback ${callback} failed`, utils.asError(error)),
-        )
-    } else {
-      console.warn(`callback ${callback} ignored because system is not running`)
     }
   }
 
   async stop(): Promise<void> {
     if (this.runningMain) {
       await this.runningMain.stop()
-      await this.runningMain.effects.clearCallbacks()
       this.runningMain = undefined
     }
   }

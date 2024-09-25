@@ -379,7 +379,11 @@ impl PersistentContainer {
             ));
         }
 
-        self.rpc_client.request(rpc::Init, Empty {}).await?;
+        self.rpc_client
+            .request(rpc::Init, Empty {})
+            .await
+            .map_err(Error::from)
+            .log_err();
 
         self.state.send_modify(|s| s.rt_initialized = true);
 
@@ -548,7 +552,7 @@ impl PersistentContainer {
 impl Drop for PersistentContainer {
     fn drop(&mut self) {
         if let Some(destroy) = self.destroy() {
-            tokio::spawn(async move { destroy.await.unwrap() });
+            tokio::spawn(async move { destroy.await.log_err() });
         }
     }
 }

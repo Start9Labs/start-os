@@ -1,6 +1,6 @@
 import { Pipe, PipeTransform } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ModalController, NavController } from '@ionic/angular'
+import { AlertController, ModalController, NavController } from '@ionic/angular'
 import { MarkdownComponent } from '@start9labs/shared'
 import {
   DataModel,
@@ -8,10 +8,10 @@ import {
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { from, map, Observable } from 'rxjs'
+import { from, map, Observable, of } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { ConfigModal, PackageConfigData } from 'src/app/modals/config.component'
+import { ActionService } from 'src/app/services/action.service'
+import { needsConfig } from 'src/app/util/get-package-data'
 
 export interface Button {
   title: string
@@ -33,7 +33,8 @@ export class ToButtonsPipe implements PipeTransform {
     private readonly apiService: ApiService,
     private readonly api: ApiService,
     private readonly patch: PatchDB<DataModel>,
-    private readonly formDialog: FormDialogService,
+    private readonly actionService: ActionService,
+    private readonly alertCtrl: AlertController,
   ) {}
 
   transform(pkg: PackageDataEntry<InstalledState>): Button[] {
@@ -53,13 +54,29 @@ export class ToButtonsPipe implements PipeTransform {
       // config
       {
         action: async () =>
-          this.formDialog.open<PackageConfigData>(ConfigModal, {
-            label: `${manifest.title} configuration`,
-            data: { pkgId: manifest.id },
-          }),
+          pkg.actions['config']
+            ? this.actionService.present(
+                {
+                  id: manifest.id,
+                  title: manifest.title,
+                  mainStatus: pkg.status.main,
+                },
+                {
+                  id: 'config',
+                  metadata: pkg.actions['config'],
+                },
+              )
+            : this.alertCtrl
+                .create({
+                  header: 'No Config',
+                  message: `No config options for ${manifest.title} v${manifest.version}`,
+                  buttons: ['OK'],
+                })
+                .then(a => a.present()),
         title: 'Config',
         description: `Customize ${manifest.title}`,
         icon: 'options-outline',
+        highlighted$: of(needsConfig(manifest.id, pkg.requestedActions)),
       },
       // properties
       {

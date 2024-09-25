@@ -1,3 +1,7 @@
+use std::str::FromStr;
+
+use clap::builder::ValueParserFactory;
+use models::{FromStrParser, HostId};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -5,10 +9,37 @@ use crate::net::forward::AvailablePorts;
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct BindId {
+    pub id: HostId,
+    pub internal_port: u16,
+}
+impl ValueParserFactory for BindId {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
+impl FromStr for BindId {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (id, port) = s
+            .split_once(":")
+            .ok_or_else(|| Error::new(eyre!("expected <id>:<port>"), ErrorKind::ParseUrl))?;
+        Ok(Self {
+            id: id.parse()?,
+            internal_port: port.parse()?,
+        })
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct BindInfo {
+    pub enabled: bool,
     pub options: BindOptions,
     pub lan: LanInfo,
 }
@@ -30,6 +61,7 @@ impl BindInfo {
             assigned_ssl_port = Some(available_ports.alloc()?);
         }
         Ok(Self {
+            enabled: true,
             options,
             lan: LanInfo {
                 assigned_port,
@@ -69,7 +101,14 @@ impl BindInfo {
                 available_ports.free([port]);
             }
         }
-        Ok(Self { options, lan })
+        Ok(Self {
+            enabled: true,
+            options,
+            lan,
+        })
+    }
+    pub fn disable(&mut self) {
+        self.enabled = false;
     }
 }
 

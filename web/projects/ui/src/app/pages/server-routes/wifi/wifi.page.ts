@@ -7,7 +7,7 @@ import {
 import { ActionSheetButton, AlertInput } from '@ionic/core'
 import { WINDOW } from '@ng-web-apis/common'
 import { ErrorService, LoadingService, pauseFor } from '@start9labs/shared'
-import { CT } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-sdk'
 import { TuiDialogOptions } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { FormComponent, FormContext } from 'src/app/components/form.component'
@@ -343,7 +343,7 @@ export class WifiPage {
 function getWifiValueSpec(
   ssid: string | null = null,
   needsPW: boolean = true,
-): CT.ValueSpecObject {
+): IST.ValueSpecObject {
   return {
     warning: null,
     type: 'object',

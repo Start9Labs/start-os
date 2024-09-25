@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
 use clap::builder::ValueParserFactory;
+use models::FromStrParser;
 
 use crate::service::effects::prelude::*;
-use crate::util::clap::FromStrParser;
 
 pub async fn restart(
     context: EffectContext,

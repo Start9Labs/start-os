@@ -7,7 +7,7 @@ import {
   Output,
 } from '@angular/core'
 import { ControlContainer } from '@angular/forms'
-import { CT } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'form-object',
@@ -17,7 +17,7 @@ import { CT } from '@start9labs/start-sdk'
 })
 export class FormObjectComponent {
   @Input()
-  spec!: CT.ValueSpecObject
+  spec!: IST.ValueSpecObject
 
   @Input()
   open = false

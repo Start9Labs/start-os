@@ -780,37 +780,19 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async getPackageConfig(
-    params: RR.GetPackageConfigReq,
-  ): Promise<RR.GetPackageConfigRes> {
+  async getActionInput(
+    params: RR.GetActionInputReq,
+  ): Promise<RR.GetActionInputRes> {
     await pauseFor(2000)
     return {
-      config: Mock.MockConfig,
-      spec: await Mock.getInputSpec(),
+      value: Mock.MockConfig,
+      spec: await Mock.getActionInputSpec(),
     }
   }
 
-  async drySetPackageConfig(
-    params: RR.DrySetPackageConfigReq,
-  ): Promise<RR.DrySetPackageConfigRes> {
+  async runAction(params: RR.RunActionReq): Promise<RR.RunActionRes> {
     await pauseFor(2000)
-    return []
-  }
-
-  async setPackageConfig(
-    params: RR.SetPackageConfigReq,
-  ): Promise<RR.SetPackageConfigRes> {
-    await pauseFor(2000)
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: `/packageData/${params.id}/status/configured`,
-        value: true,
-      },
-    ]
-    this.mockRevision(patch)
-
-    return null
+    return Mock.ActionResponse
   }
 
   async restorePackages(
@@ -841,13 +823,6 @@ export class MockApiService extends ApiService {
     this.mockRevision(patch)
 
     return null
-  }
-
-  async executePackageAction(
-    params: RR.ExecutePackageActionReq,
-  ): Promise<RR.ExecutePackageActionRes> {
-    await pauseFor(2000)
-    return Mock.ActionResponse
   }
 
   async startPackage(params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
@@ -1067,17 +1042,6 @@ export class MockApiService extends ApiService {
     this.mockRevision(patch)
 
     return null
-  }
-
-  async dryConfigureDependency(
-    params: RR.DryConfigureDependencyReq,
-  ): Promise<RR.DryConfigureDependencyRes> {
-    await pauseFor(2000)
-    return {
-      oldConfig: Mock.MockConfig,
-      newConfig: Mock.MockDependencyConfig,
-      spec: await Mock.getInputSpec(),
-    }
   }
 
   async sideloadPackage(): Promise<RR.SideloadPackageRes> {

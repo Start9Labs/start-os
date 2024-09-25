@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { CT, utils } from '@start9labs/start-sdk'
+import { IST, utils } from '@start9labs/start-sdk'
 import { Control } from '../control'
 
 @Component({
@@ -7,7 +7,7 @@ import { Control } from '../control'
   templateUrl: './form-text.component.html',
   styleUrls: ['./form-text.component.scss'],
 })
-export class FormTextComponent extends Control<CT.ValueSpecText, string> {
+export class FormTextComponent extends Control<IST.ValueSpecText, string> {
   masked = true
 
   generate() {

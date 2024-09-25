@@ -442,6 +442,13 @@ impl<T> BackTrackingIO<T> {
             },
         }
     }
+    pub fn read_buffer(&self) -> &[u8] {
+        match &self.buffer {
+            BTBuffer::NotBuffering => &[],
+            BTBuffer::Buffering { read, .. } => read,
+            BTBuffer::Rewound { read } => read.remaining_slice(),
+        }
+    }
     #[must_use]
     pub fn stop_buffering(&mut self) -> Vec<u8> {
         match std::mem::take(&mut self.buffer) {
@@ -508,6 +515,28 @@ impl<T: AsyncRead> AsyncRead for BackTrackingIO<T> {
                 } else {
                     Poll::Ready(Ok(()))
                 }
+            }
+        }
+    }
+}
+impl<T: std::io::Read> std::io::Read for BackTrackingIO<T> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        match &mut self.buffer {
+            BTBuffer::Buffering { read, .. } => {
+                let n = self.io.read(buf)?;
+                read.extend_from_slice(&buf[..n]);
+                Ok(n)
+            }
+            BTBuffer::NotBuffering => self.io.read(buf),
+            BTBuffer::Rewound { read } => {
+                let mut ready = false;
+                if (read.position() as usize) < read.get_ref().len() {
+                    let n = std::io::Read::read(read, buf)?;
+                    if n != 0 {
+                        return Ok(n);
+                    }
+                }
+                self.io.read(buf)
             }
         }
     }
@@ -869,7 +898,7 @@ impl Drop for TmpDir {
         if self.path.exists() {
             let path = std::mem::take(&mut self.path);
             tokio::spawn(async move {
-                tokio::fs::remove_dir_all(&path).await.unwrap();
+                tokio::fs::remove_dir_all(&path).await.log_err();
             });
         }
     }

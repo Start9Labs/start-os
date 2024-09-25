@@ -51,7 +51,7 @@
     "@noble/hashes": "^1.4.0",
     "@start9labs/argon2": "^0.2.2",
     "@start9labs/emver": "^0.1.5",
-    "@start9labs/start-sdk": "file:../sdk/dist",
+    "@start9labs/start-sdk": "file:../sdk/baseDist",
     "@taiga-ui/addon-charts": "3.86.0",
     "@taiga-ui/cdk": "3.86.0",
     "@taiga-ui/core": "3.86.0",

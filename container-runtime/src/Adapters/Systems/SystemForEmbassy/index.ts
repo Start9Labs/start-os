@@ -2,8 +2,8 @@ import { ExtendedVersion, types as T, utils } from "@start9labs/start-sdk"
 import * as fs from "fs/promises"
 
 import { polyfillEffects } from "./polyfillEffects"
-import { Duration, duration, fromDuration } from "../../../Models/Duration"
-import { System, Procedure } from "../../../Interfaces/System"
+import { fromDuration } from "../../../Models/Duration"
+import { System } from "../../../Interfaces/System"
 import { matchManifest, Manifest } from "./matchManifest"
 import * as childProcess from "node:child_process"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
@@ -27,19 +27,12 @@ import {
   Parser,
   array,
 } from "ts-matches"
-import { JsonPath, unNestPath } from "../../../Models/JsonPath"
-import { RpcResult, matchRpcResult } from "../../RpcListener"
-import { CT } from "@start9labs/start-sdk"
-import {
-  AddSslOptions,
-  BindOptions,
-} from "@start9labs/start-sdk/cjs/lib/osBindings"
+import { AddSslOptions } from "@start9labs/start-sdk/base/lib/osBindings"
 import {
   BindOptionsByProtocol,
-  Host,
   MultiHost,
-} from "@start9labs/start-sdk/cjs/lib/interfaces/Host"
-import { ServiceInterfaceBuilder } from "@start9labs/start-sdk/cjs/lib/interfaces/ServiceInterfaceBuilder"
+} from "@start9labs/start-sdk/base/lib/interfaces/Host"
+import { ServiceInterfaceBuilder } from "@start9labs/start-sdk/base/lib/interfaces/ServiceInterfaceBuilder"
 import { Effects } from "../../../Models/Effects"
 import {
   OldConfigSpec,
@@ -48,18 +41,16 @@ import {
   transformNewConfigToOld,
   transformOldConfigToNew,
 } from "./transformConfigSpec"
-import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
-import { StorePath } from "@start9labs/start-sdk/cjs/lib/store/PathBuilder"
+import { partialDiff } from "@start9labs/start-sdk/base/lib/util"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
   throw new Error("Not implemented")
 }
-const execFile = promisify(childProcess.execFile)
 
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
 export const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
-const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig" as StorePath
+const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig" as utils.StorePath
 
 const matchResult = object({
   result: any,
@@ -248,50 +239,21 @@ export class SystemForEmbassy implements System {
     readonly moduleCode: Partial<U.ExpectedExports>,
   ) {}
 
-  async actionsMetadata(effects: T.Effects): Promise<T.ActionMetadata[]> {
-    const actions = Object.entries(this.manifest.actions ?? {})
-    return Promise.all(
-      actions.map(async ([actionId, action]): Promise<T.ActionMetadata> => {
-        const name = action.name ?? actionId
-        const description = action.description
-        const warning = action.warning ?? null
-        const disabled = false
-        const input = (await convertToNewConfig(action["input-spec"] as any))
-          .spec
-        const hasRunning = !!action["allowed-statuses"].find(
-          (x) => x === "running",
-        )
-        const hasStopped = !!action["allowed-statuses"].find(
-          (x) => x === "stopped",
-        )
-        // prettier-ignore
-        const allowedStatuses = 
-        hasRunning && hasStopped ? "any":
-        hasRunning ? "onlyRunning" :
-        "onlyStopped"
-
-        const group = null
-        return {
-          name,
-          description,
-          warning,
-          disabled,
-          allowedStatuses,
-          group,
-          input,
-        }
-      }),
-    )
+  async containerInit(effects: Effects): Promise<void> {
+    for (let depId in this.manifest.dependencies) {
+      if (this.manifest.dependencies[depId].config) {
+        await this.dependenciesAutoconfig(effects, depId, null)
+      }
+    }
   }
-
-  async containerInit(): Promise<void> {}
 
   async exit(): Promise<void> {
     if (this.currentRunning) await this.currentRunning.clean()
     delete this.currentRunning
   }
 
-  async start(effects: MainEffects): Promise<void> {
+  async start(effects: T.Effects): Promise<void> {
+    effects.constRetry = utils.once(() => effects.restart())
     if (!!this.currentRunning) return
 
     this.currentRunning = await MainLoop.of(this, effects)
@@ -308,13 +270,18 @@ export class SystemForEmbassy implements System {
     }
   }
 
-  async packageInit(
-    effects: Effects,
-    previousVersion: Optional<string>,
-    timeoutMs: number | null,
-  ): Promise<void> {
-    if (previousVersion)
-      await this.migration(effects, previousVersion, timeoutMs)
+  async packageInit(effects: Effects, timeoutMs: number | null): Promise<void> {
+    const previousVersion = await effects.getDataVersion()
+    if (previousVersion) {
+      if (
+        (await this.migration(effects, previousVersion, timeoutMs)).configured
+      ) {
+        await effects.action.clearRequests({ only: ["needs-config"] })
+      }
+      await effects.setDataVersion({
+        version: ExtendedVersion.parseEmver(this.manifest.version).toString(),
+      })
+    }
     await effects.setMainStatus({ status: "stopped" })
     await this.exportActions(effects)
     await this.exportNetwork(effects)
@@ -400,10 +367,57 @@ export class SystemForEmbassy implements System {
       )
     }
   }
+  async getActionInput(
+    effects: Effects,
+    actionId: string,
+    timeoutMs: number | null,
+  ): Promise<T.ActionInput | null> {
+    if (actionId === "config") {
+      const config = await this.getConfig(effects, timeoutMs)
+      return { spec: config.spec, value: config.config }
+    } else {
+      const oldSpec = this.manifest.actions?.[actionId]?.["input-spec"]
+      if (!oldSpec) return null
+      return {
+        spec: transformConfigSpec(oldSpec as OldConfigSpec),
+        value: null,
+      }
+    }
+  }
+  async runAction(
+    effects: Effects,
+    actionId: string,
+    input: unknown,
+    timeoutMs: number | null,
+  ): Promise<T.ActionResult | null> {
+    if (actionId === "config") {
+      await this.setConfig(effects, input, timeoutMs)
+      return null
+    } else {
+      return this.action(effects, actionId, input, timeoutMs)
+    }
+  }
   async exportActions(effects: Effects) {
     const manifest = this.manifest
-    if (!manifest.actions) return
-    for (const [actionId, action] of Object.entries(manifest.actions)) {
+    const actions = {
+      ...manifest.actions,
+    }
+    if (manifest.config) {
+      actions.config = {
+        name: "Configure",
+        description: "Edit the configuration of this service",
+        "allowed-statuses": ["running", "stopped"],
+        "input-spec": {},
+        implementation: { type: "script", args: [] },
+      }
+      await effects.action.request({
+        packageId: this.manifest.id,
+        actionId: "config",
+        replayId: "needs-config",
+        description: "This service must be configured before it can be run",
+      })
+    }
+    for (const [actionId, action] of Object.entries(actions)) {
       const hasRunning = !!action["allowed-statuses"].find(
         (x) => x === "running",
       )
@@ -412,21 +426,22 @@ export class SystemForEmbassy implements System {
       )
       // prettier-ignore
       const allowedStatuses = hasRunning && hasStopped ? "any":
-        hasRunning ? "onlyRunning" :
-         "onlyStopped"
-      await effects.exportAction({
+        hasRunning ? "only-running" :
+         "only-stopped"
+      await effects.action.export({
         id: actionId,
         metadata: {
           name: action.name,
           description: action.description,
           warning: action.warning || null,
-          input: action["input-spec"] as CT.InputSpec,
-          disabled: false,
+          visibility: "enabled",
           allowedStatuses,
+          hasInput: !!action["input-spec"],
           group: null,
         },
       })
     }
+    await effects.action.clear({ except: Object.keys(actions) })
   }
   async packageUninit(
     effects: Effects,
@@ -483,10 +498,7 @@ export class SystemForEmbassy implements System {
       await moduleCode.restoreBackup?.(polyfillEffects(effects, this.manifest))
     }
   }
-  async getConfig(
-    effects: Effects,
-    timeoutMs: number | null,
-  ): Promise<T.ConfigRes> {
+  async getConfig(effects: Effects, timeoutMs: number | null) {
     return this.getConfigUncleaned(effects, timeoutMs).then(convertToNewConfig)
   }
   private async getConfigUncleaned(
@@ -614,7 +626,7 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     fromVersion: string,
     timeoutMs: number | null,
-  ): Promise<T.MigrationRes> {
+  ): Promise<{ configured: boolean }> {
     const fromEmver = ExtendedVersion.parseEmver(fromVersion)
     const currentEmver = ExtendedVersion.parseEmver(this.manifest.version)
     if (!this.manifest.migrations) return { configured: true }
@@ -828,24 +840,44 @@ export class SystemForEmbassy implements System {
   async dependenciesAutoconfig(
     effects: Effects,
     id: string,
-    input: unknown,
     timeoutMs: number | null,
   ): Promise<void> {
-    const oldConfig = object({ remoteConfig: any }).unsafeCast(
-      input,
-    ).remoteConfig
     // TODO: docker
+    const oldConfig = (await effects.store.get({
+      packageId: id,
+      path: EMBASSY_POINTER_PATH_PREFIX,
+      callback: () => {
+        this.dependenciesAutoconfig(effects, id, timeoutMs)
+      },
+    })) as U.Config
     const moduleCode = await this.moduleCode
     const method = moduleCode.dependencies?.[id]?.autoConfigure
     if (!method) return
-    return (await method(
+    const newConfig = (await method(
       polyfillEffects(effects, this.manifest),
-      oldConfig,
+      JSON.parse(JSON.stringify(oldConfig)),
     ).then((x) => {
       if ("result" in x) return x.result
       if ("error" in x) throw new Error("Error getting config: " + x.error)
       throw new Error("Error getting config: " + x["error-code"][1])
     })) as any
+    const diff = partialDiff(oldConfig, newConfig)
+    if (diff) {
+      await effects.action.request({
+        actionId: "config",
+        packageId: id,
+        replayId: `${id}/config`,
+        description: `Configure this dependency for the needs of ${this.manifest.title}`,
+        input: {
+          kind: "partial",
+          value: diff.diff,
+        },
+        when: {
+          condition: "input-not-matches",
+          once: false,
+        },
+      })
+    }
   }
 }
 
@@ -1020,9 +1052,7 @@ function extractServiceInterfaceId(manifest: Manifest, specInterface: string) {
   const serviceInterfaceId = `${specInterface}-${internalPort}`
   return serviceInterfaceId
 }
-async function convertToNewConfig(
-  value: OldGetConfigRes,
-): Promise<T.ConfigRes> {
+async function convertToNewConfig(value: OldGetConfigRes) {
   const valueSpec: OldConfigSpec = matchOldConfigSpec.unsafeCast(value.spec)
   const spec = transformConfigSpec(valueSpec)
   if (!value.config) return { spec, config: null }

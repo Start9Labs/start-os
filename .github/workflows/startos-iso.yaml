@@ -187,11 +187,14 @@ jobs:
         run: |
           mkdir -p web/node_modules
           mkdir -p web/dist/raw
+          mkdir -p core/startos/bindings
+          mkdir -p sdk/base/lib/osBindings
           mkdir -p container-runtime/node_modules
           mkdir -p container-runtime/dist
           mkdir -p container-runtime/dist/node_modules
           mkdir -p core/startos/bindings
           mkdir -p sdk/dist
+          mkdir -p sdk/baseDist
           mkdir -p patch-db/client/node_modules
           mkdir -p patch-db/client/dist
           mkdir -p web/.angular

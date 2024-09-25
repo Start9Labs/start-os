@@ -9,7 +9,7 @@ use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
 use exver::Version;
 use imbl_value::InternedString;
-use models::PackageId;
+use models::{FromStrParser, PackageId};
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -27,7 +27,6 @@ use crate::disk::mount::filesystem::{FileSystem, MountType, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::util::PartitionInfo;
 use crate::prelude::*;
-use crate::util::clap::FromStrParser;
 use crate::util::serde::{
     deserialize_from_str, display_serializable, serialize_display, HandlerExtSerde, WithIoFormat,
 };

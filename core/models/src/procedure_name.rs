@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{ActionId, PackageId};
+use crate::ActionId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ProcedureName {
@@ -9,30 +9,24 @@ pub enum ProcedureName {
     CreateBackup,
     Properties,
     RestoreBackup,
-    ActionMetadata,
+    GetActionInput(ActionId),
     RunAction(ActionId),
-    GetAction(ActionId),
-    QueryDependency(PackageId),
-    UpdateDependency(PackageId),
-    Init,
-    Uninit,
+    PackageInit,
+    PackageUninit,
 }
 
 impl ProcedureName {
     pub fn js_function_name(&self) -> String {
         match self {
-            ProcedureName::Init => "/init".to_string(),
-            ProcedureName::Uninit => "/uninit".to_string(),
+            ProcedureName::PackageInit => "/packageInit".to_string(),
+            ProcedureName::PackageUninit => "/packageUninit".to_string(),
             ProcedureName::SetConfig => "/config/set".to_string(),
             ProcedureName::GetConfig => "/config/get".to_string(),
             ProcedureName::CreateBackup => "/backup/create".to_string(),
             ProcedureName::Properties => "/properties".to_string(),
             ProcedureName::RestoreBackup => "/backup/restore".to_string(),
-            ProcedureName::ActionMetadata => "/actions/metadata".to_string(),
             ProcedureName::RunAction(id) => format!("/actions/{}/run", id),
-            ProcedureName::GetAction(id) => format!("/actions/{}/get", id),
-            ProcedureName::QueryDependency(id) => format!("/dependencies/{}/query", id),
-            ProcedureName::UpdateDependency(id) => format!("/dependencies/{}/update", id),
+            ProcedureName::GetActionInput(id) => format!("/actions/{}/getInput", id),
         }
     }
 }

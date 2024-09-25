@@ -8,8 +8,7 @@ import {
 } from '@angular/core'
 import { FormGroup, ReactiveFormsModule } from '@angular/forms'
 import { RouterModule } from '@angular/router'
-import { CT } from '@start9labs/start-sdk'
-
+import { IST } from '@start9labs/start-sdk'
 import {
   tuiMarkControlAsTouchedAndValidate,
   TuiValueChangesModule,
@@ -30,10 +29,10 @@ export interface ActionButton<T> {
 }
 
 export interface FormContext<T> {
-  spec: CT.InputSpec
+  spec: IST.InputSpec
   buttons: ActionButton<T>[]
   value?: T
-  patch?: Operation[]
+  operations?: Operation[]
 }
 
 @Component({
@@ -112,7 +111,7 @@ export class FormComponent<T extends Record<string, any>> implements OnInit {
 
   @Input() spec = this.context?.data.spec || {}
   @Input() buttons = this.context?.data.buttons || []
-  @Input() patch = this.context?.data.patch || []
+  @Input() operations = this.context?.data.operations || []
   @Input() value?: T = this.context?.data.value
 
   form = new FormGroup({})
@@ -120,7 +119,7 @@ export class FormComponent<T extends Record<string, any>> implements OnInit {
   ngOnInit() {
     this.dialogFormService.markAsPristine()
     this.form = this.formService.createForm(this.spec, this.value)
-    this.process(this.patch)
+    this.process(this.operations)
   }
 
   onReset() {
@@ -149,8 +148,8 @@ export class FormComponent<T extends Record<string, any>> implements OnInit {
     this.context?.$implicit.complete()
   }
 
-  private process(patch: Operation[]) {
-    patch.forEach(({ op, path }) => {
+  private process(operations: Operation[]) {
+    operations.forEach(({ op, path }) => {
       const control = this.form.get(path.substring(1).split('/'))
 
       if (!control || !control.parent) return

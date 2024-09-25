@@ -3,8 +3,7 @@ use futures::FutureExt;
 use super::TempDesiredRestore;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
-use crate::service::config::GetConfig;
-use crate::service::dependencies::DependencyConfig;
+use crate::service::action::GetActionInput;
 use crate::service::transition::{TransitionKind, TransitionState};
 use crate::service::{Service, ServiceActor};
 use crate::util::actor::background::BackgroundJobQueue;
@@ -15,9 +14,7 @@ pub(super) struct Restart;
 impl Handler<Restart> for ServiceActor {
     type Response = ();
     fn conflicts_with(_: &Restart) -> ConflictBuilder<Self> {
-        ConflictBuilder::everything()
-            .except::<GetConfig>()
-            .except::<DependencyConfig>()
+        ConflictBuilder::everything().except::<GetActionInput>()
     }
     async fn handle(&mut self, _: Guid, _: Restart, jobs: &BackgroundJobQueue) -> Self::Response {
         // So Need a handle to just a single field in the state

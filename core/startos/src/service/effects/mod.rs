@@ -7,7 +7,6 @@ use crate::service::effects::context::EffectContext;
 
 mod action;
 pub mod callbacks;
-mod config;
 pub mod context;
 mod control;
 mod dependency;
@@ -26,33 +25,11 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
             from_fn(echo::<EffectContext>).with_call_remote::<ContainerCliContext>(),
         )
         // action
-        .subcommand(
-            "execute-action",
-            from_fn_async(action::execute_action).no_cli(),
-        )
-        .subcommand(
-            "export-action",
-            from_fn_async(action::export_action).no_cli(),
-        )
-        .subcommand(
-            "clear-actions",
-            from_fn_async(action::clear_actions).no_cli(),
-        )
+        .subcommand("action", action::action_api::<C>())
         // callbacks
         .subcommand(
             "clear-callbacks",
             from_fn(callbacks::clear_callbacks).no_cli(),
-        )
-        // config
-        .subcommand(
-            "get-configured",
-            from_fn_async(config::get_configured).no_cli(),
-        )
-        .subcommand(
-            "set-configured",
-            from_fn_async(config::set_configured)
-                .no_display()
-                .with_call_remote::<ContainerCliContext>(),
         )
         // control
         .subcommand(

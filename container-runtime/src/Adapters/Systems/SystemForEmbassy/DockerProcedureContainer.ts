@@ -8,7 +8,7 @@ import {
   CommandOptions,
   ExecOptions,
   ExecSpawnable,
-} from "@start9labs/start-sdk/cjs/lib/util/SubContainer"
+} from "@start9labs/start-sdk/package/lib/util/SubContainer"
 export const exec = promisify(cp.exec)
 export const execFile = promisify(cp.execFile)
 
