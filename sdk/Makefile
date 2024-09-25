@@ -38,8 +38,10 @@ baseDist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) base/package.json base/node_modul
 	cp base/LICENSE baseDist/LICENSE
 	touch baseDist
 
-dist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) package/package.json package/node_modules package/README.md package/LICENSE	
+dist: $(PACKAGE_TS_FILES) $(BASE_TS_FILES) package/package.json package/.npmignore package/node_modules package/README.md package/LICENSE	
 	(cd package && npm run tsc)
+	rsync -ac package/node_modules dist/
+	cp package/.npmignore dist/.npmignore
 	cp package/package.json dist/package.json
 	cp package/README.md dist/README.md
 	cp package/LICENSE dist/LICENSE
