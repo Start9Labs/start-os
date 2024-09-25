@@ -63,7 +63,10 @@ export class ActionService {
           label: actionInfo.metadata.name,
           data: {
             pkgInfo,
-            actionId: actionInfo.id,
+            actionInfo: {
+              id: actionInfo.id,
+              warning: actionInfo.metadata.warning,
+            },
             dependentInfo,
           },
         })

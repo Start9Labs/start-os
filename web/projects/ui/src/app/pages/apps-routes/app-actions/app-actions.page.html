@@ -15,8 +15,9 @@
       [action]="{
         name: 'Uninstall',
         description: 'This will uninstall the service from StartOS and delete all data permanently.',
-        icon: 'trash-outline'
+        visibility: 'enabled'
       }"
+      icon="trash-outline"
       (click)="tryUninstall(pkg.manifest)"
     ></app-actions-item>
 
@@ -26,11 +27,8 @@
     </ion-item-divider>
     <app-actions-item
       *ngFor="let action of pkg.actions"
-      [action]="{
-        name: action.name,
-        description: action.description,
-        icon: 'play-circle-outline'
-      }"
+      [action]="action"
+      icon="play-circle-outline"
       (click)="handleAction(pkg.mainStatus, pkg.manifest, action)"
     ></app-actions-item>
   </ion-item-group>

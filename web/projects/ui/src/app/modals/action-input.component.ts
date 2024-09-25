@@ -24,14 +24,16 @@ import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
 import * as json from 'fast-json-patch'
 import { ActionService } from '../services/action.service'
 import { ActionButton, FormComponent } from '../components/form.component'
-import { TuiLetModule } from '@taiga-ui/cdk'
 
 export interface PackageActionData {
   readonly pkgInfo: {
     id: string
     title: string
   }
-  readonly actionId: string
+  readonly actionInfo: {
+    id: string
+    warning: string | null
+  }
   readonly dependentInfo?: {
     title: string
     request: T.ActionRequest
@@ -40,12 +42,16 @@ export interface PackageActionData {
 
 @Component({
   template: `
-    <ng-container *tuiLet="res$ | async as res; else loading">
+    <ng-container *ngIf="res$ | async as res; else loading">
       <tui-notification *ngIf="error" status="error">
         <div [innerHTML]="error"></div>
       </tui-notification>
 
       <ng-container *ngIf="res">
+        <tui-notification *ngIf="warning" status="warning">
+          <div [innerHTML]="warning"></div>
+        </tui-notification>
+
         <action-dep
           *ngIf="dependentInfo"
           [pkgTitle]="pkgInfo.title"
@@ -95,13 +101,13 @@ export interface PackageActionData {
     ActionDepComponent,
     UiPipeModule,
     FormComponent,
-    TuiLetModule,
   ],
   providers: [InvalidService],
 })
 export class ActionInputModal {
+  readonly actionId = this.context.data.actionInfo.id
+  readonly warning = this.context.data.actionInfo.warning
   readonly pkgInfo = this.context.data.pkgInfo
-  readonly actionId = this.context.data.actionId
   readonly dependentInfo = this.context.data.dependentInfo
 
   buttons: ActionButton<any>[] = [

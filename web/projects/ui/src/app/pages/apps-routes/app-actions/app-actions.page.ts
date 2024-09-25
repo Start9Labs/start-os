@@ -101,10 +101,6 @@ export class AppActionsPage {
       loader.unsubscribe()
     }
   }
-
-  asIsOrder() {
-    return 0
-  }
 }
 
 @Component({
@@ -117,6 +113,15 @@ export class AppActionsItemComponent {
   @Input() action!: {
     name: string
     description: string
-    icon: string
+    visibility: T.ActionVisibility
+  }
+
+  @Input() icon!: string
+
+  get disabledText() {
+    return (
+      typeof this.action.visibility === 'object' &&
+      this.action.visibility.disabled.reason
+    )
   }
 }
