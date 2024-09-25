@@ -1,12 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::ffi::OsString;
 use std::io::IsTerminal;
 use std::ops::Deref;
 use std::os::unix::process::ExitStatusExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
-use std::{ffi::OsString, path::PathBuf};
 
 use axum::extract::ws::WebSocket;
 use chrono::{DateTime, Utc};
@@ -97,7 +97,7 @@ impl ServiceRef {
             .persistent_container
             .execute::<NoOutput>(
                 Guid::new(),
-                ProcedureName::Uninit,
+                ProcedureName::PackageUninit,
                 to_value(&target_version)?,
                 None,
             ) // TODO timeout
@@ -435,7 +435,7 @@ impl Service {
             .persistent_container
             .execute::<NoOutput>(
                 procedure_id.clone(),
-                ProcedureName::Init,
+                ProcedureName::PackageInit,
                 to_value(&src_version)?,
                 None,
             ) // TODO timeout
