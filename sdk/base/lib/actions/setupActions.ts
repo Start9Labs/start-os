@@ -18,7 +18,7 @@ export type GetInput<
     | InputSpec<Record<string, any>, never>,
 > = (options: {
   effects: T.Effects
-}) => Promise<void | (ExtractInputSpecType<A> & Record<string, any>)>
+}) => Promise<null | (ExtractInputSpecType<A> & Record<string, any>)>
 
 export type MaybeFn<T> = T | ((options: { effects: T.Effects }) => Promise<T>)
 function callMaybeFn<T>(
@@ -92,7 +92,7 @@ export class Action<
       id,
       mapMaybeFn(metadata, (m) => ({ ...m, hasInput: true })),
       {},
-      async () => {},
+      async () => null,
       run,
     )
   }

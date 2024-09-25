@@ -45,18 +45,18 @@ export const runAction = async <
 }
 
 // prettier-ignore
-export type ActionRequest<T extends T.ActionRequest & { replayId?: string }> =
+export type ActionRequest<T extends Omit<T.ActionRequest, "packageId">> =
   T extends { when: { condition: "input-not-matches" } }
     ? (T extends { input: T.ActionRequestInput } ? T : "input is required for condition 'input-not-matches'")
     : T
 
 export const requestAction = <
-  T extends T.ActionRequest & { replayId?: string },
+  T extends Omit<T.ActionRequest, "packageId">,
 >(options: {
   effects: T.Effects
-  request: ActionRequest<T>
+  request: ActionRequest<T> & { replayId?: string; packageId: T.PackageId }
 }) => {
-  const request = options.request as T
+  const request = options.request
   const req = {
     ...request,
     replayId: request.replayId || `${request.packageId}:${request.actionId}`,

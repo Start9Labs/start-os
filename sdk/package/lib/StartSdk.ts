@@ -142,6 +142,16 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       action: {
         run: actions.runAction,
         request: actions.requestAction,
+        requestOwn: <T extends Omit<T.ActionRequest, "packageId">>(
+          effects: T.Effects,
+          request: actions.ActionRequest<T> & {
+            replayId?: string
+          },
+        ) =>
+          actions.requestAction({
+            effects,
+            request: { ...request, packageId: this.manifest.id },
+          }),
       },
       checkDependencies: checkDependencies as <
         DependencyId extends keyof Manifest["dependencies"] &
