@@ -20,7 +20,10 @@ use crate::util::PathOrUrl;
 use crate::Error;
 
 pub fn dependency<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new().subcommand("configure", configure::<C>())
+    ParentHandler::new().subcommand(
+        "configure",
+        configure::<C>().with_about("Configure a package dependency"),
+    )
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, TS)]
@@ -77,7 +80,8 @@ pub fn configure<C: Context>() -> ParentHandler<C, ConfigureParams> {
             from_fn_async(configure_dry)
                 .with_inherited(|params, _| params)
                 .with_display_serializable()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Configure a package dependency"),
         )
 }
 

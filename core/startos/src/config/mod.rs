@@ -143,11 +143,14 @@ pub fn config<C: Context>() -> ParentHandler<C, ConfigParams> {
             from_fn_async(get)
                 .with_inherited(|ConfigParams { id }, _| id)
                 .with_display_serializable()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Get package config"),
         )
         .subcommand(
             "set",
-            set::<C>().with_inherited(|ConfigParams { id }, _| id),
+            set::<C>()
+                .with_inherited(|ConfigParams { id }, _| id)
+                .with_about("Set package config"),
         )
 }
 

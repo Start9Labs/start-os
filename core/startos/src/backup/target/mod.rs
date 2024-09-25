@@ -142,12 +142,16 @@ impl FileSystem for BackupTargetFS {
 // #[command(subcommands(cifs::cifs, list, info, mount, umount))]
 pub fn target<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("cifs", cifs::cifs::<C>())
+        .subcommand(
+            "cifs",
+            cifs::cifs::<C>().with_about("Add, remove, or update a backup target"),
+        )
         .subcommand(
             "list",
             from_fn_async(list)
                 .with_display_serializable()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("List existing backup targets"),
         )
         .subcommand(
             "info",
@@ -156,17 +160,21 @@ pub fn target<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn::<CliContext, _>(|params, info| {
                     Ok(display_backup_info(params.params, info))
                 })
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Display package backup information"),
         )
         .subcommand(
             "mount",
-            from_fn_async(mount).with_call_remote::<CliContext>(),
+            from_fn_async(mount)
+                .with_call_remote::<CliContext>()
+                .with_about("Mount backup target"),
         )
         .subcommand(
             "umount",
             from_fn_async(umount)
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Unmount backup target"),
         )
 }
 
