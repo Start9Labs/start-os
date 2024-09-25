@@ -29,7 +29,6 @@ export * from './components/menu/menu.component.module'
 export * from './components/menu/menu.component'
 export * from './components/registry.component'
 
-export * from './services/marketplace.service'
 export * from './services/category.service'
 
 export * from './types'

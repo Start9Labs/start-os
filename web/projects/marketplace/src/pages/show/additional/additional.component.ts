@@ -1,15 +1,14 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  inject,
+  EventEmitter,
   Input,
+  Output,
 } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
+import { CopyService } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { CopyService, MarkdownComponent } from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
-import { AbstractMarketplaceService } from '../../../services/marketplace.service'
 
 @Component({
   selector: 'marketplace-additional',
@@ -21,7 +20,8 @@ export class AdditionalComponent {
   @Input({ required: true })
   pkg!: MarketplacePkg
 
-  private readonly marketplaceService = inject(AbstractMarketplaceService)
+  @Output()
+  readonly static = new EventEmitter<string>()
 
   constructor(
     readonly copyService: CopyService,
@@ -30,19 +30,4 @@ export class AdditionalComponent {
   ) {}
 
   readonly url = this.route.snapshot.queryParamMap.get('url') || undefined
-
-  presentModalMd(label: string) {
-    this.dialogs
-      .open(new PolymorpheusComponent(MarkdownComponent), {
-        label,
-        size: 'l',
-        data: {
-          content: this.marketplaceService.getStatic$(
-            this.pkg,
-            label === 'License' ? 'LICENSE.md' : 'instructions.md',
-          ),
-        },
-      })
-      .subscribe()
-  }
 }

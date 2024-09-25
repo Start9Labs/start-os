@@ -28,7 +28,7 @@
       </ng-template>
       <!-- license -->
       <marketplace-additional-item
-        (click)="presentModalMd('License')"
+        (click)="static.emit('License')"
         [data]="pkg.license"
         label="License"
         icon="@tui.chevron-right"
@@ -36,7 +36,7 @@
       />
       <!-- instructions -->
       <marketplace-additional-item
-        (click)="presentModalMd('Instructions')"
+        (click)="static.emit('Instructions')"
         data="Click to view instructions"
         label="Instructions"
         icon="@tui.chevron-right"
