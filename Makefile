@@ -17,7 +17,7 @@ COMPAT_SRC := $(shell git ls-files system-images/compat/)
 UTILS_SRC := $(shell git ls-files system-images/utils/)
 BINFMT_SRC := $(shell git ls-files system-images/binfmt/)
 CORE_SRC := $(shell git ls-files core) $(shell git ls-files --recurse-submodules patch-db) $(GIT_HASH_FILE)
-WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist/index.js sdk/baseDist web/patchdb-ui-seed.json sdk/dist
+WEB_SHARED_SRC := $(shell git ls-files web/projects/shared) $(shell ls -p web/ | grep -v / | sed 's/^/web\//g') web/node_modules/.package-lock.json web/config.json patch-db/client/dist/index.js sdk/baseDist/package.json web/patchdb-ui-seed.json sdk/dist/package.json
 WEB_UI_SRC := $(shell git ls-files web/projects/ui)
 WEB_SETUP_WIZARD_SRC := $(shell git ls-files web/projects/setup-wizard)
 WEB_INSTALL_WIZARD_SRC := $(shell git ls-files web/projects/install-wizard)
@@ -226,23 +226,22 @@ container-runtime/node_modules/.package-lock.json: container-runtime/package.jso
 	npm --prefix container-runtime ci
 	touch container-runtime/node_modules/.package-lock.json
 
-sdk/base/lib/osBindings/index.ts: core/startos/bindings
+sdk/base/lib/osBindings/index.ts: core/startos/bindings/index.ts
 	mkdir -p sdk/base/lib/osBindings
-	ls core/startos/bindings/*.ts | sed 's/core\/startos\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' > core/startos/bindings/index.ts
-	npm --prefix sdk exec -- prettier --config ./sdk/base/package.json -w ./core/startos/bindings/*.ts
 	rsync -ac --delete core/startos/bindings/ sdk/base/lib/osBindings/
 	touch sdk/base/lib/osBindings/index.ts
 
 core/startos/bindings/index.ts: $(shell git ls-files core) $(ENVIRONMENT_FILE)
 	rm -rf core/startos/bindings
 	./core/build-ts.sh
-	ls core/startos/bindings/*.ts | sed 's/core\/startos\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' > core/startos/bindings/index.ts
-	npm --prefix sdk exec -- prettier --config ./sdk/package.json -w ./core/startos/bindings/*.ts
+	ls core/startos/bindings/*.ts | sed 's/core\/startos\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' | grep -v '"./index"' | tee core/startos/bindings/index.ts
+	npm --prefix sdk exec -- prettier --config ./sdk/base/package.json -w ./core/startos/bindings/*.ts
 	touch core/startos/bindings/index.ts
 
-sdk/dist/package.json: $(shell git ls-files sdk) sdk/base/lib/osBindings
+sdk/dist/package.json sdk/baseDist/package.json: $(shell git ls-files sdk) sdk/base/lib/osBindings/index.ts
 	(cd sdk && make bundle)
 	touch sdk/dist/package.json
+	touch sdk/baseDist/package.json
 
 # TODO: make container-runtime its own makefile?
 container-runtime/dist/index.js: container-runtime/node_modules/.package-lock.json $(shell git ls-files container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
