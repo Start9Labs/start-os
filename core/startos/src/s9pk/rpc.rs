@@ -21,7 +21,12 @@ pub const SKIP_ENV: &[&str] = &["TERM", "container", "HOME", "HOSTNAME"];
 
 pub fn s9pk() -> ParentHandler<CliContext> {
     ParentHandler::new()
-        .subcommand("pack", from_fn_async(super::v2::pack::pack).no_display())
+        .subcommand(
+            "pack",
+            from_fn_async(super::v2::pack::pack)
+                .no_display()
+                .with_about("Package s9pk input files into valid s9pk"),
+        )
         .subcommand(
             "list-ingredients",
             from_fn_async(super::v2::pack::list_ingredients)
@@ -46,7 +51,10 @@ pub fn s9pk() -> ParentHandler<CliContext> {
             "edit",
             edit().with_about("Commands to add an image to an s9pk or edit the manifest"),
         )
-        .subcommand("inspect", inspect())
+        .subcommand(
+            "inspect",
+            inspect().with_about("Commands to display file paths, file contents, or manifest"),
+        )
         .subcommand(
             "convert",
             from_fn_async(convert)
@@ -86,11 +94,15 @@ fn inspect() -> ParentHandler<CliContext, S9pkPath> {
             "file-tree",
             from_fn_async(file_tree)
                 .with_inherited(only_parent)
-                .with_display_serializable(),
+                .with_display_serializable()
+                .with_about("Display list of paths"),
         )
         .subcommand(
             "cat",
-            from_fn_async(cat).with_inherited(only_parent).no_display(),
+            from_fn_async(cat)
+                .with_inherited(only_parent)
+                .no_display()
+                .with_about("Display file contents"),
         )
         .subcommand(
             "manifest",

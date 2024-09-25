@@ -58,7 +58,9 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "repair",
             CallRemoteHandler::<CliContext, _, _>::new(
-                from_fn_async(|_: RpcContext| repair()).no_display(),
+                from_fn_async(|_: RpcContext| repair())
+                    .no_display()
+                    .with_about("Repair disk in the event of corruption"),
             ),
         )
 }
