@@ -249,7 +249,6 @@ impl TryFrom<ManifestV1> for Manifest {
             hardware_requirements: value.hardware_requirements,
             git_hash: value.git_hash,
             os_version: value.eos_version,
-            has_config: value.config.is_some(),
         })
     }
 }

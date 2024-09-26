@@ -29,7 +29,6 @@ pub mod action;
 pub mod auth;
 pub mod backup;
 pub mod bins;
-pub mod config;
 pub mod context;
 pub mod control;
 pub mod db;
@@ -70,7 +69,6 @@ pub mod volume;
 use std::time::SystemTime;
 
 use clap::Parser;
-pub use config::Config;
 pub use error::{Error, ErrorKind, ResultExt};
 use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
@@ -307,16 +305,7 @@ pub fn server<C: Context>() -> ParentHandler<C> {
 
 pub fn package<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand(
-            "action",
-            from_fn_async(action::action)
-                .with_display_serializable()
-                .with_custom_display_fn(|handle, result| {
-                    Ok(action::display_action_result(handle.params, result))
-                })
-                .with_call_remote::<CliContext>()
-                .with_about("Run a package action"),
-        )
+        .subcommand("action", action::action_api::<C>())
         .subcommand(
             "install",
             from_fn_async(install::install)
@@ -356,10 +345,6 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                 .with_display_serializable()
                 .with_call_remote::<CliContext>()
                 .with_about("Display installed version for a PackageId"),
-        )
-        .subcommand(
-            "config",
-            config::config::<C>().with_about("Get or Set package config"),
         )
         .subcommand(
             "start",
@@ -405,10 +390,6 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                 .with_about("Display package Properties"),
         )
         .subcommand(
-            "dependency",
-            dependencies::dependency::<C>().with_about("Configure a package dependency"),
-        )
-        .subcommand(
             "backup",
             backup::package_backup::<C>()
                 .with_about("Commands for restoring package(s) from backup"),
@@ -420,6 +401,13 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                 .no_display()
                 .with_about("Connect to a LXC container"),
         )
+        .subcommand(
+            "attach",
+            from_fn_async(service::attach)
+                .with_metadata("get_session", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand("attach", from_fn_async(service::cli_attach).no_display())
 }
 
 pub fn diagnostic_api() -> ParentHandler<DiagnosticContext> {

@@ -151,12 +151,12 @@ impl<G: GenericMountGuard> Drop for OverlayGuard<G> {
         let guard = self.inner_guard.take();
         if lower.is_some() || upper.is_some() || guard.mounted {
             tokio::spawn(async move {
-                guard.unmount(false).await.unwrap();
+                guard.unmount(false).await.log_err();
                 if let Some(lower) = lower {
-                    lower.unmount().await.unwrap();
+                    lower.unmount().await.log_err();
                 }
                 if let Some(upper) = upper {
-                    upper.delete().await.unwrap();
+                    upper.delete().await.log_err();
                 }
             });
         }

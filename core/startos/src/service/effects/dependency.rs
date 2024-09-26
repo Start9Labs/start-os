@@ -6,13 +6,13 @@ use clap::builder::ValueParserFactory;
 use exver::VersionRange;
 use imbl::OrdMap;
 use imbl_value::InternedString;
-use itertools::Itertools;
-use models::{HealthCheckId, PackageId, VersionString, VolumeId};
+use models::{FromStrParser, HealthCheckId, PackageId, ReplayId, VersionString, VolumeId};
 use patch_db::json_ptr::JsonPointer;
 use tokio::process::Command;
 
 use crate::db::model::package::{
-    CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind, ManifestPreference,
+    ActionRequestEntry, CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
+    ManifestPreference,
 };
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
@@ -20,7 +20,6 @@ use crate::disk::mount::filesystem::{FileSystem, MountType};
 use crate::rpc_continuations::Guid;
 use crate::service::effects::prelude::*;
 use crate::status::health_check::NamedHealthCheckResult;
-use crate::util::clap::FromStrParser;
 use crate::util::Invoke;
 use crate::volume::data_dir;
 
@@ -113,6 +112,7 @@ pub async fn expose_for_dependents(
     context: EffectContext,
     ExposeForDependentsParams { paths }: ExposeForDependentsParams,
 ) -> Result<(), Error> {
+    // TODO
     Ok(())
 }
 
@@ -192,16 +192,11 @@ impl ValueParserFactory for DependencyRequirement {
 #[command(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SetDependenciesParams {
-    #[serde(default)]
-    procedure_id: Guid,
     dependencies: Vec<DependencyRequirement>,
 }
 pub async fn set_dependencies(
     context: EffectContext,
-    SetDependenciesParams {
-        procedure_id,
-        dependencies,
-    }: SetDependenciesParams,
+    SetDependenciesParams { dependencies }: SetDependenciesParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
     let id = &context.seed.id;
@@ -222,19 +217,6 @@ pub async fn set_dependencies(
                 version_range,
             ),
         };
-        let config_satisfied =
-            if let Some(dep_service) = &*context.seed.ctx.services.get(&dep_id).await {
-                context
-                    .dependency_config(
-                        procedure_id.clone(),
-                        dep_id.clone(),
-                        dep_service.get_config(procedure_id.clone()).await?.config,
-                    )
-                    .await?
-                    .is_none()
-            } else {
-                true
-            };
         let info = CurrentDependencyInfo {
             title: context
                 .seed
@@ -251,7 +233,6 @@ pub async fn set_dependencies(
                 .await?,
             kind,
             version_range,
-            config_satisfied,
         };
         deps.insert(dep_id, info);
     }
@@ -282,7 +263,8 @@ pub async fn get_dependencies(context: EffectContext) -> Result<Vec<DependencyRe
         .as_current_dependencies()
         .de()?;
 
-    data.0
+    Ok(data
+        .0
         .into_iter()
         .map(|(id, current_dependency_info)| {
             let CurrentDependencyInfo {
@@ -290,7 +272,7 @@ pub async fn get_dependencies(context: EffectContext) -> Result<Vec<DependencyRe
                 kind,
                 ..
             } = current_dependency_info;
-            Ok::<_, Error>(match kind {
+            match kind {
                 CurrentDependencyKind::Exists => {
                     DependencyRequirement::Exists { id, version_range }
                 }
@@ -301,9 +283,9 @@ pub async fn get_dependencies(context: EffectContext) -> Result<Vec<DependencyRe
                         version_range,
                     }
                 }
-            })
+            }
         })
-        .try_collect()
+        .collect())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, TS)]
@@ -320,12 +302,10 @@ pub struct CheckDependenciesResult {
     package_id: PackageId,
     #[ts(type = "string | null")]
     title: Option<InternedString>,
-    #[ts(type = "string | null")]
-    installed_version: Option<exver::ExtendedVersion>,
-    #[ts(type = "string[]")]
+    installed_version: Option<VersionString>,
     satisfies: BTreeSet<VersionString>,
     is_running: bool,
-    config_satisfied: bool,
+    requested_actions: BTreeMap<ReplayId, ActionRequestEntry>,
     #[ts(as = "BTreeMap::<HealthCheckId, NamedHealthCheckResult>")]
     health_checks: OrdMap<HealthCheckId, NamedHealthCheckResult>,
 }
@@ -335,14 +315,14 @@ pub async fn check_dependencies(
 ) -> Result<Vec<CheckDependenciesResult>, Error> {
     let context = context.deref()?;
     let db = context.seed.ctx.db.peek().await;
-    let current_dependencies = db
+    let pde = db
         .as_public()
         .as_package_data()
         .as_idx(&context.seed.id)
-        .or_not_found(&context.seed.id)?
-        .as_current_dependencies()
-        .de()?;
-    let package_ids: Vec<_> = package_ids
+        .or_not_found(&context.seed.id)?;
+    let current_dependencies = pde.as_current_dependencies().de()?;
+    let requested_actions = pde.as_requested_actions().de()?;
+    let package_dependency_info: Vec<_> = package_ids
         .unwrap_or_else(|| current_dependencies.0.keys().cloned().collect())
         .into_iter()
         .filter_map(|x| {
@@ -350,18 +330,23 @@ pub async fn check_dependencies(
             Some((x, info))
         })
         .collect();
-    let mut results = Vec::with_capacity(package_ids.len());
+    let mut results = Vec::with_capacity(package_dependency_info.len());
 
-    for (package_id, dependency_info) in package_ids {
+    for (package_id, dependency_info) in package_dependency_info {
         let title = dependency_info.title.clone();
         let Some(package) = db.as_public().as_package_data().as_idx(&package_id) else {
+            let requested_actions = requested_actions
+                .iter()
+                .filter(|(_, v)| v.request.package_id == package_id)
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
             results.push(CheckDependenciesResult {
                 package_id,
                 title,
                 installed_version: None,
                 satisfies: BTreeSet::new(),
                 is_running: false,
-                config_satisfied: false,
+                requested_actions,
                 health_checks: Default::default(),
             });
             continue;
@@ -369,22 +354,27 @@ pub async fn check_dependencies(
         let manifest = package.as_state_info().as_manifest(ManifestPreference::New);
         let installed_version = manifest.as_version().de()?.into_version();
         let satisfies = manifest.as_satisfies().de()?;
-        let installed_version = Some(installed_version.clone());
+        let installed_version = Some(installed_version.clone().into());
         let is_installed = true;
-        let status = package.as_status().as_main().de()?;
+        let status = package.as_status().de()?;
         let is_running = if is_installed {
             status.running()
         } else {
             false
         };
         let health_checks = status.health().cloned().unwrap_or_default();
+        let requested_actions = requested_actions
+            .iter()
+            .filter(|(_, v)| v.request.package_id == package_id)
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
         results.push(CheckDependenciesResult {
             package_id,
             title,
             installed_version,
             satisfies,
             is_running,
-            config_satisfied: dependency_info.config_satisfied,
+            requested_actions,
             health_checks,
         });
     }

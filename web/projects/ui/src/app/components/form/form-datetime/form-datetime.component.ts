@@ -6,7 +6,7 @@ import {
   tuiPure,
   TuiTime,
 } from '@taiga-ui/cdk'
-import { CT } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-sdk'
 import { Control } from '../control'
 
 @Component({
@@ -14,7 +14,7 @@ import { Control } from '../control'
   templateUrl: './form-datetime.component.html',
 })
 export class FormDatetimeComponent extends Control<
-  CT.ValueSpecDatetime,
+  IST.ValueSpecDatetime,
   string
 > {
   readonly min = TUI_FIRST_DAY

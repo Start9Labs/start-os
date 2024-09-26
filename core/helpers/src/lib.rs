@@ -6,6 +6,7 @@ use std::time::Duration;
 use color_eyre::eyre::{eyre, Context, Error};
 use futures::future::BoxFuture;
 use futures::FutureExt;
+use models::ResultExt;
 use tokio::fs::File;
 use tokio::sync::oneshot;
 use tokio::task::{JoinError, JoinHandle, LocalSet};
@@ -176,7 +177,7 @@ impl Drop for AtomicFile {
         if let Some(file) = self.file.take() {
             drop(file);
             let path = std::mem::take(&mut self.tmp_path);
-            tokio::spawn(async move { tokio::fs::remove_file(path).await.unwrap() });
+            tokio::spawn(async move { tokio::fs::remove_file(path).await.log_err() });
         }
     }
 }

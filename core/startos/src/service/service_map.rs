@@ -23,7 +23,7 @@ use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
 use crate::service::{LoadDisposition, Service, ServiceRef};
-use crate::status::{MainStatus, Status};
+use crate::status::MainStatus;
 use crate::util::serde::Pem;
 
 pub type DownloadInstallFuture = BoxFuture<'static, Result<InstallFuture, Error>>;
@@ -174,16 +174,14 @@ impl ServiceMap {
                                     PackageState::Installing(installing)
                                 },
                                 data_version: None,
-                                status: Status {
-                                    configured: false,
-                                    main: MainStatus::Stopped,
-                                },
+                                status: MainStatus::Stopped,
                                 registry: None,
                                 developer_key: Pem::new(developer_key),
                                 icon,
                                 last_backup: None,
                                 current_dependencies: Default::default(),
                                 actions: Default::default(),
+                                requested_actions: Default::default(),
                                 service_interfaces: Default::default(),
                                 hosts: Default::default(),
                                 store_exposed_dependents: Default::default(),

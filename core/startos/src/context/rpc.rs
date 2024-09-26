@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
@@ -9,8 +9,11 @@ use std::time::Duration;
 
 use chrono::{TimeDelta, Utc};
 use helpers::NonDetachingJoinHandle;
+use imbl::OrdMap;
 use imbl_value::InternedString;
+use itertools::Itertools;
 use josekit::jwk::Jwk;
+use models::{ActionId, PackageId};
 use reqwest::{Client, Proxy};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty};
@@ -23,7 +26,6 @@ use crate::account::AccountInfo;
 use crate::auth::Sessions;
 use crate::context::config::ServerConfig;
 use crate::db::model::Database;
-use crate::dependencies::compute_dependency_config_errs;
 use crate::disk::OsPartitionInfo;
 use crate::init::check_time_is_synchronized;
 use crate::lxc::{ContainerId, LxcContainer, LxcManager};
@@ -33,6 +35,7 @@ use crate::net::wifi::WpaCli;
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};
 use crate::rpc_continuations::{Guid, OpenAuthedContinuations, RpcContinuations};
+use crate::service::action::update_requested_actions;
 use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
@@ -58,7 +61,7 @@ pub struct RpcContextSeed {
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
     pub tor_socks: SocketAddr,
     pub lxc_manager: Arc<LxcManager>,
-    pub open_authed_continuations: OpenAuthedContinuations<InternedString>,
+    pub open_authed_continuations: OpenAuthedContinuations<Option<InternedString>>,
     pub rpc_continuations: RpcContinuations,
     pub callbacks: ServiceCallbacks,
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
@@ -100,14 +103,14 @@ impl InitRpcContextPhases {
 pub struct CleanupInitPhases {
     cleanup_sessions: PhaseProgressTrackerHandle,
     init_services: PhaseProgressTrackerHandle,
-    check_dependencies: PhaseProgressTrackerHandle,
+    check_requested_actions: PhaseProgressTrackerHandle,
 }
 impl CleanupInitPhases {
     pub fn new(handle: &FullProgressTracker) -> Self {
         Self {
             cleanup_sessions: handle.add_phase("Cleaning up sessions".into(), Some(1)),
             init_services: handle.add_phase("Initializing services".into(), Some(10)),
-            check_dependencies: handle.add_phase("Checking dependencies".into(), Some(1)),
+            check_requested_actions: handle.add_phase("Checking action requests".into(), Some(1)),
         }
     }
 }
@@ -309,7 +312,7 @@ impl RpcContext {
         CleanupInitPhases {
             mut cleanup_sessions,
             init_services,
-            mut check_dependencies,
+            mut check_requested_actions,
         }: CleanupInitPhases,
     ) -> Result<(), Error> {
         cleanup_sessions.start();
@@ -366,35 +369,68 @@ impl RpcContext {
         cleanup_sessions.complete();
 
         self.services.init(&self, init_services).await?;
-        tracing::info!("Initialized Package Managers");
+        tracing::info!("Initialized Services");
 
-        check_dependencies.start();
-        let mut updated_current_dependents = BTreeMap::new();
+        // TODO
+        check_requested_actions.start();
         let peek = self.db.peek().await;
-        for (package_id, package) in peek.as_public().as_package_data().as_entries()?.into_iter() {
-            let package = package.clone();
-            let mut current_dependencies = package.as_current_dependencies().de()?;
-            compute_dependency_config_errs(self, &package_id, &mut current_dependencies)
-                .await
-                .log_err();
-            updated_current_dependents.insert(package_id.clone(), current_dependencies);
+        let mut action_input: OrdMap<PackageId, BTreeMap<ActionId, Value>> = OrdMap::new();
+        let requested_actions: BTreeSet<_> = peek
+            .as_public()
+            .as_package_data()
+            .as_entries()?
+            .into_iter()
+            .map(|(_, pde)| {
+                Ok(pde
+                    .as_requested_actions()
+                    .as_entries()?
+                    .into_iter()
+                    .map(|(_, r)| {
+                        Ok::<_, Error>((
+                            r.as_request().as_package_id().de()?,
+                            r.as_request().as_action_id().de()?,
+                        ))
+                    }))
+            })
+            .flatten_ok()
+            .map(|a| a.and_then(|a| a))
+            .try_collect()?;
+        let procedure_id = Guid::new();
+        for (package_id, action_id) in requested_actions {
+            if let Some(service) = self.services.get(&package_id).await.as_ref() {
+                if let Some(input) = service
+                    .get_action_input(procedure_id.clone(), action_id.clone())
+                    .await?
+                    .and_then(|i| i.value)
+                {
+                    action_input
+                        .entry(package_id)
+                        .or_default()
+                        .insert(action_id, input);
+                }
+            }
         }
         self.db
-            .mutate(|v| {
-                for (package_id, deps) in updated_current_dependents {
-                    if let Some(model) = v
-                        .as_public_mut()
-                        .as_package_data_mut()
-                        .as_idx_mut(&package_id)
-                        .map(|i| i.as_current_dependencies_mut())
-                    {
-                        model.ser(&deps)?;
+            .mutate(|db| {
+                for (package_id, action_input) in &action_input {
+                    for (action_id, input) in action_input {
+                        for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
+                            pde.as_requested_actions_mut().mutate(|requested_actions| {
+                                Ok(update_requested_actions(
+                                    requested_actions,
+                                    package_id,
+                                    action_id,
+                                    input,
+                                    false,
+                                ))
+                            })?;
+                        }
                     }
                 }
                 Ok(())
             })
             .await?;
-        check_dependencies.complete();
+        check_requested_actions.complete();
 
         Ok(())
     }
@@ -431,8 +467,8 @@ impl AsRef<RpcContinuations> for RpcContext {
         &self.rpc_continuations
     }
 }
-impl AsRef<OpenAuthedContinuations<InternedString>> for RpcContext {
-    fn as_ref(&self) -> &OpenAuthedContinuations<InternedString> {
+impl AsRef<OpenAuthedContinuations<Option<InternedString>>> for RpcContext {
+    fn as_ref(&self) -> &OpenAuthedContinuations<Option<InternedString>> {
         &self.open_authed_continuations
     }
 }

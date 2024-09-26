@@ -15,8 +15,8 @@ use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
 use crate::net::forward::LanPortForwardController;
 use crate::net::host::address::HostAddress;
-use crate::net::host::binding::{AddSslOptions, BindOptions, LanInfo};
-use crate::net::host::{host_for, Host, HostKind};
+use crate::net::host::binding::{AddSslOptions, BindId, BindOptions, LanInfo};
+use crate::net::host::{host_for, Host, HostKind, Hosts};
 use crate::net::service_interface::{HostnameInfo, IpHostname, OnionHostname};
 use crate::net::tor::TorController;
 use crate::net::vhost::{AlpnInfo, VHostController};
@@ -154,14 +154,16 @@ impl NetController {
     ) -> Result<NetService, Error> {
         let dns = self.dns.add(Some(package.clone()), ip).await?;
 
-        Ok(NetService {
+        let mut res = NetService {
             shutdown: false,
             id: package,
             ip,
             dns,
             controller: Arc::downgrade(self),
             binds: BTreeMap::new(),
-        })
+        };
+        res.clear_bindings(Default::default()).await?;
+        Ok(res)
     }
 }
 
@@ -221,31 +223,41 @@ impl NetService {
         self.update(id, host).await
     }
 
-    pub async fn clear_bindings(&mut self) -> Result<(), Error> {
-        let ctrl = self.net_controller()?;
+    pub async fn clear_bindings(&mut self, except: BTreeSet<BindId>) -> Result<(), Error> {
+        let pkg_id = &self.id;
+        let hosts = self
+            .net_controller()?
+            .db
+            .mutate(|db| {
+                let mut res = Hosts::default();
+                for (host_id, host) in db
+                    .as_public_mut()
+                    .as_package_data_mut()
+                    .as_idx_mut(pkg_id)
+                    .or_not_found(pkg_id)?
+                    .as_hosts_mut()
+                    .as_entries_mut()?
+                {
+                    host.as_bindings_mut().mutate(|b| {
+                        for (internal_port, info) in b {
+                            if !except.contains(&BindId {
+                                id: host_id.clone(),
+                                internal_port: *internal_port,
+                            }) {
+                                info.disable();
+                            }
+                        }
+                        Ok(())
+                    })?;
+                    res.0.insert(host_id, host.de()?);
+                }
+                Ok(res)
+            })
+            .await?;
         let mut errors = ErrorCollection::new();
-        for (_, binds) in std::mem::take(&mut self.binds) {
-            for (_, (lan, _, hostnames, rc)) in binds.lan {
-                drop(rc);
-                if let Some(external) = lan.assigned_ssl_port {
-                    for hostname in ctrl.server_hostnames.iter().cloned() {
-                        ctrl.vhost.gc(hostname, external).await?;
-                    }
-                    for hostname in hostnames {
-                        ctrl.vhost.gc(Some(hostname), external).await?;
-                    }
-                }
-                if let Some(external) = lan.assigned_port {
-                    ctrl.forward.gc(external).await?;
-                }
-            }
-            for (addr, (_, rcs)) in binds.tor {
-                drop(rcs);
-                errors.handle(ctrl.tor.gc(Some(addr), None).await);
-            }
+        for (id, host) in hosts.0 {
+            errors.handle(self.update(id, host).await);
         }
-        std::mem::take(&mut self.dns);
-        errors.handle(ctrl.dns.gc(Some(self.id.clone()), self.ip).await);
         errors.into_result()
     }
 
@@ -261,6 +273,9 @@ impl NetService {
         let ip_info = server_info.as_ip_info().de()?;
         let hostname = server_info.as_hostname().de()?;
         for (port, bind) in &host.bindings {
+            if !bind.enabled {
+                continue;
+            }
             let old_lan_bind = binds.lan.remove(port);
             let lan_bind = old_lan_bind
                 .as_ref()
@@ -395,7 +410,7 @@ impl NetService {
         }
         let mut removed = BTreeSet::new();
         binds.lan.retain(|internal, (external, _, hostnames, _)| {
-            if host.bindings.contains_key(internal) {
+            if host.bindings.get(internal).map_or(false, |b| b.enabled) {
                 true
             } else {
                 removed.insert((*external, std::mem::take(hostnames)));
@@ -424,6 +439,9 @@ impl NetService {
         let mut tor_hostname_ports = BTreeMap::<u16, TorHostnamePorts>::new();
         let mut tor_binds = OrdMap::<u16, SocketAddr>::new();
         for (internal, info) in &host.bindings {
+            if !info.enabled {
+                continue;
+            }
             tor_binds.insert(
                 info.options.preferred_external_port,
                 SocketAddr::from((self.ip, *internal)),
@@ -511,7 +529,7 @@ impl NetService {
     pub async fn remove_all(mut self) -> Result<(), Error> {
         self.shutdown = true;
         if let Some(ctrl) = Weak::upgrade(&self.controller) {
-            self.clear_bindings().await?;
+            self.clear_bindings(Default::default()).await?;
             drop(ctrl);
             Ok(())
         } else {
@@ -566,7 +584,7 @@ impl Drop for NetService {
                     binds: BTreeMap::new(),
                 },
             );
-            tokio::spawn(async move { svc.remove_all().await.unwrap() });
+            tokio::spawn(async move { svc.remove_all().await.log_err() });
         }
     }
 }

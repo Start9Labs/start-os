@@ -9,7 +9,7 @@ import {
 import { WINDOW } from '@ng-web-apis/common'
 import * as argon2 from '@start9labs/argon2'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { CB } from '@start9labs/start-sdk'
+import { ISB } from '@start9labs/start-sdk'
 import { TuiAlertService, TuiDialogService } from '@taiga-ui/core'
 import { TUI_PROMPT } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
@@ -694,22 +694,22 @@ interface SettingBtn {
   disabled$: Observable<boolean>
 }
 
-const passwordSpec = CB.Config.of({
-  currentPassword: CB.Value.text({
+const passwordSpec = ISB.InputSpec.of({
+  currentPassword: ISB.Value.text({
     name: 'Current Password',
     required: {
       default: null,
     },
     masked: true,
   }),
-  newPassword1: CB.Value.text({
+  newPassword1: ISB.Value.text({
     name: 'New Password',
     required: {
       default: null,
     },
     masked: true,
   }),
-  newPassword2: CB.Value.text({
+  newPassword2: ISB.Value.text({
     name: 'Retype New Password',
     required: {
       default: null,

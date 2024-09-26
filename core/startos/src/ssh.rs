@@ -5,6 +5,7 @@ use clap::builder::ValueParserFactory;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use imbl_value::InternedString;
+use models::FromStrParser;
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -12,7 +13,6 @@ use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
-use crate::util::clap::FromStrParser;
 use crate::util::io::create_file;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 

@@ -141,7 +141,7 @@ impl Drop for BackupStatusGuard {
                         .ser(&None)
                 })
                 .await
-                .unwrap()
+                .log_err()
             });
         }
     }

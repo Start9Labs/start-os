@@ -128,7 +128,7 @@ pub struct SubscribeParams {
     pointer: Option<JsonPointer>,
     #[ts(skip)]
     #[serde(rename = "__auth_session")]
-    session: InternedString,
+    session: Option<InternedString>,
 }
 
 #[derive(Deserialize, Serialize, TS)]

@@ -1,9 +1,9 @@
-import { CB } from '@start9labs/start-sdk'
+import { ISB } from '@start9labs/start-sdk'
 
 export async function configBuilderToSpec(
   builder:
-    | CB.Config<Record<string, unknown>, unknown>
-    | CB.Config<Record<string, unknown>, never>,
+    | ISB.InputSpec<Record<string, unknown>, unknown>
+    | ISB.InputSpec<Record<string, unknown>, never>,
 ) {
   return builder.build({} as any)
 }

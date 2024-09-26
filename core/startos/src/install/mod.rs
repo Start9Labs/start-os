@@ -9,7 +9,7 @@ use exver::VersionRange;
 use futures::{AsyncWriteExt, StreamExt};
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
-use models::VersionString;
+use models::{FromStrParser, VersionString};
 use reqwest::header::{HeaderMap, CONTENT_LENGTH};
 use reqwest::Url;
 use rpc_toolkit::yajrc::{GenericRpcMethod, RpcError};
@@ -30,7 +30,6 @@ use crate::registry::package::get::GetPackageResponse;
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::manifest::PackageId;
 use crate::upload::upload;
-use crate::util::clap::FromStrParser;
 use crate::util::io::open_file;
 use crate::util::net::WebSocketExt;
 use crate::util::Never;
@@ -173,7 +172,7 @@ pub async fn install(
 pub struct SideloadParams {
     #[ts(skip)]
     #[serde(rename = "__auth_session")]
-    session: InternedString,
+    session: Option<InternedString>,
 }
 
 #[derive(Deserialize, Serialize, TS)]
