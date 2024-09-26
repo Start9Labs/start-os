@@ -195,7 +195,7 @@ oldSpecToBuilder(
           default: true,
         },
         avoidpartialspends: {
-          name: "avoid Partial Spends",
+          name: "Avoid Partial Spends",
           description:
             "Group outputs by address, selecting all or none, instead of selecting on a per-output basis. This improves privacy at the expense of higher transaction fees.",
           type: "boolean",

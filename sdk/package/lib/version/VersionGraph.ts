@@ -45,7 +45,7 @@ export class VersionGraph<CurrentVersion extends string> {
               VersionInfo<any>,
               Vertex<
                 ExtendedVersion | VersionRange,
-                (opts: { effects: T.Effects }) => Promise<null>
+                (opts: { effects: T.Effects }) => Promise<void>
               >,
             ]
           | undefined = undefined
