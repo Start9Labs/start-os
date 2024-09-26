@@ -27,7 +27,7 @@ const TIMES_TO_WAIT_FOR_PROC = 100
  * case where the subcontainer isn't owned by the process, the subcontainer shouldn't be destroyed.
  */
 export interface ExecSpawnable {
-  get destroy(): undefined | (() => Promise<void>)
+  get destroy(): undefined | (() => Promise<null>)
   exec(
     command: string[],
     options?: CommandOptions & ExecOptions,
@@ -47,7 +47,7 @@ export interface ExecSpawnable {
 export class SubContainer implements ExecSpawnable {
   private leader: cp.ChildProcess
   private leaderExited: boolean = false
-  private waitProc: () => Promise<void>
+  private waitProc: () => Promise<null>
   private constructor(
     readonly effects: T.Effects,
     readonly imageId: T.ImageId,
@@ -79,7 +79,7 @@ export class SubContainer implements ExecSpawnable {
             }
             await wait(1)
           }
-          resolve()
+          resolve(null)
         }),
     )
   }
@@ -180,12 +180,12 @@ export class SubContainer implements ExecSpawnable {
     if (this.leaderExited) {
       return
     }
-    return new Promise<void>((resolve, reject) => {
+    return new Promise<null>((resolve, reject) => {
       try {
         let timeout = setTimeout(() => this.leader.kill("SIGKILL"), 30000)
         this.leader.on("exit", () => {
           clearTimeout(timeout)
-          resolve()
+          resolve(null)
         })
         if (!this.leader.kill("SIGTERM")) {
           reject(new Error("kill(2) failed"))
@@ -201,6 +201,7 @@ export class SubContainer implements ExecSpawnable {
       const guid = this.guid
       await this.killLeader()
       await this.effects.subcontainer.destroyFs({ guid })
+      return null
     }
   }
 
@@ -245,16 +246,16 @@ export class SubContainer implements ExecSpawnable {
       options || {},
     )
     if (options?.input) {
-      await new Promise<void>((resolve, reject) =>
+      await new Promise<null>((resolve, reject) =>
         child.stdin.write(options.input, (e) => {
           if (e) {
             reject(e)
           } else {
-            resolve()
+            resolve(null)
           }
         }),
       )
-      await new Promise<void>((resolve) => child.stdin.end(resolve))
+      await new Promise<null>((resolve) => child.stdin.end(resolve))
     }
     const pid = child.pid
     const stdout = { data: "" as string | Buffer }

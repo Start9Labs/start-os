@@ -1,17 +1,17 @@
 import { boolean } from "ts-matches"
 
-export type Vertex<VMetadata = void, EMetadata = void> = {
+export type Vertex<VMetadata = null, EMetadata = null> = {
   metadata: VMetadata
   edges: Array<Edge<EMetadata, VMetadata>>
 }
 
-export type Edge<EMetadata = void, VMetadata = void> = {
+export type Edge<EMetadata = null, VMetadata = null> = {
   metadata: EMetadata
   from: Vertex<VMetadata, EMetadata>
   to: Vertex<VMetadata, EMetadata>
 }
 
-export class Graph<VMetadata = void, EMetadata = void> {
+export class Graph<VMetadata = null, EMetadata = null> {
   private readonly vertices: Array<Vertex<VMetadata, EMetadata>> = []
   constructor() {}
   addVertex(
@@ -46,7 +46,7 @@ export class Graph<VMetadata = void, EMetadata = void> {
   }
   findVertex(
     predicate: (vertex: Vertex<VMetadata, EMetadata>) => boolean,
-  ): Generator<Vertex<VMetadata, EMetadata>, void> {
+  ): Generator<Vertex<VMetadata, EMetadata>, null> {
     const veritces = this.vertices
     function* gen() {
       for (let vertex of veritces) {
@@ -54,6 +54,7 @@ export class Graph<VMetadata = void, EMetadata = void> {
           yield vertex
         }
       }
+      return null
     }
     return gen()
   }
@@ -75,13 +76,13 @@ export class Graph<VMetadata = void, EMetadata = void> {
     from:
       | Vertex<VMetadata, EMetadata>
       | ((vertex: Vertex<VMetadata, EMetadata>) => boolean),
-  ): Generator<Vertex<VMetadata, EMetadata>, void> {
+  ): Generator<Vertex<VMetadata, EMetadata>, null> {
     const visited: Array<Vertex<VMetadata, EMetadata>> = []
     function* rec(
       vertex: Vertex<VMetadata, EMetadata>,
-    ): Generator<Vertex<VMetadata, EMetadata>, void> {
+    ): Generator<Vertex<VMetadata, EMetadata>, null> {
       if (visited.includes(vertex)) {
-        return
+        return null
       }
       visited.push(vertex)
       yield vertex
@@ -99,6 +100,7 @@ export class Graph<VMetadata = void, EMetadata = void> {
           }
         }
       }
+      return null
     }
 
     if (from instanceof Function) {
@@ -115,6 +117,7 @@ export class Graph<VMetadata = void, EMetadata = void> {
             }
           }
         }
+        return null
       })()
     } else {
       return rec(from)
@@ -124,13 +127,13 @@ export class Graph<VMetadata = void, EMetadata = void> {
     to:
       | Vertex<VMetadata, EMetadata>
       | ((vertex: Vertex<VMetadata, EMetadata>) => boolean),
-  ): Generator<Vertex<VMetadata, EMetadata>, void> {
+  ): Generator<Vertex<VMetadata, EMetadata>, null> {
     const visited: Array<Vertex<VMetadata, EMetadata>> = []
     function* rec(
       vertex: Vertex<VMetadata, EMetadata>,
-    ): Generator<Vertex<VMetadata, EMetadata>, void> {
+    ): Generator<Vertex<VMetadata, EMetadata>, null> {
       if (visited.includes(vertex)) {
-        return
+        return null
       }
       visited.push(vertex)
       yield vertex
@@ -148,6 +151,7 @@ export class Graph<VMetadata = void, EMetadata = void> {
           }
         }
       }
+      return null
     }
 
     if (to instanceof Function) {
@@ -164,6 +168,7 @@ export class Graph<VMetadata = void, EMetadata = void> {
             }
           }
         }
+        return null
       })()
     } else {
       return rec(to)
@@ -176,7 +181,7 @@ export class Graph<VMetadata = void, EMetadata = void> {
     to:
       | Vertex<VMetadata, EMetadata>
       | ((vertex: Vertex<VMetadata, EMetadata>) => boolean),
-  ): Array<Edge<EMetadata, VMetadata>> | void {
+  ): Array<Edge<EMetadata, VMetadata>> | null {
     const isDone =
       to instanceof Function
         ? to
@@ -186,12 +191,12 @@ export class Graph<VMetadata = void, EMetadata = void> {
     function* check(
       vertex: Vertex<VMetadata, EMetadata>,
       path: Array<Edge<EMetadata, VMetadata>>,
-    ): Generator<undefined, Array<Edge<EMetadata, VMetadata>> | undefined> {
+    ): Generator<undefined, Array<Edge<EMetadata, VMetadata>> | null> {
       if (isDone(vertex)) {
         return path
       }
       if (visited.includes(vertex)) {
-        return
+        return null
       }
       visited.push(vertex)
       yield
@@ -213,6 +218,7 @@ export class Graph<VMetadata = void, EMetadata = void> {
           }
         }
       }
+      return null
     }
 
     if (from instanceof Function) {
@@ -240,5 +246,6 @@ export class Graph<VMetadata = void, EMetadata = void> {
         }
       }
     }
+    return null
   }
 }

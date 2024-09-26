@@ -1,4 +1,5 @@
 import * as T from "../types"
+import { once } from "../util"
 import { Dependency } from "./Dependency"
 
 type DependencyType<Manifest extends T.Manifest> = {
@@ -17,40 +18,38 @@ type DependencyType<Manifest extends T.Manifest> = {
 
 export function setupDependencies<Manifest extends T.Manifest>(
   fn: (options: { effects: T.Effects }) => Promise<DependencyType<Manifest>>,
-): (options: { effects: T.Effects }) => Promise<void> {
-  return (options: { effects: T.Effects }) => {
-    const updater = async (options: { effects: T.Effects }) => {
-      const dependencyType = await fn(options)
-      return await options.effects.setDependencies({
-        dependencies: Object.entries(dependencyType).map(
-          ([
-            id,
-            {
-              data: { versionRange, ...x },
-            },
-          ]) => ({
-            id,
-            ...x,
-            ...(x.type === "running"
-              ? {
-                  kind: "running",
-                  healthChecks: x.healthChecks,
-                }
-              : {
-                  kind: "exists",
-                }),
-            versionRange: versionRange.toString(),
-          }),
-        ),
-      })
+): (options: { effects: T.Effects }) => Promise<null> {
+  const cell = { updater: async (_: { effects: T.Effects }) => null }
+  cell.updater = async (options: { effects: T.Effects }) => {
+    options.effects = {
+      ...options.effects,
+      constRetry: once(() => {
+        cell.updater(options)
+      }),
     }
-    const updaterCtx = { options }
-    updaterCtx.options = {
-      effects: {
-        ...options.effects,
-        constRetry: () => updater(updaterCtx.options),
-      },
-    }
-    return updater(updaterCtx.options)
+    const dependencyType = await fn(options)
+    return await options.effects.setDependencies({
+      dependencies: Object.entries(dependencyType).map(
+        ([
+          id,
+          {
+            data: { versionRange, ...x },
+          },
+        ]) => ({
+          id,
+          ...x,
+          ...(x.type === "running"
+            ? {
+                kind: "running",
+                healthChecks: x.healthChecks,
+              }
+            : {
+                kind: "exists",
+              }),
+          versionRange: versionRange.toString(),
+        }),
+      ),
+    })
   }
+  return cell.updater
 }

@@ -13,15 +13,15 @@ export type CheckDependencies<DependencyId extends PackageId = PackageId> = {
   ) => boolean
   satisfied: () => boolean
 
-  throwIfInstalledNotSatisfied: (packageId: DependencyId) => void
-  throwIfInstalledVersionNotSatisfied: (packageId: DependencyId) => void
-  throwIfRunningNotSatisfied: (packageId: DependencyId) => void
-  throwIfActionsNotSatisfied: (packageId: DependencyId) => void
+  throwIfInstalledNotSatisfied: (packageId: DependencyId) => null
+  throwIfInstalledVersionNotSatisfied: (packageId: DependencyId) => null
+  throwIfRunningNotSatisfied: (packageId: DependencyId) => null
+  throwIfActionsNotSatisfied: (packageId: DependencyId) => null
   throwIfHealthNotSatisfied: (
     packageId: DependencyId,
     healthCheckId?: HealthCheckId,
-  ) => void
-  throwIfNotSatisfied: (packageId?: DependencyId) => void
+  ) => null
+  throwIfNotSatisfied: (packageId?: DependencyId) => null
 }
 export async function checkDependencies<
   DependencyId extends PackageId = PackageId,
@@ -100,6 +100,7 @@ export async function checkDependencies<
     if (!dep.result.installedVersion) {
       throw new Error(`${dep.result.title || packageId} is not installed`)
     }
+    return null
   }
   const throwIfInstalledVersionNotSatisfied = (packageId: DependencyId) => {
     const dep = find(packageId)
@@ -117,12 +118,14 @@ export async function checkDependencies<
         `Installed version ${dep.result.installedVersion} of ${dep.result.title || packageId} does not match expected version range ${dep.requirement.versionRange}`,
       )
     }
+    return null
   }
   const throwIfRunningNotSatisfied = (packageId: DependencyId) => {
     const dep = find(packageId)
     if (dep.requirement.kind === "running" && !dep.result.isRunning) {
       throw new Error(`${dep.result.title || packageId} is not running`)
     }
+    return null
   }
   const throwIfActionsNotSatisfied = (packageId: DependencyId) => {
     const dep = find(packageId)
@@ -132,6 +135,7 @@ export async function checkDependencies<
         `The following action requests have not been fulfilled: ${reqs.join(", ")}`,
       )
     }
+    return null
   }
   const throwIfHealthNotSatisfied = (
     packageId: DependencyId,
@@ -158,6 +162,7 @@ export async function checkDependencies<
           .join("; "),
       )
     }
+    return null
   }
   const throwIfPkgNotSatisfied = (packageId: DependencyId) => {
     throwIfInstalledNotSatisfied(packageId)
@@ -165,6 +170,7 @@ export async function checkDependencies<
     throwIfRunningNotSatisfied(packageId)
     throwIfActionsNotSatisfied(packageId)
     throwIfHealthNotSatisfied(packageId)
+    return null
   }
   const throwIfNotSatisfied = (packageId?: DependencyId) =>
     packageId
@@ -182,6 +188,7 @@ export async function checkDependencies<
           if (err.length) {
             throw new Error(err.join("; "))
           }
+          return null
         })()
 
   return {

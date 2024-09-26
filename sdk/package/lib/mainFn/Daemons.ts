@@ -74,7 +74,7 @@ export class Daemons<Manifest extends T.Manifest, Ids extends string>
 {
   private constructor(
     readonly effects: T.Effects,
-    readonly started: (onTerm: () => PromiseLike<void>) => PromiseLike<void>,
+    readonly started: (onTerm: () => PromiseLike<void>) => PromiseLike<null>,
     readonly daemons: Promise<Daemon>[],
     readonly ids: Ids[],
     readonly healthDaemons: HealthDaemon[],
@@ -86,17 +86,17 @@ export class Daemons<Manifest extends T.Manifest, Ids extends string>
    *
    * Daemons run in the order they are defined, with latter daemons being capable of
    * depending on prior daemons
-   * @param inputSpec
+   * @param options
    * @returns
    */
-  static of<Manifest extends T.Manifest>(inputSpec: {
+  static of<Manifest extends T.Manifest>(options: {
     effects: T.Effects
-    started: (onTerm: () => PromiseLike<void>) => PromiseLike<void>
+    started: (onTerm: () => PromiseLike<void>) => PromiseLike<null>
     healthReceipts: HealthReceipt[]
   }) {
     return new Daemons<Manifest, never>(
-      inputSpec.effects,
-      inputSpec.started,
+      options.effects,
+      options.started,
       [],
       [],
       [],

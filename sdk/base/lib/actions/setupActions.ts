@@ -1,6 +1,7 @@
 import { InputSpec } from "./input/builder"
 import { ExtractInputSpecType } from "./input/builder/inputSpec"
 import * as T from "../types"
+import { once } from "../util"
 
 export type Run<
   A extends
@@ -130,21 +131,19 @@ export class Actions<
   ): Actions<Store, AllActions & { [id in A["id"]]: A }> {
     return new Actions({ ...this.actions, [action.id]: action })
   }
-  update(options: { effects: T.Effects }): Promise<void> {
-    const updater = async (options: { effects: T.Effects }) => {
-      for (let action of Object.values(this.actions)) {
-        await action.exportMetadata(options)
-      }
-      await options.effects.action.clear({ except: Object.keys(this.actions) })
+  async update(options: { effects: T.Effects }): Promise<null> {
+    options.effects = {
+      ...options.effects,
+      constRetry: once(() => {
+        this.update(options) // yes, this reuses the options object, but the const retry function will be overwritten each time, so the once-ness is not a problem
+      }),
     }
-    const updaterCtx = { options }
-    updaterCtx.options = {
-      effects: {
-        ...options.effects,
-        constRetry: () => updater(updaterCtx.options),
-      },
+    for (let action of Object.values(this.actions)) {
+      await action.exportMetadata(options)
     }
-    return updater(updaterCtx.options)
+    await options.effects.action.clear({ except: Object.keys(this.actions) })
+
+    return null
   }
   get<Id extends T.ActionId>(actionId: Id): AllActions[Id] {
     return this.actions[actionId]

@@ -6,7 +6,7 @@ import { IMPOSSIBLE, VersionInfo } from "./VersionInfo"
 export class VersionGraph<CurrentVersion extends string> {
   private readonly graph: () => Graph<
     ExtendedVersion | VersionRange,
-    ((opts: { effects: T.Effects }) => Promise<void>) | undefined
+    ((opts: { effects: T.Effects }) => Promise<null>) | undefined
   >
   private constructor(
     readonly current: VersionInfo<CurrentVersion>,
@@ -15,7 +15,7 @@ export class VersionGraph<CurrentVersion extends string> {
     this.graph = once(() => {
       const graph = new Graph<
         ExtendedVersion | VersionRange,
-        ((opts: { effects: T.Effects }) => Promise<void>) | undefined
+        ((opts: { effects: T.Effects }) => Promise<null>) | undefined
       >()
       const flavorMap: Record<
         string,
@@ -24,7 +24,7 @@ export class VersionGraph<CurrentVersion extends string> {
           VersionInfo<any>,
           Vertex<
             ExtendedVersion | VersionRange,
-            ((opts: { effects: T.Effects }) => Promise<void>) | undefined
+            ((opts: { effects: T.Effects }) => Promise<null>) | undefined
           >,
         ][]
       > = {}
@@ -45,7 +45,7 @@ export class VersionGraph<CurrentVersion extends string> {
               VersionInfo<any>,
               Vertex<
                 ExtendedVersion | VersionRange,
-                (opts: { effects: T.Effects }) => Promise<void>
+                (opts: { effects: T.Effects }) => Promise<null>
               >,
             ]
           | undefined = undefined

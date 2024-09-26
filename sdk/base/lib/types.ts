@@ -54,7 +54,7 @@ export namespace ExpectedExports {
    */
   export type main = (options: {
     effects: Effects
-    started(onTerm: () => PromiseLike<void>): PromiseLike<void>
+    started(onTerm: () => PromiseLike<void>): PromiseLike<null>
   }) => Promise<DaemonBuildable>
 
   /**
@@ -118,7 +118,7 @@ export type DaemonReceipt = {
 }
 export type Daemon = {
   wait(): Promise<string>
-  term(): Promise<void>
+  term(): Promise<null>
   [DaemonProof]: never
 }
 
@@ -135,7 +135,7 @@ export type CommandType = string | [string, ...string[]]
 
 export type DaemonReturned = {
   wait(): Promise<unknown>
-  term(options?: { signal?: Signals; timeout?: number }): Promise<void>
+  term(options?: { signal?: Signals; timeout?: number }): Promise<null>
 }
 
 export declare const hostName: unique symbol

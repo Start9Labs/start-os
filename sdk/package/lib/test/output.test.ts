@@ -65,7 +65,7 @@ describe("Inputs", () => {
     },
     "zmq-enabled": false,
     txindex: false,
-    wallet: { enable: false, avoidpartialspends: false, discardfee: 0.0001 },
+    wallet: { enable: false, anullpartialspends: false, discardfee: 0.0001 },
     advanced: {
       mempool: {
         maxmempool: 1,
