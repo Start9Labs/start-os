@@ -82,18 +82,32 @@ pub fn registry_api<C: Context>() -> ParentHandler<C> {
             "index",
             from_fn_async(get_full_index)
                 .with_display_serializable()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("List info including registry name and packages"),
         )
         .subcommand(
             "info",
             from_fn_async(get_info)
                 .with_display_serializable()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Display registry name, icon, and package categories"),
         )
-        .subcommand("os", os::os_api::<C>())
-        .subcommand("package", package::package_api::<C>())
-        .subcommand("admin", admin::admin_api::<C>())
-        .subcommand("db", db::db_api::<C>())
+        .subcommand(
+            "os",
+            os::os_api::<C>().with_about("Commands related to OS assets and versions"),
+        )
+        .subcommand(
+            "package",
+            package::package_api::<C>().with_about("Commands to index, add, or get packages"),
+        )
+        .subcommand(
+            "admin",
+            admin::admin_api::<C>().with_about("Commands to add or list admins or signers"),
+        )
+        .subcommand(
+            "db",
+            db::db_api::<C>().with_about("Commands to interact with the db i.e. dump and apply"),
+        )
 }
 
 pub fn registry_router(ctx: RegistryContext) -> Router {

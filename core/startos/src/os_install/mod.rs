@@ -31,18 +31,20 @@ mod mbr;
 
 pub fn install<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("disk", disk::<C>())
+        .subcommand("disk", disk::<C>().with_about("Command to list disk info"))
         .subcommand(
             "execute",
             from_fn_async(execute::<InstallContext>)
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Install StartOS over existing version"),
         )
         .subcommand(
             "reboot",
             from_fn_async(reboot)
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Restart the server"),
         )
 }
 
@@ -51,7 +53,8 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
         "list",
         from_fn_async(list)
             .no_display()
-            .with_call_remote::<CliContext>(),
+            .with_call_remote::<CliContext>()
+            .with_about("List disk info"),
     )
 }
 

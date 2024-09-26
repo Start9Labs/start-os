@@ -15,8 +15,16 @@ pub fn os_api<C: Context>() -> ParentHandler<C> {
             "index",
             from_fn_async(index::get_os_index)
                 .with_display_serializable()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("List index of OS versions"),
         )
-        .subcommand("asset", asset::asset_api::<C>())
-        .subcommand("version", version::version_api::<C>())
+        .subcommand(
+            "asset",
+            asset::asset_api::<C>().with_about("Commands to add, sign, or get registry assets"),
+        )
+        .subcommand(
+            "version",
+            version::version_api::<C>()
+                .with_about("Commands to add, remove, or list versions or version signers"),
+        )
 }

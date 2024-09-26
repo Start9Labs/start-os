@@ -13,32 +13,49 @@ use crate::Error;
 
 pub fn diagnostic<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("error", from_fn(error).with_call_remote::<CliContext>())
-        .subcommand("logs", crate::system::logs::<DiagnosticContext>())
+        .subcommand(
+            "error",
+            from_fn(error)
+                .with_call_remote::<CliContext>()
+                .with_about("Display diagnostic error"),
+        )
         .subcommand(
             "logs",
-            from_fn_async(crate::logs::cli_logs::<DiagnosticContext, Empty>).no_display(),
+            crate::system::logs::<DiagnosticContext>().with_about("Display OS logs"),
+        )
+        .subcommand(
+            "logs",
+            from_fn_async(crate::logs::cli_logs::<DiagnosticContext, Empty>)
+                .no_display()
+                .with_about("Display OS logs"),
         )
         .subcommand(
             "kernel-logs",
-            crate::system::kernel_logs::<DiagnosticContext>(),
+            crate::system::kernel_logs::<DiagnosticContext>().with_about("Display kernel logs"),
         )
         .subcommand(
             "kernel-logs",
-            from_fn_async(crate::logs::cli_logs::<DiagnosticContext, Empty>).no_display(),
+            from_fn_async(crate::logs::cli_logs::<DiagnosticContext, Empty>)
+                .no_display()
+                .with_about("Display kernal logs"),
         )
         .subcommand(
             "restart",
             from_fn(restart)
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Restart the server"),
         )
-        .subcommand("disk", disk::<C>())
+        .subcommand(
+            "disk",
+            disk::<C>().with_about("Command to remove disk from filesystem"),
+        )
         .subcommand(
             "rebuild",
             from_fn_async(rebuild)
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Teardown and rebuild service containers"),
         )
 }
 
@@ -72,7 +89,8 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
             CallRemoteHandler::<CliContext, _, _>::new(
                 from_fn_async(forget_disk::<RpcContext>).no_display(),
             )
-            .no_display(),
+            .no_display()
+            .with_about("Remove disk from filesystem"),
         )
 }
 

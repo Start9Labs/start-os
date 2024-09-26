@@ -488,10 +488,30 @@ pub fn install_api() -> ParentHandler<InstallContext> {
 
 pub fn expanded_api() -> ParentHandler<CliContext> {
     main_api()
-        .subcommand("init", from_fn_blocking(developer::init).no_display())
-        .subcommand("pubkey", from_fn_blocking(developer::pubkey))
-        .subcommand("diagnostic", diagnostic::diagnostic::<CliContext>())
+        .subcommand(
+            "init",
+            from_fn_blocking(developer::init)
+                .no_display()
+                .with_about("Create developer key if it doesn't exist"),
+        )
+        .subcommand(
+            "pubkey",
+            from_fn_blocking(developer::pubkey)
+                .with_about("Get public key for developer private key"),
+        )
+        .subcommand(
+            "diagnostic",
+            diagnostic::diagnostic::<CliContext>()
+                .with_about("Commands to display logs, restart the server, etc"),
+        )
         .subcommand("setup", setup::setup::<CliContext>())
-        .subcommand("install", os_install::install::<CliContext>())
-        .subcommand("registry", registry::registry_api::<CliContext>())
+        .subcommand(
+            "install",
+            os_install::install::<CliContext>()
+                .with_about("Commands to list disk info, install StartOS, and reboot"),
+        )
+        .subcommand(
+            "registry",
+            registry::registry_api::<CliContext>().with_about("Commands related to the registry"),
+        )
 }

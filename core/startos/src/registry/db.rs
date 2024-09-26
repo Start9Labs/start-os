@@ -18,14 +18,19 @@ use crate::util::serde::{apply_expr, HandlerExtSerde};
 
 pub fn db_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("dump", from_fn_async(cli_dump).with_display_serializable())
+        .subcommand(
+            "dump",
+            from_fn_async(cli_dump)
+                .with_display_serializable()
+                .with_about("Return db tables and records"),
+        )
         .subcommand(
             "dump",
             from_fn_async(dump)
                 .with_metadata("admin", Value::Bool(true))
                 .no_cli(),
         )
-        .subcommand("apply", from_fn_async(cli_apply).no_display())
+        .subcommand("apply", from_fn_async(cli_apply).no_display().with_about("Update a db record"))
         .subcommand(
             "apply",
             from_fn_async(apply)
