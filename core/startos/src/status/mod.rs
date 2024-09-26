@@ -17,6 +17,11 @@ pub mod health_check;
 #[serde(rename_all = "camelCase")]
 #[serde(rename_all_fields = "camelCase")]
 pub enum MainStatus {
+    Error {
+        on_rebuild: StartStop,
+        message: String,
+        debug: Option<String>,
+    },
     Stopped,
     Restarting,
     Restoring,
@@ -43,12 +48,20 @@ impl MainStatus {
             | MainStatus::Restarting
             | MainStatus::BackingUp {
                 on_complete: StartStop::Start,
+            }
+            | MainStatus::Error {
+                on_rebuild: StartStop::Start,
+                ..
             } => true,
             MainStatus::Stopped
             | MainStatus::Restoring
             | MainStatus::Stopping { .. }
             | MainStatus::BackingUp {
                 on_complete: StartStop::Stop,
+            }
+            | MainStatus::Error {
+                on_rebuild: StartStop::Stop,
+                ..
             } => false,
         }
     }
@@ -70,7 +83,8 @@ impl MainStatus {
             | MainStatus::Stopped
             | MainStatus::Restoring
             | MainStatus::Stopping { .. }
-            | MainStatus::Restarting => None,
+            | MainStatus::Restarting
+            | MainStatus::Error { .. } => None,
         }
     }
 }
