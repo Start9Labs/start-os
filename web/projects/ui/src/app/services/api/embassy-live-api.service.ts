@@ -498,6 +498,12 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'package.stop', params })
   }
 
+  async rebuildPackage(
+    params: RR.RebuildPackageReq,
+  ): Promise<RR.RebuildPackageRes> {
+    return this.rpcRequest({ method: 'package.rebuild', params })
+  }
+
   async uninstallPackage(
     params: RR.UninstallPackageReq,
   ): Promise<RR.UninstallPackageRes> {
