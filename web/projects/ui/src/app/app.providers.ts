@@ -3,7 +3,6 @@ import { UntypedFormBuilder } from '@angular/forms'
 import { Router } from '@angular/router'
 import {
   AbstractCategoryService,
-  AbstractMarketplaceService,
   FilterPackagesPipe,
 } from '@start9labs/marketplace'
 import { RELATIVE_URL, THEME, WorkspaceConfig } from '@start9labs/shared'
@@ -89,10 +88,6 @@ export const APP_PROVIDERS: Provider[] = [
   {
     provide: THEME,
     useExisting: ThemeSwitcherService,
-  },
-  {
-    provide: AbstractMarketplaceService,
-    useClass: MarketplaceService,
   },
   {
     provide: AbstractCategoryService,

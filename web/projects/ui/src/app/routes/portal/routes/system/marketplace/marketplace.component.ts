@@ -5,7 +5,7 @@ import {
   AbstractCategoryService,
   FilterPackagesPipe,
 } from '@start9labs/marketplace'
-import { combineLatest, map } from 'rxjs'
+import { combineLatest, distinctUntilKeyChanged, map } from 'rxjs'
 import { MarketplaceNotificationComponent } from './components/notification.component'
 import { MarketplaceMenuComponent } from './components/menu.component'
 import { MarketplaceTileComponent } from './components/tile.component'
@@ -13,6 +13,10 @@ import { MarketplaceControlsComponent } from './components/controls.component'
 import { MarketplacePreviewComponent } from './modals/preview.component'
 import { MarketplaceSidebarsComponent } from './components/sidebars.component'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
+import { ActivatedRoute, Router } from '@angular/router'
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
+import { PatchDB } from 'patch-db-client'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   standalone: true,
@@ -21,7 +25,7 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
     <tui-scrollbar>
       <div class="marketplace-content-wrapper">
         <div class="marketplace-content-inner">
-          <marketplace-notification [url]="(details$ | async)?.url || ''" />
+          <marketplace-notification [url]="(details$ | async) || ''" />
           <div class="title-wrapper">
             <h1>
               {{ category$ | async | titlecase }}
@@ -152,11 +156,28 @@ export class MarketplaceComponent {
   private readonly categoryService = inject(AbstractCategoryService)
   private readonly marketplaceService = inject(MarketplaceService)
 
-  readonly details$ = this.marketplaceService.getSelectedHost$()
+  constructor(
+    private readonly route: ActivatedRoute,
+    private readonly router: Router,
+    private readonly patch: PatchDB<DataModel>,
+  ) {
+    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(params => {
+      this.patch
+        .watch$('ui', 'marketplace')
+        .pipe(distinctUntilKeyChanged('selectedUrl'))
+        .subscribe(({ selectedUrl }) => {
+          this.marketplaceService.setRegistryUrl(
+            params.get('registry') || selectedUrl,
+          )
+        })
+    })
+  }
+
+  readonly details$ = this.marketplaceService.getRegistryUrl$()
   readonly category$ = this.categoryService.getCategory$()
   readonly filtered$ = combineLatest([
     this.marketplaceService
-      .getSelectedRegistry$()
+      .getRegistry$()
       .pipe(map(({ packages }) => packages)),
     this.categoryService.getQuery$(),
     this.category$,

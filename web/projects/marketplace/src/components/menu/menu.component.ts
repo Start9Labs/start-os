@@ -8,7 +8,7 @@ import {
 import { MarketplaceConfig } from '@start9labs/shared'
 import { Subject, takeUntil } from 'rxjs'
 import { AbstractCategoryService } from '../../services/category.service'
-import { StoreData } from '../../types'
+import { StoreDataWithUrl } from '../../types'
 
 @Component({
   selector: 'menu',
@@ -21,7 +21,7 @@ export class MenuComponent implements OnDestroy {
   iconConfig!: MarketplaceConfig
 
   @Input({ required: true })
-  registry: (StoreData & { url?: string }) | null = null
+  registry: StoreDataWithUrl | null = null
 
   private destroy$ = new Subject<void>()
   private readonly categoryService = inject(AbstractCategoryService)

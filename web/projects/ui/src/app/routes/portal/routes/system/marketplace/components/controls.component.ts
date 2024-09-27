@@ -7,10 +7,7 @@ import {
   Input,
 } from '@angular/core'
 import { Router } from '@angular/router'
-import {
-  AbstractMarketplaceService,
-  MarketplacePkg,
-} from '@start9labs/marketplace'
+import { MarketplacePkg } from '@start9labs/marketplace'
 import {
   Exver,
   ErrorService,
@@ -106,12 +103,7 @@ export class MarketplaceControlsComponent {
   private readonly loader = inject(LoadingService)
   private readonly exver = inject(Exver)
   private readonly router = inject(Router)
-  private readonly marketplace = inject(
-    AbstractMarketplaceService,
-  ) as MarketplaceService
-
-  @Input()
-  url?: string
+  private readonly marketplaceService = inject(MarketplaceService)
 
   @Input({ required: true })
   pkg!: MarketplacePkg
@@ -125,19 +117,19 @@ export class MarketplaceControlsComponent {
   readonly showDevTools$ = inject(ClientStorageService).showDevTools$
 
   async tryInstall() {
-    const current = await firstValueFrom(this.marketplace.getSelectedHost$())
-    const url = this.url || current.url
+    const currentUrl = await firstValueFrom(
+      this.marketplaceService.getRegistryUrl$(),
+    )
     const originalUrl = this.localPkg?.registry || ''
-
     if (!this.localPkg) {
-      if (await this.alerts.alertInstall(this.pkg)) this.install(url)
+      if (await this.alerts.alertInstall(this.pkg)) this.install(currentUrl)
 
       return
     }
 
     if (
-      !sameUrl(url, originalUrl) &&
-      !(await this.alerts.alertMarketplace(url, originalUrl))
+      !sameUrl(currentUrl, originalUrl) &&
+      !(await this.alerts.alertMarketplace(currentUrl, originalUrl))
     ) {
       return
     }
@@ -148,9 +140,9 @@ export class MarketplaceControlsComponent {
       hasCurrentDeps(localManifest.id, await getAllPackages(this.patch)) &&
       this.exver.compareExver(localManifest.version, this.pkg.version) !== 0
     ) {
-      this.dryInstall(url)
+      this.dryInstall(currentUrl)
     } else {
-      this.install(url)
+      this.install(currentUrl)
     }
   }
 
@@ -178,7 +170,7 @@ export class MarketplaceControlsComponent {
     const { id, version } = this.pkg
 
     try {
-      await this.marketplace.installPackage(id, version, url)
+      await this.marketplaceService.installPackage(id, version, url)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

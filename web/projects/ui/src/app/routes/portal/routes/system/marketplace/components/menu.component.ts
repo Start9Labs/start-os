@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { CommonModule } from '@angular/common'
 import { MenuModule } from '@start9labs/marketplace'
 import {
   TuiDialogService,
@@ -8,12 +9,13 @@ import {
 } from '@taiga-ui/core'
 import { ConfigService } from 'src/app/services/config.service'
 import { MARKETPLACE_REGISTRY } from '../modals/registry.component'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
 
 @Component({
   standalone: true,
   selector: 'marketplace-menu',
   template: `
-    <menu [iconConfig]="marketplace">
+    <menu [iconConfig]="marketplace" [registry]="registry$ | async">
       <button
         slot="desktop"
         tuiIconButton
@@ -45,11 +47,13 @@ import { MARKETPLACE_REGISTRY } from '../modals/registry.component'
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MenuModule, TuiButton, TuiIcon, TuiAppearance],
+  imports: [CommonModule, MenuModule, TuiButton, TuiIcon, TuiAppearance],
 })
 export class MarketplaceMenuComponent {
   private readonly dialogs = inject(TuiDialogService)
   readonly marketplace = inject(ConfigService).marketplace
+  private readonly marketplaceService = inject(MarketplaceService)
+  readonly registry$ = this.marketplaceService.getRegistry$()
 
   changeRegistry() {
     this.dialogs

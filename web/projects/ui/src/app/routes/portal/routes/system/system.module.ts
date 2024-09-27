@@ -42,12 +42,12 @@ const ROUTES: Routes = [
     loadComponent: () => import('./sideload/sideload.component'),
     data: toNavigationItem('/portal/system/sideload'),
   },
-  {
-    title: systemTabResolver,
-    path: 'updates',
-    loadComponent: () => import('./updates/updates.component'),
-    data: toNavigationItem('/portal/system/updates'),
-  },
+  // {
+  //   title: systemTabResolver,
+  //   path: 'updates',
+  //   loadComponent: () => import('./updates/updates.component'),
+  //   data: toNavigationItem('/portal/system/updates'),
+  // },
   {
     title: systemTabResolver,
     path: 'metrics',

@@ -9,12 +9,20 @@ import {
   toUrl,
 } from '@start9labs/shared'
 import {
-  AbstractMarketplaceService,
   StoreIconComponentModule,
   MarketplaceRegistryComponent,
 } from '@start9labs/marketplace'
-import { TuiDialogService, TuiIcon, TuiTitle, TuiButton } from '@taiga-ui/core'
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import {
+  TuiDialogService,
+  TuiIcon,
+  TuiTitle,
+  TuiButton,
+  TuiDialogContext,
+} from '@taiga-ui/core'
+import {
+  PolymorpheusComponent,
+  POLYMORPHEUS_CONTEXT,
+} from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, filter, firstValueFrom, map, Subscription } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
@@ -24,6 +32,7 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { getMarketplaceValueSpec, getPromptOptions } from '../utils/registry'
 import { ConfigService } from 'src/app/services/config.service'
+import { ActivatedRoute, Router } from '@angular/router'
 
 @Component({
   standalone: true,
@@ -90,9 +99,10 @@ export class MarketplaceRegistryModal {
   private readonly errorService = inject(ErrorService)
   private readonly formDialog = inject(FormDialogService)
   private readonly dialogs = inject(TuiDialogService)
-  private readonly marketplace = inject(
-    AbstractMarketplaceService,
-  ) as MarketplaceService
+  private readonly marketplaceService = inject(MarketplaceService)
+  private readonly context = inject<TuiDialogContext>(POLYMORPHEUS_CONTEXT)
+  private readonly route = inject(ActivatedRoute)
+  private readonly router = inject(Router)
   private readonly hosts$ = inject<PatchDB<DataModel>>(PatchDB).watch$(
     'ui',
     'marketplace',
@@ -101,13 +111,13 @@ export class MarketplaceRegistryModal {
   readonly marketplaceConfig = inject(ConfigService).marketplace
 
   readonly stores$ = combineLatest([
-    this.marketplace.getKnownHosts$(),
-    this.marketplace.getSelectedHost$(),
+    this.marketplaceService.getKnownHosts$(),
+    this.marketplaceService.getRegistryUrl$(),
   ]).pipe(
-    map(([stores, selected]) =>
+    map(([stores, selectedUrl]) =>
       stores.map(s => ({
         ...s,
-        selected: sameUrl(s.url, selected.url),
+        selected: sameUrl(s.url, selectedUrl),
       })),
     ),
     // 0 and 1 are prod and community, 2 and beyond are alts
@@ -170,9 +180,10 @@ export class MarketplaceRegistryModal {
     loader.unsubscribe()
     loader.closed = false
     loader.add(this.loader.open('Changing Registry...').subscribe())
-
     try {
+      this.marketplaceService.setRegistryUrl(url)
       await this.api.setDbValue<string>(['marketplace', 'selectedUrl'], url)
+      this.context.$implicit.complete()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -210,7 +221,9 @@ export class MarketplaceRegistryModal {
     loader.closed = false
     loader.add(this.loader.open('Validating marketplace...').subscribe())
 
-    const { name } = await firstValueFrom(this.marketplace.fetchInfo$(url))
+    const { name } = await firstValueFrom(
+      this.marketplaceService.fetchInfo$(url),
+    )
 
     // Save
     loader.unsubscribe()

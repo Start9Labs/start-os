@@ -37,3 +37,5 @@ export type MarketplacePkg = T.PackageVersionInfo &
     version: string
     flavor: string | null
   }
+
+export type StoreDataWithUrl = StoreData & { url: string }
