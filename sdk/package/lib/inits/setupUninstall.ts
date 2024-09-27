@@ -2,7 +2,7 @@ import * as T from "../../../base/lib/types"
 
 export type UninstallFn<Manifest extends T.Manifest, Store> = (opts: {
   effects: T.Effects
-}) => Promise<void>
+}) => Promise<null>
 export class Uninstall<Manifest extends T.Manifest, Store> {
   private constructor(readonly fn: UninstallFn<Manifest, Store>) {}
   static of<Manifest extends T.Manifest, Store>(

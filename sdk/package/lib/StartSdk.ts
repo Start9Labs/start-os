@@ -563,7 +563,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       setupMain: (
         fn: (o: {
           effects: Effects
-          started(onTerm: () => PromiseLike<void>): PromiseLike<void>
+          started(onTerm: () => PromiseLike<void>): PromiseLike<null>
         }) => Promise<Daemons<Manifest, any>>,
       ) => setupMain<Manifest, Store>(fn),
       /**
@@ -657,12 +657,12 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         ) => InputSpec.of<Spec, Store>(spec),
       },
       Daemons: {
-        of(inputSpec: {
+        of(options: {
           effects: Effects
-          started: (onTerm: () => PromiseLike<void>) => PromiseLike<void>
+          started: (onTerm: () => PromiseLike<void>) => PromiseLike<null>
           healthReceipts: HealthReceipt[]
         }) {
-          return Daemons.of<Manifest>(inputSpec)
+          return Daemons.of<Manifest>(options)
         },
       },
       List: {

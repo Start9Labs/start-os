@@ -590,6 +590,15 @@ impl ServiceActorSeed {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
+pub struct RebuildParams {
+    pub id: PackageId,
+}
+pub async fn rebuild(ctx: RpcContext, RebuildParams { id }: RebuildParams) -> Result<(), Error> {
+    ctx.services.load(&ctx, &id, LoadDisposition::Retry).await?;
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
 pub struct ConnectParams {
     pub id: PackageId,
 }

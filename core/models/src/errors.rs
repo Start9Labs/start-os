@@ -351,6 +351,14 @@ impl Debug for ErrorData {
     }
 }
 impl std::error::Error for ErrorData {}
+impl From<Error> for ErrorData {
+    fn from(value: Error) -> Self {
+        Self {
+            details: value.to_string(),
+            debug: format!("{:?}", value),
+        }
+    }
+}
 impl From<&RpcError> for ErrorData {
     fn from(value: &RpcError) -> Self {
         Self {

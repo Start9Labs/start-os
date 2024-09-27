@@ -126,7 +126,8 @@ impl LxcManager {
                         Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs"),
                         true,
                     )
-                    .await?;
+                    .await
+                    .log_err();
                     if tokio_stream::wrappers::ReadDirStream::new(
                         tokio::fs::read_dir(&rootfs_path).await?,
                     )

@@ -45,7 +45,7 @@ export interface DependencyInfo {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppShowPage {
-  private readonly pkgId = getPkgId(this.route)
+  readonly pkgId = getPkgId(this.route)
 
   readonly pkgPlus$ = combineLatest([
     this.patch.watch$('packageData'),
@@ -58,9 +58,11 @@ export class AppShowPage {
     }),
     map(([allPkgs, depErrors]) => {
       const pkg = allPkgs[this.pkgId]
+      const manifest = getManifest(pkg)
       return {
         pkg,
-        dependencies: this.getDepInfo(pkg, allPkgs, depErrors),
+        manifest,
+        dependencies: this.getDepInfo(pkg, manifest, allPkgs, depErrors),
         status: renderPkgStatus(pkg, depErrors),
       }
     }),
@@ -84,11 +86,10 @@ export class AppShowPage {
 
   private getDepInfo(
     pkg: PackageDataEntry,
+    manifest: T.Manifest,
     allPkgs: AllPackageData,
     depErrors: PkgDependencyErrors,
   ): DependencyInfo[] {
-    const manifest = getManifest(pkg)
-
     return Object.keys(pkg.currentDependencies).map(id =>
       this.getDepValues(pkg, allPkgs, manifest, id, depErrors),
     )

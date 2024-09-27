@@ -92,6 +92,7 @@ export class SystemForStartOs implements System {
     const started = async (onTerm: () => Promise<void>) => {
       await effects.setMainStatus({ status: "running" })
       mainOnTerm = onTerm
+      return null
     }
     const daemons = await (
       await this.abi.main({

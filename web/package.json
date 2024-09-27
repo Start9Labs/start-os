@@ -80,6 +80,7 @@
     "ng-qrcode": "^7.0.0",
     "node-jose": "^2.2.0",
     "patch-db-client": "file:../patch-db/client",
+    "path-browserify": "^1.0.1",
     "pbkdf2": "^3.1.2",
     "rxjs": "^7.8.1",
     "swiper": "^8.2.4",

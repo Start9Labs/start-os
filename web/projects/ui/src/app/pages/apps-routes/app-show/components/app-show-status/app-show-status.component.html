@@ -11,7 +11,14 @@
   </ion-label>
 </ion-item>
 
-<ng-container *ngIf="isInstalled(pkg) && (connection$ | async)">
+<ng-container
+  *ngIf="
+    isInstalled(pkg) &&
+    pkg.status.main !== 'backingUp' &&
+    pkg.status.main !== 'error' &&
+    (connection$ | async)
+  "
+>
   <ion-grid>
     <ion-row style="padding-left: 12px">
       <ion-col>

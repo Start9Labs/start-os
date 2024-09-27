@@ -81,7 +81,7 @@ export class HealthDaemon {
     }
   }
 
-  private healthCheckCleanup: (() => void) | null = null
+  private healthCheckCleanup: (() => null) | null = null
   private turnOffHealthCheck() {
     this.healthCheckCleanup?.()
   }
@@ -125,6 +125,7 @@ export class HealthDaemon {
     this.healthCheckCleanup = () => {
       setStatus({ done: true })
       this.healthCheckCleanup = null
+      return null
     }
   }
 
