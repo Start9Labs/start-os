@@ -374,6 +374,14 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                 .with_about("Restart a package container"),
         )
         .subcommand(
+            "rebuild",
+            from_fn_async(service::rebuild)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand("logs", logs::package_logs())
+        .subcommand(
             "logs",
             logs::package_logs().with_about("Display package logs"),
         )

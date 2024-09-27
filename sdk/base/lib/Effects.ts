@@ -31,14 +31,14 @@ export type Effects = {
   constRetry: () => void
   clearCallbacks: (
     options: { only: number[] } | { except: number[] },
-  ) => Promise<void>
+  ) => Promise<null>
 
   // action
   action: {
     /** Define an action that can be invoked by a user or service */
-    export(options: { id: ActionId; metadata: ActionMetadata }): Promise<void>
+    export(options: { id: ActionId; metadata: ActionMetadata }): Promise<null>
     /** Remove all exported actions */
-    clear(options: { except: ActionId[] }): Promise<void>
+    clear(options: { except: ActionId[] }): Promise<null>
     getInput(options: {
       packageId?: PackageId
       actionId: ActionId
@@ -50,23 +50,23 @@ export type Effects = {
     }): Promise<ActionResult | null>
     request<Input extends Record<string, unknown>>(
       options: RequestActionParams,
-    ): Promise<void>
+    ): Promise<null>
     clearRequests(
       options: { only: ActionId[] } | { except: ActionId[] },
-    ): Promise<void>
+    ): Promise<null>
   }
 
   // control
   /** restart this service's main function */
-  restart(): Promise<void>
+  restart(): Promise<null>
   /** stop this service's main function */
-  shutdown(): Promise<void>
+  shutdown(): Promise<null>
   /** indicate to the host os what runstate the service is in */
-  setMainStatus(options: SetMainStatus): Promise<void>
+  setMainStatus(options: SetMainStatus): Promise<null>
 
   // dependency
   /** Set the dependencies of what the service needs, usually run during the inputSpec action as a best practice */
-  setDependencies(options: { dependencies: Dependencies }): Promise<void>
+  setDependencies(options: { dependencies: Dependencies }): Promise<null>
   /** Get the list of the dependencies, both the dynamic set by the effect of setDependencies and the end result any required in the manifest  */
   getDependencies(): Promise<DependencyRequirement[]>
   /** Test whether current dependency requirements are satisfied */
@@ -86,11 +86,11 @@ export type Effects = {
   /** Returns a list of the ids of all installed packages */
   getInstalledPackages(): Promise<string[]>
   /** grants access to certain paths in the store to dependents */
-  exposeForDependents(options: { paths: string[] }): Promise<void>
+  exposeForDependents(options: { paths: string[] }): Promise<null>
 
   // health
   /** sets the result of a health check */
-  setHealth(o: SetHealth): Promise<void>
+  setHealth(o: SetHealth): Promise<null>
 
   // subcontainer
   subcontainer: {
@@ -100,13 +100,13 @@ export type Effects = {
       name: string | null
     }): Promise<[string, string]>
     /** A low level api used by SubContainer */
-    destroyFs(options: { guid: string }): Promise<void>
+    destroyFs(options: { guid: string }): Promise<null>
   }
 
   // net
   // bind
   /** Creates a host connected to the specified port with the provided options */
-  bind(options: BindParams): Promise<void>
+  bind(options: BindParams): Promise<null>
   /** Get the port address for a service */
   getServicePortForward(options: {
     packageId?: PackageId
@@ -116,7 +116,7 @@ export type Effects = {
   /** Removes all network bindings, called in the setupInputSpec */
   clearBindings(options: {
     except: { id: HostId; internalPort: number }[]
-  }): Promise<void>
+  }): Promise<null>
   // host
   /** Returns information about the specified host, if it exists */
   getHostInfo(options: {
@@ -134,7 +134,7 @@ export type Effects = {
   getContainerIp(): Promise<string>
   // interface
   /** Creates an interface bound to a specific host and port to show to the user */
-  exportServiceInterface(options: ExportServiceInterfaceParams): Promise<void>
+  exportServiceInterface(options: ExportServiceInterfaceParams): Promise<null>
   /** Returns an exported service interface */
   getServiceInterface(options: {
     packageId?: PackageId
@@ -149,7 +149,7 @@ export type Effects = {
   /** Removes all service interfaces */
   clearServiceInterfaces(options: {
     except: ServiceInterfaceId[]
-  }): Promise<void>
+  }): Promise<null>
   // ssl
   /** Returns a PEM encoded fullchain for the hostnames specified */
   getSslCertificate: (options: {
@@ -178,10 +178,10 @@ export type Effects = {
       /** Sets the value for the wrapper at the path, it will override, using the [JsonPath](https://jsonpath.com/)  */
       path: StorePath
       value: ExtractStore
-    }): Promise<void>
+    }): Promise<null>
   }
   /** sets the version that this service's data has been migrated to */
-  setDataVersion(options: { version: string }): Promise<void>
+  setDataVersion(options: { version: string }): Promise<null>
   /** returns the version that this service's data has been migrated to */
   getDataVersion(): Promise<string | null>
 
