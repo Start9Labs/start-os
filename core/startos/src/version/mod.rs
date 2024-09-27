@@ -3,7 +3,8 @@ use std::cmp::Ordering;
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::{Future, FutureExt};
-use imbl_value::InternedString;
+use imbl_value::{to_value, InternedString};
+use patch_db::json_ptr::JsonPointer;
 
 use crate::db::model::Database;
 use crate::prelude::*;
@@ -21,6 +22,10 @@ mod v0_3_6_alpha_4;
 mod v0_3_6_alpha_5;
 mod v0_3_6_alpha_6;
 mod v0_3_6_alpha_7;
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, HasModel)]
+#[model = "Model<Self>"]
+pub struct AnyDb(pub Value);
 
 pub type Current = v0_3_6_alpha_5::Version; // VERSION_BUMP
 
@@ -80,25 +85,16 @@ where
     fn new() -> Self;
     fn semver(&self) -> exver::Version;
     fn compat(&self) -> &'static exver::VersionRange;
-    fn up(&self, db: &TypedPatchDb<Database>) -> impl Future<Output = Result<(), Error>> + Send;
-    fn down(&self, db: &TypedPatchDb<Database>) -> impl Future<Output = Result<(), Error>> + Send;
-    fn commit(
-        &self,
-        db: &TypedPatchDb<Database>,
-    ) -> impl Future<Output = Result<(), Error>> + Send {
+    fn up(&self, db: &mut Value) -> Result<(), Error>;
+    fn down(&self, db: &mut Value) -> Result<(), Error>;
+    fn commit(&self, db: &mut PatchDb) -> impl Future<Output = Result<(), Error>> + Send {
         async {
-            let semver = self.semver().into();
-            let compat = self.compat().clone();
-            db.mutate(|d| {
-                d.as_public_mut()
-                    .as_server_info_mut()
-                    .as_version_mut()
-                    .ser(&semver)?;
-                d.as_public_mut()
-                    .as_server_info_mut()
-                    .as_eos_version_compat_mut()
-                    .ser(&compat)?;
-                Ok(())
+            let semver = to_value(&self.semver())?;
+            let compat = to_value(&self.compat())?;
+            db.apply_function(|mut d| {
+                d["public"]["server_info"]["version"] = semver;
+                d["public"]["server_info"]["eos_version_compat"] = compat;
+                Ok::<_, patch_db::Error>((d, ()))
             })
             .await?;
             Ok(())
@@ -107,75 +103,61 @@ where
     fn migrate_to<V: VersionT>(
         &self,
         version: &V,
-        db: &TypedPatchDb<Database>,
+        db: &mut Value,
         progress: &mut PhaseProgressTrackerHandle,
-    ) -> impl Future<Output = Result<(), Error>> + Send {
-        async {
-            match self.semver().cmp(&version.semver()) {
-                Ordering::Greater => self.rollback_to_unchecked(version, db, progress).await,
-                Ordering::Less => version.migrate_from_unchecked(self, db, progress).await,
-                Ordering::Equal => Ok(()),
-            }
+    ) -> Result<(), Error> {
+        match self.semver().cmp(&version.semver()) {
+            Ordering::Greater => self.rollback_to_unchecked(version, db, progress),
+            Ordering::Less => version.migrate_from_unchecked(self, db, progress),
+            Ordering::Equal => Ok(()),
         }
     }
     fn migrate_from_unchecked<'a, V: VersionT>(
         &'a self,
         version: &'a V,
-        db: &'a TypedPatchDb<Database>,
+        db: &'a mut Value,
         progress: &'a mut PhaseProgressTrackerHandle,
-    ) -> BoxFuture<'a, Result<(), Error>> {
+    ) -> Result<(), Error> {
         progress.add_total(1);
-        async {
-            let previous = Self::Previous::new();
-            if version.semver() < previous.semver() {
-                previous
-                    .migrate_from_unchecked(version, db, progress)
-                    .await?;
-            } else if version.semver() > previous.semver() {
-                return Err(Error::new(
-                    eyre!(
-                        "NO PATH FROM {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
-                        version.semver()
-                    ),
-                    crate::ErrorKind::MigrationFailed,
-                ));
-            }
-            tracing::info!("{} -> {}", previous.semver(), self.semver(),);
-            self.up(db).await?;
-            self.commit(db).await?;
-            *progress += 1;
-            Ok(())
+        let previous = Self::Previous::new();
+        if version.semver() < previous.semver() {
+            previous.migrate_from_unchecked(version, db, progress)?;
+        } else if version.semver() > previous.semver() {
+            return Err(Error::new(
+                eyre!(
+                    "NO PATH FROM {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
+                    version.semver()
+                ),
+                crate::ErrorKind::MigrationFailed,
+            ));
         }
-        .boxed()
+        tracing::info!("{} -> {}", previous.semver(), self.semver(),);
+        self.up(db)?;
+        *progress += 1;
+        Ok(())
     }
     fn rollback_to_unchecked<'a, V: VersionT>(
         &'a self,
         version: &'a V,
-        db: &'a TypedPatchDb<Database>,
+        db: &'a mut Value,
         progress: &'a mut PhaseProgressTrackerHandle,
-    ) -> BoxFuture<'a, Result<(), Error>> {
-        async {
-            let previous = Self::Previous::new();
-            tracing::info!("{} -> {}", self.semver(), previous.semver(),);
-            self.down(db).await?;
-            previous.commit(db).await?;
-            *progress += 1;
-            if version.semver() < previous.semver() {
-                previous
-                    .rollback_to_unchecked(version, db, progress)
-                    .await?;
-            } else if version.semver() > previous.semver() {
-                return Err(Error::new(
-                    eyre!(
-                        "NO PATH TO {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
-                        version.semver()
-                    ),
-                    crate::ErrorKind::MigrationFailed,
-                ));
-            }
-            Ok(())
+    ) -> Result<(), Error> {
+        let previous = Self::Previous::new();
+        tracing::info!("{} -> {}", self.semver(), previous.semver(),);
+        self.down(db)?;
+        *progress += 1;
+        if version.semver() < previous.semver() {
+            previous.rollback_to_unchecked(version, db, progress)?;
+        } else if version.semver() > previous.semver() {
+            return Err(Error::new(
+                eyre!(
+                    "NO PATH TO {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
+                    version.semver()
+                ),
+                crate::ErrorKind::MigrationFailed,
+            ));
         }
-        .boxed()
+        Ok(())
     }
 }
 
@@ -255,7 +237,22 @@ pub async fn init(
             .as_version()
             .de()?,
     );
+    let current_version = Current::new();
 
+    db.mutate(|db| {
+        db.as_public_mut()
+            .as_server_info_mut()
+            .as_version_mut()
+            .ser(&current_version.semver().into())?;
+
+        db.as_public_mut()
+            .as_server_info_mut()
+            .as_eos_version_compat_mut()
+            .ser(&current_version.compat())?;
+        Ok(())
+    })
+    .await?;
+    let mut value: Value = db.get(&JsonPointer::<&'static str>::default()).await?;
     match version {
         Version::LT0_3_5(_) => {
             return Err(Error::new(
@@ -263,24 +260,49 @@ pub async fn init(
                 ErrorKind::MigrationFailed,
             ));
         }
-        Version::V0_3_5(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
-        Version::V0_3_5_1(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
-        Version::V0_3_5_2(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
-        Version::V0_3_6_alpha_0(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
-        Version::V0_3_6_alpha_1(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
-        Version::V0_3_6_alpha_2(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
-        Version::V0_3_6_alpha_3(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
-        Version::V0_3_6_alpha_4(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
-        Version::V0_3_6_alpha_5(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
-        Version::V0_3_6_alpha_6(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
-        Version::V0_3_6_alpha_7(v) => v.0.migrate_to(&Current::new(), &db, &mut progress).await?,
+        Version::V0_3_5(v) => {
+            v.0.migrate_to(&current_version, &mut value, &mut progress)?
+        }
+        Version::V0_3_5_1(v) => {
+            v.0.migrate_to(&current_version, &mut value, &mut progress)?
+        }
+        Version::V0_3_5_2(v) => {
+            v.0.migrate_to(&current_version, &mut value, &mut progress)?
+        }
+        Version::V0_3_6_alpha_0(v) => {
+            v.0.migrate_to(&current_version, &mut value, &mut progress)?
+        }
+        Version::V0_3_6_alpha_1(v) => {
+            v.0.migrate_to(&current_version, &mut value, &mut progress)?
+        }
+        Version::V0_3_6_alpha_2(v) => {
+            v.0.migrate_to(&current_version, &mut value, &mut progress)?
+        }
+        Version::V0_3_6_alpha_3(v) => {
+            v.0.migrate_to(&current_version, &mut value, &mut progress)?
+        }
+        Version::V0_3_6_alpha_4(v) => {
+            v.0.migrate_to(&current_version, &mut value, &mut progress)?
+        }
+        Version::V0_3_6_alpha_5(v) => {
+            v.0.migrate_to(&current_version, &mut value, &mut progress)?
+        }
+        Version::V0_3_6_alpha_6(v) => {
+            v.0.migrate_to(&current_version, &mut value, &mut progress)?
+        }
+        Version::V0_3_6_alpha_7(v) => {
+            v.0.migrate_to(&current_version, &mut value, &mut progress)?
+        }
         Version::Other(_) => {
             return Err(Error::new(
                 eyre!("Cannot downgrade"),
                 crate::ErrorKind::InvalidRequest,
             ))
         }
-    }
+    };
+    db.mutate(|db| db.ser(&imbl_value::from_value(value)?))
+        .await?;
+
     progress.complete();
     Ok(())
 }

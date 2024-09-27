@@ -2,7 +2,6 @@ use exver::{PreReleaseSegment, VersionRange};
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_6_alpha_4, VersionT};
-use crate::db::model::Database;
 use crate::prelude::*;
 
 lazy_static::lazy_static! {
@@ -26,10 +25,10 @@ impl VersionT for Version {
     fn compat(&self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
-    async fn up(&self, _db: &TypedPatchDb<Database>) -> Result<(), Error> {
+    fn up(&self, _db: &mut Value) -> Result<(), Error> {
         Ok(())
     }
-    async fn down(&self, _db: &TypedPatchDb<Database>) -> Result<(), Error> {
+    fn down(&self, _db: &mut Value) -> Result<(), Error> {
         Ok(())
     }
 }
