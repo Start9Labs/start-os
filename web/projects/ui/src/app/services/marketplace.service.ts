@@ -198,7 +198,10 @@ export class MarketplaceService {
         categories: {
           all: {
             name: 'All',
-            description: { short: 'All services', long: 'All services' },
+            description: {
+              short: 'All services',
+              long: 'An unfiltered list of all services available on this registry.',
+            },
           },
           ...info.categories,
         },

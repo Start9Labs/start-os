@@ -34,7 +34,6 @@ import { CategoryService } from './services/category.service'
 import { ClientStorageService } from './services/client-storage.service'
 import { DateTransformerService } from './services/date-transformer.service'
 import { DatetimeTransformerService } from './services/datetime-transformer.service'
-import { MarketplaceService } from './services/marketplace.service'
 import { StorageService } from './services/storage.service'
 import { ThemeSwitcherService } from './services/theme-switcher.service'
 
