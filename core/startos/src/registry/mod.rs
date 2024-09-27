@@ -98,11 +98,11 @@ pub fn registry_api<C: Context>() -> ParentHandler<C> {
 
 pub fn registry_router(ctx: RegistryContext) -> Router {
     use axum::extract as x;
-    use axum::routing::{any, get, post};
+    use axum::routing::{any, get};
     Router::new()
         .route("/rpc/*path", {
             let ctx = ctx.clone();
-            post(
+            any(
                 Server::new(move || ready(Ok(ctx.clone())), registry_api())
                     .middleware(Cors::new())
                     .middleware(Auth::new())
