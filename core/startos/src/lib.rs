@@ -417,49 +417,71 @@ pub fn diagnostic_api() -> ParentHandler<DiagnosticContext> {
     ParentHandler::new()
         .subcommand::<DiagnosticContext, _>(
             "git-info",
-            from_fn(version::git_info).with_metadata("authenticated", Value::Bool(false)),
+            from_fn(version::git_info)
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_about("Display the githash of StartOS CLI"),
         )
         .subcommand(
             "echo",
-            from_fn(echo::<DiagnosticContext>).with_call_remote::<CliContext>(),
+            from_fn(echo::<DiagnosticContext>)
+                .with_call_remote::<CliContext>()
+                .with_about("Echo a message"),
         )
         .subcommand(
             "state",
             from_fn(|_: DiagnosticContext| Ok::<_, Error>(ApiState::Error))
                 .with_metadata("authenticated", Value::Bool(false))
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Display the API that is currently serving"),
         )
-        .subcommand("diagnostic", diagnostic::diagnostic::<DiagnosticContext>())
+        .subcommand(
+            "diagnostic",
+            diagnostic::diagnostic::<DiagnosticContext>()
+                .with_about("Commands to display logs, restart the server, etc"),
+        )
 }
 
 pub fn init_api() -> ParentHandler<InitContext> {
     ParentHandler::new()
         .subcommand::<InitContext, _>(
             "git-info",
-            from_fn(version::git_info).with_metadata("authenticated", Value::Bool(false)),
+            from_fn(version::git_info)
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_about("Display the githash of StartOS CLI"),
         )
         .subcommand(
             "echo",
-            from_fn(echo::<InitContext>).with_call_remote::<CliContext>(),
+            from_fn(echo::<InitContext>)
+                .with_call_remote::<CliContext>()
+                .with_about("Echo a message"),
         )
         .subcommand(
             "state",
             from_fn(|_: InitContext| Ok::<_, Error>(ApiState::Initializing))
                 .with_metadata("authenticated", Value::Bool(false))
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Display the API that is currently serving"),
         )
-        .subcommand("init", init::init_api::<InitContext>())
+        .subcommand(
+            "init",
+            init::init_api::<InitContext>()
+                .with_about("Commands to get logs or initialization progress"),
+        )
 }
 
 pub fn setup_api() -> ParentHandler<SetupContext> {
     ParentHandler::new()
         .subcommand::<SetupContext, _>(
             "git-info",
-            from_fn(version::git_info).with_metadata("authenticated", Value::Bool(false)),
+            from_fn(version::git_info)
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_about("Display the githash of StartOS CLI"),
         )
         .subcommand(
             "echo",
-            from_fn(echo::<SetupContext>).with_call_remote::<CliContext>(),
+            from_fn(echo::<SetupContext>)
+                .with_call_remote::<CliContext>()
+                .with_about("Echo a message"),
         )
         .subcommand("setup", setup::setup::<SetupContext>())
 }
@@ -468,13 +490,21 @@ pub fn install_api() -> ParentHandler<InstallContext> {
     ParentHandler::new()
         .subcommand::<InstallContext, _>(
             "git-info",
-            from_fn(version::git_info).with_metadata("authenticated", Value::Bool(false)),
+            from_fn(version::git_info)
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_about("Display the githash of StartOS CLI"),
         )
         .subcommand(
             "echo",
-            from_fn(echo::<InstallContext>).with_call_remote::<CliContext>(),
+            from_fn(echo::<InstallContext>)
+                .with_call_remote::<CliContext>()
+                .with_about("Echo a message"),
         )
-        .subcommand("install", os_install::install::<InstallContext>())
+        .subcommand(
+            "install",
+            os_install::install::<InstallContext>()
+                .with_about("Commands to list disk info, install StartOS, and reboot"),
+        )
 }
 
 pub fn expanded_api() -> ParentHandler<CliContext> {
