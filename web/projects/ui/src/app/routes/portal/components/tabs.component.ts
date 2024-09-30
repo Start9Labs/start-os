@@ -50,16 +50,6 @@ const FILTER = ['/portal/system/settings', '/portal/system/marketplace']
       >
         Settings
       </a>
-      <a
-        tuiTabBarItem
-        icon="@tui.settings"
-        routerLink="/portal/system/settings"
-        routerLinkActive
-        [badge]="badge()"
-        (isActiveChange)="update()"
-      >
-        Settings
-      </a>
       <button
         tuiTabBarItem
         icon="@tui.ellipsis"
