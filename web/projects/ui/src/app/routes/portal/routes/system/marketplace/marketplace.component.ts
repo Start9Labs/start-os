@@ -13,7 +13,7 @@ import { MarketplaceControlsComponent } from './components/controls.component'
 import { MarketplacePreviewComponent } from './modals/preview.component'
 import { MarketplaceSidebarsComponent } from './components/sidebars.component'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { ActivatedRoute, Router } from '@angular/router'
+import { ActivatedRoute } from '@angular/router'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -158,7 +158,6 @@ export class MarketplaceComponent {
 
   constructor(
     private readonly route: ActivatedRoute,
-    private readonly router: Router,
     private readonly patch: PatchDB<DataModel>,
   ) {
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(params => {

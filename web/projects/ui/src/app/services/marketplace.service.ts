@@ -1,10 +1,8 @@
 import { Injectable } from '@angular/core'
 import {
-  Marketplace,
   StoreIdentity,
   MarketplacePkg,
   GetPackageRes,
-  StoreData,
   StoreDataWithUrl,
 } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
@@ -12,20 +10,13 @@ import {
   BehaviorSubject,
   catchError,
   combineLatest,
-  distinctUntilKeyChanged,
   filter,
   from,
   map,
-  mergeMap,
   Observable,
   of,
-  scan,
-  pairwise,
   shareReplay,
-  startWith,
   switchMap,
-  take,
-  tap,
   distinctUntilChanged,
   ReplaySubject,
 } from 'rxjs'
@@ -33,7 +24,7 @@ import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
 import { ConfigService } from './config.service'
-import { Exver, sameUrl } from '@start9labs/shared'
+import { Exver } from '@start9labs/shared'
 import { ClientStorageService } from './client-storage.service'
 import { T } from '@start9labs/start-sdk'
 import { Router } from '@angular/router'
