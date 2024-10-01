@@ -159,15 +159,7 @@ export class ActionInputModal {
 
   async execute(input: object) {
     if (await this.checkConflicts(input)) {
-      const res = await firstValueFrom(this.res$)
-
-      return this.actionService.execute(this.pkgInfo.id, this.actionId, {
-        prev: {
-          spec: res.spec,
-          value: res.originalValue,
-        },
-        curr: input,
-      })
+      return this.actionService.execute(this.pkgInfo.id, this.actionId, input)
     }
   }
 

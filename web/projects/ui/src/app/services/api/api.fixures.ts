@@ -2,7 +2,7 @@ import {
   InstalledState,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { Metric, NotificationLevel, RR, ServerNotifications } from './api.types'
+import { NotificationLevel, RR, ServerNotifications } from './api.types'
 import { BTC_ICON, LND_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
 import { Log } from '@start9labs/shared'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
@@ -880,25 +880,6 @@ export module Mock {
     }
   }
 
-  export function getAppMetrics() {
-    const metr: Metric = {
-      Metric1: {
-        value: Math.random(),
-        unit: 'mi/b',
-      },
-      Metric2: {
-        value: Math.random(),
-        unit: '%',
-      },
-      Metric3: {
-        value: 10.1,
-        unit: '%',
-      },
-    }
-
-    return metr
-  }
-
   export const ServerLogs: Log[] = [
     {
       timestamp: '2022-07-28T03:52:54.808769Z',
@@ -944,15 +925,6 @@ export module Mock {
         },
       },
     },
-  }
-
-  export const ActionResponse: T.ActionResult = {
-    version: '0',
-    message:
-      'Password changed successfully. If you lose your new password, you will be lost forever.',
-    value: 'NewPassword1234!',
-    copyable: true,
-    qr: true,
   }
 
   export const SshKeys: RR.GetSSHKeysRes = [
@@ -1082,9 +1054,20 @@ export module Mock {
     },
   }
 
-  export const PackageProperties: RR.GetPackagePropertiesRes<2> = {
-    version: 2,
-    data: {
+  export const ActionRes: RR.ActionRes = {
+    version: '1',
+    type: 'string',
+    description: 'Action was run successfully',
+    copyable: true,
+    qr: true,
+    masked: true,
+    value: 'NewPassword',
+  }
+
+  export const ActionProperties: RR.ActionRes = {
+    version: '1',
+    type: 'object',
+    value: {
       lndconnect: {
         type: 'string',
         description: 'This is some information about the thing.',

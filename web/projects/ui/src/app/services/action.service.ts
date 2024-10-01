@@ -123,19 +123,15 @@ export class ActionService {
   async execute(
     packageId: string,
     actionId: string,
-    inputs?: {
-      prev: RR.GetActionInputRes
-      curr: object
-    },
+    input?: object,
   ): Promise<boolean> {
-    const loader = this.loader.open('Executing action...').subscribe()
+    const loader = this.loader.open('Loading...').subscribe()
 
     try {
       const res = await this.api.runAction({
         packageId,
         actionId,
-        prev: inputs?.prev || null,
-        input: inputs?.curr || null,
+        input: input || null,
       })
 
       if (res) {

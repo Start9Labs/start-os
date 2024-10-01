@@ -33,10 +33,6 @@ export const SIGKILL: Signals = "SIGKILL"
 export const NO_TIMEOUT = -1
 
 export type PathMaker = (options: { volume: string; path: string }) => string
-export type ExportedAction = (options: {
-  effects: Effects
-  input?: Record<string, unknown>
-}) => Promise<ActionResult>
 export type MaybePromise<A> = Promise<A> | A
 export namespace ExpectedExports {
   version: 1
@@ -264,13 +260,6 @@ export type Metadata = {
   mode: number
 }
 
-export type ActionResult = {
-  version: "0"
-  message: string
-  value: string | null
-  copyable: boolean
-  qr: boolean
-}
 export type SetResult = {
   dependsOn: DependsOn
   signal: Signals
