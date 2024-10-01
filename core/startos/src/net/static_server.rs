@@ -84,7 +84,7 @@ pub fn rpc_router<C: Context + Clone + AsRef<RpcContinuations>>(
     server: HttpServer<C>,
 ) -> Router {
     Router::new()
-        .route("/rpc/*path", post(server))
+        .route("/rpc/*path", any(server))
         .route(
             "/ws/rpc/:guid",
             get({
