@@ -3,9 +3,12 @@ import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { AppShowPage } from './app-show.page'
-import { EmverPipesModule, ResponsiveColModule } from '@start9labs/shared'
+import {
+  ExverPipesModule,
+  ResponsiveColModule,
+  SharedPipesModule,
+} from '@start9labs/shared'
 import { StatusComponentModule } from 'src/app/components/status/status.component.module'
-import { AppConfigPageModule } from 'src/app/modals/app-config/app-config.module'
 import { LaunchablePipeModule } from 'src/app/pipes/launchable/launchable.module'
 import { UiPipeModule } from 'src/app/pipes/ui/ui.module'
 import { AppShowHeaderComponent } from './components/app-show-header/app-show-header.component'
@@ -15,10 +18,11 @@ import { AppShowDependenciesComponent } from './components/app-show-dependencies
 import { AppShowMenuComponent } from './components/app-show-menu/app-show-menu.component'
 import { AppShowHealthChecksComponent } from './components/app-show-health-checks/app-show-health-checks.component'
 import { AppShowAdditionalComponent } from './components/app-show-additional/app-show-additional.component'
+import { AppShowErrorComponent } from './components/app-show-error/app-show-error.component'
 import { HealthColorPipe } from './pipes/health-color.pipe'
 import { ToHealthChecksPipe } from './pipes/to-health-checks.pipe'
 import { ToButtonsPipe } from './pipes/to-buttons.pipe'
-import { ProgressDataPipe } from './pipes/progress-data.pipe'
+import { InstallingProgressPipeModule } from 'src/app/pipes/install-progress/install-progress.module'
 
 const routes: Routes = [
   {
@@ -31,7 +35,6 @@ const routes: Routes = [
   declarations: [
     AppShowPage,
     HealthColorPipe,
-    ProgressDataPipe,
     ToHealthChecksPipe,
     ToButtonsPipe,
     AppShowHeaderComponent,
@@ -41,17 +44,20 @@ const routes: Routes = [
     AppShowMenuComponent,
     AppShowHealthChecksComponent,
     AppShowAdditionalComponent,
+    AppShowErrorComponent,
   ],
   imports: [
     CommonModule,
-    StatusComponentModule,
+    InstallingProgressPipeModule,
     IonicModule,
     RouterModule.forChild(routes),
-    AppConfigPageModule,
-    EmverPipesModule,
+    ExverPipesModule,
     LaunchablePipeModule,
     UiPipeModule,
     ResponsiveColModule,
+    StatusComponentModule,
+    SharedPipesModule,
   ],
+  exports: [AppShowProgressComponent],
 })
 export class AppShowPageModule {}

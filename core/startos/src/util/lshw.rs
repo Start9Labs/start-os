@@ -1,14 +1,15 @@
 use models::{Error, ResultExt};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
+use ts_rs::TS;
 
 use crate::util::Invoke;
 
 const KNOWN_CLASSES: &[&str] = &["processor", "display"];
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(tag = "class")]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum LshwDevice {
     Processor(LshwProcessor),
     Display(LshwDisplay),
@@ -28,12 +29,12 @@ impl LshwDevice {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
 pub struct LshwProcessor {
     pub product: String,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
 pub struct LshwDisplay {
     pub product: String,
 }

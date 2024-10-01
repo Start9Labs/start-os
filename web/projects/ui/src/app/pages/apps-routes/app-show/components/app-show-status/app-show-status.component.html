@@ -4,14 +4,21 @@
     <status
       size="x-large"
       weight="600"
-      [installProgress]="pkg['install-progress']"
+      [installingInfo]="$any(pkg.stateInfo).installingInfo"
       [rendering]="PR[status.primary]"
-      [sigtermTimeout]="pkg.manifest.main['sigterm-timeout']"
+      [sigtermTimeout]="sigtermTimeout"
     ></status>
   </ion-label>
 </ion-item>
 
-<ng-container *ngIf="isInstalled && (connected$ | async)">
+<ng-container
+  *ngIf="
+    isInstalled(pkg) &&
+    pkg.status.main !== 'backingUp' &&
+    pkg.status.main !== 'error' &&
+    (connection$ | async)
+  "
+>
   <ion-grid>
     <ion-row style="padding-left: 12px">
       <ion-col>
@@ -36,7 +43,7 @@
         </ng-container>
 
         <ion-button
-          *ngIf="isStopped && pkgStatus?.configured"
+          *ngIf="canStart"
           class="action-button"
           color="success"
           (click)="tryStart()"
@@ -46,7 +53,7 @@
         </ion-button>
 
         <ion-button
-          *ngIf="!pkgStatus?.configured"
+          *ngIf="needsConfig(manifest.id, pkg.requestedActions)"
           class="action-button"
           color="warning"
           (click)="presentModalConfig()"
@@ -56,13 +63,11 @@
         </ion-button>
 
         <ion-button
-          *ngIf="pkgStatus && (interfaces | hasUi)"
+          *ngIf="pkgStatus && interfaces && (interfaces | hasUi) && hosts"
           class="action-button"
           color="primary"
-          [disabled]="
-            !(pkg.state | isLaunchable: pkgStatus.main.status:interfaces)
-          "
-          (click)="launchUi()"
+          [disabled]="!(pkg.stateInfo.state | isLaunchable : pkgStatus.main)"
+          (click)="launchUi(interfaces, hosts)"
         >
           <ion-icon slot="start" name="open-outline"></ion-icon>
           Launch UI

@@ -1,56 +1,62 @@
 use std::collections::BTreeMap;
-use std::convert::Infallible;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
+use axum::body::Body;
+use axum::extract::Request;
+use axum::response::Response;
 use color_eyre::eyre::eyre;
 use helpers::NonDetachingJoinHandle;
-use http::{Response, Uri};
-use hyper::service::{make_service_fn, service_fn};
-use hyper::Body;
+use http::Uri;
+use imbl_value::InternedString;
 use models::ResultExt;
+use serde::{Deserialize, Serialize};
+use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{Mutex, RwLock};
+use tokio_rustls::rustls::pki_types::{
+    CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer, ServerName,
+};
 use tokio_rustls::rustls::server::Acceptor;
 use tokio_rustls::rustls::{RootCertStore, ServerConfig};
 use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
 use tracing::instrument;
+use ts_rs::TS;
 
-use crate::net::keys::Key;
-use crate::net::ssl::SslManager;
-use crate::net::utils::SingleAccept;
+use crate::db::model::Database;
+use crate::net::static_server::server_error;
 use crate::prelude::*;
-use crate::util::io::{BackTrackingReader, TimeoutStream};
+use crate::util::io::BackTrackingIO;
+use crate::util::serde::MaybeUtf8String;
 
 // not allowed: <=1024, >=32768, 5355, 5432, 9050, 6010, 9051, 5353
 
 pub struct VHostController {
-    ssl: Arc<SslManager>,
+    db: TypedPatchDb<Database>,
     servers: Mutex<BTreeMap<u16, VHostServer>>,
 }
 impl VHostController {
-    pub fn new(ssl: Arc<SslManager>) -> Self {
+    pub fn new(db: TypedPatchDb<Database>) -> Self {
         Self {
-            ssl,
+            db,
             servers: Mutex::new(BTreeMap::new()),
         }
     }
     #[instrument(skip_all)]
     pub async fn add(
         &self,
-        key: Key,
-        hostname: Option<String>,
+        hostname: Option<InternedString>,
         external: u16,
         target: SocketAddr,
-        connect_ssl: Result<(), AlpnInfo>,
+        connect_ssl: Result<(), AlpnInfo>, // Ok: yes, connect using ssl, pass through alpn; Err: connect tcp, use provided strategy for alpn
     ) -> Result<Arc<()>, Error> {
         let mut writable = self.servers.lock().await;
         let server = if let Some(server) = writable.remove(&external) {
             server
         } else {
-            VHostServer::new(external, self.ssl.clone()).await?
+            VHostServer::new(external, self.db.clone()).await?
         };
         let rc = server
             .add(
@@ -58,7 +64,6 @@ impl VHostController {
                 TargetInfo {
                     addr: target,
                     connect_ssl,
-                    key,
                 },
             )
             .await;
@@ -66,7 +71,7 @@ impl VHostController {
         Ok(rc?)
     }
     #[instrument(skip_all)]
-    pub async fn gc(&self, hostname: Option<String>, external: u16) -> Result<(), Error> {
+    pub async fn gc(&self, hostname: Option<InternedString>, external: u16) -> Result<(), Error> {
         let mut writable = self.servers.lock().await;
         if let Some(server) = writable.remove(&external) {
             server.gc(hostname).await?;
@@ -82,22 +87,28 @@ impl VHostController {
 struct TargetInfo {
     addr: SocketAddr,
     connect_ssl: Result<(), AlpnInfo>,
-    key: Key,
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub enum AlpnInfo {
     Reflect,
-    Specified(Vec<Vec<u8>>),
+    Specified(Vec<MaybeUtf8String>),
+}
+impl Default for AlpnInfo {
+    fn default() -> Self {
+        Self::Reflect
+    }
 }
 
 struct VHostServer {
-    mapping: Weak<RwLock<BTreeMap<Option<String>, BTreeMap<TargetInfo, Weak<()>>>>>,
+    mapping: Weak<RwLock<BTreeMap<Option<InternedString>, BTreeMap<TargetInfo, Weak<()>>>>>,
     _thread: NonDetachingJoinHandle<()>,
 }
 impl VHostServer {
     #[instrument(skip_all)]
-    async fn new(port: u16, ssl: Arc<SslManager>) -> Result<Self, Error> {
+    async fn new(port: u16, db: TypedPatchDb<Database>) -> Result<Self, Error> {
         // check if port allowed
         let listener = TcpListener::bind(SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), port))
             .await
@@ -109,12 +120,19 @@ impl VHostServer {
                 loop {
                     match listener.accept().await {
                         Ok((stream, _)) => {
-                            let stream =
-                                Box::pin(TimeoutStream::new(stream, Duration::from_secs(300)));
-                            let mut stream = BackTrackingReader::new(stream);
-                            stream.start_buffering();
+                            if let Err(e) = socket2::SockRef::from(&stream).set_tcp_keepalive(
+                                &socket2::TcpKeepalive::new()
+                                    .with_time(Duration::from_secs(900))
+                                    .with_interval(Duration::from_secs(60))
+                                    .with_retries(5),
+                            ) {
+                                tracing::error!("Failed to set tcp keepalive: {e}");
+                                tracing::debug!("{e:?}");
+                            }
+
+                            let mut stream = BackTrackingIO::new(stream);
                             let mapping = mapping.clone();
-                            let ssl = ssl.clone();
+                            let db = db.clone();
                             tokio::spawn(async move {
                                 if let Err(e) = async {
                                     let mid = match LazyConfigAcceptor::new(
@@ -126,40 +144,43 @@ impl VHostServer {
                                         Ok(a) => a,
                                         Err(_) => {
                                             stream.rewind();
-                                            return hyper::server::Server::builder(
-                                                SingleAccept::new(stream),
-                                            )
-                                            .serve(make_service_fn(|_| async {
-                                                Ok::<_, Infallible>(service_fn(|req| async move {
-                                                    let host = req
-                                                        .headers()
-                                                        .get(http::header::HOST)
-                                                        .and_then(|host| host.to_str().ok());
-                                                    let uri = Uri::from_parts({
-                                                        let mut parts =
-                                                            req.uri().to_owned().into_parts();
-                                                        parts.authority = host
-                                                            .map(FromStr::from_str)
-                                                            .transpose()?;
-                                                        parts
-                                                    })?;
-                                                    Response::builder()
-                                                        .status(
-                                                            http::StatusCode::TEMPORARY_REDIRECT,
-                                                        )
-                                                        .header(
-                                                            http::header::LOCATION,
-                                                            uri.to_string(),
-                                                        )
-                                                        .body(Body::default())
-                                                }))
-                                            }))
-                                            .await
-                                            .with_kind(crate::ErrorKind::Network);
+                                            return hyper_util::server::conn::auto::Builder::new(hyper_util::rt::TokioExecutor::new())
+                                                .serve_connection(
+                                                    hyper_util::rt::TokioIo::new(stream),
+                                                    hyper_util::service::TowerToHyperService::new(axum::Router::new().fallback(
+                                                        axum::routing::method_routing::any(move |req: Request| async move {
+                                                            match async move {
+                                                                let host = req
+                                                                    .headers()
+                                                                    .get(http::header::HOST)
+                                                                    .and_then(|host| host.to_str().ok());
+                                                                let uri = Uri::from_parts({
+                                                                    let mut parts = req.uri().to_owned().into_parts();
+                                                                    parts.scheme = Some("https".parse()?);
+                                                                    parts.authority = host.map(FromStr::from_str).transpose()?;
+                                                                    parts
+                                                                })?;
+                                                                Response::builder()
+                                                                    .status(http::StatusCode::TEMPORARY_REDIRECT)
+                                                                    .header(http::header::LOCATION, uri.to_string())
+                                                                    .body(Body::default())
+                                                            }.await {
+                                                                Ok(a) => a,
+                                                                Err(e) => {
+                                                                    tracing::warn!("Error redirecting http request on ssl port: {e}");
+                                                                    tracing::error!("{e:?}");
+                                                                    server_error(Error::new(e, ErrorKind::Network))
+                                                                }
+                                                            }
+                                                        }),
+                                                    )),
+                                                )
+                                                .await
+                                                .map_err(|e| Error::new(color_eyre::eyre::Report::msg(e), ErrorKind::Network));
                                         }
                                     };
                                     let target_name =
-                                        mid.client_hello().server_name().map(|s| s.to_owned());
+                                        mid.client_hello().server_name().map(|s| s.into());
                                     let target = {
                                         let mapping = mapping.read().await;
                                         mapping
@@ -169,6 +190,7 @@ impl VHostServer {
                                             .find(|(_, rc)| rc.strong_count() > 0)
                                             .or_else(|| {
                                                 if target_name
+                                                    .as_ref()
                                                     .map(|s| s.parse::<IpAddr>().is_ok())
                                                     .unwrap_or(true)
                                                 {
@@ -186,10 +208,34 @@ impl VHostServer {
                                     if let Some(target) = target {
                                         let mut tcp_stream =
                                             TcpStream::connect(target.addr).await?;
-                                        let key =
-                                            ssl.with_certs(target.key, target.addr.ip()).await?;
+                                        let hostnames = target_name
+                                            .into_iter()
+                                            .chain(
+                                                db.peek()
+                                                    .await
+                                                    .into_public()
+                                                    .into_server_info()
+                                                    .into_ip_info()
+                                                    .into_entries()?
+                                                    .into_iter()
+                                                    .flat_map(|(_, ips)| [
+                                                        ips.as_ipv4().de().map(|ip| ip.map(IpAddr::V4)),
+                                                        ips.as_ipv6().de().map(|ip| ip.map(IpAddr::V6))
+                                                    ])
+                                                    .filter_map(|a| a.transpose())
+                                                    .map(|a| a.map(|ip| InternedString::from_display(&ip)))
+                                                    .collect::<Result<Vec<_>, _>>()?,
+                                            )
+                                            .collect();
+                                        let key = db
+                                            .mutate(|v| {
+                                                v.as_private_mut()
+                                                    .as_key_store_mut()
+                                                    .as_local_certs_mut()
+                                                    .cert_for(&hostnames)
+                                            })
+                                            .await?;
                                         let cfg = ServerConfig::builder()
-                                            .with_safe_defaults()
                                             .with_no_client_auth();
                                         let mut cfg =
                                             if mid.client_hello().signature_schemes().contains(
@@ -199,45 +245,46 @@ impl VHostServer {
                                                     key.fullchain_ed25519()
                                                         .into_iter()
                                                         .map(|c| {
-                                                            Ok(tokio_rustls::rustls::Certificate(
+                                                            Ok(tokio_rustls::rustls::pki_types::CertificateDer::from(
                                                                 c.to_der()?,
                                                             ))
                                                         })
                                                         .collect::<Result<_, Error>>()?,
-                                                    tokio_rustls::rustls::PrivateKey(
-                                                        key.key()
-                                                            .openssl_key_ed25519()
-                                                            .private_key_to_der()?,
-                                                    ),
+                                                    PrivateKeyDer::from(PrivatePkcs8KeyDer::from(
+                                                        key.leaf
+                                                            .keys
+                                                            .ed25519
+                                                            .private_key_to_pkcs8()?,
+                                                    )),
                                                 )
                                             } else {
                                                 cfg.with_single_cert(
                                                     key.fullchain_nistp256()
                                                         .into_iter()
                                                         .map(|c| {
-                                                            Ok(tokio_rustls::rustls::Certificate(
+                                                            Ok(tokio_rustls::rustls::pki_types::CertificateDer::from(
                                                                 c.to_der()?,
                                                             ))
                                                         })
                                                         .collect::<Result<_, Error>>()?,
-                                                    tokio_rustls::rustls::PrivateKey(
-                                                        key.key()
-                                                            .openssl_key_nistp256()
-                                                            .private_key_to_der()?,
-                                                    ),
+                                                    PrivateKeyDer::from(PrivatePkcs8KeyDer::from(
+                                                        key.leaf
+                                                            .keys
+                                                            .nistp256
+                                                            .private_key_to_pkcs8()?,
+                                                    )),
                                                 )
                                             }
                                             .with_kind(crate::ErrorKind::OpenSsl)?;
                                         match target.connect_ssl {
                                             Ok(()) => {
                                                 let mut client_cfg =
-                                                    tokio_rustls::rustls::ClientConfig::builder()
-                                                        .with_safe_defaults()
+                                                tokio_rustls::rustls::ClientConfig::builder()
                                                         .with_root_certificates({
                                                             let mut store = RootCertStore::empty();
                                                             store.add(
-                                                        &tokio_rustls::rustls::Certificate(
-                                                            key.root_ca().to_der()?,
+                                                        CertificateDer::from(
+                                                            key.root.to_der()?,
                                                         ),
                                                     ).with_kind(crate::ErrorKind::OpenSsl)?;
                                                             store
@@ -253,13 +300,9 @@ impl VHostServer {
                                                 let mut target_stream =
                                                     TlsConnector::from(Arc::new(client_cfg))
                                                         .connect_with(
-                                                            key.key()
-                                                                .internal_address()
-                                                                .as_str()
-                                                                .try_into()
-                                                                .with_kind(
-                                                                    crate::ErrorKind::OpenSsl,
-                                                                )?,
+                                                            ServerName::IpAddress(
+                                                                target.addr.ip().into(),
+                                                            ),
                                                             tcp_stream,
                                                             |conn| {
                                                                 cfg.alpn_protocols.extend(
@@ -271,8 +314,12 @@ impl VHostServer {
                                                         )
                                                         .await
                                                         .with_kind(crate::ErrorKind::OpenSsl)?;
+                                                let mut accept = mid.into_stream(Arc::new(cfg));
+                                                let io = accept.get_mut().unwrap();
+                                                let buffered = io.stop_buffering();
+                                                io.write_all(&buffered).await?;
                                                 let mut tls_stream =
-                                                    match mid.into_stream(Arc::new(cfg)).await {
+                                                    match accept.await {
                                                         Ok(a) => a,
                                                         Err(e) => {
                                                             tracing::trace!( "VHostController: failed to accept TLS connection on port {port}: {e}");
@@ -280,7 +327,6 @@ impl VHostServer {
                                                             return Ok(())
                                                         }
                                                     };
-                                                tls_stream.get_mut().0.stop_buffering();
                                                 tokio::io::copy_bidirectional(
                                                     &mut tls_stream,
                                                     &mut target_stream,
@@ -293,8 +339,12 @@ impl VHostServer {
                                                 {
                                                     cfg.alpn_protocols.push(proto.into());
                                                 }
+                                                let mut accept = mid.into_stream(Arc::new(cfg));
+                                                let io = accept.get_mut().unwrap();
+                                                let buffered = io.stop_buffering();
+                                                io.write_all(&buffered).await?;
                                                 let mut tls_stream =
-                                                    match mid.into_stream(Arc::new(cfg)).await {
+                                                    match accept.await {
                                                         Ok(a) => a,
                                                         Err(e) => {
                                                             tracing::trace!( "VHostController: failed to accept TLS connection on port {port}: {e}");
@@ -302,7 +352,6 @@ impl VHostServer {
                                                             return Ok(())
                                                         }
                                                     };
-                                                tls_stream.get_mut().0.stop_buffering();
                                                 tokio::io::copy_bidirectional(
                                                     &mut tls_stream,
                                                     &mut tcp_stream,
@@ -310,9 +359,13 @@ impl VHostServer {
                                                 .await
                                             }
                                             Err(AlpnInfo::Specified(alpn)) => {
-                                                cfg.alpn_protocols = alpn;
+                                                cfg.alpn_protocols = alpn.into_iter().map(|a| a.0).collect();
+                                                let mut accept = mid.into_stream(Arc::new(cfg));
+                                                let io = accept.get_mut().unwrap();
+                                                let buffered = io.stop_buffering();
+                                                io.write_all(&buffered).await?;
                                                 let mut tls_stream =
-                                                    match mid.into_stream(Arc::new(cfg)).await {
+                                                    match accept.await {
                                                         Ok(a) => a,
                                                         Err(e) => {
                                                             tracing::trace!( "VHostController: failed to accept TLS connection on port {port}: {e}");
@@ -320,7 +373,6 @@ impl VHostServer {
                                                             return Ok(())
                                                         }
                                                     };
-                                                tls_stream.get_mut().0.stop_buffering();
                                                 tokio::io::copy_bidirectional(
                                                     &mut tls_stream,
                                                     &mut tcp_stream,
@@ -361,7 +413,11 @@ impl VHostServer {
             .into(),
         })
     }
-    async fn add(&self, hostname: Option<String>, target: TargetInfo) -> Result<Arc<()>, Error> {
+    async fn add(
+        &self,
+        hostname: Option<InternedString>,
+        target: TargetInfo,
+    ) -> Result<Arc<()>, Error> {
         if let Some(mapping) = Weak::upgrade(&self.mapping) {
             let mut writable = mapping.write().await;
             let mut targets = writable.remove(&hostname).unwrap_or_default();
@@ -380,7 +436,7 @@ impl VHostServer {
             ))
         }
     }
-    async fn gc(&self, hostname: Option<String>) -> Result<(), Error> {
+    async fn gc(&self, hostname: Option<InternedString>) -> Result<(), Error> {
         if let Some(mapping) = Weak::upgrade(&self.mapping) {
             let mut writable = mapping.write().await;
             let mut targets = writable.remove(&hostname).unwrap_or_default();

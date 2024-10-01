@@ -18,6 +18,7 @@ use trust_dns_server::proto::rr::{Name, Record, RecordType};
 use trust_dns_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 use trust_dns_server::ServerFuture;
 
+use crate::net::forward::START9_BRIDGE_IFACE;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -33,7 +34,7 @@ struct Resolver {
 impl Resolver {
     async fn resolve(&self, name: &Name) -> Option<Vec<Ipv4Addr>> {
         match name.iter().next_back() {
-            Some(b"embassy") => {
+            Some(b"embassy") | Some(b"startos") => {
                 if let Some(pkg) = name.iter().rev().skip(1).next() {
                     if let Some(ip) = self.services.read().await.get(&Some(
                         std::str::from_utf8(pkg)
@@ -97,16 +98,8 @@ impl RequestHandler for Resolver {
                         )
                         .await
                 }
-                a => {
-                    if a != RecordType::AAAA {
-                        tracing::warn!(
-                            "Non A-Record requested for {}: {:?}",
-                            query.name(),
-                            query.query_type()
-                        );
-                    }
-                    let mut res = Header::response_from_request(request.header());
-                    res.set_response_code(ResponseCode::NXDomain);
+                _ => {
+                    let res = Header::response_from_request(request.header());
                     response_handle
                         .send_response(
                             MessageResponseBuilder::from_message_request(&*request).build(
@@ -163,13 +156,13 @@ impl DnsController {
 
         Command::new("resolvectl")
             .arg("dns")
-            .arg("br-start9")
+            .arg(START9_BRIDGE_IFACE)
             .arg("127.0.0.1")
             .invoke(ErrorKind::Network)
             .await?;
         Command::new("resolvectl")
             .arg("domain")
-            .arg("br-start9")
+            .arg(START9_BRIDGE_IFACE)
             .arg("embassy")
             .invoke(ErrorKind::Network)
             .await?;

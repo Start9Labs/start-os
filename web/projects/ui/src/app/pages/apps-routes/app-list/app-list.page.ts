@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { filter, map, pairwise, startWith } from 'rxjs/operators'
+import { getManifest } from 'src/app/util/get-package-data'
 
 @Component({
   selector: 'app-list',
@@ -10,7 +11,7 @@ import { filter, map, pairwise, startWith } from 'rxjs/operators'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppListPage {
-  readonly pkgs$ = this.patch.watch$('package-data').pipe(
+  readonly pkgs$ = this.patch.watch$('packageData').pipe(
     map(pkgs => Object.values(pkgs)),
     startWith([]),
     pairwise(),
@@ -20,7 +21,7 @@ export class AppListPage {
     }),
     map(([_, pkgs]) =>
       pkgs.sort((a, b) =>
-        b.manifest.title.toLowerCase() > a.manifest.title.toLowerCase()
+        getManifest(b).title.toLowerCase() > getManifest(a).title.toLowerCase()
           ? -1
           : 1,
       ),

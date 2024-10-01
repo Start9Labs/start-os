@@ -2,13 +2,12 @@ import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { IonicModule } from '@ionic/angular'
 import {
-  EmverPipesModule,
+  ExverPipesModule,
   SharedPipesModule,
   TickerModule,
 } from '@start9labs/shared'
 
 import { PackageComponent } from './package.component'
-import { MimeTypePipeModule } from '../../../pipes/mime-type.pipe'
 
 @NgModule({
   declarations: [PackageComponent],
@@ -17,9 +16,8 @@ import { MimeTypePipeModule } from '../../../pipes/mime-type.pipe'
     CommonModule,
     IonicModule,
     SharedPipesModule,
-    EmverPipesModule,
+    ExverPipesModule,
     TickerModule,
-    MimeTypePipeModule,
   ],
 })
 export class PackageModule {}

@@ -17,6 +17,7 @@ fi
 rm -rf dpkg-workdir/$BASENAME
 mkdir -p dpkg-workdir/$BASENAME
 
+make
 make install DESTDIR=dpkg-workdir/$BASENAME
 
 DEPENDS=$(cat dpkg-workdir/$BASENAME/usr/lib/startos/depends | tr $'\n' ',' | sed 's/,,\+/,/g' | sed 's/,$//')

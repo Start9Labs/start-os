@@ -13,25 +13,32 @@
     <ion-item-divider>Standard Actions</ion-item-divider>
     <app-actions-item
       [action]="{
-        name: 'Uninstall',
-        description: 'This will uninstall the service from StartOS and delete all data permanently.',
-        icon: 'trash-outline'
+        name: 'Rebuild Service',
+        description: 'Rebuilds the service container. It is harmless and only takes a few seconds to complete, but it should only be necessary if a StartOS bug is preventing dependencies, interfaces, or actions from synchronizing.',
+        visibility: 'enabled'
       }"
-      (click)="tryUninstall(pkg)"
+      icon="construct-outline"
+      (click)="rebuild(pkg.manifest.id)"
+    ></app-actions-item>
+    <app-actions-item
+      [action]="{
+        name: 'Uninstall',
+        description: 'Uninstalls this service from StartOS and delete all data permanently.',
+        visibility: 'enabled'
+      }"
+      icon="trash-outline"
+      (click)="tryUninstall(pkg.manifest)"
     ></app-actions-item>
 
     <!-- ** specific actions ** -->
-    <ion-item-divider *ngIf="!(pkg.manifest.actions | empty)">
+    <ion-item-divider *ngIf="pkg.actions.length">
       Actions for {{ pkg.manifest.title }}
     </ion-item-divider>
     <app-actions-item
-      *ngFor="let action of pkg.manifest.actions | keyvalue: asIsOrder"
-      [action]="{
-        name: action.value.name,
-        description: action.value.description,
-        icon: 'play-circle-outline'
-      }"
-      (click)="handleAction(pkg, action)"
+      *ngFor="let action of pkg.actions"
+      [action]="action"
+      icon="play-circle-outline"
+      (click)="handleAction(pkg.mainStatus, pkg.manifest, action)"
     ></app-actions-item>
   </ion-item-group>
 </ion-content>

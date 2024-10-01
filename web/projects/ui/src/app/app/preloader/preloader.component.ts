@@ -1,4 +1,11 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { FormControl } from '@angular/forms'
+import {
+  ActionSheetController,
+  AlertController,
+  ModalController,
+  ToastController,
+} from '@ionic/angular'
 
 // TODO: Turn into DI token if this is needed someplace else too
 const ICONS = [
@@ -40,8 +47,6 @@ const ICONS = [
   'file-tray-stacked-outline',
   'finger-print-outline',
   'flash-outline',
-  'flask-outline',
-  'flash-off-outline',
   'folder-open-outline',
   'globe-outline',
   'grid-outline',
@@ -70,6 +75,7 @@ const ICONS = [
   'receipt-outline',
   'refresh',
   'reload',
+  'reload-circle-outline',
   'remove',
   'remove-circle-outline',
   'remove-outline',
@@ -89,6 +95,26 @@ const ICONS = [
   'wifi',
 ]
 
+const TAIGA = [
+  'tuiIconPaintOutline',
+  'tuiIconTrash',
+  'tuiIconTrashOutline',
+  'tuiIconChevronDown',
+  'tuiIconChevronDownOutline',
+  'tuiIconRefreshCcw',
+  'tuiIconRefreshCcwOutline',
+  'tuiIconEye',
+  'tuiIconEyeOutline',
+  'tuiIconEyeOff',
+  'tuiIconEyeOffOutline',
+  'tuiIconPlus',
+  'tuiIconMinus',
+  'tuiIconCheck',
+  'tuiIconClose',
+  'tuiIconCalendarLarge',
+  'tuiIconHelpCircle',
+]
+
 @Component({
   selector: 'section[appPreloader]',
   templateUrl: 'preloader.component.html',
@@ -96,4 +122,13 @@ const ICONS = [
 })
 export class PreloaderComponent {
   readonly icons = ICONS
+  readonly taiga = TAIGA
+  readonly control = new FormControl()
+
+  constructor(
+    _modals: ModalController,
+    _alerts: AlertController,
+    _toasts: ToastController,
+    _actions: ActionSheetController,
+  ) {}
 }

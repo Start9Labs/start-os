@@ -1,22 +1,27 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { UiLauncherService } from 'src/app/services/ui-launcher.service'
+import { AlertController } from '@ionic/angular'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
+import { PatchDB } from 'patch-db-client'
+import { ActionService } from 'src/app/services/action.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ConnectionService } from 'src/app/services/connection.service'
+import {
+  DataModel,
+  PackageDataEntry,
+} from 'src/app/services/patch-db/data-model'
 import {
   PackageStatus,
   PrimaryRendering,
-  PrimaryStatus,
 } from 'src/app/services/pkg-status-rendering.service'
+import { UiLauncherService } from 'src/app/services/ui-launcher.service'
 import {
-  InterfaceDef,
-  PackageDataEntry,
-  PackageState,
-  Status,
-} from 'src/app/services/patch-db/data-model'
-import { ErrorToastService } from '@start9labs/shared'
-import { AlertController, LoadingController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ModalService } from 'src/app/services/modal.service'
+  getAllPackages,
+  getManifest,
+  isInstalled,
+  needsConfig,
+} from 'src/app/util/get-package-data'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
-import { ConnectionService } from 'src/app/services/connection.service'
 
 @Component({
   selector: 'app-show-status',
@@ -33,65 +38,82 @@ export class AppShowStatusComponent {
 
   PR = PrimaryRendering
 
-  readonly connected$ = this.connectionService.connected$
+  isInstalled = isInstalled
+  needsConfig = needsConfig
 
   constructor(
     private readonly alertCtrl: AlertController,
-    private readonly errToast: ErrorToastService,
-    private readonly loadingCtrl: LoadingController,
+    private readonly errorService: ErrorService,
+    private readonly loader: LoadingService,
     private readonly embassyApi: ApiService,
     private readonly launcherService: UiLauncherService,
-    private readonly modalService: ModalService,
-    private readonly connectionService: ConnectionService,
+    readonly connection$: ConnectionService,
+    private readonly patch: PatchDB<DataModel>,
+    private readonly actionService: ActionService,
   ) {}
 
-  get interfaces(): Record<string, InterfaceDef> {
-    return this.pkg.manifest.interfaces || {}
+  get interfaces(): PackageDataEntry['serviceInterfaces'] {
+    return this.pkg.serviceInterfaces
   }
 
-  get pkgStatus(): Status | null {
-    return this.pkg.installed?.status || null
+  get hosts(): PackageDataEntry['hosts'] {
+    return this.pkg.hosts
   }
 
-  get isInstalled(): boolean {
-    return this.pkg.state === PackageState.Installed
+  get pkgStatus(): T.MainStatus {
+    return this.pkg.status
+  }
+
+  get manifest(): T.Manifest {
+    return getManifest(this.pkg)
   }
 
   get isRunning(): boolean {
-    return this.status.primary === PrimaryStatus.Running
+    return this.status.primary === 'running'
   }
 
   get canStop(): boolean {
-    return [
-      PrimaryStatus.Running,
-      PrimaryStatus.Starting,
-      PrimaryStatus.Restarting,
-    ].includes(this.status.primary)
+    return ['running', 'starting', 'restarting'].includes(this.status.primary)
   }
 
-  get isStopped(): boolean {
-    return this.status.primary === PrimaryStatus.Stopped
+  get canStart(): boolean {
+    return (
+      this.status.primary === 'stopped' &&
+      !Object.keys(this.pkg.requestedActions).length
+    )
   }
 
-  launchUi(): void {
-    this.launcherService.launch(this.pkg)
+  get sigtermTimeout(): string | null {
+    return this.pkgStatus?.main === 'stopping' ? '30s' : null // @dr-bonez TODO
+  }
+
+  launchUi(
+    interfaces: PackageDataEntry['serviceInterfaces'],
+    hosts: PackageDataEntry['hosts'],
+  ): void {
+    this.launcherService.launch(interfaces, hosts)
   }
 
   async presentModalConfig(): Promise<void> {
-    return this.modalService.presentModalConfig({
-      pkgId: this.id,
-    })
+    return this.actionService.present(
+      {
+        id: this.manifest.id,
+        title: this.manifest.title,
+        mainStatus: this.pkg.status.main,
+      },
+      { id: 'config', metadata: this.pkg.actions['config'] },
+    )
   }
 
   async tryStart(): Promise<void> {
     if (this.status.dependency === 'warning') {
-      const depErrMsg = `${this.pkg.manifest.title} has unmet dependencies. It will not work as expected.`
+      const depErrMsg = `${this.manifest.title} has unmet dependencies. It will not work as expected.`
       const proceed = await this.presentAlertStart(depErrMsg)
 
       if (!proceed) return
     }
 
-    const alertMsg = this.pkg.manifest.alerts.start
+    const alertMsg = this.manifest.alerts.start
 
     if (alertMsg) {
       const proceed = await this.presentAlertStart(alertMsg)
@@ -103,10 +125,10 @@ export class AppShowStatusComponent {
   }
 
   async tryStop(): Promise<void> {
-    const { title, alerts } = this.pkg.manifest
+    const { title, alerts } = this.manifest
 
     let message = alerts.stop || ''
-    if (hasCurrentDeps(this.pkg)) {
+    if (hasCurrentDeps(this.manifest.id, await getAllPackages(this.patch))) {
       const depMessage = `Services that depend on ${title} will no longer work properly and may crash`
       message = message ? `${message}.\n\n${depMessage}` : depMessage
     }
@@ -138,10 +160,10 @@ export class AppShowStatusComponent {
   }
 
   async tryRestart(): Promise<void> {
-    if (hasCurrentDeps(this.pkg)) {
+    if (hasCurrentDeps(this.manifest.id, await getAllPackages(this.patch))) {
       const alert = await this.alertCtrl.create({
         header: 'Warning',
-        message: `Services that depend on ${this.pkg.manifest.title} may temporarily experiences issues`,
+        message: `Services that depend on ${this.manifest.title} may temporarily experiences issues`,
         buttons: [
           {
             text: 'Cancel',
@@ -164,52 +186,39 @@ export class AppShowStatusComponent {
     }
   }
 
-  private get id(): string {
-    return this.pkg.manifest.id
-  }
-
   private async start(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: `Starting...`,
-    })
-    await loader.present()
+    const loader = this.loader.open(`Starting...`).subscribe()
 
     try {
-      await this.embassyApi.startPackage({ id: this.id })
+      await this.embassyApi.startPackage({ id: this.manifest.id })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async stop(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Stopping...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Stopping...').subscribe()
 
     try {
-      await this.embassyApi.stopPackage({ id: this.id })
+      await this.embassyApi.stopPackage({ id: this.manifest.id })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async restart(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: `Restarting...`,
-    })
-    await loader.present()
+    const loader = this.loader.open(`Restarting...`).subscribe()
 
     try {
-      await this.embassyApi.restartPackage({ id: this.id })
+      await this.embassyApi.restartPackage({ id: this.manifest.id })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
   private async presentAlertStart(message: string): Promise<boolean> {

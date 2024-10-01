@@ -1,7 +1,7 @@
 import { Component, Input } from '@angular/core'
 import { ModalController, ToastController } from '@ionic/angular'
-import { ActionResponse } from 'src/app/services/api/api.types'
 import { copyToClipboard } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'action-success',
@@ -10,7 +10,7 @@ import { copyToClipboard } from '@start9labs/shared'
 })
 export class ActionSuccessPage {
   @Input()
-  actionRes!: ActionResponse
+  actionRes!: T.ActionResult
 
   constructor(
     private readonly modalCtrl: ModalController,

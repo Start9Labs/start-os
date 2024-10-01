@@ -2,9 +2,9 @@ import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
-import { EmverPipesModule, MarkdownPipeModule } from '@start9labs/shared'
-
+import { ExverPipesModule, MarkdownPipeModule } from '@start9labs/shared'
 import { AboutComponent } from './about.component'
+import { ReleaseNotesComponentModule } from '../../../modals/release-notes/release-notes.module'
 
 @NgModule({
   imports: [
@@ -12,7 +12,8 @@ import { AboutComponent } from './about.component'
     RouterModule,
     IonicModule,
     MarkdownPipeModule,
-    EmverPipesModule,
+    ExverPipesModule,
+    ReleaseNotesComponentModule,
   ],
   declarations: [AboutComponent],
   exports: [AboutComponent],
