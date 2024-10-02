@@ -19,6 +19,7 @@ import {
   switchMap,
   distinctUntilChanged,
   ReplaySubject,
+  tap,
 } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -41,6 +42,7 @@ export class MarketplaceService {
     this.registryUrl$.pipe(
       switchMap(url => this.fetchRegistry$(url)),
       filter(Boolean),
+      // @TODO is updateStoreName needed?
       map(registry => {
         registry.info.categories = {
           all: {
@@ -109,6 +111,11 @@ export class MarketplaceService {
     return this.registryUrl$
   }
 
+  setRegistryUrl(url: string | null) {
+    const registryUrl = url || this.config.marketplace.start9
+    this.registryUrlSubject$.next(registryUrl)
+  }
+
   getRegistry$(): Observable<StoreDataWithUrl> {
     return this.registry$
   }
@@ -131,45 +138,6 @@ export class MarketplaceService {
         return pkg ? of(pkg) : this.fetchPackage$(url, id, version, flavor)
       }),
     )
-  }
-
-  setRegistryUrl(url: string | null) {
-    const registryUrl = url || this.config.marketplace.start9
-    this.registryUrlSubject$.next(registryUrl)
-  }
-
-  private fetchRegistry$(url: string): Observable<StoreDataWithUrl | null> {
-    console.log('FETCHING REGISTRY: ', url)
-    return combineLatest([this.fetchInfo$(url), this.fetchPackages$(url)]).pipe(
-      map(([info, packages]) => ({ info, packages, url })),
-      catchError(e => {
-        console.error(e)
-        this.requestErrors$.next(this.requestErrors$.value.concat(url))
-        return of(null)
-      }),
-    )
-  }
-
-  // UI only
-  readonly updateErrors: Record<string, string> = {}
-  readonly updateQueue: Record<string, boolean> = {}
-
-  getRequestErrors$(): Observable<string[]> {
-    return this.requestErrors$
-  }
-
-  async installPackage(
-    id: string,
-    version: string,
-    url: string,
-  ): Promise<void> {
-    const params: RR.InstallPackageReq = {
-      id,
-      version,
-      registry: url,
-    }
-
-    await this.api.installPackage(params)
   }
 
   fetchInfo$(url: string): Observable<T.RegistryInfo> {
@@ -197,6 +165,18 @@ export class MarketplaceService {
     return from(this.api.getStaticProxy(pkg, type))
   }
 
+  private fetchRegistry$(url: string): Observable<StoreDataWithUrl | null> {
+    console.log('FETCHING REGISTRY: ', url)
+    return combineLatest([this.fetchInfo$(url), this.fetchPackages$(url)]).pipe(
+      map(([info, packages]) => ({ info, packages, url })),
+      catchError(e => {
+        console.error(e)
+        this.requestErrors$.next(this.requestErrors$.value.concat(url))
+        return of(null)
+      }),
+    )
+  }
+
   private fetchPackages$(url: string): Observable<MarketplacePkg[]> {
     return from(this.api.getRegistryPackages(url)).pipe(
       map(packages => {
@@ -214,7 +194,22 @@ export class MarketplaceService {
     )
   }
 
-  convertToMarketplacePkg(
+  private fetchPackage$(
+    url: string,
+    id: string,
+    version: string | null,
+    flavor: string | null,
+  ): Observable<MarketplacePkg> {
+    return from(
+      this.api.getRegistryPackage(url, id, version ? `=${version}` : null),
+    ).pipe(
+      map(pkgInfo =>
+        this.convertToMarketplacePkg(id, version, flavor, pkgInfo),
+      ),
+    )
+  }
+
+  private convertToMarketplacePkg(
     id: string,
     version: string | null | undefined,
     flavor: string | null,
@@ -236,26 +231,6 @@ export class MarketplaceService {
         }
   }
 
-  private fetchPackage$(
-    url: string,
-    id: string,
-    version: string | null,
-    flavor: string | null,
-  ): Observable<MarketplacePkg> {
-    return from(
-      this.api.getRegistryPackage(url, id, version ? `=${version}` : null),
-    ).pipe(
-      map(pkgInfo =>
-        this.convertToMarketplacePkg(
-          id,
-          version === '*' ? null : version,
-          flavor,
-          pkgInfo,
-        ),
-      ),
-    )
-  }
-
   private async updateStoreName(
     url: string,
     oldName: string | undefined,
@@ -267,6 +242,28 @@ export class MarketplaceService {
         newName,
       )
     }
+  }
+
+  // UI only
+  readonly updateErrors: Record<string, string> = {}
+  readonly updateQueue: Record<string, boolean> = {}
+
+  getRequestErrors$(): Observable<string[]> {
+    return this.requestErrors$
+  }
+
+  async installPackage(
+    id: string,
+    version: string,
+    url: string,
+  ): Promise<void> {
+    const params: RR.InstallPackageReq = {
+      id,
+      version,
+      registry: url,
+    }
+
+    await this.api.installPackage(params)
   }
 }
 
