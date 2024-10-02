@@ -4,8 +4,9 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import {
   AbstractCategoryService,
   FilterPackagesPipe,
+  FilterPackagesPipeModule,
 } from '@start9labs/marketplace'
-import { combineLatest, distinctUntilKeyChanged, map } from 'rxjs'
+import { tap, withLatestFrom } from 'rxjs'
 import { MarketplaceNotificationComponent } from './components/notification.component'
 import { MarketplaceMenuComponent } from './components/menu.component'
 import { MarketplaceTileComponent } from './components/tile.component'
@@ -13,7 +14,7 @@ import { MarketplaceControlsComponent } from './components/controls.component'
 import { MarketplacePreviewComponent } from './modals/preview.component'
 import { MarketplaceSidebarsComponent } from './components/sidebars.component'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { ActivatedRoute } from '@angular/router'
+import { ActivatedRoute, Router } from '@angular/router'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -25,15 +26,19 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     <tui-scrollbar>
       <div class="marketplace-content-wrapper">
         <div class="marketplace-content-inner">
-          <marketplace-notification [url]="(details$ | async) || ''" />
+          <marketplace-notification [url]="(url$ | async) || ''" />
           <div class="title-wrapper">
             <h1>
               {{ category$ | async | titlecase }}
             </h1>
           </div>
-          @if (filtered$ | async; as filtered) {
+          @if (registry$ | async; as registry) {
             <section class="marketplace-content-list">
-              @for (pkg of filtered; track $index) {
+              @for (
+                pkg of registry.packages
+                  | filterPackages: (query$ | async) : (category$ | async);
+                track $index
+              ) {
                 <marketplace-tile
                   [pkg]="pkg"
                   [style.--animation-order]="$index"
@@ -131,6 +136,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
         font-size: 1.25rem;
         line-height: 1.75rem;
         padding-left: 1.5rem;
+        font-weight: normal;
       }
 
       :host-context(tui-root._mobile) {
@@ -149,36 +155,34 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     MarketplacePreviewComponent,
     MarketplaceSidebarsComponent,
     TuiScrollbar,
+    FilterPackagesPipeModule,
   ],
 })
 export class MarketplaceComponent {
-  private readonly pipe = inject(FilterPackagesPipe)
   private readonly categoryService = inject(AbstractCategoryService)
   private readonly marketplaceService = inject(MarketplaceService)
+  private readonly router = inject(Router)
+  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly route = inject(ActivatedRoute)
+    .queryParamMap.pipe(
+      takeUntilDestroyed(),
+      withLatestFrom(this.patch.watch$('ui', 'marketplace', 'selectedUrl')),
+      tap(([params, selectedUrl]) => {
+        const registry = params.get('registry')
+        if (!registry) {
+          this.router.navigate([], {
+            queryParams: { registry: selectedUrl },
+            queryParamsHandling: 'merge',
+          })
+        } else {
+          this.marketplaceService.setRegistryUrl(registry)
+        }
+      }),
+    )
+    .subscribe()
 
-  constructor(
-    private readonly route: ActivatedRoute,
-    private readonly patch: PatchDB<DataModel>,
-  ) {
-    this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(params => {
-      this.patch
-        .watch$('ui', 'marketplace')
-        .pipe(distinctUntilKeyChanged('selectedUrl'))
-        .subscribe(({ selectedUrl }) => {
-          this.marketplaceService.setRegistryUrl(
-            params.get('registry') || selectedUrl,
-          )
-        })
-    })
-  }
-
-  readonly details$ = this.marketplaceService.getRegistryUrl$()
+  readonly url$ = this.marketplaceService.getRegistryUrl$()
   readonly category$ = this.categoryService.getCategory$()
-  readonly filtered$ = combineLatest([
-    this.marketplaceService
-      .getRegistry$()
-      .pipe(map(({ packages }) => packages)),
-    this.categoryService.getQuery$(),
-    this.category$,
-  ]).pipe(map(args => this.pipe.transform(...args)))
+  readonly query$ = this.categoryService.getQuery$()
+  readonly registry$ = this.marketplaceService.getRegistry$()
 }

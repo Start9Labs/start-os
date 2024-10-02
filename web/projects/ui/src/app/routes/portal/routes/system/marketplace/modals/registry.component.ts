@@ -182,7 +182,11 @@ export class MarketplaceRegistryModal {
     loader.add(this.loader.open('Changing Registry...').subscribe())
     try {
       this.marketplaceService.setRegistryUrl(url)
-      await this.api.setDbValue<string>(['marketplace', 'selectedUrl'], url)
+      this.router.navigate([], {
+        queryParams: { registry: url },
+        queryParamsHandling: 'merge',
+      })
+      this.api.setDbValue<string>(['marketplace', 'selectedUrl'], url)
       this.context.$implicit.complete()
     } catch (e: any) {
       this.errorService.handleError(e)

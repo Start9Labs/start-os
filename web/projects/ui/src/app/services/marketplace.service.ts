@@ -27,7 +27,6 @@ import { ConfigService } from './config.service'
 import { Exver } from '@start9labs/shared'
 import { ClientStorageService } from './client-storage.service'
 import { T } from '@start9labs/start-sdk'
-import { Router } from '@angular/router'
 
 @Injectable({
   providedIn: 'root',
@@ -99,7 +98,6 @@ export class MarketplaceService {
     private readonly config: ConfigService,
     private readonly clientStorageService: ClientStorageService,
     private readonly exver: Exver,
-    private readonly router: Router,
   ) {}
 
   getKnownHosts$(filtered = false): Observable<StoreIdentity[]> {
@@ -115,12 +113,28 @@ export class MarketplaceService {
     return this.registry$
   }
 
+  getPackage$(
+    id: string,
+    version: string | null,
+    flavor: string | null,
+    registryUrl?: string,
+  ): Observable<MarketplacePkg> {
+    return this.registry$.pipe(
+      switchMap(registry => {
+        const url = registryUrl || registry.url
+        const pkg = registry.packages.find(
+          p =>
+            p.id === id &&
+            p.flavor === flavor &&
+            (!version || this.exver.compareExver(p.version, version) === 0),
+        )
+        return pkg ? of(pkg) : this.fetchPackage$(url, id, version, flavor)
+      }),
+    )
+  }
+
   setRegistryUrl(url: string | null) {
     const registryUrl = url || this.config.marketplace.start9
-    this.router.navigate([], {
-      queryParams: { registry: url },
-      queryParamsHandling: 'merge',
-    })
     this.registryUrlSubject$.next(registryUrl)
   }
 
@@ -133,30 +147,6 @@ export class MarketplaceService {
         this.requestErrors$.next(this.requestErrors$.value.concat(url))
         return of(null)
       }),
-    )
-  }
-
-  getPackage$(
-    id: string,
-    version: string | null,
-    flavor: string | null,
-    registryUrl?: string,
-  ): Observable<MarketplacePkg> {
-    return this.registry$.pipe(
-      switchMap(({ url: selectedUrl }) =>
-        this.registry$.pipe(
-          switchMap(registry => {
-            const url = registryUrl || selectedUrl
-            const pkg = registry.packages.find(
-              p =>
-                p.id === id &&
-                p.flavor === flavor &&
-                (!version || this.exver.compareExver(p.version, version) === 0),
-            )
-            return pkg ? of(pkg) : this.fetchPackage$(url, id, version, flavor)
-          }),
-        ),
-      ),
     )
   }
 

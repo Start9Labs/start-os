@@ -8,7 +8,7 @@
       [marketplace]="iconConfig"
     />
     <h1 [class.tui-skeleton]="!registry">
-      {{ registry?.info?.name || 'Loading store...' }}
+      {{ registry?.info?.name || 'Unnamed Registry' }}
     </h1>
     <!-- change registry modal -->
     <ng-content select="[slot=desktop]"></ng-content>

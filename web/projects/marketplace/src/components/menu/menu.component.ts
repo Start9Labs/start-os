@@ -21,7 +21,7 @@ export class MenuComponent implements OnDestroy {
   iconConfig!: MarketplaceConfig
 
   @Input({ required: true })
-  registry: StoreDataWithUrl | null = null
+  registry!: StoreDataWithUrl | null
 
   private destroy$ = new Subject<void>()
   private readonly categoryService = inject(AbstractCategoryService)
@@ -50,7 +50,6 @@ export class MenuComponent implements OnDestroy {
     this.query = ''
     this.categoryService.resetQuery()
     this.categoryService.changeCategory(category)
-    this.categoryService.handleNavigation()
   }
 
   onQueryChange(query: string): void {
