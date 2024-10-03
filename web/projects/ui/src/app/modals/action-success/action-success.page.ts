@@ -6,6 +6,7 @@ import {
 } from '@ionic/angular'
 import { copyToClipboard } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
+import { QRComponent } from 'src/app/components/qr/qr.component'
 import { RR } from 'src/app/services/api/api.types'
 
 @Component({
@@ -15,7 +16,7 @@ import { RR } from 'src/app/services/api/api.types'
 })
 export class ActionSuccessPage {
   @Input()
-  actionRes!: RR.ActionRes
+  response!: NonNullable<RR.ActionRes>
 
   constructor(
     private readonly modalCtrl: ModalController,
@@ -50,6 +51,17 @@ export class ActionSuccessPage {
       duration: 1000,
     })
     await toast.present()
+  }
+
+  async showQR(text: string): Promise<void> {
+    const modal = await this.modalCtrl.create({
+      component: QRComponent,
+      componentProps: {
+        text,
+      },
+      cssClass: 'qr-modal',
+    })
+    await modal.present()
   }
 
   async dismiss() {

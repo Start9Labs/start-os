@@ -1,12 +1,19 @@
 <ion-header>
   <ion-toolbar>
-    <ion-title>Result</ion-title>
+    <ion-title>{{ response.name }}</ion-title>
     <ion-buttons slot="end">
-      <ion-button (click)="dismiss()" class="enter-click">
+      <ion-button (click)="dismiss()">
         <ion-icon name="close"></ion-icon>
       </ion-button>
     </ion-buttons>
   </ion-toolbar>
 </ion-header>
 
-<ion-content class="ion-padding"></ion-content>
+<ion-content class="ion-padding">
+  <ng-container *ngIf="response.type === 'string'">
+    <!-- @TODO Alex display full page with description, value, and QR (if needed) and buttons to copy/paste (if needed) -->
+  </ng-container>
+  <ng-container *ngIf="response.type === 'object'">
+    <!-- @TODO Alex display list as name/value pairs with copy/paste and reveal QR buttons (if needed). Nested lists should be accordion with indented children -->
+  </ng-container>
+</ion-content>
