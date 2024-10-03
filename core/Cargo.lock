@@ -5041,7 +5041,7 @@ dependencies = [
 
 [[package]]
 name = "start-os"
-version = "0.3.6-alpha.5"
+version = "0.3.6-alpha.6"
 dependencies = [
  "aes",
  "async-compression",
