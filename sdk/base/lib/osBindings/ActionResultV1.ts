@@ -3,6 +3,7 @@
 export type ActionResultV1 =
   | {
       type: "string"
+      name: string
       value: string
       description: string | null
       copyable: boolean
@@ -11,6 +12,7 @@ export type ActionResultV1 =
     }
   | {
       type: "object"
-      value: { [key: string]: ActionResultV1 }
+      name: string
+      value: Array<ActionResultV1>
       description?: string
     }

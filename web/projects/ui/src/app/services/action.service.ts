@@ -3,7 +3,6 @@ import { AlertController, ModalController } from '@ionic/angular'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
-import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import {

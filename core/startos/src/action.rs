@@ -125,6 +125,7 @@ impl fmt::Display for ActionResultV0 {
 #[serde(tag = "type")]
 pub enum ActionResultV1 {
     String {
+        name: String,
         value: String,
         description: Option<String>,
         copyable: bool,
@@ -132,7 +133,8 @@ pub enum ActionResultV1 {
         masked: bool,
     },
     Object {
-        value: BTreeMap<String, ActionResultV1>,
+        name: String,
+        value: Vec<ActionResultV1>,
         #[ts(optional)]
         description: Option<String>,
     },
@@ -141,23 +143,21 @@ impl ActionResultV1 {
     fn fmt_rec(&self, f: &mut fmt::Formatter<'_>, indent: usize) -> fmt::Result {
         match self {
             Self::String {
+                name,
                 value,
                 description,
                 qr,
                 ..
             } => {
-                if let Some(description) = description {
-                    for i in 0..indent {
-                        write!(f, "  ")?;
-                    }
-                    write!(f, "{description}")?;
+                for i in 0..indent {
+                    write!(f, "  ")?;
                 }
-                if value.is_empty() {
-                    write!(f, "N/A")?;
-                } else {
-                    if description.is_some() {
-                        write!(f, ":\n")?;
-                    }
+                write!(f, "{name}")?;
+                if let Some(description) = description {
+                    write!(f, ": {description}")?;
+                }
+                if !value.is_empty() {
+                    write!(f, ":\n")?;
                     for i in 0..indent {
                         write!(f, "  ")?;
                     }
@@ -179,21 +179,23 @@ impl ActionResultV1 {
                     }
                 }
             }
-            Self::Object { value, description } => {
-                if let Some(description) = description {
-                    for i in 0..indent {
-                        write!(f, "  ")?;
-                    }
-                    write!(f, "{description}")?;
+            Self::Object {
+                name,
+                value,
+                description,
+            } => {
+                for i in 0..indent {
+                    write!(f, "  ")?;
                 }
-                for (name, value) in value {
-                    if description.is_some() {
-                        write!(f, ":\n")?;
-                    }
+                write!(f, "{name}")?;
+                if let Some(description) = description {
+                    write!(f, ": {description}")?;
+                }
+                for value in value {
+                    write!(f, ":\n")?;
                     for i in 0..indent {
                         write!(f, "  ")?;
                     }
-                    write!(f, "{name}: ")?;
                     value.fmt_rec(f, indent + 1)?;
                 }
             }
