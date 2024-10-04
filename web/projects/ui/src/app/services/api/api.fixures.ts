@@ -1691,6 +1691,15 @@ export module Mock {
         hasInput: true,
         group: null,
       },
+      properties: {
+        name: 'Bitcoin Properties',
+        description: 'view important information about Bitcoin',
+        warning: null,
+        visibility: 'enabled',
+        allowedStatuses: 'any',
+        hasInput: false,
+        group: null,
+      },
     },
     serviceInterfaces: {
       ui: {
