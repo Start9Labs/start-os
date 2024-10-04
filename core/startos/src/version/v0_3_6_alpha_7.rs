@@ -1,9 +1,19 @@
+use std::future::Future;
+use std::path::Path;
+
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::json;
+use patch_db::ModelExt;
+use sqlx::postgres::PgConnectOptions;
+use sqlx::PgPool;
+use tokio::process::Command;
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_6_alpha_6, VersionT};
+use crate::db::model::Database;
+use crate::disk::mount::util::unmount;
 use crate::prelude::*;
+use crate::util::Invoke;
 
 lazy_static::lazy_static! {
     static ref V0_3_6_alpha_7: exver::Version = exver::Version::new(
@@ -12,21 +22,173 @@ lazy_static::lazy_static! {
     );
 }
 
-#[derive(Clone, Debug)]
+#[tracing::instrument(skip_all)]
+async fn init_postgres(datadir: impl AsRef<Path>) -> Result<PgPool, Error> {
+    let db_dir = datadir.as_ref().join("main/postgresql");
+    if tokio::process::Command::new("mountpoint")
+        .arg("/var/lib/postgresql")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .await?
+        .success()
+    {
+        unmount("/var/lib/postgresql", true).await?;
+    }
+    let exists = tokio::fs::metadata(&db_dir).await.is_ok();
+    if !exists {
+        Command::new("cp")
+            .arg("-ra")
+            .arg("/var/lib/postgresql")
+            .arg(&db_dir)
+            .invoke(crate::ErrorKind::Filesystem)
+            .await?;
+    }
+    Command::new("chown")
+        .arg("-R")
+        .arg("postgres:postgres")
+        .arg(&db_dir)
+        .invoke(crate::ErrorKind::Database)
+        .await?;
+
+    let mut pg_paths = tokio::fs::read_dir("/usr/lib/postgresql").await?;
+    let mut pg_version = None;
+    while let Some(pg_path) = pg_paths.next_entry().await? {
+        let pg_path_version = pg_path
+            .file_name()
+            .to_str()
+            .map(|v| v.parse())
+            .transpose()?
+            .unwrap_or(0);
+        if pg_path_version > pg_version.unwrap_or(0) {
+            pg_version = Some(pg_path_version)
+        }
+    }
+    let pg_version = pg_version.ok_or_else(|| {
+        Error::new(
+            eyre!("could not determine postgresql version"),
+            crate::ErrorKind::Database,
+        )
+    })?;
+
+    crate::disk::mount::util::bind(&db_dir, "/var/lib/postgresql", false).await?;
+
+    let pg_version_string = pg_version.to_string();
+    let pg_version_path = db_dir.join(&pg_version_string);
+    if exists
+    // maybe migrate
+    {
+        let incomplete_path = db_dir.join(format!("{pg_version}.migration.incomplete"));
+        if tokio::fs::metadata(&incomplete_path).await.is_ok() // previous migration was incomplete
+        && tokio::fs::metadata(&pg_version_path).await.is_ok()
+        {
+            tokio::fs::remove_dir_all(&pg_version_path).await?;
+        }
+        if tokio::fs::metadata(&pg_version_path).await.is_err()
+        // need to migrate
+        {
+            let conf_dir = Path::new("/etc/postgresql").join(pg_version.to_string());
+            let conf_dir_tmp = {
+                let mut tmp = conf_dir.clone();
+                tmp.set_extension("tmp");
+                tmp
+            };
+            if tokio::fs::metadata(&conf_dir).await.is_ok() {
+                Command::new("mv")
+                    .arg(&conf_dir)
+                    .arg(&conf_dir_tmp)
+                    .invoke(ErrorKind::Filesystem)
+                    .await?;
+            }
+            let mut old_version = pg_version;
+            while old_version > 13
+            /* oldest pg version included in startos */
+            {
+                old_version -= 1;
+                let old_datadir = db_dir.join(old_version.to_string());
+                if tokio::fs::metadata(&old_datadir).await.is_ok() {
+                    tokio::fs::File::create(&incomplete_path)
+                        .await?
+                        .sync_all()
+                        .await?;
+                    Command::new("pg_upgradecluster")
+                        .arg(old_version.to_string())
+                        .arg("main")
+                        .invoke(crate::ErrorKind::Database)
+                        .await?;
+                    break;
+                }
+            }
+            if tokio::fs::metadata(&conf_dir).await.is_ok() {
+                if tokio::fs::metadata(&conf_dir).await.is_ok() {
+                    tokio::fs::remove_dir_all(&conf_dir).await?;
+                }
+                Command::new("mv")
+                    .arg(&conf_dir_tmp)
+                    .arg(&conf_dir)
+                    .invoke(ErrorKind::Filesystem)
+                    .await?;
+            }
+            tokio::fs::remove_file(&incomplete_path).await?;
+        }
+        if tokio::fs::metadata(&incomplete_path).await.is_ok() {
+            unreachable!() // paranoia
+        }
+    }
+
+    Command::new("systemctl")
+        .arg("start")
+        .arg(format!("postgresql@{pg_version}-main.service"))
+        .invoke(crate::ErrorKind::Database)
+        .await?;
+    if !exists {
+        Command::new("sudo")
+            .arg("-u")
+            .arg("postgres")
+            .arg("createuser")
+            .arg("root")
+            .invoke(crate::ErrorKind::Database)
+            .await?;
+        Command::new("sudo")
+            .arg("-u")
+            .arg("postgres")
+            .arg("createdb")
+            .arg("secrets")
+            .arg("-O")
+            .arg("root")
+            .invoke(crate::ErrorKind::Database)
+            .await?;
+    }
+
+    let secret_store =
+        PgPool::connect_with(PgConnectOptions::new().database("secrets").username("root")).await?;
+    sqlx::migrate!()
+        .run(&secret_store)
+        .await
+        .with_kind(crate::ErrorKind::Database)?;
+    Ok(secret_store)
+}
+
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Version;
 
 impl VersionT for Version {
     type Previous = v0_3_6_alpha_6::Version;
-    fn new() -> Self {
-        Version
-    }
-    fn semver(&self) -> exver::Version {
+    type PreUpRes = ();
+    fn semver(self) -> exver::Version {
         V0_3_6_alpha_7.clone()
     }
-    fn compat(&self) -> &'static VersionRange {
+    fn compat(self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
-    fn up(&self, db: &mut Value) -> Result<(), Error> {
+    async fn pre_up(self) -> Result<Self::PreUpRes, Error> {
+        Ok(())
+    }
+    fn up(
+        self,
+        db: &mut Value,
+        input: Self::PreUpRes,
+    ) -> Result<impl Future<Output = Result<(), Error>> + Send + 'static, Error> {
         let wifi = json!({
             "infterface": db["server-info"]["wifi"]["interface"],
             "ssids": db["server-info"]["wifi"]["ssids"],
@@ -103,9 +265,18 @@ impl VersionT for Version {
 
         *db = next;
 
-        Ok(())
+        Ok(async {
+            // reinstall packages
+            Ok(())
+        })
     }
-    fn down(&self, _db: &mut Value) -> Result<(), Error> {
-        Ok(())
+    fn down(
+        self,
+        _db: &mut Value,
+    ) -> Result<impl Future<Output = Result<(), Error>> + Send + 'static, Error> {
+        Err(Error::new(
+            eyre!("downgrades prohibited"),
+            ErrorKind::InvalidRequest,
+        ))
     }
 }

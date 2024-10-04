@@ -77,88 +77,127 @@ impl Version {
     }
 }
 
+fn current_version(db: &Value) -> Result<Version, Error> {
+    if let Some(public) = db.get("public") {
+        from_value(
+            public
+                .get("serverInfo")
+                .or_not_found("`server-info` in .public")?
+                .get("version")
+                .or_not_found("`version` in .public.serverInfo")?
+                .clone(),
+        )
+    } else {
+        from_value(
+            db.get("server-info")
+                .or_not_found("`server-info` in .")?
+                .get("version")
+                .or_not_found("`version` in .server-info")?
+                .clone(),
+        )
+    }
+}
+
+fn migrate_to<VFrom: VersionT, VTo: VersionT>(
+    from: VFrom,
+    to: VTo,
+    db: &mut Value,
+    progress: &mut PhaseProgressTrackerHandle,
+) -> Result<impl Future<Output = Result<(), Error>> + Send + 'static, Error> {
+    match from.semver().cmp(&to.semver()) {
+        Ordering::Greater => rollback_to_unchecked(from, to, db, progress),
+        Ordering::Less => migrate_from_unchecked(from, to, db, progress),
+        Ordering::Equal => Ok(async { Ok(()) }.boxed()),
+    }
+}
+
+fn migrate_from_unchecked<VFrom: VersionT, VTo: VersionT>(
+    from: VFrom,
+    to: VTo,
+    db: &mut Value,
+    progress: &mut PhaseProgressTrackerHandle,
+) -> Result<BoxFuture<'static, Result<(), Error>>, Error> {
+    progress.add_total(1);
+    let previous = VTo::Previous::default();
+    let ff_post_init = if from.semver() < previous.semver() {
+        migrate_from_unchecked(from, previous, db, progress)?
+    } else if from.semver() > previous.semver() {
+        return Err(Error::new(
+            eyre!(
+                "NO PATH FROM {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
+                from.semver()
+            ),
+            crate::ErrorKind::MigrationFailed,
+        ));
+    } else {
+        async { Ok::<_, Error>(()) }.boxed()
+    };
+    let post_init = to.up(db)?.boxed();
+    to.commit(db)?;
+    Ok(async {
+        ff_post_init.await?;
+        post_init.await?;
+        Ok(())
+    }
+    .boxed())
+    // tracing::info!("{} -> {}", previous.semver(), self.semver(),);
+    // *progress += 1;
+    // Ok(())
+}
+
+fn rollback_to_unchecked<VFrom: VersionT, VTo: VersionT>(
+    from: VFrom,
+    to: VTo,
+    db: &mut Value,
+    progress: &mut PhaseProgressTrackerHandle,
+) -> Result<BoxFuture<'static, Result<(), Error>>, Error> {
+    let previous = VFrom::Previous::default();
+    let post_init = from.down(db)?.boxed();
+    previous.commit(db)?;
+    // tracing::info!("{} -> {}", self.semver(), previous.semver(),);
+    // self.down(db).await?;
+    // previous.commit(db).await?;
+    // *progress += 1;
+    let ff_post_init = if to.semver() < previous.semver() {
+        rollback_to_unchecked(previous, to, db, progress)?
+    } else if to.semver() > previous.semver() {
+        return Err(Error::new(
+            eyre!(
+                "NO PATH TO {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
+                to.semver()
+            ),
+            crate::ErrorKind::MigrationFailed,
+        ));
+    } else {
+        async { Ok::<_, Error>(()) }.boxed()
+    };
+    Ok(async move {
+        post_init.await?;
+        ff_post_init.await?;
+        Ok(())
+    }
+    .boxed())
+}
+
 pub trait VersionT
 where
-    Self: Sized + Send + Sync,
+    Self: Default + Copy + Sized + Send + Sync + 'static,
 {
     type Previous: VersionT;
-    fn new() -> Self;
-    fn semver(&self) -> exver::Version;
-    fn compat(&self) -> &'static exver::VersionRange;
-    fn up(&self, db: &mut Value) -> Result<(), Error>;
-    fn down(&self, db: &mut Value) -> Result<(), Error>;
-    fn commit(&self, db: &mut PatchDb) -> impl Future<Output = Result<(), Error>> + Send {
-        async {
-            let semver = to_value(&self.semver())?;
-            let compat = to_value(&self.compat())?;
-            db.apply_function(|mut d| {
-                d["public"]["server_info"]["version"] = semver;
-                d["public"]["server_info"]["eos_version_compat"] = compat;
-                Ok::<_, patch_db::Error>((d, ()))
-            })
-            .await?;
-            Ok(())
-        }
-    }
-    fn migrate_to<V: VersionT>(
-        &self,
-        version: &V,
+    type PreUpRes;
+    fn semver(self) -> exver::Version;
+    fn compat(self) -> &'static exver::VersionRange;
+    fn pre_up(self) -> impl Future<Output = Result<Self::PreUpRes, Error>> + Send + 'static;
+    fn up(
+        self,
         db: &mut Value,
-        progress: &mut PhaseProgressTrackerHandle,
-    ) -> Result<(), Error> {
-        match self.semver().cmp(&version.semver()) {
-            Ordering::Greater => self.rollback_to_unchecked(version, db, progress),
-            Ordering::Less => version.migrate_from_unchecked(self, db, progress),
-            Ordering::Equal => Ok(()),
-        }
-    }
-    fn migrate_from_unchecked<'a, V: VersionT>(
-        &'a self,
-        version: &'a V,
-        db: &'a mut Value,
-        progress: &'a mut PhaseProgressTrackerHandle,
-    ) -> Result<(), Error> {
-        progress.add_total(1);
-        let previous = Self::Previous::new();
-        if version.semver() < previous.semver() {
-            previous.migrate_from_unchecked(version, db, progress)?;
-        } else if version.semver() > previous.semver() {
-            return Err(Error::new(
-                eyre!(
-                    "NO PATH FROM {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
-                    version.semver()
-                ),
-                crate::ErrorKind::MigrationFailed,
-            ));
-        }
-        tracing::info!("{} -> {}", previous.semver(), self.semver(),);
-        self.up(db)?;
-        *progress += 1;
-        Ok(())
-    }
-    fn rollback_to_unchecked<'a, V: VersionT>(
-        &'a self,
-        version: &'a V,
-        db: &'a mut Value,
-        progress: &'a mut PhaseProgressTrackerHandle,
-    ) -> Result<(), Error> {
-        let previous = Self::Previous::new();
-        tracing::info!("{} -> {}", self.semver(), previous.semver(),);
-        self.down(db)?;
-        *progress += 1;
-        if version.semver() < previous.semver() {
-            previous.rollback_to_unchecked(version, db, progress)?;
-        } else if version.semver() > previous.semver() {
-            return Err(Error::new(
-                eyre!(
-                    "NO PATH TO {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
-                    version.semver()
-                ),
-                crate::ErrorKind::MigrationFailed,
-            ));
-        }
-        Ok(())
-    }
+        input: Self::PreUpRes,
+    ) -> Result<impl Future<Output = Result<(), Error>> + Send + 'static, Error>;
+    fn down(
+        self,
+        db: &mut Value,
+    ) -> Result<impl Future<Output = Result<(), Error>> + Send + 'static, Error>;
+    fn commit(self, db: &mut Value) -> Result<(), Error>;
 }
 
 #[derive(Debug, Clone)]
@@ -177,7 +216,7 @@ where
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let v = exver::Version::deserialize(deserializer)?;
-        let version = T::new();
+        let version = T::default();
         if v < version.semver() {
             Ok(Self(version, v))
         } else {
@@ -202,7 +241,7 @@ where
 {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let v = exver::Version::deserialize(deserializer)?;
-        let version = T::new();
+        let version = T::default();
         if v == version.semver() {
             Ok(Wrapper(version))
         } else {
@@ -222,7 +261,7 @@ pub async fn init(
             .as_version_mut()
             .map_mutate(|v| {
                 Ok(if v == exver::Version::new([0, 3, 6], []) {
-                    v0_3_6_alpha_0::Version::new().semver()
+                    v0_3_6_alpha_0::Version::default().semver()
                 } else {
                     v
                 })

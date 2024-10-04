@@ -328,6 +328,8 @@ pub async fn init(
     load_database.complete();
     tracing::info!("Opened PatchDB");
 
+    crate::version::init(&db, run_migrations).await?;
+
     load_ssh_keys.start();
     crate::ssh::sync_keys(
         &peek.as_private().as_ssh_pubkeys().de()?,
@@ -527,8 +529,6 @@ pub async fn init(
         .invoke(ErrorKind::Lxc)
         .await?;
     launch_service_network.complete();
-
-    crate::version::init(&db, run_migrations).await?;
 
     validate_db.start();
     db.mutate(|d| {
