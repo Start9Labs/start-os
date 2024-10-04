@@ -67,6 +67,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
         padding: 0;
         background: rgb(55 58 63 / 90%)
           url('/assets/img/background_marketplace.png') no-repeat top right;
+        background-size: cover;
       }
 
       .marketplace-content {
