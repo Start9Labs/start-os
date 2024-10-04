@@ -123,6 +123,16 @@ export const mockPatchData: DataModel = {
           hasInput: false,
           group: null,
         },
+        test: {
+          name: 'Custom Action',
+          description:
+            'An example of an action that shows a warning and takes no input',
+          warning: 'careful running this action',
+          visibility: 'enabled',
+          allowedStatuses: 'only-running',
+          hasInput: false,
+          group: null,
+        },
       },
       serviceInterfaces: {
         ui: {
