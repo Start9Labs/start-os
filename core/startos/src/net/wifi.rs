@@ -43,19 +43,22 @@ pub fn wifi<C: Context>() -> ParentHandler<C> {
             "add",
             from_fn_async(add)
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Add wifi ssid and password"),
         )
         .subcommand(
             "connect",
             from_fn_async(connect)
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Connect to wifi network"),
         )
         .subcommand(
             "delete",
             from_fn_async(delete)
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Remove a wifi network"),
         )
         .subcommand(
             "get",
@@ -64,10 +67,17 @@ pub fn wifi<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_wifi_info(handle.params, result))
                 })
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("List wifi info"),
         )
-        .subcommand("country", country::<C>())
-        .subcommand("available", available::<C>())
+        .subcommand(
+            "country",
+            country::<C>().with_about("Command to set country"),
+        )
+        .subcommand(
+            "available",
+            available::<C>().with_about("Command to list available wifi networks"),
+        )
 }
 
 pub fn available<C: Context>() -> ParentHandler<C> {
@@ -76,7 +86,8 @@ pub fn available<C: Context>() -> ParentHandler<C> {
         from_fn_async(get_available)
             .with_display_serializable()
             .with_custom_display_fn(|handle, result| Ok(display_wifi_list(handle.params, result)))
-            .with_call_remote::<CliContext>(),
+            .with_call_remote::<CliContext>()
+            .with_about("List available wifi networks"),
     )
 }
 
@@ -85,7 +96,8 @@ pub fn country<C: Context>() -> ParentHandler<C> {
         "set",
         from_fn_async(set_country)
             .no_display()
-            .with_call_remote::<CliContext>(),
+            .with_call_remote::<CliContext>()
+            .with_about("Set Country"),
     )
 }
 

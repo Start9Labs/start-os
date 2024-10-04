@@ -549,18 +549,33 @@ pub async fn init(
 
 pub fn init_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("logs", crate::system::logs::<InitContext>())
         .subcommand(
             "logs",
-            from_fn_async(crate::logs::cli_logs::<InitContext, Empty>).no_display(),
+            crate::system::logs::<InitContext>().with_about("Disply OS logs"),
         )
-        .subcommand("kernel-logs", crate::system::kernel_logs::<InitContext>())
+        .subcommand(
+            "logs",
+            from_fn_async(crate::logs::cli_logs::<InitContext, Empty>)
+                .no_display()
+                .with_about("Display OS logs"),
+        )
         .subcommand(
             "kernel-logs",
-            from_fn_async(crate::logs::cli_logs::<InitContext, Empty>).no_display(),
+            crate::system::kernel_logs::<InitContext>().with_about("Display kernel logs"),
+        )
+        .subcommand(
+            "kernel-logs",
+            from_fn_async(crate::logs::cli_logs::<InitContext, Empty>)
+                .no_display()
+                .with_about("Display kernel logs"),
         )
         .subcommand("subscribe", from_fn_async(init_progress).no_cli())
-        .subcommand("subscribe", from_fn_async(cli_init_progress).no_display())
+        .subcommand(
+            "subscribe",
+            from_fn_async(cli_init_progress)
+                .no_display()
+                .with_about("Get initialization progress"),
+        )
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]

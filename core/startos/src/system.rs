@@ -31,7 +31,8 @@ pub fn experimental<C: Context>() -> ParentHandler<C> {
             "zram",
             from_fn_async(zram)
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Enable zram"),
         )
         .subcommand(
             "governor",
@@ -40,7 +41,8 @@ pub fn experimental<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_governor_info(handle.params, result))
                 })
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>()
+                .with_about("Show current and available CPU governors"),
         )
 }
 

@@ -40,9 +40,9 @@ pub fn backup<C: Context>() -> ParentHandler<C> {
             "create",
             from_fn_async(backup_bulk::backup_all)
                 .no_display()
-                .with_call_remote::<CliContext>(),
+                .with_call_remote::<CliContext>().with_about("Create backup for all packages"),
         )
-        .subcommand("target", target::target::<C>())
+        .subcommand("target", target::target::<C>().with_about("Commands related to a backup target"))
 }
 
 pub fn package_backup<C: Context>() -> ParentHandler<C> {
@@ -50,7 +50,8 @@ pub fn package_backup<C: Context>() -> ParentHandler<C> {
         "restore",
         from_fn_async(restore::restore_packages_rpc)
             .no_display()
-            .with_call_remote::<CliContext>(),
+            .with_call_remote::<CliContext>()
+            .with_about("Restore package(s) from backup"),
     )
 }
 
