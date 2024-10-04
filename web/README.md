@@ -48,6 +48,8 @@ npm i
 npm run build:deps
 ```
 
+> Note if you are on **Windows** you need to install `make` for these scripts to work. Easiest way to do so is to install [Chocolatey](https://chocolatey.org/install) and then run `choco install make`.
+
 #### Copy `config-sample.json` to a new file `config.json`.
 
 ```sh
