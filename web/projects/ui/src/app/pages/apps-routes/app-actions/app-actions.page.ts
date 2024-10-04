@@ -23,7 +23,7 @@ export class AppActionsPage {
       mainStatus: pkg.status.main,
       manifest: getManifest(pkg),
       actions: Object.keys(pkg.actions)
-        .filter(id => id !== 'config')
+        .filter(id => !['config', 'properties'].includes(id))
         .map(id => ({
           id,
           ...pkg.actions[id],
