@@ -86,19 +86,21 @@ export class FileHelper<A> {
   /**
    * Accepts structured data and overwrites the existing file on disk.
    */
-  async write(data: A) {
+  async write(data: A): Promise<null> {
     const parent = previousPath.exec(this.path)
     if (parent) {
       await fs.mkdir(parent[1], { recursive: true })
     }
 
     await fs.writeFile(this.path, this.writeData(data))
+
+    return null
   }
 
   /**
    * Reads the file from disk and converts it to structured data.
    */
-  async read() {
+  async read(): Promise<A | null> {
     if (!(await exists(this.path))) {
       return null
     }
@@ -107,7 +109,7 @@ export class FileHelper<A> {
     )
   }
 
-  async const(effects: T.Effects) {
+  async const(effects: T.Effects): Promise<A | null> {
     const watch = this.watch()
     const res = await watch.next()
     watch.next().then(effects.constRetry)
@@ -128,7 +130,7 @@ export class FileHelper<A> {
           .then(async () => {
             for await (const _ of watch) {
               ctrl.abort("finished")
-              return
+              return null
             }
           })
           .catch((e) => console.error(asError(e)))
@@ -139,6 +141,7 @@ export class FileHelper<A> {
         await onCreated(this.path).catch((e) => console.error(asError(e)))
       }
     }
+    return null
   }
 
   /**
