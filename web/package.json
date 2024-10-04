@@ -12,7 +12,7 @@
     "check:install-wiz": "tsc --project projects/install-wizard/tsconfig.json --noEmit --skipLibCheck",
     "check:setup": "tsc --project projects/setup-wizard/tsconfig.json --noEmit --skipLibCheck",
     "check:ui": "tsc --project projects/ui/tsconfig.json --noEmit --skipLibCheck",
-    "build:deps": "rm -rf .angular/cache && (cd ../patch-db/client && npm ci && npm run build) && (cd ../sdk && make bundle)",
+    "build:deps": "rimraf .angular/cache && (cd ../sdk && make bundle) && (cd ../patch-db/client && npm ci && npm run build)",
     "build:install-wiz": "ng run install-wizard:build",
     "build:setup": "ng run setup-wizard:build",
     "build:ui": "ng run ui:build",
