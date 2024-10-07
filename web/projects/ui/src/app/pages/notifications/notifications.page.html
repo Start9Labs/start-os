@@ -116,6 +116,15 @@
             View Report
           </ion-button>
           <ion-button
+            *ngIf="not.code === 2"
+            slot="end"
+            fill="clear"
+            color="dark"
+            (click)="presentModalMarkdown(not)"
+          >
+            View Details
+          </ion-button>
+          <ion-button
             *ngIf="not.packageId && packageData[not.packageId]"
             slot="end"
             fill="clear"

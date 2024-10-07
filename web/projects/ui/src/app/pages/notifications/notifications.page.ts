@@ -1,7 +1,11 @@
 import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { AlertController, ModalController } from '@ionic/angular'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import {
+  ErrorService,
+  LoadingService,
+  MarkdownComponent,
+} from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { first } from 'rxjs'
 import { BackupReportPage } from 'src/app/modals/backup-report/backup-report.page'
@@ -115,6 +119,18 @@ export class NotificationsPage {
     await modal.present()
   }
 
+  async presentModalMarkdown(not: ServerNotification<2>) {
+    const modal = await this.modalCtrl.create({
+      componentProps: {
+        title: not.title,
+        content: not.data,
+      },
+      component: MarkdownComponent,
+    })
+
+    await modal.present()
+  }
+
   async viewFullMessage(header: string, message: string) {
     const alert = await this.alertCtrl.create({
       header,
@@ -134,7 +150,7 @@ export class NotificationsPage {
   }
 
   truncate(message: string): string {
-    return message.length <= 240 ? message : '...' + message.substr(-240)
+    return message.length <= 240 ? message : message.substring(0, 160) + '...'
   }
 
   getColor({ level }: ServerNotification<number>): string {

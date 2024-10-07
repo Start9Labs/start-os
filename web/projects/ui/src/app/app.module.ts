@@ -22,7 +22,6 @@ import {
 
 import { AppComponent } from './app.component'
 import { AppRoutingModule } from './app-routing.module'
-import { OSWelcomePageModule } from './modals/os-welcome/os-welcome.module'
 import { MarketplaceModule } from './marketplace.module'
 import { PreloaderModule } from './app/preloader/preloader.module'
 import { FooterModule } from './app/footer/footer.module'
@@ -47,7 +46,6 @@ import { environment } from '../environments/environment'
     PreloaderModule,
     FooterModule,
     EnterModule,
-    OSWelcomePageModule,
     MarkdownModule,
     LoadingModule,
     MonacoEditorModule,

@@ -7,7 +7,6 @@ export type DataModel = T.Public & {
 
 export interface UIData {
   name: string | null
-  ackWelcome: string // eOS emver
   marketplace: UIMarketplaceData
   gaming: {
     snake: {
