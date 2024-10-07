@@ -81,31 +81,35 @@ export class MarketplaceService implements AbstractMarketplaceService {
       shareReplay({ bufferSize: 1, refCount: true }),
     )
 
-  private readonly marketplace$ = this.knownHosts$.pipe(
-    startWith<StoreIdentity[]>([]),
-    pairwise(),
-    mergeMap(([prev, curr]) =>
-      curr.filter(c => !prev.find(p => sameUrl(c.url, p.url))),
-    ),
-    mergeMap(({ url, name }) =>
-      this.fetchStore$(url).pipe(
-        tap(data => {
-          if (data?.info.name) this.updateStoreName(url, name, data.info.name)
-        }),
-        map<StoreData | null, [string, StoreData | null]>(data => [url, data]),
-        startWith<[string, StoreData | null]>([url, null]),
+  private readonly marketplace$: Observable<Marketplace> =
+    this.knownHosts$.pipe(
+      startWith<StoreIdentity[]>([]),
+      pairwise(),
+      mergeMap(([prev, curr]) =>
+        curr.filter(c => !prev.find(p => sameUrl(c.url, p.url))),
       ),
-    ),
-    scan<[string, StoreData | null], Record<string, StoreData | null>>(
-      (requests, [url, store]) => {
-        requests[url] = store
+      mergeMap(({ url, name }) =>
+        this.fetchStore$(url).pipe(
+          tap(data => {
+            if (data?.info.name) this.updateStoreName(url, name, data.info.name)
+          }),
+          map<StoreData | null, [string, StoreData | null]>(data => [
+            url,
+            data,
+          ]),
+          startWith<[string, StoreData | null]>([url, null]),
+        ),
+      ),
+      scan<[string, StoreData | null], Record<string, StoreData | null>>(
+        (requests, [url, store]) => {
+          requests[url] = store
 
-        return requests
-      },
-      {},
-    ),
-    shareReplay({ bufferSize: 1, refCount: true }),
-  )
+          return requests
+        },
+        {},
+      ),
+      shareReplay({ bufferSize: 1, refCount: true }),
+    )
 
   private readonly filteredMarketplace$ = combineLatest([
     this.clientStorageService.showDevTools$,

@@ -1,6 +1,7 @@
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PkgDependencyErrors } from './dep-error.service'
 import { T } from '@start9labs/start-sdk'
+import { getManifest, needsConfig } from '../util/get-package-data'
 
 export interface PackageStatus {
   primary: PrimaryStatus
@@ -17,7 +18,7 @@ export function renderPkgStatus(
   let health: T.HealthStatus | null = null
 
   if (pkg.stateInfo.state === 'installed') {
-    primary = getInstalledPrimaryStatus(pkg.status)
+    primary = getInstalledPrimaryStatus(pkg)
     dependency = getDependencyStatus(depErrors)
     health = getHealthStatus(pkg.status)
   } else {
@@ -27,11 +28,11 @@ export function renderPkgStatus(
   return { primary, dependency, health }
 }
 
-function getInstalledPrimaryStatus(status: T.Status): PrimaryStatus {
-  if (!status.configured) {
+function getInstalledPrimaryStatus(pkg: T.PackageDataEntry): PrimaryStatus {
+  if (needsConfig(getManifest(pkg).id, pkg.requestedActions)) {
     return 'needsConfig'
   } else {
-    return status.main.status as any as PrimaryStatus
+    return pkg.status.main
   }
 }
 
@@ -39,12 +40,12 @@ function getDependencyStatus(depErrors: PkgDependencyErrors): DependencyStatus {
   return Object.values(depErrors).some(err => !!err) ? 'warning' : 'satisfied'
 }
 
-function getHealthStatus(status: T.Status): T.HealthStatus | null {
-  if (status.main.status !== 'running' || !status.main.health) {
+function getHealthStatus(status: T.MainStatus): T.HealthStatus | null {
+  if (status.main !== 'running' || !status.main) {
     return null
   }
 
-  const values = Object.values(status.main.health)
+  const values = Object.values(status.health)
 
   if (values.some(h => h.result === 'failure')) {
     return 'failure'
@@ -79,6 +80,7 @@ export type PrimaryStatus =
   | 'stopped'
   | 'backingUp'
   | 'needsConfig'
+  | 'error'
 
 export type DependencyStatus = 'warning' | 'satisfied'
 
@@ -136,6 +138,11 @@ export const PrimaryRendering: Record<PrimaryStatus, StatusRendering> = {
   needsConfig: {
     display: 'Needs Config',
     color: 'warning',
+    showDots: false,
+  },
+  error: {
+    display: 'Service Launch Error',
+    color: 'danger',
     showDots: false,
   },
 }

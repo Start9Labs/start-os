@@ -2,7 +2,7 @@ import { Dump } from 'patch-db-client'
 import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
-import { CT, T } from '@start9labs/start-sdk'
+import { IST, T } from '@start9labs/start-sdk'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 export module RR {
@@ -72,11 +72,10 @@ export module RR {
   export type GetServerLogsReq = ServerLogsReq // server.logs & server.kernel-logs
   export type GetServerLogsRes = LogsRes
 
-  // @param limit: BE default is 50
-  // @param boot: number is offset (0: current, -1 prev, +1 first), string is a specific boot id, and null is all
   export type FollowServerLogsReq = {
-    limit?: number
-    boot?: number | string | null
+    limit?: number // (optional) default is 50. Ignored if cursor provided
+    boot?: number | string | null // (optional) number is offset (0: current, -1 prev, +1 first), string is a specific boot id, null is all. Default is undefined
+    cursor?: string // the last known log. Websocket will return all logs since this log
   } // server.logs.follow & server.kernel-logs.follow
   export type FollowServerLogsRes = {
     startCursor: string
@@ -226,14 +225,19 @@ export module RR {
   export type InstallPackageReq = T.InstallParams
   export type InstallPackageRes = null
 
-  export type GetPackageConfigReq = { id: string } // package.config.get
-  export type GetPackageConfigRes = { spec: CT.InputSpec; config: object }
+  export type GetActionInputReq = { packageId: string; actionId: string } // package.action.get-input
+  export type GetActionInputRes = {
+    spec: IST.InputSpec
+    value: object | null
+  }
 
-  export type DrySetPackageConfigReq = { id: string; config: object } // package.config.set.dry
-  export type DrySetPackageConfigRes = T.PackageId[]
-
-  export type SetPackageConfigReq = DrySetPackageConfigReq // package.config.set
-  export type SetPackageConfigRes = null
+  export type RunActionReq = {
+    packageId: string
+    actionId: string
+    prev: GetActionInputRes | null
+    input: object | null
+  } // package.action.run
+  export type RunActionRes = T.ActionResult | null
 
   export type RestorePackagesReq = {
     // package.backup.restore
@@ -244,13 +248,6 @@ export module RR {
   }
   export type RestorePackagesRes = null
 
-  export type ExecutePackageActionReq = {
-    id: string
-    actionId: string
-    input?: object
-  } // package.action
-  export type ExecutePackageActionRes = ActionResponse
-
   export type StartPackageReq = { id: string } // package.start
   export type StartPackageRes = null
 
@@ -260,18 +257,11 @@ export module RR {
   export type StopPackageReq = { id: string } // package.stop
   export type StopPackageRes = null
 
+  export type RebuildPackageReq = { id: string } // package.rebuild
+  export type RebuildPackageRes = null
+
   export type UninstallPackageReq = { id: string } // package.uninstall
   export type UninstallPackageRes = null
-
-  export type DryConfigureDependencyReq = {
-    dependencyId: string
-    dependentId: string
-  } // package.dependency.configure.dry
-  export type DryConfigureDependencyRes = {
-    oldConfig: object
-    newConfig: object
-    spec: CT.InputSpec
-  }
 
   export type SideloadPackageReq = {
     manifest: T.Manifest
@@ -304,13 +294,6 @@ export interface Breakages {
 export interface TaggedDependencyError {
   dependency: string
   error: DependencyError
-}
-
-export interface ActionResponse {
-  message: string
-  value: string | null
-  copyable: boolean
-  qr: boolean
 }
 
 interface MetricData {

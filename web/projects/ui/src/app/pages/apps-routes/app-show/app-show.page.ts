@@ -20,14 +20,14 @@ import {
 import { combineLatest } from 'rxjs'
 import {
   getManifest,
+  getPackage,
   isInstalled,
   isInstalling,
   isRestoring,
   isUpdating,
 } from 'src/app/util/get-package-data'
 import { T } from '@start9labs/start-sdk'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { ConfigModal, PackageConfigData } from 'src/app/modals/config.component'
+import { ActionService } from 'src/app/services/action.service'
 
 export interface DependencyInfo {
   id: string
@@ -45,7 +45,7 @@ export interface DependencyInfo {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppShowPage {
-  private readonly pkgId = getPkgId(this.route)
+  readonly pkgId = getPkgId(this.route)
 
   readonly pkgPlus$ = combineLatest([
     this.patch.watch$('packageData'),
@@ -58,9 +58,11 @@ export class AppShowPage {
     }),
     map(([allPkgs, depErrors]) => {
       const pkg = allPkgs[this.pkgId]
+      const manifest = getManifest(pkg)
       return {
         pkg,
-        dependencies: this.getDepInfo(pkg, allPkgs, depErrors),
+        manifest,
+        dependencies: this.getDepInfo(pkg, manifest, allPkgs, depErrors),
         status: renderPkgStatus(pkg, depErrors),
       }
     }),
@@ -73,7 +75,7 @@ export class AppShowPage {
     private readonly navCtrl: NavController,
     private readonly patch: PatchDB<DataModel>,
     private readonly depErrorService: DepErrorService,
-    private readonly formDialog: FormDialogService,
+    private readonly actionService: ActionService,
   ) {}
 
   showProgress(
@@ -84,14 +86,13 @@ export class AppShowPage {
 
   private getDepInfo(
     pkg: PackageDataEntry,
+    manifest: T.Manifest,
     allPkgs: AllPackageData,
     depErrors: PkgDependencyErrors,
   ): DependencyInfo[] {
-    const manifest = getManifest(pkg)
-
-    return Object.keys(pkg.currentDependencies)
-      .filter(id => !!manifest.dependencies[id])
-      .map(id => this.getDepValues(pkg, allPkgs, manifest, id, depErrors))
+    return Object.keys(pkg.currentDependencies).map(id =>
+      this.getDepValues(pkg, allPkgs, manifest, id, depErrors),
+    )
   }
 
   private getDepDetails(
@@ -113,8 +114,8 @@ export class AppShowPage {
       }
     } else {
       return {
-        title: title ? title : depId,
-        icon: icon ? icon : 'assets/img/service-icons/fallback.png',
+        title: title || depId,
+        icon: icon || 'assets/img/service-icons/fallback.png',
         versionRange,
       }
     }
@@ -200,20 +201,34 @@ export class AppShowPage {
     pkg: PackageDataEntry,
     pkgManifest: T.Manifest,
     action: 'install' | 'update' | 'configure',
-    id: string,
-  ): Promise<void> {
+    depId: string,
+  ) {
     switch (action) {
       case 'install':
       case 'update':
-        return this.installDep(pkg, pkgManifest, id)
+        return this.installDep(pkg, pkgManifest, depId)
       case 'configure':
-        return this.formDialog.open<PackageConfigData>(ConfigModal, {
-          label: `${pkgManifest.title} config`,
-          data: {
-            pkgId: id,
-            dependentInfo: pkgManifest,
+        const depPkg = await getPackage(this.patch, depId)
+        if (!depPkg) return
+
+        const depManifest = getManifest(depPkg)
+        return this.actionService.present(
+          {
+            id: depId,
+            title: depManifest.title,
+            mainStatus: depPkg.status.main,
           },
-        })
+          { id: 'config', metadata: pkg.actions['config'] },
+          {
+            title: pkgManifest.title,
+            request: Object.values(pkg.requestedActions).find(
+              r =>
+                r.active &&
+                r.request.packageId === depId &&
+                r.request.actionId === 'config',
+            )!.request,
+          },
+        )
     }
   }
 

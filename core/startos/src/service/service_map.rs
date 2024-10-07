@@ -7,6 +7,7 @@ use futures::{Future, FutureExt};
 use helpers::NonDetachingJoinHandle;
 use imbl::OrdMap;
 use imbl_value::InternedString;
+use models::ErrorData;
 use tokio::sync::{Mutex, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::instrument;
 
@@ -22,8 +23,9 @@ use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle, ProgressT
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
+use crate::service::start_stop::StartStop;
 use crate::service::{LoadDisposition, Service, ServiceRef};
-use crate::status::{MainStatus, Status};
+use crate::status::MainStatus;
 use crate::util::serde::Pem;
 
 pub type DownloadInstallFuture = BoxFuture<'static, Result<InstallFuture, Error>>;
@@ -87,8 +89,30 @@ impl ServiceMap {
         if let Some(service) = service.take() {
             shutdown_err = service.shutdown().await;
         }
-        // TODO: retry on error?
-        *service = Service::load(ctx, id, disposition).await?.map(From::from);
+        match Service::load(ctx, id, disposition).await {
+            Ok(s) => *service = s.into(),
+            Err(e) => {
+                let e = ErrorData::from(e);
+                ctx.db
+                    .mutate(|db| {
+                        if let Some(pde) = db.as_public_mut().as_package_data_mut().as_idx_mut(id) {
+                            pde.as_status_mut().map_mutate(|s| {
+                                Ok(MainStatus::Error {
+                                    on_rebuild: if s.running() {
+                                        StartStop::Start
+                                    } else {
+                                        StartStop::Stop
+                                    },
+                                    message: e.details,
+                                    debug: Some(e.debug),
+                                })
+                            })?;
+                        }
+                        Ok(())
+                    })
+                    .await?;
+            }
+        }
         shutdown_err?;
         Ok(())
     }
@@ -174,16 +198,14 @@ impl ServiceMap {
                                     PackageState::Installing(installing)
                                 },
                                 data_version: None,
-                                status: Status {
-                                    configured: false,
-                                    main: MainStatus::Stopped,
-                                },
+                                status: MainStatus::Stopped,
                                 registry: None,
                                 developer_key: Pem::new(developer_key),
                                 icon,
                                 last_backup: None,
                                 current_dependencies: Default::default(),
                                 actions: Default::default(),
+                                requested_actions: Default::default(),
                                 service_interfaces: Default::default(),
                                 hosts: Default::default(),
                                 store_exposed_dependents: Default::default(),

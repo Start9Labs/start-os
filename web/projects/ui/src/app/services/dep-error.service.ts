@@ -102,13 +102,20 @@ export class DepErrorService {
     }
 
     // invalid config
-    if (!currentDep.configSatisfied) {
+    if (
+      Object.values(pkg.requestedActions).some(
+        a =>
+          a.active &&
+          a.request.packageId === depId &&
+          a.request.actionId === 'config',
+      )
+    ) {
       return {
         type: 'configUnsatisfied',
       }
     }
 
-    const depStatus = dep.status.main.status
+    const depStatus = dep.status.main
 
     // not running
     if (depStatus !== 'running' && depStatus !== 'starting') {
@@ -120,7 +127,7 @@ export class DepErrorService {
     // health check failure
     if (depStatus === 'running' && currentDep.kind === 'running') {
       for (let id of currentDep.healthChecks) {
-        const check = dep.status.main.health[id]
+        const check = dep.status.health[id]
         if (check?.result !== 'success') {
           return {
             type: 'healthChecksFailed',

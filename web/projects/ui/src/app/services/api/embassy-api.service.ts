@@ -231,25 +231,15 @@ export abstract class ApiService {
     params: RR.InstallPackageReq,
   ): Promise<RR.InstallPackageRes>
 
-  abstract getPackageConfig(
-    params: RR.GetPackageConfigReq,
-  ): Promise<RR.GetPackageConfigRes>
+  abstract getActionInput(
+    params: RR.GetActionInputReq,
+  ): Promise<RR.GetActionInputRes>
 
-  abstract drySetPackageConfig(
-    params: RR.DrySetPackageConfigReq,
-  ): Promise<RR.DrySetPackageConfigRes>
-
-  abstract setPackageConfig(
-    params: RR.SetPackageConfigReq,
-  ): Promise<RR.SetPackageConfigRes>
+  abstract runAction(params: RR.RunActionReq): Promise<RR.RunActionRes>
 
   abstract restorePackages(
     params: RR.RestorePackagesReq,
   ): Promise<RR.RestorePackagesRes>
-
-  abstract executePackageAction(
-    params: RR.ExecutePackageActionReq,
-  ): Promise<RR.ExecutePackageActionRes>
 
   abstract startPackage(params: RR.StartPackageReq): Promise<RR.StartPackageRes>
 
@@ -259,13 +249,13 @@ export abstract class ApiService {
 
   abstract stopPackage(params: RR.StopPackageReq): Promise<RR.StopPackageRes>
 
+  abstract rebuildPackage(
+    params: RR.RebuildPackageReq,
+  ): Promise<RR.RebuildPackageRes>
+
   abstract uninstallPackage(
     params: RR.UninstallPackageReq,
   ): Promise<RR.UninstallPackageRes>
-
-  abstract dryConfigureDependency(
-    params: RR.DryConfigureDependencyReq,
-  ): Promise<RR.DryConfigureDependencyRes>
 
   abstract sideloadPackage(): Promise<RR.SideloadPackageRes>
 }

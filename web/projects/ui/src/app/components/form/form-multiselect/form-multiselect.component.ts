@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { CT } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-sdk'
 import { Control } from '../control'
 import { tuiPure } from '@taiga-ui/cdk'
 import { invert } from '@start9labs/shared'
@@ -9,7 +9,7 @@ import { invert } from '@start9labs/shared'
   templateUrl: './form-multiselect.component.html',
 })
 export class FormMultiselectComponent extends Control<
-  CT.ValueSpecMultiselect,
+  IST.ValueSpecMultiselect,
   readonly string[]
 > {
   private readonly inverted = invert(this.spec.values)

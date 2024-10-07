@@ -307,7 +307,7 @@ async fn torctl(
 
         let logs = journalctl(
             LogSource::Unit(SYSTEMD_UNIT),
-            0,
+            Some(0),
             None,
             Some("0"),
             false,

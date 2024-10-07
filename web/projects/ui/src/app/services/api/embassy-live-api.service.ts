@@ -468,34 +468,20 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'package.install', params })
   }
 
-  async getPackageConfig(
-    params: RR.GetPackageConfigReq,
-  ): Promise<RR.GetPackageConfigRes> {
-    return this.rpcRequest({ method: 'package.config.get', params })
+  async getActionInput(
+    params: RR.GetActionInputReq,
+  ): Promise<RR.GetActionInputRes> {
+    return this.rpcRequest({ method: 'package.action.get-input', params })
   }
 
-  async drySetPackageConfig(
-    params: RR.DrySetPackageConfigReq,
-  ): Promise<RR.DrySetPackageConfigRes> {
-    return this.rpcRequest({ method: 'package.config.set.dry', params })
-  }
-
-  async setPackageConfig(
-    params: RR.SetPackageConfigReq,
-  ): Promise<RR.SetPackageConfigRes> {
-    return this.rpcRequest({ method: 'package.config.set', params })
+  async runAction(params: RR.RunActionReq): Promise<RR.RunActionRes> {
+    return this.rpcRequest({ method: 'package.action.run', params })
   }
 
   async restorePackages(
     params: RR.RestorePackagesReq,
   ): Promise<RR.RestorePackagesRes> {
     return this.rpcRequest({ method: 'package.backup.restore', params })
-  }
-
-  async executePackageAction(
-    params: RR.ExecutePackageActionReq,
-  ): Promise<RR.ExecutePackageActionRes> {
-    return this.rpcRequest({ method: 'package.action', params })
   }
 
   async startPackage(params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
@@ -512,19 +498,16 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'package.stop', params })
   }
 
+  async rebuildPackage(
+    params: RR.RebuildPackageReq,
+  ): Promise<RR.RebuildPackageRes> {
+    return this.rpcRequest({ method: 'package.rebuild', params })
+  }
+
   async uninstallPackage(
     params: RR.UninstallPackageReq,
   ): Promise<RR.UninstallPackageRes> {
     return this.rpcRequest({ method: 'package.uninstall', params })
-  }
-
-  async dryConfigureDependency(
-    params: RR.DryConfigureDependencyReq,
-  ): Promise<RR.DryConfigureDependencyRes> {
-    return this.rpcRequest({
-      method: 'package.dependency.configure.dry',
-      params,
-    })
   }
 
   async sideloadPackage(): Promise<RR.SideloadPackageRes> {

@@ -5,6 +5,16 @@ use tracing::instrument;
 use crate::util::Invoke;
 use crate::Error;
 
+pub async fn is_mountpoint(path: impl AsRef<Path>) -> Result<bool, Error> {
+    let is_mountpoint = tokio::process::Command::new("mountpoint")
+        .arg(path.as_ref())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .await?;
+    Ok(is_mountpoint.success())
+}
+
 #[instrument(skip_all)]
 pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
     src: P0,
@@ -16,13 +26,7 @@ pub async fn bind<P0: AsRef<Path>, P1: AsRef<Path>>(
         src.as_ref().display(),
         dst.as_ref().display()
     );
-    let is_mountpoint = tokio::process::Command::new("mountpoint")
-        .arg(dst.as_ref())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .await?;
-    if is_mountpoint.success() {
+    if is_mountpoint(&dst).await? {
         unmount(dst.as_ref(), true).await?;
     }
     tokio::fs::create_dir_all(&src).await?;

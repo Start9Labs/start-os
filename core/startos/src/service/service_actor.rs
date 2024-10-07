@@ -49,7 +49,7 @@ async fn service_actor_loop(
             .db
             .mutate(|d| {
                 if let Some(i) = d.as_public_mut().as_package_data_mut().as_idx_mut(&id) {
-                    let previous = i.as_status().as_main().de()?;
+                    let previous = i.as_status().de()?;
                     let main_status = match &kinds {
                         ServiceStateKinds {
                             transition_state: Some(TransitionKind::Restarting),
@@ -89,7 +89,7 @@ async fn service_actor_loop(
                             ..
                         } => MainStatus::Stopped,
                     };
-                    i.as_status_mut().as_main_mut().ser(&main_status)?;
+                    i.as_status_mut().ser(&main_status)?;
                 }
                 Ok(())
             })
