@@ -1,19 +1,27 @@
-use std::future::Future;
 use std::path::Path;
+use std::{collections::BTreeMap, future::Future};
 
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::json;
+use itertools::Itertools;
+use openssl::{
+    pkey::{PKey, Private},
+    x509::X509,
+};
 use patch_db::ModelExt;
 use sqlx::postgres::PgConnectOptions;
 use sqlx::PgPool;
 use tokio::process::Command;
+use torut::onion::TorSecretKeyV3;
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_6_alpha_6, VersionT};
-use crate::db::model::Database;
-use crate::disk::mount::util::unmount;
-use crate::prelude::*;
-use crate::util::Invoke;
+use crate::{
+    auth::Sessions, backup::target::cifs::CifsTargets, notifications::Notifications, util::Invoke,
+};
+use crate::{db::model::Database, util::serde::PemEncoding};
+use crate::{disk::mount::util::unmount, ssh::SshKeys};
+use crate::{net::forward::AvailablePorts, prelude::*};
 
 lazy_static::lazy_static! {
     static ref V0_3_6_alpha_7: exver::Version = exver::Version::new(
@@ -169,12 +177,22 @@ async fn init_postgres(datadir: impl AsRef<Path>) -> Result<PgPool, Error> {
     Ok(secret_store)
 }
 
+struct Account {
+    password: String,
+    tor_key: TorSecretKeyV3,
+    server_id: String,
+    hostname: String,
+    network_key: String,
+    root_ca_key_pem: PKey<Private>,
+    root_ca_cert_pem: X509,
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Version;
 
 impl VersionT for Version {
     type Previous = v0_3_6_alpha_6::Version;
-    type PreUpRes = ();
+    type PreUpRes = (Account, SshKeys, CifsTargets, Notifications);
     fn semver(self) -> exver::Version {
         V0_3_6_alpha_7.clone()
     }
@@ -182,12 +200,44 @@ impl VersionT for Version {
         &V0_3_0_COMPAT
     }
     async fn pre_up(self) -> Result<Self::PreUpRes, Error> {
-        Ok(())
+        // provides `try_get`
+        use sqlx::Row;
+        // TODO What is this supposed to be for the datadir?
+        let pg = init_postgres("/var/lib/startos").await?;
+        let account_query = sqlx::query(r#"SELECT * FROM account"#)
+            .fetch_one(&pg)
+            .await?;
+        let account = {
+            Account {
+                password: account_query.try_get("password")?,
+                tor_key: todo!(), //TorSecretKeyV3::try_from(account_query.try_get("tor_key")?)?,
+                server_id: account_query.try_get("server_id")?,
+                hostname: account_query.try_get("hostname")?,
+                network_key: account_query.try_get("network_key")?,
+                root_ca_key_pem: todo!(), //serde_json::from_str(account_query.try_get("root_ca_key_pem")?)?,
+                root_ca_cert_pem: X509::from_pem(
+                    account_query
+                        .try_get::<String, _>("root_ca_cert_pem")?
+                        .as_bytes(),
+                )?,
+            }
+        };
+
+        let ssh_query = sqlx::query(r#"SELECT * FROM ssh_keys"#)
+            .fetch_all(&pg)
+            .await?;
+        let ssh_keys: SshKeys = {
+            ssh_query
+                .into_iter()
+                .fold(Ok::<_, Error>(SshKeys::new()), |ssh_keys, row| todo!())?
+        };
+
+        Ok((account, ssh_keys, todo!(), todo!()))
     }
     fn up(
         self,
         db: &mut Value,
-        input: Self::PreUpRes,
+        (account, ssh_keys, cifs, notifications): Self::PreUpRes,
     ) -> Result<impl Future<Output = Result<(), Error>> + Send + 'static, Error> {
         let wifi = json!({
             "infterface": db["server-info"]["wifi"]["interface"],
@@ -251,14 +301,31 @@ impl VersionT for Version {
 
         let public = json!({
             "serverInfo": server_info,
-            // TODO We do something with the package data for the migration, like reinstall them?
             "packageData": json!({}),
             "ui": db["ui"],
         });
 
-        // TODO Need to figure out how to extract the old private data
-        let private = json!({});
-        let next = json!({
+        let private = {
+            let mut value = json!({});
+            // keystore.onion from tor
+            // keystore.local new with information from secrets.account
+            value["keystore"] = todo!();
+            value["password"] = imbl_value::to_value(&account.password)?;
+            value["compatS9pkKey"] =
+                imbl_value::to_value(&crate::db::model::private::generate_compat_key())?;
+            // ssh_privkey nex
+            // ssh_pubkeys from the ssh
+            value["sshPrivkey"] = todo!();
+            value["sshPubkeys"] = todo!();
+            value["ssh"] = imbl_value::to_value(&ssh_keys)?;
+            value["availablePorts"] = imbl_value::to_value(&AvailablePorts::new())?;
+            value["sessions"] = imbl_value::to_value(&Sessions::new())?;
+            value["notifications"] = imbl_value::to_value(&notifications)?;
+            value["cifs"] = imbl_value::to_value(&cifs)?;
+            value["packageStores"] = json!({});
+            value
+        };
+        let next: Value = json!({
             "public": public,
             "private": private,
         });
@@ -274,9 +341,15 @@ impl VersionT for Version {
         self,
         _db: &mut Value,
     ) -> Result<impl Future<Output = Result<(), Error>> + Send + 'static, Error> {
-        Err(Error::new(
-            eyre!("downgrades prohibited"),
-            ErrorKind::InvalidRequest,
-        ))
+        Ok(async {
+            Err(Error::new(
+                eyre!("downgrades prohibited"),
+                ErrorKind::InvalidRequest,
+            ))
+        })
+    }
+
+    fn commit(self, db: &mut Value) -> Result<(), Error> {
+        todo!()
     }
 }
