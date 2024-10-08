@@ -25,6 +25,12 @@ impl SshKeys {
         Self(BTreeMap::new())
     }
 }
+
+impl From<BTreeMap<InternedString, WithTimeData<SshPubKey>>> for SshKeys {
+    fn from(map: BTreeMap<InternedString, WithTimeData<SshPubKey>>) -> Self {
+        Self(map)
+    }
+}
 impl Map for SshKeys {
     type Key = InternedString;
     type Value = WithTimeData<SshPubKey>;

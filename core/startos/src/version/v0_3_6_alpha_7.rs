@@ -2,7 +2,7 @@ use std::path::Path;
 use std::{collections::BTreeMap, future::Future};
 
 use exver::{PreReleaseSegment, VersionRange};
-use imbl_value::json;
+use imbl_value::{json, InternedString};
 use itertools::Itertools;
 use openssl::{
     pkey::{PKey, Private},
@@ -17,7 +17,8 @@ use torut::onion::TorSecretKeyV3;
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_6_alpha_6, VersionT};
 use crate::{
-    auth::Sessions, backup::target::cifs::CifsTargets, notifications::Notifications, util::Invoke,
+    auth::Sessions, backup::target::cifs::CifsTargets, notifications::Notifications,
+    ssh::SshPubKey, util::Invoke,
 };
 use crate::{db::model::Database, util::serde::PemEncoding};
 use crate::{disk::mount::util::unmount, ssh::SshKeys};
@@ -227,9 +228,24 @@ impl VersionT for Version {
             .fetch_all(&pg)
             .await?;
         let ssh_keys: SshKeys = {
-            ssh_query
-                .into_iter()
-                .fold(Ok::<_, Error>(SshKeys::new()), |ssh_keys, row| todo!())?
+            let keys = ssh_query.into_iter().fold(
+                Ok::<_, Error>(BTreeMap::<InternedString, WithTimeData<SshPubKey>>::new()),
+                |ssh_keys, row| {
+                    let mut ssh_keys = ssh_keys?;
+                    let time = serde_json::from_str(row.try_get("created_at")?)
+                        .with_kind(ErrorKind::Database)?;
+                    let value: SshPubKey = serde_json::from_str(row.try_get("openssh_pubkey")?)
+                        .with_kind(ErrorKind::Database)?;
+                    let data = WithTimeData {
+                        created_at: time,
+                        updated_at: time,
+                        value,
+                    };
+                    ssh_keys.insert(row.try_get::<String, _>("fingerprint")?.into(), data);
+                    Ok(ssh_keys)
+                },
+            )?;
+            SshKeys::from(keys)
         };
 
         Ok((account, ssh_keys, todo!(), todo!()))
