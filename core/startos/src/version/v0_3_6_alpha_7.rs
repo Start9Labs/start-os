@@ -17,8 +17,8 @@ use torut::onion::TorSecretKeyV3;
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_6_alpha_6, VersionT};
 use crate::{
-    auth::Sessions, backup::target::cifs::CifsTargets, notifications::Notifications,
-    ssh::SshPubKey, util::Invoke,
+    auth::Sessions, backup::target::cifs::CifsTargets, disk::mount::filesystem::cifs::Cifs,
+    notifications::Notifications, ssh::SshPubKey, util::Invoke,
 };
 use crate::{db::model::Database, util::serde::PemEncoding};
 use crate::{disk::mount::util::unmount, ssh::SshKeys};
@@ -248,7 +248,31 @@ impl VersionT for Version {
             SshKeys::from(keys)
         };
 
-        Ok((account, ssh_keys, todo!(), todo!()))
+        let pg_cifs = sqlx::query(r#"SELECT * FROM ssh_keys"#)
+            .fetch_all(&pg)
+            .await?
+            .into_iter()
+            .map(|row| {
+                let id: i64 = row.try_get("id")?;
+                Ok::<_, Error>((
+                    id,
+                    Cifs {
+                        hostname: row.try_get("hostname")?,
+                        path: serde_json::from_str(row.try_get("path")?)
+                            .with_kind(ErrorKind::Database)?,
+                        username: row.try_get("username")?,
+                        password: row.try_get("password")?,
+                    },
+                ))
+            })
+            .fold(Ok(CifsTargets::default()), |mut cifs, data| {
+                let mut cifs = cifs?;
+                let (id, cif_value) = data?;
+                cifs.0.insert(id as u32, cif_value);
+                Ok(cifs)
+            })?;
+
+        Ok((account, ssh_keys, pg_cifs, todo!()))
     }
     fn up(
         self,
