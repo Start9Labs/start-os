@@ -1,11 +1,14 @@
+use std::any::Any;
 use std::cmp::Ordering;
 
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::{Future, FutureExt};
+use imbl::Vector;
 use imbl_value::{to_value, InternedString};
-use patch_db::json_ptr::JsonPointer;
+use patch_db::json_ptr::{JsonPointer, ROOT};
 
+use crate::context::RpcContext;
 use crate::db::model::Database;
 use crate::prelude::*;
 use crate::progress::PhaseProgressTrackerHandle;
@@ -23,11 +26,65 @@ mod v0_3_6_alpha_5;
 mod v0_3_6_alpha_6;
 mod v0_3_6_alpha_7;
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, HasModel)]
-#[model = "Model<Self>"]
-pub struct AnyDb(pub Value);
-
 pub type Current = v0_3_6_alpha_5::Version; // VERSION_BUMP
+
+impl Current {
+    pub async fn pre_init(self, db: &PatchDb) -> Result<(), Error> {
+        let from = from_value::<Version>(
+            version_accessor(&mut db.dump(&ROOT).await.value)
+                .or_not_found("`version` in db")?
+                .clone(),
+        )?
+        .as_version_t()?;
+        match from.semver().cmp(&self.semver()) {
+            Ordering::Greater => {
+                db.apply_function(|db| {
+                    rollback_to_unchecked(&*from, &self, &mut db)?;
+                    Ok((db, ()))
+                })
+                .await?;
+            }
+            Ordering::Less => {
+                let pre_ups = PreUps::load(&*from, &self).await?;
+                db.apply_function(|db| {
+                    migrate_from_unchecked(&*from, &self, pre_ups, &mut db)?;
+                    Ok((db, ()))
+                })
+                .await?;
+            }
+            Ordering::Equal => (),
+        }
+        Ok(())
+    }
+}
+
+pub async fn post_init(ctx: &RpcContext) -> Result<(), Error> {
+    let mut peek;
+    while let Some(version) = {
+        peek = ctx.db.peek().await;
+        peek.as_public()
+            .as_server_info()
+            .as_post_init_migration_todos()
+            .de()?
+            .first()
+            .cloned()
+            .map(Version::from_exver_version)
+            .as_ref()
+            .map(Version::as_version_t)
+            .transpose()?
+    } {
+        version.post_up(ctx).await?;
+        ctx.db
+            .mutate(|db| {
+                db.as_public_mut()
+                    .as_server_info_mut()
+                    .as_post_init_migration_todos_mut()
+                    .mutate(|m| Ok(m.remove(&version.semver())))
+            })
+            .await?;
+    }
+    Ok(())
+}
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(untagged)]
@@ -57,6 +114,33 @@ impl Version {
                 Version::Other(version)
             })
     }
+    fn as_version_t(&self) -> Result<Box<dyn DynVersionT>, Error> {
+        Ok(match self {
+            Self::LT0_3_5(_) => {
+                return Err(Error::new(
+                    eyre!("cannot migrate from versions before 0.3.5"),
+                    ErrorKind::MigrationFailed,
+                ))
+            }
+            Self::V0_3_5(v) => Box::new(v.0),
+            Self::V0_3_5_1(v) => Box::new(v.0),
+            Self::V0_3_5_2(v) => Box::new(v.0),
+            Self::V0_3_6_alpha_0(v) => Box::new(v.0),
+            Self::V0_3_6_alpha_1(v) => Box::new(v.0),
+            Self::V0_3_6_alpha_2(v) => Box::new(v.0),
+            Self::V0_3_6_alpha_3(v) => Box::new(v.0),
+            Self::V0_3_6_alpha_4(v) => Box::new(v.0),
+            Self::V0_3_6_alpha_5(v) => Box::new(v.0),
+            Self::V0_3_6_alpha_6(v) => Box::new(v.0),
+            Self::V0_3_6_alpha_7(v) => Box::new(v.0),
+            Self::Other(v) => {
+                return Err(Error::new(
+                    eyre!("unknown version {v}"),
+                    ErrorKind::MigrationFailed,
+                ))
+            }
+        })
+    }
     #[cfg(test)]
     fn as_exver(&self) -> exver::Version {
         match self {
@@ -77,89 +161,107 @@ impl Version {
     }
 }
 
-fn current_version(db: &Value) -> Result<Version, Error> {
-    if let Some(public) = db.get("public") {
-        from_value(
-            public
-                .get("serverInfo")
-                .or_not_found("`server-info` in .public")?
-                .get("version")
-                .or_not_found("`version` in .public.serverInfo")?
-                .clone(),
-        )
+fn version_accessor(db: &mut Value) -> Option<&mut Value> {
+    if db.get("public").is_some() {
+        db.get_mut("public")?
+            .get_mut("serverInfo")?
+            .get_mut("version")
     } else {
-        from_value(
-            db.get("server-info")
-                .or_not_found("`server-info` in .")?
-                .get("version")
-                .or_not_found("`version` in .server-info")?
-                .clone(),
-        )
+        db.get_mut("server-info")?.get_mut("version")
     }
 }
 
-fn migrate_to<VFrom: VersionT, VTo: VersionT>(
-    from: VFrom,
-    to: VTo,
-    db: &mut Value,
-    progress: &mut PhaseProgressTrackerHandle,
-) -> Result<impl Future<Output = Result<(), Error>> + Send + 'static, Error> {
-    match from.semver().cmp(&to.semver()) {
-        Ordering::Greater => rollback_to_unchecked(from, to, db, progress),
-        Ordering::Less => migrate_from_unchecked(from, to, db, progress),
-        Ordering::Equal => Ok(async { Ok(()) }.boxed()),
+fn version_compat_accessor(db: &mut Value) -> Option<&mut Value> {
+    if db.get("public").is_some() {
+        db.get_mut("public")?
+            .get_mut("serverInfo")?
+            .get_mut("versionCompat")
+    } else {
+        db.get_mut("server-info")?.get_mut("eos-version-compat")
     }
 }
 
-fn migrate_from_unchecked<VFrom: VersionT, VTo: VersionT>(
-    from: VFrom,
-    to: VTo,
-    db: &mut Value,
-    progress: &mut PhaseProgressTrackerHandle,
-) -> Result<BoxFuture<'static, Result<(), Error>>, Error> {
-    progress.add_total(1);
-    let previous = VTo::Previous::default();
-    let ff_post_init = if from.semver() < previous.semver() {
-        migrate_from_unchecked(from, previous, db, progress)?
-    } else if from.semver() > previous.semver() {
-        return Err(Error::new(
-            eyre!(
-                "NO PATH FROM {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
-                from.semver()
-            ),
-            crate::ErrorKind::MigrationFailed,
-        ));
+fn post_init_migration_todos_accessor(db: &mut Value) -> Option<&mut Value> {
+    let server_info = if db.get("public").is_some() {
+        db.get_mut("public")?.get_mut("serverInfo")?
     } else {
-        async { Ok::<_, Error>(()) }.boxed()
+        db.get_mut("server-info")?
     };
-    let post_init = to.up(db)?.boxed();
-    to.commit(db)?;
-    Ok(async {
-        ff_post_init.await?;
-        post_init.await?;
-        Ok(())
+    if server_info.get("postInitMigrationTodos").is_none() {
+        server_info
+            .as_object_mut()?
+            .insert("postInitMigrationTodos".into(), Value::Array(Vector::new()));
     }
-    .boxed())
-    // tracing::info!("{} -> {}", previous.semver(), self.semver(),);
-    // *progress += 1;
-    // Ok(())
+    server_info.get_mut("postInitMigrationTodos")
 }
 
-fn rollback_to_unchecked<VFrom: VersionT, VTo: VersionT>(
-    from: VFrom,
-    to: VTo,
+struct PreUps {
+    prev: Option<Box<PreUps>>,
+    value: Box<dyn Any + Send + 'static>,
+}
+impl PreUps {
+    async fn load<VFrom: DynVersionT + ?Sized, VTo: DynVersionT + ?Sized>(
+        from: &VFrom,
+        to: &VTo,
+    ) -> Result<Self, Error> {
+        let previous = to.previous();
+        let prev = if from.semver() < previous.semver() {
+            Some(Box::new(PreUps::load(from, &*previous).await?))
+        } else if from.semver() > previous.semver() {
+            return Err(Error::new(
+                eyre!(
+                    "NO PATH FROM {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
+                    from.semver()
+                ),
+                crate::ErrorKind::MigrationFailed,
+            ));
+        } else {
+            None
+        };
+        Ok(Self {
+            prev,
+            value: to.pre_up().await?,
+        })
+    }
+}
+
+fn migrate_from_unchecked<VFrom: DynVersionT + ?Sized, VTo: DynVersionT + ?Sized>(
+    from: &VFrom,
+    to: &VTo,
+    pre_ups: PreUps,
     db: &mut Value,
-    progress: &mut PhaseProgressTrackerHandle,
-) -> Result<BoxFuture<'static, Result<(), Error>>, Error> {
-    let previous = VFrom::Previous::default();
-    let post_init = from.down(db)?.boxed();
+) -> Result<(), Error> {
+    let previous = to.previous();
+    match pre_ups.prev {
+        Some(prev) if from.semver() < previous.semver() => {
+            migrate_from_unchecked(from, &*previous, *prev, db)?
+        }
+        _ if from.semver() > previous.semver() => {
+            return Err(Error::new(
+                eyre!(
+                    "NO PATH FROM {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
+                    from.semver()
+                ),
+                crate::ErrorKind::MigrationFailed,
+            ));
+        }
+        _ => (),
+    };
+    to.up(db, pre_ups.value)?;
+    to.commit(db)?;
+    Ok(())
+}
+
+fn rollback_to_unchecked<VFrom: DynVersionT + ?Sized, VTo: DynVersionT + ?Sized>(
+    from: &VFrom,
+    to: &VTo,
+    db: &mut Value,
+) -> Result<(), Error> {
+    let previous = from.previous();
+    from.down(db)?;
     previous.commit(db)?;
-    // tracing::info!("{} -> {}", self.semver(), previous.semver(),);
-    // self.down(db).await?;
-    // previous.commit(db).await?;
-    // *progress += 1;
-    let ff_post_init = if to.semver() < previous.semver() {
-        rollback_to_unchecked(previous, to, db, progress)?
+    if to.semver() < previous.semver() {
+        rollback_to_unchecked(&*previous, to, db)?
     } else if to.semver() > previous.semver() {
         return Err(Error::new(
             eyre!(
@@ -168,15 +270,8 @@ fn rollback_to_unchecked<VFrom: VersionT, VTo: VersionT>(
             ),
             crate::ErrorKind::MigrationFailed,
         ));
-    } else {
-        async { Ok::<_, Error>(()) }.boxed()
-    };
-    Ok(async move {
-        post_init.await?;
-        ff_post_init.await?;
-        Ok(())
     }
-    .boxed())
+    Ok(())
 }
 
 pub trait VersionT
@@ -184,20 +279,91 @@ where
     Self: Default + Copy + Sized + Send + Sync + 'static,
 {
     type Previous: VersionT;
-    type PreUpRes;
+    type PreUpRes: Send;
     fn semver(self) -> exver::Version;
     fn compat(self) -> &'static exver::VersionRange;
+    /// MUST NOT change system state. Intended for async I/O reads
     fn pre_up(self) -> impl Future<Output = Result<Self::PreUpRes, Error>> + Send + 'static;
-    fn up(
-        self,
-        db: &mut Value,
-        input: Self::PreUpRes,
-    ) -> Result<impl Future<Output = Result<(), Error>> + Send + 'static, Error>;
-    fn down(
-        self,
-        db: &mut Value,
-    ) -> Result<impl Future<Output = Result<(), Error>> + Send + 'static, Error>;
-    fn commit(self, db: &mut Value) -> Result<(), Error>;
+    fn up(self, db: &mut Value, input: Self::PreUpRes) -> Result<(), Error> {
+        Ok(())
+    }
+    /// MUST be idempotent, and is run after *all* db migrations
+    fn post_up(self, ctx: &RpcContext) -> impl Future<Output = Result<(), Error>> + Send + 'static {
+        async { Ok(()) }
+    }
+    fn down(self, db: &mut Value) -> Result<(), Error> {
+        Err(Error::new(
+            eyre!("downgrades prohibited"),
+            ErrorKind::InvalidRequest,
+        ))
+    }
+    fn commit(self, db: &mut Value) -> Result<(), Error> {
+        *version_accessor(db).or_not_found("`version` in db")? = to_value(&self.semver())?;
+        *version_compat_accessor(db).or_not_found("`versionCompat` in db")? =
+            to_value(self.compat())?;
+        post_init_migration_todos_accessor(db)
+            .or_not_found("`serverInfo` in db")?
+            .as_array_mut()
+            .ok_or_else(|| {
+                Error::new(
+                    eyre!("postInitMigrationTodos is not an array"),
+                    ErrorKind::Database,
+                )
+            })?
+            .push_back(to_value(&self.semver())?);
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+trait DynVersionT: Send + Sync {
+    fn previous(&self) -> Box<dyn DynVersionT>;
+    fn semver(&self) -> exver::Version;
+    fn compat(&self) -> &'static exver::VersionRange;
+    async fn pre_up(&self) -> Result<Box<dyn Any + Send>, Error>;
+    fn up(&self, db: &mut Value, input: Box<dyn Any + Send>) -> Result<(), Error>;
+    async fn post_up(&self, ctx: &RpcContext) -> Result<(), Error>;
+    fn down(&self, db: &mut Value) -> Result<(), Error>;
+    fn commit(&self, db: &mut Value) -> Result<(), Error>;
+}
+#[async_trait::async_trait]
+impl<T> DynVersionT for T
+where
+    T: VersionT,
+{
+    fn previous(&self) -> Box<dyn DynVersionT> {
+        Box::new(<Self as VersionT>::Previous::default())
+    }
+    fn semver(&self) -> exver::Version {
+        VersionT::semver(*self)
+    }
+    fn compat(&self) -> &'static exver::VersionRange {
+        VersionT::compat(*self)
+    }
+    async fn pre_up(&self) -> Result<Box<dyn Any + Send>, Error> {
+        Ok(Box::new(VersionT::pre_up(*self).await?))
+    }
+    fn up(&self, db: &mut Value, input: Box<dyn Any + Send>) -> Result<(), Error> {
+        VersionT::up(
+            *self,
+            db,
+            *input.downcast().map_err(|_| {
+                Error::new(
+                    eyre!("pre_up returned unexpected type"),
+                    ErrorKind::Incoherent,
+                )
+            })?,
+        )
+    }
+    async fn post_up(&self, ctx: &RpcContext) -> Result<(), Error> {
+        VersionT::post_up(*self, ctx).await
+    }
+    fn down(&self, db: &mut Value) -> Result<(), Error> {
+        VersionT::down(*self, db)
+    }
+    fn commit(&self, db: &mut Value) -> Result<(), Error> {
+        VersionT::commit(*self, db)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -248,102 +414,6 @@ where
             Err(serde::de::Error::custom("Mismatched Version"))
         }
     }
-}
-
-pub async fn init(
-    db: &TypedPatchDb<Database>,
-    mut progress: PhaseProgressTrackerHandle,
-) -> Result<(), Error> {
-    progress.start();
-    db.mutate(|db| {
-        db.as_public_mut()
-            .as_server_info_mut()
-            .as_version_mut()
-            .map_mutate(|v| {
-                Ok(if v == exver::Version::new([0, 3, 6], []) {
-                    v0_3_6_alpha_0::Version::default().semver()
-                } else {
-                    v
-                })
-            })
-    })
-    .await?; // TODO: remove before releasing 0.3.6
-    let version = Version::from_exver_version(
-        db.peek()
-            .await
-            .as_public()
-            .as_server_info()
-            .as_version()
-            .de()?,
-    );
-    let current_version = Current::new();
-
-    db.mutate(|db| {
-        db.as_public_mut()
-            .as_server_info_mut()
-            .as_version_mut()
-            .ser(&current_version.semver().into())?;
-
-        db.as_public_mut()
-            .as_server_info_mut()
-            .as_eos_version_compat_mut()
-            .ser(&current_version.compat())?;
-        Ok(())
-    })
-    .await?;
-    let mut value: Value = db.get(&JsonPointer::<&'static str>::default()).await?;
-    match version {
-        Version::LT0_3_5(_) => {
-            return Err(Error::new(
-                eyre!("Cannot migrate from pre-0.3.5. Please update to v0.3.5 first."),
-                ErrorKind::MigrationFailed,
-            ));
-        }
-        Version::V0_3_5(v) => {
-            v.0.migrate_to(&current_version, &mut value, &mut progress)?
-        }
-        Version::V0_3_5_1(v) => {
-            v.0.migrate_to(&current_version, &mut value, &mut progress)?
-        }
-        Version::V0_3_5_2(v) => {
-            v.0.migrate_to(&current_version, &mut value, &mut progress)?
-        }
-        Version::V0_3_6_alpha_0(v) => {
-            v.0.migrate_to(&current_version, &mut value, &mut progress)?
-        }
-        Version::V0_3_6_alpha_1(v) => {
-            v.0.migrate_to(&current_version, &mut value, &mut progress)?
-        }
-        Version::V0_3_6_alpha_2(v) => {
-            v.0.migrate_to(&current_version, &mut value, &mut progress)?
-        }
-        Version::V0_3_6_alpha_3(v) => {
-            v.0.migrate_to(&current_version, &mut value, &mut progress)?
-        }
-        Version::V0_3_6_alpha_4(v) => {
-            v.0.migrate_to(&current_version, &mut value, &mut progress)?
-        }
-        Version::V0_3_6_alpha_5(v) => {
-            v.0.migrate_to(&current_version, &mut value, &mut progress)?
-        }
-        Version::V0_3_6_alpha_6(v) => {
-            v.0.migrate_to(&current_version, &mut value, &mut progress)?
-        }
-        Version::V0_3_6_alpha_7(v) => {
-            v.0.migrate_to(&current_version, &mut value, &mut progress)?
-        }
-        Version::Other(_) => {
-            return Err(Error::new(
-                eyre!("Cannot downgrade"),
-                crate::ErrorKind::InvalidRequest,
-            ))
-        }
-    };
-    db.mutate(|db| db.ser(&imbl_value::from_value(value)?))
-        .await?;
-
-    progress.complete();
-    Ok(())
 }
 
 pub const COMMIT_HASH: &str =

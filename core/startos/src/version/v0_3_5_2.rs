@@ -8,7 +8,7 @@ lazy_static::lazy_static! {
     static ref V0_3_5_2: exver::Version = exver::Version::new([0, 3, 5, 2], []);
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Version;
 
 impl VersionT for Version {

@@ -112,10 +112,12 @@ pub struct ServerInfo {
     pub hostname: InternedString,
     #[ts(type = "string")]
     pub version: Version,
+    #[ts(type = "string")]
+    pub version_compat: VersionRange,
+    #[ts(type = "string[]")]
+    pub post_init_migration_todos: BTreeSet<Version>,
     #[ts(type = "string | null")]
     pub last_backup: Option<DateTime<Utc>>,
-    #[ts(type = "string")]
-    pub eos_version_compat: VersionRange,
     #[ts(type = "string")]
     pub lan_address: Url,
     #[ts(type = "string")]

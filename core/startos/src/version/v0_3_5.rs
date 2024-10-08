@@ -16,7 +16,7 @@ lazy_static::lazy_static! {
         VersionRange::anchor(
             exver::LTE,
             ExtendedVersion::new(
-                Current::new().semver(),
+                Current::default().semver(),
                 exver::Version::default(),
             )
         ),
@@ -24,14 +24,11 @@ lazy_static::lazy_static! {
     static ref V0_3_5: exver::Version = exver::Version::new([0, 3, 5], []);
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Version;
 
 impl VersionT for Version {
     type Previous = Self;
-    fn new() -> Self {
-        Version
-    }
     fn semver(&self) -> exver::Version {
         V0_3_5.clone()
     }

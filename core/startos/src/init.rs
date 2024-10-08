@@ -323,12 +323,12 @@ pub async fn init(
     local_auth.complete();
 
     load_database.start();
-    let db = TypedPatchDb::<Database>::load_unchecked(cfg.db().await?);
+    let db = cfg.db().await?;
+    crate::version::Current::default().pre_init(&db).await?;
+    let db = TypedPatchDb::<Database>::load_unchecked(db);
     let peek = db.peek().await;
     load_database.complete();
     tracing::info!("Opened PatchDB");
-
-    crate::version::init(&db, run_migrations).await?;
 
     load_ssh_keys.start();
     crate::ssh::sync_keys(

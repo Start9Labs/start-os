@@ -11,7 +11,7 @@ lazy_static::lazy_static! {
     );
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Version;
 
 impl VersionT for Version {
@@ -25,10 +25,10 @@ impl VersionT for Version {
     fn compat(&self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
-     fn up(&self, _db: &mut Value) -> Result<(), Error> {
+    fn up(&self, _db: &mut Value) -> Result<(), Error> {
         Ok(())
     }
-     fn down(&self, _db: &mut Value) -> Result<(), Error> {
+    fn down(&self, _db: &mut Value) -> Result<(), Error> {
         Ok(())
     }
 }

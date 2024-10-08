@@ -11,7 +11,7 @@ lazy_static::lazy_static! {
     );
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct Version;
 
 impl VersionT for Version {
