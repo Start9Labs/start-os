@@ -141,16 +141,32 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       ...startSdkEffectWrapper,
       action: {
         run: actions.runAction,
-        request: actions.requestAction,
-        requestOwn: <T extends Omit<T.ActionRequest, "packageId">>(
+        request: <
+          T extends Action<T.ActionId, any, any, Record<string, unknown>>,
+        >(
           effects: T.Effects,
-          request: actions.ActionRequest<T> & {
-            replayId?: string
-          },
+          packageId: T.PackageId,
+          action: T,
+          options?: actions.ActionRequest<T>,
         ) =>
           actions.requestAction({
             effects,
-            request: { ...request, packageId: this.manifest.id },
+            packageId,
+            action,
+            request: options,
+          }),
+        requestOwn: <
+          T extends Action<T.ActionId, Store, any, Record<string, unknown>>,
+        >(
+          effects: T.Effects,
+          action: T,
+          options?: actions.ActionRequest<T>,
+        ) =>
+          actions.requestAction({
+            effects,
+            packageId: this.manifest.id,
+            action,
+            request: options,
           }),
       },
       checkDependencies: checkDependencies as <
@@ -566,37 +582,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           started(onTerm: () => PromiseLike<void>): PromiseLike<null>
         }) => Promise<Daemons<Manifest, any>>,
       ) => setupMain<Manifest, Store>(fn),
-      /**
-       * @description Use this function to determine which information to expose to the UI in the "Properties" section.
-       *
-       *   Values can be obtained from anywhere: the Store, the upstream service, or another service.
-       * @example
-       * In this example, we retrieve the admin password from the Store and expose it, masked and copyable, to
-       * the UI as "Admin Password".
-       *
-       * ```
-        export const properties = sdk.setupProperties(async ({ effects }) => {
-          const store = await sdk.store.getOwn(effects, sdk.StorePath).once()
-       
-          return {
-            'Admin Password': {
-              type: 'string',
-              value: store.adminPassword,
-              description: 'Used for logging into the admin UI',
-              copyable: true,
-              masked: true,
-              qr: false,
-            },
-          }
-        })
-       * ```
-       */
-      setupProperties:
-        (
-          fn: (options: { effects: Effects }) => Promise<T.SdkPropertiesReturn>,
-        ): T.ExpectedExports.properties =>
-        (options) =>
-          fn(options).then(nullifyProperties),
       /**
        * Use this function to execute arbitrary logic *once*, on uninstall only. Most services will not use this.
        */
@@ -1384,27 +1369,4 @@ export async function runCommand<Manifest extends T.Manifest>(
     name,
     (subcontainer) => subcontainer.exec(commands),
   )
-}
-function nullifyProperties(value: T.SdkPropertiesReturn): T.PropertiesReturn {
-  return Object.fromEntries(
-    Object.entries(value).map(([k, v]) => [k, nullifyProperties_(v)]),
-  )
-}
-function nullifyProperties_(value: T.SdkPropertiesValue): T.PropertiesValue {
-  if (value.type === "string") {
-    return {
-      description: null,
-      copyable: null,
-      masked: null,
-      qr: null,
-      ...value,
-    }
-  }
-  return {
-    description: null,
-    ...value,
-    value: Object.fromEntries(
-      Object.entries(value.value).map(([k, v]) => [k, nullifyProperties_(v)]),
-    ),
-  }
 }

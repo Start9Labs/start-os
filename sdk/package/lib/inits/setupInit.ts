@@ -12,7 +12,9 @@ export function setupInit<Manifest extends T.Manifest, Store>(
   install: Install<Manifest, Store>,
   uninstall: Uninstall<Manifest, Store>,
   setServiceInterfaces: UpdateServiceInterfaces<any>,
-  setDependencies: (options: { effects: T.Effects }) => Promise<null>,
+  setDependencies: (options: {
+    effects: T.Effects
+  }) => Promise<null | void | undefined>,
   actions: Actions<Store, any>,
   exposedStore: ExposedStorePaths,
 ): {
