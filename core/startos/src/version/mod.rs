@@ -29,6 +29,7 @@ mod v0_3_6_alpha_6;
 pub type Current = v0_3_6_alpha_5::Version; // VERSION_BUMP
 
 impl Current {
+    #[instrument(skip(self, db))]
     pub async fn pre_init(self, db: &PatchDb) -> Result<(), Error> {
         let from = from_value::<Version>(
             version_accessor(&mut db.dump(&ROOT).await.value)
@@ -197,28 +198,32 @@ struct PreUps {
     value: Box<dyn Any + UnwindSafe + Send + 'static>,
 }
 impl PreUps {
-    async fn load<VFrom: DynVersionT + ?Sized, VTo: DynVersionT + ?Sized>(
-        from: &VFrom,
-        to: &VTo,
-    ) -> Result<Self, Error> {
-        let previous = to.previous();
-        let prev = if from.semver() < previous.semver() {
-            Some(Box::new(PreUps::load(from, &previous).await?))
-        } else if from.semver() > previous.semver() {
-            return Err(Error::new(
-                eyre!(
-                    "NO PATH FROM {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
-                    from.semver()
-                ),
-                crate::ErrorKind::MigrationFailed,
-            ));
-        } else {
-            None
-        };
-        Ok(Self {
-            prev,
-            value: to.pre_up().await?,
-        })
+    #[instrument(skip(from, to))]
+    fn load<'a, VFrom: DynVersionT + ?Sized, VTo: DynVersionT + ?Sized>(
+        from: &'a VFrom,
+        to: &'a VTo,
+    ) -> BoxFuture<'a, Result<Self, Error>> {
+        async {
+            let previous = to.previous();
+            let prev = match from.semver().cmp(&previous.semver()) {
+                Ordering::Less => Some(Box::new(PreUps::load(from, &previous).await?)),
+                Ordering::Greater => {
+                    return Err(Error::new(
+                        eyre!(
+                            "NO PATH FROM {}, THIS IS LIKELY A MISTAKE IN THE VERSION DEFINITION",
+                            from.semver()
+                        ),
+                        crate::ErrorKind::MigrationFailed,
+                    ))
+                }
+                Ordering::Equal => None,
+            };
+            Ok(Self {
+                prev,
+                value: to.pre_up().await?,
+            })
+        }
+        .boxed()
     }
 }
 

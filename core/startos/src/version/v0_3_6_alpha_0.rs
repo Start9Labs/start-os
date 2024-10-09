@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::future::Future;
 use std::path::Path;
 
+use chrono::{DateTime, Utc};
 use ed25519_dalek::SigningKey;
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::{json, InternedString};
@@ -12,6 +13,8 @@ use openssl::x509::X509;
 use patch_db::ModelExt;
 use sqlx::postgres::PgConnectOptions;
 use sqlx::PgPool;
+use sqlx::Row;
+use ssh_key::Fingerprint;
 use tokio::process::Command;
 use torut::onion::TorSecretKeyV3;
 
@@ -202,143 +205,16 @@ impl VersionT for Version {
         &V0_3_0_COMPAT
     }
     async fn pre_up(self) -> Result<Self::PreUpRes, Error> {
-        // provides `try_get`
-        use sqlx::Row;
         let pg = init_postgres("/embassy-data").await?;
-        let account_query = sqlx::query(r#"SELECT * FROM account"#)
-            .fetch_one(&pg)
-            .await?;
-        let account = {
-            AccountInfo {
-                password: account_query.try_get("password")?,
-                tor_key: TorSecretKeyV3::try_from(
-                    if let Some(bytes) = account_query.try_get::<Option<Vec<u8>>, _>("tor_key")? {
-                        <[u8; 64]>::try_from(bytes).map_err(|e| {
-                            Error::new(
-                                eyre!("expected vec of len 64, got len {}", e.len()),
-                                ErrorKind::ParseDbField,
-                            )
-                        })?
-                    } else {
-                        ed25519_expand_key(
-                            &<[u8; 32]>::try_from(
-                                account_query.try_get::<Vec<u8>, _>("network_key")?,
-                            )
-                            .map_err(|e| {
-                                Error::new(
-                                    eyre!("expected vec of len 32, got len {}", e.len()),
-                                    ErrorKind::ParseDbField,
-                                )
-                            })?,
-                        )
-                    },
-                )?,
-                server_id: account_query.try_get("server_id")?,
-                hostname: Hostname(account_query.try_get::<String, _>("hostname")?.into()),
-                root_ca_key: PKey::private_key_from_pem(
-                    &account_query
-                        .try_get::<String, _>("root_ca_key_pem")?
-                        .as_bytes(),
-                )?,
-                root_ca_cert: X509::from_pem(
-                    account_query
-                        .try_get::<String, _>("root_ca_cert_pem")?
-                        .as_bytes(),
-                )?,
-                compat_s9pk_key: SigningKey::generate(&mut rand::thread_rng()),
-                ssh_key: ssh_key::PrivateKey::random(
-                    &mut rand::thread_rng(),
-                    ssh_key::Algorithm::Ed25519,
-                )?,
-            }
-        };
+        let account = previous_account_info(&pg).await?;
 
-        let ssh_query = sqlx::query(r#"SELECT * FROM ssh_keys"#)
-            .fetch_all(&pg)
-            .await?;
-        let ssh_keys: SshKeys = {
-            let keys = ssh_query.into_iter().fold(
-                Ok::<_, Error>(BTreeMap::<InternedString, WithTimeData<SshPubKey>>::new()),
-                |ssh_keys, row| {
-                    let mut ssh_keys = ssh_keys?;
-                    let time = serde_json::from_str(row.try_get("created_at")?)
-                        .with_kind(ErrorKind::Database)?;
-                    let value: SshPubKey = serde_json::from_str(row.try_get("openssh_pubkey")?)
-                        .with_kind(ErrorKind::Database)?;
-                    let data = WithTimeData {
-                        created_at: time,
-                        updated_at: time,
-                        value,
-                    };
-                    ssh_keys.insert(row.try_get::<String, _>("fingerprint")?.into(), data);
-                    Ok(ssh_keys)
-                },
-            )?;
-            SshKeys::from(keys)
-        };
+        let ssh_keys = previous_ssh_keys(&pg).await?;
 
-        let pg_cifs = sqlx::query(r#"SELECT * FROM ssh_keys"#)
-            .fetch_all(&pg)
-            .await?
-            .into_iter()
-            .map(|row| {
-                let id: i64 = row.try_get("id")?;
-                Ok::<_, Error>((
-                    id,
-                    Cifs {
-                        hostname: row.try_get("hostname")?,
-                        path: serde_json::from_str(row.try_get("path")?)
-                            .with_kind(ErrorKind::Database)?,
-                        username: row.try_get("username")?,
-                        password: row.try_get("password")?,
-                    },
-                ))
-            })
-            .fold(Ok::<_, Error>(CifsTargets::default()), |cifs, data| {
-                let mut cifs = cifs?;
-                let (id, cif_value) = data?;
-                cifs.0.insert(id as u32, cif_value);
-                Ok(cifs)
-            })?;
+        let cifs = previous_cifs(&pg).await?;
 
-        let notification_cursor = sqlx::query(r#"SELECT * FROM notifications"#)
-            .fetch_all(&pg)
-            .await?;
-        let notifications = {
-            let mut notifications = Notifications::default();
-            for row in notification_cursor {
-                let package_id = row
-                    .try_get("package_id")
-                    .ok()
-                    .and_then(|x| serde_json::from_str::<PackageId>(x).ok());
+        let notifications = previous_notifications(pg).await?;
 
-                let created_at = serde_json::from_str(row.try_get("created_at")?)
-                    .with_kind(ErrorKind::Database)?;
-                let code = row.try_get::<i64, _>("code")? as u32;
-                let id = row.try_get::<i64, _>("id")? as u32;
-                let level =
-                    serde_json::from_str(row.try_get("level")?).with_kind(ErrorKind::Database)?;
-                let title = row.try_get("title")?;
-                let message = row.try_get("message")?;
-                let data = serde_json::from_str(row.try_get("data")?).unwrap_or_default();
-
-                notifications.0.insert(
-                    id,
-                    Notification {
-                        package_id,
-                        created_at,
-                        code,
-                        level,
-                        title,
-                        message,
-                        data,
-                    },
-                );
-            }
-            notifications
-        };
-
-        Ok((account, ssh_keys, pg_cifs, notifications))
+        Ok((account, ssh_keys, cifs, notifications))
     }
     fn up(
         self,
@@ -441,4 +317,203 @@ impl VersionT for Version {
             ErrorKind::InvalidRequest,
         ))
     }
+}
+
+async fn previous_notifications(pg: sqlx::Pool<sqlx::Postgres>) -> Result<Notifications, Error> {
+    let notification_cursor = sqlx::query(r#"SELECT * FROM notifications"#)
+        .fetch_all(&pg)
+        .await?;
+    let notifications = {
+        let mut notifications = Notifications::default();
+        for row in notification_cursor {
+            let package_id = serde_json::from_str::<PackageId>(
+                row.try_get("package_id")
+                    .with_ctx(|_| (ErrorKind::Database, "package_id"))?,
+            )
+            .ok();
+
+            let created_at = row
+                .try_get("created_at")
+                .with_ctx(|_| (ErrorKind::Database, "created_at"))?;
+            let code = row
+                .try_get::<i64, _>("code")
+                .with_ctx(|_| (ErrorKind::Database, "code"))? as u32;
+            let id = row
+                .try_get::<i64, _>("id")
+                .with_ctx(|_| (ErrorKind::Database, "id"))? as u32;
+            let level = serde_json::from_str(
+                row.try_get("level")
+                    .with_ctx(|_| (ErrorKind::Database, "level"))?,
+            )
+            .with_kind(ErrorKind::Database)
+            .with_ctx(|_| (ErrorKind::Database, "level: serde_json "))?;
+            let title = row
+                .try_get("title")
+                .with_ctx(|_| (ErrorKind::Database, "title"))?;
+            let message = row
+                .try_get("message")
+                .with_ctx(|_| (ErrorKind::Database, "message"))?;
+            let data = serde_json::from_str(
+                row.try_get("data")
+                    .with_ctx(|_| (ErrorKind::Database, "data"))?,
+            )
+            .unwrap_or_default();
+
+            notifications.0.insert(
+                id,
+                Notification {
+                    package_id,
+                    created_at,
+                    code,
+                    level,
+                    title,
+                    message,
+                    data,
+                },
+            );
+        }
+        notifications
+    };
+    Ok(notifications)
+}
+
+#[tracing::instrument(skip_all)]
+async fn previous_cifs(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<CifsTargets, Error> {
+    let cifs = sqlx::query(r#"SELECT * FROM ssh_keys"#)
+        .fetch_all(pg)
+        .await?
+        .into_iter()
+        .map(|row| {
+            let id: i64 = row.try_get("id")?;
+            Ok::<_, Error>((
+                id,
+                Cifs {
+                    hostname: row
+                        .try_get("hostname")
+                        .with_ctx(|_| (ErrorKind::Database, "hostname"))?,
+                    path: serde_json::from_str(row.try_get("path")?)
+                        .with_kind(ErrorKind::Database)
+                        .with_ctx(|_| (ErrorKind::Database, "path"))?,
+                    username: row
+                        .try_get("username")
+                        .with_ctx(|_| (ErrorKind::Database, "username"))?,
+                    password: row
+                        .try_get("password")
+                        .with_ctx(|_| (ErrorKind::Database, "password"))?,
+                },
+            ))
+        })
+        .fold(Ok::<_, Error>(CifsTargets::default()), |cifs, data| {
+            let mut cifs = cifs?;
+            let (id, cif_value) = data?;
+            cifs.0.insert(id as u32, cif_value);
+            Ok(cifs)
+        })?;
+    Ok(cifs)
+}
+
+#[tracing::instrument(skip_all)]
+async fn previous_account_info(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<AccountInfo, Error> {
+    let account_query = sqlx::query(r#"SELECT * FROM account"#)
+        .fetch_one(pg)
+        .await?;
+    let account = {
+        AccountInfo {
+            password: account_query
+                .try_get("password")
+                .with_ctx(|_| (ErrorKind::Database, "password"))?,
+            tor_key: TorSecretKeyV3::try_from(
+                if let Some(bytes) = account_query
+                    .try_get::<Option<Vec<u8>>, _>("tor_key")
+                    .with_ctx(|_| (ErrorKind::Database, "tor_key"))?
+                {
+                    <[u8; 64]>::try_from(bytes)
+                        .map_err(|e| {
+                            Error::new(
+                                eyre!("expected vec of len 64, got len {}", e.len()),
+                                ErrorKind::ParseDbField,
+                            )
+                        })
+                        .with_ctx(|_| (ErrorKind::Database, "password.u8 64"))?
+                } else {
+                    ed25519_expand_key(
+                        &<[u8; 32]>::try_from(account_query.try_get::<Vec<u8>, _>("network_key")?)
+                            .map_err(|e| {
+                                Error::new(
+                                    eyre!("expected vec of len 32, got len {}", e.len()),
+                                    ErrorKind::ParseDbField,
+                                )
+                            })
+                            .with_ctx(|_| (ErrorKind::Database, "password.u8 32"))?,
+                    )
+                },
+            )?,
+            server_id: account_query
+                .try_get("server_id")
+                .with_ctx(|_| (ErrorKind::Database, "server_id"))?,
+            hostname: Hostname(
+                account_query
+                    .try_get::<String, _>("hostname")
+                    .with_ctx(|_| (ErrorKind::Database, "hostname"))?
+                    .into(),
+            ),
+            root_ca_key: PKey::private_key_from_pem(
+                &account_query
+                    .try_get::<String, _>("root_ca_key_pem")
+                    .with_ctx(|_| (ErrorKind::Database, "root_ca_key_pem"))?
+                    .as_bytes(),
+            )
+            .with_ctx(|_| (ErrorKind::Database, "private_key_from_pem"))?,
+            root_ca_cert: X509::from_pem(
+                account_query
+                    .try_get::<String, _>("root_ca_cert_pem")
+                    .with_ctx(|_| (ErrorKind::Database, "root_ca_cert_pem"))?
+                    .as_bytes(),
+            )
+            .with_ctx(|_| (ErrorKind::Database, "X509::from_pem"))?,
+            compat_s9pk_key: SigningKey::generate(&mut rand::thread_rng()),
+            ssh_key: ssh_key::PrivateKey::random(
+                &mut rand::thread_rng(),
+                ssh_key::Algorithm::Ed25519,
+            )
+            .with_ctx(|_| (ErrorKind::Database, "X509::ssh_key::PrivateKey::random"))?,
+        }
+    };
+    Ok(account)
+}
+#[tracing::instrument(skip_all)]
+async fn previous_ssh_keys(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<SshKeys, Error> {
+    let ssh_query = sqlx::query(r#"SELECT * FROM ssh_keys"#)
+        .fetch_all(pg)
+        .await?;
+    let ssh_keys: SshKeys = {
+        let keys = ssh_query.into_iter().fold(
+            Ok::<_, Error>(BTreeMap::<InternedString, WithTimeData<SshPubKey>>::new()),
+            |ssh_keys, row| {
+                let mut ssh_keys = ssh_keys?;
+                let time = row
+                    .try_get::<String, _>("created_at")
+                    .map_err(Error::from)
+                    .and_then(|x| x.parse::<DateTime<Utc>>().with_kind(ErrorKind::Database))
+                    .with_ctx(|_| (ErrorKind::Database, "openssh_pubkey"))?;
+                let value: SshPubKey = row
+                    .try_get("openssh_pubkey")
+                    .map_err(Error::from)
+                    .and_then(|x| Ok(serde_json::from_str(x).with_kind(ErrorKind::Database)?))
+                    .with_ctx(|_| (ErrorKind::Database, "openssh_pubkey"))?;
+                let data = WithTimeData {
+                    created_at: time,
+                    updated_at: time,
+                    value,
+                };
+                let fingerprint = row
+                    .try_get::<String, _>("fingerprint")
+                    .with_ctx(|_| (ErrorKind::Database, "fingerprint"))?;
+                ssh_keys.insert(fingerprint.into(), data);
+                Ok(ssh_keys)
+            },
+        )?;
+        SshKeys::from(keys)
+    };
+    Ok(ssh_keys)
 }
