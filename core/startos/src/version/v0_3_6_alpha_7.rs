@@ -265,7 +265,7 @@ impl VersionT for Version {
                     },
                 ))
             })
-            .fold(Ok(CifsTargets::default()), |mut cifs, data| {
+            .fold(Ok::<_, Error>(CifsTargets::default()), |cifs, data| {
                 let mut cifs = cifs?;
                 let (id, cif_value) = data?;
                 cifs.0.insert(id as u32, cif_value);
@@ -278,7 +278,7 @@ impl VersionT for Version {
         self,
         db: &mut Value,
         (account, ssh_keys, cifs, notifications): Self::PreUpRes,
-    ) -> Result<impl Future<Output = Result<(), Error>> + Send + 'static, Error> {
+    ) -> Result<(), Error> {
         let wifi = json!({
             "infterface": db["server-info"]["wifi"]["interface"],
             "ssids": db["server-info"]["wifi"]["ssids"],
@@ -371,22 +371,13 @@ impl VersionT for Version {
         });
 
         *db = next;
-
-        Ok(async {
-            // reinstall packages
-            Ok(())
-        })
+        Ok(())
     }
-    fn down(
-        self,
-        _db: &mut Value,
-    ) -> Result<impl Future<Output = Result<(), Error>> + Send + 'static, Error> {
-        Ok(async {
-            Err(Error::new(
-                eyre!("downgrades prohibited"),
-                ErrorKind::InvalidRequest,
-            ))
-        })
+    fn down(self, _db: &mut Value) -> Result<(), Error> {
+        Err(Error::new(
+            eyre!("downgrades prohibited"),
+            ErrorKind::InvalidRequest,
+        ))
     }
 
     fn commit(self, db: &mut Value) -> Result<(), Error> {

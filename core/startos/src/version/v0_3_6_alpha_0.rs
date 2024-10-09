@@ -16,19 +16,21 @@ pub struct Version;
 
 impl VersionT for Version {
     type Previous = v0_3_5_2::Version;
-    fn new() -> Self {
-        Version
+    type PreUpRes = ();
+
+    async fn pre_up(self) -> Result<Self::PreUpRes, Error> {
+        Ok(())
     }
-    fn semver(&self) -> exver::Version {
+    fn semver(self) -> exver::Version {
         V0_3_6_alpha_0.clone()
     }
-    fn compat(&self) -> &'static VersionRange {
+    fn compat(self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
-    fn up(&self, _db: &mut Value) -> Result<(), Error> {
+    fn up(self, _db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
         Err(Error::new(eyre!("unimplemented"), ErrorKind::Unknown))
     }
-    fn down(&self, _db: &mut Value) -> Result<(), Error> {
+    fn down(self, _db: &mut Value) -> Result<(), Error> {
         Ok(())
     }
 }
