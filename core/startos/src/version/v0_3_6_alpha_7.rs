@@ -4,6 +4,7 @@ use std::{collections::BTreeMap, future::Future};
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
+use models::PackageId;
 use openssl::{
     pkey::{PKey, Private},
     x509::X509,
@@ -17,8 +18,12 @@ use torut::onion::TorSecretKeyV3;
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_6_alpha_6, VersionT};
 use crate::{
-    auth::Sessions, backup::target::cifs::CifsTargets, disk::mount::filesystem::cifs::Cifs,
-    notifications::Notifications, ssh::SshPubKey, util::Invoke,
+    auth::Sessions,
+    backup::target::cifs::CifsTargets,
+    disk::mount::filesystem::cifs::Cifs,
+    notifications::{Notification, Notifications},
+    ssh::SshPubKey,
+    util::Invoke,
 };
 use crate::{db::model::Database, util::serde::PemEncoding};
 use crate::{disk::mount::util::unmount, ssh::SshKeys};
@@ -272,7 +277,44 @@ impl VersionT for Version {
                 Ok(cifs)
             })?;
 
-        Ok((account, ssh_keys, pg_cifs, todo!()))
+        let notification_cursor = sqlx::query(r#"SELECT * FROM notifications"#)
+            .fetch_all(&pg)
+            .await?;
+        let notifications = {
+            let mut notifications = Notifications::default();
+            for row in notification_cursor {
+                let package_id = row
+                    .try_get("package_id")
+                    .ok()
+                    .and_then(|x| serde_json::from_str::<PackageId>(x).ok());
+
+                let created_at = serde_json::from_str(row.try_get("created_at")?)
+                    .with_kind(ErrorKind::Database)?;
+                let code = row.try_get::<i64, _>("code")? as u32;
+                let id = row.try_get::<i64, _>("id")? as u32;
+                let level =
+                    serde_json::from_str(row.try_get("level")?).with_kind(ErrorKind::Database)?;
+                let title = row.try_get("title")?;
+                let message = row.try_get("message")?;
+                let data = serde_json::from_str(row.try_get("data")?).unwrap_or_default();
+
+                notifications.0.insert(
+                    id,
+                    Notification {
+                        package_id,
+                        created_at,
+                        code,
+                        level,
+                        title,
+                        message,
+                        data,
+                    },
+                );
+            }
+            notifications
+        };
+
+        Ok((account, ssh_keys, pg_cifs, notifications))
     }
     fn up(
         self,
@@ -378,9 +420,5 @@ impl VersionT for Version {
             eyre!("downgrades prohibited"),
             ErrorKind::InvalidRequest,
         ))
-    }
-
-    fn commit(self, db: &mut Value) -> Result<(), Error> {
-        todo!()
     }
 }
