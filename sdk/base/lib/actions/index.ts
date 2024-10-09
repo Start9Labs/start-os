@@ -58,7 +58,7 @@ type ActionRequestInput<
   kind: "partial"
   value: Partial<GetActionInputType<T>>
 }
-export type ActionRequest<
+export type ActionRequestOptions<
   T extends Action<T.ActionId, any, any, Record<string, unknown>>,
 > = ActionRequestBase &
   (
@@ -75,7 +75,7 @@ export type ActionRequest<
       }
   )
 
-const _validate: T.ActionRequest = {} as ActionRequest<any> & {
+const _validate: T.ActionRequest = {} as ActionRequestOptions<any> & {
   actionId: string
   packageId: string
   severity: T.ActionSeverity
@@ -88,9 +88,9 @@ export const requestAction = <
   packageId: T.PackageId
   action: T
   severity: T.ActionSeverity
-  request?: ActionRequest<T>
+  options?: ActionRequestOptions<T>
 }) => {
-  const request = options.request || {}
+  const request = options.options || {}
   const actionId = options.action.id
   const req = {
     ...request,
