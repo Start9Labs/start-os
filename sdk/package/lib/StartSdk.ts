@@ -147,12 +147,14 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           effects: T.Effects,
           packageId: T.PackageId,
           action: T,
+          severity: T.ActionSeverity,
           options?: actions.ActionRequest<T>,
         ) =>
           actions.requestAction({
             effects,
             packageId,
             action,
+            severity,
             request: options,
           }),
         requestOwn: <
@@ -160,12 +162,14 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         >(
           effects: T.Effects,
           action: T,
+          severity: T.ActionSeverity,
           options?: actions.ActionRequest<T>,
         ) =>
           actions.requestAction({
             effects,
             packageId: this.manifest.id,
             action,
+            severity,
             request: options,
           }),
       },
