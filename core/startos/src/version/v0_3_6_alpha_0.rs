@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::future::Future;
 use std::path::Path;
 
+use ed25519_dalek::SigningKey;
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
@@ -16,16 +17,22 @@ use torut::onion::TorSecretKeyV3;
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_5_2, VersionT};
+use crate::account::AccountInfo;
 use crate::auth::Sessions;
 use crate::backup::target::cifs::CifsTargets;
 use crate::db::model::Database;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::util::unmount;
+use crate::hostname::Hostname;
 use crate::net::forward::AvailablePorts;
+use crate::net::keys::KeyStore;
+use crate::net::ssl::CertStore;
+use crate::net::tor::OnionStore;
 use crate::notifications::{Notification, Notifications};
 use crate::prelude::*;
 use crate::ssh::{SshKeys, SshPubKey};
-use crate::util::serde::PemEncoding;
+use crate::util::crypto::ed25519_expand_key;
+use crate::util::serde::{Pem, PemEncoding};
 use crate::util::Invoke;
 
 lazy_static::lazy_static! {
@@ -182,22 +189,12 @@ async fn init_postgres(datadir: impl AsRef<Path>) -> Result<PgPool, Error> {
     Ok(secret_store)
 }
 
-pub struct Account {
-    password: String,
-    tor_key: TorSecretKeyV3,
-    server_id: String,
-    hostname: String,
-    network_key: String,
-    root_ca_key_pem: PKey<Private>,
-    root_ca_cert_pem: X509,
-}
-
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Version;
 
 impl VersionT for Version {
     type Previous = v0_3_5_2::Version;
-    type PreUpRes = (Account, SshKeys, CifsTargets, Notifications);
+    type PreUpRes = (AccountInfo, SshKeys, CifsTargets, Notifications);
     fn semver(self) -> exver::Version {
         V0_3_6_alpha_0.clone()
     }
@@ -207,23 +204,51 @@ impl VersionT for Version {
     async fn pre_up(self) -> Result<Self::PreUpRes, Error> {
         // provides `try_get`
         use sqlx::Row;
-        // TODO What is this supposed to be for the datadir?
-        let pg = init_postgres("/var/lib/startos").await?;
+        let pg = init_postgres("/embassy-data").await?;
         let account_query = sqlx::query(r#"SELECT * FROM account"#)
             .fetch_one(&pg)
             .await?;
         let account = {
-            Account {
+            AccountInfo {
                 password: account_query.try_get("password")?,
-                tor_key: todo!(), //TorSecretKeyV3::try_from(account_query.try_get("tor_key")?)?,
+                tor_key: TorSecretKeyV3::try_from(
+                    if let Some(bytes) = account_query.try_get::<Option<Vec<u8>>, _>("tor_key")? {
+                        <[u8; 64]>::try_from(bytes).map_err(|e| {
+                            Error::new(
+                                eyre!("expected vec of len 64, got len {}", e.len()),
+                                ErrorKind::ParseDbField,
+                            )
+                        })?
+                    } else {
+                        ed25519_expand_key(
+                            &<[u8; 32]>::try_from(
+                                account_query.try_get::<Vec<u8>, _>("network_key")?,
+                            )
+                            .map_err(|e| {
+                                Error::new(
+                                    eyre!("expected vec of len 32, got len {}", e.len()),
+                                    ErrorKind::ParseDbField,
+                                )
+                            })?,
+                        )
+                    },
+                )?,
                 server_id: account_query.try_get("server_id")?,
-                hostname: account_query.try_get("hostname")?,
-                network_key: account_query.try_get("network_key")?,
-                root_ca_key_pem: todo!(), //serde_json::from_str(account_query.try_get("root_ca_key_pem")?)?,
-                root_ca_cert_pem: X509::from_pem(
+                hostname: Hostname(account_query.try_get::<String, _>("hostname")?.into()),
+                root_ca_key: PKey::private_key_from_pem(
+                    &account_query
+                        .try_get::<String, _>("root_ca_key_pem")?
+                        .as_bytes(),
+                )?,
+                root_ca_cert: X509::from_pem(
                     account_query
                         .try_get::<String, _>("root_ca_cert_pem")?
                         .as_bytes(),
+                )?,
+                compat_s9pk_key: SigningKey::generate(&mut rand::thread_rng()),
+                ssh_key: ssh_key::PrivateKey::random(
+                    &mut rand::thread_rng(),
+                    ssh_key::Algorithm::Ed25519,
                 )?,
             }
         };
@@ -390,19 +415,15 @@ impl VersionT for Version {
             let mut value = json!({});
             // keystore.onion from tor
             // keystore.local new with information from secrets.account
-            value["keystore"] = todo!();
-            value["password"] = imbl_value::to_value(&account.password)?;
-            value["compatS9pkKey"] =
-                imbl_value::to_value(&crate::db::model::private::generate_compat_key())?;
-            // ssh_privkey nex
-            // ssh_pubkeys from the ssh
-            value["sshPrivkey"] = todo!();
-            value["sshPubkeys"] = todo!();
-            value["ssh"] = imbl_value::to_value(&ssh_keys)?;
-            value["availablePorts"] = imbl_value::to_value(&AvailablePorts::new())?;
-            value["sessions"] = imbl_value::to_value(&Sessions::new())?;
-            value["notifications"] = imbl_value::to_value(&notifications)?;
-            value["cifs"] = imbl_value::to_value(&cifs)?;
+            value["keyStore"] = to_value(&KeyStore::new(&account)?)?;
+            value["password"] = to_value(&account.password)?;
+            value["compatS9pkKey"] = to_value(&crate::db::model::private::generate_compat_key())?;
+            value["sshPrivkey"] = to_value(Pem::new_ref(&account.ssh_key))?;
+            value["sshPubkeys"] = to_value(&ssh_keys)?;
+            value["availablePorts"] = to_value(&AvailablePorts::new())?;
+            value["sessions"] = to_value(&Sessions::new())?;
+            value["notifications"] = to_value(&notifications)?;
+            value["cifs"] = to_value(&cifs)?;
             value["packageStores"] = json!({});
             value
         };
