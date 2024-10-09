@@ -18,6 +18,7 @@ import { MarketplacePkg } from '../../../types'
             tuiCell
             [routerLink]="[]"
             [queryParams]="{ id: pkg.id, flavor: pkg.flavor }"
+            queryParamsHandling="merge"
           >
             <tui-avatar [src]="pkg.icon | trustUrl" />
             <span tuiTitle>

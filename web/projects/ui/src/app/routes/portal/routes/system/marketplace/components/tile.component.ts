@@ -163,6 +163,7 @@ export class MarketplaceTileComponent {
         id: open ? this.pkg().id : null,
         flavor: open ? this.pkg().flavor : null,
       },
+      queryParamsHandling: 'merge',
     })
   }
 }

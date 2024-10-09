@@ -12,10 +12,10 @@ export const SYSTEM_UTILITIES: Record<string, { icon: string; title: string }> =
       icon: '@tui.shopping-cart',
       title: 'Marketplace',
     },
-    '/portal/system/updates': {
-      icon: '@tui.globe',
-      title: 'Updates',
-    },
+    // '/portal/system/updates': {
+    //   icon: '@tui.globe',
+    //   title: 'Updates',
+    // },
     '/portal/system/sideload': {
       icon: '@tui.upload',
       title: 'Sideload',

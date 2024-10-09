@@ -1,14 +1,12 @@
-import { Inject, Injectable } from '@angular/core'
-import { AbstractMarketplaceService } from '@start9labs/marketplace'
+import { Injectable } from '@angular/core'
 import { TuiDialogService } from '@taiga-ui/core'
-import { filter, share, switchMap, take, Observable, map } from 'rxjs'
+import { filter, share, switchMap, Observable, map } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { EOSService } from 'src/app/services/eos.service'
 import { WelcomeComponent } from 'src/app/components/welcome.component'
 import { ConfigService } from 'src/app/services/config.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { LocalStorageBootstrap } from './patch-db/local-storage-bootstrap'
@@ -40,8 +38,6 @@ export class PatchDataService extends Observable<void> {
     private readonly config: ConfigService,
     private readonly dialogs: TuiDialogService,
     private readonly embassyApi: ApiService,
-    @Inject(AbstractMarketplaceService)
-    private readonly marketplaceService: MarketplaceService,
     private readonly connection$: ConnectionService,
     private readonly bootstrapper: LocalStorageBootstrap,
   ) {
@@ -50,7 +46,7 @@ export class PatchDataService extends Observable<void> {
 
   private checkForUpdates(): void {
     this.eosService.loadEos()
-    this.marketplaceService.getMarketplace$().pipe(take(1)).subscribe()
+    // this.marketplaceService.getMarketplace$().pipe(take(1)).subscribe()
   }
 
   private showEosWelcome(ackVersion: string) {

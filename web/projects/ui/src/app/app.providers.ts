@@ -3,7 +3,6 @@ import { UntypedFormBuilder } from '@angular/forms'
 import { Router } from '@angular/router'
 import {
   AbstractCategoryService,
-  AbstractMarketplaceService,
   FilterPackagesPipe,
 } from '@start9labs/marketplace'
 import { RELATIVE_URL, THEME, WorkspaceConfig } from '@start9labs/shared'
@@ -35,7 +34,6 @@ import { CategoryService } from './services/category.service'
 import { ClientStorageService } from './services/client-storage.service'
 import { DateTransformerService } from './services/date-transformer.service'
 import { DatetimeTransformerService } from './services/datetime-transformer.service'
-import { MarketplaceService } from './services/marketplace.service'
 import { StorageService } from './services/storage.service'
 import { ThemeSwitcherService } from './services/theme-switcher.service'
 
@@ -89,10 +87,6 @@ export const APP_PROVIDERS: Provider[] = [
   {
     provide: THEME,
     useExisting: ThemeSwitcherService,
-  },
-  {
-    provide: AbstractMarketplaceService,
-    useClass: MarketplaceService,
   },
   {
     provide: AbstractCategoryService,

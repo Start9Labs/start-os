@@ -1,42 +1,65 @@
 import { Injectable } from '@angular/core'
 import {
-  AbstractMarketplaceService,
-  Marketplace,
   StoreIdentity,
   MarketplacePkg,
   GetPackageRes,
-  StoreData,
+  StoreDataWithUrl,
 } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
 import {
   BehaviorSubject,
   catchError,
   combineLatest,
-  distinctUntilKeyChanged,
   filter,
   from,
   map,
-  mergeMap,
   Observable,
   of,
-  scan,
-  pairwise,
   shareReplay,
-  startWith,
   switchMap,
-  take,
+  distinctUntilChanged,
+  ReplaySubject,
   tap,
 } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
 import { ConfigService } from './config.service'
-import { Exver, sameUrl } from '@start9labs/shared'
+import { Exver } from '@start9labs/shared'
 import { ClientStorageService } from './client-storage.service'
 import { T } from '@start9labs/start-sdk'
 
-@Injectable()
-export class MarketplaceService implements AbstractMarketplaceService {
+@Injectable({
+  providedIn: 'root',
+})
+export class MarketplaceService {
+  private readonly registryUrlSubject$ = new ReplaySubject<string>(1)
+  private readonly registryUrl$ = this.registryUrlSubject$.pipe(
+    distinctUntilChanged(),
+  )
+
+  private readonly registry$: Observable<StoreDataWithUrl> =
+    this.registryUrl$.pipe(
+      switchMap(url => this.fetchRegistry$(url)),
+      filter(Boolean),
+      // @TODO is updateStoreName needed?
+      map(registry => {
+        registry.info.categories = {
+          all: {
+            name: 'All',
+            description: {
+              short: 'All registry packages',
+              long: 'An unfiltered list of all packages available on this registry.',
+            },
+          },
+          ...registry.info.categories,
+        }
+
+        return registry
+      }),
+      shareReplay(1),
+    )
+
   private readonly knownHosts$: Observable<StoreIdentity[]> = this.patch
     .watch$('ui', 'marketplace', 'knownHosts')
     .pipe(
@@ -69,71 +92,6 @@ export class MarketplaceService implements AbstractMarketplaceService {
       ),
     )
 
-  private readonly selectedHost$: Observable<StoreIdentity> = this.patch
-    .watch$('ui', 'marketplace')
-    .pipe(
-      distinctUntilKeyChanged('selectedUrl'),
-      map(({ selectedUrl: url, knownHosts: hosts }) =>
-        toStoreIdentity(url, hosts[url]),
-      ),
-      shareReplay(1),
-    )
-
-  private readonly marketplace$ = this.knownHosts$.pipe(
-    startWith<StoreIdentity[]>([]),
-    pairwise(),
-    mergeMap(([prev, curr]) =>
-      curr.filter(c => !prev.find(p => sameUrl(c.url, p.url))),
-    ),
-    mergeMap(({ url, name }) =>
-      this.fetchStore$(url).pipe(
-        tap(data => {
-          if (data?.info.name) this.updateStoreName(url, name, data.info.name)
-        }),
-        map<StoreData | null, [string, StoreData | null]>(data => [url, data]),
-        startWith<[string, StoreData | null]>([url, null]),
-      ),
-    ),
-    scan<[string, StoreData | null], Record<string, StoreData | null>>(
-      (requests, [url, store]) => {
-        requests[url] = store
-
-        return requests
-      },
-      {},
-    ),
-    shareReplay(1),
-  )
-
-  private readonly filteredMarketplace$ = combineLatest([
-    this.clientStorageService.showDevTools$,
-    this.marketplace$,
-  ]).pipe(
-    map(([devMode, marketplace]) =>
-      Object.entries(marketplace).reduce(
-        (filtered, [url, store]) =>
-          !devMode && (url.includes('alpha') || url.includes('beta'))
-            ? filtered
-            : {
-                [url]: store,
-                ...filtered,
-              },
-        {} as Marketplace,
-      ),
-    ),
-  )
-
-  private readonly selectedStore$: Observable<StoreData> =
-    this.selectedHost$.pipe(
-      switchMap(({ url }) =>
-        this.marketplace$.pipe(
-          map(m => m[url]),
-          filter(Boolean),
-          take(1),
-        ),
-      ),
-    )
-
   private readonly requestErrors$ = new BehaviorSubject<string[]>([])
 
   constructor(
@@ -149,33 +107,17 @@ export class MarketplaceService implements AbstractMarketplaceService {
     return filtered ? this.filteredKnownHosts$ : this.knownHosts$
   }
 
-  getSelectedHost$(): Observable<StoreIdentity> {
-    return this.selectedHost$
+  getRegistryUrl$() {
+    return this.registryUrl$
   }
 
-  getMarketplace$(filtered = false): Observable<Marketplace> {
-    // option to filter out hosts containing 'alpha' or 'beta' substrings in registryURL
-    return filtered ? this.filteredMarketplace$ : this.marketplace$
+  setRegistryUrl(url: string | null) {
+    const registryUrl = url || this.config.marketplace.start9
+    this.registryUrlSubject$.next(registryUrl)
   }
 
-  getSelectedStore$(): Observable<StoreData> {
-    return this.selectedStore$
-  }
-
-  getSelectedStoreWithCategories$() {
-    return this.selectedHost$.pipe(
-      switchMap(({ url }) =>
-        this.marketplace$.pipe(
-          map(m => m[url]),
-          filter(Boolean),
-          map(({ info, packages }) => ({
-            url,
-            info,
-            packages,
-          })),
-        ),
-      ),
-    )
+  getRegistry$(): Observable<StoreDataWithUrl> {
+    return this.registry$
   }
 
   getPackage$(
@@ -184,45 +126,18 @@ export class MarketplaceService implements AbstractMarketplaceService {
     flavor: string | null,
     registryUrl?: string,
   ): Observable<MarketplacePkg> {
-    return this.selectedHost$.pipe(
-      switchMap(selected =>
-        this.marketplace$.pipe(
-          switchMap(m => {
-            const url = registryUrl || selected.url
-            const pkg = m[url]?.packages.find(
-              p =>
-                p.id === id &&
-                p.flavor === flavor &&
-                (!version || this.exver.compareExver(p.version, version) === 0),
-            )
-
-            return pkg ? of(pkg) : this.fetchPackage$(url, id, version, flavor)
-          }),
-        ),
-      ),
+    return this.registry$.pipe(
+      switchMap(registry => {
+        const url = registryUrl || registry.url
+        const pkg = registry.packages.find(
+          p =>
+            p.id === id &&
+            p.flavor === flavor &&
+            (!version || this.exver.compareExver(p.version, version) === 0),
+        )
+        return pkg ? of(pkg) : this.fetchPackage$(url, id, version, flavor)
+      }),
     )
-  }
-
-  // UI only
-  readonly updateErrors: Record<string, string> = {}
-  readonly updateQueue: Record<string, boolean> = {}
-
-  getRequestErrors$(): Observable<string[]> {
-    return this.requestErrors$
-  }
-
-  async installPackage(
-    id: string,
-    version: string,
-    url: string,
-  ): Promise<void> {
-    const params: RR.InstallPackageReq = {
-      id,
-      version,
-      registry: url,
-    }
-
-    await this.api.installPackage(params)
   }
 
   fetchInfo$(url: string): Observable<T.RegistryInfo> {
@@ -232,7 +147,10 @@ export class MarketplaceService implements AbstractMarketplaceService {
         categories: {
           all: {
             name: 'All',
-            description: { short: 'All services', long: 'All services' },
+            description: {
+              short: 'All services',
+              long: 'An unfiltered list of all services available on this registry.',
+            },
           },
           ...info.categories,
         },
@@ -240,16 +158,17 @@ export class MarketplaceService implements AbstractMarketplaceService {
     )
   }
 
-  fetchStatic$(
+  getStatic$(
     pkg: MarketplacePkg,
     type: 'LICENSE.md' | 'instructions.md',
   ): Observable<string> {
     return from(this.api.getStaticProxy(pkg, type))
   }
 
-  private fetchStore$(url: string): Observable<StoreData | null> {
+  private fetchRegistry$(url: string): Observable<StoreDataWithUrl | null> {
+    console.log('FETCHING REGISTRY: ', url)
     return combineLatest([this.fetchInfo$(url), this.fetchPackages$(url)]).pipe(
-      map(([info, packages]) => ({ info, packages })),
+      map(([info, packages]) => ({ info, packages, url })),
       catchError(e => {
         console.error(e)
         this.requestErrors$.next(this.requestErrors$.value.concat(url))
@@ -275,7 +194,22 @@ export class MarketplaceService implements AbstractMarketplaceService {
     )
   }
 
-  convertToMarketplacePkg(
+  private fetchPackage$(
+    url: string,
+    id: string,
+    version: string | null,
+    flavor: string | null,
+  ): Observable<MarketplacePkg> {
+    return from(
+      this.api.getRegistryPackage(url, id, version ? `=${version}` : null),
+    ).pipe(
+      map(pkgInfo =>
+        this.convertToMarketplacePkg(id, version, flavor, pkgInfo),
+      ),
+    )
+  }
+
+  private convertToMarketplacePkg(
     id: string,
     version: string | null | undefined,
     flavor: string | null,
@@ -297,26 +231,6 @@ export class MarketplaceService implements AbstractMarketplaceService {
         }
   }
 
-  private fetchPackage$(
-    url: string,
-    id: string,
-    version: string | null,
-    flavor: string | null,
-  ): Observable<MarketplacePkg> {
-    return from(
-      this.api.getRegistryPackage(url, id, version ? `=${version}` : null),
-    ).pipe(
-      map(pkgInfo =>
-        this.convertToMarketplacePkg(
-          id,
-          version === '*' ? null : version,
-          flavor,
-          pkgInfo,
-        ),
-      ),
-    )
-  }
-
   private async updateStoreName(
     url: string,
     oldName: string | undefined,
@@ -328,6 +242,28 @@ export class MarketplaceService implements AbstractMarketplaceService {
         newName,
       )
     }
+  }
+
+  // UI only
+  readonly updateErrors: Record<string, string> = {}
+  readonly updateQueue: Record<string, boolean> = {}
+
+  getRequestErrors$(): Observable<string[]> {
+    return this.requestErrors$
+  }
+
+  async installPackage(
+    id: string,
+    version: string,
+    url: string,
+  ): Promise<void> {
+    const params: RR.InstallPackageReq = {
+      id,
+      version,
+      registry: url,
+    }
+
+    await this.api.installPackage(params)
   }
 }
 

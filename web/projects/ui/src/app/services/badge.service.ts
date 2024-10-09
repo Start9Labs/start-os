@@ -1,5 +1,4 @@
 import { inject, Injectable } from '@angular/core'
-import { AbstractMarketplaceService } from '@start9labs/marketplace'
 import { Exver } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import {
@@ -10,7 +9,6 @@ import {
   map,
   Observable,
   pairwise,
-  shareReplay,
   startWith,
   switchMap,
 } from 'rxjs'
@@ -32,9 +30,7 @@ export class BadgeService {
     this.patch.watch$('serverInfo', 'ntpSynced'),
     inject(EOSService).updateAvailable$,
   ]).pipe(map(([synced, update]) => Number(!synced) + Number(update)))
-  private readonly marketplace = inject(
-    AbstractMarketplaceService,
-  ) as MarketplaceService
+  private readonly marketplaceService = inject(MarketplaceService)
 
   private readonly local$ = inject(ConnectionService).pipe(
     filter(Boolean),
@@ -58,35 +54,35 @@ export class BadgeService {
     ),
   )
 
-  private readonly updates$ = combineLatest([
-    this.marketplace.getMarketplace$(true),
-    this.local$,
-  ]).pipe(
-    map(
-      ([marketplace, local]) =>
-        Object.entries(marketplace).reduce(
-          (list, [_, store]) =>
-            store?.packages.reduce(
-              (result, { id, version }) =>
-                local[id] &&
-                this.exver.compareExver(
-                  version,
-                  getManifest(local[id]).version,
-                ) === 1
-                  ? result.add(id)
-                  : result,
-              list,
-            ) || list,
-          new Set<string>(),
-        ).size,
-    ),
-    shareReplay(1),
-  )
+  // private readonly updates$ = combineLatest([
+  //   this.marketplaceService.getMarketplace$(true),
+  //   this.local$,
+  // ]).pipe(
+  //   map(
+  //     ([marketplace, local]) =>
+  //       Object.entries(marketplace).reduce(
+  //         (list, [_, store]) =>
+  //           store?.packages.reduce(
+  //             (result, { id, version }) =>
+  //               local[id] &&
+  //               this.exver.compareExver(
+  //                 version,
+  //                 getManifest(local[id]).version,
+  //               ) === 1
+  //                 ? result.add(id)
+  //                 : result,
+  //             list,
+  //           ) || list,
+  //         new Set<string>(),
+  //       ).size,
+  //   ),
+  //   shareReplay(1),
+  // )
 
   getCount(id: string): Observable<number> {
     switch (id) {
-      case '/portal/system/updates':
-        return this.updates$
+      // case '/portal/system/updates':
+      //   return this.updates$
       case '/portal/system/settings':
         return this.settings$
       case '/portal/system/notifications':

@@ -5,11 +5,10 @@ import {
   Input,
   OnDestroy,
 } from '@angular/core'
-import { combineLatest, map, Subject, takeUntil } from 'rxjs'
-import { StoreIdentity } from '../../types'
-import { AbstractMarketplaceService } from '../../services/marketplace.service'
-import { AbstractCategoryService } from '../../services/category.service'
 import { MarketplaceConfig } from '@start9labs/shared'
+import { Subject, takeUntil } from 'rxjs'
+import { AbstractCategoryService } from '../../services/category.service'
+import { StoreDataWithUrl } from '../../types'
 
 @Component({
   selector: 'menu',
@@ -21,19 +20,11 @@ export class MenuComponent implements OnDestroy {
   @Input({ required: true })
   iconConfig!: MarketplaceConfig
 
+  @Input({ required: true })
+  registry!: StoreDataWithUrl | null
+
   private destroy$ = new Subject<void>()
-  private readonly marketplaceService = inject(AbstractMarketplaceService)
   private readonly categoryService = inject(AbstractCategoryService)
-  readonly store$ = this.marketplaceService.getSelectedStoreWithCategories$()
-  readonly alt$ = combineLatest([
-    this.marketplaceService.getKnownHosts$(),
-    this.marketplaceService.getSelectedHost$(),
-  ]).pipe(
-    map(([stores, selected]) =>
-      stores.filter(({ url }) => url != selected.url),
-    ),
-  )
-  private hosts?: StoreIdentity[]
   category = ''
   query = ''
   open = false
@@ -52,13 +43,6 @@ export class MenuComponent implements OnDestroy {
       .subscribe(val => {
         this.category = val
       })
-
-    this.marketplaceService
-      .getKnownHosts$()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(hosts => {
-        this.hosts = hosts
-      })
   }
 
   onCategoryChange(category: string): void {
@@ -66,7 +50,6 @@ export class MenuComponent implements OnDestroy {
     this.query = ''
     this.categoryService.resetQuery()
     this.categoryService.changeCategory(category)
-    this.categoryService.handleNavigation()
   }
 
   onQueryChange(query: string): void {
