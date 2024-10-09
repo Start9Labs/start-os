@@ -12,8 +12,7 @@ use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use patch_db::ModelExt;
 use sqlx::postgres::PgConnectOptions;
-use sqlx::PgPool;
-use sqlx::Row;
+use sqlx::{PgPool, Row};
 use ssh_key::Fingerprint;
 use tokio::process::Command;
 use torut::onion::TorSecretKeyV3;
@@ -495,11 +494,11 @@ async fn previous_ssh_keys(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<SshKeys, E
                     .try_get::<String, _>("created_at")
                     .map_err(Error::from)
                     .and_then(|x| x.parse::<DateTime<Utc>>().with_kind(ErrorKind::Database))
-                    .with_ctx(|_| (ErrorKind::Database, "openssh_pubkey"))?;
+                    .with_ctx(|_| (ErrorKind::Database, "openssh_pubkey::created_at"))?;
                 let value: SshPubKey = row
-                    .try_get("openssh_pubkey")
+                    .try_get::<String, _>("openssh_pubkey")
                     .map_err(Error::from)
-                    .and_then(|x| Ok(serde_json::from_str(x).with_kind(ErrorKind::Database)?))
+                    .and_then(|x| x.parse().map(SshPubKey).with_kind(ErrorKind::Database))
                     .with_ctx(|_| (ErrorKind::Database, "openssh_pubkey"))?;
                 let data = WithTimeData {
                     created_at: time,
