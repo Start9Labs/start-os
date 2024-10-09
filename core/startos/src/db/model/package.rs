@@ -338,7 +338,7 @@ pub struct ActionMetadata {
 #[serde(rename_all_fields = "camelCase")]
 pub enum ActionVisibility {
     Hidden,
-    Disabled { reason: String },
+    Disabled(String),
     Enabled,
 }
 impl Default for ActionVisibility {
@@ -444,12 +444,27 @@ pub struct ActionRequestEntry {
 pub struct ActionRequest {
     pub package_id: PackageId,
     pub action_id: ActionId,
+    #[serde(default)]
+    pub severity: ActionSeverity,
     #[ts(optional)]
-    pub description: Option<String>,
+    pub reason: Option<String>,
     #[ts(optional)]
     pub when: Option<ActionRequestTrigger>,
     #[ts(optional)]
     pub input: Option<ActionRequestInput>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "kebab-case")]
+#[ts(export)]
+pub enum ActionSeverity {
+    Critical,
+    Important,
+}
+impl Default for ActionSeverity {
+    fn default() -> Self {
+        ActionSeverity::Important
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]

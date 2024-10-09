@@ -298,6 +298,9 @@ export class SystemForEmbassy implements System {
         await this.dependenciesAutoconfig(effects, depId, null)
       }
     }
+    await effects.setMainStatus({ status: "stopped" })
+    await this.exportActions(effects)
+    await this.exportNetwork(effects)
   }
 
   async exit(): Promise<void> {
@@ -334,10 +337,15 @@ export class SystemForEmbassy implements System {
       await effects.setDataVersion({
         version: ExtendedVersion.parseEmver(this.manifest.version).toString(),
       })
+    } else {
+      await effects.action.request({
+        packageId: this.manifest.id,
+        actionId: "config",
+        severity: "critical",
+        replayId: "needs-config",
+        reason: "This service must be configured before it can be run",
+      })
     }
-    await effects.setMainStatus({ status: "stopped" })
-    await this.exportActions(effects)
-    await this.exportNetwork(effects)
   }
   async exportNetwork(effects: Effects) {
     for (const [id, interfaceValue] of Object.entries(
@@ -476,12 +484,6 @@ export class SystemForEmbassy implements System {
         "input-spec": {},
         implementation: { type: "script", args: [] },
       }
-      await effects.action.request({
-        packageId: this.manifest.id,
-        actionId: "config",
-        replayId: "needs-config",
-        description: "This service must be configured before it can be run",
-      })
     }
     if (manifest.properties) {
       actions.properties = {
@@ -943,7 +945,8 @@ export class SystemForEmbassy implements System {
         actionId: "config",
         packageId: id,
         replayId: `${id}/config`,
-        description: `Configure this dependency for the needs of ${this.manifest.title}`,
+        severity: "important",
+        reason: `Configure this dependency for the needs of ${this.manifest.title}`,
         input: {
           kind: "partial",
           value: diff.diff,

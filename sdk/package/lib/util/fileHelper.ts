@@ -100,7 +100,7 @@ export class FileHelper<A> {
   /**
    * Reads the file from disk and converts it to structured data.
    */
-  async read(): Promise<A | null> {
+  private async readOnce(): Promise<A | null> {
     if (!(await exists(this.path))) {
       return null
     }
@@ -109,14 +109,14 @@ export class FileHelper<A> {
     )
   }
 
-  async const(effects: T.Effects): Promise<A | null> {
-    const watch = this.watch()
+  private async readConst(effects: T.Effects): Promise<A | null> {
+    const watch = this.readWatch()
     const res = await watch.next()
     watch.next().then(effects.constRetry)
     return res.value
   }
 
-  async *watch() {
+  private async *readWatch() {
     let res
     while (true) {
       if (await exists(this.path)) {
@@ -125,7 +125,7 @@ export class FileHelper<A> {
           persistent: false,
           signal: ctrl.signal,
         })
-        res = await this.read()
+        res = await this.readOnce()
         const listen = Promise.resolve()
           .then(async () => {
             for await (const _ of watch) {
@@ -144,11 +144,19 @@ export class FileHelper<A> {
     return null
   }
 
+  get read() {
+    return {
+      once: () => this.readOnce(),
+      const: (effects: T.Effects) => this.readConst(effects),
+      watch: () => this.readWatch(),
+    }
+  }
+
   /**
    * Accepts structured data and performs a merge with the existing file on disk.
    */
   async merge(data: A) {
-    const fileData = (await this.read().catch(() => ({}))) || {}
+    const fileData = (await this.readOnce().catch(() => ({}))) || {}
     const mergeData = merge({}, fileData, data)
     return await this.write(mergeData)
   }

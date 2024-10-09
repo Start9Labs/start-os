@@ -76,7 +76,7 @@ export class AppActionsItemComponent {
   get disabledText() {
     return (
       typeof this.action.visibility === 'object' &&
-      this.action.visibility.disabled.reason
+      this.action.visibility.disabled
     )
   }
 }

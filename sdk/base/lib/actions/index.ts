@@ -49,7 +49,8 @@ type GetActionInputType<
 > = A extends Action<T.ActionId, any, any, infer I> ? I : never
 
 type ActionRequestBase = {
-  description?: string
+  severity: T.ActionSeverity
+  reason?: string
   replayId?: string
 }
 type ActionRequestInput<
@@ -88,7 +89,7 @@ export const requestAction = <
   action: T
   request?: ActionRequest<T>
 }) => {
-  const request = options.request || {}
+  const request = options.request || { severity: "important" }
   const actionId = options.action.id
   const req = {
     ...request,
