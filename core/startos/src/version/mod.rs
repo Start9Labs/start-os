@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::cmp::Ordering;
+use std::panic::{RefUnwindSafe, UnwindSafe};
 
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
@@ -24,7 +25,6 @@ mod v0_3_6_alpha_3;
 mod v0_3_6_alpha_4;
 mod v0_3_6_alpha_5;
 mod v0_3_6_alpha_6;
-mod v0_3_6_alpha_7;
 
 pub type Current = v0_3_6_alpha_5::Version; // VERSION_BUMP
 
@@ -38,17 +38,17 @@ impl Current {
         .as_version_t()?;
         match from.semver().cmp(&self.semver()) {
             Ordering::Greater => {
-                db.apply_function(|db| {
-                    rollback_to_unchecked(&*from, &self, &mut db)?;
-                    Ok((db, ()))
+                db.apply_function(|mut db| {
+                    rollback_to_unchecked(&from, &self, &mut db)?;
+                    Ok::<_, Error>((db, ()))
                 })
                 .await?;
             }
             Ordering::Less => {
-                let pre_ups = PreUps::load(&*from, &self).await?;
-                db.apply_function(|db| {
-                    migrate_from_unchecked(&*from, &self, pre_ups, &mut db)?;
-                    Ok((db, ()))
+                let pre_ups = PreUps::load(&from, &self).await?;
+                db.apply_function(|mut db| {
+                    migrate_from_unchecked(&from, &self, pre_ups, &mut db)?;
+                    Ok::<_, Error>((db, ()))
                 })
                 .await?;
             }
@@ -73,13 +73,13 @@ pub async fn post_init(ctx: &RpcContext) -> Result<(), Error> {
             .map(Version::as_version_t)
             .transpose()?
     } {
-        version.post_up(ctx).await?;
+        version.0.post_up(ctx).await?;
         ctx.db
             .mutate(|db| {
                 db.as_public_mut()
                     .as_server_info_mut()
                     .as_post_init_migration_todos_mut()
-                    .mutate(|m| Ok(m.remove(&version.semver())))
+                    .mutate(|m| Ok(m.remove(&version.0.semver())))
             })
             .await?;
     }
@@ -101,7 +101,6 @@ enum Version {
     V0_3_6_alpha_4(Wrapper<v0_3_6_alpha_4::Version>),
     V0_3_6_alpha_5(Wrapper<v0_3_6_alpha_5::Version>),
     V0_3_6_alpha_6(Wrapper<v0_3_6_alpha_6::Version>),
-    V0_3_6_alpha_7(Wrapper<v0_3_6_alpha_7::Version>),
     Other(exver::Version),
 }
 
@@ -114,7 +113,7 @@ impl Version {
                 Version::Other(version)
             })
     }
-    fn as_version_t(&self) -> Result<Box<dyn DynVersionT>, Error> {
+    fn as_version_t(&self) -> Result<DynVersion, Error> {
         Ok(match self {
             Self::LT0_3_5(_) => {
                 return Err(Error::new(
@@ -122,17 +121,16 @@ impl Version {
                     ErrorKind::MigrationFailed,
                 ))
             }
-            Self::V0_3_5(v) => Box::new(v.0),
-            Self::V0_3_5_1(v) => Box::new(v.0),
-            Self::V0_3_5_2(v) => Box::new(v.0),
-            Self::V0_3_6_alpha_0(v) => Box::new(v.0),
-            Self::V0_3_6_alpha_1(v) => Box::new(v.0),
-            Self::V0_3_6_alpha_2(v) => Box::new(v.0),
-            Self::V0_3_6_alpha_3(v) => Box::new(v.0),
-            Self::V0_3_6_alpha_4(v) => Box::new(v.0),
-            Self::V0_3_6_alpha_5(v) => Box::new(v.0),
-            Self::V0_3_6_alpha_6(v) => Box::new(v.0),
-            Self::V0_3_6_alpha_7(v) => Box::new(v.0),
+            Self::V0_3_5(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_5_1(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_5_2(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_0(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_1(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_2(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_3(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_4(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_5(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_6(v) => DynVersion(Box::new(v.0)),
             Self::Other(v) => {
                 return Err(Error::new(
                     eyre!("unknown version {v}"),
@@ -155,7 +153,6 @@ impl Version {
             Version::V0_3_6_alpha_4(Wrapper(x)) => x.semver(),
             Version::V0_3_6_alpha_5(Wrapper(x)) => x.semver(),
             Version::V0_3_6_alpha_6(Wrapper(x)) => x.semver(),
-            Version::V0_3_6_alpha_7(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
         }
     }
@@ -197,7 +194,7 @@ fn post_init_migration_todos_accessor(db: &mut Value) -> Option<&mut Value> {
 
 struct PreUps {
     prev: Option<Box<PreUps>>,
-    value: Box<dyn Any + Send + 'static>,
+    value: Box<dyn Any + UnwindSafe + Send + 'static>,
 }
 impl PreUps {
     async fn load<VFrom: DynVersionT + ?Sized, VTo: DynVersionT + ?Sized>(
@@ -206,7 +203,7 @@ impl PreUps {
     ) -> Result<Self, Error> {
         let previous = to.previous();
         let prev = if from.semver() < previous.semver() {
-            Some(Box::new(PreUps::load(from, &*previous).await?))
+            Some(Box::new(PreUps::load(from, &previous).await?))
         } else if from.semver() > previous.semver() {
             return Err(Error::new(
                 eyre!(
@@ -234,7 +231,7 @@ fn migrate_from_unchecked<VFrom: DynVersionT + ?Sized, VTo: DynVersionT + ?Sized
     let previous = to.previous();
     match pre_ups.prev {
         Some(prev) if from.semver() < previous.semver() => {
-            migrate_from_unchecked(from, &*previous, *prev, db)?
+            migrate_from_unchecked(from, &previous, *prev, db)?
         }
         _ if from.semver() > previous.semver() => {
             return Err(Error::new(
@@ -261,7 +258,7 @@ fn rollback_to_unchecked<VFrom: DynVersionT + ?Sized, VTo: DynVersionT + ?Sized>
     from.down(db)?;
     previous.commit(db)?;
     if to.semver() < previous.semver() {
-        rollback_to_unchecked(&*previous, to, db)?
+        rollback_to_unchecked(&previous, to, db)?
     } else if to.semver() > previous.semver() {
         return Err(Error::new(
             eyre!(
@@ -276,10 +273,10 @@ fn rollback_to_unchecked<VFrom: DynVersionT + ?Sized, VTo: DynVersionT + ?Sized>
 
 pub trait VersionT
 where
-    Self: Default + Copy + Sized + Send + Sync + 'static,
+    Self: Default + Copy + Sized + RefUnwindSafe + Send + Sync + 'static,
 {
     type Previous: VersionT;
-    type PreUpRes: Send;
+    type PreUpRes: Send + UnwindSafe;
     fn semver(self) -> exver::Version;
     fn compat(self) -> &'static exver::VersionRange;
     /// MUST NOT change system state. Intended for async I/O reads
@@ -315,24 +312,25 @@ where
     }
 }
 
-#[async_trait::async_trait]
-trait DynVersionT: Send + Sync {
-    fn previous(&self) -> Box<dyn DynVersionT>;
+struct DynVersion(Box<dyn DynVersionT>);
+unsafe impl Send for DynVersion {}
+
+trait DynVersionT: RefUnwindSafe + Send + Sync {
+    fn previous(&self) -> DynVersion;
     fn semver(&self) -> exver::Version;
     fn compat(&self) -> &'static exver::VersionRange;
-    async fn pre_up(&self) -> Result<Box<dyn Any + Send>, Error>;
+    fn pre_up(&self) -> BoxFuture<'static, Result<Box<dyn Any + UnwindSafe + Send>, Error>>;
     fn up(&self, db: &mut Value, input: Box<dyn Any + Send>) -> Result<(), Error>;
-    async fn post_up(&self, ctx: &RpcContext) -> Result<(), Error>;
+    fn post_up<'a>(&self, ctx: &'a RpcContext) -> BoxFuture<'a, Result<(), Error>>;
     fn down(&self, db: &mut Value) -> Result<(), Error>;
     fn commit(&self, db: &mut Value) -> Result<(), Error>;
 }
-#[async_trait::async_trait]
 impl<T> DynVersionT for T
 where
     T: VersionT,
 {
-    fn previous(&self) -> Box<dyn DynVersionT> {
-        Box::new(<Self as VersionT>::Previous::default())
+    fn previous(&self) -> DynVersion {
+        DynVersion(Box::new(<Self as VersionT>::Previous::default()))
     }
     fn semver(&self) -> exver::Version {
         VersionT::semver(*self)
@@ -340,8 +338,10 @@ where
     fn compat(&self) -> &'static exver::VersionRange {
         VersionT::compat(*self)
     }
-    async fn pre_up(&self) -> Result<Box<dyn Any + Send>, Error> {
-        Ok(Box::new(VersionT::pre_up(*self).await?))
+    fn pre_up(&self) -> BoxFuture<'static, Result<Box<dyn Any + UnwindSafe + Send>, Error>> {
+        let v = *self;
+        async move { Ok(Box::new(VersionT::pre_up(v).await?) as Box<dyn Any + UnwindSafe + Send>) }
+            .boxed()
     }
     fn up(&self, db: &mut Value, input: Box<dyn Any + Send>) -> Result<(), Error> {
         VersionT::up(
@@ -355,14 +355,40 @@ where
             })?,
         )
     }
-    async fn post_up(&self, ctx: &RpcContext) -> Result<(), Error> {
-        VersionT::post_up(*self, ctx).await
+    fn post_up<'a>(&self, ctx: &'a RpcContext) -> BoxFuture<'a, Result<(), Error>> {
+        VersionT::post_up(*self, ctx).boxed()
     }
     fn down(&self, db: &mut Value) -> Result<(), Error> {
         VersionT::down(*self, db)
     }
     fn commit(&self, db: &mut Value) -> Result<(), Error> {
         VersionT::commit(*self, db)
+    }
+}
+impl DynVersionT for DynVersion {
+    fn previous(&self) -> DynVersion {
+        self.0.previous()
+    }
+    fn semver(&self) -> exver::Version {
+        self.0.semver()
+    }
+    fn compat(&self) -> &'static exver::VersionRange {
+        self.0.compat()
+    }
+    fn pre_up(&self) -> BoxFuture<'static, Result<Box<dyn Any + UnwindSafe + Send>, Error>> {
+        self.0.pre_up()
+    }
+    fn up(&self, db: &mut Value, input: Box<dyn Any + Send>) -> Result<(), Error> {
+        self.0.up(db, input)
+    }
+    fn post_up<'a>(&self, ctx: &'a RpcContext) -> BoxFuture<'a, Result<(), Error>> {
+        self.0.post_up(ctx)
+    }
+    fn down(&self, db: &mut Value) -> Result<(), Error> {
+        self.0.down(db)
+    }
+    fn commit(&self, db: &mut Value) -> Result<(), Error> {
+        self.0.commit(db)
     }
 }
 
@@ -446,17 +472,17 @@ mod tests {
 
     fn versions() -> impl Strategy<Value = Version> {
         prop_oneof![
-            Just(Version::V0_3_5(Wrapper(v0_3_5::Version::new()))),
-            Just(Version::V0_3_5_1(Wrapper(v0_3_5_1::Version::new()))),
-            Just(Version::V0_3_5_2(Wrapper(v0_3_5_2::Version::new()))),
+            Just(Version::V0_3_5(Wrapper(v0_3_5::Version::default()))),
+            Just(Version::V0_3_5_1(Wrapper(v0_3_5_1::Version::default()))),
+            Just(Version::V0_3_5_2(Wrapper(v0_3_5_2::Version::default()))),
             Just(Version::V0_3_6_alpha_0(Wrapper(
-                v0_3_6_alpha_0::Version::new()
+                v0_3_6_alpha_0::Version::default()
             ))),
             Just(Version::V0_3_6_alpha_1(Wrapper(
-                v0_3_6_alpha_1::Version::new()
+                v0_3_6_alpha_1::Version::default()
             ))),
             Just(Version::V0_3_6_alpha_2(Wrapper(
-                v0_3_6_alpha_2::Version::new()
+                v0_3_6_alpha_2::Version::default()
             ))),
             em_version().prop_map(Version::Other),
         ]
