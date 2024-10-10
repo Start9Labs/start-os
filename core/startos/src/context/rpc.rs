@@ -88,6 +88,7 @@ pub struct InitRpcContextPhases {
     init_net_ctrl: PhaseProgressTrackerHandle,
     read_device_info: PhaseProgressTrackerHandle,
     cleanup_init: CleanupInitPhases,
+    // TODO: migrations
 }
 impl InitRpcContextPhases {
     pub fn new(handle: &FullProgressTracker) -> Self {
@@ -286,6 +287,7 @@ impl RpcContext {
         let res = Self(seed.clone());
         res.cleanup_and_initialize(cleanup_init).await?;
         tracing::info!("Cleaned up transient states");
+        crate::version::post_init(&res).await?;
         Ok(res)
     }
 

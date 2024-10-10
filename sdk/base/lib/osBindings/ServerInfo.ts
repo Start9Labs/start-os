@@ -11,8 +11,9 @@ export type ServerInfo = {
   id: string
   hostname: string
   version: string
+  versionCompat: string
+  postInitMigrationTodos: string[]
   lastBackup: string | null
-  eosVersionCompat: string
   lanAddress: string
   onionAddress: string
   /**

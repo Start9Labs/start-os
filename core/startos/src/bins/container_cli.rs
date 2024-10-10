@@ -8,7 +8,7 @@ use crate::util::logger::EmbassyLogger;
 use crate::version::{Current, VersionT};
 
 lazy_static::lazy_static! {
-    static ref VERSION_STRING: String = Current::new().semver().to_string();
+    static ref VERSION_STRING: String = Current::default().semver().to_string();
 }
 
 pub fn main(args: impl IntoIterator<Item = OsString>) {

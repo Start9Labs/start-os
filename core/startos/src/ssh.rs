@@ -25,6 +25,12 @@ impl SshKeys {
         Self(BTreeMap::new())
     }
 }
+
+impl From<BTreeMap<InternedString, WithTimeData<SshPubKey>>> for SshKeys {
+    fn from(map: BTreeMap<InternedString, WithTimeData<SshPubKey>>) -> Self {
+        Self(map)
+    }
+}
 impl Map for SshKeys {
     type Key = InternedString;
     type Value = WithTimeData<SshPubKey>;
@@ -41,7 +47,7 @@ impl Map for SshKeys {
 pub struct SshPubKey(
     #[serde(serialize_with = "crate::util::serde::serialize_display")]
     #[serde(deserialize_with = "crate::util::serde::deserialize_from_str")]
-    openssh_keys::PublicKey,
+    pub openssh_keys::PublicKey,
 );
 impl ValueParserFactory for SshPubKey {
     type Parser = FromStrParser<Self>;

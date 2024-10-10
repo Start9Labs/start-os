@@ -43,10 +43,11 @@ impl Public {
                 arch: get_arch(),
                 platform: get_platform(),
                 id: account.server_id.clone(),
-                version: Current::new().semver(),
+                version: Current::default().semver(),
                 hostname: account.hostname.no_dot_host_name(),
                 last_backup: None,
-                eos_version_compat: Current::new().compat().clone(),
+                version_compat: Current::default().compat().clone(),
+                post_init_migration_todos: BTreeSet::new(),
                 lan_address,
                 onion_address: account.tor_key.public().get_onion_address(),
                 tor_address: format!("https://{}", account.tor_key.public().get_onion_address())
@@ -112,10 +113,12 @@ pub struct ServerInfo {
     pub hostname: InternedString,
     #[ts(type = "string")]
     pub version: Version,
+    #[ts(type = "string")]
+    pub version_compat: VersionRange,
+    #[ts(type = "string[]")]
+    pub post_init_migration_todos: BTreeSet<Version>,
     #[ts(type = "string | null")]
     pub last_backup: Option<DateTime<Utc>>,
-    #[ts(type = "string")]
-    pub eos_version_compat: VersionRange,
     #[ts(type = "string")]
     pub lan_address: Url,
     #[ts(type = "string")]

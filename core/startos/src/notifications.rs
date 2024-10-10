@@ -252,13 +252,13 @@ impl Map for Notifications {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Notification {
-    package_id: Option<PackageId>,
-    created_at: DateTime<Utc>,
-    code: u32,
-    level: NotificationLevel,
-    title: String,
-    message: String,
-    data: Value,
+    pub package_id: Option<PackageId>,
+    pub created_at: DateTime<Utc>,
+    pub code: u32,
+    pub level: NotificationLevel,
+    pub title: String,
+    pub message: String,
+    pub data: Value,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
