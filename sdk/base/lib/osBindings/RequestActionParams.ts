@@ -2,6 +2,7 @@
 import type { ActionId } from "./ActionId"
 import type { ActionRequestInput } from "./ActionRequestInput"
 import type { ActionRequestTrigger } from "./ActionRequestTrigger"
+import type { ActionSeverity } from "./ActionSeverity"
 import type { PackageId } from "./PackageId"
 import type { ReplayId } from "./ReplayId"
 
@@ -9,7 +10,8 @@ export type RequestActionParams = {
   replayId: ReplayId
   packageId: PackageId
   actionId: ActionId
-  description?: string
+  severity: ActionSeverity
+  reason?: string
   when?: ActionRequestTrigger
   input?: ActionRequestInput
 }

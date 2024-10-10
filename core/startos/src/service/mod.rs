@@ -55,7 +55,6 @@ pub mod cli;
 mod control;
 pub mod effects;
 pub mod persistent_container;
-mod properties;
 mod rpc;
 mod service_actor;
 pub mod service_map;

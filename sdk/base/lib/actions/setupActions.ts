@@ -11,7 +11,7 @@ export type Run<
 > = (options: {
   effects: T.Effects
   input: ExtractInputSpecType<A> & Record<string, any>
-}) => Promise<T.ActionResult | null>
+}) => Promise<T.ActionResult | null | void | undefined>
 export type GetInput<
   A extends
     | Record<string, any>
@@ -19,7 +19,9 @@ export type GetInput<
     | InputSpec<Record<string, any>, never>,
 > = (options: {
   effects: T.Effects
-}) => Promise<null | (ExtractInputSpecType<A> & Record<string, any>)>
+}) => Promise<
+  null | void | undefined | (ExtractInputSpecType<A> & Record<string, any>)
+>
 
 export type MaybeFn<T> = T | ((options: { effects: T.Effects }) => Promise<T>)
 function callMaybeFn<T>(
@@ -114,7 +116,7 @@ export class Action<
     effects: T.Effects
     input: Type
   }): Promise<T.ActionResult | null> {
-    return this.runFn(options)
+    return (await this.runFn(options)) || null
   }
 }
 

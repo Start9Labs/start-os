@@ -2,7 +2,7 @@ export type WorkspaceConfig = {
   gitHash: string
   useMocks: boolean
   enableWidgets: boolean
-  // each key corresponds to a project and values adjust settings for that project, eg: ui, install-wizard, setup-wizard, diagnostic-ui
+  // each key corresponds to a project and values adjust settings for that project, eg: ui, install-wizard, setup-wizard
   ui: {
     api: {
       url: string

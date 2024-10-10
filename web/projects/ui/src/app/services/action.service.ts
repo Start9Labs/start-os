@@ -1,9 +1,10 @@
 import { Injectable } from '@angular/core'
-import { AlertController, ModalController } from '@ionic/angular'
+import { AlertController } from '@ionic/angular'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
+import { TuiDialogService } from '@taiga-ui/core'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
-import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import {
@@ -31,7 +32,7 @@ const allowedStatuses = {
 export class ActionService {
   constructor(
     private readonly api: ApiService,
-    private readonly modalCtrl: ModalController,
+    private readonly dialogs: TuiDialogService,
     private readonly alertCtrl: AlertController,
     private readonly errorService: ErrorService,
     private readonly loader: LoadingService,
@@ -123,30 +124,24 @@ export class ActionService {
   async execute(
     packageId: string,
     actionId: string,
-    inputs?: {
-      prev: RR.GetActionInputRes
-      curr: object
-    },
+    input?: object,
   ): Promise<boolean> {
-    const loader = this.loader.open('Executing action...').subscribe()
+    const loader = this.loader.open('Loading...').subscribe()
 
     try {
       const res = await this.api.runAction({
         packageId,
         actionId,
-        prev: inputs?.prev || null,
-        input: inputs?.curr || null,
+        input: input || null,
       })
 
       if (res) {
-        const successModal = await this.modalCtrl.create({
-          component: ActionSuccessPage,
-          componentProps: {
-            actionRes: res,
-          },
-        })
-
-        setTimeout(() => successModal.present(), 500)
+        this.dialogs
+          .open(new PolymorpheusComponent(ActionSuccessPage), {
+            label: res.name,
+            data: res,
+          })
+          .subscribe()
       }
       return true // needed to dismiss original modal/alert
     } catch (e: any) {

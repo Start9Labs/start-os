@@ -81,9 +81,15 @@ export class ToButtonsPipe implements PipeTransform {
       // properties
       {
         action: () =>
-          this.navCtrl.navigateForward(['properties'], {
-            relativeTo: this.route,
-          }),
+          pkg.actions['properties']
+            ? this.actionService.execute(manifest.id, 'properties')
+            : this.alertCtrl
+                .create({
+                  header: 'No Properties',
+                  message: `No properties for ${manifest.title} v${manifest.version}`,
+                  buttons: ['OK'],
+                })
+                .then(a => a.present()),
         title: 'Properties',
         description:
           'Runtime information, credentials, and other values of interest',

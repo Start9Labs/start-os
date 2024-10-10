@@ -2,7 +2,7 @@ import * as T from "../../../base/lib/types"
 
 export type InstallFn<Manifest extends T.Manifest, Store> = (opts: {
   effects: T.Effects
-}) => Promise<null>
+}) => Promise<null | void | undefined>
 export class Install<Manifest extends T.Manifest, Store> {
   private constructor(readonly fn: InstallFn<Manifest, Store>) {}
   static of<Manifest extends T.Manifest, Store>(

@@ -135,6 +135,34 @@ type OldGetConfigRes = {
   spec: OldConfigSpec
 }
 
+export type PropertiesValue =
+  | {
+      /** The type of this value, either "string" or "object" */
+      type: "object"
+      /** A nested mapping of values. The user will experience this as a nested page with back button */
+      value: { [k: string]: PropertiesValue }
+      /** (optional) A human readable description of the new set of values */
+      description: string | null
+    }
+  | {
+      /** The type of this value, either "string" or "object" */
+      type: "string"
+      /** The value to display to the user */
+      value: string
+      /** A human readable description of the value */
+      description: string | null
+      /** Whether or not to mask the value, for example, when displaying a password */
+      masked: boolean | null
+      /** Whether or not to include a button for copying the value to clipboard */
+      copyable: boolean | null
+      /** Whether or not to include a button for displaying the value as a QR code */
+      qr: boolean | null
+    }
+
+export type PropertiesReturn = {
+  [key: string]: PropertiesValue
+}
+
 export type PackagePropertiesV2 = {
   [name: string]: PackagePropertyObject | PackagePropertyString
 }
@@ -157,7 +185,7 @@ export type PackagePropertyObject = {
 
 const asProperty_ = (
   x: PackagePropertyString | PackagePropertyObject,
-): T.PropertiesValue => {
+): PropertiesValue => {
   if (x.type === "object") {
     return {
       ...x,
@@ -177,7 +205,7 @@ const asProperty_ = (
     ...x,
   }
 }
-const asProperty = (x: PackagePropertiesV2): T.PropertiesReturn =>
+const asProperty = (x: PackagePropertiesV2): PropertiesReturn =>
   Object.fromEntries(
     Object.entries(x).map(([key, value]) => [key, asProperty_(value)]),
   )
@@ -214,6 +242,31 @@ const matchProperties = object({
   data: matchPackageProperties,
 })
 
+function convertProperties(
+  name: string,
+  value: PropertiesValue,
+): T.ActionResultV1 {
+  if (value.type === "string") {
+    return {
+      type: "string",
+      name,
+      description: value.description,
+      copyable: value.copyable || false,
+      masked: value.masked || false,
+      qr: value.qr || false,
+      value: value.value,
+    }
+  }
+  return {
+    type: "object",
+    name,
+    description: value.description || undefined,
+    value: Object.entries(value.value).map(([name, value]) =>
+      convertProperties(name, value),
+    ),
+  }
+}
+
 const DEFAULT_REGISTRY = "https://registry.start9.com"
 export class SystemForEmbassy implements System {
   currentRunning: MainLoop | undefined
@@ -245,6 +298,9 @@ export class SystemForEmbassy implements System {
         await this.dependenciesAutoconfig(effects, depId, null)
       }
     }
+    await effects.setMainStatus({ status: "stopped" })
+    await this.exportActions(effects)
+    await this.exportNetwork(effects)
   }
 
   async exit(): Promise<void> {
@@ -281,10 +337,15 @@ export class SystemForEmbassy implements System {
       await effects.setDataVersion({
         version: ExtendedVersion.parseEmver(this.manifest.version).toString(),
       })
+    } else {
+      await effects.action.request({
+        packageId: this.manifest.id,
+        actionId: "config",
+        severity: "critical",
+        replayId: "needs-config",
+        reason: "This service must be configured before it can be run",
+      })
     }
-    await effects.setMainStatus({ status: "stopped" })
-    await this.exportActions(effects)
-    await this.exportNetwork(effects)
   }
   async exportNetwork(effects: Effects) {
     for (const [id, interfaceValue] of Object.entries(
@@ -375,6 +436,8 @@ export class SystemForEmbassy implements System {
     if (actionId === "config") {
       const config = await this.getConfig(effects, timeoutMs)
       return { spec: config.spec, value: config.config }
+    } else if (actionId === "properties") {
+      return null
     } else {
       const oldSpec = this.manifest.actions?.[actionId]?.["input-spec"]
       if (!oldSpec) return null
@@ -393,6 +456,17 @@ export class SystemForEmbassy implements System {
     if (actionId === "config") {
       await this.setConfig(effects, input, timeoutMs)
       return null
+    } else if (actionId === "properties") {
+      return {
+        version: "1",
+        type: "object",
+        name: "Properties",
+        description:
+          "Runtime information, credentials, and other values of interest",
+        value: Object.entries(await this.properties(effects, timeoutMs)).map(
+          ([name, value]) => convertProperties(name, value),
+        ),
+      }
     } else {
       return this.action(effects, actionId, input, timeoutMs)
     }
@@ -405,17 +479,21 @@ export class SystemForEmbassy implements System {
     if (manifest.config) {
       actions.config = {
         name: "Configure",
-        description: "Edit the configuration of this service",
+        description: `Customize ${manifest.title}`,
         "allowed-statuses": ["running", "stopped"],
         "input-spec": {},
         implementation: { type: "script", args: [] },
       }
-      await effects.action.request({
-        packageId: this.manifest.id,
-        actionId: "config",
-        replayId: "needs-config",
-        description: "This service must be configured before it can be run",
-      })
+    }
+    if (manifest.properties) {
+      actions.properties = {
+        name: "Properties",
+        description:
+          "Runtime information, credentials, and other values of interest",
+        "allowed-statuses": ["running", "stopped"],
+        "input-spec": null,
+        implementation: { type: "script", args: [] },
+      }
     }
     for (const [actionId, action] of Object.entries(actions)) {
       const hasRunning = !!action["allowed-statuses"].find(
@@ -694,7 +772,7 @@ export class SystemForEmbassy implements System {
   async properties(
     effects: Effects,
     timeoutMs: number | null,
-  ): Promise<T.PropertiesReturn> {
+  ): Promise<PropertiesReturn> {
     // TODO BLU-J set the properties ever so often
     const setConfigValue = this.manifest.properties
     if (!setConfigValue) throw new Error("There is no properties")
@@ -867,7 +945,8 @@ export class SystemForEmbassy implements System {
         actionId: "config",
         packageId: id,
         replayId: `${id}/config`,
-        description: `Configure this dependency for the needs of ${this.manifest.title}`,
+        severity: "important",
+        reason: `Configure this dependency for the needs of ${this.manifest.title}`,
         input: {
           kind: "partial",
           value: diff.diff,

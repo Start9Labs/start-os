@@ -2,12 +2,14 @@
 import type { ActionId } from "./ActionId"
 import type { ActionRequestInput } from "./ActionRequestInput"
 import type { ActionRequestTrigger } from "./ActionRequestTrigger"
+import type { ActionSeverity } from "./ActionSeverity"
 import type { PackageId } from "./PackageId"
 
 export type ActionRequest = {
   packageId: PackageId
   actionId: ActionId
-  description?: string
+  severity: ActionSeverity
+  reason?: string
   when?: ActionRequestTrigger
   input?: ActionRequestInput
 }

@@ -83,7 +83,7 @@ export class SuccessPage {
         await this.api.exit()
       }
     } catch (e: any) {
-      await this.errorService.handleError(e)
+      this.errorService.handleError(e)
     }
   }
 

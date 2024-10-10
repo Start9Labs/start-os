@@ -49,7 +49,6 @@ pub mod notifications;
 pub mod os_install;
 pub mod prelude;
 pub mod progress;
-pub mod properties;
 pub mod registry;
 pub mod rpc_continuations;
 pub mod s9pk;
@@ -303,14 +302,6 @@ pub fn package<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "logs",
             from_fn_async(logs::cli_logs::<RpcContext, logs::PackageIdParams>).no_display(),
-        )
-        .subcommand(
-            "properties",
-            from_fn_async(properties::properties)
-                .with_custom_display_fn(|_handle, result| {
-                    Ok(properties::display_properties(result))
-                })
-                .with_call_remote::<CliContext>(),
         )
         .subcommand("backup", backup::package_backup::<C>())
         .subcommand("connect", from_fn_async(service::connect_rpc).no_cli())

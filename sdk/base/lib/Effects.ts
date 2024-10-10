@@ -52,7 +52,7 @@ export type Effects = {
       options: RequestActionParams,
     ): Promise<null>
     clearRequests(
-      options: { only: ActionId[] } | { except: ActionId[] },
+      options: { only: string[] } | { except: string[] },
     ): Promise<null>
   }
 

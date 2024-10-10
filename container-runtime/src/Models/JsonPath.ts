@@ -23,8 +23,6 @@ export const jsonPath = some(
     "/packageUninit",
     "/backup/create",
     "/backup/restore",
-    "/actions/metadata",
-    "/properties",
   ),
   string.refine(isNestedPath, "isNestedPath"),
 )

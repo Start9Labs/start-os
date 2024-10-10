@@ -6,10 +6,9 @@
   "license": "MIT",
   "scripts": {
     "ng": "ng",
-    "check": "npm run check:shared && npm run check:marketplace && npm run check:ui && npm run check:install-wiz && npm run check:setup && npm run check:dui",
+    "check": "npm run check:shared && npm run check:marketplace && npm run check:ui && npm run check:install-wiz && npm run check:setup",
     "check:shared": "tsc --project projects/shared/tsconfig.json --noEmit --skipLibCheck",
     "check:marketplace": "tsc --project projects/marketplace/tsconfig.json --noEmit --skipLibCheck",
-    "check:dui": "tsc --project projects/diagnostic-ui/tsconfig.json --noEmit --skipLibCheck",
     "check:install-wiz": "tsc --project projects/install-wizard/tsconfig.json --noEmit --skipLibCheck",
     "check:setup": "tsc --project projects/setup-wizard/tsconfig.json --noEmit --skipLibCheck",
     "check:ui": "tsc --project projects/ui/tsconfig.json --noEmit --skipLibCheck",
