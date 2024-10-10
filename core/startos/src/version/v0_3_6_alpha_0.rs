@@ -19,7 +19,6 @@ use torut::onion::TorSecretKeyV3;
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_5_2, VersionT};
-use crate::account::AccountInfo;
 use crate::auth::Sessions;
 use crate::backup::target::cifs::CifsTargets;
 use crate::db::model::Database;
@@ -36,6 +35,7 @@ use crate::ssh::{SshKeys, SshPubKey};
 use crate::util::crypto::ed25519_expand_key;
 use crate::util::serde::{Pem, PemEncoding};
 use crate::util::Invoke;
+use crate::{account::AccountInfo, net::tor};
 
 lazy_static::lazy_static! {
     static ref V0_3_6_alpha_0: exver::Version = exver::Version::new(
@@ -256,14 +256,19 @@ impl VersionT for Version {
                 "id": db["server-info"]["id"],
                 "hostname": db["server-info"]["hostname"],
                 "version": db["server-info"]["version"],
+                "versionCompat": db["server-info"]["eos-version-compat"],
                 "lastBackup": db["server-info"]["last-backup"],
-                "eosVersionCompat": db["server-info"]["eos-version-compat"],
                 "lanAddress": db["server-info"]["lan-address"],
             });
 
+            server_info["postInitMigrationTodos"] = json!([]);
+            let tor_address: String = from_value(dbg!(db["server-info"]["tor-address"].clone()))?;
             // Maybe we do this like the Public::init does
-            server_info["onionAddress"] = db["server-info"]["onion-address"].clone();
-            server_info["torAddress"] = db["server-info"]["tor-address"].clone();
+            server_info["torAddress"] = json!(tor_address);
+            server_info["onionAddress"] = json!(dbg!(tor_address
+                .replace("https://", "")
+                .replace("http://", "")
+                .replace(".onion/", "")));
             server_info["ipInfo"] = ip_info;
             server_info["statusInfo"] = status_info;
             server_info["wifi"] = wifi;
@@ -288,8 +293,6 @@ impl VersionT for Version {
 
         let private = {
             let mut value = json!({});
-            // keystore.onion from tor
-            // keystore.local new with information from secrets.account
             value["keyStore"] = to_value(&KeyStore::new(&account)?)?;
             value["password"] = to_value(&account.password)?;
             value["compatS9pkKey"] = to_value(&crate::db::model::private::generate_compat_key())?;
@@ -378,7 +381,7 @@ async fn previous_notifications(pg: sqlx::Pool<sqlx::Postgres>) -> Result<Notifi
 
 #[tracing::instrument(skip_all)]
 async fn previous_cifs(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<CifsTargets, Error> {
-    let cifs = sqlx::query(r#"SELECT * FROM ssh_keys"#)
+    let cifs = sqlx::query(r#"SELECT * FROM cifs_shares"#)
         .fetch_all(pg)
         .await?
         .into_iter()
