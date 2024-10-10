@@ -172,6 +172,8 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             severity,
             options: options,
           }),
+        clearRequest: (effects: T.Effects, ...replayIds: string[]) =>
+          effects.action.clearRequests({ only: replayIds }),
       },
       checkDependencies: checkDependencies as <
         DependencyId extends keyof Manifest["dependencies"] &
