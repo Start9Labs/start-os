@@ -1,7 +1,8 @@
+import { Uninstall } from "../inits/setupUninstall"
 import * as P from "./exver"
 
 // prettier-ignore
-export type ValidateVersion<T extends String> = 
+export type ValidateVersion<T extends String> =
 T extends `-${infer A}` ? never  :
 T extends `${infer A}-${string}` ? ValidateVersion<A> :
   T extends `${bigint}` ? unknown :
@@ -9,9 +10,9 @@ T extends `${infer A}-${string}` ? ValidateVersion<A> :
   never
 
 // prettier-ignore
-export type ValidateExVer<T extends string> = 
+export type ValidateExVer<T extends string> =
   T extends `#${string}:${infer A}:${infer B}` ? ValidateVersion<A> & ValidateVersion<B> :
-  T extends `${infer A}:${infer B}` ? ValidateVersion<A> & ValidateVersion<B> :  
+  T extends `${infer A}:${infer B}` ? ValidateVersion<A> & ValidateVersion<B> :
   never
 
 // prettier-ignore
@@ -20,10 +21,28 @@ export type ValidateExVers<T> =
   T extends [infer A, ...infer B] ? ValidateExVer<A & string> & ValidateExVers<B> :
   never[]
 
+type CmpNotOp = "7>=" | "7<=" | "7>" | "7<" | "7=" | "7!=" | "7^" | "7~"; // 7 looks like ¬
+
 type Anchor = {
   type: "Anchor"
-  operator: P.CmpOp
+  operator: P.CmpOp | CmpNotOp,
   version: ExtendedVersion
+}
+
+function anchorNot(a: Anchor): Anchor {
+  if (a.operator.startsWith('7')) {
+    return {
+      type: "Anchor",
+      operator: a.operator.slice(1) as P.CmpOp,
+      version: a.version,
+    }
+  } else {
+    return {
+      type: "Anchor",
+      operator: '7' + a.operator as CmpNotOp,
+      version: a.version,
+    }
+  }
 }
 
 type And = {
@@ -48,7 +67,6 @@ type Not = {
 // (<3 && (<2 || >2 || !#o)) || (>3 && (<2 || >2 || !#o)) || (!#o && (<2 || >2 || !#o))
 // <3 && <2 || <3 && >2 || <3 && !#o || >3 && <2 || >3 && >2 || >3 && !#o || !#o && <2 || !#o && >2 || !#o && !#o
 
-
 type Flavor = {
   type: "Flavor",
   flavor: string | null,
@@ -56,118 +74,188 @@ type Flavor = {
 
 type FlavorNot = {
   type: "FlavorNot",
-  flavor: string | null,
+  flavors: Set<string | null>,
 }
 
-class VersionRangeEnd {
-  constructor(
-    public inclusive: boolean,
-    public upstream: Version,
-    public downstream: Version,
-  ) {}
+type VersionRangePoint = {
+  upstream: Version,
+  downstream: Version,
+  side: -1 | 0 | 1;
+} | 'Begin' | 'End'
 
-  static compare(self: VersionRangeEnd | 'Inf', other: VersionRangeEnd | 'Inf', side: 'lo' | 'hi') {
-    if (self == 'Inf' && other == 'Inf') {
-      return 'equal';
+function compareVersionRangePoints(a: VersionRangePoint, b: VersionRangePoint): -1 | 0 | 1 {
+  if (a == 'Begin') {
+    if (b == 'Begin') {
+       return 0;
+    } else {
+      return -1;
     }
-    if (self == 'Inf') {
-      return side == 'lo' ? 'less' : 'greater';
+  } else if (a == 'End') {
+    if (b == 'End') {
+      return 0;
+    } else {
+      return 1;
     }
-    if (other == 'Inf') {
-      return side == 'lo' ? 'greater' : 'less';
+  } else {
+    if (b == 'Begin') {
+      return 1;
+    } else if (b == 'End') {
+      return -1;
+    } else {
+      let up = a.upstream.compareForSort(b.upstream);
+      if (up != 0) {
+        return up;
+      }
+      let down = a.upstream.compareForSort(b.upstream);
+      if (down != 0) {
+        return down;
+      }
+      if (a.side < b.side) {
+        return -1;
+      } else if (a.side > b.side) {
+        return 0;
+      } else {
+        return 1;
+      }
     }
-
-    let cmp = self.upstream.compare(other.upstream);
-    if (cmp != 'equal') {
-      return cmp
     }
-    cmp = self.downstream.compare(other.downstream);
-    if (cmp != 'equal') {
-      return cmp;
-    }
-
-    if (self.inclusive && other.inclusive) {
-      return 'equal';
-    }
-    if (self.inclusive) {
-      return side == 'lo' ? 'less' : 'greater';
     }
     if (other.inclusive) {
       return side == 'lo' ? 'greater' : 'less';
-    }
-
-    return 'equal';
   }
+    if (other.inclusive) {
+      return side == 'lo' ? 'greater' : 'less';
+}
 
-  static lower(self: VersionRangeEnd | 'Inf', other: VersionRangeEnd | 'Inf') {
-    if (VersionRangeEnd.compare(self, other, 'lo') == 'less') {
-      return self;
-    } else {
-      return other;
-    }
+function lowestVersionRangePoint(a: VersionRangePoint, b: VersionRangePoint): VersionRangePoint {
+  if (compareVersionRangePoints(a, b) > 0) {
+    return b;
+  } else {
+    return a;
   }
+}
 
-  static higher(self: VersionRangeEnd | 'Inf', other: VersionRangeEnd | 'Inf') {
-    if (VersionRangeEnd.compare(self, other, 'hi') == 'greater') {
-      return self;
-    } else {
-      return other;
-    }
+function highestVersionRangePoint(a: VersionRangePoint, b: VersionRangePoint): VersionRangePoint {
+  if (compareVersionRangePoints(a, b) < 0) {
+    return b;
+  } else {
+    return a;
   }
+}
+
+class VersionRangeTable {
+  private constructor(protected points: Array<VersionRangePoint>, protected values: number[]) {}
 }
 
 class ContiguousVersionRange {
   constructor(
-    public flavor: Flavor | FlavorNot[] | "Any",
-    public lo: VersionRangeEnd | "Inf",
-    public hi: VersionRangeEnd | "Inf",
+    public flavor: Flavor | FlavorNot,
+    public lo: VersionRangeEnd,
+    public hi: VersionRangeEnd,
   ) {}
 
   and(other: ContiguousVersionRange): ContiguousVersionRange | null {
-    let flavor: Flavor | FlavorNot[] | "Any";
-    if (this.flavor != 'Any' && other.flavor != 'Any') {
-      if (Array.isArray(this.flavor)) {
-        if (Array.isArray(other.flavor)) {
-          flavor = this.flavor.concat(other.flavor);
-        } else if (this.flavor.find(x => x.flavor == other.flavor) === undefined) {
-          flavor = other.flavor;
+    let flavor: Flavor | FlavorNot;
+    if (this.flavor.type == 'Flavor') {
+      if (other.flavor.type == 'Flavor') {
+        if (this.flavor.flavor == other.flavor.flavor) {
+          flavor = this.flavor;
         } else {
           return null;
         }
       } else {
-        if (Array.isArray(other.flavor)) {
-          if (other.flavor.find(x => x.flavor == this.flavor) === undefined) {
-            flavor = other.flavor;
-          } else {
-            return null;
-          }
+        if (other.flavor.flavors.has(this.flavor.flavor)) {
+          return null;
         } else {
-          if (this.flavor == other.flavor) {
-            flavor = this.flavor;
-          } else {
-            return null;
-          }
+          flavor = this.flavor;
         }
       }
     } else {
-      flavor = 'Any';
+      if (other.flavor.type == 'Flavor') {
+        if (this.flavor.flavors.has(other.flavor.flavor)) {
+          return null;
+        } else {
+          flavor = other.flavor;
+        }
+      } else {
+        flavor = { type: 'FlavorNot', flavors: this.flavor.flavors.union(other.flavor.flavors) };
+      }
     }
 
-    if (other.hi < this.lo || this.hi < other.lo) {
+    let lo = lowestVersionRangeEnd(this.lo, other.lo);
+    let hi = highestVersionRangeEnd(this.hi, other.hi);
+    if (compareVersionRangeEnds(lo, hi) > 0) {
       return null;
     }
-    return new ContiguousVersionRange(
-      flavor,
-      VersionRangeEnd.lower(this.lo, other.lo),
-      VersionRangeEnd.higher(this.hi, other.hi),
-    )
+
+    return new ContiguousVersionRange(flavor, lo, hi);
   }
 }
 
-type VersionRangeList = ContiguousVersionRange[]
+class VersionTable {
+  constructor(
+    protected vars: Array<Anchor>,
+    protected table: Uint8Array,
+  ) {}
+
+  not() {
+    for (let i = 0; i < this.table.length; i++) {
+      this.table[i] = +!this.table[i];
+    }
+  }
+
+  and(other: VersionTable) {
+    const a = this.table;
+    const b = other.table;
+    this.table = new Uint8Array(a.length * b.length);
+    this.vars = this.vars.concat(this.vars, other.vars);
+    for (let i = 0; i < a.length; i++) {
+      for (let j = 0; j < a.length; j++) {
+        let k = i + j * a.length;
+        this.table[k] = a[i] * b[i];
+      }
+    }
+  }
+
+  or(other: VersionTable) {
+    const a = this.table;
+    const b = other.table;
+    this.table = new Uint8Array(a.length * b.length);
+    this.vars = this.vars.concat(this.vars, other.vars);
+    for (let i = 0; i < a.length; i++) {
+      for (let j = 0; j < a.length; j++) {
+        let k = i + j * a.length;
+        this.table[k] = +!!(a[i] + b[i]);
+      }
+    }
+  }
+
+  miniterms(): VersionRange {
+    let summation: Array<VersionRange> = [];
+    for (let i = 0; i < this.table.length; i++) {
+      if (!this.table[i]) {
+        continue;
+      }
+      let miniterm: Array<VersionRange> = [];
+      for (let j = 0; j < this.vars.length; j++) {
+        if (i & (1 << j)) {
+          miniterm.push(new VersionRange(anchorNot(this.vars[j])));
+        } else {
+          miniterm.push(new VersionRange(this.vars[j]));
+        }
+      }
+      summation.push(VersionRange.and(...miniterm));
+    }
+    return VersionRange.or(...summation);
+  }
+
+  static single(v: Anchor) {
+    return new VersionTable([v], new Uint8Array([0, 1]));
+  }
+}
 
 export class VersionRange {
-  private constructor(public atom: Anchor | And | Or | Not | Flavor | FlavorNot | P.Any | P.None) {}
+  constructor(public atom: Anchor | And | Or | Not | P.Any | P.None) {}
 
   toStringParens(parent: "And" | "Or" | "Not") {
     let needs = true;
@@ -182,8 +270,6 @@ export class VersionRange {
         needs = parent == "Not"
         break
       case "Not":
-      case "Flavor":
-      case "FlavorNot":
         needs = false;
         break
     }
@@ -205,10 +291,6 @@ export class VersionRange {
         return `${this.atom.left.toStringParens(this.atom.type)} || ${this.atom.right.toStringParens(this.atom.type)}`
       case "Not":
         return `!${this.atom.value.toStringParens(this.atom.type)}`
-      case "Flavor":
-        return `#${this.atom.flavor}`
-      case "FlavorNot":
-        return `!#${this.atom.flavor}`
       case "Any":
         return "*"
       case "None":
@@ -276,78 +358,48 @@ export class VersionRange {
     )
   }
 
-  and(right: VersionRange): VersionRange {
-    if (this.atom.type == "None" || right.atom.type == "None") {
-      return VersionRange.none()
-    }
-    if (this.atom.type == "Any") {
-      return right
-    }
-    if (right.atom.type == "Any") {
-      return this
-    }
-    if (right.atom.type == "Or") {
-      return this.and(right.atom.left).or(this.and(right.atom.right))
-    }
-    if (this.atom.type == "Or") {
-      return this.atom.left.and(right).or(this.atom.right.and(right))
-    }
-    return new VersionRange({ type: "And", left: this, right })
-  }
-
-  or(right: VersionRange): VersionRange {
-    if (this.atom.type == "Any" || right.atom.type == "Any") {
-      return VersionRange.any()
-    }
-    if (this.atom.type == "None") {
-      return right
-    }
-    if (right.atom.type == "None") {
-      return this
-    }
-    return new VersionRange({ type: "Or", left: this, right })
-  }
-
-  not(): VersionRange {
-    switch (this.atom.type) {
-      case "Anchor":
-        const fn = VersionRange.flavorNot(this.atom.version.flavor);
-        switch (this.atom.operator) {
-          case "=":
-            return VersionRange.anchor("!=", this.atom.version)
-          case "!=":
-            return VersionRange.anchor("=", this.atom.version)
-          case ">":
-            return VersionRange.anchor("<=", this.atom.version).or(fn)
-          case "<":
-            return VersionRange.anchor(">=", this.atom.version).or(fn)
-          case ">=":
-            return VersionRange.anchor("<", this.atom.version).or(fn)
-          case "<=":
-            return VersionRange.anchor(">", this.atom.version).or(fn)
-          case "^":
-          case "~":
-            return new VersionRange({ type: "Not", value: this })
-        }
-      case "And":
-        return this.atom.left.not().or(this.atom.right.not())
-      case "Or":
-        return this.atom.left.not().and(this.atom.right.not())
-      case "Not":
-        return this.atom.value
-      case "Any":
-        return VersionRange.none()
-      case "None":
-        return VersionRange.any()
-      case "Flavor":
-        return VersionRange.flavorNot(this.atom.flavor)
-      case "FlavorNot":
-        return VersionRange.flavor(this.atom.flavor)
-    }
-  }
-
   static anchor(operator: P.CmpOp, version: ExtendedVersion) {
     return new VersionRange({ type: "Anchor", operator, version })
+  }
+
+  static anchorNot(operator: P.CmpOp, version: ExtendedVersion) {
+    return new VersionRange(anchorNot({ type: "Anchor", operator, version }))
+  }
+
+  static and(...xs: Array<VersionRange>) {
+    let y = VersionRange.any();
+    for (let x of xs) {
+      if (x.atom.type == 'Any') {
+        continue;
+      }
+      if (x.atom.type == 'None') {
+        return x;
+      }
+      if (y.atom.type == 'Any') {
+        y = x;
+      } else {
+        y = new VersionRange({ type: 'And', left: y, right: x});
+      }
+    }
+    return y;
+  }
+
+  static or(...xs: Array<VersionRange>) {
+    let y = VersionRange.none();
+    for (let x of xs) {
+      if (x.atom.type == 'None') {
+        continue;
+      }
+      if (x.atom.type == 'Any') {
+        return x;
+      }
+      if (y.atom.type == 'None') {
+        y = x;
+      } else {
+        y = new VersionRange({ type: 'And', left: y, right: x});
+      }
+    }
+    return y;
   }
 
   static any() {
@@ -356,14 +408,6 @@ export class VersionRange {
 
   static none() {
     return new VersionRange({ type: "None" })
-  }
-
-  static flavor(flavor: string | null) {
-    return new VersionRange({ type: "Flavor", flavor })
-  }
-
-  static flavorNot(flavor: string | null) {
-    return new VersionRange({ type: "FlavorNot", flavor })
   }
 
   satisfiedBy(version: Version | ExtendedVersion) {
@@ -397,7 +441,7 @@ export class VersionRange {
         return this
       case "None":
         return VersionRange.none()
-        
+
     }
   }
 
@@ -505,6 +549,17 @@ export class Version {
     }
 
     return "equal"
+  }
+
+  compareForSort(other: Version): -1 | 0 | 1 {
+    switch (this.compare(other)) {
+      case "greater":
+        return 1
+      case "equal":
+        return 0
+      case "less":
+        return -1
+    }
   }
 
   static parse(version: string): Version {
@@ -654,14 +709,6 @@ export class ExtendedVersion {
       incrementedUpstream,
       updatedDownstream,
     )
-  }
-
-  inclusive(): VersionRangeEnd {
-    return new VersionRangeEnd(true, this.upstream, this.downstream)
-  }
-
-  exclusive(): VersionRangeEnd {
-    return new VersionRangeEnd(false, this.upstream, this.downstream)
   }
 
   /**
