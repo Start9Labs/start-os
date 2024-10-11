@@ -40,8 +40,8 @@ pub fn backup<C: Context>() -> ParentHandler<C> {
             "create",
             from_fn_async(backup_bulk::backup_all)
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Create backup for all packages"),
+                .with_about("Create backup for all packages")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "target",
