@@ -149,8 +149,8 @@ pub fn target<C: Context>() -> ParentHandler<C> {
             "list",
             from_fn_async(list)
                 .with_display_serializable()
-                .with_call_remote::<CliContext>()
-                .with_about("List existing backup targets"),
+                .with_about("List existing backup targets")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "info",
@@ -159,21 +159,21 @@ pub fn target<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn::<CliContext, _>(|params, info| {
                     Ok(display_backup_info(params.params, info))
                 })
-                .with_call_remote::<CliContext>()
-                .with_about("Display package backup information"),
+                .with_about("Display package backup information")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "mount",
             from_fn_async(mount)
-                .with_call_remote::<CliContext>()
-                .with_about("Mount backup target"),
+                .with_about("Mount backup target")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "umount",
             from_fn_async(umount)
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Unmount backup target"),
+                .with_about("Unmount backup target")
+                .with_call_remote::<CliContext>(),
         )
 }
 

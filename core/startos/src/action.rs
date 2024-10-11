@@ -22,8 +22,8 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
             "get-input",
             from_fn_async(get_action_input)
                 .with_display_serializable()
+                .with_about("Get action input spec")
                 .with_call_remote::<CliContext>()
-                .with_about("Get action input spec"),
         )
         .subcommand(
             "run",
@@ -35,8 +35,8 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
                     }
                     Ok(())
                 })
+                .with_about("Run service action")
                 .with_call_remote::<CliContext>()
-                .with_about("Run service action"),
         )
 }
 

@@ -52,22 +52,22 @@ pub fn cifs<C: Context>() -> ParentHandler<C> {
             "add",
             from_fn_async(add)
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Add a new backup target"),
+                .with_about("Add a new backup target")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "update",
             from_fn_async(update)
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Update an existing backup target"),
+                .with_about("Update an existing backup target")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove",
             from_fn_async(remove)
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Remove an existing backup target"),
+                .with_about("Remove an existing backup target")
+                .with_call_remote::<CliContext>(),
         )
 }
 

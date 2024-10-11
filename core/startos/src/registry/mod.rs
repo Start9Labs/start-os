@@ -82,15 +82,15 @@ pub fn registry_api<C: Context>() -> ParentHandler<C> {
             "index",
             from_fn_async(get_full_index)
                 .with_display_serializable()
-                .with_call_remote::<CliContext>()
-                .with_about("List info including registry name and packages"),
+                .with_about("List info including registry name and packages")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "info",
             from_fn_async(get_info)
                 .with_display_serializable()
-                .with_call_remote::<CliContext>()
-                .with_about("Display registry name, icon, and package categories"),
+                .with_about("Display registry name, icon, and package categories")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "os",

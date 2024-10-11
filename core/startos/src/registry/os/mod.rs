@@ -15,8 +15,8 @@ pub fn os_api<C: Context>() -> ParentHandler<C> {
             "index",
             from_fn_async(index::get_os_index)
                 .with_display_serializable()
-                .with_call_remote::<CliContext>()
-                .with_about("List index of OS versions"),
+                .with_about("List index of OS versions")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "asset",

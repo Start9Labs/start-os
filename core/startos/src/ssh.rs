@@ -86,15 +86,15 @@ pub fn ssh<C: Context>() -> ParentHandler<C> {
             "add",
             from_fn_async(add)
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Add ssh key"),
+                .with_about("Add ssh key")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "delete",
             from_fn_async(delete)
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Remove ssh key"),
+                .with_about("Remove ssh key")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "list",
@@ -103,8 +103,8 @@ pub fn ssh<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_all_ssh_keys(handle.params, result))
                 })
-                .with_call_remote::<CliContext>()
-                .with_about("List ssh keys"),
+                .with_about("List ssh keys")
+                .with_call_remote::<CliContext>(),
         )
 }
 

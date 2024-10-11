@@ -26,16 +26,16 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
                 .with_metadata("admin", Value::Bool(true))
                 .with_metadata("get_signer", Value::Bool(true))
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Add OS version"),
+                .with_about("Add OS version")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove",
             from_fn_async(remove_version)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Remove OS version"),
+                .with_about("Remove OS version")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "signer",
@@ -48,8 +48,8 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_version_info(handle.params, result))
                 })
-                .with_call_remote::<CliContext>()
-                .with_about("Get OS versions and related version info"),
+                .with_about("Get OS versions and related version info")
+                .with_call_remote::<CliContext>(),
         )
 }
 

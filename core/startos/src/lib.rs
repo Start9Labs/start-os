@@ -122,15 +122,15 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
             "echo",
             from_fn(echo::<RpcContext>)
                 .with_metadata("authenticated", Value::Bool(false))
-                .with_call_remote::<CliContext>()
-                .with_about("Echo a message"),
+                .with_about("Echo a message")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "state",
             from_fn(|_: RpcContext| Ok::<_, Error>(ApiState::Running))
                 .with_metadata("authenticated", Value::Bool(false))
-                .with_call_remote::<CliContext>()
-                .with_about("Display the API that is currently serving"),
+                .with_about("Display the API that is currently serving")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "server",
@@ -209,8 +209,8 @@ pub fn server<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     Ok(system::display_time(handle.params, result))
                 })
+                .with_about("Display current time and server uptime")
                 .with_call_remote::<CliContext>()
-                .with_about("Display current time and server uptime"),
         )
         .subcommand(
             "experimental",
@@ -237,29 +237,29 @@ pub fn server<C: Context>() -> ParentHandler<C> {
             "metrics",
             from_fn_async(system::metrics)
                 .with_display_serializable()
+                .with_about("Display information about the server i.e. temperature, RAM, CPU, and disk usage")
                 .with_call_remote::<CliContext>()
-                .with_about("Display information about the server i.e. temperature, RAM, CPU, and disk usage"),
         )
         .subcommand(
             "shutdown",
             from_fn_async(shutdown::shutdown)
                 .no_display()
+                .with_about("Shutdown the server")
                 .with_call_remote::<CliContext>()
-                .with_about("Shutdown the server"),
         )
         .subcommand(
             "restart",
             from_fn_async(shutdown::restart)
                 .no_display()
+                .with_about("Restart the server")
                 .with_call_remote::<CliContext>()
-                .with_about("Restart the server"),
         )
         .subcommand(
             "rebuild",
             from_fn_async(shutdown::rebuild)
                 .no_display()
+                .with_about("Teardown and rebuild service containers")
                 .with_call_remote::<CliContext>()
-                .with_about("Teardown and rebuild service containers"),
         )
         .subcommand(
             "update",
@@ -284,22 +284,22 @@ pub fn server<C: Context>() -> ParentHandler<C> {
             .with_custom_display_fn(|_handle, result| {
                 Ok(firmware::display_firmware_update_result(result))
             })
+            .with_about("Update the mainboard's firmware to the latest firmware available in this version of StartOS if available. Note: This command does not reach out to the Internet")
             .with_call_remote::<CliContext>()
-            .with_about("Update the mainboard's firmware to the latest firmware available in this version of StartOS if available. Note: This command does not reach out to the Internet"),
         )
         .subcommand(
             "set-smtp",
             from_fn_async(system::set_system_smtp)
                 .no_display()
+                .with_about("Set system smtp server and credentials")
                 .with_call_remote::<CliContext>()
-                .with_about("Set system smtp server and credentials"),
         )
         .subcommand(
             "clear-smtp",
             from_fn_async(system::clear_system_smtp)
                 .no_display()
+                .with_about("Remove system smtp server and credentials")
                 .with_call_remote::<CliContext>()
-                .with_about("Remove system smtp server and credentials"),
         )
 }
 
@@ -332,54 +332,54 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             from_fn_async(install::uninstall)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Remove a package"),
+                .with_about("Remove a package")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "list",
             from_fn_async(install::list)
                 .with_display_serializable()
-                .with_call_remote::<CliContext>()
-                .with_about("List installed packages"),
+                .with_about("List installed packages")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "installed-version",
             from_fn_async(install::installed_version)
                 .with_display_serializable()
-                .with_call_remote::<CliContext>()
-                .with_about("Display installed version for a PackageId"),
+                .with_about("Display installed version for a PackageId")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "start",
             from_fn_async(control::start)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Start a package container"),
+                .with_about("Start a package container")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "stop",
             from_fn_async(control::stop)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Stop a package container"),
+                .with_about("Stop a package container")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "restart",
             from_fn_async(control::restart)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Restart a package container"),
+                .with_about("Restart a package container")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "rebuild",
             from_fn_async(service::rebuild)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Rebuild service container"),
+                .with_about("Rebuild service container")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand("logs", logs::package_logs())
         .subcommand(
@@ -398,8 +398,8 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|_handle, result| {
                     Ok(properties::display_properties(result))
                 })
-                .with_call_remote::<CliContext>()
-                .with_about("Display package Properties"),
+                .with_about("Display package Properties")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "backup",
@@ -433,15 +433,15 @@ pub fn diagnostic_api() -> ParentHandler<DiagnosticContext> {
         .subcommand(
             "echo",
             from_fn(echo::<DiagnosticContext>)
-                .with_call_remote::<CliContext>()
-                .with_about("Echo a message"),
+                .with_about("Echo a message")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "state",
             from_fn(|_: DiagnosticContext| Ok::<_, Error>(ApiState::Error))
                 .with_metadata("authenticated", Value::Bool(false))
-                .with_call_remote::<CliContext>()
-                .with_about("Display the API that is currently serving"),
+                .with_about("Display the API that is currently serving")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "diagnostic",
@@ -461,15 +461,15 @@ pub fn init_api() -> ParentHandler<InitContext> {
         .subcommand(
             "echo",
             from_fn(echo::<InitContext>)
-                .with_call_remote::<CliContext>()
-                .with_about("Echo a message"),
+                .with_about("Echo a message")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "state",
             from_fn(|_: InitContext| Ok::<_, Error>(ApiState::Initializing))
                 .with_metadata("authenticated", Value::Bool(false))
-                .with_call_remote::<CliContext>()
-                .with_about("Display the API that is currently serving"),
+                .with_about("Display the API that is currently serving")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "init",
@@ -489,8 +489,8 @@ pub fn setup_api() -> ParentHandler<SetupContext> {
         .subcommand(
             "echo",
             from_fn(echo::<SetupContext>)
-                .with_call_remote::<CliContext>()
-                .with_about("Echo a message"),
+                .with_about("Echo a message")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand("setup", setup::setup::<SetupContext>())
 }
@@ -506,8 +506,8 @@ pub fn install_api() -> ParentHandler<InstallContext> {
         .subcommand(
             "echo",
             from_fn(echo::<InstallContext>)
-                .with_call_remote::<CliContext>()
-                .with_about("Echo a message"),
+                .with_about("Echo a message")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "install",

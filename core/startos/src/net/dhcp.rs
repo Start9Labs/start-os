@@ -58,8 +58,8 @@ pub fn dhcp<C: Context>() -> ParentHandler<C> {
         "update",
         from_fn_async::<_, _, (), Error, (RpcContext, UpdateParams)>(update)
             .no_display()
-            .with_call_remote::<CliContext>()
-            .with_about("Update IP assigned by dhcp"),
+            .with_about("Update IP assigned by dhcp")
+            .with_call_remote::<CliContext>(),
     )
 }
 #[derive(Deserialize, Serialize, Parser, TS)]

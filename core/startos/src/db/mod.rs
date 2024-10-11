@@ -312,8 +312,8 @@ pub fn put<C: Context>() -> ParentHandler<C> {
         "ui",
         from_fn_async(ui)
             .with_display_serializable()
-            .with_call_remote::<CliContext>()
-            .with_about("Store pointer and value in db"),
+            .with_about("Store pointer and value in db")
+            .with_call_remote::<CliContext>(),
     )
 }
 #[derive(Deserialize, Serialize, Parser, TS)]

@@ -21,24 +21,24 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(add_version_signer)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Add version signer"),
+                .with_about("Add version signer")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove",
             from_fn_async(remove_version_signer)
                 .with_metadata("admin", Value::Bool(true))
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Remove version signer"),
+                .with_about("Remove version signer")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "list",
             from_fn_async(list_version_signers)
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| Ok(display_signers(handle.params, result)))
-                .with_call_remote::<CliContext>()
-                .with_about("List version signers and related signer info"),
+                .with_about("List version signers and related signer info")
+                .with_call_remote::<CliContext>(),
         )
 }
 

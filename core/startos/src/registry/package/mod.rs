@@ -14,8 +14,8 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
             "index",
             from_fn_async(index::get_package_index)
                 .with_display_serializable()
-                .with_call_remote::<CliContext>()
-                .with_about("List packages and categories"),
+                .with_about("List packages and categories")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "add",
@@ -37,7 +37,7 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     get::display_package_info(handle.params, result)
                 })
-                .with_call_remote::<CliContext>()
-                .with_about("List installation candidate package(s)"),
+                .with_about("List installation candidate package(s)")
+                .with_call_remote::<CliContext>(),
         )
 }

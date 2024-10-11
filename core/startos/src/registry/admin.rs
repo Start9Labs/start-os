@@ -34,8 +34,8 @@ pub fn admin_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(list_admins)
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| Ok(display_signers(handle.params, result)))
-                .with_call_remote::<CliContext>()
-                .with_about("List admin signers"),
+                .with_about("List admin signers")
+                .with_call_remote::<CliContext>(),
         )
 }
 
@@ -47,8 +47,8 @@ fn signers_api<C: Context>() -> ParentHandler<C> {
                 .with_metadata("admin", Value::Bool(true))
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| Ok(display_signers(handle.params, result)))
-                .with_call_remote::<CliContext>()
-                .with_about("List signers"),
+                .with_about("List signers")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "add",

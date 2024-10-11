@@ -51,8 +51,8 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_disk_info(handle.params, result))
                 })
-                .with_call_remote::<CliContext>()
-                .with_about("List disk info"),
+                .with_about("List disk info")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand("repair", from_fn_async(|_: C| repair()).no_cli())
         .subcommand(

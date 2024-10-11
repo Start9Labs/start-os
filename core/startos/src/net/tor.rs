@@ -91,8 +91,8 @@ pub fn tor<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_services(handle.params, result))
                 })
-                .with_call_remote::<CliContext>()
-                .with_about("Display Tor V3 Onion Addresses"),
+                .with_about("Display Tor V3 Onion Addresses")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand("logs", logs().with_about("Display Tor logs"))
         .subcommand(
@@ -105,8 +105,8 @@ pub fn tor<C: Context>() -> ParentHandler<C> {
             "reset",
             from_fn_async(reset)
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Reset Tor daemon"),
+                .with_about("Reset Tor daemon")
+                .with_call_remote::<CliContext>(),
         )
 }
 #[derive(Deserialize, Serialize, Parser, TS)]

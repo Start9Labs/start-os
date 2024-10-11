@@ -16,8 +16,8 @@ pub fn diagnostic<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "error",
             from_fn(error)
-                .with_call_remote::<CliContext>()
-                .with_about("Display diagnostic error"),
+                .with_about("Display diagnostic error")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "logs",
@@ -43,8 +43,8 @@ pub fn diagnostic<C: Context>() -> ParentHandler<C> {
             "restart",
             from_fn(restart)
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Restart the server"),
+                .with_about("Restart the server")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "disk",
@@ -54,8 +54,8 @@ pub fn diagnostic<C: Context>() -> ParentHandler<C> {
             "rebuild",
             from_fn_async(rebuild)
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Teardown and rebuild service containers"),
+                .with_about("Teardown and rebuild service containers")
+                .with_call_remote::<CliContext>(),
         )
 }
 

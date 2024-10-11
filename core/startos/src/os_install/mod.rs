@@ -36,15 +36,15 @@ pub fn install<C: Context>() -> ParentHandler<C> {
             "execute",
             from_fn_async(execute::<InstallContext>)
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Install StartOS over existing version"),
+                .with_about("Install StartOS over existing version")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "reboot",
             from_fn_async(reboot)
                 .no_display()
-                .with_call_remote::<CliContext>()
-                .with_about("Restart the server"),
+                .with_about("Restart the server")
+                .with_call_remote::<CliContext>(),
         )
 }
 
@@ -53,8 +53,8 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
         "list",
         from_fn_async(list)
             .no_display()
-            .with_call_remote::<CliContext>()
-            .with_about("List disk info"),
+            .with_about("List disk info")
+            .with_call_remote::<CliContext>(),
     )
 }
 
