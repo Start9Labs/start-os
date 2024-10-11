@@ -116,7 +116,8 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
     let api = ParentHandler::new()
         .subcommand::<C, _>(
             "git-info",
-            from_fn(version::git_info).with_about("Display the githash of StartOS CLI"),
+            from_fn(version::git_info::<RpcContext>)
+                .with_about("Display the githash of StartOS CLI"),
         )
         .subcommand(
             "echo",
@@ -426,7 +427,7 @@ pub fn diagnostic_api() -> ParentHandler<DiagnosticContext> {
     ParentHandler::new()
         .subcommand::<DiagnosticContext, _>(
             "git-info",
-            from_fn(version::git_info)
+            from_fn(version::git_info::<DiagnosticContext>)
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_about("Display the githash of StartOS CLI"),
         )
@@ -454,7 +455,7 @@ pub fn init_api() -> ParentHandler<InitContext> {
     ParentHandler::new()
         .subcommand::<InitContext, _>(
             "git-info",
-            from_fn(version::git_info)
+            from_fn(version::git_info::<InitContext>)
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_about("Display the githash of StartOS CLI"),
         )
@@ -482,7 +483,7 @@ pub fn setup_api() -> ParentHandler<SetupContext> {
     ParentHandler::new()
         .subcommand::<SetupContext, _>(
             "git-info",
-            from_fn(version::git_info)
+            from_fn(version::git_info::<SetupContext>)
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_about("Display the githash of StartOS CLI"),
         )
@@ -499,7 +500,7 @@ pub fn install_api() -> ParentHandler<InstallContext> {
     ParentHandler::new()
         .subcommand::<InstallContext, _>(
             "git-info",
-            from_fn(version::git_info)
+            from_fn(version::git_info::<InstallContext>)
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_about("Display the githash of StartOS CLI"),
         )
