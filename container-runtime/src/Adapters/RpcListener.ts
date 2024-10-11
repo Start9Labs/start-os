@@ -42,6 +42,7 @@ export const matchRpcResult = anyOf(
     ),
   }),
 )
+
 export type RpcResult = typeof matchRpcResult._TYPE
 type SocketResponse = ({ jsonrpc: "2.0"; id: IdType } & RpcResult) | null
 

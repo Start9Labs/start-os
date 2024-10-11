@@ -2,7 +2,7 @@ import * as T from "../types"
 import { once } from "../util"
 import { Dependency } from "./Dependency"
 
-type DependencyType<Manifest extends T.Manifest> = {
+type DependencyType<Manifest extends T.SDKManifest> = {
   [K in keyof {
     [K in keyof Manifest["dependencies"]]: Manifest["dependencies"][K]["optional"] extends false
       ? K
@@ -16,7 +16,7 @@ type DependencyType<Manifest extends T.Manifest> = {
   }]?: Dependency
 }
 
-export function setupDependencies<Manifest extends T.Manifest>(
+export function setupDependencies<Manifest extends T.SDKManifest>(
   fn: (options: { effects: T.Effects }) => Promise<DependencyType<Manifest>>,
 ): (options: { effects: T.Effects }) => Promise<null> {
   const cell = { updater: async (_: { effects: T.Effects }) => null }

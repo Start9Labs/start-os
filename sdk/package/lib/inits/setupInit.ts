@@ -7,8 +7,8 @@ import { VersionGraph } from "../version/VersionGraph"
 import { Install } from "./setupInstall"
 import { Uninstall } from "./setupUninstall"
 
-export function setupInit<Manifest extends T.Manifest, Store>(
-  versions: VersionGraph<Manifest["version"]>,
+export function setupInit<Manifest extends T.SDKManifest, Store>(
+  versions: VersionGraph<string>,
   install: Install<Manifest, Store>,
   uninstall: Uninstall<Manifest, Store>,
   setServiceInterfaces: UpdateServiceInterfaces<any>,

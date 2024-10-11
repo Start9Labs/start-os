@@ -14,7 +14,7 @@ export const DEFAULT_SIGTERM_TIMEOUT = 30_000
  * @param fn
  * @returns
  */
-export const setupMain = <Manifest extends T.Manifest, Store>(
+export const setupMain = <Manifest extends T.SDKManifest, Store>(
   fn: (o: {
     effects: T.Effects
     started(onTerm: () => PromiseLike<void>): PromiseLike<null>

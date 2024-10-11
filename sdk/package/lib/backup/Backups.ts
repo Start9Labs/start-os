@@ -35,7 +35,7 @@ export type BackupSync<Volumes extends string> = {
  * ).build()q
  * ```
  */
-export class Backups<M extends T.Manifest> {
+export class Backups<M extends T.SDKManifest> {
   private constructor(
     private options = DEFAULT_OPTIONS,
     private restoreOptions: Partial<T.SyncOptions> = {},
@@ -43,7 +43,7 @@ export class Backups<M extends T.Manifest> {
     private backupSet = [] as BackupSync<M["volumes"][number]>[],
   ) {}
 
-  static withVolumes<M extends T.Manifest = never>(
+  static withVolumes<M extends T.SDKManifest = never>(
     ...volumeNames: Array<M["volumes"][number]>
   ): Backups<M> {
     return Backups.withSyncs(
@@ -54,13 +54,13 @@ export class Backups<M extends T.Manifest> {
     )
   }
 
-  static withSyncs<M extends T.Manifest = never>(
+  static withSyncs<M extends T.SDKManifest = never>(
     ...syncs: BackupSync<M["volumes"][number]>[]
   ) {
     return syncs.reduce((acc, x) => acc.addSync(x), new Backups<M>())
   }
 
-  static withOptions<M extends T.Manifest = never>(
+  static withOptions<M extends T.SDKManifest = never>(
     options?: Partial<T.SyncOptions>,
   ) {
     return new Backups<M>({ ...DEFAULT_OPTIONS, ...options })

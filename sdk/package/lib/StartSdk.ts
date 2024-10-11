@@ -86,12 +86,12 @@ type AnyNeverCond<T extends any[], Then, Else> =
     T extends [any, ...infer U] ? AnyNeverCond<U,Then, Else> :
     never
 
-export class StartSdk<Manifest extends T.Manifest, Store> {
+export class StartSdk<Manifest extends T.SDKManifest, Store> {
   private constructor(readonly manifest: Manifest) {}
   static of() {
     return new StartSdk<never, never>(null as never)
   }
-  withManifest<Manifest extends T.Manifest = never>(manifest: Manifest) {
+  withManifest<Manifest extends T.SDKManifest = never>(manifest: Manifest) {
     return new StartSdk<Manifest, Store>(manifest)
   }
   withStore<Store extends Record<string, any>>() {
@@ -1358,7 +1358,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
   }
 }
 
-export async function runCommand<Manifest extends T.Manifest>(
+export async function runCommand<Manifest extends T.SDKManifest>(
   effects: Effects,
   image: { id: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
   command: string | [string, ...string[]],

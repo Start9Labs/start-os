@@ -20,7 +20,7 @@ export class CommandController {
     private process: cp.ChildProcessWithoutNullStreams,
     readonly sigtermTimeout: number = DEFAULT_SIGTERM_TIMEOUT,
   ) {}
-  static of<Manifest extends T.Manifest>() {
+  static of<Manifest extends T.SDKManifest>() {
     return async <A extends string>(
       effects: T.Effects,
       subcontainer:
