@@ -1,4 +1,4 @@
-import { Uninstall } from "../inits/setupUninstall"
+import { DeepMap } from "deep-equality-data-structures";
 import * as P from "./exver"
 
 // prettier-ignore
@@ -21,28 +21,10 @@ export type ValidateExVers<T> =
   T extends [infer A, ...infer B] ? ValidateExVer<A & string> & ValidateExVers<B> :
   never[]
 
-type CmpNotOp = "7>=" | "7<=" | "7>" | "7<" | "7=" | "7!=" | "7^" | "7~"; // 7 looks like ¬
-
 type Anchor = {
   type: "Anchor"
-  operator: P.CmpOp | CmpNotOp,
+  operator: P.CmpOp,
   version: ExtendedVersion
-}
-
-function anchorNot(a: Anchor): Anchor {
-  if (a.operator.startsWith('7')) {
-    return {
-      type: "Anchor",
-      operator: a.operator.slice(1) as P.CmpOp,
-      version: a.version,
-    }
-  } else {
-    return {
-      type: "Anchor",
-      operator: '7' + a.operator as CmpNotOp,
-      version: a.version,
-    }
-  }
 }
 
 type And = {
@@ -77,185 +59,281 @@ type FlavorNot = {
   flavors: Set<string | null>,
 }
 
+type FlavorAtom = Flavor | FlavorNot;
+
 type VersionRangePoint = {
   upstream: Version,
   downstream: Version,
-  side: -1 | 0 | 1;
-} | 'Begin' | 'End'
+  side: -1 | 1;
+}
 
 function compareVersionRangePoints(a: VersionRangePoint, b: VersionRangePoint): -1 | 0 | 1 {
-  if (a == 'Begin') {
-    if (b == 'Begin') {
-       return 0;
-    } else {
-      return -1;
-    }
-  } else if (a == 'End') {
-    if (b == 'End') {
-      return 0;
-    } else {
-      return 1;
-    }
+  let up = a.upstream.compareForSort(b.upstream);
+  if (up != 0) {
+    return up;
+  }
+  let down = a.upstream.compareForSort(b.upstream);
+  if (down != 0) {
+    return down;
+  }
+  if (a.side < b.side) {
+    return -1;
+  } else if (a.side > b.side) {
+    return 1;
   } else {
-    if (b == 'Begin') {
-      return 1;
-    } else if (b == 'End') {
-      return -1;
-    } else {
-      let up = a.upstream.compareForSort(b.upstream);
-      if (up != 0) {
-        return up;
-      }
-      let down = a.upstream.compareForSort(b.upstream);
-      if (down != 0) {
-        return down;
-      }
-      if (a.side < b.side) {
-        return -1;
-      } else if (a.side > b.side) {
-        return 0;
+    return 0;
+  }
+}
+
+function flavorAnd(a: FlavorAtom, b: FlavorAtom): FlavorAtom | null {
+  if (a.type == 'Flavor') {
+    if (b.type == 'Flavor') {
+      if (a.flavor == b.flavor) {
+        return a;
       } else {
-        return 1;
+        return null;
+      }
+    } else {
+      if (b.flavors.has(a.flavor)) {
+        return null;
+      } else {
+        return a;
       }
     }
-    }
-    }
-    if (other.inclusive) {
-      return side == 'lo' ? 'greater' : 'less';
-  }
-    if (other.inclusive) {
-      return side == 'lo' ? 'greater' : 'less';
-}
-
-function lowestVersionRangePoint(a: VersionRangePoint, b: VersionRangePoint): VersionRangePoint {
-  if (compareVersionRangePoints(a, b) > 0) {
-    return b;
   } else {
-    return a;
+    if (b.type == 'Flavor') {
+      if (a.flavors.has(b.flavor)) {
+        return null;
+      } else {
+        return b;
+      }
+    } else {
+      return { type: 'FlavorNot', flavors: a.flavors.union(b.flavors) };
+    }
   }
 }
 
-function highestVersionRangePoint(a: VersionRangePoint, b: VersionRangePoint): VersionRangePoint {
-  if (compareVersionRangePoints(a, b) < 0) {
-    return b;
-  } else {
-    return a;
-  }
-}
+type VersionRangeTables = DeepMap<FlavorAtom, VersionRangeTable> | boolean;
 
 class VersionRangeTable {
-  private constructor(protected points: Array<VersionRangePoint>, protected values: number[]) {}
-}
+  private constructor(protected points: Array<VersionRangePoint>, protected values: boolean[]) {}
 
-class ContiguousVersionRange {
-  constructor(
-    public flavor: Flavor | FlavorNot,
-    public lo: VersionRangeEnd,
-    public hi: VersionRangeEnd,
-  ) {}
+  static zip(a: VersionRangeTable, b: VersionRangeTable, func: (a: boolean, b: boolean) => boolean): VersionRangeTable {
+    let c = new VersionRangeTable([], []);
+    let i = 0;
+    let j = 0;
+    while (true) {
+      let next = func(a.values[i], b.values[j]);
+      if (c.values.length > 0 && c.values[c.values.length - 1] == next) {
+        // collapse automatically
+        c.points.pop();
+      } else {
+        c.values.push(next);
+      }
 
-  and(other: ContiguousVersionRange): ContiguousVersionRange | null {
-    let flavor: Flavor | FlavorNot;
-    if (this.flavor.type == 'Flavor') {
-      if (other.flavor.type == 'Flavor') {
-        if (this.flavor.flavor == other.flavor.flavor) {
-          flavor = this.flavor;
+      // which point do we step over?
+      if (i == a.points.length) {
+        if (j == b.points.length) {
+          // just added the last segment, no point to jump over
+          return c;
         } else {
-          return null;
+          // i has reach the end, step over j
+          c.points.push(b.points[j]);
+          j += 1;
         }
       } else {
-        if (other.flavor.flavors.has(this.flavor.flavor)) {
-          return null;
+        if (j == b.points.length) {
+          // j has reached the end, step over i
+          c.points.push(a.points[i]);
+          i += 1;
         } else {
-          flavor = this.flavor;
+          // depends on which of the next two points is lower
+          switch (compareVersionRangePoints(a.points[i], b.points[j])) {
+            case -1:
+              // i is the lower point
+              c.points.push(a.points[i]);
+              i += 1;
+              break;
+            case 1:
+              // j is the lower point
+              c.points.push(b.points[j]);
+              j += 1;
+              break;
+            default:
+              // step over both
+              c.points.push(a.points[i]);
+              i += 1;
+              j += 1;
+              break;
+          }
         }
       }
-    } else {
-      if (other.flavor.type == 'Flavor') {
-        if (this.flavor.flavors.has(other.flavor.flavor)) {
-          return null;
-        } else {
-          flavor = other.flavor;
+    }
+  }
+
+  static full(flavor: string | null, value: boolean): VersionRangeTables {
+    return new DeepMap([
+      [{ type: 'Flavor', flavor } as FlavorAtom, new VersionRangeTable([], [value])],
+      //make sure the truth table is exhaustive
+      [{ type: 'FlavorNot', flavors: new Set([flavor]) } as FlavorAtom, new VersionRangeTable([], [false])],
+    ]);
+  }
+
+  static cmpPoint(flavor: string | null, point: VersionRangePoint, left: boolean, right: boolean): VersionRangeTables {
+    return new DeepMap([
+      [{ type: 'Flavor', flavor } as FlavorAtom, new VersionRangeTable([point], [left, right])],
+      // make sure the truth table is exhaustive
+      [{ type: 'FlavorNot', flavors: new Set([flavor]) } as FlavorAtom, new VersionRangeTable([], [false])],
+    ]);
+  }
+
+  static cmp(version: ExtendedVersion, side: -1 | 1, left: boolean, right: boolean): VersionRangeTables {
+    return VersionRangeTable.cmpPoint(version.flavor, { upstream: version.upstream, downstream: version.downstream, side }, left, right)
+  }
+
+  static not(tables: VersionRangeTables) {
+    if (tables === true || tables === false) {
+      return !tables;
+    }
+    for (let [f, t] of tables) {
+      for (let i = 0; i < t.values.length; i++) {
+        t.values[i] = !t.values[i];
+      }
+    }
+    return tables;
+  }
+
+  static and(a_tables: VersionRangeTables, b_tables: VersionRangeTables): VersionRangeTables {
+    if (a_tables === true) {
+      return b_tables;
+    }
+    if (b_tables === true) {
+      return a_tables;
+    }
+    if (a_tables === false || b_tables == false) {
+      return false;
+    }
+    let c_tables: VersionRangeTables = true;
+    for (let [f_a, a] of a_tables) {
+      for (let [f_b, b] of b_tables) {
+        let flavor = flavorAnd(f_a, f_b);
+        if (flavor == null) {
+          continue;
         }
-      } else {
-        flavor = { type: 'FlavorNot', flavors: this.flavor.flavors.union(other.flavor.flavors) };
+        let c = VersionRangeTable.zip(a, b, (a, b) => a && b);
+        if (c_tables === true) {
+          c_tables = new DeepMap();
+        }
+        let prev_c = c_tables.get(flavor);
+        if (prev_c == null) {
+          c_tables.set(flavor, c);
+        } else {
+          c_tables.set(flavor, VersionRangeTable.zip(c, prev_c, (a, b) => a || b));
+        }
       }
     }
-
-    let lo = lowestVersionRangeEnd(this.lo, other.lo);
-    let hi = highestVersionRangeEnd(this.hi, other.hi);
-    if (compareVersionRangeEnds(lo, hi) > 0) {
-      return null;
-    }
-
-    return new ContiguousVersionRange(flavor, lo, hi);
-  }
-}
-
-class VersionTable {
-  constructor(
-    protected vars: Array<Anchor>,
-    protected table: Uint8Array,
-  ) {}
-
-  not() {
-    for (let i = 0; i < this.table.length; i++) {
-      this.table[i] = +!this.table[i];
-    }
+    return c_tables;
   }
 
-  and(other: VersionTable) {
-    const a = this.table;
-    const b = other.table;
-    this.table = new Uint8Array(a.length * b.length);
-    this.vars = this.vars.concat(this.vars, other.vars);
-    for (let i = 0; i < a.length; i++) {
-      for (let j = 0; j < a.length; j++) {
-        let k = i + j * a.length;
-        this.table[k] = a[i] * b[i];
-      }
-    }
-  }
-
-  or(other: VersionTable) {
-    const a = this.table;
-    const b = other.table;
-    this.table = new Uint8Array(a.length * b.length);
-    this.vars = this.vars.concat(this.vars, other.vars);
-    for (let i = 0; i < a.length; i++) {
-      for (let j = 0; j < a.length; j++) {
-        let k = i + j * a.length;
-        this.table[k] = +!!(a[i] + b[i]);
-      }
-    }
-  }
-
-  miniterms(): VersionRange {
-    let summation: Array<VersionRange> = [];
-    for (let i = 0; i < this.table.length; i++) {
-      if (!this.table[i]) {
+  static or(...in_tables: VersionRangeTables[]): VersionRangeTables {
+    let out_tables: VersionRangeTables = false;
+    for (let tables of in_tables) {
+      if (tables === false) {
         continue;
       }
-      let miniterm: Array<VersionRange> = [];
-      for (let j = 0; j < this.vars.length; j++) {
-        if (i & (1 << j)) {
-          miniterm.push(new VersionRange(anchorNot(this.vars[j])));
+      if (tables === true) {
+        return true;
+      }
+      if (out_tables === false) {
+        out_tables = new DeepMap();
+      }
+      for (let [flavor, table] of tables) {
+        let prev = out_tables.get(flavor);
+        if (prev == null) {
+          out_tables.set(flavor, table);
         } else {
-          miniterm.push(new VersionRange(this.vars[j]));
+          out_tables.set(flavor, VersionRangeTable.zip(table, prev, (a, b) => a || b));
         }
       }
-      summation.push(VersionRange.and(...miniterm));
     }
-    return VersionRange.or(...summation);
+    return out_tables;
   }
 
-  static single(v: Anchor) {
-    return new VersionTable([v], new Uint8Array([0, 1]));
+  static collapse(tables: VersionRangeTables): boolean | null {
+    if (tables === true || tables === false) {
+      return tables;
+    } else {
+      let found = null;
+      for (let table of tables.values()) {
+        for (let x of table.values) {
+          if (found == null) {
+            found = x;
+          } else if (found != x) {
+            return null;
+          }
+        }
+      }
+      return found;
+    }
+  }
+
+  static miniterms(tables: VersionRangeTables): VersionRange {
+    let collapse = VersionRangeTable.collapse(tables);
+    if (tables === true || collapse === true) {
+      return VersionRange.any()
+    }
+    if (tables == false || collapse === false) {
+      return VersionRange.none()
+    }
+    let sum_terms: VersionRange[] = [];
+    for (let [flavor, table] of tables) {
+      let cmp_flavor = null;
+      if (flavor.type == 'Flavor') {
+        cmp_flavor = flavor.flavor;
+      }
+      for (let i = 0; i < table.values.length; i++) {
+        let term: VersionRange[] = [];
+        if (!table.values[i]) {
+          continue
+        }
+
+        if (flavor.type == 'FlavorNot') {
+          for (let not_flavor of flavor.flavors) {
+            term.push(VersionRange.flavor(not_flavor).not());
+          }
+        }
+
+        if (i > 0) {
+          let p = table.points[i - 1];
+          if (p.side < 0) {
+            term.push(VersionRange.anchor('>=', new ExtendedVersion(cmp_flavor, p.upstream, p.downstream)));
+          } else {
+            term.push(VersionRange.anchor('>', new ExtendedVersion(cmp_flavor, p.upstream, p.downstream)));
+          }
+        }
+
+        if (i < table.points.length) {
+          let p = table.points[i];
+          if (p.side < 0) {
+            term.push(VersionRange.anchor('<', new ExtendedVersion(cmp_flavor, p.upstream, p.downstream)));
+          } else {
+            term.push(VersionRange.anchor('<=', new ExtendedVersion(cmp_flavor, p.upstream, p.downstream)));
+          }
+        }
+
+        if (term.length == 0) {
+          term.push(VersionRange.flavor(cmp_flavor));
+        }
+
+        sum_terms.push(VersionRange.and(...term));
+      }
+    }
+    return VersionRange.or(...sum_terms);
   }
 }
 
 export class VersionRange {
-  constructor(public atom: Anchor | And | Or | Not | P.Any | P.None) {}
+  constructor(public atom: Anchor | And | Or | Not | P.Any | P.None | Flavor) {}
 
   toStringParens(parent: "And" | "Or" | "Not") {
     let needs = true;
@@ -270,6 +348,7 @@ export class VersionRange {
         needs = parent == "Not"
         break
       case "Not":
+      case "Flavor":
         needs = false;
         break
     }
@@ -291,6 +370,8 @@ export class VersionRange {
         return `${this.atom.left.toStringParens(this.atom.type)} || ${this.atom.right.toStringParens(this.atom.type)}`
       case "Not":
         return `!${this.atom.value.toStringParens(this.atom.type)}`
+      case "Flavor":
+        return this.atom.flavor == null ? `#` : `#${this.atom.flavor}`
       case "Any":
         return "*"
       case "None":
@@ -362,8 +443,20 @@ export class VersionRange {
     return new VersionRange({ type: "Anchor", operator, version })
   }
 
-  static anchorNot(operator: P.CmpOp, version: ExtendedVersion) {
-    return new VersionRange(anchorNot({ type: "Anchor", operator, version }))
+  static flavor(flavor: string | null) {
+    return new VersionRange({ type: "Flavor", flavor })
+  }
+
+  and(right: VersionRange) {
+    return new VersionRange({ type: "And", left: this, right })
+  }
+
+  or(right: VersionRange) {
+    return new VersionRange({ type: "Or", left: this, right })
+  }
+
+  not() {
+    return new VersionRange({ type: "Not", value: this })
   }
 
   static and(...xs: Array<VersionRange>) {
@@ -396,7 +489,7 @@ export class VersionRange {
       if (y.atom.type == 'None') {
         y = x;
       } else {
-        y = new VersionRange({ type: 'And', left: y, right: x});
+        y = new VersionRange({ type: 'Or', left: y, right: x});
       }
     }
     return y;
@@ -414,87 +507,64 @@ export class VersionRange {
     return version.satisfies(this)
   }
 
-  normalize(): VersionRange {
-    switch (this.atom.type) {
+  tables(): VersionRangeTables {
+    switch(this.atom.type) {
       case "Anchor":
         switch (this.atom.operator) {
+          case "=":
+            return VersionRangeTable.and(
+              VersionRangeTable.cmp(this.atom.version, -1, false, true),
+              VersionRangeTable.cmp(this.atom.version, 1, true, false),
+            )
+          case ">":
+            return VersionRangeTable.cmp(this.atom.version, 1, false, true)
+          case "<":
+            return VersionRangeTable.cmp(this.atom.version, -1, true, false)
+          case ">=":
+            return VersionRangeTable.cmp(this.atom.version, -1, false, true)
+          case "<=":
+            return VersionRangeTable.cmp(this.atom.version, 1, true, false)
           case "!=":
-            return VersionRange.anchor("<", this.atom.version).or(VersionRange.anchor(">", this.atom.version)).or(VersionRange.flavorNot(this.atom.version.flavor))
+            return VersionRangeTable.or(
+              VersionRangeTable.cmp(this.atom.version, -1, true, false),
+              VersionRangeTable.cmp(this.atom.version, 1, false, true),
+            )
           case "^":
-            return VersionRange.anchor(">=", this.atom.version).and(VersionRange.anchor("<", this.atom.version.incrementMajor()))
+            return VersionRangeTable.and(
+              VersionRangeTable.cmp(this.atom.version, -1, false, true),
+              VersionRangeTable.cmp(this.atom.version.incrementMajor(), -1, true, false),
+            )
           case "~":
-            return VersionRange.anchor(">=", this.atom.version).and(VersionRange.anchor("<", this.atom.version.incrementMinor()))
-          default:
-            return this
+            return VersionRangeTable.and(
+              VersionRangeTable.cmp(this.atom.version, -1, false, true),
+              VersionRangeTable.cmp(this.atom.version.incrementMinor(), -1, true, false),
+            )
         }
-      case "And":
-        return this.atom.left.normalize().and(this.atom.right.normalize())
-      case "Or":
-        return this.atom.left.normalize().or(this.atom.right.normalize())
-      case "Not":
-        return this.atom.value.normalize().not()
       case "Flavor":
-        return VersionRange.flavor(this.atom.flavor)
-      case "FlavorNot":
-        return VersionRange.flavorNot(this.atom.flavor)
+        return VersionRangeTable.full(this.atom.flavor, true)
+      case "Not":
+        return VersionRangeTable.not(this.atom.value.tables())
+      case "And":
+        return VersionRangeTable.and(this.atom.left.tables(), this.atom.right.tables())
+      case "Or":
+        return VersionRangeTable.or(this.atom.left.tables(), this.atom.right.tables())
       case "Any":
-        return this
+        return true
       case "None":
-        return VersionRange.none()
-
+        return false
     }
   }
 
-  private flattenUnsorted(): VersionRangeList {
-    let norm = this.normalize();
-    let left;
-    let right;
-    let here: ExtendedVersion;
-    let flavor: Flavor;
-    switch(norm.atom.type) {
-      case "Anchor":
-        here = norm.atom.version;
-        flavor = { type: "Flavor", flavor: here.flavor };
-        switch (norm.atom.operator) {
-          case "=":
-            return [new ContiguousVersionRange(flavor, here.inclusive(), here.inclusive())]
-          case ">":
-            return [new ContiguousVersionRange(flavor, here.exclusive(), "Inf")]
-          case "<":
-            return [new ContiguousVersionRange(flavor, "Inf", here.exclusive())]
-          case ">=":
-            return [new ContiguousVersionRange(flavor, here.inclusive(), "Inf")]
-          case "<=":
-            return [new ContiguousVersionRange(flavor, "Inf", here.inclusive())]
-          case "!=":
-          case "^":
-          case "~":
-            throw Error('not normalized')
-        }
-      case "Not":
-        throw Error('not normalized')
-      case "And":
-        left = norm.atom.left.flattenUnsorted();
-        right = norm.atom.right.flattenUnsorted();
-        if (left.length == 0 || right.length == 0) {
-          return []
-        }
-        if (left.length != 1 || right.length != 1) {
-          throw Error('not normalized')
-        }
-        return [left[0].and(right[0])]
-      case "Or":
-        left = norm.atom.left.flattenUnsorted();
-        right = norm.atom.right.flattenUnsorted();
-        return left.concat(right)
-      case "Flavor":
-      case "FlavorNot":
-        return [new ContiguousVersionRange(norm.atom, "Inf", "Inf")]
-      case "Any":
-        return [new ContiguousVersionRange("Any", "Inf", "Inf")]
-      case "None":
-        return []
-    }
+  satisfiable(): boolean {
+    return VersionRangeTable.collapse(this.tables()) !== false;
+  }
+
+  intersects(other: VersionRange): boolean {
+    return VersionRange.and(this, other).satisfiable();
+  }
+
+  normalize(): VersionRange {
+    return VersionRangeTable.miniterms(this.tables());
   }
 }
 
@@ -753,6 +823,8 @@ export class ExtendedVersion {
               return false
             }
         }
+      case "Flavor":
+        return versionRange.atom.flavor == this.flavor
       case "And":
         return (
           this.satisfies(versionRange.atom.left) &&
