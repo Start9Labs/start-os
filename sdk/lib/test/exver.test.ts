@@ -302,6 +302,24 @@ describe("ExVer", () => {
       expect(checker.toString()).toEqual('*')
     })
 
+    test(`"!=1 || !=2" normalizes`, () => {
+      const checker = VersionRange.parse("!=1 || !=2").normalize()
+
+      expect(checker.toString()).toEqual("#") // intuitively this should be "*", but the "null" flavor isn't a wildcard
+    })
+
+    test(`"!=#foo:1 || !=#foo:2" normalizes`, () => {
+      const checker = VersionRange.parse("!=#foo:1 || !=#foo:2").normalize()
+
+      expect(checker.toString()).toEqual("#foo")
+    })
+
+    test(`"!=#foo:1 || !=#bar:2" normalizes`, () => {
+      const checker = VersionRange.parse("!=#foo:1 || !=#bar:2").normalize()
+
+      expect(checker.toString()).toEqual("<#foo:1:0 || >#foo:1:0 || <#bar:2:0 || >#bar:2:0")
+    })
+
     test(`"!(=1 || =2)" normalizes`, () => {
       const checker = VersionRange.parse("!(=1 || =2)").normalize()
 
