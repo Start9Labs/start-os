@@ -290,102 +290,31 @@ describe("ExVer", () => {
       })
     }
 
-    test(`"=1 && =2" normalizes`, () => {
-      const checker = VersionRange.parse("=1 && =2").normalize()
+    {
+      function testNormalization(input: string, expected: string) {
+        test(`"${input}" normalizes to "${expected}"`, () => {
+          const checker = VersionRange.parse(input).normalize();
+          expect(checker.toString()).toEqual(expected);
+        });
+      }
 
-      expect(checker.toString()).toEqual('!')
-    })
-
-    test(`"!(=1 && =2)" normalizes`, () => {
-      const checker = VersionRange.parse("!(=1 && =2)").normalize()
-
-      expect(checker.toString()).toEqual('*')
-    })
-
-    test(`"!=1 || !=2" normalizes`, () => {
-      const checker = VersionRange.parse("!=1 || !=2").normalize()
-
-      expect(checker.toString()).toEqual("#") // intuitively this should be "*", but the "null" flavor isn't a wildcard
-    })
-
-    test(`"!=#foo:1 || !=#foo:2" normalizes`, () => {
-      const checker = VersionRange.parse("!=#foo:1 || !=#foo:2").normalize()
-
-      expect(checker.toString()).toEqual("#foo")
-    })
-
-    test(`"!=#foo:1 || !=#bar:2" normalizes`, () => {
-      const checker = VersionRange.parse("!=#foo:1 || !=#bar:2").normalize()
-
-      expect(checker.toString()).toEqual("<#foo:1:0 || >#foo:1:0 || <#bar:2:0 || >#bar:2:0")
-    })
-
-    test(`"!(=1 || =2)" normalizes`, () => {
-      const checker = VersionRange.parse("!(=1 || =2)").normalize()
-
-      expect(checker.toString()).toEqual('<1:0 || (>1:0 && <2:0) || >2:0 || !#')
-    })
-
-    test(`"=1 && (=2 || =3)" normalizes`, () => {
-      const checker = VersionRange.parse("=1 && (=2 || =3)").normalize()
-
-      expect(checker.toString()).toEqual('!')
-    })
-
-    test(`"=1 && (=1 || =2)" normalizes`, () => {
-      const checker = VersionRange.parse("=1 && (=1 || =2)").normalize()
-
-      expect(checker.toString()).toEqual('>=1:0 && <=1:0')
-    })
-
-    test(`"=#foo:1 && =#bar:1" normalizes`, () => {
-      const checker = VersionRange.parse("=#foo:1 && =#bar:1").normalize()
-
-      expect(checker.toString()).toEqual('!')
-    })
-
-    test(`"!(=#foo:1) && !(=#bar:1)" normalizes`, () => {
-      const checker = VersionRange.parse("!(=#foo:1) && !(=#bar:1)").normalize()
-
-      expect(checker.toString()).toEqual("<#foo:1:0 || >#foo:1:0 || <#bar:1:0 || >#bar:1:0 || (!#foo && !#bar)")
-    })
-
-    test(`"!(=#foo:1) && !(=#bar:1) && >2" normalizes`, () => {
-      const checker = VersionRange.parse("!(=#foo:1) && !(=#bar:1) && >2").normalize()
-
-      expect(checker.toString()).toEqual(">2:0")
-    })
-
-    test(`"~1.2.3" normalizes`, () => {
-      const checker = VersionRange.parse("~1.2.3").normalize()
-
-      expect(checker.toString()).toEqual(">=1.2.3:0 && <1.3.0:0")
-    })
-
-    test(`"^1.2.3" normalizes`, () => {
-      const checker = VersionRange.parse("^1.2.3").normalize()
-
-      expect(checker.toString()).toEqual(">=1.2.3:0 && <2.0.0:0")
-    })
-
-    test(`"^1.2.3 && >=1 && >=1.2 && >=1.3" normalizes`, () => {
-      const checker = VersionRange.parse("^1.2.3 && >=1 && >=1.2 && >=1.3").normalize()
-
-      expect(checker.toString()).toEqual(">=1.3:0 && <2.0.0:0")
-    })
-
-    test(`"(>=1.0 && <1.1) || (>=1.1 && <1.2) || (>=1.2 && <1.3)" normalizes`, () => {
-      const checker = VersionRange.parse("(>=1.0 && <1.1) || (>=1.1 && <1.2) || (>=1.2 && <1.3)").normalize()
-
-      expect(checker.toString()).toEqual(">=1.0:0 && <1.3:0")
-    })
-
-    test(`">1 || <2" normalizes`, () => {
-      const checker = VersionRange.parse(">1 || <2").normalize()
-
-      expect(checker.toString()).toEqual("#")
-    })
-
+      testNormalization("=1 && =2", "!");
+      testNormalization("!(=1 && =2)", "*");
+      testNormalization("!=1 || !=2", "#");
+      testNormalization("!=#foo:1 || !=#foo:2", "#foo");
+      testNormalization("!=#foo:1 || !=#bar:2", "<#foo:1:0 || >#foo:1:0 || <#bar:2:0 || >#bar:2:0");
+      testNormalization("!(=1 || =2)", "<1:0 || (>1:0 && <2:0) || >2:0 || !#");
+      testNormalization("=1 && (=2 || =3)", "!");
+      testNormalization("=1 && (=1 || =2)", ">=1:0 && <=1:0");
+      testNormalization("=#foo:1 && =#bar:1", "!");
+      testNormalization("!(=#foo:1) && !(=#bar:1)", "<#foo:1:0 || >#foo:1:0 || <#bar:1:0 || >#bar:1:0 || (!#foo && !#bar)");
+      testNormalization("!(=#foo:1) && !(=#bar:1) && >2", ">2:0");
+      testNormalization("~1.2.3", ">=1.2.3:0 && <1.3.0:0");
+      testNormalization("^1.2.3", ">=1.2.3:0 && <2.0.0:0");
+      testNormalization("^1.2.3 && >=1 && >=1.2 && >=1.3", ">=1.3:0 && <2.0.0:0");
+      testNormalization("(>=1.0 && <1.1) || (>=1.1 && <1.2) || (>=1.2 && <1.3)", ">=1.0:0 && <1.3:0");
+      testNormalization(">1 || <2", "#");
+    }
 
     {
       test(">1 && =1.2", () => {
