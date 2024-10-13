@@ -80,6 +80,18 @@ function compareVersionRangePoints(a: VersionRangePoint, b: VersionRangePoint): 
   }
 }
 
+function adjacentVersionRangePoints(a: VersionRangePoint, b: VersionRangePoint): boolean {
+  let up = a.upstream.compareForSort(b.upstream);
+  if (up != 0) {
+    return false;
+  }
+  let down = a.upstream.compareForSort(b.upstream);
+  if (down != 0) {
+    return false;
+  }
+  return a.side == -1 && b.side == 1;
+}
+
 function flavorAnd(a: FlavorAtom, b: FlavorAtom): FlavorAtom | null {
   if (a.type == 'Flavor') {
     if (b.type == 'Flavor') {
@@ -298,21 +310,28 @@ class VersionRangeTable {
           }
         }
 
+        let p = null;
+        let q = null;
         if (i > 0) {
-          let p = table.points[i - 1];
-          if (p.side < 0) {
-            term.push(VersionRange.anchor('>=', new ExtendedVersion(cmp_flavor, p.upstream, p.downstream)));
-          } else {
-            term.push(VersionRange.anchor('>', new ExtendedVersion(cmp_flavor, p.upstream, p.downstream)));
-          }
+          p = table.points[i - 1];
+        }
+        if (i < table.points.length) {
+          q = table.points[i];
         }
 
-        if (i < table.points.length) {
-          let p = table.points[i];
-          if (p.side < 0) {
-            term.push(VersionRange.anchor('<', new ExtendedVersion(cmp_flavor, p.upstream, p.downstream)));
-          } else {
-            term.push(VersionRange.anchor('<=', new ExtendedVersion(cmp_flavor, p.upstream, p.downstream)));
+        if (p != null && q != null && adjacentVersionRangePoints(p, q)) {
+            term.push(VersionRange.anchor('=', new ExtendedVersion(cmp_flavor, p.upstream, p.downstream)));
+        } else {
+          if (p != null && p.side < 0) {
+            term.push(VersionRange.anchor('>=', new ExtendedVersion(cmp_flavor, p.upstream, p.downstream)));
+          }
+          if (p != null && p.side >= 0)
+            term.push(VersionRange.anchor('>', new ExtendedVersion(cmp_flavor, p.upstream, p.downstream)));
+          }
+          if (q != null && q.side < 0) {
+            term.push(VersionRange.anchor('<', new ExtendedVersion(cmp_flavor, q.upstream, q.downstream)));
+          if (q != null && q.side >= 0) {
+            term.push(VersionRange.anchor('<=', new ExtendedVersion(cmp_flavor, q.upstream, q.downstream)));
           }
         }
 
@@ -399,6 +418,8 @@ export class VersionRange {
             ),
           ),
         })
+      case "Flavor":
+        return VersionRange.flavor(atom.flavor)
       default:
         return new VersionRange(atom)
     }
@@ -520,10 +541,10 @@ export class VersionRange {
           case "<=":
             return VersionRangeTable.cmp(this.atom.version, 1, true, false)
           case "!=":
-            return VersionRangeTable.or(
-              VersionRangeTable.cmp(this.atom.version, -1, true, false),
-              VersionRangeTable.cmp(this.atom.version, 1, false, true),
-            )
+            return VersionRangeTable.not(VersionRangeTable.and(
+              VersionRangeTable.cmp(this.atom.version, -1, false, true),
+              VersionRangeTable.cmp(this.atom.version, 1, true, false),
+            ))
           case "^":
             return VersionRangeTable.and(
               VersionRangeTable.cmp(this.atom.version, -1, false, true),
