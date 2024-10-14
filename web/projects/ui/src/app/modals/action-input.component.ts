@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common'
 import { Component, Inject } from '@angular/core'
 import { getErrorMessage } from '@start9labs/shared'
 import { T, utils } from '@start9labs/start-sdk'
-import { TuiButtonModule } from '@taiga-ui/experimental'
+import { TuiBadgeModule, TuiButtonModule } from '@taiga-ui/experimental'
 import {
   TuiDialogContext,
   TuiDialogService,
@@ -14,9 +14,17 @@ import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
 import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
 import { compare } from 'fast-json-patch'
 import { PatchDB } from 'patch-db-client'
-import { catchError, defer, EMPTY, endWith, firstValueFrom, map } from 'rxjs'
+import {
+  catchError,
+  defer,
+  EMPTY,
+  endWith,
+  first,
+  firstValueFrom,
+  map,
+} from 'rxjs'
 import { InvalidService } from 'src/app/components/form/invalid.service'
-import { ActionDepComponent } from 'src/app/modals/action-dep.component'
+import { ActionRequestInfoComponent } from 'src/app/modals/action-request-input.component'
 import { UiPipeModule } from 'src/app/pipes/ui/ui.module'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -29,19 +37,21 @@ export interface PackageActionData {
   readonly pkgInfo: {
     id: string
     title: string
+    mainStatus: T.MainStatus['main']
   }
   readonly actionInfo: {
     id: string
-    warning: string | null
+    metadata: T.ActionMetadata
   }
-  readonly dependentInfo?: {
-    title: string
+  readonly requestInfo?: {
+    dependentId?: string
     request: T.ActionRequest
   }
 }
 
 @Component({
   template: `
+    <tui-badge appearance="accent">{{ pkgInfo.title }}</tui-badge>
     <ng-container *ngIf="res$ | async as res; else loading">
       <tui-notification *ngIf="error" status="error">
         <div [innerHTML]="error"></div>
@@ -52,13 +62,11 @@ export interface PackageActionData {
           <div [innerHTML]="warning"></div>
         </tui-notification>
 
-        <action-dep
-          *ngIf="dependentInfo"
-          [pkgTitle]="pkgInfo.title"
-          [depTitle]="dependentInfo.title"
+        <action-request-info
+          *ngIf="requestInfo"
           [originalValue]="res.originalValue || {}"
           [operations]="res.operations || []"
-        ></action-dep>
+        ></action-request-info>
 
         <app-form
           tuiMode="onDark"
@@ -89,6 +97,9 @@ export interface PackageActionData {
         font-size: 1rem;
         margin-bottom: 1rem;
       }
+      tui-badge {
+        margin-bottom: 1rem;
+      }
     `,
   ],
   standalone: true,
@@ -98,17 +109,18 @@ export interface PackageActionData {
     TuiNotificationModule,
     TuiButtonModule,
     TuiModeModule,
-    ActionDepComponent,
+    ActionRequestInfoComponent,
     UiPipeModule,
     FormComponent,
+    TuiBadgeModule,
   ],
   providers: [InvalidService],
 })
 export class ActionInputModal {
   readonly actionId = this.context.data.actionInfo.id
-  readonly warning = this.context.data.actionInfo.warning
+  readonly warning = this.context.data.actionInfo.metadata.warning
   readonly pkgInfo = this.context.data.pkgInfo
-  readonly dependentInfo = this.context.data.dependentInfo
+  readonly requestInfo = this.context.data.requestInfo
 
   buttons: ActionButton<any>[] = [
     {
@@ -131,12 +143,12 @@ export class ActionInputModal {
       return {
         spec: res.spec,
         originalValue,
-        operations: this.dependentInfo?.request.input
+        operations: this.requestInfo?.request.input
           ? compare(
               originalValue,
               utils.deepMerge(
                 originalValue,
-                this.dependentInfo.request.input.value,
+                this.requestInfo.request.input.value,
               ) as object,
             )
           : null,

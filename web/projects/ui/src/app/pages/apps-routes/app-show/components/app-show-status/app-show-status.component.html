@@ -53,16 +53,6 @@
         </ion-button>
 
         <ion-button
-          *ngIf="needsConfig(manifest.id, pkg.requestedActions)"
-          class="action-button"
-          color="warning"
-          (click)="presentModalConfig()"
-        >
-          <ion-icon slot="start" name="construct-outline"></ion-icon>
-          Configure
-        </ion-button>
-
-        <ion-button
           *ngIf="pkgStatus && interfaces && (interfaces | hasUi) && hosts"
           class="action-button"
           color="primary"

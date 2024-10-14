@@ -65,7 +65,6 @@ const ICONS = [
   'options-outline',
   'pencil',
   'phone-portrait-outline',
-  'play-circle-outline',
   'play-outline',
   'power',
   'pricetag-outline',

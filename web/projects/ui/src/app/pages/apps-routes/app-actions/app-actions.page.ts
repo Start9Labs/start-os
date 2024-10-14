@@ -22,12 +22,10 @@ export class AppActionsPage {
     map(pkg => ({
       mainStatus: pkg.status.main,
       manifest: getManifest(pkg),
-      actions: Object.keys(pkg.actions)
-        .filter(id => !['config', 'properties'].includes(id))
-        .map(id => ({
-          id,
-          ...pkg.actions[id],
-        })),
+      actions: Object.keys(pkg.actions).map(id => ({
+        id,
+        ...pkg.actions[id],
+      })),
     })),
   )
 
@@ -43,10 +41,10 @@ export class AppActionsPage {
     manifest: T.Manifest,
     action: T.ActionMetadata & { id: string },
   ) {
-    this.actionService.present(
-      { id: manifest.id, title: manifest.title, mainStatus },
-      { id: action.id, metadata: action },
-    )
+    this.actionService.present({
+      pkgInfo: { id: manifest.id, title: manifest.title, mainStatus },
+      actionInfo: { id: action.id, metadata: action },
+    })
   }
 
   async rebuild(id: string) {

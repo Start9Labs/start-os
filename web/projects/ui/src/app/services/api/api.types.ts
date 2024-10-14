@@ -485,7 +485,7 @@ export type DependencyError =
   | DependencyErrorNotInstalled
   | DependencyErrorNotRunning
   | DependencyErrorIncorrectVersion
-  | DependencyErrorConfigUnsatisfied
+  | DependencyErrorActionRequired
   | DependencyErrorHealthChecksFailed
   | DependencyErrorTransitive
 
@@ -503,8 +503,8 @@ export interface DependencyErrorIncorrectVersion {
   received: string // version
 }
 
-export interface DependencyErrorConfigUnsatisfied {
-  type: 'configUnsatisfied'
+export interface DependencyErrorActionRequired {
+  type: 'actionRequired'
 }
 
 export interface DependencyErrorHealthChecksFailed {

@@ -782,11 +782,21 @@ export class MockApiService extends ApiService {
 
   async runAction(params: RR.ActionReq): Promise<RR.ActionRes> {
     await pauseFor(2000)
-    return params.actionId === 'properties'
-      ? Mock.ActionProperties
-      : params.actionId === 'config'
-      ? null
-      : Mock.ActionRes
+
+    if (params.actionId === 'properties') {
+      return Mock.ActionProperties
+    } else if (params.actionId === 'config') {
+      const patch: RemoveOperation[] = [
+        {
+          op: PatchOp.REMOVE,
+          path: `/packageData/${params.packageId}/requestedActions/${params.packageId}-config`,
+        },
+      ]
+      this.mockRevision(patch)
+      return null
+    } else {
+      return Mock.ActionRes
+    }
   }
 
   async restorePackages(
