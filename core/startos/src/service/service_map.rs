@@ -114,8 +114,6 @@ impl ServiceMap {
         let developer_key = s9pk.as_archive().signer();
         let mut service = self.get_mut(&id).await;
 
-        dbg!(&id);
-
         let op_name = if recovery_source.is_none() {
             if service.is_none() {
                 "Install"
@@ -144,7 +142,6 @@ impl ServiceMap {
 
         let mut reload_guard = ServiceRefReloadGuard::new(ctx.clone(), id.clone(), op_name);
 
-        dbg!("B");
         reload_guard
             .handle(ctx.db.mutate({
                 let manifest = manifest.clone();
@@ -196,9 +193,7 @@ impl ServiceMap {
             }))
             .await?;
 
-        dbg!("C");
         Ok(async move {
-            dbg!("D");
             let (installed_path, sync_progress_task) = reload_guard
                 .handle(async {
                     let download_path = ctx
@@ -244,10 +239,8 @@ impl ServiceMap {
                     Ok::<_, Error>((installed_path, sync_progress_task))
                 })
                 .await?;
-            dbg!("E");
             Ok(reload_guard
                 .handle_last(async move {
-                    dbg!("F");
                     finalization_progress.start();
                     let s9pk = S9pk::open(&installed_path, Some(&id)).await?;
                     let prev = if let Some(service) = service.take() {
@@ -271,7 +264,6 @@ impl ServiceMap {
                     } else {
                         None
                     };
-                    dbg!("G");
                     *service = Some(
                         Service::install(
                             ctx,
@@ -287,12 +279,10 @@ impl ServiceMap {
                         .into(),
                     );
                     drop(service);
-                    dbg!("H");
 
                     sync_progress_task.await.map_err(|_| {
                         Error::new(eyre!("progress sync task panicked"), ErrorKind::Unknown)
                     })??;
-                    dbg!("I");
                     Ok(())
                 })
                 .boxed())

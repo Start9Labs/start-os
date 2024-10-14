@@ -49,7 +49,6 @@ lazy_static::lazy_static! {
 
 #[tracing::instrument(skip_all)]
 async fn init_postgres(datadir: impl AsRef<Path>) -> Result<PgPool, Error> {
-    dbg!("Init Postgres");
     let db_dir = datadir.as_ref().join("main/postgresql");
     if tokio::process::Command::new("mountpoint")
         .arg("/var/lib/postgresql")
@@ -330,11 +329,8 @@ impl VersionT for Version {
     #[instrument(skip(self, ctx))]
     /// MUST be idempotent, and is run after *all* db migrations
     fn post_up(self, ctx: &RpcContext) -> impl Future<Output = Result<(), Error>> + Send + 'static {
-        dbg!("Postup start1?");
         let ctx = ctx.clone();
-        dbg!("Postup start?");
         async move {
-            dbg!("Post up starting");
             let path = Path::new("/embassy-data/package-data/archive/");
             if !path.is_dir() {
                 return Err(Error::new(
@@ -348,14 +344,14 @@ impl VersionT for Version {
             // Should be the name of the package
             let mut paths = tokio::fs::read_dir(path).await?;
             while let Some(path) = paths.next_entry().await? {
-                let path = dbg!(path.path());
+                let path = path.path();
                 if !path.is_dir() {
                     continue;
                 }
                 // Should be the version of the package
                 let mut paths = tokio::fs::read_dir(path).await?;
                 while let Some(path) = paths.next_entry().await? {
-                    let path = dbg!(path.path());
+                    let path = path.path();
                     if !path.is_dir() {
                         continue;
                     }
@@ -363,17 +359,15 @@ impl VersionT for Version {
                     // Should be s9pk
                     let mut paths = tokio::fs::read_dir(path).await?;
                     while let Some(path) = paths.next_entry().await? {
-                        let path = dbg!(path.path());
+                        let path = path.path();
                         if path.is_dir() {
                             continue;
                         }
 
-                        dbg!(path.to_string_lossy());
                         let package_s9pk = tokio::fs::File::open(path).await?;
                         let file = MultiCursorFile::open(&package_s9pk).await?;
 
                         let key = ctx.db.peek().await.into_private().into_compat_s9pk_key();
-                        dbg!("Should be installing the service now");
                         ctx.services
                             .install(
                                 ctx.clone(),
@@ -384,7 +378,6 @@ impl VersionT for Version {
                             .await?
                             .await?
                             .await?;
-                        dbg!("Should be done installing the service");
                     }
                 }
             }
