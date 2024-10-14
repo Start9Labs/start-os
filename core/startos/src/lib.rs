@@ -114,10 +114,9 @@ impl std::fmt::Display for ApiState {
 
 pub fn main_api<C: Context>() -> ParentHandler<C> {
     let api = ParentHandler::new()
-        .subcommand::<C, _>(
+        .subcommand(
             "git-info",
-            from_fn(version::git_info::<RpcContext>)
-                .with_about("Display the githash of StartOS CLI"),
+            from_fn(version::git_info).with_about("Display the githash of StartOS CLI"),
         )
         .subcommand(
             "echo",
@@ -425,9 +424,9 @@ pub fn package<C: Context>() -> ParentHandler<C> {
 
 pub fn diagnostic_api() -> ParentHandler<DiagnosticContext> {
     ParentHandler::new()
-        .subcommand::<DiagnosticContext, _>(
+        .subcommand(
             "git-info",
-            from_fn(version::git_info::<DiagnosticContext>)
+            from_fn(version::git_info)
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_about("Display the githash of StartOS CLI"),
         )
@@ -453,9 +452,9 @@ pub fn diagnostic_api() -> ParentHandler<DiagnosticContext> {
 
 pub fn init_api() -> ParentHandler<InitContext> {
     ParentHandler::new()
-        .subcommand::<InitContext, _>(
+        .subcommand(
             "git-info",
-            from_fn(version::git_info::<InitContext>)
+            from_fn(version::git_info)
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_about("Display the githash of StartOS CLI"),
         )
@@ -481,9 +480,9 @@ pub fn init_api() -> ParentHandler<InitContext> {
 
 pub fn setup_api() -> ParentHandler<SetupContext> {
     ParentHandler::new()
-        .subcommand::<SetupContext, _>(
+        .subcommand(
             "git-info",
-            from_fn(version::git_info::<SetupContext>)
+            from_fn(version::git_info)
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_about("Display the githash of StartOS CLI"),
         )
@@ -498,9 +497,9 @@ pub fn setup_api() -> ParentHandler<SetupContext> {
 
 pub fn install_api() -> ParentHandler<InstallContext> {
     ParentHandler::new()
-        .subcommand::<InstallContext, _>(
+        .subcommand(
             "git-info",
-            from_fn(version::git_info::<InstallContext>)
+            from_fn(version::git_info)
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_about("Display the githash of StartOS CLI"),
         )
