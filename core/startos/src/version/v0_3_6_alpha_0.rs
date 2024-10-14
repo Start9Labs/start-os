@@ -19,8 +19,6 @@ use torut::onion::TorSecretKeyV3;
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_5_2, VersionT};
-use crate::auth::Sessions;
-use crate::backup::target::cifs::CifsTargets;
 use crate::db::model::Database;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::util::unmount;
@@ -36,6 +34,11 @@ use crate::util::crypto::ed25519_expand_key;
 use crate::util::serde::{Pem, PemEncoding};
 use crate::util::Invoke;
 use crate::{account::AccountInfo, net::tor};
+use crate::{auth::Sessions, context::RpcContext};
+use crate::{
+    backup::target::cifs::CifsTargets,
+    s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile,
+};
 
 lazy_static::lazy_static! {
     static ref V0_3_6_alpha_0: exver::Version = exver::Version::new(
@@ -46,6 +49,7 @@ lazy_static::lazy_static! {
 
 #[tracing::instrument(skip_all)]
 async fn init_postgres(datadir: impl AsRef<Path>) -> Result<PgPool, Error> {
+    dbg!("Init Postgres");
     let db_dir = datadir.as_ref().join("main/postgresql");
     if tokio::process::Command::new("mountpoint")
         .arg("/var/lib/postgresql")
@@ -188,6 +192,7 @@ async fn init_postgres(datadir: impl AsRef<Path>) -> Result<PgPool, Error> {
         .run(&secret_store)
         .await
         .with_kind(crate::ErrorKind::Database)?;
+    dbg!("Init Postgres Done");
     Ok(secret_store)
 }
 
@@ -262,19 +267,20 @@ impl VersionT for Version {
             });
 
             server_info["postInitMigrationTodos"] = json!([]);
-            let tor_address: String = from_value(dbg!(db["server-info"]["tor-address"].clone()))?;
+            let tor_address: String = from_value(db["server-info"]["tor-address"].clone())?;
             // Maybe we do this like the Public::init does
             server_info["torAddress"] = json!(tor_address);
-            server_info["onionAddress"] = json!(dbg!(tor_address
+            server_info["onionAddress"] = json!(tor_address
                 .replace("https://", "")
                 .replace("http://", "")
-                .replace(".onion/", "")));
+                .replace(".onion/", ""));
             server_info["ipInfo"] = ip_info;
             server_info["statusInfo"] = status_info;
             server_info["wifi"] = wifi;
             server_info["unreadNotificationCount"] =
                 db["server-info"]["unread-notification-count"].clone();
             server_info["passwordHash"] = db["server-info"]["password-hash"].clone();
+
             server_info["pubkey"] = db["server-info"]["pubkey"].clone();
             server_info["caFingerprint"] = db["server-info"]["ca-fingerprint"].clone();
             server_info["ntpSynced"] = db["server-info"]["ntp-synced"].clone();
@@ -310,6 +316,7 @@ impl VersionT for Version {
             "private": private,
         });
 
+        dbg!("Should be done with the up");
         *db = next;
         Ok(())
     }
@@ -318,6 +325,71 @@ impl VersionT for Version {
             eyre!("downgrades prohibited"),
             ErrorKind::InvalidRequest,
         ))
+    }
+
+    #[instrument(skip(self, ctx))]
+    /// MUST be idempotent, and is run after *all* db migrations
+    fn post_up(self, ctx: &RpcContext) -> impl Future<Output = Result<(), Error>> + Send + 'static {
+        dbg!("Postup start1?");
+        let ctx = ctx.clone();
+        dbg!("Postup start?");
+        async move {
+            dbg!("Post up starting");
+            let path = Path::new("/embassy-data/package-data/archive/");
+            if !path.is_dir() {
+                return Err(Error::new(
+                    eyre!(
+                        "expected path ({}) to be a directory",
+                        path.to_string_lossy()
+                    ),
+                    ErrorKind::Filesystem,
+                ));
+            }
+            // Should be the name of the package
+            let mut paths = tokio::fs::read_dir(path).await?;
+            while let Some(path) = paths.next_entry().await? {
+                let path = dbg!(path.path());
+                if !path.is_dir() {
+                    continue;
+                }
+                // Should be the version of the package
+                let mut paths = tokio::fs::read_dir(path).await?;
+                while let Some(path) = paths.next_entry().await? {
+                    let path = dbg!(path.path());
+                    if !path.is_dir() {
+                        continue;
+                    }
+
+                    // Should be s9pk
+                    let mut paths = tokio::fs::read_dir(path).await?;
+                    while let Some(path) = paths.next_entry().await? {
+                        let path = dbg!(path.path());
+                        if path.is_dir() {
+                            continue;
+                        }
+
+                        dbg!(path.to_string_lossy());
+                        let package_s9pk = tokio::fs::File::open(path).await?;
+                        let file = MultiCursorFile::open(&package_s9pk).await?;
+
+                        let key = ctx.db.peek().await.into_private().into_compat_s9pk_key();
+                        dbg!("Should be installing the service now");
+                        ctx.services
+                            .install(
+                                ctx.clone(),
+                                || crate::s9pk::load(file.clone(), || Ok(key.de()?.0), None),
+                                None::<crate::util::Never>,
+                                None,
+                            )
+                            .await?
+                            .await?
+                            .await?;
+                        dbg!("Should be done installing the service");
+                    }
+                }
+            }
+            Ok(())
+        }
     }
 }
 
