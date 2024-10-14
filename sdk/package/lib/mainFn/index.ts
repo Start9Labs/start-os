@@ -17,7 +17,7 @@ export const DEFAULT_SIGTERM_TIMEOUT = 30_000
 export const setupMain = <Manifest extends T.Manifest, Store>(
   fn: (o: {
     effects: T.Effects
-    started(onTerm: () => PromiseLike<void>): PromiseLike<void>
+    started(onTerm: () => PromiseLike<void>): PromiseLike<null>
   }) => Promise<Daemons<Manifest, any>>,
 ): T.ExpectedExports.main => {
   return async (options) => {

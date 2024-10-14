@@ -4,6 +4,12 @@ import type { NamedHealthCheckResult } from "./NamedHealthCheckResult"
 import type { StartStop } from "./StartStop"
 
 export type MainStatus =
+  | {
+      main: "error"
+      onRebuild: StartStop
+      message: string
+      debug: string | null
+    }
   | { main: "stopped" }
   | { main: "restarting" }
   | { main: "restoring" }

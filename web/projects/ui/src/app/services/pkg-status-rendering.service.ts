@@ -80,6 +80,7 @@ export type PrimaryStatus =
   | 'stopped'
   | 'backingUp'
   | 'needsConfig'
+  | 'error'
 
 export type DependencyStatus = 'warning' | 'satisfied'
 
@@ -137,6 +138,11 @@ export const PrimaryRendering: Record<PrimaryStatus, StatusRendering> = {
   needsConfig: {
     display: 'Needs Config',
     color: 'warning',
+    showDots: false,
+  },
+  error: {
+    display: 'Service Launch Error',
+    color: 'danger',
     showDots: false,
   },
 }

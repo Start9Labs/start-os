@@ -173,7 +173,7 @@ export function makeEffects(context: EffectContext): Effects {
           T.Effects["subcontainer"]["createFs"]
         >
       },
-      destroyFs(options: { guid: string }): Promise<void> {
+      destroyFs(options: { guid: string }): Promise<null> {
         return rpcRound("subcontainer.destroy-fs", options) as ReturnType<
           T.Effects["subcontainer"]["destroyFs"]
         >
@@ -284,7 +284,7 @@ export function makeEffects(context: EffectContext): Effects {
       >
     },
 
-    setMainStatus(o: { status: "running" | "stopped" }): Promise<void> {
+    setMainStatus(o: { status: "running" | "stopped" }): Promise<null> {
       return rpcRound("set-main-status", o) as ReturnType<
         T.Effects["setHealth"]
       >

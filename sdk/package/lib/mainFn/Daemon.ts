@@ -37,8 +37,8 @@ export class Daemon {
           | undefined
         cwd?: string | undefined
         user?: string | undefined
-        onStdout?: (x: Buffer) => void
-        onStderr?: (x: Buffer) => void
+        onStdout?: (x: Buffer) => null
+        onStderr?: (x: Buffer) => null
         sigtermTimeout?: number
       },
     ) => {

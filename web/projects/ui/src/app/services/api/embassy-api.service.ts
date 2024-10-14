@@ -249,6 +249,10 @@ export abstract class ApiService {
 
   abstract stopPackage(params: RR.StopPackageReq): Promise<RR.StopPackageRes>
 
+  abstract rebuildPackage(
+    params: RR.RebuildPackageReq,
+  ): Promise<RR.RebuildPackageRes>
+
   abstract uninstallPackage(
     params: RR.UninstallPackageReq,
   ): Promise<RR.UninstallPackageRes>

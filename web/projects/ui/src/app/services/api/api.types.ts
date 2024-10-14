@@ -257,6 +257,9 @@ export module RR {
   export type StopPackageReq = { id: string } // package.stop
   export type StopPackageRes = null
 
+  export type RebuildPackageReq = { id: string } // package.rebuild
+  export type RebuildPackageRes = null
+
   export type UninstallPackageReq = { id: string } // package.uninstall
   export type UninstallPackageRes = null
 

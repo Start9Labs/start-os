@@ -292,6 +292,13 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
+        .subcommand(
+            "rebuild",
+            from_fn_async(service::rebuild)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_call_remote::<CliContext>(),
+        )
         .subcommand("logs", logs::package_logs())
         .subcommand(
             "logs",

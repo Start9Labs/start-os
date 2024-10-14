@@ -1,5 +1,6 @@
-import { Manifest, MerkleArchiveCommitment } from "../osBindings"
+import { DataUrl, Manifest, MerkleArchiveCommitment } from "../osBindings"
 import { ArrayBufferReader, MerkleArchive } from "./merkleArchive"
+import mime from "mime-types"
 
 const magicAndVersion = new Uint8Array([59, 59, 2])
 
@@ -47,5 +48,21 @@ export class S9pk {
     )
 
     return new S9pk(manifest, archive, source.length)
+  }
+  async icon(): Promise<DataUrl> {
+    const iconName = Object.keys(this.archive.contents.contents).find(
+      (name) =>
+        name.startsWith("icon.") &&
+        (mime.contentType(name) || null)?.startsWith("image/"),
+    )
+    if (!iconName) {
+      throw new Error("no icon found in archive")
+    }
+    return (
+      `data:${mime.contentType(iconName)};base64,` +
+      Buffer.from(
+        await this.archive.contents.getPath([iconName])!.verifiedFileContents(),
+      ).toString("base64")
+    )
   }
 }

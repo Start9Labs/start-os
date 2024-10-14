@@ -26,7 +26,7 @@ mod v0_3_6_alpha_4;
 mod v0_3_6_alpha_5;
 mod v0_3_6_alpha_6;
 
-pub type Current = v0_3_6_alpha_5::Version; // VERSION_BUMP
+pub type Current = v0_3_6_alpha_6::Version; // VERSION_BUMP
 
 impl Current {
     #[instrument(skip(self, db))]
