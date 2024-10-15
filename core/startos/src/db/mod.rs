@@ -35,7 +35,7 @@ pub fn db<C: Context>() -> ParentHandler<C> {
             "dump",
             from_fn_async(cli_dump)
                 .with_display_serializable()
-                .with_about("Return db tables and records"),
+                .with_about("Filter/query db to display tables and records"),
         )
         .subcommand("dump", from_fn_async(dump).no_cli())
         .subcommand(
@@ -312,7 +312,7 @@ pub fn put<C: Context>() -> ParentHandler<C> {
         "ui",
         from_fn_async(ui)
             .with_display_serializable()
-            .with_about("Store pointer and value in db")
+            .with_about("Add path and value to db")
             .with_call_remote::<CliContext>(),
     )
 }

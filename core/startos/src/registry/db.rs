@@ -22,7 +22,7 @@ pub fn db_api<C: Context>() -> ParentHandler<C> {
             "dump",
             from_fn_async(cli_dump)
                 .with_display_serializable()
-                .with_about("Return db tables and records"),
+                .with_about("Filter/query db to display tables and records"),
         )
         .subcommand(
             "dump",
@@ -30,7 +30,12 @@ pub fn db_api<C: Context>() -> ParentHandler<C> {
                 .with_metadata("admin", Value::Bool(true))
                 .no_cli(),
         )
-        .subcommand("apply", from_fn_async(cli_apply).no_display().with_about("Update a db record"))
+        .subcommand(
+            "apply",
+            from_fn_async(cli_apply)
+                .no_display()
+                .with_about("Update a db record"),
+        )
         .subcommand(
             "apply",
             from_fn_async(apply)

@@ -107,7 +107,7 @@ pub fn auth<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "session",
-            session::<C>().with_about("List or Kill StartOS sessions"),
+            session::<C>().with_about("List or kill StartOS sessions"),
         )
         .subcommand(
             "reset-password",

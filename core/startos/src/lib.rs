@@ -149,7 +149,7 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "auth",
             auth::auth::<C>().with_about(
-                "Commands related to Authentication such as logging in, resetting password, etc",
+                "Commands related to Authentication i.e. login, logout, reset-password",
             ),
         )
         .subcommand(
@@ -158,11 +158,13 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "ssh",
-            ssh::ssh::<C>().with_about("Add, delete, or list ssh keys"),
+            ssh::ssh::<C>()
+                .with_about("Commands for interacting with ssh keys i.e. add, delete, list"),
         )
         .subcommand(
             "wifi",
-            net::wifi::wifi::<C>().with_about("Commands related to wifi networks"),
+            net::wifi::wifi::<C>()
+                .with_about("Commands related to wifi networks i.e. add, connect, delete"),
         )
         .subcommand(
             "disk",
@@ -447,7 +449,7 @@ pub fn diagnostic_api() -> ParentHandler<DiagnosticContext> {
         .subcommand(
             "diagnostic",
             diagnostic::diagnostic::<DiagnosticContext>()
-                .with_about("Commands to display logs, restart the server, etc"),
+                .with_about("Diagnostic commands i.e. logs, restart, rebuild"),
         )
 }
 
