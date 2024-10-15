@@ -21,6 +21,7 @@ export class AppActionsPage {
     filter(pkg => pkg.stateInfo.state === 'installed'),
     map(pkg => ({
       mainStatus: pkg.status.main,
+      icon: pkg.icon,
       manifest: getManifest(pkg),
       actions: Object.keys(pkg.actions).map(id => ({
         id,
@@ -38,11 +39,12 @@ export class AppActionsPage {
 
   async handleAction(
     mainStatus: T.MainStatus['main'],
+    icon: string,
     manifest: T.Manifest,
     action: T.ActionMetadata & { id: string },
   ) {
     this.actionService.present({
-      pkgInfo: { id: manifest.id, title: manifest.title, mainStatus },
+      pkgInfo: { id: manifest.id, title: manifest.title, icon, mainStatus },
       actionInfo: { id: action.id, metadata: action },
     })
   }

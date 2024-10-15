@@ -38,7 +38,7 @@
       *ngFor="let action of pkg.actions"
       [action]="action"
       icon="play-outline"
-      (click)="handleAction(pkg.mainStatus, pkg.manifest, action)"
+      (click)="handleAction(pkg.mainStatus, pkg.icon, pkg.manifest, action)"
     ></app-actions-item>
   </ion-item-group>
 </ion-content>

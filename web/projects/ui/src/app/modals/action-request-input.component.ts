@@ -17,8 +17,6 @@ import { TuiNotificationModule } from '@taiga-ui/core'
       The following modifications were made:
       <ul>
         <li *ngFor="let d of diff" [innerHTML]="d"></li>
-        <li [innerHTML]="'Testing'"></li>
-        <li [innerHTML]="'Again'"></li>
       </ul>
     </tui-notification>
   `,
@@ -67,15 +65,15 @@ export class ActionRequestInfoComponent implements OnInit {
   private getMessage(operation: Operation): string {
     switch (operation.op) {
       case 'add':
-        return `Added ${this.getNewValue(operation.value)}`
+        return `added ${this.getNewValue(operation.value)}`
       case 'remove':
-        return `Removed ${this.getOldValue(operation.path)}`
+        return `removed ${this.getOldValue(operation.path)}`
       case 'replace':
-        return `Changed from ${this.getOldValue(
+        return `changed from ${this.getOldValue(
           operation.path,
         )} to ${this.getNewValue(operation.value)}`
       default:
-        return `Unknown operation`
+        return `Unknown operation` // unreachable
     }
   }
 

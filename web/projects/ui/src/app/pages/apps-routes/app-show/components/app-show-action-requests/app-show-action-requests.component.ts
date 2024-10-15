@@ -21,11 +21,17 @@ export class AppShowActionRequestsComponent {
   get actionRequests() {
     const critical: (T.ActionRequest & {
       name: string
-      serviceName: string | null
+      dependency: {
+        name: string
+        icon: string
+      } | null
     })[] = []
     const important: (T.ActionRequest & {
       name: string
-      serviceName: string | null
+      dependency: {
+        name: string
+        icon: string
+      } | null
     })[] = []
 
     Object.values(this.pkg.requestedActions)
@@ -38,10 +44,15 @@ export class AppShowActionRequestsComponent {
             ? this.pkg.actions[r.request.actionId].name
             : this.allPkgs[r.request.packageId]?.actions[r.request.actionId]
                 .name,
-          serviceName: self
+          dependency: self
             ? null
-            : this.pkg.currentDependencies[r.request.packageId]?.title ||
-              r.request.packageId,
+            : {
+                name:
+                  this.pkg.currentDependencies[r.request.packageId]?.title ||
+                  r.request.packageId,
+                icon:
+                  this.pkg.currentDependencies[r.request.packageId]?.icon || '',
+              },
         }
 
         if (r.request.severity === 'critical') {
@@ -68,6 +79,9 @@ export class AppShowActionRequestsComponent {
         mainStatus: self
           ? this.pkg.status.main
           : this.allPkgs[request.packageId].status.main,
+        icon: self
+          ? this.pkg.icon
+          : this.pkg.currentDependencies[request.packageId].icon || '',
       },
       actionInfo: {
         id: request.actionId,

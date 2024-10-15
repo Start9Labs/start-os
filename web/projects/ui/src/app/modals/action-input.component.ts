@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common'
 import { Component, Inject } from '@angular/core'
 import { getErrorMessage } from '@start9labs/shared'
 import { T, utils } from '@start9labs/start-sdk'
-import { TuiBadgeModule, TuiButtonModule } from '@taiga-ui/experimental'
+import { TuiButtonModule } from '@taiga-ui/experimental'
 import {
   TuiDialogContext,
   TuiDialogService,
@@ -14,15 +14,7 @@ import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
 import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
 import { compare } from 'fast-json-patch'
 import { PatchDB } from 'patch-db-client'
-import {
-  catchError,
-  defer,
-  EMPTY,
-  endWith,
-  first,
-  firstValueFrom,
-  map,
-} from 'rxjs'
+import { catchError, defer, EMPTY, endWith, firstValueFrom, map } from 'rxjs'
 import { InvalidService } from 'src/app/components/form/invalid.service'
 import { ActionRequestInfoComponent } from 'src/app/modals/action-request-input.component'
 import { UiPipeModule } from 'src/app/pipes/ui/ui.module'
@@ -37,6 +29,7 @@ export interface PackageActionData {
   readonly pkgInfo: {
     id: string
     title: string
+    icon: string
     mainStatus: T.MainStatus['main']
   }
   readonly actionInfo: {
@@ -51,7 +44,10 @@ export interface PackageActionData {
 
 @Component({
   template: `
-    <tui-badge appearance="accent">{{ pkgInfo.title }}</tui-badge>
+    <div class="service-title">
+      <img [src]="pkgInfo.icon" alt="" />
+      <h4>{{ pkgInfo.title }}</h4>
+    </div>
     <ng-container *ngIf="res$ | async as res; else loading">
       <tui-notification *ngIf="error" status="error">
         <div [innerHTML]="error"></div>
@@ -95,10 +91,19 @@ export interface PackageActionData {
     `
       tui-notification {
         font-size: 1rem;
-        margin-bottom: 1rem;
+        margin-bottom: 1.4rem;
       }
-      tui-badge {
+      .service-title {
+        display: inline-flex;
+        align-items: center;
         margin-bottom: 1rem;
+        img {
+          height: 20px;
+          margin-right: 4px;
+        }
+        h4 {
+          margin: 0;
+        }
       }
     `,
   ],
@@ -112,7 +117,6 @@ export interface PackageActionData {
     ActionRequestInfoComponent,
     UiPipeModule,
     FormComponent,
-    TuiBadgeModule,
   ],
   providers: [InvalidService],
 })
@@ -145,7 +149,7 @@ export class ActionInputModal {
         originalValue,
         operations: this.requestInfo?.request.input
           ? compare(
-              originalValue,
+              JSON.parse(JSON.stringify(originalValue)),
               utils.deepMerge(
                 originalValue,
                 this.requestInfo.request.input.value,

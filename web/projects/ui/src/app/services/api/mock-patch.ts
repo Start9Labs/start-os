@@ -410,6 +410,15 @@ export const mockPatchData: DataModel = {
             actionId: 'config',
             severity: 'critical',
             reason: 'LND likes BTC a certain way',
+            input: {
+              kind: 'partial',
+              value: {
+                color: '#ffffff',
+                rpcsettings: {
+                  rpcuser: 'lnd',
+                },
+              },
+            },
           },
         },
       },

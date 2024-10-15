@@ -33,7 +33,7 @@ export interface DependencyInfo {
   icon: string
   version: string
   errorText: string
-  actionText: string
+  actionText: string | null
   action: () => any
 }
 
@@ -144,12 +144,9 @@ export class AppShowPage {
       version: versionRange,
       title,
       icon,
-      errorText: errorText
-        ? `${errorText}. ${manifest.title} will not work as expected.`
-        : '',
-      actionText: fixText || 'View',
-      action:
-        fixAction || (() => this.navCtrl.navigateForward(`/services/${depId}`)),
+      errorText: errorText ? errorText : '',
+      actionText: fixText,
+      action: fixAction,
     }
   }
 
@@ -163,7 +160,7 @@ export class AppShowPage {
 
     let errorText: string | null = null
     let fixText: string | null = null
-    let fixAction: (() => any) | null = null
+    let fixAction: () => any = () => {}
 
     if (depError) {
       if (depError.type === 'notInstalled') {
@@ -179,10 +176,15 @@ export class AppShowPage {
       } else if (depError.type === 'notRunning') {
         errorText = 'Not running'
         fixText = 'Start'
+        fixAction = () => this.navCtrl.navigateForward(`/services/${depId}`)
       } else if (depError.type === 'healthChecksFailed') {
         errorText = 'Required health check not passing'
+        fixText = 'View'
+        fixAction = () => this.navCtrl.navigateForward(`/services/${depId}`)
       } else if (depError.type === 'transitive') {
         errorText = 'Dependency has a dependency issue'
+        fixText = 'View'
+        fixAction = () => this.navCtrl.navigateForward(`/services/${depId}`)
       }
     }
 
