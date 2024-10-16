@@ -25,18 +25,18 @@ import * as json from 'fast-json-patch'
 import { ActionService } from '../services/action.service'
 import { ActionButton, FormComponent } from '../components/form.component'
 
-export interface PackageActionData {
-  readonly pkgInfo: {
+export type PackageActionData = {
+  pkgInfo: {
     id: string
     title: string
     icon: string
     mainStatus: T.MainStatus['main']
   }
-  readonly actionInfo: {
+  actionInfo: {
     id: string
     metadata: T.ActionMetadata
   }
-  readonly requestInfo?: {
+  requestInfo?: {
     dependentId?: string
     request: T.ActionRequest
   }
@@ -151,7 +151,7 @@ export class ActionInputModal {
           ? compare(
               JSON.parse(JSON.stringify(originalValue)),
               utils.deepMerge(
-                originalValue,
+                JSON.parse(JSON.stringify(originalValue)),
                 this.requestInfo.request.input.value,
               ) as object,
             )
