@@ -17,7 +17,9 @@ pub fn lxc<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "create",
-            from_fn_async(create).with_call_remote::<CliContext>(),
+            from_fn_async(create)
+                .with_about("Create lxc container")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "list",
@@ -31,16 +33,23 @@ pub fn lxc<C: Context>() -> ParentHandler<C> {
                     table.printstd();
                     Ok(())
                 })
+                .with_about("List lxc containers")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove",
             from_fn_async(remove)
                 .no_display()
+                .with_about("Remove lxc container")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand("connect", from_fn_async(connect_rpc).no_cli())
-        .subcommand("connect", from_fn_async(connect_rpc_cli).no_display())
+        .subcommand(
+            "connect",
+            from_fn_async(connect_rpc_cli)
+                .no_display()
+                .with_about("Connect to a lxc container"),
+        )
 }
 
 pub async fn create(ctx: RpcContext) -> Result<ContainerId, Error> {

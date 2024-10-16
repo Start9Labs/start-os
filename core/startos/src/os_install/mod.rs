@@ -31,17 +31,19 @@ mod mbr;
 
 pub fn install<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("disk", disk::<C>())
+        .subcommand("disk", disk::<C>().with_about("Command to list disk info"))
         .subcommand(
             "execute",
             from_fn_async(execute::<InstallContext>)
                 .no_display()
+                .with_about("Install StartOS over existing version")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "reboot",
             from_fn_async(reboot)
                 .no_display()
+                .with_about("Restart the server")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -51,6 +53,7 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
         "list",
         from_fn_async(list)
             .no_display()
+            .with_about("List disk info")
             .with_call_remote::<CliContext>(),
     )
 }
@@ -146,23 +149,6 @@ pub async fn execute<C: Context>(
     let eth_iface = find_eth_iface().await?;
 
     overwrite |= disk.guid.is_none() && disk.partitions.iter().all(|p| p.guid.is_none());
-
-    if !overwrite
-        && (disk
-            .guid
-            .as_ref()
-            .map_or(false, |g| g.starts_with("EMBASSY_"))
-            || disk
-                .partitions
-                .iter()
-                .flat_map(|p| p.guid.as_ref())
-                .any(|g| g.starts_with("EMBASSY_")))
-    {
-        return Err(Error::new(
-            eyre!("installing over versions before 0.3.6 is unsupported"),
-            ErrorKind::InvalidRequest,
-        ));
-    }
 
     let part_info = partition(&mut disk, overwrite).await?;
 

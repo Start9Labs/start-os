@@ -20,14 +20,12 @@ import {
 import { combineLatest } from 'rxjs'
 import {
   getManifest,
-  getPackage,
   isInstalled,
   isInstalling,
   isRestoring,
   isUpdating,
 } from 'src/app/util/get-package-data'
 import { T } from '@start9labs/start-sdk'
-import { ActionService } from 'src/app/services/action.service'
 
 export interface DependencyInfo {
   id: string
@@ -35,7 +33,7 @@ export interface DependencyInfo {
   icon: string
   version: string
   errorText: string
-  actionText: string
+  actionText: string | null
   action: () => any
 }
 
@@ -60,6 +58,7 @@ export class AppShowPage {
       const pkg = allPkgs[this.pkgId]
       const manifest = getManifest(pkg)
       return {
+        allPkgs,
         pkg,
         manifest,
         dependencies: this.getDepInfo(pkg, manifest, allPkgs, depErrors),
@@ -75,7 +74,6 @@ export class AppShowPage {
     private readonly navCtrl: NavController,
     private readonly patch: PatchDB<DataModel>,
     private readonly depErrorService: DepErrorService,
-    private readonly actionService: ActionService,
   ) {}
 
   showProgress(
@@ -146,12 +144,9 @@ export class AppShowPage {
       version: versionRange,
       title,
       icon,
-      errorText: errorText
-        ? `${errorText}. ${manifest.title} will not work as expected.`
-        : '',
-      actionText: fixText || 'View',
-      action:
-        fixAction || (() => this.navCtrl.navigateForward(`/services/${depId}`)),
+      errorText: errorText ? errorText : '',
+      actionText: fixText,
+      action: fixAction,
     }
   }
 
@@ -165,28 +160,31 @@ export class AppShowPage {
 
     let errorText: string | null = null
     let fixText: string | null = null
-    let fixAction: (() => any) | null = null
+    let fixAction: () => any = () => {}
 
     if (depError) {
       if (depError.type === 'notInstalled') {
         errorText = 'Not installed'
         fixText = 'Install'
-        fixAction = () => this.fixDep(pkg, manifest, 'install', depId)
+        fixAction = () => this.installDep(pkg, manifest, depId)
       } else if (depError.type === 'incorrectVersion') {
         errorText = 'Incorrect version'
         fixText = 'Update'
-        fixAction = () => this.fixDep(pkg, manifest, 'update', depId)
-      } else if (depError.type === 'configUnsatisfied') {
-        errorText = 'Config not satisfied'
-        fixText = 'Auto config'
-        fixAction = () => this.fixDep(pkg, manifest, 'configure', depId)
+        fixAction = () => this.installDep(pkg, manifest, depId)
+      } else if (depError.type === 'actionRequired') {
+        errorText = 'Action Required (see above)'
       } else if (depError.type === 'notRunning') {
         errorText = 'Not running'
         fixText = 'Start'
+        fixAction = () => this.navCtrl.navigateForward(`/services/${depId}`)
       } else if (depError.type === 'healthChecksFailed') {
         errorText = 'Required health check not passing'
+        fixText = 'View'
+        fixAction = () => this.navCtrl.navigateForward(`/services/${depId}`)
       } else if (depError.type === 'transitive') {
         errorText = 'Dependency has a dependency issue'
+        fixText = 'View'
+        fixAction = () => this.navCtrl.navigateForward(`/services/${depId}`)
       }
     }
 
@@ -194,41 +192,6 @@ export class AppShowPage {
       errorText,
       fixText,
       fixAction,
-    }
-  }
-
-  private async fixDep(
-    pkg: PackageDataEntry,
-    pkgManifest: T.Manifest,
-    action: 'install' | 'update' | 'configure',
-    depId: string,
-  ) {
-    switch (action) {
-      case 'install':
-      case 'update':
-        return this.installDep(pkg, pkgManifest, depId)
-      case 'configure':
-        const depPkg = await getPackage(this.patch, depId)
-        if (!depPkg) return
-
-        const depManifest = getManifest(depPkg)
-        return this.actionService.present(
-          {
-            id: depId,
-            title: depManifest.title,
-            mainStatus: depPkg.status.main,
-          },
-          { id: 'config', metadata: pkg.actions['config'] },
-          {
-            title: pkgManifest.title,
-            request: Object.values(pkg.requestedActions).find(
-              r =>
-                r.active &&
-                r.request.packageId === depId &&
-                r.request.actionId === 'config',
-            )!.request,
-          },
-        )
     }
   }
 

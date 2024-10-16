@@ -1,11 +1,11 @@
 import * as T from "../../../base/lib/types"
 
-export type UninstallFn<Manifest extends T.Manifest, Store> = (opts: {
+export type UninstallFn<Manifest extends T.SDKManifest, Store> = (opts: {
   effects: T.Effects
-}) => Promise<null>
-export class Uninstall<Manifest extends T.Manifest, Store> {
+}) => Promise<null | void | undefined>
+export class Uninstall<Manifest extends T.SDKManifest, Store> {
   private constructor(readonly fn: UninstallFn<Manifest, Store>) {}
-  static of<Manifest extends T.Manifest, Store>(
+  static of<Manifest extends T.SDKManifest, Store>(
     fn: UninstallFn<Manifest, Store>,
   ) {
     return new Uninstall(fn)
@@ -22,7 +22,7 @@ export class Uninstall<Manifest extends T.Manifest, Store> {
   }
 }
 
-export function setupUninstall<Manifest extends T.Manifest, Store>(
+export function setupUninstall<Manifest extends T.SDKManifest, Store>(
   fn: UninstallFn<Manifest, Store>,
 ) {
   return Uninstall.of(fn)

@@ -16,7 +16,7 @@ import { compare } from 'fast-json-patch'
 import { PatchDB } from 'patch-db-client'
 import { catchError, defer, EMPTY, endWith, firstValueFrom, map } from 'rxjs'
 import { InvalidService } from 'src/app/components/form/invalid.service'
-import { ActionDepComponent } from 'src/app/modals/action-dep.component'
+import { ActionRequestInfoComponent } from 'src/app/modals/action-request-input.component'
 import { UiPipeModule } from 'src/app/pipes/ui/ui.module'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -29,19 +29,25 @@ export interface PackageActionData {
   readonly pkgInfo: {
     id: string
     title: string
+    icon: string
+    mainStatus: T.MainStatus['main']
   }
   readonly actionInfo: {
     id: string
-    warning: string | null
+    metadata: T.ActionMetadata
   }
-  readonly dependentInfo?: {
-    title: string
+  readonly requestInfo?: {
+    dependentId?: string
     request: T.ActionRequest
   }
 }
 
 @Component({
   template: `
+    <div class="service-title">
+      <img [src]="pkgInfo.icon" alt="" />
+      <h4>{{ pkgInfo.title }}</h4>
+    </div>
     <ng-container *ngIf="res$ | async as res; else loading">
       <tui-notification *ngIf="error" status="error">
         <div [innerHTML]="error"></div>
@@ -52,13 +58,11 @@ export interface PackageActionData {
           <div [innerHTML]="warning"></div>
         </tui-notification>
 
-        <action-dep
-          *ngIf="dependentInfo"
-          [pkgTitle]="pkgInfo.title"
-          [depTitle]="dependentInfo.title"
+        <action-request-info
+          *ngIf="requestInfo"
           [originalValue]="res.originalValue || {}"
           [operations]="res.operations || []"
-        ></action-dep>
+        ></action-request-info>
 
         <app-form
           tuiMode="onDark"
@@ -87,7 +91,19 @@ export interface PackageActionData {
     `
       tui-notification {
         font-size: 1rem;
+        margin-bottom: 1.4rem;
+      }
+      .service-title {
+        display: inline-flex;
+        align-items: center;
         margin-bottom: 1rem;
+        img {
+          height: 20px;
+          margin-right: 4px;
+        }
+        h4 {
+          margin: 0;
+        }
       }
     `,
   ],
@@ -98,7 +114,7 @@ export interface PackageActionData {
     TuiNotificationModule,
     TuiButtonModule,
     TuiModeModule,
-    ActionDepComponent,
+    ActionRequestInfoComponent,
     UiPipeModule,
     FormComponent,
   ],
@@ -106,9 +122,9 @@ export interface PackageActionData {
 })
 export class ActionInputModal {
   readonly actionId = this.context.data.actionInfo.id
-  readonly warning = this.context.data.actionInfo.warning
+  readonly warning = this.context.data.actionInfo.metadata.warning
   readonly pkgInfo = this.context.data.pkgInfo
-  readonly dependentInfo = this.context.data.dependentInfo
+  readonly requestInfo = this.context.data.requestInfo
 
   buttons: ActionButton<any>[] = [
     {
@@ -131,12 +147,12 @@ export class ActionInputModal {
       return {
         spec: res.spec,
         originalValue,
-        operations: this.dependentInfo?.request.input
+        operations: this.requestInfo?.request.input
           ? compare(
-              originalValue,
+              JSON.parse(JSON.stringify(originalValue)),
               utils.deepMerge(
                 originalValue,
-                this.dependentInfo.request.input.value,
+                this.requestInfo.request.input.value,
               ) as object,
             )
           : null,

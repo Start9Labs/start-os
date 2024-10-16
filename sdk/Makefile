@@ -67,9 +67,8 @@ base/node_modules: base/package.json
 
 node_modules: package/node_modules base/node_modules
 
-publish: bundle package/package.json README.md LICENSE
-	cd dist
-	npm publish --access=public
+publish: bundle package/package.json package/README.md package/LICENSE
+	cd dist && npm publish --access=public
 
 link: bundle
 	cd dist && npm link

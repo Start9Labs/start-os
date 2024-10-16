@@ -86,19 +86,21 @@ export class FileHelper<A> {
   /**
    * Accepts structured data and overwrites the existing file on disk.
    */
-  async write(data: A) {
+  async write(data: A): Promise<null> {
     const parent = previousPath.exec(this.path)
     if (parent) {
       await fs.mkdir(parent[1], { recursive: true })
     }
 
     await fs.writeFile(this.path, this.writeData(data))
+
+    return null
   }
 
   /**
    * Reads the file from disk and converts it to structured data.
    */
-  async read() {
+  private async readOnce(): Promise<A | null> {
     if (!(await exists(this.path))) {
       return null
     }
@@ -107,14 +109,14 @@ export class FileHelper<A> {
     )
   }
 
-  async const(effects: T.Effects) {
-    const watch = this.watch()
+  private async readConst(effects: T.Effects): Promise<A | null> {
+    const watch = this.readWatch()
     const res = await watch.next()
     watch.next().then(effects.constRetry)
     return res.value
   }
 
-  async *watch() {
+  private async *readWatch() {
     let res
     while (true) {
       if (await exists(this.path)) {
@@ -123,12 +125,12 @@ export class FileHelper<A> {
           persistent: false,
           signal: ctrl.signal,
         })
-        res = await this.read()
+        res = await this.readOnce()
         const listen = Promise.resolve()
           .then(async () => {
             for await (const _ of watch) {
               ctrl.abort("finished")
-              return
+              return null
             }
           })
           .catch((e) => console.error(asError(e)))
@@ -139,13 +141,22 @@ export class FileHelper<A> {
         await onCreated(this.path).catch((e) => console.error(asError(e)))
       }
     }
+    return null
+  }
+
+  get read() {
+    return {
+      once: () => this.readOnce(),
+      const: (effects: T.Effects) => this.readConst(effects),
+      watch: () => this.readWatch(),
+    }
   }
 
   /**
    * Accepts structured data and performs a merge with the existing file on disk.
    */
   async merge(data: A) {
-    const fileData = (await this.read().catch(() => ({}))) || {}
+    const fileData = (await this.readOnce().catch(() => ({}))) || {}
     const mergeData = merge({}, fileData, data)
     return await this.write(mergeData)
   }

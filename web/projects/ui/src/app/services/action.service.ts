@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core'
-import { AlertController, ModalController } from '@ionic/angular'
+import { AlertController } from '@ionic/angular'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { TuiDialogService } from '@taiga-ui/core'
+import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
 import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
@@ -30,28 +31,16 @@ const allowedStatuses = {
 export class ActionService {
   constructor(
     private readonly api: ApiService,
-    private readonly modalCtrl: ModalController,
+    private readonly dialogs: TuiDialogService,
     private readonly alertCtrl: AlertController,
     private readonly errorService: ErrorService,
     private readonly loader: LoadingService,
     private readonly formDialog: FormDialogService,
   ) {}
 
-  async present(
-    pkgInfo: {
-      id: string
-      title: string
-      mainStatus: T.MainStatus['main']
-    },
-    actionInfo: {
-      id: string
-      metadata: T.ActionMetadata
-    },
-    dependentInfo?: {
-      title: string
-      request: T.ActionRequest
-    },
-  ) {
+  async present(data: PackageActionData) {
+    const { pkgInfo, actionInfo } = data
+
     if (
       allowedStatuses[actionInfo.metadata.allowedStatuses].has(
         pkgInfo.mainStatus,
@@ -60,36 +49,32 @@ export class ActionService {
       if (actionInfo.metadata.hasInput) {
         this.formDialog.open<PackageActionData>(ActionInputModal, {
           label: actionInfo.metadata.name,
-          data: {
-            pkgInfo,
-            actionInfo: {
-              id: actionInfo.id,
-              warning: actionInfo.metadata.warning,
-            },
-            dependentInfo,
-          },
+          data,
         })
       } else {
-        const alert = await this.alertCtrl.create({
-          header: 'Confirm',
-          message: `Are you sure you want to execute action "${
-            actionInfo.metadata.name
-          }"? ${actionInfo.metadata.warning || ''}`,
-          buttons: [
-            {
-              text: 'Cancel',
-              role: 'cancel',
-            },
-            {
-              text: 'Execute',
-              handler: () => {
-                this.execute(pkgInfo.id, actionInfo.id)
+        if (actionInfo.metadata.warning) {
+          const alert = await this.alertCtrl.create({
+            header: 'Warning',
+            message: actionInfo.metadata.warning,
+            buttons: [
+              {
+                text: 'Cancel',
+                role: 'cancel',
               },
-              cssClass: 'enter-click',
-            },
-          ],
-        })
-        await alert.present()
+              {
+                text: 'Run',
+                handler: () => {
+                  this.execute(pkgInfo.id, actionInfo.id)
+                },
+                cssClass: 'enter-click',
+              },
+            ],
+            cssClass: 'alert-warning-message',
+          })
+          await alert.present()
+        } else {
+          this.execute(pkgInfo.id, actionInfo.id)
+        }
       }
     } else {
       const statuses = [...allowedStatuses[actionInfo.metadata.allowedStatuses]]
@@ -134,14 +119,12 @@ export class ActionService {
       })
 
       if (res) {
-        const successModal = await this.modalCtrl.create({
-          component: ActionSuccessPage,
-          componentProps: {
-            actionRes: res,
-          },
-        })
-
-        setTimeout(() => successModal.present(), 500)
+        this.dialogs
+          .open(new PolymorpheusComponent(ActionSuccessPage), {
+            label: res.name,
+            data: res,
+          })
+          .subscribe()
       }
       return true // needed to dismiss original modal/alert
     } catch (e: any) {

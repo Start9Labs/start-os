@@ -2,7 +2,7 @@ import { Backups } from "./Backups"
 import * as T from "../../../base/lib/types"
 import { _ } from "../util"
 
-export type SetupBackupsParams<M extends T.Manifest> =
+export type SetupBackupsParams<M extends T.SDKManifest> =
   | M["volumes"][number][]
   | ((_: { effects: T.Effects }) => Promise<Backups<M>>)
 
@@ -11,7 +11,7 @@ type SetupBackupsRes = {
   restoreBackup: T.ExpectedExports.restoreBackup
 }
 
-export function setupBackups<M extends T.Manifest>(
+export function setupBackups<M extends T.SDKManifest>(
   options: SetupBackupsParams<M>,
 ) {
   let backupsFactory: (_: { effects: T.Effects }) => Promise<Backups<M>>

@@ -1,0 +1,45 @@
+<ng-container *ngIf="actionRequests.critical.length">
+  <ion-item-divider>Required Actions</ion-item-divider>
+  <ion-item
+    *ngFor="let request of actionRequests.critical"
+    button
+    (click)="handleAction(request)"
+  >
+    <ion-icon slot="start" name="warning-outline" color="warning"></ion-icon>
+    <ion-label>
+      <h2 class="highlighted">{{ request.name }}</h2>
+      <p *ngIf="request.dependency" class="dependency">
+        <span class="light">Service:</span>
+        <img [src]="request.dependency.icon" alt="" />
+        {{ request.dependency.name }}
+      </p>
+      <p>
+        <span class="light">Reason:</span>
+        {{ request.reason || 'no reason provided' }}
+      </p>
+    </ion-label>
+  </ion-item>
+</ng-container>
+
+<ng-container *ngIf="actionRequests.important.length">
+  <ion-item-divider>Requested Actions</ion-item-divider>
+  <ion-item
+    *ngFor="let request of actionRequests.important"
+    button
+    (click)="handleAction(request)"
+  >
+    <ion-icon slot="start" name="play-outline" color="warning"></ion-icon>
+    <ion-label>
+      <h2 class="highlighted">{{ request.name }}</h2>
+      <p *ngIf="request.dependency" class="dependency">
+        <span class="light">Service:</span>
+        <img [src]="request.dependency.icon" alt="" />
+        {{ request.dependency.name }}
+      </p>
+      <p>
+        <span class="light">Reason:</span>
+        {{ request.reason || 'no reason provided' }}
+      </p>
+    </ion-label>
+  </ion-item>
+</ng-container>

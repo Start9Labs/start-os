@@ -37,8 +37,8 @@
     <app-actions-item
       *ngFor="let action of pkg.actions"
       [action]="action"
-      icon="play-circle-outline"
-      (click)="handleAction(pkg.mainStatus, pkg.manifest, action)"
+      icon="play-outline"
+      (click)="handleAction(pkg.mainStatus, pkg.icon, pkg.manifest, action)"
     ></app-actions-item>
   </ion-item-group>
 </ion-content>

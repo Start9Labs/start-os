@@ -1683,12 +1683,31 @@ export module Mock {
     },
     actions: {
       config: {
-        name: 'Bitcoin Config',
+        name: 'Set Config',
         description: 'edit bitcoin.conf',
         warning: null,
         visibility: 'enabled',
         allowedStatuses: 'any',
         hasInput: true,
+        group: null,
+      },
+      properties: {
+        name: 'View Properties',
+        description: 'view important information about Bitcoin',
+        warning: null,
+        visibility: 'enabled',
+        allowedStatuses: 'any',
+        hasInput: false,
+        group: null,
+      },
+      test: {
+        name: 'Do Another Thing',
+        description:
+          'An example of an action that shows a warning and takes no input',
+        warning: 'careful running this action',
+        visibility: 'enabled',
+        allowedStatuses: 'only-running',
+        hasInput: false,
         group: null,
       },
     },
@@ -1850,7 +1869,27 @@ export module Mock {
     storeExposedDependents: [],
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
-    requestedActions: {},
+    requestedActions: {
+      'bitcoind-config': {
+        request: {
+          packageId: 'bitcoind',
+          actionId: 'config',
+          severity: 'critical',
+          reason:
+            'You must run Config before starting Bitcoin for the first time',
+        },
+        active: true,
+      },
+      'bitcoind-properties': {
+        request: {
+          packageId: 'bitcoind',
+          actionId: 'properties',
+          severity: 'important',
+          reason: 'Check out all the info about your Bitcoin node',
+        },
+        active: true,
+      },
+    },
   }
 
   export const bitcoinProxy: PackageDataEntry<InstalledState> = {
@@ -1983,7 +2022,26 @@ export module Mock {
     storeExposedDependents: [],
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
-    requestedActions: {},
+    requestedActions: {
+      'bitcoind-config': {
+        active: true,
+        request: {
+          packageId: 'bitcoind',
+          actionId: 'config',
+          severity: 'critical',
+          reason: 'LND likes BTC a certain way',
+          input: {
+            kind: 'partial',
+            value: {
+              color: '#ffffff',
+              rpcsettings: {
+                rpcuser: 'lnd',
+              },
+            },
+          },
+        },
+      },
+    },
   }
 
   export const LocalPkgs: { [key: string]: PackageDataEntry<InstalledState> } =

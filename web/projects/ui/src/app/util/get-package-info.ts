@@ -20,7 +20,7 @@ export function getPackageInfo(
     primaryRendering,
     primaryStatus: statuses.primary,
     error: statuses.health === 'failure' || statuses.dependency === 'warning',
-    warning: statuses.primary === 'needsConfig',
+    warning: statuses.primary === 'actionRequired',
     transitioning:
       primaryRendering.showDots ||
       statuses.health === 'loading' ||

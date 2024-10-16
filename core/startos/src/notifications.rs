@@ -26,24 +26,28 @@ pub fn notification<C: Context>() -> ParentHandler<C> {
             "list",
             from_fn_async(list)
                 .with_display_serializable()
+                .with_about("List notifications")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "delete",
             from_fn_async(delete)
                 .no_display()
+                .with_about("Delete notification for a given id")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "delete-before",
             from_fn_async(delete_before)
                 .no_display()
+                .with_about("Delete notifications preceding a given id")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "create",
             from_fn_async(create)
                 .no_display()
+                .with_about("Persist a newly created notification")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -252,13 +256,13 @@ impl Map for Notifications {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Notification {
-    package_id: Option<PackageId>,
-    created_at: DateTime<Utc>,
-    code: u32,
-    level: NotificationLevel,
-    title: String,
-    message: String,
-    data: Value,
+    pub package_id: Option<PackageId>,
+    pub created_at: DateTime<Utc>,
+    pub code: u32,
+    pub level: NotificationLevel,
+    pub title: String,
+    pub message: String,
+    pub data: Value,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

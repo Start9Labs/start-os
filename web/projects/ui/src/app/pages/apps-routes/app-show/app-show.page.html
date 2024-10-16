@@ -20,6 +20,12 @@
         <ng-container
           *ngIf="isInstalled(pkg) && status.primary !== 'backingUp' && status.primary !== 'error'"
         >
+          <!-- ** action requests ** -->
+          <app-show-action-requests
+            [allPkgs]="pkgPlus.allPkgs"
+            [pkg]="pkg"
+            [manifest]="pkgPlus.manifest"
+          ></app-show-action-requests>
           <!-- ** health checks ** -->
           <app-show-health-checks
             *ngIf="pkg.status.main === 'running'"

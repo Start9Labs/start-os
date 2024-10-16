@@ -28,18 +28,6 @@ export function getManifest(pkg: PackageDataEntry): T.Manifest {
   return (pkg.stateInfo as InstallingState).installingInfo.newManifest
 }
 
-export function needsConfig(
-  pkgId: string,
-  requestedActions: PackageDataEntry['requestedActions'],
-): boolean {
-  return Object.values(requestedActions).some(
-    r =>
-      r.active &&
-      r.request.packageId === pkgId &&
-      r.request.actionId === 'config',
-  )
-}
-
 export function isInstalled(
   pkg: PackageDataEntry,
 ): pkg is PackageDataEntry<InstalledState> {

@@ -28,7 +28,7 @@ export {
 export { Daemons } from "./mainFn/Daemons"
 export { SubContainer } from "./util/SubContainer"
 export { StartSdk } from "./StartSdk"
-export { setupManifest } from "./manifest/setupManifest"
+export { setupManifest, buildManifest } from "./manifest/setupManifest"
 export { FileHelper } from "./util/fileHelper"
 export { setupExposeStore } from "./store/setupExposeStore"
 export { pathBuilder } from "../../base/lib/util/PathBuilder"

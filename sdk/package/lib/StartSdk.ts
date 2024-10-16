@@ -55,7 +55,6 @@ import { getStore } from "./store/getStore"
 import { CommandOptions, MountOptions, SubContainer } from "./util/SubContainer"
 import { splitCommand } from "./util"
 import { Mounts } from "./mainFn/Mounts"
-import { Dependency } from "../../base/lib/dependencies/Dependency"
 import { setupDependencies } from "../../base/lib/dependencies/setupDependencies"
 import * as T from "../../base/lib/types"
 import { testTypeVersion } from "../../base/lib/exver"
@@ -86,12 +85,12 @@ type AnyNeverCond<T extends any[], Then, Else> =
     T extends [any, ...infer U] ? AnyNeverCond<U,Then, Else> :
     never
 
-export class StartSdk<Manifest extends T.Manifest, Store> {
+export class StartSdk<Manifest extends T.SDKManifest, Store> {
   private constructor(readonly manifest: Manifest) {}
   static of() {
     return new StartSdk<never, never>(null as never)
   }
-  withManifest<Manifest extends T.Manifest = never>(manifest: Manifest) {
+  withManifest<Manifest extends T.SDKManifest = never>(manifest: Manifest) {
     return new StartSdk<Manifest, Store>(manifest)
   }
   withStore<Store extends Record<string, any>>() {
@@ -141,17 +140,39 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       ...startSdkEffectWrapper,
       action: {
         run: actions.runAction,
-        request: actions.requestAction,
-        requestOwn: <T extends Omit<T.ActionRequest, "packageId">>(
+        request: <
+          T extends Action<T.ActionId, any, any, Record<string, unknown>>,
+        >(
           effects: T.Effects,
-          request: actions.ActionRequest<T> & {
-            replayId?: string
-          },
+          packageId: T.PackageId,
+          action: T,
+          severity: T.ActionSeverity,
+          options?: actions.ActionRequestOptions<T>,
         ) =>
           actions.requestAction({
             effects,
-            request: { ...request, packageId: this.manifest.id },
+            packageId,
+            action,
+            severity,
+            options: options,
           }),
+        requestOwn: <
+          T extends Action<T.ActionId, Store, any, Record<string, unknown>>,
+        >(
+          effects: T.Effects,
+          action: T,
+          severity: T.ActionSeverity,
+          options?: actions.ActionRequestOptions<T>,
+        ) =>
+          actions.requestAction({
+            effects,
+            packageId: this.manifest.id,
+            action,
+            severity,
+            options: options,
+          }),
+        clearRequest: (effects: T.Effects, ...replayIds: string[]) =>
+          effects.action.clearRequests({ only: replayIds }),
       },
       checkDependencies: checkDependencies as <
         DependencyId extends keyof Manifest["dependencies"] &
@@ -370,17 +391,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           return healthCheck(o)
         },
       },
-      Dependency: {
-        /**
-         * @description Use this function to create a dependency for the service.
-         * @property {DependencyType} type
-         * @property {VersionRange} versionRange
-         * @property {string[]} healthChecks
-         */
-        of(data: Dependency["data"]) {
-          return new Dependency({ ...data })
-        },
-      },
       healthCheck: {
         checkPortListening,
         checkWebUrl,
@@ -566,37 +576,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           started(onTerm: () => PromiseLike<void>): PromiseLike<null>
         }) => Promise<Daemons<Manifest, any>>,
       ) => setupMain<Manifest, Store>(fn),
-      /**
-       * @description Use this function to determine which information to expose to the UI in the "Properties" section.
-       *
-       *   Values can be obtained from anywhere: the Store, the upstream service, or another service.
-       * @example
-       * In this example, we retrieve the admin password from the Store and expose it, masked and copyable, to
-       * the UI as "Admin Password".
-       *
-       * ```
-        export const properties = sdk.setupProperties(async ({ effects }) => {
-          const store = await sdk.store.getOwn(effects, sdk.StorePath).once()
-       
-          return {
-            'Admin Password': {
-              type: 'string',
-              value: store.adminPassword,
-              description: 'Used for logging into the admin UI',
-              copyable: true,
-              masked: true,
-              qr: false,
-            },
-          }
-        })
-       * ```
-       */
-      setupProperties:
-        (
-          fn: (options: { effects: Effects }) => Promise<T.SdkPropertiesReturn>,
-        ): T.ExpectedExports.properties =>
-        (options) =>
-          fn(options).then(nullifyProperties),
       /**
        * Use this function to execute arbitrary logic *once*, on uninstall only. Most services will not use this.
        */
@@ -1057,6 +1036,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * ```
          */
         list: Value.list,
+        hidden: Value.hidden,
         dynamicToggle: (
           a: LazyBuild<
             Store,
@@ -1367,7 +1347,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
   }
 }
 
-export async function runCommand<Manifest extends T.Manifest>(
+export async function runCommand<Manifest extends T.SDKManifest>(
   effects: Effects,
   image: { id: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
   command: string | [string, ...string[]],
@@ -1384,27 +1364,4 @@ export async function runCommand<Manifest extends T.Manifest>(
     name,
     (subcontainer) => subcontainer.exec(commands),
   )
-}
-function nullifyProperties(value: T.SdkPropertiesReturn): T.PropertiesReturn {
-  return Object.fromEntries(
-    Object.entries(value).map(([k, v]) => [k, nullifyProperties_(v)]),
-  )
-}
-function nullifyProperties_(value: T.SdkPropertiesValue): T.PropertiesValue {
-  if (value.type === "string") {
-    return {
-      description: null,
-      copyable: null,
-      masked: null,
-      qr: null,
-      ...value,
-    }
-  }
-  return {
-    description: null,
-    ...value,
-    value: Object.fromEntries(
-      Object.entries(value.value).map(([k, v]) => [k, nullifyProperties_(v)]),
-    ),
-  }
 }

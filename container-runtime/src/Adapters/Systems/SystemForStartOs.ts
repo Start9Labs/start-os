@@ -57,12 +57,6 @@ export class SystemForStartOs implements System {
       effects,
     }))
   }
-  properties(
-    effects: Effects,
-    timeoutMs: number | null,
-  ): Promise<T.PropertiesReturn> {
-    throw new Error("Method not implemented.")
-  }
   getActionInput(
     effects: Effects,
     id: string,
