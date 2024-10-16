@@ -407,6 +407,7 @@ impl Service {
         let developer_key = s9pk.as_archive().signer();
         let icon = s9pk.icon_data_url().await?;
         let service = Self::new(ctx.clone(), s9pk, StartStop::Stop).await?;
+
         if let Some(recovery_source) = recovery_source {
             service
                 .actor
@@ -428,6 +429,7 @@ impl Service {
                     .clone(),
             );
         }
+
         let procedure_id = Guid::new();
         service
             .seed
@@ -440,6 +442,7 @@ impl Service {
             ) // TODO timeout
             .await
             .with_kind(ErrorKind::MigrationFailed)?; // TODO: handle cancellation
+
         if let Some(mut progress) = progress {
             progress.finalization_progress.complete();
             progress.progress.complete();

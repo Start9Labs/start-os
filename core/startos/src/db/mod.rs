@@ -31,7 +31,12 @@ lazy_static::lazy_static! {
 
 pub fn db<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("dump", from_fn_async(cli_dump).with_display_serializable())
+        .subcommand(
+            "dump",
+            from_fn_async(cli_dump)
+                .with_display_serializable()
+                .with_about("Filter/query db to display tables and records"),
+        )
         .subcommand("dump", from_fn_async(dump).no_cli())
         .subcommand(
             "subscribe",
@@ -39,8 +44,16 @@ pub fn db<C: Context>() -> ParentHandler<C> {
                 .with_metadata("get_session", Value::Bool(true))
                 .no_cli(),
         )
-        .subcommand("put", put::<C>())
-        .subcommand("apply", from_fn_async(cli_apply).no_display())
+        .subcommand(
+            "put",
+            put::<C>().with_about("Command for adding UI record to db"),
+        )
+        .subcommand(
+            "apply",
+            from_fn_async(cli_apply)
+                .no_display()
+                .with_about("Update a db record"),
+        )
         .subcommand("apply", from_fn_async(apply).no_cli())
 }
 
@@ -299,6 +312,7 @@ pub fn put<C: Context>() -> ParentHandler<C> {
         "ui",
         from_fn_async(ui)
             .with_display_serializable()
+            .with_about("Add path and value to db")
             .with_call_remote::<CliContext>(),
     )
 }

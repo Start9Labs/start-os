@@ -25,6 +25,12 @@ impl SshKeys {
         Self(BTreeMap::new())
     }
 }
+
+impl From<BTreeMap<InternedString, WithTimeData<SshPubKey>>> for SshKeys {
+    fn from(map: BTreeMap<InternedString, WithTimeData<SshPubKey>>) -> Self {
+        Self(map)
+    }
+}
 impl Map for SshKeys {
     type Key = InternedString;
     type Value = WithTimeData<SshPubKey>;
@@ -41,7 +47,7 @@ impl Map for SshKeys {
 pub struct SshPubKey(
     #[serde(serialize_with = "crate::util::serde::serialize_display")]
     #[serde(deserialize_with = "crate::util::serde::deserialize_from_str")]
-    openssh_keys::PublicKey,
+    pub openssh_keys::PublicKey,
 );
 impl ValueParserFactory for SshPubKey {
     type Parser = FromStrParser<Self>;
@@ -86,12 +92,14 @@ pub fn ssh<C: Context>() -> ParentHandler<C> {
             "add",
             from_fn_async(add)
                 .no_display()
+                .with_about("Add ssh key")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "delete",
             from_fn_async(delete)
                 .no_display()
+                .with_about("Remove ssh key")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -101,6 +109,7 @@ pub fn ssh<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_all_ssh_keys(handle.params, result))
                 })
+                .with_about("List ssh keys")
                 .with_call_remote::<CliContext>(),
         )
 }

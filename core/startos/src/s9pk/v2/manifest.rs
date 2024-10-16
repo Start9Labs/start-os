@@ -22,7 +22,7 @@ use crate::util::VersionString;
 use crate::version::{Current, VersionT};
 
 fn current_version() -> Version {
-    Current::new().semver()
+    Current::default().semver()
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]

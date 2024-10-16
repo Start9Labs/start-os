@@ -91,17 +91,21 @@ pub fn tor<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_services(handle.params, result))
                 })
+                .with_about("Display Tor V3 Onion Addresses")
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("logs", logs())
+        .subcommand("logs", logs().with_about("Display Tor logs"))
         .subcommand(
             "logs",
-            from_fn_async(crate::logs::cli_logs::<RpcContext, Empty>).no_display(),
+            from_fn_async(crate::logs::cli_logs::<RpcContext, Empty>)
+                .no_display()
+                .with_about("Display Tor logs"),
         )
         .subcommand(
             "reset",
             from_fn_async(reset)
                 .no_display()
+                .with_about("Reset Tor daemon")
                 .with_call_remote::<CliContext>(),
         )
 }
