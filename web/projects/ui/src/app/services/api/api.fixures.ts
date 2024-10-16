@@ -9,11 +9,6 @@ import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { T, ISB, IST } from '@start9labs/start-sdk'
 import { GetPackagesRes } from '@start9labs/marketplace'
 
-const mockBlake3Commitment: T.Blake3Commitment = {
-  hash: 'fakehash',
-  size: 0,
-}
-
 const mockMerkleArchiveCommitment: T.MerkleArchiveCommitment = {
   rootSighash: 'fakehash',
   rootMaxsize: 0,
@@ -2023,7 +2018,7 @@ export module Mock {
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
     requestedActions: {
-      'bitcoind-config': {
+      'bitcoind/config': {
         active: true,
         request: {
           packageId: 'bitcoind',
@@ -2037,6 +2032,7 @@ export module Mock {
               rpcsettings: {
                 rpcuser: 'lnd',
               },
+              testnet: false,
             },
           },
         },
