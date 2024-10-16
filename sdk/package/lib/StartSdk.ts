@@ -55,7 +55,6 @@ import { getStore } from "./store/getStore"
 import { CommandOptions, MountOptions, SubContainer } from "./util/SubContainer"
 import { splitCommand } from "./util"
 import { Mounts } from "./mainFn/Mounts"
-import { Dependency } from "../../base/lib/dependencies/Dependency"
 import { setupDependencies } from "../../base/lib/dependencies/setupDependencies"
 import * as T from "../../base/lib/types"
 import { testTypeVersion } from "../../base/lib/exver"
@@ -390,17 +389,6 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
       HealthCheck: {
         of(o: HealthCheckParams) {
           return healthCheck(o)
-        },
-      },
-      Dependency: {
-        /**
-         * @description Use this function to create a dependency for the service.
-         * @property {DependencyType} type
-         * @property {VersionRange} versionRange
-         * @property {string[]} healthChecks
-         */
-        of(data: Dependency["data"]) {
-          return new Dependency({ ...data })
         },
       },
       healthCheck: {
@@ -1048,6 +1036,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
          * ```
          */
         list: Value.list,
+        hidden: Value.hidden,
         dynamicToggle: (
           a: LazyBuild<
             Store,
