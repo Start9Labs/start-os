@@ -333,12 +333,9 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	mount -t overlay -o lowerdir=$TMPDIR/lower,workdir=$TMPDIR/root/config/work,upperdir=$TMPDIR/root/config/overlay overlay $TMPDIR/next
 
 	if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-		sed -i 's| boot=startos| init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
+		sed -i 's| boot=startos| boot=startos init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
 		rsync -a $base_dir/raspberrypi/img/ $TMPDIR/next/
 	fi
-
-	chroot $TMPDIR/next/ systemd-machine-id-setup
-	chroot $TMPDIR/next/ ssh-keygen -A
 
 	umount $TMPDIR/next
 	umount $TMPDIR/lower
