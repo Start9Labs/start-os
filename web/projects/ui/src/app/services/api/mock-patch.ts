@@ -61,6 +61,7 @@ export const mockPatchData: DataModel = {
     passwordHash:
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
     versionCompat: '>=0.3.0 <=0.3.6',
+    postInitMigrationTodos: [],
     statusInfo: {
       backupProgress: null,
       updated: false,
@@ -82,7 +83,6 @@ export const mockPatchData: DataModel = {
       selected: null,
       lastRegion: null,
     },
-    postInitMigrationTodos: [],
   },
   packageData: {
     bitcoind: {
@@ -404,7 +404,7 @@ export const mockPatchData: DataModel = {
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
       requestedActions: {
-        'bitcoind-config': {
+        'bitcoind/config': {
           active: true,
           request: {
             packageId: 'bitcoind',
@@ -418,6 +418,7 @@ export const mockPatchData: DataModel = {
                 rpcsettings: {
                   rpcuser: 'lnd',
                 },
+                testnet: false,
               },
             },
           },

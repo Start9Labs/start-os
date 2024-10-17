@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
-import { TuiTitleModule } from '@taiga-ui/experimental'
+import { TuiFadeModule, TuiTitleModule } from '@taiga-ui/experimental'
 import { TuiAccordionModule } from '@taiga-ui/kit'
 import { ActionSuccessItemComponent } from './action-success-item.component'
 
@@ -14,8 +14,8 @@ import { ActionSuccessItemComponent } from './action-success-item.component'
         *ngIf="isSingle(item)"
         [value]="item"
       ></app-action-success-item>
-      <tui-accordion-item *ngIf="!isSingle(item)">
-        {{ item.name }}
+      <tui-accordion-item *ngIf="!isSingle(item)" size="s">
+        <div tuiFade>{{ item.name }}</div>
         <ng-template tuiAccordionItemContent>
           <app-action-success-group [value]="item"></app-action-success-group>
         </ng-template>
@@ -39,6 +39,7 @@ import { ActionSuccessItemComponent } from './action-success-item.component'
     TuiTitleModule,
     ActionSuccessItemComponent,
     TuiAccordionModule,
+    TuiFadeModule,
   ],
 })
 export class ActionSuccessGroupComponent {

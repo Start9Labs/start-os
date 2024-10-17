@@ -113,7 +113,7 @@ async fn ws_handler(
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct LogResponse {
-    entries: Reversible<LogEntry>,
+    pub entries: Reversible<LogEntry>,
     start_cursor: Option<String>,
     end_cursor: Option<String>,
 }

@@ -89,7 +89,7 @@ const sandboxRunType = object(
 const callbackType = object({
   method: literal("callback"),
   params: object({
-    callback: number,
+    id: number,
     args: array,
   }),
 })
@@ -289,8 +289,8 @@ export class RpcListener {
 
         return handleRpc(id, result)
       })
-      .when(callbackType, async ({ params: { callback, args } }) => {
-        this.callCallback(callback, args)
+      .when(callbackType, async ({ params: { id, args } }) => {
+        this.callCallback(id, args)
         return null
       })
       .when(startType, async ({ id }) => {

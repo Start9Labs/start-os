@@ -1,6 +1,6 @@
 import { T } from "@start9labs/start-sdk"
 
-const CallbackIdCell = { inc: 0 }
+const CallbackIdCell = { inc: 1 }
 
 const callbackRegistry = new FinalizationRegistry(
   async (options: { cbs: Map<number, Function>; effects: T.Effects }) => {
@@ -23,6 +23,7 @@ export class CallbackHolder {
       return
     }
     const id = this.newId()
+    console.error("adding callback", id)
     this.callbacks.set(id, callback)
     if (this.effects)
       callbackRegistry.register(this, {

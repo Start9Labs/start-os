@@ -93,7 +93,7 @@ export class Action<
   ): Action<Id, Store, {}, {}> {
     return new Action(
       id,
-      mapMaybeFn(metadata, (m) => ({ ...m, hasInput: true })),
+      mapMaybeFn(metadata, (m) => ({ ...m, hasInput: false })),
       {},
       async () => null,
       run,

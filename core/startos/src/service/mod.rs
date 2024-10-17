@@ -131,6 +131,7 @@ impl ServiceRef {
                             );
                             Ok(())
                         })?;
+                        d.as_private_mut().as_package_stores_mut().remove(&id)?;
                         Ok(Some(pde))
                     } else {
                         Ok(None)

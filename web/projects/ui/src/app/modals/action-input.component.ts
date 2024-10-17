@@ -25,18 +25,18 @@ import * as json from 'fast-json-patch'
 import { ActionService } from '../services/action.service'
 import { ActionButton, FormComponent } from '../components/form.component'
 
-export interface PackageActionData {
-  readonly pkgInfo: {
+export type PackageActionData = {
+  pkgInfo: {
     id: string
     title: string
     icon: string
     mainStatus: T.MainStatus['main']
   }
-  readonly actionInfo: {
+  actionInfo: {
     id: string
     metadata: T.ActionMetadata
   }
-  readonly requestInfo?: {
+  requestInfo?: {
     dependentId?: string
     request: T.ActionRequest
   }
@@ -96,7 +96,7 @@ export interface PackageActionData {
       .service-title {
         display: inline-flex;
         align-items: center;
-        margin-bottom: 1rem;
+        margin-bottom: 1.4rem;
         img {
           height: 20px;
           margin-right: 4px;
@@ -151,7 +151,7 @@ export class ActionInputModal {
           ? compare(
               JSON.parse(JSON.stringify(originalValue)),
               utils.deepMerge(
-                originalValue,
+                JSON.parse(JSON.stringify(originalValue)),
                 this.requestInfo.request.input.value,
               ) as object,
             )
@@ -189,6 +189,7 @@ export class ActionInputModal {
           Object.values(packages[id].requestedActions).some(
             ({ request, active }) =>
               !active &&
+              request.severity === 'critical' &&
               request.packageId === this.pkgInfo.id &&
               request.actionId === this.actionId &&
               request.when?.condition === 'input-not-matches' &&

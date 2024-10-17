@@ -26,6 +26,7 @@ import {
   isUpdating,
 } from 'src/app/util/get-package-data'
 import { T } from '@start9labs/start-sdk'
+import { getDepDetails } from 'src/app/util/dep-info'
 
 export interface DependencyInfo {
   id: string
@@ -93,32 +94,6 @@ export class AppShowPage {
     )
   }
 
-  private getDepDetails(
-    pkg: PackageDataEntry,
-    allPkgs: AllPackageData,
-    depId: string,
-  ) {
-    const { title, icon, versionRange } = pkg.currentDependencies[depId]
-
-    if (
-      allPkgs[depId] &&
-      (allPkgs[depId].stateInfo.state === 'installed' ||
-        allPkgs[depId].stateInfo.state === 'updating')
-    ) {
-      return {
-        title: allPkgs[depId].stateInfo.manifest!.title,
-        icon: allPkgs[depId].icon,
-        versionRange,
-      }
-    } else {
-      return {
-        title: title || depId,
-        icon: icon || 'assets/img/service-icons/fallback.png',
-        versionRange,
-      }
-    }
-  }
-
   private getDepValues(
     pkg: PackageDataEntry,
     allPkgs: AllPackageData,
@@ -133,11 +108,7 @@ export class AppShowPage {
       depErrors,
     )
 
-    const { title, icon, versionRange } = this.getDepDetails(
-      pkg,
-      allPkgs,
-      depId,
-    )
+    const { title, icon, versionRange } = getDepDetails(pkg, allPkgs, depId)
 
     return {
       id: depId,
