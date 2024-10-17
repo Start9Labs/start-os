@@ -175,7 +175,12 @@ fn version_compat_accessor(db: &mut Value) -> Option<&mut Value> {
         if server_info.get("versionCompat").is_some() {
             server_info.get_mut("versionCompat")
         } else {
-            server_info.get_mut("eosVersionCompat")
+            if let Some(prev) = server_info.get("eosVersionCompat").cloned() {
+                server_info
+                    .as_object_mut()?
+                    .insert("versionCompat".into(), prev);
+            }
+            server_info.get_mut("versionCompat")
         }
     } else {
         db.get_mut("server-info")?.get_mut("eos-version-compat")
