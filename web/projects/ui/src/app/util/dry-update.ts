@@ -1,17 +1,19 @@
-import { Emver } from '@start9labs/shared'
+import { Exver } from '@start9labs/shared'
 import { DataModel } from '../services/patch-db/data-model'
+import { getManifest } from './get-package-data'
 
 export function dryUpdate(
   { id, version }: { id: string; version: string },
-  pkgs: DataModel['package-data'],
-  emver: Emver,
+  pkgs: DataModel['packageData'],
+  exver: Exver,
 ): string[] {
   return Object.values(pkgs)
     .filter(
       pkg =>
-        Object.keys(pkg.installed?.['current-dependencies'] || {}).some(
+        Object.keys(pkg.currentDependencies || {}).some(
           pkgId => pkgId === id,
-        ) && !emver.satisfies(version, pkg.manifest.dependencies[id].version),
+        ) &&
+        !exver.satisfies(version, pkg.currentDependencies[id].versionRange),
     )
-    .map(pkg => pkg.manifest.title)
+    .map(pkg => getManifest(pkg).title)
 }

@@ -6,11 +6,13 @@ use color_eyre::eyre::eyre;
 use reqwest::header::CONTENT_TYPE;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncReadExt};
+use ts_rs::TS;
 use yasi::InternedString;
 
 use crate::{mime, Error, ErrorKind, ResultExt};
 
-#[derive(Clone)]
+#[derive(Clone, TS)]
+#[ts(type = "string")]
 pub struct DataUrl<'a> {
     mime: InternedString,
     data: Cow<'a, [u8]>,

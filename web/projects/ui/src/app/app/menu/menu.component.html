@@ -23,7 +23,7 @@
         {{ page.title }}
       </ion-label>
       <ion-icon
-        *ngIf="page.url === '/system' && (warning$ | async)"
+        *ngIf="page.url === '/system' && (wifiConnected$ | async)"
         color="warning"
         size="small"
         name="warning"

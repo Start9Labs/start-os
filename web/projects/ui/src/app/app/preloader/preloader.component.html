@@ -3,13 +3,11 @@
   <ion-icon *ngFor="let icon of icons" [name]="icon"></ion-icon>
 
   <!-- 3rd party components -->
-  <qr-code value="hello"></qr-code>
+  <qr-code control="hello"></qr-code>
 
   <!-- Ionic components -->
   <ion-accordion></ion-accordion>
   <ion-accordion-group></ion-accordion-group>
-  <ion-action-sheet></ion-action-sheet>
-  <ion-alert></ion-alert>
   <ion-avatar></ion-avatar>
   <ion-back-button></ion-back-button>
   <ion-badge></ion-badge>
@@ -19,14 +17,11 @@
   <ion-card-content></ion-card-content>
   <ion-card-header></ion-card-header>
   <ion-checkbox></ion-checkbox>
-  <ion-content></ion-content>
   <ion-footer></ion-footer>
   <ion-grid></ion-grid>
   <ion-header></ion-header>
   <ion-popover></ion-popover>
   <ion-content>
-    <ion-refresher slot="fixed"></ion-refresher>
-    <ion-refresher-content pullingContent="lines"></ion-refresher-content>
     <ion-infinite-scroll></ion-infinite-scroll>
     <ion-infinite-scroll-content
       loadingSpinner="lines"
@@ -39,24 +34,16 @@
   <ion-label></ion-label>
   <ion-label style="font-weight: bold"></ion-label>
   <ion-list></ion-list>
-  <ion-loading></ion-loading>
   <ion-modal></ion-modal>
   <ion-menu-button></ion-menu-button>
   <ion-note></ion-note>
   <ion-progress-bar></ion-progress-bar>
-  <ion-radio></ion-radio>
   <ion-row></ion-row>
   <ion-searchbar></ion-searchbar>
-  <ion-segment></ion-segment>
-  <ion-segment-button></ion-segment-button>
-  <ion-select></ion-select>
-  <ion-select-option></ion-select-option>
   <ion-spinner name="lines"></ion-spinner>
   <ion-text></ion-text>
   <ion-text><strong>load bold font</strong></ion-text>
   <ion-title></ion-title>
-  <ion-toast></ion-toast>
-  <ion-toggle></ion-toggle>
   <ion-toolbar></ion-toolbar>
 
   <!-- images -->
@@ -66,10 +53,37 @@
   <img src="assets/img/icons/wifi-1.png" />
   <img src="assets/img/icons/wifi-2.png" />
   <img src="assets/img/icons/wifi-3.png" />
+
+  <!-- Taiga UI icons -->
+  <img *ngFor="let icon of taiga" src="assets/taiga-ui/icons/{{ icon }}.svg" />
+
+  <!-- Taiga UI components -->
+  <tui-input [formControl]="control"></tui-input>
+  <tui-input-time [formControl]="control"></tui-input-time>
+  <tui-input-date [formControl]="control"></tui-input-date>
+  <tui-input-date-time [formControl]="control"></tui-input-date-time>
+  <tui-input-files [formControl]="control"></tui-input-files>
+  <tui-input-number [formControl]="control"></tui-input-number>
+  <tui-textarea [formControl]="control"></tui-textarea>
+  <tui-select [formControl]="control"></tui-select>
+  <tui-multi-select [formControl]="control"></tui-multi-select>
+  <tui-toggle [formControl]="control"></tui-toggle>
+  <tui-radio-list [formControl]="control"></tui-radio-list>
+  <tui-tooltip></tui-tooltip>
+  <tui-error></tui-error>
+  <tui-svg src="tuiIconTrash"></tui-svg>
+  <tui-icon icon="tuiIconTrash"></tui-icon>
+  <tui-expand></tui-expand>
+  <tui-elastic-container></tui-elastic-container>
+  <tui-scrollbar></tui-scrollbar>
+  <button tuiButton></button>
+  <button tuiLink></button>
+  <button tuiCell></button>
+  <progress tuiProgressBar></progress>
 </div>
 
+<!-- fonts -->
 <div style="visibility: hidden; height: 0">
-  <!-- fonts -->
   <p style="font-family: Montserrat">a</p>
   <p style="font-family: Montserrat; font-weight: bold">a</p>
   <p style="font-family: Montserrat; font-weight: 100">a</p>

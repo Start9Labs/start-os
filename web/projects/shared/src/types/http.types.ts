@@ -5,6 +5,8 @@ export enum Method {
   POST = 'POST',
 }
 
+type ParamPrimitive = string | number | boolean
+
 export interface HttpOptions {
   method: Method
   url: string
@@ -12,7 +14,7 @@ export interface HttpOptions {
     [header: string]: string | string[]
   }
   params?: {
-    [param: string]: string | string[]
+    [param: string]: ParamPrimitive | ParamPrimitive[]
   }
   responseType?: 'json' | 'text' | 'arrayBuffer'
   body?: any
@@ -28,7 +30,7 @@ export interface HttpAngularOptions {
         [header: string]: string | string[]
       }
   params?: {
-    [param: string]: string | string[]
+    [param: string]: ParamPrimitive | ParamPrimitive[]
   }
   responseType?: 'json' | 'text' | 'arrayBuffer'
 }

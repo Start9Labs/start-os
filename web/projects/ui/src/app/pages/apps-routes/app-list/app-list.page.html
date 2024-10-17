@@ -27,7 +27,7 @@
             sizeMd="6"
           >
             <app-list-pkg
-              *ngIf="pkg.manifest.id | packageInfo | async as info"
+              *ngIf="(pkg | toManifest).id | packageInfo | async as info"
               [pkg]="info"
             ></app-list-pkg>
           </ion-col>

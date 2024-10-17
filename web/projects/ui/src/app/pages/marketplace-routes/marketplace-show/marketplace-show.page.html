@@ -1,21 +1,14 @@
 <marketplace-show-header></marketplace-show-header>
 
 <ion-content class="ion-padding with-widgets">
-  <ng-container *ngIf="pkg$ | async as pkg else loading">
+  <ng-container *ngIf="pkg$ | async as pkg; else loading">
     <ng-container *ngIf="pkg | empty; else show">
-      <div
-        *ngIf="loadVersion$ | async as version"
-        class="ion-text-center"
-        style="padding-top: 64px"
-      >
+      <div class="ion-text-center" style="padding-top: 64px">
         <ion-icon
           name="close-circle-outline"
           style="font-size: 48px"
         ></ion-icon>
-        <h2>
-          {{ pkgId }} @{{ version === '*' ? 'latest' : version }} not found in
-          this registry
-        </h2>
+        <h2>{{ pkgId }} not found in this registry</h2>
       </div>
     </ng-container>
 
@@ -25,21 +18,26 @@
         [url]="url"
         [pkg]="pkg"
         [localPkg]="localPkg$ | async"
+        [localFlavor]="!!(localFlavor$ | async)"
       ></marketplace-show-controls>
 
       <marketplace-show-dependent [pkg]="pkg"></marketplace-show-dependent>
 
       <ion-item-group>
         <marketplace-about [pkg]="pkg"></marketplace-about>
+        <marketplace-flavors
+          *ngIf="flavors$ | async as flavors"
+          [pkgs]="flavors"
+        ></marketplace-flavors>
         <marketplace-dependencies
-          *ngIf="!(pkg.manifest.dependencies | empty)"
+          *ngIf="!(pkg.dependencyMetadata | empty)"
           [pkg]="pkg"
         ></marketplace-dependencies>
       </ion-item-group>
 
       <marketplace-additional
         [pkg]="pkg"
-        (version)="loadVersion$.next($event)"
+        (version)="updateVersion($event)"
       ></marketplace-additional>
     </ng-template>
   </ng-container>

@@ -13,7 +13,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ServerSpecsPage {
-  readonly server$ = this.patch.watch$('server-info')
+  readonly server$ = this.patch.watch$('serverInfo')
 
   constructor(
     private readonly toastCtrl: ToastController,

@@ -3,19 +3,18 @@ import { WINDOW } from '@ng-web-apis/common'
 import { ActivatedRoute } from '@angular/router'
 import { ModalController, ToastController } from '@ionic/angular'
 import { copyToClipboard, getPkgId } from '@start9labs/shared'
-import { getUiInterfaceKey } from 'src/app/services/config.service'
-import {
-  DataModel,
-  InstalledPackageDataEntry,
-  InterfaceDef,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import { QRComponent } from 'src/app/components/qr/qr.component'
-import { getPackage } from '../../../util/get-package-data'
+import { combineLatest, map } from 'rxjs'
+import { T, utils } from '@start9labs/start-sdk'
 
-interface LocalInterface {
-  def: InterfaceDef
-  addresses: InstalledPackageDataEntry['interface-addresses'][string]
+type MappedInterface = T.ServiceInterface & {
+  addresses: MappedAddress[]
+}
+type MappedAddress = {
+  name: string
+  url: string
 }
 
 @Component({
@@ -24,60 +23,50 @@ interface LocalInterface {
   styleUrls: ['./app-interfaces.page.scss'],
 })
 export class AppInterfacesPage {
-  ui?: LocalInterface
-  other: LocalInterface[] = []
   readonly pkgId = getPkgId(this.route)
+
+  private readonly serviceInterfaces$ = this.patch.watch$(
+    'packageData',
+    this.pkgId,
+    'serviceInterfaces',
+  )
+  private readonly hosts$ = this.patch.watch$(
+    'packageData',
+    this.pkgId,
+    'hosts',
+  )
+
+  readonly serviceInterfacesWithHostInfo$ = combineLatest([
+    this.serviceInterfaces$,
+    this.hosts$,
+  ]).pipe(
+    map(([interfaces, hosts]) => {
+      const sorted = Object.values(interfaces)
+        .sort(iface =>
+          iface.name.toLowerCase() > iface.name.toLowerCase() ? -1 : 1,
+        )
+        .map(iface => {
+          return {
+            ...iface,
+            addresses: getAddresses(
+              iface,
+              hosts[iface.addressInfo.hostId] || {},
+            ),
+          }
+        })
+
+      return {
+        ui: sorted.filter(val => val.type === 'ui'),
+        api: sorted.filter(val => val.type === 'api'),
+        p2p: sorted.filter(val => val.type === 'p2p'),
+      }
+    }),
+  )
 
   constructor(
     private readonly route: ActivatedRoute,
     private readonly patch: PatchDB<DataModel>,
   ) {}
-
-  async ngOnInit() {
-    const pkg = await getPackage(this.patch, this.pkgId)
-    if (!pkg) return
-
-    const interfaces = pkg.manifest.interfaces
-    const uiKey = getUiInterfaceKey(interfaces)
-
-    if (!pkg.installed) return
-
-    const addressesMap = pkg.installed['interface-addresses']
-
-    if (uiKey) {
-      const uiAddresses = addressesMap[uiKey]
-      this.ui = {
-        def: interfaces[uiKey],
-        addresses: {
-          'lan-address': uiAddresses['lan-address']
-            ? 'https://' + uiAddresses['lan-address']
-            : '',
-          // leave http for services
-          'tor-address': uiAddresses['tor-address']
-            ? 'http://' + uiAddresses['tor-address']
-            : '',
-        },
-      }
-    }
-
-    this.other = Object.keys(interfaces)
-      .filter(key => key !== uiKey)
-      .map(key => {
-        const addresses = addressesMap[key]
-        return {
-          def: interfaces[key],
-          addresses: {
-            'lan-address': addresses['lan-address']
-              ? 'https://' + addresses['lan-address']
-              : '',
-            'tor-address': addresses['tor-address']
-              ? // leave http for services
-                'http://' + addresses['tor-address']
-              : '',
-          },
-        }
-      })
-  }
 }
 
 @Component({
@@ -86,8 +75,7 @@ export class AppInterfacesPage {
   styleUrls: ['./app-interfaces.page.scss'],
 })
 export class AppInterfacesItemComponent {
-  @Input()
-  interface!: LocalInterface
+  @Input() iFace!: MappedInterface
 
   constructor(
     private readonly toastCtrl: ToastController,
@@ -125,4 +113,52 @@ export class AppInterfacesItemComponent {
     })
     await toast.present()
   }
+}
+
+function getAddresses(
+  serviceInterface: T.ServiceInterface,
+  host: T.Host,
+): MappedAddress[] {
+  const addressInfo = serviceInterface.addressInfo
+
+  const hostnames =
+    host.kind === 'multi' ? host.hostnameInfo[addressInfo.internalPort] : []
+
+  const addressesWithNames = hostnames.flatMap(h => {
+    let name = ''
+
+    if (h.kind === 'onion') {
+      name = `Tor`
+    } else {
+      const hostnameKind = h.hostname.kind
+
+      if (hostnameKind === 'domain') {
+        name = 'Domain'
+      } else {
+        name =
+          hostnameKind === 'local'
+            ? 'Local'
+            : `${h.networkInterfaceId} (${hostnameKind})`
+      }
+    }
+
+    const addresses = utils.addressHostToUrl(addressInfo, h)
+    if (addresses.length > 1) {
+      return utils.addressHostToUrl(addressInfo, h).map(url => ({
+        name: `${name} (${new URL(url).protocol
+          .replace(':', '')
+          .toUpperCase()})`,
+        url,
+      }))
+    } else {
+      return utils.addressHostToUrl(addressInfo, h).map(url => ({
+        name,
+        url,
+      }))
+    }
+  })
+
+  return addressesWithNames.filter(
+    (value, index, self) => index === self.findIndex(t => t.url === value.url),
+  )
 }

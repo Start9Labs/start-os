@@ -1,0 +1,16 @@
+.light {
+  color: var(--ion-color-dark);
+}
+
+.highlighted {
+  color: var(--ion-color-dark);
+  font-weight: bold;
+}
+
+.dependency {
+  display: inline-flex;
+  img {
+    max-width: 16px;
+    margin: 0 2px 0 5px;
+  }
+}

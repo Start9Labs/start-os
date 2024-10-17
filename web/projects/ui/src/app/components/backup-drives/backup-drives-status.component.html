@@ -1,20 +1,16 @@
 <div class="inline">
   <h2 *ngIf="type === 'create'; else restore">
     <ion-icon name="cloud-outline" color="success"></ion-icon>
-    {{
-      hasValidBackup
-        ? 'Available, contains existing backup'
-        : 'Available for fresh backup'
-    }}
+    Available for backup
   </h2>
   <ng-template #restore>
-    <h2 *ngIf="hasValidBackup">
+    <h2 *ngIf="hasAnyBackup">
       <ion-icon name="cloud-done-outline" color="success"></ion-icon>
-      StartOS backup detected
+      StartOS backups detected
     </h2>
-    <h2 *ngIf="!hasValidBackup">
+    <h2 *ngIf="!hasAnyBackup">
       <ion-icon name="cloud-offline-outline" color="danger"></ion-icon>
-      No StartOS backup
+      No StartOS backups
     </h2>
   </ng-template>
 </div>

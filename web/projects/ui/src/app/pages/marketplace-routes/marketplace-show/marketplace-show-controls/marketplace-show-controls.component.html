@@ -1,16 +1,25 @@
 <div class="action-buttons">
   <ion-button
-    *ngIf="localPkg"
+    *ngIf="localPkg && localPkg.stateInfo.state !== 'removing'"
     expand="block"
     color="primary"
-    [routerLink]="['/services', pkg.manifest.id]"
+    [routerLink]="['/services', pkg.id]"
   >
-    View Installed
+    {{
+      localPkg.stateInfo.state === 'installed'
+        ? 'View Installed'
+        : 'View Installing'
+    }}
   </ion-button>
   <ng-container *ngIf="localPkg; else install">
-    <ng-container *ngIf="localPkg.state === PackageState.Installed">
+    <ng-container
+      *ngIf="
+        localPkg.stateInfo.state === 'installed' &&
+        (localPkg | toManifest) as manifest
+      "
+    >
       <ion-button
-        *ngIf="(localVersion | compareEmver: pkg.manifest.version) === -1"
+        *ngIf="(manifest.version | compareExver : pkg.version) === -1"
         expand="block"
         color="success"
         (click)="tryInstall()"
@@ -18,7 +27,7 @@
         Update
       </ion-button>
       <ion-button
-        *ngIf="(localVersion | compareEmver: pkg.manifest.version) === 1"
+        *ngIf="(manifest.version | compareExver : pkg.version) === 1"
         expand="block"
         color="warning"
         (click)="tryInstall()"
@@ -27,7 +36,7 @@
       </ion-button>
       <ng-container *ngIf="showDevTools$ | async">
         <ion-button
-          *ngIf="(localVersion | compareEmver: pkg.manifest.version) === 0"
+          *ngIf="(manifest.version | compareExver : pkg.version) === 0"
           expand="block"
           color="success"
           (click)="tryInstall()"
@@ -39,8 +48,12 @@
   </ng-container>
 
   <ng-template #install>
-    <ion-button expand="block" color="success" (click)="tryInstall()">
-      Install
+    <ion-button
+      expand="block"
+      [color]="localFlavor ? 'warning' : 'success'"
+      (click)="tryInstall()"
+    >
+      {{ localFlavor ? 'Switch' : 'Install' }}
     </ion-button>
   </ng-template>
 </div>
