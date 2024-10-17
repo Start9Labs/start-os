@@ -8,7 +8,7 @@ import {
   tuiHeightCollapse,
 } from '@taiga-ui/core'
 import { TUI_PROMPT } from '@taiga-ui/kit'
-import { CT } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-sdk'
 import { filter, takeUntil } from 'rxjs'
 import { FormService } from 'src/app/services/form.service'
 import { ERRORS } from '../form-group/form-group.component'
@@ -22,7 +22,7 @@ import { ERRORS } from '../form-group/form-group.component'
 })
 export class FormArrayComponent {
   @Input()
-  spec!: CT.ValueSpecList
+  spec!: IST.ValueSpecList
 
   @HostBinding('@tuiParentAnimation')
   readonly animation = { value: '', ...inject(TUI_ANIMATION_OPTIONS) }

@@ -43,18 +43,21 @@ pub fn wifi<C: Context>() -> ParentHandler<C> {
             "add",
             from_fn_async(add)
                 .no_display()
+                .with_about("Add wifi ssid and password")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "connect",
             from_fn_async(connect)
                 .no_display()
+                .with_about("Connect to wifi network")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "delete",
             from_fn_async(delete)
                 .no_display()
+                .with_about("Remove a wifi network")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -64,10 +67,17 @@ pub fn wifi<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_wifi_info(handle.params, result))
                 })
+                .with_about("List wifi info")
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("country", country::<C>())
-        .subcommand("available", available::<C>())
+        .subcommand(
+            "country",
+            country::<C>().with_about("Command to set country"),
+        )
+        .subcommand(
+            "available",
+            available::<C>().with_about("Command to list available wifi networks"),
+        )
 }
 
 pub fn available<C: Context>() -> ParentHandler<C> {
@@ -76,6 +86,7 @@ pub fn available<C: Context>() -> ParentHandler<C> {
         from_fn_async(get_available)
             .with_display_serializable()
             .with_custom_display_fn(|handle, result| Ok(display_wifi_list(handle.params, result)))
+            .with_about("List available wifi networks")
             .with_call_remote::<CliContext>(),
     )
 }
@@ -85,6 +96,7 @@ pub fn country<C: Context>() -> ParentHandler<C> {
         "set",
         from_fn_async(set_country)
             .no_display()
+            .with_about("Set Country")
             .with_call_remote::<CliContext>(),
     )
 }

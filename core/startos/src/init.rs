@@ -323,7 +323,9 @@ pub async fn init(
     local_auth.complete();
 
     load_database.start();
-    let db = TypedPatchDb::<Database>::load_unchecked(cfg.db().await?);
+    let db = cfg.db().await?;
+    crate::version::Current::default().pre_init(&db).await?;
+    let db = TypedPatchDb::<Database>::load_unchecked(db);
     let peek = db.peek().await;
     load_database.complete();
     tracing::info!("Opened PatchDB");
@@ -528,8 +530,6 @@ pub async fn init(
         .await?;
     launch_service_network.complete();
 
-    crate::version::init(&db, run_migrations).await?;
-
     validate_db.start();
     db.mutate(|d| {
         let model = d.de()?;
@@ -549,18 +549,33 @@ pub async fn init(
 
 pub fn init_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("logs", crate::system::logs::<InitContext>())
         .subcommand(
             "logs",
-            from_fn_async(crate::logs::cli_logs::<InitContext, Empty>).no_display(),
+            crate::system::logs::<InitContext>().with_about("Disply OS logs"),
         )
-        .subcommand("kernel-logs", crate::system::kernel_logs::<InitContext>())
+        .subcommand(
+            "logs",
+            from_fn_async(crate::logs::cli_logs::<InitContext, Empty>)
+                .no_display()
+                .with_about("Display OS logs"),
+        )
         .subcommand(
             "kernel-logs",
-            from_fn_async(crate::logs::cli_logs::<InitContext, Empty>).no_display(),
+            crate::system::kernel_logs::<InitContext>().with_about("Display kernel logs"),
+        )
+        .subcommand(
+            "kernel-logs",
+            from_fn_async(crate::logs::cli_logs::<InitContext, Empty>)
+                .no_display()
+                .with_about("Display kernel logs"),
         )
         .subcommand("subscribe", from_fn_async(init_progress).no_cli())
-        .subcommand("subscribe", from_fn_async(cli_init_progress).no_display())
+        .subcommand(
+            "subscribe",
+            from_fn_async(cli_init_progress)
+                .no_display()
+                .with_about("Get initialization progress"),
+        )
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]

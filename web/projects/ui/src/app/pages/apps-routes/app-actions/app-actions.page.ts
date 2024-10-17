@@ -1,38 +1,13 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { AlertController, ModalController, NavController } from '@ionic/angular'
-import {
-  ErrorService,
-  getPkgId,
-  isEmptyObject,
-  LoadingService,
-} from '@start9labs/shared'
+import { getPkgId } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
-import { FormComponent } from 'src/app/components/form.component'
-import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
-import {
-  DataModel,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
-import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
-import { hasCurrentDeps } from 'src/app/util/has-deps'
-
-const allowedStatuses = {
-  onlyRunning: new Set(['running']),
-  onlyStopped: new Set(['stopped']),
-  any: new Set([
-    'running',
-    'stopped',
-    'restarting',
-    'restoring',
-    'stopping',
-    'starting',
-    'backingUp',
-  ]),
-}
+import { ActionService } from 'src/app/services/action.service'
+import { StandardActionsService } from 'src/app/services/standard-actions.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { getManifest } from 'src/app/util/get-package-data'
+import { filter, map } from 'rxjs'
 
 @Component({
   selector: 'app-actions',
@@ -42,180 +17,45 @@ const allowedStatuses = {
 })
 export class AppActionsPage {
   readonly pkgId = getPkgId(this.route)
-  readonly pkg$ = this.patch.watch$('packageData', this.pkgId)
+  readonly pkg$ = this.patch.watch$('packageData', this.pkgId).pipe(
+    filter(pkg => pkg.stateInfo.state === 'installed'),
+    map(pkg => ({
+      mainStatus: pkg.status.main,
+      icon: pkg.icon,
+      manifest: getManifest(pkg),
+      actions: Object.keys(pkg.actions).map(id => ({
+        id,
+        ...pkg.actions[id],
+      })),
+    })),
+  )
 
   constructor(
     private readonly route: ActivatedRoute,
-    private readonly embassyApi: ApiService,
-    private readonly modalCtrl: ModalController,
-    private readonly alertCtrl: AlertController,
-    private readonly errorService: ErrorService,
-    private readonly loader: LoadingService,
-    private readonly navCtrl: NavController,
     private readonly patch: PatchDB<DataModel>,
-    private readonly formDialog: FormDialogService,
+    private readonly actionService: ActionService,
+    private readonly standardActionsService: StandardActionsService,
   ) {}
 
   async handleAction(
-    status: T.Status,
-    action: { key: string; value: T.ActionMetadata },
+    mainStatus: T.MainStatus['main'],
+    icon: string,
+    manifest: T.Manifest,
+    action: T.ActionMetadata & { id: string },
   ) {
-    if (
-      status &&
-      allowedStatuses[action.value.allowedStatuses].has(status.main.status)
-    ) {
-      if (!isEmptyObject(action.value.input || {})) {
-        this.formDialog.open(FormComponent, {
-          label: action.value.name,
-          data: {
-            spec: action.value.input,
-            buttons: [
-              {
-                text: 'Execute',
-                handler: async (value: any) =>
-                  this.executeAction(action.key, value),
-              },
-            ],
-          },
-        })
-      } else {
-        const alert = await this.alertCtrl.create({
-          header: 'Confirm',
-          message: `Are you sure you want to execute action "${
-            action.value.name
-          }"? ${action.value.warning || ''}`,
-          buttons: [
-            {
-              text: 'Cancel',
-              role: 'cancel',
-            },
-            {
-              text: 'Execute',
-              handler: () => {
-                this.executeAction(action.key)
-              },
-              cssClass: 'enter-click',
-            },
-          ],
-        })
-        await alert.present()
-      }
-    } else {
-      const statuses = [...allowedStatuses[action.value.allowedStatuses]]
-      const last = statuses.pop()
-      let statusesStr = statuses.join(', ')
-      let error = ''
-      if (statuses.length) {
-        if (statuses.length > 1) {
-          // oxford comma
-          statusesStr += ','
-        }
-        statusesStr += ` or ${last}`
-      } else if (last) {
-        statusesStr = `${last}`
-      } else {
-        error = `There is no status for which this action may be run. This is a bug. Please file an issue with the service maintainer.`
-      }
-      const alert = await this.alertCtrl.create({
-        header: 'Forbidden',
-        message:
-          error ||
-          `Action "${action.value.name}" can only be executed when service is ${statusesStr}`,
-        buttons: ['OK'],
-        cssClass: 'alert-error-message enter-click',
-      })
-      await alert.present()
-    }
-  }
-
-  async tryUninstall(pkg: PackageDataEntry): Promise<void> {
-    const { title, alerts } = getManifest(pkg)
-
-    let message =
-      alerts.uninstall ||
-      `Uninstalling ${title} will permanently delete its data`
-
-    if (hasCurrentDeps(this.pkgId, await getAllPackages(this.patch))) {
-      message = `${message}. Services that depend on ${title} will no longer work properly and may crash`
-    }
-
-    const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Uninstall',
-          handler: () => {
-            this.uninstall()
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-      cssClass: 'alert-warning-message',
+    this.actionService.present({
+      pkgInfo: { id: manifest.id, title: manifest.title, icon, mainStatus },
+      actionInfo: { id: action.id, metadata: action },
     })
-
-    await alert.present()
   }
 
-  private async uninstall() {
-    const loader = this.loader.open(`Beginning uninstall...`).subscribe()
-
-    try {
-      await this.embassyApi.uninstallPackage({ id: this.pkgId })
-      this.embassyApi
-        .setDbValue<boolean>(['ackInstructions', this.pkgId], false)
-        .catch(e => console.error('Failed to mark instructions as unseen', e))
-      this.navCtrl.navigateRoot('/services')
-    } catch (e: any) {
-      this.errorService.handleError(e)
-    } finally {
-      loader.unsubscribe()
-    }
+  async rebuild(id: string) {
+    return this.standardActionsService.rebuild(id)
   }
 
-  private async executeAction(
-    actionId: string,
-    input?: object,
-  ): Promise<boolean> {
-    const loader = this.loader.open('Executing action...').subscribe()
-
-    try {
-      const res = await this.embassyApi.executePackageAction({
-        id: this.pkgId,
-        actionId,
-        input,
-      })
-
-      const successModal = await this.modalCtrl.create({
-        component: ActionSuccessPage,
-        componentProps: {
-          actionRes: res,
-        },
-      })
-
-      setTimeout(() => successModal.present(), 500)
-      return true // needed to dismiss original modal/alert
-    } catch (e: any) {
-      this.errorService.handleError(e)
-      return false // don't dismiss original modal/alert
-    } finally {
-      loader.unsubscribe()
-    }
+  async tryUninstall(manifest: T.Manifest) {
+    return this.standardActionsService.tryUninstall(manifest)
   }
-
-  asIsOrder() {
-    return 0
-  }
-}
-
-interface LocalAction {
-  name: string
-  description: string
-  icon: string
 }
 
 @Component({
@@ -225,5 +65,18 @@ interface LocalAction {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppActionsItemComponent {
-  @Input() action!: LocalAction
+  @Input() action!: {
+    name: string
+    description: string
+    visibility: T.ActionVisibility
+  }
+
+  @Input() icon!: string
+
+  get disabledText() {
+    return (
+      typeof this.action.visibility === 'object' &&
+      this.action.visibility.disabled
+    )
+  }
 }

@@ -31,7 +31,12 @@ lazy_static::lazy_static! {
 
 pub fn db<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("dump", from_fn_async(cli_dump).with_display_serializable())
+        .subcommand(
+            "dump",
+            from_fn_async(cli_dump)
+                .with_display_serializable()
+                .with_about("Filter/query db to display tables and records"),
+        )
         .subcommand("dump", from_fn_async(dump).no_cli())
         .subcommand(
             "subscribe",
@@ -39,8 +44,16 @@ pub fn db<C: Context>() -> ParentHandler<C> {
                 .with_metadata("get_session", Value::Bool(true))
                 .no_cli(),
         )
-        .subcommand("put", put::<C>())
-        .subcommand("apply", from_fn_async(cli_apply).no_display())
+        .subcommand(
+            "put",
+            put::<C>().with_about("Command for adding UI record to db"),
+        )
+        .subcommand(
+            "apply",
+            from_fn_async(cli_apply)
+                .no_display()
+                .with_about("Update a db record"),
+        )
         .subcommand("apply", from_fn_async(apply).no_cli())
 }
 
@@ -115,7 +128,7 @@ pub struct SubscribeParams {
     pointer: Option<JsonPointer>,
     #[ts(skip)]
     #[serde(rename = "__auth_session")]
-    session: InternedString,
+    session: Option<InternedString>,
 }
 
 #[derive(Deserialize, Serialize, TS)]
@@ -215,6 +228,8 @@ pub async fn subscribe(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CliApplyParams {
+    #[arg(long)]
+    allow_model_mismatch: bool,
     expr: String,
     path: Option<PathBuf>,
 }
@@ -225,7 +240,12 @@ async fn cli_apply(
         context,
         parent_method,
         method,
-        params: CliApplyParams { expr, path },
+        params:
+            CliApplyParams {
+                allow_model_mismatch,
+                expr,
+                path,
+            },
         ..
     }: HandlerArgs<CliContext, CliApplyParams>,
 ) -> Result<(), RpcError> {
@@ -240,7 +260,14 @@ async fn cli_apply(
                     &expr,
                 )?;
 
-                Ok::<_, Error>((
+                let value = if allow_model_mismatch {
+                    serde_json::from_value::<Value>(res.clone().into()).with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Deserialization,
+                            "result does not match database model",
+                        )
+                    })?
+                } else {
                     to_value(
                         &serde_json::from_value::<model::Database>(res.clone().into()).with_ctx(
                             |_| {
@@ -250,9 +277,9 @@ async fn cli_apply(
                                 )
                             },
                         )?,
-                    )?,
-                    (),
-                ))
+                    )?
+                };
+                Ok::<_, Error>((value, ()))
             })
             .await?;
     } else {
@@ -299,6 +326,7 @@ pub fn put<C: Context>() -> ParentHandler<C> {
         "ui",
         from_fn_async(ui)
             .with_display_serializable()
+            .with_about("Add path and value to db")
             .with_call_remote::<CliContext>(),
     )
 }

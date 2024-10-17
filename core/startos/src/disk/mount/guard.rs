@@ -96,7 +96,7 @@ impl Drop for MountGuard {
     fn drop(&mut self) {
         if self.mounted {
             let mountpoint = std::mem::take(&mut self.mountpoint);
-            tokio::spawn(async move { unmount(mountpoint, true).await.unwrap() });
+            tokio::spawn(async move { unmount(mountpoint, true).await.log_err() });
         }
     }
 }

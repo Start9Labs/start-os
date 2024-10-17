@@ -8,32 +8,37 @@
 </ion-header>
 
 <ion-content class="ion-padding-top with-widgets">
-  <ng-container *ngIf="pkg$ | async as pkg">
-    <ion-item-group *ngIf="pkg.stateInfo.state === 'installed'">
-      <!-- ** standard actions ** -->
-      <ion-item-divider>Standard Actions</ion-item-divider>
-      <app-actions-item
-        [action]="{
-          name: 'Uninstall',
-          description: 'This will uninstall the service from StartOS and delete all data permanently.',
-          icon: 'trash-outline'
-        }"
-        (click)="tryUninstall(pkg)"
-      ></app-actions-item>
+  <ion-item-group *ngIf="pkg$ | async as pkg">
+    <!-- ** standard actions ** -->
+    <ion-item-divider>Standard Actions</ion-item-divider>
+    <app-actions-item
+      [action]="{
+        name: 'Rebuild Service',
+        description: 'Rebuilds the service container. It is harmless and only takes a few seconds to complete, but it should only be necessary if a StartOS bug is preventing dependencies, interfaces, or actions from synchronizing.',
+        visibility: 'enabled'
+      }"
+      icon="construct-outline"
+      (click)="rebuild(pkg.manifest.id)"
+    ></app-actions-item>
+    <app-actions-item
+      [action]="{
+        name: 'Uninstall',
+        description: 'Uninstalls this service from StartOS and delete all data permanently.',
+        visibility: 'enabled'
+      }"
+      icon="trash-outline"
+      (click)="tryUninstall(pkg.manifest)"
+    ></app-actions-item>
 
-      <!-- ** specific actions ** -->
-      <ion-item-divider *ngIf="!(pkg.actions | empty)">
-        Actions for {{ pkg.stateInfo.manifest.title }}
-      </ion-item-divider>
-      <app-actions-item
-        *ngFor="let action of pkg.actions | keyvalue: asIsOrder"
-        [action]="{
-          name: action.value.name,
-          description: action.value.description,
-          icon: 'play-circle-outline'
-        }"
-        (click)="handleAction(pkg.status, action)"
-      ></app-actions-item>
-    </ion-item-group>
-  </ng-container>
+    <!-- ** specific actions ** -->
+    <ion-item-divider *ngIf="pkg.actions.length">
+      Actions for {{ pkg.manifest.title }}
+    </ion-item-divider>
+    <app-actions-item
+      *ngFor="let action of pkg.actions"
+      [action]="action"
+      icon="play-outline"
+      (click)="handleAction(pkg.mainStatus, pkg.icon, pkg.manifest, action)"
+    ></app-actions-item>
+  </ion-item-group>
 </ion-content>

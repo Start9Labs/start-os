@@ -49,7 +49,7 @@ impl HasLoggedOutSessions {
             .map(|s| s.as_logout_session_id())
             .collect();
         for sid in &to_log_out {
-            ctx.open_authed_continuations.kill(sid)
+            ctx.open_authed_continuations.kill(&Some(sid.clone()))
         }
         ctx.ephemeral_sessions.mutate(|s| {
             for sid in &to_log_out {

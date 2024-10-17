@@ -18,6 +18,8 @@ import { AppShowDependenciesComponent } from './components/app-show-dependencies
 import { AppShowMenuComponent } from './components/app-show-menu/app-show-menu.component'
 import { AppShowHealthChecksComponent } from './components/app-show-health-checks/app-show-health-checks.component'
 import { AppShowAdditionalComponent } from './components/app-show-additional/app-show-additional.component'
+import { AppShowErrorComponent } from './components/app-show-error/app-show-error.component'
+import { AppShowActionRequestsComponent } from './components/app-show-action-requests/app-show-action-requests.component'
 import { HealthColorPipe } from './pipes/health-color.pipe'
 import { ToHealthChecksPipe } from './pipes/to-health-checks.pipe'
 import { ToButtonsPipe } from './pipes/to-buttons.pipe'
@@ -43,6 +45,8 @@ const routes: Routes = [
     AppShowMenuComponent,
     AppShowHealthChecksComponent,
     AppShowAdditionalComponent,
+    AppShowErrorComponent,
+    AppShowActionRequestsComponent,
   ],
   imports: [
     CommonModule,
@@ -56,5 +60,6 @@ const routes: Routes = [
     StatusComponentModule,
     SharedPipesModule,
   ],
+  exports: [AppShowProgressComponent],
 })
 export class AppShowPageModule {}

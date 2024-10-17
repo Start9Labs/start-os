@@ -4,7 +4,7 @@ import {
   Input,
   ViewEncapsulation,
 } from '@angular/core'
-import { CT } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-sdk'
 import { FORM_GROUP_PROVIDERS } from './form-group.providers'
 
 export const ERRORS = [
@@ -27,7 +27,7 @@ export const ERRORS = [
   viewProviders: [FORM_GROUP_PROVIDERS],
 })
 export class FormGroupComponent {
-  @Input() spec: CT.InputSpec = {}
+  @Input() spec: IST.InputSpec = {}
 
   asIsOrder() {
     return 0

@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 use std::ops::Deref;
@@ -9,6 +8,7 @@ use clap::builder::ValueParserFactory;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
 use imbl::OrdMap;
+use models::FromStrParser;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use rpc_toolkit::{
@@ -17,12 +17,10 @@ use rpc_toolkit::{
 use serde::de::DeserializeOwned;
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::Value;
 use ts_rs::TS;
 
 use super::IntoDoubleEndedIterator;
 use crate::prelude::*;
-use crate::util::clap::FromStrParser;
 use crate::util::Apply;
 
 pub fn deserialize_from_str<
@@ -272,7 +270,7 @@ impl std::fmt::Display for IoFormat {
 impl std::str::FromStr for IoFormat {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        serde_json::from_value(Value::String(s.to_owned()))
+        serde_json::from_value(serde_json::Value::String(s.to_owned()))
             .with_kind(crate::ErrorKind::Deserialization)
     }
 }
@@ -566,7 +564,7 @@ where
     }
 }
 
-#[derive(Deserialize, Serialize, TS)]
+#[derive(Deserialize, Serialize, TS, Clone)]
 pub struct StdinDeserializable<T>(pub T);
 impl<T> Default for StdinDeserializable<T>
 where
@@ -1356,5 +1354,21 @@ impl Serialize for MaybeUtf8String {
         } else {
             serializer.serialize_bytes(&self.0)
         }
+    }
+}
+
+pub fn is_partial_of(partial: &Value, full: &Value) -> bool {
+    match (partial, full) {
+        (Value::Object(partial), Value::Object(full)) => partial.iter().all(|(k, v)| {
+            if let Some(v_full) = full.get(k) {
+                is_partial_of(v, v_full)
+            } else {
+                false
+            }
+        }),
+        (Value::Array(partial), Value::Array(full)) => partial
+            .iter()
+            .all(|v| full.iter().any(|v_full| is_partial_of(v, v_full))),
+        (_, _) => partial == full,
     }
 }

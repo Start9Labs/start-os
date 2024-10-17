@@ -1,49 +1,45 @@
 import { types as T } from "@start9labs/start-sdk"
-import { RpcResult } from "../Adapters/RpcListener"
 import { Effects } from "../Models/Effects"
 import { CallbackHolder } from "../Models/CallbackHolder"
-import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
+import { Optional } from "ts-matches/lib/parsers/interfaces"
 
 export type Procedure =
-  | "/init"
-  | "/uninit"
-  | "/config/set"
-  | "/config/get"
+  | "/packageInit"
+  | "/packageUninit"
   | "/backup/create"
   | "/backup/restore"
-  | "/actions/metadata"
-  | "/properties"
-  | `/actions/${string}/get`
+  | `/actions/${string}/getInput`
   | `/actions/${string}/run`
-  | `/dependencies/${string}/query`
-  | `/dependencies/${string}/update`
 
 export type ExecuteResult =
   | { ok: unknown }
   | { err: { code: number; message: string } }
 export type System = {
-  init(): Promise<void>
+  containerInit(effects: T.Effects): Promise<void>
 
-  start(effects: MainEffects): Promise<void>
-  callCallback(callback: number, args: any[]): void
+  start(effects: T.Effects): Promise<void>
   stop(): Promise<void>
 
-  execute(
+  packageInit(effects: Effects, timeoutMs: number | null): Promise<void>
+  packageUninit(
     effects: Effects,
-    options: {
-      procedure: Procedure
-      input: unknown
-      timeout?: number
-    },
-  ): Promise<RpcResult>
-  sandbox(
+    nextVersion: Optional<string>,
+    timeoutMs: number | null,
+  ): Promise<void>
+
+  createBackup(effects: T.Effects, timeoutMs: number | null): Promise<void>
+  restoreBackup(effects: T.Effects, timeoutMs: number | null): Promise<void>
+  runAction(
     effects: Effects,
-    options: {
-      procedure: Procedure
-      input: unknown
-      timeout?: number
-    },
-  ): Promise<RpcResult>
+    actionId: string,
+    input: unknown,
+    timeoutMs: number | null,
+  ): Promise<T.ActionResult | null>
+  getActionInput(
+    effects: Effects,
+    actionId: string,
+    timeoutMs: number | null,
+  ): Promise<T.ActionInput | null>
 
   exit(): Promise<void>
 }

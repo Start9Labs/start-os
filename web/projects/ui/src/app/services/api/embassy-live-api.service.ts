@@ -10,7 +10,6 @@ import {
 import { PATCH_CACHE } from 'src/app/services/patch-db/patch-db-source'
 import { ApiService } from './embassy-api.service'
 import { RR } from './api.types'
-import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { ConfigService } from '../config.service'
 import { webSocket } from 'rxjs/webSocket'
 import { Observable, filter, firstValueFrom } from 'rxjs'
@@ -43,12 +42,11 @@ export class LiveApiService extends ApiService {
 
   // for sideloading packages
 
-  async uploadPackage(guid: string, body: Blob): Promise<string> {
-    return this.httpRequest({
+  async uploadPackage(guid: string, body: Blob): Promise<void> {
+    await this.httpRequest({
       method: Method.POST,
       body,
       url: `/rest/rpc/${guid}`,
-      responseType: 'text',
     })
   }
 
@@ -86,7 +84,7 @@ export class LiveApiService extends ApiService {
 
   openWebsocket$<T>(
     guid: string,
-    config: RR.WebsocketConfig<T>,
+    config: RR.WebsocketConfig<T> = {},
   ): Observable<T> {
     const { location } = this.document.defaultView!
     const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
@@ -437,14 +435,6 @@ export class LiveApiService extends ApiService {
 
   // package
 
-  async getPackageProperties(
-    params: RR.GetPackagePropertiesReq,
-  ): Promise<RR.GetPackagePropertiesRes<2>['data']> {
-    return this.rpcRequest({ method: 'package.properties', params }).then(
-      parsePropertiesPermissive,
-    )
-  }
-
   async getPackageLogs(
     params: RR.GetPackageLogsReq,
   ): Promise<RR.GetPackageLogsRes> {
@@ -457,46 +447,26 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'package.logs.follow', params })
   }
 
-  async getPkgMetrics(
-    params: RR.GetPackageMetricsReq,
-  ): Promise<RR.GetPackageMetricsRes> {
-    return this.rpcRequest({ method: 'package.metrics', params })
-  }
-
   async installPackage(
     params: RR.InstallPackageReq,
   ): Promise<RR.InstallPackageRes> {
     return this.rpcRequest({ method: 'package.install', params })
   }
 
-  async getPackageConfig(
-    params: RR.GetPackageConfigReq,
-  ): Promise<RR.GetPackageConfigRes> {
-    return this.rpcRequest({ method: 'package.config.get', params })
+  async getActionInput(
+    params: RR.GetActionInputReq,
+  ): Promise<RR.GetActionInputRes> {
+    return this.rpcRequest({ method: 'package.action.get-input', params })
   }
 
-  async drySetPackageConfig(
-    params: RR.DrySetPackageConfigReq,
-  ): Promise<RR.DrySetPackageConfigRes> {
-    return this.rpcRequest({ method: 'package.config.set.dry', params })
-  }
-
-  async setPackageConfig(
-    params: RR.SetPackageConfigReq,
-  ): Promise<RR.SetPackageConfigRes> {
-    return this.rpcRequest({ method: 'package.config.set', params })
+  async runAction(params: RR.ActionReq): Promise<RR.ActionRes> {
+    return this.rpcRequest({ method: 'package.action.run', params })
   }
 
   async restorePackages(
     params: RR.RestorePackagesReq,
   ): Promise<RR.RestorePackagesRes> {
     return this.rpcRequest({ method: 'package.backup.restore', params })
-  }
-
-  async executePackageAction(
-    params: RR.ExecutePackageActionReq,
-  ): Promise<RR.ExecutePackageActionRes> {
-    return this.rpcRequest({ method: 'package.action', params })
   }
 
   async startPackage(params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
@@ -513,19 +483,16 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'package.stop', params })
   }
 
+  async rebuildPackage(
+    params: RR.RebuildPackageReq,
+  ): Promise<RR.RebuildPackageRes> {
+    return this.rpcRequest({ method: 'package.rebuild', params })
+  }
+
   async uninstallPackage(
     params: RR.UninstallPackageReq,
   ): Promise<RR.UninstallPackageRes> {
     return this.rpcRequest({ method: 'package.uninstall', params })
-  }
-
-  async dryConfigureDependency(
-    params: RR.DryConfigureDependencyReq,
-  ): Promise<RR.DryConfigureDependencyRes> {
-    return this.rpcRequest({
-      method: 'package.dependency.configure.dry',
-      params,
-    })
   }
 
   async sideloadPackage(): Promise<RR.SideloadPackageRes> {

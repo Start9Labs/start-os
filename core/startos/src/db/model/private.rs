@@ -31,6 +31,6 @@ pub struct Private {
     pub package_stores: BTreeMap<PackageId, Value>,
 }
 
-fn generate_compat_key() -> Pem<ed25519_dalek::SigningKey> {
+pub fn generate_compat_key() -> Pem<ed25519_dalek::SigningKey> {
     Pem(ed25519_dalek::SigningKey::generate(&mut rand::thread_rng()))
 }

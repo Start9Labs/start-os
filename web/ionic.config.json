@@ -17,12 +17,6 @@
       "integrations": {},
       "type": "angular",
       "root": "projects/setup-wizard"
-    },
-    "diagnostic-ui": {
-      "name": "diagnostic-ui",
-      "integrations": {},
-      "type": "angular",
-      "root": "projects/diagnostic-ui"
     }
   },
   "defaultProject": "ui"

@@ -165,7 +165,17 @@ pub async fn list_service_interfaces(
     Ok(res)
 }
 
-pub async fn clear_service_interfaces(context: EffectContext) -> Result<(), Error> {
+#[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct ClearServiceInterfacesParams {
+    pub except: Vec<ServiceInterfaceId>,
+}
+
+pub async fn clear_service_interfaces(
+    context: EffectContext,
+    ClearServiceInterfacesParams { except }: ClearServiceInterfacesParams,
+) -> Result<(), Error> {
     let context = context.deref()?;
     let package_id = context.seed.id.clone();
 
@@ -179,7 +189,7 @@ pub async fn clear_service_interfaces(context: EffectContext) -> Result<(), Erro
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
                 .as_service_interfaces_mut()
-                .ser(&Default::default())
+                .mutate(|s| Ok(s.retain(|id, _| except.contains(id))))
         })
         .await
 }

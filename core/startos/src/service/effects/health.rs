@@ -29,11 +29,10 @@ pub async fn set_health(
                 .as_idx_mut(package_id)
                 .or_not_found(package_id)?
                 .as_status_mut()
-                .as_main_mut()
                 .mutate(|main| {
                     match main {
-                        &mut MainStatus::Running { ref mut health, .. }
-                        | &mut MainStatus::BackingUp { ref mut health, .. } => {
+                        MainStatus::Running { ref mut health, .. }
+                        | MainStatus::Starting { ref mut health } => {
                             health.insert(id, result);
                         }
                         _ => (),

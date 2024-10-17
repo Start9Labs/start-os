@@ -1,87 +1,300 @@
-use clap::Parser;
+use std::fmt;
+
+use clap::{CommandFactory, FromArgMatches, Parser};
 pub use models::ActionId;
 use models::PackageId;
+use qrcode::QrCode;
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use tracing::instrument;
 use ts_rs::TS;
 
-use crate::config::Config;
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
-use crate::util::serde::{display_serializable, StdinDeserializable, WithIoFormat};
+use crate::util::serde::{
+    display_serializable, HandlerExtSerde, StdinDeserializable, WithIoFormat,
+};
 
-#[derive(Debug, Serialize, Deserialize)]
+pub fn action_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand(
+            "get-input",
+            from_fn_async(get_action_input)
+                .with_display_serializable()
+                .with_about("Get action input spec")
+                .with_call_remote::<CliContext>()
+        )
+        .subcommand(
+            "run",
+            from_fn_async(run_action)
+                .with_display_serializable()
+                .with_custom_display_fn(|_, res| {
+                    if let Some(res) = res {
+                        println!("{res}")
+                    }
+                    Ok(())
+                })
+                .with_about("Run service action")
+                .with_call_remote::<CliContext>()
+        )
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionInput {
+    #[ts(type = "Record<string, unknown>")]
+    pub spec: Value,
+    #[ts(type = "Record<string, unknown> | null")]
+    pub value: Option<Value>,
+}
+
+#[derive(Deserialize, Serialize, TS, Parser)]
+#[serde(rename_all = "camelCase")]
+pub struct GetActionInputParams {
+    pub package_id: PackageId,
+    pub action_id: ActionId,
+}
+
+#[instrument(skip_all)]
+pub async fn get_action_input(
+    ctx: RpcContext,
+    GetActionInputParams {
+        package_id,
+        action_id,
+    }: GetActionInputParams,
+) -> Result<Option<ActionInput>, Error> {
+    ctx.services
+        .get(&package_id)
+        .await
+        .as_ref()
+        .or_not_found(lazy_format!("Manager for {}", package_id))?
+        .get_action_input(Guid::new(), action_id)
+        .await
+}
+
+#[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "version")]
+#[ts(export)]
 pub enum ActionResult {
     #[serde(rename = "0")]
     V0(ActionResultV0),
+    #[serde(rename = "1")]
+    V1(ActionResultV1),
+}
+impl fmt::Display for ActionResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::V0(res) => res.fmt(f),
+            Self::V1(res) => res.fmt(f),
+        }
+    }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, TS)]
 pub struct ActionResultV0 {
     pub message: String,
     pub value: Option<String>,
     pub copyable: bool,
     pub qr: bool,
 }
-
-#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum DockerStatus {
-    Running,
-    Stopped,
+impl fmt::Display for ActionResultV0 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.message)?;
+        if let Some(value) = &self.value {
+            write!(f, ":\n{value}")?;
+            if self.qr {
+                use qrcode::render::unicode;
+                write!(
+                    f,
+                    "\n{}",
+                    QrCode::new(value.as_bytes())
+                        .unwrap()
+                        .render::<unicode::Dense1x2>()
+                        .build()
+                )?;
+            }
+        }
+        Ok(())
+    }
 }
 
-pub fn display_action_result(params: WithIoFormat<ActionParams>, result: ActionResult) {
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[serde(rename_all_fields = "camelCase")]
+#[serde(tag = "type")]
+pub enum ActionResultV1 {
+    String {
+        name: String,
+        value: String,
+        description: Option<String>,
+        copyable: bool,
+        qr: bool,
+        masked: bool,
+    },
+    Object {
+        name: String,
+        value: Vec<ActionResultV1>,
+        #[ts(optional)]
+        description: Option<String>,
+    },
+}
+impl ActionResultV1 {
+    fn fmt_rec(&self, f: &mut fmt::Formatter<'_>, indent: usize) -> fmt::Result {
+        match self {
+            Self::String {
+                name,
+                value,
+                description,
+                qr,
+                ..
+            } => {
+                for i in 0..indent {
+                    write!(f, "  ")?;
+                }
+                write!(f, "{name}")?;
+                if let Some(description) = description {
+                    write!(f, ": {description}")?;
+                }
+                if !value.is_empty() {
+                    write!(f, ":\n")?;
+                    for i in 0..indent {
+                        write!(f, "  ")?;
+                    }
+                    write!(f, "{value}")?;
+                    if *qr {
+                        use qrcode::render::unicode;
+                        write!(f, "\n")?;
+                        for i in 0..indent {
+                            write!(f, "  ")?;
+                        }
+                        write!(
+                            f,
+                            "{}",
+                            QrCode::new(value.as_bytes())
+                                .unwrap()
+                                .render::<unicode::Dense1x2>()
+                                .build()
+                        )?;
+                    }
+                }
+            }
+            Self::Object {
+                name,
+                value,
+                description,
+            } => {
+                for i in 0..indent {
+                    write!(f, "  ")?;
+                }
+                write!(f, "{name}")?;
+                if let Some(description) = description {
+                    write!(f, ": {description}")?;
+                }
+                for value in value {
+                    write!(f, ":\n")?;
+                    for i in 0..indent {
+                        write!(f, "  ")?;
+                    }
+                    value.fmt_rec(f, indent + 1)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+impl fmt::Display for ActionResultV1 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.fmt_rec(f, 0)
+    }
+}
+
+pub fn display_action_result<T: Serialize>(params: WithIoFormat<T>, result: Option<ActionResult>) {
+    let Some(result) = result else {
+        return;
+    };
     if let Some(format) = params.format {
         return display_serializable(format, result);
     }
-    match result {
-        ActionResult::V0(ar) => {
-            println!(
-                "{}: {}",
-                ar.message,
-                serde_json::to_string(&ar.value).unwrap()
-            );
-        }
-    }
+    println!("{result}")
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[command(rename_all = "kebab-case")]
-pub struct ActionParams {
-    #[arg(id = "id")]
-    #[serde(rename = "id")]
+pub struct RunActionParams {
+    pub package_id: PackageId,
+    pub action_id: ActionId,
+    #[ts(optional, type = "any")]
+    pub input: Option<Value>,
+}
+
+#[derive(Parser)]
+struct CliRunActionParams {
     pub package_id: PackageId,
     pub action_id: ActionId,
     #[command(flatten)]
-    #[ts(type = "{ [key: string]: any } | null")]
-    #[serde(default)]
-    pub input: StdinDeserializable<Option<Config>>,
+    pub input: StdinDeserializable<Option<Value>>,
 }
-// impl C
+impl From<CliRunActionParams> for RunActionParams {
+    fn from(
+        CliRunActionParams {
+            package_id,
+            action_id,
+            input,
+        }: CliRunActionParams,
+    ) -> Self {
+        Self {
+            package_id,
+            action_id,
+            input: input.0,
+        }
+    }
+}
+impl CommandFactory for RunActionParams {
+    fn command() -> clap::Command {
+        CliRunActionParams::command()
+    }
+    fn command_for_update() -> clap::Command {
+        CliRunActionParams::command_for_update()
+    }
+}
+impl FromArgMatches for RunActionParams {
+    fn from_arg_matches(matches: &clap::ArgMatches) -> Result<Self, clap::Error> {
+        CliRunActionParams::from_arg_matches(matches).map(Self::from)
+    }
+    fn from_arg_matches_mut(matches: &mut clap::ArgMatches) -> Result<Self, clap::Error> {
+        CliRunActionParams::from_arg_matches_mut(matches).map(Self::from)
+    }
+    fn update_from_arg_matches(&mut self, matches: &clap::ArgMatches) -> Result<(), clap::Error> {
+        *self = CliRunActionParams::from_arg_matches(matches).map(Self::from)?;
+        Ok(())
+    }
+    fn update_from_arg_matches_mut(
+        &mut self,
+        matches: &mut clap::ArgMatches,
+    ) -> Result<(), clap::Error> {
+        *self = CliRunActionParams::from_arg_matches_mut(matches).map(Self::from)?;
+        Ok(())
+    }
+}
 
 // #[command(about = "Executes an action", display(display_action_result))]
 #[instrument(skip_all)]
-pub async fn action(
+pub async fn run_action(
     ctx: RpcContext,
-    ActionParams {
+    RunActionParams {
         package_id,
         action_id,
-        input: StdinDeserializable(input),
-    }: ActionParams,
-) -> Result<ActionResult, Error> {
+        input,
+    }: RunActionParams,
+) -> Result<Option<ActionResult>, Error> {
     ctx.services
         .get(&package_id)
         .await
         .as_ref()
         .or_not_found(lazy_format!("Manager for {}", package_id))?
-        .action(
-            Guid::new(),
-            action_id,
-            input.map(|c| to_value(&c)).transpose()?.unwrap_or_default(),
-        )
+        .run_action(Guid::new(), action_id, input.unwrap_or_default())
         .await
 }

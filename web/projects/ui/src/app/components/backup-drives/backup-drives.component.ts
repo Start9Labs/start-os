@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, Output } from '@angular/core'
 import { ActionSheetController, AlertController } from '@ionic/angular'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { CB } from '@start9labs/start-sdk'
+import { ISB } from '@start9labs/start-sdk'
 import {
   CifsBackupTarget,
   DiskBackupTarget,
@@ -261,8 +261,8 @@ export class BackupDrivesStatusComponent {
   @Input() hasAnyBackup!: boolean
 }
 
-const cifsSpec = CB.Config.of({
-  hostname: CB.Value.text({
+const cifsSpec = ISB.InputSpec.of({
+  hostname: ISB.Value.text({
     name: 'Hostname',
     description:
       'The hostname of your target device on the Local Area Network.',
@@ -271,19 +271,19 @@ const cifsSpec = CB.Config.of({
     required: { default: null },
     patterns: [],
   }),
-  path: CB.Value.text({
+  path: ISB.Value.text({
     name: 'Path',
     description: `On Windows, this is the fully qualified path to the shared folder, (e.g. /Desktop/my-folder).\n\n On Linux and Mac, this is the literal name of the shared folder (e.g. my-shared-folder).`,
     placeholder: 'e.g. my-shared-folder or /Desktop/my-folder',
     required: { default: null },
   }),
-  username: CB.Value.text({
+  username: ISB.Value.text({
     name: 'Username',
     description: `On Linux, this is the samba username you created when sharing the folder.\n\n On Mac and Windows, this is the username of the user who is sharing the folder.`,
     required: { default: null },
     placeholder: 'My Network Folder',
   }),
-  password: CB.Value.text({
+  password: ISB.Value.text({
     name: 'Password',
     description: `On Linux, this is the samba password you created when sharing the folder.\n\n On Mac and Windows, this is the password of the user who is sharing the folder.`,
     required: false,

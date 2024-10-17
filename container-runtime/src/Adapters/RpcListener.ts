@@ -14,17 +14,14 @@ import {
   anyOf,
 } from "ts-matches"
 
-import { types as T } from "@start9labs/start-sdk"
+import { types as T, utils } from "@start9labs/start-sdk"
 import * as fs from "fs"
 
 import { CallbackHolder } from "../Models/CallbackHolder"
 import { AllGetDependencies } from "../Interfaces/AllGetDependencies"
-import { jsonPath } from "../Models/JsonPath"
-import { RunningMain, System } from "../Interfaces/System"
-import {
-  MakeMainEffects,
-  MakeProcedureEffects,
-} from "../Interfaces/MakeEffects"
+import { jsonPath, unNestPath } from "../Models/JsonPath"
+import { System } from "../Interfaces/System"
+import { makeEffects } from "./EffectCreator"
 type MaybePromise<T> = T | Promise<T>
 export const matchRpcResult = anyOf(
   object({ result: any }),
@@ -45,6 +42,7 @@ export const matchRpcResult = anyOf(
     ),
   }),
 )
+
 export type RpcResult = typeof matchRpcResult._TYPE
 type SocketResponse = ({ jsonrpc: "2.0"; id: IdType } & RpcResult) | null
 
@@ -52,64 +50,87 @@ const SOCKET_PARENT = "/media/startos/rpc"
 const SOCKET_PATH = "/media/startos/rpc/service.sock"
 const jsonrpc = "2.0" as const
 
+const isResult = object({ result: any }).test
+
 const idType = some(string, number, literal(null))
-type IdType = null | string | number
-const runType = object({
-  id: idType,
-  method: literal("execute"),
-  params: object(
-    {
-      id: string,
-      procedure: string,
-      input: any,
-      timeout: number,
-    },
-    ["timeout", "input"],
-  ),
-})
-const sandboxRunType = object({
-  id: idType,
-  method: literal("sandbox"),
-  params: object(
-    {
-      id: string,
-      procedure: string,
-      input: any,
-      timeout: number,
-    },
-    ["timeout", "input"],
-  ),
-})
+type IdType = null | string | number | undefined
+const runType = object(
+  {
+    id: idType,
+    method: literal("execute"),
+    params: object(
+      {
+        id: string,
+        procedure: string,
+        input: any,
+        timeout: number,
+      },
+      ["timeout"],
+    ),
+  },
+  ["id"],
+)
+const sandboxRunType = object(
+  {
+    id: idType,
+    method: literal("sandbox"),
+    params: object(
+      {
+        id: string,
+        procedure: string,
+        input: any,
+        timeout: number,
+      },
+      ["timeout"],
+    ),
+  },
+  ["id"],
+)
 const callbackType = object({
   method: literal("callback"),
   params: object({
-    callback: number,
+    id: number,
     args: array,
   }),
 })
-const initType = object({
-  id: idType,
-  method: literal("init"),
-})
-const startType = object({
-  id: idType,
-  method: literal("start"),
-})
-const stopType = object({
-  id: idType,
-  method: literal("stop"),
-})
-const exitType = object({
-  id: idType,
-  method: literal("exit"),
-})
-const evalType = object({
-  id: idType,
-  method: literal("eval"),
-  params: object({
-    script: string,
-  }),
-})
+const initType = object(
+  {
+    id: idType,
+    method: literal("init"),
+  },
+  ["id"],
+)
+const startType = object(
+  {
+    id: idType,
+    method: literal("start"),
+  },
+  ["id"],
+)
+const stopType = object(
+  {
+    id: idType,
+    method: literal("stop"),
+  },
+  ["id"],
+)
+const exitType = object(
+  {
+    id: idType,
+    method: literal("exit"),
+  },
+  ["id"],
+)
+const evalType = object(
+  {
+    id: idType,
+    method: literal("eval"),
+    params: object({
+      script: string,
+    }),
+  },
+  ["id"],
+)
 
 const jsonParse = (x: string) => JSON.parse(x)
 
@@ -142,8 +163,7 @@ const hasId = object({ id: idType }).test
 export class RpcListener {
   unixSocketServer = net.createServer(async (server) => {})
   private _system: System | undefined
-  private _makeProcedureEffects: MakeProcedureEffects | undefined
-  private _makeMainEffects: MakeMainEffects | undefined
+  private callbacks: CallbackHolder | undefined
 
   constructor(readonly getDependencies: AllGetDependencies) {
     if (!fs.existsSync(SOCKET_PARENT)) {
@@ -196,7 +216,11 @@ export class RpcListener {
           .then((x) => this.dealWithInput(x))
           .catch(mapError)
           .then(logData("response"))
-          .then(writeDataToSocket),
+          .then(writeDataToSocket)
+          .catch((e) => {
+            console.error(`Major error in socket handling: ${e}`)
+            console.debug(`Data in: ${a.toString()}`)
+          }),
       )
     })
   }
@@ -206,18 +230,33 @@ export class RpcListener {
     return this._system
   }
 
-  private get makeProcedureEffects() {
-    if (!this._makeProcedureEffects) {
-      this._makeProcedureEffects = this.getDependencies.makeProcedureEffects()
+  private callbackHolders: Map<string, CallbackHolder> = new Map()
+  private removeCallbackHolderFor(procedure: string) {
+    const prev = this.callbackHolders.get(procedure)
+    if (prev) {
+      this.callbackHolders.delete(procedure)
+      this.callbacks?.removeChild(prev)
     }
-    return this._makeProcedureEffects
+  }
+  private callbackHolderFor(procedure: string): CallbackHolder {
+    this.removeCallbackHolderFor(procedure)
+    const callbackHolder = this.callbacks!.child()
+    this.callbackHolders.set(procedure, callbackHolder)
+    return callbackHolder
   }
 
-  private get makeMainEffects() {
-    if (!this._makeMainEffects) {
-      this._makeMainEffects = this.getDependencies.makeMainEffects()
+  callCallback(callback: number, args: any[]): void {
+    if (this.callbacks) {
+      this.callbacks
+        .callCallback(callback, args)
+        .catch((error) =>
+          console.error(`callback ${callback} failed`, utils.asError(error)),
+        )
+    } else {
+      console.warn(
+        `callback ${callback} ignored because system is not initialized`,
+      )
     }
-    return this._makeMainEffects
   }
 
   private dealWithInput(input: unknown): MaybePromise<SocketResponse> {
@@ -225,42 +264,49 @@ export class RpcListener {
       .when(runType, async ({ id, params }) => {
         const system = this.system
         const procedure = jsonPath.unsafeCast(params.procedure)
-        const effects = this.getDependencies.makeProcedureEffects()(params.id)
-        return handleRpc(
-          id,
-          system.execute(effects, {
-            procedure,
-            input: params.input,
-            timeout: params.timeout,
-          }),
+        const { input, timeout, id: procedureId } = params
+        const result = this.getResult(
+          procedure,
+          system,
+          procedureId,
+          timeout,
+          input,
         )
+
+        return handleRpc(id, result)
       })
       .when(sandboxRunType, async ({ id, params }) => {
         const system = this.system
         const procedure = jsonPath.unsafeCast(params.procedure)
-        const effects = this.makeProcedureEffects(params.id)
-        return handleRpc(
-          id,
-          system.sandbox(effects, {
-            procedure,
-            input: params.input,
-            timeout: params.timeout,
-          }),
+        const { input, timeout, id: procedureId } = params
+        const result = this.getResult(
+          procedure,
+          system,
+          procedureId,
+          timeout,
+          input,
         )
+
+        return handleRpc(id, result)
       })
-      .when(callbackType, async ({ params: { callback, args } }) => {
-        this.system.callCallback(callback, args)
+      .when(callbackType, async ({ params: { id, args } }) => {
+        this.callCallback(id, args)
         return null
       })
       .when(startType, async ({ id }) => {
+        const callbacks = this.callbackHolderFor("main")
+        const effects = makeEffects({
+          procedureId: null,
+          callbacks,
+          constRetry: () => {},
+        })
         return handleRpc(
           id,
-          this.system
-            .start(this.makeMainEffects())
-            .then((result) => ({ result })),
+          this.system.start(effects).then((result) => ({ result })),
         )
       })
       .when(stopType, async ({ id }) => {
+        this.removeCallbackHolderFor("main")
         return handleRpc(
           id,
           this.system.stop().then((result) => ({ result })),
@@ -280,7 +326,20 @@ export class RpcListener {
           (async () => {
             if (!this._system) {
               const system = await this.getDependencies.system()
-              await system.init()
+              this.callbacks = new CallbackHolder(
+                makeEffects({
+                  procedureId: null,
+                  constRetry: () => {},
+                }),
+              )
+              const callbacks = this.callbackHolderFor("containerInit")
+              await system.containerInit(
+                makeEffects({
+                  procedureId: null,
+                  callbacks,
+                  constRetry: () => {},
+                }),
+              )
               this._system = system
             }
           })().then((result) => ({ result })),
@@ -312,17 +371,20 @@ export class RpcListener {
           })(),
         )
       })
-      .when(shape({ id: idType, method: string }), ({ id, method }) => ({
-        jsonrpc,
-        id,
-        error: {
-          code: -32601,
-          message: `Method not found`,
-          data: {
-            details: method,
+      .when(
+        shape({ id: idType, method: string }, ["id"]),
+        ({ id, method }) => ({
+          jsonrpc,
+          id,
+          error: {
+            code: -32601,
+            message: `Method not found`,
+            data: {
+              details: method,
+            },
           },
-        },
-      }))
+        }),
+      )
 
       .defaultToLazy(() => {
         console.warn(
@@ -340,5 +402,83 @@ export class RpcListener {
           },
         }
       })
+  }
+  private getResult(
+    procedure: typeof jsonPath._TYPE,
+    system: System,
+    procedureId: string,
+    timeout: number | undefined,
+    input: any,
+  ) {
+    const ensureResultTypeShape = (
+      result: void | T.ActionInput | T.ActionResult | null,
+    ): { result: any } => {
+      if (isResult(result)) return result
+      return { result }
+    }
+    const callbacks = this.callbackHolderFor(procedure)
+    const effects = makeEffects({
+      procedureId,
+      callbacks,
+      constRetry: () => {},
+    })
+
+    return (async () => {
+      switch (procedure) {
+        case "/backup/create":
+          return system.createBackup(effects, timeout || null)
+        case "/backup/restore":
+          return system.restoreBackup(effects, timeout || null)
+        case "/packageInit":
+          return system.packageInit(effects, timeout || null)
+        case "/packageUninit":
+          return system.packageUninit(
+            effects,
+            string.optional().unsafeCast(input),
+            timeout || null,
+          )
+        default:
+          const procedures = unNestPath(procedure)
+          switch (true) {
+            case procedures[1] === "actions" && procedures[3] === "getInput":
+              return system.getActionInput(
+                effects,
+                procedures[2],
+                timeout || null,
+              )
+            case procedures[1] === "actions" && procedures[3] === "run":
+              return system.runAction(
+                effects,
+                procedures[2],
+                input.input,
+                timeout || null,
+              )
+          }
+      }
+    })().then(ensureResultTypeShape, (error) =>
+      matches(error)
+        .when(
+          object(
+            {
+              error: string,
+              code: number,
+            },
+            ["code"],
+            { code: 0 },
+          ),
+          (error) => ({
+            error: {
+              code: error.code,
+              message: error.error,
+            },
+          }),
+        )
+        .defaultToLazy(() => ({
+          error: {
+            code: 0,
+            message: String(error),
+          },
+        })),
+    )
   }
 }

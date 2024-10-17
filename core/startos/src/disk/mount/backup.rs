@@ -219,10 +219,10 @@ impl<G: GenericMountGuard> Drop for BackupMountGuard<G> {
         let second = self.backup_disk_mount_guard.take();
         tokio::spawn(async move {
             if let Some(guard) = first {
-                guard.unmount().await.unwrap();
+                guard.unmount().await.log_err();
             }
             if let Some(guard) = second {
-                guard.unmount().await.unwrap();
+                guard.unmount().await.log_err();
             }
         });
     }
