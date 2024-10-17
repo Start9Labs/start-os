@@ -149,14 +149,15 @@ export class FormComponent<T extends Record<string, any>> implements OnInit {
   }
 
   private process(operations: Operation[]) {
-    operations.forEach(({ op, path }) => {
-      const control = this.form.get(path.substring(1).split('/'))
+    operations.forEach(operation => {
+      const control = this.form.get(operation.path.substring(1).split('/'))
 
       if (!control || !control.parent) return
 
-      if (op !== 'remove') {
+      if (operation.op === 'add' || operation.op === 'replace') {
         control.markAsDirty()
         control.markAsTouched()
+        control.setValue(operation.value)
       }
 
       control.parent.markAsDirty()

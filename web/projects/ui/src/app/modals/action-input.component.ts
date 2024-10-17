@@ -96,7 +96,7 @@ export type PackageActionData = {
       .service-title {
         display: inline-flex;
         align-items: center;
-        margin-bottom: 1rem;
+        margin-bottom: 1.4rem;
         img {
           height: 20px;
           margin-right: 4px;
@@ -189,6 +189,7 @@ export class ActionInputModal {
           Object.values(packages[id].requestedActions).some(
             ({ request, active }) =>
               !active &&
+              request.severity === 'critical' &&
               request.packageId === this.pkgInfo.id &&
               request.actionId === this.actionId &&
               request.when?.condition === 'input-not-matches' &&

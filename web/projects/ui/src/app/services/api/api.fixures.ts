@@ -1053,7 +1053,8 @@ export module Mock {
     version: '1',
     type: 'string',
     name: 'New Password',
-    description: 'Action was run successfully',
+    description:
+      'Action was run successfully Action was run successfully Action was run successfully Action was run successfully Action was run successfully',
     copyable: true,
     qr: true,
     masked: true,
