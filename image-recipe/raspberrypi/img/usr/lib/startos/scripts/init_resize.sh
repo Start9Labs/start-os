@@ -1,7 +1,7 @@
 #!/bin/bash
 
 get_variables () {
-  ROOT_PART_DEV=$(findmnt / -o source -n)
+  ROOT_PART_DEV=$(findmnt /media/startos/root -o source -n)
   ROOT_PART_NAME=$(echo "$ROOT_PART_DEV" | cut -d "/" -f 3)
   ROOT_DEV_NAME=$(echo /sys/block/*/"${ROOT_PART_NAME}" | cut -d "/" -f 4)
   ROOT_DEV="/dev/${ROOT_DEV_NAME}"
@@ -89,12 +89,12 @@ main () {
 
   resize2fs $ROOT_PART_DEV
 
-  if ! systemd-machine-id-setup; then
+  if ! systemd-machine-id-setup --root=/media/startos/config/overlay/; then
     FAIL_REASON="systemd-machine-id-setup failed"
     return 1
   fi
 
-  if ! ssh-keygen -A; then
+  if ! mkdir -p /media/startos/config/overlay/etc/ssh && ssh-keygen -A -f /media/startos/config/overlay/; then
     FAIL_REASON="ssh host key generation failed"
     return 1
   fi
@@ -104,9 +104,6 @@ main () {
   return 0
 }
 
-mount -t proc proc /proc
-mount -t sysfs sys /sys
-mount -t tmpfs tmp /run
 mkdir -p /run/systemd
 mount /boot
 mount / -o remount,ro
@@ -114,7 +111,7 @@ mount / -o remount,ro
 beep
 
 if main; then
-  sed -i 's| init=/usr/lib/startos/scripts/init_resize\.sh| boot=startos|' /boot/cmdline.txt
+  sed -i 's| init=/usr/lib/startos/scripts/init_resize\.sh||' /boot/cmdline.txt
   echo "Resized root filesystem. Rebooting in 5 seconds..."
   sleep 5
 else

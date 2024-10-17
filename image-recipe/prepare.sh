@@ -21,7 +21,8 @@ apt-get install -yq \
 	dosfstools \
 	e2fsprogs \
 	squashfs-tools \
-	rsync
+	rsync \
+	b3sum
 # TODO: remove when util-linux is released at v2.39.3
 apt-get install -yq \
 	git \
