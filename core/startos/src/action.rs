@@ -6,6 +6,7 @@ use models::PackageId;
 use qrcode::QrCode;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use tracing::instrument;
 use ts_rs::TS;
 
@@ -74,21 +75,25 @@ pub async fn get_action_input(
         .await
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "version")]
+#[ts(export)]
 pub enum ActionResult {
     #[serde(rename = "0")]
     V0(ActionResultV0),
+    #[serde(rename = "1")]
+    V1(ActionResultV1),
 }
 impl fmt::Display for ActionResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::V0(res) => res.fmt(f),
+            Self::V1(res) => res.fmt(f),
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, TS)]
 pub struct ActionResultV0 {
     pub message: String,
     pub value: Option<String>,
@@ -113,6 +118,96 @@ impl fmt::Display for ActionResultV0 {
             }
         }
         Ok(())
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[serde(rename_all_fields = "camelCase")]
+#[serde(tag = "type")]
+pub enum ActionResultV1 {
+    String {
+        name: String,
+        value: String,
+        description: Option<String>,
+        copyable: bool,
+        qr: bool,
+        masked: bool,
+    },
+    Object {
+        name: String,
+        value: Vec<ActionResultV1>,
+        #[ts(optional)]
+        description: Option<String>,
+    },
+}
+impl ActionResultV1 {
+    fn fmt_rec(&self, f: &mut fmt::Formatter<'_>, indent: usize) -> fmt::Result {
+        match self {
+            Self::String {
+                name,
+                value,
+                description,
+                qr,
+                ..
+            } => {
+                for i in 0..indent {
+                    write!(f, "  ")?;
+                }
+                write!(f, "{name}")?;
+                if let Some(description) = description {
+                    write!(f, ": {description}")?;
+                }
+                if !value.is_empty() {
+                    write!(f, ":\n")?;
+                    for i in 0..indent {
+                        write!(f, "  ")?;
+                    }
+                    write!(f, "{value}")?;
+                    if *qr {
+                        use qrcode::render::unicode;
+                        write!(f, "\n")?;
+                        for i in 0..indent {
+                            write!(f, "  ")?;
+                        }
+                        write!(
+                            f,
+                            "{}",
+                            QrCode::new(value.as_bytes())
+                                .unwrap()
+                                .render::<unicode::Dense1x2>()
+                                .build()
+                        )?;
+                    }
+                }
+            }
+            Self::Object {
+                name,
+                value,
+                description,
+            } => {
+                for i in 0..indent {
+                    write!(f, "  ")?;
+                }
+                write!(f, "{name}")?;
+                if let Some(description) = description {
+                    write!(f, ": {description}")?;
+                }
+                for value in value {
+                    write!(f, ":\n")?;
+                    for i in 0..indent {
+                        write!(f, "  ")?;
+                    }
+                    value.fmt_rec(f, indent + 1)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+impl fmt::Display for ActionResultV1 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.fmt_rec(f, 0)
     }
 }
 

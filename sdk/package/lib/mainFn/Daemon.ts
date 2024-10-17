@@ -17,7 +17,7 @@ export class Daemon {
   get subContainerHandle(): undefined | ExecSpawnable {
     return this.commandController?.subContainerHandle
   }
-  static of<Manifest extends T.Manifest>() {
+  static of<Manifest extends T.SDKManifest>() {
     return async <A extends string>(
       effects: T.Effects,
       subcontainer:

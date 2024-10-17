@@ -42,6 +42,7 @@ export const matchRpcResult = anyOf(
     ),
   }),
 )
+
 export type RpcResult = typeof matchRpcResult._TYPE
 type SocketResponse = ({ jsonrpc: "2.0"; id: IdType } & RpcResult) | null
 
@@ -88,7 +89,7 @@ const sandboxRunType = object(
 const callbackType = object({
   method: literal("callback"),
   params: object({
-    callback: number,
+    id: number,
     args: array,
   }),
 })
@@ -288,8 +289,8 @@ export class RpcListener {
 
         return handleRpc(id, result)
       })
-      .when(callbackType, async ({ params: { callback, args } }) => {
-        this.callCallback(callback, args)
+      .when(callbackType, async ({ params: { id, args } }) => {
+        this.callCallback(id, args)
         return null
       })
       .when(startType, async ({ id }) => {
@@ -410,7 +411,7 @@ export class RpcListener {
     input: any,
   ) {
     const ensureResultTypeShape = (
-      result: void | T.ActionInput | T.PropertiesReturn | T.ActionResult | null,
+      result: void | T.ActionInput | T.ActionResult | null,
     ): { result: any } => {
       if (isResult(result)) return result
       return { result }
@@ -428,8 +429,6 @@ export class RpcListener {
           return system.createBackup(effects, timeout || null)
         case "/backup/restore":
           return system.restoreBackup(effects, timeout || null)
-        case "/properties":
-          return system.properties(effects, timeout || null)
         case "/packageInit":
           return system.packageInit(effects, timeout || null)
         case "/packageUninit":

@@ -2,17 +2,12 @@ import {
   InstalledState,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { Metric, NotificationLevel, RR, ServerNotifications } from './api.types'
+import { NotificationLevel, RR, ServerNotifications } from './api.types'
 import { BTC_ICON, LND_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
 import { Log } from '@start9labs/shared'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { T, ISB, IST } from '@start9labs/start-sdk'
 import { GetPackagesRes } from '@start9labs/marketplace'
-
-const mockBlake3Commitment: T.Blake3Commitment = {
-  hash: 'fakehash',
-  size: 0,
-}
 
 const mockMerkleArchiveCommitment: T.MerkleArchiveCommitment = {
   rootSighash: 'fakehash',
@@ -880,25 +875,6 @@ export module Mock {
     }
   }
 
-  export function getAppMetrics() {
-    const metr: Metric = {
-      Metric1: {
-        value: Math.random(),
-        unit: 'mi/b',
-      },
-      Metric2: {
-        value: Math.random(),
-        unit: '%',
-      },
-      Metric3: {
-        value: 10.1,
-        unit: '%',
-      },
-    }
-
-    return metr
-  }
-
   export const ServerLogs: Log[] = [
     {
       timestamp: '2022-07-28T03:52:54.808769Z',
@@ -944,15 +920,6 @@ export module Mock {
         },
       },
     },
-  }
-
-  export const ActionResponse: T.ActionResult = {
-    version: '0',
-    message:
-      'Password changed successfully. If you lose your new password, you will be lost forever.',
-    value: 'NewPassword1234!',
-    copyable: true,
-    qr: true,
   }
 
   export const SshKeys: RR.GetSSHKeysRes = [
@@ -1082,11 +1049,26 @@ export module Mock {
     },
   }
 
-  export const PackageProperties: RR.GetPackagePropertiesRes<2> = {
-    version: 2,
-    data: {
-      lndconnect: {
+  export const ActionRes: RR.ActionRes = {
+    version: '1',
+    type: 'string',
+    name: 'New Password',
+    description:
+      'Action was run successfully Action was run successfully Action was run successfully Action was run successfully Action was run successfully',
+    copyable: true,
+    qr: true,
+    masked: true,
+    value: 'iwejdoiewdhbew',
+  }
+
+  export const ActionProperties: RR.ActionRes = {
+    version: '1',
+    type: 'object',
+    name: 'Properties',
+    value: [
+      {
         type: 'string',
+        name: 'LND Connect',
         description: 'This is some information about the thing.',
         copyable: true,
         qr: true,
@@ -1094,45 +1076,50 @@ export module Mock {
         value:
           'lndconnect://udlyfq2mxa4355pt7cqlrdipnvk2tsl4jtsdw7zaeekenufwcev2wlad.onion:10009?cert=MIICJTCCAcugAwIBAgIRAOyq85fqAiA3U3xOnwhH678wCgYIKoZIzj0EAwIwODEfMB0GAkUEChMWbG5kIGF1dG9nZW5lcmF0ZWQgY2VydDEVMBMGA1UEAxMMNTc0OTkwMzIyYzZlMB4XDTIwMTAyNjA3MzEyN1oXDTIxMTIyMTA3MzEyN1owODEfMB0GA1UEChMWbG5kIGF1dG9nZW5lcmF0ZWQgY2VydDEVMBMGA1UEAxMMNTc0OTkwMzIyYzZlMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKqfhAMMZdY-eFnU5P4bGrQTSx0lo7m8u4V0yYkzUM6jlql_u31_mU2ovLTj56wnZApkEjoPl6fL2yasZA2wiy6OBtTCBsjAOBgNVHQ8BAf8EBAMCAqQwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDwYDVR0TAQH_BAUwAwEB_zAdBgNVHQ4EFgQUYQ9uIO6spltnVCx4rLFL5BvBF9IwWwYDVR0RBFQwUoIMNTc0OTkwMzIyYzZlgglsb2NhbGhvc3SCBHVuaXiCCnVuaXhwYWNrZXSCB2J1ZmNvbm6HBH8AAAGHEAAAAAAAAAAAAAAAAAAAAAGHBKwSAAswCgYIKoZIzj0EAwIDSAAwRQIgVZH2Z2KlyAVY2Q2aIQl0nsvN-OEN49wreFwiBqlxNj4CIQD5_JbpuBFJuf81I5J0FQPtXY-4RppWOPZBb-y6-rkIUQ&macaroon=AgEDbG5kAusBAwoQuA8OUMeQ8Fr2h-f65OdXdRIBMBoWCgdhZGRyZXNzEgRyZWFkEgV3cml0ZRoTCgRpbmZvEgRyZWFkEgV3cml0ZRoXCghpbnZvaWNlcxIEcmVhZBIFd3JpdGUaFAoIbWFjYXJvb24SCGdlbmVyYXRlGhYKB21lc3NhZ2USBHJlYWQSBXdyaXRlGhcKCG9mZmNoYWluEgRyZWFkEgV3cml0ZRoWCgdvbmNoYWluEgRyZWFkEgV3cml0ZRoUCgVwZWVycxIEcmVhZBIFd3JpdGUaGAoGc2lnbmVyEghnZW5lcmF0ZRIEcmVhZAAABiCYsRUoUWuAHAiCSLbBR7b_qULDSl64R8LIU2aqNIyQfA',
       },
-      Nested: {
+      {
         type: 'object',
+        name: 'Nested Stuff',
         description: 'This is a nested thing metric',
-        value: {
-          'Last Name': {
+        value: [
+          {
             type: 'string',
+            name: 'Last Name',
             description: 'The last name of the user',
             copyable: true,
             qr: true,
             masked: false,
             value: 'Hill',
           },
-          Age: {
+          {
             type: 'string',
+            name: 'Age',
             description: 'The age of the user',
             copyable: false,
             qr: false,
             masked: false,
             value: '35',
           },
-          Password: {
+          {
             type: 'string',
+            name: 'Password',
             description: 'A secret password',
             copyable: true,
             qr: false,
             masked: true,
             value: 'password123',
           },
-        },
+        ],
       },
-      'Another Value': {
+      {
         type: 'string',
+        name: 'Another Value',
         description: 'Some more information about the service.',
         copyable: false,
         qr: true,
         masked: false,
         value: 'https://guessagain.com',
       },
-    },
+    ],
   }
 
   export const getActionInputSpec = async (): Promise<IST.InputSpec> =>
@@ -1692,12 +1679,31 @@ export module Mock {
     },
     actions: {
       config: {
-        name: 'Bitcoin Config',
+        name: 'Set Config',
         description: 'edit bitcoin.conf',
         warning: null,
         visibility: 'enabled',
         allowedStatuses: 'any',
         hasInput: true,
+        group: null,
+      },
+      properties: {
+        name: 'View Properties',
+        description: 'view important information about Bitcoin',
+        warning: null,
+        visibility: 'enabled',
+        allowedStatuses: 'any',
+        hasInput: false,
+        group: null,
+      },
+      test: {
+        name: 'Do Another Thing',
+        description:
+          'An example of an action that shows a warning and takes no input',
+        warning: 'careful running this action',
+        visibility: 'enabled',
+        allowedStatuses: 'only-running',
+        hasInput: false,
         group: null,
       },
     },
@@ -1859,7 +1865,27 @@ export module Mock {
     storeExposedDependents: [],
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
-    requestedActions: {},
+    requestedActions: {
+      'bitcoind-config': {
+        request: {
+          packageId: 'bitcoind',
+          actionId: 'config',
+          severity: 'critical',
+          reason:
+            'You must run Config before starting Bitcoin for the first time',
+        },
+        active: true,
+      },
+      'bitcoind-properties': {
+        request: {
+          packageId: 'bitcoind',
+          actionId: 'properties',
+          severity: 'important',
+          reason: 'Check out all the info about your Bitcoin node',
+        },
+        active: true,
+      },
+    },
   }
 
   export const bitcoinProxy: PackageDataEntry<InstalledState> = {
@@ -1992,7 +2018,27 @@ export module Mock {
     storeExposedDependents: [],
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
-    requestedActions: {},
+    requestedActions: {
+      'bitcoind/config': {
+        active: true,
+        request: {
+          packageId: 'bitcoind',
+          actionId: 'config',
+          severity: 'critical',
+          reason: 'LND likes BTC a certain way',
+          input: {
+            kind: 'partial',
+            value: {
+              color: '#ffffff',
+              rpcsettings: {
+                rpcuser: 'lnd',
+              },
+              testnet: false,
+            },
+          },
+        },
+      },
+    },
   }
 
   export const LocalPkgs: { [key: string]: PackageDataEntry<InstalledState> } =

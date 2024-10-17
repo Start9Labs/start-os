@@ -61,6 +61,7 @@ export const mockPatchData: DataModel = {
     passwordHash:
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
     versionCompat: '>=0.3.0 <=0.3.6',
+    postInitMigrationTodos: [],
     statusInfo: {
       backupProgress: null,
       updated: false,
@@ -82,7 +83,6 @@ export const mockPatchData: DataModel = {
       selected: null,
       lastRegion: null,
     },
-    postInitMigrationTodos: [],
   },
   packageData: {
     bitcoind: {
@@ -107,12 +107,31 @@ export const mockPatchData: DataModel = {
       // },
       actions: {
         config: {
-          name: 'Bitcoin Config',
+          name: 'Set Config',
           description: 'edit bitcoin.conf',
           warning: null,
           visibility: 'enabled',
           allowedStatuses: 'any',
           hasInput: true,
+          group: null,
+        },
+        properties: {
+          name: 'View Properties',
+          description: 'view important information about Bitcoin',
+          warning: null,
+          visibility: 'enabled',
+          allowedStatuses: 'any',
+          hasInput: false,
+          group: null,
+        },
+        test: {
+          name: 'Do Another Thing',
+          description:
+            'An example of an action that shows a warning and takes no input',
+          warning: 'careful running this action',
+          visibility: 'enabled',
+          allowedStatuses: 'only-running',
+          hasInput: false,
           group: null,
         },
       },
@@ -274,7 +293,27 @@ export const mockPatchData: DataModel = {
       storeExposedDependents: [],
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
-      requestedActions: {},
+      requestedActions: {
+        'bitcoind-config': {
+          request: {
+            packageId: 'bitcoind',
+            actionId: 'config',
+            severity: 'critical',
+            reason:
+              'You must run Config before starting Bitcoin for the first time',
+          },
+          active: true,
+        },
+        'bitcoind-properties': {
+          request: {
+            packageId: 'bitcoind',
+            actionId: 'properties',
+            severity: 'important',
+            reason: 'Check out all the info about your Bitcoin node',
+          },
+          active: true,
+        },
+      },
     },
     lnd: {
       stateInfo: {
@@ -364,7 +403,27 @@ export const mockPatchData: DataModel = {
       storeExposedDependents: [],
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
-      requestedActions: {},
+      requestedActions: {
+        'bitcoind/config': {
+          active: true,
+          request: {
+            packageId: 'bitcoind',
+            actionId: 'config',
+            severity: 'critical',
+            reason: 'LND likes BTC a certain way',
+            input: {
+              kind: 'partial',
+              value: {
+                color: '#ffffff',
+                rpcsettings: {
+                  rpcuser: 'lnd',
+                },
+                testnet: false,
+              },
+            },
+          },
+        },
+      },
     },
   },
 }

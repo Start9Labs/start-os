@@ -10,7 +10,6 @@ import {
 import { PATCH_CACHE } from 'src/app/services/patch-db/patch-db-source'
 import { ApiService } from './embassy-api.service'
 import { RR } from './api.types'
-import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { ConfigService } from '../config.service'
 import { webSocket } from 'rxjs/webSocket'
 import { Observable, filter, firstValueFrom } from 'rxjs'
@@ -436,14 +435,6 @@ export class LiveApiService extends ApiService {
 
   // package
 
-  async getPackageProperties(
-    params: RR.GetPackagePropertiesReq,
-  ): Promise<RR.GetPackagePropertiesRes<2>['data']> {
-    return this.rpcRequest({ method: 'package.properties', params }).then(
-      parsePropertiesPermissive,
-    )
-  }
-
   async getPackageLogs(
     params: RR.GetPackageLogsReq,
   ): Promise<RR.GetPackageLogsRes> {
@@ -454,12 +445,6 @@ export class LiveApiService extends ApiService {
     params: RR.FollowPackageLogsReq,
   ): Promise<RR.FollowPackageLogsRes> {
     return this.rpcRequest({ method: 'package.logs.follow', params })
-  }
-
-  async getPkgMetrics(
-    params: RR.GetPackageMetricsReq,
-  ): Promise<RR.GetPackageMetricsRes> {
-    return this.rpcRequest({ method: 'package.metrics', params })
   }
 
   async installPackage(
@@ -474,7 +459,7 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'package.action.get-input', params })
   }
 
-  async runAction(params: RR.RunActionReq): Promise<RR.RunActionRes> {
+  async runAction(params: RR.ActionReq): Promise<RR.ActionRes> {
     return this.rpcRequest({ method: 'package.action.run', params })
   }
 

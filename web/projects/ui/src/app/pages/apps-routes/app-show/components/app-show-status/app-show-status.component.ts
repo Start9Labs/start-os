@@ -3,7 +3,6 @@ import { AlertController } from '@ionic/angular'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
-import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConnectionService } from 'src/app/services/connection.service'
 import {
@@ -19,7 +18,6 @@ import {
   getAllPackages,
   getManifest,
   isInstalled,
-  needsConfig,
 } from 'src/app/util/get-package-data'
 import { hasCurrentDeps } from 'src/app/util/has-deps'
 
@@ -39,7 +37,6 @@ export class AppShowStatusComponent {
   PR = PrimaryRendering
 
   isInstalled = isInstalled
-  needsConfig = needsConfig
 
   constructor(
     private readonly alertCtrl: AlertController,
@@ -49,7 +46,6 @@ export class AppShowStatusComponent {
     private readonly launcherService: UiLauncherService,
     readonly connection$: ConnectionService,
     private readonly patch: PatchDB<DataModel>,
-    private readonly actionService: ActionService,
   ) {}
 
   get interfaces(): PackageDataEntry['serviceInterfaces'] {
@@ -77,14 +73,11 @@ export class AppShowStatusComponent {
   }
 
   get canStart(): boolean {
-    return (
-      this.status.primary === 'stopped' &&
-      !Object.keys(this.pkg.requestedActions).length
-    )
+    return this.status.primary === 'stopped'
   }
 
   get sigtermTimeout(): string | null {
-    return this.pkgStatus?.main === 'stopping' ? '30s' : null // @dr-bonez TODO
+    return this.pkgStatus?.main === 'stopping' ? '30s' : null // @TODO Aiden
   }
 
   launchUi(
@@ -92,17 +85,6 @@ export class AppShowStatusComponent {
     hosts: PackageDataEntry['hosts'],
   ): void {
     this.launcherService.launch(interfaces, hosts)
-  }
-
-  async presentModalConfig(): Promise<void> {
-    return this.actionService.present(
-      {
-        id: this.manifest.id,
-        title: this.manifest.title,
-        mainStatus: this.pkg.status.main,
-      },
-      { id: 'config', metadata: this.pkg.actions['config'] },
-    )
   }
 
   async tryStart(): Promise<void> {
@@ -221,6 +203,7 @@ export class AppShowStatusComponent {
       loader.unsubscribe()
     }
   }
+
   private async presentAlertStart(message: string): Promise<boolean> {
     return new Promise(async resolve => {
       const alert = await this.alertCtrl.create({

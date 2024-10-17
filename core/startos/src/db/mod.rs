@@ -228,6 +228,8 @@ pub async fn subscribe(
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct CliApplyParams {
+    #[arg(long)]
+    allow_model_mismatch: bool,
     expr: String,
     path: Option<PathBuf>,
 }
@@ -238,7 +240,12 @@ async fn cli_apply(
         context,
         parent_method,
         method,
-        params: CliApplyParams { expr, path },
+        params:
+            CliApplyParams {
+                allow_model_mismatch,
+                expr,
+                path,
+            },
         ..
     }: HandlerArgs<CliContext, CliApplyParams>,
 ) -> Result<(), RpcError> {
@@ -253,7 +260,14 @@ async fn cli_apply(
                     &expr,
                 )?;
 
-                Ok::<_, Error>((
+                let value = if allow_model_mismatch {
+                    serde_json::from_value::<Value>(res.clone().into()).with_ctx(|_| {
+                        (
+                            crate::ErrorKind::Deserialization,
+                            "result does not match database model",
+                        )
+                    })?
+                } else {
                     to_value(
                         &serde_json::from_value::<model::Database>(res.clone().into()).with_ctx(
                             |_| {
@@ -263,9 +277,9 @@ async fn cli_apply(
                                 )
                             },
                         )?,
-                    )?,
-                    (),
-                ))
+                    )?
+                };
+                Ok::<_, Error>((value, ()))
             })
             .await?;
     } else {

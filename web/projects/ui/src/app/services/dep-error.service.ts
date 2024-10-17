@@ -101,17 +101,17 @@ export class DepErrorService {
       }
     }
 
-    // invalid config
+    // action required
     if (
       Object.values(pkg.requestedActions).some(
         a =>
           a.active &&
           a.request.packageId === depId &&
-          a.request.actionId === 'config',
+          a.request.severity === 'critical',
       )
     ) {
       return {
-        type: 'configUnsatisfied',
+        type: 'actionRequired',
       }
     }
 

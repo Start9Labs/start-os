@@ -1,22 +1,11 @@
 import * as T from "../types"
 import { once } from "../util"
-import { Dependency } from "./Dependency"
 
-type DependencyType<Manifest extends T.Manifest> = {
-  [K in keyof {
-    [K in keyof Manifest["dependencies"]]: Manifest["dependencies"][K]["optional"] extends false
-      ? K
-      : never
-  }]: Dependency
-} & {
-  [K in keyof {
-    [K in keyof Manifest["dependencies"]]: Manifest["dependencies"][K]["optional"] extends true
-      ? K
-      : never
-  }]?: Dependency
+type DependencyType<Manifest extends T.SDKManifest> = {
+  [K in keyof Manifest["dependencies"]]: Omit<T.DependencyRequirement, "id">
 }
 
-export function setupDependencies<Manifest extends T.Manifest>(
+export function setupDependencies<Manifest extends T.SDKManifest>(
   fn: (options: { effects: T.Effects }) => Promise<DependencyType<Manifest>>,
 ): (options: { effects: T.Effects }) => Promise<null> {
   const cell = { updater: async (_: { effects: T.Effects }) => null }
@@ -30,24 +19,12 @@ export function setupDependencies<Manifest extends T.Manifest>(
     const dependencyType = await fn(options)
     return await options.effects.setDependencies({
       dependencies: Object.entries(dependencyType).map(
-        ([
-          id,
-          {
-            data: { versionRange, ...x },
-          },
-        ]) => ({
-          id,
-          ...x,
-          ...(x.type === "running"
-            ? {
-                kind: "running",
-                healthChecks: x.healthChecks,
-              }
-            : {
-                kind: "exists",
-              }),
-          versionRange: versionRange.toString(),
-        }),
+        ([id, { versionRange, ...x }, ,]) =>
+          ({
+            id,
+            ...x,
+            versionRange: versionRange.toString(),
+          }) as T.DependencyRequirement,
       ),
     })
   }

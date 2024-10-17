@@ -15,6 +15,23 @@ import { VersionGraph } from "../version/VersionGraph"
  */
 export function setupManifest<
   Id extends string,
+  Dependencies extends Record<string, unknown>,
+  VolumesTypes extends VolumeId,
+  AssetTypes extends VolumeId,
+  ImagesTypes extends ImageId,
+  Manifest extends {
+    dependencies: Dependencies
+    id: Id
+    assets: AssetTypes[]
+    images: Record<ImagesTypes, SDKImageInputSpec>
+    volumes: VolumesTypes[]
+  },
+>(manifest: SDKManifest & Manifest): SDKManifest & Manifest {
+  return manifest
+}
+
+export function buildManifest<
+  Id extends string,
   Version extends string,
   Dependencies extends Record<string, unknown>,
   VolumesTypes extends VolumeId,
@@ -27,7 +44,6 @@ export function setupManifest<
     images: Record<ImagesTypes, SDKImageInputSpec>
     volumes: VolumesTypes[]
   },
-  Satisfies extends string[] = [],
 >(
   versions: VersionGraph<Version>,
   manifest: SDKManifest & Manifest,

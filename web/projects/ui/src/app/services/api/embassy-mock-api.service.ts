@@ -17,7 +17,6 @@ import {
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
 import { CifsBackupTarget, RR } from './api.types'
-import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './api.fixures'
 import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
 import {
@@ -368,13 +367,6 @@ export class MockApiService extends ApiService {
     return Mock.getServerMetrics()
   }
 
-  async getPkgMetrics(
-    params: RR.GetServerMetricsReq,
-  ): Promise<RR.GetPackageMetricsRes> {
-    await pauseFor(2000)
-    return Mock.getAppMetrics()
-  }
-
   async updateServer(url?: string): Promise<RR.UpdateServerRes> {
     await pauseFor(2000)
     const initialProgress = {
@@ -707,13 +699,6 @@ export class MockApiService extends ApiService {
 
   // package
 
-  async getPackageProperties(
-    params: RR.GetPackagePropertiesReq,
-  ): Promise<RR.GetPackagePropertiesRes<2>['data']> {
-    await pauseFor(2000)
-    return parsePropertiesPermissive(Mock.PackageProperties)
-  }
-
   async getPackageLogs(
     params: RR.GetPackageLogsReq,
   ): Promise<RR.GetPackageLogsRes> {
@@ -795,9 +780,23 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async runAction(params: RR.RunActionReq): Promise<RR.RunActionRes> {
+  async runAction(params: RR.ActionReq): Promise<RR.ActionRes> {
     await pauseFor(2000)
-    return Mock.ActionResponse
+
+    if (params.actionId === 'properties') {
+      return Mock.ActionProperties
+    } else if (params.actionId === 'config') {
+      const patch: RemoveOperation[] = [
+        {
+          op: PatchOp.REMOVE,
+          path: `/packageData/${params.packageId}/requestedActions/${params.packageId}-config`,
+        },
+      ]
+      this.mockRevision(patch)
+      return null
+    } else {
+      return Mock.ActionRes
+    }
   }
 
   async restorePackages(

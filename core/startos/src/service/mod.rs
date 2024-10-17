@@ -55,7 +55,6 @@ pub mod cli;
 mod control;
 pub mod effects;
 pub mod persistent_container;
-mod properties;
 mod rpc;
 mod service_actor;
 pub mod service_map;
@@ -132,6 +131,7 @@ impl ServiceRef {
                             );
                             Ok(())
                         })?;
+                        d.as_private_mut().as_package_stores_mut().remove(&id)?;
                         Ok(Some(pde))
                     } else {
                         Ok(None)

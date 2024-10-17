@@ -3,7 +3,7 @@ import { MountOptions } from "../util/SubContainer"
 
 type MountArray = { path: string; options: MountOptions }[]
 
-export class Mounts<Manifest extends T.Manifest> {
+export class Mounts<Manifest extends T.SDKManifest> {
   private constructor(
     readonly volumes: {
       id: Manifest["volumes"][number]
@@ -25,7 +25,7 @@ export class Mounts<Manifest extends T.Manifest> {
     }[],
   ) {}
 
-  static of<Manifest extends T.Manifest>() {
+  static of<Manifest extends T.SDKManifest>() {
     return new Mounts<Manifest>([], [], [])
   }
 
@@ -57,7 +57,7 @@ export class Mounts<Manifest extends T.Manifest> {
     return this
   }
 
-  addDependency<DependencyManifest extends T.Manifest>(
+  addDependency<DependencyManifest extends T.SDKManifest>(
     dependencyId: keyof Manifest["dependencies"] & string,
     volumeId: DependencyManifest["volumes"][number],
     subpath: string | null,

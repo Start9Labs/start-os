@@ -1,5 +1,4 @@
 import { Dump } from 'patch-db-client'
-import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
 import { IST, T } from '@start9labs/start-sdk'
@@ -209,18 +208,11 @@ export module RR {
 
   // package
 
-  export type GetPackagePropertiesReq = { id: string } // package.properties
-  export type GetPackagePropertiesRes<T extends number> =
-    PackagePropertiesVersioned<T>
-
   export type GetPackageLogsReq = ServerLogsReq & { id: string } // package.logs
   export type GetPackageLogsRes = LogsRes
 
   export type FollowPackageLogsReq = FollowServerLogsReq & { id: string } // package.logs.follow
   export type FollowPackageLogsRes = FollowServerLogsRes
-
-  export type GetPackageMetricsReq = { id: string } // package.metrics
-  export type GetPackageMetricsRes = Metric
 
   export type InstallPackageReq = T.InstallParams
   export type InstallPackageRes = null
@@ -231,13 +223,12 @@ export module RR {
     value: object | null
   }
 
-  export type RunActionReq = {
+  export type ActionReq = {
     packageId: string
     actionId: string
-    prev: GetActionInputRes | null
     input: object | null
   } // package.action.run
-  export type RunActionRes = T.ActionResult | null
+  export type ActionRes = (T.ActionResult & { version: '1' }) | null
 
   export type RestorePackagesReq = {
     // package.backup.restore
@@ -494,7 +485,7 @@ export type DependencyError =
   | DependencyErrorNotInstalled
   | DependencyErrorNotRunning
   | DependencyErrorIncorrectVersion
-  | DependencyErrorConfigUnsatisfied
+  | DependencyErrorActionRequired
   | DependencyErrorHealthChecksFailed
   | DependencyErrorTransitive
 
@@ -512,8 +503,8 @@ export interface DependencyErrorIncorrectVersion {
   received: string // version
 }
 
-export interface DependencyErrorConfigUnsatisfied {
-  type: 'configUnsatisfied'
+export interface DependencyErrorActionRequired {
+  type: 'actionRequired'
 }
 
 export interface DependencyErrorHealthChecksFailed {
