@@ -12,6 +12,7 @@ import { FormsModule } from '@angular/forms'
 import { T } from '@start9labs/start-sdk'
 import {
   TuiDialogService,
+  TuiLabelModule,
   TuiTextfieldComponent,
   TuiTextfieldControllerModule,
 } from '@taiga-ui/core'
@@ -27,18 +28,19 @@ import { ActionSuccessGroupComponent } from './action-success-group.component'
     <p *ngIf="!parent" class="qr">
       <ng-container *ngTemplateOutlet="qr"></ng-container>
     </p>
-    <tui-input
-      [readOnly]="true"
-      [ngModel]="value.value"
-      [tuiTextfieldCustomContent]="actions"
-    >
-      {{ value.description }}
-      <input
-        tuiTextfield
-        [style.border-inline-end-width.rem]="border"
-        [type]="value.masked && masked ? 'password' : 'text'"
-      />
-    </tui-input>
+    <label [tuiLabel]="value.description">
+      <tui-input
+        [readOnly]="true"
+        [ngModel]="value.value"
+        [tuiTextfieldCustomContent]="actions"
+      >
+        <input
+          tuiTextfield
+          [style.border-inline-end-width.rem]="border"
+          [type]="value.masked && masked ? 'password' : 'text'"
+        />
+      </tui-input>
+    </label>
     <ng-template #actions>
       <button
         *ngIf="value.masked"
@@ -120,6 +122,7 @@ import { ActionSuccessGroupComponent } from './action-success-group.component'
     TuiTextfieldControllerModule,
     TuiButtonModule,
     QrCodeModule,
+    TuiLabelModule,
   ],
 })
 export class ActionSuccessItemComponent {

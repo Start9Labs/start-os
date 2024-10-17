@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common'
 import { Component, inject } from '@angular/core'
-import { TuiDialogContext } from '@taiga-ui/core'
+import { TuiDialogContext, TuiTextfieldControllerModule } from '@taiga-ui/core'
 import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
 import { RR } from 'src/app/services/api/api.types'
 import { ActionSuccessGroupComponent } from './action-success-group.component'
@@ -9,19 +9,22 @@ import { ActionSuccessItemComponent } from './action-success-item.component'
 @Component({
   standalone: true,
   template: `
-    <app-action-success-item
-      *ngIf="item"
-      [value]="item"
-    ></app-action-success-item>
-    <app-action-success-group
-      *ngIf="group"
-      [value]="group"
-    ></app-action-success-group>
+    <ng-container tuiTextfieldSize="m" [tuiTextfieldLabelOutside]="true">
+      <app-action-success-item
+        *ngIf="item"
+        [value]="item"
+      ></app-action-success-item>
+      <app-action-success-group
+        *ngIf="group"
+        [value]="group"
+      ></app-action-success-group>
+    </ng-container>
   `,
   imports: [
     CommonModule,
     ActionSuccessGroupComponent,
     ActionSuccessItemComponent,
+    TuiTextfieldControllerModule,
   ],
 })
 export class ActionSuccessPage {
