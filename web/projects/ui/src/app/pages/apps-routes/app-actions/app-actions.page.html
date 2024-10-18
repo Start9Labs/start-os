@@ -18,7 +18,7 @@
         visibility: 'enabled'
       }"
       icon="construct-outline"
-      (click)="rebuild(pkg.manifest.id)"
+      (onClick)="rebuild(pkg.manifest.id)"
     ></app-actions-item>
     <app-actions-item
       [action]="{
@@ -27,7 +27,7 @@
         visibility: 'enabled'
       }"
       icon="trash-outline"
-      (click)="tryUninstall(pkg.manifest)"
+      (onClick)="tryUninstall(pkg.manifest)"
     ></app-actions-item>
 
     <!-- ** specific actions ** -->
@@ -38,7 +38,7 @@
       *ngFor="let action of pkg.actions"
       [action]="action"
       icon="play-outline"
-      (click)="handleAction(pkg.mainStatus, pkg.icon, pkg.manifest, action)"
+      (onClick)="handleAction(pkg.mainStatus, pkg.icon, pkg.manifest, action)"
     ></app-actions-item>
   </ion-item-group>
 </ion-content>

@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  EventEmitter,
+  Input,
+  Output,
+} from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
@@ -70,8 +76,9 @@ export class AppActionsItemComponent {
     description: string
     visibility: T.ActionVisibility
   }
-
   @Input() icon!: string
+
+  @Output() onClick: EventEmitter<void> = new EventEmitter()
 
   get disabledText() {
     return (

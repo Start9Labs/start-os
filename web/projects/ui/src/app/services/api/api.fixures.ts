@@ -1701,7 +1701,7 @@ export module Mock {
         description:
           'An example of an action that shows a warning and takes no input',
         warning: 'careful running this action',
-        visibility: 'enabled',
+        visibility: { disabled: 'This is temporarily disabled' },
         allowedStatuses: 'only-running',
         hasInput: false,
         group: null,
