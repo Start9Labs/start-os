@@ -261,7 +261,7 @@ export class SubContainer implements ExecSpawnable {
     const stdout = { data: "" as string | Buffer }
     const stderr = { data: "" as string | Buffer }
     const appendData =
-      (appendTo: { data: string | Buffer }) =>
+      (appendTo: { data: string }) =>
       (chunk: string | Buffer | any) => {
         if (typeof chunk === "string" || chunk instanceof Buffer) {
           appendTo.data += chunk.toString()
