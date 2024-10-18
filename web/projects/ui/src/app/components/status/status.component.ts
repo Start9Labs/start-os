@@ -21,7 +21,5 @@ export class StatusComponent {
   @Input() installingInfo?: InstallingInfo
   @Input() sigtermTimeout?: string | null = null
 
-  readonly connected$ = this.connectionService.connected$
-
-  constructor(private readonly connectionService: ConnectionService) {}
+  constructor(readonly connection$: ConnectionService) {}
 }

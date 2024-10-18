@@ -21,7 +21,7 @@ use crate::disk::OsPartitionInfo;
 use crate::net::utils::find_eth_iface;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
-use crate::util::io::TmpDir;
+use crate::util::io::{open_file, TmpDir};
 use crate::util::serde::IoFormat;
 use crate::util::Invoke;
 use crate::ARCH;
@@ -31,17 +31,19 @@ mod mbr;
 
 pub fn install<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("disk", disk::<C>())
+        .subcommand("disk", disk::<C>().with_about("Command to list disk info"))
         .subcommand(
             "execute",
             from_fn_async(execute::<InstallContext>)
                 .no_display()
+                .with_about("Install StartOS over existing version")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "reboot",
             from_fn_async(reboot)
                 .no_display()
+                .with_about("Restart the server")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -51,6 +53,7 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
         "list",
         from_fn_async(list)
             .no_display()
+            .with_about("List disk info")
             .with_call_remote::<CliContext>(),
     )
 }
@@ -241,12 +244,10 @@ pub async fn execute<C: Context>(
     tokio::fs::create_dir_all(&images_path).await?;
     let image_path = images_path
         .join(hex::encode(
-            &MultiCursorFile::from(
-                tokio::fs::File::open("/run/live/medium/live/filesystem.squashfs").await?,
-            )
-            .blake3_mmap()
-            .await?
-            .as_bytes()[..16],
+            &MultiCursorFile::from(open_file("/run/live/medium/live/filesystem.squashfs").await?)
+                .blake3_mmap()
+                .await?
+                .as_bytes()[..16],
         ))
         .with_extension("rootfs");
     tokio::fs::copy("/run/live/medium/live/filesystem.squashfs", &image_path).await?;
@@ -366,7 +367,7 @@ pub async fn execute<C: Context>(
     if tokio::fs::metadata("/sys/firmware/efi").await.is_err() {
         install.arg("--target=i386-pc");
     } else {
-        match *ARCH {
+        match ARCH {
             "x86_64" => install.arg("--target=x86_64-efi"),
             "aarch64" => install.arg("--target=arm64-efi"),
             _ => &mut install,

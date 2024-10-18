@@ -42,6 +42,7 @@ const matchAction = object(
 export const matchManifest = object(
   {
     id: string,
+    title: string,
     version: string,
     main: matchDockerProcedure,
     assets: object(
@@ -55,10 +56,13 @@ export const matchManifest = object(
       string,
       every(
         matchProcedure,
-        object({
-          name: string,
-          ["success-message"]: string,
-        }),
+        object(
+          {
+            name: string,
+            ["success-message"]: string,
+          },
+          ["success-message"],
+        ),
       ),
     ]),
     config: object({

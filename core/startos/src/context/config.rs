@@ -37,7 +37,10 @@ pub trait ContextConfig: DeserializeOwned + Default {
             .map(|f| f.parse())
             .transpose()?
             .unwrap_or_default();
-        format.from_reader(File::open(path)?)
+        format.from_reader(
+            File::open(path.as_ref())
+                .with_ctx(|_| (ErrorKind::Filesystem, path.as_ref().display()))?,
+        )
     }
     fn load_path_rec(&mut self, path: Option<impl AsRef<Path>>) -> Result<(), Error> {
         if let Some(path) = path.filter(|p| p.as_ref().exists()) {
@@ -93,26 +96,28 @@ impl ClientConfig {
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
 pub struct ServerConfig {
-    #[arg(short = 'c', long = "config")]
+    #[arg(short, long)]
     pub config: Option<PathBuf>,
-    #[arg(long = "ethernet-interface")]
+    #[arg(long)]
     pub ethernet_interface: Option<String>,
     #[arg(skip)]
     pub os_partitions: Option<OsPartitionInfo>,
-    #[arg(long = "bind-rpc")]
+    #[arg(long)]
     pub bind_rpc: Option<SocketAddr>,
-    #[arg(long = "tor-control")]
+    #[arg(long)]
     pub tor_control: Option<SocketAddr>,
-    #[arg(long = "tor-socks")]
+    #[arg(long)]
     pub tor_socks: Option<SocketAddr>,
-    #[arg(long = "dns-bind")]
+    #[arg(long)]
     pub dns_bind: Option<Vec<SocketAddr>>,
-    #[arg(long = "revision-cache-size")]
+    #[arg(long)]
     pub revision_cache_size: Option<usize>,
-    #[arg(short = 'd', long = "datadir")]
+    #[arg(short, long)]
     pub datadir: Option<PathBuf>,
-    #[arg(long = "disable-encryption")]
+    #[arg(long)]
     pub disable_encryption: Option<bool>,
+    #[arg(long)]
+    pub multi_arch_s9pks: Option<bool>,
 }
 impl ContextConfig for ServerConfig {
     fn next(&mut self) -> Option<PathBuf> {
@@ -131,6 +136,7 @@ impl ContextConfig for ServerConfig {
             .or(other.revision_cache_size);
         self.datadir = self.datadir.take().or(other.datadir);
         self.disable_encryption = self.disable_encryption.take().or(other.disable_encryption);
+        self.multi_arch_s9pks = self.multi_arch_s9pks.take().or(other.multi_arch_s9pks);
     }
 }
 

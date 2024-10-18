@@ -14,7 +14,7 @@ use crate::Error;
 
 pub struct DiagnosticContextSeed {
     pub datadir: PathBuf,
-    pub shutdown: Sender<Option<Shutdown>>,
+    pub shutdown: Sender<Shutdown>,
     pub error: Arc<RpcError>,
     pub disk_guid: Option<Arc<String>>,
     pub rpc_continuations: RpcContinuations,

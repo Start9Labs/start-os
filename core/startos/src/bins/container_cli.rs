@@ -8,14 +8,14 @@ use crate::util::logger::EmbassyLogger;
 use crate::version::{Current, VersionT};
 
 lazy_static::lazy_static! {
-    static ref VERSION_STRING: String = Current::new().semver().to_string();
+    static ref VERSION_STRING: String = Current::default().semver().to_string();
 }
 
 pub fn main(args: impl IntoIterator<Item = OsString>) {
     EmbassyLogger::init();
     if let Err(e) = CliApp::new(
         |cfg: ContainerClientConfig| Ok(ContainerCliContext::init(cfg)),
-        crate::service::service_effect_handler::service_effect_handler(),
+        crate::service::effects::handler(),
     )
     .run(args)
     {

@@ -7,11 +7,9 @@ import {
   InstalledState,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { ModalService } from 'src/app/services/modal.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { from, map, Observable } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
-import { T } from '@start9labs/start-sdk'
 
 export interface Button {
   title: string
@@ -30,8 +28,8 @@ export class ToButtonsPipe implements PipeTransform {
     private readonly route: ActivatedRoute,
     private readonly navCtrl: NavController,
     private readonly modalCtrl: ModalController,
-    private readonly modalService: ModalService,
     private readonly apiService: ApiService,
+    private readonly api: ApiService,
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
@@ -41,7 +39,7 @@ export class ToButtonsPipe implements PipeTransform {
     return [
       // instructions
       {
-        action: () => this.presentModalInstructions(manifest),
+        action: () => this.presentModalInstructions(pkg),
         title: 'Instructions',
         description: `Understand how to use ${manifest.title}`,
         icon: 'list-outline',
@@ -49,31 +47,12 @@ export class ToButtonsPipe implements PipeTransform {
           .watch$('ui', 'ackInstructions', manifest.id)
           .pipe(map(seen => !seen)),
       },
-      // config
-      {
-        action: async () =>
-          this.modalService.presentModalConfig({ pkgId: manifest.id }),
-        title: 'Config',
-        description: `Customize ${manifest.title}`,
-        icon: 'options-outline',
-      },
-      // properties
-      {
-        action: () =>
-          this.navCtrl.navigateForward(['properties'], {
-            relativeTo: this.route,
-          }),
-        title: 'Properties',
-        description:
-          'Runtime information, credentials, and other values of interest',
-        icon: 'briefcase-outline',
-      },
       // actions
       {
         action: () =>
           this.navCtrl.navigateForward(['actions'], { relativeTo: this.route }),
         title: 'Actions',
-        description: `Uninstall and other commands specific to ${manifest.title}`,
+        description: `All actions for ${manifest.title}`,
         icon: 'flash-outline',
       },
       // interfaces
@@ -99,17 +78,20 @@ export class ToButtonsPipe implements PipeTransform {
     ]
   }
 
-  private async presentModalInstructions(manifest: T.Manifest) {
+  private async presentModalInstructions(
+    pkg: PackageDataEntry<InstalledState>,
+  ) {
     this.apiService
-      .setDbValue<boolean>(['ack-instructions', manifest.id], true)
+      .setDbValue<boolean>(['ackInstructions', pkg.stateInfo.manifest.id], true)
       .catch(e => console.error('Failed to mark instructions as seen', e))
 
     const modal = await this.modalCtrl.create({
       componentProps: {
         title: 'Instructions',
         content: from(
-          this.apiService.getStatic(
-            `/public/package-data/${manifest.id}/${manifest.version}/INSTRUCTIONS.md`,
+          this.api.getStaticInstalled(
+            pkg.stateInfo.manifest.id,
+            'instructions.md',
           ),
         ),
       },

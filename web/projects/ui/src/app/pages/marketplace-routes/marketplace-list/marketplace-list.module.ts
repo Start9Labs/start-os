@@ -5,7 +5,7 @@ import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import {
   SharedPipesModule,
-  EmverPipesModule,
+  ExverPipesModule,
   ResponsiveColModule,
 } from '@start9labs/shared'
 import {
@@ -18,7 +18,6 @@ import {
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 import { MarketplaceStatusModule } from '../marketplace-status/marketplace-status.module'
 import { MarketplaceListPage } from './marketplace-list.page'
-import { MarketplaceSettingsPageModule } from 'src/app/modals/marketplace-settings/marketplace-settings.module'
 import { StoreIconComponentModule } from 'src/app/components/store-icon/store-icon.component.module'
 
 const routes: Routes = [
@@ -35,7 +34,7 @@ const routes: Routes = [
     FormsModule,
     RouterModule.forChild(routes),
     SharedPipesModule,
-    EmverPipesModule,
+    ExverPipesModule,
     FilterPackagesPipeModule,
     MarketplaceStatusModule,
     BadgeMenuComponentModule,
@@ -43,7 +42,6 @@ const routes: Routes = [
     CategoriesModule,
     SearchModule,
     SkeletonModule,
-    MarketplaceSettingsPageModule,
     StoreIconComponentModule,
     ResponsiveColModule,
   ],

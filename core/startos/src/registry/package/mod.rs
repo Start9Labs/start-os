@@ -14,16 +14,30 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
             "index",
             from_fn_async(index::get_package_index)
                 .with_display_serializable()
+                .with_about("List packages and categories")
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("add", from_fn_async(add::add_package).no_cli())
-        .subcommand("add", from_fn_async(add::cli_add_package).no_display())
+        .subcommand(
+            "add",
+            from_fn_async(add::add_package)
+                .with_metadata("get_signer", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand(
+            "add",
+            from_fn_async(add::cli_add_package)
+                .no_display()
+                .with_about("Add package to registry index"),
+        )
         .subcommand(
             "get",
             from_fn_async(get::get_package)
+                .with_metadata("get_device_info", Value::Bool(true))
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| {
                     get::display_package_info(handle.params, result)
-                }),
+                })
+                .with_about("List installation candidate package(s)")
+                .with_call_remote::<CliContext>(),
         )
 }

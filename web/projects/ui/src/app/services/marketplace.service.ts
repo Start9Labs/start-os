@@ -1,11 +1,11 @@
-import { Injectable } from '@angular/core'
+import { Inject, Injectable } from '@angular/core'
 import {
-  MarketplacePkg,
   AbstractMarketplaceService,
   StoreData,
   Marketplace,
-  StoreInfo,
   StoreIdentity,
+  MarketplacePkg,
+  GetPackageRes,
 } from '@start9labs/marketplace'
 import {
   BehaviorSubject,
@@ -19,11 +19,7 @@ import {
 } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import {
-  DataModel,
-  UIMarketplaceData,
-  UIStore,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import {
   catchError,
@@ -37,15 +33,16 @@ import {
   tap,
 } from 'rxjs/operators'
 import { ConfigService } from './config.service'
-import { sameUrl } from '@start9labs/shared'
+import { Exver, sameUrl } from '@start9labs/shared'
 import { ClientStorageService } from './client-storage.service'
+import { T } from '@start9labs/start-sdk'
 
 @Injectable()
 export class MarketplaceService implements AbstractMarketplaceService {
   private readonly knownHosts$: Observable<StoreIdentity[]> = this.patch
     .watch$('ui', 'marketplace', 'knownHosts')
     .pipe(
-      map((hosts: UIMarketplaceData['knownHosts']) => {
+      map(hosts => {
         const { start9, community } = this.config.marketplace
         let arr = [
           toStoreIdentity(start9, hosts[start9]),
@@ -84,33 +81,35 @@ export class MarketplaceService implements AbstractMarketplaceService {
       shareReplay({ bufferSize: 1, refCount: true }),
     )
 
-  private readonly marketplace$ = this.knownHosts$.pipe(
-    startWith<StoreIdentity[]>([]),
-    pairwise(),
-    mergeMap(([prev, curr]) =>
-      curr.filter(c => !prev.find(p => sameUrl(c.url, p.url))),
-    ),
-    mergeMap(({ url, name }) =>
-      this.fetchStore$(url).pipe(
-        tap(data => {
-          if (data?.info) this.updateStoreName(url, name, data.info.name)
-        }),
-        map<StoreData | null, [string, StoreData | null]>(data => {
-          return [url, data]
-        }),
-        startWith<[string, StoreData | null]>([url, null]),
+  private readonly marketplace$: Observable<Marketplace> =
+    this.knownHosts$.pipe(
+      startWith<StoreIdentity[]>([]),
+      pairwise(),
+      mergeMap(([prev, curr]) =>
+        curr.filter(c => !prev.find(p => sameUrl(c.url, p.url))),
       ),
-    ),
-    scan<[string, StoreData | null], Record<string, StoreData | null>>(
-      (requests, [url, store]) => {
-        requests[url] = store
+      mergeMap(({ url, name }) =>
+        this.fetchStore$(url).pipe(
+          tap(data => {
+            if (data?.info.name) this.updateStoreName(url, name, data.info.name)
+          }),
+          map<StoreData | null, [string, StoreData | null]>(data => [
+            url,
+            data,
+          ]),
+          startWith<[string, StoreData | null]>([url, null]),
+        ),
+      ),
+      scan<[string, StoreData | null], Record<string, StoreData | null>>(
+        (requests, [url, store]) => {
+          requests[url] = store
 
-        return requests
-      },
-      {},
-    ),
-    shareReplay({ bufferSize: 1, refCount: true }),
-  )
+          return requests
+        },
+        {},
+      ),
+      shareReplay({ bufferSize: 1, refCount: true }),
+    )
 
   private readonly filteredMarketplace$ = combineLatest([
     this.clientStorageService.showDevTools$,
@@ -148,6 +147,7 @@ export class MarketplaceService implements AbstractMarketplaceService {
     private readonly patch: PatchDB<DataModel>,
     private readonly config: ConfigService,
     private readonly clientStorageService: ClientStorageService,
+    private readonly exver: Exver,
   ) {}
 
   getKnownHosts$(filtered = false): Observable<StoreIdentity[]> {
@@ -170,28 +170,29 @@ export class MarketplaceService implements AbstractMarketplaceService {
 
   getPackage$(
     id: string,
-    version: string,
-    optionalUrl?: string,
+    version: string | null,
+    flavor: string | null,
+    registryUrl?: string,
   ): Observable<MarketplacePkg> {
-    return this.patch.watch$('ui', 'marketplace').pipe(
-      switchMap(uiMarketplace => {
-        const url = optionalUrl || uiMarketplace.selectedUrl
+    return this.selectedHost$.pipe(
+      switchMap(selected =>
+        this.marketplace$.pipe(
+          switchMap(m => {
+            const url = registryUrl || selected.url
 
-        if (version !== '*' || !uiMarketplace.knownHosts[url]) {
-          return this.fetchPackage$(id, version, url)
-        }
+            const pkg = m[url]?.packages.find(
+              p =>
+                p.id === id &&
+                p.flavor === flavor &&
+                (!version || this.exver.compareExver(p.version, version) === 0),
+            )
 
-        return this.marketplace$.pipe(
-          map(m => m[url]),
-          filter(Boolean),
-          take(1),
-          map(
-            store =>
-              store.packages.find(p => p.manifest.id === id) ||
-              ({} as MarketplacePkg),
-          ),
-        )
-      }),
+            return !!pkg
+              ? of(pkg)
+              : this.fetchPackage$(url, id, version, flavor)
+          }),
+        ),
+      ),
     )
   }
 
@@ -210,56 +211,22 @@ export class MarketplaceService implements AbstractMarketplaceService {
   ): Promise<void> {
     const params: RR.InstallPackageReq = {
       id,
-      versionSpec: `=${version}`,
+      version,
       registry: url,
     }
 
     await this.api.installPackage(params)
   }
 
-  fetchInfo$(url: string): Observable<StoreInfo> {
-    return this.patch.watch$('serverInfo').pipe(
-      take(1),
-      switchMap(serverInfo => {
-        const qp: RR.GetMarketplaceInfoReq = { serverId: serverInfo.id }
-        return this.api.marketplaceProxy<RR.GetMarketplaceInfoRes>(
-          '/package/v0/info',
-          qp,
-          url,
-        )
-      }),
-    )
+  fetchInfo$(url: string): Observable<T.RegistryInfo> {
+    return from(this.api.getRegistryInfo(url))
   }
 
-  fetchReleaseNotes$(
-    id: string,
-    url?: string,
-  ): Observable<Record<string, string>> {
-    return this.selectedHost$.pipe(
-      switchMap(m => {
-        return from(
-          this.api.marketplaceProxy<Record<string, string>>(
-            `/package/v0/release-notes/${id}`,
-            {},
-            url || m.url,
-          ),
-        )
-      }),
-    )
-  }
-
-  fetchStatic$(id: string, type: string, url?: string): Observable<string> {
-    return this.selectedHost$.pipe(
-      switchMap(m => {
-        return from(
-          this.api.marketplaceProxy<string>(
-            `/package/v0/${type}/${id}`,
-            {},
-            url || m.url,
-          ),
-        )
-      }),
-    )
+  fetchStatic$(
+    pkg: MarketplacePkg,
+    type: 'LICENSE.md' | 'instructions.md',
+  ): Observable<string> {
+    return from(this.api.getStaticProxy(pkg, type))
   }
 
   private fetchStore$(url: string): Observable<StoreData | null> {
@@ -273,33 +240,62 @@ export class MarketplaceService implements AbstractMarketplaceService {
     )
   }
 
-  private fetchPackages$(
-    url: string,
-    params: Omit<RR.GetMarketplacePackagesReq, 'page' | 'per-page'> = {},
-  ): Observable<MarketplacePkg[]> {
-    const qp: RR.GetMarketplacePackagesReq = {
-      ...params,
-      page: 1,
-      perPage: 100,
-    }
-    if (qp.ids) qp.ids = JSON.stringify(qp.ids)
-
-    return from(
-      this.api.marketplaceProxy<RR.GetMarketplacePackagesRes>(
-        '/package/v0/index',
-        qp,
-        url,
-      ),
+  private fetchPackages$(url: string): Observable<MarketplacePkg[]> {
+    return from(this.api.getRegistryPackages(url)).pipe(
+      map(packages => {
+        return Object.entries(packages).flatMap(([id, pkgInfo]) =>
+          Object.keys(pkgInfo.best).map(version =>
+            this.convertToMarketplacePkg(
+              id,
+              version,
+              this.exver.getFlavor(version),
+              pkgInfo,
+            ),
+          ),
+        )
+      }),
     )
   }
 
-  private fetchPackage$(
+  convertToMarketplacePkg(
     id: string,
-    version: string,
+    version: string | null,
+    flavor: string | null,
+    pkgInfo: GetPackageRes,
+  ): MarketplacePkg {
+    version =
+      version ||
+      Object.keys(pkgInfo.best).find(v => this.exver.getFlavor(v) === flavor) ||
+      null
+
+    return !version || !pkgInfo.best[version]
+      ? ({} as MarketplacePkg)
+      : {
+          id,
+          version,
+          flavor,
+          ...pkgInfo,
+          ...pkgInfo.best[version],
+        }
+  }
+
+  private fetchPackage$(
     url: string,
+    id: string,
+    version: string | null,
+    flavor: string | null,
   ): Observable<MarketplacePkg> {
-    return this.fetchPackages$(url, { ids: [{ id, version }] }).pipe(
-      map(pkgs => pkgs[0] || {}),
+    return from(
+      this.api.getRegistryPackage(url, id, version ? `=${version}` : null),
+    ).pipe(
+      map(pkgInfo =>
+        this.convertToMarketplacePkg(
+          id,
+          version === '*' ? null : version,
+          flavor,
+          pkgInfo,
+        ),
+      ),
     )
   }
 

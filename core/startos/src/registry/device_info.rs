@@ -4,7 +4,7 @@ use std::ops::Deref;
 
 use axum::extract::Request;
 use axum::response::Response;
-use emver::{Version, VersionRange};
+use exver::{Version, VersionRange};
 use http::HeaderValue;
 use imbl_value::InternedString;
 use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};
@@ -54,12 +54,7 @@ impl DeviceInfo {
         HeaderValue::from_str(url.query().unwrap_or_default()).unwrap()
     }
     pub fn from_header_value(header: &HeaderValue) -> Result<Self, Error> {
-        let url: Url = format!(
-            "http://localhost/?{}",
-            header.to_str().with_kind(ErrorKind::ParseUrl)?
-        )
-        .parse()?;
-        let query: BTreeMap<_, _> = url.query_pairs().collect();
+        let query: BTreeMap<_, _> = form_urlencoded::parse(header.as_bytes()).collect();
         Ok(Self {
             os: OsInfo {
                 version: query
@@ -113,8 +108,8 @@ pub struct OsInfo {
 impl From<&RpcContext> for OsInfo {
     fn from(_: &RpcContext) -> Self {
         Self {
-            version: crate::version::Current::new().semver(),
-            compat: crate::version::Current::new().compat().clone(),
+            version: crate::version::Current::default().semver(),
+            compat: crate::version::Current::default().compat().clone(),
             platform: InternedString::intern(&*crate::PLATFORM),
         }
     }
@@ -134,7 +129,7 @@ pub struct HardwareInfo {
 impl From<&RpcContext> for HardwareInfo {
     fn from(value: &RpcContext) -> Self {
         Self {
-            arch: InternedString::intern(&**crate::ARCH),
+            arch: InternedString::intern(crate::ARCH),
             ram: value.hardware.ram,
             devices: value
                 .hardware
@@ -151,7 +146,6 @@ impl From<&RpcContext> for HardwareInfo {
 }
 
 #[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct Metadata {
     #[serde(default)]
     get_device_info: bool,

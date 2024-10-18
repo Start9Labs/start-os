@@ -6,15 +6,19 @@ use imbl_value::InternedString;
 use models::{mime, DataUrl, PackageId};
 use tokio::fs::File;
 
+use crate::dependencies::DependencyMetadata;
 use crate::prelude::*;
 use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::s9pk::manifest::Manifest;
-use crate::s9pk::merkle_archive::file_contents::FileContents;
 use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
-use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
+use crate::s9pk::merkle_archive::source::{
+    ArchiveSource, DynFileSource, FileSource, Section, TmpSource,
+};
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
-use crate::ARCH;
+use crate::s9pk::v2::pack::{ImageSource, PackSource};
+use crate::util::io::{open_file, TmpDir};
+use crate::util::serde::IoFormat;
 
 const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x02];
 
@@ -22,6 +26,7 @@ pub const SIG_CONTEXT: &str = "s9pk";
 
 pub mod compat;
 pub mod manifest;
+pub mod pack;
 
 /**
     /
@@ -29,45 +34,34 @@ pub mod manifest;
     ├── icon.<ext>
     ├── LICENSE.md
     ├── instructions.md
+    ├── dependencies
+    │   └── <id>
+    │       ├── metadata.json
+    │       └── icon.<ext>
     ├── javascript.squashfs
     ├── assets
     │   └── <id>.squashfs (xN)
     └── images
         └── <arch>
+            ├── <id>.json (xN)
             ├── <id>.env (xN)
             └── <id>.squashfs (xN)
 */
 
+// this sorts the s9pk to optimize such that the parts that are used first appear earlier in the s9pk
+// this is useful for manipulating an s9pk while partially downloaded on a source that does not support
+// random access
 fn priority(s: &str) -> Option<usize> {
     match s {
         "manifest.json" => Some(0),
         a if Path::new(a).file_stem() == Some(OsStr::new("icon")) => Some(1),
         "LICENSE.md" => Some(2),
         "instructions.md" => Some(3),
-        "javascript.squashfs" => Some(4),
-        "assets" => Some(5),
-        "images" => Some(6),
+        "dependencies" => Some(4),
+        "javascript.squashfs" => Some(5),
+        "assets" => Some(6),
+        "images" => Some(7),
         _ => None,
-    }
-}
-
-fn filter(p: &Path) -> bool {
-    match p.iter().count() {
-        1 if p.file_name() == Some(OsStr::new("manifest.json")) => true,
-        1 if p.file_stem() == Some(OsStr::new("icon")) => true,
-        1 if p.file_name() == Some(OsStr::new("LICENSE.md")) => true,
-        1 if p.file_name() == Some(OsStr::new("instructions.md")) => true,
-        1 if p.file_name() == Some(OsStr::new("javascript.squashfs")) => true,
-        1 if p.file_name() == Some(OsStr::new("assets")) => true,
-        1 if p.file_name() == Some(OsStr::new("images")) => true,
-        2 if p.parent() == Some(Path::new("assets")) => {
-            p.extension().map_or(false, |ext| ext == "squashfs")
-        }
-        2 if p.parent() == Some(Path::new("images")) => p.file_name() == Some(OsStr::new(&*ARCH)),
-        3 if p.parent() == Some(&*Path::new("images").join(&*ARCH)) => p
-            .extension()
-            .map_or(false, |ext| ext == "squashfs" || ext == "env"),
-        _ => false,
     }
 }
 
@@ -108,22 +102,21 @@ impl<S: FileSource + Clone> S9pk<S> {
         })
     }
 
-    pub async fn icon(&self) -> Result<(InternedString, FileContents<S>), Error> {
+    pub fn validate_and_filter(&mut self, arch: Option<&str>) -> Result<(), Error> {
+        let filter = self.manifest.validate_for(arch, self.archive.contents())?;
+        filter.keep_checked(self.archive.contents_mut())
+    }
+
+    pub async fn icon(&self) -> Result<(InternedString, Entry<S>), Error> {
         let mut best_icon = None;
-        for (path, icon) in self
-            .archive
-            .contents()
-            .with_stem("icon")
-            .filter(|(p, _)| {
-                Path::new(&*p)
-                    .extension()
-                    .and_then(|e| e.to_str())
-                    .and_then(mime)
-                    .map_or(false, |e| e.starts_with("image/"))
-            })
-            .filter_map(|(k, v)| v.into_file().map(|f| (k, f)))
-        {
-            let size = icon.size().await?;
+        for (path, icon) in self.archive.contents().with_stem("icon").filter(|(p, v)| {
+            Path::new(&*p)
+                .extension()
+                .and_then(|e| e.to_str())
+                .and_then(mime)
+                .map_or(false, |e| e.starts_with("image/") && v.as_file().is_some())
+        }) {
+            let size = icon.expect_file()?.size().await?;
             best_icon = match best_icon {
                 Some((s, a)) if s >= size => Some((s, a)),
                 _ => Some((size, (path, icon))),
@@ -141,7 +134,75 @@ impl<S: FileSource + Clone> S9pk<S> {
             .and_then(|e| e.to_str())
             .and_then(mime)
             .unwrap_or("image/png");
-        DataUrl::from_reader(mime, contents.reader().await?, Some(contents.size().await?)).await
+        Ok(DataUrl::from_vec(
+            mime,
+            contents.expect_file()?.to_vec(contents.hash()).await?,
+        ))
+    }
+
+    pub async fn dependency_icon(
+        &self,
+        id: &PackageId,
+    ) -> Result<Option<(InternedString, Entry<S>)>, Error> {
+        let mut best_icon = None;
+        for (path, icon) in self
+            .archive
+            .contents()
+            .get_path(Path::new("dependencies").join(id))
+            .and_then(|p| p.as_directory())
+            .into_iter()
+            .flat_map(|d| {
+                d.with_stem("icon").filter(|(p, v)| {
+                    Path::new(&*p)
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .and_then(mime)
+                        .map_or(false, |e| e.starts_with("image/") && v.as_file().is_some())
+                })
+            })
+        {
+            let size = icon.expect_file()?.size().await?;
+            best_icon = match best_icon {
+                Some((s, a)) if s >= size => Some((s, a)),
+                _ => Some((size, (path, icon))),
+            };
+        }
+        Ok(best_icon.map(|(_, a)| a))
+    }
+
+    pub async fn dependency_icon_data_url(
+        &self,
+        id: &PackageId,
+    ) -> Result<Option<DataUrl<'static>>, Error> {
+        let Some((name, contents)) = self.dependency_icon(id).await? else {
+            return Ok(None);
+        };
+        let mime = Path::new(&*name)
+            .extension()
+            .and_then(|e| e.to_str())
+            .and_then(mime)
+            .unwrap_or("image/png");
+        Ok(Some(DataUrl::from_vec(
+            mime,
+            contents.expect_file()?.to_vec(contents.hash()).await?,
+        )))
+    }
+
+    pub async fn dependency_metadata(
+        &self,
+        id: &PackageId,
+    ) -> Result<Option<DependencyMetadata>, Error> {
+        if let Some(entry) = self
+            .archive
+            .contents()
+            .get_path(Path::new("dependencies").join(id).join("metadata.json"))
+        {
+            Ok(Some(IoFormat::Json.from_slice(
+                &entry.expect_file()?.to_vec(entry.hash()).await?,
+            )?))
+        } else {
+            Ok(None)
+        }
     }
 
     pub async fn serialize<W: Sink>(&mut self, w: &mut W, verify: bool) -> Result<(), Error> {
@@ -174,12 +235,37 @@ impl<S: FileSource + Clone> S9pk<S> {
     }
 }
 
+impl<S: From<TmpSource<PackSource>> + FileSource + Clone> S9pk<S> {
+    pub async fn load_images(&mut self, tmp_dir: Arc<TmpDir>) -> Result<(), Error> {
+        let id = &self.manifest.id;
+        let version = &self.manifest.version;
+        for (image_id, image_config) in &mut self.manifest.images {
+            self.manifest_dirty = true;
+            for arch in &image_config.arch {
+                image_config
+                    .source
+                    .load(
+                        tmp_dir.clone(),
+                        id,
+                        version,
+                        image_id,
+                        arch,
+                        self.archive.contents_mut(),
+                    )
+                    .await?;
+            }
+            image_config.source = ImageSource::Packed;
+        }
+
+        Ok(())
+    }
+}
+
 impl<S: ArchiveSource + Clone> S9pk<Section<S>> {
     #[instrument(skip_all)]
     pub async fn deserialize(
         source: &S,
         commitment: Option<&MerkleArchiveCommitment>,
-        apply_filter: bool,
     ) -> Result<Self, Error> {
         use tokio::io::AsyncReadExt;
 
@@ -190,7 +276,7 @@ impl<S: ArchiveSource + Clone> S9pk<Section<S>> {
             )
             .await?;
 
-        let mut magic_version = [0u8; 3];
+        let mut magic_version = [0u8; MAGIC_AND_VERSION.len()];
         header.read_exact(&mut magic_version).await?;
         ensure_code!(
             &magic_version == MAGIC_AND_VERSION,
@@ -200,10 +286,6 @@ impl<S: ArchiveSource + Clone> S9pk<Section<S>> {
 
         let mut archive =
             MerkleArchive::deserialize(source, SIG_CONTEXT, &mut header, commitment).await?;
-
-        if apply_filter {
-            archive.filter(filter)?;
-        }
 
         archive.sort_by(|a, b| match (priority(a), priority(b)) {
             (Some(a), Some(b)) => a.cmp(&b),
@@ -216,15 +298,11 @@ impl<S: ArchiveSource + Clone> S9pk<Section<S>> {
     }
 }
 impl S9pk {
-    pub async fn from_file(file: File, apply_filter: bool) -> Result<Self, Error> {
-        Self::deserialize(&MultiCursorFile::from(file), None, apply_filter).await
+    pub async fn from_file(file: File) -> Result<Self, Error> {
+        Self::deserialize(&MultiCursorFile::from(file), None).await
     }
-    pub async fn open(
-        path: impl AsRef<Path>,
-        id: Option<&PackageId>,
-        apply_filter: bool,
-    ) -> Result<Self, Error> {
-        let res = Self::from_file(tokio::fs::File::open(path).await?, apply_filter).await?;
+    pub async fn open(path: impl AsRef<Path>, id: Option<&PackageId>) -> Result<Self, Error> {
+        let res = Self::from_file(open_file(path).await?).await?;
         if let Some(id) = id {
             ensure_code!(
                 &res.as_manifest().id == id,

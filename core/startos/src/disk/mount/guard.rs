@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Weak};
 
+use futures::Future;
 use lazy_static::lazy_static;
 use models::ResultExt;
 use tokio::sync::Mutex;
@@ -14,23 +15,20 @@ use crate::Error;
 
 pub const TMP_MOUNTPOINT: &'static str = "/media/startos/tmp";
 
-#[async_trait::async_trait]
 pub trait GenericMountGuard: std::fmt::Debug + Send + Sync + 'static {
     fn path(&self) -> &Path;
-    async fn unmount(mut self) -> Result<(), Error>;
+    fn unmount(self) -> impl Future<Output = Result<(), Error>> + Send;
 }
 
-#[async_trait::async_trait]
 impl GenericMountGuard for Never {
     fn path(&self) -> &Path {
         match *self {}
     }
-    async fn unmount(mut self) -> Result<(), Error> {
+    async fn unmount(self) -> Result<(), Error> {
         match self {}
     }
 }
 
-#[async_trait::async_trait]
 impl<T> GenericMountGuard for Arc<T>
 where
     T: GenericMountGuard,
@@ -38,7 +36,7 @@ where
     fn path(&self) -> &Path {
         (&**self).path()
     }
-    async fn unmount(mut self) -> Result<(), Error> {
+    async fn unmount(self) -> Result<(), Error> {
         if let Ok(guard) = Arc::try_unwrap(self) {
             guard.unmount().await?;
         }
@@ -76,7 +74,7 @@ impl MountGuard {
     }
     pub async fn unmount(mut self, delete_mountpoint: bool) -> Result<(), Error> {
         if self.mounted {
-            unmount(&self.mountpoint).await?;
+            unmount(&self.mountpoint, false).await?;
             if delete_mountpoint {
                 match tokio::fs::remove_dir(&self.mountpoint).await {
                     Err(e) if e.raw_os_error() == Some(39) => Ok(()), // directory not empty
@@ -98,23 +96,22 @@ impl Drop for MountGuard {
     fn drop(&mut self) {
         if self.mounted {
             let mountpoint = std::mem::take(&mut self.mountpoint);
-            tokio::spawn(async move { unmount(mountpoint).await.unwrap() });
+            tokio::spawn(async move { unmount(mountpoint, true).await.log_err() });
         }
     }
 }
-#[async_trait::async_trait]
 impl GenericMountGuard for MountGuard {
     fn path(&self) -> &Path {
         &self.mountpoint
     }
-    async fn unmount(mut self) -> Result<(), Error> {
+    async fn unmount(self) -> Result<(), Error> {
         MountGuard::unmount(self, false).await
     }
 }
 
 async fn tmp_mountpoint(source: &impl FileSystem) -> Result<PathBuf, Error> {
     Ok(Path::new(TMP_MOUNTPOINT).join(base32::encode(
-        base32::Alphabet::RFC4648 { padding: false },
+        base32::Alphabet::Rfc4648 { padding: false },
         &source.source_hash().await?[0..20],
     )))
 }
@@ -165,12 +162,11 @@ impl TmpMountGuard {
         std::mem::replace(self, unmounted)
     }
 }
-#[async_trait::async_trait]
 impl GenericMountGuard for TmpMountGuard {
     fn path(&self) -> &Path {
         self.guard.path()
     }
-    async fn unmount(mut self) -> Result<(), Error> {
+    async fn unmount(self) -> Result<(), Error> {
         self.guard.unmount().await
     }
 }
@@ -187,12 +183,11 @@ impl<G: GenericMountGuard> SubPath<G> {
         Self { guard, path }
     }
 }
-#[async_trait::async_trait]
 impl<G: GenericMountGuard> GenericMountGuard for SubPath<G> {
     fn path(&self) -> &Path {
         self.path.as_path()
     }
-    async fn unmount(mut self) -> Result<(), Error> {
+    async fn unmount(self) -> Result<(), Error> {
         self.guard.unmount().await
     }
 }

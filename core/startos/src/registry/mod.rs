@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::SocketAddr;
 
 use axum::Router;
 use futures::future::ready;
+use imbl_value::InternedString;
 use models::DataUrl;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler, Server};
 use serde::{Deserialize, Serialize};
@@ -17,7 +17,7 @@ use crate::registry::auth::Auth;
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfoMiddleware;
 use crate::registry::os::index::OsIndex;
-use crate::registry::package::index::PackageIndex;
+use crate::registry::package::index::{Category, PackageIndex};
 use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::Guid;
 use crate::util::serde::HandlerExtSerde;
@@ -46,6 +46,7 @@ impl RegistryDatabase {}
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct FullIndex {
+    pub name: Option<String>,
     pub icon: Option<DataUrl<'static>>,
     pub package: PackageIndex,
     pub os: OsIndex,
@@ -56,27 +57,66 @@ pub async fn get_full_index(ctx: RegistryContext) -> Result<FullIndex, Error> {
     ctx.db.peek().await.into_index().de()
 }
 
+#[derive(Debug, Default, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct RegistryInfo {
+    pub name: Option<String>,
+    pub icon: Option<DataUrl<'static>>,
+    #[ts(as = "BTreeMap::<String, Category>")]
+    pub categories: BTreeMap<InternedString, Category>,
+}
+
+pub async fn get_info(ctx: RegistryContext) -> Result<RegistryInfo, Error> {
+    let peek = ctx.db.peek().await.into_index();
+    Ok(RegistryInfo {
+        name: peek.as_name().de()?,
+        icon: peek.as_icon().de()?,
+        categories: peek.as_package().as_categories().de()?,
+    })
+}
+
 pub fn registry_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "index",
             from_fn_async(get_full_index)
                 .with_display_serializable()
+                .with_about("List info including registry name and packages")
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("os", os::os_api::<C>())
-        .subcommand("package", package::package_api::<C>())
-        .subcommand("admin", admin::admin_api::<C>())
-        .subcommand("db", db::db_api::<C>())
+        .subcommand(
+            "info",
+            from_fn_async(get_info)
+                .with_display_serializable()
+                .with_about("Display registry name, icon, and package categories")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "os",
+            os::os_api::<C>().with_about("Commands related to OS assets and versions"),
+        )
+        .subcommand(
+            "package",
+            package::package_api::<C>().with_about("Commands to index, add, or get packages"),
+        )
+        .subcommand(
+            "admin",
+            admin::admin_api::<C>().with_about("Commands to add or list admins or signers"),
+        )
+        .subcommand(
+            "db",
+            db::db_api::<C>().with_about("Commands to interact with the db i.e. dump and apply"),
+        )
 }
 
-pub fn registry_server_router(ctx: RegistryContext) -> Router {
+pub fn registry_router(ctx: RegistryContext) -> Router {
     use axum::extract as x;
-    use axum::routing::{any, get, post};
+    use axum::routing::{any, get};
     Router::new()
         .route("/rpc/*path", {
             let ctx = ctx.clone();
-            post(
+            any(
                 Server::new(move || ready(Ok(ctx.clone())), registry_api())
                     .middleware(Cors::new())
                     .middleware(Auth::new())
@@ -128,7 +168,7 @@ pub fn registry_server_router(ctx: RegistryContext) -> Router {
 }
 
 impl WebServer {
-    pub fn registry(bind: SocketAddr, ctx: RegistryContext) -> Self {
-        Self::new(bind, registry_server_router(ctx))
+    pub fn serve_registry(&mut self, ctx: RegistryContext) {
+        self.serve_router(registry_router(ctx))
     }
 }

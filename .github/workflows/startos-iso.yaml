@@ -45,7 +45,7 @@ on:
       - next/*
 
 env:
-  NODEJS_VERSION: "18.15.0"
+  NODEJS_VERSION: "20.16.0"
   ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev''))[github.event.inputs.environment == ''NONE''] }}'
 
 jobs:
@@ -71,27 +71,32 @@ jobs:
           sudo mount -t tmpfs tmpfs .
         if: ${{ github.event.inputs.runner == 'fast' }}
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      - uses: actions/setup-node@v3
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODEJS_VERSION }}
 
       - name: Set up docker QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up system dependencies
-        run: sudo apt-get update && sudo apt-get install -y qemu-user-static systemd-container
+        run: sudo apt-get update && sudo apt-get install -y qemu-user-static systemd-container squashfuse
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
 
       - name: Make
         run: make ARCH=${{ matrix.arch }} compiled-${{ matrix.arch }}.tar
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: compiled-${{ matrix.arch }}.tar
           path: compiled-${{ matrix.arch }}.tar
@@ -144,9 +149,14 @@ jobs:
         run: rm -rf /opt/hostedtoolcache*
         if: ${{ github.event.inputs.runner != 'fast' }}
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
 
       - name: Install dependencies
         run: |
@@ -166,7 +176,7 @@ jobs:
         if: ${{ github.event.inputs.runner == 'fast' && (matrix.platform == 'x86_64' || matrix.platform == 'x86_64-nonfree') }}
 
       - name: Download compiled artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: compiled-${{ env.ARCH }}.tar
 
@@ -177,10 +187,26 @@ jobs:
         run: |
           mkdir -p web/node_modules
           mkdir -p web/dist/raw
-          touch core/startos/bindings
-          touch sdk/lib/osBindings
+          mkdir -p core/startos/bindings
+          mkdir -p sdk/base/lib/osBindings
+          mkdir -p container-runtime/node_modules
           mkdir -p container-runtime/dist
+          mkdir -p container-runtime/dist/node_modules
+          mkdir -p core/startos/bindings
+          mkdir -p sdk/dist
+          mkdir -p sdk/baseDist
+          mkdir -p patch-db/client/node_modules
+          mkdir -p patch-db/client/dist
+          mkdir -p web/.angular
+          mkdir -p web/dist/raw/ui
+          mkdir -p web/dist/raw/install-wizard
+          mkdir -p web/dist/raw/setup-wizard
+          mkdir -p web/dist/static/ui
+          mkdir -p web/dist/static/install-wizard
+          mkdir -p web/dist/static/setup-wizard
           PLATFORM=${{ matrix.platform }} make -t compiled-${{ env.ARCH }}.tar
+
+      - run: git status
 
       - name: Run iso build
         run: PLATFORM=${{ matrix.platform }} make iso
@@ -190,18 +216,18 @@ jobs:
         run: PLATFORM=${{ matrix.platform }} make img
         if: ${{ matrix.platform == 'raspberrypi' }}
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}.squashfs
           path: results/*.squashfs
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}.iso
           path: results/*.iso
         if: ${{ matrix.platform != 'raspberrypi' }}
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}.img
           path: results/*.img

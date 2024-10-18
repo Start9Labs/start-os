@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use chrono::{DateTime, Utc};
-use emver::VersionRange;
+use exver::{Version, VersionRange};
 use imbl_value::InternedString;
 use ipnet::{Ipv4Net, Ipv6Net};
 use isocountry::CountryCode;
@@ -20,8 +20,8 @@ use crate::db::model::package::AllPackageData;
 use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
 use crate::prelude::*;
 use crate::progress::FullProgress;
+use crate::system::SmtpValue;
 use crate::util::cpupower::Governor;
-use crate::util::VersionString;
 use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
 
@@ -32,7 +32,7 @@ use crate::{ARCH, PLATFORM};
 pub struct Public {
     pub server_info: ServerInfo,
     pub package_data: AllPackageData,
-    #[ts(type = "any")]
+    #[ts(type = "unknown")]
     pub ui: Value,
 }
 impl Public {
@@ -43,10 +43,11 @@ impl Public {
                 arch: get_arch(),
                 platform: get_platform(),
                 id: account.server_id.clone(),
-                version: Current::new().semver().into(),
+                version: Current::default().semver(),
                 hostname: account.hostname.no_dot_host_name(),
                 last_backup: None,
-                eos_version_compat: Current::new().compat().clone(),
+                version_compat: Current::default().compat().clone(),
+                post_init_migration_todos: BTreeSet::new(),
                 lan_address,
                 onion_address: account.tor_key.public().get_onion_address(),
                 tor_address: format!("https://{}", account.tor_key.public().get_onion_address())
@@ -108,12 +109,16 @@ pub struct ServerInfo {
     #[ts(type = "string")]
     pub platform: InternedString,
     pub id: String,
-    pub hostname: String,
-    pub version: VersionString,
+    #[ts(type = "string")]
+    pub hostname: InternedString,
+    #[ts(type = "string")]
+    pub version: Version,
+    #[ts(type = "string")]
+    pub version_compat: VersionRange,
+    #[ts(type = "string[]")]
+    pub post_init_migration_todos: BTreeSet<Version>,
     #[ts(type = "string | null")]
     pub last_backup: Option<DateTime<Utc>>,
-    #[ts(type = "string")]
-    pub eos_version_compat: VersionRange,
     #[ts(type = "string")]
     pub lan_address: Url,
     #[ts(type = "string")]
@@ -135,7 +140,7 @@ pub struct ServerInfo {
     #[serde(default)]
     pub zram: bool,
     pub governor: Option<Governor>,
-    pub smtp: Option<String>,
+    pub smtp: Option<SmtpValue>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]

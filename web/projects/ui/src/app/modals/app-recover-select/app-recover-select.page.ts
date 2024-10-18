@@ -1,16 +1,12 @@
 import { Component, Input } from '@angular/core'
-import {
-  LoadingController,
-  ModalController,
-  IonicSafeString,
-} from '@ionic/angular'
-import { getErrorMessage } from '@start9labs/shared'
+import { IonicSafeString, ModalController } from '@ionic/angular'
+import { getErrorMessage, LoadingService } from '@start9labs/shared'
+import { PatchDB } from 'patch-db-client'
+import { take } from 'rxjs'
 import { BackupInfo } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { PatchDB } from 'patch-db-client'
-import { AppRecoverOption } from './to-options.pipe'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { take } from 'rxjs'
+import { AppRecoverOption } from './to-options.pipe'
 
 @Component({
   selector: 'app-recover-select',
@@ -18,10 +14,10 @@ import { take } from 'rxjs'
   styleUrls: ['./app-recover-select.page.scss'],
 })
 export class AppRecoverSelectPage {
-  @Input() id!: string
+  @Input() targetId!: string
+  @Input() serverId!: string
   @Input() backupInfo!: BackupInfo
   @Input() password!: string
-  @Input() oldPassword?: string
 
   readonly packageData$ = this.patch.watch$('packageData').pipe(take(1))
 
@@ -30,7 +26,7 @@ export class AppRecoverSelectPage {
 
   constructor(
     private readonly modalCtrl: ModalController,
-    private readonly loadingCtrl: LoadingController,
+    private readonly loader: LoadingService,
     private readonly embassyApi: ApiService,
     private readonly patch: PatchDB<DataModel>,
   ) {}
@@ -45,23 +41,20 @@ export class AppRecoverSelectPage {
 
   async restore(options: AppRecoverOption[]): Promise<void> {
     const ids = options.filter(({ checked }) => !!checked).map(({ id }) => id)
-    const loader = await this.loadingCtrl.create({
-      message: 'Initializing...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Initializing...').subscribe()
 
     try {
       await this.embassyApi.restorePackages({
         ids,
-        targetId: this.id,
-        oldPassword: this.oldPassword || null,
+        targetId: this.targetId,
+        serverId: this.serverId,
         password: this.password,
       })
       this.modalCtrl.dismiss(undefined, 'success')
     } catch (e: any) {
       this.error = getErrorMessage(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 }

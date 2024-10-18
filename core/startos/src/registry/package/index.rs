@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use emver::{Version, VersionRange};
+use chrono::Utc;
+use exver::{Version, VersionRange};
 use imbl_value::InternedString;
 use models::{DataUrl, PackageId, VersionString};
 use serde::{Deserialize, Serialize};
@@ -15,7 +16,7 @@ use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment
 use crate::registry::signer::sign::{AnySignature, AnyVerifyingKey};
 use crate::rpc_continuations::Guid;
 use crate::s9pk::git_hash::GitHash;
-use crate::s9pk::manifest::{Description, HardwareRequirements};
+use crate::s9pk::manifest::{Alerts, Description, HardwareRequirements};
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
 
@@ -53,8 +54,21 @@ pub struct Category {
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]
+pub struct DependencyMetadata {
+    #[ts(type = "string | null")]
+    pub title: Option<InternedString>,
+    pub icon: Option<DataUrl<'static>>,
+    pub description: Option<String>,
+    pub optional: bool,
+}
+
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+#[ts(export)]
 pub struct PackageVersionInfo {
-    pub title: String,
+    #[ts(type = "string")]
+    pub title: InternedString,
     pub icon: DataUrl<'static>,
     pub description: Description,
     pub release_notes: String,
@@ -70,7 +84,12 @@ pub struct PackageVersionInfo {
     pub support_site: Url,
     #[ts(type = "string")]
     pub marketing_site: Url,
-    pub os_version: VersionString,
+    #[ts(type = "string | null")]
+    pub donation_url: Option<Url>,
+    pub alerts: Alerts,
+    pub dependency_metadata: BTreeMap<PackageId, DependencyMetadata>,
+    #[ts(type = "string")]
+    pub os_version: Version,
     pub hardware_requirements: HardwareRequirements,
     #[ts(type = "string | null")]
     pub source_version: Option<VersionRange>,
@@ -79,6 +98,19 @@ pub struct PackageVersionInfo {
 impl PackageVersionInfo {
     pub async fn from_s9pk<S: FileSource + Clone>(s9pk: &S9pk<S>, url: Url) -> Result<Self, Error> {
         let manifest = s9pk.as_manifest();
+        let mut dependency_metadata = BTreeMap::new();
+        for (id, info) in &manifest.dependencies.0 {
+            let metadata = s9pk.dependency_metadata(id).await?;
+            dependency_metadata.insert(
+                id.clone(),
+                DependencyMetadata {
+                    title: metadata.map(|m| m.title),
+                    icon: s9pk.dependency_icon_data_url(id).await?,
+                    description: info.description.clone(),
+                    optional: info.optional,
+                },
+            );
+        }
         Ok(Self {
             title: manifest.title.clone(),
             icon: s9pk.icon_data_url().await?,
@@ -90,10 +122,14 @@ impl PackageVersionInfo {
             upstream_repo: manifest.upstream_repo.clone(),
             support_site: manifest.support_site.clone(),
             marketing_site: manifest.marketing_site.clone(),
+            donation_url: manifest.donation_url.clone(),
+            alerts: manifest.alerts.clone(),
+            dependency_metadata,
             os_version: manifest.os_version.clone(),
             hardware_requirements: manifest.hardware_requirements.clone(),
             source_version: None, // TODO
             s9pk: RegistryAsset {
+                published_at: Utc::now(),
                 url,
                 commitment: s9pk.as_archive().commitment().await?,
                 signatures: [(
@@ -113,8 +149,11 @@ impl PackageVersionInfo {
         table.add_row(row![bc => &self.title]);
         table.add_row(row![br -> "VERSION", AsRef::<str>::as_ref(version)]);
         table.add_row(row![br -> "RELEASE NOTES", &self.release_notes]);
-        table.add_row(row![br -> "ABOUT", &self.description.short]);
-        table.add_row(row![br -> "DESCRIPTION", &self.description.long]);
+        table.add_row(row![br -> "ABOUT", &textwrap::wrap(&self.description.short, 80).join("\n")]);
+        table.add_row(row![
+            br -> "DESCRIPTION",
+            &textwrap::wrap(&self.description.long, 80).join("\n")
+        ]);
         table.add_row(row![br -> "GIT HASH", AsRef::<str>::as_ref(&self.git_hash)]);
         table.add_row(row![br -> "LICENSE", &self.license]);
         table.add_row(row![br -> "PACKAGE REPO", &self.wrapper_repo.to_string()]);

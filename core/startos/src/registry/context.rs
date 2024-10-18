@@ -10,6 +10,7 @@ use reqwest::{Client, Proxy};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty};
 use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
 use tokio::sync::broadcast::Sender;
 use tracing::instrument;
 use url::Url;
@@ -32,17 +33,22 @@ pub struct RegistryConfig {
     #[arg(short = 'l', long = "listen")]
     pub listen: Option<SocketAddr>,
     #[arg(short = 'h', long = "hostname")]
-    pub hostname: InternedString,
-    #[arg(short = 'p', long = "proxy")]
+    pub hostname: Option<InternedString>,
+    #[arg(short = 'p', long = "tor-proxy")]
     pub tor_proxy: Option<Url>,
     #[arg(short = 'd', long = "datadir")]
     pub datadir: Option<PathBuf>,
+    #[arg(short = 'u', long = "pg-connection-url")]
+    pub pg_connection_url: Option<String>,
 }
 impl ContextConfig for RegistryConfig {
     fn next(&mut self) -> Option<PathBuf> {
         self.config.take()
     }
     fn merge_with(&mut self, other: Self) {
+        self.listen = self.listen.take().or(other.listen);
+        self.hostname = self.hostname.take().or(other.hostname);
+        self.tor_proxy = self.tor_proxy.take().or(other.tor_proxy);
         self.datadir = self.datadir.take().or(other.datadir);
     }
 }
@@ -64,6 +70,7 @@ pub struct RegistryContextSeed {
     pub rpc_continuations: RpcContinuations,
     pub client: Client,
     pub shutdown: Sender<()>,
+    pub pool: Option<PgPool>,
 }
 
 #[derive(Clone)]
@@ -91,8 +98,24 @@ impl RegistryContext {
             .clone()
             .map(Ok)
             .unwrap_or_else(|| "socks5h://localhost:9050".parse())?;
+        let pool: Option<PgPool> = match &config.pg_connection_url {
+            Some(url) => match PgPool::connect(url.as_str()).await {
+                Ok(pool) => Some(pool),
+                Err(_) => None,
+            },
+            None => None,
+        };
         Ok(Self(Arc::new(RegistryContextSeed {
-            hostname: config.hostname.clone(),
+            hostname: config
+                .hostname
+                .as_ref()
+                .ok_or_else(|| {
+                    Error::new(
+                        eyre!("missing required configuration: hostname"),
+                        ErrorKind::NotFound,
+                    )
+                })?
+                .clone(),
             listen: config
                 .listen
                 .unwrap_or(SocketAddr::new(Ipv4Addr::LOCALHOST.into(), 5959)),
@@ -110,6 +133,7 @@ impl RegistryContext {
                 .build()
                 .with_kind(crate::ErrorKind::ParseUrl)?,
             shutdown,
+            pool,
         })))
     }
 }
@@ -169,11 +193,25 @@ impl CallRemote<RegistryContext> for CliContext {
                     &AnySigningKey::Ed25519(self.developer_key()?.clone()),
                     &body,
                     &host,
-                )?.to_header(),
+                )?
+                .to_header(),
             )
             .body(body)
             .send()
             .await?;
+
+        if !res.status().is_success() {
+            let status = res.status();
+            let txt = res.text().await?;
+            let mut res = Err(Error::new(
+                eyre!("{}", status.canonical_reason().unwrap_or(status.as_str())),
+                ErrorKind::Network,
+            ));
+            if !txt.is_empty() {
+                res = res.with_ctx(|_| (ErrorKind::Network, txt));
+            }
+            return res.map_err(From::from);
+        }
 
         match res
             .headers()
@@ -185,7 +223,7 @@ impl CallRemote<RegistryContext> for CliContext {
                     .with_kind(ErrorKind::Deserialization)?
                     .result
             }
-            _ => Err(Error::new(eyre!("missing content type"), ErrorKind::Network).into()),
+            _ => Err(Error::new(eyre!("unknown content type"), ErrorKind::Network).into()),
         }
     }
 }
@@ -222,6 +260,19 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
             .send()
             .await?;
 
+        if !res.status().is_success() {
+            let status = res.status();
+            let txt = res.text().await?;
+            let mut res = Err(Error::new(
+                eyre!("{}", status.canonical_reason().unwrap_or(status.as_str())),
+                ErrorKind::Network,
+            ));
+            if !txt.is_empty() {
+                res = res.with_ctx(|_| (ErrorKind::Network, txt));
+            }
+            return res.map_err(From::from);
+        }
+
         match res
             .headers()
             .get(CONTENT_TYPE)
@@ -232,7 +283,7 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
                     .with_kind(ErrorKind::Deserialization)?
                     .result
             }
-            _ => Err(Error::new(eyre!("missing content type"), ErrorKind::Network).into()),
+            _ => Err(Error::new(eyre!("unknown content type"), ErrorKind::Network).into()),
         }
     }
 }

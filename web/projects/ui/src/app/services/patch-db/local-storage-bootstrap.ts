@@ -1,4 +1,4 @@
-import { Bootstrapper, DBCache } from 'patch-db-client'
+import { Dump } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Injectable } from '@angular/core'
 import { StorageService } from '../storage.service'
@@ -6,20 +6,18 @@ import { StorageService } from '../storage.service'
 @Injectable({
   providedIn: 'root',
 })
-export class LocalStorageBootstrap implements Bootstrapper<DataModel> {
-  static CONTENT_KEY = 'patch-db-cache'
+export class LocalStorageBootstrap {
+  static CONTENT_KEY = 'patchDB'
 
   constructor(private readonly storage: StorageService) {}
 
-  init(): DBCache<DataModel> {
-    const cache = this.storage.get<DBCache<DataModel>>(
-      LocalStorageBootstrap.CONTENT_KEY,
-    )
+  init(): Dump<DataModel> {
+    const cache = this.storage.get<DataModel>(LocalStorageBootstrap.CONTENT_KEY)
 
-    return cache || { sequence: 0, data: {} as DataModel }
+    return cache ? { id: 1, value: cache } : { id: 0, value: {} as DataModel }
   }
 
-  update(cache: DBCache<DataModel>): void {
+  update(cache: DataModel): void {
     this.storage.set(LocalStorageBootstrap.CONTENT_KEY, cache)
   }
 }

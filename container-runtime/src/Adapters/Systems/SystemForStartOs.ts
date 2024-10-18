@@ -1,152 +1,111 @@
-import { ExecuteResult, System } from "../../Interfaces/System"
+import { ExecuteResult, Procedure, System } from "../../Interfaces/System"
 import { unNestPath } from "../../Models/JsonPath"
-import { string } from "ts-matches"
-import { HostSystemStartOs } from "../HostSystemStartOs"
+import matches, { any, number, object, string, tuple } from "ts-matches"
 import { Effects } from "../../Models/Effects"
-import { RpcResult } from "../RpcListener"
+import { RpcResult, matchRpcResult } from "../RpcListener"
 import { duration } from "../../Models/Duration"
-const LOCATION = "/usr/lib/startos/package/startos"
+import { T, utils } from "@start9labs/start-sdk"
+import { Volume } from "../../Models/Volume"
+import { CallbackHolder } from "../../Models/CallbackHolder"
+import { Optional } from "ts-matches/lib/parsers/interfaces"
+
+export const STARTOS_JS_LOCATION = "/usr/lib/startos/package/index.js"
+
+type RunningMain = {
+  stop: () => Promise<void>
+}
+
 export class SystemForStartOs implements System {
-  private onTerm: (() => Promise<void>) | undefined
+  private runningMain: RunningMain | undefined
+
   static of() {
-    return new SystemForStartOs()
+    return new SystemForStartOs(require(STARTOS_JS_LOCATION))
   }
-  constructor() {}
-  async execute(
-    effects: HostSystemStartOs,
-    options: {
-      procedure:
-        | "/init"
-        | "/uninit"
-        | "/main/start"
-        | "/main/stop"
-        | "/config/set"
-        | "/config/get"
-        | "/backup/create"
-        | "/backup/restore"
-        | "/actions/metadata"
-        | `/actions/${string}/get`
-        | `/actions/${string}/run`
-        | `/dependencies/${string}/query`
-        | `/dependencies/${string}/update`
-      input: unknown
-      timeout?: number | undefined
-    },
-  ): Promise<RpcResult> {
-    return { result: await this._execute(effects, options) }
+
+  constructor(readonly abi: T.ABI) {
+    this
   }
-  async _execute(
+  async containerInit(effects: Effects): Promise<void> {
+    return void (await this.abi.containerInit({ effects }))
+  }
+  async packageInit(
     effects: Effects,
-    options: {
-      procedure:
-        | "/init"
-        | "/uninit"
-        | "/main/start"
-        | "/main/stop"
-        | "/config/set"
-        | "/config/get"
-        | "/backup/create"
-        | "/backup/restore"
-        | "/actions/metadata"
-        | `/actions/${string}/get`
-        | `/actions/${string}/run`
-        | `/dependencies/${string}/query`
-        | `/dependencies/${string}/update`
-      input: unknown
-      timeout?: number | undefined
-    },
-  ): Promise<unknown> {
-    switch (options.procedure) {
-      case "/init": {
-        const path = `${LOCATION}/procedures/init`
-        const procedure: any = await import(path).catch(() => require(path))
-        const previousVersion = string.optional().unsafeCast(options)
-        return procedure.init({ effects, previousVersion })
-      }
-      case "/uninit": {
-        const path = `${LOCATION}/procedures/init`
-        const procedure: any = await import(path).catch(() => require(path))
-        const nextVersion = string.optional().unsafeCast(options)
-        return procedure.uninit({ effects, nextVersion })
-      }
-      case "/main/start": {
-        const path = `${LOCATION}/procedures/main`
-        const procedure: any = await import(path).catch(() => require(path))
-        const started = async (onTerm: () => Promise<void>) => {
-          await effects.setMainStatus({ status: "running" })
-          if (this.onTerm) await this.onTerm()
-          this.onTerm = onTerm
-        }
-        return procedure.main({ effects, started })
-      }
-      case "/main/stop": {
-        await effects.setMainStatus({ status: "stopped" })
-        if (this.onTerm) await this.onTerm()
-        delete this.onTerm
-        return duration(30, "s")
-      }
-      case "/config/set": {
-        const path = `${LOCATION}/procedures/config`
-        const procedure: any = await import(path).catch(() => require(path))
-        const input = options.input
-        return procedure.setConfig({ effects, input })
-      }
-      case "/config/get": {
-        const path = `${LOCATION}/procedures/config`
-        const procedure: any = await import(path).catch(() => require(path))
-        return procedure.getConfig({ effects })
-      }
-      case "/backup/create":
-      case "/backup/restore":
-        throw new Error("this should be called with the init/unit")
-      case "/actions/metadata": {
-        const path = `${LOCATION}/procedures/actions`
-        const procedure: any = await import(path).catch(() => require(path))
-        return procedure.actionsMetadata({ effects })
-      }
-      default:
-        const procedures = unNestPath(options.procedure)
-        const id = procedures[2]
-        switch (true) {
-          case procedures[1] === "actions" && procedures[3] === "get": {
-            const path = `${LOCATION}/procedures/actions`
-            const action: any = (await import(path).catch(() => require(path)))
-              .actions[id]
-            if (!action) throw new Error(`Action ${id} not found`)
-            return action.get({ effects })
-          }
-          case procedures[1] === "actions" && procedures[3] === "run": {
-            const path = `${LOCATION}/procedures/actions`
-            const action: any = (await import(path).catch(() => require(path)))
-              .actions[id]
-            if (!action) throw new Error(`Action ${id} not found`)
-            const input = options.input
-            return action.run({ effects, input })
-          }
-          case procedures[1] === "dependencies" && procedures[3] === "query": {
-            const path = `${LOCATION}/procedures/dependencies`
-            const dependencyConfig: any = (
-              await import(path).catch(() => require(path))
-            ).dependencyConfig[id]
-            if (!dependencyConfig)
-              throw new Error(`dependencyConfig ${id} not found`)
-            const localConfig = options.input
-            return dependencyConfig.query({ effects, localConfig })
-          }
-          case procedures[1] === "dependencies" && procedures[3] === "update": {
-            const path = `${LOCATION}/procedures/dependencies`
-            const dependencyConfig: any = (
-              await import(path).catch(() => require(path))
-            ).dependencyConfig[id]
-            if (!dependencyConfig)
-              throw new Error(`dependencyConfig ${id} not found`)
-            return dependencyConfig.update(options.input)
-          }
-        }
-    }
-    throw new Error("Method not implemented.")
+    timeoutMs: number | null = null,
+  ): Promise<void> {
+    return void (await this.abi.packageInit({ effects }))
   }
-  exit(effects: Effects): Promise<void> {
-    throw new Error("Method not implemented.")
+  async packageUninit(
+    effects: Effects,
+    nextVersion: Optional<string> = null,
+    timeoutMs: number | null = null,
+  ): Promise<void> {
+    return void (await this.abi.packageUninit({ effects, nextVersion }))
+  }
+  async createBackup(
+    effects: T.Effects,
+    timeoutMs: number | null,
+  ): Promise<void> {
+    return void (await this.abi.createBackup({
+      effects,
+    }))
+  }
+  async restoreBackup(
+    effects: T.Effects,
+    timeoutMs: number | null,
+  ): Promise<void> {
+    return void (await this.abi.restoreBackup({
+      effects,
+    }))
+  }
+  getActionInput(
+    effects: Effects,
+    id: string,
+    timeoutMs: number | null,
+  ): Promise<T.ActionInput | null> {
+    const action = this.abi.actions.get(id)
+    if (!action) throw new Error(`Action ${id} not found`)
+    return action.getInput({ effects })
+  }
+  runAction(
+    effects: Effects,
+    id: string,
+    input: unknown,
+    timeoutMs: number | null,
+  ): Promise<T.ActionResult | null> {
+    const action = this.abi.actions.get(id)
+    if (!action) throw new Error(`Action ${id} not found`)
+    return action.run({ effects, input })
+  }
+
+  async exit(): Promise<void> {}
+
+  async start(effects: Effects): Promise<void> {
+    effects.constRetry = utils.once(() => effects.restart())
+    if (this.runningMain) await this.stop()
+    let mainOnTerm: () => Promise<void> | undefined
+    const started = async (onTerm: () => Promise<void>) => {
+      await effects.setMainStatus({ status: "running" })
+      mainOnTerm = onTerm
+      return null
+    }
+    const daemons = await (
+      await this.abi.main({
+        effects,
+        started,
+      })
+    ).build()
+    this.runningMain = {
+      stop: async () => {
+        if (mainOnTerm) await mainOnTerm()
+        await daemons.term()
+      },
+    }
+  }
+
+  async stop(): Promise<void> {
+    if (this.runningMain) {
+      await this.runningMain.stop()
+      this.runningMain = undefined
+    }
   }
 }

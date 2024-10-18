@@ -10,17 +10,15 @@ import { ConnectionService } from 'src/app/services/connection.service'
 })
 export class AppShowHealthChecksComponent {
   @Input()
-  healthChecks!: Record<string, T.HealthCheckResult>
+  healthChecks!: Record<string, T.NamedHealthCheckResult>
 
-  readonly connected$ = this.connectionService.connected$
+  constructor(readonly connection$: ConnectionService) {}
 
-  constructor(private readonly connectionService: ConnectionService) {}
-
-  isLoading(result: T.HealthCheckResult['result']): boolean {
+  isLoading(result: T.NamedHealthCheckResult['result']): boolean {
     return result === 'starting' || result === 'loading'
   }
 
-  isReady(result: T.HealthCheckResult['result']): boolean {
+  isReady(result: T.NamedHealthCheckResult['result']): boolean {
     return result !== 'failure' && result !== 'loading'
   }
 

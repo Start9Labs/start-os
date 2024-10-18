@@ -1,5 +1,6 @@
 avahi-daemon
 avahi-utils
+b3sum
 bash-completion
 beep
 bmon
@@ -8,12 +9,14 @@ ca-certificates
 cifs-utils
 cryptsetup
 curl
+dnsutils
 dmidecode
 dosfstools
 e2fsprogs
 ecryptfs-utils
 exfatprogs
 flashrom
+fuse3
 grub-common
 htop
 httpdirfs
@@ -45,6 +48,7 @@ smartmontools
 socat
 sqlite3
 squashfs-tools
+squashfs-tools-ng
 sudo
 systemd
 systemd-resolved

@@ -32,7 +32,7 @@ export class BadgeMenuComponent {
   constructor(
     private readonly splitPane: SplitPaneTracker,
     private readonly patch: PatchDB<DataModel>,
-    private readonly dialog: TuiDialogService,
+    private readonly dialogs: TuiDialogService,
     private readonly clientStorageService: ClientStorageService,
   ) {}
 
@@ -44,6 +44,6 @@ export class BadgeMenuComponent {
   }
 
   onWidgets() {
-    this.dialog.open(WIDGETS_COMPONENT, { label: 'Widgets' }).subscribe()
+    this.dialogs.open(WIDGETS_COMPONENT, { label: 'Widgets' }).subscribe()
   }
 }

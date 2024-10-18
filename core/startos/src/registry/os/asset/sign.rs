@@ -3,7 +3,7 @@ use std::panic::UnwindSafe;
 use std::path::PathBuf;
 
 use clap::Parser;
-use helpers::NonDetachingJoinHandle;
+use exver::Version;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
@@ -12,7 +12,7 @@ use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::progress::{FullProgressTracker, PhasedProgressBar};
+use crate::progress::FullProgressTracker;
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfo;
@@ -22,27 +22,27 @@ use crate::registry::signer::sign::ed25519::Ed25519;
 use crate::registry::signer::sign::{AnySignature, AnyVerifyingKey, SignatureScheme};
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::ArchiveSource;
+use crate::util::io::open_file;
 use crate::util::serde::Base64;
-use crate::util::VersionString;
 
 pub fn sign_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "iso",
             from_fn_async(sign_iso)
-                .with_metadata("getSigner", Value::Bool(true))
+                .with_metadata("get_signer", Value::Bool(true))
                 .no_cli(),
         )
         .subcommand(
             "img",
             from_fn_async(sign_img)
-                .with_metadata("getSigner", Value::Bool(true))
+                .with_metadata("get_signer", Value::Bool(true))
                 .no_cli(),
         )
         .subcommand(
             "squashfs",
             from_fn_async(sign_squashfs)
-                .with_metadata("getSigner", Value::Bool(true))
+                .with_metadata("get_signer", Value::Bool(true))
                 .no_cli(),
         )
 }
@@ -51,7 +51,8 @@ pub fn sign_api<C: Context>() -> ParentHandler<C> {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SignAssetParams {
-    version: VersionString,
+    #[ts(type = "string")]
+    version: Version,
     #[ts(type = "string")]
     platform: InternedString,
     #[ts(skip)]
@@ -137,7 +138,7 @@ pub struct CliSignAssetParams {
     #[arg(short = 'p', long = "platform")]
     pub platform: InternedString,
     #[arg(short = 'v', long = "version")]
-    pub version: VersionString,
+    pub version: Version,
     pub file: PathBuf,
 }
 
@@ -167,29 +168,17 @@ pub async fn cli_sign_asset(
         }
     };
 
-    let file = MultiCursorFile::from(tokio::fs::File::open(&path).await?);
+    let file = MultiCursorFile::from(open_file(&path).await?);
 
-    let mut progress = FullProgressTracker::new();
-    let progress_handle = progress.handle();
-    let mut sign_phase =
-        progress_handle.add_phase(InternedString::intern("Signing File"), Some(10));
-    let mut index_phase = progress_handle.add_phase(
+    let progress = FullProgressTracker::new();
+    let mut sign_phase = progress.add_phase(InternedString::intern("Signing File"), Some(10));
+    let mut index_phase = progress.add_phase(
         InternedString::intern("Adding Signature to Registry Index"),
         Some(1),
     );
 
-    let progress_task: NonDetachingJoinHandle<()> = tokio::spawn(async move {
-        let mut bar = PhasedProgressBar::new(&format!("Adding {} to registry...", path.display()));
-        loop {
-            let snap = progress.snapshot();
-            bar.update(&snap);
-            if snap.overall.is_complete() {
-                break;
-            }
-            progress.changed().await
-        }
-    })
-    .into();
+    let progress_task =
+        progress.progress_bar_task(&format!("Adding {} to registry...", path.display()));
 
     sign_phase.start();
     let blake3 = file.blake3_mmap().await?;
@@ -201,7 +190,11 @@ pub async fn cli_sign_asset(
         hash: Base64(*blake3.as_bytes()),
         size,
     };
-    let signature = Ed25519.sign_commitment(ctx.developer_key()?, &commitment, SIG_CONTEXT)?;
+    let signature = AnySignature::Ed25519(Ed25519.sign_commitment(
+        ctx.developer_key()?,
+        &commitment,
+        SIG_CONTEXT,
+    )?);
     sign_phase.complete();
 
     index_phase.start();
@@ -220,7 +213,7 @@ pub async fn cli_sign_asset(
     .await?;
     index_phase.complete();
 
-    progress_handle.complete();
+    progress.complete();
 
     progress_task.await.with_kind(ErrorKind::Unknown)?;
 

@@ -1,9 +1,12 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use chrono::{DateTime, Utc};
-use emver::VersionRange;
+use exver::VersionRange;
 use imbl_value::InternedString;
-use models::{ActionId, DataUrl, HealthCheckId, HostId, PackageId, ServiceInterfaceId};
+use models::{
+    ActionId, DataUrl, HealthCheckId, HostId, PackageId, ReplayId, ServiceInterfaceId,
+    VersionString,
+};
 use patch_db::json_ptr::JsonPointer;
 use patch_db::HasModel;
 use reqwest::Url;
@@ -15,8 +18,8 @@ use crate::net::service_interface::ServiceInterface;
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::s9pk::manifest::Manifest;
-use crate::status::Status;
-use crate::util::serde::Pem;
+use crate::status::MainStatus;
+use crate::util::serde::{is_partial_of, Pem};
 
 #[derive(Debug, Default, Deserialize, Serialize, TS)]
 #[ts(export)]
@@ -57,6 +60,18 @@ impl PackageState {
             _ => Err(Error::new(
                 eyre!(
                     "Package {} is not in installed state",
+                    self.as_manifest(ManifestPreference::Old).id
+                ),
+                ErrorKind::InvalidRequest,
+            )),
+        }
+    }
+    pub fn expect_removing(&self) -> Result<&InstalledState, Error> {
+        match self {
+            Self::Removing(a) => Ok(a),
+            _ => Err(Error::new(
+                eyre!(
+                    "Package {} is not in removing state",
                     self.as_manifest(ManifestPreference::Old).id
                 ),
                 ErrorKind::InvalidRequest,
@@ -296,9 +311,9 @@ pub struct InstallingInfo {
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[ts(export)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 pub enum AllowedStatuses {
-    OnlyRunning, // onlyRunning
+    OnlyRunning,
     OnlyStopped,
     Any,
 }
@@ -310,11 +325,26 @@ pub struct ActionMetadata {
     pub name: String,
     pub description: String,
     pub warning: Option<String>,
-    #[ts(type = "any")]
-    pub input: Value,
-    pub disabled: bool,
+    #[serde(default)]
+    pub visibility: ActionVisibility,
     pub allowed_statuses: AllowedStatuses,
+    pub has_input: bool,
     pub group: Option<String>,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "kebab-case")]
+#[serde(rename_all_fields = "camelCase")]
+pub enum ActionVisibility {
+    Hidden,
+    Disabled(String),
+    Enabled,
+}
+impl Default for ActionVisibility {
+    fn default() -> Self {
+        Self::Enabled
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
@@ -323,7 +353,8 @@ pub struct ActionMetadata {
 #[ts(export)]
 pub struct PackageDataEntry {
     pub state_info: PackageState,
-    pub status: Status,
+    pub data_version: Option<VersionString>,
+    pub status: MainStatus,
     #[ts(type = "string | null")]
     pub registry: Option<Url>,
     #[ts(type = "string")]
@@ -333,6 +364,8 @@ pub struct PackageDataEntry {
     pub last_backup: Option<DateTime<Utc>>,
     pub current_dependencies: CurrentDependencies,
     pub actions: BTreeMap<ActionId, ActionMetadata>,
+    #[ts(as = "BTreeMap::<String, ActionRequestEntry>")]
+    pub requested_actions: BTreeMap<ReplayId, ActionRequestEntry>,
     pub service_interfaces: BTreeMap<ServiceInterfaceId, ServiceInterface>,
     pub hosts: Hosts,
     #[ts(type = "string[]")]
@@ -369,22 +402,21 @@ impl Map for CurrentDependencies {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS, HasModel)]
 #[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
 pub struct CurrentDependencyInfo {
+    #[ts(type = "string | null")]
+    pub title: Option<InternedString>,
+    pub icon: Option<DataUrl<'static>>,
     #[serde(flatten)]
     pub kind: CurrentDependencyKind,
-    pub title: String,
-    pub icon: DataUrl<'static>,
     #[ts(type = "string")]
-    pub registry_url: Url,
-    #[ts(type = "string")]
-    pub version_spec: VersionRange,
-    pub config_satisfied: bool,
+    pub version_range: VersionRange,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "kebab-case")]
 #[serde(tag = "kind")]
 pub enum CurrentDependencyKind {
     Exists,
@@ -394,6 +426,81 @@ pub enum CurrentDependencyKind {
         #[ts(type = "string[]")]
         health_checks: BTreeSet<HealthCheckId>,
     },
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, TS, HasModel)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+#[model = "Model<Self>"]
+pub struct ActionRequestEntry {
+    pub request: ActionRequest,
+    pub active: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, TS, HasModel)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+#[model = "Model<Self>"]
+pub struct ActionRequest {
+    pub package_id: PackageId,
+    pub action_id: ActionId,
+    #[serde(default)]
+    pub severity: ActionSeverity,
+    #[ts(optional)]
+    pub reason: Option<String>,
+    #[ts(optional)]
+    pub when: Option<ActionRequestTrigger>,
+    #[ts(optional)]
+    pub input: Option<ActionRequestInput>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "kebab-case")]
+#[ts(export)]
+pub enum ActionSeverity {
+    Critical,
+    Important,
+}
+impl Default for ActionSeverity {
+    fn default() -> Self {
+        ActionSeverity::Important
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct ActionRequestTrigger {
+    #[serde(default)]
+    pub once: bool,
+    pub condition: ActionRequestCondition,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "kebab-case")]
+#[ts(export)]
+pub enum ActionRequestCondition {
+    InputNotMatches,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "kebab-case")]
+#[serde(tag = "kind")]
+pub enum ActionRequestInput {
+    Partial {
+        #[ts(type = "Record<string, unknown>")]
+        value: Value,
+    },
+}
+impl ActionRequestInput {
+    pub fn matches(&self, input: Option<&Value>) -> bool {
+        match self {
+            Self::Partial { value } => match input {
+                None => false,
+                Some(full) => is_partial_of(value, full),
+            },
+        }
+    }
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]

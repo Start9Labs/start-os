@@ -1,3 +1,4 @@
+use imbl_value::InternedString;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use patch_db::Value;
@@ -85,6 +86,7 @@ impl OsBackupV0 {
                     ssh_key::Algorithm::Ed25519,
                 )?,
                 tor_key: TorSecretKeyV3::from(self.tor_key.0),
+                compat_s9pk_key: ed25519_dalek::SigningKey::generate(&mut rand::thread_rng()),
             },
             ui: self.ui,
         })
@@ -96,7 +98,7 @@ impl OsBackupV0 {
 #[serde(rename = "kebab-case")]
 struct OsBackupV1 {
     server_id: String,               // uuidv4
-    hostname: String,                // embassy-<adjective>-<noun>
+    hostname: InternedString,        // embassy-<adjective>-<noun>
     net_key: Base64<[u8; 32]>,       // Ed25519 Secret Key
     root_ca_key: Pem<PKey<Private>>, // PEM Encoded OpenSSL Key
     root_ca_cert: Pem<X509>,         // PEM Encoded OpenSSL X509 Certificate
@@ -113,6 +115,7 @@ impl OsBackupV1 {
                 root_ca_cert: self.root_ca_cert.0,
                 ssh_key: ssh_key::PrivateKey::from(Ed25519Keypair::from_seed(&self.net_key.0)),
                 tor_key: TorSecretKeyV3::from(ed25519_expand_key(&self.net_key.0)),
+                compat_s9pk_key: ed25519_dalek::SigningKey::from_bytes(&self.net_key),
             },
             ui: self.ui,
         }
@@ -124,13 +127,14 @@ impl OsBackupV1 {
 #[serde(rename = "kebab-case")]
 
 struct OsBackupV2 {
-    server_id: String,                 // uuidv4
-    hostname: String,                  // <adjective>-<noun>
-    root_ca_key: Pem<PKey<Private>>,   // PEM Encoded OpenSSL Key
-    root_ca_cert: Pem<X509>,           // PEM Encoded OpenSSL X509 Certificate
-    ssh_key: Pem<ssh_key::PrivateKey>, // PEM Encoded OpenSSH Key
-    tor_key: TorSecretKeyV3,           // Base64 Encoded Ed25519 Expanded Secret Key
-    ui: Value,                         // JSON Value
+    server_id: String,                               // uuidv4
+    hostname: InternedString,                        // <adjective>-<noun>
+    root_ca_key: Pem<PKey<Private>>,                 // PEM Encoded OpenSSL Key
+    root_ca_cert: Pem<X509>,                         // PEM Encoded OpenSSL X509 Certificate
+    ssh_key: Pem<ssh_key::PrivateKey>,               // PEM Encoded OpenSSH Key
+    tor_key: TorSecretKeyV3,                         // Base64 Encoded Ed25519 Expanded Secret Key
+    compat_s9pk_key: Pem<ed25519_dalek::SigningKey>, // PEM Encoded ED25519 Key
+    ui: Value,                                       // JSON Value
 }
 impl OsBackupV2 {
     fn project(self) -> OsBackup {
@@ -143,6 +147,7 @@ impl OsBackupV2 {
                 root_ca_cert: self.root_ca_cert.0,
                 ssh_key: self.ssh_key.0,
                 tor_key: self.tor_key,
+                compat_s9pk_key: self.compat_s9pk_key.0,
             },
             ui: self.ui,
         }
@@ -155,6 +160,7 @@ impl OsBackupV2 {
             root_ca_cert: Pem(backup.account.root_ca_cert.clone()),
             ssh_key: Pem(backup.account.ssh_key.clone()),
             tor_key: backup.account.tor_key.clone(),
+            compat_s9pk_key: Pem(backup.account.compat_s9pk_key.clone()),
             ui: backup.ui.clone(),
         }
     }

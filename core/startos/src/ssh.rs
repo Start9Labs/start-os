@@ -5,6 +5,7 @@ use clap::builder::ValueParserFactory;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use imbl_value::InternedString;
+use models::FromStrParser;
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -12,7 +13,7 @@ use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
-use crate::util::clap::FromStrParser;
+use crate::util::io::create_file;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 
 pub const SSH_AUTHORIZED_KEYS_FILE: &str = "/home/start9/.ssh/authorized_keys";
@@ -22,6 +23,12 @@ pub struct SshKeys(BTreeMap<InternedString, WithTimeData<SshPubKey>>);
 impl SshKeys {
     pub fn new() -> Self {
         Self(BTreeMap::new())
+    }
+}
+
+impl From<BTreeMap<InternedString, WithTimeData<SshPubKey>>> for SshKeys {
+    fn from(map: BTreeMap<InternedString, WithTimeData<SshPubKey>>) -> Self {
+        Self(map)
     }
 }
 impl Map for SshKeys {
@@ -40,7 +47,7 @@ impl Map for SshKeys {
 pub struct SshPubKey(
     #[serde(serialize_with = "crate::util::serde::serialize_display")]
     #[serde(deserialize_with = "crate::util::serde::deserialize_from_str")]
-    openssh_keys::PublicKey,
+    pub openssh_keys::PublicKey,
 );
 impl ValueParserFactory for SshPubKey {
     type Parser = FromStrParser<Self>;
@@ -85,12 +92,14 @@ pub fn ssh<C: Context>() -> ParentHandler<C> {
             "add",
             from_fn_async(add)
                 .no_display()
+                .with_about("Add ssh key")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "delete",
             from_fn_async(delete)
                 .no_display()
+                .with_about("Remove ssh key")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -100,6 +109,7 @@ pub fn ssh<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_all_ssh_keys(handle.params, result))
                 })
+                .with_about("List ssh keys")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -229,7 +239,7 @@ pub async fn sync_keys<P: AsRef<Path>>(keys: &SshKeys, dest: P) -> Result<(), Er
     if tokio::fs::metadata(ssh_dir).await.is_err() {
         tokio::fs::create_dir_all(ssh_dir).await?;
     }
-    let mut f = tokio::fs::File::create(dest).await?;
+    let mut f = create_file(dest).await?;
     for key in keys.0.values() {
         f.write_all(key.0.to_key_format().as_bytes()).await?;
         f.write_all(b"\n").await?;

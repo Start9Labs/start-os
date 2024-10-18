@@ -19,6 +19,7 @@ use crate::util::serde::Base64;
 use crate::CAP_1_MiB;
 
 pub mod directory_contents;
+pub mod expected;
 pub mod file_contents;
 pub mod hash;
 pub mod sink;
@@ -120,14 +121,14 @@ impl<S: ArchiveSource + Clone> MerkleArchive<Section<S>> {
             }
             if max_size > *root_maxsize {
                 return Err(Error::new(
-                    eyre!("merkle root directory max size too large"),
+                    eyre!("root directory max size too large"),
                     ErrorKind::InvalidSignature,
                 ));
             }
         } else {
             if max_size > CAP_1_MiB as u64 {
                 return Err(Error::new(
-                    eyre!("merkle root directory max size over 1MiB, cancelling download in case of DOS attack"),
+                    eyre!("root directory max size over 1MiB, cancelling download in case of DOS attack"),
                     ErrorKind::InvalidSignature,
                 ));
             }
@@ -217,6 +218,9 @@ impl<S> Entry<S> {
     pub fn file(source: S) -> Self {
         Self::new(EntryContents::File(FileContents::new(source)))
     }
+    pub fn directory(directory: DirectoryContents<S>) -> Self {
+        Self::new(EntryContents::Directory(directory))
+    }
     pub fn hash(&self) -> Option<(Hash, u64)> {
         self.hash
     }
@@ -228,6 +232,10 @@ impl<S> Entry<S> {
             EntryContents::File(f) => Some(f),
             _ => None,
         }
+    }
+    pub fn expect_file(&self) -> Result<&FileContents<S>, Error> {
+        self.as_file()
+            .ok_or_else(|| Error::new(eyre!("not a file"), ErrorKind::ParseS9pk))
     }
     pub fn as_directory(&self) -> Option<&DirectoryContents<S>> {
         match self.as_contents() {
@@ -372,6 +380,9 @@ impl<S> EntryContents<S> {
     }
     pub fn is_dir(&self) -> bool {
         matches!(self, &EntryContents::Directory(_))
+    }
+    pub fn is_missing(&self) -> bool {
+        matches!(self, &EntryContents::Missing)
     }
 }
 impl<S: ArchiveSource + Clone> EntryContents<Section<S>> {

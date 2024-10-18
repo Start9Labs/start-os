@@ -3,22 +3,29 @@ import {
   HttpOptions,
   HttpService,
   isRpcError,
-  Log,
   Method,
   RpcError,
   RPCOptions,
 } from '@start9labs/shared'
+import { PATCH_CACHE } from 'src/app/services/patch-db/patch-db-source'
 import { ApiService } from './embassy-api.service'
 import { RR } from './api.types'
-import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { ConfigService } from '../config.service'
-import { webSocket, WebSocketSubjectConfig } from 'rxjs/webSocket'
+import { webSocket } from 'rxjs/webSocket'
 import { Observable, filter, firstValueFrom } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
-import { PatchDB, pathFromArray, Update } from 'patch-db-client'
-import { getServerInfo } from 'src/app/util/get-server-info'
+import { Dump, pathFromArray } from 'patch-db-client'
+import { T } from '@start9labs/start-sdk'
+import {
+  GetPackageReq,
+  GetPackageRes,
+  GetPackagesReq,
+  GetPackagesRes,
+  MarketplacePkg,
+} from '@start9labs/marketplace'
+import { blake3 } from '@noble/hashes/blake3'
 
 @Injectable()
 export class LiveApiService extends ApiService {
@@ -27,32 +34,85 @@ export class LiveApiService extends ApiService {
     private readonly http: HttpService,
     private readonly config: ConfigService,
     private readonly auth: AuthService,
-    private readonly patch: PatchDB<DataModel>,
+    @Inject(PATCH_CACHE) private readonly cache$: Observable<Dump<DataModel>>,
   ) {
     super()
-    ;(window as any).rpcClient = this
-  }
-
-  // for getting static files: ex icons, instructions, licenses
-  async getStatic(url: string): Promise<string> {
-    return this.httpRequest({
-      method: Method.GET,
-      url,
-      responseType: 'text',
-    })
+    ; (window as any).rpcClient = this
   }
 
   // for sideloading packages
-  async uploadPackage(guid: string, body: Blob): Promise<string> {
-    return this.httpRequest({
+
+  async uploadPackage(guid: string, body: Blob): Promise<void> {
+    await this.httpRequest({
       method: Method.POST,
       body,
       url: `/rest/rpc/${guid}`,
+    })
+  }
+
+  // for getting static files: ex. instructions, licenses
+
+  async getStaticProxy(
+    pkg: MarketplacePkg,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string> {
+    const encodedUrl = encodeURIComponent(pkg.s9pk.url)
+
+    return this.httpRequest({
+      method: Method.GET,
+      url: `/s9pk/proxy/${encodedUrl}/${path}`,
+      params: {
+        rootSighash: pkg.s9pk.commitment.rootSighash,
+        rootMaxsize: pkg.s9pk.commitment.rootMaxsize,
+      },
       responseType: 'text',
     })
   }
 
+  async getStaticInstalled(
+    id: T.PackageId,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string> {
+    return this.httpRequest({
+      method: Method.GET,
+      url: `/s9pk/installed/${id}.s9pk/${path}`,
+      responseType: 'text',
+    })
+  }
+
+  // websocket
+
+  openWebsocket$<T>(
+    guid: string,
+    config: RR.WebsocketConfig<T> = {},
+  ): Observable<T> {
+    const { location } = this.document.defaultView!
+    const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
+    const host = location.host
+
+    return webSocket({
+      url: `${protocol}://${host}/ws/rpc/${guid}`,
+      ...config,
+    })
+  }
+
+  // state
+
+  async echo(params: RR.EchoReq, url: string): Promise<RR.EchoRes> {
+    return this.rpcRequest({ method: 'echo', params }, url)
+  }
+
+  async getState(): Promise<RR.ServerState> {
+    return this.rpcRequest({ method: 'state', params: {} })
+  }
+
   // db
+
+  async subscribeToPatchDB(
+    params: RR.SubscribePatchReq,
+  ): Promise<RR.SubscribePatchRes> {
+    return this.rpcRequest({ method: 'db.subscribe', params })
+  }
 
   async setDbValue<T>(
     pathArr: Array<string | number>,
@@ -87,28 +147,58 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'auth.reset-password', params })
   }
 
+  // diagnostic
+
+  async diagnosticGetError(): Promise<RR.DiagnosticErrorRes> {
+    return this.rpcRequest<RR.DiagnosticErrorRes>({
+      method: 'diagnostic.error',
+      params: {},
+    })
+  }
+
+  async diagnosticRestart(): Promise<void> {
+    return this.rpcRequest<void>({
+      method: 'diagnostic.restart',
+      params: {},
+    })
+  }
+
+  async diagnosticForgetDrive(): Promise<void> {
+    return this.rpcRequest<void>({
+      method: 'diagnostic.disk.forget',
+      params: {},
+    })
+  }
+
+  async diagnosticRepairDisk(): Promise<void> {
+    return this.rpcRequest<void>({
+      method: 'diagnostic.disk.repair',
+      params: {},
+    })
+  }
+
+  async diagnosticGetLogs(
+    params: RR.GetServerLogsReq,
+  ): Promise<RR.GetServerLogsRes> {
+    return this.rpcRequest<RR.GetServerLogsRes>({
+      method: 'diagnostic.logs',
+      params,
+    })
+  }
+
+  // init
+
+  async initGetProgress(): Promise<RR.InitGetProgressRes> {
+    return this.rpcRequest({ method: 'init.subscribe', params: {} })
+  }
+
+  async initFollowLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes> {
+    return this.rpcRequest({ method: 'init.logs.follow', params })
+  }
+
   // server
-
-  async echo(params: RR.EchoReq, urlOverride?: string): Promise<RR.EchoRes> {
-    return this.rpcRequest({ method: 'echo', params }, urlOverride)
-  }
-
-  openPatchWebsocket$(): Observable<Update<DataModel>> {
-    const config: WebSocketSubjectConfig<Update<DataModel>> = {
-      url: `/db`,
-      closeObserver: {
-        next: val => {
-          if (val.reason === 'UNAUTHORIZED') this.auth.setUnverified()
-        },
-      },
-    }
-
-    return this.openWebsocket(config)
-  }
-
-  openLogsWebsocket$(config: WebSocketSubjectConfig<Log>): Observable<Log> {
-    return this.openWebsocket(config)
-  }
 
   async getSystemTime(
     params: RR.GetSystemTimeReq,
@@ -175,12 +265,6 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'server.shutdown', params })
   }
 
-  async systemRebuild(
-    params: RR.RestartServerReq,
-  ): Promise<RR.RestartServerRes> {
-    return this.rpcRequest({ method: 'server.rebuild', params })
-  }
-
   async repairDisk(params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
     return this.rpcRequest({ method: 'disk.repair', params })
   }
@@ -191,27 +275,61 @@ export class LiveApiService extends ApiService {
 
   // marketplace URLs
 
-  async marketplaceProxy<T>(
-    path: string,
-    qp: Record<string, string>,
-    baseUrl: string,
+  async registryRequest<T>(
+    registryUrl: string,
+    options: RPCOptions,
   ): Promise<T> {
-    const fullUrl = `${baseUrl}${path}?${new URLSearchParams(qp).toString()}`
     return this.rpcRequest({
-      method: 'marketplace.get',
-      params: { url: fullUrl },
+      ...options,
+      method: `registry.${options.method}`,
+      params: { registry: registryUrl, ...options.params },
     })
   }
 
-  async getEos(): Promise<RR.GetMarketplaceEosRes> {
-    const { id } = await getServerInfo(this.patch)
-    const qp: RR.GetMarketplaceEosReq = { serverId: id }
+  async checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes> {
+    const { serverId } = qp
 
-    return this.marketplaceProxy(
-      '/eos/v0/latest',
-      qp,
-      this.config.marketplace.start9,
-    )
+    return this.registryRequest(this.config.marketplace.start9, {
+      method: 'os.version.get',
+      params: { serverId },
+    })
+  }
+
+  async getRegistryInfo(registryUrl: string): Promise<T.RegistryInfo> {
+    return this.registryRequest(registryUrl, {
+      method: 'info',
+      params: {},
+    })
+  }
+
+  async getRegistryPackage(
+    registryUrl: string,
+    id: string,
+    versionRange: string | null,
+  ): Promise<GetPackageRes> {
+    const params: GetPackageReq = {
+      id,
+      version: versionRange,
+      otherVersions: 'short',
+    }
+
+    return this.registryRequest<GetPackageRes>(registryUrl, {
+      method: 'package.get',
+      params,
+    })
+  }
+
+  async getRegistryPackages(registryUrl: string): Promise<GetPackagesRes> {
+    const params: GetPackagesReq = {
+      id: null,
+      version: null,
+      otherVersions: 'short',
+    }
+
+    return this.registryRequest<GetPackagesRes>(registryUrl, {
+      method: 'package.get',
+      params,
+    })
   }
 
   // notification
@@ -317,14 +435,6 @@ export class LiveApiService extends ApiService {
 
   // package
 
-  async getPackageProperties(
-    params: RR.GetPackagePropertiesReq,
-  ): Promise<RR.GetPackagePropertiesRes<2>['data']> {
-    return this.rpcRequest({ method: 'package.properties', params }).then(
-      parsePropertiesPermissive,
-    )
-  }
-
   async getPackageLogs(
     params: RR.GetPackageLogsReq,
   ): Promise<RR.GetPackageLogsRes> {
@@ -332,15 +442,9 @@ export class LiveApiService extends ApiService {
   }
 
   async followPackageLogs(
-    params: RR.FollowServerLogsReq,
-  ): Promise<RR.FollowServerLogsRes> {
+    params: RR.FollowPackageLogsReq,
+  ): Promise<RR.FollowPackageLogsRes> {
     return this.rpcRequest({ method: 'package.logs.follow', params })
-  }
-
-  async getPkgMetrics(
-    params: RR.GetPackageMetricsReq,
-  ): Promise<RR.GetPackageMetricsRes> {
-    return this.rpcRequest({ method: 'package.metrics', params })
   }
 
   async installPackage(
@@ -349,34 +453,20 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'package.install', params })
   }
 
-  async getPackageConfig(
-    params: RR.GetPackageConfigReq,
-  ): Promise<RR.GetPackageConfigRes> {
-    return this.rpcRequest({ method: 'package.config.get', params })
+  async getActionInput(
+    params: RR.GetActionInputReq,
+  ): Promise<RR.GetActionInputRes> {
+    return this.rpcRequest({ method: 'package.action.get-input', params })
   }
 
-  async drySetPackageConfig(
-    params: RR.DrySetPackageConfigReq,
-  ): Promise<RR.DrySetPackageConfigRes> {
-    return this.rpcRequest({ method: 'package.config.set.dry', params })
-  }
-
-  async setPackageConfig(
-    params: RR.SetPackageConfigReq,
-  ): Promise<RR.SetPackageConfigRes> {
-    return this.rpcRequest({ method: 'package.config.set', params })
+  async runAction(params: RR.ActionReq): Promise<RR.ActionRes> {
+    return this.rpcRequest({ method: 'package.action.run', params })
   }
 
   async restorePackages(
     params: RR.RestorePackagesReq,
   ): Promise<RR.RestorePackagesRes> {
     return this.rpcRequest({ method: 'package.backup.restore', params })
-  }
-
-  async executePackageAction(
-    params: RR.ExecutePackageActionReq,
-  ): Promise<RR.ExecutePackageActionRes> {
-    return this.rpcRequest({ method: 'package.action', params })
   }
 
   async startPackage(params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
@@ -393,38 +483,23 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'package.stop', params })
   }
 
+  async rebuildPackage(
+    params: RR.RebuildPackageReq,
+  ): Promise<RR.RebuildPackageRes> {
+    return this.rpcRequest({ method: 'package.rebuild', params })
+  }
+
   async uninstallPackage(
     params: RR.UninstallPackageReq,
   ): Promise<RR.UninstallPackageRes> {
     return this.rpcRequest({ method: 'package.uninstall', params })
   }
 
-  async dryConfigureDependency(
-    params: RR.DryConfigureDependencyReq,
-  ): Promise<RR.DryConfigureDependencyRes> {
-    return this.rpcRequest({
-      method: 'package.dependency.configure.dry',
-      params,
-    })
-  }
-
-  async sideloadPackage(
-    params: RR.SideloadPackageReq,
-  ): Promise<RR.SideloadPacakgeRes> {
+  async sideloadPackage(): Promise<RR.SideloadPackageRes> {
     return this.rpcRequest({
       method: 'package.sideload',
-      params,
+      params: {},
     })
-  }
-
-  private openWebsocket<T>(config: WebSocketSubjectConfig<T>): Observable<T> {
-    const { location } = this.document.defaultView!
-    const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
-    const host = location.host
-
-    config.url = `${protocol}://${host}/ws${config.url}`
-
-    return webSocket(config)
   }
 
   private async rpcRequest<T>(
@@ -445,9 +520,7 @@ export class LiveApiService extends ApiService {
     const patchSequence = res.headers.get('x-patch-sequence')
     if (patchSequence)
       await firstValueFrom(
-        this.patch.cache$.pipe(
-          filter(({ sequence }) => sequence >= Number(patchSequence)),
-        ),
+        this.cache$.pipe(filter(({ id }) => id >= Number(patchSequence))),
       )
 
     return body.result
@@ -455,6 +528,29 @@ export class LiveApiService extends ApiService {
 
   private async httpRequest<T>(opts: HttpOptions): Promise<T> {
     const res = await this.http.httpRequest<T>(opts)
+    if (res.headers.get('Repr-Digest')) {
+      // verify
+      const digest = res.headers.get('Repr-Digest')!
+      let data: Uint8Array
+      if (opts.responseType === 'arrayBuffer') {
+        data = Buffer.from(res.body as ArrayBuffer)
+      } else if (opts.responseType === 'text') {
+        data = Buffer.from(res.body as string)
+      } else if ((opts.responseType as string) === 'blob') {
+        data = Buffer.from(await (res.body as Blob).arrayBuffer())
+      } else {
+        console.warn(
+          `could not verify Repr-Digest for responseType ${
+            opts.responseType || 'json'
+          }`,
+        )
+        return res.body
+      }
+      const computedDigest = Buffer.from(blake3(data)).toString('base64')
+      if (`blake3=:${computedDigest}:` === digest) return res.body
+      console.debug(computedDigest, digest)
+      throw new Error('File digest mismatch.')
+    }
     return res.body
   }
 }

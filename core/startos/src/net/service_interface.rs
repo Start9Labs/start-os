@@ -5,8 +5,6 @@ use models::{HostId, ServiceInterfaceId};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::net::host::address::HostAddress;
-
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
@@ -69,7 +67,6 @@ pub struct ServiceInterface {
     pub name: String,
     pub description: String,
     pub has_primary: bool,
-    pub disabled: bool,
     pub masked: bool,
     pub address_info: AddressInfo,
     #[serde(rename = "type")]

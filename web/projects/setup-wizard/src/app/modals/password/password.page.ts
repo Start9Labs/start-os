@@ -1,9 +1,5 @@
 import { Component, Input, ViewChild } from '@angular/core'
 import { IonInput, ModalController } from '@ionic/angular'
-import {
-  CifsBackupTarget,
-  DiskBackupTarget,
-} from 'src/app/services/api/api.service'
 import * as argon2 from '@start9labs/argon2'
 
 @Component({
@@ -13,7 +9,7 @@ import * as argon2 from '@start9labs/argon2'
 })
 export class PasswordPage {
   @ViewChild('focusInput') elem?: IonInput
-  @Input() target?: CifsBackupTarget | DiskBackupTarget
+  @Input() passwordHash = ''
   @Input() storageDrive = false
 
   pwError = ''
@@ -31,13 +27,8 @@ export class PasswordPage {
   }
 
   async verifyPw() {
-    if (!this.target || !this.target.startOs)
-      this.pwError = 'No recovery target' // unreachable
-
     try {
-      const passwordHash = this.target!.startOs?.passwordHash || ''
-
-      argon2.verify(passwordHash, this.password)
+      argon2.verify(this.passwordHash, this.password)
       this.modalController.dismiss({ password: this.password }, 'success')
     } catch (e) {
       this.pwError = 'Incorrect password provided'
@@ -55,7 +46,7 @@ export class PasswordPage {
   }
 
   validate() {
-    if (!!this.target) return (this.pwError = '')
+    if (!!this.passwordHash) return (this.pwError = '')
 
     if (this.passwordVer) {
       this.checkVer()

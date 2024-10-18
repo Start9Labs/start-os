@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ModalController } from '@ionic/angular'
 import { AbstractMarketplaceService } from '@start9labs/marketplace'
+import { T } from '@start9labs/start-sdk'
+import { TuiDialogService } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs'
-import { MarketplaceSettingsPage } from 'src/app/modals/marketplace-settings/marketplace-settings.page'
+import { MARKETPLACE_REGISTRY } from 'src/app/modals/marketplace-settings/marketplace-settings.page'
 import { ConfigService } from 'src/app/services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -20,12 +21,21 @@ export class MarketplaceListPage {
 
   readonly store$ = this.marketplaceService.getSelectedStore$().pipe(
     map(({ info, packages }) => {
-      const categories = new Set<string>()
-      if (info.categories.includes('featured')) categories.add('featured')
-      info.categories.forEach(c => categories.add(c))
-      categories.add('all')
+      const categories = new Map<string, T.Category>()
 
-      return { categories: Array.from(categories), packages }
+      categories.set('all', {
+        name: 'All',
+        description: {
+          short: 'All registry packages',
+          long: 'An unfiltered list of all packages available on this registry.',
+        },
+      })
+
+      Object.keys(info.categories).forEach(c =>
+        categories.set(c, info.categories[c]),
+      )
+
+      return { categories, packages }
     }),
   )
 
@@ -73,19 +83,20 @@ export class MarketplaceListPage {
     private readonly patch: PatchDB<DataModel>,
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
-    private readonly modalCtrl: ModalController,
+    private readonly dialogs: TuiDialogService,
     private readonly config: ConfigService,
     private readonly route: ActivatedRoute,
   ) {}
 
-  category = 'featured'
+  category = 'all'
   query = ''
 
   async presentModalMarketplaceSettings() {
-    const modal = await this.modalCtrl.create({
-      component: MarketplaceSettingsPage,
-    })
-    await modal.present()
+    this.dialogs
+      .open(MARKETPLACE_REGISTRY, {
+        label: 'Change Registry',
+      })
+      .subscribe()
   }
 
   onCategoryChange(category: string): void {

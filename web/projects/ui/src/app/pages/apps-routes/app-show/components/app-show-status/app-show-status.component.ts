@@ -1,26 +1,25 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { UiLauncherService } from 'src/app/services/ui-launcher.service'
-import {
-  PackageStatus,
-  PrimaryRendering,
-} from 'src/app/services/pkg-status-rendering.service'
+import { AlertController } from '@ionic/angular'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
+import { PatchDB } from 'patch-db-client'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ConnectionService } from 'src/app/services/connection.service'
 import {
   DataModel,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { ErrorToastService } from '@start9labs/shared'
-import { AlertController, LoadingController } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ModalService } from 'src/app/services/modal.service'
-import { hasCurrentDeps } from 'src/app/util/has-deps'
-import { ConnectionService } from 'src/app/services/connection.service'
 import {
-  isInstalled,
-  getManifest,
+  PackageStatus,
+  PrimaryRendering,
+} from 'src/app/services/pkg-status-rendering.service'
+import { UiLauncherService } from 'src/app/services/ui-launcher.service'
+import {
   getAllPackages,
+  getManifest,
+  isInstalled,
 } from 'src/app/util/get-package-data'
-import { PatchDB } from 'patch-db-client'
-import { T } from '@start9labs/start-sdk'
+import { hasCurrentDeps } from 'src/app/util/has-deps'
 
 @Component({
   selector: 'app-show-status',
@@ -39,16 +38,13 @@ export class AppShowStatusComponent {
 
   isInstalled = isInstalled
 
-  readonly connected$ = this.connectionService.connected$
-
   constructor(
     private readonly alertCtrl: AlertController,
-    private readonly errToast: ErrorToastService,
-    private readonly loadingCtrl: LoadingController,
+    private readonly errorService: ErrorService,
+    private readonly loader: LoadingService,
     private readonly embassyApi: ApiService,
     private readonly launcherService: UiLauncherService,
-    private readonly modalService: ModalService,
-    private readonly connectionService: ConnectionService,
+    readonly connection$: ConnectionService,
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
@@ -56,7 +52,11 @@ export class AppShowStatusComponent {
     return this.pkg.serviceInterfaces
   }
 
-  get pkgStatus(): T.Status {
+  get hosts(): PackageDataEntry['hosts'] {
+    return this.pkg.hosts
+  }
+
+  get pkgStatus(): T.MainStatus {
     return this.pkg.status
   }
 
@@ -72,24 +72,19 @@ export class AppShowStatusComponent {
     return ['running', 'starting', 'restarting'].includes(this.status.primary)
   }
 
-  get isStopped(): boolean {
+  get canStart(): boolean {
     return this.status.primary === 'stopped'
   }
 
   get sigtermTimeout(): string | null {
-    return this.pkgStatus?.main.status === 'stopping'
-      ? this.pkgStatus.main.timeout
-      : null
+    return this.pkgStatus?.main === 'stopping' ? '30s' : null // @TODO Aiden
   }
 
-  launchUi(interfaces: PackageDataEntry['serviceInterfaces']): void {
-    this.launcherService.launch(interfaces)
-  }
-
-  async presentModalConfig(): Promise<void> {
-    return this.modalService.presentModalConfig({
-      pkgId: this.manifest.id,
-    })
+  launchUi(
+    interfaces: PackageDataEntry['serviceInterfaces'],
+    hosts: PackageDataEntry['hosts'],
+  ): void {
+    this.launcherService.launch(interfaces, hosts)
   }
 
   async tryStart(): Promise<void> {
@@ -174,49 +169,41 @@ export class AppShowStatusComponent {
   }
 
   private async start(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: `Starting...`,
-    })
-    await loader.present()
+    const loader = this.loader.open(`Starting...`).subscribe()
 
     try {
       await this.embassyApi.startPackage({ id: this.manifest.id })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async stop(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Stopping...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Stopping...').subscribe()
 
     try {
       await this.embassyApi.stopPackage({ id: this.manifest.id })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async restart(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: `Restarting...`,
-    })
-    await loader.present()
+    const loader = this.loader.open(`Restarting...`).subscribe()
 
     try {
       await this.embassyApi.restartPackage({ id: this.manifest.id })
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
+
   private async presentAlertStart(message: string): Promise<boolean> {
     return new Promise(async resolve => {
       const alert = await this.alertCtrl.create({

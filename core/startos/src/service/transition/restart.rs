@@ -2,8 +2,8 @@ use futures::FutureExt;
 
 use super::TempDesiredRestore;
 use crate::prelude::*;
-use crate::service::config::GetConfig;
-use crate::service::dependencies::DependencyConfig;
+use crate::rpc_continuations::Guid;
+use crate::service::action::GetActionInput;
 use crate::service::transition::{TransitionKind, TransitionState};
 use crate::service::{Service, ServiceActor};
 use crate::util::actor::background::BackgroundJobQueue;
@@ -14,11 +14,9 @@ pub(super) struct Restart;
 impl Handler<Restart> for ServiceActor {
     type Response = ();
     fn conflicts_with(_: &Restart) -> ConflictBuilder<Self> {
-        ConflictBuilder::everything()
-            .except::<GetConfig>()
-            .except::<DependencyConfig>()
+        ConflictBuilder::everything().except::<GetActionInput>()
     }
-    async fn handle(&mut self, _: Restart, jobs: &BackgroundJobQueue) -> Self::Response {
+    async fn handle(&mut self, _: Guid, _: Restart, jobs: &BackgroundJobQueue) -> Self::Response {
         // So Need a handle to just a single field in the state
         let temp = TempDesiredRestore::new(&self.0.persistent_container.state);
         let mut current = self.0.persistent_container.state.subscribe();
@@ -74,7 +72,7 @@ impl Handler<Restart> for ServiceActor {
 }
 impl Service {
     #[instrument(skip_all)]
-    pub async fn restart(&self) -> Result<(), Error> {
-        self.actor.send(Restart).await
+    pub async fn restart(&self, id: Guid) -> Result<(), Error> {
+        self.actor.send(id, Restart).await
     }
 }

@@ -1,8 +1,11 @@
-import { Component, Input } from '@angular/core'
+import { Component } from '@angular/core'
 import { ModalController, NavController } from '@ionic/angular'
+import { ErrorService } from '@start9labs/shared'
 import { CifsModal } from 'src/app/modals/cifs-modal/cifs-modal.page'
-import { ApiService, DiskBackupTarget } from 'src/app/services/api/api.service'
-import { ErrorToastService } from '@start9labs/shared'
+import {
+  ApiService,
+  StartOSDiskInfoFull,
+} from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../../modals/password/password.page'
 
@@ -13,14 +16,14 @@ import { PasswordPage } from '../../modals/password/password.page'
 })
 export class RecoverPage {
   loading = true
-  mappedDrives: MappedDisk[] = []
+  servers: StartOSDiskInfoFull[] = []
 
   constructor(
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
     private readonly modalCtrl: ModalController,
     private readonly modalController: ModalController,
-    private readonly errToastService: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly stateService: StateService,
   ) {}
 
@@ -34,35 +37,21 @@ export class RecoverPage {
     await this.getDrives()
   }
 
-  driveClickable(mapped: MappedDisk) {
-    return mapped.drive.startOs?.full
-  }
-
   async getDrives() {
-    this.mappedDrives = []
     try {
-      const disks = await this.apiService.getDrives()
-      disks
-        .filter(d => d.partitions.length)
-        .forEach(d => {
-          d.partitions.forEach(p => {
-            const drive: DiskBackupTarget = {
-              vendor: d.vendor,
-              model: d.model,
-              logicalname: p.logicalname,
-              label: p.label,
-              capacity: p.capacity,
-              used: p.used,
-              startOs: p.startOs,
-            }
-            this.mappedDrives.push({
-              hasValidBackup: !!p.startOs?.full,
-              drive,
-            })
-          })
-        })
+      const drives = await this.apiService.getDrives()
+      this.servers = drives.flatMap(drive =>
+        drive.partitions.flatMap(partition =>
+          Object.entries(partition.startOs).map(([id, val]) => ({
+            id,
+            ...val,
+            partition,
+            drive,
+          })),
+        ),
+      )
     } catch (e: any) {
-      this.errToastService.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading = false
     }
@@ -74,65 +63,41 @@ export class RecoverPage {
     })
     modal.onDidDismiss().then(res => {
       if (res.role === 'success') {
-        const { hostname, path, username, password } = res.data.cifs
         this.stateService.recoverySource = {
           type: 'backup',
           target: {
             type: 'cifs',
-            hostname,
-            path,
-            username,
-            password,
+            ...res.data.cifs,
           },
+          serverId: res.data.serverId,
+          password: res.data.recoveryPassword,
         }
-        this.stateService.recoveryPassword = res.data.recoveryPassword
         this.navCtrl.navigateForward('/storage')
       }
     })
     await modal.present()
   }
 
-  async select(target: DiskBackupTarget) {
-    const { logicalname } = target
-
-    if (!logicalname) return
-
+  async select(server: StartOSDiskInfoFull) {
     const modal = await this.modalController.create({
       component: PasswordPage,
-      componentProps: { target },
+      componentProps: { passwordHash: server.passwordHash },
       cssClass: 'alertlike-modal',
     })
     modal.onDidDismiss().then(res => {
-      if (res.data?.password) {
-        this.selectRecoverySource(logicalname, res.data.password)
+      if (res.role === 'success') {
+        this.stateService.recoverySource = {
+          type: 'backup',
+          target: {
+            type: 'disk',
+            logicalname: server.partition.logicalname,
+          },
+          serverId: server.id,
+          password: res.data.password,
+        }
+        this.navCtrl.navigateForward(`/storage`)
       }
     })
     await modal.present()
   }
-
-  private async selectRecoverySource(logicalname: string, password?: string) {
-    this.stateService.recoverySource = {
-      type: 'backup',
-      target: {
-        type: 'disk',
-        logicalname,
-      },
-    }
-    this.stateService.recoveryPassword = password
-    this.navCtrl.navigateForward(`/storage`)
-  }
-}
-
-@Component({
-  selector: 'drive-status',
-  templateUrl: './drive-status.component.html',
-  styleUrls: ['./recover.page.scss'],
-})
-export class DriveStatusComponent {
-  @Input() hasValidBackup!: boolean
-}
-
-interface MappedDisk {
-  hasValidBackup: boolean
-  drive: DiskBackupTarget
 }

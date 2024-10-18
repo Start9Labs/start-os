@@ -5,15 +5,11 @@ import {
   ModalController,
   NavController,
 } from '@ionic/angular'
-import {
-  ApiService,
-  BackupRecoverySource,
-  DiskRecoverySource,
-  DiskMigrateSource,
-} from 'src/app/services/api/api.service'
-import { DiskInfo, ErrorToastService, GuidPipe } from '@start9labs/shared'
+import { DiskInfo, ErrorService, GuidPipe } from '@start9labs/shared'
+import { ApiService } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 import { PasswordPage } from '../../modals/password/password.page'
+import { T } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'app-embassy',
@@ -32,7 +28,7 @@ export class EmbassyPage {
     private readonly alertCtrl: AlertController,
     private readonly stateService: StateService,
     private readonly loadingCtrl: LoadingController,
-    private readonly errorToastService: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly guidPipe: GuidPipe,
   ) {}
 
@@ -55,21 +51,24 @@ export class EmbassyPage {
       const disks = await this.apiService.getDrives()
       if (this.stateService.setupType === 'fresh') {
         this.storageDrives = disks
-      } else if (this.stateService.setupType === 'restore') {
-        this.storageDrives = disks.filter(
-          d =>
-            !d.partitions
-              .map(p => p.logicalname)
-              .includes(
-                (
-                  (this.stateService.recoverySource as BackupRecoverySource)
-                    ?.target as DiskRecoverySource
-                )?.logicalname,
-              ),
-        )
-      } else if (this.stateService.setupType === 'transfer') {
-        const guid = (this.stateService.recoverySource as DiskMigrateSource)
-          .guid
+      } else if (
+        this.stateService.setupType === 'restore' &&
+        this.stateService.recoverySource?.type === 'backup'
+      ) {
+        if (this.stateService.recoverySource.target.type === 'disk') {
+          const logicalname =
+            this.stateService.recoverySource.target.logicalname
+          this.storageDrives = disks.filter(
+            d => !d.partitions.map(p => p.logicalname).includes(logicalname),
+          )
+        } else {
+          this.storageDrives = disks
+        }
+      } else if (
+        this.stateService.setupType === 'transfer' &&
+        this.stateService.recoverySource?.type === 'migrate'
+      ) {
+        const guid = this.stateService.recoverySource.guid
         this.storageDrives = disks.filter(d => {
           return (
             d.guid !== guid && !d.partitions.map(p => p.guid).includes(guid)
@@ -77,7 +76,7 @@ export class EmbassyPage {
         })
       }
     } catch (e: any) {
-      this.errorToastService.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading = false
     }
@@ -101,10 +100,10 @@ export class EmbassyPage {
             text: 'Continue',
             handler: () => {
               // for backup recoveries
-              if (this.stateService.recoveryPassword) {
+              if (this.stateService.recoverySource?.type === 'backup') {
                 this.setupEmbassy(
                   drive.logicalname,
-                  this.stateService.recoveryPassword,
+                  this.stateService.recoverySource.password,
                 )
               } else {
                 // for migrations and fresh setups
@@ -117,8 +116,11 @@ export class EmbassyPage {
       await alert.present()
     } else {
       // for backup recoveries
-      if (this.stateService.recoveryPassword) {
-        this.setupEmbassy(drive.logicalname, this.stateService.recoveryPassword)
+      if (this.stateService.recoverySource?.type === 'backup') {
+        this.setupEmbassy(
+          drive.logicalname,
+          this.stateService.recoverySource.password,
+        )
       } else {
         // for migrations and fresh setups
         this.presentModalPassword(drive.logicalname)
@@ -154,9 +156,13 @@ export class EmbassyPage {
       await this.stateService.setupEmbassy(logicalname, password)
       await this.navCtrl.navigateForward(`/loading`)
     } catch (e: any) {
-      this.errorToastService.present(e)
+      this.errorService.handleError(e)
     } finally {
       loader.dismiss()
     }
   }
+}
+
+function isDiskRecovery(source: T.RecoverySource<string>): source is any {
+  return source.type === 'backup' && source.target.type === 'disk'
 }

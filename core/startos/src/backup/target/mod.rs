@@ -7,7 +7,9 @@ use clap::Parser;
 use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
-use models::PackageId;
+use exver::Version;
+use imbl_value::InternedString;
+use models::{FromStrParser, PackageId};
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -25,7 +27,6 @@ use crate::disk::mount::filesystem::{FileSystem, MountType, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::util::PartitionInfo;
 use crate::prelude::*;
-use crate::util::clap::FromStrParser;
 use crate::util::serde::{
     deserialize_from_str, display_serializable, serialize_display, HandlerExtSerde, WithIoFormat,
 };
@@ -140,11 +141,15 @@ impl FileSystem for BackupTargetFS {
 // #[command(subcommands(cifs::cifs, list, info, mount, umount))]
 pub fn target<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("cifs", cifs::cifs::<C>())
+        .subcommand(
+            "cifs",
+            cifs::cifs::<C>().with_about("Add, remove, or update a backup target"),
+        )
         .subcommand(
             "list",
             from_fn_async(list)
                 .with_display_serializable()
+                .with_about("List existing backup targets")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -154,6 +159,20 @@ pub fn target<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn::<CliContext, _>(|params, info| {
                     Ok(display_backup_info(params.params, info))
                 })
+                .with_about("Display package backup information")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "mount",
+            from_fn_async(mount)
+                .with_about("Mount backup target")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "umount",
+            from_fn_async(umount)
+                .no_display()
+                .with_about("Unmount backup target")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -194,7 +213,7 @@ pub async fn list(ctx: RpcContext) -> Result<BTreeMap<BackupTargetId, BackupTarg
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BackupInfo {
-    pub version: VersionString,
+    pub version: Version,
     pub timestamp: Option<DateTime<Utc>>,
     pub package_backups: BTreeMap<PackageId, PackageBackupInfo>,
 }
@@ -202,9 +221,9 @@ pub struct BackupInfo {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageBackupInfo {
-    pub title: String,
+    pub title: InternedString,
     pub version: VersionString,
-    pub os_version: VersionString,
+    pub os_version: Version,
     pub timestamp: DateTime<Utc>,
 }
 
@@ -223,9 +242,9 @@ fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) {
         "TIMESTAMP",
     ]);
     table.add_row(row![
-        "EMBASSY OS",
-        info.version.as_str(),
-        info.version.as_str(),
+        "StartOS",
+        &info.version.to_string(),
+        &info.version.to_string(),
         &if let Some(ts) = &info.timestamp {
             ts.to_string()
         } else {
@@ -236,7 +255,7 @@ fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) {
         let row = row![
             &*id,
             info.version.as_str(),
-            info.os_version.as_str(),
+            &info.os_version.to_string(),
             &info.timestamp.to_string(),
         ];
         table.add_row(row);
@@ -249,6 +268,7 @@ fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) {
 #[command(rename_all = "kebab-case")]
 pub struct InfoParams {
     target_id: BackupTargetId,
+    server_id: String,
     password: String,
 }
 
@@ -257,11 +277,13 @@ pub async fn info(
     ctx: RpcContext,
     InfoParams {
         target_id,
+        server_id,
         password,
     }: InfoParams,
 ) -> Result<BackupInfo, Error> {
     let guard = BackupMountGuard::mount(
         TmpMountGuard::mount(&target_id.load(&ctx.db.peek().await)?, ReadWrite).await?,
+        &server_id,
         &password,
     )
     .await?;
@@ -283,6 +305,7 @@ lazy_static::lazy_static! {
 #[command(rename_all = "kebab-case")]
 pub struct MountParams {
     target_id: BackupTargetId,
+    server_id: String,
     password: String,
 }
 
@@ -291,6 +314,7 @@ pub async fn mount(
     ctx: RpcContext,
     MountParams {
         target_id,
+        server_id,
         password,
     }: MountParams,
 ) -> Result<String, Error> {
@@ -302,6 +326,7 @@ pub async fn mount(
 
     let guard = BackupMountGuard::mount(
         TmpMountGuard::mount(&target_id.clone().load(&ctx.db.peek().await)?, ReadWrite).await?,
+        &server_id,
         &password,
     )
     .await?;

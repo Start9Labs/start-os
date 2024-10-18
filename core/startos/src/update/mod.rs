@@ -4,8 +4,8 @@ use std::time::Duration;
 
 use clap::{ArgAction, Parser};
 use color_eyre::eyre::{eyre, Result};
-use emver::{Version, VersionRange};
-use futures::{FutureExt, TryStreamExt};
+use exver::{Version, VersionRange};
+use futures::TryStreamExt;
 use helpers::{AtomicFile, NonDetachingJoinHandle};
 use imbl_value::json;
 use itertools::Itertools;
@@ -18,11 +18,15 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
+use crate::disk::mount::filesystem::bind::Bind;
+use crate::disk::mount::filesystem::block_dev::BlockDev;
+use crate::disk::mount::filesystem::efivarfs::{self, EfiVarFs};
+use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
+use crate::disk::mount::filesystem::MountType;
+use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
-use crate::progress::{
-    FullProgressTracker, FullProgressTrackerHandle, PhaseProgressTrackerHandle, PhasedProgressBar,
-};
+use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle, PhasedProgressBar};
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
 use crate::registry::os::index::OsVersionInfo;
@@ -34,6 +38,7 @@ use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
 };
+use crate::util::net::WebSocketExt;
 use crate::util::Invoke;
 use crate::PLATFORM;
 
@@ -91,50 +96,47 @@ pub async fn update_system(
             .add(
                 guid.clone(),
                 RpcContinuation::ws(
-                    Box::new(|mut ws| {
-                        async move {
-                            if let Err(e) = async {
-                                let mut sub = ctx
+                    |mut ws| async move {
+                        if let Err(e) = async {
+                            let mut sub = ctx
+                                .db
+                                .subscribe(
+                                    "/public/serverInfo/statusInfo/updateProgress"
+                                        .parse::<JsonPointer>()
+                                        .with_kind(ErrorKind::Database)?,
+                                )
+                                .await;
+                            while {
+                                let progress = ctx
                                     .db
-                                    .subscribe(
-                                        "/public/serverInfo/statusInfo/updateProgress"
-                                            .parse::<JsonPointer>()
-                                            .with_kind(ErrorKind::Database)?,
-                                    )
-                                    .await;
-                                while {
-                                    let progress = ctx
-                                        .db
-                                        .peek()
-                                        .await
-                                        .into_public()
-                                        .into_server_info()
-                                        .into_status_info()
-                                        .into_update_progress()
-                                        .de()?;
-                                    ws.send(axum::extract::ws::Message::Text(
-                                        serde_json::to_string(&progress)
-                                            .with_kind(ErrorKind::Serialization)?,
-                                    ))
+                                    .peek()
                                     .await
-                                    .with_kind(ErrorKind::Network)?;
-                                    progress.is_some()
-                                } {
-                                    sub.recv().await;
-                                }
-
-                                ws.close().await.with_kind(ErrorKind::Network)?;
-
-                                Ok::<_, Error>(())
+                                    .into_public()
+                                    .into_server_info()
+                                    .into_status_info()
+                                    .into_update_progress()
+                                    .de()?;
+                                ws.send(axum::extract::ws::Message::Text(
+                                    serde_json::to_string(&progress)
+                                        .with_kind(ErrorKind::Serialization)?,
+                                ))
+                                .await
+                                .with_kind(ErrorKind::Network)?;
+                                progress.is_some()
+                            } {
+                                sub.recv().await;
                             }
-                            .await
-                            {
-                                tracing::error!("Error returning progress of update: {e}");
-                                tracing::debug!("{e:?}")
-                            }
+
+                            ws.normal_close("complete").await?;
+
+                            Ok::<_, Error>(())
                         }
-                        .boxed()
-                    }),
+                        .await
+                        {
+                            tracing::error!("Error returning progress of update: {e}");
+                            tracing::debug!("{e:?}")
+                        }
+                    },
                     Duration::from_secs(30),
                 ),
             )
@@ -250,13 +252,13 @@ async fn maybe_do_update(
 
     asset.validate(SIG_CONTEXT, asset.all_signers())?;
 
-    let mut progress = FullProgressTracker::new();
-    let progress_handle = progress.handle();
-    let mut download_phase = progress_handle.add_phase("Downloading File".into(), Some(100));
+    let progress = FullProgressTracker::new();
+    let prune_phase = progress.add_phase("Pruning Old OS Images".into(), Some(2));
+    let mut download_phase = progress.add_phase("Downloading File".into(), Some(100));
     download_phase.set_total(asset.commitment.size);
-    let reverify_phase = progress_handle.add_phase("Reverifying File".into(), Some(10));
-    let sync_boot_phase = progress_handle.add_phase("Syncing Boot Files".into(), Some(1));
-    let finalize_phase = progress_handle.add_phase("Finalizing Update".into(), Some(1));
+    let reverify_phase = progress.add_phase("Reverifying File".into(), Some(10));
+    let sync_boot_phase = progress.add_phase("Syncing Boot Files".into(), Some(1));
+    let finalize_phase = progress.add_phase("Finalizing Update".into(), Some(1));
 
     let start_progress = progress.snapshot();
 
@@ -287,7 +289,7 @@ async fn maybe_do_update(
         ));
     }
 
-    let progress_task = NonDetachingJoinHandle::from(tokio::spawn(progress.sync_to_db(
+    let progress_task = NonDetachingJoinHandle::from(tokio::spawn(progress.clone().sync_to_db(
         ctx.db.clone(),
         |db| {
             db.as_public_mut()
@@ -304,7 +306,8 @@ async fn maybe_do_update(
             ctx.clone(),
             asset,
             UpdateProgressHandles {
-                progress_handle,
+                progress,
+                prune_phase,
                 download_phase,
                 reverify_phase,
                 sync_boot_phase,
@@ -373,7 +376,8 @@ async fn maybe_do_update(
 }
 
 struct UpdateProgressHandles {
-    progress_handle: FullProgressTrackerHandle,
+    progress: FullProgressTracker,
+    prune_phase: PhaseProgressTrackerHandle,
     download_phase: PhaseProgressTrackerHandle,
     reverify_phase: PhaseProgressTrackerHandle,
     sync_boot_phase: PhaseProgressTrackerHandle,
@@ -385,13 +389,21 @@ async fn do_update(
     ctx: RpcContext,
     asset: RegistryAsset<Blake3Commitment>,
     UpdateProgressHandles {
-        progress_handle,
+        progress,
+        mut prune_phase,
         mut download_phase,
         mut reverify_phase,
         mut sync_boot_phase,
         mut finalize_phase,
     }: UpdateProgressHandles,
 ) -> Result<(), Error> {
+    prune_phase.start();
+    Command::new("/usr/lib/startos/scripts/prune-images")
+        .arg(asset.commitment.size.to_string())
+        .invoke(ErrorKind::Filesystem)
+        .await?;
+    prune_phase.complete();
+
     download_phase.start();
     let path = Path::new("/media/startos/images")
         .join(hex::encode(&asset.commitment.hash[..16]))
@@ -425,6 +437,72 @@ async fn do_update(
         .arg("boot")
         .invoke(crate::ErrorKind::Filesystem)
         .await?;
+    if &*PLATFORM != "raspberrypi" {
+        let mountpoint = "/media/startos/next";
+        let root_guard = OverlayGuard::mount(
+            TmpMountGuard::mount(&BlockDev::new(&path), MountType::ReadOnly).await?,
+            mountpoint,
+        )
+        .await?;
+        let startos = MountGuard::mount(
+            &Bind::new("/media/startos/root"),
+            root_guard.path().join("media/startos/root"),
+            MountType::ReadOnly,
+        )
+        .await?;
+        let boot_guard = MountGuard::mount(
+            &Bind::new("/boot"),
+            root_guard.path().join("boot"),
+            MountType::ReadWrite,
+        )
+        .await?;
+        let dev = MountGuard::mount(
+            &Bind::new("/dev"),
+            root_guard.path().join("dev"),
+            MountType::ReadWrite,
+        )
+        .await?;
+        let proc = MountGuard::mount(
+            &Bind::new("/proc"),
+            root_guard.path().join("proc"),
+            MountType::ReadWrite,
+        )
+        .await?;
+        let sys = MountGuard::mount(
+            &Bind::new("/sys"),
+            root_guard.path().join("sys"),
+            MountType::ReadWrite,
+        )
+        .await?;
+        let efivarfs = if tokio::fs::metadata("/sys/firmware/efi").await.is_ok() {
+            Some(
+                MountGuard::mount(
+                    &EfiVarFs,
+                    root_guard.path().join("sys/firmware/efi/efivars"),
+                    MountType::ReadWrite,
+                )
+                .await?,
+            )
+        } else {
+            None
+        };
+
+        Command::new("chroot")
+            .arg(root_guard.path())
+            .arg("update-grub2")
+            .invoke(ErrorKind::Grub)
+            .await?;
+
+        if let Some(efivarfs) = efivarfs {
+            efivarfs.unmount(false).await?;
+        }
+        sys.unmount(false).await?;
+        proc.unmount(false).await?;
+        dev.unmount(false).await?;
+        boot_guard.unmount(false).await?;
+        startos.unmount(false).await?;
+        root_guard.unmount(false).await?;
+    }
     sync_boot_phase.complete();
 
     finalize_phase.start();
@@ -434,9 +512,10 @@ async fn do_update(
         .arg("/media/startos/config/current.rootfs")
         .invoke(crate::ErrorKind::Filesystem)
         .await?;
+    Command::new("sync").invoke(ErrorKind::Filesystem).await?;
     finalize_phase.complete();
 
-    progress_handle.complete();
+    progress.complete();
 
     Ok(())
 }

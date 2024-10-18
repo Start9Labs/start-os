@@ -91,28 +91,40 @@ pub fn auth<C: Context>() -> ParentHandler<C> {
                 .with_metadata("login", Value::Bool(true))
                 .no_cli(),
         )
-        .subcommand("login", from_fn_async(cli_login).no_display())
+        .subcommand(
+            "login",
+            from_fn_async(cli_login)
+                .no_display()
+                .with_about("Log in to StartOS server"),
+        )
         .subcommand(
             "logout",
             from_fn_async(logout)
                 .with_metadata("get_session", Value::Bool(true))
                 .no_display()
+                .with_about("Log out of StartOS server")
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("session", session::<C>())
+        .subcommand(
+            "session",
+            session::<C>().with_about("List or kill StartOS sessions"),
+        )
         .subcommand(
             "reset-password",
             from_fn_async(reset_password_impl).no_cli(),
         )
         .subcommand(
             "reset-password",
-            from_fn_async(cli_reset_password).no_display(),
+            from_fn_async(cli_reset_password)
+                .no_display()
+                .with_about("Reset StartOS password"),
         )
         .subcommand(
             "get-pubkey",
             from_fn_async(get_pubkey)
                 .with_metadata("authenticated", Value::Bool(false))
                 .no_display()
+                .with_about("Get public key derived from server private key")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -178,11 +190,14 @@ pub fn check_password_against_db(db: &DatabaseModel, password: &str) -> Result<(
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
+#[ts(export)]
 pub struct LoginParams {
     password: Option<PasswordType>,
     #[ts(skip)]
     #[serde(rename = "__auth_userAgent")] // from Auth middleware
     user_agent: Option<String>,
+    #[serde(default)]
+    ephemeral: bool,
     #[serde(default)]
     #[ts(type = "any")]
     metadata: Value,
@@ -194,28 +209,46 @@ pub async fn login_impl(
     LoginParams {
         password,
         user_agent,
+        ephemeral,
         metadata,
     }: LoginParams,
 ) -> Result<LoginRes, Error> {
     let password = password.unwrap_or_default().decrypt(&ctx)?;
 
-    ctx.db
-        .mutate(|db| {
-            check_password_against_db(db, &password)?;
-            let hash_token = HashSessionToken::new();
-            db.as_private_mut().as_sessions_mut().insert(
-                hash_token.hashed(),
-                &Session {
+    if ephemeral {
+        check_password_against_db(&ctx.db.peek().await, &password)?;
+        let hash_token = HashSessionToken::new();
+        ctx.ephemeral_sessions.mutate(|s| {
+            s.0.insert(
+                hash_token.hashed().clone(),
+                Session {
                     logged_in: Utc::now(),
                     last_active: Utc::now(),
                     user_agent,
                     metadata,
                 },
-            )?;
+            )
+        });
+        Ok(hash_token.to_login_res())
+    } else {
+        ctx.db
+            .mutate(|db| {
+                check_password_against_db(db, &password)?;
+                let hash_token = HashSessionToken::new();
+                db.as_private_mut().as_sessions_mut().insert(
+                    hash_token.hashed(),
+                    &Session {
+                        logged_in: Utc::now(),
+                        last_active: Utc::now(),
+                        user_agent,
+                        metadata,
+                    },
+                )?;
 
-            Ok(hash_token.to_login_res())
-        })
-        .await
+                Ok(hash_token.to_login_res())
+            })
+            .await
+    }
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -254,8 +287,8 @@ pub struct Session {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SessionList {
-    #[ts(type = "string")]
-    current: InternedString,
+    #[ts(type = "string | null")]
+    current: Option<InternedString>,
     sessions: Sessions,
 }
 
@@ -269,12 +302,14 @@ pub fn session<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_sessions(handle.params, result))
                 })
+                .with_about("Display all server sessions")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "kill",
             from_fn_async(kill)
                 .no_display()
+                .with_about("Terminate existing server session(s)")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -302,7 +337,7 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) {
             session.user_agent.as_deref().unwrap_or("N/A"),
             &format!("{}", session.metadata),
         ];
-        if id == arg.current {
+        if Some(id) == arg.current {
             row.iter_mut()
                 .map(|c| c.style(Attr::ForegroundColor(color::GREEN)))
                 .collect::<()>()
@@ -318,7 +353,8 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) {
 pub struct ListParams {
     #[arg(skip)]
     #[ts(skip)]
-    session: InternedString,
+    #[serde(rename = "__auth_session")] // from Auth middleware
+    session: Option<InternedString>,
 }
 
 // #[command(display(display_sessions))]
@@ -327,9 +363,15 @@ pub async fn list(
     ctx: RpcContext,
     ListParams { session, .. }: ListParams,
 ) -> Result<SessionList, Error> {
+    let mut sessions = ctx.db.peek().await.into_private().into_sessions().de()?;
+    ctx.ephemeral_sessions.peek(|s| {
+        sessions
+            .0
+            .extend(s.0.iter().map(|(k, v)| (k.clone(), v.clone())))
+    });
     Ok(SessionList {
-        current: HashSessionToken::from_token(session).hashed().clone(),
-        sessions: ctx.db.peek().await.into_private().into_sessions().de()?,
+        current: session,
+        sessions,
     })
 }
 

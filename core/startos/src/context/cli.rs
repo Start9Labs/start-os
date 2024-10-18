@@ -18,14 +18,14 @@ use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
 use crate::context::config::{local_config_path, ClientConfig};
-use crate::context::{DiagnosticContext, InstallContext, RpcContext, SetupContext};
+use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
 
 #[derive(Debug)]
 pub struct CliContextSeed {
-    pub runtime: OnceCell<Runtime>,
+    pub runtime: OnceCell<Arc<Runtime>>,
     pub base_url: Url,
     pub rpc_url: Url,
     pub registry_url: Option<Url>,
@@ -43,7 +43,9 @@ impl Drop for CliContextSeed {
             std::fs::create_dir_all(&parent_dir).unwrap();
         }
         let mut writer = fd_lock_rs::FdLock::lock(
-            File::create(&tmp).unwrap(),
+            File::create(&tmp)
+                .with_ctx(|_| (ErrorKind::Filesystem, &tmp))
+                .unwrap(),
             fd_lock_rs::LockType::Exclusive,
             true,
         )
@@ -80,9 +82,12 @@ impl CliContext {
         });
         let cookie_store = Arc::new(CookieStoreMutex::new({
             let mut store = if cookie_path.exists() {
-                CookieStore::load_json(BufReader::new(File::open(&cookie_path)?))
-                    .map_err(|e| eyre!("{}", e))
-                    .with_kind(crate::ErrorKind::Deserialization)?
+                CookieStore::load_json(BufReader::new(
+                    File::open(&cookie_path)
+                        .with_ctx(|_| (ErrorKind::Filesystem, cookie_path.display()))?,
+                ))
+                .map_err(|e| eyre!("{}", e))
+                .with_kind(crate::ErrorKind::Deserialization)?
             } else {
                 CookieStore::default()
             };
@@ -249,16 +254,19 @@ impl std::ops::Deref for CliContext {
     }
 }
 impl Context for CliContext {
-    fn runtime(&self) -> tokio::runtime::Handle {
-        self.runtime
-            .get_or_init(|| {
-                tokio::runtime::Builder::new_multi_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap()
-            })
-            .handle()
-            .clone()
+    fn runtime(&self) -> Option<Arc<Runtime>> {
+        Some(
+            self.runtime
+                .get_or_init(|| {
+                    Arc::new(
+                        tokio::runtime::Builder::new_current_thread()
+                            .enable_all()
+                            .build()
+                            .unwrap(),
+                    )
+                })
+                .clone(),
+        )
     }
 }
 impl CallRemote<RpcContext> for CliContext {
@@ -267,6 +275,11 @@ impl CallRemote<RpcContext> for CliContext {
     }
 }
 impl CallRemote<DiagnosticContext> for CliContext {
+    async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
+        call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
+    }
+}
+impl CallRemote<InitContext> for CliContext {
     async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
         call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
     }
@@ -285,7 +298,7 @@ impl CallRemote<InstallContext> for CliContext {
 #[test]
 fn test() {
     let ctx = CliContext::init(ClientConfig::default()).unwrap();
-    ctx.runtime().block_on(async {
+    ctx.runtime().unwrap().block_on(async {
         reqwest::Client::new()
             .get("http://example.com")
             .send()

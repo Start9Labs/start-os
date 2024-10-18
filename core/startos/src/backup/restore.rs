@@ -4,25 +4,25 @@ use std::sync::Arc;
 use clap::Parser;
 use futures::{stream, StreamExt};
 use models::PackageId;
-use openssl::x509::X509;
 use patch_db::json_ptr::ROOT;
 use serde::{Deserialize, Serialize};
-use torut::onion::OnionAddressV3;
+use tokio::sync::Mutex;
 use tracing::instrument;
 use ts_rs::TS;
 
 use super::target::BackupTargetId;
 use crate::backup::os::OsBackup;
+use crate::context::setup::SetupResult;
 use crate::context::{RpcContext, SetupContext};
 use crate::db::model::Database;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
-use crate::hostname::Hostname;
-use crate::init::init;
+use crate::init::{init, InitResult};
 use crate::prelude::*;
 use crate::s9pk::S9pk;
 use crate::service::service_map::DownloadInstallFuture;
+use crate::setup::SetupExecuteProgress;
 use crate::util::serde::IoFormat;
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -44,9 +44,14 @@ pub async fn restore_packages_rpc(
         password,
     }: RestorePackageParams,
 ) -> Result<(), Error> {
-    let fs = target_id.load(&ctx.db.peek().await)?;
-    let backup_guard =
-        BackupMountGuard::mount(TmpMountGuard::mount(&fs, ReadWrite).await?, &password).await?;
+    let peek = ctx.db.peek().await;
+    let fs = target_id.load(&peek)?;
+    let backup_guard = BackupMountGuard::mount(
+        TmpMountGuard::mount(&fs, ReadWrite).await?,
+        &peek.as_public().as_server_info().as_id().de()?,
+        &password,
+    )
+    .await?;
 
     let tasks = restore_packages(&ctx, backup_guard, ids).await?;
 
@@ -67,22 +72,27 @@ pub async fn restore_packages_rpc(
     Ok(())
 }
 
-#[instrument(skip(ctx))]
+#[instrument(skip_all)]
 pub async fn recover_full_embassy(
-    ctx: SetupContext,
+    ctx: &SetupContext,
     disk_guid: Arc<String>,
     start_os_password: String,
     recovery_source: TmpMountGuard,
-    recovery_password: Option<String>,
-) -> Result<(Arc<String>, Hostname, OnionAddressV3, X509), Error> {
-    let backup_guard = BackupMountGuard::mount(
-        recovery_source,
-        recovery_password.as_deref().unwrap_or_default(),
-    )
-    .await?;
+    server_id: &str,
+    recovery_password: &str,
+    SetupExecuteProgress {
+        init_phases,
+        restore_phase,
+        rpc_ctx_phases,
+    }: SetupExecuteProgress,
+) -> Result<(SetupResult, RpcContext), Error> {
+    let mut restore_phase = restore_phase.or_not_found("restore progress")?;
 
-    let os_backup_path = backup_guard.path().join("os-backup.cbor");
-    let mut os_backup: OsBackup = IoFormat::Cbor.from_slice(
+    let backup_guard =
+        BackupMountGuard::mount(recovery_source, server_id, recovery_password).await?;
+
+    let os_backup_path = backup_guard.path().join("os-backup.json");
+    let mut os_backup: OsBackup = IoFormat::Json.from_slice(
         &tokio::fs::read(&os_backup_path)
             .await
             .with_ctx(|_| (ErrorKind::Filesystem, os_backup_path.display().to_string()))?,
@@ -99,10 +109,17 @@ pub async fn recover_full_embassy(
     db.put(&ROOT, &Database::init(&os_backup.account)?).await?;
     drop(db);
 
-    init(&ctx.config).await?;
+    let InitResult { net_ctrl } = init(&ctx.config, init_phases).await?;
 
-    let rpc_ctx = RpcContext::init(&ctx.config, disk_guid.clone()).await?;
+    let rpc_ctx = RpcContext::init(
+        &ctx.config,
+        disk_guid.clone(),
+        Some(net_ctrl),
+        rpc_ctx_phases,
+    )
+    .await?;
 
+    restore_phase.start();
     let ids: Vec<_> = backup_guard
         .metadata
         .package_backups
@@ -110,26 +127,26 @@ pub async fn recover_full_embassy(
         .cloned()
         .collect();
     let tasks = restore_packages(&rpc_ctx, backup_guard, ids).await?;
+    restore_phase.set_total(tasks.len() as u64);
+    let restore_phase = Arc::new(Mutex::new(restore_phase));
     stream::iter(tasks)
-        .for_each_concurrent(5, |(id, res)| async move {
-            match async { res.await?.await }.await {
-                Ok(_) => (),
-                Err(err) => {
-                    tracing::error!("Error restoring package {}: {}", id, err);
-                    tracing::debug!("{:?}", err);
+        .for_each_concurrent(5, |(id, res)| {
+            let restore_phase = restore_phase.clone();
+            async move {
+                match async { res.await?.await }.await {
+                    Ok(_) => (),
+                    Err(err) => {
+                        tracing::error!("Error restoring package {}: {}", id, err);
+                        tracing::debug!("{:?}", err);
+                    }
                 }
+                *restore_phase.lock().await += 1;
             }
         })
         .await;
+    restore_phase.lock().await.complete();
 
-    rpc_ctx.shutdown().await?;
-
-    Ok((
-        disk_guid,
-        os_backup.account.hostname,
-        os_backup.account.tor_key.public().get_onion_address(),
-        os_backup.account.root_ca_cert,
-    ))
+    Ok(((&os_backup.account).try_into()?, rpc_ctx))
 }
 
 #[instrument(skip(ctx, backup_guard))]
@@ -141,18 +158,15 @@ async fn restore_packages(
     let backup_guard = Arc::new(backup_guard);
     let mut tasks = BTreeMap::new();
     for id in ids {
-        let backup_dir = backup_guard.clone().package_backup(&id);
+        let backup_dir = backup_guard.clone().package_backup(&id).await?;
+        let s9pk_path = backup_dir.path().join(&id).with_extension("s9pk");
         let task = ctx
             .services
             .install(
                 ctx.clone(),
-                S9pk::open(
-                    backup_dir.path().join(&id).with_extension("s9pk"),
-                    Some(&id),
-                    true,
-                )
-                .await?,
+                || S9pk::open(s9pk_path, Some(&id)),
                 Some(backup_dir),
+                None,
             )
             .await?;
         tasks.insert(id, task);

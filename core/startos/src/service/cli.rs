@@ -9,7 +9,7 @@ use rpc_toolkit::{call_remote_socket, yajrc, CallRemote, Context, Empty};
 use tokio::runtime::Runtime;
 
 use crate::lxc::HOST_RPC_SERVER_SOCKET;
-use crate::service::service_effect_handler::EffectContext;
+use crate::service::effects::context::EffectContext;
 
 #[derive(Debug, Default, Parser)]
 pub struct ContainerClientConfig {
@@ -19,7 +19,7 @@ pub struct ContainerClientConfig {
 
 pub struct ContainerCliSeed {
     socket: PathBuf,
-    runtime: OnceCell<Runtime>,
+    runtime: OnceCell<Arc<Runtime>>,
 }
 
 #[derive(Clone)]
@@ -35,17 +35,20 @@ impl ContainerCliContext {
     }
 }
 impl Context for ContainerCliContext {
-    fn runtime(&self) -> tokio::runtime::Handle {
-        self.0
-            .runtime
-            .get_or_init(|| {
-                tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap()
-            })
-            .handle()
-            .clone()
+    fn runtime(&self) -> Option<Arc<Runtime>> {
+        Some(
+            self.0
+                .runtime
+                .get_or_init(|| {
+                    Arc::new(
+                        tokio::runtime::Builder::new_current_thread()
+                            .enable_all()
+                            .build()
+                            .unwrap(),
+                    )
+                })
+                .clone(),
+        )
     }
 }
 

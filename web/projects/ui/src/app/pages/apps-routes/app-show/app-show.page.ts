@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { NavController } from '@ionic/angular'
 import { PatchDB } from 'patch-db-client'
 import {
+  AllPackageData,
   DataModel,
   InstallingState,
   PackageDataEntry,
@@ -11,7 +12,6 @@ import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { map, tap } from 'rxjs/operators'
 import { ActivatedRoute, NavigationExtras } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
-import { ModalService } from 'src/app/services/modal.service'
 import { DependentInfo } from 'src/app/types/dependent-info'
 import {
   DepErrorService,
@@ -26,6 +26,7 @@ import {
   isUpdating,
 } from 'src/app/util/get-package-data'
 import { T } from '@start9labs/start-sdk'
+import { getDepDetails } from 'src/app/util/dep-info'
 
 export interface DependencyInfo {
   id: string
@@ -33,7 +34,7 @@ export interface DependencyInfo {
   icon: string
   version: string
   errorText: string
-  actionText: string
+  actionText: string | null
   action: () => any
 }
 
@@ -43,20 +44,25 @@ export interface DependencyInfo {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppShowPage {
-  private readonly pkgId = getPkgId(this.route)
+  readonly pkgId = getPkgId(this.route)
 
   readonly pkgPlus$ = combineLatest([
-    this.patch.watch$('packageData', this.pkgId),
+    this.patch.watch$('packageData'),
     this.depErrorService.getPkgDepErrors$(this.pkgId),
   ]).pipe(
-    tap(([pkg, _]) => {
+    tap(([allPkgs, _]) => {
+      const pkg = allPkgs[this.pkgId]
       // if package disappears, navigate to list page
       if (!pkg) this.navCtrl.navigateRoot('/services')
     }),
-    map(([pkg, depErrors]) => {
+    map(([allPkgs, depErrors]) => {
+      const pkg = allPkgs[this.pkgId]
+      const manifest = getManifest(pkg)
       return {
+        allPkgs,
         pkg,
-        dependencies: this.getDepInfo(pkg, depErrors),
+        manifest,
+        dependencies: this.getDepInfo(pkg, manifest, allPkgs, depErrors),
         status: renderPkgStatus(pkg, depErrors),
       }
     }),
@@ -68,7 +74,6 @@ export class AppShowPage {
     private readonly route: ActivatedRoute,
     private readonly navCtrl: NavController,
     private readonly patch: PatchDB<DataModel>,
-    private readonly modalService: ModalService,
     private readonly depErrorService: DepErrorService,
   ) {}
 
@@ -80,17 +85,18 @@ export class AppShowPage {
 
   private getDepInfo(
     pkg: PackageDataEntry,
+    manifest: T.Manifest,
+    allPkgs: AllPackageData,
     depErrors: PkgDependencyErrors,
   ): DependencyInfo[] {
-    const manifest = getManifest(pkg)
-
-    return Object.keys(pkg.currentDependencies)
-      .filter(id => !!manifest.dependencies[id])
-      .map(id => this.getDepValues(pkg, manifest, id, depErrors))
+    return Object.keys(pkg.currentDependencies).map(id =>
+      this.getDepValues(pkg, allPkgs, manifest, id, depErrors),
+    )
   }
 
   private getDepValues(
     pkg: PackageDataEntry,
+    allPkgs: AllPackageData,
     manifest: T.Manifest,
     depId: string,
     depErrors: PkgDependencyErrors,
@@ -102,19 +108,16 @@ export class AppShowPage {
       depErrors,
     )
 
-    const { title, icon, versionSpec } = pkg.currentDependencies[depId]
+    const { title, icon, versionRange } = getDepDetails(pkg, allPkgs, depId)
 
     return {
       id: depId,
-      version: versionSpec,
+      version: versionRange,
       title,
       icon,
-      errorText: errorText
-        ? `${errorText}. ${manifest.title} will not work as expected.`
-        : '',
-      actionText: fixText || 'View',
-      action:
-        fixAction || (() => this.navCtrl.navigateForward(`/services/${depId}`)),
+      errorText: errorText ? errorText : '',
+      actionText: fixText,
+      action: fixAction,
     }
   }
 
@@ -128,28 +131,31 @@ export class AppShowPage {
 
     let errorText: string | null = null
     let fixText: string | null = null
-    let fixAction: (() => any) | null = null
+    let fixAction: () => any = () => {}
 
     if (depError) {
       if (depError.type === 'notInstalled') {
         errorText = 'Not installed'
         fixText = 'Install'
-        fixAction = () => this.fixDep(pkg, manifest, 'install', depId)
+        fixAction = () => this.installDep(pkg, manifest, depId)
       } else if (depError.type === 'incorrectVersion') {
         errorText = 'Incorrect version'
         fixText = 'Update'
-        fixAction = () => this.fixDep(pkg, manifest, 'update', depId)
-      } else if (depError.type === 'configUnsatisfied') {
-        errorText = 'Config not satisfied'
-        fixText = 'Auto config'
-        fixAction = () => this.fixDep(pkg, manifest, 'configure', depId)
+        fixAction = () => this.installDep(pkg, manifest, depId)
+      } else if (depError.type === 'actionRequired') {
+        errorText = 'Action Required (see above)'
       } else if (depError.type === 'notRunning') {
         errorText = 'Not running'
         fixText = 'Start'
+        fixAction = () => this.navCtrl.navigateForward(`/services/${depId}`)
       } else if (depError.type === 'healthChecksFailed') {
         errorText = 'Required health check not passing'
+        fixText = 'View'
+        fixAction = () => this.navCtrl.navigateForward(`/services/${depId}`)
       } else if (depError.type === 'transitive') {
         errorText = 'Dependency has a dependency issue'
+        fixText = 'View'
+        fixAction = () => this.navCtrl.navigateForward(`/services/${depId}`)
       }
     }
 
@@ -157,21 +163,6 @@ export class AppShowPage {
       errorText,
       fixText,
       fixAction,
-    }
-  }
-
-  private async fixDep(
-    pkg: PackageDataEntry,
-    pkgManifest: T.Manifest,
-    action: 'install' | 'update' | 'configure',
-    id: string,
-  ): Promise<void> {
-    switch (action) {
-      case 'install':
-      case 'update':
-        return this.installDep(pkg, pkgManifest, id)
-      case 'configure':
-        return this.configureDep(pkgManifest, id)
     }
   }
 
@@ -183,7 +174,7 @@ export class AppShowPage {
     const dependentInfo: DependentInfo = {
       id: pkgManifest.id,
       title: pkgManifest.title,
-      version: pkg.currentDependencies[depId].versionSpec,
+      version: pkg.currentDependencies[depId].versionRange,
     }
     const navigationExtras: NavigationExtras = {
       state: { dependentInfo },
@@ -193,20 +184,5 @@ export class AppShowPage {
       `/marketplace/${depId}`,
       navigationExtras,
     )
-  }
-
-  private async configureDep(
-    pkgManifest: T.Manifest,
-    dependencyId: string,
-  ): Promise<void> {
-    const dependentInfo: DependentInfo = {
-      id: pkgManifest.id,
-      title: pkgManifest.title,
-    }
-
-    await this.modalService.presentModalConfig({
-      pkgId: dependencyId,
-      dependentInfo,
-    })
   }
 }

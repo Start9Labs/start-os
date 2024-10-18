@@ -1,6 +1,7 @@
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Mock } from './api.fixures'
 import { BUILT_IN_WIDGETS } from '../../pages/widgets/built-in/widgets'
+const version = require('../../../../../../package.json').version
 
 export const mockPatchData: DataModel = {
   ui: {
@@ -37,7 +38,7 @@ export const mockPatchData: DataModel = {
     arch: 'x86_64',
     onionAddress: 'myveryownspecialtoraddress',
     id: 'abcdefgh',
-    version: '0.3.5.2',
+    version,
     lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
     lanAddress: 'https://adjective-noun.local',
     torAddress: 'https://myveryownspecialtoraddress.onion',
@@ -59,7 +60,8 @@ export const mockPatchData: DataModel = {
     // password is asdfasdf
     passwordHash:
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-    eosVersionCompat: '>=0.3.0 <=0.3.0.1',
+    versionCompat: '>=0.3.0 <=0.3.6',
+    postInitMigrationTodos: [],
     statusInfo: {
       backupProgress: null,
       updated: false,
@@ -74,7 +76,7 @@ export const mockPatchData: DataModel = {
     platform: 'x86_64-nonfree',
     zram: true,
     governor: 'performance',
-    smtp: 'todo',
+    smtp: null,
     wifi: {
       interface: 'wlan0',
       ssids: [],
@@ -88,51 +90,55 @@ export const mockPatchData: DataModel = {
         state: 'installed',
         manifest: {
           ...Mock.MockManifestBitcoind,
-          version: '0.20.0',
+          version: '0.20.0:0',
         },
       },
+      dataVersion: '0.20.0:0',
       icon: '/assets/img/service-icons/bitcoind.svg',
       lastBackup: null,
       status: {
-        configured: true,
-        main: {
-          status: 'running',
-          started: '2021-06-14T20:49:17.774Z',
-          health: {
-            'ephemeral-health-check': {
-              name: 'Ephemeral Health Check',
-              result: 'starting',
-              message: null,
-            },
-            'chain-state': {
-              name: 'Chain State',
-              result: 'loading',
-              message: 'Bitcoin is syncing from genesis',
-            },
-            'p2p-interface': {
-              name: 'P2P',
-              result: 'success',
-              message: 'Health check successful',
-            },
-            'rpc-interface': {
-              name: 'RPC',
-              result: 'failure',
-              message: 'RPC interface unreachable.',
-            },
-            'unnecessary-health-check': {
-              name: 'Unnecessary Health Check',
-              result: 'disabled',
-              message: null,
-            },
-          },
+        main: 'stopped',
+      },
+      // status: {
+      //   main: 'error',
+      //   message: 'Bitcoin is erroring out',
+      //   debug: 'This is a complete stack trace for bitcoin',
+      //   onRebuild: 'start',
+      // },
+      actions: {
+        config: {
+          name: 'Set Config',
+          description: 'edit bitcoin.conf',
+          warning: null,
+          visibility: 'enabled',
+          allowedStatuses: 'any',
+          hasInput: true,
+          group: null,
+        },
+        properties: {
+          name: 'View Properties',
+          description: 'view important information about Bitcoin',
+          warning: null,
+          visibility: 'enabled',
+          allowedStatuses: 'any',
+          hasInput: false,
+          group: null,
+        },
+        test: {
+          name: 'Do Another Thing',
+          description:
+            'An example of an action that shows a warning and takes no input',
+          warning: 'careful running this action',
+          visibility: { disabled: 'This is temporarily disabled' },
+          allowedStatuses: 'only-running',
+          hasInput: false,
+          group: null,
         },
       },
-      actions: {}, // @TODO
       serviceInterfaces: {
         ui: {
           id: 'ui',
           hasPrimary: false,
-          disabled: false,
           masked: false,
           name: 'Web UI',
           description:
@@ -150,7 +156,6 @@ export const mockPatchData: DataModel = {
         rpc: {
           id: 'rpc',
           hasPrimary: false,
-          disabled: false,
           masked: false,
           name: 'RPC',
           description:
@@ -168,7 +173,6 @@ export const mockPatchData: DataModel = {
         p2p: {
           id: 'p2p',
           hasPrimary: true,
-          disabled: false,
           masked: false,
           name: 'P2P',
           description:
@@ -185,33 +189,151 @@ export const mockPatchData: DataModel = {
         },
       },
       currentDependencies: {},
-      hosts: {},
+      hosts: {
+        abcdefg: {
+          kind: 'multi',
+          bindings: [],
+          addresses: [],
+          hostnameInfo: {
+            80: [
+              {
+                kind: 'ip',
+                networkInterfaceId: 'eth0',
+                public: false,
+                hostname: {
+                  kind: 'local',
+                  value: 'adjective-noun.local',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'wlan0',
+                public: false,
+                hostname: {
+                  kind: 'local',
+                  value: 'adjective-noun.local',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'eth0',
+                public: false,
+                hostname: {
+                  kind: 'ipv4',
+                  value: '10.0.0.1',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'wlan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv4',
+                  value: '10.0.0.2',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'eth0',
+                public: false,
+                hostname: {
+                  kind: 'ipv6',
+                  value: '[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                networkInterfaceId: 'wlan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv6',
+                  value: '[FE80:CD00:0000:0CDE:1257:0000:211E:1234]',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'onion',
+                hostname: {
+                  value: 'bitcoin-p2p.onion',
+                  port: 80,
+                  sslPort: 443,
+                },
+              },
+            ],
+          },
+        },
+        bcdefgh: {
+          kind: 'multi',
+          bindings: [],
+          addresses: [],
+          hostnameInfo: {
+            8332: [],
+          },
+        },
+        cdefghi: {
+          kind: 'multi',
+          bindings: [],
+          addresses: [],
+          hostnameInfo: {
+            8333: [],
+          },
+        },
+      },
       storeExposedDependents: [],
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
+      requestedActions: {
+        'bitcoind-config': {
+          request: {
+            packageId: 'bitcoind',
+            actionId: 'config',
+            severity: 'critical',
+            reason:
+              'You must run Config before starting Bitcoin for the first time',
+          },
+          active: true,
+        },
+        'bitcoind-properties': {
+          request: {
+            packageId: 'bitcoind',
+            actionId: 'properties',
+            severity: 'important',
+            reason: 'Check out all the info about your Bitcoin node',
+          },
+          active: true,
+        },
+      },
     },
     lnd: {
       stateInfo: {
         state: 'installed',
         manifest: {
           ...Mock.MockManifestLnd,
-          version: '0.11.0',
+          version: '0.11.0:0.0.1',
         },
       },
+      dataVersion: '0.11.0:0.0.1',
       icon: '/assets/img/service-icons/lnd.png',
       lastBackup: null,
       status: {
-        configured: true,
-        main: {
-          status: 'stopped',
-        },
+        main: 'stopped',
       },
       actions: {},
       serviceInterfaces: {
         grpc: {
           id: 'grpc',
           hasPrimary: false,
-          disabled: false,
           masked: false,
           name: 'GRPC',
           description:
@@ -229,7 +351,6 @@ export const mockPatchData: DataModel = {
         lndconnect: {
           id: 'lndconnect',
           hasPrimary: false,
-          disabled: false,
           masked: true,
           name: 'LND Connect',
           description:
@@ -247,7 +368,6 @@ export const mockPatchData: DataModel = {
         p2p: {
           id: 'p2p',
           hasPrimary: true,
-          disabled: false,
           masked: false,
           name: 'P2P',
           description:
@@ -268,25 +388,42 @@ export const mockPatchData: DataModel = {
           title: 'Bitcoin Core',
           icon: 'assets/img/service-icons/bitcoind.svg',
           kind: 'running',
-          registryUrl: 'https://registry.start9.com',
-          versionSpec: '>=26.0.0',
+          versionRange: '>=26.0.0',
           healthChecks: [],
-          configSatisfied: true,
         },
         'btc-rpc-proxy': {
           title: 'Bitcoin Proxy',
           icon: 'assets/img/service-icons/btc-rpc-proxy.png',
           kind: 'running',
-          registryUrl: 'https://community-registry.start9.com',
-          versionSpec: '>2.0.0',
+          versionRange: '>2.0.0',
           healthChecks: [],
-          configSatisfied: false,
         },
       },
       hosts: {},
       storeExposedDependents: [],
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
+      requestedActions: {
+        'bitcoind/config': {
+          active: true,
+          request: {
+            packageId: 'bitcoind',
+            actionId: 'config',
+            severity: 'critical',
+            reason: 'LND likes BTC a certain way',
+            input: {
+              kind: 'partial',
+              value: {
+                color: '#ffffff',
+                rpcsettings: {
+                  rpcuser: 'lnd',
+                },
+                testnet: false,
+              },
+            },
+          },
+        },
+      },
     },
   },
 }

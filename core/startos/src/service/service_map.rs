@@ -7,6 +7,7 @@ use futures::{Future, FutureExt};
 use helpers::NonDetachingJoinHandle;
 use imbl::OrdMap;
 use imbl_value::InternedString;
+use models::ErrorData;
 use tokio::sync::{Mutex, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::instrument;
 
@@ -18,15 +19,13 @@ use crate::disk::mount::guard::GenericMountGuard;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
-use crate::progress::{
-    FullProgressTracker, FullProgressTrackerHandle, PhaseProgressTrackerHandle,
-    ProgressTrackerWriter,
-};
+use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle, ProgressTrackerWriter};
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
-use crate::service::{LoadDisposition, Service};
-use crate::status::{MainStatus, Status};
+use crate::service::start_stop::StartStop;
+use crate::service::{LoadDisposition, Service, ServiceRef};
+use crate::status::MainStatus;
 use crate::util::serde::Pem;
 
 pub type DownloadInstallFuture = BoxFuture<'static, Result<InstallFuture, Error>>;
@@ -34,39 +33,47 @@ pub type InstallFuture = BoxFuture<'static, Result<(), Error>>;
 
 pub struct InstallProgressHandles {
     pub finalization_progress: PhaseProgressTrackerHandle,
-    pub progress_handle: FullProgressTrackerHandle,
+    pub progress: FullProgressTracker,
 }
 
 /// This is the structure to contain all the services
 #[derive(Default)]
-pub struct ServiceMap(Mutex<OrdMap<PackageId, Arc<RwLock<Option<Service>>>>>);
+pub struct ServiceMap(Mutex<OrdMap<PackageId, Arc<RwLock<Option<ServiceRef>>>>>);
 impl ServiceMap {
-    async fn entry(&self, id: &PackageId) -> Arc<RwLock<Option<Service>>> {
+    async fn entry(&self, id: &PackageId) -> Arc<RwLock<Option<ServiceRef>>> {
         let mut lock = self.0.lock().await;
-        dbg!(lock.keys().collect::<Vec<_>>());
         lock.entry(id.clone())
             .or_insert_with(|| Arc::new(RwLock::new(None)))
             .clone()
     }
 
     #[instrument(skip_all)]
-    pub async fn get(&self, id: &PackageId) -> OwnedRwLockReadGuard<Option<Service>> {
+    pub async fn get(&self, id: &PackageId) -> OwnedRwLockReadGuard<Option<ServiceRef>> {
         self.entry(id).await.read_owned().await
     }
 
     #[instrument(skip_all)]
-    pub async fn get_mut(&self, id: &PackageId) -> OwnedRwLockWriteGuard<Option<Service>> {
+    pub async fn get_mut(&self, id: &PackageId) -> OwnedRwLockWriteGuard<Option<ServiceRef>> {
         self.entry(id).await.write_owned().await
     }
 
     #[instrument(skip_all)]
-    pub async fn init(&self, ctx: &RpcContext) -> Result<(), Error> {
-        for id in ctx.db.peek().await.as_public().as_package_data().keys()? {
+    pub async fn init(
+        &self,
+        ctx: &RpcContext,
+        mut progress: PhaseProgressTrackerHandle,
+    ) -> Result<(), Error> {
+        progress.start();
+        let ids = ctx.db.peek().await.as_public().as_package_data().keys()?;
+        progress.set_total(ids.len() as u64);
+        for id in ids {
             if let Err(e) = self.load(ctx, &id, LoadDisposition::Retry).await {
                 tracing::error!("Error loading installed package as service: {e}");
                 tracing::debug!("{e:?}");
             }
+            progress += 1;
         }
+        progress.complete();
         Ok(())
     }
 
@@ -82,19 +89,49 @@ impl ServiceMap {
         if let Some(service) = service.take() {
             shutdown_err = service.shutdown().await;
         }
-        // TODO: retry on error?
-        *service = Service::load(ctx, id, disposition).await?;
+        match Service::load(ctx, id, disposition).await {
+            Ok(s) => *service = s.into(),
+            Err(e) => {
+                let e = ErrorData::from(e);
+                ctx.db
+                    .mutate(|db| {
+                        if let Some(pde) = db.as_public_mut().as_package_data_mut().as_idx_mut(id) {
+                            pde.as_status_mut().map_mutate(|s| {
+                                Ok(MainStatus::Error {
+                                    on_rebuild: if s.running() {
+                                        StartStop::Start
+                                    } else {
+                                        StartStop::Stop
+                                    },
+                                    message: e.details,
+                                    debug: Some(e.debug),
+                                })
+                            })?;
+                        }
+                        Ok(())
+                    })
+                    .await?;
+            }
+        }
         shutdown_err?;
         Ok(())
     }
 
     #[instrument(skip_all)]
-    pub async fn install<S: FileSource + Clone>(
+    pub async fn install<F, Fut, S: FileSource + Clone>(
         &self,
         ctx: RpcContext,
-        mut s9pk: S9pk<S>,
+        s9pk: F,
         recovery_source: Option<impl GenericMountGuard>,
-    ) -> Result<DownloadInstallFuture, Error> {
+        progress: Option<FullProgressTracker>,
+    ) -> Result<DownloadInstallFuture, Error>
+    where
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = Result<S9pk<S>, Error>>,
+        S: FileSource + Clone,
+    {
+        let mut s9pk = s9pk().await?;
+        s9pk.validate_and_filter(ctx.s9pk_arch)?;
         let manifest = s9pk.as_manifest().clone();
         let id = manifest.id.clone();
         let icon = s9pk.icon_data_url().await?;
@@ -112,23 +149,22 @@ impl ServiceMap {
         };
 
         let size = s9pk.size();
-        let mut progress = FullProgressTracker::new();
+        let progress = progress.unwrap_or_else(|| FullProgressTracker::new());
         let download_progress_contribution = size.unwrap_or(60);
-        let progress_handle = progress.handle();
-        let mut download_progress = progress_handle.add_phase(
+        let mut download_progress = progress.add_phase(
             InternedString::intern("Download"),
             Some(download_progress_contribution),
         );
         if let Some(size) = size {
             download_progress.set_total(size);
         }
-        let mut finalization_progress = progress_handle.add_phase(
+        let mut finalization_progress = progress.add_phase(
             InternedString::intern(op_name),
             Some(download_progress_contribution / 2),
         );
         let restoring = recovery_source.is_some();
 
-        let mut reload_guard = ServiceReloadGuard::new(ctx.clone(), id.clone(), op_name);
+        let mut reload_guard = ServiceRefReloadGuard::new(ctx.clone(), id.clone(), op_name);
 
         reload_guard
             .handle(ctx.db.mutate({
@@ -161,16 +197,15 @@ impl ServiceMap {
                                 } else {
                                     PackageState::Installing(installing)
                                 },
-                                status: Status {
-                                    configured: false,
-                                    main: MainStatus::Stopped,
-                                },
+                                data_version: None,
+                                status: MainStatus::Stopped,
                                 registry: None,
                                 developer_key: Pem::new(developer_key),
                                 icon,
                                 last_backup: None,
                                 current_dependencies: Default::default(),
                                 actions: Default::default(),
+                                requested_actions: Default::default(),
                                 service_interfaces: Default::default(),
                                 hosts: Default::default(),
                                 store_exposed_dependents: Default::default(),
@@ -194,7 +229,7 @@ impl ServiceMap {
 
                     let deref_id = id.clone();
                     let sync_progress_task =
-                        NonDetachingJoinHandle::from(tokio::spawn(progress.sync_to_db(
+                        NonDetachingJoinHandle::from(tokio::spawn(progress.clone().sync_to_db(
                             ctx.db.clone(),
                             move |v| {
                                 v.as_public_mut()
@@ -231,7 +266,7 @@ impl ServiceMap {
             Ok(reload_guard
                 .handle_last(async move {
                     finalization_progress.start();
-                    let s9pk = S9pk::open(&installed_path, Some(&id), true).await?;
+                    let s9pk = S9pk::open(&installed_path, Some(&id)).await?;
                     let prev = if let Some(service) = service.take() {
                         ensure_code!(
                             recovery_source.is_none(),
@@ -248,38 +283,27 @@ impl ServiceMap {
                         service
                             .uninstall(Some(s9pk.as_manifest().version.clone()))
                             .await?;
-                        progress_handle.complete();
+                        progress.complete();
                         Some(version)
                     } else {
                         None
                     };
-                    if let Some(recovery_source) = recovery_source {
-                        *service = Some(
-                            Service::restore(
-                                ctx,
-                                s9pk,
-                                recovery_source,
-                                Some(InstallProgressHandles {
-                                    finalization_progress,
-                                    progress_handle,
-                                }),
-                            )
-                            .await?,
-                        );
-                    } else {
-                        *service = Some(
-                            Service::install(
-                                ctx,
-                                s9pk,
-                                prev,
-                                Some(InstallProgressHandles {
-                                    finalization_progress,
-                                    progress_handle,
-                                }),
-                            )
-                            .await?,
-                        );
-                    }
+                    *service = Some(
+                        Service::install(
+                            ctx,
+                            s9pk,
+                            prev,
+                            recovery_source,
+                            Some(InstallProgressHandles {
+                                finalization_progress,
+                                progress,
+                            }),
+                        )
+                        .await?
+                        .into(),
+                    );
+                    drop(service);
+
                     sync_progress_task.await.map_err(|_| {
                         Error::new(eyre!("progress sync task panicked"), ErrorKind::Unknown)
                     })??;
@@ -295,7 +319,7 @@ impl ServiceMap {
     pub async fn uninstall(&self, ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
         let mut guard = self.get_mut(id).await;
         if let Some(service) = guard.take() {
-            ServiceReloadGuard::new(ctx.clone(), id.clone(), "Uninstall")
+            ServiceRefReloadGuard::new(ctx.clone(), id.clone(), "Uninstall")
                 .handle_last(async move {
                     let res = service.uninstall(None).await;
                     drop(guard);
@@ -326,17 +350,17 @@ impl ServiceMap {
     }
 }
 
-pub struct ServiceReloadGuard(Option<ServiceReloadInfo>);
-impl Drop for ServiceReloadGuard {
+pub struct ServiceRefReloadGuard(Option<ServiceRefReloadInfo>);
+impl Drop for ServiceRefReloadGuard {
     fn drop(&mut self) {
         if let Some(info) = self.0.take() {
             tokio::spawn(info.reload(None));
         }
     }
 }
-impl ServiceReloadGuard {
+impl ServiceRefReloadGuard {
     pub fn new(ctx: RpcContext, id: PackageId, operation: &'static str) -> Self {
-        Self(Some(ServiceReloadInfo { ctx, id, operation }))
+        Self(Some(ServiceRefReloadInfo { ctx, id, operation }))
     }
 
     pub async fn handle<T>(
@@ -365,12 +389,12 @@ impl ServiceReloadGuard {
     }
 }
 
-struct ServiceReloadInfo {
+struct ServiceRefReloadInfo {
     ctx: RpcContext,
     id: PackageId,
     operation: &'static str,
 }
-impl ServiceReloadInfo {
+impl ServiceRefReloadInfo {
     async fn reload(self, error: Option<Error>) -> Result<(), Error> {
         self.ctx
             .services

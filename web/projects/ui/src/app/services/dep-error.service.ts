@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { Emver } from '@start9labs/shared'
+import { Exver } from '@start9labs/shared'
 import { distinctUntilChanged, map, shareReplay } from 'rxjs/operators'
 import { PatchDB } from 'patch-db-client'
 import {
@@ -39,7 +39,7 @@ export class DepErrorService {
   )
 
   constructor(
-    private readonly emver: Emver,
+    private readonly exver: Exver,
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
@@ -87,22 +87,35 @@ export class DepErrorService {
     const depManifest = dep.stateInfo.manifest
 
     // incorrect version
-    if (!this.emver.satisfies(depManifest.version, currentDep.versionSpec)) {
-      return {
-        type: 'incorrectVersion',
-        expected: currentDep.versionSpec,
-        received: depManifest.version,
+    if (!this.exver.satisfies(depManifest.version, currentDep.versionRange)) {
+      if (
+        depManifest.satisfies.some(
+          v => !this.exver.satisfies(v, currentDep.versionRange),
+        )
+      ) {
+        return {
+          type: 'incorrectVersion',
+          expected: currentDep.versionRange,
+          received: depManifest.version,
+        }
       }
     }
 
-    // invalid config
-    if (!currentDep.configSatisfied) {
+    // action required
+    if (
+      Object.values(pkg.requestedActions).some(
+        a =>
+          a.active &&
+          a.request.packageId === depId &&
+          a.request.severity === 'critical',
+      )
+    ) {
       return {
-        type: 'configUnsatisfied',
+        type: 'actionRequired',
       }
     }
 
-    const depStatus = dep.status.main.status
+    const depStatus = dep.status.main
 
     // not running
     if (depStatus !== 'running' && depStatus !== 'starting') {
@@ -114,7 +127,7 @@ export class DepErrorService {
     // health check failure
     if (depStatus === 'running' && currentDep.kind === 'running') {
       for (let id of currentDep.healthChecks) {
-        const check = dep.status.main.health[id]
+        const check = dep.status.health[id]
         if (check?.result !== 'success') {
           return {
             type: 'healthChecksFailed',

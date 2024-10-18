@@ -73,7 +73,7 @@
               <ng-container *ngIf="cifs.mountable">
                 <backup-drives-status
                   [type]="type"
-                  [hasValidBackup]="target.hasValidBackup"
+                  [hasAnyBackup]="target.hasAnyBackup"
                 ></backup-drives-status>
               </ng-container>
               <h2 *ngIf="!cifs.mountable" class="inline">
@@ -155,7 +155,7 @@
                 <h1>{{ drive.label || drive.logicalname }}</h1>
                 <backup-drives-status
                   [type]="type"
-                  [hasValidBackup]="target.hasValidBackup"
+                  [hasAnyBackup]="target.hasAnyBackup"
                 ></backup-drives-status>
                 <p>
                   {{ drive.vendor || 'Unknown Vendor' }} -

@@ -1,13 +1,15 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
+use futures::future::BoxFuture;
 use futures::FutureExt;
 use models::ProcedureName;
 
 use super::TempDesiredRestore;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::prelude::*;
-use crate::service::config::GetConfig;
-use crate::service::dependencies::DependencyConfig;
+use crate::rpc_continuations::Guid;
+use crate::service::action::GetActionInput;
 use crate::service::transition::{TransitionKind, TransitionState};
 use crate::service::ServiceActor;
 use crate::util::actor::background::BackgroundJobQueue;
@@ -18,56 +20,47 @@ pub(in crate::service) struct Backup {
     pub path: PathBuf,
 }
 impl Handler<Backup> for ServiceActor {
-    type Response = Result<(), Error>;
+    type Response = Result<BoxFuture<'static, Result<(), Error>>, Error>;
     fn conflicts_with(_: &Backup) -> ConflictBuilder<Self> {
-        ConflictBuilder::everything()
-            .except::<GetConfig>()
-            .except::<DependencyConfig>()
+        ConflictBuilder::everything().except::<GetActionInput>()
     }
-    async fn handle(&mut self, backup: Backup, jobs: &BackgroundJobQueue) -> Self::Response {
+    async fn handle(
+        &mut self,
+        id: Guid,
+        backup: Backup,
+        jobs: &BackgroundJobQueue,
+    ) -> Self::Response {
         // So Need a handle to just a single field in the state
         let temp: TempDesiredRestore = TempDesiredRestore::new(&self.0.persistent_container.state);
         let mut current = self.0.persistent_container.state.subscribe();
         let path = backup.path.clone();
         let seed = self.0.clone();
 
-        let state = self.0.persistent_container.state.clone();
-        let transition = RemoteCancellable::new(
-            async move {
-                temp.stop();
+        let transition = RemoteCancellable::new(async move {
+            temp.stop();
+            current
+                .wait_for(|s| s.running_status.is_none())
+                .await
+                .with_kind(ErrorKind::Unknown)?;
+
+            let backup_guard = seed
+                .persistent_container
+                .mount_backup(path, ReadWrite)
+                .await?;
+            seed.persistent_container
+                .execute(id, ProcedureName::CreateBackup, Value::Null, None)
+                .await?;
+            backup_guard.unmount(true).await?;
+
+            if temp.restore().is_start() {
                 current
-                    .wait_for(|s| s.running_status.is_none())
+                    .wait_for(|s| s.running_status.is_some())
                     .await
                     .with_kind(ErrorKind::Unknown)?;
-
-                let backup_guard = seed
-                    .persistent_container
-                    .mount_backup(path, ReadWrite)
-                    .await?;
-                seed.persistent_container
-                    .execute(ProcedureName::CreateBackup, Value::Null, None)
-                    .await?;
-                backup_guard.unmount(true).await?;
-
-                if temp.restore().is_start() {
-                    current
-                        .wait_for(|s| s.running_status.is_some())
-                        .await
-                        .with_kind(ErrorKind::Unknown)?;
-                }
-                drop(temp);
-                state.send_modify(|s| {
-                    s.transition_state.take();
-                });
-                Ok::<_, Error>(())
             }
-            .map(|x| {
-                if let Err(err) = dbg!(x) {
-                    tracing::debug!("{:?}", err);
-                    tracing::warn!("{}", err);
-                }
-            }),
-        );
+            drop(temp);
+            Ok::<_, Arc<Error>>(())
+        });
         let cancel_handle = transition.cancellation_handle();
         let transition = transition.shared();
         let job_transition = transition.clone();
@@ -86,9 +79,11 @@ impl Handler<Backup> for ServiceActor {
         if let Some(t) = old {
             t.abort().await;
         }
-        match transition.await {
-            None => Err(Error::new(eyre!("Backup canceled"), ErrorKind::Unknown)),
-            Some(x) => Ok(x),
-        }
+        Ok(transition
+            .map(|r| {
+                r.ok_or_else(|| Error::new(eyre!("Backup canceled"), ErrorKind::Cancelled))?
+                    .map_err(|e| e.clone_output())
+            })
+            .boxed())
     }
 }

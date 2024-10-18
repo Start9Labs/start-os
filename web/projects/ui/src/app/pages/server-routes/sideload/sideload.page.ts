@@ -1,17 +1,21 @@
 import { Component } from '@angular/core'
-import { isPlatform, LoadingController, NavController } from '@ionic/angular'
+import { isPlatform } from '@ionic/angular'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { S9pk, T } from '@start9labs/start-sdk'
+import cbor from 'cbor'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
-import cbor from 'cbor'
-import { ErrorToastService } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { SideloadService } from './sideload.service'
+import { firstValueFrom } from 'rxjs'
+import mime from 'mime'
 
 interface Positions {
   [key: string]: [bigint, bigint] // [position, length]
 }
 
 const MAGIC = new Uint8Array([59, 59])
-const VERSION = new Uint8Array([1])
+const VERSION_1 = new Uint8Array([1])
+const VERSION_2 = new Uint8Array([2])
 
 @Component({
   selector: 'sideload',
@@ -21,7 +25,7 @@ const VERSION = new Uint8Array([1])
 export class SideloadPage {
   isMobile = isPlatform(window, 'ios') || isPlatform(window, 'android')
   toUpload: {
-    manifest: T.Manifest | null
+    manifest: { title: string; version: string } | null
     icon: string | null
     file: File | null
   } = {
@@ -35,12 +39,14 @@ export class SideloadPage {
     message: string
   }
 
+  readonly progress$ = this.sideloadService.progress$
+
   constructor(
-    private readonly loadingCtrl: LoadingController,
+    private readonly loader: LoadingService,
     private readonly api: ApiService,
-    private readonly navCtrl: NavController,
-    private readonly errToast: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly config: ConfigService,
+    private readonly sideloadService: SideloadService,
   ) {}
 
   handleFileDrop(e: any) {
@@ -64,11 +70,36 @@ export class SideloadPage {
   async validateS9pk(file: File) {
     const magic = new Uint8Array(await blobToBuffer(file.slice(0, 2)))
     const version = new Uint8Array(await blobToBuffer(file.slice(2, 3)))
-    if (compare(magic, MAGIC) && compare(version, VERSION)) {
-      await this.parseS9pk(file)
-      return {
-        invalid: false,
-        message: 'A valid package file has been detected!',
+    if (compare(magic, MAGIC)) {
+      try {
+        if (compare(version, VERSION_1)) {
+          await this.parseS9pkV1(file)
+          return {
+            invalid: false,
+            message: 'A valid package file has been detected!',
+          }
+        } else if (compare(version, VERSION_2)) {
+          await this.parseS9pkV2(file)
+          return {
+            invalid: false,
+            message: 'A valid package file has been detected!',
+          }
+        } else {
+          console.error(version)
+          return {
+            invalid: true,
+            message: 'Invalid package file',
+          }
+        }
+      } catch (e) {
+        console.error(e)
+        return {
+          invalid: true,
+          message:
+            e instanceof Error
+              ? `Invalid package file: ${e.message}`
+              : 'Invalid package file',
+        }
       }
     } else {
       return {
@@ -85,30 +116,24 @@ export class SideloadPage {
   }
 
   async handleUpload() {
-    const loader = await this.loadingCtrl.create({
-      message: 'Uploading package',
-      cssClass: 'loader',
-    })
-    await loader.present()
-    try {
-      const guid = await this.api.sideloadPackage({
-        manifest: this.toUpload.manifest!,
-        icon: this.toUpload.icon!,
-      })
-      this.api
-        .uploadPackage(guid, this.toUpload.file!)
-        .catch(e => console.error(e))
+    const loader = this.loader.open('Starting upload').subscribe()
 
-      this.navCtrl.navigateRoot('/services')
+    try {
+      const res = await this.api.sideloadPackage()
+      this.sideloadService.followProgress(res.progress)
+      this.api
+        .uploadPackage(res.upload, this.toUpload.file!)
+        .catch(e => console.error(e))
+      await firstValueFrom(this.sideloadService.websocketConnected$)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
       this.clearToUpload()
     }
   }
 
-  async parseS9pk(file: File) {
+  async parseS9pkV1(file: File) {
     const positions: Positions = {}
     // magic=2bytes, version=1bytes, pubkey=32bytes, signature=64bytes, toc_length=4bytes = 103byte is starting point
     let start = 103
@@ -118,11 +143,17 @@ export class SideloadPage {
     ).getUint32(0, false)
     await getPositions(start, end, file, positions, tocLength as any)
 
-    await this.getManifest(positions, file)
-    await this.getIcon(positions, file)
+    await this.getManifestV1(positions, file)
+    await this.getIconV1(positions, file)
   }
 
-  async getManifest(positions: Positions, file: Blob) {
+  async parseS9pkV2(file: File) {
+    const s9pk = await S9pk.deserialize(file, null)
+    this.toUpload.manifest = s9pk.manifest
+    this.toUpload.icon = await s9pk.icon()
+  }
+
+  private async getManifestV1(positions: Positions, file: Blob) {
     const data = await blobToBuffer(
       file.slice(
         Number(positions['manifest'][0]),
@@ -132,12 +163,11 @@ export class SideloadPage {
     this.toUpload.manifest = await cbor.decode(data, true)
   }
 
-  async getIcon(positions: Positions, file: Blob) {
-    const contentType = '' // @TODO
+  private async getIconV1(positions: Positions, file: Blob) {
     const data = file.slice(
       Number(positions['icon'][0]),
       Number(positions['icon'][0]) + Number(positions['icon'][1]),
-      contentType,
+      '',
     )
     this.toUpload.icon = await blobToDataURL(data)
   }
@@ -225,6 +255,7 @@ async function readBlobToArrayBuffer(
 }
 
 function compare(a: Uint8Array, b: Uint8Array) {
+  if (a.length !== b.length) return false
   for (let i = 0; i < a.length; i++) {
     if (a[i] !== b[i]) return false
   }

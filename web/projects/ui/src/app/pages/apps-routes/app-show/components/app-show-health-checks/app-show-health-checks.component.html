@@ -1,7 +1,7 @@
 <ng-container *ngIf="!(healthChecks | empty)">
   <ion-item-divider>Health Checks</ion-item-divider>
   <!-- connected -->
-  <ng-container *ngIf="connected$ | async; else disconnected">
+  <ng-container *ngIf="connection$ | async; else disconnected">
     <ion-item *ngFor="let check of healthChecks | keyvalue">
       <!-- result -->
       <ng-container *ngIf="check.value.result as result; else noResult">
@@ -68,7 +68,7 @@
   </ng-container>
   <!-- disconnected -->
   <ng-template #disconnected>
-    <ion-item *ngFor="let health; in: checks">
+    <ion-item *ngFor="let health of healthChecks | keyvalue">
       <ion-avatar slot="start">
         <ion-skeleton-text class="avatar"></ion-skeleton-text>
       </ion-avatar>

@@ -5,7 +5,7 @@ import { T } from '@start9labs/start-sdk'
   name: 'healthColor',
 })
 export class HealthColorPipe implements PipeTransform {
-  transform(val: T.HealthCheckResult['result']): string {
+  transform(val: T.NamedHealthCheckResult['result']): string {
     switch (val) {
       case 'success':
         return 'success'

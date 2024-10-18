@@ -211,7 +211,10 @@ impl<S: FileSource + Clone> DirectoryContents<S> {
                 if !filter(path) {
                     if v.hash.is_none() {
                         return Err(Error::new(
-                            eyre!("cannot filter out unhashed file, run `update_hashes` first"),
+                            eyre!(
+                                "cannot filter out unhashed file {}, run `update_hashes` first",
+                                path.display()
+                            ),
                             ErrorKind::InvalidRequest,
                         ));
                     }
@@ -270,6 +273,21 @@ impl<S: FileSource + Clone> DirectoryContents<S> {
             }
             ((_, a), (_, b), _) if !a.as_contents().is_dir() && b.as_contents().is_dir() => {
                 std::cmp::Ordering::Greater
+            }
+            ((_, a), (_, b), _)
+                if a.as_contents().is_missing() && !b.as_contents().is_missing() =>
+            {
+                std::cmp::Ordering::Greater
+            }
+            ((_, a), (_, b), _)
+                if !a.as_contents().is_missing() && b.as_contents().is_missing() =>
+            {
+                std::cmp::Ordering::Less
+            }
+            ((n_a, a), (n_b, b), _)
+                if a.as_contents().is_missing() && b.as_contents().is_missing() =>
+            {
+                n_a.cmp(n_b)
             }
             ((a, _), (b, _), Some(sort_by)) => sort_by(&***a, &***b),
             _ => std::cmp::Ordering::Equal,

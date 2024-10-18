@@ -13,7 +13,7 @@ import {
   MarketplacePkg,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { Emver, isEmptyObject } from '@start9labs/shared'
+import { Exver, isEmptyObject } from '@start9labs/shared'
 import { Pipe, PipeTransform } from '@angular/core'
 import { combineLatest, map, Observable } from 'rxjs'
 import { AlertController, NavController } from '@ionic/angular'
@@ -24,7 +24,6 @@ import {
   isUpdating,
 } from 'src/app/util/get-package-data'
 import { dryUpdate } from 'src/app/util/dry-update'
-import { T } from '@start9labs/start-sdk'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
@@ -59,7 +58,7 @@ export class UpdatesPage {
     private readonly patch: PatchDB<DataModel>,
     private readonly navCtrl: NavController,
     private readonly alertCtrl: AlertController,
-    private readonly emver: Emver,
+    private readonly exver: Exver,
   ) {}
 
   viewInMarketplace(event: Event, url: string, id: string) {
@@ -70,29 +69,29 @@ export class UpdatesPage {
     })
   }
 
-  async tryUpdate(manifest: T.Manifest, url: string, e: Event): Promise<void> {
+  async tryUpdate(pkg: MarketplacePkg, url: string, e: Event): Promise<void> {
     e.stopPropagation()
 
-    const { id, version } = manifest
+    const { id, version } = pkg
 
     delete this.marketplaceService.updateErrors[id]
     this.marketplaceService.updateQueue[id] = true
 
-    // manifest.id OK because same as local id for update
-    if (hasCurrentDeps(manifest.id, await getAllPackages(this.patch))) {
-      this.dryInstall(manifest, url)
+    // id OK because same as local id for update
+    if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
+      this.dryInstall(pkg, url)
     } else {
       this.install(id, version, url)
     }
   }
 
-  private async dryInstall(manifest: T.Manifest, url: string) {
-    const { id, version, title } = manifest
+  private async dryInstall(pkg: MarketplacePkg, url: string) {
+    const { id, version, title } = pkg
 
     const breakages = dryUpdate(
-      manifest,
+      pkg,
       await getAllPackages(this.patch),
-      this.emver,
+      this.exver,
     )
 
     if (isEmptyObject(breakages)) {
@@ -159,18 +158,19 @@ export class UpdatesPage {
   name: 'filterUpdates',
 })
 export class FilterUpdatesPipe implements PipeTransform {
-  constructor(private readonly emver: Emver) {}
+  constructor(private readonly exver: Exver) {}
 
   transform(
     pkgs: MarketplacePkg[],
     local: Record<string, PackageDataEntry<InstalledState | UpdatingState>>,
   ): MarketplacePkg[] {
-    return pkgs.filter(({ manifest }) => {
-      const localPkg = local[manifest.id]
+    return pkgs.filter(({ id, version, flavor }) => {
+      const localPkg = local[id]
       return (
         localPkg &&
-        this.emver.compare(
-          manifest.version,
+        this.exver.getFlavor(localPkg.stateInfo.manifest.version) === flavor &&
+        this.exver.compareExver(
+          version,
           localPkg.stateInfo.manifest.version,
         ) === 1
       )

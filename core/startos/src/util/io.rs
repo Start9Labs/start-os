@@ -1,6 +1,7 @@
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::VecDeque;
 use std::future::Future;
 use std::io::Cursor;
+use std::mem::MaybeUninit;
 use std::os::unix::prelude::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -11,7 +12,7 @@ use std::time::Duration;
 
 use bytes::{Buf, BytesMut};
 use futures::future::{BoxFuture, Fuse};
-use futures::{AsyncSeek, FutureExt, TryStreamExt};
+use futures::{AsyncSeek, FutureExt, Stream, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use nix::unistd::{Gid, Uid};
 use tokio::fs::File;
@@ -23,6 +24,7 @@ use tokio::sync::{Notify, OwnedMutexGuard};
 use tokio::time::{Instant, Sleep};
 
 use crate::prelude::*;
+use crate::{CAP_1_KiB, CAP_1_MiB};
 
 pub trait AsyncReadSeek: AsyncRead + AsyncSeek {}
 impl<T: AsyncRead + AsyncSeek> AsyncReadSeek for T {}
@@ -275,6 +277,81 @@ pub fn response_to_reader(response: reqwest::Response) -> impl AsyncRead + Unpin
 }
 
 #[pin_project::pin_project]
+pub struct IOHook<'a, T> {
+    #[pin]
+    pub io: T,
+    pre_write: Option<Box<dyn FnMut(&[u8]) -> Result<(), std::io::Error> + Send + 'a>>,
+    post_write: Option<Box<dyn FnMut(&[u8]) + Send + 'a>>,
+    post_read: Option<Box<dyn FnMut(&[u8]) + Send + 'a>>,
+}
+impl<'a, T> IOHook<'a, T> {
+    pub fn new(io: T) -> Self {
+        Self {
+            io,
+            pre_write: None,
+            post_write: None,
+            post_read: None,
+        }
+    }
+    pub fn into_inner(self) -> T {
+        self.io
+    }
+    pub fn pre_write<F: FnMut(&[u8]) -> Result<(), std::io::Error> + Send + 'a>(&mut self, f: F) {
+        self.pre_write = Some(Box::new(f))
+    }
+    pub fn post_write<F: FnMut(&[u8]) + Send + 'a>(&mut self, f: F) {
+        self.post_write = Some(Box::new(f))
+    }
+    pub fn post_read<F: FnMut(&[u8]) + Send + 'a>(&mut self, f: F) {
+        self.post_read = Some(Box::new(f))
+    }
+}
+impl<'a, T: AsyncWrite> AsyncWrite for IOHook<'a, T> {
+    fn poll_write(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> Poll<Result<usize, std::io::Error>> {
+        let this = self.project();
+        if let Some(pre_write) = this.pre_write {
+            pre_write(buf)?;
+        }
+        let written = futures::ready!(this.io.poll_write(cx, buf)?);
+        if let Some(post_write) = this.post_write {
+            post_write(&buf[..written]);
+        }
+        Poll::Ready(Ok(written))
+    }
+    fn poll_flush(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        self.project().io.poll_flush(cx)
+    }
+    fn poll_shutdown(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(), std::io::Error>> {
+        self.project().io.poll_shutdown(cx)
+    }
+}
+impl<'a, T: AsyncRead> AsyncRead for IOHook<'a, T> {
+    fn poll_read(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+        buf: &mut ReadBuf<'_>,
+    ) -> Poll<std::io::Result<()>> {
+        let this = self.project();
+        let start = buf.filled().len();
+        futures::ready!(this.io.poll_read(cx, buf)?);
+        if let Some(post_read) = this.post_read {
+            post_read(&buf.filled()[start..]);
+        }
+        Poll::Ready(Ok(()))
+    }
+}
+
+#[pin_project::pin_project]
 pub struct BufferedWriteReader {
     #[pin]
     hdl: Fuse<NonDetachingJoinHandle<Result<(), std::io::Error>>>,
@@ -336,107 +413,180 @@ impl<T: AsRef<[u8]>> CursorExt for Cursor<T> {
     }
 }
 
-#[pin_project::pin_project]
 #[derive(Debug)]
-pub struct BackTrackingReader<T> {
-    #[pin]
-    reader: T,
-    buffer: Cursor<Vec<u8>>,
-    buffering: bool,
+enum BTBuffer {
+    NotBuffering,
+    Buffering { read: Vec<u8>, write: Vec<u8> },
+    Rewound { read: Cursor<Vec<u8>> },
 }
-impl<T> BackTrackingReader<T> {
-    pub fn new(reader: T) -> Self {
-        Self {
-            reader,
-            buffer: Cursor::new(Vec::new()),
-            buffering: false,
-        }
-    }
-    pub fn start_buffering(&mut self) {
-        self.buffer.set_position(0);
-        self.buffer.get_mut().truncate(0);
-        self.buffering = true;
-    }
-    pub fn stop_buffering(&mut self) {
-        self.buffer.set_position(0);
-        self.buffer.get_mut().truncate(0);
-        self.buffering = false;
-    }
-    pub fn rewind(&mut self) {
-        self.buffering = false;
-    }
-    pub fn unwrap(self) -> T {
-        self.reader
+impl Default for BTBuffer {
+    fn default() -> Self {
+        BTBuffer::NotBuffering
     }
 }
 
-impl<T: AsyncRead> AsyncRead for BackTrackingReader<T> {
+#[pin_project::pin_project]
+#[derive(Debug)]
+pub struct BackTrackingIO<T> {
+    #[pin]
+    io: T,
+    buffer: BTBuffer,
+}
+impl<T> BackTrackingIO<T> {
+    pub fn new(io: T) -> Self {
+        Self {
+            io,
+            buffer: BTBuffer::Buffering {
+                read: Vec::new(),
+                write: Vec::new(),
+            },
+        }
+    }
+    pub fn read_buffer(&self) -> &[u8] {
+        match &self.buffer {
+            BTBuffer::NotBuffering => &[],
+            BTBuffer::Buffering { read, .. } => read,
+            BTBuffer::Rewound { read } => read.remaining_slice(),
+        }
+    }
+    #[must_use]
+    pub fn stop_buffering(&mut self) -> Vec<u8> {
+        match std::mem::take(&mut self.buffer) {
+            BTBuffer::Buffering { write, .. } => write,
+            BTBuffer::NotBuffering => Vec::new(),
+            BTBuffer::Rewound { read } => {
+                self.buffer = BTBuffer::Rewound { read };
+                Vec::new()
+            }
+        }
+    }
+    pub fn rewind(&mut self) -> Vec<u8> {
+        match std::mem::take(&mut self.buffer) {
+            BTBuffer::Buffering { read, write } => {
+                self.buffer = BTBuffer::Rewound {
+                    read: Cursor::new(read),
+                };
+                write
+            }
+            BTBuffer::NotBuffering => Vec::new(),
+            BTBuffer::Rewound { read } => {
+                self.buffer = BTBuffer::Rewound { read };
+                Vec::new()
+            }
+        }
+    }
+    pub fn unwrap(self) -> T {
+        self.io
+    }
+}
+
+impl<T: AsyncRead> AsyncRead for BackTrackingIO<T> {
     fn poll_read(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         buf: &mut ReadBuf<'_>,
     ) -> Poll<std::io::Result<()>> {
         let this = self.project();
-        if *this.buffering {
-            let filled = buf.filled().len();
-            let res = this.reader.poll_read(cx, buf);
-            this.buffer
-                .get_mut()
-                .extend_from_slice(&buf.filled()[filled..]);
-            res
-        } else {
-            let mut ready = false;
-            if (this.buffer.position() as usize) < this.buffer.get_ref().len() {
-                this.buffer.pure_read(buf);
-                ready = true;
+        match this.buffer {
+            BTBuffer::Buffering { read, .. } => {
+                let filled = buf.filled().len();
+                let res = this.io.poll_read(cx, buf);
+                read.extend_from_slice(&buf.filled()[filled..]);
+                res
             }
-            if buf.remaining() > 0 {
-                match this.reader.poll_read(cx, buf) {
-                    Poll::Pending => {
-                        if ready {
-                            Poll::Ready(Ok(()))
-                        } else {
-                            Poll::Pending
-                        }
-                    }
-                    a => a,
+            BTBuffer::NotBuffering => this.io.poll_read(cx, buf),
+            BTBuffer::Rewound { read } => {
+                let mut ready = false;
+                if (read.position() as usize) < read.get_ref().len() {
+                    read.pure_read(buf);
+                    ready = true;
                 }
-            } else {
-                Poll::Ready(Ok(()))
+                if buf.remaining() > 0 {
+                    match this.io.poll_read(cx, buf) {
+                        Poll::Pending => {
+                            if ready {
+                                Poll::Ready(Ok(()))
+                            } else {
+                                Poll::Pending
+                            }
+                        }
+                        a => a,
+                    }
+                } else {
+                    Poll::Ready(Ok(()))
+                }
+            }
+        }
+    }
+}
+impl<T: std::io::Read> std::io::Read for BackTrackingIO<T> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        match &mut self.buffer {
+            BTBuffer::Buffering { read, .. } => {
+                let n = self.io.read(buf)?;
+                read.extend_from_slice(&buf[..n]);
+                Ok(n)
+            }
+            BTBuffer::NotBuffering => self.io.read(buf),
+            BTBuffer::Rewound { read } => {
+                let mut ready = false;
+                if (read.position() as usize) < read.get_ref().len() {
+                    let n = std::io::Read::read(read, buf)?;
+                    if n != 0 {
+                        return Ok(n);
+                    }
+                }
+                self.io.read(buf)
             }
         }
     }
 }
 
-impl<T: AsyncWrite> AsyncWrite for BackTrackingReader<T> {
+impl<T: AsyncWrite> AsyncWrite for BackTrackingIO<T> {
     fn is_write_vectored(&self) -> bool {
-        self.reader.is_write_vectored()
+        self.io.is_write_vectored()
     }
     fn poll_flush(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
-        self.project().reader.poll_flush(cx)
+        self.project().io.poll_flush(cx)
     }
     fn poll_shutdown(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
-        self.project().reader.poll_shutdown(cx)
+        self.project().io.poll_shutdown(cx)
     }
     fn poll_write(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         buf: &[u8],
     ) -> Poll<Result<usize, std::io::Error>> {
-        self.project().reader.poll_write(cx, buf)
+        let this = self.project();
+        if let BTBuffer::Buffering { write, .. } = this.buffer {
+            write.extend_from_slice(buf);
+            Poll::Ready(Ok(buf.len()))
+        } else {
+            this.io.poll_write(cx, buf)
+        }
     }
     fn poll_write_vectored(
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
         bufs: &[std::io::IoSlice<'_>],
     ) -> Poll<Result<usize, std::io::Error>> {
-        self.project().reader.poll_write_vectored(cx, bufs)
+        let this = self.project();
+        if let BTBuffer::Buffering { write, .. } = this.buffer {
+            let len = bufs.iter().map(|b| b.len()).sum();
+            write.reserve(len);
+            for buf in bufs {
+                write.extend_from_slice(buf);
+            }
+            Poll::Ready(Ok(len))
+        } else {
+            this.io.poll_write_vectored(cx, bufs)
+        }
     }
 }
 
@@ -535,13 +685,13 @@ pub fn dir_copy<'a, P0: AsRef<Path> + 'a + Send + Sync, P1: AsRef<Path> + 'a + S
                 let src_path = e.path();
                 let dst_path = dst_path.join(e.file_name());
                 if m.is_file() {
-                    let mut dst_file = tokio::fs::File::create(&dst_path).await.with_ctx(|_| {
+                    let mut dst_file = create_file(&dst_path).await.with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
                             format!("create {}", dst_path.display()),
                         )
                     })?;
-                    let mut rdr = tokio::fs::File::open(&src_path).await.with_ctx(|_| {
+                    let mut rdr = open_file(&src_path).await.with_ctx(|_| {
                         (
                             crate::ErrorKind::Filesystem,
                             format!("open {}", src_path.display()),
@@ -631,15 +781,15 @@ impl<S: AsyncRead + AsyncWrite> AsyncRead for TimeoutStream<S> {
         buf: &mut tokio::io::ReadBuf<'_>,
     ) -> std::task::Poll<std::io::Result<()>> {
         let mut this = self.project();
-        if let std::task::Poll::Ready(_) = this.sleep.as_mut().poll(cx) {
+        let timeout = this.sleep.as_mut().poll(cx);
+        let res = this.stream.poll_read(cx, buf);
+        if res.is_ready() {
+            this.sleep.reset(Instant::now() + *this.timeout);
+        } else if timeout.is_ready() {
             return std::task::Poll::Ready(Err(std::io::Error::new(
                 std::io::ErrorKind::TimedOut,
                 "timed out",
             )));
-        }
-        let res = this.stream.poll_read(cx, buf);
-        if res.is_ready() {
-            this.sleep.reset(Instant::now() + *this.timeout);
         }
         res
     }
@@ -650,10 +800,16 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
         cx: &mut std::task::Context<'_>,
         buf: &[u8],
     ) -> std::task::Poll<Result<usize, std::io::Error>> {
-        let this = self.project();
+        let mut this = self.project();
+        let timeout = this.sleep.as_mut().poll(cx);
         let res = this.stream.poll_write(cx, buf);
         if res.is_ready() {
             this.sleep.reset(Instant::now() + *this.timeout);
+        } else if timeout.is_ready() {
+            return std::task::Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "timed out",
+            )));
         }
         res
     }
@@ -661,10 +817,16 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), std::io::Error>> {
-        let this = self.project();
+        let mut this = self.project();
+        let timeout = this.sleep.as_mut().poll(cx);
         let res = this.stream.poll_flush(cx);
         if res.is_ready() {
             this.sleep.reset(Instant::now() + *this.timeout);
+        } else if timeout.is_ready() {
+            return std::task::Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "timed out",
+            )));
         }
         res
     }
@@ -672,16 +834,20 @@ impl<S: AsyncRead + AsyncWrite> AsyncWrite for TimeoutStream<S> {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Result<(), std::io::Error>> {
-        let this = self.project();
+        let mut this = self.project();
+        let timeout = this.sleep.as_mut().poll(cx);
         let res = this.stream.poll_shutdown(cx);
         if res.is_ready() {
             this.sleep.reset(Instant::now() + *this.timeout);
+        } else if timeout.is_ready() {
+            return std::task::Poll::Ready(Err(std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "timed out",
+            )));
         }
         res
     }
 }
-
-pub struct TmpFile {}
 
 #[derive(Debug)]
 pub struct TmpDir {
@@ -690,7 +856,7 @@ pub struct TmpDir {
 impl TmpDir {
     pub async fn new() -> Result<Self, Error> {
         let path = Path::new("/var/tmp/startos").join(base32::encode(
-            base32::Alphabet::RFC4648 { padding: false },
+            base32::Alphabet::Rfc4648 { padding: false },
             &rand::random::<[u8; 8]>(),
         ));
         if tokio::fs::metadata(&path).await.is_ok() {
@@ -706,6 +872,14 @@ impl TmpDir {
     pub async fn delete(self) -> Result<(), Error> {
         tokio::fs::remove_dir_all(&self.path).await?;
         Ok(())
+    }
+
+    pub async fn gc(self: Arc<Self>) -> Result<(), Error> {
+        if let Ok(dir) = Arc::try_unwrap(self) {
+            dir.delete().await
+        } else {
+            Ok(())
+        }
     }
 }
 impl std::ops::Deref for TmpDir {
@@ -724,10 +898,17 @@ impl Drop for TmpDir {
         if self.path.exists() {
             let path = std::mem::take(&mut self.path);
             tokio::spawn(async move {
-                tokio::fs::remove_dir_all(&path).await.unwrap();
+                tokio::fs::remove_dir_all(&path).await.log_err();
             });
         }
     }
+}
+
+pub async fn open_file(path: impl AsRef<Path>) -> Result<File, Error> {
+    let path = path.as_ref();
+    File::open(path)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("open {path:?}")))
 }
 
 pub async fn create_file(path: impl AsRef<Path>) -> Result<File, Error> {
@@ -762,7 +943,7 @@ fn poll_flush_prefix<W: AsyncWrite>(
     flush_writer: bool,
 ) -> Poll<Result<(), std::io::Error>> {
     while let Some(mut cur) = prefix.pop_front() {
-        let buf = cur.remaining_slice();
+        let buf = CursorExt::remaining_slice(&cur);
         if !buf.is_empty() {
             match writer.as_mut().poll_write(cx, buf)? {
                 Poll::Ready(n) if n == buf.len() => (),
@@ -1115,5 +1296,35 @@ impl<W: AsyncWrite + Unpin> AsyncWrite for MutexIO<W> {
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(), std::io::Error>> {
         Pin::new(&mut *self.get_mut().0).poll_shutdown(cx)
+    }
+}
+
+#[pin_project::pin_project]
+pub struct AsyncReadStream<T> {
+    buffer: Vec<MaybeUninit<u8>>,
+    #[pin]
+    pub io: T,
+}
+impl<T> AsyncReadStream<T> {
+    pub fn new(io: T, buffer_size: usize) -> Self {
+        Self {
+            buffer: vec![MaybeUninit::uninit(); buffer_size],
+            io,
+        }
+    }
+}
+impl<T: AsyncRead> Stream for AsyncReadStream<T> {
+    type Item = Result<Vec<u8>, Error>;
+    fn poll_next(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Option<Self::Item>> {
+        let this = self.project();
+        let mut buf = ReadBuf::uninit(this.buffer);
+        match futures::ready!(this.io.poll_read(cx, &mut buf)) {
+            Ok(()) if buf.filled().is_empty() => Poll::Ready(None),
+            Ok(()) => Poll::Ready(Some(Ok(buf.filled().to_vec()))),
+            Err(e) => Poll::Ready(Some(Err(e.into()))),
+        }
     }
 }

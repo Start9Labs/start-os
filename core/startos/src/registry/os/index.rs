@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use emver::VersionRange;
+use exver::{Version, VersionRange};
 use imbl_value::InternedString;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -10,14 +10,28 @@ use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
 use crate::registry::signer::commitment::blake3::Blake3Commitment;
 use crate::rpc_continuations::Guid;
-use crate::util::VersionString;
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct OsIndex {
-    pub versions: BTreeMap<VersionString, OsVersionInfo>,
+    pub versions: OsVersionInfoMap,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, TS)]
+pub struct OsVersionInfoMap(
+    #[ts(as = "BTreeMap::<String, OsVersionInfo>")] pub BTreeMap<Version, OsVersionInfo>,
+);
+impl Map for OsVersionInfoMap {
+    type Key = Version;
+    type Value = OsVersionInfo;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(InternedString::from_display(key))
+    }
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        Ok(InternedString::from_display(key))
+    }
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]

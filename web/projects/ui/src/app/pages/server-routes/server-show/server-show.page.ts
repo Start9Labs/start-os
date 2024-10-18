@@ -1,32 +1,32 @@
 import { Component, Inject } from '@angular/core'
+import { ActivatedRoute } from '@angular/router'
 import {
   AlertController,
-  LoadingController,
   ModalController,
   NavController,
   ToastController,
 } from '@ionic/angular'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ActivatedRoute } from '@angular/router'
-import { PatchDB } from 'patch-db-client'
-import { firstValueFrom, Observable, of } from 'rxjs'
-import { ErrorToastService } from '@start9labs/shared'
-import { EOSService } from 'src/app/services/eos.service'
-import { ClientStorageService } from 'src/app/services/client-storage.service'
-import { OSUpdatePage } from 'src/app/modals/os-update/os-update.page'
-import { getAllPackages } from '../../../util/get-package-data'
-import { AuthService } from 'src/app/services/auth.service'
-import { DataModel } from 'src/app/services/patch-db/data-model'
-import {
-  GenericInputComponent,
-  GenericInputOptions,
-} from 'src/app/modals/generic-input/generic-input.component'
-import { ConfigService } from 'src/app/services/config.service'
 import { WINDOW } from '@ng-web-apis/common'
-import { getServerInfo } from 'src/app/util/get-server-info'
-import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
 import * as argon2 from '@start9labs/argon2'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { ISB } from '@start9labs/start-sdk'
+import { TuiAlertService, TuiDialogService } from '@taiga-ui/core'
+import { TUI_PROMPT } from '@taiga-ui/kit'
+import { PatchDB } from 'patch-db-client'
+import { filter, from, Observable, of, switchMap } from 'rxjs'
+import { take } from 'rxjs/operators'
+import { FormComponent } from 'src/app/components/form.component'
+import { OSUpdatePage } from 'src/app/modals/os-update/os-update.page'
+import { PROMPT } from 'src/app/modals/prompt.component'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { AuthService } from 'src/app/services/auth.service'
+import { ClientStorageService } from 'src/app/services/client-storage.service'
+import { ConfigService } from 'src/app/services/config.service'
+import { EOSService } from 'src/app/services/eos.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
+import { getServerInfo } from 'src/app/util/get-server-info'
 
 @Component({
   selector: 'server-show',
@@ -40,13 +40,15 @@ export class ServerShowPage {
   readonly server$ = this.patch.watch$('serverInfo')
   readonly showUpdate$ = this.eosService.showUpdate$
   readonly showDiskRepair$ = this.ClientStorageService.showDiskRepair$
-  readonly wifiConnected$ = this.patch.watch$('serverInfo', 'wifi', 'selected')
 
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
-    private readonly loadingCtrl: LoadingController,
-    private readonly errToast: ErrorToastService,
+    private readonly alerts: TuiAlertService,
+    private readonly dialogs: TuiDialogService,
+    private readonly formDialog: FormDialogService,
+    private readonly loader: LoadingService,
+    private readonly errorService: ErrorService,
     private readonly embassyApi: ApiService,
     private readonly navCtrl: NavController,
     private readonly route: ActivatedRoute,
@@ -60,123 +62,110 @@ export class ServerShowPage {
   ) {}
 
   async setBrowserTab(): Promise<void> {
-    const chosenName = await firstValueFrom(this.patch.watch$('ui', 'name'))
+    this.patch
+      .watch$('ui', 'name')
+      .pipe(
+        switchMap(initialValue =>
+          this.dialogs.open<string>(PROMPT, {
+            label: 'Browser Tab Title',
+            data: {
+              message: `This value will be displayed as the title of your browser tab.`,
+              label: 'Device Name',
+              placeholder: 'StartOS',
+              required: false,
+              buttonText: 'Save',
+              initialValue,
+            },
+          }),
+        ),
+        take(1),
+      )
+      .subscribe(async name => {
+        const loader = this.loader.open('Saving...').subscribe()
 
-    const options: GenericInputOptions = {
-      title: 'Browser Tab Title',
-      message: `This value will be displayed as the title of your browser tab.`,
-      label: 'Device Name',
-      useMask: false,
-      placeholder: 'StartOS',
-      nullable: true,
-      initialValue: chosenName,
-      buttonText: 'Save',
-      submitFn: (name: string) => this.setName(name || null),
-    }
-
-    const modal = await this.modalCtrl.create({
-      componentProps: { options },
-      cssClass: 'alertlike-modal',
-      presentingElement: await this.modalCtrl.getTop(),
-      component: GenericInputComponent,
-    })
-
-    await modal.present()
+        try {
+          await this.embassyApi.setDbValue<string | null>(
+            ['name'],
+            name || null,
+          )
+        } finally {
+          loader.unsubscribe()
+        }
+      })
   }
 
   async presentAlertResetPassword() {
-    const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message:
-        'You will still need your current password to decrypt existing backups!',
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+    this.dialogs
+      .open(TUI_PROMPT, {
+        label: 'Warning',
+        size: 's',
+        data: {
+          content:
+            'You will still need your current password to decrypt existing backups!',
+          yes: 'Continue',
+          no: 'Cancel',
         },
-        {
-          text: 'Continue',
-          handler: () => this.presentModalResetPassword(),
-          cssClass: 'enter-click',
-        },
-      ],
-      cssClass: 'alert-warning-message',
-    })
-
-    await alert.present()
-  }
-
-  async presentModalResetPassword(): Promise<void> {
-    const modal = await this.modalCtrl.create({
-      component: GenericFormPage,
-      componentProps: {
-        title: 'Change Master Password',
-        spec: PasswordSpec,
-        buttons: [
-          {
-            text: 'Save',
-            handler: (value: any) => {
-              return this.resetPassword(value)
-            },
-            isSubmit: true,
+      })
+      .pipe(
+        filter(Boolean),
+        switchMap(() => from(configBuilderToSpec(passwordSpec))),
+      )
+      .subscribe(spec => {
+        this.formDialog.open(FormComponent, {
+          label: 'Change Master Password',
+          data: {
+            spec,
+            buttons: [
+              {
+                text: 'Save',
+                handler: (value: PasswordSpec) => this.resetPassword(value),
+              },
+            ],
           },
-        ],
-      },
-    })
-    await modal.present()
+        })
+      })
   }
 
-  private async resetPassword(value: {
-    currPass: string
-    newPass: string
-    newPass2: string
-  }): Promise<boolean> {
+  private async resetPassword(value: PasswordSpec): Promise<boolean> {
     let err = ''
 
-    if (value.newPass !== value.newPass2) {
+    if (value.newPassword1 !== value.newPassword2) {
       err = 'New passwords do not match'
-    } else if (value.newPass.length < 12) {
+    } else if (value.newPassword1.length < 12) {
       err = 'New password must be 12 characters or greater'
-    } else if (value.newPass.length > 64) {
+    } else if (value.newPassword1.length > 64) {
       err = 'New password must be less than 65 characters'
     }
 
     // confirm current password is correct
     const { passwordHash } = await getServerInfo(this.patch)
     try {
-      argon2.verify(passwordHash, value.currPass)
+      argon2.verify(passwordHash, value.currentPassword)
     } catch (e) {
       err = 'Current password is invalid'
     }
 
     if (err) {
-      this.errToast.present(err)
+      this.errorService.handleError(err)
       return false
     }
 
-    const loader = await this.loadingCtrl.create({
-      message: 'Changing master password...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Saving...').subscribe()
 
     try {
       await this.embassyApi.resetPassword({
-        oldPassword: value.currPass,
-        newPassword: value.newPass,
-      })
-      const toast = await this.toastCtrl.create({
-        header: 'Password changed!',
-        position: 'bottom',
-        duration: 2000,
+        oldPassword: value.currentPassword,
+        newPassword: value.newPassword1,
       })
 
-      toast.present()
+      this.alerts.open('Password changed!').subscribe()
+
       return true
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
       return false
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
@@ -187,7 +176,7 @@ export class ServerShowPage {
     const alert = await this.alertCtrl.create({
       header: isTor ? 'Warning' : 'Confirm',
       message: isTor
-        ? `You are currently connected over Tor. If you reset the Tor daemon, you will loose connectivity until it comes back online.<br/><br/>${shared}`
+        ? `You are currently connected over Tor. If you reset the Tor daemon, you will lose connectivity until it comes back online.<br/><br/>${shared}`
         : `Reset Tor?<br/><br/>${shared}`,
       inputs: [
         {
@@ -215,10 +204,7 @@ export class ServerShowPage {
   }
 
   private async resetTor(wipeState: boolean) {
-    const loader = await this.loadingCtrl.create({
-      message: 'Resetting Tor...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Resetting Tor...').subscribe()
 
     try {
       await this.embassyApi.resetTor({
@@ -241,9 +227,9 @@ export class ServerShowPage {
       })
       await toast.present()
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
@@ -319,30 +305,6 @@ export class ServerShowPage {
     await alert.present()
   }
 
-  async presentAlertSystemRebuild() {
-    const localPkgs = await getAllPackages(this.patch)
-    const minutes = Object.keys(localPkgs).length * 2
-    const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message: `This action will tear down all service containers and rebuild them from scratch. No data will be deleted. This action is useful if your system gets into a bad state, and it should only be performed if you are experiencing general performance or reliability issues. It may take up to ${minutes} minutes to complete. During this time, you will lose all connectivity to your server.`,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Rebuild',
-          handler: () => {
-            this.systemRebuild()
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-      cssClass: 'alert-warning-message',
-    })
-    await alert.present()
-  }
-
   async presentAlertRepairDisk() {
     const alert = await this.alertCtrl.create({
       header: 'Warning',
@@ -360,7 +322,7 @@ export class ServerShowPage {
                 this.restart()
               })
             } catch (e: any) {
-              this.errToast.present(e)
+              this.errorService.handleError(e)
             }
           },
           cssClass: 'enter-click',
@@ -384,19 +346,6 @@ export class ServerShowPage {
     }
   }
 
-  private async setName(value: string | null): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Saving...',
-    })
-    await loader.present()
-
-    try {
-      await this.embassyApi.setDbValue<string | null>(['name'], value)
-    } finally {
-      loader.dismiss()
-    }
-  }
-
   // should wipe cache independent of actual BE logout
   private logout() {
     this.embassyApi.logout({}).catch(e => console.error('Failed to log out', e))
@@ -405,65 +354,37 @@ export class ServerShowPage {
 
   private async restart() {
     const action = 'Restart'
-
-    const loader = await this.loadingCtrl.create({
-      message: `Beginning ${action}...`,
-    })
-    await loader.present()
+    const loader = this.loader.open(`Beginning ${action}...`).subscribe()
 
     try {
       await this.embassyApi.restartServer({})
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async shutdown() {
     const action = 'Shutdown'
-
-    const loader = await this.loadingCtrl.create({
-      message: `Beginning ${action}...`,
-    })
-    await loader.present()
+    const loader = this.loader.open(`Beginning ${action}...`).subscribe()
 
     try {
       await this.embassyApi.shutdownServer({})
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
-    }
-  }
-
-  private async systemRebuild() {
-    const action = 'System Rebuild'
-
-    const loader = await this.loadingCtrl.create({
-      message: `Beginning ${action}...`,
-    })
-    await loader.present()
-
-    try {
-      await this.embassyApi.systemRebuild({})
-    } catch (e: any) {
-      this.errToast.present(e)
-    } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async checkForEosUpdate(): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Checking for updates',
-    })
-    await loader.present()
+    const loader = this.loader.open('Checking for updates').subscribe()
 
     try {
       await this.eosService.loadEos()
 
-      await loader.dismiss()
+      await loader.unsubscribe()
 
       if (this.eosService.updateAvailable$.value) {
         this.updateEos()
@@ -471,8 +392,8 @@ export class ServerShowPage {
         this.presentAlertLatest()
       }
     } catch (e: any) {
-      await loader.dismiss()
-      this.errToast.present(e)
+      await loader.unsubscribe()
+      this.errorService.handleError(e)
     }
   }
 
@@ -553,11 +474,14 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'WiFi',
-        description: 'WiFi is deprecated. Click to learn more.',
+        title: 'Wireless',
+        description:
+          'Connect your server to WiFi instead of Ethernet (not recommended)',
         icon: 'wifi',
         action: () =>
-          this.navCtrl.navigateForward(['wifi'], { relativeTo: this.route }),
+          this.navCtrl.navigateForward(['wireless'], {
+            relativeTo: this.route,
+          }),
         detail: true,
         disabled$: of(false),
       },
@@ -719,14 +643,6 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'System Rebuild',
-        description: '',
-        icon: 'construct-outline',
-        action: () => this.presentAlertSystemRebuild(),
-        detail: false,
-        disabled$: of(false),
-      },
-      {
         title: 'Repair Disk',
         description: '',
         icon: 'medkit-outline',
@@ -778,29 +694,28 @@ interface SettingBtn {
   disabled$: Observable<boolean>
 }
 
-const PasswordSpec: ConfigSpec = {
-  currPass: {
-    type: 'string',
+const passwordSpec = ISB.InputSpec.of({
+  currentPassword: ISB.Value.text({
     name: 'Current Password',
-    placeholder: 'CurrentPass',
-    nullable: false,
+    required: {
+      default: null,
+    },
     masked: true,
-    copyable: false,
-  },
-  newPass: {
-    type: 'string',
+  }),
+  newPassword1: ISB.Value.text({
     name: 'New Password',
-    placeholder: 'NewPass',
-    nullable: false,
+    required: {
+      default: null,
+    },
     masked: true,
-    copyable: false,
-  },
-  newPass2: {
-    type: 'string',
+  }),
+  newPassword2: ISB.Value.text({
     name: 'Retype New Password',
-    placeholder: 'NewPass',
-    nullable: false,
+    required: {
+      default: null,
+    },
     masked: true,
-    copyable: false,
-  },
-}
+  }),
+})
+
+export type PasswordSpec = typeof passwordSpec.validator._TYPE

@@ -16,7 +16,8 @@ mkdir -p ./firmware/$PLATFORM
 
 cd ./firmware/$PLATFORM
 
-mapfile -t firmwares <<< "$(jq -c ".[] | select(.platform[] | contains(\"$PLATFORM\"))" ../../build/lib/firmware.json)"
+firmwares=()
+while IFS= read -r line; do firmwares+=("$line"); done < <(jq -c ".[] | select(.platform[] | contains(\"$PLATFORM\"))" ../../build/lib/firmware.json)
 for firmware in "${firmwares[@]}"; do
 	if [ -n "$firmware" ]; then
 		id=$(echo "$firmware" | jq --raw-output '.id')

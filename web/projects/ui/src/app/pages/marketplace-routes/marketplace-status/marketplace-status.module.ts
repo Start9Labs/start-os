@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { IonicModule } from '@ionic/angular'
-import { EmverPipesModule } from '@start9labs/shared'
+import { ExverPipesModule } from '@start9labs/shared'
 import { InstallingProgressPipeModule } from '../../../pipes/install-progress/install-progress.module'
 import { MarketplaceStatusComponent } from './marketplace-status.component'
 
@@ -9,7 +9,7 @@ import { MarketplaceStatusComponent } from './marketplace-status.component'
   imports: [
     CommonModule,
     IonicModule,
-    EmverPipesModule,
+    ExverPipesModule,
     InstallingProgressPipeModule,
   ],
   declarations: [MarketplaceStatusComponent],

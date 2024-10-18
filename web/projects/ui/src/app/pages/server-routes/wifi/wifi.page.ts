@@ -2,19 +2,26 @@ import { Component, Inject } from '@angular/core'
 import {
   ActionSheetController,
   AlertController,
-  LoadingController,
-  ModalController,
   ToastController,
 } from '@ionic/angular'
-import { AlertInput } from '@ionic/core'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ActionSheetButton } from '@ionic/core'
-import { ValueSpecObject } from 'src/app/pkg-config/config-types'
-import { RR } from 'src/app/services/api/api.types'
-import { pauseFor, ErrorToastService } from '@start9labs/shared'
-import { GenericFormPage } from 'src/app/modals/generic-form/generic-form.page'
-import { ConfigService } from 'src/app/services/config.service'
+import { ActionSheetButton, AlertInput } from '@ionic/core'
 import { WINDOW } from '@ng-web-apis/common'
+import { ErrorService, LoadingService, pauseFor } from '@start9labs/shared'
+import { IST } from '@start9labs/start-sdk'
+import { TuiDialogOptions } from '@taiga-ui/core'
+import { PatchDB } from 'patch-db-client'
+import { FormComponent, FormContext } from 'src/app/components/form.component'
+import { RR } from 'src/app/services/api/api.types'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ConfigService } from 'src/app/services/config.service'
+import { ConnectionService } from 'src/app/services/connection.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+
+export interface WiFiForm {
+  ssid: string
+  password: string
+}
 
 @Component({
   selector: 'wifi',
@@ -27,16 +34,19 @@ export class WifiPage {
   countries = require('../../../util/countries.json') as {
     [key: string]: string
   }
+  readonly hasWifi$ = this.patch.watch$('serverInfo', 'wifi', 'interface')
 
   constructor(
     private readonly api: ApiService,
     private readonly toastCtrl: ToastController,
     private readonly alertCtrl: AlertController,
-    private readonly loadingCtrl: LoadingController,
-    private readonly modalCtrl: ModalController,
-    private readonly errToast: ErrorToastService,
+    private readonly loader: LoadingService,
+    private readonly formDialog: FormDialogService,
+    private readonly errorService: ErrorService,
     private readonly actionCtrl: ActionSheetController,
     private readonly config: ConfigService,
+    private readonly patch: PatchDB<DataModel>,
+    readonly connection$: ConnectionService,
     @Inject(WINDOW) private readonly windowRef: Window,
   ) {}
 
@@ -60,7 +70,7 @@ export class WifiPage {
         await this.presentAlertCountry()
       }
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading = false
     }
@@ -120,30 +130,25 @@ export class WifiPage {
 
   async presentModalAdd(ssid?: string, needsPW: boolean = true) {
     const wifiSpec = getWifiValueSpec(ssid, needsPW)
-    const modal = await this.modalCtrl.create({
-      component: GenericFormPage,
-      componentProps: {
-        title: wifiSpec.name,
+    const options: Partial<TuiDialogOptions<FormContext<WiFiForm>>> = {
+      label: wifiSpec.name,
+      data: {
         spec: wifiSpec.spec,
         buttons: [
           {
             text: 'Save for Later',
-            handler: async (value: { ssid: string; password: string }) => {
-              await this.save(value.ssid, value.password)
-            },
+            handler: async ({ ssid, password }) => this.save(ssid, password),
           },
           {
             text: 'Save and Connect',
-            handler: async (value: { ssid: string; password: string }) => {
-              await this.saveAndConnect(value.ssid, value.password)
-            },
-            isSubmit: true,
+            handler: async ({ ssid, password }) =>
+              this.saveAndConnect(ssid, password),
           },
         ],
       },
-    })
+    }
 
-    await modal.present()
+    this.formDialog.open(FormComponent, options)
   }
 
   async presentAction(ssid: string) {
@@ -179,19 +184,16 @@ export class WifiPage {
   }
 
   private async setCountry(country: string): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Setting country...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Setting country...').subscribe()
 
     try {
       await this.api.setWifiCountry({ country })
       await this.getWifi()
       this.wifi.country = country
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
@@ -270,43 +272,36 @@ export class WifiPage {
   }
 
   private async connect(ssid: string): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Connecting. This could take a while...',
-    })
-    await loader.present()
+    const loader = this.loader
+      .open('Connecting. This could take a while...')
+      .subscribe()
 
     try {
       await this.api.connectWifi({ ssid })
       await this.confirmWifi(ssid)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async delete(ssid: string): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Deleting...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Deleting...').subscribe()
 
     try {
       await this.api.deleteWifi({ ssid })
       await this.getWifi()
       delete this.wifi.ssids[ssid]
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async save(ssid: string, password: string): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Saving...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Saving...').subscribe()
 
     try {
       await this.api.addWifi({
@@ -317,17 +312,16 @@ export class WifiPage {
       })
       await this.getWifi()
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 
   private async saveAndConnect(ssid: string, password: string): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Connecting. This could take a while...',
-    })
-    await loader.present()
+    const loader = this.loader
+      .open('Connecting. This could take a while...')
+      .subscribe()
 
     try {
       await this.api.addWifi({
@@ -339,39 +333,62 @@ export class WifiPage {
 
       await this.confirmWifi(ssid, true)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 }
 
 function getWifiValueSpec(
-  ssid?: string,
+  ssid: string | null = null,
   needsPW: boolean = true,
-): ValueSpecObject {
+): IST.ValueSpecObject {
   return {
+    warning: null,
     type: 'object',
     name: 'WiFi Credentials',
     description:
       'Enter the network SSID and password. You can connect now or save the network for later.',
     spec: {
       ssid: {
-        type: 'string',
+        type: 'text',
+        minLength: null,
+        maxLength: null,
+        patterns: [],
         name: 'Network SSID',
-        nullable: false,
+        description: null,
+        inputmode: 'text',
+        placeholder: null,
+        required: true,
         masked: false,
-        copyable: false,
         default: ssid,
+        warning: null,
+        disabled: false,
+        immutable: false,
+        generate: null,
       },
       password: {
-        type: 'string',
+        type: 'text',
+        minLength: null,
+        maxLength: null,
+        patterns: [
+          {
+            regex: '^.{8,}$',
+            description: 'Must be longer than 8 characters',
+          },
+        ],
         name: 'Password',
-        nullable: !needsPW,
+        description: null,
+        inputmode: 'text',
+        placeholder: null,
+        required: needsPW,
         masked: true,
-        copyable: false,
-        pattern: '^.{8,}$',
-        'pattern-description': 'Must be longer than 8 characters',
+        default: null,
+        warning: null,
+        disabled: false,
+        immutable: false,
+        generate: null,
       },
     },
   }

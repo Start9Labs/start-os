@@ -11,7 +11,14 @@
   </ion-label>
 </ion-item>
 
-<ng-container *ngIf="isInstalled(pkg) && (connected$ | async)">
+<ng-container
+  *ngIf="
+    isInstalled(pkg) &&
+    pkg.status.main !== 'backingUp' &&
+    pkg.status.main !== 'error' &&
+    (connection$ | async)
+  "
+>
   <ion-grid>
     <ion-row style="padding-left: 12px">
       <ion-col>
@@ -36,7 +43,7 @@
         </ng-container>
 
         <ion-button
-          *ngIf="isStopped && pkgStatus?.configured"
+          *ngIf="canStart"
           class="action-button"
           color="success"
           (click)="tryStart()"
@@ -46,23 +53,11 @@
         </ion-button>
 
         <ion-button
-          *ngIf="!pkgStatus?.configured"
-          class="action-button"
-          color="warning"
-          (click)="presentModalConfig()"
-        >
-          <ion-icon slot="start" name="construct-outline"></ion-icon>
-          Configure
-        </ion-button>
-
-        <ion-button
-          *ngIf="pkgStatus && interfaces && (interfaces | hasUi)"
+          *ngIf="pkgStatus && interfaces && (interfaces | hasUi) && hosts"
           class="action-button"
           color="primary"
-          [disabled]="
-            !(pkg.stateInfo.state | isLaunchable: pkgStatus.main.status)
-          "
-          (click)="launchUi(interfaces)"
+          [disabled]="!(pkg.stateInfo.state | isLaunchable : pkgStatus.main)"
+          (click)="launchUi(interfaces, hosts)"
         >
           <ion-icon slot="start" name="open-outline"></ion-icon>
           Launch UI

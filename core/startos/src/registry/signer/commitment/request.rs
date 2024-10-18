@@ -1,10 +1,11 @@
-use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::BTreeMap;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use axum::body::Body;
 use axum::extract::Request;
 use digest::Update;
 use futures::TryStreamExt;
+use http::HeaderValue;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWrite;
 use tokio_util::io::StreamReader;
@@ -37,8 +38,8 @@ impl RequestCommitment {
             .append_pair("size", &self.size.to_string())
             .append_pair("blake3", &self.blake3.to_string());
     }
-    pub fn from_query(url: &Url) -> Result<Self, Error> {
-        let query: BTreeMap<_, _> = url.query_pairs().collect();
+    pub fn from_query(query: &HeaderValue) -> Result<Self, Error> {
+        let query: BTreeMap<_, _> = form_urlencoded::parse(query.as_bytes()).collect();
         Ok(Self {
             timestamp: query.get("timestamp").or_not_found("timestamp")?.parse()?,
             nonce: query.get("nonce").or_not_found("nonce")?.parse()?,

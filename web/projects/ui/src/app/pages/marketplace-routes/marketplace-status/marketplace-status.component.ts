@@ -8,6 +8,7 @@ import {
   isRestoring,
   getManifest,
 } from 'src/app/util/get-package-data'
+import { Exver } from '@start9labs/shared'
 
 @Component({
   selector: 'marketplace-status',
@@ -16,8 +17,7 @@ import {
 })
 export class MarketplaceStatusComponent {
   @Input() version!: string
-
-  @Input() localPkg?: PackageDataEntry
+  @Input() localPkg!: PackageDataEntry
 
   isInstalled = isInstalled
   isInstalling = isInstalling
@@ -26,6 +26,15 @@ export class MarketplaceStatusComponent {
   isRestoring = isRestoring
 
   get localVersion(): string {
-    return this.localPkg ? getManifest(this.localPkg).version : ''
+    return getManifest(this.localPkg).version
   }
+
+  get sameFlavor(): boolean {
+    return (
+      this.exver.getFlavor(this.version) ===
+      this.exver.getFlavor(this.localVersion)
+    )
+  }
+
+  constructor(private readonly exver: Exver) {}
 }

@@ -10,7 +10,7 @@ export class LaunchablePipe implements PipeTransform {
 
   transform(
     state: T.PackageState['state'],
-    status: T.MainStatus['status'],
+    status: T.MainStatus['main'],
   ): boolean {
     return this.configService.isLaunchable(state, status)
   }

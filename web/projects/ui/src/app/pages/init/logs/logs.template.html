@@ -1,0 +1,9 @@
+<tui-scrollbar childList subtree (waMutationObserver)="scrollTo(bottom)">
+  <pre *ngFor="let log of logs$ | async" [innerHTML]="log | dompurify"></pre>
+  <section
+    #bottom
+    waIntersectionObserver
+    [style.padding.rem]="1"
+    (waIntersectionObservee)="onBottom($event)"
+  ></section>
+</tui-scrollbar>

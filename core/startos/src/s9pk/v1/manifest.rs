@@ -1,8 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use emver::VersionRange;
-use imbl_value::InOMap;
+use exver::{Version, VersionRange};
 use indexmap::IndexMap;
 pub use models::PackageId;
 use models::{ActionId, HealthCheckId, ImageId, VolumeId};
@@ -13,23 +12,16 @@ use crate::prelude::*;
 use crate::s9pk::git_hash::GitHash;
 use crate::s9pk::manifest::{Alerts, Description, HardwareRequirements};
 use crate::util::serde::{Duration, IoFormat};
-use crate::util::VersionString;
-use crate::version::{Current, VersionT};
-
-fn current_version() -> VersionString {
-    Current::new().semver().into()
-}
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Manifest {
-    #[serde(default = "current_version")]
-    pub eos_version: VersionString,
+    pub eos_version: Version,
     pub id: PackageId,
     #[serde(default)]
     pub git_hash: Option<GitHash>,
     pub title: String,
-    pub version: VersionString,
+    pub version: String,
     pub description: Description,
     #[serde(default)]
     pub assets: Assets,

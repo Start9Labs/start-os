@@ -2,7 +2,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::Parser;
-use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use rpc_toolkit::HandlerArgs;
@@ -12,13 +11,14 @@ use url::Url;
 
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::progress::{FullProgressTracker, PhasedProgressBar};
+use crate::progress::{FullProgressTracker, ProgressTrackerWriter};
 use crate::registry::context::RegistryContext;
 use crate::registry::package::index::PackageVersionInfo;
 use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::registry::signer::sign::ed25519::Ed25519;
 use crate::registry::signer::sign::{AnySignature, AnyVerifyingKey, SignatureScheme};
 use crate::s9pk::merkle_archive::source::http::HttpSource;
+use crate::s9pk::merkle_archive::source::ArchiveSource;
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::s9pk::S9pk;
 use crate::util::io::TrackingIO;
@@ -53,7 +53,6 @@ pub async fn add_package(
     let s9pk = S9pk::deserialize(
         &Arc::new(HttpSource::new(ctx.client.clone(), url.clone()).await?),
         Some(&commitment),
-        false,
     )
     .await?;
 
@@ -109,30 +108,18 @@ pub async fn cli_add_package(
         ..
     }: HandlerArgs<CliContext, CliAddPackageParams>,
 ) -> Result<(), Error> {
-    let s9pk = S9pk::open(&file, None, false).await?;
+    let s9pk = S9pk::open(&file, None).await?;
 
-    let mut progress = FullProgressTracker::new();
-    let progress_handle = progress.handle();
-    let mut sign_phase = progress_handle.add_phase(InternedString::intern("Signing File"), Some(1));
-    let mut verify_phase =
-        progress_handle.add_phase(InternedString::intern("Verifying URL"), Some(100));
-    let mut index_phase = progress_handle.add_phase(
+    let progress = FullProgressTracker::new();
+    let mut sign_phase = progress.add_phase(InternedString::intern("Signing File"), Some(1));
+    let mut verify_phase = progress.add_phase(InternedString::intern("Verifying URL"), Some(100));
+    let mut index_phase = progress.add_phase(
         InternedString::intern("Adding File to Registry Index"),
         Some(1),
     );
 
-    let progress_task: NonDetachingJoinHandle<()> = tokio::spawn(async move {
-        let mut bar = PhasedProgressBar::new(&format!("Adding {} to registry...", file.display()));
-        loop {
-            let snap = progress.snapshot();
-            bar.update(&snap);
-            if snap.overall.is_complete() {
-                break;
-            }
-            progress.changed().await
-        }
-    })
-    .into();
+    let progress_task =
+        progress.progress_bar_task(&format!("Adding {} to registry...", file.display()));
 
     sign_phase.start();
     let commitment = s9pk.as_archive().commitment().await?;
@@ -140,14 +127,16 @@ pub async fn cli_add_package(
     sign_phase.complete();
 
     verify_phase.start();
-    let mut src = S9pk::deserialize(
-        &Arc::new(HttpSource::new(ctx.client.clone(), url.clone()).await?),
-        Some(&commitment),
-        false,
-    )
-    .await?;
-    src.serialize(&mut TrackingIO::new(0, tokio::io::sink()), true)
+    let source = HttpSource::new(ctx.client.clone(), url.clone()).await?;
+    let len = source.size().await;
+    let mut src = S9pk::deserialize(&Arc::new(source), Some(&commitment)).await?;
+    if let Some(len) = len {
+        verify_phase.set_total(len);
+    }
+    let mut verify_writer = ProgressTrackerWriter::new(tokio::io::sink(), verify_phase);
+    src.serialize(&mut TrackingIO::new(0, &mut verify_writer), true)
         .await?;
+    let (_, mut verify_phase) = verify_writer.into_inner();
     verify_phase.complete();
 
     index_phase.start();
@@ -155,14 +144,14 @@ pub async fn cli_add_package(
         &parent_method.into_iter().chain(method).join("."),
         imbl_value::json!({
             "url": &url,
-            "signature": signature,
+            "signature": AnySignature::Ed25519(signature),
             "commitment": commitment,
         }),
     )
     .await?;
     index_phase.complete();
 
-    progress_handle.complete();
+    progress.complete();
 
     progress_task.await.with_kind(ErrorKind::Unknown)?;
 

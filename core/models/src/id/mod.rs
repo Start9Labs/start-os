@@ -11,6 +11,7 @@ mod host;
 mod image;
 mod invalid_id;
 mod package;
+mod replay;
 mod service_interface;
 mod volume;
 
@@ -20,6 +21,7 @@ pub use host::HostId;
 pub use image::ImageId;
 pub use invalid_id::InvalidId;
 pub use package::{PackageId, SYSTEM_PACKAGE_ID};
+pub use replay::ReplayId;
 pub use service_interface::ServiceInterfaceId;
 pub use volume::VolumeId;
 

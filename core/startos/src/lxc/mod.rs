@@ -1,23 +1,17 @@
 use std::collections::BTreeSet;
 use std::net::Ipv4Addr;
-use std::ops::Deref;
 use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use clap::builder::ValueParserFactory;
-use clap::Parser;
-use futures::{AsyncWriteExt, FutureExt, StreamExt};
+use futures::{AsyncWriteExt, StreamExt};
 use imbl_value::{InOMap, InternedString};
-use models::InvalidId;
-use rpc_toolkit::yajrc::{RpcError, RpcResponse};
-use rpc_toolkit::{
-    from_fn_async, CallRemoteHandler, Context, Empty, GenericRpcMethod, HandlerArgs, HandlerExt,
-    HandlerFor, ParentHandler, RpcRequest,
-};
+use models::{FromStrParser, InvalidId};
+use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{GenericRpcMethod, RpcRequest, RpcResponse};
 use rustyline_async::{ReadlineEvent, SharedWriter};
 use serde::{Deserialize, Serialize};
-use tokio::fs::File;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::Mutex;
@@ -29,14 +23,17 @@ use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
-use crate::disk::mount::filesystem::{MountType, ReadWrite};
+use crate::disk::mount::filesystem::{MountType, ReadOnly, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::disk::mount::util::unmount;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation};
-use crate::util::clap::FromStrParser;
+use crate::util::io::open_file;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::{new_guid, Invoke};
+
+#[cfg(feature = "dev")]
+pub mod dev;
 
 const LXC_CONTAINER_DIR: &str = "/var/lib/lxc";
 const RPC_DIR: &str = "media/startos/rpc"; // must not be absolute path
@@ -125,7 +122,12 @@ impl LxcManager {
             if !expected.contains(&ContainerId::try_from(container)?) {
                 let rootfs_path = Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs");
                 if tokio::fs::metadata(&rootfs_path).await.is_ok() {
-                    unmount(Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs")).await?;
+                    unmount(
+                        Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs"),
+                        true,
+                    )
+                    .await
+                    .log_err();
                     if tokio_stream::wrappers::ReadDirStream::new(
                         tokio::fs::read_dir(&rootfs_path).await?,
                     )
@@ -153,7 +155,7 @@ impl LxcManager {
 
 pub struct LxcContainer {
     manager: Weak<LxcManager>,
-    rootfs: OverlayGuard,
+    rootfs: OverlayGuard<TmpMountGuard>,
     pub guid: Arc<ContainerId>,
     rpc_bind: TmpMountGuard,
     log_mount: Option<MountGuard>,
@@ -184,12 +186,16 @@ impl LxcContainer {
             .invoke(ErrorKind::Filesystem)
             .await?;
         let rootfs = OverlayGuard::mount(
-            &IdMapped::new(
-                BlockDev::new("/usr/lib/startos/container-runtime/rootfs.squashfs"),
-                0,
-                100000,
-                65536,
-            ),
+            TmpMountGuard::mount(
+                &IdMapped::new(
+                    BlockDev::new("/usr/lib/startos/container-runtime/rootfs.squashfs"),
+                    0,
+                    100000,
+                    65536,
+                ),
+                ReadOnly,
+            )
+            .await?,
             &rootfs_dir,
         )
         .await?;
@@ -262,9 +268,10 @@ impl LxcContainer {
                     .invoke(ErrorKind::Docker)
                     .await?,
             )?;
-            let out_str = output.trim();
-            if !out_str.is_empty() {
-                return Ok(out_str.parse()?);
+            for line in output.lines() {
+                if let Ok(ip) = line.trim().parse() {
+                    return Ok(ip);
+                }
             }
             if start.elapsed() > CONTAINER_DHCP_TIMEOUT {
                 return Err(Error::new(
@@ -282,6 +289,11 @@ impl LxcContainer {
 
     #[instrument(skip_all)]
     pub async fn exit(mut self) -> Result<(), Error> {
+        Command::new("lxc-stop")
+            .arg("--name")
+            .arg(&**self.guid)
+            .invoke(ErrorKind::Lxc)
+            .await?;
         self.rpc_bind.take().unmount().await?;
         if let Some(log_mount) = self.log_mount.take() {
             log_mount.unmount(true).await?;
@@ -340,7 +352,7 @@ impl Drop for LxcContainer {
                     if let Err(e) = async {
                         let err_path = rootfs.path().join("var/log/containerRuntime.err");
                         if tokio::fs::metadata(&err_path).await.is_ok() {
-                            let mut lines = BufReader::new(File::open(&err_path).await?).lines();
+                            let mut lines = BufReader::new(open_file(&err_path).await?).lines();
                             while let Some(line) = lines.next_line().await? {
                                 let container = &**guid;
                                 tracing::error!(container, "{}", line);
@@ -353,7 +365,7 @@ impl Drop for LxcContainer {
                         tracing::error!("Error reading logs from crashed container: {e}");
                         tracing::debug!("{e:?}")
                     }
-                    rootfs.unmount(true).await.unwrap();
+                    rootfs.unmount(true).await.log_err();
                     drop(guid);
                     if let Err(e) = manager.gc().await {
                         tracing::error!("Error cleaning up dangling LXC containers: {e}");
@@ -369,80 +381,6 @@ impl Drop for LxcContainer {
 
 #[derive(Default, Serialize)]
 pub struct LxcConfig {}
-
-pub fn lxc<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new()
-        .subcommand(
-            "create",
-            from_fn_async(create).with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "list",
-            from_fn_async(list)
-                .with_custom_display_fn(|_, res| {
-                    use prettytable::*;
-                    let mut table = table!([bc => "GUID"]);
-                    for guid in res {
-                        table.add_row(row![&*guid]);
-                    }
-                    table.printstd();
-                    Ok(())
-                })
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "remove",
-            from_fn_async(remove)
-                .no_display()
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand("connect", from_fn_async(connect_rpc).no_cli())
-        .subcommand("connect", from_fn_async(connect_rpc_cli).no_display())
-}
-
-pub async fn create(ctx: RpcContext) -> Result<ContainerId, Error> {
-    let container = ctx.lxc_manager.create(None, LxcConfig::default()).await?;
-    let guid = container.guid.deref().clone();
-    ctx.dev.lxc.lock().await.insert(guid.clone(), container);
-    Ok(guid)
-}
-
-pub async fn list(ctx: RpcContext) -> Result<Vec<ContainerId>, Error> {
-    Ok(ctx.dev.lxc.lock().await.keys().cloned().collect())
-}
-
-#[derive(Deserialize, Serialize, Parser, TS)]
-pub struct RemoveParams {
-    #[ts(type = "string")]
-    pub guid: ContainerId,
-}
-
-pub async fn remove(ctx: RpcContext, RemoveParams { guid }: RemoveParams) -> Result<(), Error> {
-    if let Some(container) = ctx.dev.lxc.lock().await.remove(&guid) {
-        container.exit().await?;
-    }
-    Ok(())
-}
-
-#[derive(Deserialize, Serialize, Parser, TS)]
-pub struct ConnectParams {
-    #[ts(type = "string")]
-    pub guid: ContainerId,
-}
-
-pub async fn connect_rpc(
-    ctx: RpcContext,
-    ConnectParams { guid }: ConnectParams,
-) -> Result<Guid, Error> {
-    connect(
-        &ctx,
-        ctx.dev.lxc.lock().await.get(&guid).ok_or_else(|| {
-            Error::new(eyre!("No container with guid: {guid}"), ErrorKind::NotFound)
-        })?,
-    )
-    .await
-}
-
 pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Guid, Error> {
     use axum::extract::ws::Message;
 
@@ -452,51 +390,46 @@ pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Guid,
         .add(
             guid.clone(),
             RpcContinuation::ws(
-                Box::new(|mut ws| {
-                    async move {
-                        if let Err(e) = async {
-                            loop {
-                                match ws.next().await {
-                                    None => break,
-                                    Some(Ok(Message::Text(txt))) => {
-                                        let mut id = None;
-                                        let result = async {
-                                            let req: RpcRequest = serde_json::from_str(&txt)
-                                                .map_err(|e| RpcError {
-                                                    data: Some(serde_json::Value::String(
-                                                        e.to_string(),
-                                                    )),
-                                                    ..rpc_toolkit::yajrc::PARSE_ERROR
-                                                })?;
-                                            id = req.id;
-                                            rpc.request(req.method, req.params).await
-                                        }
-                                        .await;
-                                        ws.send(Message::Text(
-                                            serde_json::to_string(
-                                                &RpcResponse::<GenericRpcMethod> { id, result },
-                                            )
+                |mut ws| async move {
+                    if let Err(e) = async {
+                        loop {
+                            match ws.next().await {
+                                None => break,
+                                Some(Ok(Message::Text(txt))) => {
+                                    let mut id = None;
+                                    let result = async {
+                                        let req: RpcRequest =
+                                            serde_json::from_str(&txt).map_err(|e| RpcError {
+                                                data: Some(serde_json::Value::String(
+                                                    e.to_string(),
+                                                )),
+                                                ..rpc_toolkit::yajrc::PARSE_ERROR
+                                            })?;
+                                        id = req.id;
+                                        rpc.request(req.method, req.params).await
+                                    }
+                                    .await;
+                                    ws.send(Message::Text(
+                                        serde_json::to_string(&RpcResponse { id, result })
                                             .with_kind(ErrorKind::Serialization)?,
-                                        ))
-                                        .await
-                                        .with_kind(ErrorKind::Network)?;
-                                    }
-                                    Some(Ok(_)) => (),
-                                    Some(Err(e)) => {
-                                        return Err(Error::new(e, ErrorKind::Network));
-                                    }
+                                    ))
+                                    .await
+                                    .with_kind(ErrorKind::Network)?;
+                                }
+                                Some(Ok(_)) => (),
+                                Some(Err(e)) => {
+                                    return Err(Error::new(e, ErrorKind::Network));
                                 }
                             }
-                            Ok::<_, Error>(())
                         }
-                        .await
-                        {
-                            tracing::error!("{e}");
-                            tracing::debug!("{e:?}");
-                        }
+                        Ok::<_, Error>(())
                     }
-                    .boxed()
-                }),
+                    .await
+                    {
+                        tracing::error!("{e}");
+                        tracing::debug!("{e:?}");
+                    }
+                },
                 Duration::from_secs(30),
             ),
         )
@@ -611,29 +544,4 @@ pub async fn connect_cli(ctx: &CliContext, guid: Guid) -> Result<(), Error> {
     }
 
     Ok(())
-}
-
-pub async fn connect_rpc_cli(
-    HandlerArgs {
-        context,
-        parent_method,
-        method,
-        params,
-        inherited_params,
-        raw_params,
-    }: HandlerArgs<CliContext, ConnectParams>,
-) -> Result<(), Error> {
-    let ctx = context.clone();
-    let guid = CallRemoteHandler::<CliContext, _, _>::new(from_fn_async(connect_rpc))
-        .handle_async(HandlerArgs {
-            context,
-            parent_method,
-            method,
-            params: rpc_toolkit::util::Flat(params, Empty {}),
-            inherited_params,
-            raw_params,
-        })
-        .await?;
-
-    connect_cli(&ctx, guid).await
 }

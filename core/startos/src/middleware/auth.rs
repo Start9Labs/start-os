@@ -23,7 +23,7 @@ use tokio::sync::Mutex;
 use crate::context::RpcContext;
 use crate::prelude::*;
 
-pub const LOCAL_AUTH_COOKIE_PATH: &str = "/run/embassy/rpc.authcookie";
+pub const LOCAL_AUTH_COOKIE_PATH: &str = "/run/startos/rpc.authcookie";
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -48,19 +48,14 @@ impl HasLoggedOutSessions {
             .into_iter()
             .map(|s| s.as_logout_session_id())
             .collect();
-        ctx.open_authed_websockets
-            .lock()
-            .await
-            .retain(|session, sockets| {
-                if to_log_out.contains(session.hashed()) {
-                    for socket in std::mem::take(sockets) {
-                        let _ = socket.send(());
-                    }
-                    false
-                } else {
-                    true
-                }
-            });
+        for sid in &to_log_out {
+            ctx.open_authed_continuations.kill(&Some(sid.clone()))
+        }
+        ctx.ephemeral_sessions.mutate(|s| {
+            for sid in &to_log_out {
+                s.0.remove(sid);
+            }
+        });
         ctx.db
             .mutate(|db| {
                 let sessions = db.as_private_mut().as_sessions_mut();
@@ -120,20 +115,29 @@ impl HasValidSession {
         ctx: &RpcContext,
     ) -> Result<Self, Error> {
         let session_hash = session_token.hashed();
-        ctx.db
-            .mutate(|db| {
-                db.as_private_mut()
-                    .as_sessions_mut()
-                    .as_idx_mut(session_hash)
-                    .ok_or_else(|| {
-                        Error::new(eyre!("UNAUTHORIZED"), crate::ErrorKind::Authorization)
-                    })?
-                    .mutate(|s| {
-                        s.last_active = Utc::now();
-                        Ok(())
-                    })
-            })
-            .await?;
+        if !ctx.ephemeral_sessions.mutate(|s| {
+            if let Some(session) = s.0.get_mut(session_hash) {
+                session.last_active = Utc::now();
+                true
+            } else {
+                false
+            }
+        }) {
+            ctx.db
+                .mutate(|db| {
+                    db.as_private_mut()
+                        .as_sessions_mut()
+                        .as_idx_mut(session_hash)
+                        .ok_or_else(|| {
+                            Error::new(eyre!("UNAUTHORIZED"), crate::ErrorKind::Authorization)
+                        })?
+                        .mutate(|s| {
+                            s.last_active = Utc::now();
+                            Ok(())
+                        })
+                })
+                .await?;
+        }
         Ok(Self(SessionType::Session(session_token)))
     }
 
@@ -161,7 +165,7 @@ impl HashSessionToken {
     pub fn new() -> Self {
         Self::from_token(InternedString::intern(
             base32::encode(
-                base32::Alphabet::RFC4648 { padding: false },
+                base32::Alphabet::Rfc4648 { padding: false },
                 &rand::random::<[u8; 16]>(),
             )
             .to_lowercase(),
@@ -210,7 +214,7 @@ impl HashSessionToken {
         hasher.update(token.as_bytes());
         InternedString::intern(
             base32::encode(
-                base32::Alphabet::RFC4648 { padding: false },
+                base32::Alphabet::Rfc4648 { padding: false },
                 hasher.finalize().as_slice(),
             )
             .to_lowercase(),

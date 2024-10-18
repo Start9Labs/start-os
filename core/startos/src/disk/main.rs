@@ -13,7 +13,7 @@ use crate::disk::mount::util::unmount;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
-pub const PASSWORD_PATH: &'static str = "/run/embassy/password";
+pub const PASSWORD_PATH: &'static str = "/run/startos/password";
 pub const DEFAULT_PASSWORD: &'static str = "password";
 pub const MAIN_FS_SIZE: FsSize = FsSize::Gigabytes(8);
 
@@ -66,7 +66,7 @@ where
     let mut guid = format!(
         "STARTOS_{}",
         base32::encode(
-            base32::Alphabet::RFC4648 { padding: false },
+            base32::Alphabet::Rfc4648 { padding: false },
             &rand::random::<[u8; 20]>(),
         )
     );
@@ -168,7 +168,7 @@ pub async fn create_all_fs<P: AsRef<Path>>(
 
 #[instrument(skip_all)]
 pub async fn unmount_fs<P: AsRef<Path>>(guid: &str, datadir: P, name: &str) -> Result<(), Error> {
-    unmount(datadir.as_ref().join(name)).await?;
+    unmount(datadir.as_ref().join(name), false).await?;
     if !guid.ends_with("_UNENC") {
         Command::new("cryptsetup")
             .arg("-q")

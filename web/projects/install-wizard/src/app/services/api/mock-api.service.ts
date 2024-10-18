@@ -18,11 +18,14 @@ export class MockApiService implements ApiService {
             capacity: 73264762332,
             used: null,
             startOs: {
-              version: '0.2.17',
-              full: true,
-              passwordHash:
-                '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-              wrappedKey: null,
+              '1234-5678-9876-5432': {
+                hostname: 'adjective-noun',
+                timestamp: new Date().toISOString(),
+                version: '0.2.17',
+                passwordHash:
+                  '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+                wrappedKey: null,
+              },
             },
             guid: null,
           },
@@ -41,11 +44,14 @@ export class MockApiService implements ApiService {
             capacity: 73264762332,
             used: null,
             startOs: {
-              version: '0.3.3',
-              full: true,
-              passwordHash:
-                '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-              wrappedKey: null,
+              '1234-5678-9876-5432': {
+                hostname: 'adjective-noun',
+                timestamp: new Date().toISOString(),
+                version: '0.2.17',
+                passwordHash:
+                  '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+                wrappedKey: null,
+              },
             },
             guid: null,
           },
@@ -64,11 +70,14 @@ export class MockApiService implements ApiService {
             capacity: 73264762332,
             used: null,
             startOs: {
-              version: '0.3.2',
-              full: true,
-              passwordHash:
-                '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-              wrappedKey: null,
+              '1234-5678-9876-5432': {
+                hostname: 'adjective-noun',
+                timestamp: new Date().toISOString(),
+                version: '0.2.17',
+                passwordHash:
+                  '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+                wrappedKey: null,
+              },
             },
             guid: 'guid-guid-guid-guid',
           },

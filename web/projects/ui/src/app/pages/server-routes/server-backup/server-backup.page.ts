@@ -1,14 +1,11 @@
 import { Component } from '@angular/core'
+import { ModalController, NavController } from '@ionic/angular'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import {
-  LoadingController,
-  ModalController,
-  NavController,
-} from '@ionic/angular'
+  PasswordPromptComponent,
+  PromptOptions,
+} from 'src/app/modals/password-prompt.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import {
-  GenericInputComponent,
-  GenericInputOptions,
-} from 'src/app/modals/generic-input/generic-input.component'
 import { PatchDB } from 'patch-db-client'
 import { skip, takeUntil } from 'rxjs/operators'
 import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
@@ -22,11 +19,11 @@ import { BackupSelectPage } from 'src/app/modals/backup-select/backup-select.pag
 import { EOSService } from 'src/app/services/eos.service'
 import { getServerInfo } from 'src/app/util/get-server-info'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { BackupService } from 'src/app/components/backup-drives/backup.service'
 
 @Component({
   selector: 'server-backup',
   templateUrl: './server-backup.page.html',
-  styleUrls: ['./server-backup.page.scss'],
   providers: [TuiDestroyService],
 })
 export class ServerBackupPage {
@@ -35,13 +32,15 @@ export class ServerBackupPage {
   readonly backingUp$ = this.eosService.backingUp$
 
   constructor(
-    private readonly loadingCtrl: LoadingController,
+    private readonly errorService: ErrorService,
+    private readonly loader: LoadingService,
     private readonly modalCtrl: ModalController,
     private readonly embassyApi: ApiService,
     private readonly navCtrl: NavController,
     private readonly destroy$: TuiDestroyService,
     private readonly eosService: EOSService,
     private readonly patch: PatchDB<DataModel>,
+    private readonly backupService: BackupService,
   ) {}
 
   ngOnInit() {
@@ -62,7 +61,7 @@ export class ServerBackupPage {
       component: BackupSelectPage,
     })
 
-    modal.onWillDismiss().then(res => {
+    modal.onDidDismiss().then(res => {
       if (res.data) {
         this.serviceIds = res.data
         this.presentModalPassword(target)
@@ -75,75 +74,88 @@ export class ServerBackupPage {
   private async presentModalPassword(
     target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
   ): Promise<void> {
-    const options: GenericInputOptions = {
+    const options: PromptOptions = {
       title: 'Master Password Needed',
       message: 'Enter your master password to encrypt this backup.',
       label: 'Master Password',
       placeholder: 'Enter master password',
-      useMask: true,
       buttonText: 'Create Backup',
-      submitFn: async (password: string) => {
+    }
+
+    const modal = await this.modalCtrl.create({
+      component: PasswordPromptComponent,
+      componentProps: { options },
+      canDismiss: async password => {
+        if (password === null) {
+          return true
+        }
+
+        const { passwordHash, id } = await getServerInfo(this.patch)
+
         // confirm password matches current master password
-        const { passwordHash } = await getServerInfo(this.patch)
-        argon2.verify(passwordHash, password)
+        try {
+          argon2.verify(passwordHash, password)
+        } catch (e: any) {
+          this.errorService.handleError(e)
+          return false
+        }
 
         // first time backup
-        if (!target.hasValidBackup) {
-          await this.createBackup(target, password)
+        if (!this.backupService.hasThisBackup(target.entry, id)) {
+          this.createBackup(target, password)
+          return true
           // existing backup
         } else {
           try {
-            const passwordHash = target.entry.startOs?.passwordHash || ''
-
-            argon2.verify(passwordHash, password)
+            argon2.verify(target.entry.startOs[id].passwordHash!, password)
           } catch {
             setTimeout(
               () => this.presentModalOldPassword(target, password),
-              500,
+              250,
             )
-            return
+            return true
           }
           await this.createBackup(target, password)
+          return true
         }
       },
-    }
-
-    const m = await this.modalCtrl.create({
-      component: GenericInputComponent,
-      componentProps: { options },
-      cssClass: 'alertlike-modal',
     })
-
-    await m.present()
+    modal.present()
   }
 
   private async presentModalOldPassword(
     target: MappedBackupTarget<CifsBackupTarget | DiskBackupTarget>,
     password: string,
   ): Promise<void> {
-    const options: GenericInputOptions = {
+    const { id } = await getServerInfo(this.patch)
+    const options: PromptOptions = {
       title: 'Original Password Needed',
       message:
         'This backup was created with a different password. Enter the ORIGINAL password that was used to encrypt this backup.',
       label: 'Original Password',
       placeholder: 'Enter original password',
-      useMask: true,
       buttonText: 'Create Backup',
-      submitFn: async (oldPassword: string) => {
-        const passwordHash = target.entry.startOs?.passwordHash || ''
-
-        argon2.verify(passwordHash, oldPassword)
-        await this.createBackup(target, password, oldPassword)
-      },
     }
 
-    const m = await this.modalCtrl.create({
-      component: GenericInputComponent,
+    const modal = await this.modalCtrl.create({
+      component: PasswordPromptComponent,
       componentProps: { options },
-      cssClass: 'alertlike-modal',
-    })
+      canDismiss: async oldPassword => {
+        if (oldPassword === null) {
+          return true
+        }
 
-    await m.present()
+        try {
+          argon2.verify(target.entry.startOs[id].passwordHash!, oldPassword)
+          await this.createBackup(target, password, oldPassword)
+          return true
+        } catch (e: any) {
+          this.errorService.handleError(e)
+          return false
+        }
+      },
+    })
+    modal.present()
   }
 
   private async createBackup(
@@ -151,10 +163,7 @@ export class ServerBackupPage {
     password: string,
     oldPassword?: string,
   ): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Beginning backup...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Beginning backup...').subscribe()
 
     try {
       await this.embassyApi.createBackup({
@@ -164,7 +173,7 @@ export class ServerBackupPage {
         password,
       })
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 }

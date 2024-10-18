@@ -1,9 +1,7 @@
 import { literals, some, string } from "ts-matches"
 
 type NestedPath<A extends string, B extends string> = `/${A}/${string}/${B}`
-type NestedPaths =
-  | NestedPath<"actions", "run" | "get">
-  | NestedPath<"dependencies", "query" | "update">
+type NestedPaths = NestedPath<"actions", "run" | "getInput">
 // prettier-ignore
 type UnNestPaths<A> = 
   A extends `${infer A}/${infer B}` ? [...UnNestPaths<A>, ... UnNestPaths<B>] : 
@@ -15,27 +13,16 @@ export function unNestPath<A extends string>(a: A): UnNestPaths<A> {
 function isNestedPath(path: string): path is NestedPaths {
   const paths = path.split("/")
   if (paths.length !== 4) return false
-  if (paths[1] === "actions" && (paths[3] === "run" || paths[3] === "get"))
-    return true
-  if (
-    paths[1] === "dependencies" &&
-    (paths[3] === "query" || paths[3] === "update")
-  )
+  if (paths[1] === "actions" && (paths[3] === "run" || paths[3] === "getInput"))
     return true
   return false
 }
 export const jsonPath = some(
   literals(
-    "/init",
-    "/uninit",
-    "/main/start",
-    "/main/stop",
-    "/config/set",
-    "/config/get",
+    "/packageInit",
+    "/packageUninit",
     "/backup/create",
     "/backup/restore",
-    "/actions/metadata",
-    "/properties",
   ),
   string.refine(isNestedPath, "isNestedPath"),
 )

@@ -1,6 +1,7 @@
 use std::ffi::OsStr;
 use std::fmt::{Display, Write};
 use std::path::Path;
+use std::time::Duration;
 
 use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
@@ -11,6 +12,7 @@ use tokio::process::Command;
 use crate::prelude::*;
 use crate::util::Invoke;
 
+pub mod backupfs;
 pub mod bind;
 pub mod block_dev;
 pub mod cifs;
@@ -71,6 +73,7 @@ pub(self) async fn default_mount_impl(
     fs.pre_mount().await?;
     tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
     Command::from(default_mount_command(fs, mountpoint, mount_type).await?)
+        .capture(false)
         .invoke(ErrorKind::Filesystem)
         .await?;
 

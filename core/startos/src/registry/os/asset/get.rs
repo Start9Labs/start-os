@@ -3,7 +3,8 @@ use std::panic::UnwindSafe;
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
-use helpers::{AtomicFile, NonDetachingJoinHandle};
+use exver::Version;
+use helpers::AtomicFile;
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
 use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
@@ -12,7 +13,7 @@ use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::progress::{FullProgressTracker, PhasedProgressBar};
+use crate::progress::FullProgressTracker;
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfo;
@@ -20,23 +21,34 @@ use crate::registry::os::SIG_CONTEXT;
 use crate::registry::signer::commitment::blake3::Blake3Commitment;
 use crate::registry::signer::commitment::Commitment;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
-use crate::util::VersionString;
+use crate::util::io::open_file;
 
 pub fn get_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("iso", from_fn_async(get_iso).no_cli())
-        .subcommand("iso", from_fn_async(cli_get_os_asset).no_display())
+        .subcommand(
+            "iso",
+            from_fn_async(cli_get_os_asset)
+                .no_display()
+                .with_about("Download iso"),
+        )
         .subcommand("img", from_fn_async(get_img).no_cli())
-        .subcommand("img", from_fn_async(cli_get_os_asset).no_display())
+        .subcommand(
+            "img",
+            from_fn_async(cli_get_os_asset)
+                .no_display()
+                .with_about("Download img"),
+        )
         .subcommand("squashfs", from_fn_async(get_squashfs).no_cli())
-        .subcommand("squashfs", from_fn_async(cli_get_os_asset).no_display())
+        .subcommand("squashfs", from_fn_async(cli_get_os_asset).no_display().with_about("Download squashfs"))
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct GetOsAssetParams {
-    pub version: VersionString,
+    #[ts(type = "string")]
+    pub version: Version,
     #[ts(type = "string")]
     pub platform: InternedString,
 }
@@ -90,7 +102,7 @@ pub async fn get_squashfs(
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 pub struct CliGetOsAssetParams {
-    pub version: VersionString,
+    pub version: Version,
     pub platform: InternedString,
     #[arg(long = "download", short = 'd')]
     pub download: Option<PathBuf>,
@@ -135,29 +147,17 @@ async fn cli_get_os_asset(
             .await
             .with_kind(ErrorKind::Filesystem)?;
 
-        let mut progress = FullProgressTracker::new();
-        let progress_handle = progress.handle();
+        let progress = FullProgressTracker::new();
         let mut download_phase =
-            progress_handle.add_phase(InternedString::intern("Downloading File"), Some(100));
+            progress.add_phase(InternedString::intern("Downloading File"), Some(100));
         download_phase.set_total(res.commitment.size);
         let reverify_phase = if reverify {
-            Some(progress_handle.add_phase(InternedString::intern("Reverifying File"), Some(10)))
+            Some(progress.add_phase(InternedString::intern("Reverifying File"), Some(10)))
         } else {
             None
         };
 
-        let progress_task: NonDetachingJoinHandle<()> = tokio::spawn(async move {
-            let mut bar = PhasedProgressBar::new("Downloading...");
-            loop {
-                let snap = progress.snapshot();
-                bar.update(&snap);
-                if snap.overall.is_complete() {
-                    break;
-                }
-                progress.changed().await
-            }
-        })
-        .into();
+        let progress_task = progress.progress_bar_task("Downloading...");
 
         download_phase.start();
         let mut download_writer = download_phase.writer(&mut *file);
@@ -170,14 +170,12 @@ async fn cli_get_os_asset(
         if let Some(mut reverify_phase) = reverify_phase {
             reverify_phase.start();
             res.commitment
-                .check(&MultiCursorFile::from(
-                    tokio::fs::File::open(download).await?,
-                ))
+                .check(&MultiCursorFile::from(open_file(download).await?))
                 .await?;
             reverify_phase.complete();
         }
 
-        progress_handle.complete();
+        progress.complete();
 
         progress_task.await.with_kind(ErrorKind::Unknown)?;
     }

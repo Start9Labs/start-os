@@ -79,7 +79,10 @@ impl TempDesiredRestore {
 }
 impl Drop for TempDesiredRestore {
     fn drop(&mut self) {
-        self.0.send_modify(|s| s.temp_desired_state = None);
+        self.0.send_modify(|s| {
+            s.temp_desired_state.take();
+            s.transition_state.take();
+        });
     }
 }
 // impl Deref for TempDesiredState {

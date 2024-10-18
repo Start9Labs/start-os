@@ -1,6 +1,6 @@
 use crate::prelude::*;
-use crate::service::config::GetConfig;
-use crate::service::dependencies::DependencyConfig;
+use crate::rpc_continuations::Guid;
+use crate::service::action::RunAction;
 use crate::service::start_stop::StartStop;
 use crate::service::transition::TransitionKind;
 use crate::service::{Service, ServiceActor};
@@ -11,11 +11,9 @@ pub(super) struct Start;
 impl Handler<Start> for ServiceActor {
     type Response = ();
     fn conflicts_with(_: &Start) -> ConflictBuilder<Self> {
-        ConflictBuilder::everything()
-            .except::<GetConfig>()
-            .except::<DependencyConfig>()
+        ConflictBuilder::everything().except::<RunAction>()
     }
-    async fn handle(&mut self, _: Start, _: &BackgroundJobQueue) -> Self::Response {
+    async fn handle(&mut self, _: Guid, _: Start, _: &BackgroundJobQueue) -> Self::Response {
         self.0.persistent_container.state.send_modify(|x| {
             x.desired_state = StartStop::Start;
         });
@@ -23,8 +21,8 @@ impl Handler<Start> for ServiceActor {
     }
 }
 impl Service {
-    pub async fn start(&self) -> Result<(), Error> {
-        self.actor.send(Start).await
+    pub async fn start(&self, id: Guid) -> Result<(), Error> {
+        self.actor.send(id, Start).await
     }
 }
 
@@ -32,11 +30,9 @@ struct Stop;
 impl Handler<Stop> for ServiceActor {
     type Response = ();
     fn conflicts_with(_: &Stop) -> ConflictBuilder<Self> {
-        ConflictBuilder::everything()
-            .except::<GetConfig>()
-            .except::<DependencyConfig>()
+        ConflictBuilder::everything().except::<RunAction>()
     }
-    async fn handle(&mut self, _: Stop, _: &BackgroundJobQueue) -> Self::Response {
+    async fn handle(&mut self, _: Guid, _: Stop, _: &BackgroundJobQueue) -> Self::Response {
         let mut transition_state = None;
         self.0.persistent_container.state.send_modify(|x| {
             x.desired_state = StartStop::Stop;
@@ -51,7 +47,7 @@ impl Handler<Stop> for ServiceActor {
     }
 }
 impl Service {
-    pub async fn stop(&self) -> Result<(), Error> {
-        self.actor.send(Stop).await
+    pub async fn stop(&self, id: Guid) -> Result<(), Error> {
+        self.actor.send(id, Stop).await
     }
 }
