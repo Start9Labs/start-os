@@ -44,11 +44,11 @@ import { ActionSuccessItemComponent } from './action-success-item.component'
 })
 export class ActionSuccessGroupComponent {
   @Input()
-  value?: T.ActionResultV1 & { type: 'object' }
+  value?: T.ActionResultV1 & { type: 'group' }
 
   isSingle(
     value: T.ActionResultV1,
-  ): value is T.ActionResultV1 & { type: 'string' } {
-    return value.type === 'string'
+  ): value is T.ActionResultV1 & { type: 'value' | 'message' } {
+    return value.type === 'value' || value.type === 'message'
   }
 }

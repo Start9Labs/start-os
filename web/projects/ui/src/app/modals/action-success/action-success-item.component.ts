@@ -135,7 +135,7 @@ export class ActionSuccessItemComponent {
   })
 
   @Input()
-  value!: T.ActionResultV1 & { type: 'string' }
+  value!: T.ActionResultV1 & { type: 'value' | 'message' }
 
   masked = true
 

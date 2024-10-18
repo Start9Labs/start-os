@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt;
 
 use clap::{CommandFactory, FromArgMatches, Parser};
@@ -6,7 +7,6 @@ use models::PackageId;
 use qrcode::QrCode;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use tracing::instrument;
 use ts_rs::TS;
 
@@ -24,7 +24,7 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(get_action_input)
                 .with_display_serializable()
                 .with_about("Get action input spec")
-                .with_call_remote::<CliContext>()
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "run",
@@ -37,7 +37,7 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
                     Ok(())
                 })
                 .with_about("Run service action")
-                .with_call_remote::<CliContext>()
+                .with_call_remote::<CliContext>(),
         )
 }
 
@@ -126,7 +126,10 @@ impl fmt::Display for ActionResultV0 {
 #[serde(rename_all_fields = "camelCase")]
 #[serde(tag = "type")]
 pub enum ActionResultV1 {
-    String {
+    Message {
+        message: String,
+    },
+    Value {
         name: String,
         value: String,
         description: Option<String>,
@@ -134,7 +137,7 @@ pub enum ActionResultV1 {
         qr: bool,
         masked: bool,
     },
-    Object {
+    Group {
         name: String,
         value: Vec<ActionResultV1>,
         #[ts(optional)]
@@ -144,14 +147,20 @@ pub enum ActionResultV1 {
 impl ActionResultV1 {
     fn fmt_rec(&self, f: &mut fmt::Formatter<'_>, indent: usize) -> fmt::Result {
         match self {
-            Self::String {
+            Self::Message { message } => {
+                for _ in 0..indent {
+                    write!(f, "  ")?;
+                }
+                write!(f, "> {message}")?;
+            }
+            Self::Value {
                 name,
                 value,
                 description,
                 qr,
                 ..
             } => {
-                for i in 0..indent {
+                for _ in 0..indent {
                     write!(f, "  ")?;
                 }
                 write!(f, "{name}")?;
@@ -160,14 +169,14 @@ impl ActionResultV1 {
                 }
                 if !value.is_empty() {
                     write!(f, ":\n")?;
-                    for i in 0..indent {
+                    for _ in 0..indent {
                         write!(f, "  ")?;
                     }
                     write!(f, "{value}")?;
                     if *qr {
                         use qrcode::render::unicode;
                         write!(f, "\n")?;
-                        for i in 0..indent {
+                        for _ in 0..indent {
                             write!(f, "  ")?;
                         }
                         write!(
@@ -181,12 +190,12 @@ impl ActionResultV1 {
                     }
                 }
             }
-            Self::Object {
+            Self::Group {
                 name,
                 value,
                 description,
             } => {
-                for i in 0..indent {
+                for _ in 0..indent {
                     write!(f, "  ")?;
                 }
                 write!(f, "{name}")?;
@@ -195,7 +204,7 @@ impl ActionResultV1 {
                 }
                 for value in value {
                     write!(f, ":\n")?;
-                    for i in 0..indent {
+                    for _ in 0..indent {
                         write!(f, "  ")?;
                     }
                     value.fmt_rec(f, indent + 1)?;

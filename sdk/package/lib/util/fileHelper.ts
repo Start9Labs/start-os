@@ -86,7 +86,7 @@ export class FileHelper<A> {
   /**
    * Accepts structured data and overwrites the existing file on disk.
    */
-  async write(data: A): Promise<null> {
+  private async writeFile(data: A): Promise<null> {
     const parent = previousPath.exec(this.path)
     if (parent) {
       await fs.mkdir(parent[1], { recursive: true })
@@ -153,13 +153,27 @@ export class FileHelper<A> {
   }
 
   /**
-   * Accepts structured data and performs a merge with the existing file on disk.
+   * Accepts full structured data and performs a merge with the existing file on disk if it exists.
    */
-  async merge(data: A) {
-    const fileData = (await this.readOnce().catch(() => ({}))) || {}
+  async write(data: A) {
+    const fileData = (await this.readOnce()) || {}
     const mergeData = merge({}, fileData, data)
-    return await this.write(mergeData)
+    return await this.writeFile(mergeData)
   }
+
+  /**
+   * Accepts partial structured data and performs a merge with the existing file on disk.
+   */
+  async merge(data: Partial<A>) {
+    const fileData =
+      (await this.readOnce()) ||
+      (() => {
+        throw new Error(`${this.path}: does not exist`)
+      })()
+    const mergeData = merge({}, fileData, data)
+    return await this.writeFile(mergeData)
+  }
+
   /**
    * Create a File Helper for an arbitrary file type.
    *

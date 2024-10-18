@@ -31,6 +31,9 @@ export class ActionSuccessPage {
   readonly data =
     inject<TuiDialogContext<void, RR.ActionRes>>(POLYMORPHEUS_CONTEXT).data
 
-  readonly item = this.data?.type === 'string' ? this.data : null
-  readonly group = this.data?.type === 'object' ? this.data : null
+  readonly item =
+    this.data?.type === 'value' || this.data?.type === 'message'
+      ? this.data
+      : null
+  readonly group = this.data?.type === 'group' ? this.data : null
 }

@@ -121,7 +121,7 @@ export class ActionService {
       if (res) {
         this.dialogs
           .open(new PolymorpheusComponent(ActionSuccessPage), {
-            label: res.name,
+            label: 'name' in res ? res.name : undefined,
             data: res,
           })
           .subscribe()

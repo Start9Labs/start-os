@@ -248,7 +248,7 @@ function convertProperties(
 ): T.ActionResultV1 {
   if (value.type === "string") {
     return {
-      type: "string",
+      type: "value",
       name,
       description: value.description,
       copyable: value.copyable || false,
@@ -258,7 +258,7 @@ function convertProperties(
     }
   }
   return {
-    type: "object",
+    type: "group",
     name,
     description: value.description || undefined,
     value: Object.entries(value.value).map(([name, value]) =>
@@ -459,7 +459,7 @@ export class SystemForEmbassy implements System {
     } else if (actionId === "properties") {
       return {
         version: "1",
-        type: "object",
+        type: "group",
         name: "Properties",
         description:
           "Runtime information, credentials, and other values of interest",
@@ -814,13 +814,13 @@ export class SystemForEmbassy implements System {
     const actionProcedure = this.manifest.actions?.[actionId]?.implementation
     const toActionResult = ({
       message,
-      value = "",
+      value,
       copyable,
       qr,
     }: U.ActionResult): T.ActionResult => ({
       version: "0",
       message,
-      value,
+      value: value ?? null,
       copyable,
       qr,
     })
