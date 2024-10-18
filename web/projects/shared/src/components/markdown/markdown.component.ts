@@ -3,7 +3,7 @@ import { ModalController } from '@ionic/angular'
 import { defer, isObservable, Observable, of } from 'rxjs'
 import { catchError, ignoreElements, share } from 'rxjs/operators'
 
-import { getErrorMessage } from '../../services/error-toast.service'
+import { getErrorMessage } from '../../services/error.service'
 
 @Component({
   selector: 'markdown',

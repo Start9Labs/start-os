@@ -7,7 +7,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 @Injectable({ providedIn: 'root' })
 export class NotificationsToastService extends Observable<boolean> {
   private readonly stream$ = this.patch
-    .watch$('server-info', 'unread-notification-count')
+    .watch$('serverInfo', 'unreadNotificationCount')
     .pipe(
       pairwise(),
       map(([prev, cur]) => cur > prev),

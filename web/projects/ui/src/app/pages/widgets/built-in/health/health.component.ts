@@ -5,10 +5,10 @@ import {
   DataModel,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { PrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getPackageInfo, PkgInfo } from '../../../../util/get-package-info'
 import { combineLatest } from 'rxjs'
 import { DepErrorService } from 'src/app/services/dep-error.service'
+import { getManifest } from 'src/app/util/get-package-data'
 
 @Component({
   selector: 'widget-health',
@@ -26,12 +26,12 @@ export class HealthComponent {
   ] as const
 
   readonly data$ = combineLatest([
-    inject(PatchDB<DataModel>).watch$('package-data'),
+    inject(PatchDB<DataModel>).watch$('packageData'),
     inject(DepErrorService).depErrors$,
   ]).pipe(
     map(([data, depErrors]) => {
       const pkgs = Object.values<PackageDataEntry>(data).map(pkg =>
-        getPackageInfo(pkg, depErrors[pkg.manifest.id]),
+        getPackageInfo(pkg, depErrors[getManifest(pkg).id]),
       )
       const result = this.labels.reduce<Record<string, number>>(
         (acc, label) => ({
@@ -55,14 +55,11 @@ export class HealthComponent {
   private getCount(label: string, pkgs: PkgInfo[]): number {
     switch (label) {
       case 'Error':
-        return pkgs.filter(
-          a => a.primaryStatus !== PrimaryStatus.Stopped && a.error,
-        ).length
+        return pkgs.filter(a => a.primaryStatus !== 'stopped' && a.error).length
       case 'Needs Attention':
         return pkgs.filter(a => a.warning).length
       case 'Stopped':
-        return pkgs.filter(a => a.primaryStatus === PrimaryStatus.Stopped)
-          .length
+        return pkgs.filter(a => a.primaryStatus === 'stopped').length
       case 'Transitioning':
         return pkgs.filter(a => a.transitioning).length
       default:

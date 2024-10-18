@@ -14,9 +14,15 @@ allow = [
     "BSD-3-Clause",
     "LGPL-3.0",
     "OpenSSL",
+    "Unicode-DFS-2016",
+    "Zlib",
 ]
 
 clarify = [
-    { name = "webpki", expression = "ISC", license-files = [ { path = "LICENSE", hash = 0x001c7e6c } ] },
-    { name = "ring", expression = "OpenSSL", license-files = [ { path = "LICENSE", hash = 0xbd0eed23 } ] },
+    { name = "webpki", expression = "ISC", license-files = [
+        { path = "LICENSE", hash = 0x001c7e6c },
+    ] },
+    { name = "ring", expression = "OpenSSL", license-files = [
+        { path = "LICENSE", hash = 0xbd0eed23 },
+    ] },
 ]

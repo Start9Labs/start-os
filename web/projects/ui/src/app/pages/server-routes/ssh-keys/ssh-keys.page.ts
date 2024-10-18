@@ -1,16 +1,12 @@
-import { Component } from '@angular/core'
-import {
-  AlertController,
-  LoadingController,
-  ModalController,
-} from '@ionic/angular'
+import { ChangeDetectorRef, Component } from '@angular/core'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
+import { TUI_PROMPT, TuiPromptData } from '@taiga-ui/kit'
+import { filter } from 'rxjs'
+import { take } from 'rxjs/operators'
+import { PROMPT } from 'src/app/modals/prompt.component'
 import { SSHKey } from 'src/app/services/api/api.types'
-import { ErrorToastService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import {
-  GenericInputComponent,
-  GenericInputOptions,
-} from 'src/app/modals/generic-input/generic-input.component'
 
 @Component({
   selector: 'ssh-keys',
@@ -23,10 +19,10 @@ export class SSHKeysPage {
   readonly docsUrl = 'https://docs.start9.com/0.3.5.x/user-manual/ssh'
 
   constructor(
-    private readonly loadingCtrl: LoadingController,
-    private readonly modalCtrl: ModalController,
-    private readonly errToast: ErrorToastService,
-    private readonly alertCtrl: AlertController,
+    private readonly cdr: ChangeDetectorRef,
+    private readonly loader: LoadingService,
+    private readonly dialogs: TuiDialogService,
+    private readonly errorService: ErrorService,
     private readonly embassyApi: ApiService,
   ) {}
 
@@ -38,89 +34,62 @@ export class SSHKeysPage {
     try {
       this.sshKeys = await this.embassyApi.getSshKeys({})
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading = false
     }
   }
 
-  async presentModalAdd() {
-    const { name, description } = sshSpec
+  add() {
+    this.dialogs
+      .open<string>(PROMPT, ADD_OPTIONS)
+      .pipe(take(1))
+      .subscribe(async key => {
+        const loader = this.loader.open('Saving...').subscribe()
 
-    const options: GenericInputOptions = {
-      title: name,
-      message: description,
-      label: name,
-      submitFn: (pk: string) => this.add(pk),
-    }
-
-    const modal = await this.modalCtrl.create({
-      component: GenericInputComponent,
-      componentProps: { options },
-      cssClass: 'alertlike-modal',
-    })
-    await modal.present()
+        try {
+          this.sshKeys?.push(await this.embassyApi.addSshKey({ key }))
+        } finally {
+          loader.unsubscribe()
+          this.cdr.markForCheck()
+        }
+      })
   }
 
-  async add(pubkey: string): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Saving...',
-    })
-    await loader.present()
+  delete(key: SSHKey) {
+    this.dialogs
+      .open(TUI_PROMPT, DELETE_OPTIONS)
+      .pipe(filter(Boolean))
+      .subscribe(async () => {
+        const loader = this.loader.open('Deleting...').subscribe()
 
-    try {
-      const key = await this.embassyApi.addSshKey({ key: pubkey })
-      this.sshKeys.push(key)
-    } finally {
-      loader.dismiss()
-    }
-  }
-
-  async presentAlertDelete(i: number) {
-    const alert = await this.alertCtrl.create({
-      header: 'Caution',
-      message: `Are you sure you want to delete this key?`,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Delete',
-          handler: () => {
-            this.delete(i)
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-    })
-    await alert.present()
-  }
-
-  async delete(i: number): Promise<void> {
-    const loader = await this.loadingCtrl.create({
-      message: 'Deleting...',
-    })
-    await loader.present()
-
-    try {
-      const entry = this.sshKeys[i]
-      await this.embassyApi.deleteSshKey({ fingerprint: entry.fingerprint })
-      this.sshKeys.splice(i, 1)
-    } catch (e: any) {
-      this.errToast.present(e)
-    } finally {
-      loader.dismiss()
-    }
+        try {
+          await this.embassyApi.deleteSshKey({ fingerprint: key.fingerprint })
+          this.sshKeys?.splice(this.sshKeys?.indexOf(key), 1)
+        } catch (e: any) {
+          this.errorService.handleError(e)
+        } finally {
+          loader.unsubscribe()
+          this.cdr.markForCheck()
+        }
+      })
   }
 }
 
-const sshSpec = {
-  type: 'string',
-  name: 'SSH Key',
-  description:
-    'Enter the SSH public key you would like to authorize for root access to your server.',
-  nullable: false,
-  masked: false,
-  copyable: false,
+const ADD_OPTIONS: Partial<TuiDialogOptions<{ message: string }>> = {
+  label: 'SSH Key',
+  data: {
+    message:
+      'Enter the SSH public key you would like to authorize for root access to your StartOS Server.',
+  },
+}
+
+const DELETE_OPTIONS: Partial<TuiDialogOptions<TuiPromptData>> = {
+  label: 'Confirm',
+  size: 's',
+  data: {
+    content: 'Delete key? This action cannot be undone.',
+    yes: 'Delete',
+    no: 'Cancel',
+  },
 }

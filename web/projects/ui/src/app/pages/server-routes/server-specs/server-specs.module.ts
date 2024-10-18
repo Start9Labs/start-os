@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { ServerSpecsPage } from './server-specs.page'
-import { EmverPipesModule } from '@start9labs/shared'
+import { ExverPipesModule } from '@start9labs/shared'
 import { TuiLetModule } from '@taiga-ui/cdk'
 import { QRComponentModule } from 'src/app/components/qr/qr.component.module'
 
@@ -20,7 +20,7 @@ const routes: Routes = [
     IonicModule,
     RouterModule.forChild(routes),
     QRComponentModule,
-    EmverPipesModule,
+    ExverPipesModule,
     TuiLetModule,
   ],
   declarations: [ServerSpecsPage],

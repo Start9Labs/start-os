@@ -12,7 +12,5 @@ export class AppListIconComponent {
   @Input()
   pkg!: PkgInfo
 
-  readonly connected$ = this.connectionService.connected$
-
-  constructor(private readonly connectionService: ConnectionService) {}
+  constructor(readonly connection$: ConnectionService) {}
 }

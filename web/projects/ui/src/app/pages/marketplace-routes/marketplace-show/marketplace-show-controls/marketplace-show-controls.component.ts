@@ -4,29 +4,29 @@ import {
   Inject,
   Input,
 } from '@angular/core'
-import { AlertController, LoadingController } from '@ionic/angular'
+import { AlertController } from '@ionic/angular'
 import {
   AbstractMarketplaceService,
   MarketplacePkg,
 } from '@start9labs/marketplace'
 import {
-  Emver,
-  ErrorToastService,
+  Exver,
+  ErrorService,
   isEmptyObject,
+  LoadingService,
   sameUrl,
 } from '@start9labs/shared'
+import { PatchDB } from 'patch-db-client'
+import { firstValueFrom } from 'rxjs'
+import { ClientStorageService } from 'src/app/services/client-storage.service'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   DataModel,
   PackageDataEntry,
-  PackageState,
 } from 'src/app/services/patch-db/data-model'
-import { ClientStorageService } from 'src/app/services/client-storage.service'
-import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { hasCurrentDeps } from 'src/app/util/has-deps'
-import { PatchDB } from 'patch-db-client'
-import { getAllPackages } from 'src/app/util/get-package-data'
-import { firstValueFrom } from 'rxjs'
 import { dryUpdate } from 'src/app/util/dry-update'
+import { getAllPackages, getManifest } from 'src/app/util/get-package-data'
+import { hasCurrentDeps } from 'src/app/util/has-deps'
 
 @Component({
   selector: 'marketplace-show-controls',
@@ -44,24 +44,21 @@ export class MarketplaceShowControlsComponent {
   @Input()
   localPkg!: PackageDataEntry | null
 
-  readonly showDevTools$ = this.ClientStorageService.showDevTools$
+  @Input()
+  localFlavor!: boolean
 
-  readonly PackageState = PackageState
+  readonly showDevTools$ = this.ClientStorageService.showDevTools$
 
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly ClientStorageService: ClientStorageService,
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
-    private readonly loadingCtrl: LoadingController,
-    private readonly emver: Emver,
-    private readonly errToast: ErrorToastService,
+    private readonly loader: LoadingService,
+    private readonly exver: Exver,
+    private readonly errorService: ErrorService,
     private readonly patch: PatchDB<DataModel>,
   ) {}
-
-  get localVersion(): string {
-    return this.localPkg?.manifest.version || ''
-  }
 
   async tryInstall() {
     const currentMarketplace = await firstValueFrom(
@@ -72,7 +69,7 @@ export class MarketplaceShowControlsComponent {
     if (!this.localPkg) {
       this.alertInstall(url)
     } else {
-      const originalUrl = this.localPkg.installed?.['marketplace-url']
+      const originalUrl = this.localPkg.registry
 
       if (!sameUrl(url, originalUrl)) {
         const proceed = await this.presentAlertDifferentMarketplace(
@@ -82,10 +79,12 @@ export class MarketplaceShowControlsComponent {
         if (!proceed) return
       }
 
+      const localManifest = getManifest(this.localPkg)
+
       if (
-        this.emver.compare(this.localVersion, this.pkg.manifest.version) !==
+        this.exver.compareExver(localManifest.version, this.pkg.version) !==
           0 &&
-        hasCurrentDeps(this.localPkg)
+        hasCurrentDeps(localManifest.id, await getAllPackages(this.patch))
       ) {
         this.dryInstall(url)
       } else {
@@ -102,12 +101,11 @@ export class MarketplaceShowControlsComponent {
       this.patch.watch$('ui', 'marketplace'),
     )
 
-    const name: string = marketplaces['known-hosts'][url]?.name || url
+    const name: string = marketplaces.knownHosts[url]?.name || url
 
     let originalName: string | undefined
     if (originalUrl) {
-      originalName =
-        marketplaces['known-hosts'][originalUrl]?.name || originalUrl
+      originalName = marketplaces.knownHosts[originalUrl]?.name || originalUrl
     }
 
     return new Promise(async resolve => {
@@ -141,9 +139,9 @@ export class MarketplaceShowControlsComponent {
 
   private async dryInstall(url: string) {
     const breakages = dryUpdate(
-      this.pkg.manifest,
+      this.pkg,
       await getAllPackages(this.patch),
-      this.emver,
+      this.exver,
     )
 
     if (isEmptyObject(breakages)) {
@@ -157,7 +155,7 @@ export class MarketplaceShowControlsComponent {
   }
 
   private async alertInstall(url: string) {
-    const installAlert = this.pkg.manifest.alerts.install
+    const installAlert = this.pkg.alerts.install
 
     if (!installAlert) return this.install(url)
 
@@ -182,19 +180,16 @@ export class MarketplaceShowControlsComponent {
   }
 
   private async install(url: string) {
-    const loader = await this.loadingCtrl.create({
-      message: 'Beginning Install...',
-    })
-    await loader.present()
+    const loader = this.loader.open('Beginning Install...').subscribe()
 
-    const { id, version } = this.pkg.manifest
+    const { id, version } = this.pkg
 
     try {
       await this.marketplaceService.installPackage(id, version, url)
     } catch (e: any) {
-      this.errToast.present(e)
+      this.errorService.handleError(e)
     } finally {
-      loader.dismiss()
+      loader.unsubscribe()
     }
   }
 

@@ -6,6 +6,7 @@ import { NotificationsPage } from './notifications.page'
 import { BadgeMenuComponentModule } from 'src/app/components/badge-menu-button/badge-menu.component.module'
 import { SharedPipesModule } from '@start9labs/shared'
 import { BackupReportPageModule } from 'src/app/modals/backup-report/backup-report.module'
+import { UiPipeModule } from 'src/app/pipes/ui/ui.module'
 
 const routes: Routes = [
   {
@@ -22,6 +23,7 @@ const routes: Routes = [
     BadgeMenuComponentModule,
     SharedPipesModule,
     BackupReportPageModule,
+    UiPipeModule,
   ],
   declarations: [NotificationsPage],
 })

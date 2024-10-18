@@ -110,6 +110,12 @@ $subheader-height: 48px;
   }
 }
 
+.code-block {
+  background-color: rgb(69, 69, 69);
+  padding: 12px;
+  margin-bottom: 32px;
+}
+
 .center {
   display: block;
   margin: auto;
@@ -347,4 +353,15 @@ p {
 
 svg:not(:root) {
   overflow: auto;
+}
+
+tui-dialog {
+  transform: translate3d(0, 0, 0);
+}
+
+.g-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 24px;
 }

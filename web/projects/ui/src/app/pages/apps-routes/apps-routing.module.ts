@@ -36,20 +36,6 @@ const routes: Routes = [
     loadChildren: () =>
       import('./app-logs/app-logs.module').then(m => m.AppLogsPageModule),
   },
-  {
-    path: ':pkgId/metrics',
-    loadChildren: () =>
-      import('./app-metrics/app-metrics.module').then(
-        m => m.AppMetricsPageModule,
-      ),
-  },
-  {
-    path: ':pkgId/properties',
-    loadChildren: () =>
-      import('./app-properties/app-properties.module').then(
-        m => m.AppPropertiesPageModule,
-      ),
-  },
 ]
 
 @NgModule({

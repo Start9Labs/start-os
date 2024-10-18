@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { NavController } from '@ionic/angular'
+import { ErrorService } from '@start9labs/shared'
 import { ApiService } from './services/api/api.service'
-import { ErrorToastService } from '@start9labs/shared'
 
 @Component({
   selector: 'app-root',
@@ -11,7 +11,7 @@ import { ErrorToastService } from '@start9labs/shared'
 export class AppComponent {
   constructor(
     private readonly apiService: ApiService,
-    private readonly errorToastService: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly navCtrl: NavController,
   ) {}
 
@@ -21,12 +21,12 @@ export class AppComponent {
 
       let route = '/home'
       if (inProgress) {
-        route = inProgress.complete ? '/success' : '/loading'
+        route = inProgress.status === 'complete' ? '/success' : '/loading'
       }
 
       await this.navCtrl.navigateForward(route)
     } catch (e: any) {
-      this.errorToastService.present(e)
+      this.errorService.handleError(e)
     }
   }
 }

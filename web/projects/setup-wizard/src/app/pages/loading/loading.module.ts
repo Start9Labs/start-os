@@ -1,12 +1,17 @@
 import { NgModule } from '@angular/core'
 import { CommonModule } from '@angular/common'
-import { IonicModule } from '@ionic/angular'
-import { FormsModule } from '@angular/forms'
-import { LoadingPage, ToMessagePipe } from './loading.page'
+import { TuiProgressModule } from '@taiga-ui/kit'
+import { LoadingPage } from './loading.page'
 import { LoadingPageRoutingModule } from './loading-routing.module'
+import { IonicModule } from '@ionic/angular'
 
 @NgModule({
-  imports: [CommonModule, FormsModule, IonicModule, LoadingPageRoutingModule],
-  declarations: [LoadingPage, ToMessagePipe],
+  imports: [
+    CommonModule,
+    IonicModule,
+    TuiProgressModule,
+    LoadingPageRoutingModule,
+  ],
+  declarations: [LoadingPage],
 })
 export class LoadingPageModule {}
