@@ -62,6 +62,7 @@ impl SqfsDir {
                 let path = self.tmpdir.join(guid.as_ref()).with_extension("squashfs");
                 if self.path.extension().and_then(|s| s.to_str()) == Some("tar") {
                     Command::new("tar2sqfs")
+                        .arg("-q")
                         .arg(&path)
                         .input(Some(&mut open_file(&self.path).await?))
                         .invoke(ErrorKind::Filesystem)
@@ -70,6 +71,7 @@ impl SqfsDir {
                     Command::new("mksquashfs")
                         .arg(&self.path)
                         .arg(&path)
+                        .arg("-quiet")
                         .invoke(ErrorKind::Filesystem)
                         .await?;
                 }
@@ -513,7 +515,7 @@ impl ImageSource {
                     Command::new(CONTAINER_TOOL)
                         .arg("export")
                         .arg(container.trim())
-                        .pipe(Command::new("tar2sqfs").arg(&dest))
+                        .pipe(Command::new("tar2sqfs").arg("-q").arg(&dest))
                         .capture(false)
                         .invoke(ErrorKind::Docker)
                         .await?;
