@@ -17,7 +17,7 @@ export function renderPkgStatus(
   let health: T.HealthStatus | null = null
 
   if (pkg.stateInfo.state === 'installed') {
-    primary = getInstalledPrimaryStatus(pkg.status)
+    primary = getInstalledPrimaryStatus(pkg)
     dependency = getDependencyStatus(depErrors)
     health = getHealthStatus(pkg.status)
   } else {
@@ -27,11 +27,15 @@ export function renderPkgStatus(
   return { primary, dependency, health }
 }
 
-function getInstalledPrimaryStatus(status: T.Status): PrimaryStatus {
-  if (!status.configured) {
-    return 'needsConfig'
+function getInstalledPrimaryStatus(pkg: T.PackageDataEntry): PrimaryStatus {
+  if (
+    Object.values(pkg.requestedActions).some(
+      r => r.active && r.request.severity === 'critical',
+    )
+  ) {
+    return 'actionRequired'
   } else {
-    return status.main.status as any as PrimaryStatus
+    return pkg.status.main
   }
 }
 
@@ -39,12 +43,12 @@ function getDependencyStatus(depErrors: PkgDependencyErrors): DependencyStatus {
   return Object.values(depErrors).some(err => !!err) ? 'warning' : 'satisfied'
 }
 
-function getHealthStatus(status: T.Status): T.HealthStatus | null {
-  if (status.main.status !== 'running' || !status.main.health) {
+function getHealthStatus(status: T.MainStatus): T.HealthStatus | null {
+  if (status.main !== 'running' || !status.main) {
     return null
   }
 
-  const values = Object.values(status.main.health)
+  const values = Object.values(status.health)
 
   if (values.some(h => h.result === 'failure')) {
     return 'failure'
@@ -78,7 +82,8 @@ export type PrimaryStatus =
   | 'restarting'
   | 'stopped'
   | 'backingUp'
-  | 'needsConfig'
+  | 'actionRequired'
+  | 'error'
 
 export type DependencyStatus = 'warning' | 'satisfied'
 
@@ -133,9 +138,14 @@ export const PrimaryRendering: Record<PrimaryStatus, StatusRendering> = {
     color: 'success',
     showDots: false,
   },
-  needsConfig: {
-    display: 'Needs Config',
+  actionRequired: {
+    display: 'Action Required',
     color: 'warning',
+    showDots: false,
+  },
+  error: {
+    display: 'Service Launch Error',
+    color: 'danger',
     showDots: false,
   },
 }

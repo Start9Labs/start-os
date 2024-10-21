@@ -108,8 +108,8 @@ pub struct OsInfo {
 impl From<&RpcContext> for OsInfo {
     fn from(_: &RpcContext) -> Self {
         Self {
-            version: crate::version::Current::new().semver(),
-            compat: crate::version::Current::new().compat().clone(),
+            version: crate::version::Current::default().semver(),
+            compat: crate::version::Current::default().compat().clone(),
             platform: InternedString::intern(&*crate::PLATFORM),
         }
     }

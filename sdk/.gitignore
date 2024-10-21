@@ -1,5 +1,6 @@
-.vscode
 dist/
-node_modules/
-lib/coverage
-lib/test/output.ts
+baseDist/
+base/lib/coverage
+base/lib/node_modules
+package/lib/coverage
+package/lib/node_modules

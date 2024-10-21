@@ -18,14 +18,23 @@ use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 
 pub fn admin_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("signer", signers_api::<C>())
+        .subcommand(
+            "signer",
+            signers_api::<C>().with_about("Commands to add or list signers"),
+        )
         .subcommand("add", from_fn_async(add_admin).no_cli())
-        .subcommand("add", from_fn_async(cli_add_admin).no_display())
+        .subcommand(
+            "add",
+            from_fn_async(cli_add_admin)
+                .no_display()
+                .with_about("Add admin signer"),
+        )
         .subcommand(
             "list",
             from_fn_async(list_admins)
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| Ok(display_signers(handle.params, result)))
+                .with_about("List admin signers")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -38,6 +47,7 @@ fn signers_api<C: Context>() -> ParentHandler<C> {
                 .with_metadata("admin", Value::Bool(true))
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| Ok(display_signers(handle.params, result)))
+                .with_about("List signers")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -46,7 +56,10 @@ fn signers_api<C: Context>() -> ParentHandler<C> {
                 .with_metadata("admin", Value::Bool(true))
                 .no_cli(),
         )
-        .subcommand("add", from_fn_async(cli_add_signer))
+        .subcommand(
+            "add",
+            from_fn_async(cli_add_signer).with_about("Add signer"),
+        )
 }
 
 impl Model<BTreeMap<Guid, SignerInfo>> {

@@ -85,14 +85,14 @@
           ></ion-icon>
           <ion-label>
             <h1>{{ getPlatformName(session.metadata.platforms) }}</h1>
-            <h2 *ngIf="currentSession.userAgent as agent">{{ agent }}</h2>
+            <h2 *ngIf="session.userAgent as agent">{{ agent }}</h2>
             <p>
               <b>First Seen</b>
-              : {{ currentSession.loggedIn| date : 'medium' }}
+              : {{ session.loggedIn| date : 'medium' }}
             </p>
             <p>
               <b>Last Active</b>
-              : {{ currentSession.lastActive| date : 'medium' }}
+              : {{ session.lastActive| date : 'medium' }}
             </p>
           </ion-label>
           <ion-button

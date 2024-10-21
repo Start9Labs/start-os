@@ -3,10 +3,8 @@ import { AlertController } from '@ionic/angular'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
-import { ConfigModal, PackageConfigData } from 'src/app/modals/config.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
 import {
   DataModel,
   PackageDataEntry,
@@ -46,7 +44,6 @@ export class AppShowStatusComponent {
     private readonly loader: LoadingService,
     private readonly embassyApi: ApiService,
     private readonly launcherService: UiLauncherService,
-    private readonly formDialog: FormDialogService,
     readonly connection$: ConnectionService,
     private readonly patch: PatchDB<DataModel>,
   ) {}
@@ -59,7 +56,7 @@ export class AppShowStatusComponent {
     return this.pkg.hosts
   }
 
-  get pkgStatus(): T.Status {
+  get pkgStatus(): T.MainStatus {
     return this.pkg.status
   }
 
@@ -75,12 +72,12 @@ export class AppShowStatusComponent {
     return ['running', 'starting', 'restarting'].includes(this.status.primary)
   }
 
-  get isStopped(): boolean {
+  get canStart(): boolean {
     return this.status.primary === 'stopped'
   }
 
   get sigtermTimeout(): string | null {
-    return this.pkgStatus?.main.status === 'stopping' ? '30s' : null // @dr-bonez TODO
+    return this.pkgStatus?.main === 'stopping' ? '30s' : null // @TODO Aiden
   }
 
   launchUi(
@@ -88,12 +85,6 @@ export class AppShowStatusComponent {
     hosts: PackageDataEntry['hosts'],
   ): void {
     this.launcherService.launch(interfaces, hosts)
-  }
-
-  async presentModalConfig(): Promise<void> {
-    return this.formDialog.open<PackageConfigData>(ConfigModal, {
-      data: { pkgId: this.manifest.id },
-    })
   }
 
   async tryStart(): Promise<void> {
@@ -212,6 +203,7 @@ export class AppShowStatusComponent {
       loader.unsubscribe()
     }
   }
+
   private async presentAlertStart(message: string): Promise<boolean> {
     return new Promise(async resolve => {
       const alert = await this.alertCtrl.create({

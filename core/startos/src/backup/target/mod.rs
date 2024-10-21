@@ -9,7 +9,7 @@ use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
 use exver::Version;
 use imbl_value::InternedString;
-use models::PackageId;
+use models::{FromStrParser, PackageId};
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -27,7 +27,6 @@ use crate::disk::mount::filesystem::{FileSystem, MountType, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::util::PartitionInfo;
 use crate::prelude::*;
-use crate::util::clap::FromStrParser;
 use crate::util::serde::{
     deserialize_from_str, display_serializable, serialize_display, HandlerExtSerde, WithIoFormat,
 };
@@ -142,11 +141,15 @@ impl FileSystem for BackupTargetFS {
 // #[command(subcommands(cifs::cifs, list, info, mount, umount))]
 pub fn target<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("cifs", cifs::cifs::<C>())
+        .subcommand(
+            "cifs",
+            cifs::cifs::<C>().with_about("Add, remove, or update a backup target"),
+        )
         .subcommand(
             "list",
             from_fn_async(list)
                 .with_display_serializable()
+                .with_about("List existing backup targets")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -156,16 +159,20 @@ pub fn target<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn::<CliContext, _>(|params, info| {
                     Ok(display_backup_info(params.params, info))
                 })
+                .with_about("Display package backup information")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "mount",
-            from_fn_async(mount).with_call_remote::<CliContext>(),
+            from_fn_async(mount)
+                .with_about("Mount backup target")
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "umount",
             from_fn_async(umount)
                 .no_display()
+                .with_about("Unmount backup target")
                 .with_call_remote::<CliContext>(),
         )
 }

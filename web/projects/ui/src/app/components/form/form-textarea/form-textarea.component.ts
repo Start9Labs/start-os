@@ -1,5 +1,5 @@
 import { Component } from '@angular/core'
-import { CT } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-sdk'
 import { Control } from '../control'
 
 @Component({
@@ -7,6 +7,6 @@ import { Control } from '../control'
   templateUrl: './form-textarea.component.html',
 })
 export class FormTextareaComponent extends Control<
-  CT.ValueSpecTextarea,
+  IST.ValueSpecTextarea,
   string
 > {}

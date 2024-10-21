@@ -2,17 +2,12 @@ import {
   InstalledState,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { Metric, NotificationLevel, RR, ServerNotifications } from './api.types'
+import { NotificationLevel, RR, ServerNotifications } from './api.types'
 import { BTC_ICON, LND_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
 import { Log } from '@start9labs/shared'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
-import { T, CB } from '@start9labs/start-sdk'
+import { T, ISB, IST } from '@start9labs/start-sdk'
 import { GetPackagesRes } from '@start9labs/marketplace'
-
-const mockBlake3Commitment: T.Blake3Commitment = {
-  hash: 'fakehash',
-  size: 0,
-}
 
 const mockMerkleArchiveCommitment: T.MerkleArchiveCommitment = {
   rootSighash: 'fakehash',
@@ -112,7 +107,6 @@ export module Mock {
     },
     osVersion: '0.2.12',
     dependencies: {},
-    hasConfig: true,
     images: {
       main: {
         source: 'packed',
@@ -170,7 +164,6 @@ export module Mock {
         s9pk: '',
       },
     },
-    hasConfig: true,
     images: {
       main: {
         source: 'packed',
@@ -221,7 +214,6 @@ export module Mock {
         s9pk: '',
       },
     },
-    hasConfig: false,
     images: {
       main: {
         source: 'packed',
@@ -883,25 +875,6 @@ export module Mock {
     }
   }
 
-  export function getAppMetrics() {
-    const metr: Metric = {
-      Metric1: {
-        value: Math.random(),
-        unit: 'mi/b',
-      },
-      Metric2: {
-        value: Math.random(),
-        unit: '%',
-      },
-      Metric3: {
-        value: 10.1,
-        unit: '%',
-      },
-    }
-
-    return metr
-  }
-
   export const ServerLogs: Log[] = [
     {
       timestamp: '2022-07-28T03:52:54.808769Z',
@@ -947,14 +920,6 @@ export module Mock {
         },
       },
     },
-  }
-
-  export const ActionResponse: RR.ExecutePackageActionRes = {
-    message:
-      'Password changed successfully. If you lose your new password, you will be lost forever.',
-    value: 'NewPassword1234!',
-    copyable: true,
-    qr: true,
   }
 
   export const SshKeys: RR.GetSSHKeysRes = [
@@ -1084,11 +1049,26 @@ export module Mock {
     },
   }
 
-  export const PackageProperties: RR.GetPackagePropertiesRes<2> = {
-    version: 2,
-    data: {
-      lndconnect: {
+  export const ActionRes: RR.ActionRes = {
+    version: '1',
+    type: 'string',
+    name: 'New Password',
+    description:
+      'Action was run successfully Action was run successfully Action was run successfully Action was run successfully Action was run successfully',
+    copyable: true,
+    qr: true,
+    masked: true,
+    value: 'iwejdoiewdhbew',
+  }
+
+  export const ActionProperties: RR.ActionRes = {
+    version: '1',
+    type: 'object',
+    name: 'Properties',
+    value: [
+      {
         type: 'string',
+        name: 'LND Connect',
         description: 'This is some information about the thing.',
         copyable: true,
         qr: true,
@@ -1096,72 +1076,75 @@ export module Mock {
         value:
           'lndconnect://udlyfq2mxa4355pt7cqlrdipnvk2tsl4jtsdw7zaeekenufwcev2wlad.onion:10009?cert=MIICJTCCAcugAwIBAgIRAOyq85fqAiA3U3xOnwhH678wCgYIKoZIzj0EAwIwODEfMB0GAkUEChMWbG5kIGF1dG9nZW5lcmF0ZWQgY2VydDEVMBMGA1UEAxMMNTc0OTkwMzIyYzZlMB4XDTIwMTAyNjA3MzEyN1oXDTIxMTIyMTA3MzEyN1owODEfMB0GA1UEChMWbG5kIGF1dG9nZW5lcmF0ZWQgY2VydDEVMBMGA1UEAxMMNTc0OTkwMzIyYzZlMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKqfhAMMZdY-eFnU5P4bGrQTSx0lo7m8u4V0yYkzUM6jlql_u31_mU2ovLTj56wnZApkEjoPl6fL2yasZA2wiy6OBtTCBsjAOBgNVHQ8BAf8EBAMCAqQwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDwYDVR0TAQH_BAUwAwEB_zAdBgNVHQ4EFgQUYQ9uIO6spltnVCx4rLFL5BvBF9IwWwYDVR0RBFQwUoIMNTc0OTkwMzIyYzZlgglsb2NhbGhvc3SCBHVuaXiCCnVuaXhwYWNrZXSCB2J1ZmNvbm6HBH8AAAGHEAAAAAAAAAAAAAAAAAAAAAGHBKwSAAswCgYIKoZIzj0EAwIDSAAwRQIgVZH2Z2KlyAVY2Q2aIQl0nsvN-OEN49wreFwiBqlxNj4CIQD5_JbpuBFJuf81I5J0FQPtXY-4RppWOPZBb-y6-rkIUQ&macaroon=AgEDbG5kAusBAwoQuA8OUMeQ8Fr2h-f65OdXdRIBMBoWCgdhZGRyZXNzEgRyZWFkEgV3cml0ZRoTCgRpbmZvEgRyZWFkEgV3cml0ZRoXCghpbnZvaWNlcxIEcmVhZBIFd3JpdGUaFAoIbWFjYXJvb24SCGdlbmVyYXRlGhYKB21lc3NhZ2USBHJlYWQSBXdyaXRlGhcKCG9mZmNoYWluEgRyZWFkEgV3cml0ZRoWCgdvbmNoYWluEgRyZWFkEgV3cml0ZRoUCgVwZWVycxIEcmVhZBIFd3JpdGUaGAoGc2lnbmVyEghnZW5lcmF0ZRIEcmVhZAAABiCYsRUoUWuAHAiCSLbBR7b_qULDSl64R8LIU2aqNIyQfA',
       },
-      Nested: {
+      {
         type: 'object',
+        name: 'Nested Stuff',
         description: 'This is a nested thing metric',
-        value: {
-          'Last Name': {
+        value: [
+          {
             type: 'string',
+            name: 'Last Name',
             description: 'The last name of the user',
             copyable: true,
             qr: true,
             masked: false,
             value: 'Hill',
           },
-          Age: {
+          {
             type: 'string',
+            name: 'Age',
             description: 'The age of the user',
             copyable: false,
             qr: false,
             masked: false,
             value: '35',
           },
-          Password: {
+          {
             type: 'string',
+            name: 'Password',
             description: 'A secret password',
             copyable: true,
             qr: false,
             masked: true,
             value: 'password123',
           },
-        },
+        ],
       },
-      'Another Value': {
+      {
         type: 'string',
+        name: 'Another Value',
         description: 'Some more information about the service.',
         copyable: false,
         qr: true,
         masked: false,
         value: 'https://guessagain.com',
       },
-    },
+    ],
   }
 
-  export const getInputSpec = async (): Promise<
-    RR.GetPackageConfigRes['spec']
-  > =>
+  export const getActionInputSpec = async (): Promise<IST.InputSpec> =>
     configBuilderToSpec(
-      CB.Config.of({
-        bitcoin: CB.Value.object(
+      ISB.InputSpec.of({
+        bitcoin: ISB.Value.object(
           {
             name: 'Bitcoin Settings',
             description:
               'RPC and P2P interface configuration options for Bitcoin Core',
           },
-          CB.Config.of({
-            'bitcoind-p2p': CB.Value.union(
+          ISB.InputSpec.of({
+            'bitcoind-p2p': ISB.Value.union(
               {
                 name: 'P2P Settings',
                 description:
                   '<p>The Bitcoin Core node to connect to over the peer-to-peer (P2P) interface:</p><ul><li><strong>Bitcoin Core</strong>: The Bitcoin Core service installed on this device</li><li><strong>External Node</strong>: A Bitcoin node running on a different device</li></ul>',
                 required: { default: 'internal' },
               },
-              CB.Variants.of({
-                internal: { name: 'Bitcoin Core', spec: CB.Config.of({}) },
+              ISB.Variants.of({
+                internal: { name: 'Bitcoin Core', spec: ISB.InputSpec.of({}) },
                 external: {
                   name: 'External Node',
-                  spec: CB.Config.of({
-                    'p2p-host': CB.Value.text({
+                  spec: ISB.InputSpec.of({
+                    'p2p-host': ISB.Value.text({
                       name: 'Public Address',
                       required: {
                         default: null,
@@ -1169,7 +1152,7 @@ export module Mock {
                       description:
                         'The public address of your Bitcoin Core server',
                     }),
-                    'p2p-port': CB.Value.number({
+                    'p2p-port': ISB.Value.number({
                       name: 'P2P Port',
                       description:
                         'The port that your Bitcoin Core P2P server is bound to',
@@ -1186,24 +1169,23 @@ export module Mock {
             ),
           }),
         ),
-        color: CB.Value.color({
+        color: ISB.Value.color({
           name: 'Color',
           required: false,
         }),
-        datetime: CB.Value.datetime({
+        datetime: ISB.Value.datetime({
           name: 'Datetime',
           required: false,
         }),
-        file: CB.Value.file({
+        file: ISB.Value.file({
           name: 'File',
           required: false,
           extensions: ['png', 'pdf'],
         }),
-        users: CB.Value.multiselect({
+        users: ISB.Value.multiselect({
           name: 'Users',
           default: [],
           maxLength: 2,
-          disabled: ['matt'],
           values: {
             matt: 'Matt Hill',
             alex: 'Alex Inkin',
@@ -1211,21 +1193,19 @@ export module Mock {
             lucy: 'Lucy',
           },
         }),
-        advanced: CB.Value.object(
+        advanced: ISB.Value.object(
           {
             name: 'Advanced',
             description: 'Advanced settings',
           },
-          CB.Config.of({
-            rpcsettings: CB.Value.object(
+          ISB.InputSpec.of({
+            rpcsettings: ISB.Value.object(
               {
                 name: 'RPC Settings',
                 description: 'rpc username and password',
-                warning:
-                  'Adding RPC users gives them special permissions on your node.',
               },
-              CB.Config.of({
-                rpcuser2: CB.Value.text({
+              ISB.InputSpec.of({
+                rpcuser2: ISB.Value.text({
                   name: 'RPC Username',
                   required: {
                     default: 'defaultrpcusername',
@@ -1238,7 +1218,7 @@ export module Mock {
                     },
                   ],
                 }),
-                rpcuser: CB.Value.text({
+                rpcuser: ISB.Value.text({
                   name: 'RPC Username',
                   required: {
                     default: 'defaultrpcusername',
@@ -1251,7 +1231,7 @@ export module Mock {
                     },
                   ],
                 }),
-                rpcpass: CB.Value.text({
+                rpcpass: ISB.Value.text({
                   name: 'RPC User Password',
                   required: {
                     default: {
@@ -1261,7 +1241,7 @@ export module Mock {
                   },
                   description: 'rpc password',
                 }),
-                rpcpass2: CB.Value.text({
+                rpcpass2: ISB.Value.text({
                   name: 'RPC User Password',
                   required: {
                     default: {
@@ -1275,15 +1255,15 @@ export module Mock {
             ),
           }),
         ),
-        testnet: CB.Value.toggle({
+        testnet: ISB.Value.toggle({
           name: 'Testnet',
           default: true,
           description:
             '<ul><li>determines whether your node is running on testnet or mainnet</li></ul><script src="fake"></script>',
           warning: 'Chain will have to resync!',
         }),
-        'object-list': CB.Value.list(
-          CB.List.obj(
+        'object-list': ISB.Value.list(
+          ISB.List.obj(
             {
               name: 'Object List',
               minLength: 0,
@@ -1295,13 +1275,13 @@ export module Mock {
               description: 'This is a list of objects, like users or something',
             },
             {
-              spec: CB.Config.of({
-                'first-name': CB.Value.text({
+              spec: ISB.InputSpec.of({
+                'first-name': ISB.Value.text({
                   name: 'First Name',
                   required: false,
                   description: 'User first name',
                 }),
-                'last-name': CB.Value.text({
+                'last-name': ISB.Value.text({
                   name: 'Last Name',
                   required: {
                     default: {
@@ -1317,7 +1297,7 @@ export module Mock {
                     },
                   ],
                 }),
-                age: CB.Value.number({
+                age: ISB.Value.number({
                   name: 'Age',
                   description: 'The age of the user',
                   warning: 'User must be at least 18.',
@@ -1331,8 +1311,8 @@ export module Mock {
             },
           ),
         ),
-        'union-list': CB.Value.list(
-          CB.List.obj(
+        'union-list': ISB.Value.list(
+          ISB.List.obj(
             {
               name: 'Union List',
               minLength: 0,
@@ -1342,27 +1322,27 @@ export module Mock {
               warning: 'If you change this, things may work.',
             },
             {
-              spec: CB.Config.of({
+              spec: ISB.InputSpec.of({
                 /* TODO: Convert range for this value ([0, 2])*/
-                union: CB.Value.union(
+                union: ISB.Value.union(
                   {
                     name: 'Preference',
                     description: null,
                     warning: null,
                     required: { default: 'summer' },
                   },
-                  CB.Variants.of({
+                  ISB.Variants.of({
                     summer: {
                       name: 'summer',
-                      spec: CB.Config.of({
-                        'favorite-tree': CB.Value.text({
+                      spec: ISB.InputSpec.of({
+                        'favorite-tree': ISB.Value.text({
                           name: 'Favorite Tree',
                           required: {
                             default: 'Maple',
                           },
                           description: 'What is your favorite tree?',
                         }),
-                        'favorite-flower': CB.Value.select({
+                        'favorite-flower': ISB.Value.select({
                           name: 'Favorite Flower',
                           description: 'Select your favorite flower',
                           required: {
@@ -1379,8 +1359,8 @@ export module Mock {
                     },
                     winter: {
                       name: 'winter',
-                      spec: CB.Config.of({
-                        'like-snow': CB.Value.toggle({
+                      spec: ISB.InputSpec.of({
+                        'like-snow': ISB.Value.toggle({
                           name: 'Like Snow?',
                           default: true,
                           description: 'Do you like snow or not?',
@@ -1394,7 +1374,7 @@ export module Mock {
             },
           ),
         ),
-        'random-select': CB.Value.select({
+        'random-select': ISB.Value.dynamicSelect(() => ({
           name: 'Random select',
           description: 'This is not even real.',
           warning: 'Be careful changing this!',
@@ -1407,47 +1387,47 @@ export module Mock {
             option3: 'option3',
           },
           disabled: ['option2'],
-        }),
+        })),
         'favorite-number':
-          /* TODO: Convert range for this value ((-100,100])*/ CB.Value.number({
-            name: 'Favorite Number',
-            description: 'Your favorite number of all time',
-            warning:
-              'Once you set this number, it can never be changed without severe consequences.',
-            required: {
-              default: 7,
+          /* TODO: Convert range for this value ((-100,100])*/ ISB.Value.number(
+            {
+              name: 'Favorite Number',
+              description: 'Your favorite number of all time',
+              warning:
+                'Once you set this number, it can never be changed without severe consequences.',
+              required: {
+                default: 7,
+              },
+              integer: false,
+              units: 'BTC',
             },
-            integer: false,
-            units: 'BTC',
-          }),
-        rpcsettings: CB.Value.object(
+          ),
+        rpcsettings: ISB.Value.object(
           {
             name: 'RPC Settings',
             description: 'rpc username and password',
-            warning:
-              'Adding RPC users gives them special permissions on your node.',
           },
-          CB.Config.of({
-            laws: CB.Value.object(
+          ISB.InputSpec.of({
+            laws: ISB.Value.object(
               {
                 name: 'Laws',
                 description: 'the law of the realm',
               },
-              CB.Config.of({
-                law1: CB.Value.text({
+              ISB.InputSpec.of({
+                law1: ISB.Value.text({
                   name: 'First Law',
                   required: false,
                   description: 'the first law',
                 }),
-                law2: CB.Value.text({
+                law2: ISB.Value.text({
                   name: 'Second Law',
                   required: false,
                   description: 'the second law',
                 }),
               }),
             ),
-            rulemakers: CB.Value.list(
-              CB.List.obj(
+            rulemakers: ISB.Value.list(
+              ISB.List.obj(
                 {
                   name: 'Rule Makers',
                   minLength: 0,
@@ -1455,8 +1435,8 @@ export module Mock {
                   description: 'the people who make the rules',
                 },
                 {
-                  spec: CB.Config.of({
-                    rulemakername: CB.Value.text({
+                  spec: ISB.InputSpec.of({
+                    rulemakername: ISB.Value.text({
                       name: 'Rulemaker Name',
                       required: {
                         default: {
@@ -1466,7 +1446,7 @@ export module Mock {
                       },
                       description: 'the name of the rule maker',
                     }),
-                    rulemakerip: CB.Value.text({
+                    rulemakerip: ISB.Value.text({
                       name: 'Rulemaker IP',
                       required: {
                         default: '192.168.1.0',
@@ -1484,7 +1464,7 @@ export module Mock {
                 },
               ),
             ),
-            rpcuser: CB.Value.text({
+            rpcuser: ISB.Value.text({
               name: 'RPC Username',
               required: {
                 default: 'defaultrpcusername',
@@ -1497,7 +1477,7 @@ export module Mock {
                 },
               ],
             }),
-            rpcpass: CB.Value.text({
+            rpcpass: ISB.Value.text({
               name: 'RPC User Password',
               required: {
                 default: {
@@ -1510,33 +1490,32 @@ export module Mock {
             }),
           }),
         ),
-        'bitcoin-node': CB.Value.union(
+        'bitcoin-node': ISB.Value.union(
           {
             name: 'Bitcoin Node',
             description: 'Options<ul><li>Item 1</li><li>Item 2</li></ul>',
             warning: 'Careful changing this',
             required: { default: 'internal' },
-            disabled: ['fake'],
           },
-          CB.Variants.of({
+          ISB.Variants.of({
             fake: {
               name: 'Fake',
-              spec: CB.Config.of({}),
+              spec: ISB.InputSpec.of({}),
             },
             internal: {
               name: 'Internal',
-              spec: CB.Config.of({}),
+              spec: ISB.InputSpec.of({}),
             },
             external: {
               name: 'External',
-              spec: CB.Config.of({
-                'emergency-contact': CB.Value.object(
+              spec: ISB.InputSpec.of({
+                'emergency-contact': ISB.Value.object(
                   {
                     name: 'Emergency Contact',
                     description: 'The person to contact in case of emergency.',
                   },
-                  CB.Config.of({
-                    name: CB.Value.text({
+                  ISB.InputSpec.of({
+                    name: ISB.Value.text({
                       name: 'Name',
                       required: {
                         default: null,
@@ -1548,7 +1527,7 @@ export module Mock {
                         },
                       ],
                     }),
-                    email: CB.Value.text({
+                    email: ISB.Value.text({
                       name: 'Email',
                       inputmode: 'email',
                       required: {
@@ -1557,7 +1536,7 @@ export module Mock {
                     }),
                   }),
                 ),
-                'public-domain': CB.Value.text({
+                'public-domain': ISB.Value.text({
                   name: 'Public Domain',
                   required: {
                     default: 'bitcoinnode.com',
@@ -1570,7 +1549,7 @@ export module Mock {
                     },
                   ],
                 }),
-                'private-domain': CB.Value.text({
+                'private-domain': ISB.Value.text({
                   name: 'Private Domain',
                   required: {
                     default: null,
@@ -1583,7 +1562,7 @@ export module Mock {
             },
           }),
         ),
-        port: CB.Value.number({
+        port: ISB.Value.number({
           name: 'Port',
           description:
             'the default port for your Bitcoin node. default: 8333, testnet: 18333, regtest: 18444',
@@ -1595,7 +1574,7 @@ export module Mock {
           step: 1,
           integer: true,
         }),
-        'favorite-slogan': CB.Value.text({
+        'favorite-slogan': ISB.Value.text({
           name: 'Favorite Slogan',
           generate: {
             charset: 'a-z,A-Z,2-9',
@@ -1606,8 +1585,8 @@ export module Mock {
             'You most favorite slogan in the whole world, used for paying you.',
           masked: true,
         }),
-        rpcallowip: CB.Value.list(
-          CB.List.text(
+        rpcallowip: ISB.Value.list(
+          ISB.List.text(
             {
               name: 'RPC Allowed IPs',
               minLength: 1,
@@ -1629,8 +1608,8 @@ export module Mock {
             },
           ),
         ),
-        rpcauth: CB.Value.list(
-          CB.List.text(
+        rpcauth: ISB.Value.list(
+          ISB.List.text(
             {
               name: 'RPC Auth',
               description:
@@ -1694,14 +1673,40 @@ export module Mock {
     icon: '/assets/img/service-icons/bitcoind.svg',
     lastBackup: null,
     status: {
-      configured: true,
-      main: {
-        status: 'running',
-        started: new Date().toISOString(),
-        health: {},
+      main: 'running',
+      started: new Date().toISOString(),
+      health: {},
+    },
+    actions: {
+      config: {
+        name: 'Set Config',
+        description: 'edit bitcoin.conf',
+        warning: null,
+        visibility: 'enabled',
+        allowedStatuses: 'any',
+        hasInput: true,
+        group: null,
+      },
+      properties: {
+        name: 'View Properties',
+        description: 'view important information about Bitcoin',
+        warning: null,
+        visibility: 'enabled',
+        allowedStatuses: 'any',
+        hasInput: false,
+        group: null,
+      },
+      test: {
+        name: 'Do Another Thing',
+        description:
+          'An example of an action that shows a warning and takes no input',
+        warning: 'careful running this action',
+        visibility: { disabled: 'This is temporarily disabled' },
+        allowedStatuses: 'only-running',
+        hasInput: false,
+        group: null,
       },
     },
-    actions: {},
     serviceInterfaces: {
       ui: {
         id: 'ui',
@@ -1860,6 +1865,27 @@ export module Mock {
     storeExposedDependents: [],
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
+    requestedActions: {
+      'bitcoind-config': {
+        request: {
+          packageId: 'bitcoind',
+          actionId: 'config',
+          severity: 'critical',
+          reason:
+            'You must run Config before starting Bitcoin for the first time',
+        },
+        active: true,
+      },
+      'bitcoind-properties': {
+        request: {
+          packageId: 'bitcoind',
+          actionId: 'properties',
+          severity: 'important',
+          reason: 'Check out all the info about your Bitcoin node',
+        },
+        active: true,
+      },
+    },
   }
 
   export const bitcoinProxy: PackageDataEntry<InstalledState> = {
@@ -1871,10 +1897,7 @@ export module Mock {
     icon: '/assets/img/service-icons/btc-rpc-proxy.png',
     lastBackup: null,
     status: {
-      configured: false,
-      main: {
-        status: 'stopped',
-      },
+      main: 'stopped',
     },
     actions: {},
     serviceInterfaces: {
@@ -1902,13 +1925,13 @@ export module Mock {
         kind: 'running',
         versionRange: '>=26.0.0',
         healthChecks: [],
-        configSatisfied: true,
       },
     },
     hosts: {},
     storeExposedDependents: [],
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
+    requestedActions: {},
   }
 
   export const lnd: PackageDataEntry<InstalledState> = {
@@ -1920,10 +1943,7 @@ export module Mock {
     icon: '/assets/img/service-icons/lnd.png',
     lastBackup: null,
     status: {
-      configured: true,
-      main: {
-        status: 'stopped',
-      },
+      main: 'stopped',
     },
     actions: {},
     serviceInterfaces: {
@@ -1986,20 +2006,39 @@ export module Mock {
         kind: 'running',
         versionRange: '>=26.0.0',
         healthChecks: [],
-        configSatisfied: true,
       },
       'btc-rpc-proxy': {
         title: Mock.MockManifestBitcoinProxy.title,
         icon: 'assets/img/service-icons/btc-rpc-proxy.png',
         kind: 'exists',
         versionRange: '>2.0.0',
-        configSatisfied: false,
       },
     },
     hosts: {},
     storeExposedDependents: [],
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
+    requestedActions: {
+      'bitcoind/config': {
+        active: true,
+        request: {
+          packageId: 'bitcoind',
+          actionId: 'config',
+          severity: 'critical',
+          reason: 'LND likes BTC a certain way',
+          input: {
+            kind: 'partial',
+            value: {
+              color: '#ffffff',
+              rpcsettings: {
+                rpcuser: 'lnd',
+              },
+              testnet: false,
+            },
+          },
+        },
+      },
+    },
   }
 
   export const LocalPkgs: { [key: string]: PackageDataEntry<InstalledState> } =

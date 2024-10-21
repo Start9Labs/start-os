@@ -26,11 +26,21 @@ use crate::util::io::open_file;
 pub fn get_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("iso", from_fn_async(get_iso).no_cli())
-        .subcommand("iso", from_fn_async(cli_get_os_asset).no_display())
+        .subcommand(
+            "iso",
+            from_fn_async(cli_get_os_asset)
+                .no_display()
+                .with_about("Download iso"),
+        )
         .subcommand("img", from_fn_async(get_img).no_cli())
-        .subcommand("img", from_fn_async(cli_get_os_asset).no_display())
+        .subcommand(
+            "img",
+            from_fn_async(cli_get_os_asset)
+                .no_display()
+                .with_about("Download img"),
+        )
         .subcommand("squashfs", from_fn_async(get_squashfs).no_cli())
-        .subcommand("squashfs", from_fn_async(cli_get_os_asset).no_display())
+        .subcommand("squashfs", from_fn_async(cli_get_os_asset).no_display().with_about("Download squashfs"))
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]

@@ -22,7 +22,7 @@ use crate::util::VersionString;
 use crate::version::{Current, VersionT};
 
 fn current_version() -> Version {
-    Current::new().semver()
+    Current::default().semver()
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
@@ -68,8 +68,6 @@ pub struct Manifest {
     #[serde(default = "current_version")]
     #[ts(type = "string")]
     pub os_version: Version,
-    #[serde(default = "const_true")]
-    pub has_config: bool,
 }
 impl Manifest {
     pub fn validate_for<'a, T: Clone>(

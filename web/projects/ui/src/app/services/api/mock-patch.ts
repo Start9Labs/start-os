@@ -1,6 +1,7 @@
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Mock } from './api.fixures'
 import { BUILT_IN_WIDGETS } from '../../pages/widgets/built-in/widgets'
+const version = require('../../../../../../package.json').version
 
 export const mockPatchData: DataModel = {
   ui: {
@@ -37,7 +38,7 @@ export const mockPatchData: DataModel = {
     arch: 'x86_64',
     onionAddress: 'myveryownspecialtoraddress',
     id: 'abcdefgh',
-    version: '0.3.6',
+    version,
     lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
     lanAddress: 'https://adjective-noun.local',
     torAddress: 'https://myveryownspecialtoraddress.onion',
@@ -59,7 +60,8 @@ export const mockPatchData: DataModel = {
     // password is asdfasdf
     passwordHash:
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-    eosVersionCompat: '>=0.3.0 <=0.3.6',
+    versionCompat: '>=0.3.0 <=0.3.6',
+    postInitMigrationTodos: [],
     statusInfo: {
       backupProgress: null,
       updated: false,
@@ -95,40 +97,44 @@ export const mockPatchData: DataModel = {
       icon: '/assets/img/service-icons/bitcoind.svg',
       lastBackup: null,
       status: {
-        configured: true,
-        main: {
-          status: 'running',
-          started: '2021-06-14T20:49:17.774Z',
-          health: {
-            'ephemeral-health-check': {
-              name: 'Ephemeral Health Check',
-              result: 'starting',
-              message: null,
-            },
-            'chain-state': {
-              name: 'Chain State',
-              result: 'loading',
-              message: 'Bitcoin is syncing from genesis',
-            },
-            'p2p-interface': {
-              name: 'P2P',
-              result: 'success',
-              message: 'Health check successful',
-            },
-            'rpc-interface': {
-              name: 'RPC',
-              result: 'failure',
-              message: 'RPC interface unreachable.',
-            },
-            'unnecessary-health-check': {
-              name: 'Unnecessary Health Check',
-              result: 'disabled',
-              message: null,
-            },
-          },
+        main: 'stopped',
+      },
+      // status: {
+      //   main: 'error',
+      //   message: 'Bitcoin is erroring out',
+      //   debug: 'This is a complete stack trace for bitcoin',
+      //   onRebuild: 'start',
+      // },
+      actions: {
+        config: {
+          name: 'Set Config',
+          description: 'edit bitcoin.conf',
+          warning: null,
+          visibility: 'enabled',
+          allowedStatuses: 'any',
+          hasInput: true,
+          group: null,
+        },
+        properties: {
+          name: 'View Properties',
+          description: 'view important information about Bitcoin',
+          warning: null,
+          visibility: 'enabled',
+          allowedStatuses: 'any',
+          hasInput: false,
+          group: null,
+        },
+        test: {
+          name: 'Do Another Thing',
+          description:
+            'An example of an action that shows a warning and takes no input',
+          warning: 'careful running this action',
+          visibility: { disabled: 'This is temporarily disabled' },
+          allowedStatuses: 'only-running',
+          hasInput: false,
+          group: null,
         },
       },
-      actions: {},
       serviceInterfaces: {
         ui: {
           id: 'ui',
@@ -287,6 +293,27 @@ export const mockPatchData: DataModel = {
       storeExposedDependents: [],
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
+      requestedActions: {
+        'bitcoind-config': {
+          request: {
+            packageId: 'bitcoind',
+            actionId: 'config',
+            severity: 'critical',
+            reason:
+              'You must run Config before starting Bitcoin for the first time',
+          },
+          active: true,
+        },
+        'bitcoind-properties': {
+          request: {
+            packageId: 'bitcoind',
+            actionId: 'properties',
+            severity: 'important',
+            reason: 'Check out all the info about your Bitcoin node',
+          },
+          active: true,
+        },
+      },
     },
     lnd: {
       stateInfo: {
@@ -300,10 +327,7 @@ export const mockPatchData: DataModel = {
       icon: '/assets/img/service-icons/lnd.png',
       lastBackup: null,
       status: {
-        configured: true,
-        main: {
-          status: 'stopped',
-        },
+        main: 'stopped',
       },
       actions: {},
       serviceInterfaces: {
@@ -366,7 +390,6 @@ export const mockPatchData: DataModel = {
           kind: 'running',
           versionRange: '>=26.0.0',
           healthChecks: [],
-          configSatisfied: true,
         },
         'btc-rpc-proxy': {
           title: 'Bitcoin Proxy',
@@ -374,13 +397,33 @@ export const mockPatchData: DataModel = {
           kind: 'running',
           versionRange: '>2.0.0',
           healthChecks: [],
-          configSatisfied: false,
         },
       },
       hosts: {},
       storeExposedDependents: [],
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
+      requestedActions: {
+        'bitcoind/config': {
+          active: true,
+          request: {
+            packageId: 'bitcoind',
+            actionId: 'config',
+            severity: 'critical',
+            reason: 'LND likes BTC a certain way',
+            input: {
+              kind: 'partial',
+              value: {
+                color: '#ffffff',
+                rpcsettings: {
+                  rpcuser: 'lnd',
+                },
+                testnet: false,
+              },
+            },
+          },
+        },
+      },
     },
   },
 }

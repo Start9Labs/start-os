@@ -1,7 +1,6 @@
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
-use crate::service::config::GetConfig;
-use crate::service::dependencies::DependencyConfig;
+use crate::service::action::RunAction;
 use crate::service::start_stop::StartStop;
 use crate::service::transition::TransitionKind;
 use crate::service::{Service, ServiceActor};
@@ -12,9 +11,7 @@ pub(super) struct Start;
 impl Handler<Start> for ServiceActor {
     type Response = ();
     fn conflicts_with(_: &Start) -> ConflictBuilder<Self> {
-        ConflictBuilder::everything()
-            .except::<GetConfig>()
-            .except::<DependencyConfig>()
+        ConflictBuilder::everything().except::<RunAction>()
     }
     async fn handle(&mut self, _: Guid, _: Start, _: &BackgroundJobQueue) -> Self::Response {
         self.0.persistent_container.state.send_modify(|x| {
@@ -33,9 +30,7 @@ struct Stop;
 impl Handler<Stop> for ServiceActor {
     type Response = ();
     fn conflicts_with(_: &Stop) -> ConflictBuilder<Self> {
-        ConflictBuilder::everything()
-            .except::<GetConfig>()
-            .except::<DependencyConfig>()
+        ConflictBuilder::everything().except::<RunAction>()
     }
     async fn handle(&mut self, _: Guid, _: Stop, _: &BackgroundJobQueue) -> Self::Response {
         let mut transition_state = None;
