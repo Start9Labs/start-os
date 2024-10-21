@@ -18,7 +18,7 @@ import {
 } from 'rxjs/operators'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/util/get-package-data'
-import { Version } from '@start9labs/start-sdk'
+import { Version, VersionRange } from '@start9labs/start-sdk'
 
 @Component({
   selector: 'marketplace-show',
@@ -74,7 +74,9 @@ export class MarketplaceShowPage {
 
       // OS version
       if (
-        !Version.parse(pkg.osVersion).satisfies(server.packageVersionCompat)
+        !Version.parse(pkg.osVersion).satisfies(
+          VersionRange.parse(server.packageVersionCompat),
+        )
       ) {
         const compare = Version.parse(pkg.osVersion).compare(
           Version.parse(server.version),

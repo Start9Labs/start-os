@@ -172,15 +172,19 @@ fn version_accessor(db: &mut Value) -> Option<&mut Value> {
 fn version_compat_accessor(db: &mut Value) -> Option<&mut Value> {
     if db.get("public").is_some() {
         let server_info = db.get_mut("public")?.get_mut("serverInfo")?;
-        if server_info.get("versionCompat").is_some() {
-            server_info.get_mut("versionCompat")
+        if server_info.get("packageVersionCompat").is_some() {
+            server_info.get_mut("packageVersionCompat")
         } else {
             if let Some(prev) = server_info.get("eosVersionCompat").cloned() {
                 server_info
                     .as_object_mut()?
-                    .insert("versionCompat".into(), prev);
+                    .insert("packageVersionCompat".into(), prev);
+            } else if let Some(prev) = server_info.get("versionCompat").cloned() {
+                server_info
+                    .as_object_mut()?
+                    .insert("packageVersionCompat".into(), prev);
             }
-            server_info.get_mut("versionCompat")
+            server_info.get_mut("packageVersionCompat")
         }
     } else {
         db.get_mut("server-info")?.get_mut("eos-version-compat")

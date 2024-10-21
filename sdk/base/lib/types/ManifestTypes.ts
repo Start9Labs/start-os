@@ -144,7 +144,7 @@ export type SDKManifest = {
    * ```
    */
   readonly hardwareRequirements?: {
-    readonly device?: { display?: RegExp; processor?: RegExp }
+    readonly device?: T.DeviceFilter[]
     readonly ram?: number | null
     readonly arch?: string[] | null
   }

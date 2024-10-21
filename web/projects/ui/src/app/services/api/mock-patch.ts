@@ -60,7 +60,7 @@ export const mockPatchData: DataModel = {
     // password is asdfasdf
     passwordHash:
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-    versionCompat: '>=0.3.0 <=0.3.6',
+    packageVersionCompat: '>=0.3.0 <=0.3.6',
     postInitMigrationTodos: [],
     statusInfo: {
       backupProgress: null,
@@ -83,6 +83,8 @@ export const mockPatchData: DataModel = {
       selected: null,
       lastRegion: null,
     },
+    ram: 8 * 1024 * 1024 * 1024,
+    devices: [],
   },
   packageData: {
     bitcoind: {
