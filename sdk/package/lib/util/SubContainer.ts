@@ -258,11 +258,10 @@ export class SubContainer implements ExecSpawnable {
       await new Promise<null>((resolve) => child.stdin.end(resolve))
     }
     const pid = child.pid
-    const stdout = { data: "" as string | Buffer }
-    const stderr = { data: "" as string | Buffer }
+    const stdout = { data: "" as string }
+    const stderr = { data: "" as string }
     const appendData =
-      (appendTo: { data: string }) =>
-      (chunk: string | Buffer | any) => {
+      (appendTo: { data: string }) => (chunk: string | Buffer | any) => {
         if (typeof chunk === "string" || chunk instanceof Buffer) {
           appendTo.data += chunk.toString()
         } else {
