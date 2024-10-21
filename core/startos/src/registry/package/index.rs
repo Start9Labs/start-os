@@ -180,14 +180,13 @@ impl Model<PackageVersionInfo> {
                 return Ok(false);
             }
         }
-        for (class, regex) in hw.device {
+        for device_filter in hw.device {
             if !device_info
                 .hardware
                 .devices
-                .get(&*class)
-                .unwrap_or(&Vec::new())
                 .iter()
-                .any(|product| regex.as_ref().is_match(product))
+                .filter(|d| d.class() == &*device_filter.class)
+                .any(|d| device_filter.pattern.as_ref().is_match(d.product()))
             {
                 return Ok(false);
             }

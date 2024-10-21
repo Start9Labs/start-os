@@ -22,6 +22,7 @@ use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::system::SmtpValue;
 use crate::util::cpupower::Governor;
+use crate::util::lshw::LshwDevice;
 use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
 
@@ -46,7 +47,7 @@ impl Public {
                 version: Current::default().semver(),
                 hostname: account.hostname.no_dot_host_name(),
                 last_backup: None,
-                version_compat: Current::default().compat().clone(),
+                package_version_compat: Current::default().compat().clone(),
                 post_init_migration_todos: BTreeSet::new(),
                 lan_address,
                 onion_address: account.tor_key.public().get_onion_address(),
@@ -78,6 +79,8 @@ impl Public {
                 zram: true,
                 governor: None,
                 smtp: None,
+                ram: 0,
+                devices: Vec::new(),
             },
             package_data: AllPackageData::default(),
             ui: serde_json::from_str(include_str!(concat!(
@@ -114,7 +117,7 @@ pub struct ServerInfo {
     #[ts(type = "string")]
     pub version: Version,
     #[ts(type = "string")]
-    pub version_compat: VersionRange,
+    pub package_version_compat: VersionRange,
     #[ts(type = "string[]")]
     pub post_init_migration_todos: BTreeSet<Version>,
     #[ts(type = "string | null")]
@@ -141,6 +144,9 @@ pub struct ServerInfo {
     pub zram: bool,
     pub governor: Option<Governor>,
     pub smtp: Option<SmtpValue>,
+    #[ts(type = "number")]
+    pub ram: u64,
+    pub devices: Vec<LshwDevice>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]

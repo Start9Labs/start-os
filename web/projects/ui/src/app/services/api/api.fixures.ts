@@ -117,7 +117,7 @@ export module Mock {
     assets: [],
     volumes: ['main'],
     hardwareRequirements: {
-      device: {},
+      device: [],
       arch: null,
       ram: null,
     },
@@ -174,7 +174,7 @@ export module Mock {
     assets: [],
     volumes: ['main'],
     hardwareRequirements: {
-      device: {},
+      device: [],
       arch: null,
       ram: null,
     },
@@ -224,7 +224,7 @@ export module Mock {
     assets: [],
     volumes: ['main'],
     hardwareRequirements: {
-      device: {},
+      device: [],
       arch: null,
       ram: null,
     },
@@ -253,7 +253,7 @@ export module Mock {
           '26.1.0:0.1.0': {
             title: 'Bitcoin Core',
             description: mockDescription,
-            hardwareRequirements: { arch: null, device: {}, ram: null },
+            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
             upstreamRepo: 'https://github.com/bitcoin/bitcoin',
@@ -286,7 +286,7 @@ export module Mock {
               short: 'An alternate fully verifying implementation of Bitcoin',
               long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
             },
-            hardwareRequirements: { arch: null, device: {}, ram: null },
+            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
             upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
@@ -329,7 +329,7 @@ export module Mock {
           '26.1.0:0.1.0': {
             title: 'Bitcoin Core',
             description: mockDescription,
-            hardwareRequirements: { arch: null, device: {}, ram: null },
+            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
             upstreamRepo: 'https://github.com/bitcoin/bitcoin',
@@ -362,7 +362,7 @@ export module Mock {
               short: 'An alternate fully verifying implementation of Bitcoin',
               long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
             },
-            hardwareRequirements: { arch: null, device: {}, ram: null },
+            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
             upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
@@ -407,7 +407,7 @@ export module Mock {
           '0.17.5:0': {
             title: 'LND',
             description: mockDescription,
-            hardwareRequirements: { arch: null, device: {}, ram: null },
+            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/lnd-startos',
             upstreamRepo: 'https://github.com/lightningnetwork/lnd',
@@ -463,7 +463,7 @@ export module Mock {
           '0.17.4-beta:1.0-alpha': {
             title: 'LND',
             description: mockDescription,
-            hardwareRequirements: { arch: null, device: {}, ram: null },
+            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/lnd-startos',
             upstreamRepo: 'https://github.com/lightningnetwork/lnd',
@@ -521,7 +521,7 @@ export module Mock {
           '0.3.2.6:0': {
             title: 'Bitcoin Proxy',
             description: mockDescription,
-            hardwareRequirements: { arch: null, device: {}, ram: null },
+            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/Start9Labs/btc-rpc-proxy-wrappers',
             upstreamRepo: 'https://github.com/Kixunil/btc-rpc-proxy',
@@ -565,7 +565,7 @@ export module Mock {
         '27.0.0:1.0.0': {
           title: 'Bitcoin Core',
           description: mockDescription,
-          hardwareRequirements: { arch: null, device: {}, ram: null },
+          hardwareRequirements: { arch: null, device: [], ram: null },
           license: 'mit',
           wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
           upstreamRepo: 'https://github.com/bitcoin/bitcoin',
@@ -598,7 +598,7 @@ export module Mock {
             short: 'An alternate fully verifying implementation of Bitcoin',
             long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
           },
-          hardwareRequirements: { arch: null, device: {}, ram: null },
+          hardwareRequirements: { arch: null, device: [], ram: null },
           license: 'mit',
           wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
           upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
@@ -641,7 +641,7 @@ export module Mock {
         '0.18.0:0.0.1': {
           title: 'LND',
           description: mockDescription,
-          hardwareRequirements: { arch: null, device: {}, ram: null },
+          hardwareRequirements: { arch: null, device: [], ram: null },
           license: 'mit',
           wrapperRepo: 'https://github.com/start9labs/lnd-startos',
           upstreamRepo: 'https://github.com/lightningnetwork/lnd',
@@ -697,7 +697,7 @@ export module Mock {
         '0.3.2.7:0': {
           title: 'Bitcoin Proxy',
           description: mockDescription,
-          hardwareRequirements: { arch: null, device: {}, ram: null },
+          hardwareRequirements: { arch: null, device: [], ram: null },
           license: 'mit',
           wrapperRepo: 'https://github.com/Start9Labs/btc-rpc-proxy-wrappers',
           upstreamRepo: 'https://github.com/Kixunil/btc-rpc-proxy',

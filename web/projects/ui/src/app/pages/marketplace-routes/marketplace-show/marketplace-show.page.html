@@ -13,12 +13,20 @@
     </ng-container>
 
     <ng-template #show>
-      <marketplace-package [pkg]="pkg"></marketplace-package>
+      <marketplace-package [pkg]="pkg">
+        <ion-item *ngIf="conflict$ | async as conflict" color="warning" class="ion-margin-top">
+          <ion-icon slot="start" name="warning"></ion-icon>
+          <ion-label>
+            <h2 style="font-weight: 600" [innerHTML]="conflict"></h2>
+          </ion-label>
+        </ion-item>
+      </marketplace-package>
       <marketplace-show-controls
         [url]="url"
         [pkg]="pkg"
         [localPkg]="localPkg$ | async"
         [localFlavor]="!!(localFlavor$ | async)"
+        [conflict]="conflict$ | async"
       ></marketplace-show-controls>
 
       <marketplace-show-dependent [pkg]="pkg"></marketplace-show-dependent>
