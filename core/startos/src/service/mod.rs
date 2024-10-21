@@ -83,6 +83,32 @@ pub enum LoadDisposition {
 
 struct RootCommand(pub String);
 
+#[derive(Clone, Debug, Serialize, Deserialize, Default, TS)]
+pub struct MiB(u64);
+
+impl MiB {
+    fn new(value: u64) -> Self {
+        Self(value / 1024 / 1024)
+    }
+    fn from_MiB(value: u64) -> Self {
+        Self(value)
+    }
+}
+
+impl std::fmt::Display for MiB {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} MiB", self.0)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default, TS)]
+pub struct ServiceStats {
+    pub container_id: Arc<ContainerId>,
+    pub package_id: PackageId,
+    pub memory_usage: MiB,
+    pub memory_limit: MiB,
+}
+
 pub struct ServiceRef(Arc<Service>);
 impl ServiceRef {
     pub fn weak(&self) -> Weak<Service> {
@@ -552,6 +578,30 @@ impl Service {
             .guid)
             .clone();
         Ok(container_id)
+    }
+    #[instrument(skip_all)]
+    pub async fn stats(&self) -> Result<ServiceStats, Error> {
+        let container = &self.seed.persistent_container;
+        let lxc_container = container.lxc_container.get().or_not_found("container")?;
+        let (total, used) = lxc_container
+            .command(&["free", "-m"])
+            .await?
+            .split("\n")
+            .map(|x| x.split_whitespace().collect::<Vec<_>>())
+            .skip(1)
+            .filter_map(|x| {
+                Some((
+                    x.get(1)?.parse::<u64>().ok()?,
+                    x.get(2)?.parse::<u64>().ok()?,
+                ))
+            })
+            .fold((0, 0), |acc, (total, used)| (acc.0 + total, acc.1 + used));
+        Ok(ServiceStats {
+            container_id: lxc_container.guid.clone(),
+            package_id: self.seed.id.clone(),
+            memory_limit: MiB::from_MiB(total),
+            memory_usage: MiB::from_MiB(used),
+        })
     }
 }
 

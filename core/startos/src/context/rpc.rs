@@ -70,7 +70,7 @@ pub struct RpcContextSeed {
     pub hardware: Hardware,
     pub start_time: Instant,
     pub crons: SyncMutex<BTreeMap<Guid, NonDetachingJoinHandle<()>>>,
-    #[cfg(feature = "dev")]
+    // #[cfg(feature = "dev")]
     pub dev: Dev,
 }
 
@@ -278,7 +278,7 @@ impl RpcContext {
             hardware: Hardware { devices, ram },
             start_time: Instant::now(),
             crons,
-            #[cfg(feature = "dev")]
+            // #[cfg(feature = "dev")]
             dev: Dev {
                 lxc: Mutex::new(BTreeMap::new()),
             },

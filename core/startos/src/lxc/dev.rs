@@ -8,10 +8,13 @@ use rpc_toolkit::{
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::context::{CliContext, RpcContext};
 use crate::lxc::{ContainerId, LxcConfig};
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
+use crate::{
+    context::{CliContext, RpcContext},
+    service::ServiceStats,
+};
 
 pub fn lxc<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -34,6 +37,33 @@ pub fn lxc<C: Context>() -> ParentHandler<C> {
                     Ok(())
                 })
                 .with_about("List lxc containers")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "stats",
+            from_fn_async(stats)
+                .with_custom_display_fn(|_, res| {
+                    use prettytable::*;
+                    let mut table =
+                        table!(["Container ID", "Name", "Memory Usage", "Memory Limit"]);
+                    for ServiceStats {
+                        container_id,
+                        package_id,
+                        memory_usage,
+                        memory_limit,
+                    } in res
+                    {
+                        table.add_row(row![
+                            &*container_id,
+                            &*package_id,
+                            memory_usage,
+                            memory_limit
+                        ]);
+                    }
+                    table.printstd();
+                    Ok(())
+                })
+                .with_about("List information related to the lxc containers i.e. CPU, Memory, Disk")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -61,6 +91,22 @@ pub async fn create(ctx: RpcContext) -> Result<ContainerId, Error> {
 
 pub async fn list(ctx: RpcContext) -> Result<Vec<ContainerId>, Error> {
     Ok(ctx.dev.lxc.lock().await.keys().cloned().collect())
+}
+
+pub async fn stats(ctx: RpcContext) -> Result<Vec<ServiceStats>, Error> {
+    let ids = ctx.db.peek().await.as_public().as_package_data().keys()?;
+    let guids: Vec<_> = ctx.dev.lxc.lock().await.keys().cloned().collect();
+
+    let mut stats = Vec::with_capacity(guids.len());
+    for id in ids {
+        let service: tokio::sync::OwnedRwLockReadGuard<Option<crate::service::ServiceRef>> =
+            ctx.services.get(&id).await;
+
+        let service_ref = service.as_ref().or_not_found(&id)?;
+
+        stats.push(service_ref.stats().await?);
+    }
+    Ok(stats)
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
