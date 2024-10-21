@@ -258,18 +258,12 @@ export class SubContainer implements ExecSpawnable {
       await new Promise<null>((resolve) => child.stdin.end(resolve))
     }
     const pid = child.pid
-    const stdout = { data: "" as string | Buffer }
-    const stderr = { data: "" as string | Buffer }
+    const stdout = { data: "" as string }
+    const stderr = { data: "" as string }
     const appendData =
-      (appendTo: { data: string | Buffer }) =>
-      (chunk: string | Buffer | any) => {
-        if (typeof appendTo.data === "string" && typeof chunk === "string") {
-          appendTo.data += chunk
-        } else if (typeof chunk === "string" || chunk instanceof Buffer) {
-          appendTo.data = Buffer.concat([
-            new Uint8Array(Buffer.from(appendTo.data).buffer),
-            new Uint8Array(Buffer.from(chunk).buffer),
-          ])
+      (appendTo: { data: string }) => (chunk: string | Buffer | any) => {
+        if (typeof chunk === "string" || chunk instanceof Buffer) {
+          appendTo.data += chunk.toString()
         } else {
           console.error("received unexpected chunk", chunk)
         }
