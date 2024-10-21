@@ -245,10 +245,10 @@ const matchProperties = object({
 function convertProperties(
   name: string,
   value: PropertiesValue,
-): T.ActionResultV1 {
+): T.ActionResultMember {
   if (value.type === "string") {
     return {
-      type: "value",
+      type: "single",
       name,
       description: value.description,
       copyable: value.copyable || false,
@@ -260,7 +260,7 @@ function convertProperties(
   return {
     type: "group",
     name,
-    description: value.description || undefined,
+    description: value.description,
     value: Object.entries(value.value).map(([name, value]) =>
       convertProperties(name, value),
     ),
@@ -459,13 +459,14 @@ export class SystemForEmbassy implements System {
     } else if (actionId === "properties") {
       return {
         version: "1",
-        type: "group",
-        name: "Properties",
-        description:
-          "Runtime information, credentials, and other values of interest",
-        value: Object.entries(await this.properties(effects, timeoutMs)).map(
-          ([name, value]) => convertProperties(name, value),
-        ),
+        title: "Properties",
+        message: null,
+        value: {
+          type: "group",
+          value: Object.entries(await this.properties(effects, timeoutMs)).map(
+            ([name, value]) => convertProperties(name, value),
+          ),
+        },
       }
     } else {
       return this.action(effects, actionId, input, timeoutMs)

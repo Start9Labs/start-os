@@ -123,90 +123,76 @@ impl fmt::Display for ActionResultV0 {
 
 #[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+pub struct ActionResultV1 {
+    pub title: String,
+    pub message: Option<String>,
+    pub value: Option<ActionResultValue>,
+}
+
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionResultMember {
+    pub name: String,
+    pub description: Option<String>,
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub value: ActionResultValue,
+}
+
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[serde(rename_all_fields = "camelCase")]
 #[serde(tag = "type")]
-pub enum ActionResultV1 {
-    Message {
-        message: String,
-    },
-    Value {
-        name: String,
+pub enum ActionResultValue {
+    Single {
         value: String,
-        description: Option<String>,
         copyable: bool,
         qr: bool,
         masked: bool,
     },
     Group {
-        name: String,
-        value: Vec<ActionResultV1>,
-        #[ts(optional)]
-        description: Option<String>,
+        value: Vec<ActionResultMember>,
     },
 }
-impl ActionResultV1 {
+impl ActionResultValue {
     fn fmt_rec(&self, f: &mut fmt::Formatter<'_>, indent: usize) -> fmt::Result {
         match self {
-            Self::Message { message } => {
+            Self::Single { value, qr, .. } => {
                 for _ in 0..indent {
                     write!(f, "  ")?;
                 }
-                write!(f, "> {message}")?;
-            }
-            Self::Value {
-                name,
-                value,
-                description,
-                qr,
-                ..
-            } => {
-                for _ in 0..indent {
-                    write!(f, "  ")?;
-                }
-                write!(f, "{name}")?;
-                if let Some(description) = description {
-                    write!(f, ": {description}")?;
-                }
-                if !value.is_empty() {
-                    write!(f, ":\n")?;
+                write!(f, "{value}")?;
+                if *qr {
+                    use qrcode::render::unicode;
+                    writeln!(f)?;
                     for _ in 0..indent {
                         write!(f, "  ")?;
                     }
-                    write!(f, "{value}")?;
-                    if *qr {
-                        use qrcode::render::unicode;
-                        write!(f, "\n")?;
-                        for _ in 0..indent {
-                            write!(f, "  ")?;
-                        }
-                        write!(
-                            f,
-                            "{}",
-                            QrCode::new(value.as_bytes())
-                                .unwrap()
-                                .render::<unicode::Dense1x2>()
-                                .build()
-                        )?;
-                    }
+                    write!(
+                        f,
+                        "{}",
+                        QrCode::new(value.as_bytes())
+                            .unwrap()
+                            .render::<unicode::Dense1x2>()
+                            .build()
+                    )?;
                 }
             }
-            Self::Group {
-                name,
-                value,
-                description,
-            } => {
-                for _ in 0..indent {
-                    write!(f, "  ")?;
-                }
-                write!(f, "{name}")?;
-                if let Some(description) = description {
-                    write!(f, ": {description}")?;
-                }
-                for value in value {
-                    write!(f, ":\n")?;
+            Self::Group { value } => {
+                for ActionResultMember {
+                    name,
+                    description,
+                    value,
+                } in value
+                {
                     for _ in 0..indent {
                         write!(f, "  ")?;
                     }
+                    write!(f, "{name}")?;
+                    if let Some(description) = description {
+                        write!(f, ": {description}")?;
+                    }
+                    writeln!(f, ":")?;
                     value.fmt_rec(f, indent + 1)?;
                 }
             }
@@ -216,7 +202,14 @@ impl ActionResultV1 {
 }
 impl fmt::Display for ActionResultV1 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.fmt_rec(f, 0)
+        writeln!(f, "{}:", self.title)?;
+        if let Some(message) = &self.message {
+            writeln!(f, "{message}")?;
+        }
+        if let Some(value) = &self.value {
+            value.fmt_rec(f, 1)?;
+        }
+        Ok(())
     }
 }
 
