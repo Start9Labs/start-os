@@ -118,13 +118,17 @@ export class ActionService {
         input: input || null,
       })
 
-      if (res) {
+      if (!res) return true
+
+      if (res.result) {
         this.dialogs
           .open(new PolymorpheusComponent(ActionSuccessPage), {
-            label: 'name' in res ? res.name : undefined,
+            label: res.title,
             data: res,
           })
           .subscribe()
+      } else if (res.message) {
+        this.dialogs.open(res.message, { label: res.title }).subscribe()
       }
       return true // needed to dismiss original modal/alert
     } catch (e: any) {

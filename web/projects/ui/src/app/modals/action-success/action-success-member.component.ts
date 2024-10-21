@@ -9,7 +9,6 @@ import {
   ViewChild,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { T } from '@start9labs/start-sdk'
 import {
   TuiDialogService,
   TuiLabelModule,
@@ -19,31 +18,29 @@ import {
 import { TuiButtonModule } from '@taiga-ui/experimental'
 import { TuiInputModule } from '@taiga-ui/kit'
 import { QrCodeModule } from 'ng-qrcode'
-import { ActionSuccessGroupComponent } from './action-success-group.component'
+import { T } from '@start9labs/start-sdk'
 
 @Component({
   standalone: true,
-  selector: 'app-action-success-item',
+  selector: 'app-action-success-member',
   template: `
-    <p *ngIf="!parent" class="qr">
-      <ng-container *ngTemplateOutlet="qr"></ng-container>
-    </p>
-    <label [tuiLabel]="value.description">
-      <tui-input
-        [readOnly]="true"
-        [ngModel]="value.value"
-        [tuiTextfieldCustomContent]="actions"
-      >
-        <input
-          tuiTextfield
-          [style.border-inline-end-width.rem]="border"
-          [type]="value.masked && masked ? 'password' : 'text'"
-        />
-      </tui-input>
-    </label>
+    <tui-input
+      [readOnly]="true"
+      [ngModel]="member.value"
+      [tuiTextfieldCustomContent]="actions"
+    >
+      <!-- @TODO Alex I can't get this label to show up -->
+      <label [tuiLabel]="member.name"></label>
+      <input
+        tuiTextfield
+        [style.border-inline-end-width.rem]="border"
+        [type]="member.masked && masked ? 'password' : 'text'"
+      />
+    </tui-input>
+    <label style="min-height: unset;" [tuiLabel]="member.description"></label>
     <ng-template #actions>
       <button
-        *ngIf="value.masked"
+        *ngIf="member.masked"
         tuiIconButton
         appearance="icon"
         size="s"
@@ -56,7 +53,7 @@ import { ActionSuccessGroupComponent } from './action-success-group.component'
         Reveal/Hide
       </button>
       <button
-        *ngIf="value.copyable"
+        *ngIf="member.copyable"
         tuiIconButton
         appearance="icon"
         size="s"
@@ -69,7 +66,7 @@ import { ActionSuccessGroupComponent } from './action-success-group.component'
         Copy
       </button>
       <button
-        *ngIf="value.qr && parent"
+        *ngIf="member.qr"
         tuiIconButton
         appearance="icon"
         size="s"
@@ -84,12 +81,12 @@ import { ActionSuccessGroupComponent } from './action-success-group.component'
     </ng-template>
     <ng-template #qr>
       <qr-code
-        [value]="value.value"
-        [style.filter]="value.masked && masked ? 'blur(0.5rem)' : null"
+        [value]="member.value"
+        [style.filter]="member.masked && masked ? 'blur(0.5rem)' : null"
         size="350"
       ></qr-code>
       <button
-        *ngIf="value.masked && masked"
+        *ngIf="member.masked && masked"
         tuiIconButton
         class="reveal"
         iconLeft="tuiIconEye"
@@ -125,34 +122,22 @@ import { ActionSuccessGroupComponent } from './action-success-group.component'
     TuiLabelModule,
   ],
 })
-export class ActionSuccessItemComponent {
+export class ActionSuccessMemberComponent {
   @ViewChild(TuiTextfieldComponent, { read: ElementRef })
   private readonly input!: ElementRef<HTMLInputElement>
   private readonly dialogs = inject(TuiDialogService)
 
-  readonly parent = inject(ActionSuccessGroupComponent, {
-    optional: true,
-  })
-
   @Input()
-  value!: T.ActionResultV1 & { type: 'value' | 'message' }
+  member!: T.ActionResultMember & { type: 'single' }
 
   masked = true
 
   get border(): number {
     let border = 0
 
-    if (this.value.masked) {
-      border += 2
-    }
-
-    if (this.value.copyable) {
-      border += 2
-    }
-
-    if (this.value.qr && this.parent) {
-      border += 2
-    }
+    if (this.member.masked) border += 2
+    if (this.member.copyable) border += 2
+    if (this.member.qr) border += 2
 
     return border
   }
@@ -160,7 +145,7 @@ export class ActionSuccessItemComponent {
   show(template: TemplateRef<any>) {
     const masked = this.masked
 
-    this.masked = this.value.masked
+    this.masked = this.member.masked
     this.dialogs
       .open(template, { label: 'Scan this QR', size: 's' })
       .subscribe({
@@ -179,6 +164,6 @@ export class ActionSuccessItemComponent {
     el.focus()
     el.select()
     el.ownerDocument.execCommand('copy')
-    el.type = this.masked && this.value.masked ? 'password' : 'text'
+    el.type = this.masked && this.member.masked ? 'password' : 'text'
   }
 }

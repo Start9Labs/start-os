@@ -2,38 +2,38 @@ import { CommonModule } from '@angular/common'
 import { Component, inject } from '@angular/core'
 import { TuiDialogContext, TuiTextfieldControllerModule } from '@taiga-ui/core'
 import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
-import { RR } from 'src/app/services/api/api.types'
 import { ActionSuccessGroupComponent } from './action-success-group.component'
-import { ActionSuccessItemComponent } from './action-success-item.component'
+import { ActionSuccessSingleComponent } from './action-success-single.component'
+import { ActionResponseWithResult } from './types'
 
 @Component({
   standalone: true,
   template: `
     <ng-container tuiTextfieldSize="m" [tuiTextfieldLabelOutside]="true">
-      <app-action-success-item
-        *ngIf="item"
-        [value]="item"
-      ></app-action-success-item>
+      <p *ngIf="data.message">{{ data.message }}</p>
+      <app-action-success-single
+        *ngIf="single"
+        [single]="single"
+      ></app-action-success-single>
       <app-action-success-group
         *ngIf="group"
-        [value]="group"
+        [group]="group"
       ></app-action-success-group>
     </ng-container>
   `,
   imports: [
     CommonModule,
     ActionSuccessGroupComponent,
-    ActionSuccessItemComponent,
+    ActionSuccessSingleComponent,
     TuiTextfieldControllerModule,
   ],
 })
 export class ActionSuccessPage {
   readonly data =
-    inject<TuiDialogContext<void, RR.ActionRes>>(POLYMORPHEUS_CONTEXT).data
+    inject<TuiDialogContext<void, ActionResponseWithResult>>(
+      POLYMORPHEUS_CONTEXT,
+    ).data
 
-  readonly item =
-    this.data?.type === 'value' || this.data?.type === 'message'
-      ? this.data
-      : null
-  readonly group = this.data?.type === 'group' ? this.data : null
+  readonly single = this.data.result.type === 'single' ? this.data.result : null
+  readonly group = this.data.result.type === 'group' ? this.data.result : null
 }

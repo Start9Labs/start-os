@@ -126,7 +126,7 @@ impl fmt::Display for ActionResultV0 {
 pub struct ActionResultV1 {
     pub title: String,
     pub message: Option<String>,
-    pub value: Option<ActionResultValue>,
+    pub result: Option<ActionResultValue>,
 }
 
 #[derive(Debug, Serialize, Deserialize, TS)]
@@ -206,8 +206,8 @@ impl fmt::Display for ActionResultV1 {
         if let Some(message) = &self.message {
             writeln!(f, "{message}")?;
         }
-        if let Some(value) = &self.value {
-            value.fmt_rec(f, 1)?;
+        if let Some(result) = &self.result {
+            result.fmt_rec(f, 1)?;
         }
         Ok(())
     }

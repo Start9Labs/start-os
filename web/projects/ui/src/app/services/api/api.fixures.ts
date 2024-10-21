@@ -1049,77 +1049,91 @@ export module Mock {
     },
   }
 
-  export const ActionRes: RR.ActionRes = {
+  export const ActionResMessage: RR.ActionRes = {
     version: '1',
-    type: 'value',
-    name: 'New Password',
-    description:
-      'Action was run successfully Action was run successfully Action was run successfully Action was run successfully Action was run successfully',
-    copyable: true,
-    qr: true,
-    masked: true,
-    value: 'iwejdoiewdhbew',
+    title: 'New Password',
+    message:
+      'Action was run successfully and smoothly and fully and all is good on the western front.',
+    result: null,
   }
 
-  export const ActionProperties: RR.ActionRes = {
+  export const ActionResSingle: RR.ActionRes = {
     version: '1',
-    type: 'group',
-    name: 'Properties',
-    value: [
-      {
-        type: 'value',
-        name: 'LND Connect',
-        description: 'This is some information about the thing.',
-        copyable: true,
-        qr: true,
-        masked: true,
-        value:
-          'lndconnect://udlyfq2mxa4355pt7cqlrdipnvk2tsl4jtsdw7zaeekenufwcev2wlad.onion:10009?cert=MIICJTCCAcugAwIBAgIRAOyq85fqAiA3U3xOnwhH678wCgYIKoZIzj0EAwIwODEfMB0GAkUEChMWbG5kIGF1dG9nZW5lcmF0ZWQgY2VydDEVMBMGA1UEAxMMNTc0OTkwMzIyYzZlMB4XDTIwMTAyNjA3MzEyN1oXDTIxMTIyMTA3MzEyN1owODEfMB0GA1UEChMWbG5kIGF1dG9nZW5lcmF0ZWQgY2VydDEVMBMGA1UEAxMMNTc0OTkwMzIyYzZlMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKqfhAMMZdY-eFnU5P4bGrQTSx0lo7m8u4V0yYkzUM6jlql_u31_mU2ovLTj56wnZApkEjoPl6fL2yasZA2wiy6OBtTCBsjAOBgNVHQ8BAf8EBAMCAqQwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDwYDVR0TAQH_BAUwAwEB_zAdBgNVHQ4EFgQUYQ9uIO6spltnVCx4rLFL5BvBF9IwWwYDVR0RBFQwUoIMNTc0OTkwMzIyYzZlgglsb2NhbGhvc3SCBHVuaXiCCnVuaXhwYWNrZXSCB2J1ZmNvbm6HBH8AAAGHEAAAAAAAAAAAAAAAAAAAAAGHBKwSAAswCgYIKoZIzj0EAwIDSAAwRQIgVZH2Z2KlyAVY2Q2aIQl0nsvN-OEN49wreFwiBqlxNj4CIQD5_JbpuBFJuf81I5J0FQPtXY-4RppWOPZBb-y6-rkIUQ&macaroon=AgEDbG5kAusBAwoQuA8OUMeQ8Fr2h-f65OdXdRIBMBoWCgdhZGRyZXNzEgRyZWFkEgV3cml0ZRoTCgRpbmZvEgRyZWFkEgV3cml0ZRoXCghpbnZvaWNlcxIEcmVhZBIFd3JpdGUaFAoIbWFjYXJvb24SCGdlbmVyYXRlGhYKB21lc3NhZ2USBHJlYWQSBXdyaXRlGhcKCG9mZmNoYWluEgRyZWFkEgV3cml0ZRoWCgdvbmNoYWluEgRyZWFkEgV3cml0ZRoUCgVwZWVycxIEcmVhZBIFd3JpdGUaGAoGc2lnbmVyEghnZW5lcmF0ZRIEcmVhZAAABiCYsRUoUWuAHAiCSLbBR7b_qULDSl64R8LIU2aqNIyQfA',
-      },
-      {
-        type: 'group',
-        name: 'Nested Stuff',
-        description: 'This is a nested thing metric',
-        value: [
-          {
-            type: 'value',
-            name: 'Last Name',
-            description: 'The last name of the user',
-            copyable: true,
-            qr: true,
-            masked: false,
-            value: 'Hill',
-          },
-          {
-            type: 'value',
-            name: 'Age',
-            description: 'The age of the user',
-            copyable: false,
-            qr: false,
-            masked: false,
-            value: '35',
-          },
-          {
-            type: 'value',
-            name: 'Password',
-            description: 'A secret password',
-            copyable: true,
-            qr: false,
-            masked: true,
-            value: 'password123',
-          },
-        ],
-      },
-      {
-        type: 'value',
-        name: 'Another Value',
-        description: 'Some more information about the service.',
-        copyable: false,
-        qr: true,
-        masked: false,
-        value: 'https://guessagain.com',
-      },
-    ],
+    title: 'New Password',
+    message:
+      'Action was run successfully and smoothly and fully and all is good on the western front.',
+    result: {
+      type: 'single',
+      copyable: true,
+      qr: true,
+      masked: true,
+      value: 'iwejdoiewdhbew',
+    },
+  }
+
+  export const ActionResGroup: RR.ActionRes = {
+    version: '1',
+    title: 'Properties',
+    message:
+      'Successfully retrieved properties. Here is a bunch of useful information about this service.',
+    result: {
+      type: 'group',
+      value: [
+        {
+          type: 'single',
+          name: 'LND Connect',
+          description: 'This is some information about the thing.',
+          copyable: true,
+          qr: true,
+          masked: true,
+          value:
+            'lndconnect://udlyfq2mxa4355pt7cqlrdipnvk2tsl4jtsdw7zaeekenufwcev2wlad.onion:10009?cert=MIICJTCCAcugAwIBAgIRAOyq85fqAiA3U3xOnwhH678wCgYIKoZIzj0EAwIwODEfMB0GAkUEChMWbG5kIGF1dG9nZW5lcmF0ZWQgY2VydDEVMBMGA1UEAxMMNTc0OTkwMzIyYzZlMB4XDTIwMTAyNjA3MzEyN1oXDTIxMTIyMTA3MzEyN1owODEfMB0GA1UEChMWbG5kIGF1dG9nZW5lcmF0ZWQgY2VydDEVMBMGA1UEAxMMNTc0OTkwMzIyYzZlMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKqfhAMMZdY-eFnU5P4bGrQTSx0lo7m8u4V0yYkzUM6jlql_u31_mU2ovLTj56wnZApkEjoPl6fL2yasZA2wiy6OBtTCBsjAOBgNVHQ8BAf8EBAMCAqQwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDwYDVR0TAQH_BAUwAwEB_zAdBgNVHQ4EFgQUYQ9uIO6spltnVCx4rLFL5BvBF9IwWwYDVR0RBFQwUoIMNTc0OTkwMzIyYzZlgglsb2NhbGhvc3SCBHVuaXiCCnVuaXhwYWNrZXSCB2J1ZmNvbm6HBH8AAAGHEAAAAAAAAAAAAAAAAAAAAAGHBKwSAAswCgYIKoZIzj0EAwIDSAAwRQIgVZH2Z2KlyAVY2Q2aIQl0nsvN-OEN49wreFwiBqlxNj4CIQD5_JbpuBFJuf81I5J0FQPtXY-4RppWOPZBb-y6-rkIUQ&macaroon=AgEDbG5kAusBAwoQuA8OUMeQ8Fr2h-f65OdXdRIBMBoWCgdhZGRyZXNzEgRyZWFkEgV3cml0ZRoTCgRpbmZvEgRyZWFkEgV3cml0ZRoXCghpbnZvaWNlcxIEcmVhZBIFd3JpdGUaFAoIbWFjYXJvb24SCGdlbmVyYXRlGhYKB21lc3NhZ2USBHJlYWQSBXdyaXRlGhcKCG9mZmNoYWluEgRyZWFkEgV3cml0ZRoWCgdvbmNoYWluEgRyZWFkEgV3cml0ZRoUCgVwZWVycxIEcmVhZBIFd3JpdGUaGAoGc2lnbmVyEghnZW5lcmF0ZRIEcmVhZAAABiCYsRUoUWuAHAiCSLbBR7b_qULDSl64R8LIU2aqNIyQfA',
+        },
+        {
+          type: 'group',
+          name: 'Nested Stuff',
+          description: 'This is a nested thing metric',
+          value: [
+            {
+              type: 'single',
+              name: 'Last Name',
+              description: 'The last name of the user',
+              copyable: true,
+              qr: true,
+              masked: false,
+              value: 'Hill',
+            },
+            {
+              type: 'single',
+              name: 'Age',
+              description: 'The age of the user',
+              copyable: false,
+              qr: false,
+              masked: false,
+              value: '35',
+            },
+            {
+              type: 'single',
+              name: 'Password',
+              description: 'A secret password',
+              copyable: true,
+              qr: false,
+              masked: true,
+              value: 'password123',
+            },
+          ],
+        },
+        {
+          type: 'single',
+          name: 'Another Value',
+          description: 'Some more information about the service.',
+          copyable: false,
+          qr: true,
+          masked: false,
+          value: 'https://guessagain.com',
+        },
+      ],
+    },
   }
 
   export const getActionInputSpec = async (): Promise<IST.InputSpec> =>

@@ -4,5 +4,5 @@ import type { ActionResultValue } from "./ActionResultValue"
 export type ActionResultV1 = {
   title: string
   message: string | null
-  value: ActionResultValue | null
+  result: ActionResultValue | null
 }
