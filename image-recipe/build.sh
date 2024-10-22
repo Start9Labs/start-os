@@ -143,13 +143,8 @@ sed -i -e '2i set timeout=5' config/bootloaders/grub-pc/config.cfg
 mkdir -p config/archives
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
-	echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/raspi.key.gpg] https://archive.raspberrypi.org/debian/ ${IB_SUITE} main" > config/archives/raspi.list
-	cat > config/archives/raspi.pref <<- EOF
-	Package: *
-	Pin: origin archive.raspberrypi.org
-	Pin-Priority: 600
-	EOF
+	curl -fsSL https://archive.raspberrypi.com/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
+	echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/raspi.key.gpg] https://archive.raspberrypi.com/debian/ ${IB_SUITE} main" > config/archives/raspi.list
 fi
 
 cat > config/archives/backports.pref <<- EOF
@@ -205,12 +200,6 @@ if [ "${IB_SUITE}" = bookworm ]; then
 fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	for f in /usr/lib/modules/*; do
-    	v=\${f#/usr/lib/modules/}
-		echo "Configuring raspi kernel '\$v'"
-    	extract-ikconfig "/usr/lib/modules/\$v/kernel/kernel/configs.ko.xz" > /boot/config-\$v
-		update-initramfs -c -k \$v
-	done
 	ln -sf /usr/bin/pi-beep /usr/local/bin/beep
 fi
 
