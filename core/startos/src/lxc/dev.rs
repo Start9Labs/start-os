@@ -44,8 +44,13 @@ pub fn lxc<C: Context>() -> ParentHandler<C> {
             from_fn_async(stats)
                 .with_custom_display_fn(|_, res| {
                     use prettytable::*;
-                    let mut table =
-                        table!(["Container ID", "Name", "Memory Usage", "Memory Limit"]);
+                    let mut table = table!([
+                        "Container ID",
+                        "Name",
+                        "Memory Usage",
+                        "Memory Limit",
+                        "Memory %"
+                    ]);
                     for ServiceStats {
                         container_id,
                         package_id,
@@ -57,7 +62,11 @@ pub fn lxc<C: Context>() -> ParentHandler<C> {
                             &*container_id,
                             &*package_id,
                             memory_usage,
-                            memory_limit
+                            memory_limit,
+                            format!(
+                                "{:.2}",
+                                memory_usage.0 as f64 / memory_limit.0 as f64 * 100.0
+                            )
                         ]);
                     }
                     table.printstd();

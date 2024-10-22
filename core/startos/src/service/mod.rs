@@ -84,7 +84,7 @@ pub enum LoadDisposition {
 struct RootCommand(pub String);
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default, TS)]
-pub struct MiB(u64);
+pub struct MiB(pub u64);
 
 impl MiB {
     fn new(value: u64) -> Self {
