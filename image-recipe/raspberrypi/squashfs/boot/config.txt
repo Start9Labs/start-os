@@ -83,4 +83,6 @@ arm_boost=1
 [all]
 gpu_mem=16
 dtoverlay=pwm-2chan,disable-bt
-initramfs initrd.img-6.1.21-v8+
+
+kernel=vmlinuz-6.6.51+rpt-rpi-v8
+ramfsfile=initrd.img-6.6.51+rpt-rpi-v8
