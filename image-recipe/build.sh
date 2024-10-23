@@ -201,7 +201,7 @@ fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	ln -sf /usr/bin/pi-beep /usr/local/bin/beep
-	rpi-update stable
+	rpi-update -y stable
 fi
 
 useradd --shell /bin/bash -G embassy -m start9
