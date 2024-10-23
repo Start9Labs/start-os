@@ -284,6 +284,7 @@ export function makeEffects(context: EffectContext): Effects {
       >
     },
 
+    getStatus() {},
     setMainStatus(o: { status: "running" | "stopped" }): Promise<null> {
       return rpcRound("set-main-status", o) as ReturnType<
         T.Effects["setHealth"]

@@ -14,6 +14,7 @@ import {
   ServiceInterface,
   ActionRequest,
   RequestActionParams,
+  MainStatus,
 } from "./osBindings"
 import { StorePath } from "./util/PathBuilder"
 import {
@@ -61,6 +62,11 @@ export type Effects = {
   restart(): Promise<null>
   /** stop this service's main function */
   shutdown(): Promise<null>
+  /** ask the host os what the service's current status is */
+  getStatus(options: {
+    packageId?: PackageId
+    callback?: () => void
+  }): Promise<MainStatus>
   /** indicate to the host os what runstate the service is in */
   setMainStatus(options: SetMainStatus): Promise<null>
 
