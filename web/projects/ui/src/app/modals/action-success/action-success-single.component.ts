@@ -30,6 +30,7 @@ import { SingleResult } from './types'
     <tui-input
       [readOnly]="true"
       [ngModel]="single.value"
+      [tuiTextfieldLabelOutside]="true"
       [tuiTextfieldCustomContent]="actions"
     >
       <input

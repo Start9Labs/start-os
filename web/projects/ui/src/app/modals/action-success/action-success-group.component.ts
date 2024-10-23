@@ -14,7 +14,7 @@ import { GroupResult } from './types'
         *ngIf="member.type === 'single'"
         [member]="member"
       ></app-action-success-member>
-      <tui-accordion-item *ngIf="member.type === 'group'" size="s">
+      <tui-accordion-item *ngIf="member.type === 'group'">
         <div tuiFade>{{ member.name }}</div>
         <ng-template tuiAccordionItemContent>
           <app-action-success-group [group]="member"></app-action-success-group>

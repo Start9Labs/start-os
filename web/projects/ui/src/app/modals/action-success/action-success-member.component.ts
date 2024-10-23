@@ -11,11 +11,10 @@ import {
 import { FormsModule } from '@angular/forms'
 import {
   TuiDialogService,
-  TuiLabelModule,
   TuiTextfieldComponent,
   TuiTextfieldControllerModule,
 } from '@taiga-ui/core'
-import { TuiButtonModule } from '@taiga-ui/experimental'
+import { TuiButtonModule, TuiTitleModule } from '@taiga-ui/experimental'
 import { TuiInputModule } from '@taiga-ui/kit'
 import { QrCodeModule } from 'ng-qrcode'
 import { T } from '@start9labs/start-sdk'
@@ -29,15 +28,16 @@ import { T } from '@start9labs/start-sdk'
       [ngModel]="member.value"
       [tuiTextfieldCustomContent]="actions"
     >
-      <!-- @TODO Alex I can't get this label to show up -->
-      <label [tuiLabel]="member.name"></label>
+      {{ member.name }}
       <input
         tuiTextfield
         [style.border-inline-end-width.rem]="border"
         [type]="member.masked && masked ? 'password' : 'text'"
       />
     </tui-input>
-    <label style="min-height: unset;" [tuiLabel]="member.description"></label>
+    <label *ngIf="member.description" [style.padding-top.rem]="0.25" tuiTitle>
+      <span tuiSubtitle [style.opacity]="0.8">{{ member.description }}</span>
+    </label>
     <ng-template #actions>
       <button
         *ngIf="member.masked"
@@ -119,7 +119,7 @@ import { T } from '@start9labs/start-sdk'
     TuiTextfieldControllerModule,
     TuiButtonModule,
     QrCodeModule,
-    TuiLabelModule,
+    TuiTitleModule,
   ],
 })
 export class ActionSuccessMemberComponent {
