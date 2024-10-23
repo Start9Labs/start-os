@@ -201,7 +201,7 @@ fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	ln -sf /usr/bin/pi-beep /usr/local/bin/beep
-	SKIP_WARNING=1 rpi-update stable
+	SKIP_WARNING=1 SKIP_BOOTLOADER=1 rpi-update stable
 fi
 
 useradd --shell /bin/bash -G embassy -m start9
