@@ -1,8 +1,14 @@
 import { Component, Input } from '@angular/core'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import {
-  PackageDataEntry,
-  PackageState,
-} from 'src/app/services/patch-db/data-model'
+  isInstalled,
+  isInstalling,
+  isUpdating,
+  isRemoving,
+  isRestoring,
+  getManifest,
+} from 'src/app/util/get-package-data'
+import { Exver } from '@start9labs/shared'
 
 @Component({
   selector: 'marketplace-status',
@@ -11,12 +17,24 @@ import {
 })
 export class MarketplaceStatusComponent {
   @Input() version!: string
+  @Input() localPkg!: PackageDataEntry
 
-  @Input() localPkg?: PackageDataEntry
-
-  PackageState = PackageState
+  isInstalled = isInstalled
+  isInstalling = isInstalling
+  isUpdating = isUpdating
+  isRemoving = isRemoving
+  isRestoring = isRestoring
 
   get localVersion(): string {
-    return this.localPkg?.manifest.version || ''
+    return getManifest(this.localPkg).version
   }
+
+  get sameFlavor(): boolean {
+    return (
+      this.exver.getFlavor(this.version) ===
+      this.exver.getFlavor(this.localVersion)
+    )
+  }
+
+  constructor(private readonly exver: Exver) {}
 }

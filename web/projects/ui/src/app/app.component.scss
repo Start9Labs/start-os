@@ -9,11 +9,15 @@ tui-root {
 
 .left-menu {
   --side-max-width: 280px;
+
+  &_hidden {
+    display: none;
+  }
 }
 
 .menu {
   :host-context(body[data-theme='Light']) & {
-    --ion-color-base: #F4F4F5 !important;
+    --ion-color-base: #f4f4f5 !important;
   }
 }
 

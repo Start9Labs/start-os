@@ -11,7 +11,7 @@ export class DependenciesComponent {
   pkg!: MarketplacePkg
 
   getImg(key: string): string {
-    // @TODO fix when registry api is updated to include mimetype in icon url
-    return 'data:image/png;base64,' + this.pkg['dependency-metadata'][key].icon
+    const icon = this.pkg.dependencyMetadata[key]?.icon
+    return icon ? icon : 'assets/img/service-icons/fallback.png'
   }
 }

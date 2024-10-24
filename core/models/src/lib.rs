@@ -1,3 +1,4 @@
+mod clap;
 mod data_url;
 mod errors;
 mod id;
@@ -5,6 +6,7 @@ mod mime;
 mod procedure_name;
 mod version;
 
+pub use clap::*;
 pub use data_url::*;
 pub use errors::*;
 pub use id::*;

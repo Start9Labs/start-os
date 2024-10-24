@@ -1,7 +1,7 @@
 import { Component } from '@angular/core'
 import { AlertController, NavController } from '@ionic/angular'
+import { DiskInfo, ErrorService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/api.service'
-import { DiskInfo, ErrorToastService } from '@start9labs/shared'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
@@ -17,7 +17,7 @@ export class TransferPage {
     private readonly apiService: ApiService,
     private readonly navCtrl: NavController,
     private readonly alertCtrl: AlertController,
-    private readonly errToastService: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly stateService: StateService,
   ) {}
 
@@ -35,7 +35,7 @@ export class TransferPage {
     try {
       this.drives = await this.apiService.getDrives()
     } catch (e: any) {
-      this.errToastService.present(e)
+      this.errorService.handleError(e)
     } finally {
       this.loading = false
     }

@@ -1,3 +1,5 @@
+use std::io;
+
 use tracing::Subscriber;
 use tracing_subscriber::util::SubscriberInitExt;
 
@@ -21,7 +23,11 @@ impl EmbassyLogger {
         let filter_layer = filter_layer
             .add_directive("tokio=trace".parse().unwrap())
             .add_directive("runtime=trace".parse().unwrap());
-        let fmt_layer = fmt::layer().with_target(true);
+        let fmt_layer = fmt::layer()
+            .with_writer(io::stderr)
+            .with_line_number(true)
+            .with_file(true)
+            .with_target(true);
 
         let sub = tracing_subscriber::registry()
             .with(filter_layer)

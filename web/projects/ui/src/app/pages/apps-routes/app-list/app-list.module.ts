@@ -4,7 +4,7 @@ import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { AppListPage } from './app-list.page'
 import {
-  EmverPipesModule,
+  ExverPipesModule,
   ResponsiveColModule,
   TextSpinnerComponentModule,
   TickerModule,
@@ -29,7 +29,7 @@ const routes: Routes = [
   imports: [
     CommonModule,
     StatusComponentModule,
-    EmverPipesModule,
+    ExverPipesModule,
     TextSpinnerComponentModule,
     LaunchablePipeModule,
     UiPipeModule,

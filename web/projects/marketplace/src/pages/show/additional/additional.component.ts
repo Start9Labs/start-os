@@ -10,15 +10,9 @@ import {
   ModalController,
   ToastController,
 } from '@ionic/angular'
-import {
-  copyToClipboard,
-  displayEmver,
-  Emver,
-  MarkdownComponent,
-} from '@start9labs/shared'
+import { copyToClipboard, Exver, MarkdownComponent } from '@start9labs/shared'
 import { MarketplacePkg } from '../../../types'
 import { AbstractMarketplaceService } from '../../../services/marketplace.service'
-import { ActivatedRoute } from '@angular/router'
 
 @Component({
   selector: 'marketplace-additional',
@@ -32,15 +26,12 @@ export class AdditionalComponent {
   @Output()
   version = new EventEmitter<string>()
 
-  readonly url = this.route.snapshot.queryParamMap.get('url') || undefined
-
   constructor(
     private readonly alertCtrl: AlertController,
     private readonly modalCtrl: ModalController,
-    private readonly emver: Emver,
+    private readonly exver: Exver,
     private readonly marketplaceService: AbstractMarketplaceService,
     private readonly toastCtrl: ToastController,
-    private readonly route: ActivatedRoute,
   ) {}
 
   async copy(address: string): Promise<void> {
@@ -58,41 +49,53 @@ export class AdditionalComponent {
   }
 
   async presentAlertVersions() {
-    const alert = await this.alertCtrl.create({
-      header: 'Versions',
-      inputs: this.pkg.versions
-        .sort((a, b) => -1 * (this.emver.compare(a, b) || 0))
-        .map(v => ({
-          name: v, // for CSS
-          type: 'radio',
-          label: displayEmver(v), // appearance on screen
-          value: v, // literal SEM version value
-          checked: this.pkg.manifest.version === v,
-        })),
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
-        },
-        {
-          text: 'Ok',
-          handler: (version: string) => this.version.emit(version),
-        },
-      ],
-    })
+    const versions = Object.keys(this.pkg.otherVersions).filter(
+      v => this.exver.getFlavor(v) === this.pkg.flavor,
+    )
 
-    await alert.present()
+    if (!versions.length) {
+      const alert = await this.alertCtrl.create({
+        header: 'Versions',
+        message: 'No other versions',
+      })
+
+      await alert.present()
+    } else {
+      const alert = await this.alertCtrl.create({
+        header: 'Versions',
+        inputs: versions
+          .sort((a, b) => -1 * (this.exver.compareExver(a, b) || 0))
+          .map(v => ({
+            name: v, // for CSS
+            type: 'radio',
+            label: v, // appearance on screen
+            value: v, // literal SEM version value
+            checked: this.pkg.version === v,
+          })),
+        buttons: [
+          {
+            text: 'Cancel',
+            role: 'cancel',
+          },
+          {
+            text: 'Ok',
+            handler: (version: string) => this.version.emit(version),
+          },
+        ],
+      })
+
+      await alert.present()
+    }
   }
 
-  async presentModalMd(title: string) {
+  async presentModalMd(asset: 'license' | 'instructions') {
     const content = this.marketplaceService.fetchStatic$(
-      this.pkg.manifest.id,
-      title,
-      this.url,
+      this.pkg,
+      asset === 'license' ? 'LICENSE.md' : 'instructions.md',
     )
 
     const modal = await this.modalCtrl.create({
-      componentProps: { title, content },
+      componentProps: { title: asset, content },
       component: MarkdownComponent,
     })
 

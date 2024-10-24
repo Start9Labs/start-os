@@ -1,5 +1,5 @@
 export interface MappedBackupTarget<T> {
   id: string
-  hasValidBackup: boolean
+  hasAnyBackup: boolean
   entry: T
 }

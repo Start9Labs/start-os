@@ -1,39 +1,36 @@
-import { Component, Input } from '@angular/core'
-import { ModalController, ToastController } from '@ionic/angular'
-import { ActionResponse } from 'src/app/services/api/api.types'
-import { copyToClipboard } from '@start9labs/shared'
+import { CommonModule } from '@angular/common'
+import { Component, inject } from '@angular/core'
+import { TuiDialogContext, TuiTextfieldControllerModule } from '@taiga-ui/core'
+import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
+import { RR } from 'src/app/services/api/api.types'
+import { ActionSuccessGroupComponent } from './action-success-group.component'
+import { ActionSuccessItemComponent } from './action-success-item.component'
 
 @Component({
-  selector: 'action-success',
-  templateUrl: './action-success.page.html',
-  styleUrls: ['./action-success.page.scss'],
+  standalone: true,
+  template: `
+    <ng-container tuiTextfieldSize="m" [tuiTextfieldLabelOutside]="true">
+      <app-action-success-item
+        *ngIf="item"
+        [value]="item"
+      ></app-action-success-item>
+      <app-action-success-group
+        *ngIf="group"
+        [value]="group"
+      ></app-action-success-group>
+    </ng-container>
+  `,
+  imports: [
+    CommonModule,
+    ActionSuccessGroupComponent,
+    ActionSuccessItemComponent,
+    TuiTextfieldControllerModule,
+  ],
 })
 export class ActionSuccessPage {
-  @Input()
-  actionRes!: ActionResponse
+  readonly data =
+    inject<TuiDialogContext<void, RR.ActionRes>>(POLYMORPHEUS_CONTEXT).data
 
-  constructor(
-    private readonly modalCtrl: ModalController,
-    private readonly toastCtrl: ToastController,
-  ) {}
-
-  async copy(address: string) {
-    let message = ''
-    await copyToClipboard(address || '').then(success => {
-      message = success
-        ? 'Copied to clipboard!'
-        : 'Failed to copy to clipboard.'
-    })
-
-    const toast = await this.toastCtrl.create({
-      header: message,
-      position: 'bottom',
-      duration: 1000,
-    })
-    await toast.present()
-  }
-
-  async dismiss() {
-    return this.modalCtrl.dismiss()
-  }
+  readonly item = this.data?.type === 'string' ? this.data : null
+  readonly group = this.data?.type === 'object' ? this.data : null
 }
