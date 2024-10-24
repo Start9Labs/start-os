@@ -134,6 +134,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
       getDataVersion: (effects, ...args) => effects.getDataVersion(...args),
       shutdown: (effects, ...args) => effects.shutdown(...args),
       getDependencies: (effects, ...args) => effects.getDependencies(...args),
+      getStatus: (effects, ...args) => effects.getStatus(...args),
     }
 
     return {

@@ -461,7 +461,7 @@ export class SystemForEmbassy implements System {
         version: "1",
         title: "Properties",
         message: null,
-        value: {
+        result: {
           type: "group",
           value: Object.entries(await this.properties(effects, timeoutMs)).map(
             ([name, value]) => convertProperties(name, value),
