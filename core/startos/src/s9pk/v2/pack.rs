@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -62,6 +63,7 @@ impl SqfsDir {
                 let path = self.tmpdir.join(guid.as_ref()).with_extension("squashfs");
                 if self.path.extension().and_then(|s| s.to_str()) == Some("tar") {
                     Command::new("tar2sqfs")
+                        .arg("-q")
                         .arg(&path)
                         .input(Some(&mut open_file(&self.path).await?))
                         .invoke(ErrorKind::Filesystem)
@@ -70,6 +72,7 @@ impl SqfsDir {
                     Command::new("mksquashfs")
                         .arg(&self.path)
                         .arg(&path)
+                        .arg("-quiet")
                         .invoke(ErrorKind::Filesystem)
                         .await?;
                 }
@@ -294,6 +297,7 @@ impl TryFrom<CliImageConfig> for ImageConfig {
                 ImageSource::DockerBuild {
                     dockerfile: value.dockerfile,
                     workdir: value.workdir,
+                    build_args: None
                 }
             } else if let Some(tag) = value.docker_tag {
                 ImageSource::DockerTag(tag)
@@ -340,12 +344,31 @@ impl clap::FromArgMatches for ImageConfig {
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
+struct EnvVar {
+    env: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[serde(untagged)]
+#[ts(export)]
+pub enum BuildArg {
+    String(String),
+    EnvVar(EnvVar),
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub enum ImageSource {
     Packed,
     #[serde(rename_all = "camelCase")]
     DockerBuild {
         workdir: Option<PathBuf>,
         dockerfile: Option<PathBuf>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        build_args: Option<BTreeMap<String, BuildArg>>
     },
     DockerTag(String),
 }
@@ -384,6 +407,7 @@ impl ImageSource {
                 ImageSource::DockerBuild {
                     workdir,
                     dockerfile,
+                    build_args
                 } => {
                     let workdir = workdir.as_deref().unwrap_or(Path::new("."));
                     let dockerfile = dockerfile
@@ -398,7 +422,8 @@ impl ImageSource {
                     };
                     // docker buildx build ${path} -o type=image,name=start9/${id}
                     let tag = format!("start9/{id}/{image_id}:{}", new_guid());
-                    Command::new(CONTAINER_TOOL)
+                    let mut command = Command::new(CONTAINER_TOOL);
+                    command
                         .arg("build")
                         .arg(workdir)
                         .arg("-f")
@@ -406,6 +431,26 @@ impl ImageSource {
                         .arg("-t")
                         .arg(&tag)
                         .arg(&docker_platform)
+                        .arg("--build-arg").arg(format!("ARCH={}", arch));
+
+                    // add build arguments
+                    if let Some(build_args) = build_args {
+                        for (key, value) in build_args {
+                            let build_arg_value = match value {
+                                BuildArg::String(val) => val.to_string(),
+                                BuildArg::EnvVar(env_var) => {
+                                    match std::env::var(&env_var.env) {
+                                        Ok(val) => val,
+                                        Err(_) => continue, // skip if env var not set or invalid
+                                    }
+                                },
+                            };
+
+                            command.arg("--build-arg").arg(format!("{}={}", key, build_arg_value));
+                        }
+                    }
+
+                    command
                         .arg("-o")
                         .arg("type=docker,dest=-")
                         .capture(false)
@@ -513,7 +558,7 @@ impl ImageSource {
                     Command::new(CONTAINER_TOOL)
                         .arg("export")
                         .arg(container.trim())
-                        .pipe(Command::new("tar2sqfs").arg(&dest))
+                        .pipe(Command::new("tar2sqfs").arg("-q").arg(&dest))
                         .capture(false)
                         .invoke(ErrorKind::Docker)
                         .await?;
