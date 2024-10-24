@@ -304,10 +304,10 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 
 	TMPDIR=$(mktemp -d)
 
-	mkdir -p $TMPDIR/boot/firmware $TMPDIR/root 
+	mkdir -p $TMPDIR/boot $TMPDIR/root 
 	mount `partition_for ${OUTPUT_DEVICE} 2` $TMPDIR/root
-	mount `partition_for ${OUTPUT_DEVICE} 1` $TMPDIR/boot/firmware
-	unsquashfs -n -f -d $TMPDIR $prep_results_dir/binary/live/filesystem.squashfs boot/firmware
+	mount `partition_for ${OUTPUT_DEVICE} 1` $TMPDIR/boot
+	unsquashfs -n -f -d $TMPDIR $prep_results_dir/binary/live/filesystem.squashfs boot
 
 	mkdir $TMPDIR/root/images $TMPDIR/root/config
 	B3SUM=$(b3sum $prep_results_dir/binary/live/filesystem.squashfs | head -c 16)
@@ -320,14 +320,14 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	mount -t overlay -o lowerdir=$TMPDIR/lower,workdir=$TMPDIR/root/config/work,upperdir=$TMPDIR/root/config/overlay overlay $TMPDIR/next
 
 	if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-		sed -i 's| boot=startos| boot=startos init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/firmware/cmdline.txt
+		sed -i 's| boot=startos| boot=startos init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
 		rsync -a $base_dir/raspberrypi/img/ $TMPDIR/next/
 	fi
 
 	umount $TMPDIR/next
 	umount $TMPDIR/lower
 
-	umount $TMPDIR/boot/firmware
+	umount $TMPDIR/boot
 	umount $TMPDIR/root
 
 	e2fsck -fy `partition_for ${OUTPUT_DEVICE} 2`
