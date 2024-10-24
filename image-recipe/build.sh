@@ -319,14 +319,14 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	mount -t overlay -o lowerdir=$TMPDIR/lower,workdir=$TMPDIR/root/config/work,upperdir=$TMPDIR/root/config/overlay overlay $TMPDIR/next
 
 	if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-		sed -i 's| boot=startos| boot=startos init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
+		sed -i 's| boot=startos| boot=startos init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/firmware/cmdline.txt
 		rsync -a $base_dir/raspberrypi/img/ $TMPDIR/next/
 	fi
 
 	umount $TMPDIR/next
 	umount $TMPDIR/lower
 
-	umount $TMPDIR/boot
+	umount $TMPDIR/boot/firmware
 	umount $TMPDIR/root
 
 	e2fsck -fy `partition_for ${OUTPUT_DEVICE} 2`
