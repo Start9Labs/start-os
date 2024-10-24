@@ -61,13 +61,8 @@ PLATFORM_CONFIG_EXTRAS=
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-binary false"
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-chroot false"
-	# BEGIN stupid ugly hack
-	# The actual name of the package is `raspberrypi-kernel`
-	# live-build determines thte name of the package for the kernel by combining the `linux-packages` flag, with the `linux-flavours` flag
-	# the `linux-flavours` flag defaults to the architecture, so there's no way to remove the suffix.
-	# So we're doing this, cause thank the gods our package name contains a hypen. Cause if it didn't we'd be SOL
-	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-packages raspberrypi"
-	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours kernel"
+	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-packages linux-image-6.6.51+rpt"
+	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours rpi-v8"
 	# END stupid ugly hack
 elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours rockchip64"
@@ -148,13 +143,13 @@ sed -i -e '2i set timeout=5' config/bootloaders/grub-pc/config.cfg
 mkdir -p config/archives
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
-	echo "deb https://archive.raspberrypi.org/debian/ bullseye main" > config/archives/raspi.list
+	curl -fsSL https://archive.raspberrypi.com/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
+	echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/raspi.key.gpg] https://archive.raspberrypi.com/debian/ ${IB_SUITE} main" > config/archives/raspi.list
 fi
 
 cat > config/archives/backports.pref <<- EOF
 Package: *
-Pin: release a=stable-backports
+Pin: release n=${IB_SUITE}-backports
 Pin-Priority: 500
 EOF
 
@@ -180,7 +175,7 @@ if [ "$NON_FREE" = 1 ]; then
 fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	echo 'raspberrypi-bootloader rpi-update parted' > config/package-lists/bootloader.list.chroot
+	echo 'raspberrypi-net-mods raspberrypi-sys-mods raspi-config raspi-firmware raspi-gpio raspi-utils rpi-eeprom rpi-update rpi.gpio-common parted' > config/package-lists/bootloader.list.chroot
 else
 	echo 'grub-efi grub2-common' > config/package-lists/bootloader.list.chroot
 fi
@@ -205,17 +200,9 @@ if [ "${IB_SUITE}" = bookworm ]; then
 fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	for f in /usr/lib/modules/*; do
-    	v=\${f#/usr/lib/modules/}
-		echo "Configuring raspi kernel '\$v'"
-    	extract-ikconfig "/usr/lib/modules/\$v/kernel/kernel/configs.ko.xz" > /boot/config-\$v
-		update-initramfs -c -k \$v
-	done
 	ln -sf /usr/bin/pi-beep /usr/local/bin/beep
-	wget https://archive.raspberrypi.org/debian/pool/main/w/wireless-regdb/wireless-regdb_2018.05.09-0~rpt1_all.deb
-	echo 1b7b1076257726609535b71d146a5721622d19a0843061ee7568188e836dd10f wireless-regdb_2018.05.09-0~rpt1_all.deb | sha256sum -c
-	apt-get install -y --allow-downgrades ./wireless-regdb_2018.05.09-0~rpt1_all.deb
-	rm wireless-regdb_2018.05.09-0~rpt1_all.deb
+	SKIP_WARNING=1 SKIP_BOOTLOADER=1 SKIP_CHECK_PARTITION=1 WANT_64BIT=1 WANT_PI4=1 WANT_PI5=1 rpi-update stable
+	update-initramfs -u -k all
 fi
 
 useradd --shell /bin/bash -G embassy -m start9
