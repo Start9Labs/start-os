@@ -303,10 +303,10 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 
 	TMPDIR=$(mktemp -d)
 
-	mkdir -p $TMPDIR/boot $TMPDIR/root 
+	mkdir -p $TMPDIR/boot/firmware $TMPDIR/root 
 	mount `partition_for ${OUTPUT_DEVICE} 2` $TMPDIR/root
-	mount `partition_for ${OUTPUT_DEVICE} 1` $TMPDIR/boot
-	unsquashfs -n -f -d $TMPDIR $prep_results_dir/binary/live/filesystem.squashfs boot
+	mount `partition_for ${OUTPUT_DEVICE} 1` $TMPDIR/boot/firmware
+	unsquashfs -n -f -d $TMPDIR $prep_results_dir/binary/live/filesystem.squashfs boot/firmware
 
 	mkdir $TMPDIR/root/images $TMPDIR/root/config
 	B3SUM=$(b3sum $prep_results_dir/binary/live/filesystem.squashfs | head -c 16)
