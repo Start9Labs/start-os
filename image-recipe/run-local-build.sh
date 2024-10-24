@@ -44,9 +44,9 @@ if [ -z "$DSNAME" ]; then
 	DSNAME="$SUITE"
 fi
 
-# if [ "$QEMU_ARCH" != "$(uname -m)" ]; then
-#   sudo update-binfmts --import qemu-$QEMU_ARCH
-# fi
+if [ "$QEMU_ARCH" != "$(uname -m)" ]; then
+  sudo update-binfmts --import qemu-$QEMU_ARCH
+fi
 
 imgbuild_fname="$(mktemp /tmp/exec-mkimage.XXXXXX)"
 cat > $imgbuild_fname <<END
