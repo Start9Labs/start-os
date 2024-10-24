@@ -41,7 +41,15 @@ export async function checkPortListening(
           port,
         ) ||
         containsAddress(
+          await cpExec(`cat /proc/net/tcp6`, {}).then(stringFromStdErrOut),
+          port,
+        ) ||
+        containsAddress(
           await cpExec("cat /proc/net/udp", {}).then(stringFromStdErrOut),
+          port,
+        ) ||
+        containsAddress(
+          await cpExec("cat /proc/net/udp6", {}).then(stringFromStdErrOut),
           port,
         )
       if (hasAddress) {
