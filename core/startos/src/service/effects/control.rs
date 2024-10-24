@@ -44,8 +44,17 @@ pub async fn get_status(
     }: GetStatusParams,
 ) -> Result<MainStatus, Error> {
     let context = context.deref()?;
+    let id = package_id.unwrap_or_else(|| context.seed.id.clone());
+    let db = context.seed.ctx.db.peek().await;
+    let status = db
+        .as_public()
+        .as_package_data()
+        .as_idx(&id)
+        .or_not_found(&id)?
+        .as_status()
+        .de()?;
 
-    todo!()
+    Ok(status)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

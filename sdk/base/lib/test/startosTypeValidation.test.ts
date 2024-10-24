@@ -7,6 +7,7 @@ import {
   ClearCallbacksParams,
   ClearServiceInterfacesParams,
   GetActionInputParams,
+  GetStatusParams,
   GetStoreParams,
   RequestActionParams,
   RunActionParams,
