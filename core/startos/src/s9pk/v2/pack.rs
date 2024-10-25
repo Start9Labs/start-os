@@ -343,18 +343,13 @@ impl clap::FromArgMatches for ImageConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
-struct EnvVar {
-    env: String,
-}
-
-#[derive(Debug, Clone, Deserialize, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
 #[serde(untagged)]
 #[ts(export)]
 pub enum BuildArg {
     String(String),
-    EnvVar(EnvVar),
+    EnvVar {
+        env: String,
+    },
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
@@ -438,8 +433,8 @@ impl ImageSource {
                         for (key, value) in build_args {
                             let build_arg_value = match value {
                                 BuildArg::String(val) => val.to_string(),
-                                BuildArg::EnvVar(env_var) => {
-                                    match std::env::var(&env_var.env) {
+                                BuildArg::EnvVar { env } => {
+                                    match std::env::var(&env) {
                                         Ok(val) => val,
                                         Err(_) => continue, // skip if env var not set or invalid
                                     }
