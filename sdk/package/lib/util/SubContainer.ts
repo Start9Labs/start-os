@@ -35,8 +35,8 @@ export interface ExecSpawnable {
   ): Promise<ExecResults>
   spawn(
     command: string[],
-    options?: CommandOptions,
-  ): Promise<cp.ChildProcessWithoutNullStreams>
+    options?: CommandOptions & StdioOptions,
+  ): Promise<cp.ChildProcess>
 }
 /**
  * Want to limit what we can do in a container, so we want to launch a container with a specific image and the mounts.
@@ -258,18 +258,12 @@ export class SubContainer implements ExecSpawnable {
       await new Promise<null>((resolve) => child.stdin.end(resolve))
     }
     const pid = child.pid
-    const stdout = { data: "" as string | Buffer }
-    const stderr = { data: "" as string | Buffer }
+    const stdout = { data: "" as string }
+    const stderr = { data: "" as string }
     const appendData =
-      (appendTo: { data: string | Buffer }) =>
-      (chunk: string | Buffer | any) => {
-        if (typeof appendTo.data === "string" && typeof chunk === "string") {
-          appendTo.data += chunk
-        } else if (typeof chunk === "string" || chunk instanceof Buffer) {
-          appendTo.data = Buffer.concat([
-            new Uint8Array(Buffer.from(appendTo.data).buffer),
-            new Uint8Array(Buffer.from(chunk).buffer),
-          ])
+      (appendTo: { data: string }) => (chunk: string | Buffer | any) => {
+        if (typeof chunk === "string" || chunk instanceof Buffer) {
+          appendTo.data += chunk.toString()
         } else {
           console.error("received unexpected chunk", chunk)
         }
@@ -338,8 +332,8 @@ export class SubContainer implements ExecSpawnable {
 
   async spawn(
     command: string[],
-    options?: CommandOptions,
-  ): Promise<cp.ChildProcessWithoutNullStreams> {
+    options: CommandOptions & StdioOptions = { stdio: "inherit" },
+  ): Promise<cp.ChildProcess> {
     await this.waitProc()
     const imageMeta: any = await fs
       .readFile(`/media/startos/images/${this.imageId}.json`, {
@@ -348,12 +342,12 @@ export class SubContainer implements ExecSpawnable {
       .catch(() => "{}")
       .then(JSON.parse)
     let extra: string[] = []
-    if (options?.user) {
+    if (options.user) {
       extra.push(`--user=${options.user}`)
       delete options.user
     }
     let workdir = imageMeta.workdir || "/"
-    if (options?.cwd) {
+    if (options.cwd) {
       workdir = options.cwd
       delete options.cwd
     }
@@ -393,8 +387,8 @@ export class SubContainerHandle implements ExecSpawnable {
   }
   spawn(
     command: string[],
-    options?: CommandOptions,
-  ): Promise<cp.ChildProcessWithoutNullStreams> {
+    options: CommandOptions & StdioOptions = { stdio: "inherit" },
+  ): Promise<cp.ChildProcess> {
     return this.subContainer.spawn(command, options)
   }
 }
@@ -403,6 +397,10 @@ export type CommandOptions = {
   env?: { [variable: string]: string }
   cwd?: string
   user?: string
+}
+
+export type StdioOptions = {
+  stdio?: cp.IOType
 }
 
 export type MountOptions =
