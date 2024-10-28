@@ -61,35 +61,7 @@ impl SqfsDir {
                 let guid = Guid::new();
                 let path = self.tmpdir.join(guid.as_ref()).with_extension("squashfs");
                 if self.path.extension().and_then(|s| s.to_str()) == Some("tar") {
-                    #[cfg(target_os = "linux")]
-                    let mut command = Command::new("tar2sqfs");
-                    #[cfg(target_os = "linux")]
-                    command.arg(&path);
-                    #[cfg(target_os = "macos")]
-                    let mut command = Command::new(CONTAINER_TOOL);
-                    #[cfg(target_os = "macos")]
-                    {
-                        let path = self.path.clone().canonicalize()?;
-                        let dir = if path.is_dir() {
-                            path.clone()
-                        } else {
-                            path.parent()
-                                .unwrap_or_else(|| Path::new("/"))
-                                .to_path_buf()
-                        };
-
-                        command
-                            .arg("run")
-                            .arg("-vi")
-                            .arg("--rm")
-                            .arg("-v")
-                            .arg(format!("{}:/data:rw", dir.display()))
-                            .arg("mac-tar2sqfs")
-                            .arg("tar2sqfs")
-                            .arg(Path::new("/data").join(&path.file_name().unwrap_or_default()));
-                    }
-
-                    command
+                    tar2sqfs(&self.path)?
                         .input(Some(&mut open_file(&self.path).await?))
                         .invoke(ErrorKind::Filesystem)
                         .await?;
@@ -540,27 +512,7 @@ impl ImageSource {
                     Command::new(CONTAINER_TOOL)
                         .arg("export")
                         .arg(container.trim())
-                        .pipe({
-                            #[cfg(target_os = "linux")]
-                            {
-                                Command::new("tar2sqfs").arg(&dest)
-                            }
-                            #[cfg(target_os = "macos")]
-                            {
-                                Command::new(CONTAINER_TOOL)
-                                    .arg("run")
-                                    .arg("-i")
-                                    .arg("--rm")
-                                    .arg("-v")
-                                    .arg(format!("{}:/data:rw", dest.parent().unwrap().display()))
-                                    .arg("mac-tar2sqfs")
-                                    .arg("tar2sqfs")
-                                    .arg(
-                                        Path::new("/data")
-                                            .join(&dest.file_name().unwrap_or_default()),
-                                    )
-                            }
-                        })
+                        .pipe(&mut tar2sqfs(&dest)?)
                         .capture(false)
                         .invoke(ErrorKind::Docker)
                         .await?;
@@ -580,6 +532,37 @@ impl ImageSource {
         }
         .boxed()
     }
+}
+
+fn tar2sqfs(dest: impl AsRef<Path>) -> Result<Command, Error> {
+    let dest = dest.as_ref();
+
+    Ok({
+        #[cfg(target_os = "linux")]
+        {
+            let mut command = Command::new("tar2sqfs");
+            command.arg(&dest);
+            command
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let directory = dest
+                .parent()
+                .unwrap_or_else(|| Path::new("/"))
+                .to_path_buf();
+            let mut command = Command::new(CONTAINER_TOOL);
+            command
+                .arg("run")
+                .arg("-i")
+                .arg("--rm")
+                .arg("-v")
+                .arg(format!("{}:/data:rw", directory.display()))
+                .arg("mac-tar2sqfs")
+                .arg("tar2sqfs")
+                .arg(Path::new("/data").join(&dest.file_name().unwrap_or_default()));
+            command
+        }
+    })
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
