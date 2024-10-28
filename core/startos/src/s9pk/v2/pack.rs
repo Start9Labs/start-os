@@ -61,8 +61,25 @@ impl SqfsDir {
                 let guid = Guid::new();
                 let path = self.tmpdir.join(guid.as_ref()).with_extension("squashfs");
                 if self.path.extension().and_then(|s| s.to_str()) == Some("tar") {
-                    Command::new("tar2sqfs")
-                        .arg(&path)
+                    #[cfg(target_os = "linux")]
+                    let mut command = Command::new("tar2sqfs");
+                    #[cfg(target_os = "linux")]
+                    command.arg(&path);
+                    #[cfg(target_os = "macos")]
+                    let mut command = Command::new(CONTAINER_TOOL);
+                    #[cfg(target_os = "macos")]
+                    command
+                        .arg("run")
+                        .arg("--priveleged")
+                        .arg("--rm")
+                        .arg("--net=host")
+                        .arg("-v")
+                        .arg(format!("{}:/data:rw", self.path.display()))
+                        .arg("--")
+                        .arg("tar2sqfs")
+                        .arg("/data");
+
+                    command
                         .input(Some(&mut open_file(&self.path).await?))
                         .invoke(ErrorKind::Filesystem)
                         .await?;
