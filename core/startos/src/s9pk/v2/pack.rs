@@ -68,16 +68,28 @@ impl SqfsDir {
                     #[cfg(target_os = "macos")]
                     let mut command = Command::new(CONTAINER_TOOL);
                     #[cfg(target_os = "macos")]
-                    command
-                        .arg("run")
-                        .arg("--priveleged")
-                        .arg("--rm")
-                        .arg("--net=host")
-                        .arg("-v")
-                        .arg(format!("{}:/data:rw", self.path.display()))
-                        .arg("--")
-                        .arg("tar2sqfs")
-                        .arg("/data");
+                    {
+                        let path = self.path.clone().canonicalize()?;
+                        let dir = if path.is_dir() {
+                            path.clone()
+                        } else {
+                            path.parent()
+                                .unwrap_or_else(|| Path::new("/"))
+                                .to_path_buf()
+                        };
+
+                        command
+                            .arg("run")
+                            .arg("-i")
+                            .arg("--priveleged")
+                            .arg("--rm")
+                            .arg("--net=host")
+                            .arg("-v")
+                            .arg(format!("{}:/data:rw", dir.display()))
+                            .arg("localhost/mac-tar2sqfs")
+                            .arg("tar2sqfs")
+                            .arg(Path::new("/data").join(&path.file_name().unwrap_or_default()));
+                    }
 
                     command
                         .input(Some(&mut open_file(&self.path).await?))
