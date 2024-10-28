@@ -7,6 +7,7 @@ import {
   ClearCallbacksParams,
   ClearServiceInterfacesParams,
   GetActionInputParams,
+  GetStatusParams,
   GetStoreParams,
   RequestActionParams,
   RunActionParams,
@@ -89,6 +90,7 @@ describe("startosTypeValidation ", () => {
       mount: {} as MountParams,
       checkDependencies: {} as CheckDependenciesParam,
       getDependencies: undefined,
+      getStatus: {} as WithCallback<GetStatusParams>,
       setMainStatus: {} as SetMainStatus,
     })
   })

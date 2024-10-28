@@ -39,6 +39,8 @@ type DaemonsParams<
   ready: Ready
   requires: Exclude<Ids, Id>[]
   sigtermTimeout?: number
+  onStdout?: (chunk: Buffer | string | any) => void
+  onStderr?: (chunk: Buffer | string | any) => void
 }
 
 type ErrorDuplicateId<Id extends string> = `The id '${Id}' is already used`

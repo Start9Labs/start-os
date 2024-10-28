@@ -151,7 +151,7 @@ export class DockerProcedureContainer {
     }
   }
 
-  async spawn(commands: string[]): Promise<cp.ChildProcessWithoutNullStreams> {
+  async spawn(commands: string[]): Promise<cp.ChildProcess> {
     return await this.subcontainer.spawn(commands)
   }
 }
