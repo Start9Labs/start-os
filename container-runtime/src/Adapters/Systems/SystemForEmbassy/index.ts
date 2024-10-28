@@ -245,10 +245,10 @@ const matchProperties = object({
 function convertProperties(
   name: string,
   value: PropertiesValue,
-): T.ActionResultV1 {
+): T.ActionResultMember {
   if (value.type === "string") {
     return {
-      type: "string",
+      type: "single",
       name,
       description: value.description,
       copyable: value.copyable || false,
@@ -258,9 +258,9 @@ function convertProperties(
     }
   }
   return {
-    type: "object",
+    type: "group",
     name,
-    description: value.description || undefined,
+    description: value.description,
     value: Object.entries(value.value).map(([name, value]) =>
       convertProperties(name, value),
     ),
@@ -459,13 +459,14 @@ export class SystemForEmbassy implements System {
     } else if (actionId === "properties") {
       return {
         version: "1",
-        type: "object",
-        name: "Properties",
-        description:
-          "Runtime information, credentials, and other values of interest",
-        value: Object.entries(await this.properties(effects, timeoutMs)).map(
-          ([name, value]) => convertProperties(name, value),
-        ),
+        title: "Properties",
+        message: null,
+        result: {
+          type: "group",
+          value: Object.entries(await this.properties(effects, timeoutMs)).map(
+            ([name, value]) => convertProperties(name, value),
+          ),
+        },
       }
     } else {
       return this.action(effects, actionId, input, timeoutMs)
@@ -814,13 +815,13 @@ export class SystemForEmbassy implements System {
     const actionProcedure = this.manifest.actions?.[actionId]?.implementation
     const toActionResult = ({
       message,
-      value = "",
+      value,
       copyable,
       qr,
     }: U.ActionResult): T.ActionResult => ({
       version: "0",
       message,
-      value,
+      value: value ?? null,
       copyable,
       qr,
     })

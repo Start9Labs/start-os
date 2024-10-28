@@ -50,6 +50,12 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
                 .no_display()
                 .with_call_remote::<ContainerCliContext>(),
         )
+        .subcommand(
+            "get-status",
+            from_fn_async(control::get_status)
+                .no_display()
+                .with_call_remote::<ContainerCliContext>(),
+        )
         // dependency
         .subcommand(
             "set-dependencies",
