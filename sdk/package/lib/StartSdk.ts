@@ -134,6 +134,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
       getDataVersion: (effects, ...args) => effects.getDataVersion(...args),
       shutdown: (effects, ...args) => effects.shutdown(...args),
       getDependencies: (effects, ...args) => effects.getDependencies(...args),
+      getStatus: (effects, ...args) => effects.getStatus(...args),
     }
 
     return {
@@ -387,8 +388,8 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         algorithm?: T.Algorithm,
       ) => new GetSslCertificate(effects, hostnames, algorithm),
       HealthCheck: {
-        of(o: HealthCheckParams) {
-          return healthCheck(o)
+        of(effects: T.Effects, o: Omit<HealthCheckParams, "effects">) {
+          return healthCheck({ effects, ...o })
         },
       },
       healthCheck: {
@@ -636,12 +637,12 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         ) => InputSpec.of<Spec, Store>(spec),
       },
       Daemons: {
-        of(options: {
-          effects: Effects
-          started: (onTerm: () => PromiseLike<void>) => PromiseLike<null>
-          healthReceipts: HealthReceipt[]
-        }) {
-          return Daemons.of<Manifest>(options)
+        of(
+          effects: Effects,
+          started: (onTerm: () => PromiseLike<void>) => PromiseLike<null>,
+          healthReceipts: HealthReceipt[],
+        ) {
+          return Daemons.of<Manifest>({ effects, started, healthReceipts })
         },
       },
       List: {

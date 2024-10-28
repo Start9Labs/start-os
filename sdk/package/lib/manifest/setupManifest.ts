@@ -15,18 +15,14 @@ import { VersionGraph } from "../version/VersionGraph"
  */
 export function setupManifest<
   Id extends string,
-  Dependencies extends Record<string, unknown>,
   VolumesTypes extends VolumeId,
   AssetTypes extends VolumeId,
-  ImagesTypes extends ImageId,
   Manifest extends {
-    dependencies: Dependencies
     id: Id
     assets: AssetTypes[]
-    images: Record<ImagesTypes, SDKImageInputSpec>
     volumes: VolumesTypes[]
-  },
->(manifest: SDKManifest & Manifest): SDKManifest & Manifest {
+  } & SDKManifest,
+>(manifest: Manifest): Manifest {
   return manifest
 }
 
