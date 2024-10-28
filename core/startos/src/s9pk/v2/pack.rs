@@ -80,13 +80,11 @@ impl SqfsDir {
 
                         command
                             .arg("run")
-                            .arg("-i")
-                            .arg("--priveleged")
+                            .arg("-vi")
                             .arg("--rm")
-                            .arg("--net=host")
                             .arg("-v")
                             .arg(format!("{}:/data:rw", dir.display()))
-                            .arg("localhost/mac-tar2sqfs")
+                            .arg("mac-tar2sqfs")
                             .arg("tar2sqfs")
                             .arg(Path::new("/data").join(&path.file_name().unwrap_or_default()));
                     }
@@ -542,7 +540,27 @@ impl ImageSource {
                     Command::new(CONTAINER_TOOL)
                         .arg("export")
                         .arg(container.trim())
-                        .pipe(Command::new("tar2sqfs").arg(&dest))
+                        .pipe({
+                            #[cfg(target_os = "linux")]
+                            {
+                                Command::new("tar2sqfs").arg(&dest)
+                            }
+                            #[cfg(target_os = "macos")]
+                            {
+                                Command::new(CONTAINER_TOOL)
+                                    .arg("run")
+                                    .arg("-i")
+                                    .arg("--rm")
+                                    .arg("-v")
+                                    .arg(format!("{}:/data:rw", dest.parent().unwrap().display()))
+                                    .arg("mac-tar2sqfs")
+                                    .arg("tar2sqfs")
+                                    .arg(
+                                        Path::new("/data")
+                                            .join(&dest.file_name().unwrap_or_default()),
+                                    )
+                            }
+                        })
                         .capture(false)
                         .invoke(ErrorKind::Docker)
                         .await?;
