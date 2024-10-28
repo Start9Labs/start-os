@@ -62,8 +62,7 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-binary false"
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-chroot false"
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-packages linux-image-6.6.51+rpt"
-	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours rpi-v8"
-	# END stupid ugly hack
+	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours \"rpi-v8 rpi-2712\""
 elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours rockchip64"
 fi
@@ -202,7 +201,13 @@ fi
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	ln -sf /usr/bin/pi-beep /usr/local/bin/beep
 	SKIP_WARNING=1 SKIP_BOOTLOADER=1 SKIP_CHECK_PARTITION=1 WANT_64BIT=1 WANT_PI4=1 WANT_PI5=1 BOOT_PART=/boot rpi-update stable
-	update-initramfs -u -k all
+	for f in /usr/lib/modules/*; do
+    	v=\${f#/usr/lib/modules/}
+		echo "Configuring raspi kernel '\$v'"
+    	extract-ikconfig "/usr/lib/modules/\$v/kernel/kernel/configs.ko.xz" > /boot/config-\$v
+	done
+	mkinitramfs -c gzip -o /boot/initramfs8 6.6.51-v8+
+	mkinitramfs -c gzip -o /boot/initramfs_2712 6.6.51-v8-16k+
 fi
 
 useradd --shell /bin/bash -G embassy -m start9
