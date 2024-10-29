@@ -73,11 +73,7 @@ export function buildManifest<
       stop: manifest.alerts?.stop || null,
     },
     hardwareRequirements: {
-      device: Object.fromEntries(
-        Object.entries(manifest.hardwareRequirements?.device || {}).map(
-          ([k, v]) => [k, v.source],
-        ),
-      ),
+      device: manifest.hardwareRequirements?.device || [],
       ram: manifest.hardwareRequirements?.ram || null,
       arch:
         manifest.hardwareRequirements?.arch === undefined

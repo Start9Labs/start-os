@@ -32,7 +32,9 @@ use crate::progress::{
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::v2::pack::{CONTAINER_DATADIR, CONTAINER_TOOL};
 use crate::ssh::SSH_AUTHORIZED_KEYS_FILE;
+use crate::system::get_mem_info;
 use crate::util::io::{create_file, IOHook};
+use crate::util::lshw::lshw;
 use crate::util::net::WebSocketExt;
 use crate::util::{cpupower, Invoke};
 use crate::Error;
@@ -508,6 +510,8 @@ pub async fn init(
 
     update_server_info.start();
     server_info.ip_info = crate::net::dhcp::init_ips().await?;
+    server_info.ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
+    server_info.devices = lshw().await?;
     server_info.status_info = ServerStatus {
         updated: false,
         update_progress: None,

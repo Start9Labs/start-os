@@ -1,7 +1,8 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use exver::{Version, VersionRange};
+use imbl_value::InternedString;
 use indexmap::IndexMap;
 pub use models::PackageId;
 use models::{ActionId, HealthCheckId, ImageId, VolumeId};
@@ -10,8 +11,8 @@ use url::Url;
 
 use crate::prelude::*;
 use crate::s9pk::git_hash::GitHash;
-use crate::s9pk::manifest::{Alerts, Description, HardwareRequirements};
-use crate::util::serde::{Duration, IoFormat};
+use crate::s9pk::manifest::{Alerts, Description};
+use crate::util::serde::{Duration, IoFormat, Regex};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -190,6 +191,15 @@ impl DependencyRequirement {
     pub fn required(&self) -> bool {
         matches!(self, &DependencyRequirement::Required)
     }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HardwareRequirements {
+    #[serde(default)]
+    pub device: BTreeMap<InternedString, Regex>,
+    pub ram: Option<u64>,
+    pub arch: Option<BTreeSet<InternedString>>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
