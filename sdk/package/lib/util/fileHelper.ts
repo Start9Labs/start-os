@@ -175,6 +175,14 @@ export class FileHelper<A> {
   }
 
   /**
+   * We wanted to be able to have a fileHelper, and just modify the path later in time.
+   * Like one behaviour of another dependency or something similar.
+   */
+  withPath(path: string) {
+    return new FileHelper<A>(path, this.writeData, this.readData)
+  }
+
+  /**
    * Create a File Helper for an arbitrary file type.
    *
    * Provide custom functions for translating data to/from the file format.

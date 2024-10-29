@@ -10,7 +10,7 @@ use tokio::process::Command;
 
 use crate::dependencies::{DepInfo, Dependencies};
 use crate::prelude::*;
-use crate::s9pk::manifest::Manifest;
+use crate::s9pk::manifest::{DeviceFilter, Manifest};
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::source::TmpSource;
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
@@ -246,7 +246,23 @@ impl TryFrom<ManifestV1> for Manifest {
                     })
                     .collect(),
             ),
-            hardware_requirements: value.hardware_requirements,
+            hardware_requirements: super::manifest::HardwareRequirements {
+                arch: value.hardware_requirements.arch,
+                ram: value.hardware_requirements.ram,
+                device: value
+                    .hardware_requirements
+                    .device
+                    .into_iter()
+                    .map(|(class, product)| DeviceFilter {
+                        pattern_description: format!(
+                            "a {class} device matching the expression {}",
+                            product.as_ref()
+                        ),
+                        class,
+                        pattern: product,
+                    })
+                    .collect(),
+            },
             git_hash: value.git_hash,
             os_version: value.eos_version,
         })

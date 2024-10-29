@@ -39,8 +39,7 @@ use crate::service::action::update_requested_actions;
 use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
-use crate::system::get_mem_info;
-use crate::util::lshw::{lshw, LshwDevice};
+use crate::util::lshw::LshwDevice;
 use crate::util::sync::SyncMutex;
 
 pub struct RpcContextSeed {
@@ -67,7 +66,6 @@ pub struct RpcContextSeed {
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
     pub client: Client,
-    pub hardware: Hardware,
     pub start_time: Instant,
     pub crons: SyncMutex<BTreeMap<Guid, NonDetachingJoinHandle<()>>>,
     // #[cfg(feature = "dev")]
@@ -86,7 +84,6 @@ pub struct Hardware {
 pub struct InitRpcContextPhases {
     load_db: PhaseProgressTrackerHandle,
     init_net_ctrl: PhaseProgressTrackerHandle,
-    read_device_info: PhaseProgressTrackerHandle,
     cleanup_init: CleanupInitPhases,
     // TODO: migrations
 }
@@ -95,7 +92,6 @@ impl InitRpcContextPhases {
         Self {
             load_db: handle.add_phase("Loading database".into(), Some(5)),
             init_net_ctrl: handle.add_phase("Initializing network".into(), Some(1)),
-            read_device_info: handle.add_phase("Reading device information".into(), Some(1)),
             cleanup_init: CleanupInitPhases::new(handle),
         }
     }
@@ -127,7 +123,6 @@ impl RpcContext {
         InitRpcContextPhases {
             mut load_db,
             mut init_net_ctrl,
-            mut read_device_info,
             cleanup_init,
         }: InitRpcContextPhases,
     ) -> Result<Self, Error> {
@@ -178,11 +173,6 @@ impl RpcContext {
         let services = ServiceMap::default();
         let metrics_cache = RwLock::<Option<crate::system::Metrics>>::new(None);
         let tor_proxy_url = format!("socks5h://{tor_proxy}");
-
-        read_device_info.start();
-        let devices = lshw().await?;
-        let ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
-        read_device_info.complete();
 
         let crons = SyncMutex::new(BTreeMap::new());
 
@@ -275,7 +265,6 @@ impl RpcContext {
                 }))
                 .build()
                 .with_kind(crate::ErrorKind::ParseUrl)?,
-            hardware: Hardware { devices, ram },
             start_time: Instant::now(),
             crons,
             // #[cfg(feature = "dev")]
