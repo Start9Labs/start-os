@@ -9,7 +9,15 @@ on:
       publish_as_latest:
         description: 'Should this version be tagged as latest?'
         required: false
-        default: 'false'
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      publish_as_latest:
+        description: 'Should this version be tagged as latest?'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build-and-push:
