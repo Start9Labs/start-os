@@ -62,9 +62,7 @@ impl SqfsDir {
                 let guid = Guid::new();
                 let path = self.tmpdir.join(guid.as_ref()).with_extension("squashfs");
                 if self.path.extension().and_then(|s| s.to_str()) == Some("tar") {
-                    Command::new("tar2sqfs")
-                        .arg("-q")
-                        .arg(&path)
+                    tar2sqfs(&self.path)?
                         .input(Some(&mut open_file(&self.path).await?))
                         .invoke(ErrorKind::Filesystem)
                         .await?;
@@ -553,7 +551,7 @@ impl ImageSource {
                     Command::new(CONTAINER_TOOL)
                         .arg("export")
                         .arg(container.trim())
-                        .pipe(Command::new("tar2sqfs").arg("-q").arg(&dest))
+                        .pipe(&mut tar2sqfs(&dest)?)
                         .capture(false)
                         .invoke(ErrorKind::Docker)
                         .await?;
@@ -573,6 +571,38 @@ impl ImageSource {
         }
         .boxed()
     }
+}
+
+fn tar2sqfs(dest: impl AsRef<Path>) -> Result<Command, Error> {
+    let dest = dest.as_ref();
+
+    Ok({
+        #[cfg(target_os = "linux")]
+        {
+            let mut command = Command::new("tar2sqfs");
+            command.arg(&dest);
+            command
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let directory = dest
+                .parent()
+                .unwrap_or_else(|| Path::new("/"))
+                .to_path_buf();
+            let mut command = Command::new(CONTAINER_TOOL);
+            command
+                .arg("run")
+                .arg("-i")
+                .arg("--rm")
+                .arg("-v")
+                .arg(format!("{}:/data:rw", directory.display()))
+                .arg("ghcr.io/start9labs/sdk/utils:latest")
+                .arg("tar2sqfs")
+                .arg("-q")
+                .arg(Path::new("/data").join(&dest.file_name().unwrap_or_default()));
+            command
+        }
+    })
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
