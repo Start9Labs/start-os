@@ -557,7 +557,7 @@ fn tar2sqfs(dest: impl AsRef<Path>) -> Result<Command, Error> {
                 .arg("--rm")
                 .arg("-v")
                 .arg(format!("{}:/data:rw", directory.display()))
-                .arg("ghcr.io/start9labs/start-os/sdk-utils:latest")
+                .arg("ghcr.io/start9labs/sdk/utils:latest")
                 .arg("tar2sqfs")
                 .arg(Path::new("/data").join(&dest.file_name().unwrap_or_default()));
             command
