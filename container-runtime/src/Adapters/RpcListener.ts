@@ -136,11 +136,13 @@ const jsonParse = (x: string) => JSON.parse(x)
 
 const handleRpc = (id: IdType, result: Promise<RpcResult>) =>
   result
-    .then((result) => ({
-      jsonrpc,
-      id,
-      ...result,
-    }))
+    .then((result) => {
+      return {
+        jsonrpc,
+        id,
+        ...result,
+      }
+    })
     .then((x) => {
       if (
         ("result" in x && x.result === undefined) ||
@@ -413,7 +415,6 @@ export class RpcListener {
     const ensureResultTypeShape = (
       result: void | T.ActionInput | T.ActionResult | null,
     ): { result: any } => {
-      if (isResult(result)) return result
       return { result }
     }
     const callbacks = this.callbackHolderFor(procedure)
