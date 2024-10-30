@@ -1,9 +1,11 @@
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::{json, InOMap};
+use tokio::process::Command;
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_6_alpha_6, VersionT};
 use crate::prelude::*;
+use crate::util::Invoke;
 
 lazy_static::lazy_static! {
     static ref V0_3_6_alpha_7: exver::Version = exver::Version::new(
@@ -42,6 +44,17 @@ impl VersionT for Version {
                 manifest["hardwareRequirements"]["device"] = json!([]);
             }
         }
+        Ok(())
+    }
+    async fn post_up(self, ctx: &crate::context::RpcContext) -> Result<(), Error> {
+        Command::new("systemd-firstboot")
+            .arg("--root=/media/startos/config/overlay/")
+            .arg(format!(
+                "--hostname={}",
+                ctx.account.read().await.hostname.0
+            ))
+            .invoke(ErrorKind::ParseSysInfo)
+            .await?;
         Ok(())
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {

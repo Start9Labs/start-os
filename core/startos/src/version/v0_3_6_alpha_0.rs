@@ -19,6 +19,10 @@ use torut::onion::TorSecretKeyV3;
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_5_2, VersionT};
+use crate::account::AccountInfo;
+use crate::auth::Sessions;
+use crate::backup::target::cifs::CifsTargets;
+use crate::context::RpcContext;
 use crate::db::model::Database;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::util::unmount;
@@ -26,19 +30,15 @@ use crate::hostname::Hostname;
 use crate::net::forward::AvailablePorts;
 use crate::net::keys::KeyStore;
 use crate::net::ssl::CertStore;
+use crate::net::tor;
 use crate::net::tor::OnionStore;
 use crate::notifications::{Notification, Notifications};
 use crate::prelude::*;
+use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::ssh::{SshKeys, SshPubKey};
 use crate::util::crypto::ed25519_expand_key;
 use crate::util::serde::{Pem, PemEncoding};
 use crate::util::Invoke;
-use crate::{account::AccountInfo, net::tor};
-use crate::{auth::Sessions, context::RpcContext};
-use crate::{
-    backup::target::cifs::CifsTargets,
-    s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile,
-};
 
 lazy_static::lazy_static! {
     static ref V0_3_6_alpha_0: exver::Version = exver::Version::new(
@@ -328,61 +328,58 @@ impl VersionT for Version {
 
     #[instrument(skip(self, ctx))]
     /// MUST be idempotent, and is run after *all* db migrations
-    fn post_up(self, ctx: &RpcContext) -> impl Future<Output = Result<(), Error>> + Send + 'static {
-        let ctx = ctx.clone();
-        async move {
-            let path = Path::new("/embassy-data/package-data/archive/");
+    async fn post_up(self, ctx: &RpcContext) -> Result<(), Error> {
+        let path = Path::new("/embassy-data/package-data/archive/");
+        if !path.is_dir() {
+            return Err(Error::new(
+                eyre!(
+                    "expected path ({}) to be a directory",
+                    path.to_string_lossy()
+                ),
+                ErrorKind::Filesystem,
+            ));
+        }
+        // Should be the name of the package
+        let mut paths = tokio::fs::read_dir(path).await?;
+        while let Some(path) = paths.next_entry().await? {
+            let path = path.path();
             if !path.is_dir() {
-                return Err(Error::new(
-                    eyre!(
-                        "expected path ({}) to be a directory",
-                        path.to_string_lossy()
-                    ),
-                    ErrorKind::Filesystem,
-                ));
+                continue;
             }
-            // Should be the name of the package
+            // Should be the version of the package
             let mut paths = tokio::fs::read_dir(path).await?;
             while let Some(path) = paths.next_entry().await? {
                 let path = path.path();
                 if !path.is_dir() {
                     continue;
                 }
-                // Should be the version of the package
+
+                // Should be s9pk
                 let mut paths = tokio::fs::read_dir(path).await?;
                 while let Some(path) = paths.next_entry().await? {
                     let path = path.path();
-                    if !path.is_dir() {
+                    if path.is_dir() {
                         continue;
                     }
 
-                    // Should be s9pk
-                    let mut paths = tokio::fs::read_dir(path).await?;
-                    while let Some(path) = paths.next_entry().await? {
-                        let path = path.path();
-                        if path.is_dir() {
-                            continue;
-                        }
+                    let package_s9pk = tokio::fs::File::open(path).await?;
+                    let file = MultiCursorFile::open(&package_s9pk).await?;
 
-                        let package_s9pk = tokio::fs::File::open(path).await?;
-                        let file = MultiCursorFile::open(&package_s9pk).await?;
-
-                        let key = ctx.db.peek().await.into_private().into_compat_s9pk_key();
-                        ctx.services
-                            .install(
-                                ctx.clone(),
-                                || crate::s9pk::load(file.clone(), || Ok(key.de()?.0), None),
-                                None::<crate::util::Never>,
-                                None,
-                            )
-                            .await?
-                            .await?
-                            .await?;
-                    }
+                    let key = ctx.db.peek().await.into_private().into_compat_s9pk_key();
+                    ctx.services
+                        .install(
+                            ctx.clone(),
+                            || crate::s9pk::load(file.clone(), || Ok(key.de()?.0), None),
+                            None::<crate::util::Never>,
+                            None,
+                        )
+                        .await?
+                        .await?
+                        .await?;
                 }
             }
-            Ok(())
         }
+        Ok(())
     }
 }
 
