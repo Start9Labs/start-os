@@ -57,13 +57,14 @@ if [ "$NON_FREE" = 1 ]; then
 	fi
 fi
 
-PLATFORM_CONFIG_EXTRAS=
+PLATFORM_CONFIG_EXTRAS=()
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-binary false"
-	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-chroot false"
-	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours rpi-v8"
+	PLATFORM_CONFIG_EXTRAS+=( --firmware-binary false )
+	PLATFORM_CONFIG_EXTRAS+=( --firmware-chroot false )
+	PLATFORM_CONFIG_EXTRAS+=( --linux-packages linux-image-6.6.51+rpt )
+	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours "rpi-v8 rpi-2712" )
 elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
-	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours rockchip64"
+	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours rockchip64 )
 fi
 
 
@@ -87,7 +88,7 @@ lb config \
 	--bootstrap-qemu-arch ${IB_TARGET_ARCH} \
 	--bootstrap-qemu-static /usr/bin/qemu-${QEMU_ARCH}-static \
 	--archive-areas "${ARCHIVE_AREAS}" \
-	$PLATFORM_CONFIG_EXTRAS
+	${PLATFORM_CONFIG_EXTRAS[@]}
 
 # Overlays
 
@@ -227,13 +228,13 @@ EOF
 
 SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date '+%s')}"
 
-lb bootstrap
-lb chroot
-lb installer
-lb binary_chroot
-lb chroot_prep install all mode-apt-install-binary mode-archives-chroot
+lb bootstrap || sudo dmesg
+lb chroot || sudo dmesg
+lb installer || sudo dmesg
+lb binary_chroot || sudo dmesg
+lb chroot_prep install all mode-apt-install-binary mode-archives-chroot || sudo dmesg
 ln -sf /run/systemd/resolve/stub-resolv.conf chroot/chroot/etc/resolv.conf
-lb binary_rootfs
+lb binary_rootfs || sudo dmesg
 
 cp $prep_results_dir/binary/live/filesystem.squashfs $RESULTS_DIR/$IMAGE_BASENAME.squashfs
 

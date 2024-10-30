@@ -306,7 +306,10 @@ where
         Ok(())
     }
     /// MUST be idempotent, and is run after *all* db migrations
-    fn post_up(self, ctx: &RpcContext) -> impl Future<Output = Result<(), Error>> + Send + 'static {
+    fn post_up<'a>(
+        self,
+        ctx: &'a RpcContext,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
         async { Ok(()) }
     }
     fn down(self, db: &mut Value) -> Result<(), Error> {
