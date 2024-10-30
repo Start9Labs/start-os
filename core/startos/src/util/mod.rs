@@ -236,11 +236,7 @@ impl<'a> Invoke<'a> for ExtendedCommand<'a> {
                     .or(Some(&res.stdout))
                     .filter(|a| !a.is_empty())
                     .and_then(|a| std::str::from_utf8(a).ok())
-                    .unwrap_or(&format!(
-                        "{} exited with code {}",
-                        self.cmd.as_std().get_program().to_string_lossy(),
-                        res.status
-                    ))
+                    .unwrap_or(&format!("{} exited with code {}", cmd_str, res.status))
             );
             Ok(res.stdout)
         } else {
@@ -267,7 +263,7 @@ impl<'a> Invoke<'a> for ExtendedCommand<'a> {
                 if prev.is_some() {
                     cmd.stdin(Stdio::piped());
                 }
-                let mut child = cmd.spawn().with_kind(error_kind)?;
+                let mut child = cmd.spawn().with_ctx(|_| (error_kind, &cmd_str))?;
                 let input = std::mem::replace(
                     &mut prev,
                     child

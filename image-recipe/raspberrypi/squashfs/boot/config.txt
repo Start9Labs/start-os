@@ -83,4 +83,5 @@ arm_boost=1
 [all]
 gpu_mem=16
 dtoverlay=pwm-2chan,disable-bt
-initramfs initrd.img-6.1.21-v8+
+
+auto_initramfs=1
