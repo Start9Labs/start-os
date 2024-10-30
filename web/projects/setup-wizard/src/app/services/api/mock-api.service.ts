@@ -137,6 +137,7 @@ export class MockApiService extends ApiService {
         return {
           status: 'complete',
           torAddress: 'https://asdafsadasdasasdasdfasdfasdf.onion',
+          hostname: 'adjective-noun',
           lanAddress: 'https://adjective-noun.local',
           rootCa: encodeBase64(rootCA),
         }
@@ -283,6 +284,7 @@ export class MockApiService extends ApiService {
     await pauseFor(1000)
     return {
       torAddress: 'https://asdafsadasdasasdasdfasdfasdf.onion',
+      hostname: 'adjective-noun',
       lanAddress: 'https://adjective-noun.local',
       rootCa: encodeBase64(rootCA),
     }

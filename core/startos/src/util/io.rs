@@ -923,6 +923,20 @@ pub async fn create_file(path: impl AsRef<Path>) -> Result<File, Error> {
         .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("create {path:?}")))
 }
 
+pub async fn delete_file(path: impl AsRef<Path>) -> Result<(), Error> {
+    let path = path.as_ref();
+    tokio::fs::remove_file(path)
+        .await
+        .or_else(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                Ok(())
+            } else {
+                Err(e)
+            }
+        })
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("delete {path:?}")))
+}
+
 pub async fn rename(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), Error> {
     let src = src.as_ref();
     let dst = dst.as_ref();

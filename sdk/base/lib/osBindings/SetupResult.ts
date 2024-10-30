@@ -2,6 +2,7 @@
 
 export type SetupResult = {
   torAddress: string
+  hostname: string
   lanAddress: string
   rootCa: string
 }

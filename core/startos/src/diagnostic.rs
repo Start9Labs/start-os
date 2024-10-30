@@ -9,6 +9,7 @@ use rpc_toolkit::{
 use crate::context::{CliContext, DiagnosticContext, RpcContext};
 use crate::init::SYSTEM_REBUILD_PATH;
 use crate::shutdown::Shutdown;
+use crate::util::io::delete_file;
 use crate::Error;
 
 pub fn diagnostic<C: Context>() -> ParentHandler<C> {
@@ -95,9 +96,7 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
 }
 
 pub async fn forget_disk<C: Context>(_: C) -> Result<(), Error> {
-    let disk_guid = Path::new("/media/startos/config/disk.guid");
-    if tokio::fs::metadata(disk_guid).await.is_ok() {
-        tokio::fs::remove_file(disk_guid).await?;
-    }
+    delete_file("/media/startos/config/overlay/etc/hostname").await?;
+    delete_file("/media/startos/config/disk.guid").await?;
     Ok(())
 }

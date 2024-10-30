@@ -21,7 +21,7 @@ use crate::disk::OsPartitionInfo;
 use crate::net::utils::find_eth_iface;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
-use crate::util::io::{open_file, TmpDir};
+use crate::util::io::{delete_file, open_file, TmpDir};
 use crate::util::serde::IoFormat;
 use crate::util::Invoke;
 use crate::ARCH;
@@ -180,18 +180,9 @@ pub async fn execute<C: Context>(
         {
             if let Err(e) = async {
                 // cp -r ${guard}/config /tmp/config
-                if tokio::fs::metadata(guard.path().join("config/upgrade"))
-                    .await
-                    .is_ok()
-                {
-                    tokio::fs::remove_file(guard.path().join("config/upgrade")).await?;
-                }
-                if tokio::fs::metadata(guard.path().join("config/disk.guid"))
-                    .await
-                    .is_ok()
-                {
-                    tokio::fs::remove_file(guard.path().join("config/disk.guid")).await?;
-                }
+                delete_file(guard.path().join("config/upgrade")).await?;
+                delete_file(guard.path().join("config/overlay/etc/hostname")).await?;
+                delete_file(guard.path().join("config/disk.guid")).await?;
                 Command::new("cp")
                     .arg("-r")
                     .arg(guard.path().join("config"))
