@@ -228,13 +228,13 @@ EOF
 
 SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date '+%s')}"
 
-lb bootstrap || sudo dmesg
-lb chroot || sudo dmesg
-lb installer || sudo dmesg
-lb binary_chroot || sudo dmesg
-lb chroot_prep install all mode-apt-install-binary mode-archives-chroot || sudo dmesg
+lb bootstrap
+lb chroot
+lb installer
+lb binary_chroot
+lb chroot_prep install all mode-apt-install-binary mode-archives-chroot
 ln -sf /run/systemd/resolve/stub-resolv.conf chroot/chroot/etc/resolv.conf
-lb binary_rootfs || sudo dmesg
+lb binary_rootfs
 
 cp $prep_results_dir/binary/live/filesystem.squashfs $RESULTS_DIR/$IMAGE_BASENAME.squashfs
 
