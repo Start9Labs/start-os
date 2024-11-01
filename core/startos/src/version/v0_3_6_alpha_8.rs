@@ -4,17 +4,14 @@ use tokio::process::Command;
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_6_alpha_7, VersionT};
-use crate::{
-    install::PKG_ARCHIVE_DIR,
-    s9pk::{
-        manifest::{DeviceFilter, Manifest},
-        merkle_archive::{Entry, MerkleArchive},
-        v2::SIG_CONTEXT,
-        S9pk,
-    },
-    util::{io::create_file, Invoke},
-};
-use crate::{prelude::*, s9pk::manifest};
+use crate::install::PKG_ARCHIVE_DIR;
+use crate::prelude::*;
+use crate::s9pk::manifest::{DeviceFilter, Manifest};
+use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
+use crate::s9pk::v2::SIG_CONTEXT;
+use crate::s9pk::{manifest, S9pk};
+use crate::util::io::create_file;
+use crate::util::Invoke;
 
 lazy_static::lazy_static! {
     static ref V0_3_6_alpha_8: exver::Version = exver::Version::new(
@@ -101,7 +98,7 @@ impl VersionT for Version {
                 // TODO, wouldn't this break in the later versions of the manifest that would need changes, this doesn't seem to be a good way to handle this
                 let manifest: Manifest = from_value(manifest.clone())?;
                 let mut s9pk: S9pk<_> = S9pk::new_with_manifest(archive.clone(), None, manifest);
-                let s9pk_compat_key = todo!("There is a key used in the compat that we could use ctx.developer_key()?.clone()");
+                let s9pk_compat_key = ctx.account.read().await.compat_s9pk_key.clone();
                 s9pk.as_archive_mut()
                     .set_signer(s9pk_compat_key, SIG_CONTEXT);
                 s9pk.serialize(&mut tmp_file, true).await?;
