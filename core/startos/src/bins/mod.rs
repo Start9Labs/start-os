@@ -28,6 +28,16 @@ fn select_executable(name: &str) -> Option<fn(VecDeque<OsString>)> {
         "embassy-sdk" => Some(|_| deprecated::renamed("embassy-sdk", "start-sdk")),
         "embassyd" => Some(|_| deprecated::renamed("embassyd", "startd")),
         "embassy-init" => Some(|_| deprecated::removed("embassy-init")),
+        "contents" => Some(|_| {
+            #[cfg(feature = "cli")]
+            println!("start-cli");
+            #[cfg(feature = "container-runtime")]
+            println!("start-cli (container)");
+            #[cfg(feature = "daemon")]
+            println!("startd");
+            #[cfg(feature = "registry")]
+            println!("registry");
+        }),
         _ => None,
     }
 }

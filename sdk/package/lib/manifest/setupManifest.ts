@@ -6,6 +6,7 @@ import {
 } from "../../../base/lib/types/ManifestTypes"
 import { SDKVersion } from "../StartSdk"
 import { VersionGraph } from "../version/VersionGraph"
+import { execSync } from "child_process"
 
 /**
  * @description Use this function to define critical information about your package
@@ -24,6 +25,16 @@ export function setupManifest<
   } & SDKManifest,
 >(manifest: Manifest): Manifest {
   return manifest
+}
+
+function gitHash(): string {
+  const hash = execSync("git rev-parse HEAD").toString().trim()
+  try {
+    execSync("git diff-index --quiet HEAD --")
+    return hash
+  } catch (e) {
+    return hash + "-modified"
+  }
 }
 
 export function buildManifest<
@@ -56,7 +67,7 @@ export function buildManifest<
   )
   return {
     ...manifest,
-    gitHash: null,
+    gitHash: gitHash(),
     osVersion: SDKVersion,
     version: versions.current.options.version,
     releaseNotes: versions.current.options.releaseNotes,

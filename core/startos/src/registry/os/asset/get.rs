@@ -40,7 +40,12 @@ pub fn get_api<C: Context>() -> ParentHandler<C> {
                 .with_about("Download img"),
         )
         .subcommand("squashfs", from_fn_async(get_squashfs).no_cli())
-        .subcommand("squashfs", from_fn_async(cli_get_os_asset).no_display().with_about("Download squashfs"))
+        .subcommand(
+            "squashfs",
+            from_fn_async(cli_get_os_asset)
+                .no_display()
+                .with_about("Download squashfs"),
+        )
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
@@ -104,7 +109,11 @@ pub async fn get_squashfs(
 pub struct CliGetOsAssetParams {
     pub version: Version,
     pub platform: InternedString,
-    #[arg(long = "download", short = 'd')]
+    #[arg(
+        long = "download",
+        short = 'd',
+        help = "The path of the directory to download to"
+    )]
     pub download: Option<PathBuf>,
     #[arg(
         long = "reverify",

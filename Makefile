@@ -58,7 +58,7 @@ touch:
 metadata: $(VERSION_FILE) $(PLATFORM_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
 
 sudo:
-	sudo -v
+	sudo true
 
 clean:
 	rm -f system-images/**/*.tar
