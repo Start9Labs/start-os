@@ -102,6 +102,19 @@ impl<S: FileSource + Clone> S9pk<S> {
         })
     }
 
+    pub fn new_with_manifest(
+        archive: MerkleArchive<S>,
+        size: Option<u64>,
+        manifest: Manifest,
+    ) -> Self {
+        Self {
+            manifest,
+            manifest_dirty: true,
+            archive,
+            size,
+        }
+    }
+
     pub fn validate_and_filter(&mut self, arch: Option<&str>) -> Result<(), Error> {
         let filter = self.manifest.validate_for(arch, self.archive.contents())?;
         filter.keep_checked(self.archive.contents_mut())
