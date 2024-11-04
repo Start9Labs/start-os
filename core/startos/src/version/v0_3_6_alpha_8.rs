@@ -1,10 +1,9 @@
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::{json, InOMap};
-use tokio::process::Command;
+use tokio::{fs::File, process::Command};
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_6_alpha_7, VersionT};
-use crate::install::PKG_ARCHIVE_DIR;
 use crate::prelude::*;
 use crate::s9pk::manifest::{DeviceFilter, Manifest};
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
@@ -12,6 +11,9 @@ use crate::s9pk::v2::SIG_CONTEXT;
 use crate::s9pk::{manifest, S9pk};
 use crate::util::io::create_file;
 use crate::util::Invoke;
+use crate::{
+    install::PKG_ARCHIVE_DIR, s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile,
+};
 
 lazy_static::lazy_static! {
     static ref V0_3_6_alpha_8: exver::Version = exver::Version::new(
@@ -48,7 +50,14 @@ impl VersionT for Version {
                 continue;
             }
 
-            let original_pack = match S9pk::open(&s9pk_path, None).await {
+            let get_archive = async {
+                let multi_cursor = MultiCursorFile::from(File::open(&s9pk_path).await?);
+                Ok::<_, Error>(S9pk::archive(&multi_cursor, None).await?)
+            };
+
+            let archive: MerkleArchive<
+                crate::s9pk::merkle_archive::source::Section<MultiCursorFile>,
+            > = match get_archive.await {
                 Ok(a) => a,
                 Err(e) => {
                     tracing::error!("Error opening s9pk for install: {e}");
@@ -56,7 +65,15 @@ impl VersionT for Version {
                     continue;
                 }
             };
-            let archive = original_pack.as_archive();
+            // let original_pack = match S9pk::open(&s9pk_path, None).await {
+            //     Ok(a) => a,
+            //     Err(e) => {
+            //         tracing::error!("Error opening s9pk for install: {e}");
+            //         tracing::debug!("{e:?}");
+            //         continue;
+            //     }
+            // };
+            // let archive = original_pack.as_archive();
 
             let previous_manifest: Value = serde_json::from_slice::<serde_json::Value>(
                 &archive
@@ -97,7 +114,7 @@ impl VersionT for Version {
                 let mut tmp_file = create_file(&tmp_path).await?;
                 // TODO, wouldn't this break in the later versions of the manifest that would need changes, this doesn't seem to be a good way to handle this
                 let manifest: Manifest = from_value(manifest.clone())?;
-                let mut s9pk: S9pk<_> = S9pk::new_with_manifest(archive.clone(), None, manifest);
+                let mut s9pk: S9pk<_> = S9pk::new_with_manifest(archive, None, manifest);
                 let s9pk_compat_key = ctx.account.read().await.compat_s9pk_key.clone();
                 s9pk.as_archive_mut()
                     .set_signer(s9pk_compat_key, SIG_CONTEXT);
