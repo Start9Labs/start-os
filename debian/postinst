@@ -88,6 +88,7 @@ cat << EOF > /etc/tor/torrc
 SocksPort 0.0.0.0:9050
 SocksPolicy accept 127.0.0.1
 SocksPolicy accept 172.18.0.0/16
+SocksPolicy accept 10.0.3.0/16
 SocksPolicy reject *
 ControlPort 9051
 CookieAuthentication 1
