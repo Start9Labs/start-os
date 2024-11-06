@@ -25,7 +25,7 @@ pub struct SignerInfo {
     pub keys: HashSet<AnyVerifyingKey>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 // TODO: better types

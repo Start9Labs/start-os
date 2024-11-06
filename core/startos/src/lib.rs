@@ -115,8 +115,7 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
     let api = ParentHandler::new()
         .subcommand(
             "git-info",
-            from_fn(|_: RpcContext| version::git_info())
-                .with_about("Display the githash of StartOS CLI"),
+            from_fn(|_: C| version::git_info()).with_about("Display the githash of StartOS CLI"),
         )
         .subcommand(
             "echo",

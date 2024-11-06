@@ -5,8 +5,10 @@ use crate::prelude::*;
 use crate::util::serde::HandlerExtSerde;
 
 pub mod add;
+pub mod category;
 pub mod get;
 pub mod index;
+pub mod signer;
 
 pub fn package_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -30,6 +32,10 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
                 .with_about("Add package to registry index"),
         )
         .subcommand(
+            "signer",
+            signer::signer_api::<C>().with_about("Add, remove, and list package signers"),
+        )
+        .subcommand(
             "get",
             from_fn_async(get::get_package)
                 .with_metadata("get_device_info", Value::Bool(true))
@@ -39,5 +45,10 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
                 })
                 .with_about("List installation candidate package(s)")
                 .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "category",
+            category::category_api::<C>()
+                .with_about("Update the categories for packages on the registry"),
         )
 }

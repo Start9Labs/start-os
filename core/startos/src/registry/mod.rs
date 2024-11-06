@@ -28,6 +28,7 @@ pub mod auth;
 pub mod context;
 pub mod db;
 pub mod device_info;
+pub mod info;
 pub mod os;
 pub mod package;
 pub mod signer;
@@ -57,25 +58,6 @@ pub async fn get_full_index(ctx: RegistryContext) -> Result<FullIndex, Error> {
     ctx.db.peek().await.into_index().de()
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct RegistryInfo {
-    pub name: Option<String>,
-    pub icon: Option<DataUrl<'static>>,
-    #[ts(as = "BTreeMap::<String, Category>")]
-    pub categories: BTreeMap<InternedString, Category>,
-}
-
-pub async fn get_info(ctx: RegistryContext) -> Result<RegistryInfo, Error> {
-    let peek = ctx.db.peek().await.into_index();
-    Ok(RegistryInfo {
-        name: peek.as_name().de()?,
-        icon: peek.as_icon().de()?,
-        categories: peek.as_package().as_categories().de()?,
-    })
-}
-
 pub fn registry_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
@@ -85,13 +67,8 @@ pub fn registry_api<C: Context>() -> ParentHandler<C> {
                 .with_about("List info including registry name and packages")
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand(
-            "info",
-            from_fn_async(get_info)
-                .with_display_serializable()
-                .with_about("Display registry name, icon, and package categories")
-                .with_call_remote::<CliContext>(),
-        )
+        .subcommand("info", info::info_api::<C>())
+        // set info and categories
         .subcommand(
             "os",
             os::os_api::<C>().with_about("Commands related to OS assets and versions"),
