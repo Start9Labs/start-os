@@ -1,5 +1,4 @@
-use std::collections::BTreeMap;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -295,7 +294,7 @@ impl TryFrom<CliImageConfig> for ImageConfig {
                 ImageSource::DockerBuild {
                     dockerfile: value.dockerfile,
                     workdir: value.workdir,
-                    build_args: None
+                    build_args: None,
                 }
             } else if let Some(tag) = value.docker_tag {
                 ImageSource::DockerTag(tag)
@@ -345,9 +344,7 @@ impl clap::FromArgMatches for ImageConfig {
 #[ts(export)]
 pub enum BuildArg {
     String(String),
-    EnvVar {
-        env: String,
-    },
+    EnvVar { env: String },
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
@@ -361,7 +358,7 @@ pub enum ImageSource {
         dockerfile: Option<PathBuf>,
         #[serde(skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
-        build_args: Option<BTreeMap<String, BuildArg>>
+        build_args: Option<BTreeMap<String, BuildArg>>,
     },
     DockerTag(String),
 }
@@ -400,7 +397,7 @@ impl ImageSource {
                 ImageSource::DockerBuild {
                     workdir,
                     dockerfile,
-                    build_args
+                    build_args,
                 } => {
                     let workdir = workdir.as_deref().unwrap_or(Path::new("."));
                     let dockerfile = dockerfile
@@ -424,7 +421,8 @@ impl ImageSource {
                         .arg("-t")
                         .arg(&tag)
                         .arg(&docker_platform)
-                        .arg("--build-arg").arg(format!("ARCH={}", arch));
+                        .arg("--build-arg")
+                        .arg(format!("ARCH={}", arch));
 
                     // add build arguments
                     if let Some(build_args) = build_args {
@@ -436,10 +434,12 @@ impl ImageSource {
                                         Ok(val) => val,
                                         Err(_) => continue, // skip if env var not set or invalid
                                     }
-                                },
+                                }
                             };
 
-                            command.arg("--build-arg").arg(format!("{}={}", key, build_arg_value));
+                            command
+                                .arg("--build-arg")
+                                .arg(format!("{}={}", key, build_arg_value));
                         }
                     }
 
@@ -580,7 +580,7 @@ fn tar2sqfs(dest: impl AsRef<Path>) -> Result<Command, Error> {
         #[cfg(target_os = "linux")]
         {
             let mut command = Command::new("tar2sqfs");
-            command.arg(&dest);
+            command.arg("-q").arg(&dest);
             command
         }
         #[cfg(target_os = "macos")]

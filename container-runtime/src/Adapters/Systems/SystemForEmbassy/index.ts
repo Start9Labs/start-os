@@ -929,6 +929,7 @@ export class SystemForEmbassy implements System {
         this.dependenciesAutoconfig(effects, id, timeoutMs)
       },
     })) as U.Config
+    if (!oldConfig) return
     const moduleCode = await this.moduleCode
     const method = moduleCode.dependencies?.[id]?.autoConfigure
     if (!method) return
