@@ -153,7 +153,7 @@ export class MockApiService extends ApiService {
 
     this.stateIndex++
 
-    return this.stateIndex === 1 ? 'error' : 'running'
+    return this.stateIndex === 1 ? 'running' : 'running'
   }
 
   // db
