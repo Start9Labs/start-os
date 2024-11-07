@@ -2,6 +2,7 @@ import { Component } from '@angular/core'
 import { AlertController } from '@ionic/angular'
 import { LoadingService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   selector: 'diagnostic-home',
@@ -22,6 +23,7 @@ export class HomePage {
     private readonly loader: LoadingService,
     private readonly api: ApiService,
     private readonly alertCtrl: AlertController,
+    readonly config: ConfigService,
   ) {}
 
   async ngOnInit() {

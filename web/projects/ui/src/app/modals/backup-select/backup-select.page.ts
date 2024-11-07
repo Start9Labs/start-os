@@ -1,6 +1,6 @@
 import { Component } from '@angular/core'
 import { ModalController } from '@ionic/angular'
-import { map, take } from 'rxjs/operators'
+import { map } from 'rxjs/operators'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
@@ -13,7 +13,7 @@ import { getManifest } from 'src/app/util/get-package-data'
 })
 export class BackupSelectPage {
   hasSelection = false
-  selectAll = false
+  selectAll = true
   pkgs: {
     id: string
     title: string
