@@ -337,7 +337,7 @@ export class SystemForEmbassy implements System {
       await effects.setDataVersion({
         version: ExtendedVersion.parseEmver(this.manifest.version).toString(),
       })
-    } else {
+    } else if (this.manifest.config) {
       await effects.action.request({
         packageId: this.manifest.id,
         actionId: "config",
