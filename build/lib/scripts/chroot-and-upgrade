@@ -43,6 +43,8 @@ if [ -z "$NO_SYNC" ]; then
     mount -t overlay \
 		  -olowerdir=/media/startos/current,upperdir=/media/startos/upper/data,workdir=/media/startos/upper/work \
 		  overlay /media/startos/next
+    mkdir -p /media/startos/next/media/startos/root
+    mount --bind /media/startos/root /media/startos/next/media/startos/root
 fi
 
 if [ -n "$ONLY_CREATE" ]; then
