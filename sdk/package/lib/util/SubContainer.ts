@@ -57,7 +57,7 @@ export class SubContainer implements ExecSpawnable {
     this.leaderExited = false
     this.leader = cp.spawn("start-cli", ["subcontainer", "launch", rootfs], {
       killSignal: "SIGKILL",
-      stdio: "ignore",
+      stdio: "inherit",
     })
     this.leader.on("exit", () => {
       this.leaderExited = true
