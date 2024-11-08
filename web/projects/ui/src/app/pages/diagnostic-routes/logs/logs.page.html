@@ -4,6 +4,16 @@
       <ion-back-button defaultHref="/"></ion-back-button>
     </ion-buttons>
     <ion-title>Logs</ion-title>
+    <ion-button
+      slot="end"
+      class="ion-padding-end"
+      fill="clear"
+      strong
+      (click)="download()"
+    >
+      Download
+      <ion-icon slot="end" name="download-outline"></ion-icon>
+    </ion-button>
   </ion-toolbar>
 </ion-header>
 
