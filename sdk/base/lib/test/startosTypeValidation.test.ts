@@ -8,12 +8,10 @@ import {
   ClearServiceInterfacesParams,
   GetActionInputParams,
   GetStatusParams,
-  GetStoreParams,
   RequestActionParams,
   RunActionParams,
   SetDataVersionParams,
   SetMainStatus,
-  SetStoreParams,
 } from ".././osBindings"
 import { CreateSubcontainerFsParams } from ".././osBindings"
 import { DestroySubcontainerFsParams } from ".././osBindings"
