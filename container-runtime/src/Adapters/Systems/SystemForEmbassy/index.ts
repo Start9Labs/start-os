@@ -682,22 +682,34 @@ export class SystemForEmbassy implements System {
     dependsOn: { [x: string]: readonly string[] },
   ) {
     await effects.setDependencies({
-      dependencies: Object.entries(dependsOn).flatMap(([key, value]) => {
-        const dependency = this.manifest.dependencies?.[key]
-        if (!dependency) return []
-        const versionRange = dependency.version
-        const registryUrl = DEFAULT_REGISTRY
-        const kind = "running"
-        return [
-          {
-            id: key,
-            versionRange,
-            registryUrl,
-            kind,
-            healthChecks: [...value],
-          },
-        ]
-      }),
+      dependencies: Object.entries(dependsOn).flatMap(
+        ([key, value]): T.Dependencies => {
+          const dependency = this.manifest.dependencies?.[key]
+          if (!dependency) return []
+          if (dependency.requirement.type === "required") {
+            const versionRange = dependency.version
+            const kind = "running"
+            return [
+              {
+                id: key,
+                versionRange,
+                kind,
+                healthChecks: [...value],
+              },
+            ]
+          }
+
+          const versionRange = dependency.version
+          const kind = "exists"
+          return [
+            {
+              id: key,
+              versionRange,
+              kind,
+            },
+          ]
+        },
+      ),
     })
   }
 
