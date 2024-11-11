@@ -689,47 +689,47 @@ export class Value<Type, Store> {
       }
     }, spec.validator)
   }
-  static file<Store>(a: {
-    name: string
-    description?: string | null
-    extensions: string[]
-    required: boolean
-  }) {
-    const buildValue = {
-      type: "file" as const,
-      description: null,
-      warning: null,
-      ...a,
-    }
-    return new Value<FilePath, Store>(
-      () => ({
-        ...buildValue,
-      }),
-      asRequiredParser(object({ filePath: string }), a),
-    )
-  }
-  static dynamicFile<Required extends boolean, Store>(
-    a: LazyBuild<
-      Store,
-      {
-        name: string
-        description?: string | null
-        warning?: string | null
-        extensions: string[]
-        required: Required
-      }
-    >,
-  ) {
-    return new Value<string | null | undefined, Store>(
-      async (options) => ({
-        type: "file" as const,
-        description: null,
-        warning: null,
-        ...(await a(options)),
-      }),
-      string.optional(),
-    )
-  }
+  // static file<Store>(a: {
+  //   name: string
+  //   description?: string | null
+  //   extensions: string[]
+  //   required: boolean
+  // }) {
+  //   const buildValue = {
+  //     type: "file" as const,
+  //     description: null,
+  //     warning: null,
+  //     ...a,
+  //   }
+  //   return new Value<FilePath, Store>(
+  //     () => ({
+  //       ...buildValue,
+  //     }),
+  //     asRequiredParser(object({ filePath: string }), a),
+  //   )
+  // }
+  // static dynamicFile<Required extends boolean, Store>(
+  //   a: LazyBuild<
+  //     Store,
+  //     {
+  //       name: string
+  //       description?: string | null
+  //       warning?: string | null
+  //       extensions: string[]
+  //       required: Required
+  //     }
+  //   >,
+  // ) {
+  //   return new Value<string | null | undefined, Store>(
+  //     async (options) => ({
+  //       type: "file" as const,
+  //       description: null,
+  //       warning: null,
+  //       ...(await a(options)),
+  //     }),
+  //     string.optional(),
+  //   )
+  // }
   static union<Required extends RequiredDefault<string>, Type, Store>(
     a: {
       name: string
