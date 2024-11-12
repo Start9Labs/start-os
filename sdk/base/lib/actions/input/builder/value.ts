@@ -490,10 +490,7 @@ export class Value<Type, Store> {
       }
     }, string.optional())
   }
-  static select<
-    Values extends Record<string, string>,
-    Required extends boolean,
-  >(a: {
+  static select<Values extends Record<string, string>>(a: {
     name: string
     description?: string | null
     /** Presents a warning prompt before permitting the value to change. */
@@ -504,8 +501,7 @@ export class Value<Type, Store> {
      * @example default: null
      * @example default: 'radio1'
      */
-    default: (keyof Values & string) | null
-    required: Required
+    default: keyof Values & string
     /**
      * @description A mapping of unique radio options to their human readable display format.
      * @example
@@ -524,7 +520,7 @@ export class Value<Type, Store> {
      */
     immutable?: boolean
   }) {
-    return new Value<AsRequired<keyof Values & string, Required>, never>(
+    return new Value<keyof Values & string, never>(
       () => ({
         description: null,
         warning: null,
@@ -533,14 +529,9 @@ export class Value<Type, Store> {
         immutable: a.immutable ?? false,
         ...a,
       }),
-      asRequiredParser(
-        anyOf(
-          ...Object.keys(a.values).map((x: keyof Values & string) =>
-            literal(x),
-          ),
-        ),
-        a,
-      ) as any,
+      anyOf(
+        ...Object.keys(a.values).map((x: keyof Values & string) => literal(x)),
+      ),
     )
   }
   static dynamicSelect<Store = never>(
@@ -550,14 +541,13 @@ export class Value<Type, Store> {
         name: string
         description?: string | null
         warning?: string | null
-        default: string | null
-        required: boolean
+        default: string
         values: Record<string, string>
         disabled?: false | string | string[]
       }
     >,
   ) {
-    return new Value<string | null | undefined, Store>(async (options) => {
+    return new Value<string, Store>(async (options) => {
       const a = await getA(options)
       return {
         description: null,
@@ -567,7 +557,7 @@ export class Value<Type, Store> {
         immutable: false,
         ...a,
       }
-    }, string.optional())
+    }, string)
   }
   static multiselect<Values extends Record<string, string>>(a: {
     name: string
@@ -710,7 +700,6 @@ export class Value<Type, Store> {
       }
     },
     Store,
-    Required extends boolean,
   >(
     a: {
       name: string
@@ -718,14 +707,11 @@ export class Value<Type, Store> {
       /** Presents a warning prompt before permitting the value to change. */
       warning?: string | null
       /**
-       * @description Determines if the field is required. If so, optionally provide a default value from the list of variants.
-       * @type { false | { default: string | null } }
-       * @example required: false
-       * @example required: { default: null }
-       * @example required: { default: 'variant1' }
+       * @description Provide a default value from the list of variants.
+       * @type { string }
+       * @example default: 'variant1'
        */
-      default: (keyof VariantValues & string) | null
-      required: Required
+      default: keyof VariantValues & string
       /**
        * @description Once set, the value can never be changed.
        * @default false
@@ -734,10 +720,7 @@ export class Value<Type, Store> {
     },
     aVariants: Variants<VariantValues, Store>,
   ) {
-    return new Value<
-      AsRequired<typeof aVariants.validator._TYPE, Required>,
-      Store
-    >(
+    return new Value<typeof aVariants.validator._TYPE, Store>(
       async (options) => ({
         type: "union" as const,
         description: null,
@@ -747,7 +730,7 @@ export class Value<Type, Store> {
         variants: await aVariants.build(options as any),
         immutable: a.immutable ?? false,
       }),
-      asRequiredParser(aVariants.validator, a),
+      aVariants.validator,
     )
   }
   static filteredUnion<
@@ -758,22 +741,17 @@ export class Value<Type, Store> {
       }
     },
     Store,
-    Required extends boolean,
   >(
     getDisabledFn: LazyBuild<Store, string[] | false | string>,
     a: {
       name: string
       description?: string | null
       warning?: string | null
-      default: (keyof VariantValues & string) | null
-      required: Required
+      default: keyof VariantValues & string
     },
     aVariants: Variants<VariantValues, Store> | Variants<VariantValues, never>,
   ) {
-    return new Value<
-      AsRequired<typeof aVariants.validator._TYPE, Required>,
-      Store
-    >(
+    return new Value<typeof aVariants.validator._TYPE, Store>(
       async (options) => ({
         type: "union" as const,
         description: null,
@@ -783,7 +761,7 @@ export class Value<Type, Store> {
         disabled: (await getDisabledFn(options)) || false,
         immutable: false,
       }),
-      asRequiredParser(aVariants.validator, a),
+      aVariants.validator,
     )
   }
   static dynamicUnion<
@@ -794,7 +772,6 @@ export class Value<Type, Store> {
       }
     },
     Store,
-    Required extends boolean,
   >(
     getA: LazyBuild<
       Store,
@@ -802,27 +779,26 @@ export class Value<Type, Store> {
         name: string
         description?: string | null
         warning?: string | null
-        default: (keyof VariantValues & string) | null
-        required: Required
+        default: keyof VariantValues & string
         disabled: string[] | false | string
       }
     >,
     aVariants: Variants<VariantValues, Store> | Variants<VariantValues, never>,
   ) {
-    return new Value<
-      typeof aVariants.validator._TYPE | null | undefined,
-      Store
-    >(async (options) => {
-      const newValues = await getA(options)
-      return {
-        type: "union" as const,
-        description: null,
-        warning: null,
-        ...newValues,
-        variants: await aVariants.build(options as any),
-        immutable: false,
-      }
-    }, aVariants.validator.optional())
+    return new Value<typeof aVariants.validator._TYPE, Store>(
+      async (options) => {
+        const newValues = await getA(options)
+        return {
+          type: "union" as const,
+          description: null,
+          warning: null,
+          ...newValues,
+          variants: await aVariants.build(options as any),
+          immutable: false,
+        }
+      },
+      aVariants.validator,
+    )
   }
 
   static list<Type, Store>(a: List<Type, Store>) {

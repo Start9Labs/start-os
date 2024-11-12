@@ -14,10 +14,9 @@ export type UnionRes<
   K extends keyof VariantValues & string = keyof VariantValues & string,
 > = {
   selection: K
-  value: {
-    [key in K]: ExtractInputSpecType<VariantValues[key]["spec"]>
-  } & {
-    [key in keyof VariantValues & string]: DeepPartial<
+  value: ExtractInputSpecType<VariantValues[K]["spec"]>
+  other?: {
+    [key in keyof VariantValues & string]?: DeepPartial<
       ExtractInputSpecType<VariantValues[key]["spec"]>
     >
   }
@@ -65,7 +64,6 @@ export const pruning = Value.union(
     description:
       '- Disabled: Disable pruning\n- Automatic: Limit blockchain size on disk to a certain number of megabytes\n- Manual: Prune blockchain with the "pruneblockchain" RPC\n',
     warning: null,
-    required: true,
     default: "disabled",
   },
   pruningSettingsVariants

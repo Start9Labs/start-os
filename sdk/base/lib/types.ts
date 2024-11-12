@@ -86,7 +86,7 @@ export namespace ExpectedExports {
 
   export type actions = Actions<
     any,
-    Record<ActionId, Action<ActionId, any, any, any>>
+    Record<ActionId, Action<ActionId, any, any>>
   >
 }
 export type ABI = {
