@@ -52,15 +52,13 @@ export class Action<
     | Record<string, any>
     | InputSpec<any, Store>
     | InputSpec<any, never>,
-  Type extends
-    ExtractInputSpecType<InputSpecType> = ExtractInputSpecType<InputSpecType>,
 > {
   private constructor(
     readonly id: Id,
     private readonly metadataFn: MaybeFn<T.ActionMetadata>,
     private readonly inputSpec: InputSpecType,
-    private readonly getInputFn: GetInput<Type>,
-    private readonly runFn: Run<Type>,
+    private readonly getInputFn: GetInput<ExtractInputSpecType<InputSpecType>>,
+    private readonly runFn: Run<ExtractInputSpecType<InputSpecType>>,
   ) {}
   static withInput<
     Id extends T.ActionId,
@@ -69,15 +67,13 @@ export class Action<
       | Record<string, any>
       | InputSpec<any, Store>
       | InputSpec<any, never>,
-    Type extends
-      ExtractInputSpecType<InputSpecType> = ExtractInputSpecType<InputSpecType>,
   >(
     id: Id,
     metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
     inputSpec: InputSpecType,
-    getInput: GetInput<Type>,
-    run: Run<Type>,
-  ): Action<Id, Store, InputSpecType, Type> {
+    getInput: GetInput<ExtractInputSpecType<InputSpecType>>,
+    run: Run<ExtractInputSpecType<InputSpecType>>,
+  ): Action<Id, Store, InputSpecType> {
     return new Action(
       id,
       mapMaybeFn(metadata, (m) => ({ ...m, hasInput: true })),
@@ -90,7 +86,7 @@ export class Action<
     id: Id,
     metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
     run: Run<{}>,
-  ): Action<Id, Store, {}, {}> {
+  ): Action<Id, Store, {}> {
     return new Action(
       id,
       mapMaybeFn(metadata, (m) => ({ ...m, hasInput: false })),
@@ -114,7 +110,7 @@ export class Action<
   }
   async run(options: {
     effects: T.Effects
-    input: Type
+    input: ExtractInputSpecType<InputSpecType>
   }): Promise<T.ActionResult | null> {
     return (await this.runFn(options)) || null
   }
@@ -122,13 +118,13 @@ export class Action<
 
 export class Actions<
   Store,
-  AllActions extends Record<T.ActionId, Action<T.ActionId, Store, any, any>>,
+  AllActions extends Record<T.ActionId, Action<T.ActionId, Store, any>>,
 > {
   private constructor(private readonly actions: AllActions) {}
   static of<Store>(): Actions<Store, {}> {
     return new Actions({})
   }
-  addAction<A extends Action<T.ActionId, Store, any, any>>(
+  addAction<A extends Action<T.ActionId, Store, any>>(
     action: A,
   ): Actions<Store, AllActions & { [id in A["id"]]: A }> {
     return new Actions({ ...this.actions, [action.id]: action })

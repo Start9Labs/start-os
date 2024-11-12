@@ -1,6 +1,27 @@
+import { DeepPartial } from "../../../types"
 import { ValueSpec, ValueSpecUnion } from "../inputSpecTypes"
-import { LazyBuild, InputSpec } from "./inputSpec"
-import { Parser, anyOf, literals, object } from "ts-matches"
+import { LazyBuild, InputSpec, ExtractInputSpecType } from "./inputSpec"
+import { Parser, anyOf, literal, literals, object } from "ts-matches"
+
+export type UnionRes<
+  Store,
+  VariantValues extends {
+    [K in string]: {
+      name: string
+      spec: InputSpec<any, Store> | InputSpec<any, never>
+    }
+  },
+  K extends keyof VariantValues & string = keyof VariantValues & string,
+> = {
+  selection: K
+  value: {
+    [key in K]: ExtractInputSpecType<VariantValues[key]["spec"]>
+  } & {
+    [key in keyof VariantValues & string]: DeepPartial<
+      ExtractInputSpecType<VariantValues[key]["spec"]>
+    >
+  }
+}
 
 /**
  * Used in the the Value.select { @link './value.ts' }
@@ -51,11 +72,18 @@ export const pruning = Value.union(
 );
 ```
  */
-export class Variants<Type, Store> {
-  static text: any
+export class Variants<
+  VariantValues extends {
+    [K in string]: {
+      name: string
+      spec: InputSpec<any, Store> | InputSpec<any, never>
+    }
+  },
+  Store,
+> {
   private constructor(
     public build: LazyBuild<Store, ValueSpecUnion["variants"]>,
-    public validator: Parser<unknown, Type>,
+    public validator: Parser<unknown, UnionRes<Store, VariantValues>>,
   ) {}
   static of<
     VariantValues extends {
@@ -67,26 +95,15 @@ export class Variants<Type, Store> {
     Store = never,
   >(a: VariantValues) {
     const validator = anyOf(
-      ...Object.entries(a).map(([name, { spec }]) =>
+      ...Object.entries(a).map(([id, { spec }]) =>
         object({
-          selection: literals(name),
+          selection: literal(id),
           value: spec.validator,
         }),
       ),
     ) as Parser<unknown, any>
 
-    return new Variants<
-      {
-        [K in keyof VariantValues]: {
-          selection: K
-          // prettier-ignore
-          value: 
-            VariantValues[K]["spec"] extends (InputSpec<infer B, Store> | InputSpec<infer B, never>) ? B :
-            never
-        }
-      }[keyof VariantValues],
-      Store
-    >(async (options) => {
+    return new Variants<VariantValues, Store>(async (options) => {
       const variants = {} as {
         [K in keyof VariantValues]: {
           name: string
@@ -118,6 +135,6 @@ export class Variants<Type, Store> {
   ```
    */
   withStore<NewStore extends Store extends never ? any : Store>() {
-    return this as any as Variants<Type, NewStore>
+    return this as any as Variants<VariantValues, NewStore>
   }
 }

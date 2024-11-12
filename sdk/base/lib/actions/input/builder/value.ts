@@ -27,36 +27,12 @@ import {
   unknown,
 } from "ts-matches"
 
-export type RequiredDefault<A> =
-  | false
-  | {
-      default: A | null
-    }
-
-function requiredLikeToAbove<Input extends RequiredDefault<A>, A>(
-  requiredLike: Input,
-) {
-  // prettier-ignore
-  return {
-    required: (typeof requiredLike === 'object' ? true : requiredLike) as (
-      Input extends { default: unknown} ? true:
-      Input extends true ? true :
-      false
-    ),
-    default:(typeof requiredLike === 'object' ? requiredLike.default : null) as (
-      Input extends { default: infer Default } ? Default :
-      null
-    )
-  };
-}
-type AsRequired<Type, MaybeRequiredType> = MaybeRequiredType extends
-  | { default: unknown }
-  | never
-  ? Type
-  : Type | null | undefined
+type AsRequired<T, Required extends boolean> = Required extends true
+  ? T
+  : T | null | undefined
 
 const testForAsRequiredParser = once(
-  () => object({ required: object({ default: unknown }) }).test,
+  () => object({ required: literal(true) }).test,
 )
 function asRequiredParser<
   Type,
@@ -122,19 +98,19 @@ export class Value<Type, Store> {
       boolean,
     )
   }
-  static text<Required extends RequiredDefault<DefaultString>>(a: {
+  static text<Required extends boolean>(a: {
     name: string
     description?: string | null
     /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
     /**
-     * @description Determines if the field is required. If so, optionally provide a default value.
-     * @type { false | { default: string | RandomString | null } }
-     * @example required: false
-     * @example required: { default: null }
-     * @example required: { default: 'World' }
-     * @example required: { default: { charset: 'abcdefg', len: 16 } }
+     * provide a default value.
+     * @type { string | RandomString | null }
+     * @example default: null
+     * @example default: 'World'
+     * @example default: { charset: 'abcdefg', len: 16 }
      */
+    default: string | RandomString | null
     required: Required
     /**
      * @description Mask (aka camouflage) text input with dots: ● ● ●
@@ -188,7 +164,6 @@ export class Value<Type, Store> {
         immutable: a.immutable ?? false,
         generate: a.generate ?? null,
         ...a,
-        ...requiredLikeToAbove(a.required),
       }),
       asRequiredParser(string, a),
     )
@@ -200,7 +175,8 @@ export class Value<Type, Store> {
         name: string
         description?: string | null
         warning?: string | null
-        required: RequiredDefault<DefaultString>
+        default: DefaultString | null
+        required: boolean
         masked?: boolean
         placeholder?: string | null
         minLength?: number | null
@@ -228,19 +204,16 @@ export class Value<Type, Store> {
         immutable: false,
         generate: a.generate ?? null,
         ...a,
-        ...requiredLikeToAbove(a.required),
       }
     }, string.optional())
   }
-  static textarea(a: {
+  static textarea<Required extends boolean>(a: {
     name: string
     description?: string | null
     /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
-    /**
-     * @description Unlike other "required" fields, for textarea this is a simple boolean.
-     */
-    required: boolean
+    default: string | null
+    required: Required
     minLength?: number | null
     maxLength?: number | null
     placeholder?: string | null
@@ -250,20 +223,23 @@ export class Value<Type, Store> {
      */
     immutable?: boolean
   }) {
-    return new Value<string, never>(async () => {
-      const built: ValueSpecTextarea = {
-        description: null,
-        warning: null,
-        minLength: null,
-        maxLength: null,
-        placeholder: null,
-        type: "textarea" as const,
-        disabled: false,
-        immutable: a.immutable ?? false,
-        ...a,
-      }
-      return built
-    }, string)
+    return new Value<AsRequired<string, Required>, never>(
+      async () => {
+        const built: ValueSpecTextarea = {
+          description: null,
+          warning: null,
+          minLength: null,
+          maxLength: null,
+          placeholder: null,
+          type: "textarea" as const,
+          disabled: false,
+          immutable: a.immutable ?? false,
+          ...a,
+        }
+        return built
+      },
+      asRequiredParser(string, a),
+    )
   }
   static dynamicTextarea<Store = never>(
     getA: LazyBuild<
@@ -272,6 +248,7 @@ export class Value<Type, Store> {
         name: string
         description?: string | null
         warning?: string | null
+        default: string | null
         required: boolean
         minLength?: number | null
         maxLength?: number | null
@@ -280,7 +257,7 @@ export class Value<Type, Store> {
       }
     >,
   ) {
-    return new Value<string, Store>(async (options) => {
+    return new Value<string | null | undefined, Store>(async (options) => {
       const a = await getA(options)
       return {
         description: null,
@@ -293,20 +270,20 @@ export class Value<Type, Store> {
         immutable: false,
         ...a,
       }
-    }, string)
+    }, string.optional())
   }
-  static number<Required extends RequiredDefault<number>>(a: {
+  static number<Required extends boolean>(a: {
     name: string
     description?: string | null
     /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
     /**
-     * @description Determines if the field is required. If so, optionally provide a default value.
-     * @type { false | { default: number | null } }
-     * @example required: false
-     * @example required: { default: null }
-     * @example required: { default: 7 }
+     * @description optionally provide a default value.
+     * @type { default: number | null }
+     * @example default: null
+     * @example default: 7
      */
+    default: number | null
     required: Required
     min?: number | null
     max?: number | null
@@ -343,7 +320,6 @@ export class Value<Type, Store> {
         disabled: false,
         immutable: a.immutable ?? false,
         ...a,
-        ...requiredLikeToAbove(a.required),
       }),
       asRequiredParser(number, a),
     )
@@ -355,7 +331,8 @@ export class Value<Type, Store> {
         name: string
         description?: string | null
         warning?: string | null
-        required: RequiredDefault<number>
+        default: number | null
+        required: boolean
         min?: number | null
         max?: number | null
         step?: number | null
@@ -380,22 +357,21 @@ export class Value<Type, Store> {
         disabled: false,
         immutable: false,
         ...a,
-        ...requiredLikeToAbove(a.required),
       }
     }, number.optional())
   }
-  static color<Required extends RequiredDefault<string>>(a: {
+  static color<Required extends boolean>(a: {
     name: string
     description?: string | null
     /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
     /**
-     * @description Determines if the field is required. If so, optionally provide a default value.
-     * @type { false | { default: string | null } }
-     * @example required: false
-     * @example required: { default: null }
-     * @example required: { default: 'ffffff' }
+     * @description optionally provide a default value.
+     * @type { default: string | null }
+     * @example default: null
+     * @example default: 'ffffff'
      */
+    default: string | null
     required: Required
     /**
      * @description Once set, the value can never be changed.
@@ -411,9 +387,7 @@ export class Value<Type, Store> {
         disabled: false,
         immutable: a.immutable ?? false,
         ...a,
-        ...requiredLikeToAbove(a.required),
       }),
-
       asRequiredParser(string, a),
     )
   }
@@ -425,7 +399,8 @@ export class Value<Type, Store> {
         name: string
         description?: string | null
         warning?: string | null
-        required: RequiredDefault<string>
+        default: string | null
+        required: boolean
         disabled?: false | string
       }
     >,
@@ -439,22 +414,21 @@ export class Value<Type, Store> {
         disabled: false,
         immutable: false,
         ...a,
-        ...requiredLikeToAbove(a.required),
       }
     }, string.optional())
   }
-  static datetime<Required extends RequiredDefault<string>>(a: {
+  static datetime<Required extends boolean>(a: {
     name: string
     description?: string | null
     /** Presents a warning prompt before permitting the value to change. */
     warning?: string | null
     /**
-     * @description Determines if the field is required. If so, optionally provide a default value.
-     * @type { false | { default: string | null } }
-     * @example required: false
-     * @example required: { default: null }
-     * @example required: { default: '1985-12-16 18:00:00.000' }
+     * @description optionally provide a default value.
+     * @type { default: string | null }
+     * @example default: null
+     * @example default: '1985-12-16 18:00:00.000'
      */
+    default: string | null
     required: Required
     /**
      * @description Informs the browser how to behave and which date/time component to display.
@@ -481,7 +455,6 @@ export class Value<Type, Store> {
         disabled: false,
         immutable: a.immutable ?? false,
         ...a,
-        ...requiredLikeToAbove(a.required),
       }),
       asRequiredParser(string, a),
     )
@@ -493,7 +466,8 @@ export class Value<Type, Store> {
         name: string
         description?: string | null
         warning?: string | null
-        required: RequiredDefault<string>
+        default: string | null
+        required: boolean
         inputmode?: ValueSpecDatetime["inputmode"]
         min?: string | null
         max?: string | null
@@ -513,13 +487,12 @@ export class Value<Type, Store> {
         disabled: false,
         immutable: false,
         ...a,
-        ...requiredLikeToAbove(a.required),
       }
     }, string.optional())
   }
   static select<
-    Required extends RequiredDefault<string>,
     Values extends Record<string, string>,
+    Required extends boolean,
   >(a: {
     name: string
     description?: string | null
@@ -527,11 +500,11 @@ export class Value<Type, Store> {
     warning?: string | null
     /**
      * @description Determines if the field is required. If so, optionally provide a default value from the list of values.
-     * @type { false | { default: string | null } }
-     * @example required: false
-     * @example required: { default: null }
-     * @example required: { default: 'radio1' }
+     * @type { (keyof Values & string) | null }
+     * @example default: null
+     * @example default: 'radio1'
      */
+    default: (keyof Values & string) | null
     required: Required
     /**
      * @description A mapping of unique radio options to their human readable display format.
@@ -551,7 +524,7 @@ export class Value<Type, Store> {
      */
     immutable?: boolean
   }) {
-    return new Value<AsRequired<keyof Values, Required>, never>(
+    return new Value<AsRequired<keyof Values & string, Required>, never>(
       () => ({
         description: null,
         warning: null,
@@ -559,7 +532,6 @@ export class Value<Type, Store> {
         disabled: false,
         immutable: a.immutable ?? false,
         ...a,
-        ...requiredLikeToAbove(a.required),
       }),
       asRequiredParser(
         anyOf(
@@ -578,7 +550,8 @@ export class Value<Type, Store> {
         name: string
         description?: string | null
         warning?: string | null
-        required: RequiredDefault<string>
+        default: string | null
+        required: boolean
         values: Record<string, string>
         disabled?: false | string | string[]
       }
@@ -593,7 +566,6 @@ export class Value<Type, Store> {
         disabled: false,
         immutable: false,
         ...a,
-        ...requiredLikeToAbove(a.required),
       }
     }, string.optional())
   }
@@ -605,7 +577,7 @@ export class Value<Type, Store> {
     /**
      * @description A simple list of which options should be checked by default.
      */
-    default: string[]
+    default: (keyof Values & string)[]
     /**
      * @description A mapping of checkbox options to their human readable display format.
      * @example
@@ -689,11 +661,11 @@ export class Value<Type, Store> {
       }
     }, spec.validator)
   }
-  // static file<Store>(a: {
+  // static file<Store, Required extends boolean>(a: {
   //   name: string
   //   description?: string | null
   //   extensions: string[]
-  //   required: boolean
+  //   required: Required
   // }) {
   //   const buildValue = {
   //     type: "file" as const,
@@ -701,14 +673,14 @@ export class Value<Type, Store> {
   //     warning: null,
   //     ...a,
   //   }
-  //   return new Value<FilePath, Store>(
+  //   return new Value<AsRequired<FilePath, Required>, Store>(
   //     () => ({
   //       ...buildValue,
   //     }),
   //     asRequiredParser(object({ filePath: string }), a),
   //   )
   // }
-  // static dynamicFile<Required extends boolean, Store>(
+  // static dynamicFile<Store>(
   //   a: LazyBuild<
   //     Store,
   //     {
@@ -716,21 +688,30 @@ export class Value<Type, Store> {
   //       description?: string | null
   //       warning?: string | null
   //       extensions: string[]
-  //       required: Required
+  //       required: boolean
   //     }
   //   >,
   // ) {
-  //   return new Value<string | null | undefined, Store>(
+  //   return new Value<FilePath | null | undefined, Store>(
   //     async (options) => ({
   //       type: "file" as const,
   //       description: null,
   //       warning: null,
   //       ...(await a(options)),
   //     }),
-  //     string.optional(),
+  //     object({ filePath: string }).optional(),
   //   )
   // }
-  static union<Required extends RequiredDefault<string>, Type, Store>(
+  static union<
+    VariantValues extends {
+      [K in string]: {
+        name: string
+        spec: InputSpec<any, Store> | InputSpec<any, never>
+      }
+    },
+    Store,
+    Required extends boolean,
+  >(
     a: {
       name: string
       description?: string | null
@@ -743,6 +724,7 @@ export class Value<Type, Store> {
        * @example required: { default: null }
        * @example required: { default: 'variant1' }
        */
+      default: (keyof VariantValues & string) | null
       required: Required
       /**
        * @description Once set, the value can never be changed.
@@ -750,9 +732,12 @@ export class Value<Type, Store> {
        */
       immutable?: boolean
     },
-    aVariants: Variants<Type, Store>,
+    aVariants: Variants<VariantValues, Store>,
   ) {
-    return new Value<AsRequired<Type, Required>, Store>(
+    return new Value<
+      AsRequired<typeof aVariants.validator._TYPE, Required>,
+      Store
+    >(
       async (options) => ({
         type: "union" as const,
         description: null,
@@ -760,34 +745,41 @@ export class Value<Type, Store> {
         disabled: false,
         ...a,
         variants: await aVariants.build(options as any),
-        ...requiredLikeToAbove(a.required),
         immutable: a.immutable ?? false,
       }),
       asRequiredParser(aVariants.validator, a),
     )
   }
   static filteredUnion<
-    Required extends RequiredDefault<string>,
-    Type extends Record<string, any>,
-    Store = never,
+    VariantValues extends {
+      [K in string]: {
+        name: string
+        spec: InputSpec<any, Store> | InputSpec<any, never>
+      }
+    },
+    Store,
+    Required extends boolean,
   >(
     getDisabledFn: LazyBuild<Store, string[] | false | string>,
     a: {
       name: string
       description?: string | null
       warning?: string | null
+      default: (keyof VariantValues & string) | null
       required: Required
     },
-    aVariants: Variants<Type, Store> | Variants<Type, never>,
+    aVariants: Variants<VariantValues, Store> | Variants<VariantValues, never>,
   ) {
-    return new Value<AsRequired<Type, Required>, Store>(
+    return new Value<
+      AsRequired<typeof aVariants.validator._TYPE, Required>,
+      Store
+    >(
       async (options) => ({
         type: "union" as const,
         description: null,
         warning: null,
         ...a,
         variants: await aVariants.build(options as any),
-        ...requiredLikeToAbove(a.required),
         disabled: (await getDisabledFn(options)) || false,
         immutable: false,
       }),
@@ -795,9 +787,14 @@ export class Value<Type, Store> {
     )
   }
   static dynamicUnion<
-    Required extends RequiredDefault<string>,
-    Type extends Record<string, any>,
-    Store = never,
+    VariantValues extends {
+      [K in string]: {
+        name: string
+        spec: InputSpec<any, Store> | InputSpec<any, never>
+      }
+    },
+    Store,
+    Required extends boolean,
   >(
     getA: LazyBuild<
       Store,
@@ -805,13 +802,17 @@ export class Value<Type, Store> {
         name: string
         description?: string | null
         warning?: string | null
+        default: (keyof VariantValues & string) | null
         required: Required
         disabled: string[] | false | string
       }
     >,
-    aVariants: Variants<Type, Store> | Variants<Type, never>,
+    aVariants: Variants<VariantValues, Store> | Variants<VariantValues, never>,
   ) {
-    return new Value<Type | null | undefined, Store>(async (options) => {
+    return new Value<
+      typeof aVariants.validator._TYPE | null | undefined,
+      Store
+    >(async (options) => {
       const newValues = await getA(options)
       return {
         type: "union" as const,
@@ -819,7 +820,6 @@ export class Value<Type, Store> {
         warning: null,
         ...newValues,
         variants: await aVariants.build(options as any),
-        ...requiredLikeToAbove(newValues.required),
         immutable: false,
       }
     }, aVariants.validator.optional())

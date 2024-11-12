@@ -164,7 +164,7 @@ export class FileHelper<A> {
   /**
    * Accepts partial structured data and performs a merge with the existing file on disk.
    */
-  async merge(data: Partial<A>) {
+  async merge(data: T.DeepPartial<A>) {
     const fileData =
       (await this.readOnce()) ||
       (() => {
