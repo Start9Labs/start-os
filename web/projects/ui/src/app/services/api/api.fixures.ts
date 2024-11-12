@@ -1191,11 +1191,11 @@ export module Mock {
           name: 'Datetime',
           required: false,
         }),
-        file: ISB.Value.file({
-          name: 'File',
-          required: false,
-          extensions: ['png', 'pdf'],
-        }),
+        // file: ISB.Value.file({
+        //   name: 'File',
+        //   required: false,
+        //   extensions: ['png', 'pdf'],
+        // }),
         users: ISB.Value.multiselect({
           name: 'Users',
           default: [],
