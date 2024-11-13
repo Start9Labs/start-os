@@ -80,7 +80,8 @@ export class FileHelper<A> {
   protected constructor(
     readonly path: string,
     readonly writeData: (dataIn: A) => string,
-    readonly readData: (stringValue: string) => A,
+    readonly readData: (stringValue: string) => unknown,
+    readonly validate: (value: unknown) => A,
   ) {}
 
   /**
@@ -97,16 +98,22 @@ export class FileHelper<A> {
     return null
   }
 
-  /**
-   * Reads the file from disk and converts it to structured data.
-   */
-  private async readOnce(): Promise<A | null> {
+  private async readFile(): Promise<unknown> {
     if (!(await exists(this.path))) {
       return null
     }
     return this.readData(
       await fs.readFile(this.path).then((data) => data.toString("utf-8")),
     )
+  }
+
+  /**
+   * Reads the file from disk and converts it to structured data.
+   */
+  private async readOnce(): Promise<A | null> {
+    const data = await this.readFile()
+    if (!data) return null
+    return this.validate(data)
   }
 
   private async readConst(effects: T.Effects): Promise<A | null> {
@@ -156,9 +163,9 @@ export class FileHelper<A> {
    * Accepts full structured data and performs a merge with the existing file on disk if it exists.
    */
   async write(data: A) {
-    const fileData = (await this.readOnce()) || {}
+    const fileData = (await this.readFile()) || {}
     const mergeData = merge({}, fileData, data)
-    return await this.writeFile(mergeData)
+    return await this.writeFile(this.validate(mergeData))
   }
 
   /**
@@ -166,12 +173,12 @@ export class FileHelper<A> {
    */
   async merge(data: T.DeepPartial<A>) {
     const fileData =
-      (await this.readOnce()) ||
+      (await this.readFile()) ||
       (() => {
         throw new Error(`${this.path}: does not exist`)
       })()
     const mergeData = merge({}, fileData, data)
-    return await this.writeFile(mergeData)
+    return await this.writeFile(this.validate(mergeData))
   }
 
   /**
@@ -179,7 +186,7 @@ export class FileHelper<A> {
    * Like one behaviour of another dependency or something similar.
    */
   withPath(path: string) {
-    return new FileHelper<A>(path, this.writeData, this.readData)
+    return new FileHelper<A>(path, this.writeData, this.readData, this.validate)
   }
 
   /**
@@ -190,9 +197,10 @@ export class FileHelper<A> {
   static raw<A>(
     path: string,
     toFile: (dataIn: A) => string,
-    fromFile: (rawData: string) => A,
+    fromFile: (rawData: string) => unknown,
+    validate: (data: unknown) => A,
   ) {
-    return new FileHelper<A>(path, toFile, fromFile)
+    return new FileHelper<A>(path, toFile, fromFile, validate)
   }
   /**
    * Create a File Helper for a .json file.
@@ -200,12 +208,9 @@ export class FileHelper<A> {
   static json<A>(path: string, shape: matches.Validator<unknown, A>) {
     return new FileHelper<A>(
       path,
-      (inData) => {
-        return JSON.stringify(inData, null, 2)
-      },
-      (inString) => {
-        return shape.unsafeCast(JSON.parse(inString))
-      },
+      (inData) => JSON.stringify(inData, null, 2),
+      (inString) => JSON.parse(inString),
+      (data) => shape.unsafeCast(data),
     )
   }
   /**
@@ -217,12 +222,9 @@ export class FileHelper<A> {
   ) {
     return new FileHelper<A>(
       path,
-      (inData) => {
-        return TOML.stringify(inData as any)
-      },
-      (inString) => {
-        return shape.unsafeCast(TOML.parse(inString))
-      },
+      (inData) => TOML.stringify(inData as any),
+      (inString) => TOML.parse(inString),
+      (data) => shape.unsafeCast(data),
     )
   }
   /**
@@ -234,12 +236,9 @@ export class FileHelper<A> {
   ) {
     return new FileHelper<A>(
       path,
-      (inData) => {
-        return YAML.stringify(inData, null, 2)
-      },
-      (inString) => {
-        return shape.unsafeCast(YAML.parse(inString))
-      },
+      (inData) => YAML.stringify(inData, null, 2),
+      (inString) => YAML.parse(inString),
+      (data) => shape.unsafeCast(data),
     )
   }
 }
