@@ -330,16 +330,32 @@ impl NetService {
                                 }
                                 HostAddress::Domain { address } => {
                                     if hostnames.insert(address.clone()) {
+                                        let address = Some(address.clone());
                                         rcs.push(
                                             ctrl.vhost
                                                 .add(
-                                                    Some(address.clone()),
+                                                    address.clone(),
                                                     external,
                                                     target,
                                                     connect_ssl.clone(),
                                                 )
                                                 .await?,
                                         );
+                                        if ssl.preferred_external_port == 443
+                                            && !ctrl.server_hostnames.contains(&address)
+                                        // paranoia: this should be checked before the data is added but it would be *real* bad if this conflicted with a main ui address
+                                        {
+                                            rcs.push(
+                                                ctrl.vhost
+                                                    .add(
+                                                        address.clone(),
+                                                        443,
+                                                        target,
+                                                        connect_ssl.clone(),
+                                                    )
+                                                    .await?,
+                                            );
+                                        }
                                     }
                                 }
                             }
@@ -391,6 +407,12 @@ impl NetService {
                         });
                     }
                 }
+                // TODO: ignoring for now since ui isn't set up to handle
+                // for address in host.addresses() {
+                //     if let HostAddress::Domain { address } = address {
+                //         bind_hostname_info.push(HostnameInfo);
+                //     }
+                // }
                 hostname_info.insert(*port, bind_hostname_info);
                 binds.lan.insert(*port, new_lan_bind);
             }
@@ -515,6 +537,7 @@ impl NetService {
                 ctrl.tor.gc(Some(addr.clone()), None).await?;
             }
         }
+
         self.net_controller()?
             .db
             .mutate(|db| {

@@ -55,6 +55,7 @@ impl Public {
                     .parse()
                     .unwrap(),
                 ip_info: BTreeMap::new(),
+                acme: None,
                 status_info: ServerStatus {
                     backup_progress: None,
                     updated: false,
@@ -130,6 +131,7 @@ pub struct ServerInfo {
     #[ts(type = "string")]
     pub tor_address: Url,
     pub ip_info: BTreeMap<String, IpInfo>,
+    pub acme: Option<AcmeSettings>,
     #[serde(default)]
     pub status_info: ServerStatus,
     pub wifi: WifiInfo,
@@ -172,6 +174,20 @@ impl IpInfo {
             ipv6,
         })
     }
+}
+
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+#[ts(export)]
+pub struct AcmeSettings {
+    #[ts(type = "string")]
+    pub provider: Url,
+    /// email addresses for letsencrypt
+    pub contact: Vec<String>,
+    #[ts(type = "string[]")]
+    /// domains to get letsencrypt certs for
+    pub domains: BTreeSet<InternedString>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
