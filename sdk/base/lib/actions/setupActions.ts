@@ -20,7 +20,10 @@ export type GetInput<
 > = (options: {
   effects: T.Effects
 }) => Promise<
-  null | void | undefined | (ExtractInputSpecType<A> & Record<string, any>)
+  | null
+  | void
+  | undefined
+  | (T.DeepPartial<ExtractInputSpecType<A>> & Record<string, any>)
 >
 
 export type MaybeFn<T> = T | ((options: { effects: T.Effects }) => Promise<T>)
