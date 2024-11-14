@@ -27,7 +27,7 @@
     "isomorphic-fetch": "^3.0.0",
     "lodash.merge": "^4.6.2",
     "mime-types": "^2.1.35",
-    "ts-matches": "^5.6.0",
+    "ts-matches": "^5.6.1",
     "yaml": "^2.2.2"
   },
   "prettier": {
