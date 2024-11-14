@@ -1,7 +1,7 @@
 import { DeepPartial } from "../../../types"
 import { ValueSpec, ValueSpecUnion } from "../inputSpecTypes"
 import { LazyBuild, InputSpec, ExtractInputSpecType } from "./inputSpec"
-import { Parser, anyOf, literal, literals, object } from "ts-matches"
+import { Parser, anyOf, literal, object } from "ts-matches"
 
 export type UnionRes<
   Store,
@@ -13,14 +13,16 @@ export type UnionRes<
   },
   K extends keyof VariantValues & string = keyof VariantValues & string,
 > = {
-  selection: K
-  value: ExtractInputSpecType<VariantValues[K]["spec"]>
-  other?: {
-    [key in keyof VariantValues & string]?: DeepPartial<
-      ExtractInputSpecType<VariantValues[key]["spec"]>
-    >
+  [key in keyof VariantValues]: {
+    selection: key
+    value: ExtractInputSpecType<VariantValues[key]["spec"]>
+    other?: {
+      [key2 in Exclude<keyof VariantValues & string, key>]?: DeepPartial<
+        ExtractInputSpecType<VariantValues[key2]["spec"]>
+      >
+    }
   }
-}
+}[K]
 
 /**
  * Used in the the Value.select { @link './value.ts' }

@@ -287,9 +287,7 @@ describe("values", () => {
         value: {
           b: boolean
         }
-        other?: {
-          a?: { b?: boolean }
-        }
+        other?: {}
       }
     >()(null)
   })
@@ -587,24 +585,28 @@ describe("values", () => {
       type Test = typeof validator._TYPE
       testOutput<
         Test,
-        {
-          selection: "a" | "b"
-          value:
-            | {
-                b: boolean
-              }
-            | {
-                b: boolean
-              }
-          other?: {
-            a?: {
-              b?: boolean
+        | {
+            selection: "a"
+            value: {
+              b: boolean
             }
-            b?: {
-              b?: boolean
+            other?: {
+              b?: {
+                b?: boolean
+              }
             }
           }
-        }
+        | {
+            selection: "b"
+            value: {
+              b: boolean
+            }
+            other?: {
+              a?: {
+                b?: boolean
+              }
+            }
+          }
       >()(null)
 
       const built = await value.build({} as any)
@@ -670,24 +672,28 @@ describe("values", () => {
     type Test = typeof validator._TYPE
     testOutput<
       Test,
-      {
-        selection: "a" | "b"
-        value:
-          | {
-              b: boolean
-            }
-          | {
-              b: boolean
-            }
-        other?: {
-          a?: {
-            b?: boolean
+      | {
+          selection: "a"
+          value: {
+            b: boolean
           }
-          b?: {
-            b?: boolean
+          other?: {
+            b?: {
+              b?: boolean
+            }
           }
         }
-      }
+      | {
+          selection: "b"
+          value: {
+            b: boolean
+          }
+          other?: {
+            a?: {
+              b?: boolean
+            }
+          }
+        }
     >()(null)
 
     const built = await value.build({} as any)
