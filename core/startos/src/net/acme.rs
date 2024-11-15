@@ -231,27 +231,27 @@ pub fn domain<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "add",
             from_fn_async(add_domain)
-                .with_about("Add a domain for which to acquire ACME certificates")
                 .no_display()
+                .with_about("Add a domain for which to acquire ACME certificates")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove",
             from_fn_async(remove_domain)
-                .with_about("Remove a domain for which to acquire ACME certificates")
                 .no_display()
+                .with_about("Remove a domain for which to acquire ACME certificates")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "list",
             from_fn_async(list_domains)
-                .with_about("List domains for which to acquire ACME certificates")
                 .with_custom_display_fn(|_, res| {
                     for domain in res {
                         println!("{domain}")
                     }
                     Ok(())
                 })
+                .with_about("List domains for which to acquire ACME certificates")
                 .with_call_remote::<CliContext>(),
         )
 }
