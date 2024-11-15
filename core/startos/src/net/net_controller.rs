@@ -341,15 +341,12 @@ impl NetService {
                                                 )
                                                 .await?,
                                         );
-                                        if ssl.preferred_external_port == 443
-                                            && !ctrl.server_hostnames.contains(&address)
-                                        // paranoia: this should be checked before the data is added but it would be *real* bad if this conflicted with a main ui address
-                                        {
+                                        if ssl.preferred_external_port == 443 {
                                             rcs.push(
                                                 ctrl.vhost
                                                     .add(
                                                         address.clone(),
-                                                        443,
+                                                        5443,
                                                         target,
                                                         connect_ssl.clone(),
                                                     )
