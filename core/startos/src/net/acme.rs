@@ -163,8 +163,8 @@ pub fn acme<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "init",
             from_fn_async(init)
-                .with_about("Setup ACME certificate acquisition")
                 .no_display()
+                .with_about("Setup ACME certificate acquisition")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -184,6 +184,7 @@ impl FromStr for AcmeProvider {
             "letsencrypt-staging" => async_acme::acme::LETS_ENCRYPT_STAGING_DIRECTORY.parse(),
             s => s.parse(),
         }
+        .map(Self)
     }
 }
 impl ValueParserFactory for AcmeProvider {
