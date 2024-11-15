@@ -355,7 +355,7 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             from_fn_async(control::start)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Start a package container")
+                .with_about("Start a service")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -363,7 +363,7 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             from_fn_async(control::stop)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Stop a package container")
+                .with_about("Stop a service")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -371,7 +371,7 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             from_fn_async(control::restart)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Restart a package container")
+                .with_about("Restart a service")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -409,9 +409,14 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             "attach",
             from_fn_async(service::attach)
                 .with_metadata("get_session", Value::Bool(true))
+                .with_about("Execute commands within a service container")
                 .no_cli(),
         )
         .subcommand("attach", from_fn_async(service::cli_attach).no_display())
+        .subcommand(
+            "host",
+            net::host::host::<C>().with_about("Manage network hosts for a package"),
+        )
 }
 
 pub fn diagnostic_api() -> ParentHandler<DiagnosticContext> {

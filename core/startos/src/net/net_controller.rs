@@ -261,7 +261,7 @@ impl NetService {
         errors.into_result()
     }
 
-    async fn update(&mut self, id: HostId, host: Host) -> Result<(), Error> {
+    pub async fn update(&mut self, id: HostId, host: Host) -> Result<(), Error> {
         let ctrl = self.net_controller()?;
         let mut hostname_info = BTreeMap::new();
         let binds = self.binds.entry(id.clone()).or_default();
