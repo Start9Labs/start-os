@@ -20,8 +20,9 @@ fi
 update-initramfs -u -k all
 
 if [ -f /etc/default/grub ]; then
-    sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=startos"' /etc/default/grub
+    sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=startos console=ttyS0,115200n8"' /etc/default/grub
     sed -i '/\(^\|#\)GRUB_DISTRIBUTOR=/c\GRUB_DISTRIBUTOR="StartOS v$(cat /usr/lib/startos/VERSION.txt)"' /etc/default/grub
+    sed -i '/\(^\|#\)GRUB_TERMINAL=/c\GRUB_TERMINAL="serial"\nGRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"' /etc/default/grub
 fi
 
 # change timezone
