@@ -17,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{watch, Mutex, RwLock};
+use tokio_rustls::rustls::crypto::CryptoProvider;
 use tokio_rustls::rustls::pki_types::{
     CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer, ServerName,
 };
@@ -47,12 +48,14 @@ impl ResolvesServerCert for SingleCertResolver {
 // not allowed: <=1024, >=32768, 5355, 5432, 9050, 6010, 9051, 5353
 
 pub struct VHostController {
+    crypto_provider: Arc<CryptoProvider>,
     db: TypedPatchDb<Database>,
     servers: Mutex<BTreeMap<u16, VHostServer>>,
 }
 impl VHostController {
     pub fn new(db: TypedPatchDb<Database>) -> Self {
         Self {
+            crypto_provider: Arc::new(tokio_rustls::rustls::crypto::ring::default_provider()),
             db,
             servers: Mutex::new(BTreeMap::new()),
         }
@@ -69,7 +72,8 @@ impl VHostController {
         let server = if let Some(server) = writable.remove(&external) {
             server
         } else {
-            VHostServer::new(external, self.db.clone()).await?
+            tracing::info!("Listening on {external}");
+            VHostServer::new(external, self.db.clone(), self.crypto_provider.clone()).await?
         };
         let rc = server
             .add(
@@ -121,7 +125,7 @@ struct VHostServer {
 }
 impl VHostServer {
     #[instrument(skip_all)]
-    async fn new(port: u16, db: TypedPatchDb<Database>) -> Result<Self, Error> {
+    async fn new(port: u16, db: TypedPatchDb<Database>, crypto_provider: Arc<CryptoProvider>) -> Result<Self, Error> {
         let acme_tls_alpn_cache = Arc::new(Mutex::new(BTreeMap::<
             InternedString,
             watch::Receiver<Option<Arc<CertifiedKey>>>,
@@ -151,6 +155,7 @@ impl VHostServer {
                             let mapping = mapping.clone();
                             let db = db.clone();
                             let acme_tls_alpn_cache = acme_tls_alpn_cache.clone();
+                            let crypto_provider = crypto_provider.clone();
                             tokio::spawn(async move {
                                 if let Err(e) = async {
                                     let mid = match LazyConfigAcceptor::new(
@@ -258,7 +263,9 @@ impl VHostServer {
                                                                 Error::new(eyre!("No challenge available for {domain}"), ErrorKind::OpenSsl)
                                                             })?;
                                                         tracing::info!("Verification cert received for {domain}");
-                                                        let mut cfg = ServerConfig::builder()
+                                                        let mut cfg = ServerConfig::builder_with_provider(crypto_provider.clone())
+                                                            .with_safe_default_protocol_versions()
+                                                            .with_kind(crate::ErrorKind::OpenSsl)?
                                                             .with_no_client_auth()
                                                             .with_cert_resolver(Arc::new(SingleCertResolver(cert)));
 
@@ -285,7 +292,9 @@ impl VHostServer {
                                                             .await
                                                             .with_kind(ErrorKind::OpenSsl)?;
                                                         return Ok(Ok(
-                                                                ServerConfig::builder()
+                                                                ServerConfig::builder_with_provider(crypto_provider.clone())
+                                                                    .with_safe_default_protocol_versions()
+                                                                    .with_kind(crate::ErrorKind::OpenSsl)?
                                                                     .with_no_client_auth()
                                                                     .with_cert_resolver(Arc::new(SingleCertResolver(Arc::new(cert))))
                                                             ));
@@ -318,7 +327,9 @@ impl VHostServer {
                                                         .cert_for(&hostnames)
                                                 })
                                                 .await?;
-                                            let cfg = ServerConfig::builder()
+                                            let cfg = ServerConfig::builder_with_provider(crypto_provider.clone())
+                                                .with_safe_default_protocol_versions()
+                                                .with_kind(crate::ErrorKind::OpenSsl)?
                                                 .with_no_client_auth();
                                             if mid.client_hello().signature_schemes().contains(
                                                 &tokio_rustls::rustls::SignatureScheme::ED25519,
@@ -363,13 +374,16 @@ impl VHostServer {
                                             Ok(a) => a,
                                             Err(cfg) => {
                                                 mid.into_stream(Arc::new(cfg)).await?;
+                                                tracing::info!("ACME auth challenge completed");
                                                 return Ok(());
                                             }
                                         };
                                         match target.connect_ssl {
                                             Ok(()) => {
                                                 let mut client_cfg =
-                                                tokio_rustls::rustls::ClientConfig::builder()
+                                                tokio_rustls::rustls::ClientConfig::builder_with_provider(crypto_provider)
+                                                        .with_safe_default_protocol_versions()
+                                                        .with_kind(crate::ErrorKind::OpenSsl)?
                                                         .with_root_certificates({
                                                             let mut store = RootCertStore::empty();
                                                             store.add(

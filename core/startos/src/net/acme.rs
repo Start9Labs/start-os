@@ -16,12 +16,12 @@ use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::AcmeSettings;
 use crate::db::model::Database;
 use crate::prelude::*;
-use crate::util::serde::Pem;
+use crate::util::serde::{Pem, Pkcs8Doc};
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel)]
 #[model = "Model<Self>"]
 pub struct AcmeCertStore {
-    pub accounts: BTreeMap<JsonKey<Vec<String>>, Pem<PKey<Private>>>,
+    pub accounts: BTreeMap<JsonKey<Vec<String>>, Pem<Pkcs8Doc>>,
     pub certs: BTreeMap<Url, BTreeMap<JsonKey<BTreeSet<InternedString>>, AcmeCert>>,
 }
 impl AcmeCertStore {
@@ -55,27 +55,22 @@ impl<'a> async_acme::cache::AcmeCache for AcmeCertCache<'a> {
         else {
             return Ok(None);
         };
-        Ok(Some(
-            account
-                .de()?
-                .0
-                .private_key_to_der()
-                .with_kind(ErrorKind::OpenSsl)?,
-        ))
+        Ok(Some(account.de()?.0.document.into_vec()))
     }
 
     async fn write_account(&self, contacts: &[&str], contents: &[u8]) -> Result<(), Self::Error> {
         let contacts = JsonKey::new(contacts.into_iter().map(|s| (*s).to_owned()).collect_vec());
-        let key = Pem::new(
-            PKey::<Private>::private_key_from_der(contents).with_kind(ErrorKind::OpenSsl)?,
-        );
+        let key = Pkcs8Doc {
+            tag: "EC PRIVATE KEY".into(),
+            document: pkcs8::Document::try_from(contents).with_kind(ErrorKind::Pem)?,
+        };
         self.0
             .mutate(|db| {
                 db.as_private_mut()
                     .as_key_store_mut()
                     .as_acme_mut()
                     .as_accounts_mut()
-                    .insert(&contacts, &key)
+                    .insert(&contacts, &Pem::new(key))
             })
             .await?;
         Ok(())
@@ -130,6 +125,7 @@ impl<'a> async_acme::cache::AcmeCache for AcmeCertCache<'a> {
         key_pem: &str,
         certificate_pem: &str,
     ) -> Result<(), Self::Error> {
+        tracing::info!("Saving new certificate:\n{certificate_pem}");
         let domains = JsonKey::new(domains.into_iter().map(InternedString::intern).collect());
         let directory_url = directory_url
             .parse::<Url>()

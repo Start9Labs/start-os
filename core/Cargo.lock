@@ -235,7 +235,7 @@ dependencies = [
 [[package]]
 name = "async-acme"
 version = "0.5.0"
-source = "git+https://github.com/dr-bonez/async-acme.git#14de9b43e956f2d4b637bc2daea698422d66f074"
+source = "git+https://github.com/dr-bonez/async-acme.git#3fac01cb7cff67ffdef56a90a3f1490a1b5d1905"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -335,9 +335,9 @@ checksum = "ace50bade8e6234aa140d9a2f552bbee1db4d353f69b8217bc503490fc1a9f26"
 
 [[package]]
 name = "aws-lc-rs"
-version = "1.10.0"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cdd82dba44d209fddb11c190e0a94b78651f95299598e472215667417a03ff1d"
+checksum = "fe7c2840b66236045acd2607d5866e274380afd87ef99d6226e961e2cb47df45"
 dependencies = [
  "aws-lc-sys",
  "mirai-annotations",
@@ -347,9 +347,9 @@ dependencies = [
 
 [[package]]
 name = "aws-lc-sys"
-version = "0.22.0"
+version = "0.23.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df7a4168111d7eb622a31b214057b8509c0a7e1794f44c546d742330dc793972"
+checksum = "ad3a619a9de81e1d7de1f1186dcba4506ed661a0e483d84410fdef0ee87b2f96"
 dependencies = [
  "bindgen",
  "cc",
@@ -390,9 +390,9 @@ dependencies = [
 
 [[package]]
 name = "axum"
-version = "0.7.7"
+version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "504e3947307ac8326a5437504c517c4b56716c9d98fac0028c2acc7ca47d70ae"
+checksum = "49c41b948da08fb481a94546cd874843adc1142278b0af4badf9b1b78599d68d"
 dependencies = [
  "async-trait",
  "axum-core 0.4.5",
@@ -3286,7 +3286,7 @@ checksum = "c9be0862c1b3f26a88803c4a49de6889c10e608b3ee9344e6ef5b45fb37ad3d1"
 name = "models"
 version = "0.1.0"
 dependencies = [
- "axum 0.7.7",
+ "axum 0.7.8",
  "base64 0.21.7",
  "color-eyre",
  "ed25519-dalek 2.1.1",
@@ -4452,7 +4452,7 @@ source = "git+https://github.com/Start9Labs/rpc-toolkit.git?branch=refactor%2Fno
 dependencies = [
  "async-stream",
  "async-trait",
- "axum 0.7.7",
+ "axum 0.7.8",
  "clap",
  "futures",
  "http 1.1.0",
@@ -5378,7 +5378,7 @@ dependencies = [
  "async-compression",
  "async-stream",
  "async-trait",
- "axum 0.7.7",
+ "axum 0.7.8",
  "axum-server",
  "backhand",
  "barrage",

@@ -1221,6 +1221,30 @@ impl PemEncoding for ed25519_dalek::SigningKey {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct Pkcs8Doc {
+    pub tag: String,
+    pub document: pkcs8::Document,
+}
+
+impl PemEncoding for Pkcs8Doc {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
+        let (tag, document) = pkcs8::Document::from_pem(pem).map_err(E::custom)?;
+        Ok(Pkcs8Doc {
+            tag: tag.into(),
+            document,
+        })
+    }
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
+        der::pem::encode_string(
+            &self.tag,
+            pkcs8::LineEnding::default(),
+            self.document.as_bytes(),
+        )
+        .map_err(E::custom)
+    }
+}
+
 pub mod pem {
     use serde::{Deserialize, Deserializer, Serializer};
 

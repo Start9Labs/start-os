@@ -141,22 +141,26 @@ impl Model<Host> {
 #[derive(Deserialize, Serialize, Parser)]
 pub struct HostParams {
     package: PackageId,
-    host: HostId,
 }
 
 pub fn host<C: Context>() -> ParentHandler<C, HostParams> {
     ParentHandler::<C, HostParams>::new().subcommand(
         "address",
-        address::<C>().with_inherited(|params: HostParams, _| (params.package, params.host)),
+        address::<C>().with_inherited(|HostParams { package }, _| package),
     )
 }
 
-pub fn address<C: Context>() -> ParentHandler<C, Empty, (PackageId, HostId)> {
-    ParentHandler::<C, Empty, (PackageId, HostId)>::new()
+#[derive(Deserialize, Serialize, Parser)]
+pub struct AddressApiParams {
+    host: HostId,
+}
+
+pub fn address<C: Context>() -> ParentHandler<C, AddressApiParams, PackageId> {
+    ParentHandler::<C, AddressApiParams, PackageId>::new()
         .subcommand(
             "add",
             from_fn_async(add_address)
-                .with_inherited(|_, inherited| inherited)
+                .with_inherited(|AddressApiParams { host }, package| (package, host))
                 .with_about("Add an address to this host")
                 .no_display()
                 .with_call_remote::<CliContext>(),
@@ -164,7 +168,7 @@ pub fn address<C: Context>() -> ParentHandler<C, Empty, (PackageId, HostId)> {
         .subcommand(
             "remove",
             from_fn_async(remove_address)
-                .with_inherited(|_, inherited| inherited)
+                .with_inherited(|AddressApiParams { host }, package| (package, host))
                 .with_about("Remove an address from this host")
                 .no_display()
                 .with_call_remote::<CliContext>(),
@@ -172,7 +176,7 @@ pub fn address<C: Context>() -> ParentHandler<C, Empty, (PackageId, HostId)> {
         .subcommand(
             "list",
             from_fn_async(list_addresses)
-                .with_inherited(|_, inherited| inherited)
+                .with_inherited(|AddressApiParams { host }, package| (package, host))
                 .with_about("List addresses for this host")
                 .with_custom_display_fn(|_, res| {
                     for address in res {
