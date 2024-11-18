@@ -1,5 +1,8 @@
 import { InputSpec } from "./input/builder"
-import { ExtractInputSpecType } from "./input/builder/inputSpec"
+import {
+  ExtractInputSpecType,
+  ExtractPartialInputSpecType,
+} from "./input/builder/inputSpec"
 import * as T from "../types"
 import { once } from "../util"
 
@@ -23,7 +26,7 @@ export type GetInput<
   | null
   | void
   | undefined
-  | (T.DeepPartial<ExtractInputSpecType<A>> & Record<string, any>)
+  | (ExtractPartialInputSpecType<A> & Record<string, any>)
 >
 
 export type MaybeFn<T> = T | ((options: { effects: T.Effects }) => Promise<T>)
