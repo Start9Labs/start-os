@@ -1151,7 +1151,7 @@ export module Mock {
                 name: 'P2P Settings',
                 description:
                   '<p>The Bitcoin Core node to connect to over the peer-to-peer (P2P) interface:</p><ul><li><strong>Bitcoin Core</strong>: The Bitcoin Core service installed on this device</li><li><strong>External Node</strong>: A Bitcoin node running on a different device</li></ul>',
-                required: { default: 'internal' },
+                default: 'internal',
               },
               ISB.Variants.of({
                 internal: { name: 'Bitcoin Core', spec: ISB.InputSpec.of({}) },
@@ -1160,9 +1160,8 @@ export module Mock {
                   spec: ISB.InputSpec.of({
                     'p2p-host': ISB.Value.text({
                       name: 'Public Address',
-                      required: {
-                        default: null,
-                      },
+                      required: false,
+                      default: null,
                       description:
                         'The public address of your Bitcoin Core server',
                     }),
@@ -1170,9 +1169,8 @@ export module Mock {
                       name: 'P2P Port',
                       description:
                         'The port that your Bitcoin Core P2P server is bound to',
-                      required: {
-                        default: 8333,
-                      },
+                      required: true,
+                      default: 8333,
                       min: 0,
                       max: 65535,
                       integer: true,
@@ -1186,16 +1184,18 @@ export module Mock {
         color: ISB.Value.color({
           name: 'Color',
           required: false,
+          default: null,
         }),
         datetime: ISB.Value.datetime({
           name: 'Datetime',
           required: false,
+          default: null,
         }),
-        file: ISB.Value.file({
-          name: 'File',
-          required: false,
-          extensions: ['png', 'pdf'],
-        }),
+        // file: ISB.Value.file({
+        //   name: 'File',
+        //   required: false,
+        //   extensions: ['png', 'pdf'],
+        // }),
         users: ISB.Value.multiselect({
           name: 'Users',
           default: [],
@@ -1221,9 +1221,8 @@ export module Mock {
               ISB.InputSpec.of({
                 rpcuser2: ISB.Value.text({
                   name: 'RPC Username',
-                  required: {
-                    default: 'defaultrpcusername',
-                  },
+                  required: false,
+                  default: 'defaultrpcusername',
                   description: 'rpc username',
                   patterns: [
                     {
@@ -1234,9 +1233,8 @@ export module Mock {
                 }),
                 rpcuser: ISB.Value.text({
                   name: 'RPC Username',
-                  required: {
-                    default: 'defaultrpcusername',
-                  },
+                  required: true,
+                  default: 'defaultrpcusername',
                   description: 'rpc username',
                   patterns: [
                     {
@@ -1247,21 +1245,19 @@ export module Mock {
                 }),
                 rpcpass: ISB.Value.text({
                   name: 'RPC User Password',
-                  required: {
-                    default: {
-                      charset: 'a-z,A-Z,2-9',
-                      len: 20,
-                    },
+                  required: true,
+                  default: {
+                    charset: 'a-z,A-Z,2-9',
+                    len: 20,
                   },
                   description: 'rpc password',
                 }),
                 rpcpass2: ISB.Value.text({
                   name: 'RPC User Password',
-                  required: {
-                    default: {
-                      charset: 'a-z,A-Z,2-9',
-                      len: 20,
-                    },
+                  required: true,
+                  default: {
+                    charset: 'a-z,A-Z,2-9',
+                    len: 20,
                   },
                   description: 'rpc password',
                 }),
@@ -1294,14 +1290,14 @@ export module Mock {
                   name: 'First Name',
                   required: false,
                   description: 'User first name',
+                  default: 'Matt',
                 }),
                 'last-name': ISB.Value.text({
                   name: 'Last Name',
-                  required: {
-                    default: {
-                      charset: 'a-g,2-9',
-                      len: 12,
-                    },
+                  required: true,
+                  default: {
+                    charset: 'a-g,2-9',
+                    len: 12,
                   },
                   description: 'User first name',
                   patterns: [
@@ -1316,6 +1312,7 @@ export module Mock {
                   description: 'The age of the user',
                   warning: 'User must be at least 18.',
                   required: false,
+                  default: null,
                   min: 18,
                   integer: false,
                 }),
@@ -1343,7 +1340,7 @@ export module Mock {
                     name: 'Preference',
                     description: null,
                     warning: null,
-                    required: { default: 'summer' },
+                    default: 'summer',
                   },
                   ISB.Variants.of({
                     summer: {
@@ -1351,17 +1348,14 @@ export module Mock {
                       spec: ISB.InputSpec.of({
                         'favorite-tree': ISB.Value.text({
                           name: 'Favorite Tree',
-                          required: {
-                            default: 'Maple',
-                          },
+                          required: true,
+                          default: 'Maple',
                           description: 'What is your favorite tree?',
                         }),
                         'favorite-flower': ISB.Value.select({
                           name: 'Favorite Flower',
                           description: 'Select your favorite flower',
-                          required: {
-                            default: 'none',
-                          },
+                          default: 'none',
                           values: {
                             none: 'none',
                             red: 'red',
@@ -1392,9 +1386,7 @@ export module Mock {
           name: 'Random select',
           description: 'This is not even real.',
           warning: 'Be careful changing this!',
-          required: {
-            default: null,
-          },
+          default: 'option1',
           values: {
             option1: 'option1',
             option2: 'option2',
@@ -1409,9 +1401,8 @@ export module Mock {
               description: 'Your favorite number of all time',
               warning:
                 'Once you set this number, it can never be changed without severe consequences.',
-              required: {
-                default: 7,
-              },
+              required: false,
+              default: 7,
               integer: false,
               units: 'BTC',
             },
@@ -1432,11 +1423,13 @@ export module Mock {
                   name: 'First Law',
                   required: false,
                   description: 'the first law',
+                  default: null,
                 }),
                 law2: ISB.Value.text({
                   name: 'Second Law',
                   required: false,
                   description: 'the second law',
+                  default: null,
                 }),
               }),
             ),
@@ -1452,19 +1445,17 @@ export module Mock {
                   spec: ISB.InputSpec.of({
                     rulemakername: ISB.Value.text({
                       name: 'Rulemaker Name',
-                      required: {
-                        default: {
-                          charset: 'a-g,2-9',
-                          len: 12,
-                        },
+                      required: true,
+                      default: {
+                        charset: 'a-g,2-9',
+                        len: 12,
                       },
                       description: 'the name of the rule maker',
                     }),
                     rulemakerip: ISB.Value.text({
                       name: 'Rulemaker IP',
-                      required: {
-                        default: '192.168.1.0',
-                      },
+                      required: true,
+                      default: '192.168.1.0',
                       description: 'the ip of the rule maker',
                       patterns: [
                         {
@@ -1480,9 +1471,8 @@ export module Mock {
             ),
             rpcuser: ISB.Value.text({
               name: 'RPC Username',
-              required: {
-                default: 'defaultrpcusername',
-              },
+              required: true,
+              default: 'defaultrpcusername',
               description: 'rpc username',
               patterns: [
                 {
@@ -1493,11 +1483,10 @@ export module Mock {
             }),
             rpcpass: ISB.Value.text({
               name: 'RPC User Password',
-              required: {
-                default: {
-                  charset: 'a-z,A-Z,2-9',
-                  len: 20,
-                },
+              required: true,
+              default: {
+                charset: 'a-z,A-Z,2-9',
+                len: 20,
               },
               description: 'rpc password',
               masked: true,
@@ -1509,7 +1498,7 @@ export module Mock {
             name: 'Bitcoin Node',
             description: 'Options<ul><li>Item 1</li><li>Item 2</li></ul>',
             warning: 'Careful changing this',
-            required: { default: 'internal' },
+            default: 'internal',
           },
           ISB.Variants.of({
             fake: {
@@ -1531,9 +1520,8 @@ export module Mock {
                   ISB.InputSpec.of({
                     name: ISB.Value.text({
                       name: 'Name',
-                      required: {
-                        default: null,
-                      },
+                      required: false,
+                      default: null,
                       patterns: [
                         {
                           regex: '^[a-zA-Z]+$',
@@ -1544,17 +1532,15 @@ export module Mock {
                     email: ISB.Value.text({
                       name: 'Email',
                       inputmode: 'email',
-                      required: {
-                        default: null,
-                      },
+                      required: false,
+                      default: null,
                     }),
                   }),
                 ),
                 'public-domain': ISB.Value.text({
                   name: 'Public Domain',
-                  required: {
-                    default: 'bitcoinnode.com',
-                  },
+                  required: true,
+                  default: 'bitcoinnode.com',
                   description: 'the public address of the node',
                   patterns: [
                     {
@@ -1565,9 +1551,8 @@ export module Mock {
                 }),
                 'private-domain': ISB.Value.text({
                   name: 'Private Domain',
-                  required: {
-                    default: null,
-                  },
+                  required: false,
+                  default: null,
                   description: 'the private address of the node',
                   masked: true,
                   inputmode: 'url',
@@ -1580,9 +1565,8 @@ export module Mock {
           name: 'Port',
           description:
             'the default port for your Bitcoin node. default: 8333, testnet: 18333, regtest: 18444',
-          required: {
-            default: 8333,
-          },
+          required: true,
+          default: 8333,
           min: 1,
           max: 9998,
           step: 1,
@@ -1595,6 +1579,7 @@ export module Mock {
             len: 20,
           },
           required: false,
+          default: null,
           description:
             'You most favorite slogan in the whole world, used for paying you.',
           masked: true,

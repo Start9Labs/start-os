@@ -198,7 +198,7 @@ tokio-util = { version = "0.7.9", features = ["io"] }
 torut = { git = "https://github.com/Start9Labs/torut.git", branch = "update/dependencies", features = [
   "serialize",
 ] }
-tower-service = "0.3.2"
+tower-service = "0.3.3"
 tracing = "0.1.39"
 tracing-error = "0.2.0"
 tracing-futures = "0.2.5"

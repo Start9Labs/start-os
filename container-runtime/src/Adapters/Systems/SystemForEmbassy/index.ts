@@ -301,6 +301,20 @@ export class SystemForEmbassy implements System {
     await effects.setMainStatus({ status: "stopped" })
     await this.exportActions(effects)
     await this.exportNetwork(effects)
+    await this.containerSetDependencies(effects)
+  }
+  async containerSetDependencies(effects: T.Effects) {
+    const oldDeps: Record<string, string[]> = Object.fromEntries(
+      await effects
+        .getDependencies()
+        .then((x) =>
+          x.flatMap((x) =>
+            x.kind === "running" ? [[x.id, x?.healthChecks || []]] : [],
+          ),
+        )
+        .catch(() => []),
+    )
+    await this.setDependencies(effects, oldDeps)
   }
 
   async exit(): Promise<void> {
@@ -650,7 +664,7 @@ export class SystemForEmbassy implements System {
         ),
       )
       const dependsOn = answer["depends-on"] ?? answer.dependsOn ?? {}
-      await this.setConfigSetConfig(effects, dependsOn)
+      await this.setDependencies(effects, dependsOn)
       return
     } else if (setConfigValue.type === "script") {
       const moduleCode = await this.moduleCode
@@ -673,31 +687,60 @@ export class SystemForEmbassy implements System {
         }),
       )
       const dependsOn = answer["depends-on"] ?? answer.dependsOn ?? {}
-      await this.setConfigSetConfig(effects, dependsOn)
+      await this.setDependencies(effects, dependsOn)
       return
     }
   }
-  private async setConfigSetConfig(
+  private async setDependencies(
     effects: Effects,
-    dependsOn: { [x: string]: readonly string[] },
+    rawDepends: { [x: string]: readonly string[] },
   ) {
+    const dependsOn: Record<string, readonly string[] | null> = {
+      ...Object.fromEntries(
+        Object.entries(this.manifest.dependencies || {})?.map((x) => [
+          x[0],
+          null,
+        ]) || [],
+      ),
+      ...rawDepends,
+    }
     await effects.setDependencies({
-      dependencies: Object.entries(dependsOn).flatMap(([key, value]) => {
-        const dependency = this.manifest.dependencies?.[key]
-        if (!dependency) return []
-        const versionRange = dependency.version
-        const registryUrl = DEFAULT_REGISTRY
-        const kind = "running"
-        return [
-          {
-            id: key,
-            versionRange,
-            registryUrl,
-            kind,
-            healthChecks: [...value],
-          },
-        ]
-      }),
+      dependencies: Object.entries(dependsOn).flatMap(
+        ([key, value]): T.Dependencies => {
+          const dependency = this.manifest.dependencies?.[key]
+          if (!dependency) return []
+          if (value == null) {
+            const versionRange = dependency.version
+            if (dependency.requirement.type === "required") {
+              return [
+                {
+                  id: key,
+                  versionRange,
+                  kind: "running",
+                  healthChecks: [],
+                },
+              ]
+            }
+            return [
+              {
+                kind: "exists",
+                id: key,
+                versionRange,
+              },
+            ]
+          }
+          const versionRange = dependency.version
+          const kind = "running"
+          return [
+            {
+              id: key,
+              versionRange,
+              kind,
+              healthChecks: [...value],
+            },
+          ]
+        },
+      ),
     })
   }
 

@@ -1,7 +1,4 @@
-import {
-  RequiredDefault,
-  Value,
-} from "../../base/lib/actions/input/builder/value"
+import { Value } from "../../base/lib/actions/input/builder/value"
 import {
   InputSpec,
   ExtractInputSpecType,
@@ -141,9 +138,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
       ...startSdkEffectWrapper,
       action: {
         run: actions.runAction,
-        request: <
-          T extends Action<T.ActionId, any, any, Record<string, unknown>>,
-        >(
+        request: <T extends Action<T.ActionId, any, any>>(
           effects: T.Effects,
           packageId: T.PackageId,
           action: T,
@@ -157,9 +152,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
             severity,
             options: options,
           }),
-        requestOwn: <
-          T extends Action<T.ActionId, Store, any, Record<string, unknown>>,
-        >(
+        requestOwn: <T extends Action<T.ActionId, Store, any>>(
           effects: T.Effects,
           action: T,
           severity: T.ActionSeverity,
@@ -1060,14 +1053,14 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
               /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
               /**
-               * @description Determines if the field is required. If so, optionally provide a default value.
-               * @type { false | { default: string | RandomString | null } }
-               * @example required: false
-               * @example required: { default: null }
-               * @example required: { default: 'World' }
-               * @example required: { default: { charset: 'abcdefg', len: 16 } }
+               * @description optionally provide a default value.
+               * @type { string | RandomString | null }
+               * @example default: null
+               * @example default: 'World'
+               * @example default: { charset: 'abcdefg', len: 16 }
                */
-              required: RequiredDefault<DefaultString>
+              default: DefaultString | null
+              required: boolean
               /**
                * @description Mask (aka camouflage) text input with dots: ● ● ●
                * @default false
@@ -1110,15 +1103,12 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
               description?: string | null
               /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
-              /**
-               * @description Unlike other "required" fields, for textarea this is a simple boolean.
-               */
+              default: string | null
               required: boolean
               minLength?: number | null
               maxLength?: number | null
               placeholder?: string | null
               disabled?: false | string
-              generate?: null | RandomString
             }
           >,
         ) => Value.dynamicTextarea<Store>(getA),
@@ -1131,13 +1121,13 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
               /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
               /**
-               * @description Determines if the field is required. If so, optionally provide a default value.
-               * @type { false | { default: number | null } }
-               * @example required: false
-               * @example required: { default: null }
-               * @example required: { default: 7 }
+               * @description optionally provide a default value.
+               * @type { number | null }
+               * @example default: null
+               * @example default: 7
                */
-              required: RequiredDefault<number>
+              default: number | null
+              required: boolean
               min?: number | null
               max?: number | null
               /**
@@ -1167,13 +1157,13 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
               /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
               /**
-               * @description Determines if the field is required. If so, optionally provide a default value.
-               * @type { false | { default: string | null } }
-               * @example required: false
-               * @example required: { default: null }
-               * @example required: { default: 'ffffff' }
+               * @description optionally provide a default value.
+               * @type { string | null }
+               * @example default: null
+               * @example default: 'ffffff'
                */
-              required: RequiredDefault<string>
+              default: string | null
+              required: boolean
               disabled?: false | string
             }
           >,
@@ -1187,13 +1177,13 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
               /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
               /**
-               * @description Determines if the field is required. If so, optionally provide a default value.
-               * @type { false | { default: string | null } }
-               * @example required: false
-               * @example required: { default: null }
-               * @example required: { default: '1985-12-16 18:00:00.000' }
+               * @description optionally provide a default value.
+               * @type { string | null }
+               * @example default: null
+               * @example default: '1985-12-16 18:00:00.000'
                */
-              required: RequiredDefault<string>
+              default: string
+              required: boolean
               /**
                * @description Informs the browser how to behave and which date/time component to display.
                * @default "datetime-local"
@@ -1205,7 +1195,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
             }
           >,
         ) => Value.dynamicDatetime<Store>(getA),
-        dynamicSelect: (
+        dynamicSelect: <Variants extends Record<string, string>>(
           getA: LazyBuild<
             Store,
             {
@@ -1214,13 +1204,12 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
               /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
               /**
-               * @description Determines if the field is required. If so, optionally provide a default value from the list of values.
-               * @type { false | { default: string | null } }
-               * @example required: false
-               * @example required: { default: null }
-               * @example required: { default: 'radio1' }
+               * @description provide a default value from the list of values.
+               * @type { default: string }
+               * @example default: 'radio1'
                */
-              required: RequiredDefault<string>
+              default: keyof Variants & string
+              required: boolean
               /**
                * @description A mapping of unique radio options to their human readable display format.
                * @example
@@ -1232,7 +1221,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
                 }
                * ```
                */
-              values: Record<string, string>
+              values: Variants
               /**
                * @options
                *   - false - The field can be modified.
@@ -1282,27 +1271,37 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           >,
         ) => Value.dynamicMultiselect<Store>(getA),
         filteredUnion: <
-          Required extends RequiredDefault<string>,
-          Type extends Record<string, any>,
+          VariantValues extends {
+            [K in string]: {
+              name: string
+              spec: InputSpec<any, Store> | InputSpec<any, never>
+            }
+          },
         >(
           getDisabledFn: LazyBuild<Store, string[]>,
           a: {
             name: string
             description?: string | null
             warning?: string | null
-            required: Required
+            default: keyof VariantValues & string
           },
-          aVariants: Variants<Type, Store> | Variants<Type, never>,
+          aVariants:
+            | Variants<VariantValues, Store>
+            | Variants<VariantValues, never>,
         ) =>
-          Value.filteredUnion<Required, Type, Store>(
+          Value.filteredUnion<VariantValues, Store>(
             getDisabledFn,
             a,
             aVariants,
           ),
 
         dynamicUnion: <
-          Required extends RequiredDefault<string>,
-          Type extends Record<string, any>,
+          VariantValues extends {
+            [K in string]: {
+              name: string
+              spec: InputSpec<any, Store> | InputSpec<any, never>
+            }
+          },
         >(
           getA: LazyBuild<
             Store,
@@ -1312,13 +1311,12 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
               /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
               /**
-               * @description Determines if the field is required. If so, optionally provide a default value from the list of variants.
-               * @type { false | { default: string | null } }
-               * @example required: false
-               * @example required: { default: null }
-               * @example required: { default: 'variant1' }
+               * @description provide a default value from the list of variants.
+               * @type { string }
+               * @example default: 'variant1'
                */
-              required: Required
+              default: keyof VariantValues & string
+              required: boolean
               /**
                * @options
                *   - false - The field can be modified.
@@ -1329,8 +1327,10 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
               disabled: false | string | string[]
             }
           >,
-          aVariants: Variants<Type, Store> | Variants<Type, never>,
-        ) => Value.dynamicUnion<Required, Type, Store>(getA, aVariants),
+          aVariants:
+            | Variants<VariantValues, Store>
+            | Variants<VariantValues, never>,
+        ) => Value.dynamicUnion<VariantValues, Store>(getA, aVariants),
       },
       Variants: {
         of: <

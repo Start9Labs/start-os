@@ -135,7 +135,7 @@ export class FormService {
         return this.formBuilder.control(value)
       case 'select':
         value = currentValue === undefined ? spec.default : currentValue
-        return this.formBuilder.control(value, selectValidators(spec))
+        return this.formBuilder.control(value)
       case 'multiselect':
         value = currentValue === undefined ? spec.default : currentValue
         return this.formBuilder.control(value, multiselectValidators(spec))
@@ -227,16 +227,6 @@ function numberValidators(spec: IST.ValueSpecNumber): ValidatorFn[] {
   }
 
   validators.push(numberInRange(spec.min, spec.max))
-
-  return validators
-}
-
-function selectValidators(spec: IST.ValueSpecSelect): ValidatorFn[] {
-  const validators: ValidatorFn[] = []
-
-  if (spec.required) {
-    validators.push(Validators.required)
-  }
 
   return validators
 }

@@ -1,6 +1,7 @@
 import * as T from "../types"
 import * as IST from "../actions/input/inputSpecTypes"
 import { Action } from "./setupActions"
+import { ExtractInputSpecType } from "./input/builder/inputSpec"
 
 export type RunActionInput<Input> =
   | Input
@@ -44,36 +45,32 @@ export const runAction = async <
     })
   }
 }
-type GetActionInputType<
-  A extends Action<T.ActionId, any, any, Record<string, unknown>>,
-> = A extends Action<T.ActionId, any, any, infer I> ? I : never
+type GetActionInputType<A extends Action<T.ActionId, any, any>> =
+  A extends Action<T.ActionId, any, infer I> ? ExtractInputSpecType<I> : never
 
 type ActionRequestBase = {
   reason?: string
   replayId?: string
 }
-type ActionRequestInput<
-  T extends Action<T.ActionId, any, any, Record<string, unknown>>,
-> = {
+type ActionRequestInput<T extends Action<T.ActionId, any, any>> = {
   kind: "partial"
   value: Partial<GetActionInputType<T>>
 }
-export type ActionRequestOptions<
-  T extends Action<T.ActionId, any, any, Record<string, unknown>>,
-> = ActionRequestBase &
-  (
-    | {
-        when?: Exclude<
-          T.ActionRequestTrigger,
-          { condition: "input-not-matches" }
-        >
-        input?: ActionRequestInput<T>
-      }
-    | {
-        when: T.ActionRequestTrigger & { condition: "input-not-matches" }
-        input: ActionRequestInput<T>
-      }
-  )
+export type ActionRequestOptions<T extends Action<T.ActionId, any, any>> =
+  ActionRequestBase &
+    (
+      | {
+          when?: Exclude<
+            T.ActionRequestTrigger,
+            { condition: "input-not-matches" }
+          >
+          input?: ActionRequestInput<T>
+        }
+      | {
+          when: T.ActionRequestTrigger & { condition: "input-not-matches" }
+          input: ActionRequestInput<T>
+        }
+    )
 
 const _validate: T.ActionRequest = {} as ActionRequestOptions<any> & {
   actionId: string
@@ -81,9 +78,7 @@ const _validate: T.ActionRequest = {} as ActionRequestOptions<any> & {
   severity: T.ActionSeverity
 }
 
-export const requestAction = <
-  T extends Action<T.ActionId, any, any, Record<string, unknown>>,
->(options: {
+export const requestAction = <T extends Action<T.ActionId, any, any>>(options: {
   effects: T.Effects
   packageId: T.PackageId
   action: T
