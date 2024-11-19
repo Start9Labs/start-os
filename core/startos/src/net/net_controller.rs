@@ -376,11 +376,32 @@ impl NetService {
                         network_interface_id: interface.clone(),
                         public: false,
                         hostname: IpHostname::Local {
-                            value: format!("{hostname}.local"),
+                            value: InternedString::from_display(&{
+                                let hostname = &hostname;
+                                lazy_format!("{hostname}.local")
+                            }),
                             port: new_lan_bind.0.assigned_port,
                             ssl_port: new_lan_bind.0.assigned_ssl_port,
                         },
                     });
+                    for address in host.addresses() {
+                        if let HostAddress::Domain { address } = address {
+                            if let Some(ssl) = &new_lan_bind.1 {
+                                if ssl.preferred_external_port == 443 {
+                                    bind_hostname_info.push(HostnameInfo::Ip {
+                                        network_interface_id: interface.clone(),
+                                        public: false,
+                                        hostname: IpHostname::Domain {
+                                            domain: address.clone(),
+                                            subdomain: None,
+                                            port: None,
+                                            ssl_port: Some(443),
+                                        },
+                                    });
+                                }
+                            }
+                        }
+                    }
                     if let Some(ipv4) = ip_info.ipv4 {
                         bind_hostname_info.push(HostnameInfo::Ip {
                             network_interface_id: interface.clone(),
@@ -404,12 +425,6 @@ impl NetService {
                         });
                     }
                 }
-                // TODO: ignoring for now since ui isn't set up to handle
-                // for address in host.addresses() {
-                //     if let HostAddress::Domain { address } = address {
-                //         bind_hostname_info.push(HostnameInfo);
-                //     }
-                // }
                 hostname_info.insert(*port, bind_hostname_info);
                 binds.lan.insert(*port, new_lan_bind);
             }
