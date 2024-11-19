@@ -161,29 +161,29 @@ pub fn address<C: Context>() -> ParentHandler<C, AddressApiParams, PackageId> {
             "add",
             from_fn_async(add_address)
                 .with_inherited(|AddressApiParams { host }, package| (package, host))
-                .with_about("Add an address to this host")
                 .no_display()
+                .with_about("Add an address to this host")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove",
             from_fn_async(remove_address)
                 .with_inherited(|AddressApiParams { host }, package| (package, host))
-                .with_about("Remove an address from this host")
                 .no_display()
+                .with_about("Remove an address from this host")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "list",
             from_fn_async(list_addresses)
                 .with_inherited(|AddressApiParams { host }, package| (package, host))
-                .with_about("List addresses for this host")
                 .with_custom_display_fn(|_, res| {
                     for address in res {
                         println!("{address}")
                     }
                     Ok(())
                 })
+                .with_about("List addresses for this host")
                 .with_call_remote::<CliContext>(),
         )
 }
