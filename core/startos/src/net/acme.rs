@@ -125,7 +125,7 @@ impl<'a> async_acme::cache::AcmeCache for AcmeCertCache<'a> {
         key_pem: &str,
         certificate_pem: &str,
     ) -> Result<(), Self::Error> {
-        tracing::info!("Saving new certificate:\n{certificate_pem}");
+        tracing::info!("Saving new certificate for {domains:?}");
         let domains = JsonKey::new(domains.into_iter().map(InternedString::intern).collect());
         let directory_url = directory_url
             .parse::<Url>()

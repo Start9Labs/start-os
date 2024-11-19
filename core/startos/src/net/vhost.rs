@@ -35,6 +35,7 @@ use crate::net::acme::AcmeCertCache;
 use crate::net::static_server::server_error;
 use crate::prelude::*;
 use crate::util::io::BackTrackingIO;
+use crate::util::sync::SyncMutex;
 use crate::util::serde::MaybeUtf8String;
 
 #[derive(Debug)]
@@ -126,7 +127,7 @@ struct VHostServer {
 impl VHostServer {
     #[instrument(skip_all)]
     async fn new(port: u16, db: TypedPatchDb<Database>, crypto_provider: Arc<CryptoProvider>) -> Result<Self, Error> {
-        let acme_tls_alpn_cache = Arc::new(Mutex::new(BTreeMap::<
+        let acme_tls_alpn_cache = Arc::new(SyncMutex::new(BTreeMap::<
             InternedString,
             watch::Receiver<Option<Arc<CertifiedKey>>>,
         >::new()));
@@ -158,7 +159,7 @@ impl VHostServer {
                             let crypto_provider = crypto_provider.clone();
                             tokio::spawn(async move {
                                 if let Err(e) = async {
-                                    let mid = match LazyConfigAcceptor::new(
+                                    let mid: tokio_rustls::StartHandshake<&mut BackTrackingIO<TcpStream>> = match LazyConfigAcceptor::new(
                                         Acceptor::default(),
                                         &mut stream,
                                     )
@@ -229,8 +230,6 @@ impl VHostServer {
                                             .map(|(target, _)| target.clone())
                                     };
                                     if let Some(target) = target {
-                                        let mut tcp_stream =
-                                            TcpStream::connect(target.addr).await?;
                                         let peek = db.peek().await;
                                         let root = peek.as_private().as_key_store().as_local_certs().as_root_cert().de()?;
                                         let mut cfg = match async {
@@ -244,13 +243,12 @@ impl VHostServer {
                                                         .any(|alpn| alpn == ACME_TLS_ALPN_NAME)
                                                     {
                                                         let cert = WatchStream::new(
-                                                            acme_tls_alpn_cache
-                                                                .lock()
-                                                                .await
-                                                                .get(&**domain)
-                                                                .cloned()
+                                                            acme_tls_alpn_cache.peek(|c| c.get(&**domain).cloned())
                                                                 .ok_or_else(|| {
-                                                                Error::new(eyre!("No challenge recv available for {domain}"), ErrorKind::OpenSsl)
+                                                                    Error::new(
+                                                                        eyre!("No challenge recv available for {domain}"),
+                                                                        ErrorKind::OpenSsl
+                                                                    )
                                                                 })?,
                                                         );
                                                         tracing::info!("Waiting for verification cert for {domain}");
@@ -274,10 +272,7 @@ impl VHostServer {
                                                     } else {
                                                         let domains = [domain.to_string()];
                                                         let (send, recv) = watch::channel(None);
-                                                        acme_tls_alpn_cache
-                                                            .lock()
-                                                            .await
-                                                            .insert(domain.clone(), recv);
+                                                        acme_tls_alpn_cache.mutate(|c| c.insert(domain.clone(), recv));
                                                         let cert = 
                                                             async_acme::rustls_helper::order(
                                                                 |_, cert| {
@@ -373,11 +368,18 @@ impl VHostServer {
                                         }.await? {
                                             Ok(a) => a,
                                             Err(cfg) => {
-                                                mid.into_stream(Arc::new(cfg)).await?;
+                                                tracing::info!("performing ACME auth challenge");
+                                                let mut accept = mid.into_stream(Arc::new(cfg));
+                                                let io = accept.get_mut().unwrap();
+                                                let buffered = io.stop_buffering();
+                                                io.write_all(&buffered).await?;
+                                                accept.await?;
                                                 tracing::info!("ACME auth challenge completed");
                                                 return Ok(());
                                             }
                                         };
+                                        let mut tcp_stream =
+                                            TcpStream::connect(target.addr).await?;
                                         match target.connect_ssl {
                                             Ok(()) => {
                                                 let mut client_cfg =
