@@ -235,7 +235,7 @@ dependencies = [
 [[package]]
 name = "async-acme"
 version = "0.5.0"
-source = "git+https://github.com/dr-bonez/async-acme.git#b3207869d5f31692cb2f1b5b2a1c04d634de460c"
+source = "git+https://github.com/dr-bonez/async-acme.git#b9ff31ad900adc9086c0d1437ce51661d30856d2"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
@@ -2116,9 +2116,9 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.4.6"
+version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "524e8ac6999421f49a846c2d4411f337e53497d8ec55d67753beffa43c5d9205"
+checksum = "ccae279728d634d083c00f6099cb58f01cc99c145b84b8be2f6c74618d79922e"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -2392,7 +2392,7 @@ dependencies = [
  "bytes",
  "futures-channel",
  "futures-util",
- "h2 0.4.6",
+ "h2 0.4.7",
  "http 1.1.0",
  "http-body 1.0.1",
  "httparse",
@@ -4362,7 +4362,7 @@ dependencies = [
  "encoding_rs",
  "futures-core",
  "futures-util",
- "h2 0.4.6",
+ "h2 0.4.7",
  "http 1.1.0",
  "http-body 1.0.1",
  "http-body-util",
