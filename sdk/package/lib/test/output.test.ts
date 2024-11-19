@@ -87,7 +87,7 @@ describe("Inputs", () => {
       dbcache: 5,
       pruning: {
         selection: "disabled",
-        value: {},
+        value: { disabled: {} },
       },
       blockfilters: {
         blockfilterindex: false,

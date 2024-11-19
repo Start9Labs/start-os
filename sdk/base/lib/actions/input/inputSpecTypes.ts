@@ -115,7 +115,6 @@ export type ValueSpecSelect = {
   description: string | null
   warning: string | null
   type: "select"
-  required: boolean
   default: string | null
   disabled: false | string | string[]
   immutable: boolean
@@ -158,7 +157,6 @@ export type ValueSpecUnion = {
     }
   >
   disabled: false | string | string[]
-  required: boolean
   default: string | null
   immutable: boolean
 }
