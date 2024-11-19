@@ -144,10 +144,39 @@ pub struct HostParams {
 }
 
 pub fn host<C: Context>() -> ParentHandler<C, HostParams> {
-    ParentHandler::<C, HostParams>::new().subcommand(
-        "address",
-        address::<C>().with_inherited(|HostParams { package }, _| package),
-    )
+    ParentHandler::<C, HostParams>::new()
+        .subcommand(
+            "list",
+            from_fn_async(list_hosts)
+                .with_inherited(|HostParams { package }, _| package)
+                .with_custom_display_fn(|_, ids| {
+                    for id in ids {
+                        println!("{id}")
+                    }
+                    Ok(())
+                })
+                .with_about("List host IDs available for this service"),
+        )
+        .subcommand(
+            "address",
+            address::<C>().with_inherited(|HostParams { package }, _| package),
+        )
+}
+
+pub async fn list_hosts(
+    ctx: RpcContext,
+    _: Empty,
+    package: PackageId,
+) -> Result<Vec<HostId>, Error> {
+    ctx.db
+        .peek()
+        .await
+        .into_public()
+        .into_package_data()
+        .into_idx(&package)
+        .or_not_found(&package)?
+        .into_hosts()
+        .keys()
 }
 
 #[derive(Deserialize, Serialize, Parser)]
