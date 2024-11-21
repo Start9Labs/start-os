@@ -135,6 +135,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
     }
 
     return {
+      manifest: this.manifest,
       ...startSdkEffectWrapper,
       action: {
         run: actions.runAction,

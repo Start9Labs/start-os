@@ -59,7 +59,9 @@ export function buildManifest<
     (images, [k, v]) => {
       v.arch = v.arch || ["aarch64", "x86_64"]
       if (v.emulateMissingAs === undefined)
-        v.emulateMissingAs = v.arch[0] || null
+        v.emulateMissingAs = (v.arch as string[]).includes("aarch64")
+          ? "aarch64"
+          : v.arch[0] || null
       images[k] = v as ImageConfig
       return images
     },

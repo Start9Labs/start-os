@@ -22,7 +22,7 @@ testOutput<
 testOutput<InputSpecSpec["rpc"]["advanced"]["servertimeout"], number>()(null)
 testOutput<
   InputSpecSpec["advanced"]["peers"]["addnode"][0]["hostname"],
-  string | null | undefined
+  string | null
 >()(null)
 testOutput<
   InputSpecSpec["testListUnion"][0]["union"]["value"]["name"],

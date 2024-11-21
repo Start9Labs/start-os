@@ -13,6 +13,11 @@ import { Effects } from "./Effects"
 export { Effects }
 export * from "./osBindings"
 export { SDKManifest } from "./types/ManifestTypes"
+export {
+  RequiredDependenciesOf as RequiredDependencies,
+  OptionalDependenciesOf as OptionalDependencies,
+  CurrentDependenciesResult,
+} from "./dependencies/setupDependencies"
 
 export type ExposedStorePaths = string[] & Affine<"ExposedStorePaths">
 declare const HealthProof: unique symbol
