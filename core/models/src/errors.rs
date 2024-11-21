@@ -322,6 +322,11 @@ impl From<reqwest::Error> for Error {
         Error::new(e, kind)
     }
 }
+impl From<torut::onion::OnionAddressParseError> for Error {
+    fn from(e: torut::onion::OnionAddressParseError) -> Self {
+        Error::new(e, ErrorKind::Tor)
+    }
+}
 impl From<patch_db::value::Error> for Error {
     fn from(value: patch_db::value::Error) -> Self {
         match value.kind {

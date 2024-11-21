@@ -16,7 +16,7 @@ use futures::stream::FusedStream;
 use futures::{SinkExt, StreamExt, TryStreamExt};
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
-use models::{ActionId, ImageId, PackageId, ProcedureName};
+use models::{ActionId, HostId, ImageId, PackageId, ProcedureName};
 use nix::sys::signal::Signal;
 use persistent_container::{PersistentContainer, Subcontainer};
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
@@ -602,6 +602,30 @@ impl Service {
             memory_limit: MiB::from_MiB(total),
             memory_usage: MiB::from_MiB(used),
         })
+    }
+
+    pub async fn update_host(&self, host_id: HostId) -> Result<(), Error> {
+        let host = self
+            .seed
+            .ctx
+            .db
+            .peek()
+            .await
+            .as_public()
+            .as_package_data()
+            .as_idx(&self.seed.id)
+            .or_not_found(&self.seed.id)?
+            .as_hosts()
+            .as_idx(&host_id)
+            .or_not_found(&host_id)?
+            .de()?;
+        self.seed
+            .persistent_container
+            .net_service
+            .lock()
+            .await
+            .update(host_id, host)
+            .await
     }
 }
 

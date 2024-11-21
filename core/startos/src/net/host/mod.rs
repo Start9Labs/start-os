@@ -1,10 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use clap::Parser;
 use imbl_value::InternedString;
 use models::{HostId, PackageId};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::context::{CliContext, RpcContext};
 use crate::db::model::DatabaseModel;
 use crate::net::forward::AvailablePorts;
 use crate::net::host::address::HostAddress;
@@ -133,4 +136,164 @@ impl Model<Host> {
             Ok(())
         })
     }
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+pub struct HostParams {
+    package: PackageId,
+}
+
+pub fn host<C: Context>() -> ParentHandler<C, HostParams> {
+    ParentHandler::<C, HostParams>::new()
+        .subcommand(
+            "list",
+            from_fn_async(list_hosts)
+                .with_inherited(|HostParams { package }, _| package)
+                .with_custom_display_fn(|_, ids| {
+                    for id in ids {
+                        println!("{id}")
+                    }
+                    Ok(())
+                })
+                .with_about("List host IDs available for this service"),
+        )
+        .subcommand(
+            "address",
+            address::<C>().with_inherited(|HostParams { package }, _| package),
+        )
+}
+
+pub async fn list_hosts(
+    ctx: RpcContext,
+    _: Empty,
+    package: PackageId,
+) -> Result<Vec<HostId>, Error> {
+    ctx.db
+        .peek()
+        .await
+        .into_public()
+        .into_package_data()
+        .into_idx(&package)
+        .or_not_found(&package)?
+        .into_hosts()
+        .keys()
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+pub struct AddressApiParams {
+    host: HostId,
+}
+
+pub fn address<C: Context>() -> ParentHandler<C, AddressApiParams, PackageId> {
+    ParentHandler::<C, AddressApiParams, PackageId>::new()
+        .subcommand(
+            "add",
+            from_fn_async(add_address)
+                .with_inherited(|AddressApiParams { host }, package| (package, host))
+                .no_display()
+                .with_about("Add an address to this host")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "remove",
+            from_fn_async(remove_address)
+                .with_inherited(|AddressApiParams { host }, package| (package, host))
+                .no_display()
+                .with_about("Remove an address from this host")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "list",
+            from_fn_async(list_addresses)
+                .with_inherited(|AddressApiParams { host }, package| (package, host))
+                .with_custom_display_fn(|_, res| {
+                    for address in res {
+                        println!("{address}")
+                    }
+                    Ok(())
+                })
+                .with_about("List addresses for this host")
+                .with_call_remote::<CliContext>(),
+        )
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+pub struct AddressParams {
+    pub address: HostAddress,
+}
+
+pub async fn add_address(
+    ctx: RpcContext,
+    AddressParams { address }: AddressParams,
+    (package, host): (PackageId, HostId),
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            if let HostAddress::Onion { address } = address {
+                db.as_private()
+                    .as_key_store()
+                    .as_onion()
+                    .get_key(&address)?;
+            }
+
+            db.as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package)
+                .or_not_found(&package)?
+                .as_hosts_mut()
+                .as_idx_mut(&host)
+                .or_not_found(&host)?
+                .as_addresses_mut()
+                .mutate(|a| Ok(a.insert(address)))
+        })
+        .await?;
+    let service = ctx.services.get(&package).await;
+    let service_ref = service.as_ref().or_not_found(&package)?;
+    service_ref.update_host(host).await?;
+
+    Ok(())
+}
+
+pub async fn remove_address(
+    ctx: RpcContext,
+    AddressParams { address }: AddressParams,
+    (package, host): (PackageId, HostId),
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package)
+                .or_not_found(&package)?
+                .as_hosts_mut()
+                .as_idx_mut(&host)
+                .or_not_found(&host)?
+                .as_addresses_mut()
+                .mutate(|a| Ok(a.remove(&address)))
+        })
+        .await?;
+    let service = ctx.services.get(&package).await;
+    let service_ref = service.as_ref().or_not_found(&package)?;
+    service_ref.update_host(host).await?;
+
+    Ok(())
+}
+
+pub async fn list_addresses(
+    ctx: RpcContext,
+    _: Empty,
+    (package, host): (PackageId, HostId),
+) -> Result<BTreeSet<HostAddress>, Error> {
+    ctx.db
+        .peek()
+        .await
+        .into_public()
+        .into_package_data()
+        .into_idx(&package)
+        .or_not_found(&package)?
+        .into_hosts()
+        .into_idx(&host)
+        .or_not_found(&host)?
+        .into_addresses()
+        .de()
 }
