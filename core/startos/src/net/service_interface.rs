@@ -47,13 +47,16 @@ pub enum IpHostname {
         ssl_port: Option<u16>,
     },
     Local {
-        value: String,
+        #[ts(type = "string")]
+        value: InternedString,
         port: Option<u16>,
         ssl_port: Option<u16>,
     },
     Domain {
-        domain: String,
-        subdomain: Option<String>,
+        #[ts(type = "string")]
+        domain: InternedString,
+        #[ts(type = "string | null")]
+        subdomain: Option<InternedString>,
         port: Option<u16>,
         ssl_port: Option<u16>,
     },

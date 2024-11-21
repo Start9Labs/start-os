@@ -1,5 +1,6 @@
 use rpc_toolkit::{Context, HandlerExt, ParentHandler};
 
+pub mod acme;
 pub mod dhcp;
 pub mod dns;
 pub mod forward;
@@ -27,5 +28,9 @@ pub fn net<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "dhcp",
             dhcp::dhcp::<C>().with_about("Command to update IP assigned from dhcp"),
+        )
+        .subcommand(
+            "acme",
+            acme::acme::<C>().with_about("Setup automatic clearnet certificate acquisition"),
         )
 }

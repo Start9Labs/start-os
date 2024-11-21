@@ -1029,6 +1029,12 @@ impl<T: TryFrom<Vec<u8>>> FromStr for Base64<T> {
             })
     }
 }
+impl<T: TryFrom<Vec<u8>>> ValueParserFactory for Base64<T> {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        Self::Parser::new()
+    }
+}
 impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base64<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -1212,6 +1218,30 @@ impl PemEncoding for ed25519_dalek::SigningKey {
         self.to_pkcs8_pem(pkcs8::LineEnding::LF)
             .map_err(E::custom)
             .map(|s| s.as_str().to_owned())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct Pkcs8Doc {
+    pub tag: String,
+    pub document: pkcs8::Document,
+}
+
+impl PemEncoding for Pkcs8Doc {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
+        let (tag, document) = pkcs8::Document::from_pem(pem).map_err(E::custom)?;
+        Ok(Pkcs8Doc {
+            tag: tag.into(),
+            document,
+        })
+    }
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
+        der::pem::encode_string(
+            &self.tag,
+            pkcs8::LineEnding::default(),
+            self.document.as_bytes(),
+        )
+        .map_err(E::custom)
     }
 }
 
