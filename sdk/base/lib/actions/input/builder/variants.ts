@@ -29,27 +29,6 @@ export type UnionRes<
   }
 }[K]
 
-export type PartialUnionRes<
-  Store,
-  VariantValues extends {
-    [K in string]: {
-      name: string
-      spec: InputSpec<any, Store> | InputSpec<any, never>
-    }
-  },
-  K extends keyof VariantValues & string = keyof VariantValues & string,
-> = {
-  [key in keyof VariantValues]: {
-    selection?: key
-    value?: ExtractPartialInputSpecType<VariantValues[key]["spec"]>
-    other?: {
-      [key2 in Exclude<keyof VariantValues & string, key>]?: DeepPartial<
-        ExtractInputSpecType<VariantValues[key2]["spec"]>
-      >
-    }
-  }
-}[K]
-
 /**
  * Used in the the Value.select { @link './value.ts' }
  * to indicate the type of select variants that are available. The key for the record passed in will be the

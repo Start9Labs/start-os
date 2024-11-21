@@ -229,6 +229,8 @@ export type KnownError =
 
 export type Dependencies = Array<DependencyRequirement>
 
-export type DeepPartial<T> = T extends {}
-  ? { [P in keyof T]?: DeepPartial<T[P]> }
-  : T
+export type DeepPartial<T> = T extends unknown[]
+  ? T
+  : T extends {}
+    ? { [P in keyof T]?: DeepPartial<T[P]> }
+    : T

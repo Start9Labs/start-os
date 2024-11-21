@@ -1,6 +1,6 @@
 import { InputSpec, LazyBuild } from "./inputSpec"
 import { List } from "./list"
-import { PartialUnionRes, UnionRes, Variants } from "./variants"
+import { Variants } from "./variants"
 import {
   FilePath,
   Pattern,
@@ -43,13 +43,6 @@ function asRequiredParser<
   if (testForAsRequiredParser()(input)) return parser as any
   return parser.nullable() as any
 }
-
-export type PartialValue<T> =
-  T extends UnionRes<infer A, infer B>
-    ? PartialUnionRes<A, B>
-    : T extends {}
-      ? { [P in keyof T]?: PartialValue<T[P]> }
-      : T
 
 export class Value<Type, Store> {
   protected constructor(
