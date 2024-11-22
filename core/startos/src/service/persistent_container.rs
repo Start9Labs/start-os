@@ -1,12 +1,14 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::ops::Deref;
 use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use futures::future::ready;
-use futures::{Future, FutureExt};
+use futures::Future;
 use helpers::NonDetachingJoinHandle;
 use imbl::Vector;
+use imbl_value::InternedString;
 use models::{ImageId, ProcedureName, VolumeId};
 use rpc_toolkit::{Empty, Server, ShutdownHandle};
 use serde::de::DeserializeOwned;
@@ -36,7 +38,7 @@ use crate::service::{rpc, RunningStatus, Service};
 use crate::util::io::create_file;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::Invoke;
-use crate::volume::{asset_dir, data_dir};
+use crate::volume::data_dir;
 use crate::ARCH;
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
@@ -84,6 +86,14 @@ impl ServiceState {
     }
 }
 
+/// Want to have a wrapper for uses like the inject where we are going to be finding the subcontainer and doing some filtering on it.
+/// As well, the imageName is also used for things like env.
+pub struct Subcontainer {
+    pub(super) name: InternedString,
+    pub(super) image_id: ImageId,
+    pub(super) overlay: OverlayGuard<Arc<MountGuard>>,
+}
+
 // @DRB On top of this we need to also have  the procedures to have the effects and get the results back for them, maybe lock them to the running instance?
 /// This contains the LXC container running the javascript init system
 /// that can be used via a JSON RPC Client connected to a unix domain
@@ -98,7 +108,7 @@ pub struct PersistentContainer {
     volumes: BTreeMap<VolumeId, MountGuard>,
     assets: BTreeMap<VolumeId, MountGuard>,
     pub(super) images: BTreeMap<ImageId, Arc<MountGuard>>,
-    pub(super) overlays: Arc<Mutex<BTreeMap<Guid, OverlayGuard<Arc<MountGuard>>>>>,
+    pub(super) subcontainers: Arc<Mutex<BTreeMap<Guid, Subcontainer>>>,
     pub(super) state: Arc<watch::Sender<ServiceState>>,
     pub(super) net_service: Mutex<NetService>,
     destroyed: bool,
@@ -273,7 +283,7 @@ impl PersistentContainer {
             volumes,
             assets,
             images,
-            overlays: Arc::new(Mutex::new(BTreeMap::new())),
+            subcontainers: Arc::new(Mutex::new(BTreeMap::new())),
             state: Arc::new(watch::channel(ServiceState::new(start)).0),
             net_service: Mutex::new(net_service),
             destroyed: false,
@@ -378,7 +388,10 @@ impl PersistentContainer {
     }
 
     #[instrument(skip_all)]
-    fn destroy(&mut self) -> Option<impl Future<Output = Result<(), Error>> + 'static> {
+    fn destroy(
+        &mut self,
+        error: bool,
+    ) -> Option<impl Future<Output = Result<(), Error>> + 'static> {
         if self.destroyed {
             return None;
         }
@@ -388,11 +401,29 @@ impl PersistentContainer {
         let volumes = std::mem::take(&mut self.volumes);
         let assets = std::mem::take(&mut self.assets);
         let images = std::mem::take(&mut self.images);
-        let overlays = self.overlays.clone();
+        let subcontainers = self.subcontainers.clone();
         let lxc_container = self.lxc_container.take();
         self.destroyed = true;
         Some(async move {
             let mut errs = ErrorCollection::new();
+            if error {
+                if let Some(lxc_container) = &lxc_container {
+                    if let Some(logs) = errs.handle(
+                        crate::logs::fetch_logs(
+                            crate::logs::LogSource::Container(lxc_container.guid.deref().clone()),
+                            Some(50),
+                            None,
+                            None,
+                            false,
+                        )
+                        .await,
+                    ) {
+                        for log in logs.entries.iter() {
+                            eprintln!("{log}");
+                        }
+                    }
+                }
+            }
             if let Some((hdl, shutdown)) = rpc_server {
                 errs.handle(rpc_client.request(rpc::Exit, Empty {}).await);
                 shutdown.shutdown();
@@ -404,8 +435,8 @@ impl PersistentContainer {
             for (_, assets) in assets {
                 errs.handle(assets.unmount(true).await);
             }
-            for (_, overlay) in std::mem::take(&mut *overlays.lock().await) {
-                errs.handle(overlay.unmount(true).await);
+            for (_, overlay) in std::mem::take(&mut *subcontainers.lock().await) {
+                errs.handle(overlay.overlay.unmount(true).await);
             }
             for (_, images) in images {
                 errs.handle(images.unmount().await);
@@ -420,7 +451,7 @@ impl PersistentContainer {
 
     #[instrument(skip_all)]
     pub async fn exit(mut self) -> Result<(), Error> {
-        if let Some(destroy) = self.destroy() {
+        if let Some(destroy) = self.destroy(false) {
             dbg!(destroy.await)?;
         }
         tracing::info!("Service for {} exited", self.s9pk.as_manifest().id);
@@ -538,8 +569,8 @@ impl PersistentContainer {
 
 impl Drop for PersistentContainer {
     fn drop(&mut self) {
-        if let Some(destroy) = self.destroy() {
-            tokio::spawn(async move { destroy.await.unwrap() });
+        if let Some(destroy) = self.destroy(true) {
+            tokio::spawn(async move { destroy.await.log_err() });
         }
     }
 }

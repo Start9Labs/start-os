@@ -79,6 +79,8 @@ sed -i '/\(^\|#\)SystemMaxUse=/c\SystemMaxUse=1G' /etc/systemd/journald.conf
 sed -i '/\(^\|#\)ForwardToSyslog=/c\ForwardToSyslog=no' /etc/systemd/journald.conf
 sed -i '/^\s*#\?\s*issue_discards\s*=\s*/c\issue_discards = 1' /etc/lvm/lvm.conf
 sed -i '/\(^\|#\)\s*unqualified-search-registries\s*=\s*/c\unqualified-search-registries = ["docker.io"]' /etc/containers/registries.conf
+sed -i 's/\(#\|\^\)\s*\([^=]\+\)=\(suspend\|hibernate\)\s*$/\2=ignore/g' /etc/systemd/logind.conf
+sed -i '/\(^\|#\)MulticastDNS=/c\MulticastDNS=no' /etc/systemd/resolved.conf
 
 mkdir -p /etc/nginx/ssl
 
@@ -86,6 +88,7 @@ cat << EOF > /etc/tor/torrc
 SocksPort 0.0.0.0:9050
 SocksPolicy accept 127.0.0.1
 SocksPolicy accept 172.18.0.0/16
+SocksPolicy accept 10.0.3.0/24
 SocksPolicy reject *
 ControlPort 9051
 CookieAuthentication 1

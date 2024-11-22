@@ -21,7 +21,7 @@ use crate::disk::OsPartitionInfo;
 use crate::net::utils::find_eth_iface;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
-use crate::util::io::{open_file, TmpDir};
+use crate::util::io::{delete_file, open_file, TmpDir};
 use crate::util::serde::IoFormat;
 use crate::util::Invoke;
 use crate::ARCH;
@@ -31,17 +31,19 @@ mod mbr;
 
 pub fn install<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("disk", disk::<C>())
+        .subcommand("disk", disk::<C>().with_about("Command to list disk info"))
         .subcommand(
             "execute",
             from_fn_async(execute::<InstallContext>)
                 .no_display()
+                .with_about("Install StartOS over existing version")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "reboot",
             from_fn_async(reboot)
                 .no_display()
+                .with_about("Restart the server")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -51,6 +53,7 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
         "list",
         from_fn_async(list)
             .no_display()
+            .with_about("List disk info")
             .with_call_remote::<CliContext>(),
     )
 }
@@ -147,23 +150,6 @@ pub async fn execute<C: Context>(
 
     overwrite |= disk.guid.is_none() && disk.partitions.iter().all(|p| p.guid.is_none());
 
-    if !overwrite
-        && (disk
-            .guid
-            .as_ref()
-            .map_or(false, |g| g.starts_with("EMBASSY_"))
-            || disk
-                .partitions
-                .iter()
-                .flat_map(|p| p.guid.as_ref())
-                .any(|g| g.starts_with("EMBASSY_")))
-    {
-        return Err(Error::new(
-            eyre!("installing over versions before 0.3.6 is unsupported"),
-            ErrorKind::InvalidRequest,
-        ));
-    }
-
     let part_info = partition(&mut disk, overwrite).await?;
 
     if let Some(efi) = &part_info.efi {
@@ -194,18 +180,9 @@ pub async fn execute<C: Context>(
         {
             if let Err(e) = async {
                 // cp -r ${guard}/config /tmp/config
-                if tokio::fs::metadata(guard.path().join("config/upgrade"))
-                    .await
-                    .is_ok()
-                {
-                    tokio::fs::remove_file(guard.path().join("config/upgrade")).await?;
-                }
-                if tokio::fs::metadata(guard.path().join("config/disk.guid"))
-                    .await
-                    .is_ok()
-                {
-                    tokio::fs::remove_file(guard.path().join("config/disk.guid")).await?;
-                }
+                delete_file(guard.path().join("config/upgrade")).await?;
+                delete_file(guard.path().join("config/overlay/etc/hostname")).await?;
+                delete_file(guard.path().join("config/disk.guid")).await?;
                 Command::new("cp")
                     .arg("-r")
                     .arg(guard.path().join("config"))

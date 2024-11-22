@@ -9,8 +9,7 @@ use super::TempDesiredRestore;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
-use crate::service::config::GetConfig;
-use crate::service::dependencies::DependencyConfig;
+use crate::service::action::GetActionInput;
 use crate::service::transition::{TransitionKind, TransitionState};
 use crate::service::ServiceActor;
 use crate::util::actor::background::BackgroundJobQueue;
@@ -23,9 +22,7 @@ pub(in crate::service) struct Backup {
 impl Handler<Backup> for ServiceActor {
     type Response = Result<BoxFuture<'static, Result<(), Error>>, Error>;
     fn conflicts_with(_: &Backup) -> ConflictBuilder<Self> {
-        ConflictBuilder::everything()
-            .except::<GetConfig>()
-            .except::<DependencyConfig>()
+        ConflictBuilder::everything().except::<GetActionInput>()
     }
     async fn handle(
         &mut self,

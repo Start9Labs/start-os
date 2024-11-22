@@ -16,14 +16,20 @@
       <ion-item-group *ngIf="pkgPlus.status as status">
         <!-- ** status ** -->
         <app-show-status [pkg]="pkg" [status]="status"></app-show-status>
-        <!-- ** installed && !backingUp ** -->
+        <!-- ** installed && !backingUp && !error ** -->
         <ng-container
-          *ngIf="isInstalled(pkg) && status.primary !== 'backingUp'"
+          *ngIf="isInstalled(pkg) && status.primary !== 'backingUp' && status.primary !== 'error'"
         >
+          <!-- ** action requests ** -->
+          <app-show-action-requests
+            [allPkgs]="pkgPlus.allPkgs"
+            [pkg]="pkg"
+            [manifest]="pkgPlus.manifest"
+          ></app-show-action-requests>
           <!-- ** health checks ** -->
           <app-show-health-checks
-            *ngIf="pkg.status.main.status === 'running'"
-            [healthChecks]="pkg.status.main.health"
+            *ngIf="pkg.status.main === 'running'"
+            [healthChecks]="pkg.status.health"
           ></app-show-health-checks>
           <!-- ** dependencies ** -->
           <app-show-dependencies
@@ -35,6 +41,11 @@
           <!-- ** additional ** -->
           <app-show-additional [pkg]="pkg"></app-show-additional>
         </ng-container>
+        <app-show-error
+          *ngIf="pkg.status.main === 'error'"
+          [manifest]="pkgPlus.manifest"
+          [error]="pkg.status"
+        ></app-show-error>
       </ion-item-group>
     </ng-template>
   </ion-content>

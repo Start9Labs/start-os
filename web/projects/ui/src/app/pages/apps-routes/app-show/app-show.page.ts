@@ -26,8 +26,7 @@ import {
   isUpdating,
 } from 'src/app/util/get-package-data'
 import { T } from '@start9labs/start-sdk'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { ConfigModal, PackageConfigData } from 'src/app/modals/config.component'
+import { getDepDetails } from 'src/app/util/dep-info'
 
 export interface DependencyInfo {
   id: string
@@ -35,7 +34,7 @@ export interface DependencyInfo {
   icon: string
   version: string
   errorText: string
-  actionText: string
+  actionText: string | null
   action: () => any
 }
 
@@ -45,7 +44,7 @@ export interface DependencyInfo {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AppShowPage {
-  private readonly pkgId = getPkgId(this.route)
+  readonly pkgId = getPkgId(this.route)
 
   readonly pkgPlus$ = combineLatest([
     this.patch.watch$('packageData'),
@@ -58,9 +57,12 @@ export class AppShowPage {
     }),
     map(([allPkgs, depErrors]) => {
       const pkg = allPkgs[this.pkgId]
+      const manifest = getManifest(pkg)
       return {
+        allPkgs,
         pkg,
-        dependencies: this.getDepInfo(pkg, allPkgs, depErrors),
+        manifest,
+        dependencies: this.getDepInfo(pkg, manifest, allPkgs, depErrors),
         status: renderPkgStatus(pkg, depErrors),
       }
     }),
@@ -73,7 +75,6 @@ export class AppShowPage {
     private readonly navCtrl: NavController,
     private readonly patch: PatchDB<DataModel>,
     private readonly depErrorService: DepErrorService,
-    private readonly formDialog: FormDialogService,
   ) {}
 
   showProgress(
@@ -84,40 +85,13 @@ export class AppShowPage {
 
   private getDepInfo(
     pkg: PackageDataEntry,
+    manifest: T.Manifest,
     allPkgs: AllPackageData,
     depErrors: PkgDependencyErrors,
   ): DependencyInfo[] {
-    const manifest = getManifest(pkg)
-
-    return Object.keys(pkg.currentDependencies)
-      .filter(id => !!manifest.dependencies[id])
-      .map(id => this.getDepValues(pkg, allPkgs, manifest, id, depErrors))
-  }
-
-  private getDepDetails(
-    pkg: PackageDataEntry,
-    allPkgs: AllPackageData,
-    depId: string,
-  ) {
-    const { title, icon, versionRange } = pkg.currentDependencies[depId]
-
-    if (
-      allPkgs[depId] &&
-      (allPkgs[depId].stateInfo.state === 'installed' ||
-        allPkgs[depId].stateInfo.state === 'updating')
-    ) {
-      return {
-        title: allPkgs[depId].stateInfo.manifest!.title,
-        icon: allPkgs[depId].icon,
-        versionRange,
-      }
-    } else {
-      return {
-        title: title ? title : depId,
-        icon: icon ? icon : 'assets/img/service-icons/fallback.png',
-        versionRange,
-      }
-    }
+    return Object.keys(pkg.currentDependencies).map(id =>
+      this.getDepValues(pkg, allPkgs, manifest, id, depErrors),
+    )
   }
 
   private getDepValues(
@@ -134,23 +108,16 @@ export class AppShowPage {
       depErrors,
     )
 
-    const { title, icon, versionRange } = this.getDepDetails(
-      pkg,
-      allPkgs,
-      depId,
-    )
+    const { title, icon, versionRange } = getDepDetails(pkg, allPkgs, depId)
 
     return {
       id: depId,
       version: versionRange,
       title,
       icon,
-      errorText: errorText
-        ? `${errorText}. ${manifest.title} will not work as expected.`
-        : '',
-      actionText: fixText || 'View',
-      action:
-        fixAction || (() => this.navCtrl.navigateForward(`/services/${depId}`)),
+      errorText: errorText ? errorText : '',
+      actionText: fixText,
+      action: fixAction,
     }
   }
 
@@ -164,28 +131,31 @@ export class AppShowPage {
 
     let errorText: string | null = null
     let fixText: string | null = null
-    let fixAction: (() => any) | null = null
+    let fixAction: () => any = () => {}
 
     if (depError) {
       if (depError.type === 'notInstalled') {
         errorText = 'Not installed'
         fixText = 'Install'
-        fixAction = () => this.fixDep(pkg, manifest, 'install', depId)
+        fixAction = () => this.installDep(pkg, manifest, depId)
       } else if (depError.type === 'incorrectVersion') {
         errorText = 'Incorrect version'
         fixText = 'Update'
-        fixAction = () => this.fixDep(pkg, manifest, 'update', depId)
-      } else if (depError.type === 'configUnsatisfied') {
-        errorText = 'Config not satisfied'
-        fixText = 'Auto config'
-        fixAction = () => this.fixDep(pkg, manifest, 'configure', depId)
+        fixAction = () => this.installDep(pkg, manifest, depId)
+      } else if (depError.type === 'actionRequired') {
+        errorText = 'Action Required (see above)'
       } else if (depError.type === 'notRunning') {
         errorText = 'Not running'
         fixText = 'Start'
+        fixAction = () => this.navCtrl.navigateForward(`/services/${depId}`)
       } else if (depError.type === 'healthChecksFailed') {
         errorText = 'Required health check not passing'
+        fixText = 'View'
+        fixAction = () => this.navCtrl.navigateForward(`/services/${depId}`)
       } else if (depError.type === 'transitive') {
         errorText = 'Dependency has a dependency issue'
+        fixText = 'View'
+        fixAction = () => this.navCtrl.navigateForward(`/services/${depId}`)
       }
     }
 
@@ -193,27 +163,6 @@ export class AppShowPage {
       errorText,
       fixText,
       fixAction,
-    }
-  }
-
-  private async fixDep(
-    pkg: PackageDataEntry,
-    pkgManifest: T.Manifest,
-    action: 'install' | 'update' | 'configure',
-    id: string,
-  ): Promise<void> {
-    switch (action) {
-      case 'install':
-      case 'update':
-        return this.installDep(pkg, pkgManifest, id)
-      case 'configure':
-        return this.formDialog.open<PackageConfigData>(ConfigModal, {
-          label: `${pkgManifest.title} config`,
-          data: {
-            pkgId: id,
-            dependentInfo: pkgManifest,
-          },
-        })
     }
   }
 

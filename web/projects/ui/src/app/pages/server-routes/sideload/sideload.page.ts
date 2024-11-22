@@ -1,10 +1,13 @@
 import { Component } from '@angular/core'
-import { isPlatform, NavController } from '@ionic/angular'
+import { isPlatform } from '@ionic/angular'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { S9pk, T } from '@start9labs/start-sdk'
 import cbor from 'cbor'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
+import { SideloadService } from './sideload.service'
+import { firstValueFrom } from 'rxjs'
+import mime from 'mime'
 
 interface Positions {
   [key: string]: [bigint, bigint] // [position, length]
@@ -22,7 +25,7 @@ const VERSION_2 = new Uint8Array([2])
 export class SideloadPage {
   isMobile = isPlatform(window, 'ios') || isPlatform(window, 'android')
   toUpload: {
-    manifest: T.Manifest | null
+    manifest: { title: string; version: string } | null
     icon: string | null
     file: File | null
   } = {
@@ -36,12 +39,14 @@ export class SideloadPage {
     message: string
   }
 
+  readonly progress$ = this.sideloadService.progress$
+
   constructor(
     private readonly loader: LoadingService,
     private readonly api: ApiService,
-    private readonly navCtrl: NavController,
     private readonly errorService: ErrorService,
     private readonly config: ConfigService,
+    private readonly sideloadService: SideloadService,
   ) {}
 
   handleFileDrop(e: any) {
@@ -111,15 +116,15 @@ export class SideloadPage {
   }
 
   async handleUpload() {
-    const loader = this.loader.open('Uploading package').subscribe()
+    const loader = this.loader.open('Starting upload').subscribe()
 
     try {
       const res = await this.api.sideloadPackage()
+      this.sideloadService.followProgress(res.progress)
       this.api
         .uploadPackage(res.upload, this.toUpload.file!)
         .catch(e => console.error(e))
-
-      this.navCtrl.navigateRoot('/services')
+      await firstValueFrom(this.sideloadService.websocketConnected$)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

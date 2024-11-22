@@ -3,19 +3,22 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, SystemTime};
 
+use clap::Parser;
 use futures::future::join_all;
 use helpers::NonDetachingJoinHandle;
 use imbl::{vector, Vector};
 use imbl_value::InternedString;
 use models::{HostId, PackageId, ServiceInterfaceId};
 use patch_db::json_ptr::JsonPointer;
+use serde::{Deserialize, Serialize};
 use tracing::warn;
+use ts_rs::TS;
 
 use crate::net::ssl::FullchainCertData;
 use crate::prelude::*;
 use crate::service::effects::context::EffectContext;
 use crate::service::effects::net::ssl::Algorithm;
-use crate::service::rpc::CallbackHandle;
+use crate::service::rpc::{CallbackHandle, CallbackId};
 use crate::service::{Service, ServiceActorSeed};
 use crate::util::collections::EqMap;
 
@@ -33,6 +36,7 @@ struct ServiceCallbackMap {
         (NonDetachingJoinHandle<()>, Vec<CallbackHandler>),
     >,
     get_store: BTreeMap<PackageId, BTreeMap<JsonPointer, Vec<CallbackHandler>>>,
+    get_status: BTreeMap<PackageId, Vec<CallbackHandler>>,
 }
 
 impl ServiceCallbacks {
@@ -66,6 +70,10 @@ impl ServiceCallbacks {
                     v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
                     !v.is_empty()
                 });
+                !v.is_empty()
+            });
+            this.get_status.retain(|_, v| {
+                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
                 !v.is_empty()
             });
         })
@@ -217,6 +225,20 @@ impl ServiceCallbacks {
                 .push(handler);
         })
     }
+    pub(super) fn add_get_status(&self, package_id: PackageId, handler: CallbackHandler) {
+        self.mutate(|this| this.get_status.entry(package_id).or_default().push(handler))
+    }
+    #[must_use]
+    pub fn get_status(&self, package_id: &PackageId) -> Option<CallbackHandlers> {
+        self.mutate(|this| {
+            if let Some(watched) = this.get_status.remove(package_id) {
+                Some(CallbackHandlers(watched))
+            } else {
+                None
+            }
+            .filter(|cb| !cb.0.is_empty())
+        })
+    }
 
     pub(super) fn add_get_store(
         &self,
@@ -272,6 +294,7 @@ impl CallbackHandler {
         }
     }
     pub async fn call(mut self, args: Vector<Value>) -> Result<(), Error> {
+        dbg!(eyre!("callback fired: {}", self.handle.is_active()));
         if let Some(seed) = self.seed.upgrade() {
             seed.persistent_container
                 .callback(self.handle.take(), args)
@@ -299,13 +322,29 @@ impl CallbackHandlers {
     }
 }
 
-pub(super) fn clear_callbacks(context: EffectContext) -> Result<(), Error> {
+#[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
+#[ts(type = "{ only: number[] } | { except: number[] }")]
+#[ts(export)]
+pub struct ClearCallbacksParams {
+    #[arg(long, conflicts_with = "except")]
+    pub only: Option<Vec<CallbackId>>,
+    #[arg(long, conflicts_with = "only")]
+    pub except: Option<Vec<CallbackId>>,
+}
+
+pub(super) fn clear_callbacks(
+    context: EffectContext,
+    ClearCallbacksParams { only, except }: ClearCallbacksParams,
+) -> Result<(), Error> {
     let context = context.deref()?;
-    context
-        .seed
-        .persistent_container
-        .state
-        .send_if_modified(|s| !std::mem::take(&mut s.callbacks).is_empty());
+    let only = only.map(|only| only.into_iter().collect::<BTreeSet<_>>());
+    let except = except.map(|except| except.into_iter().collect::<BTreeSet<_>>());
+    context.seed.persistent_container.state.send_modify(|s| {
+        s.callbacks.retain(|cb| {
+            only.as_ref().map_or(true, |only| !only.contains(cb))
+                && except.as_ref().map_or(true, |except| except.contains(cb))
+        })
+    });
     context.seed.ctx.callbacks.gc();
     Ok(())
 }

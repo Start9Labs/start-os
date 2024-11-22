@@ -1,2 +1,0 @@
-import "./setupManifest"
-import "./ManifestTypes"

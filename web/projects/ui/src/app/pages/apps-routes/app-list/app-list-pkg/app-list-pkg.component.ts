@@ -15,16 +15,12 @@ export class AppListPkgComponent {
 
   constructor(private readonly launcherService: UiLauncherService) {}
 
-  get pkgMainStatus(): T.MainStatus {
-    return (
-      this.pkg.entry.status.main || {
-        status: 'stopped',
-      }
-    )
+  get pkgMainStatus(): T.MainStatus['main'] {
+    return this.pkg.entry.status.main
   }
 
   get sigtermTimeout(): string | null {
-    return this.pkgMainStatus.status === 'stopping' ? '30s' : null // @dr-bonez TODO
+    return this.pkgMainStatus === 'stopping' ? '30s' : null // @dr-bonez TODO
   }
 
   launchUi(

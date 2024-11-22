@@ -1,39 +1,36 @@
-import { Component, Input } from '@angular/core'
-import { ModalController, ToastController } from '@ionic/angular'
-import { ActionResponse } from 'src/app/services/api/api.types'
-import { copyToClipboard } from '@start9labs/shared'
+import { CommonModule } from '@angular/common'
+import { Component, inject } from '@angular/core'
+import { TuiDialogContext } from '@taiga-ui/core'
+import { POLYMORPHEUS_CONTEXT } from '@tinkoff/ng-polymorpheus'
+import { ActionSuccessGroupComponent } from './action-success-group.component'
+import { ActionSuccessSingleComponent } from './action-success-single.component'
+import { ActionResponseWithResult } from './types'
 
 @Component({
-  selector: 'action-success',
-  templateUrl: './action-success.page.html',
-  styleUrls: ['./action-success.page.scss'],
+  standalone: true,
+  template: `
+    <p *ngIf="data.message">{{ data.message }}</p>
+    <app-action-success-single
+      *ngIf="single"
+      [single]="single"
+    ></app-action-success-single>
+    <app-action-success-group
+      *ngIf="group"
+      [group]="group"
+    ></app-action-success-group>
+  `,
+  imports: [
+    CommonModule,
+    ActionSuccessGroupComponent,
+    ActionSuccessSingleComponent,
+  ],
 })
 export class ActionSuccessPage {
-  @Input()
-  actionRes!: ActionResponse
+  readonly data =
+    inject<TuiDialogContext<void, ActionResponseWithResult>>(
+      POLYMORPHEUS_CONTEXT,
+    ).data
 
-  constructor(
-    private readonly modalCtrl: ModalController,
-    private readonly toastCtrl: ToastController,
-  ) {}
-
-  async copy(address: string) {
-    let message = ''
-    await copyToClipboard(address || '').then(success => {
-      message = success
-        ? 'Copied to clipboard!'
-        : 'Failed to copy to clipboard.'
-    })
-
-    const toast = await this.toastCtrl.create({
-      header: message,
-      position: 'bottom',
-      duration: 1000,
-    })
-    await toast.present()
-  }
-
-  async dismiss() {
-    return this.modalCtrl.dismiss()
-  }
+  readonly single = this.data.result.type === 'single' ? this.data.result : null
+  readonly group = this.data.result.type === 'group' ? this.data.result : null
 }

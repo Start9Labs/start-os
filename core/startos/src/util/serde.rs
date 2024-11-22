@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::collections::VecDeque;
 use std::marker::PhantomData;
 use std::ops::Deref;
@@ -9,6 +8,7 @@ use clap::builder::ValueParserFactory;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
 use imbl::OrdMap;
+use models::FromStrParser;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use rpc_toolkit::{
@@ -17,12 +17,10 @@ use rpc_toolkit::{
 use serde::de::DeserializeOwned;
 use serde::ser::{SerializeMap, SerializeSeq};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use serde_json::Value;
 use ts_rs::TS;
 
 use super::IntoDoubleEndedIterator;
 use crate::prelude::*;
-use crate::util::clap::FromStrParser;
 use crate::util::Apply;
 
 pub fn deserialize_from_str<
@@ -272,7 +270,7 @@ impl std::fmt::Display for IoFormat {
 impl std::str::FromStr for IoFormat {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        serde_json::from_value(Value::String(s.to_owned()))
+        serde_json::from_value(serde_json::Value::String(s.to_owned()))
             .with_kind(crate::ErrorKind::Deserialization)
     }
 }
@@ -566,7 +564,7 @@ where
     }
 }
 
-#[derive(Deserialize, Serialize, TS)]
+#[derive(Deserialize, Serialize, TS, Clone)]
 pub struct StdinDeserializable<T>(pub T);
 impl<T> Default for StdinDeserializable<T>
 where
@@ -1031,6 +1029,12 @@ impl<T: TryFrom<Vec<u8>>> FromStr for Base64<T> {
             })
     }
 }
+impl<T: TryFrom<Vec<u8>>> ValueParserFactory for Base64<T> {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        Self::Parser::new()
+    }
+}
 impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base64<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -1217,6 +1221,30 @@ impl PemEncoding for ed25519_dalek::SigningKey {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct Pkcs8Doc {
+    pub tag: String,
+    pub document: pkcs8::Document,
+}
+
+impl PemEncoding for Pkcs8Doc {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
+        let (tag, document) = pkcs8::Document::from_pem(pem).map_err(E::custom)?;
+        Ok(Pkcs8Doc {
+            tag: tag.into(),
+            document,
+        })
+    }
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
+        der::pem::encode_string(
+            &self.tag,
+            pkcs8::LineEnding::default(),
+            self.document.as_bytes(),
+        )
+        .map_err(E::custom)
+    }
+}
+
 pub mod pem {
     use serde::{Deserialize, Deserializer, Serializer};
 
@@ -1356,5 +1384,21 @@ impl Serialize for MaybeUtf8String {
         } else {
             serializer.serialize_bytes(&self.0)
         }
+    }
+}
+
+pub fn is_partial_of(partial: &Value, full: &Value) -> bool {
+    match (partial, full) {
+        (Value::Object(partial), Value::Object(full)) => partial.iter().all(|(k, v)| {
+            if let Some(v_full) = full.get(k) {
+                is_partial_of(v, v_full)
+            } else {
+                false
+            }
+        }),
+        (Value::Array(partial), Value::Array(full)) => partial
+            .iter()
+            .all(|v| full.iter().any(|v_full| is_partial_of(v, v_full))),
+        (_, _) => partial == full,
     }
 }

@@ -5,8 +5,10 @@ use crate::prelude::*;
 use crate::util::serde::HandlerExtSerde;
 
 pub mod add;
+pub mod category;
 pub mod get;
 pub mod index;
+pub mod signer;
 
 pub fn package_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -14,6 +16,7 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
             "index",
             from_fn_async(index::get_package_index)
                 .with_display_serializable()
+                .with_about("List packages and categories")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -22,7 +25,16 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
                 .with_metadata("get_signer", Value::Bool(true))
                 .no_cli(),
         )
-        .subcommand("add", from_fn_async(add::cli_add_package).no_display())
+        .subcommand(
+            "add",
+            from_fn_async(add::cli_add_package)
+                .no_display()
+                .with_about("Add package to registry index"),
+        )
+        .subcommand(
+            "signer",
+            signer::signer_api::<C>().with_about("Add, remove, and list package signers"),
+        )
         .subcommand(
             "get",
             from_fn_async(get::get_package)
@@ -31,6 +43,12 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     get::display_package_info(handle.params, result)
                 })
+                .with_about("List installation candidate package(s)")
                 .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "category",
+            category::category_api::<C>()
+                .with_about("Update the categories for packages on the registry"),
         )
 }

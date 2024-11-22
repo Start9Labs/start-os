@@ -21,6 +21,7 @@ use crate::account::AccountInfo;
 use crate::context::config::ServerConfig;
 use crate::context::RpcContext;
 use crate::disk::OsPartitionInfo;
+use crate::hostname::Hostname;
 use crate::init::init_postgres;
 use crate::prelude::*;
 use crate::progress::FullProgressTracker;
@@ -42,6 +43,8 @@ lazy_static::lazy_static! {
 pub struct SetupResult {
     pub tor_address: String,
     #[ts(type = "string")]
+    pub hostname: Hostname,
+    #[ts(type = "string")]
     pub lan_address: InternedString,
     pub root_ca: String,
 }
@@ -50,6 +53,7 @@ impl TryFrom<&AccountInfo> for SetupResult {
     fn try_from(value: &AccountInfo) -> Result<Self, Self::Error> {
         Ok(Self {
             tor_address: format!("https://{}", value.tor_key.public().get_onion_address()),
+            hostname: value.hostname.clone(),
             lan_address: value.hostname.lan_address(),
             root_ca: String::from_utf8(value.root_ca_cert.to_pem()?)?,
         })

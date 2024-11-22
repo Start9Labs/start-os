@@ -1,7 +1,9 @@
 use std::fmt;
 use std::str::FromStr;
 
+use clap::builder::ValueParserFactory;
 use imbl_value::InternedString;
+use models::FromStrParser;
 use serde::{Deserialize, Serialize};
 use torut::onion::OnionAddressV3;
 use ts_rs::TS;
@@ -44,5 +46,12 @@ impl fmt::Display for HostAddress {
             Self::Onion { address } => write!(f, "{address}"),
             Self::Domain { address } => write!(f, "{address}"),
         }
+    }
+}
+
+impl ValueParserFactory for HostAddress {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        Self::Parser::new()
     }
 }

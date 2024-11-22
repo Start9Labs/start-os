@@ -9,6 +9,7 @@ ca-certificates
 cifs-utils
 cryptsetup
 curl
+dnsutils
 dmidecode
 dnsutils
 dosfstools
@@ -48,6 +49,7 @@ smartmontools
 socat
 sqlite3
 squashfs-tools
+squashfs-tools-ng
 sudo
 systemd
 systemd-resolved

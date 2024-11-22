@@ -18,7 +18,7 @@ if [ -z "$ARCH" ]; then
 fi
 
 DOCKER_PLATFORM="linux/${ARCH}"
-if [ "$ARCH" = aarch64 ]; then
+if [ "$ARCH" = aarch64 ] || [ "$ARCH" = arm64 ]; then
 	DOCKER_PLATFORM="linux/arm64"
 elif [ "$ARCH" = x86_64 ]; then
 	DOCKER_PLATFORM="linux/amd64"

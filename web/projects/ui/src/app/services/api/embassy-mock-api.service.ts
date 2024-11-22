@@ -2,10 +2,12 @@ import { Injectable } from '@angular/core'
 import { Log, RPCErrorDetails, RPCOptions, pauseFor } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import {
+  AddOperation,
   Operation,
   PatchOp,
   pathFromArray,
   RemoveOperation,
+  ReplaceOperation,
   Revision,
 } from 'patch-db-client'
 import {
@@ -15,7 +17,6 @@ import {
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
 import { CifsBackupTarget, RR } from './api.types'
-import { parsePropertiesPermissive } from 'src/app/util/properties.util'
 import { Mock } from './api.fixures'
 import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
 import {
@@ -81,9 +82,8 @@ export class MockApiService extends ApiService {
       .subscribe()
   }
 
-  async uploadPackage(guid: string, body: Blob): Promise<string> {
+  async uploadPackage(guid: string, body: Blob): Promise<void> {
     await pauseFor(2000)
-    return 'success'
   }
 
   async getStaticProxy(
@@ -106,7 +106,7 @@ export class MockApiService extends ApiService {
 
   openWebsocket$<T>(
     guid: string,
-    config: RR.WebsocketConfig<T>,
+    config: RR.WebsocketConfig<T> = {},
   ): Observable<T> {
     if (guid === 'db-guid') {
       return this.mockWsSource$.pipe<any>(
@@ -122,6 +122,11 @@ export class MockApiService extends ApiService {
         }),
       )
     } else if (guid === 'init-progress-guid') {
+      return from(this.initProgress()).pipe(
+        startWith(PROGRESS),
+      ) as Observable<T>
+    } else if (guid === 'sideload-progress-guid') {
+      config.openObserver?.next(new Event(''))
       return from(this.initProgress()).pipe(
         startWith(PROGRESS),
       ) as Observable<T>
@@ -360,13 +365,6 @@ export class MockApiService extends ApiService {
   ): Promise<RR.GetServerMetricsRes> {
     await pauseFor(2000)
     return Mock.getServerMetrics()
-  }
-
-  async getPkgMetrics(
-    params: RR.GetServerMetricsReq,
-  ): Promise<RR.GetPackageMetricsRes> {
-    await pauseFor(2000)
-    return Mock.getAppMetrics()
   }
 
   async updateServer(url?: string): Promise<RR.UpdateServerRes> {
@@ -632,14 +630,14 @@ export class MockApiService extends ApiService {
 
   async createBackup(params: RR.CreateBackupReq): Promise<RR.CreateBackupRes> {
     await pauseFor(2000)
-    const path = '/serverInfo/statusInfo/backupProgress'
+    const serverPath = '/serverInfo/statusInfo/backupProgress'
     const ids = params.packageIds
 
     setTimeout(async () => {
       for (let i = 0; i < ids.length; i++) {
         const id = ids[i]
-        const appPath = `/packageData/${id}/status/main/status`
-        const appPatch = [
+        const appPath = `/packageData/${id}/status/main/`
+        const appPatch: ReplaceOperation<T.MainStatus['main']>[] = [
           {
             op: PatchOp.REPLACE,
             path: appPath,
@@ -656,40 +654,43 @@ export class MockApiService extends ApiService {
             value: 'stopped',
           },
         ])
-        this.mockRevision([
+
+        const serverPatch: ReplaceOperation<T.BackupProgress['complete']>[] = [
           {
             op: PatchOp.REPLACE,
-            path: `${path}/${id}/complete`,
+            path: `${serverPath}/${id}/complete`,
             value: true,
           },
-        ])
+        ]
+        this.mockRevision(serverPatch)
       }
 
       await pauseFor(1000)
 
-      // set server back to running
-      const lastPatch = [
+      // remove backupProgress
+      const lastPatch: ReplaceOperation<T.ServerStatus['backupProgress']>[] = [
         {
           op: PatchOp.REPLACE,
-          path,
+          path: serverPath,
           value: null,
         },
       ]
       this.mockRevision(lastPatch)
     }, 500)
 
-    const originalPatch = [
-      {
-        op: PatchOp.REPLACE,
-        path,
-        value: ids.reduce((acc, val) => {
-          return {
-            ...acc,
-            [val]: { complete: false },
-          }
-        }, {}),
-      },
-    ]
+    const originalPatch: ReplaceOperation<T.ServerStatus['backupProgress']>[] =
+      [
+        {
+          op: PatchOp.REPLACE,
+          path: serverPath,
+          value: ids.reduce((acc, val) => {
+            return {
+              ...acc,
+              [val]: { complete: false },
+            }
+          }, {}),
+        },
+      ]
 
     this.mockRevision(originalPatch)
 
@@ -697,13 +698,6 @@ export class MockApiService extends ApiService {
   }
 
   // package
-
-  async getPackageProperties(
-    params: RR.GetPackagePropertiesReq,
-  ): Promise<RR.GetPackagePropertiesRes<2>['data']> {
-    await pauseFor(2000)
-    return parsePropertiesPermissive(Mock.PackageProperties)
-  }
 
   async getPackageLogs(
     params: RR.GetPackageLogsReq,
@@ -746,7 +740,7 @@ export class MockApiService extends ApiService {
       this.installProgress(params.id)
     }, 1000)
 
-    const patch: Operation<
+    const patch: AddOperation<
       PackageDataEntry<InstallingState | UpdatingState>
     >[] = [
       {
@@ -776,44 +770,43 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async getPackageConfig(
-    params: RR.GetPackageConfigReq,
-  ): Promise<RR.GetPackageConfigRes> {
+  async getActionInput(
+    params: RR.GetActionInputReq,
+  ): Promise<RR.GetActionInputRes> {
     await pauseFor(2000)
     return {
-      config: Mock.MockConfig,
-      spec: await Mock.getInputSpec(),
+      value: Mock.MockConfig,
+      spec: await Mock.getActionInputSpec(),
     }
   }
 
-  async drySetPackageConfig(
-    params: RR.DrySetPackageConfigReq,
-  ): Promise<RR.DrySetPackageConfigRes> {
+  async runAction(params: RR.ActionReq): Promise<RR.ActionRes> {
     await pauseFor(2000)
-    return []
-  }
 
-  async setPackageConfig(
-    params: RR.SetPackageConfigReq,
-  ): Promise<RR.SetPackageConfigRes> {
-    await pauseFor(2000)
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: `/packageData/${params.id}/status/configured`,
-        value: true,
-      },
-    ]
-    this.mockRevision(patch)
-
-    return null
+    if (params.actionId === 'properties') {
+      // return Mock.ActionResGroup
+      return Mock.ActionResMessage
+      // return Mock.ActionResSingle
+    } else if (params.actionId === 'config') {
+      const patch: RemoveOperation[] = [
+        {
+          op: PatchOp.REMOVE,
+          path: `/packageData/${params.packageId}/requestedActions/${params.packageId}-config`,
+        },
+      ]
+      this.mockRevision(patch)
+      return null
+    } else {
+      return Mock.ActionResMessage
+      // return Mock.ActionResSingle
+    }
   }
 
   async restorePackages(
     params: RR.RestorePackagesReq,
   ): Promise<RR.RestorePackagesRes> {
     await pauseFor(2000)
-    const patch: Operation<PackageDataEntry>[] = params.ids.map(id => {
+    const patch: AddOperation<PackageDataEntry>[] = params.ids.map(id => {
       setTimeout(async () => {
         this.installProgress(id)
       }, 2000)
@@ -839,84 +832,62 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async executePackageAction(
-    params: RR.ExecutePackageActionReq,
-  ): Promise<RR.ExecutePackageActionRes> {
-    await pauseFor(2000)
-    return Mock.ActionResponse
-  }
-
   async startPackage(params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
-    const path = `/packageData/${params.id}/status/main`
+    const path = `/packageData/${params.id}/status`
 
     await pauseFor(2000)
 
     setTimeout(async () => {
-      const patch2 = [
+      const patch2: ReplaceOperation<T.MainStatus & { main: 'running' }>[] = [
         {
           op: PatchOp.REPLACE,
-          path: path + '/status',
-          value: 'running',
-        },
-        {
-          op: PatchOp.REPLACE,
-          path: path + '/started',
-          value: new Date().toISOString(),
+          path,
+          value: {
+            main: 'running',
+            started: new Date().toISOString(),
+            health: {
+              'ephemeral-health-check': {
+                name: 'Ephemeral Health Check',
+                result: 'starting',
+                message: null,
+              },
+              'unnecessary-health-check': {
+                name: 'Unnecessary Health Check',
+                result: 'disabled',
+                message: 'Custom disabled message',
+              },
+              'chain-state': {
+                name: 'Chain State',
+                result: 'loading',
+                message: 'Bitcoin is syncing from genesis',
+              },
+              'p2p-interface': {
+                name: 'P2P Interface',
+                result: 'success',
+                message: null,
+              },
+              'rpc-interface': {
+                name: 'RPC Interface',
+                result: 'failure',
+                message: 'Custom failure message',
+              },
+            },
+          },
         },
       ]
       this.mockRevision(patch2)
-
-      const patch3 = [
-        {
-          op: PatchOp.REPLACE,
-          path: path + '/health',
-          value: {
-            'ephemeral-health-check': {
-              result: 'starting',
-            },
-            'unnecessary-health-check': {
-              result: 'disabled',
-            },
-          },
-        },
-      ]
-      this.mockRevision(patch3)
-
-      await pauseFor(2000)
-
-      const patch4 = [
-        {
-          op: PatchOp.REPLACE,
-          path: path + '/health',
-          value: {
-            'ephemeral-health-check': {
-              result: 'starting',
-            },
-            'unnecessary-health-check': {
-              result: 'disabled',
-            },
-            'chain-state': {
-              result: 'loading',
-              message: 'Bitcoin is syncing from genesis',
-            },
-            'p2p-interface': {
-              result: 'success',
-            },
-            'rpc-interface': {
-              result: 'failure',
-              error: 'RPC interface unreachable.',
-            },
-          },
-        },
-      ]
-      this.mockRevision(patch4)
     }, 2000)
 
-    const originalPatch = [
+    const originalPatch: ReplaceOperation<
+      T.MainStatus & { main: 'starting' }
+    >[] = [
       {
         op: PatchOp.REPLACE,
-        path: path + '/status',
-        value: 'starting',
+        path,
+        value: {
+          main: 'starting',
+          health: {},
+        },
       },
     ]
 
@@ -928,74 +899,57 @@ export class MockApiService extends ApiService {
   async restartPackage(
     params: RR.RestartPackageReq,
   ): Promise<RR.RestartPackageRes> {
-    // first enact stop
     await pauseFor(2000)
-    const path = `/packageData/${params.id}/status/main`
+    const path = `/packageData/${params.id}/status`
 
     setTimeout(async () => {
-      const patch2: Operation<any>[] = [
+      const patch2: ReplaceOperation<T.MainStatus & { main: 'running' }>[] = [
         {
           op: PatchOp.REPLACE,
-          path: path + '/status',
-          value: 'starting',
-        },
-        {
-          op: PatchOp.ADD,
-          path: path + '/restarting',
-          value: true,
+          path,
+          value: {
+            main: 'running',
+            started: new Date().toISOString(),
+            health: {
+              'ephemeral-health-check': {
+                name: 'Ephemeral Health Check',
+                result: 'starting',
+                message: null,
+              },
+              'unnecessary-health-check': {
+                name: 'Unnecessary Health Check',
+                result: 'disabled',
+                message: 'Custom disabled message',
+              },
+              'chain-state': {
+                name: 'Chain State',
+                result: 'loading',
+                message: 'Bitcoin is syncing from genesis',
+              },
+              'p2p-interface': {
+                name: 'P2P Interface',
+                result: 'success',
+                message: null,
+              },
+              'rpc-interface': {
+                name: 'RPC Interface',
+                result: 'failure',
+                message: 'Custom failure message',
+              },
+            },
+          },
         },
       ]
       this.mockRevision(patch2)
-
-      await pauseFor(2000)
-
-      const patch3: Operation<any>[] = [
-        {
-          op: PatchOp.REPLACE,
-          path: path + '/status',
-          value: 'running',
-        },
-        {
-          op: PatchOp.REMOVE,
-          path: path + '/restarting',
-        },
-        {
-          op: PatchOp.REPLACE,
-          path: path + '/health',
-          value: {
-            'ephemeral-health-check': {
-              result: 'starting',
-            },
-            'unnecessary-health-check': {
-              result: 'disabled',
-            },
-            'chain-state': {
-              result: 'loading',
-              message: 'Bitcoin is syncing from genesis',
-            },
-            'p2p-interface': {
-              result: 'success',
-            },
-            'rpc-interface': {
-              result: 'failure',
-              error: 'RPC interface unreachable.',
-            },
-          },
-        } as any,
-      ]
-      this.mockRevision(patch3)
     }, this.revertTime)
 
-    const patch = [
+    const patch: ReplaceOperation<T.MainStatus & { main: 'restarting' }>[] = [
       {
         op: PatchOp.REPLACE,
-        path: path + '/status',
-        value: 'restarting',
-      },
-      {
-        op: PatchOp.REPLACE,
-        path: path + '/health',
-        value: {},
+        path,
+        value: {
+          main: 'restarting',
+        },
       },
     ]
 
@@ -1006,35 +960,36 @@ export class MockApiService extends ApiService {
 
   async stopPackage(params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
     await pauseFor(2000)
-    const path = `/packageData/${params.id}/status/main`
+    const path = `/packageData/${params.id}/status`
 
     setTimeout(() => {
-      const patch2 = [
+      const patch2: ReplaceOperation<T.MainStatus & { main: 'stopped' }>[] = [
         {
           op: PatchOp.REPLACE,
           path: path,
-          value: {
-            status: 'stopped',
-          },
+          value: { main: 'stopped' },
         },
       ]
       this.mockRevision(patch2)
     }, this.revertTime)
 
-    const patch = [
+    const patch: ReplaceOperation<T.MainStatus & { main: 'stopping' }>[] = [
       {
         op: PatchOp.REPLACE,
         path: path,
-        value: {
-          status: 'stopping',
-          timeout: '35s',
-        },
+        value: { main: 'stopping' },
       },
     ]
 
     this.mockRevision(patch)
 
     return null
+  }
+
+  async rebuildPackage(
+    params: RR.RebuildPackageReq,
+  ): Promise<RR.RebuildPackageRes> {
+    return this.restartPackage(params)
   }
 
   async uninstallPackage(
@@ -1052,7 +1007,7 @@ export class MockApiService extends ApiService {
       this.mockRevision(patch2)
     }, this.revertTime)
 
-    const patch = [
+    const patch: ReplaceOperation<T.PackageState['state']>[] = [
       {
         op: PatchOp.REPLACE,
         path: `/packageData/${params.id}/stateInfo/state`,
@@ -1065,22 +1020,11 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async dryConfigureDependency(
-    params: RR.DryConfigureDependencyReq,
-  ): Promise<RR.DryConfigureDependencyRes> {
-    await pauseFor(2000)
-    return {
-      oldConfig: Mock.MockConfig,
-      newConfig: Mock.MockDependencyConfig,
-      spec: await Mock.getInputSpec(),
-    }
-  }
-
   async sideloadPackage(): Promise<RR.SideloadPackageRes> {
     await pauseFor(2000)
     return {
-      upload: '4120e092-05ab-4de2-9fbd-c3f1f4b1df9e', // no significance, randomly generated
-      progress: '5120e092-05ab-4de2-9fbd-c3f1f4b1df9e', // no significance, randomly generated
+      upload: 'sideload-upload-guid', // no significance, randomly generated
+      progress: 'sideload-progress-guid', // no significance, randomly generated
     }
   }
 

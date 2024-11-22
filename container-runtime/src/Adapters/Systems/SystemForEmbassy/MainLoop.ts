@@ -2,10 +2,10 @@ import { polyfillEffects } from "./polyfillEffects"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import { SystemForEmbassy } from "."
 import { T, utils } from "@start9labs/start-sdk"
-import { Daemon } from "@start9labs/start-sdk/cjs/lib/mainFn/Daemon"
+import { Daemon } from "@start9labs/start-sdk/package/lib/mainFn/Daemon"
 import { Effects } from "../../../Models/Effects"
 import { off } from "node:process"
-import { CommandController } from "@start9labs/start-sdk/cjs/lib/mainFn/CommandController"
+import { CommandController } from "@start9labs/start-sdk/package/lib/mainFn/CommandController"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 const EMBASSY_PROPERTIES_LOOP = 30 * 1000
@@ -15,8 +15,8 @@ const EMBASSY_PROPERTIES_LOOP = 30 * 1000
  * Also, this has an ability to clean itself up too if need be.
  */
 export class MainLoop {
-  get mainOverlay() {
-    return this.mainEvent?.daemon?.overlay
+  get mainSubContainerHandle() {
+    return this.mainEvent?.daemon?.subContainerHandle
   }
   private healthLoops?: {
     name: string
@@ -56,19 +56,19 @@ export class MainLoop {
       throw new Error("Unreachable")
     }
     const daemon = new Daemon(async () => {
-      const overlay = await DockerProcedureContainer.createOverlay(
+      const subcontainer = await DockerProcedureContainer.createSubContainer(
         effects,
         this.system.manifest.id,
         this.system.manifest.main,
         this.system.manifest.volumes,
+        `Main - ${currentCommand.join(" ")}`,
       )
       return CommandController.of()(
         this.effects,
-
-        { id: this.system.manifest.main.image },
+        subcontainer,
         currentCommand,
         {
-          overlay,
+          runAsInit: true,
           env: {
             TINI_SUBREAPER: "true",
           },
@@ -136,7 +136,7 @@ export class MainLoop {
     delete this.healthLoops
     await main?.daemon
       .stop()
-      .catch((e) => console.error(`Main loop error`, utils.asError(e)))
+      .catch((e: unknown) => console.error(`Main loop error`, utils.asError(e)))
     this.effects.setMainStatus({ status: "stopped" })
     if (healthLoops) healthLoops.forEach((x) => clearInterval(x.interval))
   }
@@ -147,32 +147,45 @@ export class MainLoop {
     const start = Date.now()
     return Object.entries(manifest["health-checks"]).map(
       ([healthId, value]) => {
+        effects
+          .setHealth({
+            id: healthId,
+            name: value.name,
+            result: "starting",
+            message: null,
+          })
+          .catch((e) => console.error(utils.asError(e)))
         const interval = setInterval(async () => {
           const actionProcedure = value
           const timeChanged = Date.now() - start
           if (actionProcedure.type === "docker") {
-            const overlay = actionProcedure.inject
-              ? this.mainOverlay
+            const subcontainer = actionProcedure.inject
+              ? this.mainSubContainerHandle
               : undefined
-            // prettier-ignore
-            const container = 
-              await DockerProcedureContainer.of(
-                effects,
-                manifest.id,
-                actionProcedure,
-                manifest.volumes,
-                {
-                  overlay,
-                }
-              )
-            const executed = await container.exec(
-              [
-                actionProcedure.entrypoint,
-                ...actionProcedure.args,
-                JSON.stringify(timeChanged),
-              ],
-              {},
+            const commands = [
+              actionProcedure.entrypoint,
+              ...actionProcedure.args,
+            ]
+            const container = await DockerProcedureContainer.of(
+              effects,
+              manifest.id,
+              actionProcedure,
+              manifest.volumes,
+              `Health Check - ${commands.join(" ")}`,
+              {
+                subcontainer,
+              },
             )
+            const env: Record<string, string> = actionProcedure.inject
+              ? {
+                  HOME: "/root",
+                }
+              : {}
+            const executed = await container.exec(commands, {
+              input: JSON.stringify(timeChanged),
+              env,
+            })
+
             if (executed.exitCode === 0) {
               await effects.setHealth({
                 id: healthId,
@@ -220,6 +233,18 @@ export class MainLoop {
                 name: value.name,
                 result: "failure",
                 message: errorMessage,
+              })
+              return
+            }
+            if (executed.exitCode && executed.exitCode > 0) {
+              await effects.setHealth({
+                id: healthId,
+                name: value.name,
+                result: "failure",
+                message:
+                  executed.stderr.toString() ||
+                  executed.stdout.toString() ||
+                  `Program exited with code ${executed.exitCode}:`,
               })
               return
             }

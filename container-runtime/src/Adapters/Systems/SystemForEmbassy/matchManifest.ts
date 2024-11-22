@@ -42,6 +42,7 @@ const matchAction = object(
 export const matchManifest = object(
   {
     id: string,
+    title: string,
     version: string,
     main: matchDockerProcedure,
     assets: object(

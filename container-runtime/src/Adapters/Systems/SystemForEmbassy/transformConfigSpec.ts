@@ -1,4 +1,4 @@
-import { CT } from "@start9labs/start-sdk"
+import { IST } from "@start9labs/start-sdk"
 import {
   dictionary,
   object,
@@ -15,9 +15,9 @@ import {
   literal,
 } from "ts-matches"
 
-export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
+export function transformConfigSpec(oldSpec: OldConfigSpec): IST.InputSpec {
   return Object.entries(oldSpec).reduce((inputSpec, [key, oldVal]) => {
-    let newVal: CT.ValueSpec
+    let newVal: IST.ValueSpec
 
     if (oldVal.type === "boolean") {
       newVal = {
@@ -43,7 +43,6 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
           }),
           {},
         ),
-        required: false,
         disabled: false,
         immutable: false,
       }
@@ -124,10 +123,9 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
               spec: transformConfigSpec(matchOldConfigSpec.unsafeCast(spec)),
             },
           }),
-          {} as Record<string, { name: string; spec: CT.InputSpec }>,
+          {} as Record<string, { name: string; spec: IST.InputSpec }>,
         ),
         disabled: false,
-        required: true,
         default: oldVal.default,
         immutable: false,
       }
@@ -141,7 +139,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): CT.InputSpec {
       ...inputSpec,
       [key]: newVal,
     }
-  }, {} as CT.InputSpec)
+  }, {} as IST.InputSpec)
 }
 
 export function transformOldConfigToNew(
@@ -233,10 +231,10 @@ export function transformNewConfigToOld(
 
 function getListSpec(
   oldVal: OldValueSpecList,
-): CT.ValueSpecMultiselect | CT.ValueSpecList {
+): IST.ValueSpecMultiselect | IST.ValueSpecList {
   const range = Range.from(oldVal.range)
 
-  let partial: Omit<CT.ValueSpecList, "type" | "spec" | "default"> = {
+  let partial: Omit<IST.ValueSpecList, "type" | "spec" | "default"> = {
     name: oldVal.name,
     description: oldVal.description || null,
     warning: oldVal.warning || null,

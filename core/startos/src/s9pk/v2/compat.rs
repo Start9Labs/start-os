@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use exver::{ExtendedVersion, VersionRange};
@@ -9,7 +10,7 @@ use tokio::process::Command;
 
 use crate::dependencies::{DepInfo, Dependencies};
 use crate::prelude::*;
-use crate::s9pk::manifest::Manifest;
+use crate::s9pk::manifest::{DeviceFilter, Manifest};
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::source::TmpSource;
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
@@ -44,9 +45,9 @@ impl S9pk<TmpSource<PackSource>> {
         // manifest.json
         let manifest_raw = reader.manifest().await?;
         let manifest = from_value::<ManifestV1>(manifest_raw.clone())?;
-        let mut new_manifest = Manifest::from(manifest.clone());
+        let mut new_manifest = Manifest::try_from(manifest.clone())?;
 
-        let images: BTreeMap<ImageId, bool> = manifest
+        let images: BTreeSet<(ImageId, bool)> = manifest
             .package_procedures()
             .filter_map(|p| {
                 if let PackageProcedure::Docker(p) = p {
@@ -89,8 +90,6 @@ impl S9pk<TmpSource<PackSource>> {
 
         // images
         for arch in reader.docker_arches().await? {
-            let images_dir = tmp_dir.join("images").join(&arch);
-            tokio::fs::create_dir_all(&images_dir).await?;
             Command::new(CONTAINER_TOOL)
                 .arg("load")
                 .input(Some(&mut reader.docker_images(&arch).await?))
@@ -194,13 +193,18 @@ impl S9pk<TmpSource<PackSource>> {
     }
 }
 
-impl From<ManifestV1> for Manifest {
-    fn from(value: ManifestV1) -> Self {
+impl TryFrom<ManifestV1> for Manifest {
+    type Error = Error;
+    fn try_from(value: ManifestV1) -> Result<Self, Self::Error> {
         let default_url = value.upstream_repo.clone();
-        Self {
+        Ok(Self {
             id: value.id,
             title: value.title.into(),
-            version: ExtendedVersion::from(value.version).into(),
+            version: ExtendedVersion::from(
+                exver::emver::Version::from_str(&value.version)
+                    .with_kind(ErrorKind::Deserialization)?,
+            )
+            .into(),
             satisfies: BTreeSet::new(),
             release_notes: value.release_notes,
             can_migrate_from: VersionRange::any(),
@@ -242,10 +246,25 @@ impl From<ManifestV1> for Manifest {
                     })
                     .collect(),
             ),
-            hardware_requirements: value.hardware_requirements,
+            hardware_requirements: super::manifest::HardwareRequirements {
+                arch: value.hardware_requirements.arch,
+                ram: value.hardware_requirements.ram,
+                device: value
+                    .hardware_requirements
+                    .device
+                    .into_iter()
+                    .map(|(class, product)| DeviceFilter {
+                        pattern_description: format!(
+                            "a {class} device matching the expression {}",
+                            product.as_ref()
+                        ),
+                        class,
+                        pattern: product,
+                    })
+                    .collect(),
+            },
             git_hash: value.git_hash,
             os_version: value.eos_version,
-            has_config: value.config.is_some(),
-        }
+        })
     }
 }

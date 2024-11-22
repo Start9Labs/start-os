@@ -10,8 +10,6 @@ import {
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { from, map, Observable } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { ConfigModal, PackageConfigData } from 'src/app/modals/config.component'
 
 export interface Button {
   title: string
@@ -33,7 +31,6 @@ export class ToButtonsPipe implements PipeTransform {
     private readonly apiService: ApiService,
     private readonly api: ApiService,
     private readonly patch: PatchDB<DataModel>,
-    private readonly formDialog: FormDialogService,
   ) {}
 
   transform(pkg: PackageDataEntry<InstalledState>): Button[] {
@@ -50,34 +47,12 @@ export class ToButtonsPipe implements PipeTransform {
           .watch$('ui', 'ackInstructions', manifest.id)
           .pipe(map(seen => !seen)),
       },
-      // config
-      {
-        action: async () =>
-          this.formDialog.open<PackageConfigData>(ConfigModal, {
-            label: `${manifest.title} configuration`,
-            data: { pkgId: manifest.id },
-          }),
-        title: 'Config',
-        description: `Customize ${manifest.title}`,
-        icon: 'options-outline',
-      },
-      // properties
-      {
-        action: () =>
-          this.navCtrl.navigateForward(['properties'], {
-            relativeTo: this.route,
-          }),
-        title: 'Properties',
-        description:
-          'Runtime information, credentials, and other values of interest',
-        icon: 'briefcase-outline',
-      },
       // actions
       {
         action: () =>
           this.navCtrl.navigateForward(['actions'], { relativeTo: this.route }),
         title: 'Actions',
-        description: `Uninstall and other commands specific to ${manifest.title}`,
+        description: `All actions for ${manifest.title}`,
         icon: 'flash-outline',
       },
       // interfaces
