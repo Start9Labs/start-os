@@ -50,7 +50,7 @@ run_command "hostname" "Hostname of the system"
 run_command "uname -a" "Kernel version and system architecture"
 
 # Services Info
-run_command "podman stats --no-stream" "All Running Services"
+run_command "start-cli lxc stats" "All Running Services"
 
 # Collecting CPU information
 run_command "lscpu" "CPU architecture information"
