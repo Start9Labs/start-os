@@ -15,8 +15,9 @@ use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
 use crate::net::forward::LanPortForwardController;
 use crate::net::host::address::HostAddress;
-use crate::net::host::binding::{AddSslOptions, BindId, BindOptions, LanInfo};
+use crate::net::host::binding::{AddSslOptions, BindId, BindOptions, NetInfo};
 use crate::net::host::{host_for, Host, HostKind, Hosts};
+use crate::net::network_interface::NetworkInterfaceController;
 use crate::net::service_interface::{HostnameInfo, IpHostname, OnionHostname};
 use crate::net::tor::TorController;
 use crate::net::vhost::{AlpnInfo, VHostController};
@@ -28,6 +29,7 @@ pub struct PreInitNetController {
     pub db: TypedPatchDb<Database>,
     tor: TorController,
     vhost: VHostController,
+    net_iface: Arc<NetworkInterfaceController>,
     os_bindings: Vec<Arc<()>>,
     server_hostnames: Vec<Option<InternedString>>,
 }
@@ -40,10 +42,12 @@ impl PreInitNetController {
         hostname: &Hostname,
         os_tor_key: TorSecretKeyV3,
     ) -> Result<Self, Error> {
+        let net_iface = Arc::new(NetworkInterfaceController::new(db.clone()));
         let mut res = Self {
             db: db.clone(),
             tor: TorController::new(tor_control, tor_socks),
-            vhost: VHostController::new(db),
+            vhost: VHostController::new(db, net_iface.clone()),
+            net_iface,
             os_bindings: Vec::new(),
             server_hostnames: Vec::new(),
         };
@@ -75,26 +79,25 @@ impl PreInitNetController {
         ];
 
         for hostname in self.server_hostnames.iter().cloned() {
-            self.os_bindings.push(
-                self.vhost
-                    .add(hostname, 443, ([127, 0, 0, 1], 80).into(), alpn.clone())
-                    .await?,
-            );
+            self.os_bindings.push(self.vhost.add(
+                hostname,
+                443,
+                false,
+                ([127, 0, 0, 1], 80).into(),
+                alpn.clone(),
+            )?);
         }
 
         // Tor
-        self.os_bindings.push(
-            self.vhost
-                .add(
-                    Some(InternedString::from_display(
-                        &tor_key.public().get_onion_address(),
-                    )),
-                    443,
-                    ([127, 0, 0, 1], 80).into(),
-                    alpn.clone(),
-                )
-                .await?,
-        );
+        self.os_bindings.push(self.vhost.add(
+            Some(InternedString::from_display(
+                &tor_key.public().get_onion_address(),
+            )),
+            443,
+            false,
+            ([127, 0, 0, 1], 80).into(),
+            alpn.clone(),
+        )?);
         self.os_bindings.extend(
             self.tor
                 .add(
@@ -115,6 +118,7 @@ pub struct NetController {
     db: TypedPatchDb<Database>,
     pub(super) tor: TorController,
     pub(super) vhost: VHostController,
+    pub(super) net_iface: Arc<NetworkInterfaceController>,
     pub(super) dns: DnsController,
     pub(super) forward: LanPortForwardController,
     pub(super) os_bindings: Vec<Arc<()>>,
@@ -127,6 +131,7 @@ impl NetController {
             db,
             tor,
             vhost,
+            net_iface,
             os_bindings,
             server_hostnames,
         }: PreInitNetController,
@@ -136,6 +141,7 @@ impl NetController {
             db,
             tor,
             vhost,
+            net_iface,
             dns: DnsController::init(dns_bind).await?,
             forward: LanPortForwardController::new(),
             os_bindings,
@@ -172,7 +178,7 @@ struct HostBinds {
     lan: BTreeMap<
         u16,
         (
-            LanInfo,
+            NetInfo,
             Option<AddSslOptions>,
             BTreeSet<InternedString>,
             Vec<Arc<()>>,
@@ -270,7 +276,7 @@ impl NetService {
 
         // LAN
         let server_info = peek.as_public().as_server_info();
-        let ip_info = server_info.as_ip_info().de()?;
+        let net_ifaces = server_info.as_network_interfaces().de()?;
         let hostname = server_info.as_hostname().de()?;
         for (port, bind) in &host.bindings {
             if !bind.enabled {
@@ -280,10 +286,10 @@ impl NetService {
             let lan_bind = old_lan_bind
                 .as_ref()
                 .filter(|(external, ssl, _, _)| {
-                    ssl == &bind.options.add_ssl && bind.lan == *external
+                    ssl == &bind.options.add_ssl && bind.net == *external
                 })
                 .cloned(); // only keep existing binding if relevant details match
-            if bind.lan.assigned_port.is_some() || bind.lan.assigned_ssl_port.is_some() {
+            if bind.net.assigned_port.is_some() || bind.net.assigned_ssl_port.is_some() {
                 let new_lan_bind = if let Some(b) = lan_bind {
                     b
                 } else {
@@ -291,7 +297,7 @@ impl NetService {
                     let mut hostnames = BTreeSet::new();
                     if let Some(ssl) = &bind.options.add_ssl {
                         let external = bind
-                            .lan
+                            .net
                             .assigned_ssl_port
                             .or_not_found("assigned ssl port")?;
                         let target = (self.ip, *port).into();
@@ -305,53 +311,53 @@ impl NetService {
                             }
                         };
                         for hostname in ctrl.server_hostnames.iter().cloned() {
-                            rcs.push(
-                                ctrl.vhost
-                                    .add(hostname, external, target, connect_ssl.clone())
-                                    .await?,
-                            );
+                            rcs.push(ctrl.vhost.add(
+                                hostname,
+                                external,
+                                bind.net.public,
+                                target,
+                                connect_ssl.clone(),
+                            )?);
                         }
                         for address in host.addresses() {
                             match address {
                                 HostAddress::Onion { address } => {
                                     let hostname = InternedString::from_display(address);
                                     if hostnames.insert(hostname.clone()) {
-                                        rcs.push(
-                                            ctrl.vhost
-                                                .add(
-                                                    Some(hostname),
-                                                    external,
-                                                    target,
-                                                    connect_ssl.clone(),
-                                                )
-                                                .await?,
-                                        );
+                                        rcs.push(ctrl.vhost.add(
+                                            Some(hostname),
+                                            external,
+                                            false,
+                                            target,
+                                            connect_ssl.clone(),
+                                        )?);
                                     }
                                 }
                                 HostAddress::Domain { address } => {
                                     if hostnames.insert(address.clone()) {
                                         let address = Some(address.clone());
-                                        rcs.push(
-                                            ctrl.vhost
-                                                .add(
-                                                    address.clone(),
-                                                    external,
-                                                    target,
-                                                    connect_ssl.clone(),
-                                                )
-                                                .await?,
-                                        );
+                                        rcs.push(ctrl.vhost.add(
+                                            address.clone(),
+                                            external,
+                                            bind.net.public,
+                                            target,
+                                            connect_ssl.clone(),
+                                        )?);
                                         if ssl.preferred_external_port == 443 {
-                                            rcs.push(
-                                                ctrl.vhost
-                                                    .add(
-                                                        address.clone(),
-                                                        5443,
-                                                        target,
-                                                        connect_ssl.clone(),
-                                                    )
-                                                    .await?,
-                                            );
+                                            rcs.push(ctrl.vhost.add(
+                                                address.clone(),
+                                                5443,
+                                                false,
+                                                target,
+                                                connect_ssl.clone(),
+                                            )?);
+                                            rcs.push(ctrl.vhost.add(
+                                                address.clone(),
+                                                443,
+                                                true,
+                                                target,
+                                                connect_ssl.clone(),
+                                            )?);
                                         }
                                     }
                                 }
@@ -363,66 +369,83 @@ impl NetService {
                             // doesn't make sense to have 2 listening ports, both with ssl
                         } else {
                             let external =
-                                bind.lan.assigned_port.or_not_found("assigned lan port")?;
+                                bind.net.assigned_port.or_not_found("assigned lan port")?;
                             rcs.push(ctrl.forward.add(external, (self.ip, *port).into()).await?);
                         }
                     }
-                    (bind.lan, bind.options.add_ssl.clone(), hostnames, rcs)
+                    (bind.net, bind.options.add_ssl.clone(), hostnames, rcs)
                 };
                 let mut bind_hostname_info: Vec<HostnameInfo> =
                     hostname_info.remove(port).unwrap_or_default();
-                for (interface, ip_info) in &ip_info {
-                    bind_hostname_info.push(HostnameInfo::Ip {
-                        network_interface_id: interface.clone(),
-                        public: false,
-                        hostname: IpHostname::Local {
-                            value: InternedString::from_display(&{
-                                let hostname = &hostname;
-                                lazy_format!("{hostname}.local")
-                            }),
-                            port: new_lan_bind.0.assigned_port,
-                            ssl_port: new_lan_bind.0.assigned_ssl_port,
-                        },
-                    });
+                for (interface, iface_info) in &net_ifaces {
+                    if !iface_info.public {
+                        bind_hostname_info.push(HostnameInfo::Ip {
+                            network_interface_id: interface.clone(),
+                            public: false,
+                            hostname: IpHostname::Local {
+                                value: InternedString::from_display(&{
+                                    let hostname = &hostname;
+                                    lazy_format!("{hostname}.local")
+                                }),
+                                port: new_lan_bind.0.assigned_port,
+                                ssl_port: new_lan_bind.0.assigned_ssl_port,
+                            },
+                        });
+                    }
                     for address in host.addresses() {
                         if let HostAddress::Domain { address } = address {
-                            if let Some(ssl) = &new_lan_bind.1 {
-                                if ssl.preferred_external_port == 443 {
-                                    bind_hostname_info.push(HostnameInfo::Ip {
-                                        network_interface_id: interface.clone(),
-                                        public: false,
-                                        hostname: IpHostname::Domain {
-                                            domain: address.clone(),
-                                            subdomain: None,
-                                            port: None,
-                                            ssl_port: Some(443),
-                                        },
-                                    });
-                                }
+                            if new_lan_bind
+                                .1
+                                .as_ref()
+                                .map_or(false, |ssl| ssl.preferred_external_port == 443)
+                            {
+                                bind_hostname_info.push(HostnameInfo::Ip {
+                                    network_interface_id: interface.clone(),
+                                    public: iface_info.public,
+                                    hostname: IpHostname::Domain {
+                                        domain: address.clone(),
+                                        subdomain: None,
+                                        port: None,
+                                        ssl_port: Some(443),
+                                    },
+                                });
+                            } else if iface_info.public && new_lan_bind.0.public {
+                                bind_hostname_info.push(HostnameInfo::Ip {
+                                    network_interface_id: interface.clone(),
+                                    public: iface_info.public,
+                                    hostname: IpHostname::Domain {
+                                        domain: address.clone(),
+                                        subdomain: None,
+                                        port: new_lan_bind.0.assigned_port,
+                                        ssl_port: new_lan_bind.0.assigned_ssl_port,
+                                    },
+                                });
                             }
                         }
                     }
-                    if let Some(ipv4) = ip_info.ipv4 {
-                        bind_hostname_info.push(HostnameInfo::Ip {
-                            network_interface_id: interface.clone(),
-                            public: false,
-                            hostname: IpHostname::Ipv4 {
-                                value: ipv4,
-                                port: new_lan_bind.0.assigned_port,
-                                ssl_port: new_lan_bind.0.assigned_ssl_port,
-                            },
-                        });
-                    }
-                    if let Some(ipv6) = ip_info.ipv6 {
-                        bind_hostname_info.push(HostnameInfo::Ip {
-                            network_interface_id: interface.clone(),
-                            public: false,
-                            hostname: IpHostname::Ipv6 {
-                                value: ipv6,
-                                port: new_lan_bind.0.assigned_port,
-                                ssl_port: new_lan_bind.0.assigned_ssl_port,
-                            },
-                        });
+                    if !iface_info.public || new_lan_bind.0.public {
+                        if let Some(ipv4) = iface_info.ip_info.ipv4 {
+                            bind_hostname_info.push(HostnameInfo::Ip {
+                                network_interface_id: interface.clone(),
+                                public: iface_info.public,
+                                hostname: IpHostname::Ipv4 {
+                                    value: ipv4,
+                                    port: new_lan_bind.0.assigned_port,
+                                    ssl_port: new_lan_bind.0.assigned_ssl_port,
+                                },
+                            });
+                        }
+                        if let Some(ipv6) = iface_info.ip_info.ipv6 {
+                            bind_hostname_info.push(HostnameInfo::Ip {
+                                network_interface_id: interface.clone(),
+                                public: iface_info.public,
+                                hostname: IpHostname::Ipv6 {
+                                    value: ipv6,
+                                    port: new_lan_bind.0.assigned_port,
+                                    ssl_port: new_lan_bind.0.assigned_ssl_port,
+                                },
+                            });
+                        }
                     }
                 }
                 hostname_info.insert(*port, bind_hostname_info);
@@ -431,10 +454,10 @@ impl NetService {
             if let Some((lan, _, hostnames, _)) = old_lan_bind {
                 if let Some(external) = lan.assigned_ssl_port {
                     for hostname in ctrl.server_hostnames.iter().cloned() {
-                        ctrl.vhost.gc(hostname, external).await?;
+                        ctrl.vhost.gc(hostname, external)?;
                     }
                     for hostname in hostnames {
-                        ctrl.vhost.gc(Some(hostname), external).await?;
+                        ctrl.vhost.gc(Some(hostname), external)?;
                     }
                 }
                 if let Some(external) = lan.assigned_port {
@@ -455,10 +478,10 @@ impl NetService {
         for (lan, hostnames) in removed {
             if let Some(external) = lan.assigned_ssl_port {
                 for hostname in ctrl.server_hostnames.iter().cloned() {
-                    ctrl.vhost.gc(hostname, external).await?;
+                    ctrl.vhost.gc(hostname, external)?;
                 }
                 for hostname in hostnames {
-                    ctrl.vhost.gc(Some(hostname), external).await?;
+                    ctrl.vhost.gc(Some(hostname), external)?;
                 }
             }
             if let Some(external) = lan.assigned_port {
@@ -481,7 +504,7 @@ impl NetService {
                 SocketAddr::from((self.ip, *internal)),
             );
             if let (Some(ssl), Some(ssl_internal)) =
-                (&info.options.add_ssl, info.lan.assigned_ssl_port)
+                (&info.options.add_ssl, info.net.assigned_ssl_port)
             {
                 tor_binds.insert(
                     ssl.preferred_external_port,
@@ -580,7 +603,7 @@ impl NetService {
         self.ip
     }
 
-    pub fn get_lan_port(&self, host_id: HostId, internal_port: u16) -> Result<LanInfo, Error> {
+    pub fn get_lan_port(&self, host_id: HostId, internal_port: u16) -> Result<NetInfo, Error> {
         let host_id_binds = self.binds.get_key_value(&host_id);
         match host_id_binds {
             Some((_, binds)) => {

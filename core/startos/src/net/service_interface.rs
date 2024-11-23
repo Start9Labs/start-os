@@ -12,7 +12,8 @@ use ts_rs::TS;
 #[serde(tag = "kind")]
 pub enum HostnameInfo {
     Ip {
-        network_interface_id: String,
+        #[ts(type = "string")]
+        network_interface_id: InternedString,
         public: bool,
         hostname: IpHostname,
     },

@@ -54,7 +54,7 @@ impl Public {
                 tor_address: format!("https://{}", account.tor_key.public().get_onion_address())
                     .parse()
                     .unwrap(),
-                ip_info: BTreeMap::new(),
+                network_interfaces: BTreeMap::new(),
                 acme: None,
                 status_info: ServerStatus {
                     backup_progress: None,
@@ -130,7 +130,8 @@ pub struct ServerInfo {
     /// for backwards compatibility
     #[ts(type = "string")]
     pub tor_address: Url,
-    pub ip_info: BTreeMap<String, IpInfo>,
+    #[ts(as = "BTreeMap::<String, NetworkInterfaceInfo>")]
+    pub network_interfaces: BTreeMap<InternedString, NetworkInterfaceInfo>,
     pub acme: Option<AcmeSettings>,
     #[serde(default)]
     pub status_info: ServerStatus,
@@ -152,6 +153,15 @@ pub struct ServerInfo {
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+#[ts(export)]
+pub struct NetworkInterfaceInfo {
+    pub public: bool,
+    pub ip_info: IpInfo,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]

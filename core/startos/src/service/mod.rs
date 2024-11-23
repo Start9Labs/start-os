@@ -149,10 +149,10 @@ impl ServiceRef {
                                     .values()
                                     .flat_map(|h| h.bindings.values())
                                     .flat_map(|b| {
-                                        b.lan
+                                        b.net
                                             .assigned_port
                                             .into_iter()
-                                            .chain(b.lan.assigned_ssl_port)
+                                            .chain(b.net.assigned_ssl_port)
                                     }),
                             );
                             Ok(())

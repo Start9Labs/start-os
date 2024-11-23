@@ -1,6 +1,6 @@
 use models::{HostId, PackageId};
 
-use crate::net::host::binding::{BindId, BindOptions, LanInfo};
+use crate::net::host::binding::{BindId, BindOptions, NetInfo};
 use crate::net::host::HostKind;
 use crate::service::effects::prelude::*;
 
@@ -58,7 +58,7 @@ pub struct GetServicePortForwardParams {
 pub async fn get_service_port_forward(
     context: EffectContext,
     data: GetServicePortForwardParams,
-) -> Result<LanInfo, Error> {
+) -> Result<NetInfo, Error> {
     let internal_port = data.internal_port as u16;
 
     let context = context.deref()?;

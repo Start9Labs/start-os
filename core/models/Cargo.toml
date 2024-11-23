@@ -39,3 +39,4 @@ tokio = { version = "1", features = ["full"] }
 torut = { git = "https://github.com/Start9Labs/torut.git", branch = "update/dependencies" }
 tracing = "0.1.39"
 yasi = "0.1.5"
+zbus = "5"

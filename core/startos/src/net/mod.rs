@@ -1,13 +1,13 @@
 use rpc_toolkit::{Context, HandlerExt, ParentHandler};
 
 pub mod acme;
-pub mod dhcp;
 pub mod dns;
 pub mod forward;
 pub mod host;
 pub mod keys;
 pub mod mdns;
 pub mod net_controller;
+pub mod network_interface;
 pub mod service_interface;
 pub mod ssl;
 pub mod static_server;
@@ -25,10 +25,10 @@ pub fn net<C: Context>() -> ParentHandler<C> {
             "tor",
             tor::tor::<C>().with_about("Tor commands such as list-services, logs, and reset"),
         )
-        .subcommand(
-            "dhcp",
-            dhcp::dhcp::<C>().with_about("Command to update IP assigned from dhcp"),
-        )
+        // .subcommand(
+        //     "dhcp",
+        //     network_interface::dhcp::<C>().with_about("Command to update IP assigned from dhcp"),
+        // )
         .subcommand(
             "acme",
             acme::acme::<C>().with_about("Setup automatic clearnet certificate acquisition"),

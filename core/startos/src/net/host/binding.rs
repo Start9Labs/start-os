@@ -41,12 +41,14 @@ impl FromStr for BindId {
 pub struct BindInfo {
     pub enabled: bool,
     pub options: BindOptions,
-    pub lan: LanInfo,
+    pub net: NetInfo,
 }
+
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, TS, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct LanInfo {
+pub struct NetInfo {
+    pub public: bool,
     pub assigned_port: Option<u16>,
     pub assigned_ssl_port: Option<u16>,
 }
@@ -63,7 +65,8 @@ impl BindInfo {
         Ok(Self {
             enabled: true,
             options,
-            lan: LanInfo {
+            net: NetInfo {
+                public: false,
                 assigned_port,
                 assigned_ssl_port,
             },
@@ -74,7 +77,7 @@ impl BindInfo {
         available_ports: &mut AvailablePorts,
         options: BindOptions,
     ) -> Result<Self, Error> {
-        let Self { mut lan, .. } = self;
+        let Self { net: mut lan, .. } = self;
         if options
             .secure
             .map_or(false, |s| !(s.ssl && options.add_ssl.is_some()))
@@ -104,7 +107,7 @@ impl BindInfo {
         Ok(Self {
             enabled: true,
             options,
-            lan,
+            net: lan,
         })
     }
     pub fn disable(&mut self) {

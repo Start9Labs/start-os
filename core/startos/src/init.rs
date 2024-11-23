@@ -509,7 +509,6 @@ pub async fn init(
     enable_zram.complete();
 
     update_server_info.start();
-    server_info.ip_info = crate::net::dhcp::init_ips().await?;
     server_info.ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
     server_info.devices = lshw().await?;
     server_info.status_info = ServerStatus {

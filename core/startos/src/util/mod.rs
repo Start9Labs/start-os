@@ -122,7 +122,8 @@ impl<'a> std::ops::DerefMut for ExtendedCommand<'a> {
 }
 
 impl<'a> Invoke<'a> for tokio::process::Command {
-    type Extended<'ext> = ExtendedCommand<'ext>
+    type Extended<'ext>
+        = ExtendedCommand<'ext>
     where
         Self: 'ext,
         'ext: 'a;
@@ -162,7 +163,8 @@ impl<'a> Invoke<'a> for tokio::process::Command {
 }
 
 impl<'a> Invoke<'a> for ExtendedCommand<'a> {
-    type Extended<'ext> = &'ext mut ExtendedCommand<'ext>
+    type Extended<'ext>
+        = &'ext mut ExtendedCommand<'ext>
     where
         Self: 'ext,
         'ext: 'a;
