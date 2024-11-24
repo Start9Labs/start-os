@@ -4,9 +4,10 @@ import * as cp from "child_process"
 import { promisify } from "util"
 import { Buffer } from "node:buffer"
 import { once } from "../../../base/lib/util/once"
+
 export const execFile = promisify(cp.execFile)
-const WORKDIR = (imageId: string) => `/media/startos/images/${imageId}/`
 const False = () => false
+
 type ExecResults = {
   exitCode: number | null
   exitSignal: NodeJS.Signals | null

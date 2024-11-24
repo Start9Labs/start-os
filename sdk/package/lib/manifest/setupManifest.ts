@@ -11,7 +11,6 @@ import { execSync } from "child_process"
 /**
  * @description Use this function to define critical information about your package
  *
- * @param versions Every version of the package, imported from ./versions
  * @param manifest Static properties of the package
  */
 export function setupManifest<

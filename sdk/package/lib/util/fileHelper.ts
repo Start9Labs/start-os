@@ -46,27 +46,34 @@ async function onCreated(path: string) {
 /**
  * @description Use this class to read/write an underlying configuration file belonging to the upstream service.
  *
- * Using the static functions, choose between officially supported file formats (json, yaml, toml), or a custom format (raw).
+ *   These type definitions should reflect the underlying file as closely as possible. For example, if the service does not require a particular value, it should be marked as optional(), even if your package requires it.
+ *
+ *   It is recommended to use onMismatch() whenever possible. This provides an escape hatch in case the user edits the file manually and accidentally sets a value to an unsupported type.
+ *
+ *   Officially supported file types are json, yaml, and toml. Other files types can use "raw"
+ *
+ *   Choose between officially supported file formats (), or a custom format (raw).
+ *
  * @example
  * Below are a few examples
  *
  * ```
  * import { matches, FileHelper } from '@start9labs/start-sdk'
- * const { arrayOf, boolean, literal, literals, object, oneOf, natural, string } = matches
+ * const { arrayOf, boolean, literal, literals, object, natural, string } = matches
  *
  * export const jsonFile = FileHelper.json('./inputSpec.json', object({
- *   passwords: arrayOf(string)
- *   type: oneOf(literals('private', 'public'))
+ *   passwords: arrayOf(string).onMismatch([])
+ *   type: literals('private', 'public').optional().onMismatch(undefined)
  * }))
  *
  * export const tomlFile = FileHelper.toml('./inputSpec.toml', object({
- *   url: literal('https://start9.com')
- *   public: boolean
+ *   url: literal('https://start9.com').onMismatch('https://start9.com')
+ *   public: boolean.onMismatch(true)
  * }))
  *
  * export const yamlFile = FileHelper.yaml('./inputSpec.yml', object({
- *   name: string
- *   age: natural
+ *   name: string.optional().onMismatch(undefined)
+ *   age: natural.optional().onMismatch(undefined)
  * }))
  *
  * export const bitcoinConfFile = FileHelper.raw(
@@ -183,7 +190,7 @@ export class FileHelper<A> {
 
   /**
    * We wanted to be able to have a fileHelper, and just modify the path later in time.
-   * Like one behaviour of another dependency or something similar.
+   * Like one behavior of another dependency or something similar.
    */
   withPath(path: string) {
     return new FileHelper<A>(path, this.writeData, this.readData, this.validate)
