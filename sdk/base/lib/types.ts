@@ -13,6 +13,11 @@ import { Effects } from "./Effects"
 export { Effects }
 export * from "./osBindings"
 export { SDKManifest } from "./types/ManifestTypes"
+export {
+  RequiredDependenciesOf as RequiredDependencies,
+  OptionalDependenciesOf as OptionalDependencies,
+  CurrentDependenciesResult,
+} from "./dependencies/setupDependencies"
 
 export type ExposedStorePaths = string[] & Affine<"ExposedStorePaths">
 declare const HealthProof: unique symbol
@@ -224,6 +229,8 @@ export type KnownError =
 
 export type Dependencies = Array<DependencyRequirement>
 
-export type DeepPartial<T> = T extends {}
-  ? { [P in keyof T]?: DeepPartial<T[P]> }
-  : T
+export type DeepPartial<T> = T extends unknown[]
+  ? T
+  : T extends {}
+    ? { [P in keyof T]?: DeepPartial<T[P]> }
+    : T

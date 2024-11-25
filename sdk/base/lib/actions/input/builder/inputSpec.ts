@@ -1,8 +1,9 @@
 import { ValueSpec } from "../inputSpecTypes"
-import { PartialValue, Value } from "./value"
+import { Value } from "./value"
 import { _ } from "../../../util"
 import { Effects } from "../../../Effects"
 import { Parser, object } from "ts-matches"
+import { DeepPartial } from "../../../types"
 
 export type LazyBuildOptions<Store> = {
   effects: Effects
@@ -22,8 +23,8 @@ export type ExtractPartialInputSpecType<
     | InputSpec<Record<string, any>, any>
     | InputSpec<Record<string, any>, never>,
 > = A extends InputSpec<infer B, any> | InputSpec<infer B, never>
-  ? PartialValue<B>
-  : PartialValue<A>
+  ? DeepPartial<B>
+  : DeepPartial<A>
 
 export type InputSpecOf<A extends Record<string, any>, Store = never> = {
   [K in keyof A]: Value<A[K], Store>
@@ -94,7 +95,7 @@ export class InputSpec<Type extends Record<string, any>, Store = never> {
     public validator: Parser<unknown, Type>,
   ) {}
   _TYPE: Type = null as any as Type
-  _PARTIAL: PartialValue<Type> = null as any as PartialValue<Type>
+  _PARTIAL: DeepPartial<Type> = null as any as DeepPartial<Type>
   async build(options: LazyBuildOptions<Store>) {
     const answer = {} as {
       [K in keyof Type]: ValueSpec

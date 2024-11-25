@@ -150,10 +150,19 @@ export type SDKManifest = {
   }
 }
 
-export type SDKImageInputSpec = {
-  source: Exclude<ImageSource, "packed">
-  arch?: string[]
-  emulateMissingAs?: string | null
+// this is hacky but idk a more elegant way
+type ArchOptions = {
+  0: ["x86_64", "aarch64"]
+  1: ["aarch64", "x86_64"]
+  2: ["x86_64"]
+  3: ["aarch64"]
 }
+export type SDKImageInputSpec = {
+  [A in keyof ArchOptions]: {
+    source: Exclude<ImageSource, "packed">
+    arch?: ArchOptions[A]
+    emulateMissingAs?: ArchOptions[A][number] | null
+  }
+}[keyof ArchOptions]
 
 export type ManifestDependency = T.Manifest["dependencies"][string]

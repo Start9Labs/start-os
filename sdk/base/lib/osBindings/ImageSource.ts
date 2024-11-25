@@ -5,8 +5,8 @@ export type ImageSource =
   | "packed"
   | {
       dockerBuild: {
-        workdir: string | null
-        dockerfile: string | null
+        workdir?: string
+        dockerfile?: string
         buildArgs?: { [key: string]: BuildArg }
       }
     }
