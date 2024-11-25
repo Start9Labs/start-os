@@ -14,7 +14,7 @@ export type Run<
 > = (options: {
   effects: T.Effects
   input: ExtractInputSpecType<A> & Record<string, any>
-}) => Promise<T.ActionResult | null | void | undefined>
+}) => Promise<(T.ActionResult & { version: "1" }) | null | void | undefined>
 export type GetInput<
   A extends
     | Record<string, any>

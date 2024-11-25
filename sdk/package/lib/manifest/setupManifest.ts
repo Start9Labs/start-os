@@ -22,7 +22,7 @@ export function setupManifest<
     assets: AssetTypes[]
     volumes: VolumesTypes[]
   } & SDKManifest,
->(manifest: Manifest): Manifest {
+>(manifest: Manifest & SDKManifest): Manifest {
   return manifest
 }
 
