@@ -9,6 +9,7 @@ use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
 use tokio::sync::RwLock;
+use tokio_stream::StreamExt;
 use ts_rs::TS;
 use zbus::zvariant::OwnedObjectPath;
 use zbus::{proxy, Connection};
@@ -27,6 +28,8 @@ use crate::util::sync::SyncMutex;
 )]
 trait NetworkManager {
     async fn get_all_devices(&self) -> Result<Vec<OwnedObjectPath>, Error>;
+    #[zbus(property)]
+    fn active_connections(&self) -> Result<Vec<OwnedObjectPath>, Error>;
 }
 
 #[tokio::test]
@@ -34,8 +37,13 @@ async fn test() -> Result<(), Error> {
     let connection = Connection::system().await?;
 
     let proxy = NetworkManagerProxy::new(&connection).await?;
-    let reply = proxy.get_all_devices().await?;
+    let reply = proxy.active_connections().await?;
     println!("{reply:?}");
+
+    let mut stream = proxy.receive_active_connections_changed().await;
+    while let Some(conn) = stream.next().await {
+        println!("{:?}", conn.get().await?);
+    }
 
     Ok(())
 }
