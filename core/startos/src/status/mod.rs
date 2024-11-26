@@ -11,20 +11,17 @@ use crate::service::start_stop::StartStop;
 use crate::status::health_check::NamedHealthCheckResult;
 
 pub mod health_check;
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
-#[serde(rename_all = "camelCase")]
-#[model = "Model<Self>"]
-#[ts(export)]
-pub struct Status {
-    pub configured: bool,
-    pub main: MainStatus,
-}
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]
-#[serde(tag = "status")]
+#[serde(tag = "main")]
 #[serde(rename_all = "camelCase")]
 #[serde(rename_all_fields = "camelCase")]
 pub enum MainStatus {
+    Error {
+        on_rebuild: StartStop,
+        message: String,
+        debug: Option<String>,
+    },
     Stopped,
     Restarting,
     Restoring,
@@ -51,13 +48,35 @@ impl MainStatus {
             | MainStatus::Restarting
             | MainStatus::BackingUp {
                 on_complete: StartStop::Start,
+            }
+            | MainStatus::Error {
+                on_rebuild: StartStop::Start,
+                ..
             } => true,
             MainStatus::Stopped
             | MainStatus::Restoring
             | MainStatus::Stopping { .. }
             | MainStatus::BackingUp {
                 on_complete: StartStop::Stop,
+            }
+            | MainStatus::Error {
+                on_rebuild: StartStop::Stop,
+                ..
             } => false,
+        }
+    }
+
+    pub fn major_changes(&self, other: &Self) -> bool {
+        match (self, other) {
+            (MainStatus::Running { .. }, MainStatus::Running { .. }) => false,
+            (MainStatus::Starting { .. }, MainStatus::Starting { .. }) => false,
+            (MainStatus::Stopping, MainStatus::Stopping) => false,
+            (MainStatus::Stopped, MainStatus::Stopped) => false,
+            (MainStatus::Restarting, MainStatus::Restarting) => false,
+            (MainStatus::Restoring, MainStatus::Restoring) => false,
+            (MainStatus::BackingUp { .. }, MainStatus::BackingUp { .. }) => false,
+            (MainStatus::Error { .. }, MainStatus::Error { .. }) => false,
+            _ => true,
         }
     }
 
@@ -78,7 +97,8 @@ impl MainStatus {
             | MainStatus::Stopped
             | MainStatus::Restoring
             | MainStatus::Stopping { .. }
-            | MainStatus::Restarting => None,
+            | MainStatus::Restarting
+            | MainStatus::Error { .. } => None,
         }
     }
 }

@@ -2,50 +2,46 @@ import {
   ChangeDetectionStrategy,
   Component,
   Input,
-  OnChanges,
+  OnInit,
 } from '@angular/core'
 import { TuiNotification } from '@taiga-ui/core'
-import { compare, getValueByPointer, Operation } from 'fast-json-patch'
+import { getValueByPointer, Operation } from 'fast-json-patch'
 import { isObject } from '@start9labs/shared'
 import { tuiIsNumber } from '@taiga-ui/cdk'
 import { CommonModule } from '@angular/common'
 
 @Component({
-  selector: 'config-dep',
+  selector: 'action-request-info',
   template: `
-    <tui-notification>
-      <h3 style="margin: 0 0 0.5rem; font-size: 1.25rem;">
-        {{ package }}
-      </h3>
-      The following modifications have been made to {{ package }} to satisfy
-      {{ dep }}:
+    <tui-notification *ngIf="diff.length">
+      The following modifications were made:
       <ul>
         <li *ngFor="let d of diff" [innerHTML]="d"></li>
       </ul>
-      To accept these modifications, click "Save".
     </tui-notification>
   `,
   standalone: true,
   imports: [CommonModule, TuiNotification],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: [
+    `
+      tui-notification {
+        margin-bottom: 1.5rem;
+      }
+    `,
+  ],
 })
-export class ConfigDepComponent implements OnChanges {
+export class ActionRequestInfoComponent implements OnInit {
   @Input()
-  package = ''
+  originalValue: object = {}
 
   @Input()
-  dep = ''
-
-  @Input()
-  original: object = {}
-
-  @Input()
-  value: object = {}
+  operations: Operation[] = []
 
   diff: string[] = []
 
-  ngOnChanges() {
-    this.diff = compare(this.original, this.value).map(
+  ngOnInit() {
+    this.diff = this.operations.map(
       op => `${this.getPath(op)}: ${this.getMessage(op)}`,
     )
   }
@@ -69,20 +65,20 @@ export class ConfigDepComponent implements OnChanges {
   private getMessage(operation: Operation): string {
     switch (operation.op) {
       case 'add':
-        return `Added ${this.getNewValue(operation.value)}`
+        return `added ${this.getNewValue(operation.value)}`
       case 'remove':
-        return `Removed ${this.getOldValue(operation.path)}`
+        return `removed ${this.getOldValue(operation.path)}`
       case 'replace':
-        return `Changed from ${this.getOldValue(
+        return `changed from ${this.getOldValue(
           operation.path,
         )} to ${this.getNewValue(operation.value)}`
       default:
-        return `Unknown operation`
+        return `Unknown operation` // unreachable
     }
   }
 
   private getOldValue(path: any): string {
-    const val = getValueByPointer(this.original, path)
+    const val = getValueByPointer(this.originalValue, path)
     if (['string', 'number', 'boolean'].includes(typeof val)) {
       return val
     } else if (isObject(val)) {

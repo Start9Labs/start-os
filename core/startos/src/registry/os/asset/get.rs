@@ -26,11 +26,26 @@ use crate::util::io::open_file;
 pub fn get_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("iso", from_fn_async(get_iso).no_cli())
-        .subcommand("iso", from_fn_async(cli_get_os_asset).no_display())
+        .subcommand(
+            "iso",
+            from_fn_async(cli_get_os_asset)
+                .no_display()
+                .with_about("Download iso"),
+        )
         .subcommand("img", from_fn_async(get_img).no_cli())
-        .subcommand("img", from_fn_async(cli_get_os_asset).no_display())
+        .subcommand(
+            "img",
+            from_fn_async(cli_get_os_asset)
+                .no_display()
+                .with_about("Download img"),
+        )
         .subcommand("squashfs", from_fn_async(get_squashfs).no_cli())
-        .subcommand("squashfs", from_fn_async(cli_get_os_asset).no_display())
+        .subcommand(
+            "squashfs",
+            from_fn_async(cli_get_os_asset)
+                .no_display()
+                .with_about("Download squashfs"),
+        )
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
@@ -94,7 +109,11 @@ pub async fn get_squashfs(
 pub struct CliGetOsAssetParams {
     pub version: Version,
     pub platform: InternedString,
-    #[arg(long = "download", short = 'd')]
+    #[arg(
+        long = "download",
+        short = 'd',
+        help = "The path of the directory to download to"
+    )]
     pub download: Option<PathBuf>,
     #[arg(
         long = "reverify",
@@ -119,9 +138,15 @@ async fn cli_get_os_asset(
         ..
     }: HandlerArgs<CliContext, CliGetOsAssetParams>,
 ) -> Result<RegistryAsset<Blake3Commitment>, Error> {
+    let ext = method
+        .iter()
+        .last()
+        .or_else(|| parent_method.iter().last())
+        .unwrap_or(&"bin");
+
     let res = from_value::<RegistryAsset<Blake3Commitment>>(
         ctx.call_remote::<RegistryContext>(
-            &parent_method.into_iter().chain(method).join("."),
+            &parent_method.iter().chain(&method).join("."),
             json!({
                 "version": version,
                 "platform": platform,
@@ -133,6 +158,7 @@ async fn cli_get_os_asset(
     res.validate(SIG_CONTEXT, res.all_signers())?;
 
     if let Some(download) = download {
+        let download = download.join(format!("startos-{version}_{platform}.{ext}"));
         let mut file = AtomicFile::new(&download, None::<&Path>)
             .await
             .with_kind(ErrorKind::Filesystem)?;

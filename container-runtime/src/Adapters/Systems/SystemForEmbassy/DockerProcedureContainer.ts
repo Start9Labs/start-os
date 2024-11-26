@@ -8,7 +8,7 @@ import {
   CommandOptions,
   ExecOptions,
   ExecSpawnable,
-} from "@start9labs/start-sdk/cjs/lib/util/SubContainer"
+} from "@start9labs/start-sdk/package/lib/util/SubContainer"
 export const exec = promisify(cp.exec)
 export const execFile = promisify(cp.execFile)
 
@@ -20,6 +20,7 @@ export class DockerProcedureContainer {
     packageId: string,
     data: DockerProcedure,
     volumes: { [id: VolumeId]: Volume },
+    name: string,
     options: { subcontainer?: ExecSpawnable } = {},
   ) {
     const subcontainer =
@@ -29,6 +30,7 @@ export class DockerProcedureContainer {
         packageId,
         data,
         volumes,
+        name,
       ))
     return new DockerProcedureContainer(subcontainer)
   }
@@ -37,8 +39,13 @@ export class DockerProcedureContainer {
     packageId: string,
     data: DockerProcedure,
     volumes: { [id: VolumeId]: Volume },
+    name: string,
   ) {
-    const subcontainer = await SubContainer.of(effects, { id: data.image })
+    const subcontainer = await SubContainer.of(
+      effects,
+      { id: data.image },
+      name,
+    )
 
     if (data.mounts) {
       const mounts = data.mounts
@@ -144,7 +151,7 @@ export class DockerProcedureContainer {
     }
   }
 
-  async spawn(commands: string[]): Promise<cp.ChildProcessWithoutNullStreams> {
+  async spawn(commands: string[]): Promise<cp.ChildProcess> {
     return await this.subcontainer.spawn(commands)
   }
 }

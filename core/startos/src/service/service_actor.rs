@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use imbl::vector;
+
 use super::start_stop::StartStop;
 use super::ServiceActorSeed;
 use crate::prelude::*;
@@ -45,11 +47,12 @@ async fn service_actor_loop(
     let id = &seed.id;
     let kinds = current.borrow().kinds();
     if let Err(e) = async {
-        seed.ctx
+        let major_changes_state = seed
+            .ctx
             .db
             .mutate(|d| {
                 if let Some(i) = d.as_public_mut().as_package_data_mut().as_idx_mut(&id) {
-                    let previous = i.as_status().as_main().de()?;
+                    let previous = i.as_status().de()?;
                     let main_status = match &kinds {
                         ServiceStateKinds {
                             transition_state: Some(TransitionKind::Restarting),
@@ -89,11 +92,22 @@ async fn service_actor_loop(
                             ..
                         } => MainStatus::Stopped,
                     };
-                    i.as_status_mut().as_main_mut().ser(&main_status)?;
+                    let previous = i.as_status().de()?;
+                    i.as_status_mut().ser(&main_status)?;
+                    return Ok(previous
+                        .major_changes(&main_status)
+                        .then_some((previous, main_status)));
                 }
-                Ok(())
+                Ok(None)
             })
             .await?;
+        if let Some((previous, new_state)) = major_changes_state {
+            if let Some(callbacks) = seed.ctx.callbacks.get_status(id) {
+                callbacks
+                    .call(vector![to_value(&previous)?, to_value(&new_state)?])
+                    .await?;
+            }
+        }
         seed.synchronized.notify_waiters();
 
         match kinds {

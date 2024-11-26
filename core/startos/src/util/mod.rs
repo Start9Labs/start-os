@@ -36,7 +36,6 @@ use crate::util::serde::{deserialize_from_str, serialize_display};
 use crate::{Error, ErrorKind, ResultExt as _};
 
 pub mod actor;
-pub mod clap;
 pub mod collections;
 pub mod cpupower;
 pub mod crypto;
@@ -123,7 +122,8 @@ impl<'a> std::ops::DerefMut for ExtendedCommand<'a> {
 }
 
 impl<'a> Invoke<'a> for tokio::process::Command {
-    type Extended<'ext> = ExtendedCommand<'ext>
+    type Extended<'ext>
+        = ExtendedCommand<'ext>
     where
         Self: 'ext,
         'ext: 'a;
@@ -163,7 +163,8 @@ impl<'a> Invoke<'a> for tokio::process::Command {
 }
 
 impl<'a> Invoke<'a> for ExtendedCommand<'a> {
-    type Extended<'ext> = &'ext mut ExtendedCommand<'ext>
+    type Extended<'ext>
+        = &'ext mut ExtendedCommand<'ext>
     where
         Self: 'ext,
         'ext: 'a;
@@ -237,11 +238,7 @@ impl<'a> Invoke<'a> for ExtendedCommand<'a> {
                     .or(Some(&res.stdout))
                     .filter(|a| !a.is_empty())
                     .and_then(|a| std::str::from_utf8(a).ok())
-                    .unwrap_or(&format!(
-                        "{} exited with code {}",
-                        self.cmd.as_std().get_program().to_string_lossy(),
-                        res.status
-                    ))
+                    .unwrap_or(&format!("{} exited with code {}", cmd_str, res.status))
             );
             Ok(res.stdout)
         } else {
@@ -268,7 +265,7 @@ impl<'a> Invoke<'a> for ExtendedCommand<'a> {
                 if prev.is_some() {
                     cmd.stdin(Stdio::piped());
                 }
-                let mut child = cmd.spawn().with_kind(error_kind)?;
+                let mut child = cmd.spawn().with_ctx(|_| (error_kind, &cmd_str))?;
                 let input = std::mem::replace(
                     &mut prev,
                     child
@@ -568,7 +565,7 @@ pub struct FileLock(#[allow(unused)] OwnedMutexGuard<()>, Option<FdLock<File>>);
 impl Drop for FileLock {
     fn drop(&mut self) {
         if let Some(fd_lock) = self.1.take() {
-            tokio::task::spawn_blocking(|| fd_lock.unlock(true).map_err(|(_, e)| e).unwrap());
+            tokio::task::spawn_blocking(|| fd_lock.unlock(true).map_err(|(_, e)| e).log_err());
         }
     }
 }
@@ -668,8 +665,8 @@ impl FromStr for PathOrUrl {
     type Err = <PathBuf as FromStr>::Err;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Ok(url) = s.parse::<Url>() {
-            if url.scheme() == "file" {
-                Ok(Self::Path(url.path().parse()?))
+            if let Some(path) = s.strip_prefix("file://") {
+                Ok(Self::Path(path.parse()?))
             } else {
                 Ok(Self::Url(url))
             }

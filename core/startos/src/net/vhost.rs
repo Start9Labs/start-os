@@ -4,6 +4,7 @@ use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
+use async_acme::acme::ACME_TLS_ALPN_NAME;
 use axum::body::Body;
 use axum::extract::Request;
 use axum::response::Response;
@@ -15,31 +16,47 @@ use models::ResultExt;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{Mutex, RwLock};
+use tokio::sync::{watch, Mutex, RwLock};
+use tokio_rustls::rustls::crypto::CryptoProvider;
 use tokio_rustls::rustls::pki_types::{
     CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer, ServerName,
 };
-use tokio_rustls::rustls::server::Acceptor;
+use tokio_rustls::rustls::server::{Acceptor, ResolvesServerCert};
+use tokio_rustls::rustls::sign::CertifiedKey;
 use tokio_rustls::rustls::{RootCertStore, ServerConfig};
 use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
+use tokio_stream::wrappers::WatchStream;
+use tokio_stream::StreamExt;
 use tracing::instrument;
 use ts_rs::TS;
 
 use crate::db::model::Database;
+use crate::net::acme::AcmeCertCache;
 use crate::net::static_server::server_error;
 use crate::prelude::*;
 use crate::util::io::BackTrackingIO;
+use crate::util::sync::SyncMutex;
 use crate::util::serde::MaybeUtf8String;
+
+#[derive(Debug)]
+struct SingleCertResolver(Arc<CertifiedKey>);
+impl ResolvesServerCert for SingleCertResolver {
+    fn resolve(&self, _: tokio_rustls::rustls::server::ClientHello) -> Option<Arc<CertifiedKey>> {
+        Some(self.0.clone())
+    }
+}
 
 // not allowed: <=1024, >=32768, 5355, 5432, 9050, 6010, 9051, 5353
 
 pub struct VHostController {
+    crypto_provider: Arc<CryptoProvider>,
     db: TypedPatchDb<Database>,
     servers: Mutex<BTreeMap<u16, VHostServer>>,
 }
 impl VHostController {
     pub fn new(db: TypedPatchDb<Database>) -> Self {
         Self {
+            crypto_provider: Arc::new(tokio_rustls::rustls::crypto::ring::default_provider()),
             db,
             servers: Mutex::new(BTreeMap::new()),
         }
@@ -56,7 +73,8 @@ impl VHostController {
         let server = if let Some(server) = writable.remove(&external) {
             server
         } else {
-            VHostServer::new(external, self.db.clone()).await?
+            tracing::info!("Listening on {external}");
+            VHostServer::new(external, self.db.clone(), self.crypto_provider.clone()).await?
         };
         let rc = server
             .add(
@@ -108,7 +126,11 @@ struct VHostServer {
 }
 impl VHostServer {
     #[instrument(skip_all)]
-    async fn new(port: u16, db: TypedPatchDb<Database>) -> Result<Self, Error> {
+    async fn new(port: u16, db: TypedPatchDb<Database>, crypto_provider: Arc<CryptoProvider>) -> Result<Self, Error> {
+        let acme_tls_alpn_cache = Arc::new(SyncMutex::new(BTreeMap::<
+            InternedString,
+            watch::Receiver<Option<Arc<CertifiedKey>>>,
+        >::new()));
         // check if port allowed
         let listener = TcpListener::bind(SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), port))
             .await
@@ -133,9 +155,11 @@ impl VHostServer {
                             let mut stream = BackTrackingIO::new(stream);
                             let mapping = mapping.clone();
                             let db = db.clone();
+                            let acme_tls_alpn_cache = acme_tls_alpn_cache.clone();
+                            let crypto_provider = crypto_provider.clone();
                             tokio::spawn(async move {
                                 if let Err(e) = async {
-                                    let mid = match LazyConfigAcceptor::new(
+                                    let mid: tokio_rustls::StartHandshake<&mut BackTrackingIO<TcpStream>> = match LazyConfigAcceptor::new(
                                         Acceptor::default(),
                                         &mut stream,
                                     )
@@ -206,38 +230,102 @@ impl VHostServer {
                                             .map(|(target, _)| target.clone())
                                     };
                                     if let Some(target) = target {
-                                        let mut tcp_stream =
-                                            TcpStream::connect(target.addr).await?;
-                                        let hostnames = target_name
-                                            .into_iter()
-                                            .chain(
-                                                db.peek()
-                                                    .await
-                                                    .into_public()
-                                                    .into_server_info()
-                                                    .into_ip_info()
-                                                    .into_entries()?
-                                                    .into_iter()
-                                                    .flat_map(|(_, ips)| [
-                                                        ips.as_ipv4().de().map(|ip| ip.map(IpAddr::V4)),
-                                                        ips.as_ipv6().de().map(|ip| ip.map(IpAddr::V6))
-                                                    ])
-                                                    .filter_map(|a| a.transpose())
-                                                    .map(|a| a.map(|ip| InternedString::from_display(&ip)))
-                                                    .collect::<Result<Vec<_>, _>>()?,
-                                            )
-                                            .collect();
-                                        let key = db
-                                            .mutate(|v| {
-                                                v.as_private_mut()
-                                                    .as_key_store_mut()
-                                                    .as_local_certs_mut()
-                                                    .cert_for(&hostnames)
-                                            })
-                                            .await?;
-                                        let cfg = ServerConfig::builder()
-                                            .with_no_client_auth();
-                                        let mut cfg =
+                                        let peek = db.peek().await;
+                                        let root = peek.as_private().as_key_store().as_local_certs().as_root_cert().de()?;
+                                        let mut cfg = match async {
+                                            if let Some(acme_settings) = peek.as_public().as_server_info().as_acme().de()? {
+                                                if let Some(domain) = target_name.as_ref().filter(|target_name| acme_settings.domains.contains(*target_name)) {
+                                                    if mid
+                                                        .client_hello()
+                                                        .alpn()
+                                                        .into_iter()
+                                                        .flatten()
+                                                        .any(|alpn| alpn == ACME_TLS_ALPN_NAME)
+                                                    {
+                                                        let cert = WatchStream::new(
+                                                            acme_tls_alpn_cache.peek(|c| c.get(&**domain).cloned())
+                                                                .ok_or_else(|| {
+                                                                    Error::new(
+                                                                        eyre!("No challenge recv available for {domain}"),
+                                                                        ErrorKind::OpenSsl
+                                                                    )
+                                                                })?,
+                                                        );
+                                                        tracing::info!("Waiting for verification cert for {domain}");
+                                                        let cert = cert
+                                                            .filter(|c| c.is_some())
+                                                            .next()
+                                                            .await
+                                                            .flatten()
+                                                            .ok_or_else(|| {
+                                                                Error::new(eyre!("No challenge available for {domain}"), ErrorKind::OpenSsl)
+                                                            })?;
+                                                        tracing::info!("Verification cert received for {domain}");
+                                                        let mut cfg = ServerConfig::builder_with_provider(crypto_provider.clone())
+                                                            .with_safe_default_protocol_versions()
+                                                            .with_kind(crate::ErrorKind::OpenSsl)?
+                                                            .with_no_client_auth()
+                                                            .with_cert_resolver(Arc::new(SingleCertResolver(cert)));
+
+                                                        cfg.alpn_protocols = vec![ACME_TLS_ALPN_NAME.to_vec()];
+                                                        return Ok(Err(cfg));
+                                                    } else {
+                                                        let domains = [domain.to_string()];
+                                                        let (send, recv) = watch::channel(None);
+                                                        acme_tls_alpn_cache.mutate(|c| c.insert(domain.clone(), recv));
+                                                        let cert = 
+                                                            async_acme::rustls_helper::order(
+                                                                |_, cert| {
+                                                                    send.send_replace(Some(Arc::new(cert)));
+                                                                    Ok(())
+                                                                },
+                                                                acme_settings.provider.as_str(),
+                                                                &domains,
+                                                                Some(&AcmeCertCache(&db)),
+                                                                &acme_settings.contact,
+                                                            )
+                                                            .await
+                                                            .with_kind(ErrorKind::OpenSsl)?;
+                                                        return Ok(Ok(
+                                                                ServerConfig::builder_with_provider(crypto_provider.clone())
+                                                                    .with_safe_default_protocol_versions()
+                                                                    .with_kind(crate::ErrorKind::OpenSsl)?
+                                                                    .with_no_client_auth()
+                                                                    .with_cert_resolver(Arc::new(SingleCertResolver(Arc::new(cert))))
+                                                            ));
+                                                    }
+                                                }
+                                            }
+                                            let hostnames = target_name
+                                                .into_iter()
+                                                .chain(
+                                                    peek
+                                                        .as_public()
+                                                        .as_server_info()
+                                                        .as_ip_info()
+                                                        .as_entries()?
+                                                        .into_iter()
+                                                        .flat_map(|(_, ips)| [
+                                                            ips.as_ipv4().de().map(|ip| ip.map(IpAddr::V4)),
+                                                            ips.as_ipv6().de().map(|ip| ip.map(IpAddr::V6))
+                                                        ])
+                                                        .filter_map(|a| a.transpose())
+                                                        .map(|a| a.map(|ip| InternedString::from_display(&ip)))
+                                                        .collect::<Result<Vec<_>, _>>()?,
+                                                )
+                                                .collect();
+                                            let key = db
+                                                .mutate(|v| {
+                                                    v.as_private_mut()
+                                                        .as_key_store_mut()
+                                                        .as_local_certs_mut()
+                                                        .cert_for(&hostnames)
+                                                })
+                                                .await?;
+                                            let cfg = ServerConfig::builder_with_provider(crypto_provider.clone())
+                                                .with_safe_default_protocol_versions()
+                                                .with_kind(crate::ErrorKind::OpenSsl)?
+                                                .with_no_client_auth();
                                             if mid.client_hello().signature_schemes().contains(
                                                 &tokio_rustls::rustls::SignatureScheme::ED25519,
                                             ) {
@@ -275,16 +363,34 @@ impl VHostServer {
                                                     )),
                                                 )
                                             }
-                                            .with_kind(crate::ErrorKind::OpenSsl)?;
+                                            .with_kind(crate::ErrorKind::OpenSsl)
+                                            .map(Ok)
+                                        }.await? {
+                                            Ok(a) => a,
+                                            Err(cfg) => {
+                                                tracing::info!("performing ACME auth challenge");
+                                                let mut accept = mid.into_stream(Arc::new(cfg));
+                                                let io = accept.get_mut().unwrap();
+                                                let buffered = io.stop_buffering();
+                                                io.write_all(&buffered).await?;
+                                                accept.await?;
+                                                tracing::info!("ACME auth challenge completed");
+                                                return Ok(());
+                                            }
+                                        };
+                                        let mut tcp_stream =
+                                            TcpStream::connect(target.addr).await?;
                                         match target.connect_ssl {
                                             Ok(()) => {
                                                 let mut client_cfg =
-                                                tokio_rustls::rustls::ClientConfig::builder()
+                                                tokio_rustls::rustls::ClientConfig::builder_with_provider(crypto_provider)
+                                                        .with_safe_default_protocol_versions()
+                                                        .with_kind(crate::ErrorKind::OpenSsl)?
                                                         .with_root_certificates({
                                                             let mut store = RootCertStore::empty();
                                                             store.add(
                                                         CertificateDer::from(
-                                                            key.root.to_der()?,
+                                                            root.to_der()?,
                                                         ),
                                                     ).with_kind(crate::ErrorKind::OpenSsl)?;
                                                             store

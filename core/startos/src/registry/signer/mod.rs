@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use clap::builder::ValueParserFactory;
 use itertools::Itertools;
+use models::FromStrParser;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use url::Url;
@@ -10,7 +11,6 @@ use url::Url;
 use crate::prelude::*;
 use crate::registry::signer::commitment::Digestable;
 use crate::registry::signer::sign::{AnySignature, AnyVerifyingKey, SignatureScheme};
-use crate::util::clap::FromStrParser;
 
 pub mod commitment;
 pub mod sign;
@@ -25,7 +25,7 @@ pub struct SignerInfo {
     pub keys: HashSet<AnyVerifyingKey>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 // TODO: better types

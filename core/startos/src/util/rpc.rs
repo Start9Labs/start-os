@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use clap::Parser;
-use rpc_toolkit::{from_fn_async, Context, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -16,7 +16,10 @@ use crate::util::{Apply, PathOrUrl};
 use crate::CAP_10_MiB;
 
 pub fn util<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new().subcommand("b3sum", from_fn_async(b3sum))
+    ParentHandler::new().subcommand(
+        "b3sum",
+        from_fn_async(b3sum).with_about("Calculate blake3 hash for a file"),
+    )
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]

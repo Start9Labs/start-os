@@ -2,8 +2,8 @@ import { ExtendedVersion, types as T, utils } from "@start9labs/start-sdk"
 import * as fs from "fs/promises"
 
 import { polyfillEffects } from "./polyfillEffects"
-import { Duration, duration, fromDuration } from "../../../Models/Duration"
-import { System, Procedure } from "../../../Interfaces/System"
+import { fromDuration } from "../../../Models/Duration"
+import { System } from "../../../Interfaces/System"
 import { matchManifest, Manifest } from "./matchManifest"
 import * as childProcess from "node:child_process"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
@@ -27,19 +27,12 @@ import {
   Parser,
   array,
 } from "ts-matches"
-import { JsonPath, unNestPath } from "../../../Models/JsonPath"
-import { RpcResult, matchRpcResult } from "../../RpcListener"
-import { CT } from "@start9labs/start-sdk"
-import {
-  AddSslOptions,
-  BindOptions,
-} from "@start9labs/start-sdk/cjs/lib/osBindings"
+import { AddSslOptions } from "@start9labs/start-sdk/base/lib/osBindings"
 import {
   BindOptionsByProtocol,
-  Host,
   MultiHost,
-} from "@start9labs/start-sdk/cjs/lib/interfaces/Host"
-import { ServiceInterfaceBuilder } from "@start9labs/start-sdk/cjs/lib/interfaces/ServiceInterfaceBuilder"
+} from "@start9labs/start-sdk/base/lib/interfaces/Host"
+import { ServiceInterfaceBuilder } from "@start9labs/start-sdk/base/lib/interfaces/ServiceInterfaceBuilder"
 import { Effects } from "../../../Models/Effects"
 import {
   OldConfigSpec,
@@ -48,18 +41,16 @@ import {
   transformNewConfigToOld,
   transformOldConfigToNew,
 } from "./transformConfigSpec"
-import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
-import { StorePath } from "@start9labs/start-sdk/cjs/lib/store/PathBuilder"
+import { partialDiff } from "@start9labs/start-sdk/base/lib/util"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
   throw new Error("Not implemented")
 }
-const execFile = promisify(childProcess.execFile)
 
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
 export const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
-const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig" as StorePath
+const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig" as utils.StorePath
 
 const matchResult = object({
   result: any,
@@ -144,6 +135,34 @@ type OldGetConfigRes = {
   spec: OldConfigSpec
 }
 
+export type PropertiesValue =
+  | {
+      /** The type of this value, either "string" or "object" */
+      type: "object"
+      /** A nested mapping of values. The user will experience this as a nested page with back button */
+      value: { [k: string]: PropertiesValue }
+      /** (optional) A human readable description of the new set of values */
+      description: string | null
+    }
+  | {
+      /** The type of this value, either "string" or "object" */
+      type: "string"
+      /** The value to display to the user */
+      value: string
+      /** A human readable description of the value */
+      description: string | null
+      /** Whether or not to mask the value, for example, when displaying a password */
+      masked: boolean | null
+      /** Whether or not to include a button for copying the value to clipboard */
+      copyable: boolean | null
+      /** Whether or not to include a button for displaying the value as a QR code */
+      qr: boolean | null
+    }
+
+export type PropertiesReturn = {
+  [key: string]: PropertiesValue
+}
+
 export type PackagePropertiesV2 = {
   [name: string]: PackagePropertyObject | PackagePropertyString
 }
@@ -166,7 +185,7 @@ export type PackagePropertyObject = {
 
 const asProperty_ = (
   x: PackagePropertyString | PackagePropertyObject,
-): T.PropertiesValue => {
+): PropertiesValue => {
   if (x.type === "object") {
     return {
       ...x,
@@ -186,7 +205,7 @@ const asProperty_ = (
     ...x,
   }
 }
-const asProperty = (x: PackagePropertiesV2): T.PropertiesReturn =>
+const asProperty = (x: PackagePropertiesV2): PropertiesReturn =>
   Object.fromEntries(
     Object.entries(x).map(([key, value]) => [key, asProperty_(value)]),
   )
@@ -223,6 +242,31 @@ const matchProperties = object({
   data: matchPackageProperties,
 })
 
+function convertProperties(
+  name: string,
+  value: PropertiesValue,
+): T.ActionResultMember {
+  if (value.type === "string") {
+    return {
+      type: "single",
+      name,
+      description: value.description,
+      copyable: value.copyable || false,
+      masked: value.masked || false,
+      qr: value.qr || false,
+      value: value.value,
+    }
+  }
+  return {
+    type: "group",
+    name,
+    description: value.description,
+    value: Object.entries(value.value).map(([name, value]) =>
+      convertProperties(name, value),
+    ),
+  }
+}
+
 const DEFAULT_REGISTRY = "https://registry.start9.com"
 export class SystemForEmbassy implements System {
   currentRunning: MainLoop | undefined
@@ -248,50 +292,38 @@ export class SystemForEmbassy implements System {
     readonly moduleCode: Partial<U.ExpectedExports>,
   ) {}
 
-  async actionsMetadata(effects: T.Effects): Promise<T.ActionMetadata[]> {
-    const actions = Object.entries(this.manifest.actions ?? {})
-    return Promise.all(
-      actions.map(async ([actionId, action]): Promise<T.ActionMetadata> => {
-        const name = action.name ?? actionId
-        const description = action.description
-        const warning = action.warning ?? null
-        const disabled = false
-        const input = (await convertToNewConfig(action["input-spec"] as any))
-          .spec
-        const hasRunning = !!action["allowed-statuses"].find(
-          (x) => x === "running",
-        )
-        const hasStopped = !!action["allowed-statuses"].find(
-          (x) => x === "stopped",
-        )
-        // prettier-ignore
-        const allowedStatuses = 
-        hasRunning && hasStopped ? "any":
-        hasRunning ? "onlyRunning" :
-        "onlyStopped"
-
-        const group = null
-        return {
-          name,
-          description,
-          warning,
-          disabled,
-          allowedStatuses,
-          group,
-          input,
-        }
-      }),
-    )
+  async containerInit(effects: Effects): Promise<void> {
+    for (let depId in this.manifest.dependencies) {
+      if (this.manifest.dependencies[depId].config) {
+        await this.dependenciesAutoconfig(effects, depId, null)
+      }
+    }
+    await effects.setMainStatus({ status: "stopped" })
+    await this.exportActions(effects)
+    await this.exportNetwork(effects)
+    await this.containerSetDependencies(effects)
   }
-
-  async containerInit(): Promise<void> {}
+  async containerSetDependencies(effects: T.Effects) {
+    const oldDeps: Record<string, string[]> = Object.fromEntries(
+      await effects
+        .getDependencies()
+        .then((x) =>
+          x.flatMap((x) =>
+            x.kind === "running" ? [[x.id, x?.healthChecks || []]] : [],
+          ),
+        )
+        .catch(() => []),
+    )
+    await this.setDependencies(effects, oldDeps)
+  }
 
   async exit(): Promise<void> {
     if (this.currentRunning) await this.currentRunning.clean()
     delete this.currentRunning
   }
 
-  async start(effects: MainEffects): Promise<void> {
+  async start(effects: T.Effects): Promise<void> {
+    effects.constRetry = utils.once(() => effects.restart())
     if (!!this.currentRunning) return
 
     this.currentRunning = await MainLoop.of(this, effects)
@@ -308,16 +340,26 @@ export class SystemForEmbassy implements System {
     }
   }
 
-  async packageInit(
-    effects: Effects,
-    previousVersion: Optional<string>,
-    timeoutMs: number | null,
-  ): Promise<void> {
-    if (previousVersion)
-      await this.migration(effects, previousVersion, timeoutMs)
-    await effects.setMainStatus({ status: "stopped" })
-    await this.exportActions(effects)
-    await this.exportNetwork(effects)
+  async packageInit(effects: Effects, timeoutMs: number | null): Promise<void> {
+    const previousVersion = await effects.getDataVersion()
+    if (previousVersion) {
+      if (
+        (await this.migration(effects, previousVersion, timeoutMs)).configured
+      ) {
+        await effects.action.clearRequests({ only: ["needs-config"] })
+      }
+      await effects.setDataVersion({
+        version: ExtendedVersion.parseEmver(this.manifest.version).toString(),
+      })
+    } else if (this.manifest.config) {
+      await effects.action.request({
+        packageId: this.manifest.id,
+        actionId: "config",
+        severity: "critical",
+        replayId: "needs-config",
+        reason: "This service must be configured before it can be run",
+      })
+    }
   }
   async exportNetwork(effects: Effects) {
     for (const [id, interfaceValue] of Object.entries(
@@ -400,10 +442,75 @@ export class SystemForEmbassy implements System {
       )
     }
   }
+  async getActionInput(
+    effects: Effects,
+    actionId: string,
+    timeoutMs: number | null,
+  ): Promise<T.ActionInput | null> {
+    if (actionId === "config") {
+      const config = await this.getConfig(effects, timeoutMs)
+      return { spec: config.spec, value: config.config }
+    } else if (actionId === "properties") {
+      return null
+    } else {
+      const oldSpec = this.manifest.actions?.[actionId]?.["input-spec"]
+      if (!oldSpec) return null
+      return {
+        spec: transformConfigSpec(oldSpec as OldConfigSpec),
+        value: null,
+      }
+    }
+  }
+  async runAction(
+    effects: Effects,
+    actionId: string,
+    input: unknown,
+    timeoutMs: number | null,
+  ): Promise<T.ActionResult | null> {
+    if (actionId === "config") {
+      await this.setConfig(effects, input, timeoutMs)
+      return null
+    } else if (actionId === "properties") {
+      return {
+        version: "1",
+        title: "Properties",
+        message: null,
+        result: {
+          type: "group",
+          value: Object.entries(await this.properties(effects, timeoutMs)).map(
+            ([name, value]) => convertProperties(name, value),
+          ),
+        },
+      }
+    } else {
+      return this.action(effects, actionId, input, timeoutMs)
+    }
+  }
   async exportActions(effects: Effects) {
     const manifest = this.manifest
-    if (!manifest.actions) return
-    for (const [actionId, action] of Object.entries(manifest.actions)) {
+    const actions = {
+      ...manifest.actions,
+    }
+    if (manifest.config) {
+      actions.config = {
+        name: "Configure",
+        description: `Customize ${manifest.title}`,
+        "allowed-statuses": ["running", "stopped"],
+        "input-spec": {},
+        implementation: { type: "script", args: [] },
+      }
+    }
+    if (manifest.properties) {
+      actions.properties = {
+        name: "Properties",
+        description:
+          "Runtime information, credentials, and other values of interest",
+        "allowed-statuses": ["running", "stopped"],
+        "input-spec": null,
+        implementation: { type: "script", args: [] },
+      }
+    }
+    for (const [actionId, action] of Object.entries(actions)) {
       const hasRunning = !!action["allowed-statuses"].find(
         (x) => x === "running",
       )
@@ -412,21 +519,22 @@ export class SystemForEmbassy implements System {
       )
       // prettier-ignore
       const allowedStatuses = hasRunning && hasStopped ? "any":
-        hasRunning ? "onlyRunning" :
-         "onlyStopped"
-      await effects.exportAction({
+        hasRunning ? "only-running" :
+         "only-stopped"
+      await effects.action.export({
         id: actionId,
         metadata: {
           name: action.name,
           description: action.description,
           warning: action.warning || null,
-          input: action["input-spec"] as CT.InputSpec,
-          disabled: false,
+          visibility: "enabled",
           allowedStatuses,
+          hasInput: !!action["input-spec"],
           group: null,
         },
       })
     }
+    await effects.action.clear({ except: Object.keys(actions) })
   }
   async packageUninit(
     effects: Effects,
@@ -443,6 +551,7 @@ export class SystemForEmbassy implements System {
   ): Promise<void> {
     const backup = this.manifest.backup.create
     if (backup.type === "docker") {
+      const commands = [backup.entrypoint, ...backup.args]
       const container = await DockerProcedureContainer.of(
         effects,
         this.manifest.id,
@@ -451,8 +560,9 @@ export class SystemForEmbassy implements System {
           ...this.manifest.volumes,
           BACKUP: { type: "backup", readonly: false },
         },
+        `Backup - ${commands.join(" ")}`,
       )
-      await container.execFail([backup.entrypoint, ...backup.args], timeoutMs)
+      await container.execFail(commands, timeoutMs)
     } else {
       const moduleCode = await this.moduleCode
       await moduleCode.createBackup?.(polyfillEffects(effects, this.manifest))
@@ -464,6 +574,7 @@ export class SystemForEmbassy implements System {
   ): Promise<void> {
     const restoreBackup = this.manifest.backup.restore
     if (restoreBackup.type === "docker") {
+      const commands = [restoreBackup.entrypoint, ...restoreBackup.args]
       const container = await DockerProcedureContainer.of(
         effects,
         this.manifest.id,
@@ -472,20 +583,15 @@ export class SystemForEmbassy implements System {
           ...this.manifest.volumes,
           BACKUP: { type: "backup", readonly: true },
         },
+        `Restore Backup - ${commands.join(" ")}`,
       )
-      await container.execFail(
-        [restoreBackup.entrypoint, ...restoreBackup.args],
-        timeoutMs,
-      )
+      await container.execFail(commands, timeoutMs)
     } else {
       const moduleCode = await this.moduleCode
       await moduleCode.restoreBackup?.(polyfillEffects(effects, this.manifest))
     }
   }
-  async getConfig(
-    effects: Effects,
-    timeoutMs: number | null,
-  ): Promise<T.ConfigRes> {
+  async getConfig(effects: Effects, timeoutMs: number | null) {
     return this.getConfigUncleaned(effects, timeoutMs).then(convertToNewConfig)
   }
   private async getConfigUncleaned(
@@ -495,20 +601,17 @@ export class SystemForEmbassy implements System {
     const config = this.manifest.config?.get
     if (!config) return { spec: {} }
     if (config.type === "docker") {
+      const commands = [config.entrypoint, ...config.args]
       const container = await DockerProcedureContainer.of(
         effects,
         this.manifest.id,
         config,
         this.manifest.volumes,
+        `Get Config - ${commands.join(" ")}`,
       )
       // TODO: yaml
       return JSON.parse(
-        (
-          await container.execFail(
-            [config.entrypoint, ...config.args],
-            timeoutMs,
-          )
-        ).stdout.toString(),
+        (await container.execFail(commands, timeoutMs)).stdout.toString(),
       )
     } else {
       const moduleCode = await this.moduleCode
@@ -543,28 +646,25 @@ export class SystemForEmbassy implements System {
     const setConfigValue = this.manifest.config?.set
     if (!setConfigValue) return
     if (setConfigValue.type === "docker") {
+      const commands = [
+        setConfigValue.entrypoint,
+        ...setConfigValue.args,
+        JSON.stringify(newConfig),
+      ]
       const container = await DockerProcedureContainer.of(
         effects,
         this.manifest.id,
         setConfigValue,
         this.manifest.volumes,
+        `Set Config - ${commands.join(" ")}`,
       )
       const answer = matchSetResult.unsafeCast(
         JSON.parse(
-          (
-            await container.execFail(
-              [
-                setConfigValue.entrypoint,
-                ...setConfigValue.args,
-                JSON.stringify(newConfig),
-              ],
-              timeoutMs,
-            )
-          ).stdout.toString(),
+          (await container.execFail(commands, timeoutMs)).stdout.toString(),
         ),
       )
       const dependsOn = answer["depends-on"] ?? answer.dependsOn ?? {}
-      await this.setConfigSetConfig(effects, dependsOn)
+      await this.setDependencies(effects, dependsOn)
       return
     } else if (setConfigValue.type === "script") {
       const moduleCode = await this.moduleCode
@@ -587,31 +687,60 @@ export class SystemForEmbassy implements System {
         }),
       )
       const dependsOn = answer["depends-on"] ?? answer.dependsOn ?? {}
-      await this.setConfigSetConfig(effects, dependsOn)
+      await this.setDependencies(effects, dependsOn)
       return
     }
   }
-  private async setConfigSetConfig(
+  private async setDependencies(
     effects: Effects,
-    dependsOn: { [x: string]: readonly string[] },
+    rawDepends: { [x: string]: readonly string[] },
   ) {
+    const dependsOn: Record<string, readonly string[] | null> = {
+      ...Object.fromEntries(
+        Object.entries(this.manifest.dependencies || {})?.map((x) => [
+          x[0],
+          null,
+        ]) || [],
+      ),
+      ...rawDepends,
+    }
     await effects.setDependencies({
-      dependencies: Object.entries(dependsOn).flatMap(([key, value]) => {
-        const dependency = this.manifest.dependencies?.[key]
-        if (!dependency) return []
-        const versionRange = dependency.version
-        const registryUrl = DEFAULT_REGISTRY
-        const kind = "running"
-        return [
-          {
-            id: key,
-            versionRange,
-            registryUrl,
-            kind,
-            healthChecks: [...value],
-          },
-        ]
-      }),
+      dependencies: Object.entries(dependsOn).flatMap(
+        ([key, value]): T.Dependencies => {
+          const dependency = this.manifest.dependencies?.[key]
+          if (!dependency) return []
+          if (value == null) {
+            const versionRange = dependency.version
+            if (dependency.requirement.type === "required") {
+              return [
+                {
+                  id: key,
+                  versionRange,
+                  kind: "running",
+                  healthChecks: [],
+                },
+              ]
+            }
+            return [
+              {
+                kind: "exists",
+                id: key,
+                versionRange,
+              },
+            ]
+          }
+          const versionRange = dependency.version
+          const kind = "running"
+          return [
+            {
+              id: key,
+              versionRange,
+              kind,
+              healthChecks: [...value],
+            },
+          ]
+        },
+      ),
     })
   }
 
@@ -619,7 +748,7 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     fromVersion: string,
     timeoutMs: number | null,
-  ): Promise<T.MigrationRes> {
+  ): Promise<{ configured: boolean }> {
     const fromEmver = ExtendedVersion.parseEmver(fromVersion)
     const currentEmver = ExtendedVersion.parseEmver(this.manifest.version)
     if (!this.manifest.migrations) return { configured: true }
@@ -652,23 +781,20 @@ export class SystemForEmbassy implements System {
     if (migration) {
       const [version, procedure] = migration
       if (procedure.type === "docker") {
+        const commands = [
+          procedure.entrypoint,
+          ...procedure.args,
+          JSON.stringify(fromVersion),
+        ]
         const container = await DockerProcedureContainer.of(
           effects,
           this.manifest.id,
           procedure,
           this.manifest.volumes,
+          `Migration - ${commands.join(" ")}`,
         )
         return JSON.parse(
-          (
-            await container.execFail(
-              [
-                procedure.entrypoint,
-                ...procedure.args,
-                JSON.stringify(fromVersion),
-              ],
-              timeoutMs,
-            )
-          ).stdout.toString(),
+          (await container.execFail(commands, timeoutMs)).stdout.toString(),
         )
       } else if (procedure.type === "script") {
         const moduleCode = await this.moduleCode
@@ -690,25 +816,22 @@ export class SystemForEmbassy implements System {
   async properties(
     effects: Effects,
     timeoutMs: number | null,
-  ): Promise<T.PropertiesReturn> {
+  ): Promise<PropertiesReturn> {
     // TODO BLU-J set the properties ever so often
     const setConfigValue = this.manifest.properties
     if (!setConfigValue) throw new Error("There is no properties")
     if (setConfigValue.type === "docker") {
+      const commands = [setConfigValue.entrypoint, ...setConfigValue.args]
       const container = await DockerProcedureContainer.of(
         effects,
         this.manifest.id,
         setConfigValue,
         this.manifest.volumes,
+        `Properties - ${commands.join(" ")}`,
       )
       const properties = matchProperties.unsafeCast(
         JSON.parse(
-          (
-            await container.execFail(
-              [setConfigValue.entrypoint, ...setConfigValue.args],
-              timeoutMs,
-            )
-          ).stdout.toString(),
+          (await container.execFail(commands, timeoutMs)).stdout.toString(),
         ),
       )
       return asProperty(properties.data)
@@ -735,13 +858,13 @@ export class SystemForEmbassy implements System {
     const actionProcedure = this.manifest.actions?.[actionId]?.implementation
     const toActionResult = ({
       message,
-      value = "",
+      value,
       copyable,
       qr,
     }: U.ActionResult): T.ActionResult => ({
       version: "0",
       message,
-      value,
+      value: value ?? null,
       copyable,
       qr,
     })
@@ -750,11 +873,18 @@ export class SystemForEmbassy implements System {
       const subcontainer = actionProcedure.inject
         ? this.currentRunning?.mainSubContainerHandle
         : undefined
+
+      const env: Record<string, string> = actionProcedure.inject
+        ? {
+            HOME: "/root",
+          }
+        : {}
       const container = await DockerProcedureContainer.of(
         effects,
         this.manifest.id,
         actionProcedure,
         this.manifest.volumes,
+        `Action ${actionId}`,
         {
           subcontainer,
         },
@@ -769,6 +899,7 @@ export class SystemForEmbassy implements System {
                 JSON.stringify(formData),
               ],
               timeoutMs,
+              { env },
             )
           ).stdout.toString(),
         ),
@@ -794,23 +925,20 @@ export class SystemForEmbassy implements System {
     const actionProcedure = this.manifest.dependencies?.[id]?.config?.check
     if (!actionProcedure) return { message: "Action not found", value: null }
     if (actionProcedure.type === "docker") {
+      const commands = [
+        actionProcedure.entrypoint,
+        ...actionProcedure.args,
+        JSON.stringify(oldConfig),
+      ]
       const container = await DockerProcedureContainer.of(
         effects,
         this.manifest.id,
         actionProcedure,
         this.manifest.volumes,
+        `Dependencies Check - ${commands.join(" ")}`,
       )
       return JSON.parse(
-        (
-          await container.execFail(
-            [
-              actionProcedure.entrypoint,
-              ...actionProcedure.args,
-              JSON.stringify(oldConfig),
-            ],
-            timeoutMs,
-          )
-        ).stdout.toString(),
+        (await container.execFail(commands, timeoutMs)).stdout.toString(),
       )
     } else if (actionProcedure.type === "script") {
       const moduleCode = await this.moduleCode
@@ -834,24 +962,46 @@ export class SystemForEmbassy implements System {
   async dependenciesAutoconfig(
     effects: Effects,
     id: string,
-    input: unknown,
     timeoutMs: number | null,
   ): Promise<void> {
-    const oldConfig = object({ remoteConfig: any }).unsafeCast(
-      input,
-    ).remoteConfig
     // TODO: docker
+    const oldConfig = (await effects.store.get({
+      packageId: id,
+      path: EMBASSY_POINTER_PATH_PREFIX,
+      callback: () => {
+        this.dependenciesAutoconfig(effects, id, timeoutMs)
+      },
+    })) as U.Config
+    if (!oldConfig) return
     const moduleCode = await this.moduleCode
     const method = moduleCode.dependencies?.[id]?.autoConfigure
     if (!method) return
-    return (await method(
+    const newConfig = (await method(
       polyfillEffects(effects, this.manifest),
-      oldConfig,
+      JSON.parse(JSON.stringify(oldConfig)),
     ).then((x) => {
       if ("result" in x) return x.result
       if ("error" in x) throw new Error("Error getting config: " + x.error)
       throw new Error("Error getting config: " + x["error-code"][1])
     })) as any
+    const diff = partialDiff(oldConfig, newConfig)
+    if (diff) {
+      await effects.action.request({
+        actionId: "config",
+        packageId: id,
+        replayId: `${id}/config`,
+        severity: "important",
+        reason: `Configure this dependency for the needs of ${this.manifest.title}`,
+        input: {
+          kind: "partial",
+          value: diff.diff,
+        },
+        when: {
+          condition: "input-not-matches",
+          once: false,
+        },
+      })
+    }
   }
 }
 
@@ -1026,9 +1176,7 @@ function extractServiceInterfaceId(manifest: Manifest, specInterface: string) {
   const serviceInterfaceId = `${specInterface}-${internalPort}`
   return serviceInterfaceId
 }
-async function convertToNewConfig(
-  value: OldGetConfigRes,
-): Promise<T.ConfigRes> {
+async function convertToNewConfig(value: OldGetConfigRes) {
   const valueSpec: OldConfigSpec = matchOldConfigSpec.unsafeCast(value.spec)
   const spec = transformConfigSpec(valueSpec)
   if (!value.config) return { spec, config: null }

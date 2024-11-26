@@ -24,10 +24,10 @@ Additionally, there are two libraries for shared code:
 
 ```sh
 node --version
-v18.15.0
+v20.17.0
 
 npm --version
-v8.0.0
+v10.8.2
 ```
 
 #### Install and enable the Prettier extension for your text editor
@@ -47,6 +47,8 @@ cd web
 npm ci
 npm run build:deps
 ```
+
+> Note if you are on **Windows** you need to install `make` for these scripts to work. Easiest way to do so is to install [Chocolatey](https://chocolatey.org/install) and then run `choco install make`.
 
 #### Copy `config-sample.json` to a new file `config.json`.
 

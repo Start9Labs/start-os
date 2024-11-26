@@ -49,6 +49,7 @@ import { FormToggleComponent } from './form-toggle/form-toggle.component'
 import { FormUnionComponent } from './form-union/form-union.component'
 import { HintPipe } from './hint.pipe'
 import { MustachePipe } from './mustache.pipe'
+import { FilterHiddenPipe } from './filter-hidden.pipe'
 
 @NgModule({
   imports: [
@@ -100,6 +101,7 @@ import { MustachePipe } from './mustache.pipe'
     MustachePipe,
     HintPipe,
     ControlDirective,
+    FilterHiddenPipe,
   ],
   exports: [FormGroupComponent],
 })

@@ -6,7 +6,7 @@ import {
   OnChanges,
 } from '@angular/core'
 import { ControlContainer, FormGroupName } from '@angular/forms'
-import { CT } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-sdk'
 import { FormService } from 'src/app/services/form.service'
 import { tuiPure } from '@taiga-ui/cdk'
 
@@ -24,9 +24,9 @@ import { tuiPure } from '@taiga-ui/cdk'
 })
 export class FormUnionComponent implements OnChanges {
   @Input({ required: true })
-  spec!: CT.ValueSpecUnion
+  spec!: IST.ValueSpecUnion
 
-  selectSpec!: CT.ValueSpecSelect
+  selectSpec!: IST.ValueSpecSelect
 
   private readonly form = inject(FormGroupName)
   private readonly formService = inject(FormService)

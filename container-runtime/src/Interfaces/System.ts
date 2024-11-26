@@ -1,39 +1,26 @@
 import { types as T } from "@start9labs/start-sdk"
-import { RpcResult } from "../Adapters/RpcListener"
 import { Effects } from "../Models/Effects"
 import { CallbackHolder } from "../Models/CallbackHolder"
-import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
 import { Optional } from "ts-matches/lib/parsers/interfaces"
 
 export type Procedure =
-  | "/init"
-  | "/uninit"
-  | "/config/set"
-  | "/config/get"
+  | "/packageInit"
+  | "/packageUninit"
   | "/backup/create"
   | "/backup/restore"
-  | "/actions/metadata"
-  | "/properties"
-  | `/actions/${string}/get`
+  | `/actions/${string}/getInput`
   | `/actions/${string}/run`
-  | `/dependencies/${string}/query`
-  | `/dependencies/${string}/update`
 
 export type ExecuteResult =
   | { ok: unknown }
   | { err: { code: number; message: string } }
 export type System = {
-  containerInit(): Promise<void>
+  containerInit(effects: T.Effects): Promise<void>
 
-  start(effects: MainEffects): Promise<void>
-  callCallback(callback: number, args: any[]): void
+  start(effects: T.Effects): Promise<void>
   stop(): Promise<void>
 
-  packageInit(
-    effects: Effects,
-    previousVersion: Optional<string>,
-    timeoutMs: number | null,
-  ): Promise<void>
+  packageInit(effects: Effects, timeoutMs: number | null): Promise<void>
   packageUninit(
     effects: Effects,
     nextVersion: Optional<string>,
@@ -42,41 +29,17 @@ export type System = {
 
   createBackup(effects: T.Effects, timeoutMs: number | null): Promise<void>
   restoreBackup(effects: T.Effects, timeoutMs: number | null): Promise<void>
-  getConfig(effects: T.Effects, timeoutMs: number | null): Promise<T.ConfigRes>
-  setConfig(
-    effects: Effects,
-    input: { effects: Effects; input: Record<string, unknown> },
-    timeoutMs: number | null,
-  ): Promise<void>
-  migration(
-    effects: Effects,
-    fromVersion: string,
-    timeoutMs: number | null,
-  ): Promise<T.MigrationRes>
-  properties(
-    effects: Effects,
-    timeoutMs: number | null,
-  ): Promise<T.PropertiesReturn>
-  action(
+  runAction(
     effects: Effects,
     actionId: string,
-    formData: unknown,
+    input: unknown,
     timeoutMs: number | null,
-  ): Promise<T.ActionResult>
-
-  dependenciesCheck(
+  ): Promise<T.ActionResult | null>
+  getActionInput(
     effects: Effects,
-    id: string,
-    oldConfig: unknown,
+    actionId: string,
     timeoutMs: number | null,
-  ): Promise<any>
-  dependenciesAutoconfig(
-    effects: Effects,
-    id: string,
-    oldConfig: unknown,
-    timeoutMs: number | null,
-  ): Promise<void>
-  actionsMetadata(effects: T.Effects): Promise<T.ActionMetadata[]>
+  ): Promise<T.ActionInput | null>
 
   exit(): Promise<void>
 }

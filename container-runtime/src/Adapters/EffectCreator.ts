@@ -4,7 +4,7 @@ import { object, string, number, literals, some, unknown } from "ts-matches"
 import { Effects } from "../Models/Effects"
 
 import { CallbackHolder } from "../Models/CallbackHolder"
-import { MainEffects } from "@start9labs/start-sdk/cjs/lib/StartSdk"
+import { asError } from "@start9labs/start-sdk/base/lib/util"
 const matchRpcError = object({
   error: object(
     {
@@ -35,7 +35,8 @@ let hostSystemId = 0
 
 export type EffectContext = {
   procedureId: string | null
-  callbacks: CallbackHolder | null
+  callbacks?: CallbackHolder
+  constRetry: () => void
 }
 
 const rpcRoundFor =
@@ -50,7 +51,7 @@ const rpcRoundFor =
         JSON.stringify({
           id,
           method,
-          params: { ...params, procedureId },
+          params: { ...params, procedureId: procedureId || undefined },
         }) + "\n",
       )
     })
@@ -67,7 +68,7 @@ const rpcRoundFor =
               let message = res.error.message
               console.error(
                 "Error in host RPC:",
-                utils.asError({ method, params }),
+                utils.asError({ method, params, error: res.error }),
               )
               if (string.test(res.error.data)) {
                 message += ": " + res.error.data
@@ -100,24 +101,64 @@ const rpcRoundFor =
     })
   }
 
-function makeEffects(context: EffectContext): Effects {
+export function makeEffects(context: EffectContext): Effects {
   const rpcRound = rpcRoundFor(context.procedureId)
   const self: Effects = {
+    constRetry: context.constRetry,
+    clearCallbacks(...[options]: Parameters<T.Effects["clearCallbacks"]>) {
+      return rpcRound("clear-callbacks", {
+        ...options,
+      }) as ReturnType<T.Effects["clearCallbacks"]>
+    },
+    action: {
+      clear(...[options]: Parameters<T.Effects["action"]["clear"]>) {
+        return rpcRound("action.clear", {
+          ...options,
+        }) as ReturnType<T.Effects["action"]["clear"]>
+      },
+      export(...[options]: Parameters<T.Effects["action"]["export"]>) {
+        return rpcRound("action.export", {
+          ...options,
+        }) as ReturnType<T.Effects["action"]["export"]>
+      },
+      getInput(...[options]: Parameters<T.Effects["action"]["getInput"]>) {
+        return rpcRound("action.get-input", {
+          ...options,
+        }) as ReturnType<T.Effects["action"]["getInput"]>
+      },
+      request(...[options]: Parameters<T.Effects["action"]["request"]>) {
+        return rpcRound("action.request", {
+          ...options,
+        }) as ReturnType<T.Effects["action"]["request"]>
+      },
+      run(...[options]: Parameters<T.Effects["action"]["run"]>) {
+        return rpcRound("action.run", {
+          ...options,
+        }) as ReturnType<T.Effects["action"]["run"]>
+      },
+      clearRequests(
+        ...[options]: Parameters<T.Effects["action"]["clearRequests"]>
+      ) {
+        return rpcRound("action.clear-requests", {
+          ...options,
+        }) as ReturnType<T.Effects["action"]["clearRequests"]>
+      },
+    },
     bind(...[options]: Parameters<T.Effects["bind"]>) {
       return rpcRound("bind", {
         ...options,
         stack: new Error().stack,
       }) as ReturnType<T.Effects["bind"]>
     },
-    clearBindings(...[]: Parameters<T.Effects["clearBindings"]>) {
-      return rpcRound("clear-bindings", {}) as ReturnType<
+    clearBindings(...[options]: Parameters<T.Effects["clearBindings"]>) {
+      return rpcRound("clear-bindings", { ...options }) as ReturnType<
         T.Effects["clearBindings"]
       >
     },
     clearServiceInterfaces(
-      ...[]: Parameters<T.Effects["clearServiceInterfaces"]>
+      ...[options]: Parameters<T.Effects["clearServiceInterfaces"]>
     ) {
-      return rpcRound("clear-service-interfaces", {}) as ReturnType<
+      return rpcRound("clear-service-interfaces", { ...options }) as ReturnType<
         T.Effects["clearServiceInterfaces"]
       >
     },
@@ -127,26 +168,16 @@ function makeEffects(context: EffectContext): Effects {
       >
     },
     subcontainer: {
-      createFs(options: { imageId: string }) {
+      createFs(options: { imageId: string; name: string }) {
         return rpcRound("subcontainer.create-fs", options) as ReturnType<
           T.Effects["subcontainer"]["createFs"]
         >
       },
-      destroyFs(options: { guid: string }): Promise<void> {
+      destroyFs(options: { guid: string }): Promise<null> {
         return rpcRound("subcontainer.destroy-fs", options) as ReturnType<
           T.Effects["subcontainer"]["destroyFs"]
         >
       },
-    },
-    executeAction(...[options]: Parameters<T.Effects["executeAction"]>) {
-      return rpcRound("execute-action", options) as ReturnType<
-        T.Effects["executeAction"]
-      >
-    },
-    exportAction(...[options]: Parameters<T.Effects["exportAction"]>) {
-      return rpcRound("export-action", options) as ReturnType<
-        T.Effects["exportAction"]
-      >
     },
     exportServiceInterface: ((
       ...[options]: Parameters<Effects["exportServiceInterface"]>
@@ -160,11 +191,6 @@ function makeEffects(context: EffectContext): Effects {
     ) {
       return rpcRound("expose-for-dependents", options) as ReturnType<
         T.Effects["exposeForDependents"]
-      >
-    },
-    getConfigured(...[]: Parameters<T.Effects["getConfigured"]>) {
-      return rpcRound("get-configured", {}) as ReturnType<
-        T.Effects["getConfigured"]
       >
     },
     getContainerIp(...[]: Parameters<T.Effects["getContainerIp"]>) {
@@ -230,18 +256,8 @@ function makeEffects(context: EffectContext): Effects {
     mount(...[options]: Parameters<T.Effects["mount"]>) {
       return rpcRound("mount", options) as ReturnType<T.Effects["mount"]>
     },
-    clearActions(...[]: Parameters<T.Effects["clearActions"]>) {
-      return rpcRound("clear-actions", {}) as ReturnType<
-        T.Effects["clearActions"]
-      >
-    },
     restart(...[]: Parameters<T.Effects["restart"]>) {
       return rpcRound("restart", {}) as ReturnType<T.Effects["restart"]>
-    },
-    setConfigured(...[configured]: Parameters<T.Effects["setConfigured"]>) {
-      return rpcRound("set-configured", { configured }) as ReturnType<
-        T.Effects["setConfigured"]
-      >
     },
     setDependencies(
       dependencies: Parameters<T.Effects["setDependencies"]>[0],
@@ -268,7 +284,10 @@ function makeEffects(context: EffectContext): Effects {
       >
     },
 
-    setMainStatus(o: { status: "running" | "stopped" }): Promise<void> {
+    getStatus(...[o]: Parameters<T.Effects["getStatus"]>) {
+      return rpcRound("get-status", o) as ReturnType<T.Effects["getStatus"]>
+    },
+    setMainStatus(o: { status: "running" | "stopped" }): Promise<null> {
       return rpcRound("set-main-status", o) as ReturnType<
         T.Effects["setHealth"]
       >
@@ -298,19 +317,4 @@ function makeEffects(context: EffectContext): Effects {
     },
   }
   return self
-}
-
-export function makeProcedureEffects(procedureId: string): Effects {
-  return makeEffects({ procedureId, callbacks: null })
-}
-
-export function makeMainEffects(): MainEffects {
-  const rpcRound = rpcRoundFor(null)
-  return {
-    _type: "main",
-    clearCallbacks: () => {
-      return rpcRound("clearCallbacks", {}) as Promise<void>
-    },
-    ...makeEffects({ procedureId: null, callbacks: new CallbackHolder() }),
-  }
 }

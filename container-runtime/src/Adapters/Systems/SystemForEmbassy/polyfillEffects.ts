@@ -105,12 +105,14 @@ export const polyfillEffects = (
       args?: string[] | undefined
       timeoutMillis?: number | undefined
     }): Promise<oet.ResultType<string>> {
+      const commands: [string, ...string[]] = [command, ...(args || [])]
       return startSdk
         .runCommand(
           effects,
           { id: manifest.main.image },
-          [command, ...(args || [])],
+          commands,
           {},
+          commands.join(" "),
         )
         .then((x: any) => ({
           stderr: x.stderr.toString(),
@@ -129,6 +131,7 @@ export const polyfillEffects = (
         manifest.id,
         manifest.main,
         manifest.volumes,
+        [input.command, ...(input.args || [])].join(" "),
       )
       const daemon = promiseSubcontainer.then((subcontainer) =>
         daemons.runCommand()(
@@ -153,11 +156,17 @@ export const polyfillEffects = (
       path: string
       uid: string
     }): Promise<null> {
+      const commands: [string, ...string[]] = [
+        "chown",
+        "--recursive",
+        input.uid,
+        `/drive/${input.path}`,
+      ]
       await startSdk
         .runCommand(
           effects,
           { id: manifest.main.image },
-          ["chown", "--recursive", input.uid, `/drive/${input.path}`],
+          commands,
           {
             mounts: [
               {
@@ -171,6 +180,7 @@ export const polyfillEffects = (
               },
             ],
           },
+          commands.join(" "),
         )
         .then((x: any) => ({
           stderr: x.stderr.toString(),
@@ -188,11 +198,17 @@ export const polyfillEffects = (
       path: string
       mode: string
     }): Promise<null> {
+      const commands: [string, ...string[]] = [
+        "chmod",
+        "--recursive",
+        input.mode,
+        `/drive/${input.path}`,
+      ]
       await startSdk
         .runCommand(
           effects,
           { id: manifest.main.image },
-          ["chmod", "--recursive", input.mode, `/drive/${input.path}`],
+          commands,
           {
             mounts: [
               {
@@ -206,6 +222,7 @@ export const polyfillEffects = (
               },
             ],
           },
+          commands.join(" "),
         )
         .then((x: any) => ({
           stderr: x.stderr.toString(),

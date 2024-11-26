@@ -1,9 +1,11 @@
 use std::str::FromStr;
 
 use clap::builder::ValueParserFactory;
+use models::{FromStrParser, PackageId};
 
 use crate::service::effects::prelude::*;
-use crate::util::clap::FromStrParser;
+use crate::service::rpc::CallbackId;
+use crate::status::MainStatus;
 
 pub async fn restart(
     context: EffectContext,
@@ -21,6 +23,46 @@ pub async fn shutdown(
     let context = context.deref()?;
     context.stop(procedure_id).await?;
     Ok(())
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct GetStatusParams {
+    #[ts(optional)]
+    pub package_id: Option<PackageId>,
+    #[ts(optional)]
+    #[arg(skip)]
+    pub callback: Option<CallbackId>,
+}
+
+pub async fn get_status(
+    context: EffectContext,
+    GetStatusParams {
+        package_id,
+        callback,
+    }: GetStatusParams,
+) -> Result<MainStatus, Error> {
+    let context = context.deref()?;
+    let id = package_id.unwrap_or_else(|| context.seed.id.clone());
+    let db = context.seed.ctx.db.peek().await;
+    let status = db
+        .as_public()
+        .as_package_data()
+        .as_idx(&id)
+        .or_not_found(&id)?
+        .as_status()
+        .de()?;
+
+    if let Some(callback) = callback {
+        let callback = callback.register(&context.seed.persistent_container);
+        context.seed.ctx.callbacks.add_get_status(
+            id,
+            super::callbacks::CallbackHandler::new(&context, callback),
+        );
+    }
+
+    Ok(status)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

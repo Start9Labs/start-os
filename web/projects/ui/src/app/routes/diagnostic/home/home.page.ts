@@ -5,6 +5,7 @@ import { LoadingService } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   selector: 'diagnostic-home',
@@ -25,6 +26,7 @@ export class HomePage {
     private readonly api: ApiService,
     private readonly dialogs: TuiDialogService,
     @Inject(WA_WINDOW) private readonly window: Window,
+    readonly config: ConfigService,
   ) {}
 
   async ngOnInit() {

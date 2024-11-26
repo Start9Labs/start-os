@@ -1,13 +1,13 @@
-use std::collections::BTreeSet;
 use std::net::Ipv4Addr;
 use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
+use std::{collections::BTreeSet, ffi::OsString};
 
 use clap::builder::ValueParserFactory;
 use futures::{AsyncWriteExt, StreamExt};
 use imbl_value::{InOMap, InternedString};
-use models::InvalidId;
+use models::{FromStrParser, InvalidId};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{GenericRpcMethod, RpcRequest, RpcResponse};
 use rustyline_async::{ReadlineEvent, SharedWriter};
@@ -28,12 +28,11 @@ use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::disk::mount::util::unmount;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation};
-use crate::util::clap::FromStrParser;
 use crate::util::io::open_file;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::{new_guid, Invoke};
 
-#[cfg(feature = "dev")]
+// #[cfg(feature = "dev")]
 pub mod dev;
 
 const LXC_CONTAINER_DIR: &str = "/var/lib/lxc";
@@ -127,7 +126,8 @@ impl LxcManager {
                         Path::new(LXC_CONTAINER_DIR).join(container).join("rootfs"),
                         true,
                     )
-                    .await?;
+                    .await
+                    .log_err();
                     if tokio_stream::wrappers::ReadDirStream::new(
                         tokio::fs::read_dir(&rootfs_path).await?,
                     )
@@ -287,6 +287,30 @@ impl LxcContainer {
         self.rpc_bind.path()
     }
 
+    pub async fn command(&self, commands: &[&str]) -> Result<String, Error> {
+        let mut cmd = Command::new("lxc-attach");
+        cmd.kill_on_drop(true);
+
+        let output = cmd
+            .arg(&**self.guid)
+            .arg("--")
+            .args(commands)
+            .output()
+            .await?;
+
+        if !output.status.success() {
+            return Err(Error::new(
+                eyre!(
+                    "Command failed with exit code: {:?} \n Message: {:?}",
+                    output.status.code(),
+                    String::from_utf8(output.stderr)
+                ),
+                ErrorKind::Docker,
+            ));
+        }
+        Ok(String::from_utf8(output.stdout)?)
+    }
+
     #[instrument(skip_all)]
     pub async fn exit(mut self) -> Result<(), Error> {
         Command::new("lxc-stop")
@@ -365,7 +389,7 @@ impl Drop for LxcContainer {
                         tracing::error!("Error reading logs from crashed container: {e}");
                         tracing::debug!("{e:?}")
                     }
-                    rootfs.unmount(true).await.unwrap();
+                    rootfs.unmount(true).await.log_err();
                     drop(guid);
                     if let Err(e) = manager.gc().await {
                         tracing::error!("Error cleaning up dangling LXC containers: {e}");

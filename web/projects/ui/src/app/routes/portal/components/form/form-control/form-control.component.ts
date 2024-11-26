@@ -7,10 +7,10 @@ import {
   ViewChild,
 } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
-import { CT } from '@start9labs/start-sdk'
-import { TuiAlertService, TuiDialogContext } from '@taiga-ui/core'
 import { AbstractTuiNullableControl } from '@taiga-ui/legacy'
 import { filter } from 'rxjs'
+import { TuiAlertService, TuiDialogContext } from '@taiga-ui/core'
+import { IST } from '@start9labs/start-sdk'
 import { ERRORS } from '../form-group/form-group.component'
 import { FORM_CONTROL_PROVIDERS } from './form-control.providers'
 
@@ -22,7 +22,7 @@ import { FORM_CONTROL_PROVIDERS } from './form-control.providers'
   providers: FORM_CONTROL_PROVIDERS,
 })
 export class FormControlComponent<
-  T extends CT.ValueSpec,
+  T extends Exclude<IST.ValueSpec, IST.ValueSpecHidden>,
   V,
 > extends AbstractTuiNullableControl<V> {
   @Input({ required: true })

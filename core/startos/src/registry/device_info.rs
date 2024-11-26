@@ -15,6 +15,7 @@ use url::Url;
 use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
+use crate::util::lshw::{LshwDevice, LshwDisplay, LshwProcessor};
 use crate::util::VersionString;
 use crate::version::VersionT;
 
@@ -26,12 +27,12 @@ pub struct DeviceInfo {
     pub os: OsInfo,
     pub hardware: HardwareInfo,
 }
-impl From<&RpcContext> for DeviceInfo {
-    fn from(value: &RpcContext) -> Self {
-        Self {
-            os: OsInfo::from(value),
-            hardware: HardwareInfo::from(value),
-        }
+impl DeviceInfo {
+    pub async fn load(ctx: &RpcContext) -> Result<Self, Error> {
+        Ok(Self {
+            os: OsInfo::from(ctx),
+            hardware: HardwareInfo::load(ctx).await?,
+        })
     }
 }
 impl DeviceInfo {
@@ -44,11 +45,11 @@ impl DeviceInfo {
             .append_pair("hardware.arch", &*self.hardware.arch)
             .append_pair("hardware.ram", &self.hardware.ram.to_string());
 
-        for (class, products) in &self.hardware.devices {
-            for product in products {
-                url.query_pairs_mut()
-                    .append_pair(&format!("hardware.device.{}", class), product);
-            }
+        for device in &self.hardware.devices {
+            url.query_pairs_mut().append_pair(
+                &format!("hardware.device.{}", device.class()),
+                device.product(),
+            );
         }
 
         HeaderValue::from_str(url.query().unwrap_or_default()).unwrap()
@@ -80,16 +81,20 @@ impl DeviceInfo {
                 devices: identity(query)
                     .split_off("hardware.device.")
                     .into_iter()
-                    .filter_map(|(k, v)| {
-                        k.strip_prefix("hardware.device.")
-                            .map(|k| (k.into(), v.into_owned()))
+                    .filter_map(|(k, v)| match k.strip_prefix("hardware.device.") {
+                        Some("processor") => Some(LshwDevice::Processor(LshwProcessor {
+                            product: v.into_owned(),
+                        })),
+                        Some("display") => Some(LshwDevice::Display(LshwDisplay {
+                            product: v.into_owned(),
+                        })),
+                        Some(class) => {
+                            tracing::warn!("unknown device class: {class}");
+                            None
+                        }
+                        _ => None,
                     })
-                    .fold(BTreeMap::new(), |mut acc, (k, v)| {
-                        let mut devs = acc.remove(&k).unwrap_or_default();
-                        devs.push(v);
-                        acc.insert(k, devs);
-                        acc
-                    }),
+                    .collect(),
             },
         })
     }
@@ -108,8 +113,8 @@ pub struct OsInfo {
 impl From<&RpcContext> for OsInfo {
     fn from(_: &RpcContext) -> Self {
         Self {
-            version: crate::version::Current::new().semver(),
-            compat: crate::version::Current::new().compat().clone(),
+            version: crate::version::Current::default().semver(),
+            compat: crate::version::Current::default().compat().clone(),
             platform: InternedString::intern(&*crate::PLATFORM),
         }
     }
@@ -122,26 +127,16 @@ pub struct HardwareInfo {
     pub arch: InternedString,
     #[ts(type = "number")]
     pub ram: u64,
-    #[ts(as = "BTreeMap::<String, Vec<String>>")]
-    pub devices: BTreeMap<InternedString, Vec<String>>,
+    pub devices: Vec<LshwDevice>,
 }
-
-impl From<&RpcContext> for HardwareInfo {
-    fn from(value: &RpcContext) -> Self {
-        Self {
-            arch: InternedString::intern(crate::ARCH),
-            ram: value.hardware.ram,
-            devices: value
-                .hardware
-                .devices
-                .iter()
-                .fold(BTreeMap::new(), |mut acc, dev| {
-                    let mut devs = acc.remove(dev.class()).unwrap_or_default();
-                    devs.push(dev.product().to_owned());
-                    acc.insert(dev.class().into(), devs);
-                    acc
-                }),
-        }
+impl HardwareInfo {
+    pub async fn load(ctx: &RpcContext) -> Result<Self, Error> {
+        let s = ctx.db.peek().await.into_public().into_server_info();
+        Ok(Self {
+            arch: s.as_arch().de()?,
+            ram: s.as_ram().de()?,
+            devices: s.as_devices().de()?,
+        })
     }
 }
 

@@ -2,13 +2,12 @@
   [tuiHintContent]="spec | hint"
   [disabled]="disabled"
   [readOnly]="readOnly"
-  [tuiTextfieldCleaner]="!spec.required"
+  [tuiTextfieldCleaner]="false"
   [pseudoInvalid]="invalid"
   [(ngModel)]="selected"
   (focusedChange)="onFocus($event)"
 >
-  {{ spec.name }}
-  <span *ngIf="spec.required">*</span>
+  {{ spec.name }}*
   <select
     tuiSelect
     [placeholder]="spec.name"

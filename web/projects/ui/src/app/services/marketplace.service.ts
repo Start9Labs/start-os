@@ -231,19 +231,6 @@ export class MarketplaceService {
         }
   }
 
-  private async updateStoreName(
-    url: string,
-    oldName: string | undefined,
-    newName: string,
-  ): Promise<void> {
-    if (oldName !== newName) {
-      this.api.setDbValue<string>(
-        ['marketplace', 'knownHosts', url, 'name'],
-        newName,
-      )
-    }
-  }
-
   // UI only
   readonly updateErrors: Record<string, string> = {}
   readonly updateQueue: Record<string, boolean> = {}

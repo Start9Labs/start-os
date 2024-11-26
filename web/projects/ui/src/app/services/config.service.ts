@@ -75,7 +75,7 @@ export class ConfigService {
 
   isLaunchable(
     state: T.PackageState['state'],
-    status: T.MainStatus['status'],
+    status: T.MainStatus['main'],
   ): boolean {
     return state === 'installed' && status === 'running'
   }

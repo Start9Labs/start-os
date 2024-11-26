@@ -12,7 +12,7 @@ use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
 use futures::{Future, FutureExt, Stream, StreamExt, TryStreamExt};
 use itertools::Itertools;
-use models::PackageId;
+use models::{FromStrParser, PackageId};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
     from_fn_async, CallRemote, Context, Empty, HandlerArgs, HandlerExt, HandlerFor, ParentHandler,
@@ -30,7 +30,6 @@ use crate::error::ResultExt;
 use crate::lxc::ContainerId;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
-use crate::util::clap::FromStrParser;
 use crate::util::serde::Reversible;
 use crate::util::Invoke;
 
@@ -114,7 +113,7 @@ async fn ws_handler(
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct LogResponse {
-    entries: Reversible<LogEntry>,
+    pub entries: Reversible<LogEntry>,
     start_cursor: Option<String>,
     end_cursor: Option<String>,
 }
@@ -361,11 +360,7 @@ pub fn logs<
     source: impl for<'a> LogSourceFn<'a, C, Extra>,
 ) -> ParentHandler<C, LogsParams<Extra>> {
     ParentHandler::new()
-        .root_handler(
-            logs_nofollow::<C, Extra>(source.clone())
-                .with_inherited(|params, _| params)
-                .no_cli(),
-        )
+        .root_handler(logs_nofollow::<C, Extra>(source.clone()).no_cli())
         .subcommand(
             "follow",
             logs_follow::<C, Extra>(source)
@@ -437,7 +432,7 @@ where
 
 fn logs_nofollow<C, Extra>(
     f: impl for<'a> LogSourceFn<'a, C, Extra>,
-) -> impl HandlerFor<C, Params = Empty, InheritedParams = LogsParams<Extra>, Ok = LogResponse, Err = Error>
+) -> impl HandlerFor<C, Params = LogsParams<Extra>, InheritedParams = Empty, Ok = LogResponse, Err = Error>
 where
     C: Context,
     Extra: FromArgMatches + Args + Send + Sync + 'static,
@@ -445,7 +440,7 @@ where
     from_fn_async(
         move |HandlerArgs {
                   context,
-                  inherited_params:
+                  params:
                       LogsParams {
                           extra,
                           limit,
@@ -454,7 +449,7 @@ where
                           before,
                       },
                   ..
-              }: HandlerArgs<C, Empty, LogsParams<Extra>>| {
+              }: HandlerArgs<C, LogsParams<Extra>>| {
             let f = f.clone();
             async move {
                 fetch_logs(
@@ -487,14 +482,18 @@ fn logs_follow<
                   context,
                   inherited_params:
                       LogsParams {
-                          extra, limit, boot, ..
+                          extra,
+                          cursor,
+                          limit,
+                          boot,
+                          ..
                       },
                   ..
               }: HandlerArgs<C, Empty, LogsParams<Extra>>| {
             let f = f.clone();
             async move {
                 let src = f.call(&context, extra).await?;
-                follow_logs(context, src, limit, boot.map(String::from)).await
+                follow_logs(context, src, cursor, limit, boot.map(String::from)).await
             }
         },
     )
@@ -525,7 +524,7 @@ pub fn package_logs() -> ParentHandler<RpcContext, LogsParams<PackageIdParams>> 
 
 pub async fn journalctl(
     id: LogSource,
-    limit: usize,
+    limit: Option<usize>,
     cursor: Option<&str>,
     boot: Option<&str>,
     before: bool,
@@ -533,11 +532,12 @@ pub async fn journalctl(
 ) -> Result<LogStream, Error> {
     let mut cmd = gen_journalctl_command(&id);
 
-    cmd.arg(format!("--lines={}", limit));
+    if let Some(limit) = limit {
+        cmd.arg(format!("--lines={}", limit));
+    }
 
-    let cursor_formatted = format!("--after-cursor={}", cursor.unwrap_or(""));
-    if cursor.is_some() {
-        cmd.arg(&cursor_formatted);
+    if let Some(cursor) = cursor {
+        cmd.arg(&format!("--after-cursor={}", cursor));
         if before {
             cmd.arg("--reverse");
         }
@@ -638,8 +638,15 @@ pub async fn fetch_logs(
     before: bool,
 ) -> Result<LogResponse, Error> {
     let limit = limit.unwrap_or(50);
-    let mut stream =
-        journalctl(id, limit, cursor.as_deref(), boot.as_deref(), before, false).await?;
+    let mut stream = journalctl(
+        id,
+        Some(limit),
+        cursor.as_deref(),
+        boot.as_deref(),
+        before,
+        false,
+    )
+    .await?;
 
     let mut entries = Vec::with_capacity(limit);
     let mut start_cursor = None;
@@ -682,11 +689,16 @@ pub async fn fetch_logs(
 pub async fn follow_logs<Context: AsRef<RpcContinuations>>(
     ctx: Context,
     id: LogSource,
+    cursor: Option<String>,
     limit: Option<usize>,
     boot: Option<String>,
 ) -> Result<LogFollowResponse, Error> {
-    let limit = limit.unwrap_or(50);
-    let mut stream = journalctl(id, limit, None, boot.as_deref(), false, true).await?;
+    let limit = if cursor.is_some() {
+        None
+    } else {
+        Some(limit.unwrap_or(50))
+    };
+    let mut stream = journalctl(id, limit, cursor.as_deref(), boot.as_deref(), false, true).await?;
 
     let mut start_cursor = None;
     let mut first_entry = None;

@@ -7,7 +7,7 @@ import {
   ValidatorFn,
   Validators,
 } from '@angular/forms'
-import { CT, utils } from '@start9labs/start-sdk'
+import { IST, utils } from '@start9labs/start-sdk'
 const Mustache = require('mustache')
 
 @Injectable({
@@ -17,16 +17,16 @@ export class FormService {
   constructor(private readonly formBuilder: UntypedFormBuilder) {}
 
   createForm(
-    spec: CT.InputSpec,
+    spec: IST.InputSpec,
     current: Record<string, any> = {},
   ): UntypedFormGroup {
     return this.getFormGroup(spec, [], current)
   }
 
   getUnionSelectSpec(
-    spec: CT.ValueSpecUnion,
+    spec: IST.ValueSpecUnion,
     selection: string | null,
-  ): CT.ValueSpecSelect {
+  ): IST.ValueSpecSelect {
     return {
       ...spec,
       type: 'select',
@@ -38,7 +38,7 @@ export class FormService {
   }
 
   getUnionObject(
-    spec: CT.ValueSpecUnion,
+    spec: IST.ValueSpecUnion,
     selected: string | null,
   ): UntypedFormGroup {
     const group = this.getFormGroup({
@@ -53,16 +53,16 @@ export class FormService {
     return group
   }
 
-  getListItem(spec: CT.ValueSpecList, entry?: any) {
-    if (CT.isValueSpecListOf(spec, 'text')) {
+  getListItem(spec: IST.ValueSpecList, entry?: any) {
+    if (IST.isValueSpecListOf(spec, 'text')) {
       return this.formBuilder.control(entry, stringValidators(spec.spec))
-    } else if (CT.isValueSpecListOf(spec, 'object')) {
+    } else if (IST.isValueSpecListOf(spec, 'object')) {
       return this.getFormGroup(spec.spec.spec, [], entry)
     }
   }
 
   getFormGroup(
-    config: CT.InputSpec,
+    config: IST.InputSpec,
     validators: ValidatorFn[] = [],
     current?: Record<string, any> | null,
   ): UntypedFormGroup {
@@ -77,7 +77,7 @@ export class FormService {
   }
 
   private getFormEntry(
-    spec: CT.ValueSpec,
+    spec: IST.ValueSpec,
     currentValue?: any,
   ): UntypedFormGroup | UntypedFormArray | UntypedFormControl {
     let value: any
@@ -140,7 +140,7 @@ export class FormService {
         return this.formBuilder.control(value)
       case 'select':
         value = currentValue === undefined ? spec.default : currentValue
-        return this.formBuilder.control(value, selectValidators(spec))
+        return this.formBuilder.control(value)
       case 'multiselect':
         value = currentValue === undefined ? spec.default : currentValue
         return this.formBuilder.control(value, multiselectValidators(spec))
@@ -150,18 +150,18 @@ export class FormService {
   }
 }
 
-// function getListItemValidators(spec: CT.ValueSpecList) {
-//   if (CT.isValueSpecListOf(spec, 'text')) {
+// function getListItemValidators(spec: IST.ValueSpecList) {
+//   if (IST.isValueSpecListOf(spec, 'text')) {
 //     return stringValidators(spec.spec)
 //   }
 // }
 
 function stringValidators(
-  spec: CT.ValueSpecText | CT.ListValueSpecText,
+  spec: IST.ValueSpecText | IST.ListValueSpecText,
 ): ValidatorFn[] {
   const validators: ValidatorFn[] = []
 
-  if ((spec as CT.ValueSpecText).required) {
+  if ((spec as IST.ValueSpecText).required) {
     validators.push(Validators.required)
   }
 
@@ -174,7 +174,7 @@ function stringValidators(
   return validators
 }
 
-function textareaValidators(spec: CT.ValueSpecTextarea): ValidatorFn[] {
+function textareaValidators(spec: IST.ValueSpecTextarea): ValidatorFn[] {
   const validators: ValidatorFn[] = []
 
   if (spec.required) {
@@ -186,7 +186,7 @@ function textareaValidators(spec: CT.ValueSpecTextarea): ValidatorFn[] {
   return validators
 }
 
-function colorValidators({ required }: CT.ValueSpecColor): ValidatorFn[] {
+function colorValidators({ required }: IST.ValueSpecColor): ValidatorFn[] {
   const validators: ValidatorFn[] = [Validators.pattern(/^#[0-9a-f]{6}$/i)]
 
   if (required) {
@@ -200,7 +200,7 @@ function datetimeValidators({
   required,
   min,
   max,
-}: CT.ValueSpecDatetime): ValidatorFn[] {
+}: IST.ValueSpecDatetime): ValidatorFn[] {
   const validators: ValidatorFn[] = []
 
   if (required) {
@@ -218,12 +218,12 @@ function datetimeValidators({
   return validators
 }
 
-function numberValidators(spec: CT.ValueSpecNumber): ValidatorFn[] {
+function numberValidators(spec: IST.ValueSpecNumber): ValidatorFn[] {
   const validators: ValidatorFn[] = []
 
   validators.push(isNumber())
 
-  if ((spec as CT.ValueSpecNumber).required) {
+  if ((spec as IST.ValueSpecNumber).required) {
     validators.push(Validators.required)
   }
 
@@ -236,23 +236,13 @@ function numberValidators(spec: CT.ValueSpecNumber): ValidatorFn[] {
   return validators
 }
 
-function selectValidators(spec: CT.ValueSpecSelect): ValidatorFn[] {
-  const validators: ValidatorFn[] = []
-
-  if (spec.required) {
-    validators.push(Validators.required)
-  }
-
-  return validators
-}
-
-function multiselectValidators(spec: CT.ValueSpecMultiselect): ValidatorFn[] {
+function multiselectValidators(spec: IST.ValueSpecMultiselect): ValidatorFn[] {
   const validators: ValidatorFn[] = []
   validators.push(listInRange(spec.minLength, spec.maxLength))
   return validators
 }
 
-function listValidators(spec: CT.ValueSpecList): ValidatorFn[] {
+function listValidators(spec: IST.ValueSpecList): ValidatorFn[] {
   const validators: ValidatorFn[] = []
   validators.push(listInRange(spec.minLength, spec.maxLength))
   validators.push(listItemIssue())
@@ -367,7 +357,7 @@ export function listItemIssue(): ValidatorFn {
   }
 }
 
-export function listUnique(spec: CT.ValueSpecList): ValidatorFn {
+export function listUnique(spec: IST.ValueSpecList): ValidatorFn {
   return control => {
     const list = control.value
     for (let idx = 0; idx < list.length; idx++) {
@@ -404,7 +394,11 @@ export function listUnique(spec: CT.ValueSpecList): ValidatorFn {
   }
 }
 
-function listItemEquals(spec: CT.ValueSpecList, val1: any, val2: any): boolean {
+function listItemEquals(
+  spec: IST.ValueSpecList,
+  val1: any,
+  val2: any,
+): boolean {
   // TODO: fix types
   switch (spec.spec.type) {
     case 'text':
@@ -417,7 +411,7 @@ function listItemEquals(spec: CT.ValueSpecList, val1: any, val2: any): boolean {
   }
 }
 
-function itemEquals(spec: CT.ValueSpec, val1: any, val2: any): boolean {
+function itemEquals(spec: IST.ValueSpec, val1: any, val2: any): boolean {
   switch (spec.type) {
     case 'text':
     case 'textarea':
@@ -429,15 +423,15 @@ function itemEquals(spec: CT.ValueSpec, val1: any, val2: any): boolean {
       // TODO: 'unique-by' does not exist on ValueSpecObject, fix types
       return objEquals(
         (spec as any)['unique-by'],
-        spec as CT.ValueSpecObject,
+        spec as IST.ValueSpecObject,
         val1,
         val2,
       )
     case 'union':
-      // TODO: 'unique-by' does not exist on CT.ValueSpecUnion, fix types
+      // TODO: 'unique-by' does not exist onIST.ValueSpecUnion, fix types
       return unionEquals(
         (spec as any)['unique-by'],
-        spec as CT.ValueSpecUnion,
+        spec as IST.ValueSpecUnion,
         val1,
         val2,
       )
@@ -457,8 +451,8 @@ function itemEquals(spec: CT.ValueSpec, val1: any, val2: any): boolean {
 }
 
 function listObjEquals(
-  uniqueBy: CT.UniqueBy,
-  spec: CT.ListValueSpecObject,
+  uniqueBy: IST.UniqueBy,
+  spec: IST.ListValueSpecObject,
   val1: any,
   val2: any,
 ): boolean {
@@ -485,8 +479,8 @@ function listObjEquals(
 }
 
 function objEquals(
-  uniqueBy: CT.UniqueBy,
-  spec: CT.ValueSpecObject,
+  uniqueBy: IST.UniqueBy,
+  spec: IST.ValueSpecObject,
   val1: any,
   val2: any,
 ): boolean {
@@ -514,8 +508,8 @@ function objEquals(
 }
 
 function unionEquals(
-  uniqueBy: CT.UniqueBy,
-  spec: CT.ValueSpecUnion,
+  uniqueBy: IST.UniqueBy,
+  spec: IST.ValueSpecUnion,
   val1: any,
   val2: any,
 ): boolean {
@@ -547,8 +541,8 @@ function unionEquals(
 }
 
 function uniqueByMessageWrapper(
-  uniqueBy: CT.UniqueBy,
-  spec: CT.ListValueSpecObject,
+  uniqueBy: IST.UniqueBy,
+  spec: IST.ListValueSpecObject,
 ) {
   let configSpec = spec.spec
 
@@ -559,8 +553,8 @@ function uniqueByMessageWrapper(
 }
 
 function uniqueByMessage(
-  uniqueBy: CT.UniqueBy,
-  configSpec: CT.InputSpec,
+  uniqueBy: IST.UniqueBy,
+  configSpec: IST.InputSpec,
   outermost = true,
 ): string {
   let joinFunc
@@ -569,7 +563,7 @@ function uniqueByMessage(
     return ''
   } else if (typeof uniqueBy === 'string') {
     return configSpec[uniqueBy]
-      ? (configSpec[uniqueBy] as CT.ValueSpecObject).name
+      ? (configSpec[uniqueBy] as IST.ValueSpecObject).name
       : uniqueBy
   } else if ('any' in uniqueBy) {
     joinFunc = ' OR '
@@ -589,14 +583,14 @@ function uniqueByMessage(
 }
 
 function isObject(
-  spec: CT.ListValueSpecOf<any>,
-): spec is CT.ListValueSpecObject {
+  spec: IST.ListValueSpecOf<any>,
+): spec is IST.ListValueSpecObject {
   // only lists of objects have uniqueBy
   return 'uniqueBy' in spec
 }
 
 export function convertValuesRecursive(
-  configSpec: CT.InputSpec,
+  configSpec: IST.InputSpec,
   group: UntypedFormGroup,
 ) {
   Object.entries(configSpec).forEach(([key, valueSpec]) => {
@@ -626,7 +620,7 @@ export function convertValuesRecursive(
         })
       } else if (valueSpec.spec.type === 'object') {
         controls.forEach(formGroup => {
-          const objectSpec = valueSpec.spec as CT.ListValueSpecObject
+          const objectSpec = valueSpec.spec as IST.ListValueSpecObject
           convertValuesRecursive(objectSpec.spec, formGroup as UntypedFormGroup)
         })
       }
