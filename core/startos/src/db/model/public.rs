@@ -161,7 +161,7 @@ pub struct NetworkInterfaceInfo {
     pub ip_info: IpInfo,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, TS)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]
