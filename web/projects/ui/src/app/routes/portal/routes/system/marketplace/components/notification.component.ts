@@ -7,7 +7,7 @@ import { ConfigService } from 'src/app/services/config.service'
   selector: 'marketplace-notification',
   template: `
     <tui-notification
-      [status]="status || 'warning'"
+      [appearance]="status || 'warning'"
       icon=""
       class="notification-wrapper"
     >

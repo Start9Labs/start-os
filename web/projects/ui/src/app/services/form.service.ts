@@ -249,7 +249,7 @@ function listValidators(spec: IST.ValueSpecList): ValidatorFn[] {
   return validators
 }
 
-function fileValidators(spec: CT.ValueSpecFile): ValidatorFn[] {
+function fileValidators(spec: IST.ValueSpecFile): ValidatorFn[] {
   const validators: ValidatorFn[] = []
 
   if (spec.required) {

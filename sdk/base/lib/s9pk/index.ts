@@ -47,7 +47,7 @@ export class S9pk {
       ),
     )
 
-    return new S9pk(manifest, archive, source.length)
+    return new S9pk(manifest, archive, source.size)
   }
   async icon(): Promise<DataUrl> {
     const iconName = Object.keys(this.archive.contents.contents).find(

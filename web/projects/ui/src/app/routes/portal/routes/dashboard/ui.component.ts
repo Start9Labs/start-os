@@ -69,7 +69,7 @@ export class UILaunchComponent {
   }
 
   get isRunning(): boolean {
-    return this.pkg.status.main.status === 'running'
+    return this.pkg.status.main === 'running'
   }
 
   get first(): T.ServiceInterface | undefined {

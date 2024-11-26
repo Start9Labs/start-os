@@ -1,8 +1,9 @@
-import { Injectable } from '@angular/core'
-import { AlertController } from '@ionic/angular'
+import { inject, Injectable } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
-import { PolymorpheusComponent } from '@tinkoff/ng-polymorpheus'
+import { TUI_CONFIRM } from '@taiga-ui/kit'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { filter } from 'rxjs'
 import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
@@ -29,14 +30,11 @@ const allowedStatuses = {
   providedIn: 'root',
 })
 export class ActionService {
-  constructor(
-    private readonly api: ApiService,
-    private readonly dialogs: TuiDialogService,
-    private readonly alertCtrl: AlertController,
-    private readonly errorService: ErrorService,
-    private readonly loader: LoadingService,
-    private readonly formDialog: FormDialogService,
-  ) {}
+  private readonly api = inject(ApiService)
+  private readonly dialogs = inject(TuiDialogService)
+  private readonly errorService = inject(ErrorService)
+  private readonly loader = inject(LoadingService)
+  private readonly formDialog = inject(FormDialogService)
 
   async present(data: PackageActionData) {
     const { pkgInfo, actionInfo } = data
@@ -53,25 +51,18 @@ export class ActionService {
         })
       } else {
         if (actionInfo.metadata.warning) {
-          const alert = await this.alertCtrl.create({
-            header: 'Warning',
-            message: actionInfo.metadata.warning,
-            buttons: [
-              {
-                text: 'Cancel',
-                role: 'cancel',
+          this.dialogs
+            .open(TUI_CONFIRM, {
+              label: 'Warning',
+              size: 's',
+              data: {
+                no: 'Cancel',
+                yes: 'Run',
+                content: actionInfo.metadata.warning,
               },
-              {
-                text: 'Run',
-                handler: () => {
-                  this.execute(pkgInfo.id, actionInfo.id)
-                },
-                cssClass: 'enter-click',
-              },
-            ],
-            cssClass: 'alert-warning-message',
-          })
-          await alert.present()
+            })
+            .pipe(filter(Boolean))
+            .subscribe(() => this.execute(pkgInfo.id, actionInfo.id))
         } else {
           this.execute(pkgInfo.id, actionInfo.id)
         }
@@ -92,15 +83,18 @@ export class ActionService {
       } else {
         error = `There is no status for which this action may be run. This is a bug. Please file an issue with the service maintainer.`
       }
-      const alert = await this.alertCtrl.create({
-        header: 'Forbidden',
-        message:
+
+      this.dialogs
+        .open(
           error ||
-          `Action "${actionInfo.metadata.name}" can only be executed when service is ${statusesStr}`,
-        buttons: ['OK'],
-        cssClass: 'alert-error-message enter-click',
-      })
-      await alert.present()
+            `Action "${actionInfo.metadata.name}" can only be executed when service is ${statusesStr}`,
+          {
+            label: 'Forbidden',
+            size: 's',
+          },
+        )
+        .pipe(filter(Boolean))
+        .subscribe()
     }
   }
 

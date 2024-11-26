@@ -6,6 +6,7 @@ import {
   signal,
 } from '@angular/core'
 import { ErrorService, Exver } from '@start9labs/shared'
+import { Version } from '@start9labs/start-sdk'
 import {
   TuiButton,
   TuiDialogContext,
@@ -116,9 +117,8 @@ export class BackupsTargetModal {
   hasBackup(target: BackupTarget): boolean {
     return (
       target.startOs?.[this.serverId] &&
-      this.exver.compareOsVersion(
-        target.startOs[this.serverId].version,
-        '0.3.6',
+      Version.parse(target.startOs[this.serverId].version).compare(
+        Version.parse('0.3.6'),
       ) !== 'less'
     )
   }

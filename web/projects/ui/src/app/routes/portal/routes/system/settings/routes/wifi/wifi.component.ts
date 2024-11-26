@@ -175,7 +175,7 @@ export class SettingsWifiComponent {
         this.alerts
           .open('Check credentials and try again', {
             label: 'Failed to connect',
-            status: 'warning',
+            appearance: 'warning',
           })
           .subscribe()
         break
@@ -188,7 +188,7 @@ export class SettingsWifiComponent {
         if (newWifi.connected === ssid) {
           this.update$.next(parseWifi(newWifi))
           this.alerts
-            .open('Connection successful!', { status: 'success' })
+            .open('Connection successful!', { appearance: 'positive' })
             .subscribe()
           break
         } else {

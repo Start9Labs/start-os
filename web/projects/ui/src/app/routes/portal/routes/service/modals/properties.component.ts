@@ -55,7 +55,8 @@ export class ServicePropertiesModal {
     this.loading$.next(true)
 
     try {
-      this.properties = await this.api.getPackageProperties({ id: this.id })
+      // @TODO Matt this needs complete rework, right?
+      // this.properties = await this.api.getPackageProperties({ id: this.id })
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

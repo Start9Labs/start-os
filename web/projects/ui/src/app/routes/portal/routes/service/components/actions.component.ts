@@ -103,7 +103,9 @@ export class ServiceActionsComponent {
   }
 
   get canConfigure(): boolean {
-    return !this.service.pkg.status.configured
+    // @TODO Matt should we just drop this?
+    // return !this.service.pkg.status.configured
+    return false
   }
 
   @tuiPure

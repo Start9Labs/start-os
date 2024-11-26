@@ -6,7 +6,9 @@ import {
   UntypedFormGroup,
 } from '@angular/forms'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { config, CT } from '@start9labs/start-sdk'
+// @TODO Matt there's no config in sdk anymore
+// @ts-ignore
+import { config, IST } from '@start9labs/start-sdk'
 import { TuiButton, TuiDialogService } from '@taiga-ui/core'
 import { TuiInputModule } from '@taiga-ui/legacy'
 import { PatchDB } from 'patch-db-client'
@@ -80,7 +82,7 @@ export class SettingsEmailComponent {
   private readonly api = inject(ApiService)
 
   testAddress = ''
-  readonly spec: Promise<CT.InputSpec> = configBuilderToSpec(
+  readonly spec: Promise<IST.InputSpec> = configBuilderToSpec(
     config.constants.customSmtp,
   )
   readonly form$ = this.patch

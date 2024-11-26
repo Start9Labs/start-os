@@ -1,42 +1,45 @@
-import { CB } from '@start9labs/start-sdk'
+import { ISB } from '@start9labs/start-sdk'
 import { Proxy } from 'src/app/services/patch-db/data-model'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 
-const auth = CB.Config.of({
-  username: CB.Value.text({
+const auth = ISB.InputSpec.of({
+  username: ISB.Value.text({
     name: 'Username',
-    required: { default: null },
+    required: true,
+    default: null,
   }),
-  password: CB.Value.text({
+  password: ISB.Value.text({
     name: 'Password',
-    required: { default: null },
+    required: true,
+    default: null,
     masked: true,
   }),
 })
 
 function getStrategyUnion(proxies: Proxy[]) {
-  const inboundProxies = proxies
+  const inboundProxies: Record<string, string> = proxies
     .filter(p => p.type === 'inbound-outbound')
-    .reduce((prev, curr) => {
-      return {
+    .reduce(
+      (prev, curr) => ({
         [curr.id]: curr.name,
         ...prev,
-      }
-    }, {})
+      }),
+      {},
+    )
 
-  return CB.Value.union(
+  return ISB.Value.union(
     {
       name: 'Networking Strategy',
-      required: { default: null },
+      default: 'local',
       description: `<h5>Local</h5>Select this option if you do not mind exposing your home/business IP address to the Internet. This option requires configuring router settings, which StartOS can do automatically if you have an OpenWRT router
 <h5>Proxy</h5>Select this option is you prefer to hide your home/business IP address from the Internet. This option requires running your own Virtual Private Server (VPS) <i>or</i> paying service provider such as Static Wire
 `,
     },
-    CB.Variants.of({
+    ISB.Variants.of({
       local: {
         name: 'Local',
-        spec: CB.Config.of({
-          ipStrategy: CB.Value.select({
+        spec: ISB.InputSpec.of({
+          ipStrategy: ISB.Value.select({
             name: 'IP Strategy',
             description: `<h5>IPv6 Only (recommended)</h5><b>Requirements</b>:<ol><li>ISP IPv6 support</li><li>OpenWRT (recommended) or Linksys router</li></ol><b>Pros</b>: Ready for IPv6 Internet. Enhanced privacy. Run multiple clearnet servers from the same network
 <b>Cons</b>: Interfaces using this domain will only be accessible to people whose ISP supports IPv6
@@ -45,7 +48,7 @@ function getStrategyUnion(proxies: Proxy[]) {
 <h5>IPv4 Only</h5><b>Pros</b>: Accessible by anyone
 <b>Cons</b>: Less private, as IPv4 addresses are closely correlated with geographic areas. Cannot run multiple clearnet servers from the same network
 `,
-            required: { default: 'ipv6' },
+            default: 'ipv6',
             values: {
               ipv6: 'IPv6 Only',
               ipv4: 'IPv4 Only',
@@ -56,10 +59,10 @@ function getStrategyUnion(proxies: Proxy[]) {
       },
       proxy: {
         name: 'Proxy',
-        spec: CB.Config.of({
-          proxyId: CB.Value.select({
+        spec: ISB.InputSpec.of({
+          proxyId: ISB.Value.select({
             name: 'Select Proxy',
-            required: { default: null },
+            default: proxies.filter(p => p.type === 'inbound-outbound')[0].id,
             values: inboundProxies,
           }),
         }),
@@ -70,7 +73,7 @@ function getStrategyUnion(proxies: Proxy[]) {
 
 export function getStart9ToSpec(proxies: Proxy[]) {
   return configBuilderToSpec(
-    CB.Config.of({
+    ISB.InputSpec.of({
       strategy: getStrategyUnion(proxies),
     }),
   )
@@ -78,21 +81,22 @@ export function getStart9ToSpec(proxies: Proxy[]) {
 
 export function getCustomSpec(proxies: Proxy[]) {
   return configBuilderToSpec(
-    CB.Config.of({
-      hostname: CB.Value.text({
+    ISB.InputSpec.of({
+      hostname: ISB.Value.text({
         name: 'Hostname',
-        required: { default: null },
+        required: true,
+        default: null,
         placeholder: 'yourdomain.com',
       }),
-      provider: CB.Value.union(
+      provider: ISB.Value.union(
         {
           name: 'Dynamic DNS Provider',
-          required: { default: 'start9' },
+          default: 'start9',
         },
-        CB.Variants.of({
+        ISB.Variants.of({
           start9: {
             name: 'Start9',
-            spec: CB.Config.of({}),
+            spec: ISB.InputSpec.of({}),
           },
           njalla: {
             name: 'Njalla',

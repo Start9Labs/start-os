@@ -5,10 +5,11 @@ import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
 import { TuiConfirmData, TUI_CONFIRM } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { defaultIfEmpty, filter, firstValueFrom } from 'rxjs'
-import {
-  ConfigModal,
-  PackageConfigData,
-} from 'src/app/routes/portal/modals/config.component'
+// @TODO Alex implement config
+// import {
+//   ConfigModal,
+//   PackageConfigData,
+// } from 'src/app/routes/portal/modals/config.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -27,10 +28,10 @@ export class ActionsService {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
   configure(manifest: T.Manifest): void {
-    this.formDialog.open<PackageConfigData>(ConfigModal, {
-      label: `${manifest.title} configuration`,
-      data: { pkgId: manifest.id },
-    })
+    // this.formDialog.open<PackageConfigData>(ConfigModal, {
+    //   label: `${manifest.title} configuration`,
+    //   data: { pkgId: manifest.id },
+    // })
   }
 
   async start(manifest: T.Manifest, unmet: boolean): Promise<void> {

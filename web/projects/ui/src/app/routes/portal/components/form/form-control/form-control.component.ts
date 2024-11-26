@@ -52,7 +52,7 @@ export class FormControlComponent<
       this.alerts
         .open<boolean>(this.warning, {
           label: 'Warning',
-          status: 'warning',
+          appearance: 'warning',
           closeable: false,
           autoClose: 0,
         })

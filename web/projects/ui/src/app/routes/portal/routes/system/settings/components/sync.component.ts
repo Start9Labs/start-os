@@ -5,7 +5,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
 @Component({
   selector: 'settings-sync',
   template: `
-    <tui-notification status="warning">
+    <tui-notification appearance="warning">
       <div tuiCell [style.padding]="0">
         <div tuiTitle>
           Clock sync failure

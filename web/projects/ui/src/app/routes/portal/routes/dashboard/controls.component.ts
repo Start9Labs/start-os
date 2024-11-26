@@ -44,7 +44,7 @@ const RUNNING = ['running', 'starting', 'restarting']
         *tuiLet="hasUnmet() | async as hasUnmet"
         tuiIconButton
         iconStart="@tui.play"
-        [disabled]="status().primary !== 'stopped' || !pkg().status.configured"
+        [disabled]="status().primary !== 'stopped'"
         (click)="actions.start(manifest(), !!hasUnmet)"
       >
         Start

@@ -5,10 +5,11 @@ import { isEmptyObject } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map, switchMap } from 'rxjs'
-import {
-  ConfigModal,
-  PackageConfigData,
-} from 'src/app/routes/portal/modals/config.component'
+// @TODO Alex implement config
+// import {
+//   ConfigModal,
+//   PackageConfigData,
+// } from 'src/app/routes/portal/modals/config.component'
 import { ServiceBackupsComponent } from 'src/app/routes/portal/routes/service/components/backups.component'
 import { InstallingProgressPipe } from 'src/app/routes/portal/routes/service/pipes/install-progress.pipe'
 import { ConnectionService } from 'src/app/services/connection.service'
@@ -180,9 +181,7 @@ export class ServiceRoute {
   )
 
   readonly health$ = this.pkgId$.pipe(
-    switchMap(pkgId =>
-      this.patch.watch$('packageData', pkgId, 'status', 'main'),
-    ),
+    switchMap(pkgId => this.patch.watch$('packageData', pkgId, 'status')),
     map(toHealthCheck),
   )
 
@@ -264,10 +263,11 @@ export class ServiceRoute {
         errorText = 'Incorrect version'
         fixText = 'Update'
         fixAction = () => this.fixDep(pkg, pkgManifest, 'update', depId)
-      } else if (depError.type === 'configUnsatisfied') {
-        errorText = 'Config not satisfied'
-        fixText = 'Auto config'
-        fixAction = () => this.fixDep(pkg, pkgManifest, 'configure', depId)
+        // @TODO Matt do we just remove this case?
+        // } else if (depError.type === 'configUnsatisfied') {
+        //   errorText = 'Config not satisfied'
+        //   fixText = 'Auto config'
+        //   fixAction = () => this.fixDep(pkg, pkgManifest, 'configure', depId)
       } else if (depError.type === 'notRunning') {
         errorText = 'Not running'
         fixText = 'Start'
@@ -296,13 +296,13 @@ export class ServiceRoute {
       case 'update':
         return this.installDep(pkg, pkgManifest, depId)
       case 'configure':
-        return this.formDialog.open<PackageConfigData>(ConfigModal, {
-          label: `${pkg.currentDependencies[depId].title} config`,
-          data: {
-            pkgId: depId,
-            dependentInfo: pkgManifest,
-          },
-        })
+      // return this.formDialog.open<PackageConfigData>(ConfigModal, {
+      //   label: `${pkg.currentDependencies[depId].title} config`,
+      //   data: {
+      //     pkgId: depId,
+      //     dependentInfo: pkgManifest,
+      //   },
+      // })
     }
   }
 
@@ -329,8 +329,10 @@ export class ServiceRoute {
   }
 }
 
-function toHealthCheck(main: T.MainStatus): T.NamedHealthCheckResult[] | null {
-  return main.status !== 'running' || isEmptyObject(main.health)
+function toHealthCheck(
+  status: T.MainStatus,
+): T.NamedHealthCheckResult[] | null {
+  return status.main !== 'running' || isEmptyObject(status.health)
     ? null
-    : Object.values(main.health)
+    : Object.values(status.health)
 }

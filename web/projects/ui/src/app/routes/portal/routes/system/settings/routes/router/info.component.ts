@@ -5,7 +5,7 @@ import { TuiNotification } from '@taiga-ui/core'
 @Component({
   selector: 'router-info',
   template: `
-    <tui-notification [status]="enabled ? 'success' : 'warning'">
+    <tui-notification [appearance]="enabled ? 'positive' : 'warning'">
       <ng-container *ngIf="enabled; else disabled">
         <strong>UPnP Enabled!</strong>
         <p>

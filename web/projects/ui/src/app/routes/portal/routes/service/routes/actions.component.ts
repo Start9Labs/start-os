@@ -22,7 +22,7 @@ import {
 import { hasCurrentDeps } from 'src/app/utils/has-deps'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { ServiceActionComponent } from '../components/action.component'
-import { ServiceActionSuccessComponent } from '../components/action-success.component'
+import { ActionSuccessPage } from '../modals/action-success/action-success.page'
 import { GroupActionsPipe } from '../pipes/group-actions.pipe'
 import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
 import { T } from '@start9labs/start-sdk'
@@ -50,7 +50,7 @@ import { getAllPackages, getManifest } from 'src/app/utils/get-package-data'
             [action]="{
               name: action.name,
               description: action.description,
-              icon: '@tui.circle-play'
+              icon: '@tui.circle-play',
             }"
             (click)="handleAction(action)"
           ></button>
@@ -92,45 +92,46 @@ export class ServiceActionsRoute {
   ) {}
 
   async handleAction(action: WithId<T.ActionMetadata>) {
-    if (action.disabled) {
-      this.dialogs
-        .open(action.disabled, {
-          label: 'Forbidden',
-          size: 's',
-        })
-        .subscribe()
-    } else {
-      if (action.input && !isEmptyObject(action.input)) {
-        this.formDialog.open(FormComponent, {
-          label: action.name,
-          data: {
-            spec: action.input,
-            buttons: [
-              {
-                text: 'Execute',
-                handler: async (value: any) =>
-                  this.executeAction(action.id, value),
-              },
-            ],
-          },
-        })
-      } else {
-        this.dialogs
-          .open(TUI_CONFIRM, {
-            label: 'Confirm',
-            size: 's',
-            data: {
-              content: `Are you sure you want to execute action "${
-                action.name
-              }"? ${action.warning || ''}`,
-              yes: 'Execute',
-              no: 'Cancel',
-            },
-          })
-          .pipe(filter(Boolean))
-          .subscribe(() => this.executeAction(action.id))
-      }
-    }
+    // @TODO Matt this needs complete rework, right?
+    // if (action.disabled) {
+    //   this.dialogs
+    //     .open(action.disabled, {
+    //       label: 'Forbidden',
+    //       size: 's',
+    //     })
+    //     .subscribe()
+    // } else {
+    //   if (action.input && !isEmptyObject(action.input)) {
+    //     this.formDialog.open(FormComponent, {
+    //       label: action.name,
+    //       data: {
+    //         spec: action.input,
+    //         buttons: [
+    //           {
+    //             text: 'Execute',
+    //             handler: async (value: any) =>
+    //               this.executeAction(action.id, value),
+    //           },
+    //         ],
+    //       },
+    //     })
+    //   } else {
+    //     this.dialogs
+    //       .open(TUI_CONFIRM, {
+    //         label: 'Confirm',
+    //         size: 's',
+    //         data: {
+    //           content: `Are you sure you want to execute action "${
+    //             action.name
+    //           }"? ${action.warning || ''}`,
+    //           yes: 'Execute',
+    //           no: 'Cancel',
+    //         },
+    //       })
+    //       .pipe(filter(Boolean))
+    //       .subscribe(() => this.executeAction(action.id))
+    //   }
+    // }
   }
 
   async tryUninstall(pkg: PackageDataEntry): Promise<void> {
@@ -181,22 +182,20 @@ export class ServiceActionsRoute {
     const loader = this.loader.open('Executing action...').subscribe()
 
     try {
-      const data = await this.embassyApi.executePackageAction({
-        id: this.id,
-        actionId,
-        input,
-      })
+      // @TODO Matt this needs complete rework, right?
+      // const data = await this.embassyApi.executePackageAction({
+      //   id: this.id,
+      //   actionId,
+      //   input,
+      // })
 
       timer(500)
         .pipe(
           switchMap(() =>
-            this.dialogs.open(
-              new PolymorpheusComponent(ServiceActionSuccessComponent),
-              {
-                label: 'Execution Complete',
-                data,
-              },
-            ),
+            this.dialogs.open(new PolymorpheusComponent(ActionSuccessPage), {
+              label: 'Execution Complete',
+              // data,
+            }),
           ),
         )
         .subscribe()

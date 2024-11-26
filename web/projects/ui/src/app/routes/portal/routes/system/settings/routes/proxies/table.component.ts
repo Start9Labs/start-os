@@ -6,7 +6,7 @@ import {
   Input,
 } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { CB } from '@start9labs/start-sdk'
+import { ISB } from '@start9labs/start-sdk'
 import {
   TuiButton,
   TuiDialogOptions,
@@ -172,8 +172,8 @@ export class ProxiesTableComponent {
   }
 
   async rename(proxy: Proxy) {
-    const spec = { name: 'Name', required: { default: proxy.name } }
-    const name = await CB.Value.text(spec).build({} as any)
+    const spec = { name: 'Name', required: true, default: proxy.name }
+    const name = await ISB.Value.text(spec).build({} as any)
     const options: Partial<TuiDialogOptions<FormContext<{ name: string }>>> = {
       label: `Rename ${proxy.name}`,
       data: {

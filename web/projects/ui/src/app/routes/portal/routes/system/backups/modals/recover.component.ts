@@ -43,7 +43,7 @@ import { RecoverOption } from '../types/recover-option'
             <input
               type="checkbox"
               tuiCheckbox
-              [disabled]="option.installed || option.newerStartOs"
+              [disabled]="option.installed || option.newerOs"
               [(ngModel)]="option.checked"
             />
           </label>
@@ -85,8 +85,8 @@ export class BackupsRecoverModal {
     .watch$('packageData')
     .pipe(take(1))
 
-  readonly toMessage = ({ newerStartOs, installed, title }: RecoverOption) => {
-    if (newerStartOs) {
+  readonly toMessage = ({ newerOs, installed, title }: RecoverOption) => {
+    if (newerOs) {
       return {
         text: `Unavailable. Backup was made on a newer version of StartOS.`,
         color: 'var(--tui-status-negative)',
