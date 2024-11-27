@@ -4,7 +4,7 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use chrono::{DateTime, Utc};
 use exver::{Version, VersionRange};
 use imbl_value::InternedString;
-use ipnet::{Ipv4Net, Ipv6Net};
+use ipnet::{IpNet, Ipv4Net, Ipv6Net};
 use isocountry::CountryCode;
 use itertools::Itertools;
 use models::PackageId;
@@ -161,30 +161,10 @@ pub struct NetworkInterfaceInfo {
     pub ip_info: IpInfo,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, HasModel, TS)]
-#[serde(rename_all = "camelCase")]
-#[model = "Model<Self>"]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS)]
 #[ts(export)]
-pub struct IpInfo {
-    #[ts(type = "string | null")]
-    pub ipv4_range: Option<Ipv4Net>,
-    pub ipv4: Option<Ipv4Addr>,
-    #[ts(type = "string | null")]
-    pub ipv6_range: Option<Ipv6Net>,
-    pub ipv6: Option<Ipv6Addr>,
-}
-impl IpInfo {
-    pub async fn for_interface(iface: &str) -> Result<Self, Error> {
-        let (ipv4, ipv4_range) = get_iface_ipv4_addr(iface).await?.unzip();
-        let (ipv6, ipv6_range) = get_iface_ipv6_addr(iface).await?.unzip();
-        Ok(Self {
-            ipv4_range,
-            ipv4,
-            ipv6_range,
-            ipv6,
-        })
-    }
-}
+#[ts(type = "string[]")]
+pub struct IpInfo(pub BTreeSet<IpNet>);
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]

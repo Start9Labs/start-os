@@ -5,29 +5,24 @@ use std::sync::{Arc, Weak};
 use std::task::Poll;
 
 use clap::Parser;
-use futures::future::{pending, BoxFuture};
+use futures::future::pending;
 use futures::{FutureExt, TryFutureExt, TryStreamExt};
 use imbl_value::InternedString;
-use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
+use ipnet::IpNet;
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
-use tokio::sync::{watch, RwLock};
+use tokio::sync::watch;
 use tokio_stream::StreamExt;
-use ts_rs::TS;
-use zbus::fdo::PropertiesChangedStream;
 use zbus::proxy::PropertyStream;
 use zbus::zvariant::{
-    DeserializeDict, DynamicDeserialize, OwnedObjectPath, OwnedValue, SerializeDict, Type as ZType,
-    Value as ZValue,
+    DeserializeDict, OwnedObjectPath, OwnedValue, Type as ZType, Value as ZValue,
 };
 use zbus::{proxy, Connection};
 
-use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::IpInfo;
 use crate::db::model::Database;
-use crate::net::utils::{iface_is_physical, list_interfaces};
 use crate::prelude::*;
-use crate::util::actor::background::{BackgroundJobQueue, BackgroundJobRunner};
+use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::sync::SyncMutex;
 
 #[proxy(
@@ -67,7 +62,16 @@ struct AddressData {
     prefix: u32,
 }
 impl TryFrom<Vec<AddressData>> for IpInfo {
-    fn try_from(value: Vec<AddressData>) -> Result<Self, Self::Error> {}
+    type Error = Error;
+    fn try_from(value: Vec<AddressData>) -> Result<Self, Self::Error> {
+        value
+            .into_iter()
+            .map(|a| {
+                IpNet::new(a.address.parse()?, a.prefix as u8).with_kind(ErrorKind::ParseNetAddress)
+            })
+            .collect::<Result<_, _>>()
+            .map(Self)
+    }
 }
 
 #[proxy(
@@ -81,32 +85,11 @@ trait Device {
 
 #[tokio::test]
 async fn test() -> Result<(), Error> {
-    let connection = Connection::system().await?;
-
-    let proxy = NetworkManagerProxy::new(&connection).await?;
-    let active = proxy
-        .receive_active_connections_changed()
-        .await
-        .next()
-        .await
-        .unwrap()
-        .get()
-        .await?;
-    eprintln!("{active:?}");
-    for active in active {
-        let proxy = ActiveConnectionProxy::new(&connection, active).await?;
-        let ip4 = proxy.ip4_config().await?;
-        eprintln!("{ip4:?}");
-        let ip_proxy = Ip4ConfigProxy::new(&connection, ip4).await?;
-        let addresses = ip_proxy.address_data().await?;
-        eprintln!("{addresses:?}");
-        let devices = proxy.devices().await?;
-        eprintln!("{devices:?}");
-        for device in devices {
-            let proxy = DeviceProxy::new(&connection, device).await?;
-            let ifaces = proxy.ip_interface().await?;
-            eprintln!("{ifaces:?}");
-        }
+    let (write_to, mut read_from) = watch::channel(BTreeMap::new());
+    tokio::task::spawn(watcher(write_to));
+    loop {
+        eprintln!("{:?}", &*read_from.borrow());
+        read_from.changed().await;
     }
 
     Ok(())
@@ -134,7 +117,7 @@ where
         &mut self,
         fut: Fut,
     ) -> Result<(), Error> {
-        let mut next = self.stream.next();
+        let next = self.stream.next();
         tokio::select! {
             changed = next => {
                 self.last = changed.ok_or_else(|| Error::new(eyre!("stream is empty"), ErrorKind::DBus))?.get().await?;
@@ -148,10 +131,8 @@ where
 }
 
 async fn watcher(write_to: watch::Sender<BTreeMap<InternedString, IpInfo>>) {
-    let (q, run) = BackgroundJobQueue::new();
     loop {
         if let Err(e) = async {
-            let mut jobs = BackgroundJobQueue::new();
             let connection = Connection::system().await?;
             let netman_proxy = NetworkManagerProxy::new(&connection).await?;
 
@@ -175,6 +156,7 @@ async fn watcher(write_to: watch::Sender<BTreeMap<InternedString, IpInfo>>) {
                                 ifaces.insert(iface.clone());
                                 jobs.push(async {
                                     let ac_proxy = ac_proxy;
+                                    let iface = iface;
                                     let mut ip_config_sub = WatchPropertyStream::new(
                                         ac_proxy.receive_ip4_config_changed().await,
                                     )
@@ -200,7 +182,7 @@ async fn watcher(write_to: watch::Sender<BTreeMap<InternedString, IpInfo>>) {
                                                                 addresses.try_into()?;
 
                                                             write_to.send_if_modified(|m| {
-                                                                m.insert(iface, ip_info.clone())
+                                                                m.insert(iface.clone(), ip_info.clone())
                                                                     .filter(|old| old == &ip_info)
                                                                     .is_none()
                                                             });
@@ -209,14 +191,14 @@ async fn watcher(write_to: watch::Sender<BTreeMap<InternedString, IpInfo>>) {
                                                         })
                                                         .await?;
                                                 }
-
-                                                Ok::<_, Error>(())
                                             })
                                             .await?;
                                     }
 
                                     Ok::<_, Error>(())
                                 });
+                            } else {
+                                tracing::warn!("devices.len ({}) is not exactly 1. We're not sure what this means, but it shouldn't happen", devices.len());
                             }
                         }
                         write_to.send_if_modified(|m| {
@@ -246,7 +228,6 @@ async fn watcher(write_to: watch::Sender<BTreeMap<InternedString, IpInfo>>) {
             tracing::debug!("{e:?}");
         }
     }
-    run.await;
 }
 
 pub struct NetworkInterfaceController {

@@ -5,6 +5,7 @@ use std::sync::{Arc, Weak};
 use color_eyre::eyre::eyre;
 use imbl::OrdMap;
 use imbl_value::InternedString;
+use ipnet::IpNet;
 use models::{HostId, OptionExt, PackageId};
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
@@ -424,27 +425,31 @@ impl NetService {
                         }
                     }
                     if !iface_info.public || new_lan_bind.0.public {
-                        if let Some(ipv4) = iface_info.ip_info.ipv4 {
-                            bind_hostname_info.push(HostnameInfo::Ip {
-                                network_interface_id: interface.clone(),
-                                public: iface_info.public,
-                                hostname: IpHostname::Ipv4 {
-                                    value: ipv4,
-                                    port: new_lan_bind.0.assigned_port,
-                                    ssl_port: new_lan_bind.0.assigned_ssl_port,
-                                },
-                            });
-                        }
-                        if let Some(ipv6) = iface_info.ip_info.ipv6 {
-                            bind_hostname_info.push(HostnameInfo::Ip {
-                                network_interface_id: interface.clone(),
-                                public: iface_info.public,
-                                hostname: IpHostname::Ipv6 {
-                                    value: ipv6,
-                                    port: new_lan_bind.0.assigned_port,
-                                    ssl_port: new_lan_bind.0.assigned_ssl_port,
-                                },
-                            });
+                        for ipnet in &iface_info.ip_info.0 {
+                            match ipnet {
+                                IpNet::V4(net) => {
+                                    bind_hostname_info.push(HostnameInfo::Ip {
+                                        network_interface_id: interface.clone(),
+                                        public: iface_info.public,
+                                        hostname: IpHostname::Ipv4 {
+                                            value: net.addr(),
+                                            port: new_lan_bind.0.assigned_port,
+                                            ssl_port: new_lan_bind.0.assigned_ssl_port,
+                                        },
+                                    });
+                                }
+                                IpNet::V6(net) => {
+                                    bind_hostname_info.push(HostnameInfo::Ip {
+                                        network_interface_id: interface.clone(),
+                                        public: iface_info.public,
+                                        hostname: IpHostname::Ipv6 {
+                                            value: net.addr(),
+                                            port: new_lan_bind.0.assigned_port,
+                                            ssl_port: new_lan_bind.0.assigned_ssl_port,
+                                        },
+                                    });
+                                }
+                            }
                         }
                     }
                 }
