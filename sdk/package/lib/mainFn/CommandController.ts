@@ -1,10 +1,8 @@
 import { DEFAULT_SIGTERM_TIMEOUT } from "."
-import { NO_TIMEOUT, SIGKILL, SIGTERM } from "../../../base/lib/types"
+import { NO_TIMEOUT, SIGTERM } from "../../../base/lib/types"
 
 import * as T from "../../../base/lib/types"
-import { asError } from "../../../base/lib/util/asError"
 import {
-  ExecSpawnable,
   MountOptions,
   SubContainerHandle,
   SubContainer,
