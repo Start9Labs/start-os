@@ -152,7 +152,7 @@ pub struct ServerInfo {
     pub devices: Vec<LshwDevice>,
 }
 
-#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]
