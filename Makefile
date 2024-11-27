@@ -295,7 +295,7 @@ web/dist/raw/setup-wizard/index.html: $(WEB_SETUP_WIZARD_SRC) $(WEB_SHARED_SRC) 
 	touch web/dist/raw/setup-wizard/index.html
 
 web/dist/raw/install-wizard/index.html: $(WEB_INSTALL_WIZARD_SRC) $(WEB_SHARED_SRC) web/.angular/.updated
-	npm --prefix web run build:install-wiz
+	npm --prefix web run build:install
 	touch web/dist/raw/install-wizard/index.html
 
 $(COMPRESSED_WEB_UIS): $(WEB_UIS) $(ENVIRONMENT_FILE)
