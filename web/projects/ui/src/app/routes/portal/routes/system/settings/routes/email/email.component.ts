@@ -6,9 +6,7 @@ import {
   UntypedFormGroup,
 } from '@angular/forms'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-// @TODO Matt there's no config in sdk anymore
-// @ts-ignore
-import { config, IST } from '@start9labs/start-sdk'
+import { IST, inputSpec } from '@start9labs/start-sdk'
 import { TuiButton, TuiDialogService } from '@taiga-ui/core'
 import { TuiInputModule } from '@taiga-ui/legacy'
 import { PatchDB } from 'patch-db-client'
@@ -83,7 +81,7 @@ export class SettingsEmailComponent {
 
   testAddress = ''
   readonly spec: Promise<IST.InputSpec> = configBuilderToSpec(
-    config.constants.customSmtp,
+    inputSpec.constants.customSmtp,
   )
   readonly form$ = this.patch
     .watch$('serverInfo', 'smtp')
@@ -98,7 +96,7 @@ export class SettingsEmailComponent {
 
     try {
       await this.api.configureEmail(
-        config.constants.customSmtp.validator.unsafeCast(value),
+        inputSpec.constants.customSmtp.validator.unsafeCast(value),
       )
     } catch (e: any) {
       this.errorService.handleError(e)
