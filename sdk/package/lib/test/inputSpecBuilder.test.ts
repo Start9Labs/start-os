@@ -6,8 +6,6 @@ import { Variants } from "../../../base/lib/actions/input/builder/variants"
 import { ValueSpec } from "../../../base/lib/actions/input/inputSpecTypes"
 import { setupManifest } from "../manifest/setupManifest"
 import { StartSdk } from "../StartSdk"
-import { VersionGraph } from "../version/VersionGraph"
-import { VersionInfo } from "../version/VersionInfo"
 
 describe("builder tests", () => {
   test("text", async () => {

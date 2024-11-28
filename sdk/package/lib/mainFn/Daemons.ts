@@ -19,7 +19,22 @@ import { CommandController } from "./CommandController"
 export const cpExec = promisify(CP.exec)
 export const cpExecFile = promisify(CP.execFile)
 export type Ready = {
+  /** A human-readable display name for the health check. If null, the health check itself will be from the UI */
   display: string | null
+  /**
+   * @description The function to determine the health status of the daemon
+   * 
+   *   The SDK provides some built-in health checks. To see them, type sdk.healthCheck.
+   * 
+   * @example
+   * ```
+    fn: () =>
+      sdk.healthCheck.checkPortListening(effects, 80, {
+        successMessage: 'service listening on port 80',
+        errorMessage: 'service is unreachable',
+      })
+  * ```
+  */
   fn: (
     spawnable: ExecSpawnable,
   ) => Promise<HealthCheckResult> | HealthCheckResult
@@ -32,11 +47,20 @@ type DaemonsParams<
   Command extends string,
   Id extends string,
 > = {
+  /** The command line command to start the daemon */
   command: T.CommandType
-  image: { id: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean }
+  /** Information about the image in which the daemon runs */
+  image: {
+    /** The ID of the image. Must be one of the image IDs declared in the manifest */
+    id: keyof Manifest["images"] & T.ImageId
+    /** @TODO Bonez */
+    sharedRun?: boolean
+  }
+  /** For mounting the necessary volumes. Syntax: sdk.Mounts.of().addVolume() */
   mounts: Mounts<Manifest>
   env?: Record<string, string>
   ready: Ready
+  /** An array of IDs of prior daemons whose successful initializations are required before this daemon will initialize */
   requires: Exclude<Ids, Id>[]
   sigtermTimeout?: number
   onStdout?: (chunk: Buffer | string | any) => void
