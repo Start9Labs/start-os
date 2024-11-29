@@ -8,11 +8,10 @@ import {
   SetHealth,
   BindParams,
   HostId,
-  LanInfo,
+  NetInfo,
   Host,
   ExportServiceInterfaceParams,
   ServiceInterface,
-  ActionRequest,
   RequestActionParams,
   MainStatus,
 } from "./osBindings"
@@ -118,7 +117,7 @@ export type Effects = {
     packageId?: PackageId
     hostId: HostId
     internalPort: number
-  }): Promise<LanInfo>
+  }): Promise<NetInfo>
   /** Removes all network bindings, called in the setupInputSpec */
   clearBindings(options: {
     except: { id: HostId; internalPort: number }[]

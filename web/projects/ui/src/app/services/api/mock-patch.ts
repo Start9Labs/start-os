@@ -42,18 +42,17 @@ export const mockPatchData: DataModel = {
     lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
     lanAddress: 'https://adjective-noun.local',
     torAddress: 'https://myveryownspecialtoraddress.onion',
-    ipInfo: {
+    networkInterfaces: {
       eth0: {
-        ipv4: '10.0.0.1',
-        ipv4Range: '10.0.0.1/24',
-        ipv6: null,
-        ipv6Range: null,
+        public: false,
+        ipInfo: ['10.0.0.1/24'],
       },
       wlan0: {
-        ipv4: '10.0.90.12',
-        ipv4Range: '10.0.90.12/24',
-        ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD',
-        ipv6Range: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD/64',
+        public: false,
+        ipInfo: [
+          '10.0.90.12/24',
+          'FE80:CD00:0000:0CDE:1257:0000:211E:729CD/64',
+        ],
       },
     },
     acme: null,

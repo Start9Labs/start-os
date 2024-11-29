@@ -27,16 +27,6 @@ export function setupManifest<
   return manifest
 }
 
-function gitHash(): string {
-  const hash = execSync("git rev-parse HEAD").toString().trim()
-  try {
-    execSync("git diff-index --quiet HEAD --")
-    return hash
-  } catch (e) {
-    return hash + "-modified"
-  }
-}
-
 export function buildManifest<
   Id extends string,
   Version extends string,
@@ -67,7 +57,6 @@ export function buildManifest<
   )
   return {
     ...manifest,
-    gitHash: gitHash(),
     osVersion: SDKVersion,
     version: versions.current.options.version,
     releaseNotes: versions.current.options.releaseNotes,

@@ -131,6 +131,7 @@ pub struct ServerInfo {
     #[ts(type = "string")]
     pub tor_address: Url,
     #[ts(as = "BTreeMap::<String, NetworkInterfaceInfo>")]
+    #[serde(default)]
     pub network_interfaces: BTreeMap<InternedString, NetworkInterfaceInfo>,
     pub acme: Option<AcmeSettings>,
     #[serde(default)]
