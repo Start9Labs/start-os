@@ -113,7 +113,7 @@ async fn ws_handler(
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct LogResponse {
-    entries: Reversible<LogEntry>,
+    pub entries: Reversible<LogEntry>,
     start_cursor: Option<String>,
     end_cursor: Option<String>,
 }
@@ -360,11 +360,7 @@ pub fn logs<
     source: impl for<'a> LogSourceFn<'a, C, Extra>,
 ) -> ParentHandler<C, LogsParams<Extra>> {
     ParentHandler::new()
-        .root_handler(
-            logs_nofollow::<C, Extra>(source.clone())
-                .with_inherited(|params, _| params)
-                .no_cli(),
-        )
+        .root_handler(logs_nofollow::<C, Extra>(source.clone()).no_cli())
         .subcommand(
             "follow",
             logs_follow::<C, Extra>(source)
@@ -436,7 +432,7 @@ where
 
 fn logs_nofollow<C, Extra>(
     f: impl for<'a> LogSourceFn<'a, C, Extra>,
-) -> impl HandlerFor<C, Params = Empty, InheritedParams = LogsParams<Extra>, Ok = LogResponse, Err = Error>
+) -> impl HandlerFor<C, Params = LogsParams<Extra>, InheritedParams = Empty, Ok = LogResponse, Err = Error>
 where
     C: Context,
     Extra: FromArgMatches + Args + Send + Sync + 'static,
@@ -444,7 +440,7 @@ where
     from_fn_async(
         move |HandlerArgs {
                   context,
-                  inherited_params:
+                  params:
                       LogsParams {
                           extra,
                           limit,
@@ -453,7 +449,7 @@ where
                           before,
                       },
                   ..
-              }: HandlerArgs<C, Empty, LogsParams<Extra>>| {
+              }: HandlerArgs<C, LogsParams<Extra>>| {
             let f = f.clone();
             async move {
                 fetch_logs(

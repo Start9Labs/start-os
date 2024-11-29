@@ -7,12 +7,11 @@ import {
   ClearCallbacksParams,
   ClearServiceInterfacesParams,
   GetActionInputParams,
-  GetStoreParams,
+  GetStatusParams,
   RequestActionParams,
   RunActionParams,
   SetDataVersionParams,
   SetMainStatus,
-  SetStoreParams,
 } from ".././osBindings"
 import { CreateSubcontainerFsParams } from ".././osBindings"
 import { DestroySubcontainerFsParams } from ".././osBindings"
@@ -89,6 +88,7 @@ describe("startosTypeValidation ", () => {
       mount: {} as MountParams,
       checkDependencies: {} as CheckDependenciesParam,
       getDependencies: undefined,
+      getStatus: {} as WithCallback<GetStatusParams>,
       setMainStatus: {} as SetMainStatus,
     })
   })

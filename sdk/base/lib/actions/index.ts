@@ -1,5 +1,7 @@
 import * as T from "../types"
 import * as IST from "../actions/input/inputSpecTypes"
+import { Action } from "./setupActions"
+import { ExtractInputSpecType } from "./input/builder/inputSpec"
 
 export type RunActionInput<Input> =
   | Input
@@ -43,23 +45,56 @@ export const runAction = async <
     })
   }
 }
+type GetActionInputType<A extends Action<T.ActionId, any, any>> =
+  A extends Action<T.ActionId, any, infer I> ? ExtractInputSpecType<I> : never
 
-// prettier-ignore
-export type ActionRequest<T extends Omit<T.ActionRequest, "packageId">> =
-  T extends { when: { condition: "input-not-matches" } }
-    ? (T extends { input: T.ActionRequestInput } ? T : "input is required for condition 'input-not-matches'")
-    : T
+type ActionRequestBase = {
+  reason?: string
+  replayId?: string
+}
+type ActionRequestInput<T extends Action<T.ActionId, any, any>> = {
+  kind: "partial"
+  value: Partial<GetActionInputType<T>>
+}
+export type ActionRequestOptions<T extends Action<T.ActionId, any, any>> =
+  ActionRequestBase &
+    (
+      | {
+          when?: Exclude<
+            T.ActionRequestTrigger,
+            { condition: "input-not-matches" }
+          >
+          input?: ActionRequestInput<T>
+        }
+      | {
+          when: T.ActionRequestTrigger & { condition: "input-not-matches" }
+          input: ActionRequestInput<T>
+        }
+    )
 
-export const requestAction = <
-  T extends Omit<T.ActionRequest, "packageId">,
->(options: {
+const _validate: T.ActionRequest = {} as ActionRequestOptions<any> & {
+  actionId: string
+  packageId: string
+  severity: T.ActionSeverity
+}
+
+export const requestAction = <T extends Action<T.ActionId, any, any>>(options: {
   effects: T.Effects
-  request: ActionRequest<T> & { replayId?: string; packageId: T.PackageId }
+  packageId: T.PackageId
+  action: T
+  severity: T.ActionSeverity
+  options?: ActionRequestOptions<T>
 }) => {
-  const request = options.request
+  const request = options.options || {}
+  const actionId = options.action.id
   const req = {
     ...request,
-    replayId: request.replayId || `${request.packageId}:${request.actionId}`,
+    actionId,
+    packageId: options.packageId,
+    action: undefined,
+    severity: options.severity,
+    replayId: request.replayId || `${options.packageId}:${actionId}`,
   }
+  delete req.action
   return options.effects.action.request(req)
 }

@@ -150,15 +150,15 @@ export function makeEffects(context: EffectContext): Effects {
         stack: new Error().stack,
       }) as ReturnType<T.Effects["bind"]>
     },
-    clearBindings(...[]: Parameters<T.Effects["clearBindings"]>) {
-      return rpcRound("clear-bindings", {}) as ReturnType<
+    clearBindings(...[options]: Parameters<T.Effects["clearBindings"]>) {
+      return rpcRound("clear-bindings", { ...options }) as ReturnType<
         T.Effects["clearBindings"]
       >
     },
     clearServiceInterfaces(
-      ...[]: Parameters<T.Effects["clearServiceInterfaces"]>
+      ...[options]: Parameters<T.Effects["clearServiceInterfaces"]>
     ) {
-      return rpcRound("clear-service-interfaces", {}) as ReturnType<
+      return rpcRound("clear-service-interfaces", { ...options }) as ReturnType<
         T.Effects["clearServiceInterfaces"]
       >
     },
@@ -284,6 +284,9 @@ export function makeEffects(context: EffectContext): Effects {
       >
     },
 
+    getStatus(...[o]: Parameters<T.Effects["getStatus"]>) {
+      return rpcRound("get-status", o) as ReturnType<T.Effects["getStatus"]>
+    },
     setMainStatus(o: { status: "running" | "stopped" }): Promise<null> {
       return rpcRound("set-main-status", o) as ReturnType<
         T.Effects["setHealth"]

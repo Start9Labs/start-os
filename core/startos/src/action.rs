@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt;
 
 use clap::{CommandFactory, FromArgMatches, Parser};
@@ -22,6 +23,7 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
             "get-input",
             from_fn_async(get_action_input)
                 .with_display_serializable()
+                .with_about("Get action input spec")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -34,6 +36,7 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
                     }
                     Ok(())
                 })
+                .with_about("Run service action")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -72,21 +75,25 @@ pub async fn get_action_input(
         .await
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "version")]
+#[ts(export)]
 pub enum ActionResult {
     #[serde(rename = "0")]
     V0(ActionResultV0),
+    #[serde(rename = "1")]
+    V1(ActionResultV1),
 }
 impl fmt::Display for ActionResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::V0(res) => res.fmt(f),
+            Self::V1(res) => res.fmt(f),
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, TS)]
 pub struct ActionResultV0 {
     pub message: String,
     pub value: Option<String>,
@@ -109,6 +116,98 @@ impl fmt::Display for ActionResultV0 {
                         .build()
                 )?;
             }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionResultV1 {
+    pub title: String,
+    pub message: Option<String>,
+    pub result: Option<ActionResultValue>,
+}
+
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionResultMember {
+    pub name: String,
+    pub description: Option<String>,
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub value: ActionResultValue,
+}
+
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[serde(rename_all_fields = "camelCase")]
+#[serde(tag = "type")]
+pub enum ActionResultValue {
+    Single {
+        value: String,
+        copyable: bool,
+        qr: bool,
+        masked: bool,
+    },
+    Group {
+        value: Vec<ActionResultMember>,
+    },
+}
+impl ActionResultValue {
+    fn fmt_rec(&self, f: &mut fmt::Formatter<'_>, indent: usize) -> fmt::Result {
+        match self {
+            Self::Single { value, qr, .. } => {
+                for _ in 0..indent {
+                    write!(f, "  ")?;
+                }
+                write!(f, "{value}")?;
+                if *qr {
+                    use qrcode::render::unicode;
+                    writeln!(f)?;
+                    for _ in 0..indent {
+                        write!(f, "  ")?;
+                    }
+                    write!(
+                        f,
+                        "{}",
+                        QrCode::new(value.as_bytes())
+                            .unwrap()
+                            .render::<unicode::Dense1x2>()
+                            .build()
+                    )?;
+                }
+            }
+            Self::Group { value } => {
+                for ActionResultMember {
+                    name,
+                    description,
+                    value,
+                } in value
+                {
+                    for _ in 0..indent {
+                        write!(f, "  ")?;
+                    }
+                    write!(f, "{name}")?;
+                    if let Some(description) = description {
+                        write!(f, ": {description}")?;
+                    }
+                    writeln!(f, ":")?;
+                    value.fmt_rec(f, indent + 1)?;
+                }
+            }
+        }
+        Ok(())
+    }
+}
+impl fmt::Display for ActionResultV1 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "{}:", self.title)?;
+        if let Some(message) = &self.message {
+            writeln!(f, "{message}")?;
+        }
+        if let Some(result) = &self.result {
+            result.fmt_rec(f, 1)?;
         }
         Ok(())
     }

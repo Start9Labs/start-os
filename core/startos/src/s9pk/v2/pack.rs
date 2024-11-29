@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -61,8 +61,7 @@ impl SqfsDir {
                 let guid = Guid::new();
                 let path = self.tmpdir.join(guid.as_ref()).with_extension("squashfs");
                 if self.path.extension().and_then(|s| s.to_str()) == Some("tar") {
-                    Command::new("tar2sqfs")
-                        .arg(&path)
+                    tar2sqfs(&self.path)?
                         .input(Some(&mut open_file(&self.path).await?))
                         .invoke(ErrorKind::Filesystem)
                         .await?;
@@ -70,6 +69,7 @@ impl SqfsDir {
                     Command::new("mksquashfs")
                         .arg(&self.path)
                         .arg(&path)
+                        .arg("-quiet")
                         .invoke(ErrorKind::Filesystem)
                         .await?;
                 }
@@ -294,6 +294,7 @@ impl TryFrom<CliImageConfig> for ImageConfig {
                 ImageSource::DockerBuild {
                     dockerfile: value.dockerfile,
                     workdir: value.workdir,
+                    build_args: None,
                 }
             } else if let Some(tag) = value.docker_tag {
                 ImageSource::DockerTag(tag)
@@ -339,13 +340,27 @@ impl clap::FromArgMatches for ImageConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
+#[serde(untagged)]
+#[ts(export)]
+pub enum BuildArg {
+    String(String),
+    EnvVar { env: String },
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub enum ImageSource {
     Packed,
     #[serde(rename_all = "camelCase")]
     DockerBuild {
+        #[ts(optional)]
         workdir: Option<PathBuf>,
+        #[ts(optional)]
         dockerfile: Option<PathBuf>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[ts(optional)]
+        build_args: Option<BTreeMap<String, BuildArg>>,
     },
     DockerTag(String),
 }
@@ -353,8 +368,15 @@ impl ImageSource {
     pub fn ingredients(&self) -> Vec<PathBuf> {
         match self {
             Self::Packed => Vec::new(),
-            Self::DockerBuild { dockerfile, .. } => {
-                vec![dockerfile.clone().unwrap_or_else(|| "Dockerfile".into())]
+            Self::DockerBuild {
+                dockerfile,
+                workdir,
+                ..
+            } => {
+                vec![workdir
+                    .as_deref()
+                    .unwrap_or(Path::new("."))
+                    .join(dockerfile.as_deref().unwrap_or(Path::new("Dockerfile")))]
             }
             Self::DockerTag(_) => Vec::new(),
         }
@@ -384,6 +406,7 @@ impl ImageSource {
                 ImageSource::DockerBuild {
                     workdir,
                     dockerfile,
+                    build_args,
                 } => {
                     let workdir = workdir.as_deref().unwrap_or(Path::new("."));
                     let dockerfile = dockerfile
@@ -398,7 +421,8 @@ impl ImageSource {
                     };
                     // docker buildx build ${path} -o type=image,name=start9/${id}
                     let tag = format!("start9/{id}/{image_id}:{}", new_guid());
-                    Command::new(CONTAINER_TOOL)
+                    let mut command = Command::new(CONTAINER_TOOL);
+                    command
                         .arg("build")
                         .arg(workdir)
                         .arg("-f")
@@ -406,6 +430,29 @@ impl ImageSource {
                         .arg("-t")
                         .arg(&tag)
                         .arg(&docker_platform)
+                        .arg("--build-arg")
+                        .arg(format!("ARCH={}", arch));
+
+                    // add build arguments
+                    if let Some(build_args) = build_args {
+                        for (key, value) in build_args {
+                            let build_arg_value = match value {
+                                BuildArg::String(val) => val.to_string(),
+                                BuildArg::EnvVar { env } => {
+                                    match std::env::var(&env) {
+                                        Ok(val) => val,
+                                        Err(_) => continue, // skip if env var not set or invalid
+                                    }
+                                }
+                            };
+
+                            command
+                                .arg("--build-arg")
+                                .arg(format!("{}={}", key, build_arg_value));
+                        }
+                    }
+
+                    command
                         .arg("-o")
                         .arg("type=docker,dest=-")
                         .capture(false)
@@ -513,7 +560,7 @@ impl ImageSource {
                     Command::new(CONTAINER_TOOL)
                         .arg("export")
                         .arg(container.trim())
-                        .pipe(Command::new("tar2sqfs").arg(&dest))
+                        .pipe(&mut tar2sqfs(&dest)?)
                         .capture(false)
                         .invoke(ErrorKind::Docker)
                         .await?;
@@ -533,6 +580,38 @@ impl ImageSource {
         }
         .boxed()
     }
+}
+
+fn tar2sqfs(dest: impl AsRef<Path>) -> Result<Command, Error> {
+    let dest = dest.as_ref();
+
+    Ok({
+        #[cfg(target_os = "linux")]
+        {
+            let mut command = Command::new("tar2sqfs");
+            command.arg("-q").arg(&dest);
+            command
+        }
+        #[cfg(target_os = "macos")]
+        {
+            let directory = dest
+                .parent()
+                .unwrap_or_else(|| Path::new("/"))
+                .to_path_buf();
+            let mut command = Command::new(CONTAINER_TOOL);
+            command
+                .arg("run")
+                .arg("-i")
+                .arg("--rm")
+                .arg("-v")
+                .arg(format!("{}:/data:rw", directory.display()))
+                .arg("ghcr.io/start9labs/sdk/utils:latest")
+                .arg("tar2sqfs")
+                .arg("-q")
+                .arg(Path::new("/data").join(&dest.file_name().unwrap_or_default()));
+            command
+        }
+    })
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]

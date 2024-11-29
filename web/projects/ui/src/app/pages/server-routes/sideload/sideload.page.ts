@@ -1,12 +1,13 @@
 import { Component } from '@angular/core'
 import { isPlatform } from '@ionic/angular'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { S9pk } from '@start9labs/start-sdk'
+import { S9pk, T } from '@start9labs/start-sdk'
 import cbor from 'cbor'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import { SideloadService } from './sideload.service'
 import { firstValueFrom } from 'rxjs'
+import mime from 'mime'
 
 interface Positions {
   [key: string]: [bigint, bigint] // [position, length]

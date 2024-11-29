@@ -1,10 +1,8 @@
 import { DEFAULT_SIGTERM_TIMEOUT } from "."
-import { NO_TIMEOUT, SIGKILL, SIGTERM } from "../../../base/lib/types"
+import { NO_TIMEOUT, SIGTERM } from "../../../base/lib/types"
 
 import * as T from "../../../base/lib/types"
-import { asError } from "../../../base/lib/util/asError"
 import {
-  ExecSpawnable,
   MountOptions,
   SubContainerHandle,
   SubContainer,
@@ -17,10 +15,10 @@ export class CommandController {
     readonly runningAnswer: Promise<unknown>,
     private state: { exited: boolean },
     private readonly subcontainer: SubContainer,
-    private process: cp.ChildProcessWithoutNullStreams,
+    private process: cp.ChildProcess,
     readonly sigtermTimeout: number = DEFAULT_SIGTERM_TIMEOUT,
   ) {}
-  static of<Manifest extends T.Manifest>() {
+  static of<Manifest extends T.SDKManifest>() {
     return async <A extends string>(
       effects: T.Effects,
       subcontainer:
@@ -43,8 +41,8 @@ export class CommandController {
           | undefined
         cwd?: string | undefined
         user?: string | undefined
-        onStdout?: (x: Buffer) => null
-        onStderr?: (x: Buffer) => null
+        onStdout?: (chunk: Buffer | string | any) => void
+        onStderr?: (chunk: Buffer | string | any) => void
       },
     ) => {
       const commands = splitCommand(command)
@@ -62,7 +60,7 @@ export class CommandController {
               }
               return subc
             })()
-      let childProcess: cp.ChildProcessWithoutNullStreams
+      let childProcess: cp.ChildProcess
       if (options.runAsInit) {
         childProcess = await subc.launch(commands, {
           env: options.env,
@@ -70,8 +68,13 @@ export class CommandController {
       } else {
         childProcess = await subc.spawn(commands, {
           env: options.env,
+          stdio: options.onStdout || options.onStderr ? "pipe" : "inherit",
         })
       }
+
+      if (options.onStdout) childProcess.stdout?.on("data", options.onStdout)
+      if (options.onStderr) childProcess.stderr?.on("data", options.onStderr)
+
       const state = { exited: false }
       const answer = new Promise<null>((resolve, reject) => {
         childProcess.on("exit", (code) => {

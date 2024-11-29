@@ -8,7 +8,6 @@ export type Procedure =
   | "/packageUninit"
   | "/backup/create"
   | "/backup/restore"
-  | "/properties"
   | `/actions/${string}/getInput`
   | `/actions/${string}/run`
 
@@ -30,10 +29,6 @@ export type System = {
 
   createBackup(effects: T.Effects, timeoutMs: number | null): Promise<void>
   restoreBackup(effects: T.Effects, timeoutMs: number | null): Promise<void>
-  properties(
-    effects: Effects,
-    timeoutMs: number | null,
-  ): Promise<T.PropertiesReturn>
   runAction(
     effects: Effects,
     actionId: string,

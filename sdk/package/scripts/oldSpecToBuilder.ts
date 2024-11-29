@@ -85,6 +85,7 @@ const {InputSpec, List, Value, Variants} = sdk
               description: value.description || null,
               warning: value.warning || null,
               required: !(value.nullable || false),
+              default: value.default,
               placeholder: value.placeholder || null,
               maxLength: null,
               minLength: null,
@@ -96,12 +97,8 @@ const {InputSpec, List, Value, Variants} = sdk
         return `${rangeToTodoComment(value?.range)}Value.text(${JSON.stringify(
           {
             name: value.name || null,
-            // prettier-ignore
-            required: (
-              value.default != null  ? {default: value.default} :
-              value.nullable === false ? {default: null} :
-              !value.nullable
-            ),
+            default: value.default || null,
+            required: !value.nullable,
             description: value.description || null,
             warning: value.warning || null,
             masked: value.masked || false,
@@ -130,12 +127,8 @@ const {InputSpec, List, Value, Variants} = sdk
             name: value.name || null,
             description: value.description || null,
             warning: value.warning || null,
-            // prettier-ignore
-            required: (
-              value.default != null  ? {default: value.default} :
-              value.nullable === false ? {default: null} :
-              !value.nullable
-            ),
+            default: value.default || null,
+            required: !value.nullable,
             min: null,
             max: null,
             step: null,
@@ -174,13 +167,7 @@ const {InputSpec, List, Value, Variants} = sdk
             name: value.name || null,
             description: value.description || null,
             warning: value.warning || null,
-
-            // prettier-ignore
-            required:(
-              value.default != null  ? {default: value.default} :
-              value.nullable === false ? {default: null} :
-              !value.nullable
-            ),
+            default: value.default,
             values,
           },
           null,
@@ -207,14 +194,7 @@ const {InputSpec, List, Value, Variants} = sdk
         name: ${JSON.stringify(value.name || null)},
         description: ${JSON.stringify(value.tag.description || null)},
         warning: ${JSON.stringify(value.tag.warning || null)},
-        
-        // prettier-ignore
-        required: ${JSON.stringify(
-          // prettier-ignore
-          value.default != null  ? {default: value.default} :
-          value.nullable === false ? {default: null} :
-          !value.nullable,
-        )},
+        default: ${JSON.stringify(value.default)},
       }, ${variants})`
       }
       case "list": {
@@ -341,12 +321,7 @@ const {InputSpec, List, Value, Variants} = sdk
               value?.spec?.tag?.description || null,
             )},
             warning: ${JSON.stringify(value?.spec?.tag?.warning || null)},
-            required: ${JSON.stringify(
-              // prettier-ignore
-              'default' in value?.spec ? {default: value?.spec?.default} :
-              !!value?.spec?.tag?.nullable || false ? {default: null} :
-              false,
-            )},
+            default: ${JSON.stringify(value?.spec?.default || null)},
           }, ${variants})
         `,
         )

@@ -17,7 +17,7 @@ export class Daemon {
   get subContainerHandle(): undefined | ExecSpawnable {
     return this.commandController?.subContainerHandle
   }
-  static of<Manifest extends T.Manifest>() {
+  static of<Manifest extends T.SDKManifest>() {
     return async <A extends string>(
       effects: T.Effects,
       subcontainer:
@@ -37,8 +37,8 @@ export class Daemon {
           | undefined
         cwd?: string | undefined
         user?: string | undefined
-        onStdout?: (x: Buffer) => null
-        onStderr?: (x: Buffer) => null
+        onStdout?: (chunk: Buffer | string | any) => void
+        onStderr?: (chunk: Buffer | string | any) => void
         sigtermTimeout?: number
       },
     ) => {

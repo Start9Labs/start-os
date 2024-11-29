@@ -307,7 +307,6 @@ impl ServiceMap {
                     sync_progress_task.await.map_err(|_| {
                         Error::new(eyre!("progress sync task panicked"), ErrorKind::Unknown)
                     })??;
-
                     Ok(())
                 })
                 .boxed())

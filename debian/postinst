@@ -20,9 +20,14 @@ fi
 update-initramfs -u -k all
 
 if [ -f /etc/default/grub ]; then
-    sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=startos"' /etc/default/grub
+    sed -i '/\(^\|#\)GRUB_CMDLINE_LINUX=/c\GRUB_CMDLINE_LINUX="boot=startos console=ttyS0,115200n8"' /etc/default/grub
     sed -i '/\(^\|#\)GRUB_DISTRIBUTOR=/c\GRUB_DISTRIBUTOR="StartOS v$(cat /usr/lib/startos/VERSION.txt)"' /etc/default/grub
+    sed -i '/\(^\|#\)GRUB_TERMINAL=/c\GRUB_TERMINAL="serial"\nGRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"' /etc/default/grub
 fi
+
+# set local and remote login prompt
+echo "StartOS v$(cat /usr/lib/startos/VERSION.txt) [\m] on \n.local (\l)" > /etc/issue
+echo "StartOS v$(cat /usr/lib/startos/VERSION.txt)" > /etc/issue.net
 
 # change timezone
 rm -f /etc/localtime
@@ -80,6 +85,7 @@ sed -i '/\(^\|#\)ForwardToSyslog=/c\ForwardToSyslog=no' /etc/systemd/journald.co
 sed -i '/^\s*#\?\s*issue_discards\s*=\s*/c\issue_discards = 1' /etc/lvm/lvm.conf
 sed -i '/\(^\|#\)\s*unqualified-search-registries\s*=\s*/c\unqualified-search-registries = ["docker.io"]' /etc/containers/registries.conf
 sed -i 's/\(#\|\^\)\s*\([^=]\+\)=\(suspend\|hibernate\)\s*$/\2=ignore/g' /etc/systemd/logind.conf
+sed -i '/\(^\|#\)MulticastDNS=/c\MulticastDNS=no' /etc/systemd/resolved.conf
 
 mkdir -p /etc/nginx/ssl
 
@@ -87,6 +93,7 @@ cat << EOF > /etc/tor/torrc
 SocksPort 0.0.0.0:9050
 SocksPolicy accept 127.0.0.1
 SocksPolicy accept 172.18.0.0/16
+SocksPolicy accept 10.0.3.0/24
 SocksPolicy reject *
 ControlPort 9051
 CookieAuthentication 1

@@ -113,10 +113,6 @@ export abstract class ApiService {
     params: RR.GetServerMetricsReq,
   ): Promise<RR.GetServerMetricsRes>
 
-  abstract getPkgMetrics(
-    params: RR.GetPackageMetricsReq,
-  ): Promise<RR.GetPackageMetricsRes>
-
   abstract updateServer(url?: string): Promise<RR.UpdateServerRes>
 
   abstract restartServer(
@@ -215,10 +211,6 @@ export abstract class ApiService {
 
   // package
 
-  abstract getPackageProperties(
-    params: RR.GetPackagePropertiesReq,
-  ): Promise<RR.GetPackagePropertiesRes<2>['data']>
-
   abstract getPackageLogs(
     params: RR.GetPackageLogsReq,
   ): Promise<RR.GetPackageLogsRes>
@@ -235,7 +227,7 @@ export abstract class ApiService {
     params: RR.GetActionInputReq,
   ): Promise<RR.GetActionInputRes>
 
-  abstract runAction(params: RR.RunActionReq): Promise<RR.RunActionRes>
+  abstract runAction(params: RR.ActionReq): Promise<RR.ActionRes>
 
   abstract restorePackages(
     params: RR.RestorePackagesReq,

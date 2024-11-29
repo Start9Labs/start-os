@@ -4,9 +4,9 @@
   "types": "./index.d.ts",
   "sideEffects": true,
   "scripts": {
-    "peggy": "peggy --allowed-start-rules '*' --plugin ./node_modules/ts-pegjs/dist/tspegjs -o lib/exver/exver.ts lib/exver/exver.pegjs",
+    "peggy": "peggy --allowed-start-rules \"*\" --plugin ./node_modules/ts-pegjs/dist/tspegjs -o lib/exver/exver.ts lib/exver/exver.pegjs",
     "test": "jest -c ./jest.config.js --coverage",
-    "buildOutput": "npx prettier --write '**/*.ts'",
+    "buildOutput": "npx prettier --write \"**/*.ts\"",
     "check": "tsc --noEmit",
     "tsc": "tsc"
   },
@@ -27,7 +27,7 @@
     "isomorphic-fetch": "^3.0.0",
     "lodash.merge": "^4.6.2",
     "mime-types": "^2.1.35",
-    "ts-matches": "^5.5.1",
+    "ts-matches": "^6.1.0",
     "yaml": "^2.2.2"
   },
   "prettier": {

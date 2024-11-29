@@ -1,12 +1,10 @@
 <ion-content>
   <div style="padding: 48px">
     <ng-container *ngIf="!restarted; else refresh">
-      <h1
-        class="ion-text-center"
-        style="padding-bottom: 36px; font-size: calc(2vw + 14px)"
-      >
-        StartOS - Diagnostic Mode
-      </h1>
+      <div class="ion-text-center" style="padding-bottom: 36px">
+        <h1 style="font-size: calc(2vw + 14px)">StartOS - Diagnostic Mode</h1>
+        <p>StartOS version: {{ config.version }}</p>
+      </div>
 
       <ng-container *ngIf="error">
         <h2

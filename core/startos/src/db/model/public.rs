@@ -22,6 +22,7 @@ use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::system::SmtpValue;
 use crate::util::cpupower::Governor;
+use crate::util::lshw::LshwDevice;
 use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
 
@@ -43,16 +44,18 @@ impl Public {
                 arch: get_arch(),
                 platform: get_platform(),
                 id: account.server_id.clone(),
-                version: Current::new().semver(),
+                version: Current::default().semver(),
                 hostname: account.hostname.no_dot_host_name(),
                 last_backup: None,
-                eos_version_compat: Current::new().compat().clone(),
+                package_version_compat: Current::default().compat().clone(),
+                post_init_migration_todos: BTreeSet::new(),
                 lan_address,
                 onion_address: account.tor_key.public().get_onion_address(),
                 tor_address: format!("https://{}", account.tor_key.public().get_onion_address())
                     .parse()
                     .unwrap(),
                 ip_info: BTreeMap::new(),
+                acme: None,
                 status_info: ServerStatus {
                     backup_progress: None,
                     updated: false,
@@ -77,6 +80,8 @@ impl Public {
                 zram: true,
                 governor: None,
                 smtp: None,
+                ram: 0,
+                devices: Vec::new(),
             },
             package_data: AllPackageData::default(),
             ui: serde_json::from_str(include_str!(concat!(
@@ -112,10 +117,12 @@ pub struct ServerInfo {
     pub hostname: InternedString,
     #[ts(type = "string")]
     pub version: Version,
+    #[ts(type = "string")]
+    pub package_version_compat: VersionRange,
+    #[ts(type = "string[]")]
+    pub post_init_migration_todos: BTreeSet<Version>,
     #[ts(type = "string | null")]
     pub last_backup: Option<DateTime<Utc>>,
-    #[ts(type = "string")]
-    pub eos_version_compat: VersionRange,
     #[ts(type = "string")]
     pub lan_address: Url,
     #[ts(type = "string")]
@@ -124,6 +131,7 @@ pub struct ServerInfo {
     #[ts(type = "string")]
     pub tor_address: Url,
     pub ip_info: BTreeMap<String, IpInfo>,
+    pub acme: Option<AcmeSettings>,
     #[serde(default)]
     pub status_info: ServerStatus,
     pub wifi: WifiInfo,
@@ -138,6 +146,9 @@ pub struct ServerInfo {
     pub zram: bool,
     pub governor: Option<Governor>,
     pub smtp: Option<SmtpValue>,
+    #[ts(type = "number")]
+    pub ram: u64,
+    pub devices: Vec<LshwDevice>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
@@ -163,6 +174,20 @@ impl IpInfo {
             ipv6,
         })
     }
+}
+
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+#[ts(export)]
+pub struct AcmeSettings {
+    #[ts(type = "string")]
+    pub provider: Url,
+    /// email addresses for letsencrypt
+    pub contact: Vec<String>,
+    #[ts(type = "string[]")]
+    /// domains to get letsencrypt certs for
+    pub domains: BTreeSet<InternedString>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]

@@ -27,7 +27,7 @@ export type Ready = {
 }
 
 type DaemonsParams<
-  Manifest extends T.Manifest,
+  Manifest extends T.SDKManifest,
   Ids extends string,
   Command extends string,
   Id extends string,
@@ -39,11 +39,13 @@ type DaemonsParams<
   ready: Ready
   requires: Exclude<Ids, Id>[]
   sigtermTimeout?: number
+  onStdout?: (chunk: Buffer | string | any) => void
+  onStderr?: (chunk: Buffer | string | any) => void
 }
 
 type ErrorDuplicateId<Id extends string> = `The id '${Id}' is already used`
 
-export const runCommand = <Manifest extends T.Manifest>() =>
+export const runCommand = <Manifest extends T.SDKManifest>() =>
   CommandController.of<Manifest>()
 
 /**
@@ -69,7 +71,7 @@ Daemons.of({
 })
 ```
  */
-export class Daemons<Manifest extends T.Manifest, Ids extends string>
+export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   implements T.DaemonBuildable
 {
   private constructor(
@@ -89,7 +91,7 @@ export class Daemons<Manifest extends T.Manifest, Ids extends string>
    * @param options
    * @returns
    */
-  static of<Manifest extends T.Manifest>(options: {
+  static of<Manifest extends T.SDKManifest>(options: {
     effects: T.Effects
     started: (onTerm: () => PromiseLike<void>) => PromiseLike<null>
     healthReceipts: HealthReceipt[]

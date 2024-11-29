@@ -32,7 +32,9 @@ use crate::progress::{
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::v2::pack::{CONTAINER_DATADIR, CONTAINER_TOOL};
 use crate::ssh::SSH_AUTHORIZED_KEYS_FILE;
+use crate::system::get_mem_info;
 use crate::util::io::{create_file, IOHook};
+use crate::util::lshw::lshw;
 use crate::util::net::WebSocketExt;
 use crate::util::{cpupower, Invoke};
 use crate::Error;
@@ -323,7 +325,9 @@ pub async fn init(
     local_auth.complete();
 
     load_database.start();
-    let db = TypedPatchDb::<Database>::load_unchecked(cfg.db().await?);
+    let db = cfg.db().await?;
+    crate::version::Current::default().pre_init(&db).await?;
+    let db = TypedPatchDb::<Database>::load_unchecked(db);
     let peek = db.peek().await;
     load_database.complete();
     tracing::info!("Opened PatchDB");
@@ -506,6 +510,8 @@ pub async fn init(
 
     update_server_info.start();
     server_info.ip_info = crate::net::dhcp::init_ips().await?;
+    server_info.ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
+    server_info.devices = lshw().await?;
     server_info.status_info = ServerStatus {
         updated: false,
         update_progress: None,
@@ -528,8 +534,6 @@ pub async fn init(
         .await?;
     launch_service_network.complete();
 
-    crate::version::init(&db, run_migrations).await?;
-
     validate_db.start();
     db.mutate(|d| {
         let model = d.de()?;
@@ -549,18 +553,33 @@ pub async fn init(
 
 pub fn init_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("logs", crate::system::logs::<InitContext>())
         .subcommand(
             "logs",
-            from_fn_async(crate::logs::cli_logs::<InitContext, Empty>).no_display(),
+            crate::system::logs::<InitContext>().with_about("Disply OS logs"),
         )
-        .subcommand("kernel-logs", crate::system::kernel_logs::<InitContext>())
+        .subcommand(
+            "logs",
+            from_fn_async(crate::logs::cli_logs::<InitContext, Empty>)
+                .no_display()
+                .with_about("Display OS logs"),
+        )
         .subcommand(
             "kernel-logs",
-            from_fn_async(crate::logs::cli_logs::<InitContext, Empty>).no_display(),
+            crate::system::kernel_logs::<InitContext>().with_about("Display kernel logs"),
+        )
+        .subcommand(
+            "kernel-logs",
+            from_fn_async(crate::logs::cli_logs::<InitContext, Empty>)
+                .no_display()
+                .with_about("Display kernel logs"),
         )
         .subcommand("subscribe", from_fn_async(init_progress).no_cli())
-        .subcommand("subscribe", from_fn_async(cli_init_progress).no_display())
+        .subcommand(
+            "subscribe",
+            from_fn_async(cli_init_progress)
+                .no_display()
+                .with_about("Get initialization progress"),
+        )
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]

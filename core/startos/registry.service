@@ -1,0 +1,13 @@
+[Unit]
+Description=StartOS Registry
+
+[Service]
+Type=simple
+Environment=RUST_LOG=startos=debug,patch_db=warn
+ExecStart=/usr/local/bin/registry
+Restart=always
+RestartSec=3
+ManagedOOMPreference=avoid
+
+[Install]
+WantedBy=multi-user.target

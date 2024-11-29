@@ -43,7 +43,6 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): IST.InputSpec {
           }),
           {},
         ),
-        required: false,
         disabled: false,
         immutable: false,
       }
@@ -127,7 +126,6 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): IST.InputSpec {
           {} as Record<string, { name: string; spec: IST.InputSpec }>,
         ),
         disabled: false,
-        required: true,
         default: oldVal.default,
         immutable: false,
       }

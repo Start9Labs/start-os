@@ -16,7 +16,7 @@ use futures::stream::FusedStream;
 use futures::{SinkExt, StreamExt, TryStreamExt};
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
-use models::{ActionId, ImageId, PackageId, ProcedureName};
+use models::{ActionId, HostId, ImageId, PackageId, ProcedureName};
 use nix::sys::signal::Signal;
 use persistent_container::{PersistentContainer, Subcontainer};
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
@@ -55,7 +55,6 @@ pub mod cli;
 mod control;
 pub mod effects;
 pub mod persistent_container;
-mod properties;
 mod rpc;
 mod service_actor;
 pub mod service_map;
@@ -83,6 +82,32 @@ pub enum LoadDisposition {
 }
 
 struct RootCommand(pub String);
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default, TS)]
+pub struct MiB(pub u64);
+
+impl MiB {
+    fn new(value: u64) -> Self {
+        Self(value / 1024 / 1024)
+    }
+    fn from_MiB(value: u64) -> Self {
+        Self(value)
+    }
+}
+
+impl std::fmt::Display for MiB {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} MiB", self.0)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default, TS)]
+pub struct ServiceStats {
+    pub container_id: Arc<ContainerId>,
+    pub package_id: PackageId,
+    pub memory_usage: MiB,
+    pub memory_limit: MiB,
+}
 
 pub struct ServiceRef(Arc<Service>);
 impl ServiceRef {
@@ -132,6 +157,7 @@ impl ServiceRef {
                             );
                             Ok(())
                         })?;
+                        d.as_private_mut().as_package_stores_mut().remove(&id)?;
                         Ok(Some(pde))
                     } else {
                         Ok(None)
@@ -408,6 +434,7 @@ impl Service {
         let developer_key = s9pk.as_archive().signer();
         let icon = s9pk.icon_data_url().await?;
         let service = Self::new(ctx.clone(), s9pk, StartStop::Stop).await?;
+
         if let Some(recovery_source) = recovery_source {
             service
                 .actor
@@ -429,6 +456,7 @@ impl Service {
                     .clone(),
             );
         }
+
         let procedure_id = Guid::new();
         service
             .seed
@@ -441,6 +469,7 @@ impl Service {
             ) // TODO timeout
             .await
             .with_kind(ErrorKind::MigrationFailed)?; // TODO: handle cancellation
+
         if let Some(mut progress) = progress {
             progress.finalization_progress.complete();
             progress.progress.complete();
@@ -549,6 +578,54 @@ impl Service {
             .guid)
             .clone();
         Ok(container_id)
+    }
+    #[instrument(skip_all)]
+    pub async fn stats(&self) -> Result<ServiceStats, Error> {
+        let container = &self.seed.persistent_container;
+        let lxc_container = container.lxc_container.get().or_not_found("container")?;
+        let (total, used) = lxc_container
+            .command(&["free", "-m"])
+            .await?
+            .split("\n")
+            .map(|x| x.split_whitespace().collect::<Vec<_>>())
+            .skip(1)
+            .filter_map(|x| {
+                Some((
+                    x.get(1)?.parse::<u64>().ok()?,
+                    x.get(2)?.parse::<u64>().ok()?,
+                ))
+            })
+            .fold((0, 0), |acc, (total, used)| (acc.0 + total, acc.1 + used));
+        Ok(ServiceStats {
+            container_id: lxc_container.guid.clone(),
+            package_id: self.seed.id.clone(),
+            memory_limit: MiB::from_MiB(total),
+            memory_usage: MiB::from_MiB(used),
+        })
+    }
+
+    pub async fn update_host(&self, host_id: HostId) -> Result<(), Error> {
+        let host = self
+            .seed
+            .ctx
+            .db
+            .peek()
+            .await
+            .as_public()
+            .as_package_data()
+            .as_idx(&self.seed.id)
+            .or_not_found(&self.seed.id)?
+            .as_hosts()
+            .as_idx(&host_id)
+            .or_not_found(&host_id)?
+            .de()?;
+        self.seed
+            .persistent_container
+            .net_service
+            .lock()
+            .await
+            .update(host_id, host)
+            .await
     }
 }
 

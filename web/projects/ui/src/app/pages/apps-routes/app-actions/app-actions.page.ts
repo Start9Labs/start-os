@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  EventEmitter,
+  Input,
+  Output,
+} from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
@@ -21,13 +27,12 @@ export class AppActionsPage {
     filter(pkg => pkg.stateInfo.state === 'installed'),
     map(pkg => ({
       mainStatus: pkg.status.main,
+      icon: pkg.icon,
       manifest: getManifest(pkg),
-      actions: Object.keys(pkg.actions)
-        .filter(id => id !== 'config')
-        .map(id => ({
-          id,
-          ...pkg.actions[id],
-        })),
+      actions: Object.keys(pkg.actions).map(id => ({
+        id,
+        ...pkg.actions[id],
+      })),
     })),
   )
 
@@ -40,13 +45,14 @@ export class AppActionsPage {
 
   async handleAction(
     mainStatus: T.MainStatus['main'],
+    icon: string,
     manifest: T.Manifest,
     action: T.ActionMetadata & { id: string },
   ) {
-    this.actionService.present(
-      { id: manifest.id, title: manifest.title, mainStatus },
-      { id: action.id, metadata: action },
-    )
+    this.actionService.present({
+      pkgInfo: { id: manifest.id, title: manifest.title, icon, mainStatus },
+      actionInfo: { id: action.id, metadata: action },
+    })
   }
 
   async rebuild(id: string) {
@@ -70,13 +76,14 @@ export class AppActionsItemComponent {
     description: string
     visibility: T.ActionVisibility
   }
-
   @Input() icon!: string
+
+  @Output() onClick: EventEmitter<void> = new EventEmitter()
 
   get disabledText() {
     return (
       typeof this.action.visibility === 'object' &&
-      this.action.visibility.disabled.reason
+      this.action.visibility.disabled
     )
   }
 }

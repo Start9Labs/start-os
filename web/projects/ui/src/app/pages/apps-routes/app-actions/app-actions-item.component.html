@@ -1,4 +1,4 @@
-<ion-item button [disabled]="disabledText">
+<ion-item button [disabled]="disabledText" (click)="onClick.next()">
   <ion-icon slot="start" [name]="icon" size="large"></ion-icon>
   <ion-label>
     <h1>{{ action.name }}</h1>

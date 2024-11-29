@@ -13,29 +13,8 @@ export type BackupSync<Volumes extends string> = {
   backupOptions?: Partial<T.SyncOptions>
   restoreOptions?: Partial<T.SyncOptions>
 }
-/**
- * This utility simplifies the volume backup process.
- * ```ts
- * export const { createBackup, restoreBackup } = Backups.volumes("main").build();
- * ```
- *
- * Changing the options of the rsync, (ie excludes) use either
- * ```ts
- *  Backups.volumes("main").set_options({exclude: ['bigdata/']}).volumes('excludedVolume').build()
- * // or
- *  Backups.with_options({exclude: ['bigdata/']}).volumes('excludedVolume').build()
- * ```
- *
- * Using the more fine control, using the addSets for more control
- * ```ts
- * Backups.addSets({
- * srcVolume: 'main', srcPath:'smallData/', dstPath: 'main/smallData/', dstVolume: : Backups.BACKUP
- * }, {
- * srcVolume: 'main', srcPath:'bigData/', dstPath: 'main/bigData/', dstVolume: : Backups.BACKUP, options: {exclude:['bigData/excludeThis']}}
- * ).build()q
- * ```
- */
-export class Backups<M extends T.Manifest> {
+
+export class Backups<M extends T.SDKManifest> {
   private constructor(
     private options = DEFAULT_OPTIONS,
     private restoreOptions: Partial<T.SyncOptions> = {},
@@ -43,7 +22,7 @@ export class Backups<M extends T.Manifest> {
     private backupSet = [] as BackupSync<M["volumes"][number]>[],
   ) {}
 
-  static withVolumes<M extends T.Manifest = never>(
+  static withVolumes<M extends T.SDKManifest = never>(
     ...volumeNames: Array<M["volumes"][number]>
   ): Backups<M> {
     return Backups.withSyncs(
@@ -54,13 +33,13 @@ export class Backups<M extends T.Manifest> {
     )
   }
 
-  static withSyncs<M extends T.Manifest = never>(
+  static withSyncs<M extends T.SDKManifest = never>(
     ...syncs: BackupSync<M["volumes"][number]>[]
   ) {
     return syncs.reduce((acc, x) => acc.addSync(x), new Backups<M>())
   }
 
-  static withOptions<M extends T.Manifest = never>(
+  static withOptions<M extends T.SDKManifest = never>(
     options?: Partial<T.SyncOptions>,
   ) {
     return new Backups<M>({ ...DEFAULT_OPTIONS, ...options })

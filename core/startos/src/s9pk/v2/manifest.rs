@@ -22,7 +22,7 @@ use crate::util::VersionString;
 use crate::version::{Current, VersionT};
 
 fn current_version() -> Version {
-    Current::new().semver()
+    Current::default().semver()
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
@@ -161,12 +161,22 @@ impl Manifest {
 #[ts(export)]
 pub struct HardwareRequirements {
     #[serde(default)]
-    #[ts(type = "{ display?: string, processor?: string }")]
-    pub device: BTreeMap<String, Regex>, // TODO: array
+    pub device: Vec<DeviceFilter>,
     #[ts(type = "number | null")]
     pub ram: Option<u64>,
     #[ts(type = "string[] | null")]
     pub arch: Option<BTreeSet<InternedString>>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct DeviceFilter {
+    #[ts(type = "\"processor\" | \"display\"")]
+    pub class: InternedString,
+    #[ts(type = "string")]
+    pub pattern: Regex,
+    pub pattern_description: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]

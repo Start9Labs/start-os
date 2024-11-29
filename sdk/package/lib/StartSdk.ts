@@ -1,7 +1,4 @@
-import {
-  RequiredDefault,
-  Value,
-} from "../../base/lib/actions/input/builder/value"
+import { Value } from "../../base/lib/actions/input/builder/value"
 import {
   InputSpec,
   ExtractInputSpecType,
@@ -36,12 +33,11 @@ import { checkWebUrl, runHealthScript } from "./health/checkFns"
 import { List } from "../../base/lib/actions/input/builder/list"
 import { Install, InstallFn } from "./inits/setupInstall"
 import { SetupBackupsParams, setupBackups } from "./backup/setupBackups"
-import { Uninstall, UninstallFn, setupUninstall } from "./inits/setupUninstall"
+import { UninstallFn, setupUninstall } from "./inits/setupUninstall"
 import { setupMain } from "./mainFn"
 import { defaultTrigger } from "./trigger/defaultTrigger"
 import { changeOnFirstSuccess, cooldownTrigger } from "./trigger"
 import {
-  ServiceInterfacesReceipt,
   UpdateServiceInterfaces,
   setupServiceInterfaces,
 } from "../../base/lib/interfaces/setupInterfaces"
@@ -55,7 +51,6 @@ import { getStore } from "./store/getStore"
 import { CommandOptions, MountOptions, SubContainer } from "./util/SubContainer"
 import { splitCommand } from "./util"
 import { Mounts } from "./mainFn/Mounts"
-import { Dependency } from "../../base/lib/dependencies/Dependency"
 import { setupDependencies } from "../../base/lib/dependencies/setupDependencies"
 import * as T from "../../base/lib/types"
 import { testTypeVersion } from "../../base/lib/exver"
@@ -86,12 +81,12 @@ type AnyNeverCond<T extends any[], Then, Else> =
     T extends [any, ...infer U] ? AnyNeverCond<U,Then, Else> :
     never
 
-export class StartSdk<Manifest extends T.Manifest, Store> {
+export class StartSdk<Manifest extends T.SDKManifest, Store> {
   private constructor(readonly manifest: Manifest) {}
   static of() {
     return new StartSdk<never, never>(null as never)
   }
-  withManifest<Manifest extends T.Manifest = never>(manifest: Manifest) {
+  withManifest<Manifest extends T.SDKManifest = never>(manifest: Manifest) {
     return new StartSdk<Manifest, Store>(manifest)
   }
   withStore<Store extends Record<string, any>>() {
@@ -135,23 +130,43 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
       getDataVersion: (effects, ...args) => effects.getDataVersion(...args),
       shutdown: (effects, ...args) => effects.shutdown(...args),
       getDependencies: (effects, ...args) => effects.getDependencies(...args),
+      getStatus: (effects, ...args) => effects.getStatus(...args),
     }
 
     return {
+      manifest: this.manifest,
       ...startSdkEffectWrapper,
       action: {
         run: actions.runAction,
-        request: actions.requestAction,
-        requestOwn: <T extends Omit<T.ActionRequest, "packageId">>(
+        request: <T extends Action<T.ActionId, any, any>>(
           effects: T.Effects,
-          request: actions.ActionRequest<T> & {
-            replayId?: string
-          },
+          packageId: T.PackageId,
+          action: T,
+          severity: T.ActionSeverity,
+          options?: actions.ActionRequestOptions<T>,
         ) =>
           actions.requestAction({
             effects,
-            request: { ...request, packageId: this.manifest.id },
+            packageId,
+            action,
+            severity,
+            options: options,
           }),
+        requestOwn: <T extends Action<T.ActionId, Store, any>>(
+          effects: T.Effects,
+          action: T,
+          severity: T.ActionSeverity,
+          options?: actions.ActionRequestOptions<T>,
+        ) =>
+          actions.requestAction({
+            effects,
+            packageId: this.manifest.id,
+            action,
+            severity,
+            options: options,
+          }),
+        clearRequest: (effects: T.Effects, ...replayIds: string[]) =>
+          effects.action.clearRequests({ only: replayIds }),
       },
       checkDependencies: checkDependencies as <
         DependencyId extends keyof Manifest["dependencies"] &
@@ -224,68 +239,67 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         return runCommand<Manifest>(effects, image, command, options, name)
       },
       /**
-       * TODO: rewrite this
-       * @description Use this function to create a static Action, including optional form input.
+       * @description Use this class to create an Action. By convention, each Action should receive its own file.
        *
-       *   By convention, each Action should receive its own file.
-       *
-       * @param id
-       * @param metaData
-       * @param fn
-       * @returns
-       * @example
-       * In this example, we create an Action that prints a name to the console. We present a user
-       * with a form for optionally entering a temp name. If no temp name is provided, we use the name
-       * from the underlying `inputSpec.yaml` file. If no name is there, we use "Unknown". Then, we return
-       * a message to the user informing them what happened.
-       * 
-       * ```
-        import { sdk } from '../sdk'
-        const { InputSpec, Value } = sdk
-        import { yamlFile } from '../file-models/inputSpec.yml'
-
-        const input = InputSpec.of({
-          nameToPrint: Value.text({
-            name: 'Temp Name',
-            description: 'If no name is provided, the name from inputSpec will be used',
-            required: false,
-          }),
-        })
-
-        export const nameToLog = sdk.createAction(
-          // id
-          'nameToLogs',
-
-          // metadata
-          {
-            name: 'Name to Logs',
-            description: 'Prints "Hello [Name]" to the service logs.',
-            warning: null,
-            disabled: false,
-            input,
-            allowedStatuses: 'onlyRunning',
-            group: null,
-          },
-
-          // the execution function
-          async ({ effects, input }) => {
-            const name =
-              input.nameToPrint || (await yamlFile.read(effects))?.name || 'Unknown'
-
-            console.info(`Hello ${name}`)
-
-            return {
-              version: '0',
-              message: `"Hello ${name}" has been written to the service logs. Open your logs to view it.`,
-              value: name,
-              copyable: true,
-              qr: false,
-            }
-          },
-        )
-       * ```
        */
       Action: {
+        /**
+         * @description Use this function to create an action that accepts form input
+         * @param id - a unique ID for this action
+         * @param metadata - information describing the action and its availability
+         * @param inputSpec - define the form input using the InputSpec and Value classes
+         * @param prefillFn - optionally fetch data from the file system to pre-fill the input form. Must returns a deep partial of the input spec
+         * @param executionFn - execute the action. Optionally return data for the user to view. Must be in the structure of an ActionResult, version "1"
+         * @example
+         * In this example, we create an action for a user to provide their name.
+         *   We prefill the input form with their existing name from the service's yaml file.
+         *   The new name is saved to the yaml file, and we return nothing to the user, which
+         *   means they will receive a generic success message.
+         * 
+         * ```
+          import { sdk } from '../sdk'
+          import { yamlFile } from '../file-models/config.yml'
+
+          const { InputSpec, Value } = sdk
+
+          export const inputSpec = InputSpec.of({
+            name: Value.text({
+              name: 'Name',
+              description:
+                'When you launch the Hello World UI, it will display "Hello [Name]"',
+              required: true,
+              default: 'World',
+            }),
+          })
+
+          export const setName = sdk.Action.withInput(
+            // id
+            'set-name',
+
+            // metadata
+            async ({ effects }) => ({
+              name: 'Set Name',
+              description: 'Set your name so Hello World can say hello to you',
+              warning: null,
+              allowedStatuses: 'any',
+              group: null,
+              visibility: 'enabled',
+            }),
+
+            // form input specification
+            inputSpec,
+
+            // optionally pre-fill the input form
+            async ({ effects }) => {
+              const name = await yamlFile.read.const(effects)?.name
+              return { name }
+            },
+
+            // the execution function
+            async ({ effects, input }) => yamlFile.merge(input)
+          )
+         * ```
+        */
         withInput: <
           Id extends T.ActionId,
           InputSpecType extends
@@ -301,6 +315,50 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           getInput: GetInput<Type>,
           run: Run<Type>,
         ) => Action.withInput(id, metadata, inputSpec, getInput, run),
+        /**
+         * @description Use this function to create an action that does not accept form input
+         * @param id - a unique ID for this action
+         * @param metadata - information describing the action and its availability
+         * @param executionFn - execute the action. Optionally return data for the user to view. Must be in the structure of an ActionResult, version "1"
+         * @example
+         * In this example, we create an action that returns a secret phrase for the user to see.
+         * 
+         * ```
+          import { sdk } from '../sdk'
+
+          export const showSecretPhrase = sdk.Action.withoutInput(
+            // id
+            'show-secret-phrase',
+
+            // metadata
+            async ({ effects }) => ({
+              name: 'Show Secret Phrase',
+              description: 'Reveal the secret phrase for Hello World',
+              warning: null,
+              allowedStatuses: 'any',
+              group: null,
+              visibility: 'enabled',
+            }),
+
+            // the execution function
+            async ({ effects }) => ({
+              version: '1',
+              title: 'Secret Phrase',
+              message:
+                'Below is your secret phrase. Use it to gain access to extraordinary places',
+              result: {
+                type: 'single',
+                value: await sdk.store
+                  .getOwn(effects, sdk.StorePath.secretPhrase)
+                  .const(),
+                copyable: true,
+                qr: true,
+                masked: true,
+              },
+            }),
+          )
+         * ```
+        */
         withoutInput: <Id extends T.ActionId>(
           id: Id,
           metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
@@ -339,9 +397,9 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           id: string
           /** The human readable description. */
           description: string
-          /** Not available until StartOS v0.4.0. If true, forces the user to select one URL (i.e. .onion, .local, or IP address) as the primary URL. This is needed by some services to function properly. */
+          /** No effect until StartOS v0.4.0. If true, forces the user to select one URL (i.e. .onion, .local, or IP address) as the primary URL. This is needed by some services to function properly. */
           hasPrimary: boolean
-          /** Affects how the interface appears to the user. One of: 'ui', 'api', 'p2p'. */
+          /** Affects how the interface appears to the user. One of: 'ui', 'api', 'p2p'. If 'ui', the user will see a "Launch UI" button */
           type: ServiceInterfaceType
           /** (optional) prepends the provided username to all URLs. */
           username: null | string
@@ -366,19 +424,8 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         algorithm?: T.Algorithm,
       ) => new GetSslCertificate(effects, hostnames, algorithm),
       HealthCheck: {
-        of(o: HealthCheckParams) {
-          return healthCheck(o)
-        },
-      },
-      Dependency: {
-        /**
-         * @description Use this function to create a dependency for the service.
-         * @property {DependencyType} type
-         * @property {VersionRange} versionRange
-         * @property {string[]} healthChecks
-         */
-        of(data: Dependency["data"]) {
-          return new Dependency({ ...data })
+        of(effects: T.Effects, o: Omit<HealthCheckParams, "effects">) {
+          return healthCheck({ effects, ...o })
         },
       },
       healthCheck: {
@@ -408,15 +455,22 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
        * In this example, we back up the entire "main" volume and nothing else.
        *
        * ```
-        export const { createBackup, restoreBackup } = sdk.setupBackups(sdk.Backups.addVolume('main'))
+        import { sdk } from './sdk'
+
+        export const { createBackup, restoreBackup } = sdk.setupBackups(
+          async ({ effects }) => sdk.Backups.volumes('main'),
+        )
        * ```
        * @example
-       * In this example, we back up the "main" and the "other" volume, but exclude hypothetical directory "excludedDir" from the "other".
+       * In this example, we back up the "main" volume, but exclude hypothetical directory "excludedDir".
        *
        * ```
-        export const { createBackup, restoreBackup } = sdk.setupBackups(sdk.Backups
-          .addVolume('main')
-          .addVolume('other', { exclude: ['path/to/excludedDir'] })
+        import { sdk } from './sdk'
+
+        export const { createBackup, restoreBackup } = sdk.setupBackups(async () =>
+          sdk.Backups.volumes('main').setOptions({
+            exclude: ['excludedDir'],
+          }),
         )
        * ```
        */
@@ -424,37 +478,36 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         setupBackups<Manifest>(options),
       /**
        * @description Use this function to set dependency information.
-       *
-       *   The function executes on service install, update, and inputSpec save. "input" will be of type `Input` for inputSpec save. It will be `null` for install and update.
        * @example
-       * In this example, we create a static dependency on Hello World >=1.0.0:0, where Hello World must be running and passing its "webui" health check.
+       * In this example, we create a perpetual dependency on Hello World >=1.0.0:0, where Hello World must be running and passing its "primary" health check.
        *
        * ```
         export const setDependencies = sdk.setupDependencies(
           async ({ effects, input }) => {
             return {
-              'hello-world': sdk.Dependency.of({
-                type: 'running',
-                versionRange: VersionRange.parse('>=1.0.0:0'),
-                healthChecks: ['webui'],
-              }),
+              'hello-world': {
+                kind: 'running',
+                versionRange: '>=1.0.0',
+                healthChecks: ['primary'],
+              },
             }
           },
         )
        * ```
        * @example
-       * In this example, we create a conditional dependency on Hello World based on a hypothetical "needsWorld" boolean in the store.
+       * In this example, we create a conditional dependency on Hello World based on a hypothetical "needsWorld" boolean in our Store.
+       * Using .const() ensures that if the "needsWorld" boolean changes, setupDependencies will re-run.
        *
        * ```
         export const setDependencies = sdk.setupDependencies(
           async ({ effects }) => {
             if (sdk.store.getOwn(sdk.StorePath.needsWorld).const()) {
               return {
-                'hello-world': sdk.Dependency.of({
-                  type: 'running',
-                  versionRange: VersionRange.parse('>=1.0.0:0'),
-                  healthChecks: ['webui'],
-                }),
+                'hello-world': {
+                  kind: 'running',
+                  versionRange: '>=1.0.0',
+                  healthChecks: ['primary'],
+                },
               }
             }
             return {}
@@ -567,37 +620,6 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         }) => Promise<Daemons<Manifest, any>>,
       ) => setupMain<Manifest, Store>(fn),
       /**
-       * @description Use this function to determine which information to expose to the UI in the "Properties" section.
-       *
-       *   Values can be obtained from anywhere: the Store, the upstream service, or another service.
-       * @example
-       * In this example, we retrieve the admin password from the Store and expose it, masked and copyable, to
-       * the UI as "Admin Password".
-       *
-       * ```
-        export const properties = sdk.setupProperties(async ({ effects }) => {
-          const store = await sdk.store.getOwn(effects, sdk.StorePath).once()
-       
-          return {
-            'Admin Password': {
-              type: 'string',
-              value: store.adminPassword,
-              description: 'Used for logging into the admin UI',
-              copyable: true,
-              masked: true,
-              qr: false,
-            },
-          }
-        })
-       * ```
-       */
-      setupProperties:
-        (
-          fn: (options: { effects: Effects }) => Promise<T.SdkPropertiesReturn>,
-        ): T.ExpectedExports.properties =>
-        (options) =>
-          fn(options).then(nullifyProperties),
-      /**
        * Use this function to execute arbitrary logic *once*, on uninstall only. Most services will not use this.
        */
       setupUninstall: (fn: UninstallFn<Manifest, Store>) =>
@@ -640,7 +662,8 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               name: 'Name',
               description:
                 'When you launch the Hello World UI, it will display "Hello [Name]"',
-              required: { default: 'World' },
+              required: true,
+              default: 'World'
             }),
             makePublic: Value.toggle({
               name: 'Make Public',
@@ -657,12 +680,12 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
         ) => InputSpec.of<Spec, Store>(spec),
       },
       Daemons: {
-        of(options: {
-          effects: Effects
-          started: (onTerm: () => PromiseLike<void>) => PromiseLike<null>
-          healthReceipts: HealthReceipt[]
-        }) {
-          return Daemons.of<Manifest>(options)
+        of(
+          effects: Effects,
+          started: (onTerm: () => PromiseLike<void>) => PromiseLike<null>,
+          healthReceipts: HealthReceipt[],
+        ) {
+          return Daemons.of<Manifest>({ effects, started, healthReceipts })
         },
       },
       List: {
@@ -699,6 +722,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
                 label: Value.text({
                   name: 'Label',
                   required: false,
+                  default: null,
                 })
               })
               displayAs: 'label',
@@ -716,11 +740,13 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               spec: InputSpec.of({
                 label: Value.text({
                   name: 'Label',
-                  required: { default: null },
+                  required: true,
+                  default: null,
                 })
                 pubkey: Value.text({
                   name: 'Pubkey',
-                  required: { default: null },
+                  required: true,
+                  default: null,
                 })
               })
               displayAs: 'label',
@@ -733,11 +759,13 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               spec: InputSpec.of({
                 label: Value.text({
                   name: 'Label',
-                  required: { default: null },
+                  required: true,
+                  default: null,
                 })
                 pubkey: Value.text({
                   name: 'Pubkey',
-                  required: { default: null },
+                  required: true,
+                  default: null,
                 })
               })
               displayAs: 'label',
@@ -803,6 +831,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             // required
             name: 'Text Example',
             required: false,
+            default: null,
          
             // optional
             description: null,
@@ -827,6 +856,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             // required
             name: 'Textarea Example',
             required: false,
+            default: null,
          
             // optional
             description: null,
@@ -847,6 +877,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             // required
             name: 'Number Example',
             required: false,
+            default: null,
             integer: true,
          
             // optional
@@ -870,6 +901,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             // required
             name: 'Color Example',
             required: false,
+            default: null,
          
             // optional
             description: null,
@@ -887,6 +919,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             // required
             name: 'Datetime Example',
             required: false,
+            default: null,
          
             // optional
             description: null,
@@ -906,7 +939,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           selectExample: Value.select({
             // required
             name: 'Select Example',
-            required: false,
+            default: 'radio1',
             values: {
               radio1: 'Radio 1',
               radio2: 'Radio 2',
@@ -971,7 +1004,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             {
               // required
               name: 'Union Example',
-              required: false,
+              default: 'option1',
          
               // optional
               description: null,
@@ -1057,6 +1090,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
          * ```
          */
         list: Value.list,
+        hidden: Value.hidden,
         dynamicToggle: (
           a: LazyBuild<
             Store,
@@ -1079,14 +1113,14 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
               /**
-               * @description Determines if the field is required. If so, optionally provide a default value.
-               * @type { false | { default: string | RandomString | null } }
-               * @example required: false
-               * @example required: { default: null }
-               * @example required: { default: 'World' }
-               * @example required: { default: { charset: 'abcdefg', len: 16 } }
+               * @description optionally provide a default value.
+               * @type { string | RandomString | null }
+               * @example default: null
+               * @example default: 'World'
+               * @example default: { charset: 'abcdefg', len: 16 }
                */
-              required: RequiredDefault<DefaultString>
+              default: DefaultString | null
+              required: boolean
               /**
                * @description Mask (aka camouflage) text input with dots: ● ● ●
                * @default false
@@ -1129,15 +1163,12 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               description?: string | null
               /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
-              /**
-               * @description Unlike other "required" fields, for textarea this is a simple boolean.
-               */
+              default: string | null
               required: boolean
               minLength?: number | null
               maxLength?: number | null
               placeholder?: string | null
               disabled?: false | string
-              generate?: null | RandomString
             }
           >,
         ) => Value.dynamicTextarea<Store>(getA),
@@ -1150,13 +1181,13 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
               /**
-               * @description Determines if the field is required. If so, optionally provide a default value.
-               * @type { false | { default: number | null } }
-               * @example required: false
-               * @example required: { default: null }
-               * @example required: { default: 7 }
+               * @description optionally provide a default value.
+               * @type { number | null }
+               * @example default: null
+               * @example default: 7
                */
-              required: RequiredDefault<number>
+              default: number | null
+              required: boolean
               min?: number | null
               max?: number | null
               /**
@@ -1186,13 +1217,13 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
               /**
-               * @description Determines if the field is required. If so, optionally provide a default value.
-               * @type { false | { default: string | null } }
-               * @example required: false
-               * @example required: { default: null }
-               * @example required: { default: 'ffffff' }
+               * @description optionally provide a default value.
+               * @type { string | null }
+               * @example default: null
+               * @example default: 'ffffff'
                */
-              required: RequiredDefault<string>
+              default: string | null
+              required: boolean
               disabled?: false | string
             }
           >,
@@ -1206,13 +1237,13 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
               /**
-               * @description Determines if the field is required. If so, optionally provide a default value.
-               * @type { false | { default: string | null } }
-               * @example required: false
-               * @example required: { default: null }
-               * @example required: { default: '1985-12-16 18:00:00.000' }
+               * @description optionally provide a default value.
+               * @type { string | null }
+               * @example default: null
+               * @example default: '1985-12-16 18:00:00.000'
                */
-              required: RequiredDefault<string>
+              default: string
+              required: boolean
               /**
                * @description Informs the browser how to behave and which date/time component to display.
                * @default "datetime-local"
@@ -1224,7 +1255,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
             }
           >,
         ) => Value.dynamicDatetime<Store>(getA),
-        dynamicSelect: (
+        dynamicSelect: <Variants extends Record<string, string>>(
           getA: LazyBuild<
             Store,
             {
@@ -1233,13 +1264,12 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
               /**
-               * @description Determines if the field is required. If so, optionally provide a default value from the list of values.
-               * @type { false | { default: string | null } }
-               * @example required: false
-               * @example required: { default: null }
-               * @example required: { default: 'radio1' }
+               * @description provide a default value from the list of values.
+               * @type { default: string }
+               * @example default: 'radio1'
                */
-              required: RequiredDefault<string>
+              default: keyof Variants & string
+              required: boolean
               /**
                * @description A mapping of unique radio options to their human readable display format.
                * @example
@@ -1251,7 +1281,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
                 }
                * ```
                */
-              values: Record<string, string>
+              values: Variants
               /**
                * @options
                *   - false - The field can be modified.
@@ -1301,27 +1331,37 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
           >,
         ) => Value.dynamicMultiselect<Store>(getA),
         filteredUnion: <
-          Required extends RequiredDefault<string>,
-          Type extends Record<string, any>,
+          VariantValues extends {
+            [K in string]: {
+              name: string
+              spec: InputSpec<any, Store> | InputSpec<any, never>
+            }
+          },
         >(
           getDisabledFn: LazyBuild<Store, string[]>,
           a: {
             name: string
             description?: string | null
             warning?: string | null
-            required: Required
+            default: keyof VariantValues & string
           },
-          aVariants: Variants<Type, Store> | Variants<Type, never>,
+          aVariants:
+            | Variants<VariantValues, Store>
+            | Variants<VariantValues, never>,
         ) =>
-          Value.filteredUnion<Required, Type, Store>(
+          Value.filteredUnion<VariantValues, Store>(
             getDisabledFn,
             a,
             aVariants,
           ),
 
         dynamicUnion: <
-          Required extends RequiredDefault<string>,
-          Type extends Record<string, any>,
+          VariantValues extends {
+            [K in string]: {
+              name: string
+              spec: InputSpec<any, Store> | InputSpec<any, never>
+            }
+          },
         >(
           getA: LazyBuild<
             Store,
@@ -1331,13 +1371,12 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               /** Presents a warning prompt before permitting the value to change. */
               warning?: string | null
               /**
-               * @description Determines if the field is required. If so, optionally provide a default value from the list of variants.
-               * @type { false | { default: string | null } }
-               * @example required: false
-               * @example required: { default: null }
-               * @example required: { default: 'variant1' }
+               * @description provide a default value from the list of variants.
+               * @type { string }
+               * @example default: 'variant1'
                */
-              required: Required
+              default: keyof VariantValues & string
+              required: boolean
               /**
                * @options
                *   - false - The field can be modified.
@@ -1348,8 +1387,10 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
               disabled: false | string | string[]
             }
           >,
-          aVariants: Variants<Type, Store> | Variants<Type, never>,
-        ) => Value.dynamicUnion<Required, Type, Store>(getA, aVariants),
+          aVariants:
+            | Variants<VariantValues, Store>
+            | Variants<VariantValues, never>,
+        ) => Value.dynamicUnion<VariantValues, Store>(getA, aVariants),
       },
       Variants: {
         of: <
@@ -1367,7 +1408,7 @@ export class StartSdk<Manifest extends T.Manifest, Store> {
   }
 }
 
-export async function runCommand<Manifest extends T.Manifest>(
+export async function runCommand<Manifest extends T.SDKManifest>(
   effects: Effects,
   image: { id: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
   command: string | [string, ...string[]],
@@ -1384,27 +1425,4 @@ export async function runCommand<Manifest extends T.Manifest>(
     name,
     (subcontainer) => subcontainer.exec(commands),
   )
-}
-function nullifyProperties(value: T.SdkPropertiesReturn): T.PropertiesReturn {
-  return Object.fromEntries(
-    Object.entries(value).map(([k, v]) => [k, nullifyProperties_(v)]),
-  )
-}
-function nullifyProperties_(value: T.SdkPropertiesValue): T.PropertiesValue {
-  if (value.type === "string") {
-    return {
-      description: null,
-      copyable: null,
-      masked: null,
-      qr: null,
-      ...value,
-    }
-  }
-  return {
-    description: null,
-    ...value,
-    value: Object.fromEntries(
-      Object.entries(value.value).map(([k, v]) => [k, nullifyProperties_(v)]),
-    ),
-  }
 }

@@ -26,7 +26,7 @@ use ts_rs::TS;
 use crate::context::{CliContext, RpcContext};
 use crate::logs::{journalctl, LogSource, LogsParams};
 use crate::prelude::*;
-use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
+use crate::util::serde::{display_serializable, Base64, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
 
 pub const SYSTEMD_UNIT: &str = "tor@default";
@@ -59,7 +59,9 @@ impl Model<OnionStore> {
         self.insert(&key.public().get_onion_address(), &key)
     }
     pub fn get_key(&self, address: &OnionAddressV3) -> Result<TorSecretKeyV3, Error> {
-        self.as_idx(address).or_not_found(address)?.de()
+        self.as_idx(address)
+            .or_not_found(lazy_format!("private key for {address}"))?
+            .de()
     }
 }
 
@@ -91,20 +93,102 @@ pub fn tor<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_services(handle.params, result))
                 })
+                .with_about("Display Tor V3 Onion Addresses")
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("logs", logs())
+        .subcommand("logs", logs().with_about("Display Tor logs"))
         .subcommand(
             "logs",
-            from_fn_async(crate::logs::cli_logs::<RpcContext, Empty>).no_display(),
+            from_fn_async(crate::logs::cli_logs::<RpcContext, Empty>)
+                .no_display()
+                .with_about("Display Tor logs"),
         )
         .subcommand(
             "reset",
             from_fn_async(reset)
                 .no_display()
+                .with_about("Reset Tor daemon")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "key",
+            key::<C>().with_about("Manage the onion service key store"),
+        )
+}
+
+pub fn key<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand(
+            "generate",
+            from_fn_async(generate_key)
+                .with_about("Generate an onion service key and add it to the key store")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "add",
+            from_fn_async(add_key)
+                .with_about("Add an onion service key to the key store")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "list",
+            from_fn_async(list_keys)
+                .with_custom_display_fn(|_, res| {
+                    for addr in res {
+                        println!("{addr}");
+                    }
+                    Ok(())
+                })
+                .with_about("List onion services with keys in the key store")
                 .with_call_remote::<CliContext>(),
         )
 }
+
+pub async fn generate_key(ctx: RpcContext) -> Result<OnionAddressV3, Error> {
+    ctx.db
+        .mutate(|db| {
+            Ok(db
+                .as_private_mut()
+                .as_key_store_mut()
+                .as_onion_mut()
+                .new_key()?
+                .public()
+                .get_onion_address())
+        })
+        .await
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+pub struct AddKeyParams {
+    pub key: Base64<[u8; 64]>,
+}
+
+pub async fn add_key(
+    ctx: RpcContext,
+    AddKeyParams { key }: AddKeyParams,
+) -> Result<OnionAddressV3, Error> {
+    let key = TorSecretKeyV3::from(key.0);
+    ctx.db
+        .mutate(|db| {
+            db.as_private_mut()
+                .as_key_store_mut()
+                .as_onion_mut()
+                .insert_key(&key)
+        })
+        .await?;
+    Ok(key.public().get_onion_address())
+}
+
+pub async fn list_keys(ctx: RpcContext) -> Result<Vec<OnionAddressV3>, Error> {
+    ctx.db
+        .peek()
+        .await
+        .into_private()
+        .into_key_store()
+        .into_onion()
+        .keys()
+}
+
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]

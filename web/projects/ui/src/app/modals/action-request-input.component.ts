@@ -11,14 +11,10 @@ import { CommonModule } from '@angular/common'
 import { TuiNotificationModule } from '@taiga-ui/core'
 
 @Component({
-  selector: 'action-dep',
+  selector: 'action-request-info',
   template: `
-    <tui-notification>
-      <h3 style="margin: 0 0 0.5rem; font-size: 1.25rem;">
-        {{ pkgTitle }}
-      </h3>
-      The following modifications have been made to {{ pkgTitle }} to satisfy
-      {{ depTitle }}:
+    <tui-notification *ngIf="diff.length">
+      The following modifications were made:
       <ul>
         <li *ngFor="let d of diff" [innerHTML]="d"></li>
       </ul>
@@ -27,14 +23,15 @@ import { TuiNotificationModule } from '@taiga-ui/core'
   standalone: true,
   imports: [CommonModule, TuiNotificationModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styles: [
+    `
+      tui-notification {
+        margin-bottom: 1.5rem;
+      }
+    `,
+  ],
 })
-export class ActionDepComponent implements OnInit {
-  @Input()
-  pkgTitle = ''
-
-  @Input()
-  depTitle = ''
-
+export class ActionRequestInfoComponent implements OnInit {
   @Input()
   originalValue: object = {}
 
@@ -68,15 +65,15 @@ export class ActionDepComponent implements OnInit {
   private getMessage(operation: Operation): string {
     switch (operation.op) {
       case 'add':
-        return `Added ${this.getNewValue(operation.value)}`
+        return `added ${this.getNewValue(operation.value)}`
       case 'remove':
-        return `Removed ${this.getOldValue(operation.path)}`
+        return `removed ${this.getOldValue(operation.path)}`
       case 'replace':
-        return `Changed from ${this.getOldValue(
+        return `changed from ${this.getOldValue(
           operation.path,
         )} to ${this.getNewValue(operation.value)}`
       default:
-        return `Unknown operation`
+        return `Unknown operation` // unreachable
     }
   }
 

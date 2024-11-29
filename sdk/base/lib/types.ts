@@ -13,6 +13,11 @@ import { Effects } from "./Effects"
 export { Effects }
 export * from "./osBindings"
 export { SDKManifest } from "./types/ManifestTypes"
+export {
+  RequiredDependenciesOf as RequiredDependencies,
+  OptionalDependenciesOf as OptionalDependencies,
+  CurrentDependenciesResult,
+} from "./dependencies/setupDependencies"
 
 export type ExposedStorePaths = string[] & Affine<"ExposedStorePaths">
 declare const HealthProof: unique symbol
@@ -33,10 +38,6 @@ export const SIGKILL: Signals = "SIGKILL"
 export const NO_TIMEOUT = -1
 
 export type PathMaker = (options: { volume: string; path: string }) => string
-export type ExportedAction = (options: {
-  effects: Effects
-  input?: Record<string, unknown>
-}) => Promise<ActionResult>
 export type MaybePromise<A> = Promise<A> | A
 export namespace ExpectedExports {
   version: 1
@@ -86,15 +87,11 @@ export namespace ExpectedExports {
     nextVersion: null | string
   }) => Promise<unknown>
 
-  export type properties = (options: {
-    effects: Effects
-  }) => Promise<PropertiesReturn>
-
   export type manifest = Manifest
 
   export type actions = Actions<
     any,
-    Record<ActionId, Action<ActionId, any, any, any>>
+    Record<ActionId, Action<ActionId, any, any>>
   >
 }
 export type ABI = {
@@ -105,7 +102,6 @@ export type ABI = {
   containerInit: ExpectedExports.containerInit
   packageInit: ExpectedExports.packageInit
   packageUninit: ExpectedExports.packageUninit
-  properties: ExpectedExports.properties
   manifest: ExpectedExports.manifest
   actions: ExpectedExports.actions
 }
@@ -177,58 +173,6 @@ export type ExposeServicePaths<Store = never> = {
   paths: ExposedStorePaths
 }
 
-export type SdkPropertiesValue =
-  | {
-      type: "object"
-      value: { [k: string]: SdkPropertiesValue }
-      description?: string
-    }
-  | {
-      type: "string"
-      /** The value to display to the user */
-      value: string
-      /** A human readable description or explanation of the value */
-      description?: string
-      /** Whether or not to mask the value, for example, when displaying a password */
-      masked?: boolean
-      /** Whether or not to include a button for copying the value to clipboard */
-      copyable?: boolean
-      /** Whether or not to include a button for displaying the value as a QR code */
-      qr?: boolean
-    }
-
-export type SdkPropertiesReturn = {
-  [key: string]: SdkPropertiesValue
-}
-
-export type PropertiesValue =
-  | {
-      /** The type of this value, either "string" or "object" */
-      type: "object"
-      /** A nested mapping of values. The user will experience this as a nested page with back button */
-      value: { [k: string]: PropertiesValue }
-      /** (optional) A human readable description of the new set of values */
-      description: string | null
-    }
-  | {
-      /** The type of this value, either "string" or "object" */
-      type: "string"
-      /** The value to display to the user */
-      value: string
-      /** A human readable description of the value */
-      description: string | null
-      /** Whether or not to mask the value, for example, when displaying a password */
-      masked: boolean | null
-      /** Whether or not to include a button for copying the value to clipboard */
-      copyable: boolean | null
-      /** Whether or not to include a button for displaying the value as a QR code */
-      qr: boolean | null
-    }
-
-export type PropertiesReturn = {
-  [key: string]: PropertiesValue
-}
-
 export type EffectMethod<T extends StringObject = Effects> = {
   [K in keyof T]-?: K extends string
     ? T[K] extends Function
@@ -264,13 +208,6 @@ export type Metadata = {
   mode: number
 }
 
-export type ActionResult = {
-  version: "0"
-  message: string
-  value: string | null
-  copyable: boolean
-  qr: boolean
-}
 export type SetResult = {
   dependsOn: DependsOn
   signal: Signals
@@ -292,6 +229,8 @@ export type KnownError =
 
 export type Dependencies = Array<DependencyRequirement>
 
-export type DeepPartial<T> = T extends {}
-  ? { [P in keyof T]?: DeepPartial<T[P]> }
-  : T
+export type DeepPartial<T> = T extends unknown[]
+  ? T
+  : T extends {}
+    ? { [P in keyof T]?: DeepPartial<T[P]> }
+    : T

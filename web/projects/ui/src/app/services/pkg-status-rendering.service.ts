@@ -1,7 +1,6 @@
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PkgDependencyErrors } from './dep-error.service'
 import { T } from '@start9labs/start-sdk'
-import { getManifest, needsConfig } from '../util/get-package-data'
 
 export interface PackageStatus {
   primary: PrimaryStatus
@@ -29,8 +28,12 @@ export function renderPkgStatus(
 }
 
 function getInstalledPrimaryStatus(pkg: T.PackageDataEntry): PrimaryStatus {
-  if (needsConfig(getManifest(pkg).id, pkg.requestedActions)) {
-    return 'needsConfig'
+  if (
+    Object.values(pkg.requestedActions).some(
+      r => r.active && r.request.severity === 'critical',
+    )
+  ) {
+    return 'actionRequired'
   } else {
     return pkg.status.main
   }
@@ -79,7 +82,7 @@ export type PrimaryStatus =
   | 'restarting'
   | 'stopped'
   | 'backingUp'
-  | 'needsConfig'
+  | 'actionRequired'
   | 'error'
 
 export type DependencyStatus = 'warning' | 'satisfied'
@@ -135,8 +138,8 @@ export const PrimaryRendering: Record<PrimaryStatus, StatusRendering> = {
     color: 'success',
     showDots: false,
   },
-  needsConfig: {
-    display: 'Needs Config',
+  actionRequired: {
+    display: 'Action Required',
     color: 'warning',
     showDots: false,
   },

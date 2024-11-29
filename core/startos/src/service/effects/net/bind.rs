@@ -32,6 +32,7 @@ pub async fn bind(
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct ClearBindingsParams {
+    #[serde(default)]
     pub except: Vec<BindId>,
 }
 

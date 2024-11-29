@@ -6,14 +6,37 @@ import {
 } from "../../../base/lib/types/ManifestTypes"
 import { SDKVersion } from "../StartSdk"
 import { VersionGraph } from "../version/VersionGraph"
+import { execSync } from "child_process"
 
 /**
  * @description Use this function to define critical information about your package
  *
- * @param versions Every version of the package, imported from ./versions
  * @param manifest Static properties of the package
  */
 export function setupManifest<
+  Id extends string,
+  VolumesTypes extends VolumeId,
+  AssetTypes extends VolumeId,
+  Manifest extends {
+    id: Id
+    assets: AssetTypes[]
+    volumes: VolumesTypes[]
+  } & SDKManifest,
+>(manifest: Manifest & SDKManifest): Manifest {
+  return manifest
+}
+
+function gitHash(): string {
+  const hash = execSync("git rev-parse HEAD").toString().trim()
+  try {
+    execSync("git diff-index --quiet HEAD --")
+    return hash
+  } catch (e) {
+    return hash + "-modified"
+  }
+}
+
+export function buildManifest<
   Id extends string,
   Version extends string,
   Dependencies extends Record<string, unknown>,
@@ -27,7 +50,6 @@ export function setupManifest<
     images: Record<ImagesTypes, SDKImageInputSpec>
     volumes: VolumesTypes[]
   },
-  Satisfies extends string[] = [],
 >(
   versions: VersionGraph<Version>,
   manifest: SDKManifest & Manifest,
@@ -36,7 +58,9 @@ export function setupManifest<
     (images, [k, v]) => {
       v.arch = v.arch || ["aarch64", "x86_64"]
       if (v.emulateMissingAs === undefined)
-        v.emulateMissingAs = v.arch[0] || null
+        v.emulateMissingAs = (v.arch as string[]).includes("aarch64")
+          ? "aarch64"
+          : v.arch[0] || null
       images[k] = v as ImageConfig
       return images
     },
@@ -44,7 +68,7 @@ export function setupManifest<
   )
   return {
     ...manifest,
-    gitHash: null,
+    gitHash: gitHash(),
     osVersion: SDKVersion,
     version: versions.current.options.version,
     releaseNotes: versions.current.options.releaseNotes,
@@ -61,11 +85,7 @@ export function setupManifest<
       stop: manifest.alerts?.stop || null,
     },
     hardwareRequirements: {
-      device: Object.fromEntries(
-        Object.entries(manifest.hardwareRequirements?.device || {}).map(
-          ([k, v]) => [k, v.source],
-        ),
-      ),
+      device: manifest.hardwareRequirements?.device || [],
       ram: manifest.hardwareRequirements?.ram || null,
       arch:
         manifest.hardwareRequirements?.arch === undefined

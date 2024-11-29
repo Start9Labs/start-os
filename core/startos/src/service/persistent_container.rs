@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::ops::Deref;
 use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
@@ -379,11 +380,7 @@ impl PersistentContainer {
             ));
         }
 
-        self.rpc_client
-            .request(rpc::Init, Empty {})
-            .await
-            .map_err(Error::from)
-            .log_err();
+        self.rpc_client.request(rpc::Init, Empty {}).await?;
 
         self.state.send_modify(|s| s.rt_initialized = true);
 
@@ -391,7 +388,10 @@ impl PersistentContainer {
     }
 
     #[instrument(skip_all)]
-    fn destroy(&mut self) -> Option<impl Future<Output = Result<(), Error>> + 'static> {
+    fn destroy(
+        &mut self,
+        error: bool,
+    ) -> Option<impl Future<Output = Result<(), Error>> + 'static> {
         if self.destroyed {
             return None;
         }
@@ -406,6 +406,24 @@ impl PersistentContainer {
         self.destroyed = true;
         Some(async move {
             let mut errs = ErrorCollection::new();
+            if error {
+                if let Some(lxc_container) = &lxc_container {
+                    if let Some(logs) = errs.handle(
+                        crate::logs::fetch_logs(
+                            crate::logs::LogSource::Container(lxc_container.guid.deref().clone()),
+                            Some(50),
+                            None,
+                            None,
+                            false,
+                        )
+                        .await,
+                    ) {
+                        for log in logs.entries.iter() {
+                            eprintln!("{log}");
+                        }
+                    }
+                }
+            }
             if let Some((hdl, shutdown)) = rpc_server {
                 errs.handle(rpc_client.request(rpc::Exit, Empty {}).await);
                 shutdown.shutdown();
@@ -433,7 +451,7 @@ impl PersistentContainer {
 
     #[instrument(skip_all)]
     pub async fn exit(mut self) -> Result<(), Error> {
-        if let Some(destroy) = self.destroy() {
+        if let Some(destroy) = self.destroy(false) {
             dbg!(destroy.await)?;
         }
         tracing::info!("Service for {} exited", self.s9pk.as_manifest().id);
@@ -551,7 +569,7 @@ impl PersistentContainer {
 
 impl Drop for PersistentContainer {
     fn drop(&mut self) {
-        if let Some(destroy) = self.destroy() {
+        if let Some(destroy) = self.destroy(true) {
             tokio::spawn(async move { destroy.await.log_err() });
         }
     }

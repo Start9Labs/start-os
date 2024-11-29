@@ -261,7 +261,7 @@ impl NetService {
         errors.into_result()
     }
 
-    async fn update(&mut self, id: HostId, host: Host) -> Result<(), Error> {
+    pub async fn update(&mut self, id: HostId, host: Host) -> Result<(), Error> {
         let ctrl = self.net_controller()?;
         let mut hostname_info = BTreeMap::new();
         let binds = self.binds.entry(id.clone()).or_default();
@@ -330,16 +330,29 @@ impl NetService {
                                 }
                                 HostAddress::Domain { address } => {
                                     if hostnames.insert(address.clone()) {
+                                        let address = Some(address.clone());
                                         rcs.push(
                                             ctrl.vhost
                                                 .add(
-                                                    Some(address.clone()),
+                                                    address.clone(),
                                                     external,
                                                     target,
                                                     connect_ssl.clone(),
                                                 )
                                                 .await?,
                                         );
+                                        if ssl.preferred_external_port == 443 {
+                                            rcs.push(
+                                                ctrl.vhost
+                                                    .add(
+                                                        address.clone(),
+                                                        5443,
+                                                        target,
+                                                        connect_ssl.clone(),
+                                                    )
+                                                    .await?,
+                                            );
+                                        }
                                     }
                                 }
                             }
@@ -363,11 +376,32 @@ impl NetService {
                         network_interface_id: interface.clone(),
                         public: false,
                         hostname: IpHostname::Local {
-                            value: format!("{hostname}.local"),
+                            value: InternedString::from_display(&{
+                                let hostname = &hostname;
+                                lazy_format!("{hostname}.local")
+                            }),
                             port: new_lan_bind.0.assigned_port,
                             ssl_port: new_lan_bind.0.assigned_ssl_port,
                         },
                     });
+                    for address in host.addresses() {
+                        if let HostAddress::Domain { address } = address {
+                            if let Some(ssl) = &new_lan_bind.1 {
+                                if ssl.preferred_external_port == 443 {
+                                    bind_hostname_info.push(HostnameInfo::Ip {
+                                        network_interface_id: interface.clone(),
+                                        public: false,
+                                        hostname: IpHostname::Domain {
+                                            domain: address.clone(),
+                                            subdomain: None,
+                                            port: None,
+                                            ssl_port: Some(443),
+                                        },
+                                    });
+                                }
+                            }
+                        }
+                    }
                     if let Some(ipv4) = ip_info.ipv4 {
                         bind_hostname_info.push(HostnameInfo::Ip {
                             network_interface_id: interface.clone(),
@@ -515,6 +549,7 @@ impl NetService {
                 ctrl.tor.gc(Some(addr.clone()), None).await?;
             }
         }
+
         self.net_controller()?
             .db
             .mutate(|db| {

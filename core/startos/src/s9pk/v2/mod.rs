@@ -102,6 +102,19 @@ impl<S: FileSource + Clone> S9pk<S> {
         })
     }
 
+    pub fn new_with_manifest(
+        archive: MerkleArchive<S>,
+        size: Option<u64>,
+        manifest: Manifest,
+    ) -> Self {
+        Self {
+            manifest,
+            manifest_dirty: true,
+            archive,
+            size,
+        }
+    }
+
     pub fn validate_and_filter(&mut self, arch: Option<&str>) -> Result<(), Error> {
         let filter = self.manifest.validate_for(arch, self.archive.contents())?;
         filter.keep_checked(self.archive.contents_mut())
@@ -263,10 +276,10 @@ impl<S: From<TmpSource<PackSource>> + FileSource + Clone> S9pk<S> {
 
 impl<S: ArchiveSource + Clone> S9pk<Section<S>> {
     #[instrument(skip_all)]
-    pub async fn deserialize(
+    pub async fn archive(
         source: &S,
         commitment: Option<&MerkleArchiveCommitment>,
-    ) -> Result<Self, Error> {
+    ) -> Result<MerkleArchive<Section<S>>, Error> {
         use tokio::io::AsyncReadExt;
 
         let mut header = source
@@ -283,9 +296,14 @@ impl<S: ArchiveSource + Clone> S9pk<Section<S>> {
             ErrorKind::ParseS9pk,
             "Invalid Magic or Unexpected Version"
         );
-
-        let mut archive =
-            MerkleArchive::deserialize(source, SIG_CONTEXT, &mut header, commitment).await?;
+        MerkleArchive::deserialize(source, SIG_CONTEXT, &mut header, commitment).await
+    }
+    #[instrument(skip_all)]
+    pub async fn deserialize(
+        source: &S,
+        commitment: Option<&MerkleArchiveCommitment>,
+    ) -> Result<Self, Error> {
+        let mut archive = Self::archive(source, commitment).await?;
 
         archive.sort_by(|a, b| match (priority(a), priority(b)) {
             (Some(a), Some(b)) => a.cmp(&b),

@@ -697,23 +697,20 @@ interface SettingBtn {
 const passwordSpec = ISB.InputSpec.of({
   currentPassword: ISB.Value.text({
     name: 'Current Password',
-    required: {
-      default: null,
-    },
+    required: true,
+    default: null,
     masked: true,
   }),
   newPassword1: ISB.Value.text({
     name: 'New Password',
-    required: {
-      default: null,
-    },
+    required: true,
+    default: null,
     masked: true,
   }),
   newPassword2: ISB.Value.text({
     name: 'Retype New Password',
-    required: {
-      default: null,
-    },
+    required: true,
+    default: null,
     masked: true,
   }),
 })

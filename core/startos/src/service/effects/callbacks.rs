@@ -36,6 +36,7 @@ struct ServiceCallbackMap {
         (NonDetachingJoinHandle<()>, Vec<CallbackHandler>),
     >,
     get_store: BTreeMap<PackageId, BTreeMap<JsonPointer, Vec<CallbackHandler>>>,
+    get_status: BTreeMap<PackageId, Vec<CallbackHandler>>,
 }
 
 impl ServiceCallbacks {
@@ -69,6 +70,10 @@ impl ServiceCallbacks {
                     v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
                     !v.is_empty()
                 });
+                !v.is_empty()
+            });
+            this.get_status.retain(|_, v| {
+                v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
                 !v.is_empty()
             });
         })
@@ -218,6 +223,20 @@ impl ServiceCallbacks {
                 })
                 .1
                 .push(handler);
+        })
+    }
+    pub(super) fn add_get_status(&self, package_id: PackageId, handler: CallbackHandler) {
+        self.mutate(|this| this.get_status.entry(package_id).or_default().push(handler))
+    }
+    #[must_use]
+    pub fn get_status(&self, package_id: &PackageId) -> Option<CallbackHandlers> {
+        self.mutate(|this| {
+            if let Some(watched) = this.get_status.remove(package_id) {
+                Some(CallbackHandlers(watched))
+            } else {
+                None
+            }
+            .filter(|cb| !cb.0.is_empty())
         })
     }
 
