@@ -1,6 +1,6 @@
 import { InputSpec, LazyBuild } from "./inputSpec"
 import { List } from "./list"
-import { PartialUnionRes, UnionRes, Variants } from "./variants"
+import { Variants } from "./variants"
 import {
   FilePath,
   Pattern,
@@ -30,7 +30,7 @@ import { DeepPartial } from "../../../types"
 
 type AsRequired<T, Required extends boolean> = Required extends true
   ? T
-  : T | null | undefined
+  : T | null
 
 const testForAsRequiredParser = once(
   () => object({ required: literal(true) }).test,
@@ -38,20 +38,11 @@ const testForAsRequiredParser = once(
 function asRequiredParser<
   Type,
   Input,
-  Return extends
-    | Parser<unknown, Type>
-    | Parser<unknown, Type | null | undefined>,
+  Return extends Parser<unknown, Type> | Parser<unknown, Type | null>,
 >(parser: Parser<unknown, Type>, input: Input): Return {
   if (testForAsRequiredParser()(input)) return parser as any
-  return parser.optional() as any
+  return parser.nullable() as any
 }
-
-export type PartialValue<T> =
-  T extends UnionRes<infer A, infer B>
-    ? PartialUnionRes<A, B>
-    : T extends {}
-      ? { [P in keyof T]?: PartialValue<T[P]> }
-      : T
 
 export class Value<Type, Store> {
   protected constructor(
@@ -196,7 +187,7 @@ export class Value<Type, Store> {
       }
     >,
   ) {
-    return new Value<string | null | undefined, Store>(async (options) => {
+    return new Value<string | null, Store>(async (options) => {
       const a = await getA(options)
       return {
         type: "text" as const,
@@ -213,7 +204,7 @@ export class Value<Type, Store> {
         generate: a.generate ?? null,
         ...a,
       }
-    }, string.optional())
+    }, string.nullable())
   }
   static textarea<Required extends boolean>(a: {
     name: string
@@ -265,7 +256,7 @@ export class Value<Type, Store> {
       }
     >,
   ) {
-    return new Value<string | null | undefined, Store>(async (options) => {
+    return new Value<string | null, Store>(async (options) => {
       const a = await getA(options)
       return {
         description: null,
@@ -278,7 +269,7 @@ export class Value<Type, Store> {
         immutable: false,
         ...a,
       }
-    }, string.optional())
+    }, string.nullable())
   }
   static number<Required extends boolean>(a: {
     name: string
@@ -351,7 +342,7 @@ export class Value<Type, Store> {
       }
     >,
   ) {
-    return new Value<number | null | undefined, Store>(async (options) => {
+    return new Value<number | null, Store>(async (options) => {
       const a = await getA(options)
       return {
         type: "number" as const,
@@ -366,7 +357,7 @@ export class Value<Type, Store> {
         immutable: false,
         ...a,
       }
-    }, number.optional())
+    }, number.nullable())
   }
   static color<Required extends boolean>(a: {
     name: string
@@ -413,7 +404,7 @@ export class Value<Type, Store> {
       }
     >,
   ) {
-    return new Value<string | null | undefined, Store>(async (options) => {
+    return new Value<string | null, Store>(async (options) => {
       const a = await getA(options)
       return {
         type: "color" as const,
@@ -423,7 +414,7 @@ export class Value<Type, Store> {
         immutable: false,
         ...a,
       }
-    }, string.optional())
+    }, string.nullable())
   }
   static datetime<Required extends boolean>(a: {
     name: string
@@ -483,7 +474,7 @@ export class Value<Type, Store> {
       }
     >,
   ) {
-    return new Value<string | null | undefined, Store>(async (options) => {
+    return new Value<string | null, Store>(async (options) => {
       const a = await getA(options)
       return {
         type: "datetime" as const,
@@ -496,7 +487,7 @@ export class Value<Type, Store> {
         immutable: false,
         ...a,
       }
-    }, string.optional())
+    }, string.nullable())
   }
   static select<Values extends Record<string, string>>(a: {
     name: string
@@ -690,14 +681,14 @@ export class Value<Type, Store> {
   //     }
   //   >,
   // ) {
-  //   return new Value<FilePath | null | undefined, Store>(
+  //   return new Value<FilePath | null, Store>(
   //     async (options) => ({
   //       type: "file" as const,
   //       description: null,
   //       warning: null,
   //       ...(await a(options)),
   //     }),
-  //     object({ filePath: string }).optional(),
+  //     object({ filePath: string }).nullable(),
   //   )
   // }
   static union<
@@ -820,6 +811,10 @@ export class Value<Type, Store> {
       }
       return built
     }, parser)
+  }
+
+  map<U>(fn: (value: Type) => U): Value<U, Store> {
+    return new Value(this.build, this.validator.map(fn))
   }
 
   /**

@@ -11,7 +11,6 @@ import { execSync } from "child_process"
 /**
  * @description Use this function to define critical information about your package
  *
- * @param versions Every version of the package, imported from ./versions
  * @param manifest Static properties of the package
  */
 export function setupManifest<
@@ -23,7 +22,7 @@ export function setupManifest<
     assets: AssetTypes[]
     volumes: VolumesTypes[]
   } & SDKManifest,
->(manifest: Manifest): Manifest {
+>(manifest: Manifest & SDKManifest): Manifest {
   return manifest
 }
 
@@ -49,7 +48,9 @@ export function buildManifest<
     (images, [k, v]) => {
       v.arch = v.arch || ["aarch64", "x86_64"]
       if (v.emulateMissingAs === undefined)
-        v.emulateMissingAs = v.arch[0] || null
+        v.emulateMissingAs = (v.arch as string[]).includes("aarch64")
+          ? "aarch64"
+          : v.arch[0] || null
       images[k] = v as ImageConfig
       return images
     },

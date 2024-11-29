@@ -87,7 +87,7 @@ describe("values", () => {
     const rawIs = await value.build({} as any)
     validator.unsafeCast("test text")
     validator.unsafeCast(null)
-    testOutput<typeof validator._TYPE, string | null | undefined>()(null)
+    testOutput<typeof validator._TYPE, string | null>()(null)
   })
   test("color", async () => {
     const value = Value.color({
@@ -99,7 +99,7 @@ describe("values", () => {
     })
     const validator = value.validator
     validator.unsafeCast("#000000")
-    testOutput<typeof validator._TYPE, string | null | undefined>()(null)
+    testOutput<typeof validator._TYPE, string | null>()(null)
   })
   test("datetime", async () => {
     const value = Value.datetime({
@@ -129,7 +129,7 @@ describe("values", () => {
     })
     const validator = value.validator
     validator.unsafeCast("2021-01-01")
-    testOutput<typeof validator._TYPE, string | null | undefined>()(null)
+    testOutput<typeof validator._TYPE, string | null>()(null)
   })
   test("textarea", async () => {
     const value = Value.textarea({
@@ -144,7 +144,7 @@ describe("values", () => {
     })
     const validator = value.validator
     validator.unsafeCast("test text")
-    testOutput<typeof validator._TYPE, string | null | undefined>()(null)
+    testOutput<typeof validator._TYPE, string | null>()(null)
   })
   test("number", async () => {
     const value = Value.number({
@@ -180,7 +180,7 @@ describe("values", () => {
     })
     const validator = value.validator
     validator.unsafeCast(2)
-    testOutput<typeof validator._TYPE, number | null | undefined>()(null)
+    testOutput<typeof validator._TYPE, number | null>()(null)
   })
   test("select", async () => {
     const value = Value.select({
@@ -319,33 +319,33 @@ describe("values", () => {
     test("text", async () => {
       const value = Value.dynamicText(async () => ({
         name: "Testing",
-        required: true,
+        required: false,
         default: null,
       }))
       const validator = value.validator
       const rawIs = await value.build({} as any)
       validator.unsafeCast("test text")
       validator.unsafeCast(null)
-      testOutput<typeof validator._TYPE, string | null | undefined>()(null)
+      testOutput<typeof validator._TYPE, string | null>()(null)
       expect(await value.build(fakeOptions)).toMatchObject({
         name: "Testing",
-        required: true,
+        required: false,
         default: null,
       })
     })
     test("text with default", async () => {
       const value = Value.dynamicText(async () => ({
         name: "Testing",
-        required: true,
+        required: false,
         default: "this is a default value",
       }))
       const validator = value.validator
       validator.unsafeCast("test text")
       validator.unsafeCast(null)
-      testOutput<typeof validator._TYPE, string | null | undefined>()(null)
+      testOutput<typeof validator._TYPE, string | null>()(null)
       expect(await value.build(fakeOptions)).toMatchObject({
         name: "Testing",
-        required: true,
+        required: false,
         default: "this is a default value",
       })
     })
@@ -359,7 +359,7 @@ describe("values", () => {
       const rawIs = await value.build({} as any)
       validator.unsafeCast("test text")
       validator.unsafeCast(null)
-      testOutput<typeof validator._TYPE, string | null | undefined>()(null)
+      testOutput<typeof validator._TYPE, string | null>()(null)
       expect(await value.build(fakeOptions)).toMatchObject({
         name: "Testing",
         required: false,
@@ -377,7 +377,7 @@ describe("values", () => {
       const validator = value.validator
       validator.unsafeCast("#000000")
       validator.unsafeCast(null)
-      testOutput<typeof validator._TYPE, string | null | undefined>()(null)
+      testOutput<typeof validator._TYPE, string | null>()(null)
       expect(await value.build(fakeOptions)).toMatchObject({
         name: "Testing",
         required: false,
@@ -445,7 +445,7 @@ describe("values", () => {
       const validator = value.validator
       validator.unsafeCast("2021-01-01")
       validator.unsafeCast(null)
-      testOutput<typeof validator._TYPE, string | null | undefined>()(null)
+      testOutput<typeof validator._TYPE, string | null>()(null)
       expect(await value.build(fakeOptions)).toMatchObject({
         name: "Testing",
         required: true,
@@ -468,7 +468,7 @@ describe("values", () => {
       }))
       const validator = value.validator
       validator.unsafeCast("test text")
-      testOutput<typeof validator._TYPE, string | null | undefined>()(null)
+      testOutput<typeof validator._TYPE, string | null>()(null)
       expect(await value.build(fakeOptions)).toMatchObject({
         name: "Testing",
         required: false,
@@ -492,7 +492,7 @@ describe("values", () => {
       validator.unsafeCast(2)
       validator.unsafeCast(null)
       expect(() => validator.unsafeCast("null")).toThrowError()
-      testOutput<typeof validator._TYPE, number | null | undefined>()(null)
+      testOutput<typeof validator._TYPE, number | null>()(null)
       expect(await value.build(fakeOptions)).toMatchObject({
         name: "Testing",
         required: true,
@@ -795,7 +795,7 @@ describe("Nested nullable values", () => {
     validator.unsafeCast({ a: null })
     validator.unsafeCast({ a: "test" })
     expect(() => validator.unsafeCast({ a: 4 })).toThrowError()
-    testOutput<typeof validator._TYPE, { a: string | null | undefined }>()(null)
+    testOutput<typeof validator._TYPE, { a: string | null }>()(null)
   })
   test("Testing number", async () => {
     const value = InputSpec.of({
@@ -818,7 +818,7 @@ describe("Nested nullable values", () => {
     validator.unsafeCast({ a: null })
     validator.unsafeCast({ a: 5 })
     expect(() => validator.unsafeCast({ a: "4" })).toThrowError()
-    testOutput<typeof validator._TYPE, { a: number | null | undefined }>()(null)
+    testOutput<typeof validator._TYPE, { a: number | null }>()(null)
   })
   test("Testing color", async () => {
     const value = InputSpec.of({
@@ -835,7 +835,7 @@ describe("Nested nullable values", () => {
     validator.unsafeCast({ a: null })
     validator.unsafeCast({ a: "5" })
     expect(() => validator.unsafeCast({ a: 4 })).toThrowError()
-    testOutput<typeof validator._TYPE, { a: string | null | undefined }>()(null)
+    testOutput<typeof validator._TYPE, { a: string | null }>()(null)
   })
   test("Testing select", async () => {
     const value = InputSpec.of({

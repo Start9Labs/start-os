@@ -354,7 +354,9 @@ pub enum ImageSource {
     Packed,
     #[serde(rename_all = "camelCase")]
     DockerBuild {
+        #[ts(optional)]
         workdir: Option<PathBuf>,
+        #[ts(optional)]
         dockerfile: Option<PathBuf>,
         #[serde(skip_serializing_if = "Option::is_none")]
         #[ts(optional)]
@@ -366,8 +368,15 @@ impl ImageSource {
     pub fn ingredients(&self) -> Vec<PathBuf> {
         match self {
             Self::Packed => Vec::new(),
-            Self::DockerBuild { dockerfile, .. } => {
-                vec![dockerfile.clone().unwrap_or_else(|| "Dockerfile".into())]
+            Self::DockerBuild {
+                dockerfile,
+                workdir,
+                ..
+            } => {
+                vec![workdir
+                    .as_deref()
+                    .unwrap_or(Path::new("."))
+                    .join(dockerfile.as_deref().unwrap_or(Path::new("Dockerfile")))]
             }
             Self::DockerTag(_) => Vec::new(),
         }

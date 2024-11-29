@@ -665,8 +665,8 @@ impl FromStr for PathOrUrl {
     type Err = <PathBuf as FromStr>::Err;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Ok(url) = s.parse::<Url>() {
-            if url.scheme() == "file" {
-                Ok(Self::Path(url.path().parse()?))
+            if let Some(path) = s.strip_prefix("file://") {
+                Ok(Self::Path(path.parse()?))
             } else {
                 Ok(Self::Url(url))
             }
