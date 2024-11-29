@@ -317,7 +317,7 @@ impl NetworkInterfaceController {
             Ok(())
         })?;
         Ok(NetworkInterfaceListener {
-            arc,
+            _arc: arc,
             ip_info: self.ip_info.subscribe(),
             listeners: ListenerMap::new(),
             port,
@@ -381,7 +381,7 @@ pub struct NetworkInterfaceListener {
     ip_info: watch::Receiver<BTreeMap<InternedString, NetworkInterfaceInfo>>,
     listeners: ListenerMap,
     port: u16,
-    arc: Arc<()>,
+    _arc: Arc<()>,
 }
 impl NetworkInterfaceListener {
     pub async fn accept(&mut self, public: bool) -> Result<Accepted, Error> {
