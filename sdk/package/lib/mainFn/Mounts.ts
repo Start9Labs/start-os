@@ -30,9 +30,9 @@ export class Mounts<Manifest extends T.SDKManifest> {
   }
 
   addVolume(
-    /** The ID of the volume to mount. Much be one of the volume IDs defined in the manifest */
+    /** The ID of the volume to mount. Must be one of the volume IDs defined in the manifest */
     id: Manifest["volumes"][number],
-    /** @TODO Bonez */
+    /** The path within the volume to mount. Use `null` to mount the entire volume */
     subpath: string | null,
     /** Where to mount the volume. e.g. /data */
     mountpoint: string,
@@ -49,9 +49,9 @@ export class Mounts<Manifest extends T.SDKManifest> {
   }
 
   addAssets(
-    /** @TODO Bonez. I thought the assets array in the manifest was an array of path to asset directories. They have IDs? */
+    /** The ID of the asset directory to mount. This is typically the same as the folder name in your assets directory */
     id: Manifest["assets"][number],
-    /** @TODO Bonez */
+    /** The path within the asset directory to mount. Use `null` to mount the entire volume */
     subpath: string | null,
     /** Where to mount the asset. e.g. /asset */
     mountpoint: string,
@@ -69,7 +69,7 @@ export class Mounts<Manifest extends T.SDKManifest> {
     dependencyId: keyof Manifest["dependencies"] & string,
     /** The ID of the volume belonging to the dependency service to mount */
     volumeId: DependencyManifest["volumes"][number],
-    /** @TODO Bonez */
+    /** The path within the dependency's volume to mount. Use `null` to mount the entire volume */
     subpath: string | null,
     /** Where to mount the dependency's volume. e.g. /service-id */
     mountpoint: string,
