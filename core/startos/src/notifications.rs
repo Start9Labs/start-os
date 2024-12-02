@@ -13,11 +13,11 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
 
-use crate::backup::BackupReport;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::DatabaseModel;
 use crate::prelude::*;
 use crate::util::serde::HandlerExtSerde;
+use crate::{backup::BackupReport, db::model::Database};
 
 // #[command(subcommands(list, delete, delete_before, create))]
 pub fn notification<C: Context>() -> ParentHandler<C> {
@@ -284,6 +284,9 @@ impl NotificationType for () {
 }
 impl NotificationType for BackupReport {
     const CODE: u32 = 1;
+}
+impl NotificationType for String {
+    const CODE: u32 = 2;
 }
 
 #[instrument(skip(subtype, db))]
