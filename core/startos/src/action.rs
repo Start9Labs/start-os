@@ -124,15 +124,20 @@ impl fmt::Display for ActionResultV0 {
 #[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionResultV1 {
+    /// Primary text to display as the header of the response modal. e.g. "Success!", "Name Updated", or "Service Information", whatever makes sense
     pub title: String,
+    /// (optional) A general message for the user, just under the title
     pub message: Option<String>,
+    /// (optional) Structured data to present inside the modal
     pub result: Option<ActionResultValue>,
 }
 
 #[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionResultMember {
+    /// A human-readable name or title of the value, such as "Last Active" or "Login Password"
     pub name: String,
+    /// (optional) A description of the value, such as an explaining why it exists or how to use it
     pub description: Option<String>,
     #[serde(flatten)]
     #[ts(flatten)]
@@ -145,12 +150,17 @@ pub struct ActionResultMember {
 #[serde(tag = "type")]
 pub enum ActionResultValue {
     Single {
+        /// The actual string value to display
         value: String,
+        /// Whether or not to include a copy to clipboard icon to copy the value
         copyable: bool,
+        /// Whether or not to also display the value as a QR code
         qr: bool,
+        /// Whether or not to mask the value using ●●●●●●●, which is useful for password or other sensitive information
         masked: bool,
     },
     Group {
+        /// An new group of nested values, experienced by the user as an accordion dropdown
         value: Vec<ActionResultMember>,
     },
 }

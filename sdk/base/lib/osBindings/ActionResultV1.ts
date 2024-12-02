@@ -2,7 +2,16 @@
 import type { ActionResultValue } from "./ActionResultValue"
 
 export type ActionResultV1 = {
+  /**
+   * Primary text to display as the header of the response modal. e.g. "Success!", "Name Updated", or "Service Information", whatever makes sense
+   */
   title: string
+  /**
+   * (optional) A general message for the user, just under the title
+   */
   message: string | null
+  /**
+   * (optional) Structured data to present inside the modal
+   */
   result: ActionResultValue | null
 }
