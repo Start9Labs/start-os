@@ -17,13 +17,17 @@ pub struct Version;
 
 impl VersionT for Version {
     type Previous = v0_3_6_alpha_5::Version;
+    type PreUpRes = ();
     fn semver(self) -> exver::Version {
         V0_3_6_alpha_6.clone()
     }
     fn compat(self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
-    fn up(self, db: &mut Value) -> Result<(), Error> {
+    async fn pre_up(self) -> Result<Self::PreUpRes, Error> {
+        Ok(())
+    }
+    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
         Ok(())
     }
     async fn post_up<'a>(self, ctx: &'a crate::context::RpcContext) -> Result<(), Error> {
