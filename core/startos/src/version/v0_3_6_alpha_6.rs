@@ -2,7 +2,6 @@ use exver::{PreReleaseSegment, VersionRange};
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_6_alpha_5, VersionT};
-use crate::db::model::Database;
 use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
 
@@ -18,13 +17,13 @@ pub struct Version;
 
 impl VersionT for Version {
     type Previous = v0_3_6_alpha_5::Version;
-    fn semver(&self) -> exver::Version {
+    fn semver(self) -> exver::Version {
         V0_3_6_alpha_6.clone()
     }
-    fn compat(&self) -> &'static VersionRange {
+    fn compat(self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
-    fn up(&self, db: &mut Value) -> Result<(), Error> {
+    fn up(self, db: &mut Value) -> Result<(), Error> {
         Ok(())
     }
     async fn post_up<'a>(self, ctx: &'a crate::context::RpcContext) -> Result<(), Error> {
