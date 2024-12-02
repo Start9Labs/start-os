@@ -1,4 +1,4 @@
-import { CB, CT, T, utils } from '@start9labs/start-sdk'
+import { ISB, IST, T, utils } from '@start9labs/start-sdk'
 import { TuiDialogOptions } from '@taiga-ui/core'
 import { TuiConfirmData } from '@taiga-ui/kit'
 import { NetworkInfo } from 'src/app/services/patch-db/data-model'
@@ -22,7 +22,7 @@ export const REMOVE: Partial<TuiDialogOptions<TuiConfirmData>> = {
 export function getClearnetSpec({
   domains,
   start9ToSubdomain,
-}: NetworkInfo): Promise<CT.InputSpec> {
+}: NetworkInfo): Promise<IST.InputSpec> {
   const start9ToDomain = `${start9ToSubdomain?.value}.start9.to`
   const base = start9ToSubdomain ? { [start9ToDomain]: start9ToDomain } : {}
 
@@ -34,15 +34,16 @@ export function getClearnetSpec({
   }, base)
 
   return configBuilderToSpec(
-    CB.Config.of({
-      domain: CB.Value.select({
+    ISB.InputSpec.of({
+      domain: ISB.Value.select({
         name: 'Domain',
-        required: { default: null },
+        default: domains[0].value,
         values,
       }),
-      subdomain: CB.Value.text({
+      subdomain: ISB.Value.text({
         name: 'Subdomain',
         required: false,
+        default: '',
       }),
     }),
   )

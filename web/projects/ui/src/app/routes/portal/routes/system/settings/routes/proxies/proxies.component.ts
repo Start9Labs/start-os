@@ -3,11 +3,12 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TuiDialogOptions, TuiButton } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
+import { Observable } from 'rxjs'
 import {
   FormComponent,
   FormContext,
 } from 'src/app/routes/portal/components/form.component'
-import { DataModel } from 'src/app/services/patch-db/data-model'
+import { DataModel, Proxy } from 'src/app/services/patch-db/data-model'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ProxiesTableComponent } from './table.component'
@@ -40,11 +41,9 @@ export class SettingsProxiesComponent {
   private readonly api = inject(ApiService)
   private readonly formDialog = inject(FormDialogService)
 
-  readonly proxies$ = inject<PatchDB<DataModel>>(PatchDB).watch$(
-    'serverInfo',
-    'network',
-    'proxies',
-  )
+  readonly proxies$: Observable<Proxy[]> = inject<PatchDB<DataModel>>(
+    PatchDB,
+  ).watch$('serverInfo', 'network', 'proxies')
 
   async add() {
     const options: Partial<TuiDialogOptions<FormContext<WireguardSpec>>> = {
@@ -63,7 +62,8 @@ export class SettingsProxiesComponent {
     this.formDialog.open(FormComponent, options)
   }
 
-  private async save({ name, config }: WireguardSpec): Promise<boolean> {
+  // @TODO fix type to be WireguardSpec
+  private async save({ name, config }: any): Promise<boolean> {
     const loader = this.loader.open('Saving...').subscribe()
 
     try {

@@ -1,8 +1,8 @@
-import { CT } from '@start9labs/start-sdk'
+import { IST } from '@start9labs/start-sdk'
 import { TuiDialogOptions } from '@taiga-ui/core'
 import { TuiConfirmData } from '@taiga-ui/kit'
 
-export function getMarketplaceValueSpec(): CT.ValueSpecObject {
+export function getMarketplaceValueSpec(): IST.ValueSpecObject {
   return {
     type: 'object',
     name: 'Add Custom Registry',

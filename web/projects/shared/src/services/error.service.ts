@@ -15,7 +15,7 @@ export class ErrorService extends ErrorHandler {
     this.alerts
       .open(getErrorMessage(error, link), {
         label: 'Error',
-        status: 'error',
+        appearance: 'negative',
       })
       .subscribe()
   }

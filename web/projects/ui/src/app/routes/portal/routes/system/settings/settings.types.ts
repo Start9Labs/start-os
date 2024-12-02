@@ -1,4 +1,4 @@
-import { CB } from '@start9labs/start-sdk'
+import { ISB } from '@start9labs/start-sdk'
 
 export interface SettingBtn {
   title: string
@@ -8,26 +8,23 @@ export interface SettingBtn {
   routerLink?: string
 }
 
-export const passwordSpec = CB.Config.of({
-  currentPassword: CB.Value.text({
+export const passwordSpec = ISB.InputSpec.of({
+  currentPassword: ISB.Value.text({
     name: 'Current Password',
-    required: {
-      default: null,
-    },
+    required: true,
+    default: null,
     masked: true,
   }),
-  newPassword1: CB.Value.text({
+  newPassword1: ISB.Value.text({
     name: 'New Password',
-    required: {
-      default: null,
-    },
+    required: true,
+    default: null,
     masked: true,
   }),
-  newPassword2: CB.Value.text({
+  newPassword2: ISB.Value.text({
     name: 'Retype New Password',
-    required: {
-      default: null,
-    },
+    required: true,
+    default: null,
     masked: true,
   }),
 })

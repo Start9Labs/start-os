@@ -7,7 +7,6 @@ import {
 } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { AbstractControl, FormArrayName } from '@angular/forms'
-import { CT } from '@start9labs/start-sdk'
 import {
   TUI_ANIMATIONS_SPEED,
   TuiDialogService,

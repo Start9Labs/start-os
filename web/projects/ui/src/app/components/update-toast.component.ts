@@ -22,8 +22,8 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       [tuiAlert]="!!(visible$ | async)"
       [tuiAlertOptions]="{
         label: 'StartOS download complete!',
-        status: 'success',
-        autoClose: 0
+        appearance: 'positive',
+        autoClose: 0,
       }"
       (tuiAlertChange)="onDismiss()"
     >

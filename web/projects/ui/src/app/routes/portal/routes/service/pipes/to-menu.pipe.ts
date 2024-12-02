@@ -5,10 +5,11 @@ import { T } from '@start9labs/start-sdk'
 import { TuiDialogService } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { from } from 'rxjs'
-import {
-  ConfigModal,
-  PackageConfigData,
-} from 'src/app/routes/portal/modals/config.component'
+// @TODO Alex implement config
+// import {
+//   ConfigModal,
+//   PackageConfigData,
+// } from 'src/app/routes/portal/modals/config.component'
 import { ServiceAdditionalModal } from 'src/app/routes/portal/routes/service/modals/additional.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
@@ -131,9 +132,9 @@ export class ToMenuPipe implements PipeTransform {
   }
 
   private openConfig({ title, id }: T.Manifest) {
-    this.formDialog.open<PackageConfigData>(ConfigModal, {
-      label: `${title} configuration`,
-      data: { pkgId: id },
-    })
+    // this.formDialog.open<PackageConfigData>(ConfigModal, {
+    //   label: `${title} configuration`,
+    //   data: { pkgId: id },
+    // })
   }
 }

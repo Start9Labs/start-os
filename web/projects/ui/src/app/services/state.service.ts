@@ -95,7 +95,7 @@ export class StateService extends Observable<RR.ServerState | null> {
             .open('Trying to reach server', {
               label: 'State unknown',
               autoClose: 0,
-              status: 'error',
+              appearance: 'negative',
             })
             .pipe(
               takeUntil(
@@ -106,7 +106,7 @@ export class StateService extends Observable<RR.ServerState | null> {
             ),
           this.alerts.open('Connection restored', {
             label: 'Server reached',
-            status: 'success',
+            appearance: 'positive',
           }),
         ),
       ),

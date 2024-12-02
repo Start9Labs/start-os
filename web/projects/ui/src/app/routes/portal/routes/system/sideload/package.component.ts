@@ -142,7 +142,7 @@ export class SideloadPackageComponent {
       await this.router.navigate(['/portal/service', this.package.id])
 
       this.alerts
-        .open('Package uploaded successfully', { status: 'success' })
+        .open('Package uploaded successfully', { appearance: 'positive' })
         .subscribe()
     } catch (e: any) {
       this.errorService.handleError(e)

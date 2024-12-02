@@ -6,7 +6,7 @@ import {
   UntypedFormGroup,
 } from '@angular/forms'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { config, CT } from '@start9labs/start-sdk'
+import { IST, inputSpec } from '@start9labs/start-sdk'
 import { TuiButton, TuiDialogService } from '@taiga-ui/core'
 import { TuiInputModule } from '@taiga-ui/legacy'
 import { PatchDB } from 'patch-db-client'
@@ -80,8 +80,8 @@ export class SettingsEmailComponent {
   private readonly api = inject(ApiService)
 
   testAddress = ''
-  readonly spec: Promise<CT.InputSpec> = configBuilderToSpec(
-    config.constants.customSmtp,
+  readonly spec: Promise<IST.InputSpec> = configBuilderToSpec(
+    inputSpec.constants.customSmtp,
   )
   readonly form$ = this.patch
     .watch$('serverInfo', 'smtp')
@@ -96,7 +96,7 @@ export class SettingsEmailComponent {
 
     try {
       await this.api.configureEmail(
-        config.constants.customSmtp.validator.unsafeCast(value),
+        inputSpec.constants.customSmtp.validator.unsafeCast(value),
       )
     } catch (e: any) {
       this.errorService.handleError(e)

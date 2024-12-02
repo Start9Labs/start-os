@@ -11,7 +11,7 @@ import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { ApiService } from './api/embassy-api.service'
 import { DataModel } from './patch-db/data-model'
-import { CB } from '@start9labs/start-sdk'
+import { ISB } from '@start9labs/start-sdk'
 
 @Injectable({
   providedIn: 'root',
@@ -29,18 +29,19 @@ export class ProxyService {
     const network = await firstValueFrom(
       this.patch.watch$('serverInfo', 'network'),
     )
-    const config = CB.Config.of({
-      proxyId: CB.Value.select({
+    const config = ISB.InputSpec.of({
+      proxyId: ISB.Value.select({
         name: 'Select Proxy',
-        required: { default: current },
+        default: current || '',
         values: network.proxies
           .filter(p => p.type === 'outbound' || p.type === 'inbound-outbound')
-          .reduce((prev, curr) => {
-            return {
+          .reduce<Record<string, string>>(
+            (prev, curr) => ({
               [curr.id]: curr.name,
               ...prev,
-            }
-          }, {}),
+            }),
+            {},
+          ),
       }),
     })
 

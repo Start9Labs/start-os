@@ -1,4 +1,8 @@
-<tui-notification *ngIf="error$ | async as error" status="error" safeLinks>
+<tui-notification
+  *ngIf="error$ | async as error"
+  appearance="negative"
+  safeLinks
+>
   {{ error }}
 </tui-notification>
 

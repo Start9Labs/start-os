@@ -3,7 +3,7 @@ import {
   PackageDataEntry,
   ServerStatusInfo,
 } from 'src/app/services/patch-db/data-model'
-import { RR, ServerNotifications } from './api.types'
+import { RR, ServerMetrics, ServerNotifications } from './api.types'
 import { BTC_ICON, LND_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
 import { Log } from '@start9labs/shared'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'

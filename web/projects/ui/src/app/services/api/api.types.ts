@@ -2,11 +2,10 @@ import {
   DomainInfo,
   NetworkStrategy,
 } from 'src/app/services/patch-db/data-model'
-import { FetchLogsReq, FetchLogsRes } from '@start9labs/shared'
-import { config } from '@start9labs/start-sdk'
+import { FetchLogsReq, FetchLogsRes, Log } from '@start9labs/shared'
 import { Dump } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
+import { StartOSDiskInfo } from '@start9labs/shared'
 import { IST, T } from '@start9labs/start-sdk'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
@@ -232,8 +231,7 @@ export module RR {
 
   // email
 
-  export type ConfigureEmailReq =
-    typeof config.constants.customSmtp.validator._TYPE // email.configure
+  export type ConfigureEmailReq = T.SmtpValue // email.configure
   export type ConfigureEmailRes = null
 
   export type TestEmailReq = ConfigureEmailReq & { to: string } // email.test
@@ -328,9 +326,18 @@ export module RR {
   export type CreateBackupRes = null
 
   // package
-
-  export type GetPackageLogsReq = ServerLogsReq & { id: string } // package.logs
-  export type GetPackageLogsRes = LogsRes
+  // @TODO Matt I just copy-pasted those types from minor
+  export type GetPackageLogsReq = {
+    id: string
+    before: boolean
+    cursor?: string
+    limit?: number
+  } // package.logs
+  export type GetPackageLogsRes = {
+    entries: Log[]
+    startCursor?: string
+    endCursor?: string
+  }
 
   export type FollowPackageLogsReq = FollowServerLogsReq & { id: string } // package.logs.follow
   export type FollowPackageLogsRes = FollowServerLogsRes

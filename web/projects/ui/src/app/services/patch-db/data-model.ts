@@ -1,6 +1,5 @@
 import { BackupJob, ServerNotifications } from '../api/api.types'
 import { T } from '@start9labs/start-sdk'
-import { config } from '@start9labs/start-sdk'
 
 export type DataModel = {
   ui: UIData
@@ -51,7 +50,7 @@ export type ServerInfo = {
   pubkey: string
   caFingerprint: string
   ntpSynced: boolean
-  smtp: typeof config.constants.customSmtp.validator._TYPE
+  smtp: T.SmtpValue | null
   passwordHash: string
   platform: string
   arch: string

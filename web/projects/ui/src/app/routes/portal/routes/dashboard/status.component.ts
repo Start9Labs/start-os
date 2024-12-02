@@ -62,7 +62,8 @@ export class StatusComponent {
 
     return (
       !this.hasDepErrors && // no deps error
-      !!this.pkg.status.configured && // no config needed
+      // @TODO Matt how do we handle this now?
+      // !!this.pkg.status.configured && // no config needed
       status.health !== 'failure' // no health issues
     )
   }
@@ -86,8 +87,9 @@ export class StatusComponent {
         return 'Running'
       case 'stopped':
         return 'Stopped'
-      case 'needsConfig':
-        return 'Needs Config'
+      // @TODO Matt just dropping this?
+      // case 'needsConfig':
+      //   return 'Needs Config'
       case 'updating':
         return 'Updating...'
       case 'stopping':
@@ -111,8 +113,9 @@ export class StatusComponent {
     switch (this.getStatus(this.pkg).primary) {
       case 'running':
         return 'var(--tui-status-positive)'
-      case 'needsConfig':
-        return 'var(--tui-status-warning)'
+      // @TODO Matt just dropping this?
+      // case 'needsConfig':
+      //   return 'var(--tui-status-warning)'
       case 'installing':
       case 'updating':
       case 'stopping':
