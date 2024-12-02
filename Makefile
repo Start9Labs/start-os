@@ -304,10 +304,6 @@ $(COMPRESSED_WEB_UIS): $(WEB_UIS) $(ENVIRONMENT_FILE)
 web/config.json: $(GIT_HASH_FILE) web/config-sample.json
 	jq '.useMocks = false' web/config-sample.json | jq '.gitHash = "$(shell cat GIT_HASH.txt)"' > web/config.json
 
-web/patchdb-ui-seed.json: web/package.json
-	jq '."ack-welcome" = $(shell jq '.version' web/package.json)' web/patchdb-ui-seed.json > ui-seed.tmp
-	mv ui-seed.tmp web/patchdb-ui-seed.json
-
 patch-db/client/node_modules/.package-lock.json: patch-db/client/package.json
 	npm --prefix patch-db/client ci
 	touch patch-db/client/node_modules/.package-lock.json
