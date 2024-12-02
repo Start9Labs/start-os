@@ -9,7 +9,6 @@ export type DataModel = {
 
 export type UIData = {
   name: string | null
-  ackWelcome: string // emver
   marketplace: UIMarketplaceData
   gaming: {
     snake: {

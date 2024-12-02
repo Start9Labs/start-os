@@ -13,28 +13,7 @@ export type BackupSync<Volumes extends string> = {
   backupOptions?: Partial<T.SyncOptions>
   restoreOptions?: Partial<T.SyncOptions>
 }
-/**
- * This utility simplifies the volume backup process.
- * ```ts
- * export const { createBackup, restoreBackup } = Backups.volumes("main").build();
- * ```
- *
- * Changing the options of the rsync, (ie excludes) use either
- * ```ts
- *  Backups.volumes("main").set_options({exclude: ['bigdata/']}).volumes('excludedVolume').build()
- * // or
- *  Backups.with_options({exclude: ['bigdata/']}).volumes('excludedVolume').build()
- * ```
- *
- * Using the more fine control, using the addSets for more control
- * ```ts
- * Backups.addSets({
- * srcVolume: 'main', srcPath:'smallData/', dstPath: 'main/smallData/', dstVolume: : Backups.BACKUP
- * }, {
- * srcVolume: 'main', srcPath:'bigData/', dstPath: 'main/bigData/', dstVolume: : Backups.BACKUP, options: {exclude:['bigData/excludeThis']}}
- * ).build()q
- * ```
- */
+
 export class Backups<M extends T.SDKManifest> {
   private constructor(
     private options = DEFAULT_OPTIONS,

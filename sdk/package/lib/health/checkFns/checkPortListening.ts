@@ -1,12 +1,11 @@
 import { Effects } from "../../../../base/lib/types"
 import { stringFromStdErrOut } from "../../util"
 import { HealthCheckResult } from "./HealthCheckResult"
-
 import { promisify } from "node:util"
 import * as CP from "node:child_process"
 
 const cpExec = promisify(CP.exec)
-const cpExecFile = promisify(CP.execFile)
+
 export function containsAddress(x: string, port: number) {
   const readPorts = x
     .split("\n")

@@ -4,7 +4,6 @@ import { Mock } from './api.fixures'
 export const mockPatchData: DataModel = {
   ui: {
     name: `Matt's Server`,
-    ackWelcome: '1.0.0',
     theme: 'Dark',
     desktop: ['lnd'],
     marketplace: {

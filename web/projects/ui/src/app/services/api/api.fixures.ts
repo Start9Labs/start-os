@@ -10,6 +10,8 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { T, ISB, IST } from '@start9labs/start-sdk'
 import { GetPackagesRes } from '@start9labs/marketplace'
 
+import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
+
 const mockMerkleArchiveCommitment: T.MerkleArchiveCommitment = {
   rootSighash: 'fakehash',
   rootMaxsize: 0,
@@ -809,6 +811,17 @@ export module Mock {
         )
         .join(''),
       data: null,
+      read: false,
+    },
+    {
+      id: 5,
+      packageId: null,
+      createdAt: '2019-12-26T14:20:30.872Z',
+      code: 2,
+      level: 'success',
+      title: 'Welcome to StartOS 0.3.6!',
+      message: 'Click "View Details" to learn all about the new version',
+      data: markdown,
       read: false,
     },
   ]
