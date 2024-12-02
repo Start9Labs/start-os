@@ -9,6 +9,8 @@ import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { T, ISB, IST } from '@start9labs/start-sdk'
 import { GetPackagesRes } from '@start9labs/marketplace'
 
+import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
+
 const mockMerkleArchiveCommitment: T.MerkleArchiveCommitment = {
   rootSighash: 'fakehash',
   rootMaxsize: 0,
@@ -759,7 +761,7 @@ export module Mock {
       id: 2,
       packageId: null,
       createdAt: '2019-12-26T14:20:30.872Z',
-      code: 2,
+      code: 0,
       level: NotificationLevel.Warning,
       title: 'SSH Key Added',
       message: 'A new SSH key was added. If you did not do this, shit is bad.',
@@ -769,7 +771,7 @@ export module Mock {
       id: 3,
       packageId: null,
       createdAt: '2019-12-26T14:20:30.872Z',
-      code: 3,
+      code: 0,
       level: NotificationLevel.Info,
       title: 'SSH Key Removed',
       message: 'A SSH key was removed.',
@@ -779,7 +781,7 @@ export module Mock {
       id: 4,
       packageId: 'bitcoind',
       createdAt: '2019-12-26T14:20:30.872Z',
-      code: 4,
+      code: 0,
       level: NotificationLevel.Error,
       title: 'Service Crashed',
       message: new Array(40)
@@ -791,6 +793,16 @@ export module Mock {
         )
         .join(''),
       data: null,
+    },
+    {
+      id: 5,
+      packageId: null,
+      createdAt: '2019-12-26T14:20:30.872Z',
+      code: 2,
+      level: NotificationLevel.Success,
+      title: 'Welcome to StartOS 0.3.6!',
+      message: 'Click "View Details" to learn all about the new version',
+      data: markdown,
     },
   ]
 

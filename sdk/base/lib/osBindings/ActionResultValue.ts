@@ -4,9 +4,27 @@ import type { ActionResultMember } from "./ActionResultMember"
 export type ActionResultValue =
   | {
       type: "single"
+      /**
+       * The actual string value to display
+       */
       value: string
+      /**
+       * Whether or not to include a copy to clipboard icon to copy the value
+       */
       copyable: boolean
+      /**
+       * Whether or not to also display the value as a QR code
+       */
       qr: boolean
+      /**
+       * Whether or not to mask the value using ●●●●●●●, which is useful for password or other sensitive information
+       */
       masked: boolean
     }
-  | { type: "group"; value: Array<ActionResultMember> }
+  | {
+      type: "group"
+      /**
+       * An new group of nested values, experienced by the user as an accordion dropdown
+       */
+      value: Array<ActionResultMember>
+    }

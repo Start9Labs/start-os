@@ -33,12 +33,11 @@ import { checkWebUrl, runHealthScript } from "./health/checkFns"
 import { List } from "../../base/lib/actions/input/builder/list"
 import { Install, InstallFn } from "./inits/setupInstall"
 import { SetupBackupsParams, setupBackups } from "./backup/setupBackups"
-import { Uninstall, UninstallFn, setupUninstall } from "./inits/setupUninstall"
+import { UninstallFn, setupUninstall } from "./inits/setupUninstall"
 import { setupMain } from "./mainFn"
 import { defaultTrigger } from "./trigger/defaultTrigger"
 import { changeOnFirstSuccess, cooldownTrigger } from "./trigger"
 import {
-  ServiceInterfacesReceipt,
   UpdateServiceInterfaces,
   setupServiceInterfaces,
 } from "../../base/lib/interfaces/setupInterfaces"
@@ -240,68 +239,67 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         return runCommand<Manifest>(effects, image, command, options, name)
       },
       /**
-       * TODO: rewrite this
-       * @description Use this function to create a static Action, including optional form input.
+       * @description Use this class to create an Action. By convention, each Action should receive its own file.
        *
-       *   By convention, each Action should receive its own file.
-       *
-       * @param id
-       * @param metaData
-       * @param fn
-       * @returns
-       * @example
-       * In this example, we create an Action that prints a name to the console. We present a user
-       * with a form for optionally entering a temp name. If no temp name is provided, we use the name
-       * from the underlying `inputSpec.yaml` file. If no name is there, we use "Unknown". Then, we return
-       * a message to the user informing them what happened.
-       * 
-       * ```
-        import { sdk } from '../sdk'
-        const { InputSpec, Value } = sdk
-        import { yamlFile } from '../file-models/inputSpec.yml'
-
-        const input = InputSpec.of({
-          nameToPrint: Value.text({
-            name: 'Temp Name',
-            description: 'If no name is provided, the name from inputSpec will be used',
-            required: false,
-          }),
-        })
-
-        export const nameToLog = sdk.createAction(
-          // id
-          'nameToLogs',
-
-          // metadata
-          {
-            name: 'Name to Logs',
-            description: 'Prints "Hello [Name]" to the service logs.',
-            warning: null,
-            disabled: false,
-            input,
-            allowedStatuses: 'onlyRunning',
-            group: null,
-          },
-
-          // the execution function
-          async ({ effects, input }) => {
-            const name =
-              input.nameToPrint || (await yamlFile.read(effects))?.name || 'Unknown'
-
-            console.info(`Hello ${name}`)
-
-            return {
-              version: '0',
-              message: `"Hello ${name}" has been written to the service logs. Open your logs to view it.`,
-              value: name,
-              copyable: true,
-              qr: false,
-            }
-          },
-        )
-       * ```
        */
       Action: {
+        /**
+         * @description Use this function to create an action that accepts form input
+         * @param id - a unique ID for this action
+         * @param metadata - information describing the action and its availability
+         * @param inputSpec - define the form input using the InputSpec and Value classes
+         * @param prefillFn - optionally fetch data from the file system to pre-fill the input form. Must returns a deep partial of the input spec
+         * @param executionFn - execute the action. Optionally return data for the user to view. Must be in the structure of an ActionResult, version "1"
+         * @example
+         * In this example, we create an action for a user to provide their name.
+         *   We prefill the input form with their existing name from the service's yaml file.
+         *   The new name is saved to the yaml file, and we return nothing to the user, which
+         *   means they will receive a generic success message.
+         * 
+         * ```
+          import { sdk } from '../sdk'
+          import { yamlFile } from '../file-models/config.yml'
+
+          const { InputSpec, Value } = sdk
+
+          export const inputSpec = InputSpec.of({
+            name: Value.text({
+              name: 'Name',
+              description:
+                'When you launch the Hello World UI, it will display "Hello [Name]"',
+              required: true,
+              default: 'World',
+            }),
+          })
+
+          export const setName = sdk.Action.withInput(
+            // id
+            'set-name',
+
+            // metadata
+            async ({ effects }) => ({
+              name: 'Set Name',
+              description: 'Set your name so Hello World can say hello to you',
+              warning: null,
+              allowedStatuses: 'any',
+              group: null,
+              visibility: 'enabled',
+            }),
+
+            // form input specification
+            inputSpec,
+
+            // optionally pre-fill the input form
+            async ({ effects }) => {
+              const name = await yamlFile.read.const(effects)?.name
+              return { name }
+            },
+
+            // the execution function
+            async ({ effects, input }) => yamlFile.merge(input)
+          )
+         * ```
+        */
         withInput: <
           Id extends T.ActionId,
           InputSpecType extends
@@ -317,6 +315,50 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           getInput: GetInput<Type>,
           run: Run<Type>,
         ) => Action.withInput(id, metadata, inputSpec, getInput, run),
+        /**
+         * @description Use this function to create an action that does not accept form input
+         * @param id - a unique ID for this action
+         * @param metadata - information describing the action and its availability
+         * @param executionFn - execute the action. Optionally return data for the user to view. Must be in the structure of an ActionResult, version "1"
+         * @example
+         * In this example, we create an action that returns a secret phrase for the user to see.
+         * 
+         * ```
+          import { sdk } from '../sdk'
+
+          export const showSecretPhrase = sdk.Action.withoutInput(
+            // id
+            'show-secret-phrase',
+
+            // metadata
+            async ({ effects }) => ({
+              name: 'Show Secret Phrase',
+              description: 'Reveal the secret phrase for Hello World',
+              warning: null,
+              allowedStatuses: 'any',
+              group: null,
+              visibility: 'enabled',
+            }),
+
+            // the execution function
+            async ({ effects }) => ({
+              version: '1',
+              title: 'Secret Phrase',
+              message:
+                'Below is your secret phrase. Use it to gain access to extraordinary places',
+              result: {
+                type: 'single',
+                value: await sdk.store
+                  .getOwn(effects, sdk.StorePath.secretPhrase)
+                  .const(),
+                copyable: true,
+                qr: true,
+                masked: true,
+              },
+            }),
+          )
+         * ```
+        */
         withoutInput: <Id extends T.ActionId>(
           id: Id,
           metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
@@ -355,9 +397,9 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           id: string
           /** The human readable description. */
           description: string
-          /** Not available until StartOS v0.4.0. If true, forces the user to select one URL (i.e. .onion, .local, or IP address) as the primary URL. This is needed by some services to function properly. */
+          /** No effect until StartOS v0.4.0. If true, forces the user to select one URL (i.e. .onion, .local, or IP address) as the primary URL. This is needed by some services to function properly. */
           hasPrimary: boolean
-          /** Affects how the interface appears to the user. One of: 'ui', 'api', 'p2p'. */
+          /** Affects how the interface appears to the user. One of: 'ui', 'api', 'p2p'. If 'ui', the user will see a "Launch UI" button */
           type: ServiceInterfaceType
           /** (optional) prepends the provided username to all URLs. */
           username: null | string
@@ -413,15 +455,22 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
        * In this example, we back up the entire "main" volume and nothing else.
        *
        * ```
-        export const { createBackup, restoreBackup } = sdk.setupBackups(sdk.Backups.addVolume('main'))
+        import { sdk } from './sdk'
+
+        export const { createBackup, restoreBackup } = sdk.setupBackups(
+          async ({ effects }) => sdk.Backups.volumes('main'),
+        )
        * ```
        * @example
-       * In this example, we back up the "main" and the "other" volume, but exclude hypothetical directory "excludedDir" from the "other".
+       * In this example, we back up the "main" volume, but exclude hypothetical directory "excludedDir".
        *
        * ```
-        export const { createBackup, restoreBackup } = sdk.setupBackups(sdk.Backups
-          .addVolume('main')
-          .addVolume('other', { exclude: ['path/to/excludedDir'] })
+        import { sdk } from './sdk'
+
+        export const { createBackup, restoreBackup } = sdk.setupBackups(async () =>
+          sdk.Backups.volumes('main').setOptions({
+            exclude: ['excludedDir'],
+          }),
         )
        * ```
        */
@@ -429,37 +478,36 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         setupBackups<Manifest>(options),
       /**
        * @description Use this function to set dependency information.
-       *
-       *   The function executes on service install, update, and inputSpec save. "input" will be of type `Input` for inputSpec save. It will be `null` for install and update.
        * @example
-       * In this example, we create a static dependency on Hello World >=1.0.0:0, where Hello World must be running and passing its "webui" health check.
+       * In this example, we create a perpetual dependency on Hello World >=1.0.0:0, where Hello World must be running and passing its "primary" health check.
        *
        * ```
         export const setDependencies = sdk.setupDependencies(
           async ({ effects, input }) => {
             return {
-              'hello-world': sdk.Dependency.of({
-                type: 'running',
-                versionRange: VersionRange.parse('>=1.0.0:0'),
-                healthChecks: ['webui'],
-              }),
+              'hello-world': {
+                kind: 'running',
+                versionRange: '>=1.0.0',
+                healthChecks: ['primary'],
+              },
             }
           },
         )
        * ```
        * @example
-       * In this example, we create a conditional dependency on Hello World based on a hypothetical "needsWorld" boolean in the store.
+       * In this example, we create a conditional dependency on Hello World based on a hypothetical "needsWorld" boolean in our Store.
+       * Using .const() ensures that if the "needsWorld" boolean changes, setupDependencies will re-run.
        *
        * ```
         export const setDependencies = sdk.setupDependencies(
           async ({ effects }) => {
             if (sdk.store.getOwn(sdk.StorePath.needsWorld).const()) {
               return {
-                'hello-world': sdk.Dependency.of({
-                  type: 'running',
-                  versionRange: VersionRange.parse('>=1.0.0:0'),
-                  healthChecks: ['webui'],
-                }),
+                'hello-world': {
+                  kind: 'running',
+                  versionRange: '>=1.0.0',
+                  healthChecks: ['primary'],
+                },
               }
             }
             return {}
@@ -614,7 +662,8 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
               name: 'Name',
               description:
                 'When you launch the Hello World UI, it will display "Hello [Name]"',
-              required: { default: 'World' },
+              required: true,
+              default: 'World'
             }),
             makePublic: Value.toggle({
               name: 'Make Public',
@@ -673,6 +722,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
                 label: Value.text({
                   name: 'Label',
                   required: false,
+                  default: null,
                 })
               })
               displayAs: 'label',
@@ -690,11 +740,13 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
               spec: InputSpec.of({
                 label: Value.text({
                   name: 'Label',
-                  required: { default: null },
+                  required: true,
+                  default: null,
                 })
                 pubkey: Value.text({
                   name: 'Pubkey',
-                  required: { default: null },
+                  required: true,
+                  default: null,
                 })
               })
               displayAs: 'label',
@@ -707,11 +759,13 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
               spec: InputSpec.of({
                 label: Value.text({
                   name: 'Label',
-                  required: { default: null },
+                  required: true,
+                  default: null,
                 })
                 pubkey: Value.text({
                   name: 'Pubkey',
-                  required: { default: null },
+                  required: true,
+                  default: null,
                 })
               })
               displayAs: 'label',
@@ -777,6 +831,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
             // required
             name: 'Text Example',
             required: false,
+            default: null,
          
             // optional
             description: null,
@@ -801,6 +856,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
             // required
             name: 'Textarea Example',
             required: false,
+            default: null,
          
             // optional
             description: null,
@@ -821,6 +877,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
             // required
             name: 'Number Example',
             required: false,
+            default: null,
             integer: true,
          
             // optional
@@ -844,6 +901,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
             // required
             name: 'Color Example',
             required: false,
+            default: null,
          
             // optional
             description: null,
@@ -861,6 +919,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
             // required
             name: 'Datetime Example',
             required: false,
+            default: null,
          
             // optional
             description: null,
@@ -880,7 +939,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           selectExample: Value.select({
             // required
             name: 'Select Example',
-            required: false,
+            default: 'radio1',
             values: {
               radio1: 'Radio 1',
               radio2: 'Radio 2',
@@ -945,7 +1004,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
             {
               // required
               name: 'Union Example',
-              required: false,
+              default: 'option1',
          
               // optional
               description: null,

@@ -12,7 +12,6 @@ import {
   Host,
   ExportServiceInterfaceParams,
   ServiceInterface,
-  ActionRequest,
   RequestActionParams,
   MainStatus,
 } from "./osBindings"
