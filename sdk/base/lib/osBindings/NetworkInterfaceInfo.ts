@@ -2,7 +2,7 @@
 import type { IpInfo } from "./IpInfo"
 
 export type NetworkInterfaceInfo = {
-  public: boolean
+  public: boolean | null
   scopeId: number | null
   ipInfo: IpInfo
 }

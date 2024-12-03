@@ -33,4 +33,9 @@ pub fn net<C: Context>() -> ParentHandler<C> {
             "acme",
             acme::acme::<C>().with_about("Setup automatic clearnet certificate acquisition"),
         )
+        .subcommand(
+            "network-interface",
+            network_interface::network_interface_api::<C>()
+                .with_about("View and edit network interface configurations"),
+        )
 }

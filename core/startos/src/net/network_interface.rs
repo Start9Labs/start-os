@@ -5,6 +5,7 @@ use std::pin::Pin;
 use std::sync::{Arc, Weak};
 use std::task::Poll;
 
+use clap::Parser;
 use futures::future::pending;
 use futures::TryFutureExt;
 use getifaddrs::if_nametoindex;
@@ -12,19 +13,124 @@ use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use ipnet::IpNet;
 use itertools::Itertools;
+use patch_db::json_ptr::JsonPointer;
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::watch;
 use tokio_stream::StreamExt;
+use ts_rs::TS;
 use zbus::proxy::PropertyStream;
 use zbus::zvariant::{
     DeserializeDict, OwnedObjectPath, OwnedValue, Type as ZType, Value as ZValue,
 };
 use zbus::{proxy, Connection};
 
+use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::{IpInfo, NetworkInterfaceInfo};
 use crate::db::model::Database;
 use crate::prelude::*;
+use crate::util::serde::{display_serializable, HandlerExtSerde};
 use crate::util::sync::SyncMutex;
+
+pub fn network_interface_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand(
+            "list",
+            from_fn_async(list_interfaces)
+                .with_display_serializable()
+                .with_custom_display_fn(|HandlerArgs { params, .. }, res| {
+                    use prettytable::*;
+
+                    if let Some(format) = params.format {
+                        return Ok(display_serializable(format, res));
+                    }
+
+                    let mut table = Table::new();
+                    table.add_row(row![bc => "INTERFACE", "PUBLIC", "ADDRESSES"]);
+                    for (iface, info) in res {
+                        table.add_row(row![
+                            iface,
+                            info.public(),
+                            info.ip_info
+                                .0
+                                .into_iter()
+                                .map(|ipnet| match ipnet.addr() {
+                                    IpAddr::V4(ip) => format!("{ip}/{}", ipnet.prefix_len()),
+                                    IpAddr::V6(ip) => format!(
+                                        "[{ip}{}]/{}",
+                                        info.scope_id.map(|s| format!("%{s}")).unwrap_or_default(),
+                                        ipnet.prefix_len()
+                                    ),
+                                })
+                                .join(", ")
+                        ]);
+                    }
+
+                    table.print_tty(false).unwrap();
+
+                    Ok(())
+                })
+                .with_about("Show network interfaces StartOS can listen on")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "set-public",
+            from_fn_async(set_public)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("Indicate whether this interface is publicly addressable")
+                .with_call_remote::<CliContext>(),
+        ).subcommand(
+            "unset-public",
+            from_fn_async(unset_public)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("Allow this interface to infer whether it is publicly addressable based on its IPv4 address")
+                .with_call_remote::<CliContext>(),
+        )
+}
+
+async fn list_interfaces(
+    ctx: RpcContext,
+) -> Result<BTreeMap<InternedString, NetworkInterfaceInfo>, Error> {
+    Ok(ctx.net_controller.net_iface.ip_info.borrow().clone())
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
+struct SetPublicParams {
+    #[ts(type = "string")]
+    interface: InternedString,
+    public: Option<bool>,
+}
+
+async fn set_public(
+    ctx: RpcContext,
+    SetPublicParams { interface, public }: SetPublicParams,
+) -> Result<(), Error> {
+    ctx.net_controller
+        .net_iface
+        .set_public(&interface, Some(public.unwrap_or(true)))
+        .await
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
+struct UnsetPublicParams {
+    #[ts(type = "string")]
+    interface: InternedString,
+}
+
+async fn unset_public(
+    ctx: RpcContext,
+    UnsetPublicParams { interface }: UnsetPublicParams,
+) -> Result<(), Error> {
+    ctx.net_controller
+        .net_iface
+        .set_public(&interface, None)
+        .await
+}
 
 #[proxy(
     interface = "org.freedesktop.NetworkManager",
@@ -258,7 +364,7 @@ async fn watch_ip(
                                 Some(if_nametoindex(&*iface).with_kind(ErrorKind::Network)?);
 
                             write_to.send_if_modified(|m| {
-                                let public = m.get(&iface).map_or(false, |i| i.public);
+                                let public = m.get(&iface).map_or(None, |i| i.public);
                                 m.insert(
                                     iface.clone(),
                                     NetworkInterfaceInfo {
@@ -384,6 +490,43 @@ impl NetworkInterfaceController {
             needs_update: true,
         })
     }
+
+    pub async fn set_public(
+        &self,
+        interface: &InternedString,
+        public: Option<bool>,
+    ) -> Result<(), Error> {
+        let mut sub = self
+            .db
+            .subscribe(
+                "/public/serverInfo/networkInterfaces"
+                    .parse::<JsonPointer<_, _>>()
+                    .with_kind(ErrorKind::Database)?,
+            )
+            .await;
+        let mut err = None;
+        let changed = self.ip_info.send_if_modified(|ip_info| {
+            let prev = std::mem::replace(
+                &mut match ip_info.get_mut(interface).or_not_found(interface) {
+                    Ok(a) => a,
+                    Err(e) => {
+                        err = Some(e);
+                        return false;
+                    }
+                }
+                .public,
+                public,
+            );
+            prev == public
+        });
+        if let Some(e) = err {
+            return Err(e);
+        }
+        if changed {
+            sub.recv().await;
+        }
+        Ok(())
+    }
 }
 
 struct ListenerMap {
@@ -404,13 +547,13 @@ impl ListenerMap {
     ) -> Result<(), Error> {
         let mut keep = BTreeSet::<(IpAddr, u32)>::new();
         for info in ip_info.values() {
-            if public || !info.public {
+            if public || !info.public() {
                 for ipnet in &info.ip_info.0 {
                     let scope_id = info.scope_id.unwrap_or(0);
                     let key = (ipnet.addr(), scope_id);
                     keep.insert(key);
                     if let Some((_, is_public)) = self.listeners.get_mut(&key) {
-                        *is_public = info.public;
+                        *is_public = info.public();
                         continue;
                     }
                     self.listeners.insert(
@@ -423,7 +566,7 @@ impl ListenerMap {
                                 ip => SocketAddr::new(ip, self.port),
                             })
                             .await?,
-                            info.public,
+                            info.public(),
                         ),
                     );
                 }

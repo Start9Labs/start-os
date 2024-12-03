@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use chrono::{DateTime, Utc};
 use exver::{Version, VersionRange};
@@ -158,9 +158,22 @@ pub struct ServerInfo {
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct NetworkInterfaceInfo {
-    pub public: bool,
+    pub public: Option<bool>,
     pub scope_id: Option<u32>,
     pub ip_info: IpInfo,
+}
+impl NetworkInterfaceInfo {
+    pub fn public(&self) -> bool {
+        self.public.unwrap_or_else(|| {
+            !self.ip_info.0.iter().all(|ipnet| {
+                if let IpAddr::V4(ip4) = ipnet.addr() {
+                    ip4.is_loopback() || ip4.is_private() || ip4.is_link_local()
+                } else {
+                    true
+                }
+            })
+        })
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS)]

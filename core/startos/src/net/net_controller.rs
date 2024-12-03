@@ -379,7 +379,7 @@ impl NetService {
                 let mut bind_hostname_info: Vec<HostnameInfo> =
                     hostname_info.remove(port).unwrap_or_default();
                 for (interface, iface_info) in &net_ifaces {
-                    if !iface_info.public {
+                    if !iface_info.public() {
                         bind_hostname_info.push(HostnameInfo::Ip {
                             network_interface_id: interface.clone(),
                             public: false,
@@ -402,7 +402,7 @@ impl NetService {
                             {
                                 bind_hostname_info.push(HostnameInfo::Ip {
                                     network_interface_id: interface.clone(),
-                                    public: iface_info.public,
+                                    public: true, // TODO: check if port forward is active
                                     hostname: IpHostname::Domain {
                                         domain: address.clone(),
                                         subdomain: None,
@@ -410,10 +410,10 @@ impl NetService {
                                         ssl_port: Some(443),
                                     },
                                 });
-                            } else if iface_info.public && new_lan_bind.0.public {
+                            } else if iface_info.public() && new_lan_bind.0.public {
                                 bind_hostname_info.push(HostnameInfo::Ip {
                                     network_interface_id: interface.clone(),
-                                    public: iface_info.public,
+                                    public: iface_info.public(),
                                     hostname: IpHostname::Domain {
                                         domain: address.clone(),
                                         subdomain: None,
@@ -424,13 +424,13 @@ impl NetService {
                             }
                         }
                     }
-                    if !iface_info.public || new_lan_bind.0.public {
+                    if !iface_info.public() || new_lan_bind.0.public {
                         for ipnet in &iface_info.ip_info.0 {
                             match ipnet {
                                 IpNet::V4(net) => {
                                     bind_hostname_info.push(HostnameInfo::Ip {
                                         network_interface_id: interface.clone(),
-                                        public: iface_info.public,
+                                        public: iface_info.public(),
                                         hostname: IpHostname::Ipv4 {
                                             value: net.addr(),
                                             port: new_lan_bind.0.assigned_port,
@@ -441,7 +441,7 @@ impl NetService {
                                 IpNet::V6(net) => {
                                     bind_hostname_info.push(HostnameInfo::Ip {
                                         network_interface_id: interface.clone(),
-                                        public: iface_info.public,
+                                        public: iface_info.public(),
                                         hostname: IpHostname::Ipv6 {
                                             value: net.addr(),
                                             port: new_lan_bind.0.assigned_port,
