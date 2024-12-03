@@ -56,7 +56,6 @@ systemd-resolved
 systemd-sysv
 systemd-timesyncd
 tor
-ufw
 util-linux
 vim
 wireguard-tools
