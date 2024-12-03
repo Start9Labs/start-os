@@ -101,6 +101,7 @@ EOF
 
 rm -rf /var/lib/tor/*
 ln -sf /usr/lib/startos/scripts/tor-check.sh /usr/bin/tor-check
+ln -sf /usr/lib/startos/scripts/gather_debug_info.sh /usr/bin/gather-debug
 
 echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-embassy.conf
 

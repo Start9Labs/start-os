@@ -6,7 +6,6 @@ const version = require('../../../../../../package.json').version
 export const mockPatchData: DataModel = {
   ui: {
     name: `Matt's Server`,
-    ackWelcome: '1.0.0',
     theme: 'Dark',
     widgets: BUILT_IN_WIDGETS.filter(
       ({ id }) =>

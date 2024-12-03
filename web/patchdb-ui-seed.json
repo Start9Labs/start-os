@@ -1,6 +1,5 @@
 {
   "name": null,
-  "ackWelcome": "0.0.0",
   "marketplace": {
     "selectedUrl": "https://registry.start9.com/",
     "knownHosts": {
@@ -12,7 +11,6 @@
       }
     }
   },
-  "dev": {},
   "gaming": {
     "snake": {
       "highScore": 0
@@ -20,6 +18,5 @@
   },
   "ackInstructions": {},
   "theme": "Dark",
-  "widgets": [],
-  "ack-welcome": "0.3.6-alpha.8"
+  "widgets": []
 }

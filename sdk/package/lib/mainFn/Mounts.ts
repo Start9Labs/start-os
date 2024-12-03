@@ -30,9 +30,13 @@ export class Mounts<Manifest extends T.SDKManifest> {
   }
 
   addVolume(
+    /** The ID of the volume to mount. Must be one of the volume IDs defined in the manifest */
     id: Manifest["volumes"][number],
+    /** The path within the volume to mount. Use `null` to mount the entire volume */
     subpath: string | null,
+    /** Where to mount the volume. e.g. /data */
     mountpoint: string,
+    /** Whether or not the volume should be readonly for this daemon */
     readonly: boolean,
   ) {
     this.volumes.push({
@@ -45,8 +49,11 @@ export class Mounts<Manifest extends T.SDKManifest> {
   }
 
   addAssets(
+    /** The ID of the asset directory to mount. This is typically the same as the folder name in your assets directory */
     id: Manifest["assets"][number],
+    /** The path within the asset directory to mount. Use `null` to mount the entire volume */
     subpath: string | null,
+    /** Where to mount the asset. e.g. /asset */
     mountpoint: string,
   ) {
     this.assets.push({
@@ -58,10 +65,15 @@ export class Mounts<Manifest extends T.SDKManifest> {
   }
 
   addDependency<DependencyManifest extends T.SDKManifest>(
+    /** The ID of the dependency service */
     dependencyId: keyof Manifest["dependencies"] & string,
+    /** The ID of the volume belonging to the dependency service to mount */
     volumeId: DependencyManifest["volumes"][number],
+    /** The path within the dependency's volume to mount. Use `null` to mount the entire volume */
     subpath: string | null,
+    /** Where to mount the dependency's volume. e.g. /service-id */
     mountpoint: string,
+    /** Whether or not the volume should be readonly for this daemon */
     readonly: boolean,
   ) {
     this.dependencies.push({
