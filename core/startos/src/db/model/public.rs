@@ -159,6 +159,7 @@ pub struct ServerInfo {
 #[ts(export)]
 pub struct NetworkInterfaceInfo {
     pub public: bool,
+    pub scope_id: Option<u32>,
     pub ip_info: IpInfo,
 }
 

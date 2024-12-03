@@ -460,18 +460,30 @@ impl<T> BackTrackingIO<T> {
             }
         }
     }
-    pub fn rewind(&mut self) -> Vec<u8> {
+    pub fn rewind<'a>(&'a mut self) -> (Vec<u8>, &'a [u8]) {
         match std::mem::take(&mut self.buffer) {
             BTBuffer::Buffering { read, write } => {
                 self.buffer = BTBuffer::Rewound {
                     read: Cursor::new(read),
                 };
-                write
+                (
+                    write,
+                    match &self.buffer {
+                        BTBuffer::Rewound { read } => read.get_ref(),
+                        _ => unreachable!(),
+                    },
+                )
             }
-            BTBuffer::NotBuffering => Vec::new(),
+            BTBuffer::NotBuffering => (Vec::new(), &[]),
             BTBuffer::Rewound { read } => {
                 self.buffer = BTBuffer::Rewound { read };
-                Vec::new()
+                (
+                    Vec::new(),
+                    match &self.buffer {
+                        BTBuffer::Rewound { read } => read.get_ref(),
+                        _ => unreachable!(),
+                    },
+                )
             }
         }
     }

@@ -2245,6 +2245,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "getifaddrs"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7ba121d81ab5ea05b0cd5858516266800bf965531a794f7ac58e3eeb804f364f"
+dependencies = [
+ "bitflags 2.6.0",
+ "libc",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5676,6 +5687,7 @@ dependencies = [
  "fd-lock-rs",
  "form_urlencoded",
  "futures",
+ "getifaddrs",
  "gpt",
  "helpers",
  "hex",

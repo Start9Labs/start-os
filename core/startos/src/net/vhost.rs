@@ -193,50 +193,69 @@ impl VHostServer {
         let mid: tokio_rustls::StartHandshake<&mut BackTrackingIO<TcpStream>> =
             match LazyConfigAcceptor::new(Acceptor::default(), &mut stream).await {
                 Ok(a) => a,
-                Err(_) => {
-                    stream.rewind();
-                    return hyper_util::server::conn::auto::Builder::new(
-                        hyper_util::rt::TokioExecutor::new(),
-                    )
-                    .serve_connection(
-                        hyper_util::rt::TokioIo::new(stream),
-                        hyper_util::service::TowerToHyperService::new(
-                            axum::Router::new().fallback(axum::routing::method_routing::any(
-                                move |req: Request| async move {
-                                    match async move {
-                                        let host = req
-                                            .headers()
-                                            .get(http::header::HOST)
-                                            .and_then(|host| host.to_str().ok());
-                                        let uri = Uri::from_parts({
-                                            let mut parts = req.uri().to_owned().into_parts();
-                                            parts.scheme = Some("https".parse()?);
-                                            parts.authority =
-                                                host.map(FromStr::from_str).transpose()?;
-                                            parts
-                                        })?;
-                                        Response::builder()
-                                            .status(http::StatusCode::TEMPORARY_REDIRECT)
-                                            .header(http::header::LOCATION, uri.to_string())
-                                            .body(Body::default())
-                                    }
-                                    .await
-                                    {
-                                        Ok(a) => a,
-                                        Err(e) => {
-                                            tracing::warn!(
+                Err(e) => {
+                    let (_, buf) = stream.rewind();
+                    if std::str::from_utf8(buf)
+                        .ok()
+                        .and_then(|buf| {
+                            buf.lines()
+                                .map(|l| l.trim())
+                                .filter(|l| !l.is_empty())
+                                .next()
+                        })
+                        .map_or(false, |buf| {
+                            regex::Regex::new("[A-Z]+ (.+) HTTP/1")
+                                .unwrap()
+                                .is_match(buf)
+                        })
+                    {
+                        return hyper_util::server::conn::auto::Builder::new(
+                            hyper_util::rt::TokioExecutor::new(),
+                        )
+                        .serve_connection(
+                            hyper_util::rt::TokioIo::new(stream),
+                            hyper_util::service::TowerToHyperService::new(
+                                axum::Router::new().fallback(axum::routing::method_routing::any(
+                                    move |req: Request| async move {
+                                        match async move {
+                                            let host = req
+                                                .headers()
+                                                .get(http::header::HOST)
+                                                .and_then(|host| host.to_str().ok());
+                                            let uri = Uri::from_parts({
+                                                let mut parts = req.uri().to_owned().into_parts();
+                                                parts.scheme = Some("https".parse()?);
+                                                parts.authority =
+                                                    host.map(FromStr::from_str).transpose()?;
+                                                parts
+                                            })?;
+                                            Response::builder()
+                                                .status(http::StatusCode::TEMPORARY_REDIRECT)
+                                                .header(http::header::LOCATION, uri.to_string())
+                                                .body(Body::default())
+                                        }
+                                        .await
+                                        {
+                                            Ok(a) => a,
+                                            Err(e) => {
+                                                tracing::warn!(
                                                 "Error redirecting http request on ssl port: {e}"
                                             );
-                                            tracing::error!("{e:?}");
-                                            server_error(Error::new(e, ErrorKind::Network))
+                                                tracing::error!("{e:?}");
+                                                server_error(Error::new(e, ErrorKind::Network))
+                                            }
                                         }
-                                    }
-                                },
-                            )),
-                        ),
-                    )
-                    .await
-                    .map_err(|e| Error::new(color_eyre::eyre::Report::msg(e), ErrorKind::Network));
+                                    },
+                                )),
+                            ),
+                        )
+                        .await
+                        .map_err(|e| {
+                            Error::new(color_eyre::eyre::Report::msg(e), ErrorKind::Network)
+                        });
+                    } else {
+                        return Err(e).with_kind(ErrorKind::Network);
+                    }
                 }
             };
         let target_name = mid.client_hello().server_name().map(|s| s.into());
@@ -544,10 +563,10 @@ impl VHostServer {
                     )
                     .await
                     {
-                        tracing::trace!(
+                        tracing::error!(
                             "VHostController: failed to accept connection on {port}: {e}"
                         );
-                        tracing::trace!("{e:?}");
+                        tracing::debug!("{e:?}");
                     }
                 }
             })
