@@ -297,7 +297,7 @@ impl NetworkInterfaceController {
                 .as_server_info_mut()
                 .as_network_interfaces_mut();
             let mut keep = BTreeSet::new();
-            for (iface, ip_info) in dbg!(ip_info) {
+            for (iface, ip_info) in ip_info {
                 keep.insert(iface);
                 ifaces_model
                     .upsert(&iface, || Ok(NetworkInterfaceInfo::default()))?
@@ -341,7 +341,7 @@ impl NetworkInterfaceController {
                     loop {
                         if let Err(e) = async {
                             let ip_info = read_from.borrow().clone();
-                            Self::sync(&db, dbg!(&ip_info)).await?;
+                            Self::sync(&db, &ip_info).await?;
 
                             read_from.changed().await.map_err(|_| {
                                 Error::new(
@@ -443,7 +443,6 @@ impl<'a> Future for ListenerMapFut<'a> {
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         let this = self.project();
         for ((ip, _), listener) in this.0.iter() {
-            dbg!(ip, listener);
             if let Poll::Ready((stream, addr)) = listener.0.poll_accept(cx)? {
                 return Poll::Ready(Ok((*ip, listener.1, stream, addr)));
             }
@@ -463,7 +462,7 @@ impl NetworkInterfaceListener {
         loop {
             if self.needs_update {
                 let ip_info = self.ip_info.borrow().clone();
-                self.listeners.update(dbg!(&ip_info), public).await?;
+                self.listeners.update(&ip_info, public).await?;
                 self.needs_update = false;
             }
             tokio::select! {
