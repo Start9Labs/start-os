@@ -12,6 +12,10 @@ use tokio::process::Command;
 use crate::util::Invoke;
 use crate::Error;
 
+pub fn ipv6_is_local(addr: Ipv6Addr) -> bool {
+    (addr.segments()[0] & 0xfe00) == 0xfc00 || (addr.segments()[0] & 0xffc0) == 0xfe80
+}
+
 fn parse_iface_ip(output: &str) -> Result<Vec<&str>, Error> {
     let output = output.trim();
     if output.is_empty() {

@@ -1,13 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
-use std::net::{IpAddr, SocketAddr, SocketAddrV6};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV6};
 use std::pin::Pin;
 use std::sync::{Arc, Weak};
 use std::task::Poll;
 
 use clap::Parser;
 use futures::future::pending;
-use futures::TryFutureExt;
+use futures::{FutureExt, TryFutureExt};
 use getifaddrs::if_nametoindex;
 use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
@@ -20,7 +20,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::watch;
 use tokio_stream::StreamExt;
 use ts_rs::TS;
-use zbus::proxy::PropertyStream;
+use zbus::proxy::{PropertyStream, SignalStream};
 use zbus::zvariant::{
     DeserializeDict, OwnedObjectPath, OwnedValue, Type as ZType, Value as ZValue,
 };
@@ -29,6 +29,7 @@ use zbus::{proxy, Connection};
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::{IpInfo, NetworkInterfaceInfo};
 use crate::db::model::Database;
+use crate::net::network_interface::active_connection::ActiveConnectionProxy;
 use crate::prelude::*;
 use crate::util::serde::{display_serializable, HandlerExtSerde};
 use crate::util::sync::SyncMutex;
@@ -52,18 +53,19 @@ pub fn network_interface_api<C: Context>() -> ParentHandler<C> {
                         table.add_row(row![
                             iface,
                             info.public(),
-                            info.ip_info
-                                .0
-                                .into_iter()
-                                .map(|ipnet| match ipnet.addr() {
-                                    IpAddr::V4(ip) => format!("{ip}/{}", ipnet.prefix_len()),
-                                    IpAddr::V6(ip) => format!(
-                                        "[{ip}{}]/{}",
-                                        info.scope_id.map(|s| format!("%{s}")).unwrap_or_default(),
-                                        ipnet.prefix_len()
-                                    ),
-                                })
-                                .join(", ")
+                            info.ip_info.map_or_else(
+                                || "<DISCONNECTED>".to_owned(),
+                                |ip_info| ip_info.subnets
+                                    .into_iter()
+                                    .map(|ipnet| match ipnet.addr() {
+                                        IpAddr::V4(ip) => format!("{ip}/{}", ipnet.prefix_len()),
+                                        IpAddr::V6(ip) => format!(
+                                            "[{ip}%{}]/{}",
+                                            ip_info.scope_id,
+                                            ipnet.prefix_len()
+                                        ),
+                                    })
+                                    .join(", "))
                         ]);
                     }
 
@@ -140,17 +142,33 @@ async fn unset_public(
 trait NetworkManager {
     #[zbus(property)]
     fn devices(&self) -> Result<Vec<OwnedObjectPath>, Error>;
+
+    #[zbus(signal)]
+    fn device_added(&self) -> Result<(), Error>;
+
+    #[zbus(signal)]
+    fn device_removed(&self) -> Result<(), Error>;
 }
 
-#[proxy(
-    interface = "org.freedesktop.NetworkManager.Connection.Active",
-    default_service = "org.freedesktop.NetworkManager"
-)]
-trait ActiveConnection {
-    #[zbus(property)]
-    fn state_flags(&self) -> Result<u32, Error>;
-    #[zbus(property, name = "Type")]
-    fn connection_type(&self) -> Result<String, Error>;
+mod active_connection {
+    use zbus::proxy;
+
+    use crate::prelude::*;
+
+    #[proxy(
+        interface = "org.freedesktop.NetworkManager.Connection.Active",
+        default_service = "org.freedesktop.NetworkManager"
+    )]
+    pub trait ActiveConnection {
+        #[zbus(property)]
+        fn state_flags(&self) -> Result<u32, Error>;
+
+        #[zbus(property, name = "Type")]
+        fn connection_type(&self) -> Result<String, Error>;
+
+        #[zbus(signal)]
+        fn state_changed(&self) -> Result<(), Error>;
+    }
 }
 
 #[proxy(
@@ -177,17 +195,10 @@ struct AddressData {
     address: String,
     prefix: u32,
 }
-impl TryFrom<Vec<AddressData>> for IpInfo {
+impl TryFrom<AddressData> for IpNet {
     type Error = Error;
-    fn try_from(value: Vec<AddressData>) -> Result<Self, Self::Error> {
-        value
-            .into_iter()
-            .map(|a| {
-                IpNet::new(a.address.parse()?, a.prefix as u8).with_kind(ErrorKind::ParseNetAddress)
-            })
-            .filter_ok(|ipnet| !ipnet.addr().is_unspecified() && !ipnet.addr().is_multicast())
-            .collect::<Result<_, _>>()
-            .map(Self)
+    fn try_from(value: AddressData) -> Result<Self, Self::Error> {
+        IpNet::new(value.address.parse()?, value.prefix as u8).with_kind(ErrorKind::ParseNetAddress)
     }
 }
 
@@ -210,31 +221,48 @@ trait Device {
 
     #[zbus(property)]
     fn ip6_config(&self) -> Result<OwnedObjectPath, Error>;
+
+    #[zbus(signal)]
+    fn state_changed(&self) -> Result<(), Error>;
 }
 
 struct WatchPropertyStream<'a, T> {
     stream: PropertyStream<'a, T>,
-    last: T,
+    signals: Vec<SignalStream<'a>>,
 }
 impl<'a, T> WatchPropertyStream<'a, T>
 where
     T: Unpin + TryFrom<OwnedValue>,
     T::Error: Into<zbus::Error>,
 {
-    fn new(stream: PropertyStream<'a, T>, first: T) -> Self {
+    fn new(stream: PropertyStream<'a, T>) -> Self {
         Self {
             stream,
-            last: first,
+            signals: Vec::new(),
         }
     }
+
+    fn with_signal(mut self, stream: SignalStream<'a>) -> Self {
+        self.signals.push(stream);
+        self
+    }
+
     async fn until_changed<Fut: Future<Output = Result<(), Error>>>(
         &mut self,
         fut: Fut,
     ) -> Result<(), Error> {
         let next = self.stream.next();
+        let signal = if !self.signals.is_empty() {
+            futures::future::select_all(self.signals.iter_mut().map(|s| s.next().boxed())).boxed()
+        } else {
+            futures::future::pending().boxed()
+        };
         tokio::select! {
             changed = next => {
-                self.last = changed.ok_or_else(|| Error::new(eyre!("stream is empty"), ErrorKind::DBus))?.get().await?;
+                changed.ok_or_else(|| Error::new(eyre!("stream is empty"), ErrorKind::DBus))?.get().await?;
+                Ok(())
+            },
+            _ = signal => {
                 Ok(())
             },
             res = fut.and_then(|_| pending()) => {
@@ -251,13 +279,13 @@ async fn watcher(write_to: watch::Sender<BTreeMap<InternedString, NetworkInterfa
             let connection = Connection::system().await?;
             let netman_proxy = NetworkManagerProxy::new(&connection).await?;
 
-            let mut devices_sub = WatchPropertyStream::new(
-                netman_proxy.receive_devices_changed().await,
-                netman_proxy.devices().await?,
-            );
+            let mut devices_sub =
+                WatchPropertyStream::new(netman_proxy.receive_devices_changed().await)
+                    .with_signal(netman_proxy.receive_device_added().await?.into_inner())
+                    .with_signal(netman_proxy.receive_device_removed().await?.into_inner());
 
             loop {
-                let devices = devices_sub.last.clone();
+                let devices = netman_proxy.devices().await?;
                 devices_sub
                     .until_changed(async {
                         let mut ifaces = BTreeSet::new();
@@ -277,13 +305,16 @@ async fn watcher(write_to: watch::Sender<BTreeMap<InternedString, NetworkInterfa
                             if &*dac == "/" {
                                 continue;
                             }
-                            let ac_proxy = ActiveConnectionProxy::new(&connection, dac).await?;
+                            let ac_proxy =
+                                active_connection::ActiveConnectionProxy::new(&connection, dac)
+                                    .await?;
                             let external = ac_proxy.state_flags().await? & 0x80 != 0;
                             if external && iface != "lo" {
                                 continue;
                             }
                             jobs.push(watch_ip(
                                 &connection,
+                                ac_proxy,
                                 device_proxy.clone(),
                                 iface.clone(),
                                 &write_to,
@@ -293,14 +324,12 @@ async fn watcher(write_to: watch::Sender<BTreeMap<InternedString, NetworkInterfa
 
                         write_to.send_if_modified(|m| {
                             let mut changed = false;
-                            m.retain(|i, _| {
-                                if ifaces.contains(i) {
-                                    true
-                                } else {
-                                    changed |= true;
-                                    false
+                            for (iface, info) in m {
+                                if !ifaces.contains(iface) {
+                                    info.ip_info = None;
+                                    changed = true;
                                 }
-                            });
+                            }
                             changed
                         });
                         futures::future::try_join_all(jobs).await?;
@@ -318,50 +347,102 @@ async fn watcher(write_to: watch::Sender<BTreeMap<InternedString, NetworkInterfa
     }
 }
 
+async fn get_wan_ipv4(local_addr: Ipv4Addr) -> Result<Option<Ipv4Addr>, Error> {
+    Ok(reqwest::Client::builder()
+        .local_address(Some(IpAddr::V4(local_addr)))
+        .build()?
+        .get("http://ip4only.me/api/")
+        .send()
+        .await?
+        .error_for_status()?
+        .text()
+        .await?
+        .split(",")
+        .skip(1)
+        .next()
+        .filter(|s| s.is_empty())
+        .map(|s| s.parse())
+        .transpose()?)
+}
+
 #[instrument(skip_all)]
 async fn watch_ip(
     connection: &Connection,
+    active_connection_proxy: ActiveConnectionProxy<'_>,
     device_proxy: DeviceProxy<'_>,
     iface: InternedString,
     write_to: &watch::Sender<BTreeMap<InternedString, NetworkInterfaceInfo>>,
 ) -> Result<(), Error> {
-    let mut ip4_config_sub = WatchPropertyStream::new(
-        device_proxy.receive_ip4_config_changed().await,
-        device_proxy.ip4_config().await?,
-    );
-    let mut ip6_config_sub = WatchPropertyStream::new(
-        device_proxy.receive_ip6_config_changed().await,
-        device_proxy.ip6_config().await?,
-    );
+    let mut con_sub =
+        WatchPropertyStream::new(device_proxy.receive_active_connection_changed().await)
+            .with_signal(device_proxy.receive_state_changed().await?.into_inner())
+            .with_signal(
+                active_connection_proxy
+                    .receive_state_changed()
+                    .await?
+                    .into_inner(),
+            );
+    let mut ip4_config_sub =
+        WatchPropertyStream::new(device_proxy.receive_ip4_config_changed().await);
+    let mut ip6_config_sub =
+        WatchPropertyStream::new(device_proxy.receive_ip6_config_changed().await);
 
     loop {
-        let ip4_config = ip4_config_sub.last.clone();
-        let ip6_config = ip6_config_sub.last.clone();
+        let ip4_config = device_proxy.ip4_config().await?;
+        let ip6_config = device_proxy.ip6_config().await?;
         ip4_config_sub
             .until_changed(ip6_config_sub.until_changed(async {
                 let ip4_proxy = Ip4ConfigProxy::new(&connection, ip4_config).await?;
-                let mut address4_sub = WatchPropertyStream::new(
-                    ip4_proxy.receive_address_data_changed().await,
-                    ip4_proxy.address_data().await?,
-                );
+                let mut address4_sub =
+                    WatchPropertyStream::new(ip4_proxy.receive_address_data_changed().await);
                 let ip6_proxy = Ip6ConfigProxy::new(&connection, ip6_config).await?;
-                let mut address6_sub = WatchPropertyStream::new(
-                    ip6_proxy.receive_address_data_changed().await,
-                    ip6_proxy.address_data().await?,
-                );
+                let mut address6_sub =
+                    WatchPropertyStream::new(ip6_proxy.receive_address_data_changed().await);
 
                 loop {
-                    let addresses = address4_sub
-                        .last
-                        .iter()
-                        .cloned()
-                        .chain(address6_sub.last.iter().cloned())
+                    let addresses = ip4_proxy
+                        .address_data()
+                        .await?
+                        .into_iter()
+                        .chain(ip6_proxy.address_data().await?)
                         .collect_vec();
                     address4_sub
                         .until_changed(address6_sub.until_changed(async {
-                            let ip_info: IpInfo = addresses.try_into()?;
-                            let scope_id =
-                                Some(if_nametoindex(&*iface).with_kind(ErrorKind::Network)?);
+                            let scope_id = if_nametoindex(&*iface).with_kind(ErrorKind::Network)?;
+                            let subnets: BTreeSet<IpNet> =
+                                addresses.into_iter().map(TryInto::try_into).try_collect()?;
+                            let ip_info = if !subnets.is_empty() {
+                                let wan_ip = if let Some(local_addr) =
+                                    subnets.iter().find_map(|s| match s {
+                                        IpNet::V4(net)
+                                            if !net.addr().is_loopback()
+                                                && !net.addr().is_link_local() =>
+                                        {
+                                            Some(net)
+                                        }
+                                        _ => None,
+                                    }) {
+                                    match get_wan_ipv4(local_addr.addr()).await {
+                                        Ok(a) => a,
+                                        Err(e) => {
+                                            tracing::error!(
+                                                "Failed to determine WAN IP for {iface}: {e}"
+                                            );
+                                            tracing::debug!("{e:?}");
+                                            None
+                                        }
+                                    }
+                                } else {
+                                    None
+                                };
+                                Some(IpInfo {
+                                    scope_id,
+                                    subnets,
+                                    wan_ip,
+                                })
+                            } else {
+                                None
+                            };
 
                             write_to.send_if_modified(|m| {
                                 let public = m.get(&iface).map_or(None, |i| i.public);
@@ -369,11 +450,10 @@ async fn watch_ip(
                                     iface.clone(),
                                     NetworkInterfaceInfo {
                                         public,
-                                        scope_id,
                                         ip_info: ip_info.clone(),
                                     },
                                 )
-                                .filter(|old| &old.ip_info == &ip_info && old.scope_id == scope_id)
+                                .filter(|old| &old.ip_info == &ip_info)
                                 .is_none()
                             });
 
@@ -395,28 +475,13 @@ pub struct NetworkInterfaceController {
 impl NetworkInterfaceController {
     async fn sync(
         db: &TypedPatchDb<Database>,
-        ip_info: &BTreeMap<InternedString, NetworkInterfaceInfo>,
+        info: &BTreeMap<InternedString, NetworkInterfaceInfo>,
     ) -> Result<(), Error> {
         db.mutate(|db| {
-            let ifaces_model = db
-                .as_public_mut()
+            db.as_public_mut()
                 .as_server_info_mut()
-                .as_network_interfaces_mut();
-            let mut keep = BTreeSet::new();
-            for (iface, ip_info) in ip_info {
-                keep.insert(iface);
-                ifaces_model
-                    .upsert(&iface, || Ok(NetworkInterfaceInfo::default()))?
-                    .ser(&ip_info)?;
-            }
-            for iface in ifaces_model.keys()? {
-                if !keep.contains(&&iface) {
-                    if let Some(info) = ifaces_model.as_idx_mut(&iface) {
-                        info.as_ip_info_mut().ser(&IpInfo::default())?;
-                    }
-                }
-            }
-            Ok(())
+                .as_network_interfaces_mut()
+                .ser(info)
         })
         .await?;
         Ok(())
@@ -435,7 +500,10 @@ impl NetworkInterfaceController {
                     .as_network_interfaces()
                     .de()
                 {
-                    Ok(info) => {
+                    Ok(mut info) => {
+                        for info in info.values_mut() {
+                            info.ip_info = None;
+                        }
                         write_to.send_replace(info);
                     }
                     Err(e) => {
@@ -517,7 +585,7 @@ impl NetworkInterfaceController {
                 .public,
                 public,
             );
-            prev == public
+            prev != public
         });
         if let Some(e) = err {
             return Err(e);
@@ -548,27 +616,29 @@ impl ListenerMap {
         let mut keep = BTreeSet::<(IpAddr, u32)>::new();
         for info in ip_info.values() {
             if public || !info.public() {
-                for ipnet in &info.ip_info.0 {
-                    let scope_id = info.scope_id.unwrap_or(0);
-                    let key = (ipnet.addr(), scope_id);
-                    keep.insert(key);
-                    if let Some((_, is_public)) = self.listeners.get_mut(&key) {
-                        *is_public = info.public();
-                        continue;
+                if let Some(ip_info) = &info.ip_info {
+                    for ipnet in &ip_info.subnets {
+                        let key = (ipnet.addr(), ip_info.scope_id);
+                        keep.insert(key);
+                        if let Some((_, is_public)) = self.listeners.get_mut(&key) {
+                            *is_public = info.public();
+                            continue;
+                        }
+                        self.listeners.insert(
+                            key,
+                            (
+                                TcpListener::bind(match ipnet.addr() {
+                                    IpAddr::V6(ip6) => {
+                                        SocketAddrV6::new(ip6, self.port, 0, ip_info.scope_id)
+                                            .into()
+                                    }
+                                    ip => SocketAddr::new(ip, self.port),
+                                })
+                                .await?,
+                                info.public(),
+                            ),
+                        );
                     }
-                    self.listeners.insert(
-                        key,
-                        (
-                            TcpListener::bind(match ipnet.addr() {
-                                IpAddr::V6(ip6) => {
-                                    SocketAddrV6::new(ip6, self.port, 0, scope_id).into()
-                                }
-                                ip => SocketAddr::new(ip, self.port),
-                            })
-                            .await?,
-                            info.public(),
-                        ),
-                    );
                 }
             }
         }
@@ -605,6 +675,7 @@ impl NetworkInterfaceListener {
         loop {
             if self.needs_update {
                 let ip_info = self.ip_info.borrow().clone();
+                dbg!("changed", &ip_info);
                 self.listeners.update(&ip_info, public).await?;
                 self.needs_update = false;
             }

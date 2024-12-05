@@ -159,18 +159,19 @@ pub struct ServerInfo {
 #[ts(export)]
 pub struct NetworkInterfaceInfo {
     pub public: Option<bool>,
-    pub scope_id: Option<u32>,
-    pub ip_info: IpInfo,
+    pub ip_info: Option<IpInfo>,
 }
 impl NetworkInterfaceInfo {
     pub fn public(&self) -> bool {
         self.public.unwrap_or_else(|| {
-            !self.ip_info.0.iter().all(|ipnet| {
-                if let IpAddr::V4(ip4) = ipnet.addr() {
-                    ip4.is_loopback() || ip4.is_private() || ip4.is_link_local()
-                } else {
-                    true
-                }
+            !self.ip_info.as_ref().map_or(true, |ip_info| {
+                ip_info.subnets.iter().all(|ipnet| {
+                    if let IpAddr::V4(ip4) = ipnet.addr() {
+                        ip4.is_loopback() || ip4.is_private() || ip4.is_link_local()
+                    } else {
+                        true
+                    }
+                })
             })
         })
     }
@@ -178,8 +179,13 @@ impl NetworkInterfaceInfo {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS)]
 #[ts(export)]
-#[ts(type = "string[]")]
-pub struct IpInfo(pub BTreeSet<IpNet>);
+#[serde(rename_all = "camelCase")]
+pub struct IpInfo {
+    pub scope_id: u32,
+    #[ts(type = "string[]")]
+    pub subnets: BTreeSet<IpNet>,
+    pub wan_ip: Option<Ipv4Addr>,
+}
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]

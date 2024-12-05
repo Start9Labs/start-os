@@ -419,7 +419,7 @@ pub async fn init(
     load_ca_cert.complete();
 
     load_wifi.start();
-    crate::net::wifi::synchronize_wpa_supplicant_conf(
+    crate::net::wifi::synchronize_network_manager(
         &cfg.datadir().join("main"),
         &mut server_info.wifi,
     )

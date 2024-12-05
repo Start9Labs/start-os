@@ -112,7 +112,7 @@ impl VHostController {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct TargetInfo {
     public: bool,
     addr: SocketAddr,
@@ -280,7 +280,7 @@ impl VHostServer {
                 })
                 .map(|(target, _)| target.clone())
         });
-        if let Some(target) = target {
+        if let Some(target) = dbg!(target) {
             if is_public && !target.public {
                 log::warn!("Rejecting connection from public interface to private bind");
                 return Ok(());

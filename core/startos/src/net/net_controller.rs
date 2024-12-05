@@ -21,6 +21,7 @@ use crate::net::host::{host_for, Host, HostKind, Hosts};
 use crate::net::network_interface::NetworkInterfaceController;
 use crate::net::service_interface::{HostnameInfo, IpHostname, OnionHostname};
 use crate::net::tor::TorController;
+use crate::net::utils::ipv6_is_local;
 use crate::net::vhost::{AlpnInfo, VHostController};
 use crate::prelude::*;
 use crate::util::serde::MaybeUtf8String;
@@ -378,8 +379,16 @@ impl NetService {
                 };
                 let mut bind_hostname_info: Vec<HostnameInfo> =
                     hostname_info.remove(port).unwrap_or_default();
-                for (interface, iface_info) in &net_ifaces {
-                    if !iface_info.public() {
+                for (interface, public, ip_info) in
+                    net_ifaces.iter().filter_map(|(interface, info)| {
+                        if let Some(ip_info) = &info.ip_info {
+                            Some((interface, info.public(), ip_info))
+                        } else {
+                            None
+                        }
+                    })
+                {
+                    if !public {
                         bind_hostname_info.push(HostnameInfo::Ip {
                             network_interface_id: interface.clone(),
                             public: false,
@@ -410,10 +419,10 @@ impl NetService {
                                         ssl_port: Some(443),
                                     },
                                 });
-                            } else if iface_info.public() && new_lan_bind.0.public {
+                            } else if public && new_lan_bind.0.public {
                                 bind_hostname_info.push(HostnameInfo::Ip {
                                     network_interface_id: interface.clone(),
-                                    public: iface_info.public(),
+                                    public,
                                     hostname: IpHostname::Domain {
                                         domain: address.clone(),
                                         subdomain: None,
@@ -424,24 +433,37 @@ impl NetService {
                             }
                         }
                     }
-                    if !iface_info.public() || new_lan_bind.0.public {
-                        for ipnet in &iface_info.ip_info.0 {
+                    if !public || new_lan_bind.0.public {
+                        if let Some(wan_ip) = ip_info.wan_ip.filter(|_| public) {
+                            bind_hostname_info.push(HostnameInfo::Ip {
+                                network_interface_id: interface.clone(),
+                                public,
+                                hostname: IpHostname::Ipv4 {
+                                    value: wan_ip,
+                                    port: new_lan_bind.0.assigned_port,
+                                    ssl_port: new_lan_bind.0.assigned_ssl_port,
+                                },
+                            });
+                        }
+                        for ipnet in &ip_info.subnets {
                             match ipnet {
                                 IpNet::V4(net) => {
-                                    bind_hostname_info.push(HostnameInfo::Ip {
-                                        network_interface_id: interface.clone(),
-                                        public: iface_info.public(),
-                                        hostname: IpHostname::Ipv4 {
-                                            value: net.addr(),
-                                            port: new_lan_bind.0.assigned_port,
-                                            ssl_port: new_lan_bind.0.assigned_ssl_port,
-                                        },
-                                    });
+                                    if !public {
+                                        bind_hostname_info.push(HostnameInfo::Ip {
+                                            network_interface_id: interface.clone(),
+                                            public,
+                                            hostname: IpHostname::Ipv4 {
+                                                value: net.addr(),
+                                                port: new_lan_bind.0.assigned_port,
+                                                ssl_port: new_lan_bind.0.assigned_ssl_port,
+                                            },
+                                        });
+                                    }
                                 }
                                 IpNet::V6(net) => {
                                     bind_hostname_info.push(HostnameInfo::Ip {
                                         network_interface_id: interface.clone(),
-                                        public: iface_info.public(),
+                                        public: public && !ipv6_is_local(net.addr()),
                                         hostname: IpHostname::Ipv6 {
                                             value: net.addr(),
                                             port: new_lan_bind.0.assigned_port,

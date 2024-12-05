@@ -59,12 +59,12 @@
       </ion-button>
     </ion-item>
     <ng-container *ngFor="let iface of server.networkInterfaces | keyvalue">
-      <ng-container *ngIf="iface.key !== 'lo'">
-        <ng-container  *ngFor="let ipnet of iface.value.ipInfo">
+      <ng-container *ngIf="iface.key !== 'lo' && iface.value.ipInfo">
+        <ng-container  *ngFor="let ipnet of iface.value.ipInfo.subnets">
           <ion-item *tuiLet="ipnet.split('/')[0] as ipAddr">
             <ion-label>
               <h2>{{ iface.key }} ({{ ipAddr.includes("::") ? "IPv6" : "IPv4" }})</h2>
-              <p>{{ ipAddr.includes("::") ? "[" + ipAddr + (iface.value.scopeId ? "%" + iface.value.scopeId : "") + "]" : ipAddr }}</p>
+              <p>{{ ipAddr.includes("::") ? "[" + ipAddr + "%" + iface.value.ipInfo.scopeId + "]" : ipAddr }}</p>
             </ion-label>
             <ion-button slot="end" fill="clear" (click)="copy(ipAddr)">
               <ion-icon slot="icon-only" name="copy-outline"></ion-icon>

@@ -44,16 +44,22 @@ export const mockPatchData: DataModel = {
     networkInterfaces: {
       eth0: {
         public: false,
-        scopeId: 1,
-        ipInfo: ['10.0.0.1/24'],
+        ipInfo: {
+          scopeId: 1,
+          subnets: ['10.0.0.1/24'],
+          wanIp: null,
+        },
       },
       wlan0: {
         public: false,
-        scopeId: 2,
-        ipInfo: [
-          '10.0.90.12/24',
-          'FE80:CD00:0000:0CDE:1257:0000:211E:729CD/64',
-        ],
+        ipInfo: {
+          scopeId: 2,
+          subnets: [
+            '10.0.90.12/24',
+            'FE80:CD00:0000:0CDE:1257:0000:211E:729CD/64',
+          ],
+          wanIp: null,
+        },
       },
     },
     acme: null,
