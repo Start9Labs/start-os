@@ -6,7 +6,7 @@ import cbor from 'cbor'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import { SideloadService } from './sideload.service'
-import { firstValueFrom } from 'rxjs'
+import { filter, firstValueFrom } from 'rxjs'
 import mime from 'mime'
 
 interface Positions {
@@ -124,7 +124,9 @@ export class SideloadPage {
       this.api
         .uploadPackage(res.upload, this.toUpload.file!)
         .catch(e => console.error(e))
-      await firstValueFrom(this.sideloadService.websocketConnected$)
+      await firstValueFrom(
+        this.sideloadService.websocketConnected$.pipe(filter(Boolean)),
+      )
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
