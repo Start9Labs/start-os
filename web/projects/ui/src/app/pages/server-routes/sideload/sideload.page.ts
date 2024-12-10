@@ -124,9 +124,7 @@ export class SideloadPage {
       this.api
         .uploadPackage(res.upload, this.toUpload.file!)
         .catch(e => console.error(e))
-      await firstValueFrom(
-        this.sideloadService.websocketConnected$.pipe(filter(Boolean)),
-      )
+      await firstValueFrom(this.progress$.pipe(filter(Boolean)))
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

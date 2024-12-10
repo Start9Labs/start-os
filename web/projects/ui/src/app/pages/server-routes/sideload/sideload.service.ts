@@ -9,20 +9,9 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 export class SideloadService {
   private readonly guid$ = new Subject<string>()
 
-  readonly websocketConnected$ = new BehaviorSubject(false)
-
   readonly progress$ = this.guid$.pipe(
     switchMap(guid =>
-      this.api
-        .openWebsocket$<T.FullProgress>(guid, {
-          openObserver: {
-            next: () => this.websocketConnected$.next(true),
-          },
-          closeObserver: {
-            next: () => this.websocketConnected$.next(false),
-          },
-        })
-        .pipe(endWith(null)),
+      this.api.openWebsocket$<T.FullProgress>(guid).pipe(endWith(null)),
     ),
     shareReplay(1),
   )
