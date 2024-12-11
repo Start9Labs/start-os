@@ -51,7 +51,7 @@ export function setupDependencies<Manifest extends T.SDKManifest>(
       dependencies: Object.entries(dependencyType).map(
         ([id, { versionRange, ...x }, ,]) =>
           ({
-            // id,
+            id,
             ...x,
             versionRange: versionRange.toString(),
           }) as T.DependencyRequirement,

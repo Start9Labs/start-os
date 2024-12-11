@@ -15,7 +15,7 @@ use futures::future::{BoxFuture, Fuse};
 use futures::{AsyncSeek, FutureExt, Stream, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use nix::unistd::{Gid, Uid};
-use tokio::fs::File;
+use tokio::fs::{File, OpenOptions};
 use tokio::io::{
     duplex, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, WriteHalf,
 };
@@ -931,6 +931,21 @@ pub async fn create_file(path: impl AsRef<Path>) -> Result<File, Error> {
             .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mkdir -p {parent:?}")))?;
     }
     File::create(path)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("create {path:?}")))
+}
+
+pub async fn append_file(path: impl AsRef<Path>) -> Result<File, Error> {
+    let path = path.as_ref();
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mkdir -p {parent:?}")))?;
+    }
+    OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
         .await
         .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("create {path:?}")))
 }

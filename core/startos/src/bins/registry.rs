@@ -8,7 +8,7 @@ use tracing::instrument;
 use crate::net::web_server::WebServer;
 use crate::prelude::*;
 use crate::registry::context::{RegistryConfig, RegistryContext};
-use crate::util::logger::EmbassyLogger;
+use crate::util::logger::LOGGER;
 
 #[instrument(skip_all)]
 async fn inner_main(config: &RegistryConfig) -> Result<(), Error> {
@@ -63,7 +63,7 @@ async fn inner_main(config: &RegistryConfig) -> Result<(), Error> {
 }
 
 pub fn main(args: impl IntoIterator<Item = OsString>) {
-    EmbassyLogger::init();
+    LOGGER.enable();
 
     let config = RegistryConfig::parse_from(args).load().unwrap();
 

@@ -6,6 +6,7 @@ use std::sync::Arc;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::{FutureExt, TryFutureExt};
+use tokio::fs::OpenOptions;
 use tokio::signal::unix::signal;
 use tracing::instrument;
 
@@ -15,7 +16,8 @@ use crate::context::{DiagnosticContext, InitContext, RpcContext};
 use crate::net::web_server::WebServer;
 use crate::shutdown::Shutdown;
 use crate::system::launch_metrics_task;
-use crate::util::logger::EmbassyLogger;
+use crate::util::io::append_file;
+use crate::util::logger::LOGGER;
 use crate::{Error, ErrorKind, ResultExt};
 
 #[instrument(skip_all)]
@@ -27,6 +29,9 @@ async fn inner_main(
         .await
         .is_ok()
     {
+        LOGGER.set_logfile(Some(
+            append_file("/run/startos/init.log").await?.into_std().await,
+        ));
         let (ctx, handle) = match super::start_init::main(server, &config).await? {
             Err(s) => return Ok(Some(s)),
             Ok(ctx) => ctx,
@@ -34,6 +39,7 @@ async fn inner_main(
         tokio::fs::write("/run/startos/initialized", "").await?;
 
         server.serve_main(ctx.clone());
+        LOGGER.set_logfile(None);
         handle.complete();
 
         ctx
@@ -131,7 +137,7 @@ async fn inner_main(
 }
 
 pub fn main(args: impl IntoIterator<Item = OsString>) {
-    EmbassyLogger::init();
+    LOGGER.enable();
 
     let config = ServerConfig::parse_from(args).load().unwrap();
 

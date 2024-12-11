@@ -178,6 +178,7 @@ async fn setup_or_init(
             tracing::info!("Loaded Disk");
 
             if requires_reboot.0 {
+                tracing::info!("Rebooting...");
                 let mut reboot_phase = handle.add_phase("Rebooting".into(), Some(1));
                 reboot_phase.start();
                 return Ok(Err(Shutdown {
