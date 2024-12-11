@@ -1,10 +1,7 @@
-import { Component, inject } from '@angular/core'
+import { Component } from '@angular/core'
 import { ServerComponent } from '@start9labs/shared'
 import { TuiDialogContext } from '@taiga-ui/core'
-import {
-  POLYMORPHEUS_CONTEXT,
-  PolymorpheusComponent,
-} from '@taiga-ui/polymorpheus'
+import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PasswordDirective } from 'src/app/components/password.directive'
 import { StartOSDiskInfoWithId } from 'src/app/services/api.service'
 
@@ -27,8 +24,7 @@ export interface ServersResponse {
   imports: [ServerComponent, PasswordDirective],
 })
 export class ServersComponent {
-  readonly context =
-    inject<TuiDialogContext<ServersResponse, Data>>(POLYMORPHEUS_CONTEXT)
+  readonly context = injectContext<TuiDialogContext<ServersResponse, Data>>()
 
   select(password: string, serverId: string) {
     this.context.completeWith({ serverId, password })

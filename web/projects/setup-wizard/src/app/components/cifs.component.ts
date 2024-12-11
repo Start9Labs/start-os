@@ -17,10 +17,7 @@ import {
 } from '@taiga-ui/core'
 import { TUI_VALIDATION_ERRORS, TuiFieldErrorPipe } from '@taiga-ui/kit'
 import { TuiInputModule, TuiInputPasswordModule } from '@taiga-ui/legacy'
-import {
-  POLYMORPHEUS_CONTEXT,
-  PolymorpheusComponent,
-} from '@taiga-ui/polymorpheus'
+import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { SERVERS, ServersResponse } from 'src/app/components/servers.component'
 import { ApiService } from 'src/app/services/api.service'
 
@@ -108,8 +105,7 @@ export class CifsComponent {
   private readonly dialogs = inject(TuiDialogService)
   private readonly api = inject(ApiService)
   private readonly loader = inject(LoadingService)
-  private readonly context =
-    inject<TuiDialogContext<CifsResponse>>(POLYMORPHEUS_CONTEXT)
+  private readonly context = injectContext<TuiDialogContext<CifsResponse>>()
 
   readonly form = new FormGroup({
     hostname: new FormControl('', {

@@ -1,7 +1,10 @@
-import { TUI_CONFIRM } from '@taiga-ui/kit'
-import { TuiCell } from '@taiga-ui/layout'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { ActivatedRoute, Router } from '@angular/router'
+import {
+  MarketplaceRegistryComponent,
+  StoreIconComponentModule,
+} from '@start9labs/marketplace'
 import {
   ErrorService,
   LoadingService,
@@ -9,30 +12,24 @@ import {
   toUrl,
 } from '@start9labs/shared'
 import {
-  StoreIconComponentModule,
-  MarketplaceRegistryComponent,
-} from '@start9labs/marketplace'
-import {
+  TuiButton,
+  TuiDialogContext,
   TuiDialogService,
   TuiIcon,
   TuiTitle,
-  TuiButton,
-  TuiDialogContext,
 } from '@taiga-ui/core'
-import {
-  PolymorpheusComponent,
-  POLYMORPHEUS_CONTEXT,
-} from '@taiga-ui/polymorpheus'
+import { TUI_CONFIRM } from '@taiga-ui/kit'
+import { TuiCell } from '@taiga-ui/layout'
+import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, filter, firstValueFrom, map, Subscription } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
-import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { getMarketplaceValueSpec, getPromptOptions } from '../utils/registry'
 import { ConfigService } from 'src/app/services/config.service'
-import { ActivatedRoute, Router } from '@angular/router'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
+import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
+import { getMarketplaceValueSpec, getPromptOptions } from '../utils/registry'
 
 @Component({
   standalone: true,
@@ -100,7 +97,7 @@ export class MarketplaceRegistryModal {
   private readonly formDialog = inject(FormDialogService)
   private readonly dialogs = inject(TuiDialogService)
   private readonly marketplaceService = inject(MarketplaceService)
-  private readonly context = inject<TuiDialogContext>(POLYMORPHEUS_CONTEXT)
+  private readonly context = injectContext<TuiDialogContext>()
   private readonly route = inject(ActivatedRoute)
   private readonly router = inject(Router)
   private readonly hosts$ = inject<PatchDB<DataModel>>(PatchDB).watch$(

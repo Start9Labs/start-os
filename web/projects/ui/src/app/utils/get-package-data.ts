@@ -41,7 +41,7 @@ export function isRemoving(
 }
 
 export function isInstalling(
-  pkg: PackageDataEntry,
+  pkg: T.PackageDataEntry,
 ): pkg is PackageDataEntry<InstallingState> {
   return pkg.stateInfo.state === 'installing'
 }

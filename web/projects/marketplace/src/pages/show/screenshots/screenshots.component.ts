@@ -22,7 +22,7 @@ import { PolymorpheusContent } from '@taiga-ui/polymorpheus'
     >
       <button
         tuiIconButton
-        appearance="flat"
+        appearance="flat-grayscale"
         iconStart="@tui.chevron-left"
         title="Previous"
         type="button"
@@ -60,7 +60,7 @@ import { PolymorpheusContent } from '@taiga-ui/polymorpheus'
       </tui-carousel>
       <button
         tuiIconButton
-        appearance="flat"
+        appearance="flat-grayscale"
         type="button"
         iconStart="@tui.chevron-right"
         title="Next"

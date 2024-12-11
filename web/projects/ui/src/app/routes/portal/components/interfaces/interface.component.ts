@@ -25,7 +25,7 @@ import { AddressDetails } from './interface.utils'
       *ngIf="network$ | async as network"
       clearnetAddresses
       tuiCardLarge="compact"
-      tuiSurface="elevated"
+      tuiSurface="floating"
       [network]="network"
       [addresses]="serviceInterface.addresses.clearnet"
     >
@@ -46,7 +46,7 @@ import { AddressDetails } from './interface.utils'
     <app-address-group
       torAddresses
       tuiCardLarge="compact"
-      tuiSurface="elevated"
+      tuiSurface="floating"
       [addresses]="serviceInterface.addresses.tor"
     >
       <em>
@@ -66,7 +66,7 @@ import { AddressDetails } from './interface.utils'
     <app-address-group
       localAddresses
       tuiCardLarge="compact"
-      tuiSurface="elevated"
+      tuiSurface="floating"
       [addresses]="serviceInterface.addresses.local"
     >
       <em>

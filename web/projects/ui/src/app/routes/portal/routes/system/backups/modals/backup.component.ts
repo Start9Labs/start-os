@@ -51,7 +51,7 @@ interface Package {
       }
     </div>
     <footer class="g-buttons">
-      <button tuiButton appearance="flat" (click)="toggleSelectAll()">
+      <button tuiButton appearance="flat-grayscale" (click)="toggleSelectAll()">
         Toggle all
       </button>
       <button tuiButton [disabled]="!hasSelection" (click)="done()">

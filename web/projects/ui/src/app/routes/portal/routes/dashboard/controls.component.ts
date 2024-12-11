@@ -10,7 +10,7 @@ import { TuiLet } from '@taiga-ui/cdk'
 import { TuiButton, tuiButtonOptionsProvider } from '@taiga-ui/core'
 import { map } from 'rxjs'
 import { UILaunchComponent } from 'src/app/routes/portal/routes/dashboard/ui.component'
-import { ActionsService } from 'src/app/services/actions.service'
+import { ControlsService } from 'src/app/services/controls.service'
 import { DepErrorService } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
@@ -26,7 +26,7 @@ const RUNNING = ['running', 'starting', 'restarting']
       <button
         tuiIconButton
         iconStart="@tui.square"
-        (click)="actions.stop(manifest())"
+        (click)="controls.stop(manifest())"
       >
         Stop
       </button>
@@ -35,7 +35,7 @@ const RUNNING = ['running', 'starting', 'restarting']
         tuiIconButton
         iconStart="@tui.rotate-cw"
         [disabled]="status().primary !== 'running'"
-        (click)="actions.restart(manifest())"
+        (click)="controls.restart(manifest())"
       >
         Restart
       </button>
@@ -45,17 +45,9 @@ const RUNNING = ['running', 'starting', 'restarting']
         tuiIconButton
         iconStart="@tui.play"
         [disabled]="status().primary !== 'stopped'"
-        (click)="actions.start(manifest(), !!hasUnmet)"
+        (click)="controls.start(manifest(), !!hasUnmet)"
       >
         Start
-      </button>
-
-      <button
-        tuiIconButton
-        iconStart="@tui.wrench"
-        (click)="actions.configure(manifest())"
-      >
-        Configure
       </button>
     }
 
@@ -80,10 +72,9 @@ const RUNNING = ['running', 'starting', 'restarting']
 })
 export class ControlsComponent {
   private readonly errors = inject(DepErrorService)
-  readonly actions = inject(ActionsService)
 
+  readonly controls = inject(ControlsService)
   readonly pkg = input.required<PackageDataEntry>()
-
   readonly status = computed(() => renderPkgStatus(this.pkg()))
   readonly running = computed(() => RUNNING.includes(this.status().primary))
   readonly manifest = computed(() => getManifest(this.pkg()))

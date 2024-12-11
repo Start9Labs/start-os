@@ -40,7 +40,7 @@ import { StateService } from 'src/app/services/state.service'
           <h3>You can now safely unplug your old StartOS data drive</h3>
         }
 
-        <button tuiCardLarge tuiSurface="elevated" (click)="download()">
+        <button tuiCardLarge tuiSurface="floating" (click)="download()">
           <strong class="caps">Download address info</strong>
           <span>
             start.local was for setup purposes only. It will no longer work.
@@ -53,7 +53,7 @@ import { StateService } from 'src/app/services/state.service'
 
         <a
           tuiCardLarge
-          tuiSurface="elevated"
+          tuiSurface="floating"
           target="_blank"
           [attr.href]="disableLogin ? null : lanAddress"
         >

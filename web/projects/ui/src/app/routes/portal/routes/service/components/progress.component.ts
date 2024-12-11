@@ -7,8 +7,8 @@ import { InstallingProgressPipe } from 'src/app/routes/portal/routes/service/pip
   selector: '[progress]',
   template: `
     <ng-content />
-    @if (progress | installingProgress; as decimal) {
-      : {{ decimal * 100 }}%
+    @if (progress | installingProgress; as percent) {
+      : {{ percent }}%
       <progress
         tuiProgressBar
         size="xs"
@@ -17,7 +17,7 @@ import { InstallingProgressPipe } from 'src/app/routes/portal/routes/service/pip
             ? 'var(--tui-text-positive)'
             : 'var(--tui-text-action)'
         "
-        [value]="decimal * 100"
+        [value]="percent / 100"
       ></progress>
     }
   `,

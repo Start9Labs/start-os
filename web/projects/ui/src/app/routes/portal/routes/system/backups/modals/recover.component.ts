@@ -5,10 +5,7 @@ import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TuiMapperPipe } from '@taiga-ui/cdk'
 import { TuiButton, TuiDialogContext, TuiGroup } from '@taiga-ui/core'
 import { TuiBlock, TuiCheckbox } from '@taiga-ui/kit'
-import {
-  POLYMORPHEUS_CONTEXT,
-  PolymorpheusComponent,
-} from '@taiga-ui/polymorpheus'
+import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { take } from 'rxjs'
 import { PackageBackupInfo } from 'src/app/services/api/api.types'
@@ -79,7 +76,7 @@ export class BackupsRecoverModal {
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly context =
-    inject<TuiDialogContext<void, RecoverData>>(POLYMORPHEUS_CONTEXT)
+    injectContext<TuiDialogContext<void, RecoverData>>()
 
   readonly packageData$ = inject<PatchDB<DataModel>>(PatchDB)
     .watch$('packageData')

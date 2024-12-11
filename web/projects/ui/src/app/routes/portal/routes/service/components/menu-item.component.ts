@@ -1,23 +1,25 @@
-import { TuiIcon } from '@taiga-ui/core'
+import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { TuiCell } from '@taiga-ui/layout'
 import { ServiceMenu } from '../pipes/to-menu.pipe'
 
 @Component({
   selector: '[serviceMenuItem]',
   template: `
     <tui-icon [icon]="menu.icon" />
-    <div [style.flex]="1">
+    <span tuiTitle [style.flex]="1">
       <strong>{{ menu.name }}</strong>
-      <div>
+      <span tuiSubtitle>
         {{ menu.description }}
-        <ng-content />
-      </div>
-    </div>
+      </span>
+      <ng-content />
+    </span>
     <tui-icon icon="@tui.chevron-right" />
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiIcon],
+  imports: [TuiIcon, TuiTitle],
+  hostDirectives: [TuiCell],
 })
 export class ServiceMenuItemComponent {
   @Input({ required: true, alias: 'serviceMenuItem' })

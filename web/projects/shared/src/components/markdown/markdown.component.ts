@@ -1,6 +1,9 @@
 import { Component, Inject } from '@angular/core'
 import { TuiDialogContext } from '@taiga-ui/core'
-import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus'
+import {
+  POLYMORPHEUS_CONTEXT,
+  PolymorpheusComponent,
+} from '@taiga-ui/polymorpheus'
 import {
   catchError,
   ignoreElements,
@@ -42,3 +45,5 @@ export class MarkdownComponent {
     return this.context.label || ''
   }
 }
+
+export const MARKDOWN = new PolymorpheusComponent(MarkdownComponent)

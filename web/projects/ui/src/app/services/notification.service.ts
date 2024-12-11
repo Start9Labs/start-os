@@ -1,14 +1,14 @@
 import { inject, Injectable } from '@angular/core'
-import { ErrorService } from '@start9labs/shared'
+import { ErrorService, MARKDOWN } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
+import { PatchDB } from 'patch-db-client'
+import { firstValueFrom, merge, shareReplay, Subject } from 'rxjs'
+import { REPORT } from 'src/app/components/report.component'
 import {
   ServerNotification,
   ServerNotifications,
 } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { REPORT } from 'src/app/components/report.component'
-import { firstValueFrom, merge, shareReplay, Subject } from 'rxjs'
-import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Injectable({ providedIn: 'root' })
@@ -89,19 +89,19 @@ export class NotificationService {
     }
   }
 
-  viewFull(notification: ServerNotification<number>) {
-    this.dialogs
-      .open(notification.message, { label: notification.title })
-      .subscribe()
-  }
+  viewModal(
+    { data, createdAt, code, title, message }: ServerNotification<number>,
+    full = false,
+  ) {
+    const label = full || code === 2 ? title : 'Backup Report'
+    const content = code === 1 ? REPORT : MARKDOWN
 
-  viewReport(notification: ServerNotification<number>) {
     this.dialogs
-      .open(REPORT, {
-        label: 'Backup Report',
+      .open(full ? message : content, {
+        label,
         data: {
-          report: notification.data,
-          timestamp: notification.createdAt,
+          content: data,
+          timestamp: createdAt,
         },
       })
       .subscribe()

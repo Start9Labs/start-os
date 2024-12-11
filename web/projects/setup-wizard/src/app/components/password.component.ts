@@ -1,13 +1,10 @@
-import { TuiInputPasswordModule } from '@taiga-ui/legacy'
 import { Component, inject } from '@angular/core'
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms'
 import * as argon2 from '@start9labs/argon2'
 import { ErrorService } from '@start9labs/shared'
-import { TuiDialogContext, TuiError, TuiButton } from '@taiga-ui/core'
-import {
-  POLYMORPHEUS_CONTEXT,
-  PolymorpheusComponent,
-} from '@taiga-ui/polymorpheus'
+import { TuiButton, TuiDialogContext, TuiError } from '@taiga-ui/core'
+import { TuiInputPasswordModule } from '@taiga-ui/legacy'
+import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 
 interface DialogData {
   passwordHash?: string
@@ -67,7 +64,7 @@ interface DialogData {
 export class PasswordComponent {
   private readonly errorService = inject(ErrorService)
   private readonly context =
-    inject<TuiDialogContext<string, DialogData>>(POLYMORPHEUS_CONTEXT)
+    injectContext<TuiDialogContext<string, DialogData>>()
 
   readonly storageDrive = this.context.data.storageDrive
   readonly password = new FormControl('', { nonNullable: true })

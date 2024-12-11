@@ -21,12 +21,12 @@ import { getMultihostAddresses } from '../../../components/interfaces/interface.
   imports: [CommonModule, InterfaceComponent],
 })
 export class ServiceInterfaceRoute {
-  private readonly route = inject(ActivatedRoute)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
   readonly context = {
-    packageId: getPkgId(this.route),
-    interfaceId: this.route.snapshot.paramMap.get('interfaceId') || '',
+    packageId: getPkgId(),
+    interfaceId:
+      inject(ActivatedRoute).snapshot.paramMap.get('interfaceId') || '',
   }
 
   readonly interfacesWithAddresses$ = combineLatest([

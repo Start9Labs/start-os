@@ -1,26 +1,29 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { TuiIcon } from '@taiga-ui/core'
+import { TuiIcon, TuiTitle } from '@taiga-ui/core'
+import { TuiCell } from '@taiga-ui/layout'
 import { DependencyInfo } from '../types/dependency-info'
 
 @Component({
   selector: '[serviceDependency]',
   template: `
     <img [src]="dep.icon" alt="" />
-    <span [style.flex]="1">
+    <span tuiTitle>
       <strong>
         @if (dep.errorText) {
           <tui-icon icon="@tui.triangle-alert" [style.color]="color" />
         }
         {{ dep.title }}
       </strong>
-      <div>{{ dep.version }}</div>
-      <div [style.color]="color">{{ dep.errorText || 'Satisfied' }}</div>
+      <span tuiSubtitle>{{ dep.version }}</span>
+      <span tuiSubtitle="" [style.color]="color">
+        {{ dep.errorText || 'Satisfied' }}
+      </span>
     </span>
     @if (dep.actionText) {
-      <div>
+      <span>
         {{ dep.actionText }}
         <tui-icon icon="@tui.arrow-right" />
-      </div>
+      </span>
     }
   `,
   styles: [
@@ -38,7 +41,11 @@ import { DependencyInfo } from '../types/dependency-info'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiIcon],
+  host: {
+    '(click)': 'dep.action()',
+  },
+  imports: [TuiIcon, TuiTitle],
+  hostDirectives: [TuiCell],
 })
 export class ServiceDependencyComponent {
   @Input({ required: true, alias: 'serviceDependency' })

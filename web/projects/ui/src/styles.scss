@@ -205,20 +205,20 @@ button.g-action {
   overflow: auto !important;
 }
 
-.g-success.g-success {
-  color: var(--tui-status-positive);
+.g-success {
+  color: var(--tui-status-positive) !important;
 }
 
-.g-warning.g-warning {
-  color: var(--tui-status-warning);
+.g-warning {
+  color: var(--tui-status-warning) !important;
 }
 
 .g-error.g-error {
-  color: var(--tui-status-negative);
+  color: var(--tui-status-negative) !important;
 }
 
-.g-info.g-info {
-  color: var(--tui-status-info);
+.g-info {
+  color: var(--tui-status-info) !important;
 }
 
 ng-component {

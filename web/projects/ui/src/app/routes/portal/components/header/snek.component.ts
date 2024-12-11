@@ -7,8 +7,8 @@ import {
   OnDestroy,
 } from '@angular/core'
 import { pauseFor } from '@start9labs/shared'
-import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus'
-import { TuiDialogContext, TuiButton } from '@taiga-ui/core'
+import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
+import { injectContext } from '@taiga-ui/polymorpheus'
 
 @Component({
   standalone: true,
@@ -44,8 +44,7 @@ import { TuiDialogContext, TuiButton } from '@taiga-ui/core'
 })
 export class HeaderSnekComponent implements AfterViewInit, OnDestroy {
   private readonly document = inject(DOCUMENT)
-  private readonly dialog =
-    inject<TuiDialogContext<number, number>>(POLYMORPHEUS_CONTEXT)
+  private readonly dialog = injectContext<TuiDialogContext<number, number>>()
 
   highScore: number = this.dialog.data
   score = 0

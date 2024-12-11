@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { TuiDialogContext } from '@taiga-ui/core'
-import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus'
+import { injectContext } from '@taiga-ui/polymorpheus'
 import { QrCodeModule } from 'ng-qrcode'
 
 @Component({
@@ -11,6 +11,5 @@ import { QrCodeModule } from 'ng-qrcode'
   imports: [QrCodeModule],
 })
 export class QRModal {
-  readonly context =
-    inject<TuiDialogContext<void, string>>(POLYMORPHEUS_CONTEXT)
+  readonly context = injectContext<TuiDialogContext<void, string>>()
 }

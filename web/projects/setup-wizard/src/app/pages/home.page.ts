@@ -18,7 +18,7 @@ import { StateService } from 'src/app/services/state.service'
           @if (recover) {
             <button
               tuiIconButton
-              appearance="flat"
+              appearance="flat-grayscale"
               class="back"
               iconStart="@tui.chevron-left"
               (click)="recover = false"
