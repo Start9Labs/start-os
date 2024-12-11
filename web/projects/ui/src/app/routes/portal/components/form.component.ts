@@ -51,7 +51,7 @@ export interface FormContext<T> {
           <button
             *ngIf="button.handler; else link"
             tuiButton
-            [appearance]="last ? 'primary' : 'flat'"
+            [appearance]="last ? 'primary' : 'flat-grayscale'"
             [type]="last ? 'submit' : 'button'"
             (click)="onClick(button.handler)"
           >
@@ -60,7 +60,7 @@ export interface FormContext<T> {
           <ng-template #link>
             <a
               tuiButton
-              appearance="flat"
+              appearance="flat-grayscale"
               [routerLink]="button.link"
               (click)="close()"
             >

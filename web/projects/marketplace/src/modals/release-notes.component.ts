@@ -3,10 +3,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { Exver, MarkdownPipeModule } from '@start9labs/shared'
 import { TuiButton, TuiDialogContext, TuiLoader } from '@taiga-ui/core'
 import { TuiAccordion } from '@taiga-ui/kit'
-import {
-  POLYMORPHEUS_CONTEXT,
-  PolymorpheusComponent,
-} from '@taiga-ui/polymorpheus'
+import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { MarketplacePkg } from '../../src/types'
 
 @Component({
@@ -35,7 +32,7 @@ import { MarketplacePkg } from '../../src/types'
 export class ReleaseNotesComponent {
   private readonly exver = inject(Exver)
   private readonly pkg =
-    inject<TuiDialogContext<void, MarketplacePkg>>(POLYMORPHEUS_CONTEXT).data
+    injectContext<TuiDialogContext<void, MarketplacePkg>>().data
 
   readonly notes = Object.entries(this.pkg.otherVersions)
     .filter(

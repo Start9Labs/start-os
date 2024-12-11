@@ -6,14 +6,8 @@ import { ServiceDependencyComponent } from './dependency.component'
   selector: 'service-dependencies',
   template: `
     @for (dep of dependencies; track $index) {
-      <button
-        class="g-action"
-        [serviceDependency]="dep"
-        (click)="dep.action()"
-      ></button>
-    }
-
-    @if (!dependencies.length) {
+      <button [serviceDependency]="dep"></button>
+    } @empty {
       No dependencies
     }
   `,

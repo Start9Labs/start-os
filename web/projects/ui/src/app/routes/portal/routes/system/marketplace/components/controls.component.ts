@@ -76,7 +76,7 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
       <button
         tuiButton
         type="button"
-        appearance="outline"
+        appearance="outline-grayscale"
         (click)="showService()"
       >
         View Installed

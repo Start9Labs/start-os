@@ -4,13 +4,13 @@ import { TuiDialogService } from '@taiga-ui/core'
 import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { filter } from 'rxjs'
-import { ActionSuccessPage } from 'src/app/modals/action-success/action-success.page'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
 import {
   ActionInputModal,
   PackageActionData,
-} from '../modals/action-input.component'
+} from 'src/app/routes/portal/routes/service/modals/action-input.component'
+import { ActionSuccessPage } from 'src/app/routes/portal/routes/service/modals/action-success/action-success.page'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
 
 const allowedStatuses = {
   'only-running': new Set(['running']),
@@ -98,11 +98,7 @@ export class ActionService {
     }
   }
 
-  async execute(
-    packageId: string,
-    actionId: string,
-    input?: object,
-  ): Promise<boolean> {
+  async execute(packageId: string, actionId: string, input?: object) {
     const loader = this.loader.open('Loading...').subscribe()
 
     try {
@@ -112,7 +108,7 @@ export class ActionService {
         input: input || null,
       })
 
-      if (!res) return true
+      if (!res) return
 
       if (res.result) {
         this.dialogs
@@ -124,10 +120,8 @@ export class ActionService {
       } else if (res.message) {
         this.dialogs.open(res.message, { label: res.title }).subscribe()
       }
-      return true // needed to dismiss original modal/alert
     } catch (e: any) {
       this.errorService.handleError(e)
-      return false // don't dismiss original modal/alert
     } finally {
       loader.unsubscribe()
     }

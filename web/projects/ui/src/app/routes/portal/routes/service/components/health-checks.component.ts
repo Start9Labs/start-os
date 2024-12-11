@@ -14,7 +14,6 @@ import { ConnectionService } from 'src/app/services/connection.service'
   template: `
     @for (check of checks; track $index) {
       <service-health-check
-        class="g-action"
         [check]="check"
         [connected]="!!(connected$ | async)"
       />

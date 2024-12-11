@@ -223,13 +223,13 @@ export class BackupsHistoryModal {
     }
   }
 
-  showReport(run: BackupRun) {
+  showReport({ report, completedAt }: BackupRun) {
     this.dialogs
       .open(REPORT, {
         label: 'Backup Report',
         data: {
-          report: run.report,
-          timestamp: run.completedAt,
+          content: report,
+          timestamp: completedAt,
         },
       })
       .subscribe()

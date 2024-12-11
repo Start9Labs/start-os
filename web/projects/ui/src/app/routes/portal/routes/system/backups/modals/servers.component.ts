@@ -1,10 +1,7 @@
-import { Component, inject } from '@angular/core'
+import { Component } from '@angular/core'
 import { ServerComponent, StartOSDiskInfo } from '@start9labs/shared'
 import { TuiDialogContext } from '@taiga-ui/core'
-import {
-  POLYMORPHEUS_CONTEXT,
-  PolymorpheusComponent,
-} from '@taiga-ui/polymorpheus'
+import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 
 interface Data {
   servers: StartOSDiskInfo[]
@@ -23,8 +20,7 @@ interface Data {
   imports: [ServerComponent],
 })
 export class ServersComponent {
-  readonly context =
-    inject<TuiDialogContext<StartOSDiskInfo, Data>>(POLYMORPHEUS_CONTEXT)
+  readonly context = injectContext<TuiDialogContext<StartOSDiskInfo, Data>>()
 }
 
 export const SERVERS = new PolymorpheusComponent(ServersComponent)

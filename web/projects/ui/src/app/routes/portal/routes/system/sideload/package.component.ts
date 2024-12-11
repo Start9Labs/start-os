@@ -15,44 +15,68 @@ import {
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiLet } from '@taiga-ui/cdk'
-import { TuiAlertService, TuiButton } from '@taiga-ui/core'
+import { TuiButton } from '@taiga-ui/core'
+import { TuiProgressBar } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
-import { combineLatest, map } from 'rxjs'
+import { combineLatest, filter, firstValueFrom, map } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
+import { InstallingProgressPipe } from 'src/app/routes/portal/routes/service/pipes/install-progress.pipe'
+import { SideloadService } from './sideload.service'
 
 @Component({
   selector: 'sideload-package',
   template: `
     <div class="outer-container">
       <ng-content />
-      <marketplace-package-hero
-        *tuiLet="button$ | async as button"
-        [pkg]="package"
-      >
-        <div class="inner-container">
-          @if (button !== null && button !== 'Install') {
-            <a
-              tuiButton
-              appearance="tertiary-solid"
-              [routerLink]="'/portal/service/' + package.id"
-            >
-              View installed
-            </a>
-          }
-          @if (button) {
-            <button tuiButton (click)="upload()">{{ button }}</button>
-          }
-        </div>
-      </marketplace-package-hero>
-      <!-- @TODO Matt do we want this here? How do we turn s9pk into MarketplacePkg? -->
-      <!--      <marketplace-about [pkg]="package" />-->
-      <!--      @if (!(package.dependencyMetadata | empty)) {-->
-      <!--        <marketplace-dependencies [pkg]="package" (open)="open($event)" />-->
-      <!--      }-->
-      <!--      <marketplace-additional [pkg]="package" />-->
+      @if (progress$ | async; as progress) {
+        @for (phase of progress.phases; track $index) {
+          <p>
+            {{ phase.name }}
+            @if (phase.progress | installingProgress; as progress) {
+              : {{ progress }}%
+            }
+          </p>
+          <progress
+            tuiProgressBar
+            size="xs"
+            [style.color]="
+              phase.progress === true
+                ? 'var(--tui-text-positive)'
+                : 'var(--tui-text-action)'
+            "
+            [attr.value]="(phase.progress | installingProgress) / 100 || null"
+          ></progress>
+        }
+      } @else {
+        <marketplace-package-hero
+          *tuiLet="button$ | async as button"
+          [pkg]="package"
+        >
+          <div class="inner-container">
+            @if (button !== null && button !== 'Install') {
+              <a
+                tuiButton
+                appearance="tertiary-solid"
+                [routerLink]="'/portal/service/' + package.id"
+              >
+                View installed
+              </a>
+            }
+            @if (button) {
+              <button tuiButton (click)="upload()">{{ button }}</button>
+            }
+          </div>
+        </marketplace-package-hero>
+        <!-- @TODO Matt do we want this here? How do we turn s9pk into MarketplacePkg? -->
+        <!--      <marketplace-about [pkg]="package" />-->
+        <!--      @if (!(package.dependencyMetadata | empty)) {-->
+        <!--        <marketplace-dependencies [pkg]="package" (open)="open($event)" />-->
+        <!--      }-->
+        <!--      <marketplace-additional [pkg]="package" />-->
+      }
     </div>
   `,
   styles: [
@@ -87,6 +111,8 @@ import { getManifest } from 'src/app/utils/get-package-data'
     TuiLet,
     MarketplacePackageHeroComponent,
     MarketplaceDependenciesComponent,
+    InstallingProgressPipe,
+    TuiProgressBar,
   ],
 })
 export class SideloadPackageComponent {
@@ -94,9 +120,10 @@ export class SideloadPackageComponent {
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
   private readonly router = inject(Router)
-  private readonly alerts = inject(TuiAlertService)
   private readonly exver = inject(Exver)
+  private readonly sideloadService = inject(SideloadService)
 
+  readonly progress$ = this.sideloadService.progress$
   readonly button$ = combineLatest([
     inject(ClientStorageService).showDevTools$,
     inject<PatchDB<DataModel>>(PatchDB)
@@ -133,17 +160,14 @@ export class SideloadPackageComponent {
   file!: File
 
   async upload() {
-    const loader = this.loader.open('Uploading package').subscribe()
+    const loader = this.loader.open('Starting upload').subscribe()
 
     try {
-      const { upload } = await this.api.sideloadPackage()
+      const { upload, progress } = await this.api.sideloadPackage()
 
-      await this.api.uploadPackage(upload, this.file).catch(console.error)
-      await this.router.navigate(['/portal/service', this.package.id])
-
-      this.alerts
-        .open('Package uploaded successfully', { appearance: 'positive' })
-        .subscribe()
+      this.sideloadService.followProgress(progress)
+      this.api.uploadPackage(upload, this.file).catch(console.error)
+      await firstValueFrom(this.progress$.pipe(filter(Boolean)))
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

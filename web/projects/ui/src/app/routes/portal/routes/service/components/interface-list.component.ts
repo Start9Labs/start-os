@@ -10,7 +10,6 @@ import { ServiceInterfaceListItemComponent } from './interface-list-item.compone
   template: `
     @for (info of pkg | interfaceInfo; track $index) {
       <a
-        class="g-action"
         serviceInterfaceListItem
         [info]="info"
         [pkg]="pkg"

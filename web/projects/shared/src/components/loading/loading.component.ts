@@ -1,9 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { TuiLoader } from '@taiga-ui/core'
-import {
-  POLYMORPHEUS_CONTEXT,
-  PolymorpheusContent,
-} from '@taiga-ui/polymorpheus'
+import { injectContext, PolymorpheusContent } from '@taiga-ui/polymorpheus'
 
 @Component({
   standalone: true,
@@ -13,6 +10,5 @@ import {
   imports: [TuiLoader],
 })
 export class LoadingComponent {
-  readonly content: PolymorpheusContent =
-    inject(POLYMORPHEUS_CONTEXT)['content']
+  readonly content = injectContext<{ content: PolymorpheusContent }>().content
 }

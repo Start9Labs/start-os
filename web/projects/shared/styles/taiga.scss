@@ -32,11 +32,6 @@
   color: var(--tui-status-negative);
 }
 
-[tuiAppearance][data-appearance='flat'],
-[tuiAppearance][data-appearance='outline'] {
-  color: var(--tui-text-primary);
-}
-
 [tuiAppearance][data-appearance='primary'] {
   @include appearance-disabled {
     background: #eaecee;

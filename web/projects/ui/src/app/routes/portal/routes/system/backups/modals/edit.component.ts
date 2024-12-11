@@ -1,26 +1,23 @@
-import { toSignal } from '@angular/core/rxjs-interop'
-import {
-  TuiWrapperModule,
-  TuiInputModule,
-  TuiInputNumberModule,
-} from '@taiga-ui/legacy'
 import { CommonModule } from '@angular/common'
 import { Component, inject } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiDialogContext, TuiDialogService, TuiButton } from '@taiga-ui/core'
+import { TuiButton, TuiDialogContext, TuiDialogService } from '@taiga-ui/core'
 import { TuiBadge, TuiSwitch } from '@taiga-ui/kit'
 import {
-  POLYMORPHEUS_CONTEXT,
-  PolymorpheusComponent,
-} from '@taiga-ui/polymorpheus'
+  TuiInputModule,
+  TuiInputNumberModule,
+  TuiWrapperModule,
+} from '@taiga-ui/legacy'
+import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { from, map } from 'rxjs'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { BackupJob, BackupTarget } from 'src/app/services/api/api.types'
-import { TARGET, TARGET_CREATE } from './target.component'
-import { BACKUP, BACKUP_OPTIONS } from './backup.component'
-import { BackupJobBuilder } from '../utils/job-builder'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ToHumanCronPipe } from '../pipes/to-human-cron.pipe'
+import { BackupJobBuilder } from '../utils/job-builder'
+import { BACKUP, BACKUP_OPTIONS } from './backup.component'
+import { TARGET, TARGET_CREATE } from './target.component'
 
 @Component({
   template: `
@@ -113,7 +110,7 @@ export class BackupsEditModal {
   private readonly loader = inject(LoadingService)
   private readonly dialogs = inject(TuiDialogService)
   private readonly context =
-    inject<TuiDialogContext<BackupJob, BackupJobBuilder>>(POLYMORPHEUS_CONTEXT)
+    injectContext<TuiDialogContext<BackupJob, BackupJobBuilder>>()
 
   readonly target = toSignal(
     from(this.api.getBackupTargets({})).pipe(map(({ saved }) => saved)),

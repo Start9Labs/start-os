@@ -5,13 +5,7 @@ import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
 import { TuiConfirmData, TUI_CONFIRM } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { defaultIfEmpty, filter, firstValueFrom } from 'rxjs'
-// @TODO Alex implement config
-// import {
-//   ConfigModal,
-//   PackageConfigData,
-// } from 'src/app/routes/portal/modals/config.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getAllPackages } from 'src/app/utils/get-package-data'
 import { hasCurrentDeps } from 'src/app/utils/has-deps'
@@ -19,20 +13,12 @@ import { hasCurrentDeps } from 'src/app/utils/has-deps'
 @Injectable({
   providedIn: 'root',
 })
-export class ActionsService {
+export class ControlsService {
   private readonly dialogs = inject(TuiDialogService)
   private readonly errorService = inject(ErrorService)
   private readonly loader = inject(LoadingService)
   private readonly api = inject(ApiService)
-  private readonly formDialog = inject(FormDialogService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
-
-  configure(manifest: T.Manifest): void {
-    // this.formDialog.open<PackageConfigData>(ConfigModal, {
-    //   label: `${manifest.title} configuration`,
-    //   data: { pkgId: manifest.id },
-    // })
-  }
 
   async start(manifest: T.Manifest, unmet: boolean): Promise<void> {
     const deps = `${manifest.title} has unmet dependencies. It will not work as expected.`

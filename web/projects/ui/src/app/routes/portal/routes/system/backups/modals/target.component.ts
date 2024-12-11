@@ -15,10 +15,7 @@ import {
   TuiIcon,
   TuiLoader,
 } from '@taiga-ui/core'
-import {
-  POLYMORPHEUS_CONTEXT,
-  PolymorpheusComponent,
-} from '@taiga-ui/polymorpheus'
+import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { BackupTarget } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -83,9 +80,9 @@ export class BackupsTargetModal {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
   readonly context =
-    inject<
+    injectContext<
       TuiDialogContext<BackupTarget & { id: string }, { type: BackupType }>
-    >(POLYMORPHEUS_CONTEXT)
+    >()
 
   readonly loading = signal(true)
   readonly text =

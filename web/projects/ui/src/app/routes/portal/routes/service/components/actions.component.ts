@@ -9,7 +9,7 @@ import { T } from '@start9labs/start-sdk'
 import { tuiPure } from '@taiga-ui/cdk'
 import { tuiButtonOptionsProvider } from '@taiga-ui/core'
 import { DependencyInfo } from 'src/app/routes/portal/routes/service/types/dependency-info'
-import { ActionsService } from 'src/app/services/actions.service'
+import { ControlsService } from '../../../../../services/controls.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PackageStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getManifest } from 'src/app/utils/get-package-data'
@@ -49,17 +49,6 @@ const STOPPABLE = ['running', 'starting', 'restarting']
         Start
       </button>
     }
-
-    @if (canConfigure) {
-      <button
-        tuiButton
-        appearance="secondary-warning"
-        iconStart="@tui.wrench"
-        (click)="actions.configure(manifest)"
-      >
-        Configure
-      </button>
-    }
   `,
   styles: [
     `
@@ -84,7 +73,7 @@ export class ServiceActionsComponent {
     status: PackageStatus
   }
 
-  readonly actions = inject(ActionsService)
+  readonly actions = inject(ControlsService)
 
   get manifest(): T.Manifest {
     return getManifest(this.service.pkg)
@@ -95,17 +84,11 @@ export class ServiceActionsComponent {
   }
 
   get canStart(): boolean {
-    return this.service.status.primary === 'stopped' && !this.canConfigure
+    return this.service.status.primary === 'stopped'
   }
 
   get canRestart(): boolean {
     return this.service.status.primary === 'running'
-  }
-
-  get canConfigure(): boolean {
-    // @TODO Matt should we just drop this?
-    // return !this.service.pkg.status.configured
-    return false
   }
 
   @tuiPure

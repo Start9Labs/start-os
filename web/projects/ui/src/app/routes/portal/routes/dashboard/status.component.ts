@@ -58,14 +58,7 @@ export class StatusComponent {
   hasDepErrors = false
 
   get healthy(): boolean {
-    const status = this.getStatus(this.pkg)
-
-    return (
-      !this.hasDepErrors && // no deps error
-      // @TODO Matt how do we handle this now?
-      // !!this.pkg.status.configured && // no config needed
-      status.health !== 'failure' // no health issues
-    )
+    return !this.hasDepErrors && this.getStatus(this.pkg).health !== 'failure'
   }
 
   get loading(): boolean {
@@ -87,9 +80,8 @@ export class StatusComponent {
         return 'Running'
       case 'stopped':
         return 'Stopped'
-      // @TODO Matt just dropping this?
-      // case 'needsConfig':
-      //   return 'Needs Config'
+      case 'actionRequired':
+        return 'Action Required'
       case 'updating':
         return 'Updating...'
       case 'stopping':
@@ -113,9 +105,8 @@ export class StatusComponent {
     switch (this.getStatus(this.pkg).primary) {
       case 'running':
         return 'var(--tui-status-positive)'
-      // @TODO Matt just dropping this?
-      // case 'needsConfig':
-      //   return 'var(--tui-status-warning)'
+      case 'actionRequired':
+        return 'var(--tui-status-warning)'
       case 'installing':
       case 'updating':
       case 'stopping':

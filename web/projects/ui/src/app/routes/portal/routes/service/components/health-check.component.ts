@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
-import { TuiIcon, TuiLoader } from '@taiga-ui/core'
+import { TuiIcon, TuiLoader, TuiTitle } from '@taiga-ui/core'
 
 @Component({
   selector: 'service-health-check',
@@ -17,12 +17,12 @@ import { TuiIcon, TuiLoader } from '@taiga-ui/core'
         [style.color]="color"
       />
     }
-    <div>
+    <span tuiTitle>
       <strong [class.tui-skeleton]="!connected">{{ check.name }}</strong>
-      <div [class.tui-skeleton]="!connected" [style.color]="color">
+      <span tuiSubtitle [class.tui-skeleton]="!connected" [style.color]="color">
         {{ message }}
-      </div>
-    </div>
+      </span>
+    </span>
   `,
   styles: [
     `
@@ -38,7 +38,7 @@ import { TuiIcon, TuiLoader } from '@taiga-ui/core'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiLoader, TuiIcon],
+  imports: [TuiLoader, TuiIcon, TuiTitle],
 })
 export class ServiceHealthCheckComponent {
   @Input({ required: true })

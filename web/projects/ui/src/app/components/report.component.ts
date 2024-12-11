@@ -36,14 +36,14 @@ import { BackupReport } from 'src/app/services/api/api.types'
 })
 export class BackupsReportModal {
   private readonly context =
-    inject<TuiDialogContext<void, { report: BackupReport; timestamp: string }>>(
-      POLYMORPHEUS_CONTEXT,
-    )
+    inject<
+      TuiDialogContext<void, { content: BackupReport; timestamp: string }>
+    >(POLYMORPHEUS_CONTEXT)
 
   readonly system = this.getSystem()
 
   get report(): BackupReport {
-    return this.context.data.report
+    return this.context.data.content
   }
 
   get timestamp(): string {

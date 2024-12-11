@@ -46,12 +46,12 @@ import { toRouterLink } from 'src/app/utils/to-router-link'
         (overflownChange)="overflow = $event"
       />
       @if (overflow) {
-        <button tuiLink (click)="service.viewFull(notificationItem)">
+        <button tuiLink (click)="service.viewModal(notificationItem, true)">
           View Full
         </button>
       }
-      @if (notificationItem.code === 1) {
-        <button tuiLink (click)="service.viewReport(notificationItem)">
+      @if (notificationItem.code === 1 || notificationItem.code === 2) {
+        <button tuiLink (click)="service.viewModal(notificationItem)">
           View Report
         </button>
       }

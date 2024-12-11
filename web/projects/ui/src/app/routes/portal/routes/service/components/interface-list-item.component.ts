@@ -1,5 +1,5 @@
 import { TuiLet } from '@taiga-ui/cdk'
-import { TuiLoader, TuiIcon, TuiButton } from '@taiga-ui/core'
+import { TuiLoader, TuiIcon, TuiButton, TuiTitle } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -7,6 +7,7 @@ import {
   inject,
   Input,
 } from '@angular/core'
+import { TuiCell } from '@taiga-ui/layout'
 import { map, timer } from 'rxjs'
 import { ConfigService } from 'src/app/services/config.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -23,26 +24,31 @@ import { ExtendedInterfaceInfo } from '../pipes/interface-info.pipe'
       } @else {
         <tui-icon icon="@tui.circle-x" class="g-error" />
       }
-      <div [style.flex]="1">
+      <span tuiTitle>
         <strong>{{ info.name }}</strong>
-        <div>{{ info.description }}</div>
+        <span tuiSubtitle>{{ info.description }}</span>
         @if (check) {
-          <div class="g-error">
-            <b>Health check failed:</b>
-            {{ check }}
-          </div>
+          <span tuiSubtitle class="g-error">
+            <span>
+              <b>Health check failed:</b>
+              {{ check }}
+            </span>
+          </span>
         } @else {
-          <div [style.color]="info.color">{{ info.typeDetail }}</div>
+          <span tuiSubtitle [style.color]="info.color">
+            {{ info.typeDetail }}
+          </span>
         }
-      </div>
+      </span>
       @if (info.type === 'ui') {
         <a
           tuiIconButton
-          appearance="flat"
+          appearance="flat-grayscale"
           iconStart="@tui.external-link"
           target="_blank"
           rel="noreferrer"
           title="Open"
+          size="m"
           [style.border-radius.%]="100"
           [attr.href]="href"
           (click.stop)="(0)"
@@ -52,7 +58,8 @@ import { ExtendedInterfaceInfo } from '../pipes/interface-info.pipe'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiButton, TuiLet, TuiLoader, TuiIcon],
+  imports: [CommonModule, TuiButton, TuiLet, TuiLoader, TuiIcon, TuiTitle],
+  hostDirectives: [TuiCell],
 })
 export class ServiceInterfaceListItemComponent {
   private readonly config = inject(ConfigService)
@@ -73,7 +80,7 @@ export class ServiceInterfaceListItemComponent {
 
   get href(): string | null {
     return this.disabled
-      ? null
+      ? 'null'
       : this.config.launchableAddress(this.info, this.pkg.hosts)
   }
 }

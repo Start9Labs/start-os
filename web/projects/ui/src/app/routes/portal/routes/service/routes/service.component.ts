@@ -5,11 +5,6 @@ import { isEmptyObject } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map, switchMap } from 'rxjs'
-// @TODO Alex implement config
-// import {
-//   ConfigModal,
-//   PackageConfigData,
-// } from 'src/app/routes/portal/modals/config.component'
 import { ServiceBackupsComponent } from 'src/app/routes/portal/routes/service/components/backups.component'
 import { InstallingProgressPipe } from 'src/app/routes/portal/routes/service/pipes/install-progress.pipe'
 import { ConnectionService } from 'src/app/services/connection.service'
@@ -30,13 +25,16 @@ import {
 } from 'src/app/services/pkg-status-rendering.service'
 import { DependentInfo } from 'src/app/types/dependent-info'
 import { getManifest } from 'src/app/utils/get-package-data'
+import { ServiceActionRequestComponent } from '../components/action-request.component'
 import { ServiceActionsComponent } from '../components/actions.component'
 import { ServiceDependenciesComponent } from '../components/dependencies.component'
+import { ServiceErrorComponent } from '../components/error.component'
 import { ServiceHealthChecksComponent } from '../components/health-checks.component'
 import { ServiceInterfaceListComponent } from '../components/interface-list.component'
 import { ServiceMenuComponent } from '../components/menu.component'
 import { ServiceProgressComponent } from '../components/progress.component'
 import { ServiceStatusComponent } from '../components/status.component'
+import { ToActionRequestsPipe } from '../pipes/to-action-requests.pipe'
 import { DependencyInfo } from '../types/dependency-info'
 
 @Component({
@@ -61,10 +59,17 @@ import { DependencyInfo } from '../types/dependency-info'
           <service-backups [pkg]="service.pkg" />
         </section>
 
-        <section [style.grid-column]="'span 6'">
-          <h3>Metrics</h3>
-          TODO
-        </section>
+        @if (service.pkg.status.main === 'error') {
+          <section class="error">
+            <h3>Error</h3>
+            <service-error [pkg]="service.pkg" />
+          </section>
+        } @else {
+          <section [style.grid-column]="'span 6'">
+            <h3>Metrics</h3>
+            TODO
+          </section>
+        }
 
         <section [style.grid-column]="'span 4'" [style.align-self]="'start'">
           <h3>Menu</h3>
@@ -72,6 +77,34 @@ import { DependencyInfo } from '../types/dependency-info'
         </section>
 
         <div>
+          @if (service.pkg | toActionRequests: service.allPkgs; as requests) {
+            @if (requests.critical.length) {
+              <section>
+                <h3>Required Actions</h3>
+                @for (request of requests.critical; track $index) {
+                  <button
+                    [actionRequest]="request"
+                    [pkg]="service.pkg"
+                    [allPkgs]="service.allPkgs"
+                  ></button>
+                }
+              </section>
+            }
+
+            @if (requests.important.length) {
+              <section>
+                <h3>Requested Actions</h3>
+                @for (request of requests.important; track $index) {
+                  <button
+                    [actionRequest]="request"
+                    [pkg]="service.pkg"
+                    [allPkgs]="service.allPkgs"
+                  ></button>
+                }
+              </section>
+            }
+          }
+
           <section>
             <h3>Health Checks</h3>
             <service-health-checks [checks]="(health$ | async) || []" />
@@ -124,6 +157,24 @@ import { DependencyInfo } from '../types/dependency-info'
       background: var(--tui-background-neutral-1);
       box-shadow: inset 0 7rem 0 -4rem var(--tui-background-neutral-1);
       clip-path: polygon(0 1.5rem, 1.5rem 0, 100% 0, 100% 100%, 0 100%);
+
+      &.error {
+        box-shadow: inset 0 7rem 0 -4rem var(--tui-status-negative-pale);
+        grid-column: span 6;
+
+        h3 {
+          color: var(--tui-status-negative);
+        }
+      }
+
+      ::ng-deep [tuiCell] {
+        width: stretch;
+        margin: 0 -1rem;
+
+        &:not(:last-child) {
+          box-shadow: 0 0.51rem 0 -0.5rem;
+        }
+      }
     }
 
     h3 {
@@ -153,6 +204,9 @@ import { DependencyInfo } from '../types/dependency-info'
     ServiceDependenciesComponent,
     ServiceMenuComponent,
     ServiceBackupsComponent,
+    ServiceActionRequestComponent,
+    ServiceErrorComponent,
+    ToActionRequestsPipe,
     InstallingProgressPipe,
   ],
 })
@@ -169,15 +223,20 @@ export class ServiceRoute {
   readonly service$ = this.pkgId$.pipe(
     switchMap(pkgId =>
       combineLatest([
-        this.patch.watch$('packageData', pkgId),
+        this.patch.watch$('packageData'),
         this.depErrorService.getPkgDepErrors$(pkgId),
-      ]),
+      ]).pipe(
+        map(([allPkgs, depErrors]) => {
+          const pkg = allPkgs[pkgId]
+          return {
+            allPkgs,
+            pkg,
+            dependencies: this.getDepInfo(pkg, depErrors),
+            status: renderPkgStatus(pkg, depErrors),
+          }
+        }),
+      ),
     ),
-    map(([pkg, depErrors]) => ({
-      pkg,
-      dependencies: this.getDepInfo(pkg, depErrors),
-      status: renderPkgStatus(pkg, depErrors),
-    })),
   )
 
   readonly health$ = this.pkgId$.pipe(
@@ -263,11 +322,8 @@ export class ServiceRoute {
         errorText = 'Incorrect version'
         fixText = 'Update'
         fixAction = () => this.fixDep(pkg, pkgManifest, 'update', depId)
-        // @TODO Matt do we just remove this case?
-        // } else if (depError.type === 'configUnsatisfied') {
-        //   errorText = 'Config not satisfied'
-        //   fixText = 'Auto config'
-        //   fixAction = () => this.fixDep(pkg, pkgManifest, 'configure', depId)
+      } else if (depError.type === 'actionRequired') {
+        errorText = 'Action Required (see above)'
       } else if (depError.type === 'notRunning') {
         errorText = 'Not running'
         fixText = 'Start'

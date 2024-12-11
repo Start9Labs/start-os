@@ -1,32 +1,33 @@
-import { Injectable } from '@angular/core'
-import { T } from '@start9labs/start-sdk'
-import { hasCurrentDeps } from '../util/has-deps'
-import { getAllPackages } from '../util/get-package-data'
-import { PatchDB } from 'patch-db-client'
-import { DataModel } from './patch-db/data-model'
-import { AlertController, NavController } from '@ionic/angular'
-import { ApiService } from './api/embassy-api.service'
+import { inject, Injectable } from '@angular/core'
+import { Router } from '@angular/router'
 import { ErrorService, LoadingService } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
+import { TuiDialogService } from '@taiga-ui/core'
+import { TUI_CONFIRM } from '@taiga-ui/kit'
+import { PatchDB } from 'patch-db-client'
+import { filter } from 'rxjs'
+import { getAllPackages } from '../utils/get-package-data'
+import { hasCurrentDeps } from '../utils/has-deps'
+import { ApiService } from './api/embassy-api.service'
+import { DataModel } from './patch-db/data-model'
 
 @Injectable({
   providedIn: 'root',
 })
 export class StandardActionsService {
-  constructor(
-    private readonly patch: PatchDB<DataModel>,
-    private readonly api: ApiService,
-    private readonly alertCtrl: AlertController,
-    private readonly errorService: ErrorService,
-    private readonly loader: LoadingService,
-    private readonly navCtrl: NavController,
-  ) {}
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
+  private readonly api = inject(ApiService)
+  private readonly dialogs = inject(TuiDialogService)
+  private readonly errorService = inject(ErrorService)
+  private readonly loader = inject(LoadingService)
+  private readonly router = inject(Router)
 
   async rebuild(id: string) {
     const loader = this.loader.open(`Rebuilding Container...`).subscribe()
 
     try {
       await this.api.rebuildPackage({ id })
-      this.navCtrl.navigateBack('/services/' + id)
+      await this.router.navigate(['portal', 'services', id])
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -34,48 +35,38 @@ export class StandardActionsService {
     }
   }
 
-  async tryUninstall(manifest: T.Manifest): Promise<void> {
-    const { id, title, alerts } = manifest
-
-    let message =
+  async uninstall({ id, title, alerts }: T.Manifest): Promise<void> {
+    let content =
       alerts.uninstall ||
       `Uninstalling ${title} will permanently delete its data`
 
     if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
-      message = `${message}. Services that depend on ${title} will no longer work properly and may crash`
+      content = `${content}. Services that depend on ${title} will no longer work properly and may crash`
     }
 
-    const alert = await this.alertCtrl.create({
-      header: 'Warning',
-      message,
-      buttons: [
-        {
-          text: 'Cancel',
-          role: 'cancel',
+    this.dialogs
+      .open(TUI_CONFIRM, {
+        label: 'Warning',
+        size: 's',
+        data: {
+          content,
+          yes: 'Uninstall',
+          no: 'Cancel',
         },
-        {
-          text: 'Uninstall',
-          handler: () => {
-            this.uninstall(id)
-          },
-          cssClass: 'enter-click',
-        },
-      ],
-      cssClass: 'alert-warning-message',
-    })
-
-    await alert.present()
+      })
+      .pipe(filter(Boolean))
+      .subscribe(() => this.doUninstall(id))
   }
 
-  private async uninstall(id: string) {
+  private async doUninstall(id: string) {
     const loader = this.loader.open(`Beginning uninstall...`).subscribe()
 
     try {
       await this.api.uninstallPackage({ id })
-      this.api
+      await this.api
         .setDbValue<boolean>(['ackInstructions', id], false)
         .catch(e => console.error('Failed to mark instructions as unseen', e))
-      this.navCtrl.navigateRoot('/services')
+      await this.router.navigate(['portal'])
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

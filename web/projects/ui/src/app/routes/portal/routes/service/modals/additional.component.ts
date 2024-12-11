@@ -1,13 +1,8 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  Input,
-} from '@angular/core'
+import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { TuiDialogOptions } from '@taiga-ui/core'
-import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { injectContext } from '@taiga-ui/polymorpheus'
 import { ToAdditionalPipe } from 'src/app/routes/portal/routes/service/pipes/to-additional.pipe'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { ServiceAdditionalItemComponent } from './additional-item.component'
 
 @Component({
@@ -31,6 +26,5 @@ import { ServiceAdditionalItemComponent } from './additional-item.component'
   imports: [ToAdditionalPipe, ServiceAdditionalItemComponent],
 })
 export class ServiceAdditionalModal {
-  readonly pkg =
-    inject<TuiDialogOptions<PackageDataEntry>>(POLYMORPHEUS_CONTEXT).data
+  readonly pkg = injectContext<TuiDialogOptions<PackageDataEntry>>().data
 }

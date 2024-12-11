@@ -1,215 +1,99 @@
-import { TUI_CONFIRM } from '@taiga-ui/kit'
-import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { ActivatedRoute, Router } from '@angular/router'
-import {
-  isEmptyObject,
-  WithId,
-  ErrorService,
-  LoadingService,
-  getPkgId,
-} from '@start9labs/shared'
-import { TuiDialogService } from '@taiga-ui/core'
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { PatchDB } from 'patch-db-client'
-import { filter, switchMap, timer } from 'rxjs'
-import { FormComponent } from 'src/app/routes/portal/components/form.component'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import {
-  DataModel,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
-import { hasCurrentDeps } from 'src/app/utils/has-deps'
-import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { ServiceActionComponent } from '../components/action.component'
-import { ActionSuccessPage } from '../modals/action-success/action-success.page'
-import { GroupActionsPipe } from '../pipes/group-actions.pipe'
-import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
+import { toSignal } from '@angular/core/rxjs-interop'
+import { ActivatedRoute } from '@angular/router'
+import { getPkgId } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { getAllPackages, getManifest } from 'src/app/utils/get-package-data'
+import { PatchDB } from 'patch-db-client'
+import { filter, map } from 'rxjs'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { StandardActionsService } from 'src/app/services/standard-actions.service'
+import { getManifest } from 'src/app/utils/get-package-data'
+import { ActionService } from 'src/app/services/action.service'
+import { ServiceActionComponent } from '../components/action.component'
 
 @Component({
   template: `
-    @if (pkg$ | async; as pkg) {
+    @if (package(); as pkg) {
       <section>
         <h3 class="g-title">Standard Actions</h3>
         <button
           class="g-action"
-          [action]="action"
-          (click)="tryUninstall(pkg)"
+          [action]="rebuild"
+          (click)="service.rebuild(pkg.manifest.id)"
+        ></button>
+        <button
+          class="g-action"
+          [action]="uninstall"
+          (click)="service.uninstall(pkg.manifest)"
         ></button>
       </section>
-      <ng-container *ngIf="pkg.actions | groupActions as actionGroups">
-        <h3 *ngIf="actionGroups.length" class="g-title">
-          Actions for {{ (pkg | toManifest).title }}
-        </h3>
-        <div *ngFor="let group of actionGroups">
+      @if (pkg.actions.length) {
+        <h3 class="g-title">Actions for {{ pkg.manifest.title }}</h3>
+      }
+      @for (action of pkg.actions; track $index) {
+        @if (action.visibility !== 'hidden') {
           <button
-            *ngFor="let action of group"
             class="g-action"
-            [action]="{
-              name: action.name,
-              description: action.description,
-              icon: '@tui.circle-play',
-            }"
-            (click)="handleAction(action)"
+            [action]="action"
+            (click)="
+              handleAction(pkg.mainStatus, pkg.icon, pkg.manifest, action)
+            "
           ></button>
-        </div>
-      </ng-container>
+        }
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [
-    CommonModule,
-    ServiceActionComponent,
-    GroupActionsPipe,
-    ToManifestPipe,
-  ],
+  imports: [ServiceActionComponent],
 })
 export class ServiceActionsRoute {
-  private readonly id = getPkgId(inject(ActivatedRoute))
+  private readonly actions = inject(ActionService)
 
-  readonly pkg$ = this.patch
-    .watch$('packageData', this.id)
-    .pipe(filter(pkg => pkg.stateInfo.state === 'installed'))
+  readonly service = inject(StandardActionsService)
+  readonly package = toSignal(
+    inject<PatchDB<DataModel>>(PatchDB)
+      .watch$('packageData', getPkgId())
+      .pipe(
+        filter(pkg => pkg.stateInfo.state === 'installed'),
+        map(pkg => ({
+          mainStatus: pkg.status.main,
+          icon: pkg.icon,
+          manifest: getManifest(pkg),
+          actions: Object.keys(pkg.actions).map(id => ({
+            id,
+            ...pkg.actions[id],
+          })),
+        })),
+      ),
+  )
 
-  readonly action = {
-    icon: '@tui.trash-2',
-    name: 'Uninstall',
-    description:
-      'This will uninstall the service from StartOS and delete all data permanently.',
+  readonly rebuild = REBUILD
+  readonly uninstall = UNINSTALL
+
+  handleAction(
+    mainStatus: T.MainStatus['main'],
+    icon: string,
+    manifest: T.Manifest,
+    action: T.ActionMetadata & { id: string },
+  ) {
+    this.actions.present({
+      pkgInfo: { id: manifest.id, title: manifest.title, icon, mainStatus },
+      actionInfo: { id: action.id, metadata: action },
+    })
   }
+}
 
-  constructor(
-    private readonly embassyApi: ApiService,
-    private readonly dialogs: TuiDialogService,
-    private readonly errorService: ErrorService,
-    private readonly loader: LoadingService,
-    private readonly router: Router,
-    private readonly patch: PatchDB<DataModel>,
-    private readonly formDialog: FormDialogService,
-  ) {}
+const REBUILD = {
+  icon: '@tui.wrench',
+  name: 'Rebuild Service',
+  description:
+    'Rebuilds the service container. It is harmless and only takes a few seconds to complete, but it should only be necessary if a StartOS bug is preventing dependencies, interfaces, or actions from synchronizing.',
+}
 
-  async handleAction(action: WithId<T.ActionMetadata>) {
-    // @TODO Matt this needs complete rework, right?
-    // if (action.disabled) {
-    //   this.dialogs
-    //     .open(action.disabled, {
-    //       label: 'Forbidden',
-    //       size: 's',
-    //     })
-    //     .subscribe()
-    // } else {
-    //   if (action.input && !isEmptyObject(action.input)) {
-    //     this.formDialog.open(FormComponent, {
-    //       label: action.name,
-    //       data: {
-    //         spec: action.input,
-    //         buttons: [
-    //           {
-    //             text: 'Execute',
-    //             handler: async (value: any) =>
-    //               this.executeAction(action.id, value),
-    //           },
-    //         ],
-    //       },
-    //     })
-    //   } else {
-    //     this.dialogs
-    //       .open(TUI_CONFIRM, {
-    //         label: 'Confirm',
-    //         size: 's',
-    //         data: {
-    //           content: `Are you sure you want to execute action "${
-    //             action.name
-    //           }"? ${action.warning || ''}`,
-    //           yes: 'Execute',
-    //           no: 'Cancel',
-    //         },
-    //       })
-    //       .pipe(filter(Boolean))
-    //       .subscribe(() => this.executeAction(action.id))
-    //   }
-    // }
-  }
-
-  async tryUninstall(pkg: PackageDataEntry): Promise<void> {
-    const { title, alerts, id } = getManifest(pkg)
-
-    let content =
-      alerts.uninstall ||
-      `Uninstalling ${title} will permanently delete its data`
-
-    if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
-      content = `${content}. Services that depend on ${title} will no longer work properly and may crash`
-    }
-
-    this.dialogs
-      .open(TUI_CONFIRM, {
-        label: 'Warning',
-        size: 's',
-        data: {
-          content,
-          yes: 'Uninstall',
-          no: 'Cancel',
-        },
-      })
-      .pipe(filter(Boolean))
-      .subscribe(() => this.uninstall())
-  }
-
-  private async uninstall() {
-    const loader = this.loader.open(`Beginning uninstall...`).subscribe()
-
-    try {
-      await this.embassyApi.uninstallPackage({ id: this.id })
-      this.embassyApi
-        .setDbValue<boolean>(['ack-instructions', this.id], false)
-        .catch(e => console.error('Failed to mark instructions as unseen', e))
-      this.router.navigate(['./portal/dashboard'])
-    } catch (e: any) {
-      this.errorService.handleError(e)
-    } finally {
-      loader.unsubscribe()
-    }
-  }
-
-  private async executeAction(
-    actionId: string,
-    input?: object,
-  ): Promise<boolean> {
-    const loader = this.loader.open('Executing action...').subscribe()
-
-    try {
-      // @TODO Matt this needs complete rework, right?
-      // const data = await this.embassyApi.executePackageAction({
-      //   id: this.id,
-      //   actionId,
-      //   input,
-      // })
-
-      timer(500)
-        .pipe(
-          switchMap(() =>
-            this.dialogs.open(new PolymorpheusComponent(ActionSuccessPage), {
-              label: 'Execution Complete',
-              // data,
-            }),
-          ),
-        )
-        .subscribe()
-
-      return true
-    } catch (e: any) {
-      this.errorService.handleError(e)
-      return false
-    } finally {
-      loader.unsubscribe()
-    }
-  }
-
-  asIsOrder() {
-    return 0
-  }
+const UNINSTALL = {
+  icon: '@tui.trash-2',
+  name: 'Uninstall',
+  description:
+    'Uninstalls this service from StartOS and delete all data permanently.',
 }
