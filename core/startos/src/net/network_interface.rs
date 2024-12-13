@@ -1,13 +1,13 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV6};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6};
 use std::pin::Pin;
 use std::sync::{Arc, Weak};
 use std::task::Poll;
 use std::time::Duration;
 
 use clap::Parser;
-use futures::{Stream, StreamExt, TryStreamExt};
+use futures::{FutureExt, Stream, StreamExt, TryStreamExt};
 use getifaddrs::if_nametoindex;
 use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
@@ -16,12 +16,14 @@ use itertools::Itertools;
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
+use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
+use tokio::process::Command;
 use tokio::sync::watch;
 use ts_rs::TS;
 use zbus::proxy::{PropertyChanged, PropertyStream, SignalStream};
 use zbus::zvariant::{
-    DeserializeDict, OwnedObjectPath, OwnedValue, Type as ZType, Value as ZValue,
+    DeserializeDict, Dict, OwnedObjectPath, OwnedValue, Type as ZType, Value as ZValue,
 };
 use zbus::{proxy, Connection};
 
@@ -31,8 +33,10 @@ use crate::db::model::Database;
 use crate::net::network_interface::active_connection::ActiveConnectionProxy;
 use crate::prelude::*;
 use crate::util::future::Until;
+use crate::util::io::open_file;
 use crate::util::serde::{display_serializable, HandlerExtSerde};
 use crate::util::sync::SyncMutex;
+use crate::util::Invoke;
 
 pub fn network_interface_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -48,15 +52,15 @@ pub fn network_interface_api<C: Context>() -> ParentHandler<C> {
                     }
 
                     let mut table = Table::new();
-                    table.add_row(row![bc => "INTERFACE", "PUBLIC", "ADDRESSES"]);
+                    table.add_row(row![bc => "INTERFACE", "PUBLIC", "ADDRESSES", "WAN IP"]);
                     for (iface, info) in res {
                         table.add_row(row![
                             iface,
                             info.public(),
-                            info.ip_info.map_or_else(
+                            info.ip_info.as_ref().map_or_else(
                                 || "<DISCONNECTED>".to_owned(),
                                 |ip_info| ip_info.subnets
-                                    .into_iter()
+                                    .iter()
                                     .map(|ipnet| match ipnet.addr() {
                                         IpAddr::V4(ip) => format!("{ip}/{}", ipnet.prefix_len()),
                                         IpAddr::V6(ip) => format!(
@@ -65,7 +69,10 @@ pub fn network_interface_api<C: Context>() -> ParentHandler<C> {
                                             ipnet.prefix_len()
                                         ),
                                     })
-                                    .join(", "))
+                                    .join(", ")),
+                            info.ip_info.as_ref()
+                                .and_then(|ip_info| ip_info.wan_ip)
+                                .map_or_else(|| "N/A".to_owned(), |ip| ip.to_string())
                         ]);
                     }
 
@@ -90,6 +97,12 @@ pub fn network_interface_api<C: Context>() -> ParentHandler<C> {
                 .no_display()
                 .with_about("Allow this interface to infer whether it is publicly addressable based on its IPv4 address")
                 .with_call_remote::<CliContext>(),
+        ).subcommand("forget",
+            from_fn_async(forget_iface)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("Forget a disconnected interface")
+                .with_call_remote::<CliContext>()
         )
 }
 
@@ -134,6 +147,20 @@ async fn unset_public(
         .await
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[ts(export)]
+struct ForgetInterfaceParams {
+    #[ts(type = "string")]
+    interface: InternedString,
+}
+
+async fn forget_iface(
+    ctx: RpcContext,
+    ForgetInterfaceParams { interface }: ForgetInterfaceParams,
+) -> Result<(), Error> {
+    ctx.net_controller.net_iface.forget(&interface).await
+}
+
 #[proxy(
     interface = "org.freedesktop.NetworkManager",
     default_service = "org.freedesktop.NetworkManager",
@@ -152,6 +179,7 @@ trait NetworkManager {
 
 mod active_connection {
     use zbus::proxy;
+    use zbus::zvariant::OwnedObjectPath;
 
     use crate::prelude::*;
 
@@ -168,6 +196,9 @@ mod active_connection {
 
         #[zbus(signal)]
         fn state_changed(&self) -> Result<(), Error>;
+
+        #[zbus(property)]
+        fn dhcp4_config(&self) -> Result<OwnedObjectPath, Error>;
     }
 }
 
@@ -199,6 +230,30 @@ impl TryFrom<AddressData> for IpNet {
     type Error = Error;
     fn try_from(value: AddressData) -> Result<Self, Self::Error> {
         IpNet::new(value.address.parse()?, value.prefix as u8).with_kind(ErrorKind::ParseNetAddress)
+    }
+}
+
+#[proxy(
+    interface = "org.freedesktop.NetworkManager.DHCP4Config",
+    default_service = "org.freedesktop.NetworkManager"
+)]
+trait Dhcp4Config {
+    #[zbus(property)]
+    fn options(&self) -> Result<Dhcp4Options, Error>;
+}
+
+#[derive(Clone, Debug, DeserializeDict, ZType)]
+#[zvariant(signature = "dict")]
+struct Dhcp4Options {
+    ntp_servers: Option<String>,
+}
+impl TryFrom<OwnedValue> for Dhcp4Options {
+    type Error = zbus::Error;
+    fn try_from(value: OwnedValue) -> Result<Self, Self::Error> {
+        let dict = value.downcast_ref::<Dict>()?;
+        Ok(Self {
+            ntp_servers: dict.get::<_, String>(&zbus::zvariant::Str::from_static("ntp_servers"))?,
+        })
     }
 }
 
@@ -276,9 +331,9 @@ async fn watcher(write_to: watch::Sender<BTreeMap<InternedString, NetworkInterfa
                 );
 
             loop {
-                let devices = netman_proxy.devices().await?;
                 until
                     .run(async {
+                        let devices = netman_proxy.devices().await?;
                         let mut ifaces = BTreeSet::new();
                         let mut jobs = Vec::new();
                         for device in devices {
@@ -300,7 +355,7 @@ async fn watcher(write_to: watch::Sender<BTreeMap<InternedString, NetworkInterfa
                                 active_connection::ActiveConnectionProxy::new(&connection, dac)
                                     .await?;
                             let external = ac_proxy.state_flags().await? & 0x80 != 0;
-                            if external && iface != "lo" {
+                            if external {
                                 continue;
                             }
                             jobs.push(watch_ip(
@@ -338,9 +393,9 @@ async fn watcher(write_to: watch::Sender<BTreeMap<InternedString, NetworkInterfa
     }
 }
 
-async fn get_wan_ipv4(local_addr: Ipv4Addr) -> Result<Option<Ipv4Addr>, Error> {
+async fn get_wan_ipv4(iface: &str) -> Result<Option<Ipv4Addr>, Error> {
     Ok(reqwest::Client::builder()
-        .local_address(Some(IpAddr::V4(local_addr)))
+        .interface(iface)
         .build()?
         .get("http://ip4only.me/api/")
         .timeout(Duration::from_secs(10))
@@ -352,7 +407,7 @@ async fn get_wan_ipv4(local_addr: Ipv4Addr) -> Result<Option<Ipv4Addr>, Error> {
         .split(",")
         .skip(1)
         .next()
-        .filter(|s| s.is_empty())
+        .filter(|s| !s.is_empty())
         .map(|s| s.parse())
         .transpose()?)
 }
@@ -387,11 +442,18 @@ async fn watch_ip(
                 .stub(),
         )
         .with_stream(device_proxy.receive_ip4_config_changed().await.stub())
-        .with_stream(device_proxy.receive_ip6_config_changed().await.stub());
+        .with_stream(device_proxy.receive_ip6_config_changed().await.stub())
+        .with_stream(
+            active_connection_proxy
+                .receive_dhcp4_config_changed()
+                .await
+                .stub(),
+        );
 
     loop {
         let ip4_config = device_proxy.ip4_config().await?;
         let ip6_config = device_proxy.ip6_config().await?;
+        let dhcp4_config = active_connection_proxy.dhcp4_config().await?;
         until
             .run(async {
                 let ip4_proxy = Ip4ConfigProxy::new(&connection, ip4_config).await?;
@@ -400,49 +462,50 @@ async fn watch_ip(
                     .with_stream(ip4_proxy.receive_address_data_changed().await.stub())
                     .with_stream(ip6_proxy.receive_address_data_changed().await.stub());
 
+                let dhcp4_proxy = if &*dhcp4_config != "/" {
+                    let dhcp4_proxy = Dhcp4ConfigProxy::new(&connection, dhcp4_config).await?;
+                    until = until.with_stream(dhcp4_proxy.receive_options_changed().await.stub());
+                    Some(dhcp4_proxy)
+                } else {
+                    None
+                };
+
                 loop {
-                    let addresses = ip4_proxy
-                        .address_data()
-                        .await?
-                        .into_iter()
-                        .chain(ip6_proxy.address_data().await?)
-                        .collect_vec();
-                    if iface == "enp1s0" {
-                        dbg!(&addresses);
-                    }
                     until
                         .run(async {
+                            let addresses = ip4_proxy
+                                .address_data()
+                                .await?
+                                .into_iter()
+                                .chain(ip6_proxy.address_data().await?)
+                                .collect_vec();
+                            let mut ntp_servers = BTreeSet::new();
+                            if let Some(dhcp4_proxy) = &dhcp4_proxy {
+                                let dhcp = crate::dbg!(dhcp4_proxy.options().await?);
+                                if let Some(ntp) = dhcp.ntp_servers {
+                                    ntp_servers
+                                        .extend(ntp.split_whitespace().map(InternedString::intern));
+                                }
+                            }
                             let scope_id = if_nametoindex(&*iface).with_kind(ErrorKind::Network)?;
                             let subnets: BTreeSet<IpNet> =
                                 addresses.into_iter().map(TryInto::try_into).try_collect()?;
                             let ip_info = if !subnets.is_empty() {
-                                let wan_ip = if let Some(local_addr) =
-                                    subnets.iter().find_map(|s| match s {
-                                        IpNet::V4(net)
-                                            if !net.addr().is_loopback()
-                                                && !net.addr().is_link_local() =>
-                                        {
-                                            Some(net)
-                                        }
-                                        _ => None,
-                                    }) {
-                                    match get_wan_ipv4(local_addr.addr()).await {
-                                        Ok(a) => a,
-                                        Err(e) => {
-                                            tracing::error!(
-                                                "Failed to determine WAN IP for {iface}: {e}"
-                                            );
-                                            tracing::debug!("{e:?}");
-                                            None
-                                        }
+                                let wan_ip = match get_wan_ipv4(&*iface).await {
+                                    Ok(a) => a,
+                                    Err(e) => {
+                                        tracing::error!(
+                                            "Failed to determine WAN IP for {iface}: {e}"
+                                        );
+                                        tracing::debug!("{e:?}");
+                                        None
                                     }
-                                } else {
-                                    None
                                 };
                                 Some(IpInfo {
                                     scope_id,
                                     subnets,
                                     wan_ip,
+                                    ntp_servers,
                                 })
                             } else {
                                 None
@@ -452,12 +515,12 @@ async fn watch_ip(
                                 let public = m.get(&iface).map_or(None, |i| i.public);
                                 m.insert(
                                     iface.clone(),
-                                    dbg!(NetworkInterfaceInfo {
+                                    NetworkInterfaceInfo {
                                         public,
                                         ip_info: ip_info.clone(),
-                                    }),
+                                    },
                                 )
-                                .filter(|old| &dbg!(old).ip_info == &ip_info)
+                                .filter(|old| &old.ip_info == &ip_info)
                                 .is_none()
                             });
 
@@ -481,6 +544,8 @@ impl NetworkInterfaceController {
         db: &TypedPatchDb<Database>,
         info: &BTreeMap<InternedString, NetworkInterfaceInfo>,
     ) -> Result<(), Error> {
+        tracing::debug!("syncronizing {info:?} to db");
+
         db.mutate(|db| {
             db.as_public_mut()
                 .as_server_info_mut()
@@ -488,6 +553,55 @@ impl NetworkInterfaceController {
                 .ser(info)
         })
         .await?;
+
+        let ntp: BTreeSet<_> = info
+            .values()
+            .filter_map(|i| i.ip_info.as_ref())
+            .flat_map(|i| &i.ntp_servers)
+            .cloned()
+            .collect();
+        let prev_ntp = tokio_stream::wrappers::LinesStream::new(
+            BufReader::new(open_file("/etc/systemd/timesyncd.conf").await?).lines(),
+        )
+        .try_filter_map(|l| async move {
+            Ok(l.strip_prefix("NTP=").map(|s| {
+                s.split_whitespace()
+                    .map(InternedString::intern)
+                    .collect::<BTreeSet<_>>()
+            }))
+        })
+        .boxed()
+        .try_next()
+        .await?
+        .unwrap_or_default();
+        if ntp != prev_ntp {
+            // sed -i '/\(^\|#\)NTP=/c\NTP='"${servers}" /etc/systemd/timesyncd.conf
+            Command::new("sed")
+                .arg("-i")
+                .arg(
+                    [r#"/\(^\|#\)NTP=/c\NTP="#]
+                        .into_iter()
+                        .chain(Itertools::intersperse(
+                            {
+                                fn to_str(ntp: &InternedString) -> &str {
+                                    &*ntp
+                                }
+                                ntp.iter().map(to_str)
+                            },
+                            " ",
+                        ))
+                        .join(""),
+                )
+                .arg("/etc/systemd/timesyncd.conf")
+                .invoke(ErrorKind::Filesystem)
+                .await?;
+            Command::new("systemctl")
+                .arg("restart")
+                .arg("systemd-timesyncd")
+                .invoke(ErrorKind::Systemd)
+                .await?;
+        }
+
         Ok(())
     }
     pub fn new(db: TypedPatchDb<Database>) -> Self {
@@ -516,10 +630,19 @@ impl NetworkInterfaceController {
                     }
                 };
                 tokio::join!(watcher(write_to), async {
-                    loop {
-                        if let Err(e) = async {
-                            let ip_info = read_from.borrow().clone();
-                            Self::sync(&db, &ip_info).await?;
+                    let res: Result<(), Error> = async {
+                        loop {
+                            if let Err(e) = async {
+                                let ip_info = { read_from.borrow().clone() };
+                                Self::sync(&db, &ip_info).boxed().await?;
+
+                                Ok::<_, Error>(())
+                            }
+                            .await
+                            {
+                                tracing::error!("Error syncing ip info to db: {e}");
+                                tracing::debug!("{e:?}");
+                            }
 
                             read_from.changed().await.map_err(|_| {
                                 Error::new(
@@ -527,14 +650,12 @@ impl NetworkInterfaceController {
                                     ErrorKind::Network,
                                 )
                             })?;
-
-                            Ok::<_, Error>(())
                         }
-                        .await
-                        {
-                            tracing::error!("Error syncing ip info to db: {e}");
-                            tracing::debug!("{e:?}");
-                        }
+                    }
+                    .await;
+                    if let Err(e) = res {
+                        tracing::error!("Error syncing ip info to db: {e}");
+                        tracing::debug!("{e:?}");
                     }
                 });
             })
@@ -599,11 +720,43 @@ impl NetworkInterfaceController {
         }
         Ok(())
     }
+
+    pub async fn forget(&self, interface: &InternedString) -> Result<(), Error> {
+        let mut sub = self
+            .db
+            .subscribe(
+                "/public/serverInfo/networkInterfaces"
+                    .parse::<JsonPointer<_, _>>()
+                    .with_kind(ErrorKind::Database)?,
+            )
+            .await;
+        let mut err = None;
+        let changed = self.ip_info.send_if_modified(|ip_info| {
+            if ip_info
+                .get(interface)
+                .map_or(false, |i| i.ip_info.is_some())
+            {
+                err = Some(Error::new(
+                    eyre!("Cannot forget currently connected interface"),
+                    ErrorKind::InvalidRequest,
+                ));
+                return false;
+            }
+            ip_info.remove(interface).is_some()
+        });
+        if let Some(e) = err {
+            return Err(e);
+        }
+        if changed {
+            sub.recv().await;
+        }
+        Ok(())
+    }
 }
 
 struct ListenerMap {
     port: u16,
-    listeners: BTreeMap<(IpAddr, u32), (TcpListener, bool)>,
+    listeners: BTreeMap<(IpAddr, u32), (TcpListener, bool, Option<Ipv4Addr>)>,
 }
 impl ListenerMap {
     fn new(port: u16) -> Self {
@@ -618,14 +771,28 @@ impl ListenerMap {
         public: bool,
     ) -> Result<(), Error> {
         let mut keep = BTreeSet::<(IpAddr, u32)>::new();
-        for info in ip_info.values() {
+        for info in ip_info.values().chain([&NetworkInterfaceInfo {
+            public: Some(false),
+            ip_info: Some(IpInfo {
+                scope_id: 1,
+                subnets: [
+                    IpNet::new(Ipv4Addr::LOCALHOST.into(), 8).unwrap(),
+                    IpNet::new(Ipv6Addr::LOCALHOST.into(), 128).unwrap(),
+                ]
+                .into_iter()
+                .collect(),
+                wan_ip: None,
+                ntp_servers: Default::default(),
+            }),
+        }]) {
             if public || !info.public() {
                 if let Some(ip_info) = &info.ip_info {
                     for ipnet in &ip_info.subnets {
                         let key = (ipnet.addr(), ip_info.scope_id);
                         keep.insert(key);
-                        if let Some((_, is_public)) = self.listeners.get_mut(&key) {
+                        if let Some((_, is_public, wan_ip)) = self.listeners.get_mut(&key) {
                             *is_public = info.public();
+                            *wan_ip = info.ip_info.as_ref().and_then(|i| i.wan_ip);
                             continue;
                         }
                         self.listeners.insert(
@@ -640,6 +807,7 @@ impl ListenerMap {
                                 })
                                 .await?,
                                 info.public(),
+                                info.ip_info.as_ref().and_then(|i| i.wan_ip),
                             ),
                         );
                     }
@@ -654,14 +822,14 @@ impl ListenerMap {
     }
 }
 #[pin_project::pin_project]
-struct ListenerMapFut<'a>(&'a mut BTreeMap<(IpAddr, u32), (TcpListener, bool)>);
+struct ListenerMapFut<'a>(&'a mut BTreeMap<(IpAddr, u32), (TcpListener, bool, Option<Ipv4Addr>)>);
 impl<'a> Future for ListenerMapFut<'a> {
-    type Output = Result<(IpAddr, bool, TcpStream, SocketAddr), Error>;
+    type Output = Result<(IpAddr, bool, Option<Ipv4Addr>, TcpStream, SocketAddr), Error>;
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         let this = self.project();
         for ((ip, _), listener) in this.0.iter() {
             if let Poll::Ready((stream, addr)) = listener.0.poll_accept(cx)? {
-                return Poll::Ready(Ok((*ip, listener.1, stream, addr)));
+                return Poll::Ready(Ok((*ip, listener.1, listener.2, stream, addr)));
             }
         }
         Poll::Pending
@@ -675,6 +843,10 @@ pub struct NetworkInterfaceListener {
     _arc: Arc<()>,
 }
 impl NetworkInterfaceListener {
+    pub fn port(&self) -> u16 {
+        self.listeners.port
+    }
+
     pub async fn accept(&mut self, public: bool) -> Result<Accepted, Error> {
         loop {
             if self.needs_update {
@@ -684,11 +856,12 @@ impl NetworkInterfaceListener {
             }
             tokio::select! {
                 accepted = self.listeners.accept() => {
-                    let (ip, is_public, stream, peer) = accepted?;
+                    let (ip, is_public, wan_ip, stream, peer) = accepted?;
                     return Ok(Accepted {
                         stream,
                         peer,
                         is_public,
+                        wan_ip,
                         bind: (ip, self.listeners.port).into(),
                     })
                 },
@@ -708,6 +881,7 @@ pub struct Accepted {
     pub stream: TcpStream,
     pub peer: SocketAddr,
     pub is_public: bool,
+    pub wan_ip: Option<Ipv4Addr>,
     pub bind: SocketAddr,
 }
 

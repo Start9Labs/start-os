@@ -50,7 +50,7 @@ test = []
 
 [dependencies]
 aes = { version = "0.7.5", features = ["ctr"] }
-async-acme = { version = "0.5.0", git = "https://github.com/dr-bonez/async-acme.git", features = [
+async-acme = { version = "0.6.0", git = "https://github.com/dr-bonez/async-acme.git", features = [
   "use_rustls",
   "use_tokio",
 ] }

@@ -48,7 +48,7 @@ impl Handler<Restore> for ServiceActor {
                 Ok::<_, Error>(())
             }
             .map(|x| {
-                if let Err(err) = dbg!(x) {
+                if let Err(err) = x {
                     tracing::debug!("{:?}", err);
                     tracing::warn!("{}", err);
                 }

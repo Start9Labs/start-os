@@ -4,4 +4,5 @@ export type IpInfo = {
   scopeId: number
   subnets: string[]
   wanIp: string | null
+  ntpServers: string[]
 }

@@ -934,7 +934,6 @@ pub async fn attach(
                                 .with_kind(ErrorKind::Network)?;
                             current_out = "stdout";
                         }
-                        dbg!(&current_out);
                         ws.send(Message::Binary(out))
                             .await
                             .with_kind(ErrorKind::Network)?;
@@ -948,7 +947,6 @@ pub async fn attach(
                                 .with_kind(ErrorKind::Network)?;
                             current_out = "stderr";
                         }
-                        dbg!(&current_out);
                         ws.send(Message::Binary(err))
                             .await
                             .with_kind(ErrorKind::Network)?;

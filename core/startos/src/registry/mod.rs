@@ -2,7 +2,6 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use axum::Router;
 use futures::future::ready;
-use imbl_value::InternedString;
 use models::DataUrl;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler, Server};
 use serde::{Deserialize, Serialize};
@@ -17,7 +16,7 @@ use crate::registry::auth::Auth;
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfoMiddleware;
 use crate::registry::os::index::OsIndex;
-use crate::registry::package::index::{Category, PackageIndex};
+use crate::registry::package::index::PackageIndex;
 use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::Guid;
 use crate::util::serde::HandlerExtSerde;

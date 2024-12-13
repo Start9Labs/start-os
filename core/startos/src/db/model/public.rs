@@ -1,10 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr};
 
 use chrono::{DateTime, Utc};
 use exver::{Version, VersionRange};
 use imbl_value::InternedString;
-use ipnet::{IpNet, Ipv4Net, Ipv6Net};
+use ipnet::IpNet;
 use isocountry::CountryCode;
 use itertools::Itertools;
 use models::PackageId;
@@ -17,7 +17,7 @@ use ts_rs::TS;
 
 use crate::account::AccountInfo;
 use crate::db::model::package::AllPackageData;
-use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
+use crate::net::acme::AcmeProvider;
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::system::SmtpValue;
@@ -55,7 +55,7 @@ impl Public {
                     .parse()
                     .unwrap(),
                 network_interfaces: BTreeMap::new(),
-                acme: None,
+                acme: BTreeMap::new(),
                 status_info: ServerStatus {
                     backup_progress: None,
                     updated: false,
@@ -133,7 +133,8 @@ pub struct ServerInfo {
     #[ts(as = "BTreeMap::<String, NetworkInterfaceInfo>")]
     #[serde(default)]
     pub network_interfaces: BTreeMap<InternedString, NetworkInterfaceInfo>,
-    pub acme: Option<AcmeSettings>,
+    #[serde(default)]
+    pub acme: BTreeMap<AcmeProvider, AcmeSettings>,
     #[serde(default)]
     pub status_info: ServerStatus,
     pub wifi: WifiInfo,
@@ -167,7 +168,9 @@ impl NetworkInterfaceInfo {
             !self.ip_info.as_ref().map_or(true, |ip_info| {
                 ip_info.subnets.iter().all(|ipnet| {
                     if let IpAddr::V4(ip4) = ipnet.addr() {
-                        ip4.is_loopback() || ip4.is_private() || ip4.is_link_local()
+                        ip4.is_loopback()
+                            || (ip4.is_private() && !ip4.octets().starts_with(&[10, 59])) // reserving 10.59 for public wireguard configurations
+                            || ip4.is_link_local()
                     } else {
                         true
                     }
@@ -185,6 +188,8 @@ pub struct IpInfo {
     #[ts(type = "string[]")]
     pub subnets: BTreeSet<IpNet>,
     pub wan_ip: Option<Ipv4Addr>,
+    #[ts(type = "string[]")]
+    pub ntp_servers: BTreeSet<InternedString>,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
@@ -192,13 +197,7 @@ pub struct IpInfo {
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct AcmeSettings {
-    #[ts(type = "string")]
-    pub provider: Url,
-    /// email addresses for letsencrypt
     pub contact: Vec<String>,
-    #[ts(type = "string[]")]
-    /// domains to get letsencrypt certs for
-    pub domains: BTreeSet<InternedString>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]

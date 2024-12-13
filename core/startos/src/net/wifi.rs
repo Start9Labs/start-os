@@ -298,7 +298,7 @@ fn display_wifi_info(params: WithIoFormat<Empty>, info: WifiListInfo) {
     let mut table_global = Table::new();
     table_global.add_row(row![bc =>
         "CONNECTED",
-        "SIGNAL_STRENGTH",
+        "SIGNAL STRENGTH",
         "COUNTRY",
         "ETHERNET",
     ]);
@@ -306,12 +306,12 @@ fn display_wifi_info(params: WithIoFormat<Empty>, info: WifiListInfo) {
         &info
             .connected
             .as_ref()
-            .map_or("[N/A]".to_owned(), |c| c.0.clone()),
+            .map_or("N/A".to_owned(), |c| c.0.clone()),
         &info
             .connected
             .as_ref()
             .and_then(|x| info.ssids.get(x))
-            .map_or("[N/A]".to_owned(), |ss| format!("{}", ss.0)),
+            .map_or("N/A".to_owned(), |ss| format!("{}", ss.0)),
         info.country.as_ref().map(|c| c.alpha2()).unwrap_or("00"),
         &format!("{}", info.ethernet)
     ]);

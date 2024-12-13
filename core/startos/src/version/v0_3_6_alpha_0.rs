@@ -191,7 +191,6 @@ async fn init_postgres(datadir: impl AsRef<Path>) -> Result<PgPool, Error> {
         .run(&secret_store)
         .await
         .with_kind(crate::ErrorKind::Database)?;
-    dbg!("Init Postgres Done");
     Ok(secret_store)
 }
 
@@ -315,7 +314,6 @@ impl VersionT for Version {
             "private": private,
         });
 
-        dbg!("Should be done with the up");
         *db = next;
         Ok(())
     }

@@ -1,22 +1,23 @@
 use std::collections::BTreeMap;
-use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use async_acme::acme::ACME_TLS_ALPN_NAME;
+use async_acme::acme::{Identifier, ACME_TLS_ALPN_NAME};
 use axum::body::Body;
 use axum::extract::Request;
 use axum::response::Response;
 use color_eyre::eyre::eyre;
+use futures::FutureExt;
 use helpers::NonDetachingJoinHandle;
 use http::Uri;
 use imbl_value::InternedString;
 use models::ResultExt;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{watch, Mutex, RwLock};
+use tokio::net::TcpStream;
+use tokio::sync::watch;
 use tokio_rustls::rustls::crypto::CryptoProvider;
 use tokio_rustls::rustls::pki_types::{
     CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer, ServerName,
@@ -31,7 +32,7 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::db::model::Database;
-use crate::net::acme::AcmeCertCache;
+use crate::net::acme::{AcmeCertCache, AcmeProvider};
 use crate::net::network_interface::{
     Accepted, NetworkInterfaceController, NetworkInterfaceListener,
 };
@@ -55,6 +56,7 @@ pub struct VHostController {
     db: TypedPatchDb<Database>,
     interfaces: Arc<NetworkInterfaceController>,
     crypto_provider: Arc<CryptoProvider>,
+    acme_tls_alpn_cache: AcmeTlsAlpnCache,
     servers: SyncMutex<BTreeMap<u16, VHostServer>>,
 }
 impl VHostController {
@@ -63,6 +65,7 @@ impl VHostController {
             db,
             interfaces,
             crypto_provider: Arc::new(tokio_rustls::rustls::crypto::ring::default_provider()),
+            acme_tls_alpn_cache: Arc::new(SyncMutex::new(BTreeMap::new())),
             servers: SyncMutex::new(BTreeMap::new()),
         }
     }
@@ -72,6 +75,7 @@ impl VHostController {
         hostname: Option<InternedString>,
         external: u16,
         public: bool,
+        acme: Option<AcmeProvider>,
         target: SocketAddr,
         connect_ssl: Result<(), AlpnInfo>, // Ok: yes, connect using ssl, pass through alpn; Err: connect tcp, use provided strategy for alpn
     ) -> Result<Arc<()>, Error> {
@@ -84,12 +88,14 @@ impl VHostController {
                     self.db.clone(),
                     self.interfaces.clone(),
                     self.crypto_provider.clone(),
+                    self.acme_tls_alpn_cache.clone(),
                 )?
             };
             let rc = server.add(
                 hostname,
                 TargetInfo {
                     public,
+                    acme,
                     addr: target,
                     connect_ssl,
                 },
@@ -99,15 +105,14 @@ impl VHostController {
         })
     }
     #[instrument(skip_all)]
-    pub fn gc(&self, hostname: Option<InternedString>, external: u16) -> Result<(), Error> {
+    pub fn gc(&self, hostname: Option<InternedString>, external: u16) {
         self.servers.mutate(|writable| {
             if let Some(server) = writable.remove(&external) {
-                server.gc(hostname)?;
-                if !server.is_empty()? {
+                server.gc(hostname);
+                if !server.is_empty() {
                     writable.insert(external, server);
                 }
             }
-            Ok(())
         })
     }
 }
@@ -115,6 +120,7 @@ impl VHostController {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct TargetInfo {
     public: bool,
+    acme: Option<AcmeProvider>,
     addr: SocketAddr,
     connect_ssl: Result<(), AlpnInfo>,
 }
@@ -134,26 +140,48 @@ impl Default for AlpnInfo {
 
 type AcmeTlsAlpnCache =
     Arc<SyncMutex<BTreeMap<InternedString, watch::Receiver<Option<Arc<CertifiedKey>>>>>>;
-type Mapping = SyncMutex<BTreeMap<Option<InternedString>, BTreeMap<TargetInfo, Weak<()>>>>;
+type Mapping = BTreeMap<Option<InternedString>, BTreeMap<TargetInfo, Weak<()>>>;
 
 struct VHostServer {
-    mapping: Weak<Mapping>,
+    mapping: watch::Sender<Mapping>,
     _thread: NonDetachingJoinHandle<()>,
 }
 
 impl VHostServer {
     async fn accept(
         listener: &mut NetworkInterfaceListener,
-        mapping: Arc<Mapping>,
+        mut mapping: watch::Receiver<Mapping>,
         db: TypedPatchDb<Database>,
         acme_tls_alpn_cache: AcmeTlsAlpnCache,
         crypto_provider: Arc<CryptoProvider>,
     ) -> Result<(), Error> {
-        let any_public = mapping.peek(|m| {
-            m.iter()
-                .any(|(_, targets)| targets.keys().any(|target| target.public))
-        });
-        let accepted = listener.accept(any_public).await?;
+        let accepted;
+
+        loop {
+            let any_public = mapping
+                .borrow()
+                .iter()
+                .any(|(_, targets)| targets.iter().any(|(target, _)| target.public));
+
+            let changed_public = mapping
+                .wait_for(|m| {
+                    m.iter()
+                        .any(|(_, targets)| targets.iter().any(|(target, _)| target.public))
+                        != any_public
+                })
+                .boxed();
+
+            tokio::select! {
+                a = listener.accept(any_public) => {
+                    accepted = a?;
+                    break;
+                }
+                _ = changed_public => {
+                    tracing::debug!("port {} {} public bindings", listener.port(), if any_public { "no longer has" } else { "now has" });
+                }
+            }
+        }
+
         if let Err(e) = socket2::SockRef::from(&accepted.stream).set_tcp_keepalive(
             &socket2::TcpKeepalive::new()
                 .with_time(Duration::from_secs(900))
@@ -181,10 +209,11 @@ impl VHostServer {
         Accepted {
             stream,
             is_public,
+            wan_ip,
             bind,
             ..
         }: Accepted,
-        mapping: Arc<Mapping>,
+        mapping: watch::Receiver<Mapping>,
         db: TypedPatchDb<Database>,
         acme_tls_alpn_cache: AcmeTlsAlpnCache,
         crypto_provider: Arc<CryptoProvider>,
@@ -258,8 +287,58 @@ impl VHostServer {
                     }
                 }
             };
-        let target_name = mid.client_hello().server_name().map(|s| s.into());
-        let target = mapping.peek(|m| {
+        let target_name: Option<InternedString> =
+            mid.client_hello().server_name().map(|s| s.into());
+        if let Some(domain) = target_name.as_ref() {
+            if mid
+                .client_hello()
+                .alpn()
+                .into_iter()
+                .flatten()
+                .any(|alpn| alpn == ACME_TLS_ALPN_NAME)
+            {
+                let cert = WatchStream::new(
+                    acme_tls_alpn_cache
+                        .peek(|c| c.get(&**domain).cloned())
+                        .ok_or_else(|| {
+                            Error::new(
+                                eyre!("No challenge recv available for {domain}"),
+                                ErrorKind::OpenSsl,
+                            )
+                        })?,
+                );
+                tracing::info!("Waiting for verification cert for {domain}");
+                let cert = cert
+                    .filter(|c| c.is_some())
+                    .next()
+                    .await
+                    .flatten()
+                    .ok_or_else(|| {
+                        Error::new(
+                            eyre!("No challenge available for {domain}"),
+                            ErrorKind::OpenSsl,
+                        )
+                    })?;
+                tracing::info!("Verification cert received for {domain}");
+                let mut cfg = ServerConfig::builder_with_provider(crypto_provider.clone())
+                    .with_safe_default_protocol_versions()
+                    .with_kind(crate::ErrorKind::OpenSsl)?
+                    .with_no_client_auth()
+                    .with_cert_resolver(Arc::new(SingleCertResolver(cert)));
+
+                cfg.alpn_protocols = vec![ACME_TLS_ALPN_NAME.to_vec()];
+                tracing::info!("performing ACME auth challenge");
+                let mut accept = mid.into_stream(Arc::new(cfg));
+                let io = accept.get_mut().unwrap();
+                let buffered = io.stop_buffering();
+                io.write_all(&buffered).await?;
+                accept.await?;
+                tracing::info!("ACME auth challenge completed");
+                return Ok(());
+            }
+        }
+        let target = {
+            let m = mapping.borrow();
             m.get(&target_name)
                 .into_iter()
                 .flatten()
@@ -279,10 +358,12 @@ impl VHostServer {
                     }
                 })
                 .map(|(target, _)| target.clone())
-        });
-        if let Some(target) = dbg!(target) {
+        };
+        if let Some(target) = target {
             if is_public && !target.public {
-                log::warn!("Rejecting connection from public interface to private bind");
+                log::warn!(
+                    "Rejecting connection from public interface to private bind: {bind} -> {target:?}"
+                );
                 return Ok(());
             }
             let peek = db.peek().await;
@@ -292,80 +373,52 @@ impl VHostServer {
                 .as_local_certs()
                 .as_root_cert()
                 .de()?;
-            let mut cfg = match async {
-                if let Some(acme_settings) = peek.as_public().as_server_info().as_acme().de()? {
-                    if let Some(domain) = target_name
-                        .as_ref()
-                        .filter(|target_name| acme_settings.domains.contains(*target_name))
+            let mut cfg = async {
+                if let Some((domain, provider, settings)) =
+                    target_name.as_ref().and_then(|domain| {
+                        target.acme.as_ref().and_then(|a| {
+                            peek.as_public()
+                                .as_server_info()
+                                .as_acme()
+                                .as_idx(a)
+                                .map(|s| (domain, a, s))
+                        })
+                    })
+                {
+                    let acme_settings = settings.de()?;
+                    let mut identifiers = vec![Identifier::Dns(domain.to_string())];
+                    if false
+                    // Requires RFC 8738
                     {
-                        if mid
-                            .client_hello()
-                            .alpn()
-                            .into_iter()
-                            .flatten()
-                            .any(|alpn| alpn == ACME_TLS_ALPN_NAME)
-                        {
-                            let cert = WatchStream::new(
-                                acme_tls_alpn_cache
-                                    .peek(|c| c.get(&**domain).cloned())
-                                    .ok_or_else(|| {
-                                        Error::new(
-                                            eyre!("No challenge recv available for {domain}"),
-                                            ErrorKind::OpenSsl,
-                                        )
-                                    })?,
-                            );
-                            tracing::info!("Waiting for verification cert for {domain}");
-                            let cert = cert
-                                .filter(|c| c.is_some())
-                                .next()
-                                .await
-                                .flatten()
-                                .ok_or_else(|| {
-                                    Error::new(
-                                        eyre!("No challenge available for {domain}"),
-                                        ErrorKind::OpenSsl,
-                                    )
-                                })?;
-                            tracing::info!("Verification cert received for {domain}");
-                            let mut cfg =
-                                ServerConfig::builder_with_provider(crypto_provider.clone())
-                                    .with_safe_default_protocol_versions()
-                                    .with_kind(crate::ErrorKind::OpenSsl)?
-                                    .with_no_client_auth()
-                                    .with_cert_resolver(Arc::new(SingleCertResolver(cert)));
-
-                            cfg.alpn_protocols = vec![ACME_TLS_ALPN_NAME.to_vec()];
-                            return Ok(Err(cfg));
-                        } else {
-                            let domains = [domain.to_string()];
-                            let (send, recv) = watch::channel(None);
-                            acme_tls_alpn_cache.mutate(|c| c.insert(domain.clone(), recv));
-                            let cert = async_acme::rustls_helper::order(
-                                |_, cert| {
-                                    send.send_replace(Some(Arc::new(cert)));
-                                    Ok(())
-                                },
-                                acme_settings.provider.as_str(),
-                                &domains,
-                                Some(&AcmeCertCache(&db)),
-                                &acme_settings.contact,
-                            )
-                            .await
-                            .with_kind(ErrorKind::OpenSsl)?;
-                            return Ok(Ok(ServerConfig::builder_with_provider(
-                                crypto_provider.clone(),
-                            )
-                            .with_safe_default_protocol_versions()
-                            .with_kind(crate::ErrorKind::OpenSsl)?
-                            .with_no_client_auth()
-                            .with_cert_resolver(Arc::new(SingleCertResolver(Arc::new(cert))))));
+                        if let Some(wan_ip) = wan_ip {
+                            identifiers.push(Identifier::Ip(wan_ip.into()));
                         }
                     }
+                    let (send, recv) = watch::channel(None);
+                    acme_tls_alpn_cache.mutate(|c| c.insert(domain.clone(), recv));
+                    let cert = async_acme::rustls_helper::order(
+                        |_, cert| {
+                            send.send_replace(Some(Arc::new(cert)));
+                            Ok(())
+                        },
+                        provider.0.as_str(),
+                        &identifiers,
+                        Some(&AcmeCertCache(&db)),
+                        &acme_settings.contact,
+                    )
+                    .await
+                    .with_kind(ErrorKind::OpenSsl)?;
+                    return Ok(ServerConfig::builder_with_provider(crypto_provider.clone())
+                        .with_safe_default_protocol_versions()
+                        .with_kind(crate::ErrorKind::OpenSsl)?
+                        .with_no_client_auth()
+                        .with_cert_resolver(Arc::new(SingleCertResolver(Arc::new(cert)))));
                 }
+
                 let hostnames = target_name
                     .into_iter()
                     .chain([InternedString::from_display(&bind.ip())])
+                    .chain(wan_ip.as_ref().map(InternedString::from_display))
                     .collect();
                 let key = db
                     .mutate(|v| {
@@ -413,22 +466,8 @@ impl VHostServer {
                     )
                 }
                 .with_kind(crate::ErrorKind::OpenSsl)
-                .map(Ok)
             }
-            .await?
-            {
-                Ok(a) => a,
-                Err(cfg) => {
-                    tracing::info!("performing ACME auth challenge");
-                    let mut accept = mid.into_stream(Arc::new(cfg));
-                    let io = accept.get_mut().unwrap();
-                    let buffered = io.stop_buffering();
-                    io.write_all(&buffered).await?;
-                    accept.await?;
-                    tracing::info!("ACME auth challenge completed");
-                    return Ok(());
-                }
-            };
+            .await?;
             let mut tcp_stream = TcpStream::connect(target.addr).await?;
             match target.connect_ssl {
                 Ok(()) => {
@@ -546,17 +585,17 @@ impl VHostServer {
         db: TypedPatchDb<Database>,
         iface_ctrl: Arc<NetworkInterfaceController>,
         crypto_provider: Arc<CryptoProvider>,
+        acme_tls_alpn_cache: AcmeTlsAlpnCache,
     ) -> Result<Self, Error> {
-        let acme_tls_alpn_cache = Arc::new(SyncMutex::new(BTreeMap::new()));
         let mut listener = iface_ctrl.bind(port).with_kind(crate::ErrorKind::Network)?;
-        let mapping = Arc::new(SyncMutex::new(BTreeMap::new()));
+        let (map_send, map_recv) = watch::channel(BTreeMap::new());
         Ok(Self {
-            mapping: Arc::downgrade(&mapping),
+            mapping: map_send,
             _thread: tokio::spawn(async move {
                 loop {
                     if let Err(e) = Self::accept(
                         &mut listener,
-                        mapping.clone(),
+                        map_recv.clone(),
                         db.clone(),
                         acme_tls_alpn_cache.clone(),
                         crypto_provider.clone(),
@@ -574,54 +613,46 @@ impl VHostServer {
         })
     }
     fn add(&self, hostname: Option<InternedString>, target: TargetInfo) -> Result<Arc<()>, Error> {
-        if let Some(mapping) = Weak::upgrade(&self.mapping) {
-            mapping.mutate(|writable| {
-                let mut targets = writable.remove(&hostname).unwrap_or_default();
-                let rc =
-                    if let Some(rc) = Weak::upgrade(&targets.remove(&target).unwrap_or_default()) {
-                        rc
-                    } else {
-                        Arc::new(())
-                    };
-                targets.insert(target, Arc::downgrade(&rc));
+        let mut res = Ok(Arc::new(()));
+        self.mapping.send_if_modified(|writable| {
+            let mut changed = false;
+            let mut targets = writable.remove(&hostname).unwrap_or_default();
+            let rc = if let Some(rc) = Weak::upgrade(&targets.remove(&target).unwrap_or_default()) {
+                rc
+            } else {
+                changed = true;
+                Arc::new(())
+            };
+            targets.insert(target, Arc::downgrade(&rc));
+            writable.insert(hostname, targets);
+            res = Ok(rc);
+            changed
+        });
+        if !self.mapping.is_closed() {
+            res
+        } else {
+            Err(Error::new(
+                eyre!("VHost Service Thread has exited"),
+                crate::ErrorKind::Network,
+            ))
+        }
+    }
+    fn gc(&self, hostname: Option<InternedString>) {
+        self.mapping.send_if_modified(|writable| {
+            let mut targets = writable.remove(&hostname).unwrap_or_default();
+            let pre = targets.len();
+            targets = targets
+                .into_iter()
+                .filter(|(_, rc)| rc.strong_count() > 0)
+                .collect();
+            let post = targets.len();
+            if !targets.is_empty() {
                 writable.insert(hostname, targets);
-                Ok(rc)
-            })
-        } else {
-            Err(Error::new(
-                eyre!("VHost Service Thread has exited"),
-                crate::ErrorKind::Network,
-            ))
-        }
+            }
+            pre == post
+        });
     }
-    fn gc(&self, hostname: Option<InternedString>) -> Result<(), Error> {
-        if let Some(mapping) = Weak::upgrade(&self.mapping) {
-            mapping.mutate(|writable| {
-                let mut targets = writable.remove(&hostname).unwrap_or_default();
-                targets = targets
-                    .into_iter()
-                    .filter(|(_, rc)| rc.strong_count() > 0)
-                    .collect();
-                if !targets.is_empty() {
-                    writable.insert(hostname, targets);
-                }
-                Ok(())
-            })
-        } else {
-            Err(Error::new(
-                eyre!("VHost Service Thread has exited"),
-                crate::ErrorKind::Network,
-            ))
-        }
-    }
-    fn is_empty(&self) -> Result<bool, Error> {
-        if let Some(mapping) = Weak::upgrade(&self.mapping) {
-            Ok(mapping.peek(|m| m.is_empty()))
-        } else {
-            Err(Error::new(
-                eyre!("VHost Service Thread has exited"),
-                crate::ErrorKind::Network,
-            ))
-        }
+    fn is_empty(&self) -> bool {
+        self.mapping.borrow().is_empty()
     }
 }

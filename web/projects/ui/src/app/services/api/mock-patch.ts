@@ -48,6 +48,7 @@ export const mockPatchData: DataModel = {
           scopeId: 1,
           subnets: ['10.0.0.1/24'],
           wanIp: null,
+          ntpServers: [],
         },
       },
       wlan0: {
@@ -59,6 +60,7 @@ export const mockPatchData: DataModel = {
             'FE80:CD00:0000:0CDE:1257:0000:211E:729CD/64',
           ],
           wanIp: null,
+          ntpServers: [],
         },
       },
     },

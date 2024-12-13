@@ -9,9 +9,17 @@ pub use crate::error::{Error, ErrorCollection, ErrorKind, ResultExt};
 
 #[macro_export]
 macro_rules! dbg {
+    () => {{
+        tracing::debug!("[{}:{}:{}]", file!(), line!(), column!());
+    }};
     ($e:expr) => {{
         let e = $e;
-        tracing::debug!("[{}:{}:{}] $e = {e:?}", file!(), line!(), column!());
+        tracing::debug!("[{}:{}:{}] {} = {e:?}", file!(), line!(), column!(), stringify!($e));
         e
     }};
+    ($($e:expr),+) => {
+        ($(
+            crate::dbg!($e)
+        ),+)
+    }
 }
