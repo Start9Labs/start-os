@@ -464,6 +464,16 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
+        title: 'SMTP (email)',
+        description:
+          'Connect to an external SMTP server to send yourself emails',
+        icon: 'mail-outline',
+        action: () =>
+          this.navCtrl.navigateForward(['smtp'], { relativeTo: this.route }),
+        detail: true,
+        disabled$: of(false),
+      },
+      {
         title: 'SSH',
         description:
           'Manage your SSH keys to access your server from the command line',
@@ -474,12 +484,12 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'Wireless',
+        title: 'WiFi',
         description:
           'Connect your server to WiFi instead of Ethernet (not recommended)',
         icon: 'wifi',
         action: () =>
-          this.navCtrl.navigateForward(['wireless'], {
+          this.navCtrl.navigateForward(['wifi'], {
             relativeTo: this.route,
           }),
         detail: true,

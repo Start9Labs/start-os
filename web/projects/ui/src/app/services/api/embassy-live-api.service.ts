@@ -382,6 +382,20 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'wifi.delete', params })
   }
 
+  // smtp
+
+  async setSmtp(params: RR.SetSMTPReq): Promise<RR.SetSMTPRes> {
+    return this.rpcRequest({ method: 'server.set-smtp', params })
+  }
+
+  async clearSmtp(params: RR.ClearSMTPReq): Promise<RR.ClearSMTPRes> {
+    return this.rpcRequest({ method: 'server.clear-smtp', params })
+  }
+
+  async testSmtp(params: RR.TestSMTPReq): Promise<RR.TestSMTPRes> {
+    return this.rpcRequest({ method: 'server.test-smtp', params })
+  }
+
   // ssh
 
   async getSshKeys(params: RR.GetSSHKeysReq): Promise<RR.GetSSHKeysRes> {

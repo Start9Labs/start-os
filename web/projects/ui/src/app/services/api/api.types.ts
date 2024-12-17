@@ -102,6 +102,17 @@ export module RR {
   } // net.tor.reset
   export type ResetTorRes = null
 
+  // smtp
+
+  export type SetSMTPReq = T.SmtpValue // server.set-smtp
+  export type SetSMTPRes = null
+
+  export type ClearSMTPReq = {} // server.clear-smtp
+  export type ClearSMTPRes = null
+
+  export type TestSMTPReq = SetSMTPReq & { to: string } // server.test-smtp
+  export type TestSMTPRes = null
+
   // sessions
 
   export type GetSessionsReq = {} // sessions.list

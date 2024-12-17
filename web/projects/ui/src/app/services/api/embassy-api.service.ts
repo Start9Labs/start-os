@@ -127,6 +127,14 @@ export abstract class ApiService {
 
   abstract resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes>
 
+  // smtp
+
+  abstract setSmtp(params: RR.SetSMTPReq): Promise<RR.SetSMTPRes>
+
+  abstract clearSmtp(params: RR.ClearSMTPReq): Promise<RR.ClearSMTPRes>
+
+  abstract testSmtp(params: RR.TestSMTPReq): Promise<RR.TestSMTPRes>
+
   // marketplace URLs
 
   abstract registryRequest<T>(
