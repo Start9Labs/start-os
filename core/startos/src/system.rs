@@ -884,7 +884,7 @@ pub async fn test_system_smtp(ctx: RpcContext, smtp: SmtpValue) -> Result<(), Er
     if let Some(pass_val) = password {
         let message = MessageBuilder::new()
             .from((from.as_str(), login.as_str()))
-            .to(vec![(from, login.as_str())])
+            .to(vec![(from.as_str(), login.as_str())])
             .subject("StartOS Test Email")
             .text_body("Email credentials have been successfully setup on your StartOS Server");
         SmtpClientBuilder::new(server, port)
