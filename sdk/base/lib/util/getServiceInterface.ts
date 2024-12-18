@@ -1,15 +1,6 @@
 import { ServiceInterfaceType } from "../types"
 import { knownProtocols } from "../interfaces/Host"
-import {
-  AddressInfo,
-  Host,
-  HostAddress,
-  Hostname,
-  HostnameInfo,
-  HostnameInfoIp,
-  HostnameInfoOnion,
-  IpInfo,
-} from "../types"
+import { AddressInfo, Host, Hostname, HostnameInfo } from "../types"
 import { Effects } from "../Effects"
 
 export type UrlString = string
