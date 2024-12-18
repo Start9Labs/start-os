@@ -895,12 +895,13 @@ pub async fn test_system_smtp(ctx: RpcContext, smtp: SmtpValue) -> Result<(), Er
             .map_err(|e| Error::new(eyre!("mail-send error: {:?}", e), ErrorKind::Unknown))?
             .send(message)
             .await
-            .map_err(|e| Error::new(eyre!("mail-send error: {:?}", e), ErrorKind::Unknown))?
+            .map_err(|e| Error::new(eyre!("mail-send error: {:?}", e), ErrorKind::Unknown))?;
+        Ok(())
     } else {
-        return Error::new(
+        return Err(Error::new(
             eyre!("mail-send requires a password"),
             ErrorKind::IncorrectPassword,
-        )
+        ));
     }
 }
 
