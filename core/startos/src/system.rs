@@ -6,6 +6,8 @@ use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
 use imbl::vector;
+use mail_send::mail_builder::MessageBuilder;
+use mail_send::SmtpClientBuilder;
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::process::Command;
@@ -870,6 +872,29 @@ pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
         callbacks.call(vector![Value::Null]).await?;
     }
     Ok(())
+}
+pub async fn test_system_smtp(ctx: RpcContext, smtp: SmtpValue) -> Result<(), Error> {
+    let SmtpValue {
+        server,
+        port,
+        from,
+        login,
+        password,
+    } = smtp;
+    let message = MessageBuilder::new()
+        .from((from, login))
+        .to(vec![(from, login)])
+        .subject("StartOS Test Email")
+        .text_body("Email credentials have been successfully setup on your StartOS Server");
+    SmtpClientBuilder::new(server, port)
+        .implicit_tls(false)
+        .credentials((login, password.unwrap()))
+        .connect()
+        .await
+        .map_err(|e| Error::new(eyre!("mail-send error: {:?}", e), ErrorKind::Unknown))?
+        .send(message)
+        .await
+        .map_err(|e| Error::new(eyre!("mail-send error: {:?}", e), ErrorKind::Unknown))?
 }
 
 #[tokio::test]
