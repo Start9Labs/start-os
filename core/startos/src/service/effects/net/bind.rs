@@ -53,15 +53,36 @@ pub struct GetServicePortForwardParams {
     #[ts(optional)]
     package_id: Option<PackageId>,
     host_id: HostId,
-    internal_port: u32,
+    internal_port: u16,
 }
 pub async fn get_service_port_forward(
     context: EffectContext,
-    data: GetServicePortForwardParams,
+    GetServicePortForwardParams {
+        package_id,
+        host_id,
+        internal_port,
+    }: GetServicePortForwardParams,
 ) -> Result<NetInfo, Error> {
-    let internal_port = data.internal_port as u16;
-
     let context = context.deref()?;
-    let net_service = context.seed.persistent_container.net_service.lock().await;
-    net_service.get_lan_port(data.host_id, internal_port)
+
+    let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
+
+    Ok(context
+        .seed
+        .ctx
+        .db
+        .peek()
+        .await
+        .as_public()
+        .as_package_data()
+        .as_idx(&package_id)
+        .or_not_found(&package_id)?
+        .as_hosts()
+        .as_idx(&host_id)
+        .or_not_found(&host_id)?
+        .as_bindings()
+        .de()?
+        .get(&internal_port)
+        .or_not_found(lazy_format!("binding for port {internal_port}"))?
+        .net)
 }

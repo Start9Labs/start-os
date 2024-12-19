@@ -14,7 +14,7 @@ use helpers::NonDetachingJoinHandle;
 use http::Uri;
 use imbl_value::InternedString;
 use models::ResultExt;
-use rpc_toolkit::{from_fn, from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
@@ -119,10 +119,12 @@ impl VHostController {
         &self,
         hostname: Option<InternedString>,
         external: u16,
-        public: bool,
-        acme: Option<AcmeProvider>,
-        target: SocketAddr,
-        connect_ssl: Result<(), AlpnInfo>,
+        TargetInfo {
+            public,
+            acme,
+            addr,
+            connect_ssl,
+        }: TargetInfo,
     ) -> Result<Arc<()>, Error> {
         self.servers.mutate(|writable| {
             let server = if let Some(server) = writable.remove(&external) {
@@ -141,7 +143,7 @@ impl VHostController {
                 TargetInfo {
                     public,
                     acme,
-                    addr: target,
+                    addr,
                     connect_ssl,
                 },
             );
