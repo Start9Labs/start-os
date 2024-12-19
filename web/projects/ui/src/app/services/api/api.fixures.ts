@@ -1721,7 +1721,6 @@ export module Mock {
     serviceInterfaces: {
       ui: {
         id: 'ui',
-        hasPrimary: false,
         masked: false,
         name: 'Web UI',
         description:
@@ -1738,7 +1737,6 @@ export module Mock {
       },
       rpc: {
         id: 'rpc',
-        hasPrimary: false,
         masked: false,
         name: 'RPC',
         description:
@@ -1755,7 +1753,6 @@ export module Mock {
       },
       p2p: {
         id: 'p2p',
-        hasPrimary: true,
         masked: false,
         name: 'P2P',
         description:
@@ -1776,7 +1773,8 @@ export module Mock {
       abcdefg: {
         kind: 'multi',
         bindings: [],
-        addresses: [],
+        onions: [],
+        domains: {},
         hostnameInfo: {
           80: [
             {
@@ -1859,7 +1857,8 @@ export module Mock {
       bcdefgh: {
         kind: 'multi',
         bindings: [],
-        addresses: [],
+        onions: [],
+        domains: {},
         hostnameInfo: {
           8332: [],
         },
@@ -1867,7 +1866,8 @@ export module Mock {
       cdefghi: {
         kind: 'multi',
         bindings: [],
-        addresses: [],
+        onions: [],
+        domains: {},
         hostnameInfo: {
           8333: [],
         },
@@ -1914,7 +1914,6 @@ export module Mock {
     serviceInterfaces: {
       ui: {
         id: 'ui',
-        hasPrimary: false,
         masked: false,
         name: 'Web UI',
         description: 'A launchable web app for Bitcoin Proxy',
@@ -1960,7 +1959,6 @@ export module Mock {
     serviceInterfaces: {
       grpc: {
         id: 'grpc',
-        hasPrimary: false,
         masked: false,
         name: 'GRPC',
         description:
@@ -1977,7 +1975,6 @@ export module Mock {
       },
       lndconnect: {
         id: 'lndconnect',
-        hasPrimary: false,
         masked: true,
         name: 'LND Connect',
         description:
@@ -1994,7 +1991,6 @@ export module Mock {
       },
       p2p: {
         id: 'p2p',
-        hasPrimary: true,
         masked: false,
         name: 'P2P',
         description:

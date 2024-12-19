@@ -26,7 +26,6 @@ import { SetDependenciesParams } from ".././osBindings"
 import { GetSystemSmtpParams } from ".././osBindings"
 import { GetServicePortForwardParams } from ".././osBindings"
 import { ExportServiceInterfaceParams } from ".././osBindings"
-import { GetPrimaryUrlParams } from ".././osBindings"
 import { ListServiceInterfacesParams } from ".././osBindings"
 import { ExportActionParams } from ".././osBindings"
 import { MountParams } from ".././osBindings"
@@ -83,7 +82,6 @@ describe("startosTypeValidation ", () => {
       getServicePortForward: {} as GetServicePortForwardParams,
       clearServiceInterfaces: {} as ClearServiceInterfacesParams,
       exportServiceInterface: {} as ExportServiceInterfaceParams,
-      getPrimaryUrl: {} as WithCallback<GetPrimaryUrlParams>,
       listServiceInterfaces: {} as WithCallback<ListServiceInterfacesParams>,
       mount: {} as MountParams,
       checkDependencies: {} as CheckDependenciesParam,

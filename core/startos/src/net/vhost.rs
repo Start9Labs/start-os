@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
@@ -14,6 +14,7 @@ use helpers::NonDetachingJoinHandle;
 use http::Uri;
 use imbl_value::InternedString;
 use models::ResultExt;
+use rpc_toolkit::{from_fn, from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
@@ -31,6 +32,7 @@ use tokio_stream::StreamExt;
 use tracing::instrument;
 use ts_rs::TS;
 
+use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
 use crate::net::acme::{AcmeCertCache, AcmeProvider};
 use crate::net::network_interface::{
@@ -39,8 +41,51 @@ use crate::net::network_interface::{
 use crate::net::static_server::server_error;
 use crate::prelude::*;
 use crate::util::io::BackTrackingIO;
-use crate::util::serde::MaybeUtf8String;
+use crate::util::serde::{display_serializable, HandlerExtSerde, MaybeUtf8String};
 use crate::util::sync::SyncMutex;
+
+pub fn vhost_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new().subcommand(
+        "dump-table",
+        from_fn(|ctx: RpcContext| Ok(ctx.net_controller.vhost.dump_table()))
+            .with_display_serializable()
+            .with_custom_display_fn(|HandlerArgs { params, .. }, res| {
+                use prettytable::*;
+
+                if let Some(format) = params.format {
+                    display_serializable(format, res);
+                    return Ok::<_, Error>(());
+                }
+
+                let mut table = Table::new();
+                table.add_row(row![bc => "FROM", "TO", "PUBLIC", "ACME", "CONNECT SSL", "ACTIVE"]);
+
+                for (external, targets) in res {
+                    for (host, targets) in targets {
+                        for (idx, target) in targets.into_iter().enumerate() {
+                            table.add_row(row![
+                                format!(
+                                    "{}:{}",
+                                    host.as_ref().map(|s| &**s).unwrap_or("*"),
+                                    external.0
+                                ),
+                                target.addr,
+                                target.public,
+                                target.acme.as_ref().map(|a| a.0.as_str()).unwrap_or("NONE"),
+                                target.connect_ssl.is_ok(),
+                                idx == 0
+                            ]);
+                        }
+                    }
+                }
+
+                table.print_tty(false)?;
+
+                Ok(())
+            })
+            .with_call_remote::<CliContext>(),
+    )
+}
 
 #[derive(Debug)]
 struct SingleCertResolver(Arc<CertifiedKey>);
@@ -77,7 +122,7 @@ impl VHostController {
         public: bool,
         acme: Option<AcmeProvider>,
         target: SocketAddr,
-        connect_ssl: Result<(), AlpnInfo>, // Ok: yes, connect using ssl, pass through alpn; Err: connect tcp, use provided strategy for alpn
+        connect_ssl: Result<(), AlpnInfo>,
     ) -> Result<Arc<()>, Error> {
         self.servers.mutate(|writable| {
             let server = if let Some(server) = writable.remove(&external) {
@@ -104,6 +149,36 @@ impl VHostController {
             Ok(rc?)
         })
     }
+
+    pub fn dump_table(
+        &self,
+    ) -> BTreeMap<JsonKey<u16>, BTreeMap<JsonKey<Option<InternedString>>, BTreeSet<TargetInfo>>>
+    {
+        self.servers.peek(|s| {
+            s.iter()
+                .map(|(k, v)| {
+                    (
+                        JsonKey::new(*k),
+                        v.mapping
+                            .borrow()
+                            .iter()
+                            .map(|(k, v)| {
+                                (
+                                    JsonKey::new(k.clone()),
+                                    v.iter()
+                                        .filter(|(_, v)| v.strong_count() > 0)
+                                        .map(|(k, _)| k)
+                                        .cloned()
+                                        .collect(),
+                                )
+                            })
+                            .collect(),
+                    )
+                })
+                .collect()
+        })
+    }
+
     #[instrument(skip_all)]
     pub fn gc(&self, hostname: Option<InternedString>, external: u16) {
         self.servers.mutate(|writable| {
@@ -117,12 +192,12 @@ impl VHostController {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct TargetInfo {
-    public: bool,
-    acme: Option<AcmeProvider>,
-    addr: SocketAddr,
-    connect_ssl: Result<(), AlpnInfo>,
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+pub struct TargetInfo {
+    pub public: bool,
+    pub acme: Option<AcmeProvider>,
+    pub addr: SocketAddr,
+    pub connect_ssl: Result<(), AlpnInfo>, // Ok: yes, connect using ssl, pass through alpn; Err: connect tcp, use provided strategy for alpn
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]

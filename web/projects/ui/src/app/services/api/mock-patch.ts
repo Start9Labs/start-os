@@ -64,7 +64,7 @@ export const mockPatchData: DataModel = {
         },
       },
     },
-    acme: null,
+    acme: {},
     unreadNotificationCount: 4,
     // password is asdfasdf
     passwordHash:
@@ -149,7 +149,6 @@ export const mockPatchData: DataModel = {
       serviceInterfaces: {
         ui: {
           id: 'ui',
-          hasPrimary: false,
           masked: false,
           name: 'Web UI',
           description:
@@ -166,7 +165,6 @@ export const mockPatchData: DataModel = {
         },
         rpc: {
           id: 'rpc',
-          hasPrimary: false,
           masked: false,
           name: 'RPC',
           description:
@@ -183,7 +181,6 @@ export const mockPatchData: DataModel = {
         },
         p2p: {
           id: 'p2p',
-          hasPrimary: true,
           masked: false,
           name: 'P2P',
           description:
@@ -204,7 +201,8 @@ export const mockPatchData: DataModel = {
         abcdefg: {
           kind: 'multi',
           bindings: [],
-          addresses: [],
+          onions: [],
+          domains: {},
           hostnameInfo: {
             80: [
               {
@@ -287,7 +285,8 @@ export const mockPatchData: DataModel = {
         bcdefgh: {
           kind: 'multi',
           bindings: [],
-          addresses: [],
+          onions: [],
+          domains: {},
           hostnameInfo: {
             8332: [],
           },
@@ -295,7 +294,8 @@ export const mockPatchData: DataModel = {
         cdefghi: {
           kind: 'multi',
           bindings: [],
-          addresses: [],
+          onions: [],
+          domains: {},
           hostnameInfo: {
             8333: [],
           },
@@ -344,7 +344,6 @@ export const mockPatchData: DataModel = {
       serviceInterfaces: {
         grpc: {
           id: 'grpc',
-          hasPrimary: false,
           masked: false,
           name: 'GRPC',
           description:
@@ -361,7 +360,6 @@ export const mockPatchData: DataModel = {
         },
         lndconnect: {
           id: 'lndconnect',
-          hasPrimary: false,
           masked: true,
           name: 'LND Connect',
           description:
@@ -378,7 +376,6 @@ export const mockPatchData: DataModel = {
         },
         p2p: {
           id: 'p2p',
-          hasPrimary: true,
           masked: false,
           name: 'P2P',
           description:

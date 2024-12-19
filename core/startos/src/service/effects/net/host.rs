@@ -6,30 +6,6 @@ use crate::service::effects::callbacks::CallbackHandler;
 use crate::service::effects::prelude::*;
 use crate::service::rpc::CallbackId;
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
-pub struct GetPrimaryUrlParams {
-    #[ts(optional)]
-    package_id: Option<PackageId>,
-    host_id: HostId,
-    #[ts(optional)]
-    callback: Option<CallbackId>,
-}
-pub async fn get_primary_url(
-    context: EffectContext,
-    GetPrimaryUrlParams {
-        package_id,
-        host_id,
-        callback,
-    }: GetPrimaryUrlParams,
-) -> Result<Option<HostAddress>, Error> {
-    let context = context.deref()?;
-    let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
-
-    Ok(None) // TODO
-}
-
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]

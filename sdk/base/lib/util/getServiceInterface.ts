@@ -39,8 +39,6 @@ export type ServiceInterfaceFilled = {
   name: string
   /** Human readable description, used as tooltip usually */
   description: string
-  /** Whether or not the interface has a primary URL */
-  hasPrimary: boolean
   /** Whether or not to mask the URIs for this interface. Useful if the URIs contain sensitive information, such as a password, macaroon, or API key */
   masked: boolean
   /** Information about the host for this binding */
@@ -49,10 +47,6 @@ export type ServiceInterfaceFilled = {
   addressInfo: FilledAddressInfo | null
   /** Indicates if we are a ui/p2p/api for the kind of interface that this is representing */
   type: ServiceInterfaceType
-  /** The primary hostname for the service, as chosen by the user */
-  primaryHostname: Hostname | null
-  /** The primary URL for the service, as chosen by the user */
-  primaryUrl: UrlString | null
 }
 const either =
   <A>(...args: ((a: A) => boolean)[]) =>
@@ -191,23 +185,13 @@ const makeInterfaceFilled = async ({
     hostId,
     callback,
   })
-  const primaryUrl = await effects.getPrimaryUrl({
-    hostId,
-    packageId,
-    callback,
-  })
 
   const interfaceFilled: ServiceInterfaceFilled = {
     ...serviceInterfaceValue,
-    primaryUrl: primaryUrl,
     host,
     addressInfo: host
       ? filledAddress(host, serviceInterfaceValue.addressInfo)
       : null,
-    get primaryHostname() {
-      if (primaryUrl == null) return null
-      return getHostname(primaryUrl)
-    },
   }
   return interfaceFilled
 }

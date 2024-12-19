@@ -755,16 +755,20 @@ impl NetworkInterfaceController {
 }
 
 struct ListenerMap {
+    prev_public: bool,
     port: u16,
     listeners: BTreeMap<(IpAddr, u32), (TcpListener, bool, Option<Ipv4Addr>)>,
 }
 impl ListenerMap {
     fn new(port: u16) -> Self {
         Self {
+            prev_public: false,
             port,
             listeners: BTreeMap::new(),
         }
     }
+
+    #[instrument(skip(self))]
     async fn update(
         &mut self,
         ip_info: &BTreeMap<InternedString, NetworkInterfaceInfo>,
@@ -815,6 +819,7 @@ impl ListenerMap {
             }
         }
         self.listeners.retain(|key, _| keep.contains(key));
+        self.prev_public = public;
         Ok(())
     }
     fn accept(&mut self) -> ListenerMapFut {
@@ -848,6 +853,7 @@ impl NetworkInterfaceListener {
     }
 
     pub async fn accept(&mut self, public: bool) -> Result<Accepted, Error> {
+        self.needs_update |= public != self.listeners.prev_public;
         loop {
             if self.needs_update {
                 let ip_info = self.ip_info.borrow().clone();

@@ -46,7 +46,6 @@ export class Origin<T extends Host> {
       const {
         name,
         description,
-        hasPrimary,
         id,
         type,
         username,
@@ -67,7 +66,6 @@ export class Origin<T extends Host> {
         id,
         name,
         description,
-        hasPrimary,
         addressInfo,
         type,
         masked,

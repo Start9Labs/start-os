@@ -38,4 +38,8 @@ pub fn net<C: Context>() -> ParentHandler<C> {
             network_interface::network_interface_api::<C>()
                 .with_about("View and edit network interface configurations"),
         )
+        .subcommand(
+            "vhost",
+            vhost::vhost_api::<C>().with_about("Manage ssl virtual host proxy"),
+        )
 }

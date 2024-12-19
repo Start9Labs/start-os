@@ -216,12 +216,6 @@ export function makeEffects(context: EffectContext): Effects {
       }) as ReturnType<T.Effects["getServiceInterface"]>
     },
 
-    getPrimaryUrl(...[options]: Parameters<T.Effects["getPrimaryUrl"]>) {
-      return rpcRound("get-primary-url", {
-        ...options,
-        callback: context.callbacks?.addCallback(options.callback) || null,
-      }) as ReturnType<T.Effects["getPrimaryUrl"]>
-    },
     getServicePortForward(
       ...[options]: Parameters<T.Effects["getServicePortForward"]>
     ) {

@@ -49,7 +49,6 @@ impl Host {
         }
     }
     pub fn addresses<'a>(&'a self) -> impl Iterator<Item = HostAddress> + 'a {
-        // TODO: handle primary
         self.onions
             .iter()
             .cloned()

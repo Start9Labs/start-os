@@ -20,7 +20,6 @@ export class ServiceInterfaceBuilder {
       name: string
       id: string
       description: string
-      hasPrimary: boolean
       type: ServiceInterfaceType
       username: string | null
       path: string

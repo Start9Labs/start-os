@@ -43,7 +43,7 @@ impl VersionT for Version {
         &V0_3_0_COMPAT
     }
     fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
-        for (package, data) in db["public"]["packageData"]
+        for (_, package) in db["public"]["packageData"]
             .as_object_mut()
             .ok_or_else(|| {
                 Error::new(
@@ -53,11 +53,11 @@ impl VersionT for Version {
             })?
             .iter_mut()
         {
-            for (host_id, host) in data["hosts"]
+            for (_, host) in package["hosts"]
                 .as_object_mut()
                 .ok_or_else(|| {
                     Error::new(
-                        eyre!("expected public.packageData to be an object"),
+                        eyre!("expected public.packageData[id].hosts to be an object"),
                         ErrorKind::Database,
                     )
                 })?

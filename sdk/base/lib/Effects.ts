@@ -129,12 +129,6 @@ export type Effects = {
     hostId: HostId
     callback?: () => void
   }): Promise<Host | null>
-  /** Returns the primary url that a user has selected for a host, if it exists */
-  getPrimaryUrl(options: {
-    packageId?: PackageId
-    hostId: HostId
-    callback?: () => void
-  }): Promise<UrlString | null>
   /** Returns the IP address of the container */
   getContainerIp(): Promise<string>
   // interface
