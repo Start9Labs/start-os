@@ -820,6 +820,7 @@ impl ListenerMap {
         }
         self.listeners.retain(|key, _| keep.contains(key));
         self.prev_public = public;
+        crate::dbg!(&self.listeners);
         Ok(())
     }
     fn accept(&mut self) -> ListenerMapFut {
