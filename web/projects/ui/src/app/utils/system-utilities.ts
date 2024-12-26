@@ -4,6 +4,10 @@ import { BadgeService } from 'src/app/services/badge.service'
 
 export const SYSTEM_UTILITIES: Record<string, { icon: string; title: string }> =
   {
+    '/portal/services': {
+      icon: '@tui.layout-grid',
+      title: 'Services',
+    },
     '/portal/system/notifications': {
       icon: '@tui.bell',
       title: 'Notifications',

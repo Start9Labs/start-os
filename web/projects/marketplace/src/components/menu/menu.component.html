@@ -1,13 +1,13 @@
 <header>
   <div class="title">
     <store-icon
-      [class.tui-skeleton]="!registry"
-      [class.tui-skeleton_rounded]="!registry"
+      [tuiSkeleton]="!registry"
+      [style.border-radius.%]="!registry ? 100 : null"
       size="60px"
       [url]="registry?.url || ''"
       [marketplace]="iconConfig"
     />
-    <h1 [class.tui-skeleton]="!registry">
+    <h1 [tuiSkeleton]="!registry">
       {{ registry?.info?.name || 'Unnamed Registry' }}
     </h1>
     <!-- change registry modal -->
@@ -31,19 +31,18 @@
       >
         <store-icon
           size="42px"
-          [style.height]="'42px'"
-          [style.border-radius]="'100%'"
+          [style.height.px]="42"
+          [style.border-radius.%]="100"
           [url]="registry?.url || ''"
           [marketplace]="iconConfig"
-          [class.tui-skeleton]="!registry"
-          [class.tui-skeleton_rounded]="!registry"
+          [tuiSkeleton]="!registry"
         />
         <nav
           *tuiSidebar="open; direction: 'right'; autoWidth: true"
           class="nav-mobile-sidebar divide-bar"
         >
           <div class="nav-mobile-sidebar-top">
-            <h1 [class.tui-skeleton]="!registry">
+            <h1 [tuiSkeleton]="!registry">
               {{ registry?.info?.name }}
             </h1>
             <button

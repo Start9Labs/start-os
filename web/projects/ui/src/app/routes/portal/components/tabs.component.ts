@@ -15,7 +15,11 @@ import { BadgeService } from 'src/app/services/badge.service'
 import { RESOURCES } from 'src/app/utils/resources'
 import { getMenu } from 'src/app/utils/system-utilities'
 
-const FILTER = ['/portal/system/settings', '/portal/system/marketplace']
+const FILTER = [
+  '/portal/services',
+  '/portal/system/settings',
+  '/portal/system/marketplace',
+]
 
 @Component({
   standalone: true,
@@ -25,7 +29,7 @@ const FILTER = ['/portal/system/settings', '/portal/system/marketplace']
       <a
         tuiTabBarItem
         icon="@tui.layout-grid"
-        routerLink="/portal/dashboard"
+        routerLink="/portal/services"
         routerLinkActive
         (isActiveChange)="update()"
       >

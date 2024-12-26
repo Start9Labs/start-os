@@ -14,11 +14,7 @@ import { Breadcrumb } from 'src/app/services/breadcrumbs.service'
   selector: '[headerMobile]',
   template: `
     @if (headerMobile && headerMobile.length > 1) {
-      <a
-        [routerLink]="back"
-        [style.padding.rem]="0.75"
-        [queryParams]="queryParams"
-      >
+      <a [routerLink]="back" [style.padding.rem]="0.75">
         <tui-icon icon="@tui.arrow-left" />
       </a>
     }
@@ -39,20 +35,6 @@ import { Breadcrumb } from 'src/app/services/breadcrumbs.service'
         }
       }
 
-      :host-context(tui-root._mobile) {
-        margin: 0;
-        --clip-path: polygon(
-          0% 0%,
-          calc(100% - 1.75rem) 0%,
-          100% 100%,
-          0% 100%
-        );
-
-        > * {
-          display: block;
-        }
-      }
-
       .title {
         @include text-overflow();
         max-width: calc(100% - 5rem);
@@ -60,6 +42,12 @@ import { Breadcrumb } from 'src/app/services/breadcrumbs.service'
 
         &:first-child {
           margin-inline-start: 1rem;
+        }
+      }
+
+      :host-context(tui-root._mobile) {
+        > * {
+          display: block;
         }
       }
     `,
@@ -82,11 +70,7 @@ export class HeaderMobileComponent {
   get back() {
     return (
       this.headerMobile?.[this.headerMobile?.length - 2]?.routerLink ||
-      '/portal/dashboard'
+      '/portal/services'
     )
-  }
-
-  get queryParams() {
-    return this.back === '/portal/dashboard' ? { tab: 'utilities' } : null
   }
 }

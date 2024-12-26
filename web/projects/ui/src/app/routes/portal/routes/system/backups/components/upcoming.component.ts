@@ -2,6 +2,7 @@ import { TuiIcon } from '@taiga-ui/core'
 import { DatePipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
+import { TuiSkeleton } from '@taiga-ui/kit'
 import { CronJob } from 'cron'
 import { PatchDB } from 'patch-db-client'
 import { from, map } from 'rxjs'
@@ -48,7 +49,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
           } @else {
             @for (row of ['', '']; track $index) {
               <tr>
-                <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+                <td colspan="5"><div [tuiSkeleton]="true">Loading</div></td>
               </tr>
             }
           }
@@ -93,7 +94,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [GetBackupIconPipe, DatePipe, TuiIcon],
+  imports: [GetBackupIconPipe, DatePipe, TuiIcon, TuiSkeleton],
 })
 export class BackupsUpcomingComponent {
   private readonly api = inject(ApiService)

@@ -19,6 +19,7 @@ import { MarketplaceConfig, sameUrl } from '@start9labs/shared'
       />
     </ng-template>
   `,
+  styles: ':host { overflow: hidden; }',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StoreIconComponent {

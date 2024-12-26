@@ -147,7 +147,7 @@ export class MarketplaceControlsComponent {
   }
 
   async showService() {
-    this.router.navigate(['/portal/service', this.pkg.id])
+    this.router.navigate(['/portal/services', this.pkg.id])
   }
 
   private async dryInstall(url: string) {

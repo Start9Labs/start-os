@@ -8,12 +8,12 @@ import {
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { tuiPure } from '@taiga-ui/cdk'
-import { ControlsComponent } from 'src/app/routes/portal/routes/dashboard/controls.component'
-import { StatusComponent } from 'src/app/routes/portal/routes/dashboard/status.component'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { PkgDependencyErrors } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
+import { ControlsComponent } from './controls.component'
+import { StatusComponent } from './status.component'
 
 @Component({
   standalone: true,
@@ -119,7 +119,7 @@ export class ServiceComponent implements OnChanges {
   }
 
   get routerLink() {
-    return `/portal/service/${this.manifest.id}`
+    return `/portal/services/${this.manifest.id}`
   }
 
   ngOnChanges() {

@@ -9,12 +9,12 @@ import {
 import { TuiLet } from '@taiga-ui/cdk'
 import { TuiButton, tuiButtonOptionsProvider } from '@taiga-ui/core'
 import { map } from 'rxjs'
-import { UILaunchComponent } from 'src/app/routes/portal/routes/dashboard/ui.component'
 import { ControlsService } from 'src/app/services/controls.service'
 import { DepErrorService } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getManifest } from 'src/app/utils/get-package-data'
+import { UILaunchComponent } from './ui.component'
 
 const RUNNING = ['running', 'starting', 'restarting']
 

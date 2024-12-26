@@ -68,7 +68,7 @@ export class BackupsRestoreService {
         ),
       )
       .subscribe(() => {
-        this.router.navigate(['/portal/dashboard'])
+        this.router.navigate(['/portal/services'])
       })
   }
 

@@ -13,7 +13,7 @@ import {
   TuiIcon,
   TuiButton,
 } from '@taiga-ui/core'
-import { TuiConfirmData, TUI_CONFIRM } from '@taiga-ui/kit'
+import { TuiConfirmData, TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
 import { filter, map, Subject, switchMap } from 'rxjs'
 import { BackupTarget } from 'src/app/services/api/api.types'
 import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
@@ -72,7 +72,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
         } @else {
           @for (i of ['', '']; track $index) {
             <tr>
-              <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+              <td colspan="5"><div [tuiSkeleton]="true">Loading</div></td>
             </tr>
           }
         }
@@ -133,7 +133,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiButton, GetBackupIconPipe, TuiIcon, KeyValuePipe],
+  imports: [TuiButton, GetBackupIconPipe, TuiIcon, KeyValuePipe, TuiSkeleton],
 })
 export class BackupsTargetsComponent {
   private readonly dialogs = inject(TuiDialogService)

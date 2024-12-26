@@ -8,7 +8,12 @@ import {
 } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TuiDialogOptions, TuiDialogService, TuiButton } from '@taiga-ui/core'
-import { TuiConfirmData, TuiFade, TUI_CONFIRM } from '@taiga-ui/kit'
+import {
+  TuiConfirmData,
+  TuiFade,
+  TUI_CONFIRM,
+  TuiSkeleton,
+} from '@taiga-ui/kit'
 import { filter, take } from 'rxjs'
 import { PROMPT } from 'src/app/routes/portal/modals/prompt.component'
 import { SSHKey } from 'src/app/services/api/api.types'
@@ -51,7 +56,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
         } @else {
           @for (i of ['', '']; track $index) {
             <tr>
-              <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+              <td colspan="5"><div [tuiSkeleton]="true">Loading</div></td>
             </tr>
           }
         }
@@ -103,7 +108,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   `,
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, TuiButton, TuiFade],
+  imports: [CommonModule, TuiButton, TuiFade, TuiSkeleton],
 })
 export class SSHTableComponent {
   private readonly loader = inject(LoadingService)

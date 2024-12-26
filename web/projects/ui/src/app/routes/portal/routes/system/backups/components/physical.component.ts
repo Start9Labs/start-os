@@ -7,6 +7,7 @@ import {
 } from '@angular/core'
 import { UnitConversionPipesModule } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
+import { TuiSkeleton } from '@taiga-ui/kit'
 import { UnknownDisk } from 'src/app/services/api/api.types'
 
 @Component({
@@ -54,7 +55,7 @@ import { UnknownDisk } from 'src/app/services/api/api.types'
           </tr>
         } @else {
           <tr>
-            <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+            <td colspan="5"><div [tuiSkeleton]="true">Loading</div></td>
           </tr>
         }
       }
@@ -109,7 +110,7 @@ import { UnknownDisk } from 'src/app/services/api/api.types'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiButton, UnitConversionPipesModule],
+  imports: [TuiButton, UnitConversionPipesModule, TuiSkeleton],
 })
 export class BackupsPhysicalComponent {
   @Input()

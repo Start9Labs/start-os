@@ -1,4 +1,3 @@
-import { TuiLoader, TuiIcon } from '@taiga-ui/core'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,9 +5,10 @@ import {
   Input,
 } from '@angular/core'
 import { tuiPure } from '@taiga-ui/cdk'
+import { TuiIcon, TuiLoader } from '@taiga-ui/core'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
-import { InstallingProgressDisplayPipe } from '../service/pipes/install-progress.pipe'
+import { InstallingProgressDisplayPipe } from '../pipes/install-progress.pipe'
 
 @Component({
   standalone: true,

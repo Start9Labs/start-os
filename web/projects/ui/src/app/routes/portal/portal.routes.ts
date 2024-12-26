@@ -7,19 +7,12 @@ const ROUTES: Routes = [
     component: PortalComponent,
     children: [
       {
-        redirectTo: 'dashboard',
+        redirectTo: 'services',
         pathMatch: 'full',
         path: '',
       },
       {
-        path: 'dashboard',
-        loadComponent: () =>
-          import('./routes/dashboard/dashboard.component').then(
-            m => m.DashboardComponent,
-          ),
-      },
-      {
-        path: 'service',
+        path: 'services',
         loadChildren: () =>
           import('./routes/service/service.module').then(m => m.ServiceModule),
       },
