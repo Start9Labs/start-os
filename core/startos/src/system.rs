@@ -886,7 +886,7 @@ pub async fn test_system_smtp(ctx: RpcContext, smtp: SmtpValue) -> Result<(), Er
             .from((from.clone(), login.clone()))
             .to(vec![(from, login.clone())])
             .subject("StartOS Test Email")
-            .text_body("This is a test emails sent from your StartOS Server");
+            .text_body("This is a test email sent from your StartOS Server");
         SmtpClientBuilder::new(server, port)
             .implicit_tls(false)
             .credentials((login, pass_val))
