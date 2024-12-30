@@ -1,47 +1,34 @@
 import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import {
   IsActiveMatchOptions,
   RouterLink,
   RouterLinkActive,
 } from '@angular/router'
 import { PatchDB } from 'patch-db-client'
-import { HeaderConnectionComponent } from './connection.component'
-import { HeaderHomeComponent } from './home.component'
-import { HeaderCornerComponent } from './corner.component'
-import { HeaderBreadcrumbComponent } from './breadcrumb.component'
-import { HeaderSnekDirective } from './snek.directive'
-import { HeaderMobileComponent } from './mobile.component'
-import { DataModel } from 'src/app/services/patch-db/data-model'
 import { BreadcrumbsService } from 'src/app/services/breadcrumbs.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { HeaderMenuComponent } from './menu.component'
+import { HeaderMobileComponent } from './mobile.component'
+import { HeaderNavigationComponent } from './navigation.component'
+import { HeaderSnekDirective } from './snek.directive'
+import { HeaderStatusComponent } from './status.component'
 
 @Component({
   selector: 'header[appHeader]',
   template: `
-    <a headerHome routerLink="/portal/dashboard" routerLinkActive="active">
-      <div class="plaque"></div>
-    </a>
-    @for (item of breadcrumbs$ | async; track $index) {
-      <a
-        routerLinkActive="active"
-        [routerLink]="item.routerLink"
-        [routerLinkActiveOptions]="options"
-        [headerBreadcrumb]="item"
-      >
-        <div class="plaque"></div>
-      </a>
-    }
-    <div [style.flex]="1" [headerMobile]="breadcrumbs$ | async">
-      <div class="plaque"></div>
+    <header-navigation />
+    <div class="item item_center" [headerMobile]="breadcrumbs$ | async">
       <img
-        [appSnek]="(snekScore$ | async) || 0"
+        [appSnek]="snekScore()"
         class="snek"
         alt="Play Snake"
         src="assets/img/icons/snek.png"
       />
     </div>
-    <header-connection><div class="plaque"></div></header-connection>
-    <header-corner><div class="plaque"></div></header-corner>
+    <header-status class="item item_connection" />
+    <header-menu class="item item_corner" />
   `,
   styles: [
     `
@@ -49,89 +36,62 @@ import { BreadcrumbsService } from 'src/app/services/breadcrumbs.service'
 
       :host {
         display: flex;
-        height: 3.5rem;
-        padding: var(--bumper);
-        --clip-path: polygon(
-          0% 0%,
-          calc(100% - 1.75rem) 0%,
-          100% 100%,
-          1.75rem 100%
-        );
+        height: 2.75rem;
+        border-radius: var(--bumper);
+        margin: var(--bumper);
+        overflow: hidden;
 
-        > * {
-          @include transition(all);
+        .item {
           position: relative;
-          margin-left: -1.25rem;
-          backdrop-filter: blur(1rem);
-          clip-path: var(--clip-path);
-        }
-
-        > a:active,
-        > button:active {
-          backdrop-filter: blur(2rem) brightness(0.75) saturate(0.75);
-        }
-
-        &:has([data-connection='error']) {
-          --status: var(--tui-status-negative);
-        }
-
-        &:has([data-connection='warning']) {
-          --status: var(--tui-status-warning);
-        }
-
-        &:has([data-connection='neutral']) {
-          --status: var(--tui-status-neutral);
-        }
-
-        &:has([data-connection='success']) {
-          --status: var(--tui-status-positive);
-        }
-      }
-
-      header-connection .plaque::before {
-        box-shadow:
-          inset 0 1px rgba(255, 255, 255, 0.25),
-          inset 0 -0.25rem var(--tui-status-positive);
-      }
-
-      :host-context(tui-root._mobile) {
-        a {
-          display: none;
-        }
-
-        header-corner .plaque::before {
-          box-shadow:
-            inset 0 1px rgb(255 255 255 / 25%),
-            inset -0.375rem 0 var(--status);
-        }
-      }
-
-      .plaque {
-        @include transition(opacity);
-        position: absolute;
-        inset: 0;
-        z-index: -1;
-        filter: url(#round-corners);
-        opacity: 0.5;
-
-        .active & {
-          opacity: 0.75;
+          border-radius: inherit;
+          isolation: isolate;
 
           &::before {
-            // TODO: Theme
-            background: #363636;
+            @include transition(all);
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            backdrop-filter: blur(1rem);
+            transform: skewX(30deg);
+            background: rgb(75 75 75 / 65%);
+            box-shadow: inset 0 1px rgb(255 255 255 / 25%);
+            z-index: -1;
+          }
+
+          &_center {
+            flex: 1;
+          }
+
+          &_connection::before {
+            box-shadow:
+              inset 0 1px rgba(255, 255, 255, 0.25),
+              inset 0 -0.75rem 0 -0.5rem var(--status);
+          }
+
+          &_corner {
+            margin-inline-start: var(--bumper);
+
+            &::before {
+              right: -2rem;
+            }
           }
         }
 
-        &::before {
-          @include transition(all);
-          content: '';
-          position: absolute;
-          inset: 0;
-          clip-path: var(--clip-path);
-          // TODO: Theme
-          background: #5f5f5f;
-          box-shadow: inset 0 1px rgb(255 255 255 / 25%);
+        &:has([data-status='error']) {
+          --status: var(--tui-status-negative);
+        }
+
+        &:has([data-status='warning']) {
+          --status: var(--tui-status-warning);
+        }
+
+        &:has([data-status='neutral']) {
+          --status: var(--tui-status-neutral);
+        }
+
+        &:has([data-status='success']) {
+          --status: var(--tui-status-positive);
         }
       }
 
@@ -147,6 +107,12 @@ import { BreadcrumbsService } from 'src/app/services/breadcrumbs.service'
           opacity: 1;
         }
       }
+
+      :host-context(tui-root._mobile) {
+        .item_center::before {
+          left: -2rem;
+        }
+      }
     `,
   ],
   standalone: true,
@@ -155,22 +121,24 @@ import { BreadcrumbsService } from 'src/app/services/breadcrumbs.service'
     RouterLink,
     RouterLinkActive,
     AsyncPipe,
-    HeaderConnectionComponent,
-    HeaderHomeComponent,
-    HeaderCornerComponent,
+    HeaderStatusComponent,
+    HeaderNavigationComponent,
     HeaderSnekDirective,
-    HeaderBreadcrumbComponent,
     HeaderMobileComponent,
+    HeaderMenuComponent,
   ],
 })
 export class HeaderComponent {
   readonly options = OPTIONS
   readonly breadcrumbs$ = inject(BreadcrumbsService)
-  readonly snekScore$ = inject<PatchDB<DataModel>>(PatchDB).watch$(
-    'ui',
-    'gaming',
-    'snake',
-    'highScore',
+  readonly snekScore = toSignal(
+    inject<PatchDB<DataModel>>(PatchDB).watch$(
+      'ui',
+      'gaming',
+      'snake',
+      'highScore',
+    ),
+    { initialValue: 0 },
   )
 }
 

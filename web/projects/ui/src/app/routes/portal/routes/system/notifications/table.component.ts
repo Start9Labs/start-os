@@ -1,4 +1,4 @@
-import { TuiLineClamp, TuiCheckbox } from '@taiga-ui/kit'
+import { TuiLineClamp, TuiCheckbox, TuiSkeleton } from '@taiga-ui/kit'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -60,7 +60,7 @@ import { NotificationItemComponent } from './item.component'
       } @else {
         @for (row of ['', '']; track $index) {
           <tr>
-            <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+            <td colspan="5"><div [tuiSkeleton]="true">Loading</div></td>
           </tr>
         }
       }
@@ -76,7 +76,13 @@ import { NotificationItemComponent } from './item.component'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [FormsModule, TuiCheckbox, TuiLineClamp, NotificationItemComponent],
+  imports: [
+    FormsModule,
+    TuiCheckbox,
+    TuiLineClamp,
+    NotificationItemComponent,
+    TuiSkeleton,
+  ],
 })
 export class NotificationsTableComponent implements OnChanges {
   @Input() notifications?: ServerNotifications

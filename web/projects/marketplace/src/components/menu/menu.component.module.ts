@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { SharedPipesModule } from '@start9labs/shared'
+import { TuiSkeleton } from '@taiga-ui/kit'
 
 import { MenuComponent } from './menu.component'
 import { TuiLoader, TuiIcon, TuiButton, TuiAppearance } from '@taiga-ui/core'
@@ -25,6 +26,7 @@ import { StoreIconComponentModule } from '../store-icon/store-icon.component.mod
     TuiLet,
     TuiAppearance,
     TuiIcon,
+    TuiSkeleton,
   ],
   declarations: [MenuComponent],
   exports: [MenuComponent],

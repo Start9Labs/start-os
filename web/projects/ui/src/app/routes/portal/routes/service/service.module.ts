@@ -33,7 +33,10 @@ const ROUTES: Routes = [
       {
         path: '',
         pathMatch: 'full',
-        redirectTo: '/portal/dashboard',
+        loadComponent: () =>
+          import('./dashboard/dashboard.component').then(
+            m => m.DashboardComponent,
+          ),
       },
     ],
   },

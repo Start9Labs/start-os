@@ -1,5 +1,5 @@
 import { toSignal } from '@angular/core/rxjs-interop'
-import { TuiCheckbox } from '@taiga-ui/kit'
+import { TuiCheckbox, TuiSkeleton } from '@taiga-ui/kit'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -92,9 +92,7 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
           } @else {
             @for (row of ['', '']; track $index) {
               <tr>
-                <td colspan="6">
-                  <div class="tui-skeleton">Loading</div>
-                </td>
+                <td colspan="6"><div [tuiSkeleton]="true">Loading</div></td>
               </tr>
             }
           }
@@ -166,6 +164,7 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
     HasErrorPipe,
     GetBackupIconPipe,
     TuiCheckbox,
+    TuiSkeleton,
   ],
 })
 export class BackupsHistoryModal {

@@ -4,37 +4,41 @@ import { BadgeService } from 'src/app/services/badge.service'
 
 export const SYSTEM_UTILITIES: Record<string, { icon: string; title: string }> =
   {
-    '/portal/system/notifications': {
-      icon: '@tui.bell',
-      title: 'Notifications',
+    '/portal/services': {
+      icon: '@tui.layout-grid',
+      title: 'Services',
     },
     '/portal/system/marketplace': {
       icon: '@tui.shopping-cart',
       title: 'Marketplace',
     },
-    // '/portal/system/updates': {
-    //   icon: '@tui.globe',
-    //   title: 'Updates',
-    // },
     '/portal/system/sideload': {
       icon: '@tui.upload',
       title: 'Sideload',
     },
-    '/portal/system/logs': {
-      icon: '@tui.file-text',
-      title: 'Logs',
+    // '/portal/system/updates': {
+    //   icon: '@tui.globe',
+    //   title: 'Updates',
+    // },
+    '/portal/system/backups': {
+      icon: '@tui.save',
+      title: 'Backups',
     },
     '/portal/system/metrics': {
       icon: '@tui.activity',
       title: 'Metrics',
     },
-    '/portal/system/backups': {
-      icon: '@tui.save',
-      title: 'Backups',
+    '/portal/system/logs': {
+      icon: '@tui.file-text',
+      title: 'Logs',
     },
     '/portal/system/settings': {
       icon: '@tui.wrench',
       title: 'Settings',
+    },
+    '/portal/system/notifications': {
+      icon: '@tui.bell',
+      title: 'Notifications',
     },
   }
 

@@ -7,9 +7,10 @@ import {
   TuiDropdown,
   TuiIcon,
 } from '@taiga-ui/core'
-import { TuiBadgeNotification, TuiDataListDropdownManager } from '@taiga-ui/kit'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { AuthService } from 'src/app/services/auth.service'
 import { RESOURCES } from 'src/app/utils/resources'
-import { getMenu } from 'src/app/utils/system-utilities'
+import { STATUS } from 'src/app/services/status.service'
 import { ABOUT } from './about.component'
 
 @Component({
@@ -22,65 +23,43 @@ import { ABOUT } from './about.component'
       [(tuiDropdownOpen)]="open"
       [tuiDropdownMaxHeight]="9999"
     >
-      <img [style.max-width.%]="50" src="assets/img/icon.png" alt="StartOS" />
+      <img [style.max-width.%]="60" src="assets/img/icon.png" alt="StartOS" />
     </button>
     <ng-template #content>
-      <tui-data-list tuiDataListDropdownManager [style.width.rem]="13">
-        @for (link of utils; track $index) {
+      @if (status().status !== 'success') {
+        <div class="status">
+          <tui-icon [icon]="status().icon" />
+          {{ status().message }}
+        </div>
+      }
+      <tui-data-list [style.width.rem]="13">
+        <button tuiOption iconStart="@tui.info" (click)="about()">
+          About this server
+        </button>
+        <hr />
+        @for (link of links; track $index) {
           <a
             tuiOption
-            class="item"
+            target="_blank"
+            rel="noreferrer"
             [iconStart]="link.icon"
-            [routerLink]="link.routerLink"
-            (click)="open = false"
+            [href]="link.href"
           >
             {{ link.name }}
-            @if (link.badge(); as badge) {
-              <tui-badge-notification>{{ badge }}</tui-badge-notification>
-            }
           </a>
-          @if (!$index || $index === 3 || $index === 5) {
-            <hr />
-          }
         }
         <hr />
-        <button
+        <a
           tuiOption
-          class="item"
-          tuiDropdownSided
-          iconStart="@tui.circle-help"
-          iconEnd="@tui.chevron-right"
-          [tuiDropdown]="dropdown"
-          [tuiDropdownOffset]="12"
-          [tuiDropdownManual]="false"
+          iconStart="@tui.wrench"
+          routerLink="/portal/system/settings"
+          (click)="open = false"
         >
-          Resources
-          <ng-template #dropdown>
-            <tui-data-list>
-              <button
-                tuiOption
-                iconStart="@tui.info"
-                class="item"
-                (click)="about()"
-              >
-                About this server
-              </button>
-              <hr />
-              @for (link of links; track $index) {
-                <a
-                  tuiOption
-                  class="item"
-                  target="_blank"
-                  rel="noreferrer"
-                  iconEnd="@tui.external-link"
-                  [iconStart]="link.icon"
-                  [href]="link.href"
-                >
-                  {{ link.name }}
-                </a>
-              }
-            </tui-data-list>
-          </ng-template>
+          System Settings
+        </a>
+        <hr />
+        <button tuiOption iconStart="@tui.log-out" (click)="logout()">
+          Logout
         </button>
       </tui-data-list>
     </ng-template>
@@ -88,42 +67,54 @@ import { ABOUT } from './about.component'
   styles: [
     `
       :host {
-        margin: 0 -0.5rem;
+        padding-inline-start: 0.5rem;
+
+        &._open::before {
+          filter: brightness(1.2);
+        }
       }
 
-      [tuiIconButton] {
-        height: calc(var(--tui-height-m) + 0.25rem);
-        width: calc(var(--tui-height-m) + 0.625rem);
+      .status {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        padding: 1rem 1rem 0.5rem;
+        opacity: 0.5;
       }
 
-      .item {
+      [tuiOption] {
         justify-content: flex-start;
         gap: 0.5rem;
       }
+
+      :host-context(tui-root._mobile) {
+        [tuiIconButton] {
+          box-shadow: inset -1.25rem 0 0 -1rem var(--status);
+        }
+      }
     `,
   ],
+  host: { '[class._open]': 'open' },
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    TuiDropdown,
-    TuiDataList,
-    TuiButton,
-    TuiIcon,
-    RouterLink,
-    TuiBadgeNotification,
-    TuiDropdown,
-    TuiDataListDropdownManager,
-  ],
+  imports: [TuiDropdown, TuiDataList, TuiButton, TuiIcon, RouterLink],
 })
 export class HeaderMenuComponent {
+  private readonly api = inject(ApiService)
+  private readonly auth = inject(AuthService)
   private readonly dialogs = inject(TuiDialogService)
 
   open = false
 
-  readonly utils = getMenu()
   readonly links = RESOURCES
+  readonly status = inject(STATUS)
 
   about() {
     this.dialogs.open(ABOUT, { label: 'About this server' }).subscribe()
+  }
+
+  logout() {
+    this.api.logout({}).catch(e => console.error('Failed to log out', e))
+    this.auth.setUnverified()
   }
 }

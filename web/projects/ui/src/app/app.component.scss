@@ -9,7 +9,6 @@ tui-root {
   @include transition(filter);
   height: 100%;
   font-family: 'Open Sans', sans-serif;
-  --tui-skeleton-radius: 1rem;
 
   &.offline {
     filter: saturate(0.75) contrast(0.85);

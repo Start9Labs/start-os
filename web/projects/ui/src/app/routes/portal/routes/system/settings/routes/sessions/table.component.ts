@@ -1,4 +1,4 @@
-import { TuiCheckbox, TuiFade } from '@taiga-ui/kit'
+import { TuiCheckbox, TuiFade, TuiSkeleton } from '@taiga-ui/kit'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -63,7 +63,7 @@ import { PlatformInfoPipe } from './platform-info.pipe'
         } @else {
           @for (item of single ? [''] : ['', '']; track $index) {
             <tr>
-              <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+              <td colspan="5"><div [tuiSkeleton]="true">Loading</div></td>
             </tr>
           }
         }
@@ -123,6 +123,7 @@ import { PlatformInfoPipe } from './platform-info.pipe'
     TuiIcon,
     TuiCheckbox,
     TuiFade,
+    TuiSkeleton,
   ],
 })
 export class SSHTableComponent<T extends Session> implements OnChanges {

@@ -1,26 +1,27 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
 import { TuiIcon, TuiLoader, TuiTitle } from '@taiga-ui/core'
+import { TuiSkeleton } from '@taiga-ui/kit'
+import { TuiCell } from '@taiga-ui/layout'
 
 @Component({
   selector: 'service-health-check',
   template: `
     @if (loading) {
-      <tui-loader
-        [class.tui-skeleton]="!connected"
-        [inheritColor]="!check.result"
-      />
+      <tui-loader [tuiSkeleton]="!connected" [inheritColor]="!check.result" />
     } @else {
       <tui-icon
         [icon]="icon"
-        [class.tui-skeleton]="!connected"
+        [tuiSkeleton]="!connected"
         [style.color]="color"
       />
     }
     <span tuiTitle>
-      <strong [class.tui-skeleton]="!connected">{{ check.name }}</strong>
-      <span tuiSubtitle [class.tui-skeleton]="!connected" [style.color]="color">
-        {{ message }}
+      <strong [tuiSkeleton]="!connected && 2">
+        {{ connected ? check.name : '' }}
+      </strong>
+      <span tuiSubtitle [tuiSkeleton]="!connected && 3" [style.color]="color">
+        {{ connected ? message : '' }}
       </span>
     </span>
   `,
@@ -36,9 +37,10 @@ import { TuiIcon, TuiLoader, TuiTitle } from '@taiga-ui/core'
       }
     `,
   ],
+  hostDirectives: [TuiCell],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiLoader, TuiIcon, TuiTitle],
+  imports: [TuiLoader, TuiIcon, TuiTitle, TuiSkeleton],
 })
 export class ServiceHealthCheckComponent {
   @Input({ required: true })

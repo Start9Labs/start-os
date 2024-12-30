@@ -60,7 +60,7 @@ import { SideloadService } from './sideload.service'
               <a
                 tuiButton
                 appearance="tertiary-solid"
-                [routerLink]="'/portal/service/' + package.id"
+                [routerLink]="'/portal/services/' + package.id"
               >
                 View installed
               </a>

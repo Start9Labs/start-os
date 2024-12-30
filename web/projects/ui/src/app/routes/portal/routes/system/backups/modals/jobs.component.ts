@@ -8,7 +8,7 @@ import {
   TuiButton,
   TuiNotification,
 } from '@taiga-ui/core'
-import { TuiConfirmData, TUI_CONFIRM } from '@taiga-ui/kit'
+import { TuiConfirmData, TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { BehaviorSubject, filter, from } from 'rxjs'
 import { BackupJob } from 'src/app/services/api/api.types'
@@ -85,9 +85,7 @@ import { EDIT } from './edit.component'
           } @else {
             @for (i of ['', '']; track $index) {
               <tr>
-                <td colspan="5">
-                  <div class="tui-skeleton">Loading</div>
-                </td>
+                <td colspan="5"><div [tuiSkeleton]="true">Loading</div></td>
               </tr>
             }
           }
@@ -145,6 +143,7 @@ import { EDIT } from './edit.component'
     TuiIcon,
     ToHumanCronPipe,
     GetBackupIconPipe,
+    TuiSkeleton,
   ],
 })
 export class BackupsJobsModal implements OnInit {

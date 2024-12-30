@@ -13,7 +13,7 @@ import {
   TuiDialogService,
   TuiLink,
 } from '@taiga-ui/core'
-import { TUI_CONFIRM } from '@taiga-ui/kit'
+import { TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
 import {
   FormComponent,
@@ -78,7 +78,7 @@ import { Proxy } from 'src/app/services/patch-db/data-model'
           <tr><td colspan="5">No proxies added</td></tr>
         } @else {
           <tr>
-            <td colspan="5"><div class="tui-skeleton">Loading</div></td>
+            <td colspan="5"><div [tuiSkeleton]="true">Loading</div></td>
           </tr>
         }
       }
@@ -122,7 +122,7 @@ import { Proxy } from 'src/app/services/patch-db/data-model'
   `,
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, TuiLink, TuiButton],
+  imports: [CommonModule, TuiLink, TuiButton, TuiSkeleton],
 })
 export class ProxiesTableComponent {
   private readonly dialogs = inject(TuiDialogService)
