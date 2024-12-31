@@ -18,6 +18,7 @@ use ts_rs::TS;
 use crate::account::AccountInfo;
 use crate::db::model::package::AllPackageData;
 use crate::net::acme::AcmeProvider;
+use crate::net::utils::ipv6_is_local;
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::system::SmtpValue;
@@ -167,12 +168,13 @@ impl NetworkInterfaceInfo {
         self.public.unwrap_or_else(|| {
             !self.ip_info.as_ref().map_or(true, |ip_info| {
                 ip_info.subnets.iter().all(|ipnet| {
-                    if let IpAddr::V4(ip4) = ipnet.addr() {
-                        ip4.is_loopback()
+                    match ipnet.addr() {
+                        IpAddr::V4(ip4) => {
+                            ip4.is_loopback()
                             || (ip4.is_private() && !ip4.octets().starts_with(&[10, 59])) // reserving 10.59 for public wireguard configurations
                             || ip4.is_link_local()
-                    } else {
-                        true
+                        }
+                        IpAddr::V6(ip6) => true,
                     }
                 })
             })

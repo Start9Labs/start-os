@@ -10,7 +10,7 @@ use ts_rs::TS;
 use crate::context::CliContext;
 use crate::middleware::cors::Cors;
 use crate::net::static_server::{bad_request, not_found, server_error};
-use crate::net::web_server::WebServer;
+use crate::net::web_server::{Accept, WebServer};
 use crate::prelude::*;
 use crate::registry::auth::Auth;
 use crate::registry::context::RegistryContext;
@@ -143,7 +143,7 @@ pub fn registry_router(ctx: RegistryContext) -> Router {
         )
 }
 
-impl WebServer {
+impl<A: Accept + Send + 'static> WebServer<A> {
     pub fn serve_registry(&mut self, ctx: RegistryContext) {
         self.serve_router(registry_router(ctx))
     }

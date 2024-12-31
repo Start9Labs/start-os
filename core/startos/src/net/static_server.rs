@@ -8,7 +8,7 @@ use std::time::UNIX_EPOCH;
 use async_compression::tokio::bufread::GzipEncoder;
 use axum::body::Body;
 use axum::extract::{self as x, Request};
-use axum::response::Response;
+use axum::response::{Redirect, Response};
 use axum::routing::{any, get};
 use axum::Router;
 use base64::display::Base64Display;
@@ -16,7 +16,7 @@ use digest::Digest;
 use futures::future::ready;
 use http::header::{
     ACCEPT_ENCODING, ACCEPT_RANGES, CACHE_CONTROL, CONNECTION, CONTENT_ENCODING, CONTENT_LENGTH,
-    CONTENT_RANGE, CONTENT_TYPE, ETAG, RANGE,
+    CONTENT_RANGE, CONTENT_TYPE, ETAG, HOST, RANGE,
 };
 use http::request::Parts as RequestParts;
 use http::{HeaderValue, Method, StatusCode};
@@ -226,6 +226,20 @@ pub fn refresher() -> Router {
         }
         .into_response(&request.into_parts().0)
         .unwrap_or_else(server_error)
+    }))
+}
+
+pub fn redirecter() -> Router {
+    Router::new().fallback(get(|request: Request| async move {
+        Redirect::temporary(&format!(
+            "https://{}{}",
+            request
+                .headers()
+                .get(HOST)
+                .and_then(|s| s.to_str().ok())
+                .unwrap_or("localhost"),
+            request.uri()
+        ))
     }))
 }
 

@@ -1,5 +1,6 @@
 use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::sync::atomic::AtomicUsize;
+use std::task::{Context, Poll, Waker};
 
 use futures::future::{abortable, pending, BoxFuture, FusedFuture};
 use futures::stream::{AbortHandle, Abortable, BoxStream};
@@ -7,6 +8,7 @@ use futures::{Future, FutureExt, Stream, StreamExt};
 use tokio::sync::watch;
 
 use crate::prelude::*;
+use crate::util::sync::SyncMutex;
 
 #[pin_project::pin_project(PinnedDrop)]
 pub struct DropSignaling<F> {

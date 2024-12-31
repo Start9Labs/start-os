@@ -1,11 +1,11 @@
 use std::ffi::OsString;
 
 use clap::Parser;
-use futures::FutureExt;
+use futures::{FutureExt, TryStreamExt};
 use tokio::signal::unix::signal;
 use tracing::instrument;
 
-use crate::net::web_server::WebServer;
+use crate::net::web_server::{Acceptor, WebServer};
 use crate::prelude::*;
 use crate::registry::context::{RegistryConfig, RegistryContext};
 use crate::util::logger::LOGGER;
@@ -14,7 +14,7 @@ use crate::util::logger::LOGGER;
 async fn inner_main(config: &RegistryConfig) -> Result<(), Error> {
     let server = async {
         let ctx = RegistryContext::init(config).await?;
-        let mut server = WebServer::new(ctx.listen);
+        let mut server = WebServer::new(Acceptor::bind([ctx.listen]).await?);
         server.serve_registry(ctx.clone());
 
         let mut shutdown_recv = ctx.shutdown.subscribe();

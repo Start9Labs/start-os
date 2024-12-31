@@ -103,8 +103,6 @@ pub struct ServerConfig {
     #[arg(skip)]
     pub os_partitions: Option<OsPartitionInfo>,
     #[arg(long)]
-    pub bind_rpc: Option<SocketAddr>,
-    #[arg(long)]
     pub tor_control: Option<SocketAddr>,
     #[arg(long)]
     pub tor_socks: Option<SocketAddr>,
@@ -126,7 +124,6 @@ impl ContextConfig for ServerConfig {
     fn merge_with(&mut self, other: Self) {
         self.ethernet_interface = self.ethernet_interface.take().or(other.ethernet_interface);
         self.os_partitions = self.os_partitions.take().or(other.os_partitions);
-        self.bind_rpc = self.bind_rpc.take().or(other.bind_rpc);
         self.tor_control = self.tor_control.take().or(other.tor_control);
         self.tor_socks = self.tor_socks.take().or(other.tor_socks);
         self.dns_bind = self.dns_bind.take().or(other.dns_bind);

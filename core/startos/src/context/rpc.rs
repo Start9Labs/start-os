@@ -31,6 +31,7 @@ use crate::init::check_time_is_synchronized;
 use crate::lxc::{ContainerId, LxcContainer, LxcManager};
 use crate::net::net_controller::{NetController, PreInitNetController};
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
+use crate::net::web_server::{UpgradableListener, WebServer, WebServerAcceptorSetter};
 use crate::net::wifi::WpaCli;
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};
@@ -117,6 +118,7 @@ pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
     #[instrument(skip_all)]
     pub async fn init(
+        webserver: &WebServerAcceptorSetter<UpgradableListener>,
         config: &ServerConfig,
         disk_guid: Arc<String>,
         net_ctrl: Option<PreInitNetController>,
@@ -149,7 +151,7 @@ impl RpcContext {
                 if let Some(net_ctrl) = net_ctrl {
                     net_ctrl
                 } else {
-                    PreInitNetController::init(
+                    let net_ctrl = PreInitNetController::init(
                         db.clone(),
                         config
                             .tor_control
@@ -158,7 +160,9 @@ impl RpcContext {
                         &account.hostname,
                         account.tor_key.clone(),
                     )
-                    .await?
+                    .await?;
+                    webserver.try_upgrade(|a| net_ctrl.net_iface.upgrade_listener(a));
+                    net_ctrl
                 },
                 config
                     .dns_bind

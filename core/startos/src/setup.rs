@@ -80,7 +80,7 @@ async fn setup_init(
     password: Option<String>,
     init_phases: InitPhases,
 ) -> Result<(AccountInfo, PreInitNetController), Error> {
-    let InitResult { net_ctrl } = init(&ctx.config, init_phases).await?;
+    let InitResult { net_ctrl } = init(&ctx.webserver, &ctx.config, init_phases).await?;
 
     let account = net_ctrl
         .db
@@ -167,7 +167,7 @@ pub async fn attach(
 
             let (account, net_ctrl) = setup_init(&setup_ctx, password, init_phases).await?;
 
-            let rpc_ctx = RpcContext::init(&setup_ctx.config, disk_guid, Some(net_ctrl), rpc_ctx_phases).await?;
+            let rpc_ctx = RpcContext::init(&setup_ctx.webserver, &setup_ctx.config, disk_guid, Some(net_ctrl), rpc_ctx_phases).await?;
 
             Ok(((&account).try_into()?, rpc_ctx))
         })?;
@@ -456,9 +456,16 @@ async fn fresh_setup(
     db.put(&ROOT, &Database::init(&account)?).await?;
     drop(db);
 
-    let InitResult { net_ctrl } = init(&ctx.config, init_phases).await?;
+    let InitResult { net_ctrl } = init(&ctx.webserver, &ctx.config, init_phases).await?;
 
-    let rpc_ctx = RpcContext::init(&ctx.config, guid, Some(net_ctrl), rpc_ctx_phases).await?;
+    let rpc_ctx = RpcContext::init(
+        &ctx.webserver,
+        &ctx.config,
+        guid,
+        Some(net_ctrl),
+        rpc_ctx_phases,
+    )
+    .await?;
 
     Ok(((&account).try_into()?, rpc_ctx))
 }
@@ -571,7 +578,14 @@ async fn migrate(
 
     let (account, net_ctrl) = setup_init(&ctx, Some(start_os_password), init_phases).await?;
 
-    let rpc_ctx = RpcContext::init(&ctx.config, guid, Some(net_ctrl), rpc_ctx_phases).await?;
+    let rpc_ctx = RpcContext::init(
+        &ctx.webserver,
+        &ctx.config,
+        guid,
+        Some(net_ctrl),
+        rpc_ctx_phases,
+    )
+    .await?;
 
     Ok(((&account).try_into()?, rpc_ctx))
 }

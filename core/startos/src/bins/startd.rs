@@ -1,19 +1,19 @@
 use std::cmp::max;
 use std::ffi::OsString;
-use std::net::{Ipv6Addr, SocketAddr};
+use std::net::IpAddr;
 use std::sync::Arc;
 
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::{FutureExt, TryFutureExt};
-use tokio::fs::OpenOptions;
 use tokio::signal::unix::signal;
 use tracing::instrument;
 
 use crate::context::config::ServerConfig;
 use crate::context::rpc::InitRpcContextPhases;
 use crate::context::{DiagnosticContext, InitContext, RpcContext};
-use crate::net::web_server::WebServer;
+use crate::net::utils::ipv6_is_local;
+use crate::net::web_server::{Acceptor, UpgradableListener, WebServer};
 use crate::shutdown::Shutdown;
 use crate::system::launch_metrics_task;
 use crate::util::io::append_file;
@@ -22,7 +22,7 @@ use crate::{Error, ErrorKind, ResultExt};
 
 #[instrument(skip_all)]
 async fn inner_main(
-    server: &mut WebServer,
+    server: &mut WebServer<UpgradableListener>,
     config: &ServerConfig,
 ) -> Result<Option<Shutdown>, Error> {
     let rpc_ctx = if !tokio::fs::metadata("/run/startos/initialized")
@@ -50,6 +50,7 @@ async fn inner_main(
         server.serve_init(init_ctx);
 
         let ctx = RpcContext::init(
+            &server.acceptor_setter(),
             config,
             Arc::new(
                 tokio::fs::read_to_string("/media/startos/config/disk.guid") // unique identifier for volume group - keeps track of the disk that goes with your embassy
@@ -148,7 +149,18 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
             .build()
             .expect("failed to initialize runtime");
         rt.block_on(async {
-            let mut server = WebServer::new(SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 80));
+            let addrs = crate::net::utils::all_socket_addrs_for(80).await?;
+            let mut server = WebServer::new(
+                Acceptor::bind_upgradable(addrs.into_iter().filter(|addr| match addr.ip() {
+                    IpAddr::V4(ip4) => {
+                        ip4.is_loopback()
+                        || (ip4.is_private() && !ip4.octets().starts_with(&[10, 59])) // reserving 10.59 for public wireguard configurations
+                        || ip4.is_link_local()
+                    }
+                    IpAddr::V6(ip6) => ipv6_is_local(ip6),
+                }))
+                .await?,
+            );
             match inner_main(&mut server, &config).await {
                 Ok(a) => {
                     server.shutdown().await;

@@ -17,7 +17,7 @@ use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
 use crate::net::forward::LanPortForwardController;
 use crate::net::host::address::HostAddress;
-use crate::net::host::binding::{BindId, BindOptions, NetInfo};
+use crate::net::host::binding::{BindId, BindOptions};
 use crate::net::host::{host_for, Host, HostKind, Hosts};
 use crate::net::network_interface::NetworkInterfaceController;
 use crate::net::service_interface::{HostnameInfo, IpHostname, OnionHostname};
@@ -32,7 +32,7 @@ pub struct PreInitNetController {
     pub db: TypedPatchDb<Database>,
     tor: TorController,
     vhost: VHostController,
-    net_iface: Arc<NetworkInterfaceController>,
+    pub net_iface: Arc<NetworkInterfaceController>,
     os_bindings: Vec<Arc<()>>,
     server_hostnames: Vec<Option<InternedString>>,
 }

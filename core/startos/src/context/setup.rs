@@ -23,6 +23,7 @@ use crate::context::RpcContext;
 use crate::disk::OsPartitionInfo;
 use crate::hostname::Hostname;
 use crate::init::init_postgres;
+use crate::net::web_server::{UpgradableListener, WebServer, WebServerAcceptorSetter};
 use crate::prelude::*;
 use crate::progress::FullProgressTracker;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
@@ -61,6 +62,7 @@ impl TryFrom<&AccountInfo> for SetupResult {
 }
 
 pub struct SetupContextSeed {
+    pub webserver: WebServerAcceptorSetter<UpgradableListener>,
     pub config: ServerConfig,
     pub os_partitions: OsPartitionInfo,
     pub disable_encryption: bool,
@@ -76,10 +78,14 @@ pub struct SetupContextSeed {
 pub struct SetupContext(Arc<SetupContextSeed>);
 impl SetupContext {
     #[instrument(skip_all)]
-    pub fn init(config: &ServerConfig) -> Result<Self, Error> {
+    pub fn init(
+        webserver: &WebServer<UpgradableListener>,
+        config: &ServerConfig,
+    ) -> Result<Self, Error> {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let datadir = config.datadir().to_owned();
         Ok(Self(Arc::new(SetupContextSeed {
+            webserver: webserver.acceptor_setter(),
             config: config.clone(),
             os_partitions: config.os_partitions.clone().ok_or_else(|| {
                 Error::new(

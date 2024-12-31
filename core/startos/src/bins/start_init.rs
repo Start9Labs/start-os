@@ -11,7 +11,7 @@ use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::REPAIR_DISK_PATH;
 use crate::firmware::{check_for_firmware_update, update_firmware};
 use crate::init::{InitPhases, InitResult, STANDBY_MODE_PATH};
-use crate::net::web_server::WebServer;
+use crate::net::web_server::{UpgradableListener, WebServer};
 use crate::prelude::*;
 use crate::progress::FullProgressTracker;
 use crate::shutdown::Shutdown;
@@ -20,7 +20,7 @@ use crate::PLATFORM;
 
 #[instrument(skip_all)]
 async fn setup_or_init(
-    server: &mut WebServer,
+    server: &mut WebServer<UpgradableListener>,
     config: &ServerConfig,
 ) -> Result<Result<(RpcContext, FullProgressTracker), Shutdown>, Error> {
     if let Some(firmware) = check_for_firmware_update()
@@ -111,7 +111,7 @@ async fn setup_or_init(
         .await
         .is_err()
     {
-        let ctx = SetupContext::init(config)?;
+        let ctx = SetupContext::init(server, config)?;
 
         server.serve_setup(ctx.clone());
 
@@ -187,10 +187,17 @@ async fn setup_or_init(
                 }));
             }
 
-            let InitResult { net_ctrl } = crate::init::init(config, init_phases).await?;
+            let InitResult { net_ctrl } =
+                crate::init::init(&server.acceptor_setter(), config, init_phases).await?;
 
-            let rpc_ctx =
-                RpcContext::init(config, disk_guid, Some(net_ctrl), rpc_ctx_phases).await?;
+            let rpc_ctx = RpcContext::init(
+                &server.acceptor_setter(),
+                config,
+                disk_guid,
+                Some(net_ctrl),
+                rpc_ctx_phases,
+            )
+            .await?;
 
             Ok::<_, Error>(Ok((rpc_ctx, handle)))
         }
@@ -204,7 +211,7 @@ async fn setup_or_init(
 
 #[instrument(skip_all)]
 pub async fn main(
-    server: &mut WebServer,
+    server: &mut WebServer<UpgradableListener>,
     config: &ServerConfig,
 ) -> Result<Result<(RpcContext, FullProgressTracker), Shutdown>, Error> {
     if &*PLATFORM == "raspberrypi" && tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {

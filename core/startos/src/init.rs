@@ -7,6 +7,7 @@ use std::time::{Duration, SystemTime};
 
 use axum::extract::ws::{self};
 use color_eyre::eyre::eyre;
+use futures::future::Either;
 use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
 use models::ResultExt;
@@ -25,6 +26,7 @@ use crate::db::model::Database;
 use crate::disk::mount::util::unmount;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::net::net_controller::PreInitNetController;
+use crate::net::web_server::{UpgradableListener, WebServer, WebServerAcceptorSetter};
 use crate::prelude::*;
 use crate::progress::{
     FullProgress, FullProgressTracker, PhaseProgressTrackerHandle, PhasedProgressBar,
@@ -274,6 +276,7 @@ pub async fn run_script<P: AsRef<Path>>(path: P, mut progress: PhaseProgressTrac
 
 #[instrument(skip_all)]
 pub async fn init(
+    webserver: &WebServerAcceptorSetter<UpgradableListener>,
     cfg: &ServerConfig,
     InitPhases {
         preinit,
@@ -356,6 +359,7 @@ pub async fn init(
         account.tor_key,
     )
     .await?;
+    webserver.try_upgrade(|a| net_ctrl.net_iface.upgrade_listener(a));
     start_net.complete();
 
     mount_logs.start();
