@@ -4,6 +4,7 @@ import {
   TUI_ANIMATIONS_SPEED,
   TuiButton,
   tuiFadeIn,
+  TuiHint,
   TuiIcon,
   tuiScaleIn,
   tuiToAnimationOptions,
@@ -18,9 +19,12 @@ import { getMenu } from 'src/app/utils/system-utilities'
   template: `
     @for (item of utils; track $index) {
       <a
+        #rla="routerLinkActive"
         class="link"
         routerLinkActive="link_active"
+        tuiHintDirection="bottom"
         [routerLink]="item.routerLink"
+        [tuiHint]="$index > 3 && !rla.isActive ? item.name : ''"
       >
         <tui-badged-content
           [style.--tui-radius.%]="50"
@@ -99,6 +103,17 @@ import { getMenu } from 'src/app/utils/system-utilities'
           }
         }
 
+        &:nth-child(1):hover,
+        &:nth-child(2):hover,
+        &:nth-child(3):hover,
+        &:nth-child(4):hover {
+          grid-template-columns: 1.5rem 1fr;
+
+          span {
+            opacity: 1;
+          }
+        }
+
         &_active {
           grid-template-columns: 1.5rem 1fr;
           padding: 0 1rem;
@@ -167,6 +182,7 @@ import { getMenu } from 'src/app/utils/system-utilities'
     RouterLink,
     TuiIcon,
     RouterLinkActive,
+    TuiHint,
   ],
 })
 export class HeaderNavigationComponent {
