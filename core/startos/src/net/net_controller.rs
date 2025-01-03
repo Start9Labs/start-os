@@ -473,6 +473,7 @@ impl NetService {
                                         public: public && !ipv6_is_local(net.addr()),
                                         hostname: IpHostname::Ipv6 {
                                             value: net.addr(),
+                                            scope_id: ip_info.scope_id,
                                             port: bind.net.assigned_port,
                                             ssl_port: bind.net.assigned_ssl_port,
                                         },

@@ -9,12 +9,12 @@ use std::time::Duration;
 
 use axum::Router;
 use futures::future::Either;
-use futures::{FutureExt, StreamExt};
+use futures::FutureExt;
 use helpers::NonDetachingJoinHandle;
 use hyper_util::rt::{TokioIo, TokioTimer};
 use hyper_util::service::TowerToHyperService;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{oneshot, watch};
+use tokio::sync::oneshot;
 
 use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
 use crate::net::network_interface::NetworkInterfaceListener;
@@ -88,7 +88,7 @@ impl<A: Accept> Acceptor<A> {
     }
 
     fn poll_accept(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>> {
-        self.acceptor.poll_changed(cx);
+        let _ = self.acceptor.poll_changed(cx);
         let mut res = Poll::Pending;
         self.acceptor.send_if_modified(|a| {
             res = a.poll_accept(cx);
@@ -159,7 +159,7 @@ impl<A: Accept> Deref for WebServerAcceptorSetter<A> {
 
 pub struct WebServer<A: Accept> {
     shutdown: oneshot::Sender<()>,
-    router: watch::Sender<Option<Router>>,
+    router: Watch<Option<Router>>,
     acceptor: Watch<A>,
     thread: NonDetachingJoinHandle<()>,
 }
@@ -172,7 +172,8 @@ impl<A: Accept + Send + 'static> WebServer<A> {
 
     pub fn new(mut acceptor: Acceptor<A>) -> Self {
         let acceptor_send = acceptor.acceptor.clone();
-        let (router, service) = watch::channel::<Option<Router>>(None);
+        let router = Watch::<Option<Router>>::new(None);
+        let service = router.clone();
         let (shutdown, shutdown_recv) = oneshot::channel();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
             #[derive(Clone)]
@@ -227,7 +228,7 @@ impl<A: Accept + Send + 'static> WebServer<A> {
                                 ),
                             );
                         } else {
-                            let service = service.borrow().clone();
+                            let service = service.read();
                             if let Some(service) = service {
                                 queue.add_job(
                                     graceful.watch(

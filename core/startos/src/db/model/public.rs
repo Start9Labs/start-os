@@ -174,7 +174,7 @@ impl NetworkInterfaceInfo {
                             || (ip4.is_private() && !ip4.octets().starts_with(&[10, 59])) // reserving 10.59 for public wireguard configurations
                             || ip4.is_link_local()
                         }
-                        IpAddr::V6(ip6) => true,
+                        IpAddr::V6(_) => true,
                     }
                 })
             })

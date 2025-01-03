@@ -5,18 +5,20 @@ use async_stream::try_stream;
 use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
 use futures::{StreamExt, TryStreamExt};
-use getifaddrs::if_nametoindex;
 use ipnet::{IpNet, Ipv4Net, Ipv6Net};
+use nix::net::if_::if_nametoindex;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::process::Command;
 
 use crate::prelude::*;
 use crate::util::Invoke;
 
+pub fn ipv6_is_link_local(addr: Ipv6Addr) -> bool {
+    (addr.segments()[0] & 0xffc0) == 0xfe80
+}
+
 pub fn ipv6_is_local(addr: Ipv6Addr) -> bool {
-    addr.is_loopback()
-        || (addr.segments()[0] & 0xfe00) == 0xfc00
-        || (addr.segments()[0] & 0xffc0) == 0xfe80
+    addr.is_loopback() || (addr.segments()[0] & 0xfe00) == 0xfc00 || ipv6_is_link_local(addr)
 }
 
 fn parse_iface_ip(output: &str) -> Result<Vec<&str>, Error> {

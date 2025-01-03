@@ -161,7 +161,7 @@ impl RpcContext {
                         account.tor_key.clone(),
                     )
                     .await?;
-                    webserver.try_upgrade(|a| net_ctrl.net_iface.upgrade_listener(a));
+                    webserver.try_upgrade(|a| net_ctrl.net_iface.upgrade_listener(a))?;
                     net_ctrl
                 },
                 config

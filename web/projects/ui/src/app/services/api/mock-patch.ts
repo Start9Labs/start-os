@@ -255,7 +255,8 @@ export const mockPatchData: DataModel = {
                 public: false,
                 hostname: {
                   kind: 'ipv6',
-                  value: '[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]',
+                  value: '[fe80:cd00:0000:0cde:1257:0000:211e:72cd]',
+                  scopeId: 2,
                   port: null,
                   sslPort: 1234,
                 },
@@ -266,7 +267,8 @@ export const mockPatchData: DataModel = {
                 public: false,
                 hostname: {
                   kind: 'ipv6',
-                  value: '[FE80:CD00:0000:0CDE:1257:0000:211E:1234]',
+                  value: '[fe80:cd00:0000:0cde:1257:0000:211e:1234]',
+                  scopeId: 3,
                   port: null,
                   sslPort: 1234,
                 },

@@ -14,6 +14,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 })
 export class ServerSpecsPage {
   readonly server$ = this.patch.watch$('serverInfo')
+  readonly isLocalhost = window.location.host === 'localhost'
 
   constructor(
     private readonly toastCtrl: ToastController,

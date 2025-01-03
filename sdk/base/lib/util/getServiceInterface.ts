@@ -74,7 +74,9 @@ export const addressHostToUrl = (
       if (host.hostname.kind === "domain") {
         hostname = `${host.hostname.subdomain ? `${host.hostname.subdomain}.` : ""}${host.hostname.domain}`
       } else if (host.hostname.kind === "ipv6") {
-        hostname = `[${host.hostname.value}]`
+        hostname = host.hostname.value.startsWith("fe80::")
+          ? `[${host.hostname.value}%${host.hostname.scopeId}]`
+          : `[${host.hostname.value}]`
       } else {
         hostname = host.hostname.value
       }

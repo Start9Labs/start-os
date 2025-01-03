@@ -138,33 +138,6 @@ export declare const hostName: unique symbol
 // asdflkjadsf.onion | 1.2.3.4
 export type Hostname = string & { [hostName]: never }
 
-export type HostnameInfoIp = {
-  kind: "ip"
-  networkInterfaceId: string
-  public: boolean
-  hostname:
-    | {
-        kind: "ipv4" | "ipv6" | "local"
-        value: string
-        port: number | null
-        sslPort: number | null
-      }
-    | {
-        kind: "domain"
-        domain: string
-        subdomain: string | null
-        port: number | null
-        sslPort: number | null
-      }
-}
-
-export type HostnameInfoOnion = {
-  kind: "onion"
-  hostname: { value: string; port: number | null; sslPort: number | null }
-}
-
-export type HostnameInfo = HostnameInfoIp | HostnameInfoOnion
-
 export type ServiceInterfaceId = string
 
 export { ServiceInterface }

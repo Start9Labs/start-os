@@ -44,6 +44,8 @@ pub enum IpHostname {
     },
     Ipv6 {
         value: Ipv6Addr,
+        #[serde(default)]
+        scope_id: u32,
         port: Option<u16>,
         ssl_port: Option<u16>,
     },
