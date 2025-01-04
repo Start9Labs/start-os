@@ -1,20 +1,19 @@
 use std::future::Future;
 use std::net::SocketAddr;
 use std::ops::Deref;
-use std::pin::Pin;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, RwLock};
 use std::task::Poll;
 use std::time::Duration;
 
 use axum::Router;
-use futures::future::Either;
+use futures::future::{BoxFuture, Either};
 use futures::FutureExt;
 use helpers::NonDetachingJoinHandle;
 use hyper_util::rt::{TokioIo, TokioTimer};
 use hyper_util::service::TowerToHyperService;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::oneshot;
+use tokio::sync::{oneshot, watch};
 
 use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
 use crate::net::network_interface::NetworkInterfaceListener;
@@ -24,7 +23,6 @@ use crate::net::static_server::{
 };
 use crate::prelude::*;
 use crate::util::actor::background::BackgroundJobQueue;
-use crate::util::sync::Watch;
 
 pub struct Accepted {
     pub https_redirect: bool,
@@ -78,19 +76,38 @@ impl<A: Accept> Accept for Option<A> {
 
 #[pin_project::pin_project]
 pub struct Acceptor<A: Accept> {
-    acceptor: Watch<A>,
+    acceptor: (watch::Sender<A>, watch::Receiver<A>),
+    changed: Option<BoxFuture<'static, ()>>,
 }
-impl<A: Accept> Acceptor<A> {
+impl<A: Accept + Send + Sync + 'static> Acceptor<A> {
     pub fn new(acceptor: A) -> Self {
         Self {
-            acceptor: Watch::new(acceptor),
+            acceptor: watch::channel(acceptor),
+            changed: None,
         }
     }
 
+    fn poll_changed(&mut self, cx: &mut std::task::Context<'_>) -> Poll<()> {
+        let mut changed = if let Some(changed) = self.changed.take() {
+            changed
+        } else {
+            let mut recv = self.acceptor.1.clone();
+            async move {
+                let _ = recv.changed().await;
+            }
+            .boxed()
+        };
+        let res = changed.poll_unpin(cx);
+        if res.is_pending() {
+            self.changed = Some(changed);
+        }
+        res
+    }
+
     fn poll_accept(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>> {
-        let _ = self.acceptor.poll_changed(cx);
+        let _ = self.poll_changed(cx);
         let mut res = Poll::Pending;
-        self.acceptor.send_if_modified(|a| {
+        self.acceptor.0.send_if_modified(|a| {
             res = a.poll_accept(cx);
             false
         });
@@ -98,15 +115,7 @@ impl<A: Accept> Acceptor<A> {
     }
 
     async fn accept(&mut self) -> Result<Accepted, Error> {
-        #[pin_project::pin_project]
-        struct AcceptFut<'a, A: Accept>(&'a mut Acceptor<A>);
-        impl<'a, A: Accept> Future for AcceptFut<'a, A> {
-            type Output = Result<Accepted, Error>;
-            fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-                self.project().0.poll_accept(cx)
-            }
-        }
-        AcceptFut(self).await
+        std::future::poll_fn(|cx| self.poll_accept(cx)).await
     }
 }
 impl Acceptor<Vec<TcpListener>> {
@@ -130,7 +139,7 @@ impl Acceptor<UpgradableListener> {
 }
 
 pub struct WebServerAcceptorSetter<A: Accept> {
-    acceptor: Watch<A>,
+    acceptor: watch::Sender<A>,
 }
 impl<A: Accept, B: Accept> WebServerAcceptorSetter<Option<Either<A, B>>> {
     pub fn try_upgrade<F: FnOnce(A) -> Result<B, Error>>(&self, f: F) -> Result<(), Error> {
@@ -151,7 +160,7 @@ impl<A: Accept, B: Accept> WebServerAcceptorSetter<Option<Either<A, B>>> {
     }
 }
 impl<A: Accept> Deref for WebServerAcceptorSetter<A> {
-    type Target = Watch<A>;
+    type Target = watch::Sender<A>;
     fn deref(&self) -> &Self::Target {
         &self.acceptor
     }
@@ -159,11 +168,11 @@ impl<A: Accept> Deref for WebServerAcceptorSetter<A> {
 
 pub struct WebServer<A: Accept> {
     shutdown: oneshot::Sender<()>,
-    router: Watch<Option<Router>>,
-    acceptor: Watch<A>,
+    router: watch::Sender<Option<Router>>,
+    acceptor: watch::Sender<A>,
     thread: NonDetachingJoinHandle<()>,
 }
-impl<A: Accept + Send + 'static> WebServer<A> {
+impl<A: Accept + Send + Sync + 'static> WebServer<A> {
     pub fn acceptor_setter(&self) -> WebServerAcceptorSetter<A> {
         WebServerAcceptorSetter {
             acceptor: self.acceptor.clone(),
@@ -171,9 +180,8 @@ impl<A: Accept + Send + 'static> WebServer<A> {
     }
 
     pub fn new(mut acceptor: Acceptor<A>) -> Self {
-        let acceptor_send = acceptor.acceptor.clone();
-        let router = Watch::<Option<Router>>::new(None);
-        let service = router.clone();
+        let acceptor_send = acceptor.acceptor.0.clone();
+        let (router, service) = watch::channel::<Option<Router>>(None);
         let (shutdown, shutdown_recv) = oneshot::channel();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
             #[derive(Clone)]
@@ -228,7 +236,7 @@ impl<A: Accept + Send + 'static> WebServer<A> {
                                 ),
                             );
                         } else {
-                            let service = service.read();
+                            let service = { service.borrow().clone() };
                             if let Some(service) = service {
                                 queue.add_job(
                                     graceful.watch(

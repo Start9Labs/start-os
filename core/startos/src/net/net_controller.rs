@@ -6,7 +6,6 @@ use color_eyre::eyre::eyre;
 use imbl::OrdMap;
 use imbl_value::InternedString;
 use ipnet::IpNet;
-use itertools::Itertools;
 use models::{HostId, OptionExt, PackageId};
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;

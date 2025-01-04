@@ -31,7 +31,7 @@ use crate::init::check_time_is_synchronized;
 use crate::lxc::{ContainerId, LxcContainer, LxcManager};
 use crate::net::net_controller::{NetController, PreInitNetController};
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
-use crate::net::web_server::{UpgradableListener, WebServer, WebServerAcceptorSetter};
+use crate::net::web_server::{UpgradableListener, WebServerAcceptorSetter};
 use crate::net::wifi::WpaCli;
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};

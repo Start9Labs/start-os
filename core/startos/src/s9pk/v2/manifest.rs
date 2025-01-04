@@ -3,7 +3,6 @@ use std::path::Path;
 
 use color_eyre::eyre::eyre;
 use exver::{Version, VersionRange};
-use helpers::const_true;
 use imbl_value::InternedString;
 pub use models::PackageId;
 use models::{mime, ImageId, VolumeId};

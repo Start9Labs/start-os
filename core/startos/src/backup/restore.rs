@@ -19,7 +19,6 @@ use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::init::{init, InitResult};
-use crate::net::web_server::WebServer;
 use crate::prelude::*;
 use crate::s9pk::S9pk;
 use crate::service::service_map::DownloadInstallFuture;

@@ -541,7 +541,6 @@ impl<T: std::io::Read> std::io::Read for BackTrackingIO<T> {
             }
             BTBuffer::NotBuffering => self.io.read(buf),
             BTBuffer::Rewound { read } => {
-                let mut ready = false;
                 if (read.position() as usize) < read.get_ref().len() {
                     let n = std::io::Read::read(read, buf)?;
                     if n != 0 {

@@ -1,6 +1,5 @@
 use models::{HostId, PackageId};
 
-use crate::net::host::address::HostAddress;
 use crate::net::host::Host;
 use crate::service::effects::callbacks::CallbackHandler;
 use crate::service::effects::prelude::*;
