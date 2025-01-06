@@ -4,6 +4,7 @@ import {
   TUI_ANIMATIONS_SPEED,
   TuiButton,
   tuiFadeIn,
+  TuiHint,
   TuiIcon,
   tuiScaleIn,
   tuiToAnimationOptions,
@@ -18,9 +19,13 @@ import { getMenu } from 'src/app/utils/system-utilities'
   template: `
     @for (item of utils; track $index) {
       <a
+        #rla="routerLinkActive"
         class="link"
         routerLinkActive="link_active"
+        tuiHintDirection="bottom"
+        [tuiHintShowDelay]="1000"
         [routerLink]="item.routerLink"
+        [tuiHint]="!rla.isActive ? item.name : ''"
       >
         <tui-badged-content
           [style.--tui-radius.%]="50"
@@ -47,8 +52,7 @@ import { getMenu } from 'src/app/utils/system-utilities'
         display: flex;
         backdrop-filter: blur(1rem);
         border-radius: inherit;
-        padding-inline-end: 0.75rem;
-        margin-inline-end: -0.4375rem;
+        margin-inline-end: 0.875rem;
         isolation: isolate;
       }
 
@@ -58,7 +62,7 @@ import { getMenu } from 'src/app/utils/system-utilities'
         display: grid;
         grid-template-columns: 1.5rem 0fr;
         align-items: center;
-        padding: 0 0 0 1rem;
+        padding: 0 0.5rem;
         margin: 0;
         border-radius: inherit;
         color: var(--tui-text-secondary);
@@ -102,9 +106,10 @@ import { getMenu } from 'src/app/utils/system-utilities'
         &_active {
           grid-template-columns: 1.5rem 1fr;
           padding: 0 1rem;
-          margin: 0 var(--bumper);
+          margin: 0 calc(var(--bumper) + 0.5rem);
 
           + .link::before {
+            left: -0.5rem;
             border-top-left-radius: var(--bumper);
             border-bottom-left-radius: var(--bumper);
           }
@@ -120,16 +125,13 @@ import { getMenu } from 'src/app/utils/system-utilities'
         }
 
         &:has(+ .link_active)::before {
+          right: -0.5rem;
           border-top-right-radius: var(--bumper);
           border-bottom-right-radius: var(--bumper);
         }
 
-        &:has(~ .link_active) {
-          padding: 0 1rem 0 0;
-        }
-
         &:first-child {
-          padding-inline-start: 1rem !important;
+          padding: 0 0.5rem 0 1rem !important;
           margin-inline-start: 0;
 
           &::before {
@@ -138,10 +140,10 @@ import { getMenu } from 'src/app/utils/system-utilities'
         }
 
         &:last-child {
-          padding-inline-end: 1rem !important;
           margin-inline-end: 0;
 
           &::before {
+            right: -0.5rem;
             border-top-right-radius: inherit;
             border-bottom-right-radius: inherit;
           }
@@ -167,6 +169,7 @@ import { getMenu } from 'src/app/utils/system-utilities'
     RouterLink,
     TuiIcon,
     RouterLinkActive,
+    TuiHint,
   ],
 })
 export class HeaderNavigationComponent {
