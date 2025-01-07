@@ -327,6 +327,11 @@ impl From<torut::onion::OnionAddressParseError> for Error {
         Error::new(e, ErrorKind::Tor)
     }
 }
+impl From<rustls::Error> for Error {
+    fn from(e: rustls::Error) -> Self {
+        Error::new(e, ErrorKind::OpenSsl)
+    }
+}
 impl From<patch_db::value::Error> for Error {
     fn from(value: patch_db::value::Error) -> Self {
         match value.kind {

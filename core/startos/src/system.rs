@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 use std::fmt;
+use std::sync::Arc;
 
 use chrono::Utc;
 use clap::Parser;
@@ -9,6 +10,9 @@ use imbl::vector;
 use mail_send::mail_builder::MessageBuilder;
 use mail_send::SmtpClientBuilder;
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
+use rustls::crypto::CryptoProvider;
+use rustls::RootCertStore;
+use rustls_pki_types::CertificateDer;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::process::Command;
 use tokio::sync::broadcast::Receiver;
@@ -873,36 +877,64 @@ pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
     }
     Ok(())
 }
-pub async fn test_system_smtp(ctx: RpcContext, smtp: SmtpValue) -> Result<(), Error> {
-    let SmtpValue {
+pub async fn test_system_smtp(
+    _: RpcContext,
+    SmtpValue {
         server,
         port,
         from,
         login,
         password,
-    } = smtp;
-    if let Some(pass_val) = password {
-        let message = MessageBuilder::new()
-            .from((from.clone(), login.clone()))
-            .to(vec![(from, login.clone())])
-            .subject("StartOS Test Email")
-            .text_body("This is a test email sent from your StartOS Server");
-        SmtpClientBuilder::new(server, port)
-            .implicit_tls(false)
-            .credentials((login, pass_val))
-            .connect()
-            .await
-            .map_err(|e| Error::new(eyre!("mail-send error: {:?}", e), ErrorKind::Unknown))?
-            .send(message)
-            .await
-            .map_err(|e| Error::new(eyre!("mail-send error: {:?}", e), ErrorKind::Unknown))?;
-        Ok(())
-    } else {
+    }: SmtpValue,
+) -> Result<(), Error> {
+    use rustls_pki_types::pem::PemObject;
+
+    let Some(pass_val) = password else {
         return Err(Error::new(
             eyre!("mail-send requires a password"),
-            ErrorKind::IncorrectPassword,
+            ErrorKind::InvalidRequest,
         ));
+    };
+
+    let mut root_cert_store = RootCertStore::empty();
+    let pem = tokio::fs::read("/etc/ssl/certs/ca-certificates.crt").await?;
+    for cert in CertificateDer::pem_slice_iter(&pem) {
+        root_cert_store.add_parsable_certificates([cert.with_kind(ErrorKind::OpenSsl)?]);
     }
+    let crypto_provider = rustls::crypto::ring::default_provider();
+    let _ = CryptoProvider::install_default(crypto_provider.clone());
+    let cfg = Arc::new(
+        rustls::ClientConfig::builder_with_provider(Arc::new(crypto_provider))
+        .with_safe_default_protocol_versions()?
+        .with_root_certificates(root_cert_store)
+        .with_no_client_auth(),
+    );
+    // let cfg = Arc::new(
+    //     rustls::ClientConfig::builder_with_provider(Arc::new(
+    //         rustls::crypto::ring::default_provider(),
+    //     ))
+    //     .with_safe_default_protocol_versions()?
+    //     .with_root_certificates(root_cert_store)
+    //     .with_no_client_auth(),
+    // );
+    let mut client = SmtpClientBuilder::new(server, port)
+        .implicit_tls(false)
+        .credentials((login.clone().split_once("@").unwrap().0.to_owned(), pass_val));
+    client.tls_connector = cfg.into();
+
+    let message = MessageBuilder::new()
+        .from((from.clone(), login.clone()))
+        .to(vec![(from, login)])
+        .subject("StartOS Test Email")
+        .text_body("This is a test email sent from your StartOS Server");
+    client
+        .connect()
+        .await
+        .map_err(|e| Error::new(eyre!("mail-send connection error: {:?}", e), ErrorKind::Unknown))?
+        .send(message)
+        .await
+        .map_err(|e| Error::new(eyre!("mail-send send error: {:?}", e), ErrorKind::Unknown))?;
+    Ok(())
 }
 
 #[tokio::test]

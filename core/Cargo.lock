@@ -265,7 +265,7 @@ dependencies = [
  "pem",
  "rcgen",
  "ring 0.17.8",
- "rustls 0.23.17",
+ "rustls 0.23.20",
  "rustls-pemfile 2.2.0",
  "serde",
  "serde_json",
@@ -2544,7 +2544,7 @@ dependencies = [
  "http 1.1.0",
  "hyper 1.5.1",
  "hyper-util",
- "rustls 0.23.17",
+ "rustls 0.23.20",
  "rustls-pki-types",
  "tokio",
  "tokio-rustls 0.26.0",
@@ -3386,7 +3386,7 @@ dependencies = [
  "mail-builder",
  "md5",
  "rand 0.8.5",
- "rustls 0.23.17",
+ "rustls 0.23.20",
  "rustls-pki-types",
  "smtp-proto",
  "tokio",
@@ -3545,6 +3545,7 @@ dependencies = [
  "regex",
  "reqwest",
  "rpc-toolkit",
+ "rustls 0.23.20",
  "serde",
  "serde_json",
  "sqlx",
@@ -4864,9 +4865,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.17"
+version = "0.23.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f1a745511c54ba6d4465e8d5dfbd81b45791756de28d4981af70d6dca128f1e"
+checksum = "5065c3f250cbd332cd894be57c40fa52387247659b14a2d6041d121547903b1b"
 dependencies = [
  "aws-lc-rs",
  "log",
@@ -4898,9 +4899,9 @@ dependencies = [
 
 [[package]]
 name = "rustls-pki-types"
-version = "1.10.0"
+version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16f1201b3c9a7ee8039bcadc17b7e605e2945b27eee7631788c1bd2b0643674b"
+checksum = "d2bf47e6ff922db3825eb750c4e2ff784c6ff8fb9e13046ef6a1d1c5401b0b37"
 
 [[package]]
 name = "rustls-webpki"
@@ -5759,6 +5760,8 @@ dependencies = [
  "rpassword",
  "rpc-toolkit",
  "rust-argon2",
+ "rustls 0.23.20",
+ "rustls-pki-types",
  "rustyline-async",
  "semver",
  "serde",
@@ -6194,7 +6197,7 @@ version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c7bc40d0e5a97695bb96e27995cd3a08538541b0a846f65bba7a359f36700d4"
 dependencies = [
- "rustls 0.23.17",
+ "rustls 0.23.20",
  "rustls-pki-types",
  "tokio",
 ]

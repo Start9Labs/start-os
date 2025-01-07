@@ -8,13 +8,11 @@ use rpc_toolkit::{
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::context::{CliContext, RpcContext};
 use crate::lxc::{ContainerId, LxcConfig};
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
-use crate::{
-    context::{CliContext, RpcContext},
-    service::ServiceStats,
-};
+use crate::service::ServiceStats;
 
 pub fn lxc<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()

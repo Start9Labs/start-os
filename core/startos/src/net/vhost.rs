@@ -35,8 +35,8 @@ use crate::net::acme::AcmeCertCache;
 use crate::net::static_server::server_error;
 use crate::prelude::*;
 use crate::util::io::BackTrackingIO;
-use crate::util::sync::SyncMutex;
 use crate::util::serde::MaybeUtf8String;
+use crate::util::sync::SyncMutex;
 
 #[derive(Debug)]
 struct SingleCertResolver(Arc<CertifiedKey>);
@@ -126,7 +126,11 @@ struct VHostServer {
 }
 impl VHostServer {
     #[instrument(skip_all)]
-    async fn new(port: u16, db: TypedPatchDb<Database>, crypto_provider: Arc<CryptoProvider>) -> Result<Self, Error> {
+    async fn new(
+        port: u16,
+        db: TypedPatchDb<Database>,
+        crypto_provider: Arc<CryptoProvider>,
+    ) -> Result<Self, Error> {
         let acme_tls_alpn_cache = Arc::new(SyncMutex::new(BTreeMap::<
             InternedString,
             watch::Receiver<Option<Arc<CertifiedKey>>>,
@@ -273,7 +277,7 @@ impl VHostServer {
                                                         let domains = [domain.to_string()];
                                                         let (send, recv) = watch::channel(None);
                                                         acme_tls_alpn_cache.mutate(|c| c.insert(domain.clone(), recv));
-                                                        let cert = 
+                                                        let cert =
                                                             async_acme::rustls_helper::order(
                                                                 |_, cert| {
                                                                     send.send_replace(Some(Arc::new(cert)));
