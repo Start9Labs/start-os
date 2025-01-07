@@ -121,50 +121,67 @@ function getAddresses(
 ): MappedAddress[] {
   const addressInfo = serviceInterface.addressInfo
 
-  const hostnames =
+  let hostnames =
     host.kind === 'multi' ? host.hostnameInfo[addressInfo.internalPort] : []
 
-  const addressesWithNames = hostnames
-    .filter(
-      h =>
-        window.location.host === 'localhost' ||
-        h.kind !== 'ip' ||
-        h.hostname.kind !== 'ipv6' ||
-        !h.hostname.value.startsWith('fe80::'),
+  hostnames = hostnames.filter(
+    h =>
+      window.location.host === 'localhost' ||
+      h.kind !== 'ip' ||
+      h.hostname.kind !== 'ipv6' ||
+      !h.hostname.value.startsWith('fe80::'),
+  )
+  if (window.location.host === 'localhost') {
+    const local = hostnames.find(
+      h => h.kind === 'ip' && h.hostname.kind === 'local',
     )
-    .flatMap(h => {
-      let name = ''
+    if (local) {
+      hostnames.unshift({
+        kind: 'ip',
+        networkInterfaceId: 'lo',
+        public: false,
+        hostname: {
+          kind: 'local',
+          port: local.hostname.port,
+          sslPort: local.hostname.sslPort,
+          value: 'localhost',
+        },
+      })
+    }
+  }
+  const addressesWithNames = hostnames.flatMap(h => {
+    let name = ''
 
-      if (h.kind === 'onion') {
-        name = `Tor`
+    if (h.kind === 'onion') {
+      name = `Tor`
+    } else {
+      const hostnameKind = h.hostname.kind
+
+      if (hostnameKind === 'domain') {
+        name = 'Domain'
       } else {
-        const hostnameKind = h.hostname.kind
-
-        if (hostnameKind === 'domain') {
-          name = 'Domain'
-        } else {
-          name =
-            hostnameKind === 'local'
-              ? 'Local'
-              : `${h.networkInterfaceId} (${hostnameKind})`
-        }
+        name =
+          hostnameKind === 'local'
+            ? 'Local'
+            : `${h.networkInterfaceId} (${hostnameKind})`
       }
+    }
 
-      const addresses = utils.addressHostToUrl(addressInfo, h)
-      if (addresses.length > 1) {
-        return utils.addressHostToUrl(addressInfo, h).map(url => ({
-          name: `${name} (${new URL(url).protocol
-            .replace(':', '')
-            .toUpperCase()})`,
-          url,
-        }))
-      } else {
-        return utils.addressHostToUrl(addressInfo, h).map(url => ({
-          name,
-          url,
-        }))
-      }
-    })
+    const addresses = utils.addressHostToUrl(addressInfo, h)
+    if (addresses.length > 1) {
+      return addresses.map(url => ({
+        name: `${name} (${new URL(url).protocol
+          .replace(':', '')
+          .toUpperCase()})`,
+        url,
+      }))
+    } else {
+      return addresses.map(url => ({
+        name,
+        url,
+      }))
+    }
+  })
 
   return addressesWithNames.filter(
     (value, index, self) => index === self.findIndex(t => t.url === value.url),

@@ -141,9 +141,9 @@ impl NetController {
             db,
             tor,
             vhost,
-            net_iface,
             dns: DnsController::init(dns_bind).await?,
-            forward: LanPortForwardController::new(),
+            forward: LanPortForwardController::new(net_iface.subscribe()),
+            net_iface,
             os_bindings,
             server_hostnames,
         };
@@ -175,7 +175,7 @@ impl NetController {
 
 #[derive(Default, Debug)]
 struct HostBinds {
-    forwards: BTreeMap<u16, (SocketAddr, Arc<()>)>,
+    forwards: BTreeMap<u16, (SocketAddr, bool, Arc<()>)>,
     vhosts: BTreeMap<(Option<InternedString>, u16), (TargetInfo, Arc<()>)>,
     tor: BTreeMap<OnionAddressV3, (OrdMap<u16, SocketAddr>, Vec<Arc<()>>)>,
 }
@@ -262,7 +262,7 @@ impl NetService {
 
     pub async fn update(&mut self, id: HostId, host: Host) -> Result<(), Error> {
         let ctrl = self.net_controller()?;
-        let mut forwards: BTreeMap<u16, SocketAddr> = BTreeMap::new();
+        let mut forwards: BTreeMap<u16, (SocketAddr, bool)> = BTreeMap::new();
         let mut vhosts: BTreeMap<(Option<InternedString>, u16), TargetInfo> = BTreeMap::new();
         let mut tor: BTreeMap<OnionAddressV3, (TorSecretKeyV3, OrdMap<u16, SocketAddr>)> =
             BTreeMap::new();
@@ -372,7 +372,7 @@ impl NetService {
                         // doesn't make sense to have 2 listening ports, both with ssl
                     } else {
                         let external = bind.net.assigned_port.or_not_found("assigned lan port")?;
-                        forwards.insert(external, (self.ip, *port).into());
+                        forwards.insert(external, ((self.ip, *port).into(), bind.net.public));
                     }
                 }
                 let mut bind_hostname_info: Vec<HostnameInfo> =
@@ -554,23 +554,23 @@ impl NetService {
             .collect::<BTreeSet<_>>();
         for external in all {
             let mut prev = binds.forwards.remove(&external);
-            if let Some(internal) = forwards.remove(&external) {
-                prev = prev.filter(|(i, _)| i == &internal);
+            if let Some((internal, public)) = forwards.remove(&external) {
+                prev = prev.filter(|(i, p, _)| i == &internal && *p == public);
                 binds.forwards.insert(
                     external,
                     if let Some(prev) = prev {
                         prev
                     } else {
-                        (internal, ctrl.forward.add(external, internal).await?)
+                        (
+                            internal,
+                            public,
+                            ctrl.forward.add(external, public, internal).await?,
+                        )
                     },
                 );
-            } else {
-                if let Some((_, rc)) = prev {
-                    drop(rc);
-                    ctrl.forward.gc(external).await?;
-                }
             }
         }
+        ctrl.forward.gc().await?;
 
         let all = binds
             .vhosts

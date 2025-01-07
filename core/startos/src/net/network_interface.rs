@@ -577,6 +577,10 @@ pub struct NetworkInterfaceController {
     listeners: SyncMutex<BTreeMap<u16, Weak<()>>>,
 }
 impl NetworkInterfaceController {
+    pub fn subscribe(&self) -> watch::Receiver<BTreeMap<InternedString, NetworkInterfaceInfo>> {
+        self.ip_info.subscribe()
+    }
+
     async fn sync(
         db: &TypedPatchDb<Database>,
         info: &BTreeMap<InternedString, NetworkInterfaceInfo>,
