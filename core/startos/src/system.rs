@@ -909,14 +909,6 @@ pub async fn test_system_smtp(
         .with_root_certificates(root_cert_store)
         .with_no_client_auth(),
     );
-    // let cfg = Arc::new(
-    //     rustls::ClientConfig::builder_with_provider(Arc::new(
-    //         rustls::crypto::ring::default_provider(),
-    //     ))
-    //     .with_safe_default_protocol_versions()?
-    //     .with_root_certificates(root_cert_store)
-    //     .with_no_client_auth(),
-    // );
     let mut client = SmtpClientBuilder::new(server, port)
         .implicit_tls(false)
         .credentials((login.clone().split_once("@").unwrap().0.to_owned(), pass_val));
