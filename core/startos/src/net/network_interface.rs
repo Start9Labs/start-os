@@ -436,7 +436,14 @@ async fn watch_ip(
                 .stub(),
         )
         .with_stream(device_proxy.receive_ip4_config_changed().await.stub())
-        .with_stream(device_proxy.receive_ip6_config_changed().await.stub());
+        .with_stream(device_proxy.receive_ip6_config_changed().await.stub())
+        .with_async_fn(|| {
+            async {
+                tokio::time::sleep(Duration::from_secs(300)).await;
+                Ok(())
+            }
+            .fuse()
+        });
 
     loop {
         until
