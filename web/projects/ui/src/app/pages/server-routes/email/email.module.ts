@@ -7,7 +7,7 @@ import {
   TuiTextfieldControllerModule,
 } from '@taiga-ui/core'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
-import { SMTPPage } from './smtp.page'
+import { EmailPage } from './email.page'
 import { FormModule } from 'src/app/components/form/form.module'
 import { IonicModule } from '@ionic/angular'
 import { TuiErrorModule, TuiModeModule } from '@taiga-ui/core'
@@ -16,7 +16,7 @@ import { TuiAppearanceModule, TuiButtonModule } from '@taiga-ui/experimental'
 const routes: Routes = [
   {
     path: '',
-    component: SMTPPage,
+    component: EmailPage,
   },
 ]
 
@@ -37,6 +37,6 @@ const routes: Routes = [
     TuiModeModule,
     TuiErrorModule,
   ],
-  declarations: [SMTPPage],
+  declarations: [EmailPage],
 })
-export class SMTPPageModule {}
+export class EmailPageModule {}

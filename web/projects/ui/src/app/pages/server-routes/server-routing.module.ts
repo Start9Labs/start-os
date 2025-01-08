@@ -81,9 +81,9 @@ const routes: Routes = [
       import('./wifi/wifi.module').then(m => m.WifiPageModule),
   },
   {
-    path: 'smtp',
+    path: 'email',
     loadChildren: () =>
-      import('./smtp/smtp.module').then(m => m.SMTPPageModule),
+      import('./email/email.module').then(m => m.EmailPageModule),
   },
 ]
 

@@ -10,12 +10,12 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 
 @Component({
-  selector: 'smtp-page',
-  templateUrl: './smtp.page.html',
-  styleUrls: ['./smtp.page.scss'],
+  selector: 'email-page',
+  templateUrl: './email.page.html',
+  styleUrls: ['./email.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class SMTPPage {
+export class EmailPage {
   private readonly dialogs = inject(TuiDialogService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
