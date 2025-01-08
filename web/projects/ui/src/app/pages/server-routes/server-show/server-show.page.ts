@@ -464,9 +464,8 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
-        title: 'SMTP (email)',
-        description:
-          'Connect to an external SMTP server to send yourself emails',
+        title: 'Email',
+        description: 'Connect to an external SMTP server for sending emails',
         icon: 'mail-outline',
         action: () =>
           this.navCtrl.navigateForward(['smtp'], { relativeTo: this.route }),
