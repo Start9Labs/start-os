@@ -15,7 +15,7 @@ use ts_rs::TS;
 
 use crate::backup::BackupReport;
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::DatabaseModel;
+use crate::db::model::{Database, DatabaseModel};
 use crate::prelude::*;
 use crate::util::serde::HandlerExtSerde;
 

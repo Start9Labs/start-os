@@ -301,6 +301,13 @@ pub fn server<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>()
         )
         .subcommand(
+            "test-smtp", 
+            from_fn_async(system::test_system_smtp)
+                .no_display()
+                .with_about("Send test email using system smtp server and credentials")
+                .with_call_remote::<CliContext>()
+        )
+        .subcommand(
             "clear-smtp",
             from_fn_async(system::clear_system_smtp)
                 .no_display()
