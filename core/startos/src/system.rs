@@ -901,18 +901,18 @@ pub async fn test_system_smtp(
     for cert in CertificateDer::pem_slice_iter(&pem) {
         root_cert_store.add_parsable_certificates([cert.with_kind(ErrorKind::OpenSsl)?]);
     }
-    let crypto_provider = rustls::crypto::ring::default_provider();
-    let _ = CryptoProvider::install_default(crypto_provider.clone());
+
     let cfg = Arc::new(
-        rustls::ClientConfig::builder_with_provider(Arc::new(crypto_provider))
+        rustls::ClientConfig::builder_with_provider(Arc::new(
+            rustls::crypto::ring::default_provider(),
+        ))
         .with_safe_default_protocol_versions()?
         .with_root_certificates(root_cert_store)
         .with_no_client_auth(),
     );
-    let mut client = SmtpClientBuilder::new(server, port)
+    let client = SmtpClientBuilder::new_with_tls_config(server, port, cfg)
         .implicit_tls(false)
         .credentials((login.clone().split_once("@").unwrap().0.to_owned(), pass_val));
-    client.tls_connector = cfg.into();
 
     let message = MessageBuilder::new()
         .from((from.clone(), login.clone()))
