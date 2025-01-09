@@ -606,6 +606,7 @@ impl Service {
     }
 
     pub async fn update_host(&self, host_id: HostId) -> Result<(), Error> {
+        let mut service = self.seed.persistent_container.net_service.lock().await;
         let host = self
             .seed
             .ctx
@@ -620,13 +621,7 @@ impl Service {
             .as_idx(&host_id)
             .or_not_found(&host_id)?
             .de()?;
-        self.seed
-            .persistent_container
-            .net_service
-            .lock()
-            .await
-            .update(host_id, host)
-            .await
+        service.update(host_id, host).await
     }
 }
 

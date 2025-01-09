@@ -733,9 +733,11 @@ impl NetworkInterfaceController {
             l.insert(port, Arc::downgrade(&arc));
             Ok(())
         })?;
+        let mut ip_info = self.ip_info.subscribe();
+        ip_info.mark_changed();
         Ok(NetworkInterfaceListener {
             _arc: arc,
-            ip_info: self.ip_info.subscribe(),
+            ip_info,
             changed: None,
             listeners: ListenerMap::new(port),
         })
@@ -758,9 +760,11 @@ impl NetworkInterfaceController {
             l.insert(port, Arc::downgrade(&arc));
             Ok(())
         })?;
+        let mut ip_info = self.ip_info.subscribe();
+        ip_info.mark_changed();
         Ok(NetworkInterfaceListener {
             _arc: arc,
-            ip_info: self.ip_info.subscribe(),
+            ip_info,
             changed: None,
             listeners,
         })

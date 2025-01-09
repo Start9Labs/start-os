@@ -118,7 +118,7 @@ pub struct NetController {
     db: TypedPatchDb<Database>,
     pub(super) tor: TorController,
     pub(super) vhost: VHostController,
-    pub(super) net_iface: Arc<NetworkInterfaceController>,
+    pub net_iface: Arc<NetworkInterfaceController>,
     pub(super) dns: DnsController,
     pub(super) forward: LanPortForwardController,
     pub(super) os_bindings: Vec<Arc<()>>,

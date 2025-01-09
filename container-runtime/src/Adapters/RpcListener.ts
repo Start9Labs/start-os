@@ -213,7 +213,7 @@ export class RpcListener {
         Promise.resolve(a)
           .then((b) => b.toString())
           .then((buf) => {
-            for (let s in buf.split("\n")) {
+            for (let s of buf.split("\n")) {
               if (s)
                 Promise.resolve(s)
                   .then(logData("dataIn"))
@@ -396,7 +396,7 @@ export class RpcListener {
 
       .defaultToLazy(() => {
         console.warn(
-          `Coudln't parse the following input ${JSON.stringify(input)}`,
+          `Couldn't parse the following input ${JSON.stringify(input)}`,
         )
         return {
           jsonrpc,
