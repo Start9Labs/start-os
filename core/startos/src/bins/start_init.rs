@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use tokio::process::Command;
@@ -16,7 +17,7 @@ use crate::prelude::*;
 use crate::progress::FullProgressTracker;
 use crate::shutdown::Shutdown;
 use crate::util::Invoke;
-use crate::PLATFORM;
+use crate::{DATA_DIR, PLATFORM};
 
 #[instrument(skip_all)]
 async fn setup_or_init(
@@ -156,7 +157,7 @@ async fn setup_or_init(
             let disk_guid = Arc::new(String::from(guid_string.trim()));
             let requires_reboot = crate::disk::main::import(
                 &**disk_guid,
-                config.datadir(),
+                DATA_DIR,
                 if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
                     RepairStrategy::Aggressive
                 } else {
@@ -182,7 +183,7 @@ async fn setup_or_init(
                 let mut reboot_phase = handle.add_phase("Rebooting".into(), Some(1));
                 reboot_phase.start();
                 return Ok(Err(Shutdown {
-                    export_args: Some((disk_guid, config.datadir().to_owned())),
+                    export_args: Some((disk_guid, Path::new(DATA_DIR).to_owned())),
                     restart: true,
                 }));
             }

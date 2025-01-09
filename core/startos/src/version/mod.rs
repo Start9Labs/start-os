@@ -7,12 +7,10 @@ use futures::future::BoxFuture;
 use futures::{Future, FutureExt};
 use imbl::Vector;
 use imbl_value::{to_value, InternedString};
-use patch_db::json_ptr::{JsonPointer, ROOT};
+use patch_db::json_ptr::{ ROOT};
 
 use crate::context::RpcContext;
-use crate::db::model::Database;
 use crate::prelude::*;
-use crate::progress::PhaseProgressTrackerHandle;
 use crate::Error;
 
 mod v0_3_5;

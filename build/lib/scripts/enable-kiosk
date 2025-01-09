@@ -83,8 +83,7 @@ user_pref("toolkit.telemetry.updatePing.enabled", false);
 user_pref("toolkit.telemetry.cachedClientID", "");
 EOF
 
-cp /usr/lib/firefox-esr/libnssckbi.so /usr/lib/firefox-esr/libnssckbi.so.bak
-ln -sf /usr/lib/x86_64-linux-gnu/pkcs11/p11-kit-trust.so /usr/lib/firefox-esr/libnssckbi.so
+ln -sf /usr/lib/$(uname -m)-linux-gnu/pkcs11/p11-kit-trust.so /usr/lib/firefox-esr/libnssckbi.so
 
 # create kiosk script
 cat > /home/kiosk/kiosk.sh << 'EOF'

@@ -2,7 +2,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -48,7 +47,6 @@ pub struct RpcContextSeed {
     pub os_partitions: OsPartitionInfo,
     pub wifi_interface: Option<String>,
     pub ethernet_interface: String,
-    pub datadir: PathBuf,
     pub disk_guid: Arc<String>,
     pub ephemeral_sessions: SyncMutex<Sessions>,
     pub db: TypedPatchDb<Database>,
@@ -214,7 +212,6 @@ impl RpcContext {
 
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
-            datadir: config.datadir().to_path_buf(),
             os_partitions: config.os_partitions.clone().ok_or_else(|| {
                 Error::new(
                     eyre!("OS Partition Information Missing"),

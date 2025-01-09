@@ -1,5 +1,5 @@
 use std::ops::Deref;
-use std::path::PathBuf;
+use std::path::{Path};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -10,8 +10,6 @@ use josekit::jwk::Jwk;
 use patch_db::PatchDb;
 use rpc_toolkit::Context;
 use serde::{Deserialize, Serialize};
-use sqlx::postgres::PgConnectOptions;
-use sqlx::PgPool;
 use tokio::sync::broadcast::Sender;
 use tokio::sync::OnceCell;
 use tracing::instrument;
@@ -22,13 +20,13 @@ use crate::context::config::ServerConfig;
 use crate::context::RpcContext;
 use crate::disk::OsPartitionInfo;
 use crate::hostname::Hostname;
-use crate::init::init_postgres;
 use crate::net::web_server::{UpgradableListener, WebServer, WebServerAcceptorSetter};
 use crate::prelude::*;
 use crate::progress::FullProgressTracker;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::setup::SetupProgress;
 use crate::util::net::WebSocketExt;
+use crate::MAIN_DATA;
 
 lazy_static::lazy_static! {
     pub static ref CURRENT_SECRET: Jwk = Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).unwrap_or_else(|e| {
@@ -70,7 +68,6 @@ pub struct SetupContextSeed {
     pub task: OnceCell<NonDetachingJoinHandle<()>>,
     pub result: OnceCell<Result<(SetupResult, RpcContext), Error>>,
     pub shutdown: Sender<()>,
-    pub datadir: PathBuf,
     pub rpc_continuations: RpcContinuations,
 }
 
@@ -83,7 +80,6 @@ impl SetupContext {
         config: &ServerConfig,
     ) -> Result<Self, Error> {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
-        let datadir = config.datadir().to_owned();
         Ok(Self(Arc::new(SetupContextSeed {
             webserver: webserver.acceptor_setter(),
             config: config.clone(),
@@ -98,13 +94,12 @@ impl SetupContext {
             task: OnceCell::new(),
             result: OnceCell::new(),
             shutdown,
-            datadir,
             rpc_continuations: RpcContinuations::new(),
         })))
     }
     #[instrument(skip_all)]
     pub async fn db(&self) -> Result<PatchDb, Error> {
-        let db_path = self.datadir.join("main").join("embassy.db");
+        let db_path = Path::new(MAIN_DATA).join("embassy.db");
         let db = PatchDb::open(&db_path)
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;

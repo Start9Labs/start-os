@@ -28,7 +28,7 @@ use zbus::zvariant::{
 use zbus::{proxy, Connection};
 
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::public::{IpInfo, NetworkInterfaceInfo};
+use crate::db::model::public::{IpInfo, NetworkInterfaceInfo, NetworkInterfaceType};
 use crate::db::model::Database;
 use crate::net::utils::{ipv6_is_link_local, ipv6_is_local};
 use crate::prelude::*;
@@ -52,10 +52,13 @@ pub fn network_interface_api<C: Context>() -> ParentHandler<C> {
                     }
 
                     let mut table = Table::new();
-                    table.add_row(row![bc => "INTERFACE", "PUBLIC", "ADDRESSES", "WAN IP"]);
+                    table.add_row(row![bc => "INTERFACE", "TYPE", "PUBLIC", "ADDRESSES", "WAN IP"]);
                     for (iface, info) in res {
                         table.add_row(row![
                             iface,
+                            info.ip_info.as_ref()
+                                .and_then(|ip_info| ip_info.device_type)
+                                .map_or_else(|| "UNKNOWN".to_owned(), |ty| format!("{ty:?}")),
                             info.public(),
                             info.ip_info.as_ref().map_or_else(
                                 || "<DISCONNECTED>".to_owned(),
@@ -289,6 +292,9 @@ mod device {
         #[zbus(property, name = "State")]
         fn _state(&self) -> Result<u32, Error>;
 
+        #[zbus(property)]
+        fn device_type(&self) -> Result<u32, Error>;
+
         #[zbus(signal)]
         fn state_changed(&self) -> Result<(), Error>;
     }
@@ -486,6 +492,13 @@ async fn watch_ip(
                                 return Ok(());
                             }
 
+                            let device_type = match device_proxy.device_type().await? {
+                                1 => Some(NetworkInterfaceType::Ethernet),
+                                2 => Some(NetworkInterfaceType::Wireless),
+                                29 => Some(NetworkInterfaceType::Wireguard),
+                                _ => None,
+                            };
+
                             let dhcp4_config = active_connection_proxy.dhcp4_config().await?;
                             let ip4_proxy =
                                 Ip4ConfigProxy::new(&connection, ip4_config.clone()).await?;
@@ -544,6 +557,7 @@ async fn watch_ip(
                                             };
                                             Some(IpInfo {
                                                 scope_id,
+                                                device_type,
                                                 subnets,
                                                 wan_ip,
                                                 ntp_servers,
@@ -890,6 +904,7 @@ impl ListenerMap {
             public: Some(false),
             ip_info: Some(IpInfo {
                 scope_id: 1,
+                device_type: None,
                 subnets: [
                     IpNet::new(Ipv4Addr::LOCALHOST.into(), 8).unwrap(),
                     IpNet::new(Ipv6Addr::LOCALHOST.into(), 128).unwrap(),

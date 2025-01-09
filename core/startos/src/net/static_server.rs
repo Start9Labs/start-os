@@ -46,7 +46,7 @@ use crate::s9pk::S9pk;
 use crate::util::io::open_file;
 use crate::util::net::SyncBody;
 use crate::util::serde::BASE64;
-use crate::{diagnostic_api, init_api, install_api, main_api, setup_api};
+use crate::{diagnostic_api, init_api, install_api, main_api, setup_api, DATA_DIR};
 
 const NOT_FOUND: &[u8] = b"Not Found";
 const METHOD_NOT_ALLOWED: &[u8] = b"Method Not Allowed";
@@ -266,7 +266,7 @@ fn s9pk_router(ctx: RpcContext) -> Router {
                         let (parts, _) = request.into_parts();
                         match FileData::from_path(
                             &parts,
-                            &ctx.datadir
+                            &Path::new(DATA_DIR)
                                 .join(PKG_ARCHIVE_DIR)
                                 .join("installed")
                                 .join(s9pk),
@@ -292,7 +292,7 @@ fn s9pk_router(ctx: RpcContext) -> Router {
                         let s9pk = S9pk::deserialize(
                             &MultiCursorFile::from(
                                 open_file(
-                                    ctx.datadir
+                                    Path::new(DATA_DIR)
                                         .join(PKG_ARCHIVE_DIR)
                                         .join("installed")
                                         .join(s9pk),

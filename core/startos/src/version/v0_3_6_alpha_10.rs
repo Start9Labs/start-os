@@ -7,7 +7,6 @@ use torut::onion::OnionAddressV3;
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_6_alpha_9, VersionT};
-use crate::db::model::Database;
 use crate::net::host::address::DomainConfig;
 use crate::prelude::*;
 

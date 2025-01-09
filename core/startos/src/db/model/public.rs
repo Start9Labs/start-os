@@ -18,7 +18,6 @@ use ts_rs::TS;
 use crate::account::AccountInfo;
 use crate::db::model::package::AllPackageData;
 use crate::net::acme::AcmeProvider;
-use crate::net::utils::ipv6_is_local;
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::system::SmtpValue;
@@ -187,11 +186,21 @@ impl NetworkInterfaceInfo {
 #[serde(rename_all = "camelCase")]
 pub struct IpInfo {
     pub scope_id: u32,
+    pub device_type: Option<NetworkInterfaceType>,
     #[ts(type = "string[]")]
     pub subnets: BTreeSet<IpNet>,
     pub wan_ip: Option<Ipv4Addr>,
     #[ts(type = "string[]")]
     pub ntp_servers: BTreeSet<InternedString>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "kebab-case")]
+pub enum NetworkInterfaceType {
+    Ethernet,
+    Wireless,
+    Wireguard,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]

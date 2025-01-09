@@ -1,19 +1,16 @@
 use std::collections::BTreeMap;
-use std::future::Future;
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
+use const_format::formatcp;
 use ed25519_dalek::SigningKey;
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::{json, InternedString};
-use itertools::Itertools;
 use models::PackageId;
-use openssl::pkey::{PKey, Private};
+use openssl::pkey::PKey;
 use openssl::x509::X509;
-use patch_db::ModelExt;
 use sqlx::postgres::PgConnectOptions;
 use sqlx::{PgPool, Row};
-use ssh_key::Fingerprint;
 use tokio::process::Command;
 use torut::onion::TorSecretKeyV3;
 
@@ -23,15 +20,11 @@ use crate::account::AccountInfo;
 use crate::auth::Sessions;
 use crate::backup::target::cifs::CifsTargets;
 use crate::context::RpcContext;
-use crate::db::model::Database;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::util::unmount;
 use crate::hostname::Hostname;
 use crate::net::forward::AvailablePorts;
 use crate::net::keys::KeyStore;
-use crate::net::ssl::CertStore;
-use crate::net::tor;
-use crate::net::tor::OnionStore;
 use crate::notifications::{Notification, Notifications};
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
@@ -39,6 +32,7 @@ use crate::ssh::{SshKeys, SshPubKey};
 use crate::util::crypto::ed25519_expand_key;
 use crate::util::serde::{Pem, PemEncoding};
 use crate::util::Invoke;
+use crate::{DATA_DIR, PACKAGE_DATA};
 
 lazy_static::lazy_static! {
     static ref V0_3_6_alpha_0: exver::Version = exver::Version::new(
@@ -207,7 +201,7 @@ impl VersionT for Version {
         &V0_3_0_COMPAT
     }
     async fn pre_up(self) -> Result<Self::PreUpRes, Error> {
-        let pg = init_postgres("/embassy-data").await?;
+        let pg = init_postgres(DATA_DIR).await?;
         let account = previous_account_info(&pg).await?;
 
         let ssh_keys = previous_ssh_keys(&pg).await?;
@@ -327,7 +321,7 @@ impl VersionT for Version {
     #[instrument(skip(self, ctx))]
     /// MUST be idempotent, and is run after *all* db migrations
     async fn post_up(self, ctx: &RpcContext) -> Result<(), Error> {
-        let path = Path::new("/embassy-data/package-data/archive/");
+        let path = Path::new(formatcp!("{PACKAGE_DATA}/archive/"));
         if !path.is_dir() {
             return Err(Error::new(
                 eyre!(

@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use exver::{PreReleaseSegment, VersionRange};
 use tokio::fs::File;
 
@@ -12,6 +14,7 @@ use crate::s9pk::v2::SIG_CONTEXT;
 use crate::s9pk::S9pk;
 use crate::service::LoadDisposition;
 use crate::util::io::create_file;
+use crate::DATA_DIR;
 
 lazy_static::lazy_static! {
     static ref V0_3_6_alpha_8: exver::Version = exver::Version::new(
@@ -40,7 +43,7 @@ impl VersionT for Version {
         Ok(())
     }
     async fn post_up(self, ctx: &crate::context::RpcContext) -> Result<(), Error> {
-        let s9pk_dir = ctx.datadir.join(PKG_ARCHIVE_DIR).join("installed");
+        let s9pk_dir = Path::new(DATA_DIR).join(PKG_ARCHIVE_DIR).join("installed");
 
         if tokio::fs::metadata(&s9pk_dir).await.is_ok() {
             let mut read_dir = tokio::fs::read_dir(&s9pk_dir).await?;

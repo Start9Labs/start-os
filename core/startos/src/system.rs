@@ -24,6 +24,7 @@ use crate::util::cpupower::{get_available_governors, set_governor, Governor};
 use crate::util::io::open_file;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
+use crate::{MAIN_DATA, PACKAGE_DATA};
 
 pub fn experimental<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -802,10 +803,10 @@ pub async fn get_mem_info() -> Result<MetricsMemory, Error> {
 
 #[instrument(skip_all)]
 async fn get_disk_info() -> Result<MetricsDisk, Error> {
-    let package_used_task = get_used("/embassy-data/package-data");
-    let package_available_task = get_available("/embassy-data/package-data");
-    let os_used_task = get_used("/embassy-data/main");
-    let os_available_task = get_available("/embassy-data/main");
+    let package_used_task = get_used(PACKAGE_DATA);
+    let package_available_task = get_available(PACKAGE_DATA);
+    let os_used_task = get_used(MAIN_DATA);
+    let os_available_task = get_available(MAIN_DATA);
 
     let (package_used, package_available, os_used, os_available) = futures::try_join!(
         package_used_task,

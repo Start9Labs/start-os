@@ -7,6 +7,7 @@ use std::time::{Duration, SystemTime};
 
 use axum::extract::ws::{self};
 use color_eyre::eyre::eyre;
+use const_format::formatcp;
 use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
 use models::ResultExt;
@@ -38,7 +39,7 @@ use crate::util::io::{create_file, IOHook};
 use crate::util::lshw::lshw;
 use crate::util::net::WebSocketExt;
 use crate::util::{cpupower, Invoke};
-use crate::Error;
+use crate::{Error, MAIN_DATA, PACKAGE_DATA};
 
 pub const SYSTEM_REBUILD_PATH: &str = "/media/startos/config/system-rebuild";
 pub const STANDBY_MODE_PATH: &str = "/media/startos/config/standby";
@@ -319,7 +320,7 @@ pub async fn init(
         })?;
         tokio::fs::set_permissions(LOCAL_AUTH_COOKIE_PATH, Permissions::from_mode(0o046)).await?;
         Command::new("chown")
-            .arg("root:embassy")
+            .arg("root:startos")
             .arg(LOCAL_AUTH_COOKIE_PATH)
             .invoke(crate::ErrorKind::Filesystem)
             .await?;
@@ -362,7 +363,7 @@ pub async fn init(
     start_net.complete();
 
     mount_logs.start();
-    let log_dir = cfg.datadir().join("main/logs");
+    let log_dir = Path::new(MAIN_DATA).join("logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
         tokio::fs::create_dir_all(&log_dir).await?;
     }
@@ -422,36 +423,28 @@ pub async fn init(
     load_ca_cert.complete();
 
     load_wifi.start();
-    crate::net::wifi::synchronize_network_manager(
-        &cfg.datadir().join("main"),
-        &mut server_info.wifi,
-    )
-    .await?;
+    crate::net::wifi::synchronize_network_manager(MAIN_DATA, &mut server_info.wifi).await?;
     load_wifi.complete();
     tracing::info!("Synchronized WiFi");
 
     init_tmp.start();
-    let tmp_dir = cfg.datadir().join("package-data/tmp");
+    let tmp_dir = Path::new(PACKAGE_DATA).join("tmp");
     if tokio::fs::metadata(&tmp_dir).await.is_ok() {
         tokio::fs::remove_dir_all(&tmp_dir).await?;
     }
     if tokio::fs::metadata(&tmp_dir).await.is_err() {
         tokio::fs::create_dir_all(&tmp_dir).await?;
     }
-    let tmp_var = cfg.datadir().join(format!("package-data/tmp/var"));
+    let tmp_var = Path::new(PACKAGE_DATA).join("tmp/var");
     if tokio::fs::metadata(&tmp_var).await.is_ok() {
         tokio::fs::remove_dir_all(&tmp_var).await?;
     }
     crate::disk::mount::util::bind(&tmp_var, "/var/tmp", false).await?;
-    let downloading = cfg
-        .datadir()
-        .join(format!("package-data/archive/downloading"));
+    let downloading = Path::new(PACKAGE_DATA).join("archive/downloading");
     if tokio::fs::metadata(&downloading).await.is_ok() {
         tokio::fs::remove_dir_all(&downloading).await?;
     }
-    let tmp_docker = cfg
-        .datadir()
-        .join(format!("package-data/tmp/{CONTAINER_TOOL}"));
+    let tmp_docker = Path::new(PACKAGE_DATA).join(formatcp!("tmp/{CONTAINER_TOOL}"));
     crate::disk::mount::util::bind(&tmp_docker, CONTAINER_DATADIR, false).await?;
     init_tmp.complete();
 

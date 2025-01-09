@@ -39,7 +39,7 @@ use crate::util::io::create_file;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::Invoke;
 use crate::volume::data_dir;
-use crate::ARCH;
+use crate::{ARCH, DATA_DIR, PACKAGE_DATA};
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -121,8 +121,8 @@ impl PersistentContainer {
             .lxc_manager
             .create(
                 Some(
-                    &ctx.datadir
-                        .join("package-data/logs")
+                    &Path::new(PACKAGE_DATA)
+                        .join("logs")
                         .join(&s9pk.as_manifest().id),
                 ),
                 LxcConfig::default(),
@@ -157,7 +157,7 @@ impl PersistentContainer {
                 .await?;
             let mount = MountGuard::mount(
                 &IdMapped::new(
-                    Bind::new(data_dir(&ctx.datadir, &s9pk.as_manifest().id, volume)),
+                    Bind::new(data_dir(DATA_DIR, &s9pk.as_manifest().id, volume)),
                     0,
                     100000,
                     65536,

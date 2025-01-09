@@ -25,6 +25,8 @@ export class HealthDaemon {
   private _health: HealthCheckResult = { result: "starting", message: null }
   private healthWatchers: Array<() => unknown> = []
   private running = false
+  private resolveReady: (() => void) | undefined
+  private readyPromise: Promise<void>
   constructor(
     private readonly daemon: Promise<Daemon>,
     readonly daemonIndex: number,
@@ -35,6 +37,7 @@ export class HealthDaemon {
     readonly effects: Effects,
     readonly sigtermTimeout: number = DEFAULT_SIGTERM_TIMEOUT,
   ) {
+    this.readyPromise = new Promise((resolve) => (this.resolveReady = resolve))
     this.updateStatus()
     this.dependencies.forEach((d) => d.addWatcher(() => this.updateStatus()))
   }
@@ -112,6 +115,12 @@ export class HealthDaemon {
               message: "message" in err ? err.message : String(err),
             }
           })
+          if (
+            this.resolveReady &&
+            (response.result === "success" || response.result === "disabled")
+          ) {
+            this.resolveReady()
+          }
           await this.setHealth(response)
         } else {
           await this.setHealth({
@@ -127,6 +136,10 @@ export class HealthDaemon {
       this.healthCheckCleanup = null
       return null
     }
+  }
+
+  onReady() {
+    return this.readyPromise
   }
 
   private async setHealth(health: HealthCheckResult) {

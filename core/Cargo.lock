@@ -1161,18 +1161,18 @@ checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 
 [[package]]
 name = "const_format"
-version = "0.2.31"
+version = "0.2.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c990efc7a285731f9a4378d81aff2f0e85a2c8781a05ef0f8baa8dac54d0ff48"
+checksum = "126f97965c8ad46d6d9163268ff28432e8f6a1196a55578867832e3049df63dd"
 dependencies = [
  "const_format_proc_macros",
 ]
 
 [[package]]
 name = "const_format_proc_macros"
-version = "0.2.31"
+version = "0.2.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e026b6ce194a874cb9cf32cd5772d1ef9767cc8fcb5765948d74f37a9d8b2bf6"
+checksum = "1d57c2eccfb16dbac1f4e61e206105db5820c9d26c3c472bc17c774259ef7744"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5540,9 +5540,9 @@ dependencies = [
 
 [[package]]
 name = "sscanf"
-version = "0.4.2"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a147d3cf7e723671ed11355b5b008c8019195f7fc902e213f5557d931e9f839d"
+checksum = "c713ebd15ce561dd4a13ed62bc2a0368e16806fc30dcaf66ecf1256b2a3fdde6"
 dependencies = [
  "const_format",
  "lazy_static",
@@ -5552,9 +5552,9 @@ dependencies = [
 
 [[package]]
 name = "sscanf_macro"
-version = "0.4.2"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "af3a37bdf8e90e77cc60f74473edf28d922ae2eacdd595e67724ccd2381774cc"
+checksum = "84955aa74a157e5834d58a07be11af7f0ab923f0194a0bb2ea6b3db8b5d1611d"
 dependencies = [
  "convert_case 0.6.0",
  "proc-macro2",
@@ -5637,6 +5637,7 @@ dependencies = [
  "color-eyre",
  "console",
  "console-subscriber",
+ "const_format",
  "cookie",
  "cookie_store",
  "der",

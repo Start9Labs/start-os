@@ -105,7 +105,7 @@ rm -rf /var/lib/tor/*
 ln -sf /usr/lib/startos/scripts/tor-check.sh /usr/bin/tor-check
 ln -sf /usr/lib/startos/scripts/gather_debug_info.sh /usr/bin/gather-debug
 
-echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-embassy.conf
+echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-startos.conf
 
 # Old pi was set with this locale, because of pg we are now stuck with including that locale
 locale-gen en_GB en_GB.UTF-8 
@@ -114,16 +114,14 @@ update-locale  LANGUAGE
 rm -f "/etc/locale.gen"
 dpkg-reconfigure --frontend noninteractive locales
 
-if ! getent group | grep '^embassy:'; then
-    groupadd embassy
+if ! getent group | grep '^startos:'; then
+    groupadd startos
 fi
 
-ln -sf /usr/lib/startos/scripts/dhclient-exit-hook /etc/dhcp/dhclient-exit-hooks.d/embassy
-
 rm -f /etc/motd
-ln -sf /usr/lib/startos/motd /etc/update-motd.d/00-embassy
+ln -sf /usr/lib/startos/motd /etc/update-motd.d/00-startos
 chmod -x /etc/update-motd.d/*
-chmod +x /etc/update-motd.d/00-embassy
+chmod +x /etc/update-motd.d/00-startos
 
 # LXC
 cat /etc/subuid | grep -v '^root:' > /etc/subuid.tmp || true

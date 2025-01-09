@@ -212,16 +212,22 @@ export class RpcListener {
       s.on("data", (a) =>
         Promise.resolve(a)
           .then((b) => b.toString())
-          .then(logData("dataIn"))
-          .then(jsonParse)
-          .then(captureId)
-          .then((x) => this.dealWithInput(x))
-          .catch(mapError)
-          .then(logData("response"))
-          .then(writeDataToSocket)
-          .catch((e) => {
-            console.error(`Major error in socket handling: ${e}`)
-            console.debug(`Data in: ${a.toString()}`)
+          .then((buf) => {
+            for (let s in buf.split("\n")) {
+              if (s)
+                Promise.resolve(s)
+                  .then(logData("dataIn"))
+                  .then(jsonParse)
+                  .then(captureId)
+                  .then((x) => this.dealWithInput(x))
+                  .catch(mapError)
+                  .then(logData("response"))
+                  .then(writeDataToSocket)
+                  .catch((e) => {
+                    console.error(`Major error in socket handling: ${e}`)
+                    console.debug(`Data in: ${a.toString()}`)
+                  })
+            }
           }),
       )
     })

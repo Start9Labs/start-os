@@ -681,6 +681,18 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           return Daemons.of<Manifest>({ effects, started, healthReceipts })
         },
       },
+      SubContainer: {
+        of(
+          effects: Effects,
+          image: {
+            id: T.ImageId & keyof Manifest["images"]
+            sharedRun?: boolean
+          },
+          name: string,
+        ) {
+          return SubContainer.of(effects, image, name)
+        },
+      },
       List: {
         /**
          * @description Create a list of text inputs.
