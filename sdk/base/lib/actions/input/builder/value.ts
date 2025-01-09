@@ -49,6 +49,9 @@ export class Value<Type, Store> {
     public build: LazyBuild<Store, ValueSpec>,
     public validator: Parser<unknown, Type>,
   ) {}
+  public _TYPE: Type = null as any as Type
+  public _PARTIAL: DeepPartial<Type> = null as any as DeepPartial<Type>
+
   static toggle(a: {
     name: string
     description?: string | null

@@ -2,7 +2,13 @@
 
 export type IpHostname =
   | { kind: "ipv4"; value: string; port: number | null; sslPort: number | null }
-  | { kind: "ipv6"; value: string; port: number | null; sslPort: number | null }
+  | {
+      kind: "ipv6"
+      value: string
+      scopeId: number
+      port: number | null
+      sslPort: number | null
+    }
   | {
       kind: "local"
       value: string

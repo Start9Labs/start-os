@@ -80,7 +80,7 @@ impl MainStatus {
         }
     }
 
-    pub fn backing_up(self) -> Self {
+    pub fn backing_up(&self) -> Self {
         MainStatus::BackingUp {
             on_complete: if self.running() {
                 StartStop::Start

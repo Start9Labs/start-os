@@ -3,7 +3,6 @@ use std::path::Path;
 use clap::Parser;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
-use url::Url;
 
 use crate::context::CliContext;
 use crate::prelude::*;

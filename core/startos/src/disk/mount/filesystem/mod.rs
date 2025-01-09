@@ -1,7 +1,6 @@
 use std::ffi::OsStr;
 use std::fmt::{Display, Write};
 use std::path::Path;
-use std::time::Duration;
 
 use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;

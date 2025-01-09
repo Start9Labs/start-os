@@ -1,11 +1,13 @@
 use std::path::Path;
 
 use tokio::process::Command;
+use ts_rs::TS;
 
 use crate::prelude::*;
 use crate::util::Invoke;
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, TS)]
+#[ts(type = "string")]
 pub struct GitHash(String);
 
 impl GitHash {
@@ -30,6 +32,31 @@ impl GitHash {
             hash += "-modified";
         }
         Ok(GitHash(hash))
+    }
+    pub fn load_sync() -> Option<GitHash> {
+        let mut hash = String::from_utf8(
+            std::process::Command::new("git")
+                .arg("rev-parse")
+                .arg("HEAD")
+                .output()
+                .ok()?
+                .stdout,
+        )
+        .ok()?;
+        if !std::process::Command::new("git")
+            .arg("diff-index")
+            .arg("--quiet")
+            .arg("HEAD")
+            .arg("--")
+            .output()
+            .ok()?
+            .status
+            .success()
+        {
+            hash += "-modified";
+        }
+
+        Some(GitHash(hash))
     }
 }
 

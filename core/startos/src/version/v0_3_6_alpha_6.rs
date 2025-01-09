@@ -27,7 +27,7 @@ impl VersionT for Version {
     async fn pre_up(self) -> Result<Self::PreUpRes, Error> {
         Ok(())
     }
-    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
+    fn up(self, _db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
         Ok(())
     }
     async fn post_up<'a>(self, ctx: &'a crate::context::RpcContext) -> Result<(), Error> {

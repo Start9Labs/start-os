@@ -26,6 +26,7 @@ GZIP_BIN := $(shell which pigz || which gzip)
 TAR_BIN := $(shell which gtar || which tar)
 COMPILED_TARGETS := core/target/$(ARCH)-unknown-linux-musl/release/startbox core/target/$(ARCH)-unknown-linux-musl/release/containerbox system-images/compat/docker-images/$(ARCH).tar system-images/utils/docker-images/$(ARCH).tar system-images/binfmt/docker-images/$(ARCH).tar container-runtime/rootfs.$(ARCH).squashfs
 ALL_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) cargo-deps/$(ARCH)-unknown-linux-musl/release/startos-backup-fs $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo cargo-deps/aarch64-unknown-linux-musl/release/pi-beep; fi)  $(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]; then echo cargo-deps/$(ARCH)-unknown-linux-musl/release/tokio-console; fi') $(PLATFORM_FILE) 
+REBUILD_TYPES = 1
 
 ifeq ($(REMOTE),)
 	mkdir = mkdir -p $1
@@ -226,7 +227,7 @@ container-runtime/node_modules/.package-lock.json: container-runtime/package.jso
 	npm --prefix container-runtime ci
 	touch container-runtime/node_modules/.package-lock.json
 
-sdk/base/lib/osBindings/index.ts: core/startos/bindings/index.ts
+sdk/base/lib/osBindings/index.ts: $(shell if [ "$(REBUILD_TYPES)" -ne 0 ]; then echo core/startos/bindings/index.ts; fi)
 	mkdir -p sdk/base/lib/osBindings
 	rsync -ac --delete core/startos/bindings/ sdk/base/lib/osBindings/
 	touch sdk/base/lib/osBindings/index.ts

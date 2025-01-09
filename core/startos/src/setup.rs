@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
+use const_format::formatcp;
 use josekit::jwk::Jwk;
 use patch_db::json_ptr::ROOT;
 use rpc_toolkit::yajrc::RpcError;
@@ -38,7 +39,7 @@ use crate::rpc_continuations::Guid;
 use crate::util::crypto::EncryptedWire;
 use crate::util::io::{create_file, dir_copy, dir_size, Counter};
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt};
+use crate::{Error, ErrorKind, ResultExt, DATA_DIR, MAIN_DATA, PACKAGE_DATA};
 
 pub fn setup<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -80,7 +81,7 @@ async fn setup_init(
     password: Option<String>,
     init_phases: InitPhases,
 ) -> Result<(AccountInfo, PreInitNetController), Error> {
-    let InitResult { net_ctrl } = init(&ctx.config, init_phases).await?;
+    let InitResult { net_ctrl } = init(&ctx.webserver, &ctx.config, init_phases).await?;
 
     let account = net_ctrl
         .db
@@ -140,7 +141,7 @@ pub async fn attach(
             disk_phase.start();
             let requires_reboot = crate::disk::main::import(
                 &*disk_guid,
-                &setup_ctx.datadir,
+                DATA_DIR,
                 if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
                     RepairStrategy::Aggressive
                 } else {
@@ -155,7 +156,7 @@ pub async fn attach(
                     .with_ctx(|_| (ErrorKind::Filesystem, REPAIR_DISK_PATH))?;
             }
             if requires_reboot.0 {
-                crate::disk::main::export(&*disk_guid, &setup_ctx.datadir).await?;
+                crate::disk::main::export(&*disk_guid, DATA_DIR).await?;
                 return Err(Error::new(
                     eyre!(
                         "Errors were corrected with your disk, but the server must be restarted in order to proceed"
@@ -167,7 +168,7 @@ pub async fn attach(
 
             let (account, net_ctrl) = setup_init(&setup_ctx, password, init_phases).await?;
 
-            let rpc_ctx = RpcContext::init(&setup_ctx.config, disk_guid, Some(net_ctrl), rpc_ctx_phases).await?;
+            let rpc_ctx = RpcContext::init(&setup_ctx.webserver, &setup_ctx.config, disk_guid, Some(net_ctrl), rpc_ctx_phases).await?;
 
             Ok(((&account).try_into()?, rpc_ctx))
         })?;
@@ -391,18 +392,13 @@ pub async fn execute_inner(
         crate::disk::main::create(
             &[start_os_logicalname],
             &pvscan().await?,
-            &ctx.datadir,
+            DATA_DIR,
             encryption_password,
         )
         .await?,
     );
-    let _ = crate::disk::main::import(
-        &*guid,
-        &ctx.datadir,
-        RepairStrategy::Preen,
-        encryption_password,
-    )
-    .await?;
+    let _ = crate::disk::main::import(&*guid, DATA_DIR, RepairStrategy::Preen, encryption_password)
+        .await?;
     disk_phase.complete();
 
     let progress = SetupExecuteProgress {
@@ -456,9 +452,16 @@ async fn fresh_setup(
     db.put(&ROOT, &Database::init(&account)?).await?;
     drop(db);
 
-    let InitResult { net_ctrl } = init(&ctx.config, init_phases).await?;
+    let InitResult { net_ctrl } = init(&ctx.webserver, &ctx.config, init_phases).await?;
 
-    let rpc_ctx = RpcContext::init(&ctx.config, guid, Some(net_ctrl), rpc_ctx_phases).await?;
+    let rpc_ctx = RpcContext::init(
+        &ctx.webserver,
+        &ctx.config,
+        guid,
+        Some(net_ctrl),
+        rpc_ctx_phases,
+    )
+    .await?;
 
     Ok(((&account).try_into()?, rpc_ctx))
 }
@@ -513,10 +516,10 @@ async fn migrate(
     )
     .await?;
 
-    let main_transfer_args = ("/media/startos/migrate/main/", "/embassy-data/main/");
+    let main_transfer_args = ("/media/startos/migrate/main/", formatcp!("{MAIN_DATA}/"));
     let package_data_transfer_args = (
         "/media/startos/migrate/package-data/",
-        "/embassy-data/package-data/",
+        formatcp!("{PACKAGE_DATA}/"),
     );
 
     let tmpdir = Path::new(package_data_transfer_args.0).join("tmp");
@@ -571,7 +574,14 @@ async fn migrate(
 
     let (account, net_ctrl) = setup_init(&ctx, Some(start_os_password), init_phases).await?;
 
-    let rpc_ctx = RpcContext::init(&ctx.config, guid, Some(net_ctrl), rpc_ctx_phases).await?;
+    let rpc_ctx = RpcContext::init(
+        &ctx.webserver,
+        &ctx.config,
+        guid,
+        Some(net_ctrl),
+        rpc_ctx_phases,
+    )
+    .await?;
 
     Ok(((&account).try_into()?, rpc_ctx))
 }

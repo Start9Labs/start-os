@@ -20,7 +20,7 @@ use ts_rs::TS;
 use crate::context::{CliContext, RpcContext};
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
-use crate::disk::mount::filesystem::efivarfs::{self, EfiVarFs};
+use crate::disk::mount::filesystem::efivarfs::{ EfiVarFs};
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::filesystem::MountType;
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};

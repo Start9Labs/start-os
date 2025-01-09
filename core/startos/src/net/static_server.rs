@@ -8,15 +8,15 @@ use std::time::UNIX_EPOCH;
 use async_compression::tokio::bufread::GzipEncoder;
 use axum::body::Body;
 use axum::extract::{self as x, Request};
-use axum::response::Response;
-use axum::routing::{any, get, post};
+use axum::response::{Redirect, Response};
+use axum::routing::{any, get};
 use axum::Router;
 use base64::display::Base64Display;
 use digest::Digest;
 use futures::future::ready;
 use http::header::{
     ACCEPT_ENCODING, ACCEPT_RANGES, CACHE_CONTROL, CONNECTION, CONTENT_ENCODING, CONTENT_LENGTH,
-    CONTENT_RANGE, CONTENT_TYPE, ETAG, RANGE,
+    CONTENT_RANGE, CONTENT_TYPE, ETAG, HOST, RANGE,
 };
 use http::request::Parts as RequestParts;
 use http::{HeaderValue, Method, StatusCode};
@@ -26,7 +26,6 @@ use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;
 use rpc_toolkit::{Context, HttpServer, Server};
-use sqlx::query;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, BufReader};
 use tokio_util::io::ReaderStream;
 use url::Url;
@@ -47,7 +46,7 @@ use crate::s9pk::S9pk;
 use crate::util::io::open_file;
 use crate::util::net::SyncBody;
 use crate::util::serde::BASE64;
-use crate::{diagnostic_api, init_api, install_api, main_api, setup_api};
+use crate::{diagnostic_api, init_api, install_api, main_api, setup_api, DATA_DIR};
 
 const NOT_FOUND: &[u8] = b"Not Found";
 const METHOD_NOT_ALLOWED: &[u8] = b"Method Not Allowed";
@@ -230,6 +229,20 @@ pub fn refresher() -> Router {
     }))
 }
 
+pub fn redirecter() -> Router {
+    Router::new().fallback(get(|request: Request| async move {
+        Redirect::temporary(&format!(
+            "https://{}{}",
+            request
+                .headers()
+                .get(HOST)
+                .and_then(|s| s.to_str().ok())
+                .unwrap_or("localhost"),
+            request.uri()
+        ))
+    }))
+}
+
 async fn proxy_request(ctx: RpcContext, request: Request, url: String) -> Result<Response, Error> {
     if_authorized(&ctx, request, |mut request| async {
         for header in PROXY_STRIP_HEADERS {
@@ -253,7 +266,7 @@ fn s9pk_router(ctx: RpcContext) -> Router {
                         let (parts, _) = request.into_parts();
                         match FileData::from_path(
                             &parts,
-                            &ctx.datadir
+                            &Path::new(DATA_DIR)
                                 .join(PKG_ARCHIVE_DIR)
                                 .join("installed")
                                 .join(s9pk),
@@ -279,7 +292,7 @@ fn s9pk_router(ctx: RpcContext) -> Router {
                         let s9pk = S9pk::deserialize(
                             &MultiCursorFile::from(
                                 open_file(
-                                    ctx.datadir
+                                    Path::new(DATA_DIR)
                                         .join(PKG_ARCHIVE_DIR)
                                         .join("installed")
                                         .join(s9pk),

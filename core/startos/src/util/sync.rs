@@ -1,3 +1,4 @@
+#[derive(Debug, Default)]
 pub struct SyncMutex<T>(std::sync::Mutex<T>);
 impl<T> SyncMutex<T> {
     pub fn new(t: T) -> Self {

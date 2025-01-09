@@ -15,8 +15,13 @@ impl BackgroundJobQueue {
             },
         )
     }
-    pub fn add_job(&self, fut: impl Future<Output = ()> + Send + 'static) {
-        let _ = self.0.send(fut.boxed());
+    pub fn add_job(&self, fut: impl Future + Send + 'static) {
+        let _ = self.0.send(
+            async {
+                fut.await;
+            }
+            .boxed(),
+        );
     }
 }
 

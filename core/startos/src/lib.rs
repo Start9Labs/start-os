@@ -1,6 +1,11 @@
+use const_format::formatcp;
+
+pub const DATA_DIR: &str = "/media/startos/data";
+pub const MAIN_DATA: &str = formatcp!("{DATA_DIR}/main");
+pub const PACKAGE_DATA: &str = formatcp!("{DATA_DIR}/package-data");
 pub const DEFAULT_REGISTRY: &str = "https://registry.start9.com";
 // pub const COMMUNITY_MARKETPLACE: &str = "https://community-registry.start9.com";
-pub const HOST_IP: [u8; 4] = [172, 18, 0, 1];
+pub const HOST_IP: [u8; 4] = [10, 0, 3, 1];
 pub use std::env::consts::ARCH;
 lazy_static::lazy_static! {
     pub static ref PLATFORM: String = {

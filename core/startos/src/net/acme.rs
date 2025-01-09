@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
 
+use async_acme::acme::Identifier;
 use clap::builder::ValueParserFactory;
 use clap::Parser;
 use imbl_value::InternedString;
@@ -10,6 +11,7 @@ use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 use url::Url;
 
 use crate::context::{CliContext, RpcContext};
@@ -78,10 +80,18 @@ impl<'a> async_acme::cache::AcmeCache for AcmeCertCache<'a> {
 
     async fn read_certificate(
         &self,
-        domains: &[String],
+        identifiers: &[Identifier],
         directory_url: &str,
     ) -> Result<Option<(String, String)>, Self::Error> {
-        let domains = JsonKey::new(domains.into_iter().map(InternedString::intern).collect());
+        let identifiers = JsonKey::new(
+            identifiers
+                .into_iter()
+                .map(|d| match d {
+                    Identifier::Dns(d) => d.into(),
+                    Identifier::Ip(ip) => InternedString::from_display(ip),
+                })
+                .collect(),
+        );
         let directory_url = directory_url
             .parse::<Url>()
             .with_kind(ErrorKind::ParseUrl)?;
@@ -94,7 +104,7 @@ impl<'a> async_acme::cache::AcmeCache for AcmeCertCache<'a> {
             .into_acme()
             .into_certs()
             .into_idx(&directory_url)
-            .and_then(|a| a.into_idx(&domains))
+            .and_then(|a| a.into_idx(&identifiers))
         else {
             return Ok(None);
         };
@@ -120,13 +130,21 @@ impl<'a> async_acme::cache::AcmeCache for AcmeCertCache<'a> {
 
     async fn write_certificate(
         &self,
-        domains: &[String],
+        identifiers: &[Identifier],
         directory_url: &str,
         key_pem: &str,
         certificate_pem: &str,
     ) -> Result<(), Self::Error> {
-        tracing::info!("Saving new certificate for {domains:?}");
-        let domains = JsonKey::new(domains.into_iter().map(InternedString::intern).collect());
+        tracing::info!("Saving new certificate for {identifiers:?}");
+        let identifiers = JsonKey::new(
+            identifiers
+                .into_iter()
+                .map(|d| match d {
+                    Identifier::Dns(d) => d.into(),
+                    Identifier::Ip(ip) => InternedString::from_display(ip),
+                })
+                .collect(),
+        );
         let directory_url = directory_url
             .parse::<Url>()
             .with_kind(ErrorKind::ParseUrl)?;
@@ -146,7 +164,7 @@ impl<'a> async_acme::cache::AcmeCache for AcmeCertCache<'a> {
                     .as_acme_mut()
                     .as_certs_mut()
                     .upsert(&directory_url, || Ok(BTreeMap::new()))?
-                    .insert(&domains, &cert)
+                    .insert(&identifiers, &cert)
             })
             .await?;
 
@@ -155,22 +173,17 @@ impl<'a> async_acme::cache::AcmeCache for AcmeCertCache<'a> {
 }
 
 pub fn acme<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new()
-        .subcommand(
-            "init",
-            from_fn_async(init)
-                .no_display()
-                .with_about("Setup ACME certificate acquisition")
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "domain",
-            domain::<C>()
-                .with_about("Add, remove, or view domains for which to acquire ACME certificates"),
-        )
+    ParentHandler::new().subcommand(
+        "init",
+        from_fn_async(init)
+            .no_display()
+            .with_about("Setup ACME certificate acquisition")
+            .with_call_remote::<CliContext>(),
+    )
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
+#[ts(type = "string")]
 pub struct AcmeProvider(pub Url);
 impl FromStr for AcmeProvider {
     type Err = <Url as FromStr>::Err;
@@ -181,6 +194,11 @@ impl FromStr for AcmeProvider {
             s => s.parse(),
         }
         .map(Self)
+    }
+}
+impl AsRef<str> for AcmeProvider {
+    fn as_ref(&self) -> &str {
+        self.0.as_str()
     }
 }
 impl ValueParserFactory for AcmeProvider {
@@ -200,125 +218,15 @@ pub struct InitAcmeParams {
 
 pub async fn init(
     ctx: RpcContext,
-    InitAcmeParams {
-        provider: AcmeProvider(provider),
-        contact,
-    }: InitAcmeParams,
+    InitAcmeParams { provider, contact }: InitAcmeParams,
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
             db.as_public_mut()
                 .as_server_info_mut()
                 .as_acme_mut()
-                .map_mutate(|acme| {
-                    Ok(Some(AcmeSettings {
-                        provider,
-                        contact,
-                        domains: acme.map(|acme| acme.domains).unwrap_or_default(),
-                    }))
-                })
+                .insert(&provider, &AcmeSettings { contact })
         })
         .await?;
     Ok(())
-}
-
-pub fn domain<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new()
-        .subcommand(
-            "add",
-            from_fn_async(add_domain)
-                .no_display()
-                .with_about("Add a domain for which to acquire ACME certificates")
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "remove",
-            from_fn_async(remove_domain)
-                .no_display()
-                .with_about("Remove a domain for which to acquire ACME certificates")
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "list",
-            from_fn_async(list_domains)
-                .with_custom_display_fn(|_, res| {
-                    for domain in res {
-                        println!("{domain}")
-                    }
-                    Ok(())
-                })
-                .with_about("List domains for which to acquire ACME certificates")
-                .with_call_remote::<CliContext>(),
-        )
-}
-
-#[derive(Deserialize, Serialize, Parser)]
-pub struct DomainParams {
-    pub domain: InternedString,
-}
-
-pub async fn add_domain(
-    ctx: RpcContext,
-    DomainParams { domain }: DomainParams,
-) -> Result<(), Error> {
-    ctx.db
-        .mutate(|db| {
-            db.as_public_mut()
-                .as_server_info_mut()
-                .as_acme_mut()
-                .transpose_mut()
-                .ok_or_else(|| {
-                    Error::new(
-                        eyre!("Please call `start-cli net acme init` before adding a domain"),
-                        ErrorKind::InvalidRequest,
-                    )
-                })?
-                .as_domains_mut()
-                .mutate(|domains| {
-                    domains.insert(domain);
-                    Ok(())
-                })
-        })
-        .await?;
-    Ok(())
-}
-
-pub async fn remove_domain(
-    ctx: RpcContext,
-    DomainParams { domain }: DomainParams,
-) -> Result<(), Error> {
-    ctx.db
-        .mutate(|db| {
-            if let Some(acme) = db
-                .as_public_mut()
-                .as_server_info_mut()
-                .as_acme_mut()
-                .transpose_mut()
-            {
-                acme.as_domains_mut().mutate(|domains| {
-                    domains.remove(&domain);
-                    Ok(())
-                })
-            } else {
-                Ok(())
-            }
-        })
-        .await?;
-    Ok(())
-}
-
-pub async fn list_domains(ctx: RpcContext) -> Result<BTreeSet<InternedString>, Error> {
-    if let Some(acme) = ctx
-        .db
-        .peek()
-        .await
-        .into_public()
-        .into_server_info()
-        .into_acme()
-        .transpose()
-    {
-        acme.into_domains().de()
-    } else {
-        Ok(BTreeSet::new())
-    }
 }

@@ -4,7 +4,7 @@ set -e
 
 # install dependencies
 /usr/bin/apt update
-/usr/bin/apt install --no-install-recommends -y xserver-xorg x11-xserver-utils xinit firefox-esr matchbox-window-manager libnss3-tools
+/usr/bin/apt install --no-install-recommends -y xserver-xorg x11-xserver-utils xinit firefox-esr matchbox-window-manager libnss3-tools p11-kit-modules
 
 #Change a default preference set by stock debian firefox-esr
 sed -i 's|^pref("extensions.update.enabled", true);$|pref("extensions.update.enabled", false);|' /etc/firefox-esr/firefox-esr.js
@@ -82,6 +82,8 @@ user_pref("toolkit.telemetry.unified", false);
 user_pref("toolkit.telemetry.updatePing.enabled", false);
 user_pref("toolkit.telemetry.cachedClientID", "");
 EOF
+
+ln -sf /usr/lib/$(uname -m)-linux-gnu/pkcs11/p11-kit-trust.so /usr/lib/firefox-esr/libnssckbi.so
 
 # create kiosk script
 cat > /home/kiosk/kiosk.sh << 'EOF'
