@@ -1,14 +1,18 @@
 use std::collections::{BTreeMap, BTreeSet};
 
+use clap::Parser;
 use imbl_value::InternedString;
 use models::{HostId, PackageId};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
+use torut::onion::OnionAddressV3;
 use ts_rs::TS;
 
+use crate::context::RpcContext;
 use crate::db::model::DatabaseModel;
 use crate::net::forward::AvailablePorts;
-use crate::net::host::address::HostAddress;
-use crate::net::host::binding::{BindInfo, BindOptions};
+use crate::net::host::address::{address, DomainConfig, HostAddress};
+use crate::net::host::binding::{binding, BindInfo, BindOptions};
 use crate::net::service_interface::HostnameInfo;
 use crate::prelude::*;
 
@@ -22,7 +26,10 @@ pub mod binding;
 pub struct Host {
     pub kind: HostKind,
     pub bindings: BTreeMap<u16, BindInfo>,
-    pub addresses: BTreeSet<HostAddress>,
+    #[ts(type = "string[]")]
+    pub onions: BTreeSet<OnionAddressV3>,
+    #[ts(as = "BTreeMap::<String, DomainConfig>")]
+    pub domains: BTreeMap<InternedString, DomainConfig>,
     /// COMPUTED: NetService::update
     pub hostname_info: BTreeMap<u16, Vec<HostnameInfo>>, // internal port -> Hostnames
 }
@@ -36,13 +43,27 @@ impl Host {
         Self {
             kind,
             bindings: BTreeMap::new(),
-            addresses: BTreeSet::new(),
+            onions: BTreeSet::new(),
+            domains: BTreeMap::new(),
             hostname_info: BTreeMap::new(),
         }
     }
-    pub fn addresses(&self) -> impl Iterator<Item = &HostAddress> {
-        // TODO: handle primary
-        self.addresses.iter()
+    pub fn addresses<'a>(&'a self) -> impl Iterator<Item = HostAddress> + 'a {
+        self.onions
+            .iter()
+            .cloned()
+            .map(|address| HostAddress::Onion { address })
+            .chain(
+                self.domains
+                    .iter()
+                    .map(
+                        |(address, DomainConfig { public, acme })| HostAddress::Domain {
+                            address: address.clone(),
+                            public: *public,
+                            acme: acme.clone(),
+                        },
+                    ),
+            )
     }
 }
 
@@ -101,12 +122,12 @@ pub fn host_for<'a>(
     };
     host_info(db, package_id)?.upsert(host_id, || {
         let mut h = Host::new(host_kind);
-        h.addresses.insert(HostAddress::Onion {
-            address: tor_key
+        h.onions.insert(
+            tor_key
                 .or_not_found("generated tor key")?
                 .public()
                 .get_onion_address(),
-        });
+        );
         Ok(h)
     })
 }
@@ -133,4 +154,49 @@ impl Model<Host> {
             Ok(())
         })
     }
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+pub struct HostParams {
+    package: PackageId,
+}
+
+pub fn host<C: Context>() -> ParentHandler<C, HostParams> {
+    ParentHandler::<C, HostParams>::new()
+        .subcommand(
+            "list",
+            from_fn_async(list_hosts)
+                .with_inherited(|HostParams { package }, _| package)
+                .with_custom_display_fn(|_, ids| {
+                    for id in ids {
+                        println!("{id}")
+                    }
+                    Ok(())
+                })
+                .with_about("List host IDs available for this service"),
+        )
+        .subcommand(
+            "address",
+            address::<C>().with_inherited(|HostParams { package }, _| package),
+        )
+        .subcommand(
+            "binding",
+            binding::<C>().with_inherited(|HostParams { package }, _| package),
+        )
+}
+
+pub async fn list_hosts(
+    ctx: RpcContext,
+    _: Empty,
+    package: PackageId,
+) -> Result<Vec<HostId>, Error> {
+    ctx.db
+        .peek()
+        .await
+        .into_public()
+        .into_package_data()
+        .into_idx(&package)
+        .or_not_found(&package)?
+        .into_hosts()
+        .keys()
 }

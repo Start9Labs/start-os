@@ -6,27 +6,23 @@ import {
 } from "../../../base/lib/types/ManifestTypes"
 import { SDKVersion } from "../StartSdk"
 import { VersionGraph } from "../version/VersionGraph"
+import { execSync } from "child_process"
 
 /**
  * @description Use this function to define critical information about your package
  *
- * @param versions Every version of the package, imported from ./versions
  * @param manifest Static properties of the package
  */
 export function setupManifest<
   Id extends string,
-  Dependencies extends Record<string, unknown>,
   VolumesTypes extends VolumeId,
   AssetTypes extends VolumeId,
-  ImagesTypes extends ImageId,
   Manifest extends {
-    dependencies: Dependencies
     id: Id
     assets: AssetTypes[]
-    images: Record<ImagesTypes, SDKImageInputSpec>
     volumes: VolumesTypes[]
-  },
->(manifest: SDKManifest & Manifest): SDKManifest & Manifest {
+  } & SDKManifest,
+>(manifest: Manifest & SDKManifest): Manifest {
   return manifest
 }
 
@@ -52,7 +48,9 @@ export function buildManifest<
     (images, [k, v]) => {
       v.arch = v.arch || ["aarch64", "x86_64"]
       if (v.emulateMissingAs === undefined)
-        v.emulateMissingAs = v.arch[0] || null
+        v.emulateMissingAs = (v.arch as string[]).includes("aarch64")
+          ? "aarch64"
+          : v.arch[0] || null
       images[k] = v as ImageConfig
       return images
     },
@@ -60,7 +58,6 @@ export function buildManifest<
   )
   return {
     ...manifest,
-    gitHash: null,
     osVersion: SDKVersion,
     version: versions.current.options.version,
     releaseNotes: versions.current.options.releaseNotes,
@@ -77,11 +74,7 @@ export function buildManifest<
       stop: manifest.alerts?.stop || null,
     },
     hardwareRequirements: {
-      device: Object.fromEntries(
-        Object.entries(manifest.hardwareRequirements?.device || {}).map(
-          ([k, v]) => [k, v.source],
-        ),
-      ),
+      device: manifest.hardwareRequirements?.device || [],
       ram: manifest.hardwareRequirements?.ram || null,
       arch:
         manifest.hardwareRequirements?.arch === undefined

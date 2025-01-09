@@ -245,10 +245,10 @@ const matchProperties = object({
 function convertProperties(
   name: string,
   value: PropertiesValue,
-): T.ActionResultV1 {
+): T.ActionResultMember {
   if (value.type === "string") {
     return {
-      type: "string",
+      type: "single",
       name,
       description: value.description,
       copyable: value.copyable || false,
@@ -258,9 +258,9 @@ function convertProperties(
     }
   }
   return {
-    type: "object",
+    type: "group",
     name,
-    description: value.description || undefined,
+    description: value.description,
     value: Object.entries(value.value).map(([name, value]) =>
       convertProperties(name, value),
     ),
@@ -301,6 +301,20 @@ export class SystemForEmbassy implements System {
     await effects.setMainStatus({ status: "stopped" })
     await this.exportActions(effects)
     await this.exportNetwork(effects)
+    await this.containerSetDependencies(effects)
+  }
+  async containerSetDependencies(effects: T.Effects) {
+    const oldDeps: Record<string, string[]> = Object.fromEntries(
+      await effects
+        .getDependencies()
+        .then((x) =>
+          x.flatMap((x) =>
+            x.kind === "running" ? [[x.id, x?.healthChecks || []]] : [],
+          ),
+        )
+        .catch(() => []),
+    )
+    await this.setDependencies(effects, oldDeps)
   }
 
   async exit(): Promise<void> {
@@ -337,7 +351,7 @@ export class SystemForEmbassy implements System {
       await effects.setDataVersion({
         version: ExtendedVersion.parseEmver(this.manifest.version).toString(),
       })
-    } else {
+    } else if (this.manifest.config) {
       await effects.action.request({
         packageId: this.manifest.id,
         actionId: "config",
@@ -411,7 +425,6 @@ export class SystemForEmbassy implements System {
               name: interfaceValue.name,
               id: `${id}-${internal}`,
               description: interfaceValue.description,
-              hasPrimary: false,
               type:
                 interfaceValue.ui &&
                 (origin.scheme === "http" || origin.sslScheme === "https")
@@ -459,13 +472,14 @@ export class SystemForEmbassy implements System {
     } else if (actionId === "properties") {
       return {
         version: "1",
-        type: "object",
-        name: "Properties",
-        description:
-          "Runtime information, credentials, and other values of interest",
-        value: Object.entries(await this.properties(effects, timeoutMs)).map(
-          ([name, value]) => convertProperties(name, value),
-        ),
+        title: "Properties",
+        message: null,
+        result: {
+          type: "group",
+          value: Object.entries(await this.properties(effects, timeoutMs)).map(
+            ([name, value]) => convertProperties(name, value),
+          ),
+        },
       }
     } else {
       return this.action(effects, actionId, input, timeoutMs)
@@ -649,7 +663,7 @@ export class SystemForEmbassy implements System {
         ),
       )
       const dependsOn = answer["depends-on"] ?? answer.dependsOn ?? {}
-      await this.setConfigSetConfig(effects, dependsOn)
+      await this.setDependencies(effects, dependsOn)
       return
     } else if (setConfigValue.type === "script") {
       const moduleCode = await this.moduleCode
@@ -672,31 +686,60 @@ export class SystemForEmbassy implements System {
         }),
       )
       const dependsOn = answer["depends-on"] ?? answer.dependsOn ?? {}
-      await this.setConfigSetConfig(effects, dependsOn)
+      await this.setDependencies(effects, dependsOn)
       return
     }
   }
-  private async setConfigSetConfig(
+  private async setDependencies(
     effects: Effects,
-    dependsOn: { [x: string]: readonly string[] },
+    rawDepends: { [x: string]: readonly string[] },
   ) {
+    const dependsOn: Record<string, readonly string[] | null> = {
+      ...Object.fromEntries(
+        Object.entries(this.manifest.dependencies || {})?.map((x) => [
+          x[0],
+          null,
+        ]) || [],
+      ),
+      ...rawDepends,
+    }
     await effects.setDependencies({
-      dependencies: Object.entries(dependsOn).flatMap(([key, value]) => {
-        const dependency = this.manifest.dependencies?.[key]
-        if (!dependency) return []
-        const versionRange = dependency.version
-        const registryUrl = DEFAULT_REGISTRY
-        const kind = "running"
-        return [
-          {
-            id: key,
-            versionRange,
-            registryUrl,
-            kind,
-            healthChecks: [...value],
-          },
-        ]
-      }),
+      dependencies: Object.entries(dependsOn).flatMap(
+        ([key, value]): T.Dependencies => {
+          const dependency = this.manifest.dependencies?.[key]
+          if (!dependency) return []
+          if (value == null) {
+            const versionRange = dependency.version
+            if (dependency.requirement.type === "required") {
+              return [
+                {
+                  id: key,
+                  versionRange,
+                  kind: "running",
+                  healthChecks: [],
+                },
+              ]
+            }
+            return [
+              {
+                kind: "exists",
+                id: key,
+                versionRange,
+              },
+            ]
+          }
+          const versionRange = dependency.version
+          const kind = "running"
+          return [
+            {
+              id: key,
+              versionRange,
+              kind,
+              healthChecks: [...value],
+            },
+          ]
+        },
+      ),
     })
   }
 
@@ -814,13 +857,13 @@ export class SystemForEmbassy implements System {
     const actionProcedure = this.manifest.actions?.[actionId]?.implementation
     const toActionResult = ({
       message,
-      value = "",
+      value,
       copyable,
       qr,
     }: U.ActionResult): T.ActionResult => ({
       version: "0",
       message,
-      value,
+      value: value ?? null,
       copyable,
       qr,
     })
@@ -928,6 +971,7 @@ export class SystemForEmbassy implements System {
         this.dependenciesAutoconfig(effects, id, timeoutMs)
       },
     })) as U.Config
+    if (!oldConfig) return
     const moduleCode = await this.moduleCode
     const method = moduleCode.dependencies?.[id]?.autoConfigure
     if (!method) return

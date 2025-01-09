@@ -6,7 +6,6 @@ use models::PackageId;
 use qrcode::QrCode;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use tracing::instrument;
 use ts_rs::TS;
 
@@ -24,7 +23,7 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(get_action_input)
                 .with_display_serializable()
                 .with_about("Get action input spec")
-                .with_call_remote::<CliContext>()
+                .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "run",
@@ -37,7 +36,7 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
                     Ok(())
                 })
                 .with_about("Run service action")
-                .with_call_remote::<CliContext>()
+                .with_call_remote::<CliContext>(),
         )
 }
 
@@ -123,81 +122,86 @@ impl fmt::Display for ActionResultV0 {
 
 #[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
+pub struct ActionResultV1 {
+    /// Primary text to display as the header of the response modal. e.g. "Success!", "Name Updated", or "Service Information", whatever makes sense
+    pub title: String,
+    /// (optional) A general message for the user, just under the title
+    pub message: Option<String>,
+    /// (optional) Structured data to present inside the modal
+    pub result: Option<ActionResultValue>,
+}
+
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionResultMember {
+    /// A human-readable name or title of the value, such as "Last Active" or "Login Password"
+    pub name: String,
+    /// (optional) A description of the value, such as an explaining why it exists or how to use it
+    pub description: Option<String>,
+    #[serde(flatten)]
+    #[ts(flatten)]
+    pub value: ActionResultValue,
+}
+
+#[derive(Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 #[serde(rename_all_fields = "camelCase")]
 #[serde(tag = "type")]
-pub enum ActionResultV1 {
-    String {
-        name: String,
+pub enum ActionResultValue {
+    Single {
+        /// The actual string value to display
         value: String,
-        description: Option<String>,
+        /// Whether or not to include a copy to clipboard icon to copy the value
         copyable: bool,
+        /// Whether or not to also display the value as a QR code
         qr: bool,
+        /// Whether or not to mask the value using ●●●●●●●, which is useful for password or other sensitive information
         masked: bool,
     },
-    Object {
-        name: String,
-        value: Vec<ActionResultV1>,
-        #[ts(optional)]
-        description: Option<String>,
+    Group {
+        /// An new group of nested values, experienced by the user as an accordion dropdown
+        value: Vec<ActionResultMember>,
     },
 }
-impl ActionResultV1 {
+impl ActionResultValue {
     fn fmt_rec(&self, f: &mut fmt::Formatter<'_>, indent: usize) -> fmt::Result {
         match self {
-            Self::String {
-                name,
-                value,
-                description,
-                qr,
-                ..
-            } => {
-                for i in 0..indent {
+            Self::Single { value, qr, .. } => {
+                for _ in 0..indent {
                     write!(f, "  ")?;
                 }
-                write!(f, "{name}")?;
-                if let Some(description) = description {
-                    write!(f, ": {description}")?;
-                }
-                if !value.is_empty() {
-                    write!(f, ":\n")?;
-                    for i in 0..indent {
+                write!(f, "{value}")?;
+                if *qr {
+                    use qrcode::render::unicode;
+                    writeln!(f)?;
+                    for _ in 0..indent {
                         write!(f, "  ")?;
                     }
-                    write!(f, "{value}")?;
-                    if *qr {
-                        use qrcode::render::unicode;
-                        write!(f, "\n")?;
-                        for i in 0..indent {
-                            write!(f, "  ")?;
-                        }
-                        write!(
-                            f,
-                            "{}",
-                            QrCode::new(value.as_bytes())
-                                .unwrap()
-                                .render::<unicode::Dense1x2>()
-                                .build()
-                        )?;
-                    }
+                    write!(
+                        f,
+                        "{}",
+                        QrCode::new(value.as_bytes())
+                            .unwrap()
+                            .render::<unicode::Dense1x2>()
+                            .build()
+                    )?;
                 }
             }
-            Self::Object {
-                name,
-                value,
-                description,
-            } => {
-                for i in 0..indent {
-                    write!(f, "  ")?;
-                }
-                write!(f, "{name}")?;
-                if let Some(description) = description {
-                    write!(f, ": {description}")?;
-                }
-                for value in value {
-                    write!(f, ":\n")?;
-                    for i in 0..indent {
+            Self::Group { value } => {
+                for ActionResultMember {
+                    name,
+                    description,
+                    value,
+                } in value
+                {
+                    for _ in 0..indent {
                         write!(f, "  ")?;
                     }
+                    write!(f, "{name}")?;
+                    if let Some(description) = description {
+                        write!(f, ": {description}")?;
+                    }
+                    writeln!(f, ":")?;
                     value.fmt_rec(f, indent + 1)?;
                 }
             }
@@ -207,7 +211,14 @@ impl ActionResultV1 {
 }
 impl fmt::Display for ActionResultV1 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.fmt_rec(f, 0)
+        writeln!(f, "{}:", self.title)?;
+        if let Some(message) = &self.message {
+            writeln!(f, "{message}")?;
+        }
+        if let Some(result) = &self.result {
+            result.fmt_rec(f, 1)?;
+        }
+        Ok(())
     }
 }
 

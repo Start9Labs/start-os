@@ -13,6 +13,11 @@ import { Effects } from "./Effects"
 export { Effects }
 export * from "./osBindings"
 export { SDKManifest } from "./types/ManifestTypes"
+export {
+  RequiredDependenciesOf as RequiredDependencies,
+  OptionalDependenciesOf as OptionalDependencies,
+  CurrentDependenciesResult,
+} from "./dependencies/setupDependencies"
 
 export type ExposedStorePaths = string[] & Affine<"ExposedStorePaths">
 declare const HealthProof: unique symbol
@@ -86,7 +91,7 @@ export namespace ExpectedExports {
 
   export type actions = Actions<
     any,
-    Record<ActionId, Action<ActionId, any, any, any>>
+    Record<ActionId, Action<ActionId, any, any>>
   >
 }
 export type ABI = {
@@ -132,33 +137,6 @@ export type DaemonReturned = {
 export declare const hostName: unique symbol
 // asdflkjadsf.onion | 1.2.3.4
 export type Hostname = string & { [hostName]: never }
-
-export type HostnameInfoIp = {
-  kind: "ip"
-  networkInterfaceId: string
-  public: boolean
-  hostname:
-    | {
-        kind: "ipv4" | "ipv6" | "local"
-        value: string
-        port: number | null
-        sslPort: number | null
-      }
-    | {
-        kind: "domain"
-        domain: string
-        subdomain: string | null
-        port: number | null
-        sslPort: number | null
-      }
-}
-
-export type HostnameInfoOnion = {
-  kind: "onion"
-  hostname: { value: string; port: number | null; sslPort: number | null }
-}
-
-export type HostnameInfo = HostnameInfoIp | HostnameInfoOnion
 
 export type ServiceInterfaceId = string
 
@@ -224,6 +202,8 @@ export type KnownError =
 
 export type Dependencies = Array<DependencyRequirement>
 
-export type DeepPartial<T> = T extends {}
-  ? { [P in keyof T]?: DeepPartial<T[P]> }
-  : T
+export type DeepPartial<T> = T extends unknown[]
+  ? T
+  : T extends {}
+    ? { [P in keyof T]?: DeepPartial<T[P]> }
+    : T

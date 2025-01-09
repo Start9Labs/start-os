@@ -4,9 +4,10 @@ import * as cp from "child_process"
 import { promisify } from "util"
 import { Buffer } from "node:buffer"
 import { once } from "../../../base/lib/util/once"
+
 export const execFile = promisify(cp.execFile)
-const WORKDIR = (imageId: string) => `/media/startos/images/${imageId}/`
 const False = () => false
+
 type ExecResults = {
   exitCode: number | null
   exitSignal: NodeJS.Signals | null
@@ -35,8 +36,8 @@ export interface ExecSpawnable {
   ): Promise<ExecResults>
   spawn(
     command: string[],
-    options?: CommandOptions,
-  ): Promise<cp.ChildProcessWithoutNullStreams>
+    options?: CommandOptions & StdioOptions,
+  ): Promise<cp.ChildProcess>
 }
 /**
  * Want to limit what we can do in a container, so we want to launch a container with a specific image and the mounts.
@@ -57,7 +58,7 @@ export class SubContainer implements ExecSpawnable {
     this.leaderExited = false
     this.leader = cp.spawn("start-cli", ["subcontainer", "launch", rootfs], {
       killSignal: "SIGKILL",
-      stdio: "ignore",
+      stdio: "inherit",
     })
     this.leader.on("exit", () => {
       this.leaderExited = true
@@ -332,8 +333,8 @@ export class SubContainer implements ExecSpawnable {
 
   async spawn(
     command: string[],
-    options?: CommandOptions,
-  ): Promise<cp.ChildProcessWithoutNullStreams> {
+    options: CommandOptions & StdioOptions = { stdio: "inherit" },
+  ): Promise<cp.ChildProcess> {
     await this.waitProc()
     const imageMeta: any = await fs
       .readFile(`/media/startos/images/${this.imageId}.json`, {
@@ -342,12 +343,12 @@ export class SubContainer implements ExecSpawnable {
       .catch(() => "{}")
       .then(JSON.parse)
     let extra: string[] = []
-    if (options?.user) {
+    if (options.user) {
       extra.push(`--user=${options.user}`)
       delete options.user
     }
     let workdir = imageMeta.workdir || "/"
-    if (options?.cwd) {
+    if (options.cwd) {
       workdir = options.cwd
       delete options.cwd
     }
@@ -387,8 +388,8 @@ export class SubContainerHandle implements ExecSpawnable {
   }
   spawn(
     command: string[],
-    options?: CommandOptions,
-  ): Promise<cp.ChildProcessWithoutNullStreams> {
+    options: CommandOptions & StdioOptions = { stdio: "inherit" },
+  ): Promise<cp.ChildProcess> {
     return this.subContainer.spawn(command, options)
   }
 }
@@ -397,6 +398,10 @@ export type CommandOptions = {
   env?: { [variable: string]: string }
   cwd?: string
   user?: string
+}
+
+export type StdioOptions = {
+  stdio?: cp.IOType
 }
 
 export type MountOptions =

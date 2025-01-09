@@ -202,9 +202,6 @@ pub async fn sideload(
                     use axum::extract::ws::Message;
                     async move {
                         if let Err(e) = async {
-                            type RpcResponse = rpc_toolkit::yajrc::RpcResponse<
-                                GenericRpcMethod<&'static str, (), FullProgress>,
-                            >;
                             tokio::select! {
                                 res = async {
                                     while let Some(progress) = progress_listener.next().await {

@@ -7,12 +7,10 @@ use futures::future::BoxFuture;
 use futures::{Future, FutureExt};
 use imbl::Vector;
 use imbl_value::{to_value, InternedString};
-use patch_db::json_ptr::{JsonPointer, ROOT};
+use patch_db::json_ptr::{ ROOT};
 
 use crate::context::RpcContext;
-use crate::db::model::Database;
 use crate::prelude::*;
-use crate::progress::PhaseProgressTrackerHandle;
 use crate::Error;
 
 mod v0_3_5;
@@ -25,8 +23,13 @@ mod v0_3_6_alpha_3;
 mod v0_3_6_alpha_4;
 mod v0_3_6_alpha_5;
 mod v0_3_6_alpha_6;
+mod v0_3_6_alpha_7;
+mod v0_3_6_alpha_8;
+mod v0_3_6_alpha_9;
 
-pub type Current = v0_3_6_alpha_6::Version; // VERSION_BUMP
+mod v0_3_6_alpha_10;
+
+pub type Current = v0_3_6_alpha_10::Version; // VERSION_BUMP
 
 impl Current {
     #[instrument(skip(self, db))]
@@ -102,6 +105,10 @@ enum Version {
     V0_3_6_alpha_4(Wrapper<v0_3_6_alpha_4::Version>),
     V0_3_6_alpha_5(Wrapper<v0_3_6_alpha_5::Version>),
     V0_3_6_alpha_6(Wrapper<v0_3_6_alpha_6::Version>),
+    V0_3_6_alpha_7(Wrapper<v0_3_6_alpha_7::Version>),
+    V0_3_6_alpha_8(Wrapper<v0_3_6_alpha_8::Version>),
+    V0_3_6_alpha_9(Wrapper<v0_3_6_alpha_9::Version>),
+    V0_3_6_alpha_10(Wrapper<v0_3_6_alpha_10::Version>),
     Other(exver::Version),
 }
 
@@ -132,6 +139,10 @@ impl Version {
             Self::V0_3_6_alpha_4(v) => DynVersion(Box::new(v.0)),
             Self::V0_3_6_alpha_5(v) => DynVersion(Box::new(v.0)),
             Self::V0_3_6_alpha_6(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_7(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_8(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_9(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_10(v) => DynVersion(Box::new(v.0)),
             Self::Other(v) => {
                 return Err(Error::new(
                     eyre!("unknown version {v}"),
@@ -154,6 +165,10 @@ impl Version {
             Version::V0_3_6_alpha_4(Wrapper(x)) => x.semver(),
             Version::V0_3_6_alpha_5(Wrapper(x)) => x.semver(),
             Version::V0_3_6_alpha_6(Wrapper(x)) => x.semver(),
+            Version::V0_3_6_alpha_7(Wrapper(x)) => x.semver(),
+            Version::V0_3_6_alpha_8(Wrapper(x)) => x.semver(),
+            Version::V0_3_6_alpha_9(Wrapper(x)) => x.semver(),
+            Version::V0_3_6_alpha_10(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
         }
     }
@@ -172,15 +187,19 @@ fn version_accessor(db: &mut Value) -> Option<&mut Value> {
 fn version_compat_accessor(db: &mut Value) -> Option<&mut Value> {
     if db.get("public").is_some() {
         let server_info = db.get_mut("public")?.get_mut("serverInfo")?;
-        if server_info.get("versionCompat").is_some() {
-            server_info.get_mut("versionCompat")
+        if server_info.get("packageVersionCompat").is_some() {
+            server_info.get_mut("packageVersionCompat")
         } else {
             if let Some(prev) = server_info.get("eosVersionCompat").cloned() {
                 server_info
                     .as_object_mut()?
-                    .insert("versionCompat".into(), prev);
+                    .insert("packageVersionCompat".into(), prev);
+            } else if let Some(prev) = server_info.get("versionCompat").cloned() {
+                server_info
+                    .as_object_mut()?
+                    .insert("packageVersionCompat".into(), prev);
             }
-            server_info.get_mut("versionCompat")
+            server_info.get_mut("packageVersionCompat")
         }
     } else {
         db.get_mut("server-info")?.get_mut("eos-version-compat")
@@ -298,7 +317,10 @@ where
         Ok(())
     }
     /// MUST be idempotent, and is run after *all* db migrations
-    fn post_up(self, ctx: &RpcContext) -> impl Future<Output = Result<(), Error>> + Send + 'static {
+    fn post_up<'a>(
+        self,
+        ctx: &'a RpcContext,
+    ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
         async { Ok(()) }
     }
     fn down(self, db: &mut Value) -> Result<(), Error> {

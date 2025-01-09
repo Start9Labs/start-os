@@ -1,10 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr};
 
 use chrono::{DateTime, Utc};
 use exver::{Version, VersionRange};
 use imbl_value::InternedString;
-use ipnet::{Ipv4Net, Ipv6Net};
+use ipnet::IpNet;
 use isocountry::CountryCode;
 use itertools::Itertools;
 use models::PackageId;
@@ -17,11 +17,12 @@ use ts_rs::TS;
 
 use crate::account::AccountInfo;
 use crate::db::model::package::AllPackageData;
-use crate::net::utils::{get_iface_ipv4_addr, get_iface_ipv6_addr};
+use crate::net::acme::AcmeProvider;
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::system::SmtpValue;
 use crate::util::cpupower::Governor;
+use crate::util::lshw::LshwDevice;
 use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
 
@@ -46,14 +47,15 @@ impl Public {
                 version: Current::default().semver(),
                 hostname: account.hostname.no_dot_host_name(),
                 last_backup: None,
-                version_compat: Current::default().compat().clone(),
+                package_version_compat: Current::default().compat().clone(),
                 post_init_migration_todos: BTreeSet::new(),
                 lan_address,
                 onion_address: account.tor_key.public().get_onion_address(),
                 tor_address: format!("https://{}", account.tor_key.public().get_onion_address())
                     .parse()
                     .unwrap(),
-                ip_info: BTreeMap::new(),
+                network_interfaces: BTreeMap::new(),
+                acme: BTreeMap::new(),
                 status_info: ServerStatus {
                     backup_progress: None,
                     updated: false,
@@ -78,6 +80,8 @@ impl Public {
                 zram: true,
                 governor: None,
                 smtp: None,
+                ram: 0,
+                devices: Vec::new(),
             },
             package_data: AllPackageData::default(),
             ui: serde_json::from_str(include_str!(concat!(
@@ -114,7 +118,7 @@ pub struct ServerInfo {
     #[ts(type = "string")]
     pub version: Version,
     #[ts(type = "string")]
-    pub version_compat: VersionRange,
+    pub package_version_compat: VersionRange,
     #[ts(type = "string[]")]
     pub post_init_migration_todos: BTreeSet<Version>,
     #[ts(type = "string | null")]
@@ -126,7 +130,11 @@ pub struct ServerInfo {
     /// for backwards compatibility
     #[ts(type = "string")]
     pub tor_address: Url,
-    pub ip_info: BTreeMap<String, IpInfo>,
+    #[ts(as = "BTreeMap::<String, NetworkInterfaceInfo>")]
+    #[serde(default)]
+    pub network_interfaces: BTreeMap<InternedString, NetworkInterfaceInfo>,
+    #[serde(default)]
+    pub acme: BTreeMap<AcmeProvider, AcmeSettings>,
     #[serde(default)]
     pub status_info: ServerStatus,
     pub wifi: WifiInfo,
@@ -141,31 +149,66 @@ pub struct ServerInfo {
     pub zram: bool,
     pub governor: Option<Governor>,
     pub smtp: Option<SmtpValue>,
+    #[ts(type = "number")]
+    pub ram: u64,
+    pub devices: Vec<LshwDevice>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, TS)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+#[ts(export)]
+pub struct NetworkInterfaceInfo {
+    pub public: Option<bool>,
+    pub ip_info: Option<IpInfo>,
+}
+impl NetworkInterfaceInfo {
+    pub fn public(&self) -> bool {
+        self.public.unwrap_or_else(|| {
+            !self.ip_info.as_ref().map_or(true, |ip_info| {
+                ip_info.subnets.iter().all(|ipnet| {
+                    match ipnet.addr() {
+                        IpAddr::V4(ip4) => {
+                            ip4.is_loopback()
+                            || (ip4.is_private() && !ip4.octets().starts_with(&[10, 59])) // reserving 10.59 for public wireguard configurations
+                            || ip4.is_link_local()
+                        }
+                        IpAddr::V6(_) => true,
+                    }
+                })
+            })
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct IpInfo {
+    pub scope_id: u32,
+    pub device_type: Option<NetworkInterfaceType>,
+    #[ts(type = "string[]")]
+    pub subnets: BTreeSet<IpNet>,
+    pub wan_ip: Option<Ipv4Addr>,
+    #[ts(type = "string[]")]
+    pub ntp_servers: BTreeSet<InternedString>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "kebab-case")]
+pub enum NetworkInterfaceType {
+    Ethernet,
+    Wireless,
+    Wireguard,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]
-pub struct IpInfo {
-    #[ts(type = "string | null")]
-    pub ipv4_range: Option<Ipv4Net>,
-    pub ipv4: Option<Ipv4Addr>,
-    #[ts(type = "string | null")]
-    pub ipv6_range: Option<Ipv6Net>,
-    pub ipv6: Option<Ipv6Addr>,
-}
-impl IpInfo {
-    pub async fn for_interface(iface: &str) -> Result<Self, Error> {
-        let (ipv4, ipv4_range) = get_iface_ipv4_addr(iface).await?.unzip();
-        let (ipv6, ipv6_range) = get_iface_ipv6_addr(iface).await?.unzip();
-        Ok(Self {
-            ipv4_range,
-            ipv4,
-            ipv6_range,
-            ipv6,
-        })
-    }
+pub struct AcmeSettings {
+    pub contact: Vec<String>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]

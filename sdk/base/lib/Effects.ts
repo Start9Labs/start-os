@@ -8,12 +8,12 @@ import {
   SetHealth,
   BindParams,
   HostId,
-  LanInfo,
+  NetInfo,
   Host,
   ExportServiceInterfaceParams,
   ServiceInterface,
-  ActionRequest,
   RequestActionParams,
+  MainStatus,
 } from "./osBindings"
 import { StorePath } from "./util/PathBuilder"
 import {
@@ -61,6 +61,11 @@ export type Effects = {
   restart(): Promise<null>
   /** stop this service's main function */
   shutdown(): Promise<null>
+  /** ask the host os what the service's current status is */
+  getStatus(options: {
+    packageId?: PackageId
+    callback?: () => void
+  }): Promise<MainStatus>
   /** indicate to the host os what runstate the service is in */
   setMainStatus(options: SetMainStatus): Promise<null>
 
@@ -112,7 +117,7 @@ export type Effects = {
     packageId?: PackageId
     hostId: HostId
     internalPort: number
-  }): Promise<LanInfo>
+  }): Promise<NetInfo>
   /** Removes all network bindings, called in the setupInputSpec */
   clearBindings(options: {
     except: { id: HostId; internalPort: number }[]
@@ -124,12 +129,6 @@ export type Effects = {
     hostId: HostId
     callback?: () => void
   }): Promise<Host | null>
-  /** Returns the primary url that a user has selected for a host, if it exists */
-  getPrimaryUrl(options: {
-    packageId?: PackageId
-    hostId: HostId
-    callback?: () => void
-  }): Promise<UrlString | null>
   /** Returns the IP address of the container */
   getContainerIp(): Promise<string>
   // interface

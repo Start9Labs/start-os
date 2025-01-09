@@ -15,7 +15,7 @@ use futures::future::{BoxFuture, Fuse};
 use futures::{AsyncSeek, FutureExt, Stream, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use nix::unistd::{Gid, Uid};
-use tokio::fs::File;
+use tokio::fs::{File, OpenOptions};
 use tokio::io::{
     duplex, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, WriteHalf,
 };
@@ -460,18 +460,30 @@ impl<T> BackTrackingIO<T> {
             }
         }
     }
-    pub fn rewind(&mut self) -> Vec<u8> {
+    pub fn rewind<'a>(&'a mut self) -> (Vec<u8>, &'a [u8]) {
         match std::mem::take(&mut self.buffer) {
             BTBuffer::Buffering { read, write } => {
                 self.buffer = BTBuffer::Rewound {
                     read: Cursor::new(read),
                 };
-                write
+                (
+                    write,
+                    match &self.buffer {
+                        BTBuffer::Rewound { read } => read.get_ref(),
+                        _ => unreachable!(),
+                    },
+                )
             }
-            BTBuffer::NotBuffering => Vec::new(),
+            BTBuffer::NotBuffering => (Vec::new(), &[]),
             BTBuffer::Rewound { read } => {
                 self.buffer = BTBuffer::Rewound { read };
-                Vec::new()
+                (
+                    Vec::new(),
+                    match &self.buffer {
+                        BTBuffer::Rewound { read } => read.get_ref(),
+                        _ => unreachable!(),
+                    },
+                )
             }
         }
     }
@@ -529,7 +541,6 @@ impl<T: std::io::Read> std::io::Read for BackTrackingIO<T> {
             }
             BTBuffer::NotBuffering => self.io.read(buf),
             BTBuffer::Rewound { read } => {
-                let mut ready = false;
                 if (read.position() as usize) < read.get_ref().len() {
                     let n = std::io::Read::read(read, buf)?;
                     if n != 0 {
@@ -921,6 +932,35 @@ pub async fn create_file(path: impl AsRef<Path>) -> Result<File, Error> {
     File::create(path)
         .await
         .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("create {path:?}")))
+}
+
+pub async fn append_file(path: impl AsRef<Path>) -> Result<File, Error> {
+    let path = path.as_ref();
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mkdir -p {parent:?}")))?;
+    }
+    OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("create {path:?}")))
+}
+
+pub async fn delete_file(path: impl AsRef<Path>) -> Result<(), Error> {
+    let path = path.as_ref();
+    tokio::fs::remove_file(path)
+        .await
+        .or_else(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                Ok(())
+            } else {
+                Err(e)
+            }
+        })
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("delete {path:?}")))
 }
 
 pub async fn rename(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), Error> {

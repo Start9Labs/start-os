@@ -1,10 +1,9 @@
 use std::path::{Path, PathBuf};
 
 pub use helpers::script_dir;
+use models::PackageId;
 pub use models::VolumeId;
-use models::{HostId, PackageId};
 
-use crate::net::PACKAGE_CERT_PATH;
 use crate::prelude::*;
 use crate::util::VersionString;
 
@@ -35,8 +34,4 @@ pub fn asset_dir<P: AsRef<Path>>(
 
 pub fn backup_dir(pkg_id: &PackageId) -> PathBuf {
     Path::new(BACKUP_DIR).join(pkg_id).join("data")
-}
-
-pub fn cert_dir(pkg_id: &PackageId, host_id: &HostId) -> PathBuf {
-    Path::new(PACKAGE_CERT_PATH).join(pkg_id).join(host_id)
 }

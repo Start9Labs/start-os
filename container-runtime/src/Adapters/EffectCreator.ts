@@ -216,12 +216,6 @@ export function makeEffects(context: EffectContext): Effects {
       }) as ReturnType<T.Effects["getServiceInterface"]>
     },
 
-    getPrimaryUrl(...[options]: Parameters<T.Effects["getPrimaryUrl"]>) {
-      return rpcRound("get-primary-url", {
-        ...options,
-        callback: context.callbacks?.addCallback(options.callback) || null,
-      }) as ReturnType<T.Effects["getPrimaryUrl"]>
-    },
     getServicePortForward(
       ...[options]: Parameters<T.Effects["getServicePortForward"]>
     ) {
@@ -284,6 +278,9 @@ export function makeEffects(context: EffectContext): Effects {
       >
     },
 
+    getStatus(...[o]: Parameters<T.Effects["getStatus"]>) {
+      return rpcRound("get-status", o) as ReturnType<T.Effects["getStatus"]>
+    },
     setMainStatus(o: { status: "running" | "stopped" }): Promise<null> {
       return rpcRound("set-main-status", o) as ReturnType<
         T.Effects["setHealth"]

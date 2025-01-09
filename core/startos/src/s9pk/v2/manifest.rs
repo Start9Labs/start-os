@@ -3,7 +3,6 @@ use std::path::Path;
 
 use color_eyre::eyre::eyre;
 use exver::{Version, VersionRange};
-use helpers::const_true;
 use imbl_value::InternedString;
 pub use models::PackageId;
 use models::{mime, ImageId, VolumeId};
@@ -62,8 +61,8 @@ pub struct Manifest {
     pub dependencies: Dependencies,
     #[serde(default)]
     pub hardware_requirements: HardwareRequirements,
-    #[serde(default)]
-    #[ts(type = "string | null")]
+    #[ts(optional)]
+    #[serde(default = "GitHash::load_sync")]
     pub git_hash: Option<GitHash>,
     #[serde(default = "current_version")]
     #[ts(type = "string")]
@@ -161,12 +160,22 @@ impl Manifest {
 #[ts(export)]
 pub struct HardwareRequirements {
     #[serde(default)]
-    #[ts(type = "{ display?: string, processor?: string }")]
-    pub device: BTreeMap<String, Regex>, // TODO: array
+    pub device: Vec<DeviceFilter>,
     #[ts(type = "number | null")]
     pub ram: Option<u64>,
     #[ts(type = "string[] | null")]
     pub arch: Option<BTreeSet<InternedString>>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct DeviceFilter {
+    #[ts(type = "\"processor\" | \"display\"")]
+    pub class: InternedString,
+    #[ts(type = "string")]
+    pub pattern: Regex,
+    pub pattern_description: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]

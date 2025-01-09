@@ -13,6 +13,7 @@ use crate::disk::OsPartitionInfo;
 use crate::init::init_postgres;
 use crate::prelude::*;
 use crate::util::serde::IoFormat;
+use crate::MAIN_DATA;
 
 pub const DEVICE_CONFIG_PATH: &str = "/media/startos/config/config.yaml"; // "/media/startos/config/config.yaml";
 pub const CONFIG_PATH: &str = "/etc/startos/config.yaml";
@@ -103,8 +104,6 @@ pub struct ServerConfig {
     #[arg(skip)]
     pub os_partitions: Option<OsPartitionInfo>,
     #[arg(long)]
-    pub bind_rpc: Option<SocketAddr>,
-    #[arg(long)]
     pub tor_control: Option<SocketAddr>,
     #[arg(long)]
     pub tor_socks: Option<SocketAddr>,
@@ -112,8 +111,6 @@ pub struct ServerConfig {
     pub dns_bind: Option<Vec<SocketAddr>>,
     #[arg(long)]
     pub revision_cache_size: Option<usize>,
-    #[arg(short, long)]
-    pub datadir: Option<PathBuf>,
     #[arg(long)]
     pub disable_encryption: Option<bool>,
     #[arg(long)]
@@ -126,7 +123,6 @@ impl ContextConfig for ServerConfig {
     fn merge_with(&mut self, other: Self) {
         self.ethernet_interface = self.ethernet_interface.take().or(other.ethernet_interface);
         self.os_partitions = self.os_partitions.take().or(other.os_partitions);
-        self.bind_rpc = self.bind_rpc.take().or(other.bind_rpc);
         self.tor_control = self.tor_control.take().or(other.tor_control);
         self.tor_socks = self.tor_socks.take().or(other.tor_socks);
         self.dns_bind = self.dns_bind.take().or(other.dns_bind);
@@ -134,7 +130,6 @@ impl ContextConfig for ServerConfig {
             .revision_cache_size
             .take()
             .or(other.revision_cache_size);
-        self.datadir = self.datadir.take().or(other.datadir);
         self.disable_encryption = self.disable_encryption.take().or(other.disable_encryption);
         self.multi_arch_s9pks = self.multi_arch_s9pks.take().or(other.multi_arch_s9pks);
     }
@@ -148,13 +143,8 @@ impl ServerConfig {
         self.load_path_rec(Some(CONFIG_PATH))?;
         Ok(self)
     }
-    pub fn datadir(&self) -> &Path {
-        self.datadir
-            .as_deref()
-            .unwrap_or_else(|| Path::new("/embassy-data"))
-    }
     pub async fn db(&self) -> Result<PatchDb, Error> {
-        let db_path = self.datadir().join("main").join("embassy.db");
+        let db_path = Path::new(MAIN_DATA).join("embassy.db");
         let db = PatchDb::open(&db_path)
             .await
             .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
@@ -163,7 +153,7 @@ impl ServerConfig {
     }
     #[instrument(skip_all)]
     pub async fn secret_store(&self) -> Result<PgPool, Error> {
-        init_postgres(self.datadir()).await?;
+        init_postgres("/media/startos/data").await?;
         let secret_store =
             PgPool::connect_with(PgConnectOptions::new().database("secrets").username("root"))
                 .await?;

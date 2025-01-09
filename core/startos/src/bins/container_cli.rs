@@ -4,7 +4,7 @@ use rpc_toolkit::CliApp;
 use serde_json::Value;
 
 use crate::service::cli::{ContainerCliContext, ContainerClientConfig};
-use crate::util::logger::EmbassyLogger;
+use crate::util::logger::LOGGER;
 use crate::version::{Current, VersionT};
 
 lazy_static::lazy_static! {
@@ -12,7 +12,7 @@ lazy_static::lazy_static! {
 }
 
 pub fn main(args: impl IntoIterator<Item = OsString>) {
-    EmbassyLogger::init();
+    LOGGER.enable();
     if let Err(e) = CliApp::new(
         |cfg: ContainerClientConfig| Ok(ContainerCliContext::init(cfg)),
         crate::service::effects::handler(),

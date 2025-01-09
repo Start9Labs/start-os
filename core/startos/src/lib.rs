@@ -1,6 +1,11 @@
+use const_format::formatcp;
+
+pub const DATA_DIR: &str = "/media/startos/data";
+pub const MAIN_DATA: &str = formatcp!("{DATA_DIR}/main");
+pub const PACKAGE_DATA: &str = formatcp!("{DATA_DIR}/package-data");
 pub const DEFAULT_REGISTRY: &str = "https://registry.start9.com";
 // pub const COMMUNITY_MARKETPLACE: &str = "https://community-registry.start9.com";
-pub const HOST_IP: [u8; 4] = [172, 18, 0, 1];
+pub const HOST_IP: [u8; 4] = [10, 0, 3, 1];
 pub use std::env::consts::ARCH;
 lazy_static::lazy_static! {
     pub static ref PLATFORM: String = {
@@ -115,8 +120,7 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
     let api = ParentHandler::new()
         .subcommand(
             "git-info",
-            from_fn(|_: RpcContext| version::git_info())
-                .with_about("Display the githash of StartOS CLI"),
+            from_fn(|_: C| version::git_info()).with_about("Display the githash of StartOS CLI"),
         )
         .subcommand(
             "echo",
@@ -297,6 +301,13 @@ pub fn server<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>()
         )
         .subcommand(
+            "test-smtp", 
+            from_fn_async(system::test_system_smtp)
+                .no_display()
+                .with_about("Send test email using system smtp server and credentials")
+                .with_call_remote::<CliContext>()
+        )
+        .subcommand(
             "clear-smtp",
             from_fn_async(system::clear_system_smtp)
                 .no_display()
@@ -356,7 +367,7 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             from_fn_async(control::start)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Start a package container")
+                .with_about("Start a service")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -364,7 +375,7 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             from_fn_async(control::stop)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Stop a package container")
+                .with_about("Stop a service")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -372,7 +383,7 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             from_fn_async(control::restart)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Restart a package container")
+                .with_about("Restart a service")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -410,9 +421,14 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             "attach",
             from_fn_async(service::attach)
                 .with_metadata("get_session", Value::Bool(true))
+                .with_about("Execute commands within a service container")
                 .no_cli(),
         )
         .subcommand("attach", from_fn_async(service::cli_attach).no_display())
+        .subcommand(
+            "host",
+            net::host::host::<C>().with_about("Manage network hosts for a package"),
+        )
 }
 
 pub fn diagnostic_api() -> ParentHandler<DiagnosticContext> {

@@ -12,7 +12,8 @@ use ts_rs::TS;
 #[serde(tag = "kind")]
 pub enum HostnameInfo {
     Ip {
-        network_interface_id: String,
+        #[ts(type = "string")]
+        network_interface_id: InternedString,
         public: bool,
         hostname: IpHostname,
     },
@@ -43,17 +44,22 @@ pub enum IpHostname {
     },
     Ipv6 {
         value: Ipv6Addr,
+        #[serde(default)]
+        scope_id: u32,
         port: Option<u16>,
         ssl_port: Option<u16>,
     },
     Local {
-        value: String,
+        #[ts(type = "string")]
+        value: InternedString,
         port: Option<u16>,
         ssl_port: Option<u16>,
     },
     Domain {
-        domain: String,
-        subdomain: Option<String>,
+        #[ts(type = "string")]
+        domain: InternedString,
+        #[ts(type = "string | null")]
+        subdomain: Option<InternedString>,
         port: Option<u16>,
         ssl_port: Option<u16>,
     },
@@ -66,7 +72,6 @@ pub struct ServiceInterface {
     pub id: ServiceInterfaceId,
     pub name: String,
     pub description: String,
-    pub has_primary: bool,
     pub masked: bool,
     pub address_info: AddressInfo,
     #[serde(rename = "type")]

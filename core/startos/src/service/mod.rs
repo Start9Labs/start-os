@@ -16,7 +16,7 @@ use futures::stream::FusedStream;
 use futures::{SinkExt, StreamExt, TryStreamExt};
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
-use models::{ActionId, ImageId, PackageId, ProcedureName};
+use models::{ActionId, HostId, ImageId, PackageId, ProcedureName};
 use nix::sys::signal::Signal;
 use persistent_container::{PersistentContainer, Subcontainer};
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
@@ -48,7 +48,7 @@ use crate::util::net::WebSocketExt;
 use crate::util::serde::{NoOutput, Pem};
 use crate::util::Never;
 use crate::volume::data_dir;
-use crate::CAP_1_KiB;
+use crate::{CAP_1_KiB, DATA_DIR, PACKAGE_DATA};
 
 pub mod action;
 pub mod cli;
@@ -82,6 +82,32 @@ pub enum LoadDisposition {
 }
 
 struct RootCommand(pub String);
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default, TS)]
+pub struct MiB(pub u64);
+
+impl MiB {
+    fn new(value: u64) -> Self {
+        Self(value / 1024 / 1024)
+    }
+    fn from_MiB(value: u64) -> Self {
+        Self(value)
+    }
+}
+
+impl std::fmt::Display for MiB {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} MiB", self.0)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Default, TS)]
+pub struct ServiceStats {
+    pub container_id: Arc<ContainerId>,
+    pub package_id: PackageId,
+    pub memory_usage: MiB,
+    pub memory_limit: MiB,
+}
 
 pub struct ServiceRef(Arc<Service>);
 impl ServiceRef {
@@ -123,10 +149,10 @@ impl ServiceRef {
                                     .values()
                                     .flat_map(|h| h.bindings.values())
                                     .flat_map(|b| {
-                                        b.lan
+                                        b.net
                                             .assigned_port
                                             .into_iter()
-                                            .chain(b.lan.assigned_ssl_port)
+                                            .chain(b.net.assigned_ssl_port)
                                     }),
                             );
                             Ok(())
@@ -141,17 +167,18 @@ impl ServiceRef {
             {
                 let state = pde.state_info.expect_removing()?;
                 for volume_id in &state.manifest.volumes {
-                    let path = data_dir(&ctx.datadir, &state.manifest.id, volume_id);
+                    let path = data_dir(DATA_DIR, &state.manifest.id, volume_id);
                     if tokio::fs::metadata(&path).await.is_ok() {
                         tokio::fs::remove_dir_all(&path).await?;
                     }
                 }
-                let logs_dir = ctx.datadir.join("logs").join(&state.manifest.id);
+                let logs_dir = Path::new(PACKAGE_DATA)
+                    .join("logs")
+                    .join(&state.manifest.id);
                 if tokio::fs::metadata(&logs_dir).await.is_ok() {
                     tokio::fs::remove_dir_all(&logs_dir).await?;
                 }
-                let archive_path = ctx
-                    .datadir
+                let archive_path = Path::new(PACKAGE_DATA)
                     .join("archive")
                     .join("installed")
                     .join(&state.manifest.id);
@@ -252,7 +279,7 @@ impl Service {
             let ctx = ctx.clone();
             move |s9pk: S9pk, i: Model<PackageDataEntry>| async move {
                 for volume_id in &s9pk.as_manifest().volumes {
-                    let path = data_dir(&ctx.datadir, &s9pk.as_manifest().id, volume_id);
+                    let path = data_dir(DATA_DIR, &s9pk.as_manifest().id, volume_id);
                     if tokio::fs::metadata(&path).await.is_err() {
                         tokio::fs::create_dir_all(&path).await?;
                     }
@@ -265,7 +292,7 @@ impl Service {
                 Self::new(ctx, s9pk, start_stop).await.map(Some)
             }
         };
-        let s9pk_dir = ctx.datadir.join(PKG_ARCHIVE_DIR).join("installed"); // TODO: make this based on hash
+        let s9pk_dir = Path::new(DATA_DIR).join(PKG_ARCHIVE_DIR).join("installed"); // TODO: make this based on hash
         let s9pk_path = s9pk_dir.join(id).with_extension("s9pk");
         let Some(entry) = ctx
             .db
@@ -552,6 +579,49 @@ impl Service {
             .guid)
             .clone();
         Ok(container_id)
+    }
+    #[instrument(skip_all)]
+    pub async fn stats(&self) -> Result<ServiceStats, Error> {
+        let container = &self.seed.persistent_container;
+        let lxc_container = container.lxc_container.get().or_not_found("container")?;
+        let (total, used) = lxc_container
+            .command(&["free", "-m"])
+            .await?
+            .split("\n")
+            .map(|x| x.split_whitespace().collect::<Vec<_>>())
+            .skip(1)
+            .filter_map(|x| {
+                Some((
+                    x.get(1)?.parse::<u64>().ok()?,
+                    x.get(2)?.parse::<u64>().ok()?,
+                ))
+            })
+            .fold((0, 0), |acc, (total, used)| (acc.0 + total, acc.1 + used));
+        Ok(ServiceStats {
+            container_id: lxc_container.guid.clone(),
+            package_id: self.seed.id.clone(),
+            memory_limit: MiB::from_MiB(total),
+            memory_usage: MiB::from_MiB(used),
+        })
+    }
+
+    pub async fn update_host(&self, host_id: HostId) -> Result<(), Error> {
+        let mut service = self.seed.persistent_container.net_service.lock().await;
+        let host = self
+            .seed
+            .ctx
+            .db
+            .peek()
+            .await
+            .as_public()
+            .as_package_data()
+            .as_idx(&self.seed.id)
+            .or_not_found(&self.seed.id)?
+            .as_hosts()
+            .as_idx(&host_id)
+            .or_not_found(&host_id)?
+            .de()?;
+        service.update(host_id, host).await
     }
 }
 
@@ -860,7 +930,6 @@ pub async fn attach(
                                 .with_kind(ErrorKind::Network)?;
                             current_out = "stdout";
                         }
-                        dbg!(&current_out);
                         ws.send(Message::Binary(out))
                             .await
                             .with_kind(ErrorKind::Network)?;
@@ -874,7 +943,6 @@ pub async fn attach(
                                 .with_kind(ErrorKind::Network)?;
                             current_out = "stderr";
                         }
-                        dbg!(&current_out);
                         ws.send(Message::Binary(err))
                             .await
                             .with_kind(ErrorKind::Network)?;

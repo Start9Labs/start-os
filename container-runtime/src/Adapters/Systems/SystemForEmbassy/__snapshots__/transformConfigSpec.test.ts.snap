@@ -264,7 +264,6 @@ exports[`transformConfigSpec transformConfigSpec(bitcoind) 1`] = `
         "disabled": false,
         "immutable": false,
         "name": "Pruning Mode",
-        "required": true,
         "type": "union",
         "variants": {
           "automatic": {
@@ -524,7 +523,6 @@ exports[`transformConfigSpec transformConfigSpec(embassyPages) 1`] = `
     "disabled": false,
     "immutable": false,
     "name": "Type",
-    "required": true,
     "type": "union",
     "variants": {
       "index": {
@@ -589,7 +587,6 @@ exports[`transformConfigSpec transformConfigSpec(embassyPages) 1`] = `
             "disabled": false,
             "immutable": false,
             "name": "Folder Location",
-            "required": false,
             "type": "select",
             "values": {
               "filebrowser": "filebrowser",
@@ -644,7 +641,6 @@ exports[`transformConfigSpec transformConfigSpec(embassyPages) 1`] = `
           "disabled": false,
           "immutable": false,
           "name": "Type",
-          "required": true,
           "type": "union",
           "variants": {
             "redirect": {
@@ -705,7 +701,6 @@ exports[`transformConfigSpec transformConfigSpec(embassyPages) 1`] = `
                   "disabled": false,
                   "immutable": false,
                   "name": "Folder Location",
-                  "required": false,
                   "type": "select",
                   "values": {
                     "filebrowser": "filebrowser",
@@ -758,7 +753,6 @@ exports[`transformConfigSpec transformConfigSpec(nostr2) 1`] = `
     "disabled": false,
     "immutable": false,
     "name": "Relay Type",
-    "required": true,
     "type": "union",
     "variants": {
       "private": {

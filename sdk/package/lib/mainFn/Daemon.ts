@@ -37,8 +37,8 @@ export class Daemon {
           | undefined
         cwd?: string | undefined
         user?: string | undefined
-        onStdout?: (x: Buffer) => null
-        onStderr?: (x: Buffer) => null
+        onStdout?: (chunk: Buffer | string | any) => void
+        onStderr?: (chunk: Buffer | string | any) => void
         sigtermTimeout?: number
       },
     ) => {
@@ -60,6 +60,8 @@ export class Daemon {
     let timeoutCounter = 0
     new Promise(async () => {
       while (this.shouldBeRunning) {
+        if (this.commandController)
+          await this.commandController.term().catch((err) => console.error(err))
         this.commandController = await this.startCommand()
         await this.commandController.wait().catch((err) => console.error(err))
         await new Promise((resolve) => setTimeout(resolve, timeoutCounter))

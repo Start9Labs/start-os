@@ -11,6 +11,7 @@ cryptsetup
 curl
 dnsutils
 dmidecode
+dnsutils
 dosfstools
 e2fsprogs
 ecryptfs-utils
@@ -57,4 +58,5 @@ systemd-timesyncd
 tor
 util-linux
 vim
+wireguard-tools
 wireless-tools

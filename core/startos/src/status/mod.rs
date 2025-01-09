@@ -66,7 +66,21 @@ impl MainStatus {
         }
     }
 
-    pub fn backing_up(self) -> Self {
+    pub fn major_changes(&self, other: &Self) -> bool {
+        match (self, other) {
+            (MainStatus::Running { .. }, MainStatus::Running { .. }) => false,
+            (MainStatus::Starting { .. }, MainStatus::Starting { .. }) => false,
+            (MainStatus::Stopping, MainStatus::Stopping) => false,
+            (MainStatus::Stopped, MainStatus::Stopped) => false,
+            (MainStatus::Restarting, MainStatus::Restarting) => false,
+            (MainStatus::Restoring, MainStatus::Restoring) => false,
+            (MainStatus::BackingUp { .. }, MainStatus::BackingUp { .. }) => false,
+            (MainStatus::Error { .. }, MainStatus::Error { .. }) => false,
+            _ => true,
+        }
+    }
+
+    pub fn backing_up(&self) -> Self {
         MainStatus::BackingUp {
             on_complete: if self.running() {
                 StartStop::Start

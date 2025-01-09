@@ -1,6 +1,6 @@
+import { CurrentDependenciesResult } from "../../../base/lib/dependencies/setupDependencies"
 import { StartSdk } from "../StartSdk"
 import { setupManifest } from "../manifest/setupManifest"
-import { VersionInfo } from "../version/VersionInfo"
 import { VersionGraph } from "../version/VersionGraph"
 
 export type Manifest = any
@@ -21,7 +21,15 @@ export const sdk = StartSdk.of()
         long: "",
       },
       containers: {},
-      images: {},
+      images: {
+        main: {
+          source: {
+            dockerTag: "start9/hello-world",
+          },
+          arch: ["aarch64", "x86_64"],
+          emulateMissingAs: "aarch64",
+        },
+      },
       volumes: [],
       assets: [],
       alerts: {

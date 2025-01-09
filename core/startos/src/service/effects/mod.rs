@@ -50,6 +50,12 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
                 .no_display()
                 .with_call_remote::<ContainerCliContext>(),
         )
+        .subcommand(
+            "get-status",
+            from_fn_async(control::get_status)
+                .no_display()
+                .with_call_remote::<ContainerCliContext>(),
+        )
         // dependency
         .subcommand(
             "set-dependencies",
@@ -123,10 +129,6 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "get-host-info",
             from_fn_async(net::host::get_host_info).no_cli(),
-        )
-        .subcommand(
-            "get-primary-url",
-            from_fn_async(net::host::get_primary_url).no_cli(),
         )
         .subcommand(
             "get-container-ip",

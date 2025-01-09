@@ -5,7 +5,7 @@ import { HealthCheckResult } from "../health/checkFns"
 import { Trigger } from "../trigger"
 import * as T from "../../../base/lib/types"
 import { Mounts } from "./Mounts"
-import { ExecSpawnable, MountOptions } from "../util/SubContainer"
+import { ExecSpawnable, MountOptions, SubContainer } from "../util/SubContainer"
 
 import { promisify } from "node:util"
 import * as CP from "node:child_process"
@@ -19,7 +19,22 @@ import { CommandController } from "./CommandController"
 export const cpExec = promisify(CP.exec)
 export const cpExecFile = promisify(CP.execFile)
 export type Ready = {
+  /** A human-readable display name for the health check. If null, the health check itself will be from the UI */
   display: string | null
+  /**
+   * @description The function to determine the health status of the daemon
+   * 
+   *   The SDK provides some built-in health checks. To see them, type sdk.healthCheck.
+   * 
+   * @example
+   * ```
+    fn: () =>
+      sdk.healthCheck.checkPortListening(effects, 80, {
+        successMessage: 'service listening on port 80',
+        errorMessage: 'service is unreachable',
+      })
+  * ```
+  */
   fn: (
     spawnable: ExecSpawnable,
   ) => Promise<HealthCheckResult> | HealthCheckResult
@@ -32,13 +47,29 @@ type DaemonsParams<
   Command extends string,
   Id extends string,
 > = {
+  /** The command line command to start the daemon */
   command: T.CommandType
-  image: { id: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean }
+  /** Information about the subcontainer in which the daemon runs */
+  subcontainer:
+    | {
+        /** The ID of the image. Must be one of the image IDs declared in the manifest */
+        id: keyof Manifest["images"] & T.ImageId
+        /**
+         * Whether or not to share the `/run` directory with the parent container.
+         * This is useful if you are trying to connect to a service that exposes a unix domain socket or auth cookie via the `/run` directory
+         */
+        sharedRun?: boolean
+      }
+    | SubContainer
+  /** For mounting the necessary volumes. Syntax: sdk.Mounts.of().addVolume() */
   mounts: Mounts<Manifest>
   env?: Record<string, string>
   ready: Ready
+  /** An array of IDs of prior daemons whose successful initializations are required before this daemon will initialize */
   requires: Exclude<Ids, Id>[]
   sigtermTimeout?: number
+  onStdout?: (chunk: Buffer | string | any) => void
+  onStderr?: (chunk: Buffer | string | any) => void
 }
 
 type ErrorDuplicateId<Id extends string> = `The id '${Id}' is already used`
@@ -118,11 +149,16 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     options: DaemonsParams<Manifest, Ids, Command, Id>,
   ) {
     const daemonIndex = this.daemons.length
-    const daemon = Daemon.of()(this.effects, options.image, options.command, {
-      ...options,
-      mounts: options.mounts.build(),
-      subcontainerName: id,
-    })
+    const daemon = Daemon.of()(
+      this.effects,
+      options.subcontainer,
+      options.command,
+      {
+        ...options,
+        mounts: options.mounts.build(),
+        subcontainerName: id,
+      },
+    )
     const healthDaemon = new HealthDaemon(
       daemon,
       daemonIndex,
@@ -149,14 +185,18 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   }
 
   async build() {
-    this.updateMainHealth()
-    this.healthDaemons.forEach((x) =>
-      x.addWatcher(() => this.updateMainHealth()),
-    )
     const built = {
-      term: async (options?: { signal?: Signals; timeout?: number }) => {
+      term: async () => {
         try {
-          await Promise.all(this.healthDaemons.map((x) => x.term(options)))
+          for (let result of await Promise.allSettled(
+            this.healthDaemons.map((x) =>
+              x.term({ timeout: x.sigtermTimeout }),
+            ),
+          )) {
+            if (result.status === "rejected") {
+              console.error(result.reason)
+            }
+          }
         } finally {
           this.effects.setMainStatus({ status: "stopped" })
         }
@@ -164,9 +204,5 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     }
     this.started(() => built.term())
     return built
-  }
-
-  private updateMainHealth() {
-    this.effects.setMainStatus({ status: "running" })
   }
 }

@@ -2,7 +2,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -31,6 +30,7 @@ use crate::init::check_time_is_synchronized;
 use crate::lxc::{ContainerId, LxcContainer, LxcManager};
 use crate::net::net_controller::{NetController, PreInitNetController};
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
+use crate::net::web_server::{UpgradableListener, WebServerAcceptorSetter};
 use crate::net::wifi::WpaCli;
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};
@@ -39,8 +39,7 @@ use crate::service::action::update_requested_actions;
 use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
-use crate::system::get_mem_info;
-use crate::util::lshw::{lshw, LshwDevice};
+use crate::util::lshw::LshwDevice;
 use crate::util::sync::SyncMutex;
 
 pub struct RpcContextSeed {
@@ -48,7 +47,6 @@ pub struct RpcContextSeed {
     pub os_partitions: OsPartitionInfo,
     pub wifi_interface: Option<String>,
     pub ethernet_interface: String,
-    pub datadir: PathBuf,
     pub disk_guid: Arc<String>,
     pub ephemeral_sessions: SyncMutex<Sessions>,
     pub db: TypedPatchDb<Database>,
@@ -67,10 +65,9 @@ pub struct RpcContextSeed {
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
     pub client: Client,
-    pub hardware: Hardware,
     pub start_time: Instant,
     pub crons: SyncMutex<BTreeMap<Guid, NonDetachingJoinHandle<()>>>,
-    #[cfg(feature = "dev")]
+    // #[cfg(feature = "dev")]
     pub dev: Dev,
 }
 
@@ -86,7 +83,6 @@ pub struct Hardware {
 pub struct InitRpcContextPhases {
     load_db: PhaseProgressTrackerHandle,
     init_net_ctrl: PhaseProgressTrackerHandle,
-    read_device_info: PhaseProgressTrackerHandle,
     cleanup_init: CleanupInitPhases,
     // TODO: migrations
 }
@@ -95,7 +91,6 @@ impl InitRpcContextPhases {
         Self {
             load_db: handle.add_phase("Loading database".into(), Some(5)),
             init_net_ctrl: handle.add_phase("Initializing network".into(), Some(1)),
-            read_device_info: handle.add_phase("Reading device information".into(), Some(1)),
             cleanup_init: CleanupInitPhases::new(handle),
         }
     }
@@ -121,13 +116,13 @@ pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
     #[instrument(skip_all)]
     pub async fn init(
+        webserver: &WebServerAcceptorSetter<UpgradableListener>,
         config: &ServerConfig,
         disk_guid: Arc<String>,
         net_ctrl: Option<PreInitNetController>,
         InitRpcContextPhases {
             mut load_db,
             mut init_net_ctrl,
-            mut read_device_info,
             cleanup_init,
         }: InitRpcContextPhases,
     ) -> Result<Self, Error> {
@@ -154,7 +149,7 @@ impl RpcContext {
                 if let Some(net_ctrl) = net_ctrl {
                     net_ctrl
                 } else {
-                    PreInitNetController::init(
+                    let net_ctrl = PreInitNetController::init(
                         db.clone(),
                         config
                             .tor_control
@@ -163,7 +158,9 @@ impl RpcContext {
                         &account.hostname,
                         account.tor_key.clone(),
                     )
-                    .await?
+                    .await?;
+                    webserver.try_upgrade(|a| net_ctrl.net_iface.upgrade_listener(a))?;
+                    net_ctrl
                 },
                 config
                     .dns_bind
@@ -178,11 +175,6 @@ impl RpcContext {
         let services = ServiceMap::default();
         let metrics_cache = RwLock::<Option<crate::system::Metrics>>::new(None);
         let tor_proxy_url = format!("socks5h://{tor_proxy}");
-
-        read_device_info.start();
-        let devices = lshw().await?;
-        let ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
-        read_device_info.complete();
 
         let crons = SyncMutex::new(BTreeMap::new());
 
@@ -220,7 +212,6 @@ impl RpcContext {
 
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
-            datadir: config.datadir().to_path_buf(),
             os_partitions: config.os_partitions.clone().ok_or_else(|| {
                 Error::new(
                     eyre!("OS Partition Information Missing"),
@@ -275,10 +266,9 @@ impl RpcContext {
                 }))
                 .build()
                 .with_kind(crate::ErrorKind::ParseUrl)?,
-            hardware: Hardware { devices, ram },
             start_time: Instant::now(),
             crons,
-            #[cfg(feature = "dev")]
+            // #[cfg(feature = "dev")]
             dev: Dev {
                 lxc: Mutex::new(BTreeMap::new()),
             },

@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use imbl::vector;
+
 use super::start_stop::StartStop;
 use super::ServiceActorSeed;
 use crate::prelude::*;
@@ -34,7 +36,41 @@ impl Actor for ServiceActor {
                     ServiceActorLoopNext::DontWait => (),
                 }
             }
-        })
+        });
+        let seed = self.0.clone();
+        let mut ip_info = seed.ctx.net_controller.net_iface.subscribe();
+        jobs.add_job(async move {
+            loop {
+                if let Err(e) = async {
+                    let mut service = seed.persistent_container.net_service.lock().await;
+                    let hosts = seed
+                        .ctx
+                        .db
+                        .peek()
+                        .await
+                        .as_public()
+                        .as_package_data()
+                        .as_idx(&seed.id)
+                        .or_not_found(&seed.id)?
+                        .as_hosts()
+                        .de()?;
+                    for (host_id, host) in hosts.0 {
+                        service.update(host_id, host).await?;
+                    }
+
+                    Ok::<_, Error>(())
+                }
+                .await
+                {
+                    tracing::error!("Error syncronizing net host after network change: {e}");
+                    tracing::debug!("{e:?}");
+                }
+
+                if ip_info.changed().await.is_err() {
+                    break;
+                };
+            }
+        });
     }
 }
 
@@ -45,7 +81,8 @@ async fn service_actor_loop(
     let id = &seed.id;
     let kinds = current.borrow().kinds();
     if let Err(e) = async {
-        seed.ctx
+        let major_changes_state = seed
+            .ctx
             .db
             .mutate(|d| {
                 if let Some(i) = d.as_public_mut().as_package_data_mut().as_idx_mut(&id) {
@@ -90,10 +127,20 @@ async fn service_actor_loop(
                         } => MainStatus::Stopped,
                     };
                     i.as_status_mut().ser(&main_status)?;
+                    return Ok(previous
+                        .major_changes(&main_status)
+                        .then_some((previous, main_status)));
                 }
-                Ok(())
+                Ok(None)
             })
             .await?;
+        if let Some((previous, new_state)) = major_changes_state {
+            if let Some(callbacks) = seed.ctx.callbacks.get_status(id) {
+                callbacks
+                    .call(vector![to_value(&previous)?, to_value(&new_state)?])
+                    .await?;
+            }
+        }
         seed.synchronized.notify_waiters();
 
         match kinds {

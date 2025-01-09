@@ -9,7 +9,8 @@ use rpc_toolkit::{
 use crate::context::{CliContext, DiagnosticContext, RpcContext};
 use crate::init::SYSTEM_REBUILD_PATH;
 use crate::shutdown::Shutdown;
-use crate::Error;
+use crate::util::io::delete_file;
+use crate::{Error, DATA_DIR};
 
 pub fn diagnostic<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -70,7 +71,7 @@ pub fn restart(ctx: DiagnosticContext) -> Result<(), Error> {
             export_args: ctx
                 .disk_guid
                 .clone()
-                .map(|guid| (guid, ctx.datadir.clone())),
+                .map(|guid| (guid, Path::new(DATA_DIR).to_owned())),
             restart: true,
         })
         .expect("receiver dropped");
@@ -95,9 +96,7 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
 }
 
 pub async fn forget_disk<C: Context>(_: C) -> Result<(), Error> {
-    let disk_guid = Path::new("/media/startos/config/disk.guid");
-    if tokio::fs::metadata(disk_guid).await.is_ok() {
-        tokio::fs::remove_file(disk_guid).await?;
-    }
+    delete_file("/media/startos/config/overlay/etc/hostname").await?;
+    delete_file("/media/startos/config/disk.guid").await?;
     Ok(())
 }

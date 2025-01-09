@@ -19,7 +19,6 @@ use crate::context::config::{ContextConfig, CONFIG_PATH};
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::registry::auth::{SignatureHeader, AUTH_SIG_HEADER};
-use crate::registry::device_info::{DeviceInfo, DEVICE_INFO_HEADER};
 use crate::registry::signer::sign::AnySigningKey;
 use crate::registry::RegistryDatabase;
 use crate::rpc_continuations::RpcContinuations;
@@ -255,7 +254,7 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
             .header(CONTENT_TYPE, "application/json")
             .header(ACCEPT, "application/json")
             .header(CONTENT_LENGTH, body.len())
-            .header(DEVICE_INFO_HEADER, DeviceInfo::from(self).to_header_value())
+            // .header(DEVICE_INFO_HEADER, DeviceInfo::from(self).to_header_value())
             .body(body)
             .send()
             .await?;

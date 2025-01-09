@@ -10,35 +10,34 @@ import { Variants } from "./builder/variants"
 export const customSmtp = InputSpec.of<InputSpecOf<SmtpValue>, never>({
   server: Value.text({
     name: "SMTP Server",
-    required: {
-      default: null,
-    },
+    required: true,
+    default: null,
   }),
   port: Value.number({
     name: "Port",
-    required: { default: 587 },
+    required: true,
+    default: 587,
     min: 1,
     max: 65535,
     integer: true,
   }),
   from: Value.text({
     name: "From Address",
-    required: {
-      default: null,
-    },
+    required: true,
+    default: null,
     placeholder: "<name>test@example.com",
     inputmode: "email",
     patterns: [Patterns.email],
   }),
   login: Value.text({
     name: "Login",
-    required: {
-      default: null,
-    },
+    required: true,
+    default: null,
   }),
   password: Value.text({
     name: "Password",
     required: false,
+    default: null,
     masked: true,
   }),
 })
@@ -54,7 +53,7 @@ export const smtpInputSpec = Value.filteredUnion(
   {
     name: "SMTP",
     description: "Optionally provide an SMTP server for sending emails",
-    required: { default: "disabled" },
+    default: "disabled",
   },
   Variants.of({
     disabled: { name: "Disabled", spec: InputSpec.of({}) },
@@ -66,6 +65,7 @@ export const smtpInputSpec = Value.filteredUnion(
           description:
             "A custom from address for this service. If not provided, the system from address will be used.",
           required: false,
+          default: null,
           placeholder: "<name>test@example.com",
           inputmode: "email",
           patterns: [Patterns.email],

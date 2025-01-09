@@ -1,5 +1,4 @@
 import { ExposedStorePaths } from "../../../base/lib/types"
-import { Affine, _ } from "../util"
 import {
   PathBuilder,
   extractJsonPath,

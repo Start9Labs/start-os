@@ -9,6 +9,8 @@ import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { T, ISB, IST } from '@start9labs/start-sdk'
 import { GetPackagesRes } from '@start9labs/marketplace'
 
+import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
+
 const mockMerkleArchiveCommitment: T.MerkleArchiveCommitment = {
   rootSighash: 'fakehash',
   rootMaxsize: 0,
@@ -117,7 +119,7 @@ export module Mock {
     assets: [],
     volumes: ['main'],
     hardwareRequirements: {
-      device: {},
+      device: [],
       arch: null,
       ram: null,
     },
@@ -174,7 +176,7 @@ export module Mock {
     assets: [],
     volumes: ['main'],
     hardwareRequirements: {
-      device: {},
+      device: [],
       arch: null,
       ram: null,
     },
@@ -224,7 +226,7 @@ export module Mock {
     assets: [],
     volumes: ['main'],
     hardwareRequirements: {
-      device: {},
+      device: [],
       arch: null,
       ram: null,
     },
@@ -253,7 +255,7 @@ export module Mock {
           '26.1.0:0.1.0': {
             title: 'Bitcoin Core',
             description: mockDescription,
-            hardwareRequirements: { arch: null, device: {}, ram: null },
+            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
             upstreamRepo: 'https://github.com/bitcoin/bitcoin',
@@ -286,7 +288,7 @@ export module Mock {
               short: 'An alternate fully verifying implementation of Bitcoin',
               long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
             },
-            hardwareRequirements: { arch: null, device: {}, ram: null },
+            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
             upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
@@ -329,7 +331,7 @@ export module Mock {
           '26.1.0:0.1.0': {
             title: 'Bitcoin Core',
             description: mockDescription,
-            hardwareRequirements: { arch: null, device: {}, ram: null },
+            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
             upstreamRepo: 'https://github.com/bitcoin/bitcoin',
@@ -362,7 +364,7 @@ export module Mock {
               short: 'An alternate fully verifying implementation of Bitcoin',
               long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
             },
-            hardwareRequirements: { arch: null, device: {}, ram: null },
+            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
             upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
@@ -407,7 +409,7 @@ export module Mock {
           '0.17.5:0': {
             title: 'LND',
             description: mockDescription,
-            hardwareRequirements: { arch: null, device: {}, ram: null },
+            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/lnd-startos',
             upstreamRepo: 'https://github.com/lightningnetwork/lnd',
@@ -463,7 +465,7 @@ export module Mock {
           '0.17.4-beta:1.0-alpha': {
             title: 'LND',
             description: mockDescription,
-            hardwareRequirements: { arch: null, device: {}, ram: null },
+            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/start9labs/lnd-startos',
             upstreamRepo: 'https://github.com/lightningnetwork/lnd',
@@ -521,7 +523,7 @@ export module Mock {
           '0.3.2.6:0': {
             title: 'Bitcoin Proxy',
             description: mockDescription,
-            hardwareRequirements: { arch: null, device: {}, ram: null },
+            hardwareRequirements: { arch: null, device: [], ram: null },
             license: 'mit',
             wrapperRepo: 'https://github.com/Start9Labs/btc-rpc-proxy-wrappers',
             upstreamRepo: 'https://github.com/Kixunil/btc-rpc-proxy',
@@ -565,7 +567,7 @@ export module Mock {
         '27.0.0:1.0.0': {
           title: 'Bitcoin Core',
           description: mockDescription,
-          hardwareRequirements: { arch: null, device: {}, ram: null },
+          hardwareRequirements: { arch: null, device: [], ram: null },
           license: 'mit',
           wrapperRepo: 'https://github.com/start9labs/bitcoind-startos',
           upstreamRepo: 'https://github.com/bitcoin/bitcoin',
@@ -598,7 +600,7 @@ export module Mock {
             short: 'An alternate fully verifying implementation of Bitcoin',
             long: 'Bitcoin Knots is a combined Bitcoin node and wallet. Not only is it easy to use, but it also ensures bitcoins you receive are both real bitcoins and really yours.',
           },
-          hardwareRequirements: { arch: null, device: {}, ram: null },
+          hardwareRequirements: { arch: null, device: [], ram: null },
           license: 'mit',
           wrapperRepo: 'https://github.com/start9labs/bitcoinknots-startos',
           upstreamRepo: 'https://github.com/bitcoinknots/bitcoin',
@@ -641,7 +643,7 @@ export module Mock {
         '0.18.0:0.0.1': {
           title: 'LND',
           description: mockDescription,
-          hardwareRequirements: { arch: null, device: {}, ram: null },
+          hardwareRequirements: { arch: null, device: [], ram: null },
           license: 'mit',
           wrapperRepo: 'https://github.com/start9labs/lnd-startos',
           upstreamRepo: 'https://github.com/lightningnetwork/lnd',
@@ -697,7 +699,7 @@ export module Mock {
         '0.3.2.7:0': {
           title: 'Bitcoin Proxy',
           description: mockDescription,
-          hardwareRequirements: { arch: null, device: {}, ram: null },
+          hardwareRequirements: { arch: null, device: [], ram: null },
           license: 'mit',
           wrapperRepo: 'https://github.com/Start9Labs/btc-rpc-proxy-wrappers',
           upstreamRepo: 'https://github.com/Kixunil/btc-rpc-proxy',
@@ -759,7 +761,7 @@ export module Mock {
       id: 2,
       packageId: null,
       createdAt: '2019-12-26T14:20:30.872Z',
-      code: 2,
+      code: 0,
       level: NotificationLevel.Warning,
       title: 'SSH Key Added',
       message: 'A new SSH key was added. If you did not do this, shit is bad.',
@@ -769,7 +771,7 @@ export module Mock {
       id: 3,
       packageId: null,
       createdAt: '2019-12-26T14:20:30.872Z',
-      code: 3,
+      code: 0,
       level: NotificationLevel.Info,
       title: 'SSH Key Removed',
       message: 'A SSH key was removed.',
@@ -779,7 +781,7 @@ export module Mock {
       id: 4,
       packageId: 'bitcoind',
       createdAt: '2019-12-26T14:20:30.872Z',
-      code: 4,
+      code: 0,
       level: NotificationLevel.Error,
       title: 'Service Crashed',
       message: new Array(40)
@@ -791,6 +793,16 @@ export module Mock {
         )
         .join(''),
       data: null,
+    },
+    {
+      id: 5,
+      packageId: null,
+      createdAt: '2019-12-26T14:20:30.872Z',
+      code: 2,
+      level: NotificationLevel.Success,
+      title: 'Welcome to StartOS 0.3.6!',
+      message: 'Click "View Details" to learn all about the new version',
+      data: markdown,
     },
   ]
 
@@ -1049,77 +1061,91 @@ export module Mock {
     },
   }
 
-  export const ActionRes: RR.ActionRes = {
+  export const ActionResMessage: RR.ActionRes = {
     version: '1',
-    type: 'string',
-    name: 'New Password',
-    description:
-      'Action was run successfully Action was run successfully Action was run successfully Action was run successfully Action was run successfully',
-    copyable: true,
-    qr: true,
-    masked: true,
-    value: 'iwejdoiewdhbew',
+    title: 'New Password',
+    message:
+      'Action was run successfully and smoothly and fully and all is good on the western front.',
+    result: null,
   }
 
-  export const ActionProperties: RR.ActionRes = {
+  export const ActionResSingle: RR.ActionRes = {
     version: '1',
-    type: 'object',
-    name: 'Properties',
-    value: [
-      {
-        type: 'string',
-        name: 'LND Connect',
-        description: 'This is some information about the thing.',
-        copyable: true,
-        qr: true,
-        masked: true,
-        value:
-          'lndconnect://udlyfq2mxa4355pt7cqlrdipnvk2tsl4jtsdw7zaeekenufwcev2wlad.onion:10009?cert=MIICJTCCAcugAwIBAgIRAOyq85fqAiA3U3xOnwhH678wCgYIKoZIzj0EAwIwODEfMB0GAkUEChMWbG5kIGF1dG9nZW5lcmF0ZWQgY2VydDEVMBMGA1UEAxMMNTc0OTkwMzIyYzZlMB4XDTIwMTAyNjA3MzEyN1oXDTIxMTIyMTA3MzEyN1owODEfMB0GA1UEChMWbG5kIGF1dG9nZW5lcmF0ZWQgY2VydDEVMBMGA1UEAxMMNTc0OTkwMzIyYzZlMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKqfhAMMZdY-eFnU5P4bGrQTSx0lo7m8u4V0yYkzUM6jlql_u31_mU2ovLTj56wnZApkEjoPl6fL2yasZA2wiy6OBtTCBsjAOBgNVHQ8BAf8EBAMCAqQwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDwYDVR0TAQH_BAUwAwEB_zAdBgNVHQ4EFgQUYQ9uIO6spltnVCx4rLFL5BvBF9IwWwYDVR0RBFQwUoIMNTc0OTkwMzIyYzZlgglsb2NhbGhvc3SCBHVuaXiCCnVuaXhwYWNrZXSCB2J1ZmNvbm6HBH8AAAGHEAAAAAAAAAAAAAAAAAAAAAGHBKwSAAswCgYIKoZIzj0EAwIDSAAwRQIgVZH2Z2KlyAVY2Q2aIQl0nsvN-OEN49wreFwiBqlxNj4CIQD5_JbpuBFJuf81I5J0FQPtXY-4RppWOPZBb-y6-rkIUQ&macaroon=AgEDbG5kAusBAwoQuA8OUMeQ8Fr2h-f65OdXdRIBMBoWCgdhZGRyZXNzEgRyZWFkEgV3cml0ZRoTCgRpbmZvEgRyZWFkEgV3cml0ZRoXCghpbnZvaWNlcxIEcmVhZBIFd3JpdGUaFAoIbWFjYXJvb24SCGdlbmVyYXRlGhYKB21lc3NhZ2USBHJlYWQSBXdyaXRlGhcKCG9mZmNoYWluEgRyZWFkEgV3cml0ZRoWCgdvbmNoYWluEgRyZWFkEgV3cml0ZRoUCgVwZWVycxIEcmVhZBIFd3JpdGUaGAoGc2lnbmVyEghnZW5lcmF0ZRIEcmVhZAAABiCYsRUoUWuAHAiCSLbBR7b_qULDSl64R8LIU2aqNIyQfA',
-      },
-      {
-        type: 'object',
-        name: 'Nested Stuff',
-        description: 'This is a nested thing metric',
-        value: [
-          {
-            type: 'string',
-            name: 'Last Name',
-            description: 'The last name of the user',
-            copyable: true,
-            qr: true,
-            masked: false,
-            value: 'Hill',
-          },
-          {
-            type: 'string',
-            name: 'Age',
-            description: 'The age of the user',
-            copyable: false,
-            qr: false,
-            masked: false,
-            value: '35',
-          },
-          {
-            type: 'string',
-            name: 'Password',
-            description: 'A secret password',
-            copyable: true,
-            qr: false,
-            masked: true,
-            value: 'password123',
-          },
-        ],
-      },
-      {
-        type: 'string',
-        name: 'Another Value',
-        description: 'Some more information about the service.',
-        copyable: false,
-        qr: true,
-        masked: false,
-        value: 'https://guessagain.com',
-      },
-    ],
+    title: 'New Password',
+    message:
+      'Action was run successfully and smoothly and fully and all is good on the western front.',
+    result: {
+      type: 'single',
+      copyable: true,
+      qr: true,
+      masked: true,
+      value: 'iwejdoiewdhbew',
+    },
+  }
+
+  export const ActionResGroup: RR.ActionRes = {
+    version: '1',
+    title: 'Properties',
+    message:
+      'Successfully retrieved properties. Here is a bunch of useful information about this service.',
+    result: {
+      type: 'group',
+      value: [
+        {
+          type: 'single',
+          name: 'LND Connect',
+          description: 'This is some information about the thing.',
+          copyable: true,
+          qr: true,
+          masked: true,
+          value:
+            'lndconnect://udlyfq2mxa4355pt7cqlrdipnvk2tsl4jtsdw7zaeekenufwcev2wlad.onion:10009?cert=MIICJTCCAcugAwIBAgIRAOyq85fqAiA3U3xOnwhH678wCgYIKoZIzj0EAwIwODEfMB0GAkUEChMWbG5kIGF1dG9nZW5lcmF0ZWQgY2VydDEVMBMGA1UEAxMMNTc0OTkwMzIyYzZlMB4XDTIwMTAyNjA3MzEyN1oXDTIxMTIyMTA3MzEyN1owODEfMB0GA1UEChMWbG5kIGF1dG9nZW5lcmF0ZWQgY2VydDEVMBMGA1UEAxMMNTc0OTkwMzIyYzZlMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEKqfhAMMZdY-eFnU5P4bGrQTSx0lo7m8u4V0yYkzUM6jlql_u31_mU2ovLTj56wnZApkEjoPl6fL2yasZA2wiy6OBtTCBsjAOBgNVHQ8BAf8EBAMCAqQwEwYDVR0lBAwwCgYIKwYBBQUHAwEwDwYDVR0TAQH_BAUwAwEB_zAdBgNVHQ4EFgQUYQ9uIO6spltnVCx4rLFL5BvBF9IwWwYDVR0RBFQwUoIMNTc0OTkwMzIyYzZlgglsb2NhbGhvc3SCBHVuaXiCCnVuaXhwYWNrZXSCB2J1ZmNvbm6HBH8AAAGHEAAAAAAAAAAAAAAAAAAAAAGHBKwSAAswCgYIKoZIzj0EAwIDSAAwRQIgVZH2Z2KlyAVY2Q2aIQl0nsvN-OEN49wreFwiBqlxNj4CIQD5_JbpuBFJuf81I5J0FQPtXY-4RppWOPZBb-y6-rkIUQ&macaroon=AgEDbG5kAusBAwoQuA8OUMeQ8Fr2h-f65OdXdRIBMBoWCgdhZGRyZXNzEgRyZWFkEgV3cml0ZRoTCgRpbmZvEgRyZWFkEgV3cml0ZRoXCghpbnZvaWNlcxIEcmVhZBIFd3JpdGUaFAoIbWFjYXJvb24SCGdlbmVyYXRlGhYKB21lc3NhZ2USBHJlYWQSBXdyaXRlGhcKCG9mZmNoYWluEgRyZWFkEgV3cml0ZRoWCgdvbmNoYWluEgRyZWFkEgV3cml0ZRoUCgVwZWVycxIEcmVhZBIFd3JpdGUaGAoGc2lnbmVyEghnZW5lcmF0ZRIEcmVhZAAABiCYsRUoUWuAHAiCSLbBR7b_qULDSl64R8LIU2aqNIyQfA',
+        },
+        {
+          type: 'group',
+          name: 'Nested Stuff',
+          description: 'This is a nested thing metric',
+          value: [
+            {
+              type: 'single',
+              name: 'Last Name',
+              description: 'The last name of the user',
+              copyable: true,
+              qr: true,
+              masked: false,
+              value: 'Hill',
+            },
+            {
+              type: 'single',
+              name: 'Age',
+              description: 'The age of the user',
+              copyable: false,
+              qr: false,
+              masked: false,
+              value: '35',
+            },
+            {
+              type: 'single',
+              name: 'Password',
+              description: 'A secret password',
+              copyable: true,
+              qr: false,
+              masked: true,
+              value: 'password123',
+            },
+          ],
+        },
+        {
+          type: 'single',
+          name: 'Another Value',
+          description: 'Some more information about the service.',
+          copyable: false,
+          qr: true,
+          masked: false,
+          value: 'https://guessagain.com',
+        },
+      ],
+    },
   }
 
   export const getActionInputSpec = async (): Promise<IST.InputSpec> =>
@@ -1137,7 +1163,7 @@ export module Mock {
                 name: 'P2P Settings',
                 description:
                   '<p>The Bitcoin Core node to connect to over the peer-to-peer (P2P) interface:</p><ul><li><strong>Bitcoin Core</strong>: The Bitcoin Core service installed on this device</li><li><strong>External Node</strong>: A Bitcoin node running on a different device</li></ul>',
-                required: { default: 'internal' },
+                default: 'internal',
               },
               ISB.Variants.of({
                 internal: { name: 'Bitcoin Core', spec: ISB.InputSpec.of({}) },
@@ -1146,9 +1172,8 @@ export module Mock {
                   spec: ISB.InputSpec.of({
                     'p2p-host': ISB.Value.text({
                       name: 'Public Address',
-                      required: {
-                        default: null,
-                      },
+                      required: false,
+                      default: null,
                       description:
                         'The public address of your Bitcoin Core server',
                     }),
@@ -1156,9 +1181,8 @@ export module Mock {
                       name: 'P2P Port',
                       description:
                         'The port that your Bitcoin Core P2P server is bound to',
-                      required: {
-                        default: 8333,
-                      },
+                      required: true,
+                      default: 8333,
                       min: 0,
                       max: 65535,
                       integer: true,
@@ -1172,16 +1196,18 @@ export module Mock {
         color: ISB.Value.color({
           name: 'Color',
           required: false,
+          default: null,
         }),
         datetime: ISB.Value.datetime({
           name: 'Datetime',
           required: false,
+          default: null,
         }),
-        file: ISB.Value.file({
-          name: 'File',
-          required: false,
-          extensions: ['png', 'pdf'],
-        }),
+        // file: ISB.Value.file({
+        //   name: 'File',
+        //   required: false,
+        //   extensions: ['png', 'pdf'],
+        // }),
         users: ISB.Value.multiselect({
           name: 'Users',
           default: [],
@@ -1207,9 +1233,8 @@ export module Mock {
               ISB.InputSpec.of({
                 rpcuser2: ISB.Value.text({
                   name: 'RPC Username',
-                  required: {
-                    default: 'defaultrpcusername',
-                  },
+                  required: false,
+                  default: 'defaultrpcusername',
                   description: 'rpc username',
                   patterns: [
                     {
@@ -1220,9 +1245,8 @@ export module Mock {
                 }),
                 rpcuser: ISB.Value.text({
                   name: 'RPC Username',
-                  required: {
-                    default: 'defaultrpcusername',
-                  },
+                  required: true,
+                  default: 'defaultrpcusername',
                   description: 'rpc username',
                   patterns: [
                     {
@@ -1233,21 +1257,19 @@ export module Mock {
                 }),
                 rpcpass: ISB.Value.text({
                   name: 'RPC User Password',
-                  required: {
-                    default: {
-                      charset: 'a-z,A-Z,2-9',
-                      len: 20,
-                    },
+                  required: true,
+                  default: {
+                    charset: 'a-z,A-Z,2-9',
+                    len: 20,
                   },
                   description: 'rpc password',
                 }),
                 rpcpass2: ISB.Value.text({
                   name: 'RPC User Password',
-                  required: {
-                    default: {
-                      charset: 'a-z,A-Z,2-9',
-                      len: 20,
-                    },
+                  required: true,
+                  default: {
+                    charset: 'a-z,A-Z,2-9',
+                    len: 20,
                   },
                   description: 'rpc password',
                 }),
@@ -1280,14 +1302,14 @@ export module Mock {
                   name: 'First Name',
                   required: false,
                   description: 'User first name',
+                  default: 'Matt',
                 }),
                 'last-name': ISB.Value.text({
                   name: 'Last Name',
-                  required: {
-                    default: {
-                      charset: 'a-g,2-9',
-                      len: 12,
-                    },
+                  required: true,
+                  default: {
+                    charset: 'a-g,2-9',
+                    len: 12,
                   },
                   description: 'User first name',
                   patterns: [
@@ -1302,6 +1324,7 @@ export module Mock {
                   description: 'The age of the user',
                   warning: 'User must be at least 18.',
                   required: false,
+                  default: null,
                   min: 18,
                   integer: false,
                 }),
@@ -1329,7 +1352,7 @@ export module Mock {
                     name: 'Preference',
                     description: null,
                     warning: null,
-                    required: { default: 'summer' },
+                    default: 'summer',
                   },
                   ISB.Variants.of({
                     summer: {
@@ -1337,17 +1360,14 @@ export module Mock {
                       spec: ISB.InputSpec.of({
                         'favorite-tree': ISB.Value.text({
                           name: 'Favorite Tree',
-                          required: {
-                            default: 'Maple',
-                          },
+                          required: true,
+                          default: 'Maple',
                           description: 'What is your favorite tree?',
                         }),
                         'favorite-flower': ISB.Value.select({
                           name: 'Favorite Flower',
                           description: 'Select your favorite flower',
-                          required: {
-                            default: 'none',
-                          },
+                          default: 'none',
                           values: {
                             none: 'none',
                             red: 'red',
@@ -1378,9 +1398,7 @@ export module Mock {
           name: 'Random select',
           description: 'This is not even real.',
           warning: 'Be careful changing this!',
-          required: {
-            default: null,
-          },
+          default: 'option1',
           values: {
             option1: 'option1',
             option2: 'option2',
@@ -1395,9 +1413,8 @@ export module Mock {
               description: 'Your favorite number of all time',
               warning:
                 'Once you set this number, it can never be changed without severe consequences.',
-              required: {
-                default: 7,
-              },
+              required: false,
+              default: 7,
               integer: false,
               units: 'BTC',
             },
@@ -1418,11 +1435,13 @@ export module Mock {
                   name: 'First Law',
                   required: false,
                   description: 'the first law',
+                  default: null,
                 }),
                 law2: ISB.Value.text({
                   name: 'Second Law',
                   required: false,
                   description: 'the second law',
+                  default: null,
                 }),
               }),
             ),
@@ -1438,19 +1457,17 @@ export module Mock {
                   spec: ISB.InputSpec.of({
                     rulemakername: ISB.Value.text({
                       name: 'Rulemaker Name',
-                      required: {
-                        default: {
-                          charset: 'a-g,2-9',
-                          len: 12,
-                        },
+                      required: true,
+                      default: {
+                        charset: 'a-g,2-9',
+                        len: 12,
                       },
                       description: 'the name of the rule maker',
                     }),
                     rulemakerip: ISB.Value.text({
                       name: 'Rulemaker IP',
-                      required: {
-                        default: '192.168.1.0',
-                      },
+                      required: true,
+                      default: '192.168.1.0',
                       description: 'the ip of the rule maker',
                       patterns: [
                         {
@@ -1466,9 +1483,8 @@ export module Mock {
             ),
             rpcuser: ISB.Value.text({
               name: 'RPC Username',
-              required: {
-                default: 'defaultrpcusername',
-              },
+              required: true,
+              default: 'defaultrpcusername',
               description: 'rpc username',
               patterns: [
                 {
@@ -1479,11 +1495,10 @@ export module Mock {
             }),
             rpcpass: ISB.Value.text({
               name: 'RPC User Password',
-              required: {
-                default: {
-                  charset: 'a-z,A-Z,2-9',
-                  len: 20,
-                },
+              required: true,
+              default: {
+                charset: 'a-z,A-Z,2-9',
+                len: 20,
               },
               description: 'rpc password',
               masked: true,
@@ -1495,7 +1510,7 @@ export module Mock {
             name: 'Bitcoin Node',
             description: 'Options<ul><li>Item 1</li><li>Item 2</li></ul>',
             warning: 'Careful changing this',
-            required: { default: 'internal' },
+            default: 'internal',
           },
           ISB.Variants.of({
             fake: {
@@ -1517,9 +1532,8 @@ export module Mock {
                   ISB.InputSpec.of({
                     name: ISB.Value.text({
                       name: 'Name',
-                      required: {
-                        default: null,
-                      },
+                      required: false,
+                      default: null,
                       patterns: [
                         {
                           regex: '^[a-zA-Z]+$',
@@ -1530,17 +1544,15 @@ export module Mock {
                     email: ISB.Value.text({
                       name: 'Email',
                       inputmode: 'email',
-                      required: {
-                        default: null,
-                      },
+                      required: false,
+                      default: null,
                     }),
                   }),
                 ),
                 'public-domain': ISB.Value.text({
                   name: 'Public Domain',
-                  required: {
-                    default: 'bitcoinnode.com',
-                  },
+                  required: true,
+                  default: 'bitcoinnode.com',
                   description: 'the public address of the node',
                   patterns: [
                     {
@@ -1551,9 +1563,8 @@ export module Mock {
                 }),
                 'private-domain': ISB.Value.text({
                   name: 'Private Domain',
-                  required: {
-                    default: null,
-                  },
+                  required: false,
+                  default: null,
                   description: 'the private address of the node',
                   masked: true,
                   inputmode: 'url',
@@ -1566,9 +1577,8 @@ export module Mock {
           name: 'Port',
           description:
             'the default port for your Bitcoin node. default: 8333, testnet: 18333, regtest: 18444',
-          required: {
-            default: 8333,
-          },
+          required: true,
+          default: 8333,
           min: 1,
           max: 9998,
           step: 1,
@@ -1581,6 +1591,7 @@ export module Mock {
             len: 20,
           },
           required: false,
+          default: null,
           description:
             'You most favorite slogan in the whole world, used for paying you.',
           masked: true,
@@ -1710,7 +1721,6 @@ export module Mock {
     serviceInterfaces: {
       ui: {
         id: 'ui',
-        hasPrimary: false,
         masked: false,
         name: 'Web UI',
         description:
@@ -1727,7 +1737,6 @@ export module Mock {
       },
       rpc: {
         id: 'rpc',
-        hasPrimary: false,
         masked: false,
         name: 'RPC',
         description:
@@ -1744,7 +1753,6 @@ export module Mock {
       },
       p2p: {
         id: 'p2p',
-        hasPrimary: true,
         masked: false,
         name: 'P2P',
         description:
@@ -1765,7 +1773,8 @@ export module Mock {
       abcdefg: {
         kind: 'multi',
         bindings: [],
-        addresses: [],
+        onions: [],
+        domains: {},
         hostnameInfo: {
           80: [
             {
@@ -1818,7 +1827,8 @@ export module Mock {
               public: false,
               hostname: {
                 kind: 'ipv6',
-                value: '[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]',
+                value: '[fe80:cd00:0000:0cde:1257:0000:211e:72cd]',
+                scopeId: 2,
                 port: null,
                 sslPort: 1234,
               },
@@ -1829,7 +1839,8 @@ export module Mock {
               public: false,
               hostname: {
                 kind: 'ipv6',
-                value: '[FE80:CD00:0000:0CDE:1257:0000:211E:1234]',
+                value: '[fe80:cd00:0000:0cde:1257:0000:211e:1234]',
+                scopeId: 3,
                 port: null,
                 sslPort: 1234,
               },
@@ -1848,7 +1859,8 @@ export module Mock {
       bcdefgh: {
         kind: 'multi',
         bindings: [],
-        addresses: [],
+        onions: [],
+        domains: {},
         hostnameInfo: {
           8332: [],
         },
@@ -1856,7 +1868,8 @@ export module Mock {
       cdefghi: {
         kind: 'multi',
         bindings: [],
-        addresses: [],
+        onions: [],
+        domains: {},
         hostnameInfo: {
           8333: [],
         },
@@ -1903,7 +1916,6 @@ export module Mock {
     serviceInterfaces: {
       ui: {
         id: 'ui',
-        hasPrimary: false,
         masked: false,
         name: 'Web UI',
         description: 'A launchable web app for Bitcoin Proxy',
@@ -1949,7 +1961,6 @@ export module Mock {
     serviceInterfaces: {
       grpc: {
         id: 'grpc',
-        hasPrimary: false,
         masked: false,
         name: 'GRPC',
         description:
@@ -1966,7 +1977,6 @@ export module Mock {
       },
       lndconnect: {
         id: 'lndconnect',
-        hasPrimary: false,
         masked: true,
         name: 'LND Connect',
         description:
@@ -1983,7 +1993,6 @@ export module Mock {
       },
       p2p: {
         id: 'p2p',
-        hasPrimary: true,
         masked: false,
         name: 'P2P',
         description:

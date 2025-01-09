@@ -46,27 +46,34 @@ async function onCreated(path: string) {
 /**
  * @description Use this class to read/write an underlying configuration file belonging to the upstream service.
  *
- * Using the static functions, choose between officially supported file formats (json, yaml, toml), or a custom format (raw).
+ *   These type definitions should reflect the underlying file as closely as possible. For example, if the service does not require a particular value, it should be marked as optional(), even if your package requires it.
+ *
+ *   It is recommended to use onMismatch() whenever possible. This provides an escape hatch in case the user edits the file manually and accidentally sets a value to an unsupported type.
+ *
+ *   Officially supported file types are json, yaml, and toml. Other files types can use "raw"
+ *
+ *   Choose between officially supported file formats (), or a custom format (raw).
+ *
  * @example
  * Below are a few examples
  *
  * ```
  * import { matches, FileHelper } from '@start9labs/start-sdk'
- * const { arrayOf, boolean, literal, literals, object, oneOf, natural, string } = matches
+ * const { arrayOf, boolean, literal, literals, object, natural, string } = matches
  *
  * export const jsonFile = FileHelper.json('./inputSpec.json', object({
- *   passwords: arrayOf(string)
- *   type: oneOf(literals('private', 'public'))
+ *   passwords: arrayOf(string).onMismatch([])
+ *   type: literals('private', 'public').optional().onMismatch(undefined)
  * }))
  *
  * export const tomlFile = FileHelper.toml('./inputSpec.toml', object({
- *   url: literal('https://start9.com')
- *   public: boolean
+ *   url: literal('https://start9.com').onMismatch('https://start9.com')
+ *   public: boolean.onMismatch(true)
  * }))
  *
  * export const yamlFile = FileHelper.yaml('./inputSpec.yml', object({
- *   name: string
- *   age: natural
+ *   name: string.optional().onMismatch(undefined)
+ *   age: natural.optional().onMismatch(undefined)
  * }))
  *
  * export const bitcoinConfFile = FileHelper.raw(
@@ -80,13 +87,14 @@ export class FileHelper<A> {
   protected constructor(
     readonly path: string,
     readonly writeData: (dataIn: A) => string,
-    readonly readData: (stringValue: string) => A,
+    readonly readData: (stringValue: string) => unknown,
+    readonly validate: (value: unknown) => A,
   ) {}
 
   /**
    * Accepts structured data and overwrites the existing file on disk.
    */
-  async write(data: A): Promise<null> {
+  private async writeFile(data: A): Promise<null> {
     const parent = previousPath.exec(this.path)
     if (parent) {
       await fs.mkdir(parent[1], { recursive: true })
@@ -97,16 +105,22 @@ export class FileHelper<A> {
     return null
   }
 
-  /**
-   * Reads the file from disk and converts it to structured data.
-   */
-  private async readOnce(): Promise<A | null> {
+  private async readFile(): Promise<unknown> {
     if (!(await exists(this.path))) {
       return null
     }
     return this.readData(
       await fs.readFile(this.path).then((data) => data.toString("utf-8")),
     )
+  }
+
+  /**
+   * Reads the file from disk and converts it to structured data.
+   */
+  private async readOnce(): Promise<A | null> {
+    const data = await this.readFile()
+    if (!data) return null
+    return this.validate(data)
   }
 
   private async readConst(effects: T.Effects): Promise<A | null> {
@@ -153,13 +167,35 @@ export class FileHelper<A> {
   }
 
   /**
-   * Accepts structured data and performs a merge with the existing file on disk.
+   * Accepts full structured data and performs a merge with the existing file on disk if it exists.
    */
-  async merge(data: A) {
-    const fileData = (await this.readOnce().catch(() => ({}))) || {}
+  async write(data: A) {
+    const fileData = (await this.readFile()) || {}
     const mergeData = merge({}, fileData, data)
-    return await this.write(mergeData)
+    return await this.writeFile(this.validate(mergeData))
   }
+
+  /**
+   * Accepts partial structured data and performs a merge with the existing file on disk.
+   */
+  async merge(data: T.DeepPartial<A>) {
+    const fileData =
+      (await this.readFile()) ||
+      (() => {
+        throw new Error(`${this.path}: does not exist`)
+      })()
+    const mergeData = merge({}, fileData, data)
+    return await this.writeFile(this.validate(mergeData))
+  }
+
+  /**
+   * We wanted to be able to have a fileHelper, and just modify the path later in time.
+   * Like one behavior of another dependency or something similar.
+   */
+  withPath(path: string) {
+    return new FileHelper<A>(path, this.writeData, this.readData, this.validate)
+  }
+
   /**
    * Create a File Helper for an arbitrary file type.
    *
@@ -168,9 +204,10 @@ export class FileHelper<A> {
   static raw<A>(
     path: string,
     toFile: (dataIn: A) => string,
-    fromFile: (rawData: string) => A,
+    fromFile: (rawData: string) => unknown,
+    validate: (data: unknown) => A,
   ) {
-    return new FileHelper<A>(path, toFile, fromFile)
+    return new FileHelper<A>(path, toFile, fromFile, validate)
   }
   /**
    * Create a File Helper for a .json file.
@@ -178,12 +215,9 @@ export class FileHelper<A> {
   static json<A>(path: string, shape: matches.Validator<unknown, A>) {
     return new FileHelper<A>(
       path,
-      (inData) => {
-        return JSON.stringify(inData, null, 2)
-      },
-      (inString) => {
-        return shape.unsafeCast(JSON.parse(inString))
-      },
+      (inData) => JSON.stringify(inData, null, 2),
+      (inString) => JSON.parse(inString),
+      (data) => shape.unsafeCast(data),
     )
   }
   /**
@@ -195,12 +229,9 @@ export class FileHelper<A> {
   ) {
     return new FileHelper<A>(
       path,
-      (inData) => {
-        return TOML.stringify(inData as any)
-      },
-      (inString) => {
-        return shape.unsafeCast(TOML.parse(inString))
-      },
+      (inData) => TOML.stringify(inData as any),
+      (inString) => TOML.parse(inString),
+      (data) => shape.unsafeCast(data),
     )
   }
   /**
@@ -212,12 +243,9 @@ export class FileHelper<A> {
   ) {
     return new FileHelper<A>(
       path,
-      (inData) => {
-        return YAML.stringify(inData, null, 2)
-      },
-      (inString) => {
-        return shape.unsafeCast(YAML.parse(inString))
-      },
+      (inData) => YAML.stringify(inData, null, 2),
+      (inString) => YAML.parse(inString),
+      (data) => shape.unsafeCast(data),
     )
   }
 }

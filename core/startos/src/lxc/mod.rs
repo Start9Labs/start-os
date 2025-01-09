@@ -32,7 +32,7 @@ use crate::util::io::open_file;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::{new_guid, Invoke};
 
-#[cfg(feature = "dev")]
+// #[cfg(feature = "dev")]
 pub mod dev;
 
 const LXC_CONTAINER_DIR: &str = "/var/lib/lxc";
@@ -285,6 +285,30 @@ impl LxcContainer {
 
     pub fn rpc_dir(&self) -> &Path {
         self.rpc_bind.path()
+    }
+
+    pub async fn command(&self, commands: &[&str]) -> Result<String, Error> {
+        let mut cmd = Command::new("lxc-attach");
+        cmd.kill_on_drop(true);
+
+        let output = cmd
+            .arg(&**self.guid)
+            .arg("--")
+            .args(commands)
+            .output()
+            .await?;
+
+        if !output.status.success() {
+            return Err(Error::new(
+                eyre!(
+                    "Command failed with exit code: {:?} \n Message: {:?}",
+                    output.status.code(),
+                    String::from_utf8(output.stderr)
+                ),
+                ErrorKind::Docker,
+            ));
+        }
+        Ok(String::from_utf8(output.stdout)?)
     }
 
     #[instrument(skip_all)]

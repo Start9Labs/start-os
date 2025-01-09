@@ -2,7 +2,6 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use axum::Router;
 use futures::future::ready;
-use imbl_value::InternedString;
 use models::DataUrl;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler, Server};
 use serde::{Deserialize, Serialize};
@@ -11,13 +10,13 @@ use ts_rs::TS;
 use crate::context::CliContext;
 use crate::middleware::cors::Cors;
 use crate::net::static_server::{bad_request, not_found, server_error};
-use crate::net::web_server::WebServer;
+use crate::net::web_server::{Accept, WebServer};
 use crate::prelude::*;
 use crate::registry::auth::Auth;
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfoMiddleware;
 use crate::registry::os::index::OsIndex;
-use crate::registry::package::index::{Category, PackageIndex};
+use crate::registry::package::index::PackageIndex;
 use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::Guid;
 use crate::util::serde::HandlerExtSerde;
@@ -28,6 +27,7 @@ pub mod auth;
 pub mod context;
 pub mod db;
 pub mod device_info;
+pub mod info;
 pub mod os;
 pub mod package;
 pub mod signer;
@@ -57,25 +57,6 @@ pub async fn get_full_index(ctx: RegistryContext) -> Result<FullIndex, Error> {
     ctx.db.peek().await.into_index().de()
 }
 
-#[derive(Debug, Default, Deserialize, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct RegistryInfo {
-    pub name: Option<String>,
-    pub icon: Option<DataUrl<'static>>,
-    #[ts(as = "BTreeMap::<String, Category>")]
-    pub categories: BTreeMap<InternedString, Category>,
-}
-
-pub async fn get_info(ctx: RegistryContext) -> Result<RegistryInfo, Error> {
-    let peek = ctx.db.peek().await.into_index();
-    Ok(RegistryInfo {
-        name: peek.as_name().de()?,
-        icon: peek.as_icon().de()?,
-        categories: peek.as_package().as_categories().de()?,
-    })
-}
-
 pub fn registry_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
@@ -85,13 +66,8 @@ pub fn registry_api<C: Context>() -> ParentHandler<C> {
                 .with_about("List info including registry name and packages")
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand(
-            "info",
-            from_fn_async(get_info)
-                .with_display_serializable()
-                .with_about("Display registry name, icon, and package categories")
-                .with_call_remote::<CliContext>(),
-        )
+        .subcommand("info", info::info_api::<C>())
+        // set info and categories
         .subcommand(
             "os",
             os::os_api::<C>().with_about("Commands related to OS assets and versions"),
@@ -167,7 +143,7 @@ pub fn registry_router(ctx: RegistryContext) -> Router {
         )
 }
 
-impl WebServer {
+impl<A: Accept + Send + Sync + 'static> WebServer<A> {
     pub fn serve_registry(&mut self, ctx: RegistryContext) {
         self.serve_router(registry_router(ctx))
     }

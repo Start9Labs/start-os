@@ -109,9 +109,10 @@ pub async fn recover_full_embassy(
     db.put(&ROOT, &Database::init(&os_backup.account)?).await?;
     drop(db);
 
-    let InitResult { net_ctrl } = init(&ctx.config, init_phases).await?;
+    let InitResult { net_ctrl } = init(&ctx.webserver, &ctx.config, init_phases).await?;
 
     let rpc_ctx = RpcContext::init(
+        &ctx.webserver,
         &ctx.config,
         disk_guid.clone(),
         Some(net_ctrl),

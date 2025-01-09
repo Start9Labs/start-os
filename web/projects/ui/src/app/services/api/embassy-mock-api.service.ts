@@ -784,7 +784,9 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
 
     if (params.actionId === 'properties') {
-      return Mock.ActionProperties
+      // return Mock.ActionResGroup
+      return Mock.ActionResMessage
+      // return Mock.ActionResSingle
     } else if (params.actionId === 'config') {
       const patch: RemoveOperation[] = [
         {
@@ -795,7 +797,8 @@ export class MockApiService extends ApiService {
       this.mockRevision(patch)
       return null
     } else {
-      return Mock.ActionRes
+      return Mock.ActionResMessage
+      // return Mock.ActionResSingle
     }
   }
 

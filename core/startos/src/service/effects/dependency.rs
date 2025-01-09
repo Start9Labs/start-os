@@ -17,11 +17,11 @@ use crate::db::model::package::{
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::{FileSystem, MountType};
-use crate::rpc_continuations::Guid;
 use crate::service::effects::prelude::*;
 use crate::status::health_check::NamedHealthCheckResult;
 use crate::util::Invoke;
 use crate::volume::data_dir;
+use crate::DATA_DIR;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -55,7 +55,7 @@ pub async fn mount(
     let context = context.deref()?;
     let subpath = subpath.unwrap_or_default();
     let subpath = subpath.strip_prefix("/").unwrap_or(&subpath);
-    let source = data_dir(&context.seed.ctx.datadir, &package_id, &volume_id).join(subpath);
+    let source = data_dir(DATA_DIR, &package_id, &volume_id).join(subpath);
     if tokio::fs::metadata(&source).await.is_err() {
         tokio::fs::create_dir_all(&source).await?;
     }

@@ -94,7 +94,7 @@ main () {
     return 1
   fi
 
-  if ! mkdir -p /media/startos/config/overlay/etc/ssh && ssh-keygen -A -f /media/startos/config/overlay/; then
+  if ! (mkdir -p /media/startos/config/overlay/etc/ssh && ssh-keygen -A -f /media/startos/config/overlay/); then
     FAIL_REASON="ssh host key generation failed"
     return 1
   fi

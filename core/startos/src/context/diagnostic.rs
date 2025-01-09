@@ -1,5 +1,4 @@
 use std::ops::Deref;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use rpc_toolkit::yajrc::RpcError;
@@ -13,7 +12,6 @@ use crate::shutdown::Shutdown;
 use crate::Error;
 
 pub struct DiagnosticContextSeed {
-    pub datadir: PathBuf,
     pub shutdown: Sender<Shutdown>,
     pub error: Arc<RpcError>,
     pub disk_guid: Option<Arc<String>>,
@@ -25,7 +23,7 @@ pub struct DiagnosticContext(Arc<DiagnosticContextSeed>);
 impl DiagnosticContext {
     #[instrument(skip_all)]
     pub fn init(
-        config: &ServerConfig,
+        _config: &ServerConfig,
         disk_guid: Option<Arc<String>>,
         error: Error,
     ) -> Result<Self, Error> {
@@ -35,7 +33,6 @@ impl DiagnosticContext {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
 
         Ok(Self(Arc::new(DiagnosticContextSeed {
-            datadir: config.datadir().to_owned(),
             shutdown,
             disk_guid,
             error: Arc::new(error.into()),

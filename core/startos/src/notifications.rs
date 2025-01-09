@@ -15,7 +15,7 @@ use ts_rs::TS;
 
 use crate::backup::BackupReport;
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::DatabaseModel;
+use crate::db::model::{Database, DatabaseModel};
 use crate::prelude::*;
 use crate::util::serde::HandlerExtSerde;
 
@@ -284,6 +284,9 @@ impl NotificationType for () {
 }
 impl NotificationType for BackupReport {
     const CODE: u32 = 1;
+}
+impl NotificationType for String {
+    const CODE: u32 = 2;
 }
 
 #[instrument(skip(subtype, db))]

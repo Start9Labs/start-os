@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use crate::context::RpcContext;
@@ -7,7 +7,7 @@ use crate::init::{STANDBY_MODE_PATH, SYSTEM_REBUILD_PATH};
 use crate::prelude::*;
 use crate::sound::SHUTDOWN;
 use crate::util::Invoke;
-use crate::PLATFORM;
+use crate::{DATA_DIR, PLATFORM};
 
 #[derive(Debug, Clone)]
 pub struct Shutdown {
@@ -87,7 +87,7 @@ pub async fn shutdown(ctx: RpcContext) -> Result<(), Error> {
         .await?;
     ctx.shutdown
         .send(Some(Shutdown {
-            export_args: Some((ctx.disk_guid.clone(), ctx.datadir.clone())),
+            export_args: Some((ctx.disk_guid.clone(), Path::new(DATA_DIR).to_owned())),
             restart: false,
         }))
         .map_err(|_| ())
@@ -107,7 +107,7 @@ pub async fn restart(ctx: RpcContext) -> Result<(), Error> {
         .await?;
     ctx.shutdown
         .send(Some(Shutdown {
-            export_args: Some((ctx.disk_guid.clone(), ctx.datadir.clone())),
+            export_args: Some((ctx.disk_guid.clone(), Path::new(DATA_DIR).to_owned())),
             restart: true,
         }))
         .map_err(|_| ())

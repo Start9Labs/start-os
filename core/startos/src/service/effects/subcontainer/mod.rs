@@ -4,12 +4,11 @@ use imbl_value::InternedString;
 use models::ImageId;
 use tokio::process::Command;
 
+use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::rpc_continuations::Guid;
 use crate::service::effects::prelude::*;
+use crate::service::persistent_container::Subcontainer;
 use crate::util::Invoke;
-use crate::{
-    disk::mount::filesystem::overlayfs::OverlayGuard, service::persistent_container::Subcontainer,
-};
 
 #[cfg(feature = "container-runtime")]
 mod sync;

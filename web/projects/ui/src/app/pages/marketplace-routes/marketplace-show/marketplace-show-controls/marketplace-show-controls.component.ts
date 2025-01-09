@@ -47,6 +47,9 @@ export class MarketplaceShowControlsComponent {
   @Input()
   localFlavor!: boolean
 
+  @Input()
+  conflict?: string | null
+
   readonly showDevTools$ = this.ClientStorageService.showDevTools$
 
   constructor(

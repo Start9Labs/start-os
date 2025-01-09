@@ -136,11 +136,13 @@ const jsonParse = (x: string) => JSON.parse(x)
 
 const handleRpc = (id: IdType, result: Promise<RpcResult>) =>
   result
-    .then((result) => ({
-      jsonrpc,
-      id,
-      ...result,
-    }))
+    .then((result) => {
+      return {
+        jsonrpc,
+        id,
+        ...result,
+      }
+    })
     .then((x) => {
       if (
         ("result" in x && x.result === undefined) ||
@@ -210,16 +212,22 @@ export class RpcListener {
       s.on("data", (a) =>
         Promise.resolve(a)
           .then((b) => b.toString())
-          .then(logData("dataIn"))
-          .then(jsonParse)
-          .then(captureId)
-          .then((x) => this.dealWithInput(x))
-          .catch(mapError)
-          .then(logData("response"))
-          .then(writeDataToSocket)
-          .catch((e) => {
-            console.error(`Major error in socket handling: ${e}`)
-            console.debug(`Data in: ${a.toString()}`)
+          .then((buf) => {
+            for (let s of buf.split("\n")) {
+              if (s)
+                Promise.resolve(s)
+                  .then(logData("dataIn"))
+                  .then(jsonParse)
+                  .then(captureId)
+                  .then((x) => this.dealWithInput(x))
+                  .catch(mapError)
+                  .then(logData("response"))
+                  .then(writeDataToSocket)
+                  .catch((e) => {
+                    console.error(`Major error in socket handling: ${e}`)
+                    console.debug(`Data in: ${a.toString()}`)
+                  })
+            }
           }),
       )
     })
@@ -388,7 +396,7 @@ export class RpcListener {
 
       .defaultToLazy(() => {
         console.warn(
-          `Coudln't parse the following input ${JSON.stringify(input)}`,
+          `Couldn't parse the following input ${JSON.stringify(input)}`,
         )
         return {
           jsonrpc,
@@ -413,7 +421,6 @@ export class RpcListener {
     const ensureResultTypeShape = (
       result: void | T.ActionInput | T.ActionResult | null,
     ): { result: any } => {
-      if (isResult(result)) return result
       return { result }
     }
     const callbacks = this.callbackHolderFor(procedure)

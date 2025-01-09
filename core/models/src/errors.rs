@@ -90,6 +90,7 @@ pub enum ErrorKind {
     Lxc = 72,
     Cancelled = 73,
     Git = 74,
+    DBus = 75,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -169,6 +170,7 @@ impl ErrorKind {
             Lxc => "LXC Error",
             Cancelled => "Cancelled",
             Git => "Git Error",
+            DBus => "DBus Error",
         }
     }
 }
@@ -320,6 +322,21 @@ impl From<reqwest::Error> for Error {
             _ => ErrorKind::Network,
         };
         Error::new(e, kind)
+    }
+}
+impl From<torut::onion::OnionAddressParseError> for Error {
+    fn from(e: torut::onion::OnionAddressParseError) -> Self {
+        Error::new(e, ErrorKind::Tor)
+    }
+}
+impl From<zbus::Error> for Error {
+    fn from(e: zbus::Error) -> Self {
+        Error::new(e, ErrorKind::DBus)
+    }
+}
+impl From<rustls::Error> for Error {
+    fn from(e: rustls::Error) -> Self {
+        Error::new(e, ErrorKind::OpenSsl)
     }
 }
 impl From<patch_db::value::Error> for Error {
