@@ -7,7 +7,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import { SideloadService } from './sideload.service'
 import { filter, firstValueFrom } from 'rxjs'
-import mime from 'mime'
 
 interface Positions {
   [key: string]: [bigint, bigint] // [position, length]

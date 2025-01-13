@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
-import { BehaviorSubject, endWith, shareReplay, Subject, switchMap } from 'rxjs'
+import { shareReplay, Subject, switchMap } from 'rxjs'
+import { WebSocketSubject } from 'rxjs/webSocket'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Injectable({
@@ -10,9 +11,14 @@ export class SideloadService {
   private readonly guid$ = new Subject<string>()
 
   readonly progress$ = this.guid$.pipe(
-    switchMap(guid =>
-      this.api.openWebsocket$<T.FullProgress>(guid).pipe(endWith(null)),
-    ),
+    switchMap(guid => {
+      const wsSubject: WebSocketSubject<T.FullProgress | null> =
+        this.api.openWebsocket$<T.FullProgress | null>(guid, {
+          closeObserver: { next: () => wsSubject.next(null) },
+        })
+
+      return wsSubject
+    }),
     shareReplay(1),
   )
 
