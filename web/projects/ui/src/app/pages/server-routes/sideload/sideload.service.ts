@@ -1,4 +1,5 @@
 import { inject, Injectable } from '@angular/core'
+import { Router } from '@angular/router'
 import { ErrorService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import {
@@ -8,6 +9,7 @@ import {
   shareReplay,
   Subject,
   switchMap,
+  tap,
 } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
@@ -17,10 +19,17 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 export class SideloadService {
   private readonly guid$ = new Subject<string>()
   private readonly errorService = inject(ErrorService)
+  private readonly router = inject(Router)
 
   readonly progress$ = this.guid$.pipe(
     switchMap(guid =>
-      this.api.openWebsocket$<T.FullProgress>(guid).pipe(endWith(null)),
+      this.api.openWebsocket$<T.FullProgress>(guid).pipe(
+        tap(p => {
+          if (p.overall === true) {
+            this.router.navigate([''], { replaceUrl: true })
+          }
+        }),
+      ),
     ),
     catchError(e => {
       this.errorService.handleError(e)
