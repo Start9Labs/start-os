@@ -26,7 +26,15 @@ export class InitService extends Observable<MappedProgress> {
     from(this.api.initGetProgress()),
   ).pipe(
     switchMap(({ guid, progress }) =>
-      this.api.openWebsocket$<T.FullProgress>(guid).pipe(startWith(progress)),
+      this.api
+        .openWebsocket$<T.FullProgress>(guid, {
+          closeObserver: {
+            next: () => {
+              this.state.syncState()
+            },
+          },
+        })
+        .pipe(startWith(progress)),
     ),
     map(({ phases, overall }) => ({
       total: getOverallDecimal(overall),

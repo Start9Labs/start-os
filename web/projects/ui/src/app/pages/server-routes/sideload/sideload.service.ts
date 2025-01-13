@@ -23,16 +23,27 @@ export class SideloadService {
 
   readonly progress$ = this.guid$.pipe(
     switchMap(guid =>
-      this.api.openWebsocket$<T.FullProgress>(guid).pipe(
-        tap(p => {
-          if (p.overall === true) {
-            this.router.navigate([''], { replaceUrl: true })
-          }
-        }),
-      ),
+      this.api
+        .openWebsocket$<T.FullProgress>(guid, {
+          closeObserver: {
+            next: event => {
+              if (event.code !== 1000) {
+                this.errorService.handleError(event.reason)
+              }
+            },
+          },
+        })
+        .pipe(
+          tap(p => {
+            if (p.overall === true) {
+              this.router.navigate([''], { replaceUrl: true })
+            }
+          }),
+          endWith(null),
+        ),
     ),
     catchError(e => {
-      this.errorService.handleError(e)
+      this.errorService.handleError('Websocket connection broken. Try again.')
       return EMPTY
     }),
     shareReplay(1),
