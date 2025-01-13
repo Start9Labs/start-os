@@ -66,9 +66,7 @@ impl Actor for ServiceActor {
                     tracing::debug!("{e:?}");
                 }
 
-                if ip_info.changed().await.is_err() {
-                    break;
-                };
+                ip_info.changed().await;
             }
         });
     }

@@ -198,17 +198,26 @@ pub async fn subscribe(
                 session,
                 |mut ws| async move {
                     if let Err(e) = async {
-                        while let Some(rev) = sub.recv().await {
-                            ws.send(ws::Message::Text(
-                                serde_json::to_string(&rev).with_kind(ErrorKind::Serialization)?,
-                            ))
-                            .await
-                            .with_kind(ErrorKind::Network)?;
+                        loop {
+                            tokio::select! {
+                                rev = sub.recv() => {
+                                    if let Some(rev) = rev {
+                                        ws.send(ws::Message::Text(
+                                            serde_json::to_string(&rev).with_kind(ErrorKind::Serialization)?,
+                                        ))
+                                        .await
+                                        .with_kind(ErrorKind::Network)?;
+                                    } else {
+                                        return ws.normal_close("complete").await;
+                                    }
+                                }
+                                msg = ws.recv() => {
+                                    if msg.transpose().with_kind(ErrorKind::Network)?.is_none() {
+                                        return Ok(())
+                                    }
+                                }
+                            }
                         }
-
-                        ws.normal_close("complete").await?;
-
-                        Ok::<_, Error>(())
                     }
                     .await
                     {

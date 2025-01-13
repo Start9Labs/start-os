@@ -30,6 +30,7 @@ use crate::error::ResultExt;
 use crate::lxc::ContainerId;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
+use crate::util::net::WebSocketExt;
 use crate::util::serde::Reversible;
 use crate::util::Invoke;
 
@@ -80,34 +81,28 @@ async fn ws_handler(
             .with_kind(ErrorKind::Network)?;
     }
 
-    let mut ws_closed = false;
-    while let Some(entry) = tokio::select! {
-        a = logs.try_next() => Some(a?),
-        a = stream.try_next() => { a.with_kind(crate::ErrorKind::Network)?; ws_closed = true; None }
-    } {
-        if let Some(entry) = entry {
-            let (_, log_entry) = entry.log_entry()?;
-            stream
-                .send(ws::Message::Text(
-                    serde_json::to_string(&log_entry).with_kind(ErrorKind::Serialization)?,
-                ))
-                .await
-                .with_kind(ErrorKind::Network)?;
+    loop {
+        tokio::select! {
+            entry = logs.try_next() => {
+                if let Some(entry) = entry? {
+                    let (_, log_entry) = entry.log_entry()?;
+                    stream
+                        .send(ws::Message::Text(
+                            serde_json::to_string(&log_entry).with_kind(ErrorKind::Serialization)?,
+                        ))
+                        .await
+                        .with_kind(ErrorKind::Network)?;
+                } else {
+                    return stream.normal_close("complete").await;
+                }
+            },
+            msg = stream.try_next() => {
+                if msg.with_kind(crate::ErrorKind::Network)?.is_none() {
+                    return Ok(())
+                }
+            }
         }
     }
-
-    if !ws_closed {
-        stream
-            .send(ws::Message::Close(Some(ws::CloseFrame {
-                code: ws::close_code::NORMAL,
-                reason: "Log Stream Finished".into(),
-            })))
-            .await
-            .with_kind(ErrorKind::Network)?;
-        drop(stream);
-    }
-
-    Ok(())
 }
 
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]

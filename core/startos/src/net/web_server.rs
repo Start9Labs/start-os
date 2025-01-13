@@ -11,7 +11,6 @@ use futures::future::{BoxFuture, Either};
 use futures::FutureExt;
 use helpers::NonDetachingJoinHandle;
 use hyper_util::rt::{TokioIo, TokioTimer};
-use hyper_util::service::TowerToHyperService;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{oneshot, watch};
 
@@ -201,6 +200,34 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
                 }
             }
 
+            struct SwappableRouter(watch::Receiver<Option<Router>>, bool);
+            impl hyper::service::Service<hyper::Request<hyper::body::Incoming>> for SwappableRouter {
+                type Response = <Router as tower_service::Service<
+                    hyper::Request<hyper::body::Incoming>,
+                >>::Response;
+                type Error = <Router as tower_service::Service<
+                    hyper::Request<hyper::body::Incoming>,
+                >>::Error;
+                type Future = <Router as tower_service::Service<
+                    hyper::Request<hyper::body::Incoming>,
+                >>::Future;
+
+                fn call(&self, req: hyper::Request<hyper::body::Incoming>) -> Self::Future {
+                    use tower_service::Service;
+
+                    if self.1 {
+                        redirecter().call(req)
+                    } else {
+                        let router = { self.0.borrow().clone() };
+                        if let Some(mut router) = router {
+                            router.call(req)
+                        } else {
+                            refresher().call(req)
+                        }
+                    }
+                }
+            }
+
             let accept = AtomicBool::new(true);
             let queue_cell = Arc::new(RwLock::new(None));
             let graceful = hyper_util::server::graceful::GracefulShutdown::new();
@@ -224,45 +251,16 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
                 loop {
                     if let Err(e) = async {
                         let accepted = acceptor.accept().await?;
-                        if accepted.https_redirect {
-                            queue.add_job(
-                                graceful.watch(
-                                    server
-                                        .serve_connection_with_upgrades(
-                                            TokioIo::new(accepted.stream),
-                                            TowerToHyperService::new(redirecter().into_service()),
-                                        )
-                                        .into_owned(),
-                                ),
-                            );
-                        } else {
-                            let service = { service.borrow().clone() };
-                            if let Some(service) = service {
-                                queue.add_job(
-                                    graceful.watch(
-                                        server
-                                            .serve_connection_with_upgrades(
-                                                TokioIo::new(accepted.stream),
-                                                TowerToHyperService::new(service.into_service()),
-                                            )
-                                            .into_owned(),
-                                    ),
-                                );
-                            } else {
-                                queue.add_job(
-                                    graceful.watch(
-                                        server
-                                            .serve_connection_with_upgrades(
-                                                TokioIo::new(accepted.stream),
-                                                TowerToHyperService::new(
-                                                    refresher().into_service(),
-                                                ),
-                                            )
-                                            .into_owned(),
-                                    ),
-                                );
-                            }
-                        }
+                        queue.add_job(
+                            graceful.watch(
+                                server
+                                    .serve_connection_with_upgrades(
+                                        TokioIo::new(accepted.stream),
+                                        SwappableRouter(service.clone(), accepted.https_redirect),
+                                    )
+                                    .into_owned(),
+                            ),
+                        );
 
                         Ok::<_, Error>(())
                     }

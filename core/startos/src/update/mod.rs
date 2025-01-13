@@ -20,7 +20,7 @@ use ts_rs::TS;
 use crate::context::{CliContext, RpcContext};
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
-use crate::disk::mount::filesystem::efivarfs::{ EfiVarFs};
+use crate::disk::mount::filesystem::efivarfs::EfiVarFs;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::filesystem::MountType;
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
@@ -106,7 +106,7 @@ pub async fn update_system(
                                         .with_kind(ErrorKind::Database)?,
                                 )
                                 .await;
-                            while {
+                            loop {
                                 let progress = ctx
                                     .db
                                     .peek()
@@ -122,14 +122,22 @@ pub async fn update_system(
                                 ))
                                 .await
                                 .with_kind(ErrorKind::Network)?;
-                                progress.is_some()
-                            } {
-                                sub.recv().await;
+                                if progress.is_none() {
+                                    return ws.normal_close("complete").await;
+                                }
+                                tokio::select! {
+                                    _ = sub.recv() => (),
+                                    res = async {
+                                        loop {
+                                            if ws.recv().await.transpose().with_kind(ErrorKind::Network)?.is_none() {
+                                                return Ok(())
+                                            }
+                                        }
+                                     } => {
+                                        return res
+                                    }
+                                }
                             }
-
-                            ws.normal_close("complete").await?;
-
-                            Ok::<_, Error>(())
                         }
                         .await
                         {

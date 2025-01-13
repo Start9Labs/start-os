@@ -1,7 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::future::Future;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6};
-use std::pin::Pin;
 use std::sync::{Arc, Weak};
 use std::task::Poll;
 use std::time::Duration;
@@ -19,7 +17,6 @@ use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::process::Command;
-use tokio::sync::watch;
 use ts_rs::TS;
 use zbus::proxy::{PropertyChanged, PropertyStream, SignalStream};
 use zbus::zvariant::{
@@ -35,7 +32,7 @@ use crate::prelude::*;
 use crate::util::future::Until;
 use crate::util::io::open_file;
 use crate::util::serde::{display_serializable, HandlerExtSerde};
-use crate::util::sync::SyncMutex;
+use crate::util::sync::{SyncMutex, Watch};
 use crate::util::Invoke;
 
 pub fn network_interface_api<C: Context>() -> ParentHandler<C> {
@@ -112,7 +109,7 @@ pub fn network_interface_api<C: Context>() -> ParentHandler<C> {
 async fn list_interfaces(
     ctx: RpcContext,
 ) -> Result<BTreeMap<InternedString, NetworkInterfaceInfo>, Error> {
-    Ok(ctx.net_controller.net_iface.ip_info.borrow().clone())
+    Ok(ctx.net_controller.net_iface.ip_info.read())
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
@@ -322,7 +319,7 @@ impl<'a> StubStream<'a> for SignalStream<'a> {
 }
 
 #[instrument(skip_all)]
-async fn watcher(write_to: watch::Sender<BTreeMap<InternedString, NetworkInterfaceInfo>>) {
+async fn watcher(write_to: Watch<BTreeMap<InternedString, NetworkInterfaceInfo>>) {
     loop {
         let res: Result<(), Error> = async {
             let connection = Connection::system().await?;
@@ -425,7 +422,7 @@ async fn watch_ip(
     connection: &Connection,
     device_proxy: device::DeviceProxy<'_>,
     iface: InternedString,
-    write_to: &watch::Sender<BTreeMap<InternedString, NetworkInterfaceInfo>>,
+    write_to: &Watch<BTreeMap<InternedString, NetworkInterfaceInfo>>,
 ) -> Result<(), Error> {
     let mut until = Until::new()
         .with_stream(
@@ -593,13 +590,13 @@ async fn watch_ip(
 
 pub struct NetworkInterfaceController {
     db: TypedPatchDb<Database>,
-    ip_info: watch::Sender<BTreeMap<InternedString, NetworkInterfaceInfo>>,
+    ip_info: Watch<BTreeMap<InternedString, NetworkInterfaceInfo>>,
     _watcher: NonDetachingJoinHandle<()>,
     listeners: SyncMutex<BTreeMap<u16, Weak<()>>>,
 }
 impl NetworkInterfaceController {
-    pub fn subscribe(&self) -> watch::Receiver<BTreeMap<InternedString, NetworkInterfaceInfo>> {
-        self.ip_info.subscribe()
+    pub fn subscribe(&self) -> Watch<BTreeMap<InternedString, NetworkInterfaceInfo>> {
+        self.ip_info.clone_unseen()
     }
 
     async fn sync(
@@ -667,7 +664,7 @@ impl NetworkInterfaceController {
         Ok(())
     }
     pub fn new(db: TypedPatchDb<Database>) -> Self {
-        let (ip_info, mut recv) = watch::channel(BTreeMap::new());
+        let mut ip_info = Watch::new(BTreeMap::new());
         Self {
             db: db.clone(),
             ip_info: ip_info.clone(),
@@ -695,7 +692,7 @@ impl NetworkInterfaceController {
                     let res: Result<(), Error> = async {
                         loop {
                             if let Err(e) = async {
-                                let ip_info = { recv.borrow().clone() };
+                                let ip_info = ip_info.read();
                                 Self::sync(&db, &ip_info).boxed().await?;
 
                                 Ok::<_, Error>(())
@@ -706,7 +703,7 @@ impl NetworkInterfaceController {
                                 tracing::debug!("{e:?}");
                             }
 
-                            let _ = recv.changed().await;
+                            let _ = ip_info.changed().await;
                         }
                     }
                     .await;
@@ -733,12 +730,10 @@ impl NetworkInterfaceController {
             l.insert(port, Arc::downgrade(&arc));
             Ok(())
         })?;
-        let mut ip_info = self.ip_info.subscribe();
-        ip_info.mark_changed();
+        let ip_info = self.ip_info.clone_unseen();
         Ok(NetworkInterfaceListener {
             _arc: arc,
             ip_info,
-            changed: None,
             listeners: ListenerMap::new(port),
         })
     }
@@ -760,12 +755,11 @@ impl NetworkInterfaceController {
             l.insert(port, Arc::downgrade(&arc));
             Ok(())
         })?;
-        let mut ip_info = self.ip_info.subscribe();
+        let ip_info = self.ip_info.clone_unseen();
         ip_info.mark_changed();
         Ok(NetworkInterfaceListener {
             _arc: arc,
             ip_info,
-            changed: None,
             listeners,
         })
     }
@@ -985,9 +979,8 @@ impl ListenerMap {
 }
 
 pub struct NetworkInterfaceListener {
-    ip_info: watch::Receiver<BTreeMap<InternedString, NetworkInterfaceInfo>>,
+    ip_info: Watch<BTreeMap<InternedString, NetworkInterfaceInfo>>,
     listeners: ListenerMap,
-    changed: Option<Pin<Box<dyn Future<Output = ()> + Send + Sync + 'static>>>,
     _arc: Arc<()>,
 }
 impl NetworkInterfaceListener {
@@ -995,29 +988,14 @@ impl NetworkInterfaceListener {
         self.listeners.port
     }
 
-    fn poll_ip_info_changed(&mut self, cx: &mut std::task::Context<'_>) -> Poll<()> {
-        let mut changed = if let Some(changed) = self.changed.take() {
-            changed
-        } else {
-            let mut ip_info = self.ip_info.clone();
-            Box::pin(async move {
-                let _ = ip_info.changed().await;
-            })
-        };
-        let res = changed.poll_unpin(cx);
-        if res.is_pending() {
-            self.changed = Some(changed);
-        }
-        res
-    }
-
     pub fn poll_accept(
         &mut self,
         cx: &mut std::task::Context<'_>,
         public: bool,
     ) -> Poll<Result<Accepted, Error>> {
-        if self.poll_ip_info_changed(cx).is_ready() || public != self.listeners.prev_public {
-            self.listeners.update(&*self.ip_info.borrow(), public)?;
+        while self.ip_info.poll_changed(cx).is_ready() || public != self.listeners.prev_public {
+            self.ip_info
+                .peek(|ip_info| self.listeners.update(ip_info, public))?;
         }
         self.listeners.poll_accept(cx)
     }

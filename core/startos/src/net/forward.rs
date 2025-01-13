@@ -8,10 +8,11 @@ use id_pool::IdPool;
 use imbl_value::InternedString;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
-use tokio::sync::{mpsc, watch};
+use tokio::sync::mpsc;
 
 use crate::db::model::public::NetworkInterfaceInfo;
 use crate::prelude::*;
+use crate::util::sync::Watch;
 use crate::util::Invoke;
 
 pub const START9_BRIDGE_IFACE: &str = "lxcbr0";
@@ -147,17 +148,16 @@ pub struct LanPortForwardController {
     _thread: NonDetachingJoinHandle<()>,
 }
 impl LanPortForwardController {
-    pub fn new(
-        mut net_iface: watch::Receiver<BTreeMap<InternedString, NetworkInterfaceInfo>>,
-    ) -> Self {
+    pub fn new(mut ip_info: Watch<BTreeMap<InternedString, NetworkInterfaceInfo>>) -> Self {
         let (req_send, mut req_recv) = mpsc::unbounded_channel();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
             let mut state = ForwardState::default();
-            let mut interfaces = net_iface
-                .borrow_and_update()
-                .iter()
-                .map(|(iface, info)| (iface.clone(), info.public()))
-                .collect();
+            let mut interfaces = ip_info.peek_and_mark_seen(|ip_info| {
+                ip_info
+                    .iter()
+                    .map(|(iface, info)| (iface.clone(), info.public()))
+                    .collect()
+            });
             let mut reply: Option<oneshot::Sender<Result<(), Error>>> = None;
             loop {
                 tokio::select! {
@@ -171,12 +171,13 @@ impl LanPortForwardController {
                             break;
                         }
                     }
-                    _ = net_iface.changed() => {
-                        interfaces = net_iface
-                            .borrow()
-                            .iter()
-                            .map(|(iface, info)| (iface.clone(), info.public()))
-                            .collect();
+                    _ = ip_info.changed() => {
+                        interfaces = ip_info.peek(|ip_info| {
+                            ip_info
+                                .iter()
+                                .map(|(iface, info)| (iface.clone(), info.public()))
+                                .collect()
+                        });
                     }
                 }
                 let res = state.sync(&interfaces).await;
