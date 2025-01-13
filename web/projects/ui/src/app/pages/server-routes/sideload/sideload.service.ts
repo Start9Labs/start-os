@@ -14,7 +14,12 @@ export class SideloadService {
     switchMap(guid => {
       const wsSubject: WebSocketSubject<T.FullProgress | null> =
         this.api.openWebsocket$<T.FullProgress | null>(guid, {
-          closeObserver: { next: () => wsSubject.next(null) },
+          closeObserver: {
+            next: () => {
+              console.log('closeObserver reached, finalizing with null')
+              wsSubject.next(null)
+            },
+          },
         })
 
       return wsSubject

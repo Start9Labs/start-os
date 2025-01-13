@@ -6,7 +6,7 @@ import cbor from 'cbor'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import { SideloadService } from './sideload.service'
-import { filter, firstValueFrom } from 'rxjs'
+import { filter, firstValueFrom, tap } from 'rxjs'
 
 interface Positions {
   [key: string]: [bigint, bigint] // [position, length]
@@ -38,7 +38,9 @@ export class SideloadPage {
     message: string
   }
 
-  readonly progress$ = this.sideloadService.progress$
+  readonly progress$ = this.sideloadService.progress$.pipe(
+    tap(val => console.log('PROGRESS: ', val)),
+  )
 
   constructor(
     private readonly loader: LoadingService,
