@@ -7,12 +7,12 @@ use std::task::Poll;
 use std::time::Duration;
 
 use axum::Router;
-use futures::future::{BoxFuture, Either};
+use futures::future::Either;
 use futures::FutureExt;
 use helpers::NonDetachingJoinHandle;
 use hyper_util::rt::{TokioIo, TokioTimer};
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{oneshot, watch};
+use tokio::sync::oneshot;
 
 use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
 use crate::net::network_interface::NetworkInterfaceListener;
@@ -22,6 +22,7 @@ use crate::net::static_server::{
 };
 use crate::prelude::*;
 use crate::util::actor::background::BackgroundJobQueue;
+use crate::util::sync::Watch;
 
 pub struct Accepted {
     pub https_redirect: bool,
@@ -75,42 +76,22 @@ impl<A: Accept> Accept for Option<A> {
 
 #[pin_project::pin_project]
 pub struct Acceptor<A: Accept> {
-    acceptor: (watch::Sender<A>, watch::Receiver<A>),
-    changed: Option<BoxFuture<'static, ()>>,
+    acceptor: Watch<A>,
 }
 impl<A: Accept + Send + Sync + 'static> Acceptor<A> {
     pub fn new(acceptor: A) -> Self {
         Self {
-            acceptor: watch::channel(acceptor),
-            changed: None,
+            acceptor: Watch::new(acceptor),
         }
     }
 
     fn poll_changed(&mut self, cx: &mut std::task::Context<'_>) -> Poll<()> {
-        let mut changed = if let Some(changed) = self.changed.take() {
-            changed
-        } else {
-            let mut recv = self.acceptor.1.clone();
-            async move {
-                let _ = recv.changed().await;
-            }
-            .boxed()
-        };
-        let res = changed.poll_unpin(cx);
-        if res.is_pending() {
-            self.changed = Some(changed);
-        }
-        res
+        self.acceptor.poll_changed(cx)
     }
 
     fn poll_accept(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>> {
         let _ = self.poll_changed(cx);
-        let mut res = Poll::Pending;
-        self.acceptor.0.send_if_modified(|a| {
-            res = a.poll_accept(cx);
-            false
-        });
-        res
+        self.acceptor.peek_mut(|a| a.poll_accept(cx))
     }
 
     async fn accept(&mut self) -> Result<Accepted, Error> {
@@ -138,7 +119,7 @@ impl Acceptor<UpgradableListener> {
 }
 
 pub struct WebServerAcceptorSetter<A: Accept> {
-    acceptor: watch::Sender<A>,
+    acceptor: Watch<A>,
 }
 impl<A: Accept, B: Accept> WebServerAcceptorSetter<Option<Either<A, B>>> {
     pub fn try_upgrade<F: FnOnce(A) -> Result<B, Error>>(&self, f: F) -> Result<(), Error> {
@@ -159,7 +140,7 @@ impl<A: Accept, B: Accept> WebServerAcceptorSetter<Option<Either<A, B>>> {
     }
 }
 impl<A: Accept> Deref for WebServerAcceptorSetter<A> {
-    type Target = watch::Sender<A>;
+    type Target = Watch<A>;
     fn deref(&self) -> &Self::Target {
         &self.acceptor
     }
@@ -167,8 +148,8 @@ impl<A: Accept> Deref for WebServerAcceptorSetter<A> {
 
 pub struct WebServer<A: Accept> {
     shutdown: oneshot::Sender<()>,
-    router: watch::Sender<Option<Router>>,
-    acceptor: watch::Sender<A>,
+    router: Watch<Option<Router>>,
+    acceptor: Watch<A>,
     thread: NonDetachingJoinHandle<()>,
 }
 impl<A: Accept + Send + Sync + 'static> WebServer<A> {
@@ -179,8 +160,9 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
     }
 
     pub fn new(mut acceptor: Acceptor<A>) -> Self {
-        let acceptor_send = acceptor.acceptor.0.clone();
-        let (router, service) = watch::channel::<Option<Router>>(None);
+        let acceptor_send = acceptor.acceptor.clone();
+        let router = Watch::<Option<Router>>::new(None);
+        let service = router.clone_unseen();
         let (shutdown, shutdown_recv) = oneshot::channel();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
             #[derive(Clone)]
@@ -200,7 +182,7 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
                 }
             }
 
-            struct SwappableRouter(watch::Receiver<Option<Router>>, bool);
+            struct SwappableRouter(Watch<Option<Router>>, bool);
             impl hyper::service::Service<hyper::Request<hyper::body::Incoming>> for SwappableRouter {
                 type Response = <Router as tower_service::Service<
                     hyper::Request<hyper::body::Incoming>,
@@ -218,7 +200,7 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
                     if self.1 {
                         redirecter().call(req)
                     } else {
-                        let router = { self.0.borrow().clone() };
+                        let router = self.0.read();
                         if let Some(mut router) = router {
                             router.call(req)
                         } else {
@@ -301,7 +283,7 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
     }
 
     pub fn serve_router(&mut self, router: Router) {
-        self.router.send_replace(Some(router));
+        self.router.send(Some(router))
     }
 
     pub fn serve_main(&mut self, ctx: RpcContext) {
