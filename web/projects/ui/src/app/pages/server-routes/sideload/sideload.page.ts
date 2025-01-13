@@ -1,12 +1,12 @@
 import { Component } from '@angular/core'
 import { isPlatform } from '@ionic/angular'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { S9pk, T } from '@start9labs/start-sdk'
+import { S9pk } from '@start9labs/start-sdk'
 import cbor from 'cbor'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import { SideloadService } from './sideload.service'
-import { filter, firstValueFrom, tap } from 'rxjs'
+import { filter, firstValueFrom } from 'rxjs'
 
 interface Positions {
   [key: string]: [bigint, bigint] // [position, length]
@@ -38,9 +38,7 @@ export class SideloadPage {
     message: string
   }
 
-  readonly progress$ = this.sideloadService.progress$.pipe(
-    tap(val => console.log('PROGRESS: ', val)),
-  )
+  readonly progress$ = this.sideloadService.progress$
 
   constructor(
     private readonly loader: LoadingService,
