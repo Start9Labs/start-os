@@ -1,10 +1,8 @@
 import { inject, Injectable } from '@angular/core'
-import { ErrorService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import {
   catchError,
   defer,
-  EMPTY,
   from,
   map,
   Observable,
@@ -24,40 +22,46 @@ interface MappedProgress {
 export class InitService extends Observable<MappedProgress> {
   private readonly state = inject(StateService)
   private readonly api = inject(ApiService)
-  private readonly errorService = inject(ErrorService)
   private readonly progress$ = defer(() =>
     from(this.api.initGetProgress()),
   ).pipe(
     switchMap(({ guid, progress }) =>
-      this.api.openWebsocket$<T.FullProgress>(guid).pipe(startWith(progress)),
+      this.api
+        .openWebsocket$<T.FullProgress>(guid, {
+          closeObserver: {
+            next: () => {
+              this.state.syncState()
+            },
+          },
+        })
+        .pipe(startWith(progress)),
     ),
-    map(({ phases, overall }) => {
-      return {
-        total: getOverallDecimal(overall),
-        message: phases
-          .filter(
-            (
-              p,
-            ): p is {
-              name: string
-              progress: {
-                done: number
-                total: number | null
-              }
-            } => p.progress !== true && p.progress !== null,
-          )
-          .map(p => `<b>${p.name}</b>${getPhaseBytes(p.progress)}`)
-          .join(', '),
-      }
-    }),
+    map(({ phases, overall }) => ({
+      total: getOverallDecimal(overall),
+      message: phases
+        .filter(
+          (
+            p,
+          ): p is {
+            name: string
+            progress: {
+              done: number
+              total: number | null
+            }
+          } => p.progress !== true && p.progress !== null,
+        )
+        .map(p => `<b>${p.name}</b>${getPhaseBytes(p.progress)}`)
+        .join(', '),
+    })),
     tap(({ total }) => {
       if (total === 1) {
         this.state.syncState()
       }
     }),
-    catchError(e => {
+    catchError((e, caught$) => {
       console.error(e)
-      return EMPTY
+      this.state.syncState()
+      return caught$
     }),
   )
 

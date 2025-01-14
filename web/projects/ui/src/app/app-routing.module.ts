@@ -12,7 +12,7 @@ const routes: Routes = [
   },
   {
     path: 'login',
-    canActivate: [UnauthGuard],
+    canActivate: [UnauthGuard, stateNot(['error', 'initializing'])],
     loadChildren: () =>
       import('./pages/login/login.module').then(m => m.LoginPageModule),
   },

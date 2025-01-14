@@ -1,5 +1,5 @@
 use std::ops::Deref;
-use std::path::{Path};
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -162,21 +162,30 @@ impl SetupContext {
                         if let Err(e) = async {
                             let mut stream =
                                 progress_tracker.stream(Some(Duration::from_millis(100)));
-                            while let Some(progress) = stream.next().await {
-                                ws.send(ws::Message::Text(
-                                    serde_json::to_string(&progress)
-                                        .with_kind(ErrorKind::Serialization)?,
-                                ))
-                                .await
-                                .with_kind(ErrorKind::Network)?;
-                                if progress.overall.is_complete() {
-                                    break;
+                            loop {
+                                tokio::select! {
+                                    progress = stream.next() => {
+                                        if let Some(progress) = progress {
+                                            ws.send(ws::Message::Text(
+                                                serde_json::to_string(&progress)
+                                                    .with_kind(ErrorKind::Serialization)?,
+                                            ))
+                                            .await
+                                            .with_kind(ErrorKind::Network)?;
+                                            if progress.overall.is_complete() {
+                                                return ws.normal_close("complete").await;
+                                            }
+                                        } else {
+                                            return ws.normal_close("complete").await;
+                                        }
+                                    }
+                                    msg = ws.recv() => {
+                                        if msg.transpose().with_kind(ErrorKind::Network)?.is_none() {
+                                            return Ok(())
+                                        }
+                                    }
                                 }
                             }
-
-                            ws.normal_close("complete").await?;
-
-                            Ok::<_, Error>(())
                         }
                         .await
                         {

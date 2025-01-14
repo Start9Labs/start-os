@@ -18,7 +18,6 @@ import {
 } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
-import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   DataModel,
@@ -50,11 +49,8 @@ export class MarketplaceShowControlsComponent {
   @Input()
   conflict?: string | null
 
-  readonly showDevTools$ = this.ClientStorageService.showDevTools$
-
   constructor(
     private readonly alertCtrl: AlertController,
-    private readonly ClientStorageService: ClientStorageService,
     @Inject(AbstractMarketplaceService)
     private readonly marketplaceService: MarketplaceService,
     private readonly loader: LoadingService,

@@ -35,19 +35,17 @@
         >
           Downgrade
         </ion-button>
-        <ng-container *ngIf="showDevTools$ | async">
-          <ion-button
-            *ngIf="(manifest.version | compareExver : pkg.version) === 0"
-            expand="block"
-            color="success"
-            (click)="tryInstall()"
-          >
-            Reinstall
-          </ion-button>
-        </ng-container>
+        <ion-button
+          *ngIf="(manifest.version | compareExver : pkg.version) === 0"
+          expand="block"
+          color="success"
+          (click)="tryInstall()"
+        >
+          Reinstall
+        </ion-button>
       </ng-container>
     </ng-container>
-  
+
     <ng-template #install>
       <ion-button
         expand="block"

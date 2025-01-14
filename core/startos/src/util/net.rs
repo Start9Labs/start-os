@@ -19,13 +19,8 @@ pub trait WebSocketExt {
 }
 
 impl WebSocketExt for ws::WebSocket {
-    async fn normal_close(mut self, msg: impl Into<Cow<'static, str>> + Send) -> Result<(), Error> {
-        self.send(ws::Message::Close(Some(CloseFrame {
-            code: 1000,
-            reason: msg.into(),
-        })))
-        .await
-        .with_kind(ErrorKind::Network)
+    async fn normal_close(self, msg: impl Into<Cow<'static, str>> + Send) -> Result<(), Error> {
+        self.close_result(Ok::<_, Error>(msg)).await
     }
     async fn close_result(
         mut self,
@@ -38,15 +33,23 @@ impl WebSocketExt for ws::WebSocket {
                     reason: msg.into(),
                 })))
                 .await
-                .with_kind(ErrorKind::Network),
+                .with_kind(ErrorKind::Network)?,
             Err(e) => self
                 .send(ws::Message::Close(Some(CloseFrame {
                     code: 1011,
                     reason: e.to_string().into(),
                 })))
                 .await
-                .with_kind(ErrorKind::Network),
+                .with_kind(ErrorKind::Network)?,
         }
+        while !matches!(
+            self.recv()
+                .await
+                .transpose()
+                .with_kind(ErrorKind::Network)?,
+            Some(ws::Message::Close(_)) | None
+        ) {}
+        Ok(())
     }
 }
 
