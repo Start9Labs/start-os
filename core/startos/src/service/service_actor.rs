@@ -36,7 +36,39 @@ impl Actor for ServiceActor {
                     ServiceActorLoopNext::DontWait => (),
                 }
             }
-        })
+        });
+        let seed = self.0.clone();
+        let mut ip_info = seed.ctx.net_controller.net_iface.subscribe();
+        jobs.add_job(async move {
+            loop {
+                if let Err(e) = async {
+                    let mut service = seed.persistent_container.net_service.lock().await;
+                    let hosts = seed
+                        .ctx
+                        .db
+                        .peek()
+                        .await
+                        .as_public()
+                        .as_package_data()
+                        .as_idx(&seed.id)
+                        .or_not_found(&seed.id)?
+                        .as_hosts()
+                        .de()?;
+                    for (host_id, host) in hosts.0 {
+                        service.update(host_id, host).await?;
+                    }
+
+                    Ok::<_, Error>(())
+                }
+                .await
+                {
+                    tracing::error!("Error syncronizing net host after network change: {e}");
+                    tracing::debug!("{e:?}");
+                }
+
+                ip_info.changed().await;
+            }
+        });
     }
 }
 
@@ -92,7 +124,6 @@ async fn service_actor_loop(
                             ..
                         } => MainStatus::Stopped,
                     };
-                    let previous = i.as_status().de()?;
                     i.as_status_mut().ser(&main_status)?;
                     return Ok(previous
                         .major_changes(&main_status)

@@ -121,9 +121,34 @@ function getAddresses(
 ): MappedAddress[] {
   const addressInfo = serviceInterface.addressInfo
 
-  const hostnames =
+  let hostnames =
     host.kind === 'multi' ? host.hostnameInfo[addressInfo.internalPort] : []
 
+  hostnames = hostnames.filter(
+    h =>
+      window.location.host === 'localhost' ||
+      h.kind !== 'ip' ||
+      h.hostname.kind !== 'ipv6' ||
+      !h.hostname.value.startsWith('fe80::'),
+  )
+  if (window.location.host === 'localhost') {
+    const local = hostnames.find(
+      h => h.kind === 'ip' && h.hostname.kind === 'local',
+    )
+    if (local) {
+      hostnames.unshift({
+        kind: 'ip',
+        networkInterfaceId: 'lo',
+        public: false,
+        hostname: {
+          kind: 'local',
+          port: local.hostname.port,
+          sslPort: local.hostname.sslPort,
+          value: 'localhost',
+        },
+      })
+    }
+  }
   const addressesWithNames = hostnames.flatMap(h => {
     let name = ''
 
@@ -144,14 +169,14 @@ function getAddresses(
 
     const addresses = utils.addressHostToUrl(addressInfo, h)
     if (addresses.length > 1) {
-      return utils.addressHostToUrl(addressInfo, h).map(url => ({
+      return addresses.map(url => ({
         name: `${name} (${new URL(url).protocol
           .replace(':', '')
           .toUpperCase()})`,
         url,
       }))
     } else {
-      return utils.addressHostToUrl(addressInfo, h).map(url => ({
+      return addresses.map(url => ({
         name,
         url,
       }))

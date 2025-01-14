@@ -1,13 +1,12 @@
 import { Component } from '@angular/core'
 import { isPlatform } from '@ionic/angular'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { S9pk, T } from '@start9labs/start-sdk'
+import { S9pk } from '@start9labs/start-sdk'
 import cbor from 'cbor'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import { SideloadService } from './sideload.service'
 import { filter, firstValueFrom } from 'rxjs'
-import mime from 'mime'
 
 interface Positions {
   [key: string]: [bigint, bigint] // [position, length]
@@ -121,10 +120,8 @@ export class SideloadPage {
     try {
       const res = await this.api.sideloadPackage()
       this.sideloadService.followProgress(res.progress)
-      this.api
-        .uploadPackage(res.upload, this.toUpload.file!)
-        .catch(e => console.error(e))
-      await firstValueFrom(this.progress$.pipe(filter(Boolean)))
+      await this.api.uploadPackage(res.upload, this.toUpload.file!)
+      await firstValueFrom(this.progress$)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

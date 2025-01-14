@@ -2,7 +2,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -31,6 +30,7 @@ use crate::init::check_time_is_synchronized;
 use crate::lxc::{ContainerId, LxcContainer, LxcManager};
 use crate::net::net_controller::{NetController, PreInitNetController};
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
+use crate::net::web_server::{UpgradableListener, WebServerAcceptorSetter};
 use crate::net::wifi::WpaCli;
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};
@@ -47,7 +47,6 @@ pub struct RpcContextSeed {
     pub os_partitions: OsPartitionInfo,
     pub wifi_interface: Option<String>,
     pub ethernet_interface: String,
-    pub datadir: PathBuf,
     pub disk_guid: Arc<String>,
     pub ephemeral_sessions: SyncMutex<Sessions>,
     pub db: TypedPatchDb<Database>,
@@ -117,6 +116,7 @@ pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
     #[instrument(skip_all)]
     pub async fn init(
+        webserver: &WebServerAcceptorSetter<UpgradableListener>,
         config: &ServerConfig,
         disk_guid: Arc<String>,
         net_ctrl: Option<PreInitNetController>,
@@ -149,7 +149,7 @@ impl RpcContext {
                 if let Some(net_ctrl) = net_ctrl {
                     net_ctrl
                 } else {
-                    PreInitNetController::init(
+                    let net_ctrl = PreInitNetController::init(
                         db.clone(),
                         config
                             .tor_control
@@ -158,7 +158,9 @@ impl RpcContext {
                         &account.hostname,
                         account.tor_key.clone(),
                     )
-                    .await?
+                    .await?;
+                    webserver.try_upgrade(|a| net_ctrl.net_iface.upgrade_listener(a))?;
+                    net_ctrl
                 },
                 config
                     .dns_bind
@@ -210,7 +212,6 @@ impl RpcContext {
 
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
-            datadir: config.datadir().to_path_buf(),
             os_partitions: config.os_partitions.clone().ok_or_else(|| {
                 Error::new(
                     eyre!("OS Partition Information Missing"),

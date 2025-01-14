@@ -7,12 +7,10 @@ use futures::future::BoxFuture;
 use futures::{Future, FutureExt};
 use imbl::Vector;
 use imbl_value::{to_value, InternedString};
-use patch_db::json_ptr::{JsonPointer, ROOT};
+use patch_db::json_ptr::{ ROOT};
 
 use crate::context::RpcContext;
-use crate::db::model::Database;
 use crate::prelude::*;
-use crate::progress::PhaseProgressTrackerHandle;
 use crate::Error;
 
 mod v0_3_5;
@@ -29,7 +27,9 @@ mod v0_3_6_alpha_7;
 mod v0_3_6_alpha_8;
 mod v0_3_6_alpha_9;
 
-pub type Current = v0_3_6_alpha_9::Version; // VERSION_BUMP
+mod v0_3_6_alpha_10;
+
+pub type Current = v0_3_6_alpha_10::Version; // VERSION_BUMP
 
 impl Current {
     #[instrument(skip(self, db))]
@@ -108,6 +108,7 @@ enum Version {
     V0_3_6_alpha_7(Wrapper<v0_3_6_alpha_7::Version>),
     V0_3_6_alpha_8(Wrapper<v0_3_6_alpha_8::Version>),
     V0_3_6_alpha_9(Wrapper<v0_3_6_alpha_9::Version>),
+    V0_3_6_alpha_10(Wrapper<v0_3_6_alpha_10::Version>),
     Other(exver::Version),
 }
 
@@ -141,6 +142,7 @@ impl Version {
             Self::V0_3_6_alpha_7(v) => DynVersion(Box::new(v.0)),
             Self::V0_3_6_alpha_8(v) => DynVersion(Box::new(v.0)),
             Self::V0_3_6_alpha_9(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_10(v) => DynVersion(Box::new(v.0)),
             Self::Other(v) => {
                 return Err(Error::new(
                     eyre!("unknown version {v}"),
@@ -166,6 +168,7 @@ impl Version {
             Version::V0_3_6_alpha_7(Wrapper(x)) => x.semver(),
             Version::V0_3_6_alpha_8(Wrapper(x)) => x.semver(),
             Version::V0_3_6_alpha_9(Wrapper(x)) => x.semver(),
+            Version::V0_3_6_alpha_10(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
         }
     }

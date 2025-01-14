@@ -30,22 +30,10 @@ const makeManyInterfaceFilled = async ({
       if (!host) {
         throw new Error(`host ${hostId} not found!`)
       }
-      const primaryUrl = await effects
-        .getPrimaryUrl({
-          hostId,
-          packageId,
-          callback,
-        })
-        .catch(() => null)
       return {
         ...serviceInterfaceValue,
-        primaryUrl: primaryUrl,
         host,
         addressInfo: filledAddress(host, serviceInterfaceValue.addressInfo),
-        get primaryHostname() {
-          if (primaryUrl == null) return null
-          return getHostname(primaryUrl)
-        },
       }
     }),
   )

@@ -37,6 +37,7 @@ import {
   GetPackagesRes,
   MarketplacePkg,
 } from '@start9labs/marketplace'
+import { WebSocketSubject } from 'rxjs/webSocket'
 
 const PROGRESS: T.FullProgress = {
   overall: {
@@ -107,11 +108,11 @@ export class MockApiService extends ApiService {
   openWebsocket$<T>(
     guid: string,
     config: RR.WebsocketConfig<T> = {},
-  ): Observable<T> {
+  ): WebSocketSubject<T> {
     if (guid === 'db-guid') {
       return this.mockWsSource$.pipe<any>(
         shareReplay({ bufferSize: 1, refCount: true }),
-      )
+      ) as WebSocketSubject<T>
     } else if (guid === 'logs-guid') {
       return interval(50).pipe<any>(
         map((_, index) => {
@@ -120,16 +121,16 @@ export class MockApiService extends ApiService {
           if (index === 100) throw new Error('HAAHHA')
           return Mock.ServerLogs[0]
         }),
-      )
+      ) as WebSocketSubject<T>
     } else if (guid === 'init-progress-guid') {
       return from(this.initProgress()).pipe(
         startWith(PROGRESS),
-      ) as Observable<T>
+      ) as WebSocketSubject<T>
     } else if (guid === 'sideload-progress-guid') {
       config.openObserver?.next(new Event(''))
       return from(this.initProgress()).pipe(
         startWith(PROGRESS),
-      ) as Observable<T>
+      ) as WebSocketSubject<T>
     } else {
       throw new Error('invalid guid type')
     }

@@ -24,10 +24,10 @@ impl MerkleArchiveCommitment {
     pub fn from_query(query: &str) -> Result<Option<Self>, Error> {
         let mut root_sighash = None;
         let mut root_maxsize = None;
-        for (k, v) in form_urlencoded::parse(dbg!(query).as_bytes()) {
+        for (k, v) in form_urlencoded::parse(query.as_bytes()) {
             match &*k {
                 "rootSighash" => {
-                    root_sighash = Some(dbg!(v).parse()?);
+                    root_sighash = Some(v.parse()?);
                 }
                 "rootMaxsize" => {
                     root_maxsize = Some(v.parse()?);

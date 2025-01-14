@@ -41,21 +41,32 @@ export const mockPatchData: DataModel = {
     lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
     lanAddress: 'https://adjective-noun.local',
     torAddress: 'https://myveryownspecialtoraddress.onion',
-    ipInfo: {
+    networkInterfaces: {
       eth0: {
-        ipv4: '10.0.0.1',
-        ipv4Range: '10.0.0.1/24',
-        ipv6: null,
-        ipv6Range: null,
+        public: false,
+        ipInfo: {
+          scopeId: 1,
+          deviceType: 'ethernet',
+          subnets: ['10.0.0.1/24'],
+          wanIp: null,
+          ntpServers: [],
+        },
       },
       wlan0: {
-        ipv4: '10.0.90.12',
-        ipv4Range: '10.0.90.12/24',
-        ipv6: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD',
-        ipv6Range: 'FE80:CD00:0000:0CDE:1257:0000:211E:729CD/64',
+        public: false,
+        ipInfo: {
+          scopeId: 2,
+          deviceType: 'wireless',
+          subnets: [
+            '10.0.90.12/24',
+            'FE80:CD00:0000:0CDE:1257:0000:211E:729CD/64',
+          ],
+          wanIp: null,
+          ntpServers: [],
+        },
       },
     },
-    acme: null,
+    acme: {},
     unreadNotificationCount: 4,
     // password is asdfasdf
     passwordHash:
@@ -140,7 +151,6 @@ export const mockPatchData: DataModel = {
       serviceInterfaces: {
         ui: {
           id: 'ui',
-          hasPrimary: false,
           masked: false,
           name: 'Web UI',
           description:
@@ -157,7 +167,6 @@ export const mockPatchData: DataModel = {
         },
         rpc: {
           id: 'rpc',
-          hasPrimary: false,
           masked: false,
           name: 'RPC',
           description:
@@ -174,7 +183,6 @@ export const mockPatchData: DataModel = {
         },
         p2p: {
           id: 'p2p',
-          hasPrimary: true,
           masked: false,
           name: 'P2P',
           description:
@@ -195,7 +203,8 @@ export const mockPatchData: DataModel = {
         abcdefg: {
           kind: 'multi',
           bindings: [],
-          addresses: [],
+          onions: [],
+          domains: {},
           hostnameInfo: {
             80: [
               {
@@ -248,7 +257,8 @@ export const mockPatchData: DataModel = {
                 public: false,
                 hostname: {
                   kind: 'ipv6',
-                  value: '[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]',
+                  value: '[fe80:cd00:0000:0cde:1257:0000:211e:72cd]',
+                  scopeId: 2,
                   port: null,
                   sslPort: 1234,
                 },
@@ -259,7 +269,8 @@ export const mockPatchData: DataModel = {
                 public: false,
                 hostname: {
                   kind: 'ipv6',
-                  value: '[FE80:CD00:0000:0CDE:1257:0000:211E:1234]',
+                  value: '[fe80:cd00:0000:0cde:1257:0000:211e:1234]',
+                  scopeId: 3,
                   port: null,
                   sslPort: 1234,
                 },
@@ -278,7 +289,8 @@ export const mockPatchData: DataModel = {
         bcdefgh: {
           kind: 'multi',
           bindings: [],
-          addresses: [],
+          onions: [],
+          domains: {},
           hostnameInfo: {
             8332: [],
           },
@@ -286,7 +298,8 @@ export const mockPatchData: DataModel = {
         cdefghi: {
           kind: 'multi',
           bindings: [],
-          addresses: [],
+          onions: [],
+          domains: {},
           hostnameInfo: {
             8333: [],
           },
@@ -335,7 +348,6 @@ export const mockPatchData: DataModel = {
       serviceInterfaces: {
         grpc: {
           id: 'grpc',
-          hasPrimary: false,
           masked: false,
           name: 'GRPC',
           description:
@@ -352,7 +364,6 @@ export const mockPatchData: DataModel = {
         },
         lndconnect: {
           id: 'lndconnect',
-          hasPrimary: false,
           masked: true,
           name: 'LND Connect',
           description:
@@ -369,7 +380,6 @@ export const mockPatchData: DataModel = {
         },
         p2p: {
           id: 'p2p',
-          hasPrimary: true,
           masked: false,
           name: 'P2P',
           description:

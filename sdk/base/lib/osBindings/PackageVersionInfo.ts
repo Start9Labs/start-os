@@ -3,6 +3,7 @@ import type { Alerts } from "./Alerts"
 import type { DataUrl } from "./DataUrl"
 import type { DependencyMetadata } from "./DependencyMetadata"
 import type { Description } from "./Description"
+import type { GitHash } from "./GitHash"
 import type { HardwareRequirements } from "./HardwareRequirements"
 import type { MerkleArchiveCommitment } from "./MerkleArchiveCommitment"
 import type { PackageId } from "./PackageId"
@@ -13,7 +14,7 @@ export type PackageVersionInfo = {
   icon: DataUrl
   description: Description
   releaseNotes: string
-  gitHash: string
+  gitHash: GitHash
   license: string
   wrapperRepo: string
   upstreamRepo: string

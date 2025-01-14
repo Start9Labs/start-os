@@ -11,7 +11,7 @@ import { PATCH_CACHE } from 'src/app/services/patch-db/patch-db-source'
 import { ApiService } from './embassy-api.service'
 import { RR } from './api.types'
 import { ConfigService } from '../config.service'
-import { webSocket } from 'rxjs/webSocket'
+import { webSocket, WebSocketSubject } from 'rxjs/webSocket'
 import { Observable, filter, firstValueFrom } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
@@ -85,7 +85,7 @@ export class LiveApiService extends ApiService {
   openWebsocket$<T>(
     guid: string,
     config: RR.WebsocketConfig<T> = {},
-  ): Observable<T> {
+  ): WebSocketSubject<T> {
     const { location } = this.document.defaultView!
     const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
     const host = location.host

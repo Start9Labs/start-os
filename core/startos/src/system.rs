@@ -1,12 +1,18 @@
 use std::collections::BTreeSet;
 use std::fmt;
+use std::sync::Arc;
 
 use chrono::Utc;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
 use imbl::vector;
+use mail_send::mail_builder::MessageBuilder;
+use mail_send::SmtpClientBuilder;
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
+use rustls::crypto::CryptoProvider;
+use rustls::RootCertStore;
+use rustls_pki_types::CertificateDer;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::process::Command;
 use tokio::sync::broadcast::Receiver;
@@ -24,6 +30,7 @@ use crate::util::cpupower::{get_available_governors, set_governor, Governor};
 use crate::util::io::open_file;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
+use crate::{MAIN_DATA, PACKAGE_DATA};
 
 pub fn experimental<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -802,10 +809,10 @@ pub async fn get_mem_info() -> Result<MetricsMemory, Error> {
 
 #[instrument(skip_all)]
 async fn get_disk_info() -> Result<MetricsDisk, Error> {
-    let package_used_task = get_used("/embassy-data/package-data");
-    let package_available_task = get_available("/embassy-data/package-data");
-    let os_used_task = get_used("/embassy-data/main");
-    let os_available_task = get_available("/embassy-data/main");
+    let package_used_task = get_used(PACKAGE_DATA);
+    let package_available_task = get_available(PACKAGE_DATA);
+    let os_used_task = get_used(MAIN_DATA);
+    let os_available_task = get_available(MAIN_DATA);
 
     let (package_used, package_available, os_used, os_available) = futures::try_join!(
         package_used_task,
@@ -869,6 +876,57 @@ pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
     if let Some(callbacks) = ctx.callbacks.get_system_smtp() {
         callbacks.call(vector![Value::Null]).await?;
     }
+    Ok(())
+}
+pub async fn test_system_smtp(
+    _: RpcContext,
+    SmtpValue {
+        server,
+        port,
+        from,
+        login,
+        password,
+    }: SmtpValue,
+) -> Result<(), Error> {
+    use rustls_pki_types::pem::PemObject;
+
+    let Some(pass_val) = password else {
+        return Err(Error::new(
+            eyre!("mail-send requires a password"),
+            ErrorKind::InvalidRequest,
+        ));
+    };
+
+    let mut root_cert_store = RootCertStore::empty();
+    let pem = tokio::fs::read("/etc/ssl/certs/ca-certificates.crt").await?;
+    for cert in CertificateDer::pem_slice_iter(&pem) {
+        root_cert_store.add_parsable_certificates([cert.with_kind(ErrorKind::OpenSsl)?]);
+    }
+
+    let cfg = Arc::new(
+        rustls::ClientConfig::builder_with_provider(Arc::new(
+            rustls::crypto::ring::default_provider(),
+        ))
+        .with_safe_default_protocol_versions()?
+        .with_root_certificates(root_cert_store)
+        .with_no_client_auth(),
+    );
+    let client = SmtpClientBuilder::new_with_tls_config(server, port, cfg)
+        .implicit_tls(false)
+        .credentials((login.clone().split_once("@").unwrap().0.to_owned(), pass_val));
+
+    let message = MessageBuilder::new()
+        .from((from.clone(), login.clone()))
+        .to(vec![(from, login)])
+        .subject("StartOS Test Email")
+        .text_body("This is a test email sent from your StartOS Server");
+    client
+        .connect()
+        .await
+        .map_err(|e| Error::new(eyre!("mail-send connection error: {:?}", e), ErrorKind::Unknown))?
+        .send(message)
+        .await
+        .map_err(|e| Error::new(eyre!("mail-send send error: {:?}", e), ErrorKind::Unknown))?;
     Ok(())
 }
 

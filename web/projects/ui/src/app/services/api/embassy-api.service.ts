@@ -7,6 +7,7 @@ import {
   GetPackagesRes,
   MarketplacePkg,
 } from '@start9labs/marketplace'
+import { WebSocketSubject } from 'rxjs/webSocket'
 
 export abstract class ApiService {
   // http
@@ -30,7 +31,7 @@ export abstract class ApiService {
   abstract openWebsocket$<T>(
     guid: string,
     config?: RR.WebsocketConfig<T>,
-  ): Observable<T>
+  ): WebSocketSubject<T>
 
   // state
 

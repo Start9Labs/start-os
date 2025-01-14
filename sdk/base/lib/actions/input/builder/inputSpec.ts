@@ -94,8 +94,8 @@ export class InputSpec<Type extends Record<string, any>, Store = never> {
     },
     public validator: Parser<unknown, Type>,
   ) {}
-  _TYPE: Type = null as any as Type
-  _PARTIAL: DeepPartial<Type> = null as any as DeepPartial<Type>
+  public _TYPE: Type = null as any as Type
+  public _PARTIAL: DeepPartial<Type> = null as any as DeepPartial<Type>
   async build(options: LazyBuildOptions<Store>) {
     const answer = {} as {
       [K in keyof Type]: ValueSpec

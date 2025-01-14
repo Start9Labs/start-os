@@ -15,6 +15,7 @@ use crate::service::ServiceActor;
 use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::actor::{ConflictBuilder, Handler};
 use crate::util::future::RemoteCancellable;
+use crate::util::serde::NoOutput;
 
 pub(in crate::service) struct Backup {
     pub path: PathBuf,
@@ -48,7 +49,7 @@ impl Handler<Backup> for ServiceActor {
                 .mount_backup(path, ReadWrite)
                 .await?;
             seed.persistent_container
-                .execute(id, ProcedureName::CreateBackup, Value::Null, None)
+                .execute::<NoOutput>(id, ProcedureName::CreateBackup, Value::Null, None)
                 .await?;
             backup_guard.unmount(true).await?;
 

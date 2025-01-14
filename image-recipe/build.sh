@@ -166,7 +166,7 @@ echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/docker.key.gp
 # Dependencies
 
 ## Base dependencies
-dpkg-deb --fsys-tarfile $base_dir/deb/${IMAGE_BASENAME}.deb | tar --to-stdout -xvf - ./usr/lib/startos/depends > config/package-lists/embassy-depends.list.chroot
+dpkg-deb --fsys-tarfile $base_dir/deb/${IMAGE_BASENAME}.deb | tar --to-stdout -xvf - ./usr/lib/startos/depends > config/package-lists/startos-depends.list.chroot
 
 ## Firmware
 if [ "$NON_FREE" = 1 ]; then
@@ -210,7 +210,7 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	mkinitramfs -c gzip -o /boot/initramfs_2712 6.6.62-v8-16k+
 fi
 
-useradd --shell /bin/bash -G embassy -m start9
+useradd --shell /bin/bash -G startos -m start9
 echo start9:embassy | chpasswd
 usermod -aG sudo start9
 

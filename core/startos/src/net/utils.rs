@@ -1,16 +1,25 @@
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6};
 use std::path::Path;
 
 use async_stream::try_stream;
 use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
 use futures::{StreamExt, TryStreamExt};
-use ipnet::{Ipv4Net, Ipv6Net};
+use ipnet::{IpNet, Ipv4Net, Ipv6Net};
+use nix::net::if_::if_nametoindex;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::process::Command;
 
+use crate::prelude::*;
 use crate::util::Invoke;
-use crate::Error;
+
+pub fn ipv6_is_link_local(addr: Ipv6Addr) -> bool {
+    (addr.segments()[0] & 0xffc0) == 0xfe80
+}
+
+pub fn ipv6_is_local(addr: Ipv6Addr) -> bool {
+    addr.is_loopback() || (addr.segments()[0] & 0xfe00) == 0xfc00 || ipv6_is_link_local(addr)
+}
 
 fn parse_iface_ip(output: &str) -> Result<Vec<&str>, Error> {
     let output = output.trim();
@@ -110,6 +119,52 @@ pub async fn find_eth_iface() -> Result<String, Error> {
         eyre!("Could not detect ethernet interface"),
         crate::ErrorKind::Network,
     ))
+}
+
+pub async fn all_socket_addrs_for(port: u16) -> Result<Vec<SocketAddr>, Error> {
+    let mut res = Vec::new();
+
+    let raw = String::from_utf8(
+        Command::new("ip")
+            .arg("-o")
+            .arg("addr")
+            .arg("show")
+            .invoke(ErrorKind::ParseSysInfo)
+            .await?,
+    )?;
+    let err = |item: &str, lineno: usize, line: &str| {
+        Error::new(
+            eyre!("failed to parse ip info ({item}[line:{lineno}]) from {line:?}"),
+            ErrorKind::ParseSysInfo,
+        )
+    };
+    for (idx, line) in raw
+        .lines()
+        .map(|l| l.trim())
+        .enumerate()
+        .filter(|(_, l)| !l.is_empty())
+    {
+        let mut split = line.split_whitespace();
+        let _num = split.next();
+        let ifname = split.next().ok_or_else(|| err("ifname", idx, line))?;
+        let _kind = split.next();
+        let ipnet_str = split.next().ok_or_else(|| err("ipnet", idx, line))?;
+        let ipnet = ipnet_str
+            .parse::<IpNet>()
+            .with_ctx(|_| (ErrorKind::ParseSysInfo, err("ipnet", idx, ipnet_str)))?;
+        match ipnet.addr() {
+            IpAddr::V4(ip4) => res.push(SocketAddr::new(ip4.into(), port)),
+            IpAddr::V6(ip6) => res.push(SocketAddr::V6(SocketAddrV6::new(
+                ip6,
+                port,
+                0,
+                if_nametoindex(ifname)
+                    .with_ctx(|_| (ErrorKind::ParseSysInfo, "reading scope_id"))?,
+            ))),
+        }
+    }
+
+    Ok(res)
 }
 
 pub struct TcpListeners {

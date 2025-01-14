@@ -1,15 +1,6 @@
 import { ServiceInterfaceType } from "../types"
 import { knownProtocols } from "../interfaces/Host"
-import {
-  AddressInfo,
-  Host,
-  HostAddress,
-  Hostname,
-  HostnameInfo,
-  HostnameInfoIp,
-  HostnameInfoOnion,
-  IpInfo,
-} from "../types"
+import { AddressInfo, Host, Hostname, HostnameInfo } from "../types"
 import { Effects } from "../Effects"
 
 export type UrlString = string
@@ -48,8 +39,6 @@ export type ServiceInterfaceFilled = {
   name: string
   /** Human readable description, used as tooltip usually */
   description: string
-  /** Whether or not the interface has a primary URL */
-  hasPrimary: boolean
   /** Whether or not to mask the URIs for this interface. Useful if the URIs contain sensitive information, such as a password, macaroon, or API key */
   masked: boolean
   /** Information about the host for this binding */
@@ -58,10 +47,6 @@ export type ServiceInterfaceFilled = {
   addressInfo: FilledAddressInfo | null
   /** Indicates if we are a ui/p2p/api for the kind of interface that this is representing */
   type: ServiceInterfaceType
-  /** The primary hostname for the service, as chosen by the user */
-  primaryHostname: Hostname | null
-  /** The primary URL for the service, as chosen by the user */
-  primaryUrl: UrlString | null
 }
 const either =
   <A>(...args: ((a: A) => boolean)[]) =>
@@ -89,7 +74,9 @@ export const addressHostToUrl = (
       if (host.hostname.kind === "domain") {
         hostname = `${host.hostname.subdomain ? `${host.hostname.subdomain}.` : ""}${host.hostname.domain}`
       } else if (host.hostname.kind === "ipv6") {
-        hostname = `[${host.hostname.value}]`
+        hostname = host.hostname.value.startsWith("fe80::")
+          ? `[${host.hostname.value}%${host.hostname.scopeId}]`
+          : `[${host.hostname.value}]`
       } else {
         hostname = host.hostname.value
       }
@@ -200,23 +187,13 @@ const makeInterfaceFilled = async ({
     hostId,
     callback,
   })
-  const primaryUrl = await effects.getPrimaryUrl({
-    hostId,
-    packageId,
-    callback,
-  })
 
   const interfaceFilled: ServiceInterfaceFilled = {
     ...serviceInterfaceValue,
-    primaryUrl: primaryUrl,
     host,
     addressInfo: host
       ? filledAddress(host, serviceInterfaceValue.addressInfo)
       : null,
-    get primaryHostname() {
-      if (primaryUrl == null) return null
-      return getHostname(primaryUrl)
-    },
   }
   return interfaceFilled
 }

@@ -72,7 +72,6 @@ pub struct PackageVersionInfo {
     pub icon: DataUrl<'static>,
     pub description: Description,
     pub release_notes: String,
-    #[ts(type = "string")]
     pub git_hash: GitHash,
     #[ts(type = "string")]
     pub license: InternedString,
