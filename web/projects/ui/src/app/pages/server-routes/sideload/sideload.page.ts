@@ -120,10 +120,8 @@ export class SideloadPage {
     try {
       const res = await this.api.sideloadPackage()
       this.sideloadService.followProgress(res.progress)
-      this.api
-        .uploadPackage(res.upload, this.toUpload.file!)
-        .catch(e => console.error(e))
-      await firstValueFrom(this.progress$.pipe(filter(Boolean)))
+      await this.api.uploadPackage(res.upload, this.toUpload.file!)
+      await firstValueFrom(this.progress$)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
