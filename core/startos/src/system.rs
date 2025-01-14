@@ -878,15 +878,33 @@ pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
     }
     Ok(())
 }
-pub async fn test_system_smtp(
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct TestSmtpParams {
+    #[arg(long)]
+    pub server: String,
+    #[arg(long)]
+    pub port: u16,
+    #[arg(long)]
+    pub from: String,
+    #[arg(long)]
+    pub to: String,
+    #[arg(long)]
+    pub login: String,
+    #[arg(long)]
+    pub password: Option<String>,
+}
+pub async fn test_smtp(
     _: RpcContext,
-    SmtpValue {
+    TestSmtpParams {
         server,
         port,
         from,
+        to,
         login,
         password,
-    }: SmtpValue,
+    }: TestSmtpParams,
 ) -> Result<(), Error> {
     use rustls_pki_types::pem::PemObject;
 
@@ -913,17 +931,25 @@ pub async fn test_system_smtp(
     );
     let client = SmtpClientBuilder::new_with_tls_config(server, port, cfg)
         .implicit_tls(false)
-        .credentials((login.clone().split_once("@").unwrap().0.to_owned(), pass_val));
+        .credentials((
+            login.clone().split_once("@").unwrap().0.to_owned(),
+            pass_val,
+        ));
 
     let message = MessageBuilder::new()
         .from((from.clone(), login.clone()))
-        .to(vec![(from, login)])
+        .to(to)
         .subject("StartOS Test Email")
         .text_body("This is a test email sent from your StartOS Server");
     client
         .connect()
         .await
-        .map_err(|e| Error::new(eyre!("mail-send connection error: {:?}", e), ErrorKind::Unknown))?
+        .map_err(|e| {
+            Error::new(
+                eyre!("mail-send connection error: {:?}", e),
+                ErrorKind::Unknown,
+            )
+        })?
         .send(message)
         .await
         .map_err(|e| Error::new(eyre!("mail-send send error: {:?}", e), ErrorKind::Unknown))?;

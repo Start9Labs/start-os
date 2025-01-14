@@ -7,7 +7,7 @@ use futures::future::BoxFuture;
 use futures::{Future, FutureExt};
 use imbl::Vector;
 use imbl_value::{to_value, InternedString};
-use patch_db::json_ptr::{ ROOT};
+use patch_db::json_ptr::ROOT;
 
 use crate::context::RpcContext;
 use crate::prelude::*;
