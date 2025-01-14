@@ -221,9 +221,10 @@ pub async fn list_bindings(
         .de()
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
-pub struct SetPublicParams {
+#[ts(export)]
+pub struct BindingSetPublicParams {
     internal_port: u16,
     #[arg(long)]
     public: Option<bool>,
@@ -231,10 +232,10 @@ pub struct SetPublicParams {
 
 pub async fn set_public(
     ctx: RpcContext,
-    SetPublicParams {
+    BindingSetPublicParams {
         internal_port,
         public,
-    }: SetPublicParams,
+    }: BindingSetPublicParams,
     (package, host): (PackageId, HostId),
 ) -> Result<(), Error> {
     ctx.db
