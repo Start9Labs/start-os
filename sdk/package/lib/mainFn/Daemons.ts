@@ -53,7 +53,7 @@ type DaemonsParams<
   subcontainer:
     | {
         /** The ID of the image. Must be one of the image IDs declared in the manifest */
-        id: keyof Manifest["images"] & T.ImageId
+        imageId: keyof Manifest["images"] & T.ImageId
         /**
          * Whether or not to share the `/run` directory with the parent container.
          * This is useful if you are trying to connect to a service that exposes a unix domain socket or auth cookie via the `/run` directory

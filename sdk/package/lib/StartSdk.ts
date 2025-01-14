@@ -215,18 +215,14 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           }),
       },
 
-      host: {
-        // static: (effects: Effects, id: string) =>
-        //   new StaticHost({ id, effects }),
-        // single: (effects: Effects, id: string) =>
-        //   new SingleHost({ id, effects }),
-        multi: (effects: Effects, id: string) => new MultiHost({ id, effects }),
+      MultiHost: {
+        of: (effects: Effects, id: string) => new MultiHost({ id, effects }),
       },
       nullIfEmpty,
       runCommand: async <A extends string>(
         effects: Effects,
         image: {
-          id: keyof Manifest["images"] & T.ImageId
+          imageId: keyof Manifest["images"] & T.ImageId
           sharedRun?: boolean
         },
         command: T.CommandType,
@@ -685,7 +681,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         of(
           effects: Effects,
           image: {
-            id: T.ImageId & keyof Manifest["images"]
+            imageId: T.ImageId & keyof Manifest["images"]
             sharedRun?: boolean
           },
           name: string,
@@ -1414,7 +1410,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
 
 export async function runCommand<Manifest extends T.SDKManifest>(
   effects: Effects,
-  image: { id: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
+  image: { imageId: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
   command: string | [string, ...string[]],
   options: CommandOptions & {
     mounts?: { path: string; options: MountOptions }[]
