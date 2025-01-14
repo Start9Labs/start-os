@@ -260,9 +260,9 @@ pub async fn sideload(
         }
         .await
         {
-            let _ = err_send.send(e.clone_output());
             tracing::error!("Error sideloading package: {e}");
             tracing::debug!("{e:?}");
+            let _ = err_send.send(e);
         }
     });
     Ok(SideloadResponse { upload, progress })
