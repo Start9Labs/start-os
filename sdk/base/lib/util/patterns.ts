@@ -52,6 +52,11 @@ export const email: Pattern = {
   description: "Must be a valid email address",
 }
 
+export const emailWithName: Pattern = {
+  regex: regexes.emailWithName.source,
+  description: "Must be a valid email address, optionally with a name",
+}
+
 export const base64: Pattern = {
   regex: regexes.base64.source,
   description:
