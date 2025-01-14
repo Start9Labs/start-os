@@ -544,7 +544,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           inputSpecSpec,
           async ({ effects, input }) => {
             // ** UI multi-host **
-            const uiMulti = sdk.host.multi(effects, 'ui-multi')
+            const uiMulti = sdk.MultiHost.of(effects, 'ui-multi')
             const uiMultiOrigin = await uiMulti.bindPort(80, {
               protocol: 'http',
             })
@@ -576,7 +576,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
             const uiReceipt = await uiMultiOrigin.export([primaryUi, adminUi])
        
             // ** API multi-host **
-            const apiMulti = sdk.host.multi(effects, 'api-multi')
+            const apiMulti = sdk.MultiHost.of(effects, 'api-multi')
             const apiMultiOrigin = await apiMulti.bindPort(5959, {
               protocol: 'http',
             })
