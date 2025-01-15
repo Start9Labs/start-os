@@ -156,187 +156,198 @@ export class MainLoop {
           })
           .catch((e) => console.error(utils.asError(e)))
         const interval = setInterval(async () => {
-          const actionProcedure = value
-          const timeChanged = Date.now() - start
-          if (actionProcedure.type === "docker") {
-            const subcontainer = actionProcedure.inject
-              ? this.mainSubContainerHandle
-              : undefined
-            const commands = [
-              actionProcedure.entrypoint,
-              ...actionProcedure.args,
-            ]
-            const container = await DockerProcedureContainer.of(
-              effects,
-              manifest.id,
-              actionProcedure,
-              manifest.volumes,
-              `Health Check - ${commands.join(" ")}`,
-              {
-                subcontainer,
-              },
-            )
-            const env: Record<string, string> = actionProcedure.inject
-              ? {
-                  HOME: "/root",
-                }
-              : {}
-            const executed = await container.exec(commands, {
-              input: JSON.stringify(timeChanged),
-              env,
-            })
+          try {
+            const actionProcedure = value
+            const timeChanged = Date.now() - start
+            if (actionProcedure.type === "docker") {
+              const subcontainer = actionProcedure.inject
+                ? this.mainSubContainerHandle
+                : undefined
+              const commands = [
+                actionProcedure.entrypoint,
+                ...actionProcedure.args,
+              ]
+              const container = await DockerProcedureContainer.of(
+                effects,
+                manifest.id,
+                actionProcedure,
+                manifest.volumes,
+                `Health Check - ${commands.join(" ")}`,
+                {
+                  subcontainer,
+                },
+              )
+              const env: Record<string, string> = actionProcedure.inject
+                ? {
+                    HOME: "/root",
+                  }
+                : {}
+              const executed = await container.exec(commands, {
+                input: JSON.stringify(timeChanged),
+                env,
+              })
 
-            if (executed.exitCode === 0) {
+              if (executed.exitCode === 0) {
+                await effects.setHealth({
+                  id: healthId,
+                  name: value.name,
+                  result: "success",
+                  message: actionProcedure["success-message"] ?? null,
+                })
+                return
+              }
+              if (executed.exitCode === 59) {
+                await effects.setHealth({
+                  id: healthId,
+                  name: value.name,
+                  result: "disabled",
+                  message:
+                    executed.stderr.toString() || executed.stdout.toString(),
+                })
+                return
+              }
+              if (executed.exitCode === 60) {
+                await effects.setHealth({
+                  id: healthId,
+                  name: value.name,
+                  result: "starting",
+                  message:
+                    executed.stderr.toString() || executed.stdout.toString(),
+                })
+                return
+              }
+              if (executed.exitCode === 61) {
+                await effects.setHealth({
+                  id: healthId,
+                  name: value.name,
+                  result: "loading",
+                  message:
+                    executed.stderr.toString() || executed.stdout.toString(),
+                })
+                return
+              }
+              const errorMessage = executed.stderr.toString()
+              const message = executed.stdout.toString()
+              if (!!errorMessage) {
+                await effects.setHealth({
+                  id: healthId,
+                  name: value.name,
+                  result: "failure",
+                  message: errorMessage,
+                })
+                return
+              }
+              if (executed.exitCode && executed.exitCode > 0) {
+                await effects.setHealth({
+                  id: healthId,
+                  name: value.name,
+                  result: "failure",
+                  message:
+                    executed.stderr.toString() ||
+                    executed.stdout.toString() ||
+                    `Program exited with code ${executed.exitCode}:`,
+                })
+                return
+              }
               await effects.setHealth({
                 id: healthId,
                 name: value.name,
                 result: "success",
-                message: actionProcedure["success-message"] ?? null,
-              })
-              return
-            }
-            if (executed.exitCode === 59) {
-              await effects.setHealth({
-                id: healthId,
-                name: value.name,
-                result: "disabled",
-                message:
-                  executed.stderr.toString() || executed.stdout.toString(),
-              })
-              return
-            }
-            if (executed.exitCode === 60) {
-              await effects.setHealth({
-                id: healthId,
-                name: value.name,
-                result: "starting",
-                message:
-                  executed.stderr.toString() || executed.stdout.toString(),
-              })
-              return
-            }
-            if (executed.exitCode === 61) {
-              await effects.setHealth({
-                id: healthId,
-                name: value.name,
-                result: "loading",
-                message:
-                  executed.stderr.toString() || executed.stdout.toString(),
-              })
-              return
-            }
-            const errorMessage = executed.stderr.toString()
-            const message = executed.stdout.toString()
-            if (!!errorMessage) {
-              await effects.setHealth({
-                id: healthId,
-                name: value.name,
-                result: "failure",
-                message: errorMessage,
-              })
-              return
-            }
-            if (executed.exitCode && executed.exitCode > 0) {
-              await effects.setHealth({
-                id: healthId,
-                name: value.name,
-                result: "failure",
-                message:
-                  executed.stderr.toString() ||
-                  executed.stdout.toString() ||
-                  `Program exited with code ${executed.exitCode}:`,
-              })
-              return
-            }
-            await effects.setHealth({
-              id: healthId,
-              name: value.name,
-              result: "success",
-              message,
-            })
-            return
-          } else {
-            actionProcedure
-            const moduleCode = await this.system.moduleCode
-            const method = moduleCode.health?.[healthId]
-            if (!method) {
-              await effects.setHealth({
-                id: healthId,
-                name: value.name,
-                result: "failure",
-                message: `Expecting that the js health check ${healthId} exists`,
-              })
-              return
-            }
-
-            const result = await method(
-              polyfillEffects(effects, this.system.manifest),
-              timeChanged,
-            )
-
-            if ("result" in result) {
-              await effects.setHealth({
-                id: healthId,
-                name: value.name,
-                result: "success",
-                message: null,
-              })
-              return
-            }
-            if ("error" in result) {
-              await effects.setHealth({
-                id: healthId,
-                name: value.name,
-                result: "failure",
-                message: result.error,
-              })
-              return
-            }
-            if (!("error-code" in result)) {
-              await effects.setHealth({
-                id: healthId,
-                name: value.name,
-                result: "failure",
-                message: `Unknown error type ${JSON.stringify(result)}`,
-              })
-              return
-            }
-            const [code, message] = result["error-code"]
-            if (code === 59) {
-              await effects.setHealth({
-                id: healthId,
-                name: value.name,
-                result: "disabled",
                 message,
               })
               return
-            }
-            if (code === 60) {
-              await effects.setHealth({
-                id: healthId,
-                name: value.name,
-                result: "starting",
-                message,
-              })
-              return
-            }
-            if (code === 61) {
-              await effects.setHealth({
-                id: healthId,
-                name: value.name,
-                result: "loading",
-                message,
-              })
-              return
-            }
+            } else {
+              actionProcedure
+              const moduleCode = await this.system.moduleCode
+              const method = moduleCode.health?.[healthId]
+              if (!method) {
+                await effects.setHealth({
+                  id: healthId,
+                  name: value.name,
+                  result: "failure",
+                  message: `Expecting that the js health check ${healthId} exists`,
+                })
+                return
+              }
 
-            await effects.setHealth({
-              id: healthId,
-              name: value.name,
-              result: "failure",
-              message: `${result["error-code"][0]}: ${result["error-code"][1]}`,
-            })
-            return
+              const result = await method(
+                polyfillEffects(effects, this.system.manifest),
+                timeChanged,
+              )
+
+              if ("result" in result) {
+                await effects.setHealth({
+                  id: healthId,
+                  name: value.name,
+                  result: "success",
+                  message: null,
+                })
+                return
+              }
+              if ("error" in result) {
+                await effects.setHealth({
+                  id: healthId,
+                  name: value.name,
+                  result: "failure",
+                  message: result.error,
+                })
+                return
+              }
+              if (!("error-code" in result)) {
+                await effects.setHealth({
+                  id: healthId,
+                  name: value.name,
+                  result: "failure",
+                  message: `Unknown error type ${JSON.stringify(result)}`,
+                })
+                return
+              }
+              const [code, message] = result["error-code"]
+              if (code === 59) {
+                await effects.setHealth({
+                  id: healthId,
+                  name: value.name,
+                  result: "disabled",
+                  message,
+                })
+                return
+              }
+              if (code === 60) {
+                await effects.setHealth({
+                  id: healthId,
+                  name: value.name,
+                  result: "starting",
+                  message,
+                })
+                return
+              }
+              if (code === 61) {
+                await effects.setHealth({
+                  id: healthId,
+                  name: value.name,
+                  result: "loading",
+                  message,
+                })
+                return
+              }
+
+              await effects.setHealth({
+                id: healthId,
+                name: value.name,
+                result: "failure",
+                message: `${result["error-code"][0]}: ${result["error-code"][1]}`,
+              })
+              return
+            }
+          } catch (e) {
+            await effects
+              .setHealth({
+                id: healthId,
+                name: value.name,
+                result: "failure",
+                message: `${e}`,
+              })
+              .catch(console.error)
           }
         }, EMBASSY_HEALTH_INTERVAL)
 
