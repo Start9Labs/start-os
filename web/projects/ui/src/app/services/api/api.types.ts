@@ -219,6 +219,44 @@ export module RR {
 
   // package
 
+  export type InitAcmeReq = {
+    provider: 'letsencrypt' | 'letsencrypt-staging' | string
+    contact: string[]
+  }
+  export type InitAcmeRes = null
+
+  export type RemoveAcmeReq = {
+    provider: string
+  }
+  export type RemoveAcmeRes = null
+
+  export type BindingSetPublicReq = {
+    // package.host.binding.set-public
+    package: T.PackageId // string
+    host: T.HostId // string
+    internalPort: number
+    public: boolean | null // default true
+  }
+  export type BindingSetPublicRes = null
+
+  export type AddDomainReq = {
+    // package.host.address.domain.add
+    package: T.PackageId // string
+    host: T.HostId // string
+    domain: string // FQDN
+    private: boolean
+    acme: string | null // "letsencrypt" | "letsencrypt-staging" | Url | null
+  }
+  export type AddDomainRes = null
+
+  export type RemoveDomainReq = {
+    // package.host.address.domain.remove
+    package: T.PackageId // string
+    host: T.HostId // string
+    domain: string // FQDN
+  }
+  export type RemoveDomainRes = null
+
   export type GetPackageLogsReq = ServerLogsReq & { id: string } // package.logs
   export type GetPackageLogsRes = LogsRes
 

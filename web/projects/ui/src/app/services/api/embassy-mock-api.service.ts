@@ -19,16 +19,7 @@ import {
 import { CifsBackupTarget, RR } from './api.types'
 import { Mock } from './api.fixures'
 import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
-import {
-  from,
-  interval,
-  map,
-  Observable,
-  shareReplay,
-  startWith,
-  Subject,
-  tap,
-} from 'rxjs'
+import { from, interval, map, shareReplay, startWith, Subject, tap } from 'rxjs'
 import { mockPatchData } from './mock-patch'
 import { AuthService } from '../auth.service'
 import { T } from '@start9labs/start-sdk'
@@ -1062,6 +1053,114 @@ export class MockApiService extends ApiService {
       upload: 'sideload-upload-guid', // no significance, randomly generated
       progress: 'sideload-progress-guid', // no significance, randomly generated
     }
+  }
+
+  async initAcme(params: RR.InitAcmeReq): Promise<RR.InitAcmeRes> {
+    await pauseFor(2000)
+
+    const providerUrl =
+      params.provider === 'letsencrypt'
+        ? 'https://acme-v02.api.letsencrypt.org/directory'
+        : params.provider === 'letsencrypt-staging'
+        ? 'https://acme-staging-v02.api.letsencrypt.org/directory'
+        : params.provider
+
+    const patch = [
+      {
+        op: PatchOp.ADD,
+        path: `/serverInfo/acme`,
+        value: {
+          [providerUrl]: { contact: [params.contact] },
+        },
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async removeAcme(params: RR.RemoveAcmeReq): Promise<RR.RemoveAcmeRes> {
+    await pauseFor(2000)
+
+    const regex = new RegExp('/', 'g')
+
+    const patch: RemoveOperation[] = [
+      {
+        op: PatchOp.REMOVE,
+        path: `/serverInfo/acme/${params.provider.replace(regex, '~1')}`,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async bindingSetPubic(
+    params: RR.BindingSetPublicReq,
+  ): Promise<RR.BindingSetPublicRes> {
+    await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/packageData/${params.package}/hosts/${params.host}/bindings/${params.internalPort}/net/public`,
+        value: params.public,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes> {
+    await pauseFor(2000)
+
+    const patch: Operation<any>[] = [
+      {
+        op: PatchOp.ADD,
+        path: `/packageData/${params.package}/hosts/${params.host}/domains`,
+        value: {
+          [params.domain]: { public: !params.private, acme: params.acme },
+        },
+      },
+      {
+        op: PatchOp.ADD,
+        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
+        value: {
+          kind: 'ip',
+          networkInterfaceId: 'eth0',
+          public: false,
+          hostname: {
+            kind: 'domain',
+            domain: params.domain,
+            subdomain: null,
+            port: null,
+            sslPort: 443,
+          },
+        },
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async removeDomain(params: RR.RemoveDomainReq): Promise<RR.RemoveDomainRes> {
+    await pauseFor(2000)
+
+    const patch: RemoveOperation[] = [
+      {
+        op: PatchOp.REMOVE,
+        path: `/packageData/${params.package}/hosts/${params.host}/domains/${params.domain}`,
+      },
+      {
+        op: PatchOp.REMOVE,
+        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
   }
 
   private async initProgress(): Promise<T.FullProgress> {

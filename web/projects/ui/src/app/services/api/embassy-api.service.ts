@@ -259,4 +259,16 @@ export abstract class ApiService {
   ): Promise<RR.UninstallPackageRes>
 
   abstract sideloadPackage(): Promise<RR.SideloadPackageRes>
+
+  abstract initAcme(params: RR.InitAcmeReq): Promise<RR.InitAcmeRes>
+
+  abstract removeAcme(params: RR.RemoveAcmeReq): Promise<RR.RemoveAcmeRes>
+
+  abstract bindingSetPubic(
+    params: RR.BindingSetPublicReq,
+  ): Promise<RR.BindingSetPublicRes>
+
+  abstract addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes>
+
+  abstract removeDomain(params: RR.RemoveDomainReq): Promise<RR.RemoveDomainRes>
 }

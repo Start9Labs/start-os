@@ -1772,7 +1772,21 @@ export module Mock {
     hosts: {
       abcdefg: {
         kind: 'multi',
-        bindings: [],
+        bindings: {
+          80: {
+            enabled: true,
+            net: {
+              assignedPort: 80,
+              assignedSslPort: 443,
+              public: false,
+            },
+            options: {
+              addSsl: null,
+              preferredExternalPort: 443,
+              secure: { ssl: true },
+            },
+          },
+        },
         onions: [],
         domains: {},
         hostnameInfo: {
@@ -1858,7 +1872,21 @@ export module Mock {
       },
       bcdefgh: {
         kind: 'multi',
-        bindings: [],
+        bindings: {
+          8332: {
+            enabled: true,
+            net: {
+              assignedPort: 8332,
+              assignedSslPort: null,
+              public: false,
+            },
+            options: {
+              addSsl: null,
+              preferredExternalPort: 8332,
+              secure: { ssl: false },
+            },
+          },
+        },
         onions: [],
         domains: {},
         hostnameInfo: {
@@ -1867,7 +1895,21 @@ export module Mock {
       },
       cdefghi: {
         kind: 'multi',
-        bindings: [],
+        bindings: {
+          8333: {
+            enabled: true,
+            net: {
+              assignedPort: 8333,
+              assignedSslPort: null,
+              public: false,
+            },
+            options: {
+              addSsl: null,
+              preferredExternalPort: 8333,
+              secure: { ssl: false },
+            },
+          },
+        },
         onions: [],
         domains: {},
         hostnameInfo: {

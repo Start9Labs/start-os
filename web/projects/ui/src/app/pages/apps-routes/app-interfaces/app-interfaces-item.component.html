@@ -13,6 +13,15 @@
   <ion-label>
     <h1>{{ iFace.name }}</h1>
     <h2>{{ iFace.description }}</h2>
+    <ion-button style="margin-right: 8px" (click)="presentDomainForm()">
+      Add Domain
+    </ion-button>
+    <ion-button
+      [color]="iFace.public ? 'danger' : 'success'"
+      (click)="togglePublic()"
+    >
+      Make {{ iFace.public ? 'Private' : 'Public' }}
+    </ion-button>
   </ion-label>
 </ion-item>
 <div *ngIf="iFace" style="padding-left: 64px">
@@ -20,6 +29,14 @@
     <ion-label>
       <h2>{{ address.name }}</h2>
       <p>{{ address.url }}</p>
+      <p *ngIf="address.isDomain">ACME: {{ address.acme || 'system CA' }}</p>
+      <ion-button
+        *ngIf="address.isDomain"
+        color="danger"
+        (click)="removeDomain(address.url)"
+      >
+        Remove
+      </ion-button>
     </ion-label>
     <ion-buttons slot="end">
       <ion-button

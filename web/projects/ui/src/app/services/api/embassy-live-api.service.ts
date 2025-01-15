@@ -516,6 +516,43 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  async removeAcme(params: RR.RemoveAcmeReq): Promise<RR.RemoveAcmeRes> {
+    return this.rpcRequest({
+      method: 'net.acme.delete',
+      params,
+    })
+  }
+
+  async initAcme(params: RR.InitAcmeReq): Promise<RR.InitAcmeRes> {
+    return this.rpcRequest({
+      method: 'net.acme.init',
+      params,
+    })
+  }
+
+  async bindingSetPubic(
+    params: RR.BindingSetPublicReq,
+  ): Promise<RR.BindingSetPublicRes> {
+    return this.rpcRequest({
+      method: 'package.host.binding.set-public',
+      params,
+    })
+  }
+
+  async addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes> {
+    return this.rpcRequest({
+      method: 'package.host.address.domain.add',
+      params,
+    })
+  }
+
+  async removeDomain(params: RR.RemoveDomainReq): Promise<RR.RemoveDomainRes> {
+    return this.rpcRequest({
+      method: 'package.host.address.domain.remove',
+      params,
+    })
+  }
+
   private async rpcRequest<T>(
     options: RPCOptions,
     urlOverride?: string,

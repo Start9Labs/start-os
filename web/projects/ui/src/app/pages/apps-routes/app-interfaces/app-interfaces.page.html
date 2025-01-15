@@ -16,6 +16,7 @@
       <app-interfaces-item
         *ngFor="let ui of serviceInterfaces.ui"
         [iFace]="ui"
+        [pkgId]="pkgId"
       ></app-interfaces-item>
     </ng-container>
 
@@ -24,6 +25,7 @@
       <app-interfaces-item
         *ngFor="let api of serviceInterfaces.api"
         [iFace]="api"
+        [pkgId]="pkgId"
       ></app-interfaces-item>
     </ng-container>
 
@@ -32,6 +34,7 @@
       <app-interfaces-item
         *ngFor="let p2p of serviceInterfaces.p2p"
         [iFace]="p2p"
+        [pkgId]="pkgId"
       ></app-interfaces-item>
     </ng-container>
   </ion-item-group>

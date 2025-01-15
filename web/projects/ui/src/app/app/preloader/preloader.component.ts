@@ -45,7 +45,7 @@ const ICONS = [
   'eye-off-outline',
   'eye-outline',
   'file-tray-stacked-outline',
-  'finger-print-outline',
+  'finger-print',
   'flash-outline',
   'folder-open-outline',
   'globe-outline',
