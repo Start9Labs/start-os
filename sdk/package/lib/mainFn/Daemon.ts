@@ -22,7 +22,7 @@ export class Daemon {
       effects: T.Effects,
       subcontainer:
         | {
-            id: keyof Manifest["images"] & T.ImageId
+            imageId: keyof Manifest["images"] & T.ImageId
             sharedRun?: boolean
           }
         | SubContainer,

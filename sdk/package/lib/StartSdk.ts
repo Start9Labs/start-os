@@ -215,18 +215,14 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           }),
       },
 
-      host: {
-        // static: (effects: Effects, id: string) =>
-        //   new StaticHost({ id, effects }),
-        // single: (effects: Effects, id: string) =>
-        //   new SingleHost({ id, effects }),
-        multi: (effects: Effects, id: string) => new MultiHost({ id, effects }),
+      MultiHost: {
+        of: (effects: Effects, id: string) => new MultiHost({ id, effects }),
       },
       nullIfEmpty,
       runCommand: async <A extends string>(
         effects: Effects,
         image: {
-          id: keyof Manifest["images"] & T.ImageId
+          imageId: keyof Manifest["images"] & T.ImageId
           sharedRun?: boolean
         },
         command: T.CommandType,
@@ -548,7 +544,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           inputSpecSpec,
           async ({ effects, input }) => {
             // ** UI multi-host **
-            const uiMulti = sdk.host.multi(effects, 'ui-multi')
+            const uiMulti = sdk.MultiHost.of(effects, 'ui-multi')
             const uiMultiOrigin = await uiMulti.bindPort(80, {
               protocol: 'http',
             })
@@ -580,7 +576,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
             const uiReceipt = await uiMultiOrigin.export([primaryUi, adminUi])
        
             // ** API multi-host **
-            const apiMulti = sdk.host.multi(effects, 'api-multi')
+            const apiMulti = sdk.MultiHost.of(effects, 'api-multi')
             const apiMultiOrigin = await apiMulti.bindPort(5959, {
               protocol: 'http',
             })
@@ -685,7 +681,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         of(
           effects: Effects,
           image: {
-            id: T.ImageId & keyof Manifest["images"]
+            imageId: T.ImageId & keyof Manifest["images"]
             sharedRun?: boolean
           },
           name: string,
@@ -1414,7 +1410,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
 
 export async function runCommand<Manifest extends T.SDKManifest>(
   effects: Effects,
-  image: { id: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
+  image: { imageId: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
   command: string | [string, ...string[]],
   options: CommandOptions & {
     mounts?: { path: string; options: MountOptions }[]

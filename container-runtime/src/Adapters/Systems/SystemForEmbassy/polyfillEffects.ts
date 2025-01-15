@@ -109,7 +109,7 @@ export const polyfillEffects = (
       return startSdk
         .runCommand(
           effects,
-          { id: manifest.main.image },
+          { imageId: manifest.main.image },
           commands,
           {},
           commands.join(" "),
@@ -165,7 +165,7 @@ export const polyfillEffects = (
       await startSdk
         .runCommand(
           effects,
-          { id: manifest.main.image },
+          { imageId: manifest.main.image },
           commands,
           {
             mounts: [
@@ -207,7 +207,7 @@ export const polyfillEffects = (
       await startSdk
         .runCommand(
           effects,
-          { id: manifest.main.image },
+          { imageId: manifest.main.image },
           commands,
           {
             mounts: [

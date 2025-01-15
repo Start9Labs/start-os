@@ -114,7 +114,7 @@ async fn list_interfaces(
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
 #[ts(export)]
-struct SetPublicParams {
+struct NetworkInterfaceSetPublicParams {
     #[ts(type = "string")]
     interface: InternedString,
     public: Option<bool>,
@@ -122,7 +122,7 @@ struct SetPublicParams {
 
 async fn set_public(
     ctx: RpcContext,
-    SetPublicParams { interface, public }: SetPublicParams,
+    NetworkInterfaceSetPublicParams { interface, public }: NetworkInterfaceSetPublicParams,
 ) -> Result<(), Error> {
     ctx.net_controller
         .net_iface

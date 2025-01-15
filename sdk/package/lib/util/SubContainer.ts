@@ -86,12 +86,12 @@ export class SubContainer implements ExecSpawnable {
   }
   static async of(
     effects: T.Effects,
-    image: { id: T.ImageId; sharedRun?: boolean },
+    image: { imageId: T.ImageId; sharedRun?: boolean },
     name: string,
   ) {
-    const { id, sharedRun } = image
+    const { imageId, sharedRun } = image
     const [rootfs, guid] = await effects.subcontainer.createFs({
-      imageId: id as string,
+      imageId,
       name,
     })
 
@@ -111,12 +111,12 @@ export class SubContainer implements ExecSpawnable {
       await execFile("mount", ["--rbind", from, to])
     }
 
-    return new SubContainer(effects, id, rootfs, guid)
+    return new SubContainer(effects, imageId, rootfs, guid)
   }
 
   static async with<T>(
     effects: T.Effects,
-    image: { id: T.ImageId; sharedRun?: boolean },
+    image: { imageId: T.ImageId; sharedRun?: boolean },
     mounts: { options: MountOptions; path: string }[],
     name: string,
     fn: (subContainer: SubContainer) => Promise<T>,

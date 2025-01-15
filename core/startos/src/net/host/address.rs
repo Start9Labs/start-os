@@ -11,12 +11,18 @@ use crate::net::acme::AcmeProvider;
 use crate::prelude::*;
 use crate::util::serde::{display_serializable, HandlerExtSerde};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "kebab-case")]
+#[serde(rename_all_fields = "camelCase")]
+#[serde(tag = "kind")]
+#[ts(export)]
 pub enum HostAddress {
     Onion {
+        #[ts(type = "string")]
         address: OnionAddressV3,
     },
     Domain {
+        #[ts(type = "string")]
         address: InternedString,
         public: bool,
         acme: Option<AcmeProvider>,
