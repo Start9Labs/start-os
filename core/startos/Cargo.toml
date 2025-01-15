@@ -14,7 +14,7 @@ keywords = [
 name = "start-os"
 readme = "README.md"
 repository = "https://github.com/Start9Labs/start-os"
-version = "0.3.6-alpha.10"
+version = "0.3.6-alpha.11"
 license = "MIT"
 
 [lib]
@@ -226,7 +226,7 @@ zbus = "5.1.1"
 zeroize = "1.6.0"
 mail-send = { git = "https://github.com/dr-bonez/mail-send.git", branch = "main" }
 rustls = "0.23.20"
-rustls-pki-types = { version = "1.10.1", features = ["alloc"]}
+rustls-pki-types = { version = "1.10.1", features = ["alloc"] }
 
 [profile.test]
 opt-level = 3

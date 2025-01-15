@@ -28,8 +28,9 @@ mod v0_3_6_alpha_8;
 mod v0_3_6_alpha_9;
 
 mod v0_3_6_alpha_10;
+mod v0_3_6_alpha_11;
 
-pub type Current = v0_3_6_alpha_10::Version; // VERSION_BUMP
+pub type Current = v0_3_6_alpha_11::Version; // VERSION_BUMP
 
 impl Current {
     #[instrument(skip(self, db))]
@@ -109,6 +110,7 @@ enum Version {
     V0_3_6_alpha_8(Wrapper<v0_3_6_alpha_8::Version>),
     V0_3_6_alpha_9(Wrapper<v0_3_6_alpha_9::Version>),
     V0_3_6_alpha_10(Wrapper<v0_3_6_alpha_10::Version>),
+    V0_3_6_alpha_11(Wrapper<v0_3_6_alpha_11::Version>),
     Other(exver::Version),
 }
 
@@ -143,6 +145,7 @@ impl Version {
             Self::V0_3_6_alpha_8(v) => DynVersion(Box::new(v.0)),
             Self::V0_3_6_alpha_9(v) => DynVersion(Box::new(v.0)),
             Self::V0_3_6_alpha_10(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_11(v) => DynVersion(Box::new(v.0)),
             Self::Other(v) => {
                 return Err(Error::new(
                     eyre!("unknown version {v}"),
@@ -169,6 +172,7 @@ impl Version {
             Version::V0_3_6_alpha_8(Wrapper(x)) => x.semver(),
             Version::V0_3_6_alpha_9(Wrapper(x)) => x.semver(),
             Version::V0_3_6_alpha_10(Wrapper(x)) => x.semver(),
+            Version::V0_3_6_alpha_11(Wrapper(x)) => x.semver(),
             Version::Other(x) => x.clone(),
         }
     }
