@@ -33,7 +33,7 @@ impl VersionT for Version {
             &mut db["public"]["serverInfo"]["acme"],
             Value::Object(Default::default()),
         );
-        if !acme.is_null() {
+        if !acme.is_null() && !acme["provider"].is_null() {
             db["public"]["serverInfo"]["acme"]
                 [&acme["provider"].as_str().or_not_found("provider")?] =
                 json!({ "contact": &acme["contact"] });
