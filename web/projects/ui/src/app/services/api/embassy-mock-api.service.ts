@@ -557,6 +557,41 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  // smtp
+
+  async setSmtp(params: RR.SetSMTPReq): Promise<RR.SetSMTPRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/smtp',
+        value: params,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async clearSmtp(params: RR.ClearSMTPReq): Promise<RR.ClearSMTPRes> {
+    await pauseFor(2000)
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/smtp',
+        value: null,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async testSmtp(params: RR.TestSMTPReq): Promise<RR.TestSMTPRes> {
+    await pauseFor(2000)
+    return null
+  }
+
   // ssh
 
   async getSshKeys(params: RR.GetSSHKeysReq): Promise<RR.GetSSHKeysRes> {

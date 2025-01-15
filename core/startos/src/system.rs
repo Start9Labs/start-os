@@ -7,7 +7,7 @@ use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::FutureExt;
 use imbl::vector;
-use mail_send::mail_builder::MessageBuilder;
+use mail_send::mail_builder::{self, MessageBuilder};
 use mail_send::SmtpClientBuilder;
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use rustls::crypto::CryptoProvider;
@@ -878,15 +878,33 @@ pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
     }
     Ok(())
 }
-pub async fn test_system_smtp(
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct TestSmtpParams {
+    #[arg(long)]
+    pub server: String,
+    #[arg(long)]
+    pub port: u16,
+    #[arg(long)]
+    pub from: String,
+    #[arg(long)]
+    pub to: String,
+    #[arg(long)]
+    pub login: String,
+    #[arg(long)]
+    pub password: Option<String>,
+}
+pub async fn test_smtp(
     _: RpcContext,
-    SmtpValue {
+    TestSmtpParams {
         server,
         port,
         from,
+        to,
         login,
         password,
-    }: SmtpValue,
+    }: TestSmtpParams,
 ) -> Result<(), Error> {
     use rustls_pki_types::pem::PemObject;
 
@@ -913,17 +931,35 @@ pub async fn test_system_smtp(
     );
     let client = SmtpClientBuilder::new_with_tls_config(server, port, cfg)
         .implicit_tls(false)
-        .credentials((login.clone().split_once("@").unwrap().0.to_owned(), pass_val));
+        .credentials((login.split("@").next().unwrap().to_owned(), pass_val));
+
+    fn parse_address<'a>(addr: &'a str) -> mail_builder::headers::address::Address<'a> {
+        if addr.find("<").map_or(false, |start| {
+            addr.find(">").map_or(false, |end| start < end)
+        }) {
+            addr.split_once("<")
+                .map(|(name, addr)| (name.trim(), addr.strip_suffix(">").unwrap_or(addr)))
+                .unwrap()
+                .into()
+        } else {
+            addr.into()
+        }
+    }
 
     let message = MessageBuilder::new()
-        .from((from.clone(), login.clone()))
-        .to(vec![(from, login)])
+        .from(parse_address(&from))
+        .to(parse_address(&to))
         .subject("StartOS Test Email")
         .text_body("This is a test email sent from your StartOS Server");
     client
         .connect()
         .await
-        .map_err(|e| Error::new(eyre!("mail-send connection error: {:?}", e), ErrorKind::Unknown))?
+        .map_err(|e| {
+            Error::new(
+                eyre!("mail-send connection error: {:?}", e),
+                ErrorKind::Unknown,
+            )
+        })?
         .send(message)
         .await
         .map_err(|e| Error::new(eyre!("mail-send send error: {:?}", e), ErrorKind::Unknown))?;

@@ -26,8 +26,12 @@ export const torUrl =
 // https://ihateregex.io/expr/ascii/
 export const ascii = /^[ -~]*$/
 
-//https://ihateregex.io/expr/email/
-export const email = /[^@ \t\r\n]+@[^@ \t\r\n]+\.[^@ \t\r\n]+/
+// https://www.regular-expressions.info/email.html
+export const email = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/
+
+export const emailWithName = new RegExp(
+  `(${email.source})|([^<]*<(${email.source})>)`,
+)
 
 //https://rgxdb.com/r/1NUN74O6
 export const base64 =

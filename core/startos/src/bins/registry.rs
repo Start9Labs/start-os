@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 
 use clap::Parser;
-use futures::{FutureExt};
+use futures::FutureExt;
 use tokio::signal::unix::signal;
 use tracing::instrument;
 

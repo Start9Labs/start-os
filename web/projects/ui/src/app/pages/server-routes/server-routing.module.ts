@@ -76,9 +76,14 @@ const routes: Routes = [
       import('./ssh-keys/ssh-keys.module').then(m => m.SSHKeysPageModule),
   },
   {
-    path: 'wireless',
+    path: 'wifi',
     loadChildren: () =>
       import('./wifi/wifi.module').then(m => m.WifiPageModule),
+  },
+  {
+    path: 'email',
+    loadChildren: () =>
+      import('./email/email.module').then(m => m.EmailPageModule),
   },
 ]
 
