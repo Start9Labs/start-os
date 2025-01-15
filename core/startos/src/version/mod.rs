@@ -10,6 +10,7 @@ use imbl_value::{to_value, InternedString};
 use patch_db::json_ptr::ROOT;
 
 use crate::context::RpcContext;
+use crate::db::model::Database;
 use crate::prelude::*;
 use crate::Error;
 
@@ -53,6 +54,7 @@ impl Current {
                 let pre_ups = PreUps::load(&from, &self).await?;
                 db.apply_function(|mut db| {
                     migrate_from_unchecked(&from, &self, pre_ups, &mut db)?;
+                    from_value::<Database>(db.clone())?;
                     Ok::<_, Error>((db, ()))
                 })
                 .await?;
