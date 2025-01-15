@@ -39,6 +39,42 @@ impl VersionT for Version {
                 json!({ "contact": &acme["contact"] });
         }
 
+        for (_, package) in db["public"]["packageData"]
+            .as_object_mut()
+            .ok_or_else(|| {
+                Error::new(
+                    eyre!("expected public.packageData to be an object"),
+                    ErrorKind::Database,
+                )
+            })?
+            .iter_mut()
+        {
+            for (_, host) in package["hosts"]
+                .as_object_mut()
+                .ok_or_else(|| {
+                    Error::new(
+                        eyre!("expected public.packageData[id].hosts to be an object"),
+                        ErrorKind::Database,
+                    )
+                })?
+                .iter_mut()
+            {
+                for (_, bind) in host["bindings"]
+                    .as_object_mut()
+                    .ok_or_else(|| {
+                        Error::new(
+                            eyre!("expected public.packageData[id].hosts[hostId].bindings to be an object"),
+                            ErrorKind::Database,
+                        )
+                    })?
+                    .iter_mut()
+                {
+                    bind["net"] = bind["lan"].clone();
+                    bind["net"]["public"] = Value::Bool(false);
+                }
+            }
+        }
+
         Ok(())
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {
