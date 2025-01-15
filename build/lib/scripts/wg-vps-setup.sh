@@ -9,7 +9,7 @@ NC='\033[0m' # No Color
 
 # --- Constants ---
 readonly WIREGUARD_INSTALL_URL="https://raw.githubusercontent.com/k0gen/wireguard-install/master/wireguard-install.sh"
-readonly SSH_KEY_DIR="/etc/NetworkManager/system-connections"
+readonly SSH_KEY_DIR="/home/start9/.ssh"
 readonly SSH_KEY_NAME="id_ed25519"
 readonly SSH_PRIVATE_KEY="$SSH_KEY_DIR/$SSH_KEY_NAME"
 readonly SSH_PUBLIC_KEY="$SSH_PRIVATE_KEY.pub"
