@@ -108,6 +108,7 @@ EOF
 rm -rf /var/lib/tor/*
 ln -sf /usr/lib/startos/scripts/tor-check.sh /usr/bin/tor-check
 ln -sf /usr/lib/startos/scripts/gather_debug_info.sh /usr/bin/gather-debug
+ln -sf /usr/lib/startos/scripts/wg-vps-setup.sh /usr/bin/wg-vps-setup
 
 echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-startos.conf
 
