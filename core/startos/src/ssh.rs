@@ -14,9 +14,9 @@ use ts_rs::TS;
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::util::io::create_file;
-use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
+use crate::util::serde::{display_serializable, HandlerExtSerde, Pem, WithIoFormat};
 
-pub const SSH_AUTHORIZED_KEYS_FILE: &str = "/home/start9/.ssh/authorized_keys";
+pub const SSH_DIR: &str = "/home/start9/.ssh";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SshKeys(BTreeMap<InternedString, WithTimeData<SshPubKey>>);
@@ -143,7 +143,7 @@ pub async fn add(ctx: RpcContext, AddParams { key }: AddParams) -> Result<SshKey
             ))
         })
         .await?;
-    sync_keys(&keys, SSH_AUTHORIZED_KEYS_FILE).await?;
+    sync_pubkeys(&keys, SSH_DIR).await?;
     Ok(res)
 }
 
@@ -175,7 +175,7 @@ pub async fn delete(
             }
         })
         .await?;
-    sync_keys(&keys, SSH_AUTHORIZED_KEYS_FILE).await
+    sync_pubkeys(&keys, SSH_DIR).await
 }
 
 fn display_all_ssh_keys(params: WithIoFormat<Empty>, result: Vec<SshKeyResponse>) {
@@ -226,23 +226,67 @@ pub async fn list(ctx: RpcContext) -> Result<Vec<SshKeyResponse>, Error> {
 }
 
 #[instrument(skip_all)]
-pub async fn sync_keys<P: AsRef<Path>>(keys: &SshKeys, dest: P) -> Result<(), Error> {
+pub async fn sync_keys<P: AsRef<Path>>(
+    privkey: &Pem<ssh_key::PrivateKey>,
+    pubkeys: &SshKeys,
+    ssh_dir: P,
+) -> Result<(), Error> {
     use tokio::io::AsyncWriteExt;
 
-    let dest = dest.as_ref();
-    let ssh_dir = dest.parent().ok_or_else(|| {
-        Error::new(
-            eyre!("SSH Key File cannot be \"/\""),
-            crate::ErrorKind::Filesystem,
-        )
-    })?;
+    let ssh_dir = ssh_dir.as_ref();
     if tokio::fs::metadata(ssh_dir).await.is_err() {
         tokio::fs::create_dir_all(ssh_dir).await?;
     }
-    let mut f = create_file(dest).await?;
-    for key in keys.0.values() {
+
+    let id_alg = if privkey.0.algorithm().is_ed25519() {
+        "id_ed25519"
+    } else if privkey.0.algorithm().is_ecdsa() {
+        "id_ecdsa"
+    } else if privkey.0.algorithm().is_rsa() {
+        "id_rsa"
+    } else {
+        "id_unknown"
+    };
+    let mut f = create_file(ssh_dir.join(id_alg)).await?;
+    f.write_all(privkey.to_string().as_bytes()).await?;
+    f.write_all(b"\n").await?;
+    f.sync_all().await?;
+    let mut f = create_file(ssh_dir.join(id_alg).with_extension("pub")).await?;
+    f.write_all(
+        privkey
+            .0
+            .public_key()
+            .to_openssh()
+            .with_kind(ErrorKind::OpenSsh)?
+            .as_bytes(),
+    )
+    .await?;
+    f.write_all(b"\n").await?;
+    f.sync_all().await?;
+
+    let mut f = create_file(ssh_dir.join("authorized_keys")).await?;
+    for key in pubkeys.0.values() {
         f.write_all(key.0.to_key_format().as_bytes()).await?;
         f.write_all(b"\n").await?;
     }
+
+    Ok(())
+}
+
+#[instrument(skip_all)]
+pub async fn sync_pubkeys<P: AsRef<Path>>(pubkeys: &SshKeys, ssh_dir: P) -> Result<(), Error> {
+    use tokio::io::AsyncWriteExt;
+
+    let ssh_dir = ssh_dir.as_ref();
+    if tokio::fs::metadata(ssh_dir).await.is_err() {
+        tokio::fs::create_dir_all(ssh_dir).await?;
+    }
+
+    let mut f = create_file(ssh_dir.join("authorized_keys")).await?;
+    for key in pubkeys.0.values() {
+        f.write_all(key.0.to_key_format().as_bytes()).await?;
+        f.write_all(b"\n").await?;
+    }
+
     Ok(())
 }
