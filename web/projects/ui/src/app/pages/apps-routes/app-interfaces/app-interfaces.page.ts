@@ -297,9 +297,7 @@ function getDomainSpec(acme: string[]) {
       placeholder: `e.g. 'mydomain.com' or 'sub.mydomain.com'`,
       required: true,
       default: null,
-      patterns: [
-        // utils.Patterns.domain
-      ],
+      patterns: [utils.Patterns.domain],
     }),
     acme: ISB.Value.select({
       name: 'ACME Provider',
