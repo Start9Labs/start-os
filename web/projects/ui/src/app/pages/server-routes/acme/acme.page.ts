@@ -59,12 +59,14 @@ export class ACMEPage {
   private async saveAcme(val: typeof acmeSpec._TYPE) {
     const loader = this.loader.open('Saving').subscribe()
 
+    const rawUrl =
+      val.provider.selection === 'other'
+        ? val.provider.value.url
+        : val.provider.selection
+
     try {
       await this.api.initAcme({
-        provider:
-          val.provider.selection === 'other'
-            ? val.provider.value.url
-            : val.provider.selection,
+        provider: new URL(rawUrl).href,
         contact: [`mailto:${val.contact}`],
       })
       return true
