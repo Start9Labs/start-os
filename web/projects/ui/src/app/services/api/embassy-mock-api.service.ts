@@ -29,6 +29,7 @@ import {
   MarketplacePkg,
 } from '@start9labs/marketplace'
 import { WebSocketSubject } from 'rxjs/webSocket'
+import { toAcmeUrl } from 'src/app/util/acme'
 
 const PROGRESS: T.FullProgress = {
   overall: {
@@ -1058,19 +1059,12 @@ export class MockApiService extends ApiService {
   async initAcme(params: RR.InitAcmeReq): Promise<RR.InitAcmeRes> {
     await pauseFor(2000)
 
-    const providerUrl =
-      params.provider === 'letsencrypt'
-        ? 'https://acme-v02.api.letsencrypt.org/directory'
-        : params.provider === 'letsencrypt-staging'
-        ? 'https://acme-staging-v02.api.letsencrypt.org/directory'
-        : params.provider
-
     const patch = [
       {
         op: PatchOp.ADD,
         path: `/serverInfo/acme`,
         value: {
-          [providerUrl]: { contact: [params.contact] },
+          [toAcmeUrl(params.provider)]: { contact: [params.contact] },
         },
       },
     ]

@@ -36,7 +36,7 @@
       <ion-item *ngFor="let provider of acme | keyvalue">
         <ion-icon slot="start" name="finger-print" size="medium"></ion-icon>
         <ion-label>
-          <h2>{{ provider.key }}</h2>
+          <h2>{{ toAcmeName(provider.key) }}</h2>
           <p *ngFor="let contact of provider.value.contact">
             Contact: {{ contact }}
           </p>

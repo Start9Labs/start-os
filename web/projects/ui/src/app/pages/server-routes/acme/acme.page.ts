@@ -7,6 +7,7 @@ import { FormDialogService } from '../../../services/form-dialog.service'
 import { FormComponent } from '../../../components/form.component'
 import { configBuilderToSpec } from '../../../util/configBuilderToSpec'
 import { ISB, utils } from '@start9labs/start-sdk'
+import { toAcmeName } from 'src/app/util/acme'
 
 @Component({
   selector: 'acme',
@@ -14,9 +15,11 @@ import { ISB, utils } from '@start9labs/start-sdk'
   styleUrls: ['acme.page.scss'],
 })
 export class ACMEPage {
-  readonly docsUrl = 'https://docs.start9.com/0.3.5.x/user-manual/ssh'
+  readonly docsUrl = 'https://docs.start9.com/0.3.6/user-manual/acme'
 
   acme$ = this.patch.watch$('serverInfo', 'acme')
+
+  toAcmeName = toAcmeName
 
   constructor(
     private readonly loader: LoadingService,

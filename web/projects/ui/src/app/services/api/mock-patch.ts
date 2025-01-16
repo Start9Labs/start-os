@@ -1,6 +1,7 @@
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Mock } from './api.fixures'
 import { BUILT_IN_WIDGETS } from '../../pages/widgets/built-in/widgets'
+import { knownACME } from 'src/app/util/acme'
 const version = require('../../../../../../package.json').version
 
 export const mockPatchData: DataModel = {
@@ -67,7 +68,7 @@ export const mockPatchData: DataModel = {
       },
     },
     acme: {
-      'https://acme-v02.api.letsencrypt.org/': {
+      [Object.keys(knownACME)[0]]: {
         contact: ['mailto:support@start9.com'],
       },
     },

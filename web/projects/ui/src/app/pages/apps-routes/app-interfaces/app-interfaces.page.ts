@@ -1,7 +1,11 @@
 import { Component, Inject, Input } from '@angular/core'
 import { WINDOW } from '@ng-web-apis/common'
 import { ActivatedRoute } from '@angular/router'
-import { ModalController, ToastController } from '@ionic/angular'
+import {
+  AlertController,
+  ModalController,
+  ToastController,
+} from '@ionic/angular'
 import {
   copyToClipboard,
   ErrorService,
@@ -17,6 +21,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { FormComponent } from 'src/app/components/form.component'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
+import { ACME_URL, toAcmeName } from 'src/app/util/acme'
 
 type MappedInterface = T.ServiceInterface & {
   addresses: MappedAddress[]
@@ -96,6 +101,7 @@ export class AppInterfacesItemComponent {
     private readonly loader: LoadingService,
     private readonly api: ApiService,
     private readonly formDialog: FormDialogService,
+    private readonly alertCtrl: AlertController,
     private readonly patch: PatchDB<DataModel>,
     @Inject(WINDOW) private readonly windowRef: Window,
   ) {}
@@ -157,6 +163,14 @@ export class AppInterfacesItemComponent {
     } finally {
       loader.unsubscribe()
     }
+  }
+
+  async showAcme(url: ACME_URL | string | null): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      header: 'ACME Provider',
+      message: toAcmeName(url),
+    })
+    await alert.present()
   }
 
   async showQR(text: string): Promise<void> {
@@ -306,7 +320,7 @@ function getDomainSpec(acme: string[]) {
       values: acme.reduce(
         (obj, url) => ({
           ...obj,
-          [url]: url,
+          [url]: toAcmeName(url),
         }),
         { none: 'None (use system Root CA)' } as Record<string, string>,
       ),
