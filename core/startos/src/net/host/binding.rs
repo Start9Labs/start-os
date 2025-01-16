@@ -195,6 +195,7 @@ pub fn binding<C: Context>() -> ParentHandler<C, BindingApiParams, PackageId> {
         .subcommand(
             "set-public",
             from_fn_async(set_public)
+                .with_metadata("sync_db", Value::Bool(true))
                 .with_inherited(|BindingApiParams { host }, package| (package, host))
                 .no_display()
                 .with_about("Add an binding to this host")

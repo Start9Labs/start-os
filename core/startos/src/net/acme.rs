@@ -173,13 +173,23 @@ impl<'a> async_acme::cache::AcmeCache for AcmeCertCache<'a> {
 }
 
 pub fn acme<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new().subcommand(
-        "init",
-        from_fn_async(init)
-            .no_display()
-            .with_about("Setup ACME certificate acquisition")
-            .with_call_remote::<CliContext>(),
-    )
+    ParentHandler::new()
+        .subcommand(
+            "init",
+            from_fn_async(init)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("Setup ACME certificate acquisition")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "remove",
+            from_fn_async(remove)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("Setup ACME certificate acquisition")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
@@ -226,6 +236,27 @@ pub async fn init(
                 .as_server_info_mut()
                 .as_acme_mut()
                 .insert(&provider, &AcmeSettings { contact })
+        })
+        .await?;
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+pub struct RemoveAcmeParams {
+    #[arg(long)]
+    pub provider: AcmeProvider,
+}
+
+pub async fn remove(
+    ctx: RpcContext,
+    RemoveAcmeParams { provider }: RemoveAcmeParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_acme_mut()
+                .remove(&provider)
         })
         .await?;
     Ok(())

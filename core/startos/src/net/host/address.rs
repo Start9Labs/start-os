@@ -48,6 +48,7 @@ pub fn address<C: Context>() -> ParentHandler<C, AddressApiParams, PackageId> {
                 .subcommand(
                     "add",
                     from_fn_async(add_domain)
+                        .with_metadata("sync_db", Value::Bool(true))
                         .with_inherited(|_, a| a)
                         .no_display()
                         .with_about("Add an address to this host")
@@ -56,6 +57,7 @@ pub fn address<C: Context>() -> ParentHandler<C, AddressApiParams, PackageId> {
                 .subcommand(
                     "remove",
                     from_fn_async(remove_domain)
+                        .with_metadata("sync_db", Value::Bool(true))
                         .with_inherited(|_, a| a)
                         .no_display()
                         .with_about("Remove an address from this host")
@@ -69,6 +71,7 @@ pub fn address<C: Context>() -> ParentHandler<C, AddressApiParams, PackageId> {
                 .subcommand(
                     "add",
                     from_fn_async(add_onion)
+                        .with_metadata("sync_db", Value::Bool(true))
                         .with_inherited(|_, a| a)
                         .no_display()
                         .with_about("Add an address to this host")
@@ -77,6 +80,7 @@ pub fn address<C: Context>() -> ParentHandler<C, AddressApiParams, PackageId> {
                 .subcommand(
                     "remove",
                     from_fn_async(remove_onion)
+                        .with_metadata("sync_db", Value::Bool(true))
                         .with_inherited(|_, a| a)
                         .no_display()
                         .with_about("Remove an address from this host")
