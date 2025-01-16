@@ -268,7 +268,7 @@ function getAddresses(
       if (hostnameKind === 'domain') {
         name = 'Domain'
         isDomain = true
-        acme = host.domains[h.hostname.domain].acme
+        acme = host.domains[h.hostname.domain]?.acme
       } else {
         name =
           hostnameKind === 'local'
