@@ -24,13 +24,14 @@ check_root() {
     if [[ "$EUID" -ne 0 ]]; then
         exec sudo "$0" "${SCRIPT_ARGS[@]}"
     fi
+    sudo chown -R start9:start9 "$SSH_KEY_DIR"
 }
 
 # Function to print banner
 print_banner() {
     echo -e "${BLUE}"
     echo "================================================"
-    echo "     StartOS WireGuard VPS Setup Tool              "
+    echo -e "     ${NC}StartOS WireGuard VPS Setup Tool${BLUE}              "
     echo "================================================"
     echo -e "${NC}"
 }
@@ -70,21 +71,6 @@ validate_ip() {
         return 0
     else
         return 1
-    fi
-}
-
-# Function to generate SSH key
-generate_ssh_key() {
-    echo -e "${BLUE}Generating SSH key...${NC}"
-    if [ ! -f "$SSH_PRIVATE_KEY" ]; then
-        ssh-keygen -t ed25519 -f "$SSH_PRIVATE_KEY" -N "" >/dev/null 2>&1
-        if [ $? -ne 0 ]; then
-            echo -e "${RED}Failed to generate SSH key.${NC}"
-            exit 1
-        fi
-        echo -e "${GREEN}SSH key generated successfully!${NC}"
-    else
-        echo -e "${YELLOW}SSH key already exists at '$SSH_PRIVATE_KEY', skipping key generation.${NC}"
     fi
 }
 
@@ -253,13 +239,17 @@ if [ -n "$CUSTOM_SSH_KEY" ]; then
     fi
     SSH_PRIVATE_KEY="$CUSTOM_SSH_KEY"
     SSH_PUBLIC_KEY="$CUSTOM_SSH_KEY.pub"
-    if [ ! -f "$SSH_PUBLIC_KEY" ]; then
-        echo -e "${RED}Public key '$SSH_PUBLIC_KEY' not found. Try to create it with 'ssh-keygen -y -f $SSH_PRIVATE_KEY > $SSH_PUBLIC_KEY'${NC}"
+else
+    # Use default StartOS SSH key
+    if [ ! -f "$SSH_PRIVATE_KEY" ]; then
+        echo -e "${RED}No SSH key found at default location '$SSH_PRIVATE_KEY'. Please ensure StartOS SSH keys are properly configured.${NC}"
         exit 1
     fi
-else
-    # Generate SSH key if it doesn't exist
-    generate_ssh_key
+fi
+
+if [ ! -f "$SSH_PUBLIC_KEY" ]; then
+    echo -e "${RED}Public key '$SSH_PUBLIC_KEY' not found. Please ensure both private and public keys exist.${NC}"
+    exit 1
 fi
 
 # If VPS_IP is not provided via command line, ask for it
@@ -281,18 +271,10 @@ echo "VPS IP: $VPS_IP"
 echo "SSH User: $SSH_USER"
 echo "SSH Port: $SSH_PORT"
 
-# Generate key or let user know it exist
-if [ -z "$CUSTOM_SSH_KEY" ]; then
-    if [ ! -f "$SSH_PRIVATE_KEY" ]; then
-        echo -e "\nSetting up SSH key-based authentication..."
-    else
-        echo -e "\nSSH key already exist, skipping generation"
-        echo -e "\nSetting up SSH key-based authentication..."
-    fi
-fi
+echo -e "\n${GREEN}Proceeding with SSH key-based authentication...${NC}\n"
 
 # Copy SSH public key to the remote server
-if ! ssh-copy-id -i "$SSH_PUBLIC_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$VPS_IP" >/dev/null 2>&1; then
+if ! ssh-copy-id -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$VPS_IP" >/dev/null 2>&1; then
     echo -e "${RED}Failed to copy SSH key to the remote server. Please ensure you have correct credentials.${NC}"
     exit 1
 fi
