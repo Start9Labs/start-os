@@ -108,8 +108,6 @@ pub struct ServerConfig {
     #[arg(long)]
     pub tor_socks: Option<SocketAddr>,
     #[arg(long)]
-    pub dns_bind: Option<Vec<SocketAddr>>,
-    #[arg(long)]
     pub revision_cache_size: Option<usize>,
     #[arg(long)]
     pub disable_encryption: Option<bool>,
@@ -125,7 +123,6 @@ impl ContextConfig for ServerConfig {
         self.os_partitions = self.os_partitions.take().or(other.os_partitions);
         self.tor_control = self.tor_control.take().or(other.tor_control);
         self.tor_socks = self.tor_socks.take().or(other.tor_socks);
-        self.dns_bind = self.dns_bind.take().or(other.dns_bind);
         self.revision_cache_size = self
             .revision_cache_size
             .take()

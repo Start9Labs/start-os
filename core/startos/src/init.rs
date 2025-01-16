@@ -3,6 +3,7 @@ use std::io::Cursor;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use axum::extract::ws::{self};
@@ -25,7 +26,7 @@ use crate::db::model::public::ServerStatus;
 use crate::db::model::Database;
 use crate::disk::mount::util::unmount;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
-use crate::net::net_controller::PreInitNetController;
+use crate::net::net_controller::{NetController, NetService};
 use crate::net::web_server::{UpgradableListener, WebServerAcceptorSetter};
 use crate::prelude::*;
 use crate::progress::{
@@ -197,7 +198,8 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
 }
 
 pub struct InitResult {
-    pub net_ctrl: PreInitNetController,
+    pub net_ctrl: Arc<NetController>,
+    pub os_net_service: NetService,
 }
 
 pub struct InitPhases {
@@ -347,19 +349,21 @@ pub async fn init(
     let account = AccountInfo::load(&peek)?;
 
     start_net.start();
-    let net_ctrl = PreInitNetController::init(
-        db.clone(),
-        cfg.tor_control
-            .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
-        cfg.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
-            Ipv4Addr::new(127, 0, 0, 1),
-            9050,
-        ))),
-        &account.hostname,
-        account.tor_key,
-    )
-    .await?;
+    let net_ctrl = Arc::new(
+        NetController::init(
+            db.clone(),
+            cfg.tor_control
+                .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
+            cfg.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
+                Ipv4Addr::new(127, 0, 0, 1),
+                9050,
+            ))),
+            &account.hostname,
+        )
+        .await?,
+    );
     webserver.try_upgrade(|a| net_ctrl.net_iface.upgrade_listener(a))?;
+    let os_net_service = net_ctrl.os_bindings().await?;
     start_net.complete();
 
     mount_logs.start();
@@ -543,7 +547,10 @@ pub async fn init(
 
     tracing::info!("System initialized.");
 
-    Ok(InitResult { net_ctrl })
+    Ok(InitResult {
+        net_ctrl,
+        os_net_service,
+    })
 }
 
 pub fn init_api<C: Context>() -> ParentHandler<C> {

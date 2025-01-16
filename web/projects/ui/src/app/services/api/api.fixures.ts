@@ -1771,7 +1771,6 @@ export module Mock {
     currentDependencies: {},
     hosts: {
       abcdefg: {
-        kind: 'multi',
         bindings: {
           80: {
             enabled: true,
@@ -1871,7 +1870,6 @@ export module Mock {
         },
       },
       bcdefgh: {
-        kind: 'multi',
         bindings: {
           8332: {
             enabled: true,
@@ -1894,7 +1892,6 @@ export module Mock {
         },
       },
       cdefghi: {
-        kind: 'multi',
         bindings: {
           8333: {
             enabled: true,

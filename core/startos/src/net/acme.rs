@@ -192,7 +192,7 @@ pub fn acme<C: Context>() -> ParentHandler<C> {
         )
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, TS)]
 #[ts(type = "string")]
 pub struct AcmeProvider(pub Url);
 impl FromStr for AcmeProvider {
@@ -203,7 +203,30 @@ impl FromStr for AcmeProvider {
             "letsencrypt-staging" => async_acme::acme::LETS_ENCRYPT_STAGING_DIRECTORY.parse(),
             s => s.parse(),
         }
+        .map(|mut u: Url| {
+            let path = u
+                .path_segments()
+                .into_iter()
+                .flatten()
+                .filter(|p| !p.is_empty())
+                .map(|p| p.to_owned())
+                .collect::<Vec<_>>();
+            if let Ok(mut path_mut) = u.path_segments_mut() {
+                path_mut.clear();
+                path_mut.extend(path);
+                path_mut.push("");
+            }
+            u
+        })
         .map(Self)
+    }
+}
+impl<'de> Deserialize<'de> for AcmeProvider {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        crate::util::serde::deserialize_from_str(deserializer)
     }
 }
 impl AsRef<str> for AcmeProvider {

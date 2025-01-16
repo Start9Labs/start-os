@@ -40,7 +40,7 @@ lazy_static::lazy_static! {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct SetupResult {
-    pub tor_address: String,
+    pub tor_addresses: Vec<String>,
     #[ts(type = "string")]
     pub hostname: Hostname,
     #[ts(type = "string")]
@@ -51,7 +51,11 @@ impl TryFrom<&AccountInfo> for SetupResult {
     type Error = Error;
     fn try_from(value: &AccountInfo) -> Result<Self, Self::Error> {
         Ok(Self {
-            tor_address: format!("https://{}", value.tor_key.public().get_onion_address()),
+            tor_addresses: value
+                .tor_keys
+                .iter()
+                .map(|tor_key| format!("https://{}", tor_key.public().get_onion_address()))
+                .collect(),
             hostname: value.hostname.clone(),
             lan_address: value.hostname.lan_address(),
             root_ca: String::from_utf8(value.root_ca_cert.to_pem()?)?,

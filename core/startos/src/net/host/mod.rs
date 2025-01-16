@@ -19,12 +19,11 @@ use crate::prelude::*;
 pub mod address;
 pub mod binding;
 
-#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct Host {
-    pub kind: HostKind,
     pub bindings: BTreeMap<u16, BindInfo>,
     #[ts(type = "string[]")]
     pub onions: BTreeSet<OnionAddressV3>,
@@ -39,14 +38,8 @@ impl AsRef<Host> for Host {
     }
 }
 impl Host {
-    pub fn new(kind: HostKind) -> Self {
-        Self {
-            kind,
-            bindings: BTreeMap::new(),
-            onions: BTreeSet::new(),
-            domains: BTreeMap::new(),
-            hostname_info: BTreeMap::new(),
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
     pub fn addresses<'a>(&'a self) -> impl Iterator<Item = HostAddress> + 'a {
         self.onions
@@ -67,15 +60,6 @@ impl Host {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub enum HostKind {
-    Multi,
-    // Single,
-    // Static,
-}
-
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[model = "Model<Self>"]
 #[ts(export)]
@@ -94,10 +78,12 @@ impl Map for Hosts {
 
 pub fn host_for<'a>(
     db: &'a mut DatabaseModel,
-    package_id: &PackageId,
+    package_id: Option<&PackageId>,
     host_id: &HostId,
-    host_kind: HostKind,
 ) -> Result<&'a mut Model<Host>, Error> {
+    let Some(package_id) = package_id else {
+        return Ok(db.as_public_mut().as_server_info_mut().as_host_mut());
+    };
     fn host_info<'a>(
         db: &'a mut DatabaseModel,
         package_id: &PackageId,
@@ -121,7 +107,7 @@ pub fn host_for<'a>(
         None
     };
     host_info(db, package_id)?.upsert(host_id, || {
-        let mut h = Host::new(host_kind);
+        let mut h = Host::new();
         h.onions.insert(
             tor_key
                 .or_not_found("generated tor key")?
@@ -133,11 +119,6 @@ pub fn host_for<'a>(
 }
 
 impl Model<Host> {
-    pub fn set_kind(&mut self, kind: HostKind) -> Result<(), Error> {
-        match (self.as_kind().de()?, kind) {
-            (HostKind::Multi, HostKind::Multi) => Ok(()),
-        }
-    }
     pub fn add_binding(
         &mut self,
         available_ports: &mut AvailablePorts,

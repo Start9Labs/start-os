@@ -227,8 +227,7 @@ function getAddresses(
 ): MappedAddress[] {
   const addressInfo = serviceInterface.addressInfo
 
-  let hostnames =
-    host.kind === 'multi' ? host.hostnameInfo[addressInfo.internalPort] : []
+  let hostnames = host.hostnameInfo[addressInfo.internalPort]
 
   hostnames = hostnames.filter(
     h =>

@@ -15,7 +15,7 @@ export class SuccessPage {
     {} as ElementRef<HTMLCanvasElement>
   private ctx: CanvasRenderingContext2D = {} as CanvasRenderingContext2D
 
-  torAddress?: string
+  torAddresses?: string[]
   lanAddress?: string
   cert?: string
 

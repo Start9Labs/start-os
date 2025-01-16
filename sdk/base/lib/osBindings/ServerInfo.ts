@@ -2,6 +2,7 @@
 import type { AcmeProvider } from "./AcmeProvider"
 import type { AcmeSettings } from "./AcmeSettings"
 import type { Governor } from "./Governor"
+import type { Host } from "./Host"
 import type { LshwDevice } from "./LshwDevice"
 import type { NetworkInterfaceInfo } from "./NetworkInterfaceInfo"
 import type { ServerStatus } from "./ServerStatus"
@@ -13,16 +14,11 @@ export type ServerInfo = {
   platform: string
   id: string
   hostname: string
+  host: Host
   version: string
   packageVersionCompat: string
   postInitMigrationTodos: string[]
   lastBackup: string | null
-  lanAddress: string
-  onionAddress: string
-  /**
-   * for backwards compatibility
-   */
-  torAddress: string
   networkInterfaces: { [key: string]: NetworkInterfaceInfo }
   acme: { [key: AcmeProvider]: AcmeSettings }
   statusInfo: ServerStatus

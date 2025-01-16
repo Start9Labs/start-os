@@ -77,6 +77,14 @@ impl<T> Watch<T> {
     pub async fn changed(&mut self) {
         futures::future::poll_fn(|cx| self.poll_changed(cx)).await
     }
+    pub async fn wait_for<F: FnMut(&T) -> bool>(&mut self, mut f: F) {
+        loop {
+            if self.peek(&mut f) {
+                break;
+            }
+            self.changed().await;
+        }
+    }
     pub fn send_if_modified<F: FnOnce(&mut T) -> bool>(&self, modify: F) -> bool {
         self.shared.mutate(|shared| {
             let changed = modify(&mut shared.data);

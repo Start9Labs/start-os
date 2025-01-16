@@ -27,6 +27,7 @@ use zbus::{proxy, Connection};
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::{IpInfo, NetworkInterfaceInfo, NetworkInterfaceType};
 use crate::db::model::Database;
+use crate::net::forward::START9_BRIDGE_IFACE;
 use crate::net::utils::{ipv6_is_link_local, ipv6_is_local};
 use crate::prelude::*;
 use crate::util::future::Until;
@@ -319,7 +320,10 @@ impl<'a> StubStream<'a> for SignalStream<'a> {
 }
 
 #[instrument(skip_all)]
-async fn watcher(write_to: Watch<BTreeMap<InternedString, NetworkInterfaceInfo>>) {
+async fn watcher(
+    write_to: Watch<BTreeMap<InternedString, NetworkInterfaceInfo>>,
+    lxcbr_status: Watch<bool>,
+) {
     loop {
         let res: Result<(), Error> = async {
             let connection = Connection::system().await?;
@@ -357,19 +361,27 @@ async fn watcher(write_to: Watch<BTreeMap<InternedString, NetworkInterfaceInfo>>
                         let mut ifaces = BTreeSet::new();
                         let mut jobs = Vec::new();
                         for device in devices {
+                            use futures::future::Either;
+
                             let device_proxy =
                                 device::DeviceProxy::new(&connection, device.clone()).await?;
                             let iface = InternedString::intern(device_proxy.ip_interface().await?);
                             if iface.is_empty() {
                                 continue;
+                            } else if &*iface == START9_BRIDGE_IFACE {
+                                jobs.push(Either::Left(watch_activated(
+                                    &connection,
+                                    device_proxy.clone(),
+                                    &lxcbr_status,
+                                )));
                             }
 
-                            jobs.push(watch_ip(
+                            jobs.push(Either::Right(watch_ip(
                                 &connection,
                                 device_proxy.clone(),
                                 iface.clone(),
                                 &write_to,
-                            ));
+                            )));
                             ifaces.insert(iface);
                         }
 
@@ -588,13 +600,49 @@ async fn watch_ip(
     }
 }
 
+#[instrument(skip(_connection, device_proxy, write_to))]
+async fn watch_activated(
+    _connection: &Connection,
+    device_proxy: device::DeviceProxy<'_>,
+    write_to: &Watch<bool>,
+) -> Result<(), Error> {
+    let mut until = Until::new()
+        .with_stream(
+            device_proxy
+                .receive_active_connection_changed()
+                .await
+                .stub(),
+        )
+        .with_stream(
+            device_proxy
+                .receive_state_changed()
+                .await?
+                .into_inner()
+                .stub(),
+        );
+
+    loop {
+        until
+            .run(async {
+                write_to.send(device_proxy._state().await? == 100);
+                Ok(())
+            })
+            .await?;
+    }
+}
+
 pub struct NetworkInterfaceController {
     db: TypedPatchDb<Database>,
+    lxcbr_status: Watch<bool>,
     ip_info: Watch<BTreeMap<InternedString, NetworkInterfaceInfo>>,
     _watcher: NonDetachingJoinHandle<()>,
     listeners: SyncMutex<BTreeMap<u16, Weak<()>>>,
 }
 impl NetworkInterfaceController {
+    pub fn lxcbr_status(&self) -> Watch<bool> {
+        self.lxcbr_status.clone_unseen()
+    }
+
     pub fn subscribe(&self) -> Watch<BTreeMap<InternedString, NetworkInterfaceInfo>> {
         self.ip_info.clone_unseen()
     }
@@ -665,8 +713,10 @@ impl NetworkInterfaceController {
     }
     pub fn new(db: TypedPatchDb<Database>) -> Self {
         let mut ip_info = Watch::new(BTreeMap::new());
+        let lxcbr_status = Watch::new(false);
         Self {
             db: db.clone(),
+            lxcbr_status: lxcbr_status.clone(),
             ip_info: ip_info.clone(),
             _watcher: tokio::spawn(async move {
                 match db
@@ -688,7 +738,7 @@ impl NetworkInterfaceController {
                         tracing::debug!("{e:?}");
                     }
                 };
-                tokio::join!(watcher(ip_info.clone()), async {
+                tokio::join!(watcher(ip_info.clone(), lxcbr_status), async {
                     let res: Result<(), Error> = async {
                         loop {
                             if let Err(e) = async {
