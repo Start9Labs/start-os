@@ -51,7 +51,7 @@ print_usage() {
 # Function to display end message
 display_end_message() {
     echo -e "\n${BLUE}------------------------------------------------------------------${NC}"
-    echo -e "${GREEN}WireGuard server setup complete!${NC}"
+    echo -e "${NC}WireGuard server setup complete!"
     echo -e "${BLUE}------------------------------------------------------------------${NC}"
     echo -e "\n${YELLOW}To expose your services to the Clearnet, use the following commands on your StartOS system (replace placeholders):${NC}"
     echo -e "\n   ${YELLOW}1. Initialize ACME (This only needs to be done once):${NC}"
@@ -274,7 +274,7 @@ echo "SSH Port: $SSH_PORT"
 echo -e "\n${GREEN}Proceeding with SSH key-based authentication...${NC}\n"
 
 # Copy SSH public key to the remote server
-if ! ssh-copy-id -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$VPS_IP" >/dev/null 2>&1; then
+if ! ssh-copy-id -i "$SSH_PUBLIC_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$VPS_IP" >/dev/null 2>&1; then
     echo -e "${RED}Failed to copy SSH key to the remote server. Please ensure you have correct credentials.${NC}"
     exit 1
 fi
@@ -309,7 +309,7 @@ if ! install_wireguard; then
 fi
 
 # Remove the local install script
-rm wireguard-install.sh
+rm wireguard-install.sh >/dev/null 2>&1
 
 # Handle the StartOS config (download)
 if ! handle_startos_connection; then
