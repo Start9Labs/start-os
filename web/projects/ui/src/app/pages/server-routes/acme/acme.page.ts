@@ -7,7 +7,7 @@ import { FormDialogService } from '../../../services/form-dialog.service'
 import { FormComponent } from '../../../components/form.component'
 import { configBuilderToSpec } from '../../../util/configBuilderToSpec'
 import { ISB, utils } from '@start9labs/start-sdk'
-import { toAcmeName } from 'src/app/util/acme'
+import { ACME_Name, ACME_URL, knownACME, toAcmeName } from 'src/app/util/acme'
 
 @Component({
   selector: 'acme',
@@ -79,16 +79,18 @@ export class ACMEPage {
 
 const acmeSpec = ISB.InputSpec.of({
   provider: ISB.Value.union(
-    { name: 'Provider', default: 'letsencrypt' },
+    { name: 'Provider', default: knownACME['Let\'s Encrypt'] as any },
     ISB.Variants.of({
-      letsencrypt: {
-        name: `Let's Encrypt`,
-        spec: ISB.InputSpec.of({}),
-      },
-      'letsencrypt-staging': {
-        name: `Let's Encrypt (Staging)`,
-        spec: ISB.InputSpec.of({}),
-      },
+      ...Object.entries(knownACME).reduce(
+        (obj, [name, url]) => ({
+          ...obj,
+          [url]: {
+            name,
+            spec: ISB.InputSpec.of({}),
+          },
+        }),
+        {},
+      ),
       other: {
         name: 'Other',
         spec: ISB.InputSpec.of({

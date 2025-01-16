@@ -11,8 +11,8 @@ export function toAcmeUrl(name: ACME_Name | string): ACME_URL | string {
 }
 
 export const knownACME = {
-  letsencrypt: 'https://acme-v02.api.letsencrypt.org/directory',
-  'letsencrypt-staging':
+  'Let\'s Encrypt': 'https://acme-v02.api.letsencrypt.org/directory',
+  'Let\'s Encrypt (Staging)':
     'https://acme-staging-v02.api.letsencrypt.org/directory',
 }
 
