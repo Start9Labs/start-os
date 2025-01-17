@@ -401,6 +401,7 @@ export class SystemForEmbassy implements System {
         return [
           port,
           {
+            protocol: null,
             secure: null,
             preferredExternalPort: Number.parseInt(
               torPort || lanPort || String(port),

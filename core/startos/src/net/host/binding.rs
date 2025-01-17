@@ -3,13 +3,14 @@ use std::str::FromStr;
 
 use clap::builder::ValueParserFactory;
 use clap::Parser;
-use models::{FromStrParser, HostId, PackageId};
+use models::{FromStrParser, HostId};
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::net::forward::AvailablePorts;
+use crate::net::host::HostApiKind;
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
 use crate::util::serde::{display_serializable, HandlerExtSerde};
@@ -146,17 +147,13 @@ pub struct AddSslOptions {
     pub alpn: Option<AlpnInfo>,
 }
 
-#[derive(Deserialize, Serialize, Parser)]
-pub struct BindingApiParams {
-    host: HostId,
-}
-
-pub fn binding<C: Context>() -> ParentHandler<C, BindingApiParams, PackageId> {
-    ParentHandler::<C, BindingApiParams, PackageId>::new()
+pub fn binding<C: Context, Kind: HostApiKind>(
+) -> ParentHandler<C, Kind::Params, Kind::InheritedParams> {
+    ParentHandler::<C, Kind::Params, Kind::InheritedParams>::new()
         .subcommand(
             "list",
-            from_fn_async(list_bindings)
-                .with_inherited(|BindingApiParams { host }, package| (package, host))
+            from_fn_async(list_bindings::<Kind>)
+                .with_inherited(Kind::inheritance)
                 .with_display_serializable()
                 .with_custom_display_fn(|HandlerArgs { params, .. }, res| {
                     use prettytable::*;
@@ -194,31 +191,22 @@ pub fn binding<C: Context>() -> ParentHandler<C, BindingApiParams, PackageId> {
         )
         .subcommand(
             "set-public",
-            from_fn_async(set_public)
+            from_fn_async(set_public::<Kind>)
                 .with_metadata("sync_db", Value::Bool(true))
-                .with_inherited(|BindingApiParams { host }, package| (package, host))
+                .with_inherited(Kind::inheritance)
                 .no_display()
                 .with_about("Add an binding to this host")
                 .with_call_remote::<CliContext>(),
         )
 }
 
-pub async fn list_bindings(
+pub async fn list_bindings<Kind: HostApiKind>(
     ctx: RpcContext,
     _: Empty,
-    (package, host): (PackageId, HostId),
+    inheritance: Kind::Inheritance,
 ) -> Result<BTreeMap<u16, BindInfo>, Error> {
-    ctx.db
-        .peek()
-        .await
-        .into_public()
-        .into_package_data()
-        .into_idx(&package)
-        .or_not_found(&package)?
-        .into_hosts()
-        .into_idx(&host)
-        .or_not_found(&host)?
-        .into_bindings()
+    Kind::host_for(&inheritance, &mut ctx.db.peek().await)?
+        .as_bindings()
         .de()
 }
 
@@ -231,23 +219,17 @@ pub struct BindingSetPublicParams {
     public: Option<bool>,
 }
 
-pub async fn set_public(
+pub async fn set_public<Kind: HostApiKind>(
     ctx: RpcContext,
     BindingSetPublicParams {
         internal_port,
         public,
     }: BindingSetPublicParams,
-    (package, host): (PackageId, HostId),
+    inheritance: Kind::Inheritance,
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
-            db.as_public_mut()
-                .as_package_data_mut()
-                .as_idx_mut(&package)
-                .or_not_found(&package)?
-                .as_hosts_mut()
-                .as_idx_mut(&host)
-                .or_not_found(&host)?
+            Kind::host_for(&inheritance, db)?
                 .as_bindings_mut()
                 .mutate(|b| {
                     b.get_mut(&internal_port)
@@ -258,11 +240,5 @@ pub async fn set_public(
                 })
         })
         .await?;
-    ctx.services
-        .get(&package)
-        .await
-        .as_ref()
-        .or_not_found(&package)?
-        .update_host(host)
-        .await
+    Kind::update_host(&ctx, inheritance).await
 }

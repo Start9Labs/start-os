@@ -1,9 +1,11 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::future::Future;
+use std::panic::RefUnwindSafe;
 
 use clap::Parser;
 use imbl_value::InternedString;
 use models::{HostId, PackageId};
-use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, OrEmpty, ParentHandler};
 use serde::{Deserialize, Serialize};
 use torut::onion::OnionAddressV3;
 use ts_rs::TS;
@@ -11,7 +13,7 @@ use ts_rs::TS;
 use crate::context::RpcContext;
 use crate::db::model::DatabaseModel;
 use crate::net::forward::AvailablePorts;
-use crate::net::host::address::{address, DomainConfig, HostAddress};
+use crate::net::host::address::{address_api, DomainConfig, HostAddress};
 use crate::net::host::binding::{binding, BindInfo, BindOptions};
 use crate::net::service_interface::HostnameInfo;
 use crate::prelude::*;
@@ -138,16 +140,94 @@ impl Model<Host> {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-pub struct HostParams {
+pub struct RequiresPackageId {
     package: PackageId,
 }
 
-pub fn host<C: Context>() -> ParentHandler<C, HostParams> {
-    ParentHandler::<C, HostParams>::new()
+#[derive(Deserialize, Serialize, Parser)]
+pub struct RequiresHostId {
+    host: HostId,
+}
+
+pub trait HostApiKind: 'static {
+    type Params: Send + Sync + 'static;
+    type InheritedParams: Send + Sync + 'static;
+    type Inheritance: RefUnwindSafe + OrEmpty<Self::Inheritance> + Send + Sync + 'static;
+    fn inheritance(params: Self::Params, inherited: Self::InheritedParams) -> Self::Inheritance;
+    fn host_for<'a>(
+        inheritance: &Self::Inheritance,
+        db: &'a mut DatabaseModel,
+    ) -> Result<&'a mut Model<Host>, Error>;
+    fn update_host(
+        ctx: &RpcContext,
+        inheritance: Self::Inheritance,
+    ) -> impl Future<Output = Result<(), Error>> + Send;
+}
+pub struct ForPackage;
+impl HostApiKind for ForPackage {
+    type Params = RequiresHostId;
+    type InheritedParams = PackageId;
+    type Inheritance = (PackageId, HostId);
+    fn inheritance(
+        RequiresHostId { host }: Self::Params,
+        package: Self::InheritedParams,
+    ) -> Self::Inheritance {
+        (package, host)
+    }
+    fn host_for<'a>(
+        (package, host): &Self::Inheritance,
+        db: &'a mut DatabaseModel,
+    ) -> Result<&'a mut Model<Host>, Error> {
+        host_for(db, Some(package), host)
+    }
+    async fn update_host(
+        ctx: &RpcContext,
+        (package, host): Self::Inheritance,
+    ) -> Result<(), Error> {
+        let service = ctx.services.get(&package).await;
+        let service_ref = service.as_ref().or_not_found(&package)?;
+        service_ref.update_host(host).await?;
+        Ok(())
+    }
+}
+pub struct ForServer;
+impl HostApiKind for ForServer {
+    type Params = Empty;
+    type InheritedParams = Empty;
+    type Inheritance = Empty;
+    fn inheritance(_: Self::Params, _: Self::InheritedParams) -> Self::Inheritance {
+        Empty {}
+    }
+    fn host_for<'a>(
+        _: &Self::Inheritance,
+        db: &'a mut DatabaseModel,
+    ) -> Result<&'a mut Model<Host>, Error> {
+        host_for(db, None, &HostId::default())
+    }
+    async fn update_host(ctx: &RpcContext, _: Self::Inheritance) -> Result<(), Error> {
+        ctx.os_net_service
+            .lock()
+            .await
+            .update(
+                HostId::default(),
+                ctx.db
+                    .peek()
+                    .await
+                    .as_public()
+                    .as_server_info()
+                    .as_host()
+                    .de()?,
+            )
+            .await
+    }
+}
+
+pub fn host_api<C: Context>() -> ParentHandler<C, RequiresPackageId> {
+    ParentHandler::<C, RequiresPackageId>::new()
         .subcommand(
             "list",
             from_fn_async(list_hosts)
-                .with_inherited(|HostParams { package }, _| package)
+                .with_inherited(|RequiresPackageId { package }, _| package)
                 .with_custom_display_fn(|_, ids| {
                     for id in ids {
                         println!("{id}")
@@ -158,12 +238,19 @@ pub fn host<C: Context>() -> ParentHandler<C, HostParams> {
         )
         .subcommand(
             "address",
-            address::<C>().with_inherited(|HostParams { package }, _| package),
+            address_api::<C, ForPackage>()
+                .with_inherited(|RequiresPackageId { package }, _| package),
         )
         .subcommand(
             "binding",
-            binding::<C>().with_inherited(|HostParams { package }, _| package),
+            binding::<C, ForPackage>().with_inherited(|RequiresPackageId { package }, _| package),
         )
+}
+
+pub fn server_host_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::<C>::new()
+        .subcommand("address", address_api::<C, ForServer>())
+        .subcommand("binding", binding::<C, ForServer>())
 }
 
 pub async fn list_hosts(

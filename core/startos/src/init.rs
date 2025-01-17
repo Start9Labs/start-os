@@ -504,7 +504,8 @@ pub async fn init(
 
     enable_zram.start();
     if server_info.zram {
-        crate::system::enable_zram().await?
+        crate::system::enable_zram().await?;
+        tracing::info!("Enabled ZRAM");
     }
     enable_zram.complete();
 
@@ -523,6 +524,7 @@ pub async fn init(
         Ok(())
     })
     .await?;
+    tracing::info!("Updated server info");
     update_server_info.complete();
 
     launch_service_network.start();
@@ -531,6 +533,7 @@ pub async fn init(
         .arg("lxc-net.service")
         .invoke(ErrorKind::Lxc)
         .await?;
+    tracing::info!("Launched service intranet");
     launch_service_network.complete();
 
     validate_db.start();
@@ -539,6 +542,7 @@ pub async fn init(
         d.ser(&model)
     })
     .await?;
+    tracing::info!("Validated database");
     validate_db.complete();
 
     if let Some(progress) = postinit {

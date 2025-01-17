@@ -77,7 +77,9 @@ type BindOptionsByKnownProtocol =
       preferredExternalPort?: number
       addSsl?: AddSslOptions
     }
-export type BindOptionsByProtocol = BindOptionsByKnownProtocol | BindOptions
+export type BindOptionsByProtocol =
+  | BindOptionsByKnownProtocol
+  | (BindOptions & { protocol: null })
 
 const hasStringProtocol = object({
   protocol: string,

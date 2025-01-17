@@ -14,7 +14,7 @@ keywords = [
 name = "start-os"
 readme = "README.md"
 repository = "https://github.com/Start9Labs/start-os"
-version = "0.3.6-alpha.11"
+version = "0.3.6-alpha.12"
 license = "MIT"
 
 [lib]
@@ -117,7 +117,7 @@ id-pool = { version = "0.2.2", default-features = false, features = [
   "u16",
 ] }
 imbl = "2.0.3"
-imbl-value = { git = "https://github.com/Start9Labs/imbl-value.git" }
+imbl-value = "0.1.2"
 include_dir = { version = "0.7.3", features = ["metadata"] }
 indexmap = { version = "2.0.2", features = ["serde"] }
 indicatif = { version = "0.17.7", features = ["tokio"] }
@@ -172,7 +172,7 @@ regex = "1.10.2"
 reqwest = { version = "0.12.4", features = ["stream", "json", "socks"] }
 reqwest_cookie_store = "0.8.0"
 rpassword = "7.2.0"
-rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "refactor/no-dyn-ctx" }
+rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "master" }
 rust-argon2 = "2.0.0"
 rustyline-async = "0.4.1"
 semver = { version = "1.0.20", features = ["serde"] }

@@ -166,7 +166,7 @@ impl NetService {
                 Ok(host)
             })
             .await?;
-        self.update(HostId::default(), host).await
+        self.update(id, host).await
     }
 
     pub async fn clear_bindings(&mut self, except: BTreeSet<BindId>) -> Result<(), Error> {
