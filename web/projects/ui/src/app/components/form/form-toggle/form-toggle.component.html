@@ -5,6 +5,7 @@
 ></tui-tooltip>
 <tui-toggle
   size="l"
+  [style.margin-inline-start]="'auto'"
   [disabled]="!!spec.disabled || readOnly"
   [(ngModel)]="value"
   (focusedChange)="onFocus($event)"
