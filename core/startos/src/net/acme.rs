@@ -214,7 +214,6 @@ impl FromStr for AcmeProvider {
             if let Ok(mut path_mut) = u.path_segments_mut() {
                 path_mut.clear();
                 path_mut.extend(path);
-                path_mut.push("");
             }
             u
         })
