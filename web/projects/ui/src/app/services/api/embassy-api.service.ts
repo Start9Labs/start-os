@@ -264,11 +264,25 @@ export abstract class ApiService {
 
   abstract removeAcme(params: RR.RemoveAcmeReq): Promise<RR.RemoveAcmeRes>
 
-  abstract bindingSetPubic(
-    params: RR.BindingSetPublicReq,
+  abstract serverBindingSetPubic(
+    params: RR.ServerBindingSetPublicReq,
   ): Promise<RR.BindingSetPublicRes>
 
-  abstract addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes>
+  abstract serverAddDomain(
+    params: RR.ServerAddDomainReq,
+  ): Promise<RR.AddDomainRes>
 
-  abstract removeDomain(params: RR.RemoveDomainReq): Promise<RR.RemoveDomainRes>
+  abstract serverRemoveDomain(
+    params: RR.ServerRemoveDomainReq,
+  ): Promise<RR.RemoveDomainRes>
+
+  abstract pkgBindingSetPubic(
+    params: RR.PkgBindingSetPublicReq,
+  ): Promise<RR.BindingSetPublicRes>
+
+  abstract pkgAddDomain(params: RR.PkgAddDomainReq): Promise<RR.AddDomainRes>
+
+  abstract pkgRemoveDomain(
+    params: RR.PkgRemoveDomainReq,
+  ): Promise<RR.RemoveDomainRes>
 }

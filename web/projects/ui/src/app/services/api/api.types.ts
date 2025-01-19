@@ -230,32 +230,44 @@ export module RR {
   }
   export type RemoveAcmeRes = null
 
-  export type BindingSetPublicReq = {
-    // package.host.binding.set-public
-    package: T.PackageId // string
-    host: T.HostId // string
+  export type ServerBindingSetPublicReq = {
+    // server.host.binding.set-public
     internalPort: number
     public: boolean | null // default true
   }
   export type BindingSetPublicRes = null
 
-  export type AddDomainReq = {
-    // package.host.address.domain.add
-    package: T.PackageId // string
-    host: T.HostId // string
+  export type ServerAddDomainReq = {
+    // server.host.address.domain.add
     domain: string // FQDN
     private: boolean
     acme: string | null // "letsencrypt" | "letsencrypt-staging" | Url | null
   }
   export type AddDomainRes = null
 
-  export type RemoveDomainReq = {
-    // package.host.address.domain.remove
-    package: T.PackageId // string
-    host: T.HostId // string
+  export type ServerRemoveDomainReq = {
+    // server.host.address.domain.remove
     domain: string // FQDN
   }
   export type RemoveDomainRes = null
+
+  export type PkgBindingSetPublicReq = ServerBindingSetPublicReq & {
+    // package.host.binding.set-public
+    package: T.PackageId // string
+    host: T.HostId // string
+  }
+
+  export type PkgAddDomainReq = ServerAddDomainReq & {
+    // package.host.address.domain.add
+    package: T.PackageId // string
+    host: T.HostId // string
+  }
+
+  export type PkgRemoveDomainReq = ServerRemoveDomainReq & {
+    // package.host.address.domain.remove
+    package: T.PackageId // string
+    host: T.HostId // string
+  }
 
   export type GetPackageLogsReq = ServerLogsReq & { id: string } // package.logs
   export type GetPackageLogsRes = LogsRes

@@ -1,10 +1,31 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { ModalController, ToastController } from '@ionic/angular'
+import { ToastController } from '@ionic/angular'
 import { PatchDB } from 'patch-db-client'
 import { ConfigService } from 'src/app/services/config.service'
-import { QRComponent } from 'src/app/components/qr/qr.component'
 import { copyToClipboard } from '@start9labs/shared'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { map, Observable } from 'rxjs'
+import {
+  getAddresses,
+  MappedInterface,
+} from 'src/app/components/interface-info/interface-info.component'
+
+const iface = {
+  id: '',
+  name: 'StartOS User Interface',
+  description:
+    'The primary user interface for your StartOS server, accessible from any browser.',
+  type: 'ui' as const,
+  masked: false,
+  addressInfo: {
+    hostId: '',
+    internalPort: 80,
+    scheme: 'http',
+    sslScheme: 'https',
+    suffix: '',
+    username: null,
+  },
+}
 
 @Component({
   selector: 'server-specs',
@@ -14,11 +35,17 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 })
 export class ServerSpecsPage {
   readonly server$ = this.patch.watch$('serverInfo')
-  readonly isLocalhost = window.location.host === 'localhost'
+
+  readonly ui$ = this.server$.pipe(
+    map(server => ({
+      ...iface,
+      public: server.host.bindings[iface.addressInfo.internalPort].net.public,
+      addresses: getAddresses(iface, server.host),
+    })),
+  )
 
   constructor(
     private readonly toastCtrl: ToastController,
-    private readonly modalCtrl: ModalController,
     private readonly patch: PatchDB<DataModel>,
     private readonly config: ConfigService,
   ) {}
@@ -41,20 +68,5 @@ export class ServerSpecsPage {
       duration: 1000,
     })
     await toast.present()
-  }
-
-  async showQR(text: string): Promise<void> {
-    const modal = await this.modalCtrl.create({
-      component: QRComponent,
-      componentProps: {
-        text,
-      },
-      cssClass: 'qr-modal',
-    })
-    await modal.present()
-  }
-
-  asIsOrder(a: any, b: any) {
-    return 0
   }
 }

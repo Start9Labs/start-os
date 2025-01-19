@@ -1089,8 +1089,78 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async bindingSetPubic(
-    params: RR.BindingSetPublicReq,
+  async serverBindingSetPubic(
+    params: RR.PkgBindingSetPublicReq,
+  ): Promise<RR.BindingSetPublicRes> {
+    await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/serverInfo/host/bindings/${params.internalPort}/net/public`,
+        value: params.public,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async serverAddDomain(params: RR.PkgAddDomainReq): Promise<RR.AddDomainRes> {
+    await pauseFor(2000)
+
+    const patch: Operation<any>[] = [
+      {
+        op: PatchOp.ADD,
+        path: `/serverInfo/host/domains`,
+        value: {
+          [params.domain]: { public: !params.private, acme: params.acme },
+        },
+      },
+      {
+        op: PatchOp.ADD,
+        path: `/serverInfo/host/hostnameInfo/80/0`,
+        value: {
+          kind: 'ip',
+          networkInterfaceId: 'eth0',
+          public: false,
+          hostname: {
+            kind: 'domain',
+            domain: params.domain,
+            subdomain: null,
+            port: null,
+            sslPort: 443,
+          },
+        },
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async serverRemoveDomain(
+    params: RR.PkgRemoveDomainReq,
+  ): Promise<RR.RemoveDomainRes> {
+    await pauseFor(2000)
+
+    const patch: RemoveOperation[] = [
+      {
+        op: PatchOp.REMOVE,
+        path: `/serverInfo/host/domains/${params.domain}`,
+      },
+      {
+        op: PatchOp.REMOVE,
+        path: `/serverInfo/host/hostnameInfo/80/0`,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async pkgBindingSetPubic(
+    params: RR.PkgBindingSetPublicReq,
   ): Promise<RR.BindingSetPublicRes> {
     await pauseFor(2000)
 
@@ -1106,7 +1176,7 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes> {
+  async pkgAddDomain(params: RR.PkgAddDomainReq): Promise<RR.AddDomainRes> {
     await pauseFor(2000)
 
     const patch: Operation<any>[] = [
@@ -1139,7 +1209,9 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async removeDomain(params: RR.RemoveDomainReq): Promise<RR.RemoveDomainRes> {
+  async pkgRemoveDomain(
+    params: RR.PkgRemoveDomainReq,
+  ): Promise<RR.RemoveDomainRes> {
     await pauseFor(2000)
 
     const patch: RemoveOperation[] = [

@@ -13,29 +13,29 @@
   >
     <ng-container *ngIf="serviceInterfaces.ui.length">
       <ion-item-divider>User Interfaces</ion-item-divider>
-      <app-interfaces-item
+      <interface-info
         *ngFor="let ui of serviceInterfaces.ui"
         [iFace]="ui"
         [pkgId]="pkgId"
-      ></app-interfaces-item>
+      ></interface-info>
     </ng-container>
 
     <ng-container *ngIf="serviceInterfaces.api.length">
       <ion-item-divider>Application Program Interfaces</ion-item-divider>
-      <app-interfaces-item
+      <interface-info
         *ngFor="let api of serviceInterfaces.api"
         [iFace]="api"
         [pkgId]="pkgId"
-      ></app-interfaces-item>
+      ></interface-info>
     </ng-container>
 
     <ng-container *ngIf="serviceInterfaces.p2p.length">
       <ion-item-divider>Peer-To-Peer Interfaces</ion-item-divider>
-      <app-interfaces-item
+      <interface-info
         *ngFor="let p2p of serviceInterfaces.p2p"
         [iFace]="p2p"
         [pkgId]="pkgId"
-      ></app-interfaces-item>
+      ></interface-info>
     </ng-container>
   </ion-item-group>
 </ion-content>

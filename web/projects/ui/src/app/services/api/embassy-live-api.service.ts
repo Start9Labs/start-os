@@ -530,8 +530,35 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async bindingSetPubic(
-    params: RR.BindingSetPublicReq,
+  async serverBindingSetPubic(
+    params: RR.ServerBindingSetPublicReq,
+  ): Promise<RR.BindingSetPublicRes> {
+    return this.rpcRequest({
+      method: 'server.host.binding.set-public',
+      params,
+    })
+  }
+
+  async serverAddDomain(
+    params: RR.ServerAddDomainReq,
+  ): Promise<RR.AddDomainRes> {
+    return this.rpcRequest({
+      method: 'server.host.address.domain.add',
+      params,
+    })
+  }
+
+  async serverRemoveDomain(
+    params: RR.ServerRemoveDomainReq,
+  ): Promise<RR.RemoveDomainRes> {
+    return this.rpcRequest({
+      method: 'server.host.address.domain.remove',
+      params,
+    })
+  }
+
+  async pkgBindingSetPubic(
+    params: RR.PkgBindingSetPublicReq,
   ): Promise<RR.BindingSetPublicRes> {
     return this.rpcRequest({
       method: 'package.host.binding.set-public',
@@ -539,14 +566,16 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes> {
+  async pkgAddDomain(params: RR.PkgAddDomainReq): Promise<RR.AddDomainRes> {
     return this.rpcRequest({
       method: 'package.host.address.domain.add',
       params,
     })
   }
 
-  async removeDomain(params: RR.RemoveDomainReq): Promise<RR.RemoveDomainRes> {
+  async pkgRemoveDomain(
+    params: RR.PkgRemoveDomainReq,
+  ): Promise<RR.RemoveDomainRes> {
     return this.rpcRequest({
       method: 'package.host.address.domain.remove',
       params,
