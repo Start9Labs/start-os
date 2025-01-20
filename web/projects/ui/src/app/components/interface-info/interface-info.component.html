@@ -32,7 +32,14 @@
       <ion-button
         *ngIf="address.isDomain"
         color="danger"
-        (click)="removeDomain(address.url)"
+        (click)="removeStandard(address.url)"
+      >
+        Remove
+      </ion-button>
+      <ion-button
+        *ngIf="address.isOnion"
+        color="danger"
+        (click)="removeOnion(address.url)"
       >
         Remove
       </ion-button>

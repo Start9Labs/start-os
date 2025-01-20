@@ -230,12 +230,28 @@ export module RR {
   }
   export type RemoveAcmeRes = null
 
+  export type AddTorKeyReq = {
+    // net.tor.key.add
+    key: string
+  }
+  export type GenerateTorKeyReq = {} // net.tor.key.generate
+  export type AddTorKeyRes = string // onion address without .onion suffix
+
   export type ServerBindingSetPublicReq = {
     // server.host.binding.set-public
     internalPort: number
     public: boolean | null // default true
   }
   export type BindingSetPublicRes = null
+
+  export type ServerAddOnionReq = {
+    // server.host.address.onion.add
+    onion: string // address *with* .onion suffix
+  }
+  export type AddOnionRes = null
+
+  export type ServerRemoveOnionReq = ServerAddOnionReq // server.host.address.onion.remove
+  export type RemoveOnionRes = null
 
   export type ServerAddDomainReq = {
     // server.host.address.domain.add
@@ -256,6 +272,14 @@ export module RR {
     package: T.PackageId // string
     host: T.HostId // string
   }
+
+  export type PkgAddOnionReq = ServerAddOnionReq & {
+    // package.host.address.onion.add
+    package: T.PackageId // string
+    host: T.HostId // string
+  }
+
+  export type PkgRemoveOnionReq = PkgAddOnionReq // package.host.address.onion.remove
 
   export type PkgAddDomainReq = ServerAddDomainReq & {
     // package.host.address.domain.add

@@ -29,6 +29,7 @@ export type MappedAddress = {
   name: string
   url: string
   isDomain: boolean
+  isOnion: boolean
   acme: string | null
 }
 
@@ -87,22 +88,32 @@ export class InterfaceInfoComponent {
   async presentDomainForm() {
     const acme = await firstValueFrom(this.patch.watch$('serverInfo', 'acme'))
 
+    const spec = getDomainSpec(Object.keys(acme))
+
     this.formDialog.open(FormComponent, {
       label: 'Add Domain',
       data: {
-        spec: await configBuilderToSpec(getDomainSpec(Object.keys(acme))),
+        spec: await configBuilderToSpec(spec),
         buttons: [
           {
             text: 'Save',
-            handler: async (val: { domain: string; acme: string }) =>
-              this.saveDomain(val.domain, val.acme),
+            handler: async (val: typeof spec._TYPE) => {
+              if (val.type.selection === 'standard') {
+                return this.saveStandard(
+                  val.type.value.domain,
+                  val.type.value.acme,
+                )
+              } else {
+                return this.saveTor(val.type.value.key)
+              }
+            },
           },
         ],
       },
     })
   }
 
-  async removeDomain(url: string) {
+  async removeStandard(url: string) {
     const loader = this.loader.open('Removing').subscribe()
 
     const params = {
@@ -118,6 +129,32 @@ export class InterfaceInfoComponent {
         })
       } else {
         await this.api.serverRemoveDomain(params)
+      }
+      return true
+    } catch (e: any) {
+      this.errorService.handleError(e)
+      return false
+    } finally {
+      loader.unsubscribe()
+    }
+  }
+
+  async removeOnion(url: string) {
+    const loader = this.loader.open('Removing').subscribe()
+
+    const params = {
+      onion: new URL(url).hostname,
+    }
+
+    try {
+      if (this.pkgId) {
+        await this.api.pkgRemoveOnion({
+          ...params,
+          package: this.pkgId,
+          host: this.iFace.addressInfo.hostId,
+        })
+      } else {
+        await this.api.serverRemoveOnion(params)
       }
       return true
     } catch (e: any) {
@@ -163,7 +200,7 @@ export class InterfaceInfoComponent {
     await toast.present()
   }
 
-  private async saveDomain(domain: string, acme: string) {
+  private async saveStandard(domain: string, acme: string) {
     const loader = this.loader.open('Saving').subscribe()
 
     const params = {
@@ -190,32 +227,81 @@ export class InterfaceInfoComponent {
       loader.unsubscribe()
     }
   }
+
+  private async saveTor(key: string | null) {
+    const loader = this.loader.open('Creating onion address').subscribe()
+
+    try {
+      let onion = key
+        ? await this.api.addTorKey({ key })
+        : await this.api.generateTorKey({})
+      onion = `${onion}.onion`
+
+      if (this.pkgId) {
+        await this.api.pkgAddOnion({
+          onion,
+          package: this.pkgId,
+          host: this.iFace.addressInfo.hostId,
+        })
+      } else {
+        await this.api.serverAddOnion({ onion })
+      }
+      return true
+    } catch (e: any) {
+      this.errorService.handleError(e)
+      return false
+    } finally {
+      loader.unsubscribe()
+    }
+  }
 }
 
 function getDomainSpec(acme: string[]) {
   return ISB.InputSpec.of({
-    domain: ISB.Value.text({
-      name: 'Domain',
-      description: 'The domain or subdomain you want to use',
-      warning: null,
-      placeholder: `e.g. 'mydomain.com' or 'sub.mydomain.com'`,
-      required: true,
-      default: null,
-      patterns: [utils.Patterns.domain],
-    }),
-    acme: ISB.Value.select({
-      name: 'ACME Provider',
-      description:
-        'Select which ACME provider to use for obtaining your SSL certificate. Add new ACME providers in the System tab. Optionally use your system Root CA. Note: only devices that have trusted your Root CA will be able to access the domain without security warnings.',
-      values: acme.reduce(
-        (obj, url) => ({
-          ...obj,
-          [url]: toAcmeName(url),
-        }),
-        { none: 'None (use system Root CA)' } as Record<string, string>,
-      ),
-      default: '',
-    }),
+    type: ISB.Value.union(
+      { name: 'Type', default: 'standard' },
+      ISB.Variants.of({
+        standard: {
+          name: 'Standard',
+          spec: ISB.InputSpec.of({
+            domain: ISB.Value.text({
+              name: 'Domain',
+              description: 'The domain or subdomain you want to use',
+              placeholder: `e.g. 'mydomain.com' or 'sub.mydomain.com'`,
+              required: true,
+              default: null,
+              patterns: [utils.Patterns.domain],
+            }),
+            acme: ISB.Value.select({
+              name: 'ACME Provider',
+              description:
+                'Select which ACME provider to use for obtaining your SSL certificate. Add new ACME providers in the System tab. Optionally use your system Root CA. Note: only devices that have trusted your Root CA will be able to access the domain without security warnings.',
+              values: acme.reduce(
+                (obj, url) => ({
+                  ...obj,
+                  [url]: toAcmeName(url),
+                }),
+                { none: 'None (use system Root CA)' } as Record<string, string>,
+              ),
+              default: '',
+            }),
+          }),
+        },
+        onion: {
+          name: 'Onion',
+          spec: ISB.InputSpec.of({
+            key: ISB.Value.text({
+              name: 'Private Key (optional)',
+              description:
+                'Optionally provide a base64-encoded ed25519 private key for generating the Tor V3 (.onion) address. If not provided, a random key will be generated and used.',
+              required: false,
+              default: null,
+              patterns: [utils.Patterns.base64],
+            }),
+          }),
+        },
+      }),
+    ),
   })
 }
 
@@ -255,10 +341,12 @@ export function getAddresses(
   const mappedAddresses = hostnames.flatMap(h => {
     let name = ''
     let isDomain = false
+    let isOnion = false
     let acme: string | null = null
 
     if (h.kind === 'onion') {
       name = `Tor`
+      isOnion = true
     } else {
       const hostnameKind = h.hostname.kind
 
@@ -282,6 +370,7 @@ export function getAddresses(
           .toUpperCase()})`,
         url,
         isDomain,
+        isOnion,
         acme,
       }))
     } else {
@@ -289,6 +378,7 @@ export function getAddresses(
         name,
         url,
         isDomain,
+        isOnion,
         acme,
       }))
     }

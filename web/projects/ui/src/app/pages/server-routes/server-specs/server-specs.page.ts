@@ -36,7 +36,7 @@ const iface = {
 export class ServerSpecsPage {
   readonly server$ = this.patch.watch$('serverInfo')
 
-  readonly ui$ = this.server$.pipe(
+  readonly ui$: Observable<MappedInterface> = this.server$.pipe(
     map(server => ({
       ...iface,
       public: server.host.bindings[iface.addressInfo.internalPort].net.public,

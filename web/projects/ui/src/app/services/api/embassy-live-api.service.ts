@@ -530,11 +530,41 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  async addTorKey(params: RR.AddTorKeyReq): Promise<RR.AddTorKeyRes> {
+    return this.rpcRequest({
+      method: 'net.tor.key.add',
+      params,
+    })
+  }
+
+  async generateTorKey(params: RR.GenerateTorKeyReq): Promise<RR.AddTorKeyRes> {
+    return this.rpcRequest({
+      method: 'net.tor.key.generate',
+      params,
+    })
+  }
+
   async serverBindingSetPubic(
     params: RR.ServerBindingSetPublicReq,
   ): Promise<RR.BindingSetPublicRes> {
     return this.rpcRequest({
       method: 'server.host.binding.set-public',
+      params,
+    })
+  }
+
+  async serverAddOnion(params: RR.ServerAddOnionReq): Promise<RR.AddOnionRes> {
+    return this.rpcRequest({
+      method: 'server.host.address.onion.add',
+      params,
+    })
+  }
+
+  async serverRemoveOnion(
+    params: RR.ServerRemoveOnionReq,
+  ): Promise<RR.RemoveOnionRes> {
+    return this.rpcRequest({
+      method: 'server.host.address.onion.remove',
       params,
     })
   }
@@ -562,6 +592,22 @@ export class LiveApiService extends ApiService {
   ): Promise<RR.BindingSetPublicRes> {
     return this.rpcRequest({
       method: 'package.host.binding.set-public',
+      params,
+    })
+  }
+
+  async pkgAddOnion(params: RR.PkgAddOnionReq): Promise<RR.AddOnionRes> {
+    return this.rpcRequest({
+      method: 'package.host.address.onion.add',
+      params,
+    })
+  }
+
+  async pkgRemoveOnion(
+    params: RR.PkgRemoveOnionReq,
+  ): Promise<RR.RemoveOnionRes> {
+    return this.rpcRequest({
+      method: 'package.host.address.onion.remove',
       params,
     })
   }

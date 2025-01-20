@@ -264,9 +264,21 @@ export abstract class ApiService {
 
   abstract removeAcme(params: RR.RemoveAcmeReq): Promise<RR.RemoveAcmeRes>
 
+  abstract addTorKey(params: RR.AddTorKeyReq): Promise<RR.AddTorKeyRes>
+
+  abstract generateTorKey(
+    params: RR.GenerateTorKeyReq,
+  ): Promise<RR.AddTorKeyRes>
+
   abstract serverBindingSetPubic(
     params: RR.ServerBindingSetPublicReq,
   ): Promise<RR.BindingSetPublicRes>
+
+  abstract serverAddOnion(params: RR.ServerAddOnionReq): Promise<RR.AddOnionRes>
+
+  abstract serverRemoveOnion(
+    params: RR.ServerRemoveOnionReq,
+  ): Promise<RR.RemoveOnionRes>
 
   abstract serverAddDomain(
     params: RR.ServerAddDomainReq,
@@ -279,6 +291,12 @@ export abstract class ApiService {
   abstract pkgBindingSetPubic(
     params: RR.PkgBindingSetPublicReq,
   ): Promise<RR.BindingSetPublicRes>
+
+  abstract pkgAddOnion(params: RR.PkgAddOnionReq): Promise<RR.AddOnionRes>
+
+  abstract pkgRemoveOnion(
+    params: RR.PkgRemoveOnionReq,
+  ): Promise<RR.RemoveOnionRes>
 
   abstract pkgAddDomain(params: RR.PkgAddDomainReq): Promise<RR.AddDomainRes>
 
