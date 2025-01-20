@@ -27,6 +27,7 @@ use crate::db::model::Database;
 use crate::disk::mount::util::unmount;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::net::net_controller::{NetController, NetService};
+use crate::net::utils::find_wifi_iface;
 use crate::net::web_server::{UpgradableListener, WebServerAcceptorSetter};
 use crate::prelude::*;
 use crate::progress::{
@@ -398,8 +399,6 @@ pub async fn init(
     mount_logs.complete();
     tracing::info!("Mounted Logs");
 
-    let mut server_info = peek.as_public().as_server_info().de()?;
-
     load_ca_cert.start();
     // write to ca cert store
     tokio::fs::write(
@@ -427,7 +426,15 @@ pub async fn init(
     load_ca_cert.complete();
 
     load_wifi.start();
-    crate::net::wifi::synchronize_network_manager(MAIN_DATA, &mut server_info.wifi).await?;
+    let wifi_interface = find_wifi_iface().await?;
+    let wifi = db
+        .mutate(|db| {
+            let wifi = db.as_public_mut().as_server_info_mut().as_wifi_mut();
+            wifi.as_interface_mut().ser(&wifi_interface)?;
+            wifi.de()
+        })
+        .await?;
+    crate::net::wifi::synchronize_network_manager(MAIN_DATA, &wifi).await?;
     load_wifi.complete();
     tracing::info!("Synchronized WiFi");
 
@@ -452,8 +459,10 @@ pub async fn init(
     crate::disk::mount::util::bind(&tmp_docker, CONTAINER_DATADIR, false).await?;
     init_tmp.complete();
 
+    let server_info = db.peek().await.into_public().into_server_info();
     set_governor.start();
-    let governor = if let Some(governor) = &server_info.governor {
+    let selected_governor = server_info.as_governor().de()?;
+    let governor = if let Some(governor) = &selected_governor {
         if cpupower::get_available_governors()
             .await?
             .contains(governor)
@@ -474,11 +483,11 @@ pub async fn init(
     set_governor.complete();
 
     sync_clock.start();
-    server_info.ntp_synced = false;
+    let mut ntp_synced = false;
     let mut not_made_progress = 0u32;
     for _ in 0..1800 {
         if check_time_is_synchronized().await? {
-            server_info.ntp_synced = true;
+            ntp_synced = true;
             break;
         }
         let t = SystemTime::now();
@@ -495,7 +504,7 @@ pub async fn init(
             break;
         }
     }
-    if !server_info.ntp_synced {
+    if !ntp_synced {
         tracing::warn!("Timed out waiting for system time to synchronize");
     } else {
         tracing::info!("Syncronized system clock");
@@ -503,16 +512,16 @@ pub async fn init(
     sync_clock.complete();
 
     enable_zram.start();
-    if server_info.zram {
+    if server_info.as_zram().de()? {
         crate::system::enable_zram().await?;
         tracing::info!("Enabled ZRAM");
     }
     enable_zram.complete();
 
     update_server_info.start();
-    server_info.ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
-    server_info.devices = lshw().await?;
-    server_info.status_info = ServerStatus {
+    let ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
+    let devices = lshw().await?;
+    let status_info = ServerStatus {
         updated: false,
         update_progress: None,
         backup_progress: None,
@@ -520,7 +529,11 @@ pub async fn init(
         restarting: false,
     };
     db.mutate(|v| {
-        v.as_public_mut().as_server_info_mut().ser(&server_info)?;
+        let server_info = v.as_public_mut().as_server_info_mut();
+        server_info.as_ntp_synced_mut().ser(&ntp_synced)?;
+        server_info.as_ram_mut().ser(&ram)?;
+        server_info.as_devices_mut().ser(&devices)?;
+        server_info.as_status_info_mut().ser(&status_info)?;
         Ok(())
     })
     .await?;

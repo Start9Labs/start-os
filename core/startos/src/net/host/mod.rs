@@ -172,7 +172,7 @@ pub trait HostApiKind: 'static {
         inheritance: &Self::Inheritance,
         db: &'a mut DatabaseModel,
     ) -> Result<&'a mut Model<Host>, Error>;
-    fn update_host(
+    fn sync_host(
         ctx: &RpcContext,
         inheritance: Self::Inheritance,
     ) -> impl Future<Output = Result<(), Error>> + Send;
@@ -194,13 +194,10 @@ impl HostApiKind for ForPackage {
     ) -> Result<&'a mut Model<Host>, Error> {
         host_for(db, Some(package), host)
     }
-    async fn update_host(
-        ctx: &RpcContext,
-        (package, host): Self::Inheritance,
-    ) -> Result<(), Error> {
+    async fn sync_host(ctx: &RpcContext, (package, host): Self::Inheritance) -> Result<(), Error> {
         let service = ctx.services.get(&package).await;
         let service_ref = service.as_ref().or_not_found(&package)?;
-        service_ref.update_host(host).await?;
+        service_ref.sync_host(host).await?;
         Ok(())
     }
 }
@@ -218,21 +215,8 @@ impl HostApiKind for ForServer {
     ) -> Result<&'a mut Model<Host>, Error> {
         host_for(db, None, &HostId::default())
     }
-    async fn update_host(ctx: &RpcContext, _: Self::Inheritance) -> Result<(), Error> {
-        ctx.os_net_service
-            .lock()
-            .await
-            .update(
-                HostId::default(),
-                ctx.db
-                    .peek()
-                    .await
-                    .as_public()
-                    .as_server_info()
-                    .as_host()
-                    .de()?,
-            )
-            .await
+    async fn sync_host(ctx: &RpcContext, _: Self::Inheritance) -> Result<(), Error> {
+        ctx.os_net_service.sync_host(HostId::default()).await
     }
 }
 

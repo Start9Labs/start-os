@@ -21,8 +21,12 @@ pub async fn bind(
     }: BindParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
-    let mut svc = context.seed.persistent_container.net_service.lock().await;
-    svc.bind(id, internal_port, options).await
+    context
+        .seed
+        .persistent_container
+        .net_service
+        .bind(id, internal_port, options)
+        .await
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
@@ -38,8 +42,12 @@ pub async fn clear_bindings(
     ClearBindingsParams { except }: ClearBindingsParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
-    let mut svc = context.seed.persistent_container.net_service.lock().await;
-    svc.clear_bindings(except.into_iter().collect()).await?;
+    context
+        .seed
+        .persistent_container
+        .net_service
+        .clear_bindings(except.into_iter().collect())
+        .await?;
     Ok(())
 }
 

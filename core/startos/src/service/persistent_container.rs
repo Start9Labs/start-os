@@ -110,7 +110,7 @@ pub struct PersistentContainer {
     pub(super) images: BTreeMap<ImageId, Arc<MountGuard>>,
     pub(super) subcontainers: Arc<Mutex<BTreeMap<Guid, Subcontainer>>>,
     pub(super) state: Arc<watch::Sender<ServiceState>>,
-    pub(super) net_service: Mutex<NetService>,
+    pub(super) net_service: NetService,
     destroyed: bool,
 }
 
@@ -285,7 +285,7 @@ impl PersistentContainer {
             images,
             subcontainers: Arc::new(Mutex::new(BTreeMap::new())),
             state: Arc::new(watch::channel(ServiceState::new(start)).0),
-            net_service: Mutex::new(net_service),
+            net_service,
             destroyed: false,
         })
     }

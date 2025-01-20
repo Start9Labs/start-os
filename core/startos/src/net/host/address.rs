@@ -203,7 +203,7 @@ pub async fn add_domain<Kind: HostApiKind>(
             check_duplicates(db)
         })
         .await?;
-    Kind::update_host(&ctx, inheritance).await?;
+    Kind::sync_host(&ctx, inheritance).await?;
 
     Ok(())
 }
@@ -225,7 +225,7 @@ pub async fn remove_domain<Kind: HostApiKind>(
                 .remove(&domain)
         })
         .await?;
-    Kind::update_host(&ctx, inheritance).await?;
+    Kind::sync_host(&ctx, inheritance).await?;
 
     Ok(())
 }
@@ -260,7 +260,7 @@ pub async fn add_onion<Kind: HostApiKind>(
         })
         .await?;
 
-    Kind::update_host(&ctx, inheritance).await?;
+    Kind::sync_host(&ctx, inheritance).await?;
 
     Ok(())
 }
@@ -287,7 +287,7 @@ pub async fn remove_onion<Kind: HostApiKind>(
         })
         .await?;
 
-    Kind::update_host(&ctx, inheritance).await?;
+    Kind::sync_host(&ctx, inheritance).await?;
 
     Ok(())
 }

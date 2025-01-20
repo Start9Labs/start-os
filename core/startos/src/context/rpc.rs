@@ -53,7 +53,7 @@ pub struct RpcContextSeed {
     pub sync_db: watch::Sender<u64>,
     pub account: RwLock<AccountInfo>,
     pub net_controller: Arc<NetController>,
-    pub os_net_service: Mutex<NetService>,
+    pub os_net_service: NetService,
     pub s9pk_arch: Option<&'static str>,
     pub services: ServiceMap,
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
@@ -228,7 +228,7 @@ impl RpcContext {
             db,
             account: RwLock::new(account),
             net_controller,
-            os_net_service: Mutex::new(os_net_service),
+            os_net_service,
             s9pk_arch: if config.multi_arch_s9pks.unwrap_or(false) {
                 None
             } else {

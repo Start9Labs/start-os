@@ -240,5 +240,5 @@ pub async fn set_public<Kind: HostApiKind>(
                 })
         })
         .await?;
-    Kind::update_host(&ctx, inheritance).await
+    Kind::sync_host(&ctx, inheritance).await
 }
