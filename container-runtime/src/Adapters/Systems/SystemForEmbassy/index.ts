@@ -709,6 +709,7 @@ export class SystemForEmbassy implements System {
         ([key, value]): T.Dependencies => {
           const dependency = this.manifest.dependencies?.[key]
           if (!dependency) return []
+          // if from manifest.dependencies
           if (value == null) {
             const versionRange = dependency.version
             if (dependency.requirement.type === "required") {
@@ -721,14 +722,20 @@ export class SystemForEmbassy implements System {
                 },
               ]
             }
-            return [
-              {
-                kind: "exists",
-                id: key,
-                versionRange,
-              },
-            ]
+            // current dep since default in config
+            if (dependency.requirement.type === "opt-out") {
+              return [
+                {
+                  id: key,
+                  versionRange,
+                  kind: "exists",
+                },
+              ]
+            }
+            // if opt-in, not a current dep, only changed through config
+            return []
           }
+          // if from rawDepends (ie. config)
           const versionRange = dependency.version
           const kind = "running"
           return [
