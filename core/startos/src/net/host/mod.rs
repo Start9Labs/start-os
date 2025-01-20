@@ -4,6 +4,7 @@ use std::panic::RefUnwindSafe;
 
 use clap::Parser;
 use imbl_value::InternedString;
+use itertools::Itertools;
 use models::{HostId, PackageId};
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, OrEmpty, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -118,6 +119,19 @@ pub fn host_for<'a>(
         );
         Ok(h)
     })
+}
+
+pub fn all_hosts(db: &DatabaseModel) -> impl Iterator<Item = Result<&Model<Host>, Error>> {
+    [Ok(db.as_public().as_server_info().as_host())]
+        .into_iter()
+        .chain(
+            [db.as_public().as_package_data().as_entries()]
+                .into_iter()
+                .flatten_ok()
+                .map(|entry| entry.and_then(|(_, v)| v.as_hosts().as_entries()))
+                .flatten_ok()
+                .map_ok(|(_, v)| v),
+        )
 }
 
 impl Model<Host> {

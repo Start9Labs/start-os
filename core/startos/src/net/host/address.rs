@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use clap::Parser;
 use imbl_value::InternedString;
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerArgs, HandlerExt, ParentHandler};
@@ -6,8 +8,9 @@ use torut::onion::OnionAddressV3;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
+use crate::db::model::DatabaseModel;
 use crate::net::acme::AcmeProvider;
-use crate::net::host::HostApiKind;
+use crate::net::host::{all_hosts, HostApiKind};
 use crate::prelude::*;
 use crate::util::serde::{display_serializable, HandlerExtSerde};
 
@@ -33,6 +36,41 @@ pub enum HostAddress {
 pub struct DomainConfig {
     pub public: bool,
     pub acme: Option<AcmeProvider>,
+}
+
+fn check_duplicates(db: &DatabaseModel) -> Result<(), Error> {
+    let mut onions = BTreeSet::<OnionAddressV3>::new();
+    let mut domains = BTreeSet::<InternedString>::new();
+    let mut check_onion = |onion: OnionAddressV3| {
+        if onions.contains(&onion) {
+            return Err(Error::new(
+                eyre!("onion address {onion} is already in use"),
+                ErrorKind::InvalidRequest,
+            ));
+        }
+        onions.insert(onion);
+        Ok(())
+    };
+    let mut check_domain = |domain: InternedString| {
+        if domains.contains(&domain) {
+            return Err(Error::new(
+                eyre!("domain {domain} is already in use"),
+                ErrorKind::InvalidRequest,
+            ));
+        }
+        domains.insert(domain);
+        Ok(())
+    };
+    for host in all_hosts(db) {
+        let host = host?;
+        for onion in host.as_onions().de()? {
+            check_onion(onion)?;
+        }
+        for domain in host.as_domains().keys()? {
+            check_domain(domain)?;
+        }
+    }
+    Ok(())
 }
 
 pub fn address_api<C: Context, Kind: HostApiKind>(
@@ -161,7 +199,8 @@ pub async fn add_domain<Kind: HostApiKind>(
                         public: !private,
                         acme,
                     },
-                )
+                )?;
+            check_duplicates(db)
         })
         .await?;
     Kind::update_host(&ctx, inheritance).await?;
@@ -216,7 +255,8 @@ pub async fn add_onion<Kind: HostApiKind>(
 
             Kind::host_for(&inheritance, db)?
                 .as_onions_mut()
-                .mutate(|a| Ok(a.insert(onion)))
+                .mutate(|a| Ok(a.insert(onion)))?;
+            check_duplicates(db)
         })
         .await?;
 
