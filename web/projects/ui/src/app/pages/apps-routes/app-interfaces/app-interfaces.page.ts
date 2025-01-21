@@ -5,6 +5,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map } from 'rxjs'
 import { getAddresses } from 'src/app/components/interface-info/interface-info.component'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   selector: 'app-interfaces',
@@ -39,7 +40,7 @@ export class AppInterfacesPage {
           return {
             ...iface,
             public: host.bindings[iface.addressInfo.internalPort].net.public,
-            addresses: getAddresses(iface, host),
+            addresses: getAddresses(iface, host, this.config),
           }
         })
 
@@ -54,5 +55,6 @@ export class AppInterfacesPage {
   constructor(
     private readonly route: ActivatedRoute,
     private readonly patch: PatchDB<DataModel>,
+    private readonly config: ConfigService,
   ) {}
 }

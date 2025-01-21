@@ -40,7 +40,7 @@ export class ServerSpecsPage {
     map(server => ({
       ...iface,
       public: server.host.bindings[iface.addressInfo.internalPort].net.public,
-      addresses: getAddresses(iface, server.host),
+      addresses: getAddresses(iface, server.host, this.config),
     })),
   )
 

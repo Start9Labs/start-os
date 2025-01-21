@@ -20,6 +20,7 @@ import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { FormComponent } from 'src/app/components/form.component'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
 import { ACME_URL, toAcmeName } from 'src/app/util/acme'
+import { ConfigService } from 'src/app/services/config.service'
 
 export type MappedInterface = T.ServiceInterface & {
   addresses: MappedAddress[]
@@ -51,6 +52,7 @@ export class InterfaceInfoComponent {
     private readonly formDialog: FormDialogService,
     private readonly alertCtrl: AlertController,
     private readonly patch: PatchDB<DataModel>,
+    private readonly config: ConfigService,
     @Inject(WINDOW) private readonly windowRef: Window,
   ) {}
 
@@ -308,6 +310,7 @@ function getDomainSpec(acme: string[]) {
 export function getAddresses(
   serviceInterface: T.ServiceInterface,
   host: T.Host,
+  config: ConfigService,
 ): MappedAddress[] {
   const addressInfo = serviceInterface.addressInfo
 
@@ -315,12 +318,12 @@ export function getAddresses(
 
   hostnames = hostnames.filter(
     h =>
-      window.location.host === 'localhost' ||
+      config.isLocalhost() ||
       h.kind !== 'ip' ||
       h.hostname.kind !== 'ipv6' ||
       !h.hostname.value.startsWith('fe80::'),
   )
-  if (window.location.host === 'localhost') {
+  if (config.isLocalhost()) {
     const local = hostnames.find(
       h => h.kind === 'ip' && h.hostname.kind === 'local',
     )
