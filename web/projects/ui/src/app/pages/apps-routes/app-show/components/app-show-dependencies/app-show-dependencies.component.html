@@ -30,4 +30,10 @@
     {{ dep.actionText }}
     <ion-icon slot="end" name="arrow-forward"></ion-icon>
   </ion-button>
+  <dep-action-requests
+    [allPkgs]="allPkgs"
+    [pkg]="pkg"
+    [dep]="dep"
+    [pkgId]="pkgId"
+  ></dep-action-requests>
 </ion-item>

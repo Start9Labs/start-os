@@ -1,0 +1,31 @@
+<ng-container *ngIf="actionRequests[dep.id]?.length">
+  <ion-item
+    *ngFor="let request of actionRequests[dep.id]"
+    button
+    (click)="handleAction(request)"
+  >
+    <ion-icon
+      slot="start"
+      [name]="
+        request.severity === 'critical' ? 'warning-outline' : 'play-outline'
+      "
+      color="warning"
+    ></ion-icon>
+    <ion-label>
+      <h2 class="highlighted">{{ request.actionName }}</h2>
+      <p class="severity">
+        {{ request.reason || 'no reason provided' }} |
+        <span
+          [ngStyle]="{
+            color:
+              request.severity === 'critical'
+                ? 'var(--ion-color-warning)'
+                : 'var(--ion-color-primary)'
+          }"
+        >
+          {{ request.severity === 'critical' ? 'Required' : 'Requested' }}
+        </span>
+      </p>
+    </ion-label>
+  </ion-item>
+</ng-container>

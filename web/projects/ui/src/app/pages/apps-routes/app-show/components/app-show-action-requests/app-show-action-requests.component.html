@@ -8,13 +8,7 @@
     <ion-icon slot="start" name="warning-outline" color="warning"></ion-icon>
     <ion-label>
       <h2 class="highlighted">{{ request.actionName }}</h2>
-      <p *ngIf="request.dependency" class="dependency">
-        <span class="light">Service:</span>
-        <img [src]="request.dependency.icon" alt="" />
-        {{ request.dependency.title }}
-      </p>
       <p>
-        <span class="light">Reason:</span>
         {{ request.reason || 'no reason provided' }}
       </p>
     </ion-label>
@@ -31,13 +25,7 @@
     <ion-icon slot="start" name="play-outline" color="warning"></ion-icon>
     <ion-label>
       <h2 class="highlighted">{{ request.actionName }}</h2>
-      <p *ngIf="request.dependency" class="dependency">
-        <span class="light">Service:</span>
-        <img [src]="request.dependency.icon" alt="" />
-        {{ request.dependency.title }}
-      </p>
       <p>
-        <span class="light">Reason:</span>
         {{ request.reason || 'no reason provided' }}
       </p>
     </ion-label>
