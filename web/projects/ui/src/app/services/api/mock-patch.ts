@@ -57,7 +57,7 @@ export const mockPatchData: DataModel = {
           deviceType: 'wireless',
           subnets: [
             '10.0.90.12/24',
-            'fe80:cd00:0000:0cde:1257:0000:211e:72cd/64',
+            'fe80::cd00:0000:0cde:1257:0000:211e:72cd/64',
           ],
           wanIp: null,
           ntpServers: [],
@@ -156,7 +156,7 @@ export const mockPatchData: DataModel = {
             public: false,
             hostname: {
               kind: 'ipv6',
-              value: '[fe80:cd00:0000:0cde:1257:0000:211e:72cd]',
+              value: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
               scopeId: 2,
               port: null,
               sslPort: 443,
@@ -168,7 +168,7 @@ export const mockPatchData: DataModel = {
             public: false,
             hostname: {
               kind: 'ipv6',
-              value: '[fe80:cd00:0000:0cde:1257:0000:211e:1234]',
+              value: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
               scopeId: 3,
               port: null,
               sslPort: 443,
@@ -374,7 +374,7 @@ export const mockPatchData: DataModel = {
                 public: false,
                 hostname: {
                   kind: 'ipv6',
-                  value: '[fe80:cd00:0000:0cde:1257:0000:211e:72cd]',
+                  value: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
                   scopeId: 2,
                   port: null,
                   sslPort: 1234,
@@ -386,7 +386,7 @@ export const mockPatchData: DataModel = {
                 public: false,
                 hostname: {
                   kind: 'ipv6',
-                  value: '[fe80:cd00:0000:0cde:1257:0000:211e:1234]',
+                  value: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
                   scopeId: 3,
                   port: null,
                   sslPort: 1234,
