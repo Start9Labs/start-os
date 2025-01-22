@@ -85,6 +85,11 @@ const routes: Routes = [
     loadChildren: () =>
       import('./email/email.module').then(m => m.EmailPageModule),
   },
+  {
+    path: 'acme',
+    loadChildren: () =>
+      import('./acme/acme.module').then(m => m.ACMEPageModule),
+  },
 ]
 
 @NgModule({

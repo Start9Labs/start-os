@@ -173,16 +173,26 @@ impl<'a> async_acme::cache::AcmeCache for AcmeCertCache<'a> {
 }
 
 pub fn acme<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new().subcommand(
-        "init",
-        from_fn_async(init)
-            .no_display()
-            .with_about("Setup ACME certificate acquisition")
-            .with_call_remote::<CliContext>(),
-    )
+    ParentHandler::new()
+        .subcommand(
+            "init",
+            from_fn_async(init)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("Setup ACME certificate acquisition")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "remove",
+            from_fn_async(remove)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("Setup ACME certificate acquisition")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, TS)]
 #[ts(type = "string")]
 pub struct AcmeProvider(pub Url);
 impl FromStr for AcmeProvider {
@@ -193,7 +203,29 @@ impl FromStr for AcmeProvider {
             "letsencrypt-staging" => async_acme::acme::LETS_ENCRYPT_STAGING_DIRECTORY.parse(),
             s => s.parse(),
         }
+        .map(|mut u: Url| {
+            let path = u
+                .path_segments()
+                .into_iter()
+                .flatten()
+                .filter(|p| !p.is_empty())
+                .map(|p| p.to_owned())
+                .collect::<Vec<_>>();
+            if let Ok(mut path_mut) = u.path_segments_mut() {
+                path_mut.clear();
+                path_mut.extend(path);
+            }
+            u
+        })
         .map(Self)
+    }
+}
+impl<'de> Deserialize<'de> for AcmeProvider {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        crate::util::serde::deserialize_from_str(deserializer)
     }
 }
 impl AsRef<str> for AcmeProvider {
@@ -226,6 +258,27 @@ pub async fn init(
                 .as_server_info_mut()
                 .as_acme_mut()
                 .insert(&provider, &AcmeSettings { contact })
+        })
+        .await?;
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+pub struct RemoveAcmeParams {
+    #[arg(long)]
+    pub provider: AcmeProvider,
+}
+
+pub async fn remove(
+    ctx: RpcContext,
+    RemoveAcmeParams { provider }: RemoveAcmeParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_acme_mut()
+                .remove(&provider)
         })
         .await?;
     Ok(())

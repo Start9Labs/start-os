@@ -15,7 +15,7 @@ export class SuccessPage {
     {} as ElementRef<HTMLCanvasElement>
   private ctx: CanvasRenderingContext2D = {} as CanvasRenderingContext2D
 
-  torAddress?: string
+  torAddresses?: string[]
   lanAddress?: string
   cert?: string
 
@@ -52,7 +52,7 @@ export class SuccessPage {
     const torAddress = this.document.getElementById('tor-addr')
     const lanAddress = this.document.getElementById('lan-addr')
 
-    if (torAddress) torAddress.innerHTML = this.torAddress!
+    if (torAddress) torAddress.innerHTML = this.torAddresses!.join('\n')
     if (lanAddress) lanAddress.innerHTML = this.lanAddress!
 
     this.document
@@ -76,7 +76,9 @@ export class SuccessPage {
     try {
       const ret = await this.api.complete()
       if (!this.isKiosk) {
-        this.torAddress = ret.torAddress.replace(/^https:/, 'http:')
+        this.torAddresses = ret.torAddresses.map(a =>
+          a.replace(/^https:/, 'http:'),
+        )
         this.lanAddress = ret.lanAddress.replace(/^https:/, 'http:')
         this.cert = ret.rootCa
 

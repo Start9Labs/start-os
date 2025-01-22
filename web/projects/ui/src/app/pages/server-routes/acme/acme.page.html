@@ -1,0 +1,56 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="system"></ion-back-button>
+    </ion-buttons>
+    <ion-title>ACME</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding-top with-widgets">
+  <ion-item-group>
+    <!-- always -->
+    <ion-item>
+      <ion-label>
+        <h2>
+          Register with one or more ACME providers such as Let's Encrypt in
+          order to generate SSL (https) certificates on-demand for clearnet
+          hosting
+          <a [href]="docsUrl" target="_blank" rel="noreferrer">
+            View instructions
+          </a>
+        </h2>
+      </ion-label>
+    </ion-item>
+
+    <ion-item-divider>Saved Providers</ion-item-divider>
+
+    <ion-item button detail="false" (click)="presentFormAcme()">
+      <ion-icon slot="start" name="add" color="dark"></ion-icon>
+      <ion-label>
+        <b>Add Provider</b>
+      </ion-label>
+    </ion-item>
+
+    <ng-container *ngIf="acme$ | async as acme">
+      <ion-item *ngFor="let provider of acme | keyvalue">
+        <ion-icon slot="start" name="finger-print" size="medium"></ion-icon>
+        <ion-label>
+          <h2>{{ toAcmeName(provider.key) }}</h2>
+          <p *ngFor="let contact of provider.value.contact">
+            Contact: {{ contact }}
+          </p>
+        </ion-label>
+        <ion-button
+          slot="end"
+          fill="clear"
+          color="danger"
+          (click)="removeAcme(provider.key)"
+        >
+          <ion-icon slot="start" name="close"></ion-icon>
+          Remove
+        </ion-button>
+      </ion-item>
+    </ng-container>
+  </ion-item-group>
+</ion-content>

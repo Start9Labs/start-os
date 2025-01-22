@@ -135,7 +135,7 @@ export class FormService {
         return this.formBuilder.control(value)
       case 'select':
         value = currentValue === undefined ? spec.default : currentValue
-        return this.formBuilder.control(value)
+        return this.formBuilder.control(value, [Validators.required])
       case 'multiselect':
         value = currentValue === undefined ? spec.default : currentValue
         return this.formBuilder.control(value, multiselectValidators(spec))

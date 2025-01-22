@@ -1,14 +1,12 @@
 use models::{HostId, PackageId};
 
 use crate::net::host::binding::{BindId, BindOptions, NetInfo};
-use crate::net::host::HostKind;
 use crate::service::effects::prelude::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct BindParams {
-    kind: HostKind,
     id: HostId,
     internal_port: u16,
     #[serde(flatten)]
@@ -17,15 +15,18 @@ pub struct BindParams {
 pub async fn bind(
     context: EffectContext,
     BindParams {
-        kind,
         id,
         internal_port,
         options,
     }: BindParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
-    let mut svc = context.seed.persistent_container.net_service.lock().await;
-    svc.bind(kind, id, internal_port, options).await
+    context
+        .seed
+        .persistent_container
+        .net_service
+        .bind(id, internal_port, options)
+        .await
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
@@ -41,8 +42,12 @@ pub async fn clear_bindings(
     ClearBindingsParams { except }: ClearBindingsParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
-    let mut svc = context.seed.persistent_container.net_service.lock().await;
-    svc.clear_bindings(except.into_iter().collect()).await?;
+    context
+        .seed
+        .persistent_container
+        .net_service
+        .clear_bindings(except.into_iter().collect())
+        .await?;
     Ok(())
 }
 

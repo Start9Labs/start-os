@@ -87,6 +87,7 @@ use crate::context::{
     CliContext, DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext,
 };
 use crate::disk::fsck::RequiresReboot;
+use crate::net::net;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
 use crate::util::serde::HandlerExtSerde;
 
@@ -313,7 +314,7 @@ pub fn server<C: Context>() -> ParentHandler<C> {
                 .no_display()
                 .with_about("Remove system smtp server and credentials")
                 .with_call_remote::<CliContext>()
-        )
+        ).subcommand("host", net::host::server_host_api::<C>().with_about("Commands for modifying the host for the system ui"))
 }
 
 pub fn package<C: Context>() -> ParentHandler<C> {
@@ -427,7 +428,7 @@ pub fn package<C: Context>() -> ParentHandler<C> {
         .subcommand("attach", from_fn_async(service::cli_attach).no_display())
         .subcommand(
             "host",
-            net::host::host::<C>().with_about("Manage network hosts for a package"),
+            net::host::host_api::<C>().with_about("Manage network hosts for a package"),
         )
 }
 

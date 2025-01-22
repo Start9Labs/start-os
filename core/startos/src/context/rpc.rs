@@ -26,9 +26,9 @@ use crate::auth::Sessions;
 use crate::context::config::ServerConfig;
 use crate::db::model::Database;
 use crate::disk::OsPartitionInfo;
-use crate::init::check_time_is_synchronized;
+use crate::init::{check_time_is_synchronized, InitResult};
 use crate::lxc::{ContainerId, LxcContainer, LxcManager};
-use crate::net::net_controller::{NetController, PreInitNetController};
+use crate::net::net_controller::{NetController, NetService};
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
 use crate::net::web_server::{UpgradableListener, WebServerAcceptorSetter};
 use crate::net::wifi::WpaCli;
@@ -53,6 +53,7 @@ pub struct RpcContextSeed {
     pub sync_db: watch::Sender<u64>,
     pub account: RwLock<AccountInfo>,
     pub net_controller: Arc<NetController>,
+    pub os_net_service: NetService,
     pub s9pk_arch: Option<&'static str>,
     pub services: ServiceMap,
     pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
@@ -119,7 +120,7 @@ impl RpcContext {
         webserver: &WebServerAcceptorSetter<UpgradableListener>,
         config: &ServerConfig,
         disk_guid: Arc<String>,
-        net_ctrl: Option<PreInitNetController>,
+        init_result: Option<InitResult>,
         InitRpcContextPhases {
             mut load_db,
             mut init_net_ctrl,
@@ -133,7 +134,7 @@ impl RpcContext {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
 
         load_db.start();
-        let db = if let Some(net_ctrl) = &net_ctrl {
+        let db = if let Some(InitResult { net_ctrl, .. }) = &init_result {
             net_ctrl.db.clone()
         } else {
             TypedPatchDb::<Database>::load(config.db().await?).await?
@@ -144,31 +145,28 @@ impl RpcContext {
         tracing::info!("Opened PatchDB");
 
         init_net_ctrl.start();
-        let net_controller = Arc::new(
-            NetController::init(
-                if let Some(net_ctrl) = net_ctrl {
-                    net_ctrl
-                } else {
-                    let net_ctrl = PreInitNetController::init(
-                        db.clone(),
-                        config
-                            .tor_control
-                            .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
-                        tor_proxy,
-                        &account.hostname,
-                        account.tor_key.clone(),
-                    )
-                    .await?;
-                    webserver.try_upgrade(|a| net_ctrl.net_iface.upgrade_listener(a))?;
-                    net_ctrl
-                },
-                config
-                    .dns_bind
-                    .as_deref()
-                    .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
-            )
-            .await?,
-        );
+        let (net_controller, os_net_service) = if let Some(InitResult {
+            net_ctrl,
+            os_net_service,
+        }) = init_result
+        {
+            (net_ctrl, os_net_service)
+        } else {
+            let net_ctrl = Arc::new(
+                NetController::init(
+                    db.clone(),
+                    config
+                        .tor_control
+                        .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
+                    tor_proxy,
+                    &account.hostname,
+                )
+                .await?,
+            );
+            webserver.try_upgrade(|a| net_ctrl.net_iface.upgrade_listener(a))?;
+            let os_net_service = net_ctrl.os_bindings().await?;
+            (net_ctrl, os_net_service)
+        };
         init_net_ctrl.complete();
         tracing::info!("Initialized Net Controller");
 
@@ -230,6 +228,7 @@ impl RpcContext {
             db,
             account: RwLock::new(account),
             net_controller,
+            os_net_service,
             s9pk_arch: if config.multi_arch_s9pks.unwrap_or(false) {
                 None
             } else {

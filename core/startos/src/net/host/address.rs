@@ -1,22 +1,31 @@
+use std::collections::BTreeSet;
+
 use clap::Parser;
 use imbl_value::InternedString;
-use models::{HostId, PackageId};
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use torut::onion::OnionAddressV3;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
+use crate::db::model::DatabaseModel;
 use crate::net::acme::AcmeProvider;
+use crate::net::host::{all_hosts, HostApiKind};
 use crate::prelude::*;
 use crate::util::serde::{display_serializable, HandlerExtSerde};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "kebab-case")]
+#[serde(rename_all_fields = "camelCase")]
+#[serde(tag = "kind")]
+#[ts(export)]
 pub enum HostAddress {
     Onion {
+        #[ts(type = "string")]
         address: OnionAddressV3,
     },
     Domain {
+        #[ts(type = "string")]
         address: InternedString,
         public: bool,
         acme: Option<AcmeProvider>,
@@ -29,19 +38,51 @@ pub struct DomainConfig {
     pub acme: Option<AcmeProvider>,
 }
 
-#[derive(Deserialize, Serialize, Parser)]
-pub struct AddressApiParams {
-    host: HostId,
+fn check_duplicates(db: &DatabaseModel) -> Result<(), Error> {
+    let mut onions = BTreeSet::<OnionAddressV3>::new();
+    let mut domains = BTreeSet::<InternedString>::new();
+    let mut check_onion = |onion: OnionAddressV3| {
+        if onions.contains(&onion) {
+            return Err(Error::new(
+                eyre!("onion address {onion} is already in use"),
+                ErrorKind::InvalidRequest,
+            ));
+        }
+        onions.insert(onion);
+        Ok(())
+    };
+    let mut check_domain = |domain: InternedString| {
+        if domains.contains(&domain) {
+            return Err(Error::new(
+                eyre!("domain {domain} is already in use"),
+                ErrorKind::InvalidRequest,
+            ));
+        }
+        domains.insert(domain);
+        Ok(())
+    };
+    for host in all_hosts(db) {
+        let host = host?;
+        for onion in host.as_onions().de()? {
+            check_onion(onion)?;
+        }
+        for domain in host.as_domains().keys()? {
+            check_domain(domain)?;
+        }
+    }
+    Ok(())
 }
 
-pub fn address<C: Context>() -> ParentHandler<C, AddressApiParams, PackageId> {
-    ParentHandler::<C, AddressApiParams, PackageId>::new()
+pub fn address_api<C: Context, Kind: HostApiKind>(
+) -> ParentHandler<C, Kind::Params, Kind::InheritedParams> {
+    ParentHandler::<C, Kind::Params, Kind::InheritedParams>::new()
         .subcommand(
             "domain",
-            ParentHandler::<C, Empty, (PackageId, HostId)>::new()
+            ParentHandler::<C, Empty, Kind::Inheritance>::new()
                 .subcommand(
                     "add",
-                    from_fn_async(add_domain)
+                    from_fn_async(add_domain::<Kind>)
+                        .with_metadata("sync_db", Value::Bool(true))
                         .with_inherited(|_, a| a)
                         .no_display()
                         .with_about("Add an address to this host")
@@ -49,20 +90,22 @@ pub fn address<C: Context>() -> ParentHandler<C, AddressApiParams, PackageId> {
                 )
                 .subcommand(
                     "remove",
-                    from_fn_async(remove_domain)
+                    from_fn_async(remove_domain::<Kind>)
+                        .with_metadata("sync_db", Value::Bool(true))
                         .with_inherited(|_, a| a)
                         .no_display()
                         .with_about("Remove an address from this host")
                         .with_call_remote::<CliContext>(),
                 )
-                .with_inherited(|AddressApiParams { host }, package| (package, host)),
+                .with_inherited(Kind::inheritance),
         )
         .subcommand(
             "onion",
-            ParentHandler::<C, Empty, (PackageId, HostId)>::new()
+            ParentHandler::<C, Empty, Kind::Inheritance>::new()
                 .subcommand(
                     "add",
-                    from_fn_async(add_onion)
+                    from_fn_async(add_onion::<Kind>)
+                        .with_metadata("sync_db", Value::Bool(true))
                         .with_inherited(|_, a| a)
                         .no_display()
                         .with_about("Add an address to this host")
@@ -70,18 +113,19 @@ pub fn address<C: Context>() -> ParentHandler<C, AddressApiParams, PackageId> {
                 )
                 .subcommand(
                     "remove",
-                    from_fn_async(remove_onion)
+                    from_fn_async(remove_onion::<Kind>)
+                        .with_metadata("sync_db", Value::Bool(true))
                         .with_inherited(|_, a| a)
                         .no_display()
                         .with_about("Remove an address from this host")
                         .with_call_remote::<CliContext>(),
                 )
-                .with_inherited(|AddressApiParams { host }, package| (package, host)),
+                .with_inherited(Kind::inheritance),
         )
         .subcommand(
             "list",
-            from_fn_async(list_addresses)
-                .with_inherited(|AddressApiParams { host }, package| (package, host))
+            from_fn_async(list_addresses::<Kind>)
+                .with_inherited(Kind::inheritance)
                 .with_display_serializable()
                 .with_custom_display_fn(|HandlerArgs { params, .. }, res| {
                     use prettytable::*;
@@ -130,14 +174,14 @@ pub struct AddDomainParams {
     pub acme: Option<AcmeProvider>,
 }
 
-pub async fn add_domain(
+pub async fn add_domain<Kind: HostApiKind>(
     ctx: RpcContext,
     AddDomainParams {
         domain,
         private,
         acme,
     }: AddDomainParams,
-    (package, host): (PackageId, HostId),
+    inheritance: Kind::Inheritance,
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
@@ -147,13 +191,7 @@ pub async fn add_domain(
                 }
             }
 
-            db.as_public_mut()
-                .as_package_data_mut()
-                .as_idx_mut(&package)
-                .or_not_found(&package)?
-                .as_hosts_mut()
-                .as_idx_mut(&host)
-                .or_not_found(&host)?
+            Kind::host_for(&inheritance, db)?
                 .as_domains_mut()
                 .insert(
                     &domain,
@@ -161,12 +199,11 @@ pub async fn add_domain(
                         public: !private,
                         acme,
                     },
-                )
+                )?;
+            check_duplicates(db)
         })
         .await?;
-    let service = ctx.services.get(&package).await;
-    let service_ref = service.as_ref().or_not_found(&package)?;
-    service_ref.update_host(host).await?;
+    Kind::sync_host(&ctx, inheritance).await?;
 
     Ok(())
 }
@@ -176,27 +213,19 @@ pub struct RemoveDomainParams {
     pub domain: InternedString,
 }
 
-pub async fn remove_domain(
+pub async fn remove_domain<Kind: HostApiKind>(
     ctx: RpcContext,
     RemoveDomainParams { domain }: RemoveDomainParams,
-    (package, host): (PackageId, HostId),
+    inheritance: Kind::Inheritance,
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
-            db.as_public_mut()
-                .as_package_data_mut()
-                .as_idx_mut(&package)
-                .or_not_found(&package)?
-                .as_hosts_mut()
-                .as_idx_mut(&host)
-                .or_not_found(&host)?
+            Kind::host_for(&inheritance, db)?
                 .as_domains_mut()
                 .remove(&domain)
         })
         .await?;
-    let service = ctx.services.get(&package).await;
-    let service_ref = service.as_ref().or_not_found(&package)?;
-    service_ref.update_host(host).await?;
+    Kind::sync_host(&ctx, inheritance).await?;
 
     Ok(())
 }
@@ -206,10 +235,10 @@ pub struct OnionParams {
     pub onion: String,
 }
 
-pub async fn add_onion(
+pub async fn add_onion<Kind: HostApiKind>(
     ctx: RpcContext,
     OnionParams { onion }: OnionParams,
-    (package, host): (PackageId, HostId),
+    inheritance: Kind::Inheritance,
 ) -> Result<(), Error> {
     let onion = onion
         .strip_suffix(".onion")
@@ -224,28 +253,22 @@ pub async fn add_onion(
         .mutate(|db| {
             db.as_private().as_key_store().as_onion().get_key(&onion)?;
 
-            db.as_public_mut()
-                .as_package_data_mut()
-                .as_idx_mut(&package)
-                .or_not_found(&package)?
-                .as_hosts_mut()
-                .as_idx_mut(&host)
-                .or_not_found(&host)?
+            Kind::host_for(&inheritance, db)?
                 .as_onions_mut()
-                .mutate(|a| Ok(a.insert(onion)))
+                .mutate(|a| Ok(a.insert(onion)))?;
+            check_duplicates(db)
         })
         .await?;
-    let service = ctx.services.get(&package).await;
-    let service_ref = service.as_ref().or_not_found(&package)?;
-    service_ref.update_host(host).await?;
+
+    Kind::sync_host(&ctx, inheritance).await?;
 
     Ok(())
 }
 
-pub async fn remove_onion(
+pub async fn remove_onion<Kind: HostApiKind>(
     ctx: RpcContext,
     OnionParams { onion }: OnionParams,
-    (package, host): (PackageId, HostId),
+    inheritance: Kind::Inheritance,
 ) -> Result<(), Error> {
     let onion = onion
         .strip_suffix(".onion")
@@ -258,40 +281,23 @@ pub async fn remove_onion(
         .parse::<OnionAddressV3>()?;
     ctx.db
         .mutate(|db| {
-            db.as_public_mut()
-                .as_package_data_mut()
-                .as_idx_mut(&package)
-                .or_not_found(&package)?
-                .as_hosts_mut()
-                .as_idx_mut(&host)
-                .or_not_found(&host)?
+            Kind::host_for(&inheritance, db)?
                 .as_onions_mut()
                 .mutate(|a| Ok(a.remove(&onion)))
         })
         .await?;
-    let service = ctx.services.get(&package).await;
-    let service_ref = service.as_ref().or_not_found(&package)?;
-    service_ref.update_host(host).await?;
+
+    Kind::sync_host(&ctx, inheritance).await?;
 
     Ok(())
 }
 
-pub async fn list_addresses(
+pub async fn list_addresses<Kind: HostApiKind>(
     ctx: RpcContext,
     _: Empty,
-    (package, host): (PackageId, HostId),
+    inheritance: Kind::Inheritance,
 ) -> Result<Vec<HostAddress>, Error> {
-    Ok(ctx
-        .db
-        .peek()
-        .await
-        .into_public()
-        .into_package_data()
-        .into_idx(&package)
-        .or_not_found(&package)?
-        .into_hosts()
-        .into_idx(&host)
-        .or_not_found(&host)?
+    Ok(Kind::host_for(&inheritance, &mut ctx.db.peek().await)?
         .de()?
         .addresses()
         .collect())

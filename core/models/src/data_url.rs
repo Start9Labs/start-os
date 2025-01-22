@@ -168,6 +168,6 @@ fn doesnt_reallocate() {
             mime: InternedString::intern("png"),
             data: Cow::Borrowed(&random[..i]),
         };
-        assert_eq!(dbg!(icon.to_string()).capacity(), icon.data_url_len());
+        assert_eq!(icon.to_string().capacity(), icon.data_url_len());
     }
 }

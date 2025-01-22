@@ -11,7 +11,7 @@ use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::REPAIR_DISK_PATH;
 use crate::firmware::{check_for_firmware_update, update_firmware};
-use crate::init::{InitPhases, InitResult, STANDBY_MODE_PATH};
+use crate::init::{InitPhases, STANDBY_MODE_PATH};
 use crate::net::web_server::{UpgradableListener, WebServer};
 use crate::prelude::*;
 use crate::progress::FullProgressTracker;
@@ -188,14 +188,14 @@ async fn setup_or_init(
                 }));
             }
 
-            let InitResult { net_ctrl } =
+            let init_result =
                 crate::init::init(&server.acceptor_setter(), config, init_phases).await?;
 
             let rpc_ctx = RpcContext::init(
                 &server.acceptor_setter(),
                 config,
                 disk_guid,
-                Some(net_ctrl),
+                Some(init_result),
                 rpc_ctx_phases,
             )
             .await?;

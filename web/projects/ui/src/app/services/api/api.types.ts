@@ -219,6 +219,80 @@ export module RR {
 
   // package
 
+  export type InitAcmeReq = {
+    provider: 'letsencrypt' | 'letsencrypt-staging' | string
+    contact: string[]
+  }
+  export type InitAcmeRes = null
+
+  export type RemoveAcmeReq = {
+    provider: string
+  }
+  export type RemoveAcmeRes = null
+
+  export type AddTorKeyReq = {
+    // net.tor.key.add
+    key: string
+  }
+  export type GenerateTorKeyReq = {} // net.tor.key.generate
+  export type AddTorKeyRes = string // onion address without .onion suffix
+
+  export type ServerBindingSetPublicReq = {
+    // server.host.binding.set-public
+    internalPort: number
+    public: boolean | null // default true
+  }
+  export type BindingSetPublicRes = null
+
+  export type ServerAddOnionReq = {
+    // server.host.address.onion.add
+    onion: string // address *with* .onion suffix
+  }
+  export type AddOnionRes = null
+
+  export type ServerRemoveOnionReq = ServerAddOnionReq // server.host.address.onion.remove
+  export type RemoveOnionRes = null
+
+  export type ServerAddDomainReq = {
+    // server.host.address.domain.add
+    domain: string // FQDN
+    private: boolean
+    acme: string | null // "letsencrypt" | "letsencrypt-staging" | Url | null
+  }
+  export type AddDomainRes = null
+
+  export type ServerRemoveDomainReq = {
+    // server.host.address.domain.remove
+    domain: string // FQDN
+  }
+  export type RemoveDomainRes = null
+
+  export type PkgBindingSetPublicReq = ServerBindingSetPublicReq & {
+    // package.host.binding.set-public
+    package: T.PackageId // string
+    host: T.HostId // string
+  }
+
+  export type PkgAddOnionReq = ServerAddOnionReq & {
+    // package.host.address.onion.add
+    package: T.PackageId // string
+    host: T.HostId // string
+  }
+
+  export type PkgRemoveOnionReq = PkgAddOnionReq // package.host.address.onion.remove
+
+  export type PkgAddDomainReq = ServerAddDomainReq & {
+    // package.host.address.domain.add
+    package: T.PackageId // string
+    host: T.HostId // string
+  }
+
+  export type PkgRemoveDomainReq = ServerRemoveDomainReq & {
+    // package.host.address.domain.remove
+    package: T.PackageId // string
+    host: T.HostId // string
+  }
+
   export type GetPackageLogsReq = ServerLogsReq & { id: string } // package.logs
   export type GetPackageLogsRes = LogsRes
 

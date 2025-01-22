@@ -43,7 +43,7 @@ export class DockerProcedureContainer {
   ) {
     const subcontainer = await SubContainer.of(
       effects,
-      { id: data.image },
+      { imageId: data.image },
       name,
     )
 

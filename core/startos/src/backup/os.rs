@@ -85,7 +85,7 @@ impl OsBackupV0 {
                     &mut rand::thread_rng(),
                     ssh_key::Algorithm::Ed25519,
                 )?,
-                tor_key: TorSecretKeyV3::from(self.tor_key.0),
+                tor_keys: vec![TorSecretKeyV3::from(self.tor_key.0)],
                 compat_s9pk_key: ed25519_dalek::SigningKey::generate(&mut rand::thread_rng()),
             },
             ui: self.ui,
@@ -114,7 +114,7 @@ impl OsBackupV1 {
                 root_ca_key: self.root_ca_key.0,
                 root_ca_cert: self.root_ca_cert.0,
                 ssh_key: ssh_key::PrivateKey::from(Ed25519Keypair::from_seed(&self.net_key.0)),
-                tor_key: TorSecretKeyV3::from(ed25519_expand_key(&self.net_key.0)),
+                tor_keys: vec![TorSecretKeyV3::from(ed25519_expand_key(&self.net_key.0))],
                 compat_s9pk_key: ed25519_dalek::SigningKey::from_bytes(&self.net_key),
             },
             ui: self.ui,
@@ -132,7 +132,7 @@ struct OsBackupV2 {
     root_ca_key: Pem<PKey<Private>>,                 // PEM Encoded OpenSSL Key
     root_ca_cert: Pem<X509>,                         // PEM Encoded OpenSSL X509 Certificate
     ssh_key: Pem<ssh_key::PrivateKey>,               // PEM Encoded OpenSSH Key
-    tor_key: TorSecretKeyV3,                         // Base64 Encoded Ed25519 Expanded Secret Key
+    tor_keys: Vec<TorSecretKeyV3>,                   // Base64 Encoded Ed25519 Expanded Secret Key
     compat_s9pk_key: Pem<ed25519_dalek::SigningKey>, // PEM Encoded ED25519 Key
     ui: Value,                                       // JSON Value
 }
@@ -146,7 +146,7 @@ impl OsBackupV2 {
                 root_ca_key: self.root_ca_key.0,
                 root_ca_cert: self.root_ca_cert.0,
                 ssh_key: self.ssh_key.0,
-                tor_key: self.tor_key,
+                tor_keys: self.tor_keys,
                 compat_s9pk_key: self.compat_s9pk_key.0,
             },
             ui: self.ui,
@@ -159,7 +159,7 @@ impl OsBackupV2 {
             root_ca_key: Pem(backup.account.root_ca_key.clone()),
             root_ca_cert: Pem(backup.account.root_ca_cert.clone()),
             ssh_key: Pem(backup.account.ssh_key.clone()),
-            tor_key: backup.account.tor_key.clone(),
+            tor_keys: backup.account.tor_keys.clone(),
             compat_s9pk_key: Pem(backup.account.compat_s9pk_key.clone()),
             ui: backup.ui.clone(),
         }

@@ -7,6 +7,8 @@ use imbl::OrdMap;
 use imbl_value::InternedString;
 use ipnet::IpNet;
 use models::{HostId, OptionExt, PackageId};
+use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
 use torut::onion::{OnionAddressV3, TorSecretKeyV3};
 use tracing::instrument;
 
@@ -16,8 +18,8 @@ use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
 use crate::net::forward::LanPortForwardController;
 use crate::net::host::address::HostAddress;
-use crate::net::host::binding::{BindId, BindOptions};
-use crate::net::host::{host_for, Host, HostKind, Hosts};
+use crate::net::host::binding::{AddSslOptions, BindId, BindOptions};
+use crate::net::host::{host_for, Host, Hosts};
 use crate::net::network_interface::NetworkInterfaceController;
 use crate::net::service_interface::{HostnameInfo, IpHostname, OnionHostname};
 use crate::net::tor::TorController;
@@ -27,129 +29,44 @@ use crate::prelude::*;
 use crate::util::serde::MaybeUtf8String;
 use crate::HOST_IP;
 
-pub struct PreInitNetController {
-    pub db: TypedPatchDb<Database>,
-    tor: TorController,
-    vhost: VHostController,
-    pub net_iface: Arc<NetworkInterfaceController>,
-    os_bindings: Vec<Arc<()>>,
-    server_hostnames: Vec<Option<InternedString>>,
-}
-impl PreInitNetController {
-    #[instrument(skip_all)]
-    pub async fn init(
-        db: TypedPatchDb<Database>,
-        tor_control: SocketAddr,
-        tor_socks: SocketAddr,
-        hostname: &Hostname,
-        os_tor_key: TorSecretKeyV3,
-    ) -> Result<Self, Error> {
-        let net_iface = Arc::new(NetworkInterfaceController::new(db.clone()));
-        let mut res = Self {
-            db: db.clone(),
-            tor: TorController::new(tor_control, tor_socks),
-            vhost: VHostController::new(db, net_iface.clone()),
-            net_iface,
-            os_bindings: Vec::new(),
-            server_hostnames: Vec::new(),
-        };
-        res.add_os_bindings(hostname, os_tor_key).await?;
-        Ok(res)
-    }
-
-    async fn add_os_bindings(
-        &mut self,
-        hostname: &Hostname,
-        tor_key: TorSecretKeyV3,
-    ) -> Result<(), Error> {
-        self.server_hostnames = vec![
-            // LAN IP
-            None,
-            // Internal DNS
-            Some("embassy".into()),
-            Some("startos".into()),
-            // localhost
-            Some("localhost".into()),
-            Some(hostname.no_dot_host_name()),
-            // LAN mDNS
-            Some(hostname.local_domain_name()),
-        ];
-
-        let vhost_target = TargetInfo {
-            public: false,
-            acme: None,
-            addr: ([127, 0, 0, 1], 80).into(),
-            connect_ssl: Err(AlpnInfo::Specified(vec![
-                MaybeUtf8String("http/1.1".into()),
-                MaybeUtf8String("h2".into()),
-            ])),
-        };
-
-        for hostname in self.server_hostnames.iter().cloned() {
-            self.os_bindings
-                .push(self.vhost.add(hostname, 443, vhost_target.clone())?);
-        }
-
-        // Tor
-        self.os_bindings.push(self.vhost.add(
-            Some(InternedString::from_display(
-                &tor_key.public().get_onion_address(),
-            )),
-            443,
-            vhost_target,
-        )?);
-        self.os_bindings.extend(
-            self.tor
-                .add(
-                    tor_key,
-                    vec![
-                        (80, ([127, 0, 0, 1], 80).into()),   // http
-                        (443, ([127, 0, 0, 1], 443).into()), // https
-                    ],
-                )
-                .await?,
-        );
-
-        Ok(())
-    }
-}
-
 pub struct NetController {
-    db: TypedPatchDb<Database>,
+    pub(crate) db: TypedPatchDb<Database>,
     pub(super) tor: TorController,
     pub(super) vhost: VHostController,
-    pub net_iface: Arc<NetworkInterfaceController>,
+    pub(crate) net_iface: Arc<NetworkInterfaceController>,
     pub(super) dns: DnsController,
     pub(super) forward: LanPortForwardController,
-    pub(super) os_bindings: Vec<Arc<()>>,
     pub(super) server_hostnames: Vec<Option<InternedString>>,
 }
 
 impl NetController {
     pub async fn init(
-        PreInitNetController {
-            db,
-            tor,
-            vhost,
-            net_iface,
-            os_bindings,
-            server_hostnames,
-        }: PreInitNetController,
-        dns_bind: &[SocketAddr],
+        db: TypedPatchDb<Database>,
+        tor_control: SocketAddr,
+        tor_socks: SocketAddr,
+        hostname: &Hostname,
     ) -> Result<Self, Error> {
-        let mut res = Self {
-            db,
-            tor,
-            vhost,
-            dns: DnsController::init(dns_bind).await?,
+        let net_iface = Arc::new(NetworkInterfaceController::new(db.clone()));
+        Ok(Self {
+            db: db.clone(),
+            tor: TorController::new(tor_control, tor_socks),
+            vhost: VHostController::new(db, net_iface.clone()),
+            dns: DnsController::init(net_iface.lxcbr_status()).await?,
             forward: LanPortForwardController::new(net_iface.subscribe()),
             net_iface,
-            os_bindings,
-            server_hostnames,
-        };
-        res.os_bindings
-            .push(res.dns.add(None, HOST_IP.into()).await?);
-        Ok(res)
+            server_hostnames: vec![
+                // LAN IP
+                None,
+                // Internal DNS
+                Some("embassy".into()),
+                Some("startos".into()),
+                // localhost
+                Some("localhost".into()),
+                Some(hostname.no_dot_host_name()),
+                // LAN mDNS
+                Some(hostname.local_domain_name()),
+            ],
+        })
     }
 
     #[instrument(skip_all)]
@@ -160,16 +77,47 @@ impl NetController {
     ) -> Result<NetService, Error> {
         let dns = self.dns.add(Some(package.clone()), ip).await?;
 
-        let mut res = NetService {
-            shutdown: false,
-            id: package,
+        let res = NetService::new(NetServiceData {
+            id: Some(package),
             ip,
             dns,
             controller: Arc::downgrade(self),
             binds: BTreeMap::new(),
-        };
+        })?;
         res.clear_bindings(Default::default()).await?;
         Ok(res)
+    }
+
+    pub async fn os_bindings(self: &Arc<Self>) -> Result<NetService, Error> {
+        let dns = self.dns.add(None, HOST_IP.into()).await?;
+
+        let service = NetService::new(NetServiceData {
+            id: None,
+            ip: [127, 0, 0, 1].into(),
+            dns,
+            controller: Arc::downgrade(self),
+            binds: BTreeMap::new(),
+        })?;
+        service.clear_bindings(Default::default()).await?;
+        service
+            .bind(
+                HostId::default(),
+                80,
+                BindOptions {
+                    preferred_external_port: 80,
+                    add_ssl: Some(AddSslOptions {
+                        preferred_external_port: 443,
+                        alpn: Some(AlpnInfo::Specified(vec![
+                            MaybeUtf8String("http/1.1".into()),
+                            MaybeUtf8String("h2".into()),
+                        ])),
+                    }),
+                    secure: None,
+                },
+            )
+            .await?;
+
+        Ok(service)
     }
 }
 
@@ -180,15 +128,14 @@ struct HostBinds {
     tor: BTreeMap<OnionAddressV3, (OrdMap<u16, SocketAddr>, Vec<Arc<()>>)>,
 }
 
-pub struct NetService {
-    shutdown: bool,
-    id: PackageId,
+pub struct NetServiceData {
+    id: Option<PackageId>,
     ip: Ipv4Addr,
     dns: Arc<()>,
     controller: Weak<NetController>,
     binds: BTreeMap<HostId, HostBinds>,
 }
-impl NetService {
+impl NetServiceData {
     fn net_controller(&self) -> Result<Arc<NetController>, Error> {
         Weak::upgrade(&self.controller).ok_or_else(|| {
             Error::new(
@@ -198,49 +145,54 @@ impl NetService {
         })
     }
 
-    pub async fn bind(
+    async fn clear_bindings(
         &mut self,
-        kind: HostKind,
-        id: HostId,
-        internal_port: u16,
-        options: BindOptions,
+        ctrl: &NetController,
+        except: BTreeSet<BindId>,
     ) -> Result<(), Error> {
-        crate::dbg!("bind", &kind, &id, internal_port, &options);
-        let pkg_id = &self.id;
-        let host = self
-            .net_controller()?
-            .db
-            .mutate(|db| {
-                let mut ports = db.as_private().as_available_ports().de()?;
-                let host = host_for(db, pkg_id, &id, kind)?;
-                host.add_binding(&mut ports, internal_port, options)?;
-                let host = host.de()?;
-                db.as_private_mut().as_available_ports_mut().ser(&ports)?;
-                Ok(host)
-            })
-            .await?;
-        self.update(id, host).await
-    }
-
-    pub async fn clear_bindings(&mut self, except: BTreeSet<BindId>) -> Result<(), Error> {
-        let pkg_id = &self.id;
-        let hosts = self
-            .net_controller()?
-            .db
-            .mutate(|db| {
-                let mut res = Hosts::default();
-                for (host_id, host) in db
-                    .as_public_mut()
-                    .as_package_data_mut()
-                    .as_idx_mut(pkg_id)
-                    .or_not_found(pkg_id)?
-                    .as_hosts_mut()
-                    .as_entries_mut()?
-                {
+        if let Some(pkg_id) = &self.id {
+            let hosts = ctrl
+                .db
+                .mutate(|db| {
+                    let mut res = Hosts::default();
+                    for (host_id, host) in db
+                        .as_public_mut()
+                        .as_package_data_mut()
+                        .as_idx_mut(pkg_id)
+                        .or_not_found(pkg_id)?
+                        .as_hosts_mut()
+                        .as_entries_mut()?
+                    {
+                        host.as_bindings_mut().mutate(|b| {
+                            for (internal_port, info) in b {
+                                if !except.contains(&BindId {
+                                    id: host_id.clone(),
+                                    internal_port: *internal_port,
+                                }) {
+                                    info.disable();
+                                }
+                            }
+                            Ok(())
+                        })?;
+                        res.0.insert(host_id, host.de()?);
+                    }
+                    Ok(res)
+                })
+                .await?;
+            let mut errors = ErrorCollection::new();
+            for (id, host) in hosts.0 {
+                errors.handle(self.update(ctrl, id, host).await);
+            }
+            errors.into_result()
+        } else {
+            let host = ctrl
+                .db
+                .mutate(|db| {
+                    let host = db.as_public_mut().as_server_info_mut().as_host_mut();
                     host.as_bindings_mut().mutate(|b| {
                         for (internal_port, info) in b {
                             if !except.contains(&BindId {
-                                id: host_id.clone(),
+                                id: HostId::default(),
                                 internal_port: *internal_port,
                             }) {
                                 info.disable();
@@ -248,20 +200,14 @@ impl NetService {
                         }
                         Ok(())
                     })?;
-                    res.0.insert(host_id, host.de()?);
-                }
-                Ok(res)
-            })
-            .await?;
-        let mut errors = ErrorCollection::new();
-        for (id, host) in hosts.0 {
-            errors.handle(self.update(id, host).await);
+                    host.de()
+                })
+                .await?;
+            self.update(ctrl, HostId::default(), host).await
         }
-        errors.into_result()
     }
 
-    pub async fn update(&mut self, id: HostId, host: Host) -> Result<(), Error> {
-        let ctrl = self.net_controller()?;
+    async fn update(&mut self, ctrl: &NetController, id: HostId, host: Host) -> Result<(), Error> {
         let mut forwards: BTreeMap<u16, (SocketAddr, bool)> = BTreeMap::new();
         let mut vhosts: BTreeMap<(Option<InternedString>, u16), TargetInfo> = BTreeMap::new();
         let mut tor: BTreeMap<OnionAddressV3, (TorSecretKeyV3, OrdMap<u16, SocketAddr>)> =
@@ -630,7 +576,7 @@ impl NetService {
 
         ctrl.db
             .mutate(|db| {
-                host_for(db, &self.id, &id, host.kind)?
+                host_for(db, self.id.as_ref(), &id)?
                     .as_hostname_info_mut()
                     .ser(&hostname_info)
             })
@@ -638,10 +584,129 @@ impl NetService {
         Ok(())
     }
 
+    async fn update_all(&mut self) -> Result<(), Error> {
+        let ctrl = self.net_controller()?;
+        if let Some(id) = &self.id {
+            for (host_id, host) in ctrl
+                .db
+                .peek()
+                .await
+                .as_public()
+                .as_package_data()
+                .as_idx(id)
+                .or_not_found(id)?
+                .as_hosts()
+                .as_entries()?
+            {
+                self.update(&*ctrl, host_id, host.de()?).await?;
+            }
+        } else {
+            self.update(
+                &*ctrl,
+                HostId::default(),
+                ctrl.db
+                    .peek()
+                    .await
+                    .as_public()
+                    .as_server_info()
+                    .as_host()
+                    .de()?,
+            )
+            .await?;
+        }
+        Ok(())
+    }
+}
+
+pub struct NetService {
+    shutdown: bool,
+    data: Arc<Mutex<NetServiceData>>,
+    sync_task: JoinHandle<()>,
+}
+impl NetService {
+    fn dummy() -> Self {
+        Self {
+            shutdown: true,
+            data: Arc::new(Mutex::new(NetServiceData {
+                id: None,
+                ip: Ipv4Addr::new(0, 0, 0, 0),
+                dns: Default::default(),
+                controller: Default::default(),
+                binds: BTreeMap::new(),
+            })),
+            sync_task: tokio::spawn(futures::future::ready(())),
+        }
+    }
+
+    fn new(data: NetServiceData) -> Result<Self, Error> {
+        let mut ip_info = data.net_controller()?.net_iface.subscribe();
+        let data = Arc::new(Mutex::new(data));
+        let thread_data = data.clone();
+        let sync_task = tokio::spawn(async move {
+            loop {
+                if let Err(e) = thread_data.lock().await.update_all().await {
+                    tracing::error!("Failed to update network info: {e}");
+                    tracing::debug!("{e:?}");
+                }
+                ip_info.changed().await;
+            }
+        });
+        Ok(Self {
+            shutdown: false,
+            data,
+            sync_task,
+        })
+    }
+
+    pub async fn bind(
+        &self,
+        id: HostId,
+        internal_port: u16,
+        options: BindOptions,
+    ) -> Result<(), Error> {
+        let mut data = self.data.lock().await;
+        let pkg_id = &data.id;
+        let ctrl = data.net_controller()?;
+        let host = ctrl
+            .db
+            .mutate(|db| {
+                let mut ports = db.as_private().as_available_ports().de()?;
+                let host = host_for(db, pkg_id.as_ref(), &id)?;
+                host.add_binding(&mut ports, internal_port, options)?;
+                let host = host.de()?;
+                db.as_private_mut().as_available_ports_mut().ser(&ports)?;
+                Ok(host)
+            })
+            .await?;
+        data.update(&*ctrl, id, host).await
+    }
+
+    pub async fn clear_bindings(&self, except: BTreeSet<BindId>) -> Result<(), Error> {
+        let mut data = self.data.lock().await;
+        let ctrl = data.net_controller()?;
+        data.clear_bindings(&*ctrl, except).await
+    }
+
+    pub async fn update(&self, id: HostId, host: Host) -> Result<(), Error> {
+        let mut data = self.data.lock().await;
+        let ctrl = data.net_controller()?;
+        data.update(&*ctrl, id, host).await
+    }
+
+    pub async fn sync_host(&self, id: HostId) -> Result<(), Error> {
+        let mut data = self.data.lock().await;
+        let ctrl = data.net_controller()?;
+        let host = host_for(&mut ctrl.db.peek().await, data.id.as_ref(), &id)?.de()?;
+        data.update(&*ctrl, id, host).await
+    }
+
     pub async fn remove_all(mut self) -> Result<(), Error> {
-        self.shutdown = true;
-        if let Some(ctrl) = Weak::upgrade(&self.controller) {
-            self.clear_bindings(Default::default()).await?;
+        self.sync_task.abort();
+        let mut data = self.data.lock().await;
+        if let Some(ctrl) = Weak::upgrade(&data.controller) {
+            self.shutdown = true;
+            data.clear_bindings(&*ctrl, Default::default()).await?;
+
             drop(ctrl);
             Ok(())
         } else {
@@ -653,26 +718,15 @@ impl NetService {
         }
     }
 
-    pub fn get_ip(&self) -> Ipv4Addr {
-        self.ip
+    pub async fn get_ip(&self) -> Ipv4Addr {
+        self.data.lock().await.ip
     }
 }
 
 impl Drop for NetService {
     fn drop(&mut self) {
         if !self.shutdown {
-            tracing::debug!("Dropping NetService for {}", self.id);
-            let svc = std::mem::replace(
-                self,
-                NetService {
-                    shutdown: true,
-                    id: Default::default(),
-                    ip: Ipv4Addr::new(0, 0, 0, 0),
-                    dns: Default::default(),
-                    controller: Default::default(),
-                    binds: BTreeMap::new(),
-                },
-            );
+            let svc = std::mem::replace(self, Self::dummy());
             tokio::spawn(async move { svc.remove_all().await.log_err() });
         }
     }

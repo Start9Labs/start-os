@@ -1,6 +1,7 @@
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Mock } from './api.fixures'
 import { BUILT_IN_WIDGETS } from '../../pages/widgets/built-in/widgets'
+import { knownACME } from 'src/app/util/acme'
 const version = require('../../../../../../package.json').version
 
 export const mockPatchData: DataModel = {
@@ -35,19 +36,16 @@ export const mockPatchData: DataModel = {
   },
   serverInfo: {
     arch: 'x86_64',
-    onionAddress: 'myveryownspecialtoraddress',
     id: 'abcdefgh',
     version,
     lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
-    lanAddress: 'https://adjective-noun.local',
-    torAddress: 'https://myveryownspecialtoraddress.onion',
     networkInterfaces: {
       eth0: {
         public: false,
         ipInfo: {
           scopeId: 1,
           deviceType: 'ethernet',
-          subnets: ['10.0.0.1/24'],
+          subnets: ['10.0.0.2/24'],
           wanIp: null,
           ntpServers: [],
         },
@@ -59,14 +57,18 @@ export const mockPatchData: DataModel = {
           deviceType: 'wireless',
           subnets: [
             '10.0.90.12/24',
-            'FE80:CD00:0000:0CDE:1257:0000:211E:729CD/64',
+            'fe80::cd00:0000:0cde:1257:0000:211e:72cd/64',
           ],
           wanIp: null,
           ntpServers: [],
         },
       },
     },
-    acme: {},
+    acme: {
+      [Object.keys(knownACME)[0]]: {
+        contact: ['mailto:support@start9.com'],
+      },
+    },
     unreadNotificationCount: 4,
     // password is asdfasdf
     passwordHash:
@@ -81,6 +83,108 @@ export const mockPatchData: DataModel = {
       shuttingDown: false,
     },
     hostname: 'random-words',
+    host: {
+      bindings: {
+        80: {
+          enabled: true,
+          net: {
+            assignedPort: null,
+            assignedSslPort: 443,
+            public: false,
+          },
+          options: {
+            preferredExternalPort: 80,
+            addSsl: {
+              preferredExternalPort: 443,
+              alpn: { specified: ['http/1.1', 'h2'] },
+            },
+            secure: null,
+          },
+        },
+      },
+      domains: {},
+      onions: ['myveryownspecialtoraddress'],
+      hostnameInfo: {
+        80: [
+          {
+            kind: 'ip',
+            networkInterfaceId: 'eth0',
+            public: false,
+            hostname: {
+              kind: 'local',
+              value: 'adjective-noun.local',
+              port: null,
+              sslPort: 443,
+            },
+          },
+          {
+            kind: 'ip',
+            networkInterfaceId: 'wlan0',
+            public: false,
+            hostname: {
+              kind: 'local',
+              value: 'adjective-noun.local',
+              port: null,
+              sslPort: 443,
+            },
+          },
+          {
+            kind: 'ip',
+            networkInterfaceId: 'eth0',
+            public: false,
+            hostname: {
+              kind: 'ipv4',
+              value: '10.0.0.1',
+              port: null,
+              sslPort: 443,
+            },
+          },
+          {
+            kind: 'ip',
+            networkInterfaceId: 'wlan0',
+            public: false,
+            hostname: {
+              kind: 'ipv4',
+              value: '10.0.0.2',
+              port: null,
+              sslPort: 443,
+            },
+          },
+          {
+            kind: 'ip',
+            networkInterfaceId: 'eth0',
+            public: false,
+            hostname: {
+              kind: 'ipv6',
+              value: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
+              scopeId: 2,
+              port: null,
+              sslPort: 443,
+            },
+          },
+          {
+            kind: 'ip',
+            networkInterfaceId: 'wlan0',
+            public: false,
+            hostname: {
+              kind: 'ipv6',
+              value: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
+              scopeId: 3,
+              port: null,
+              sslPort: 443,
+            },
+          },
+          {
+            kind: 'onion',
+            hostname: {
+              value: 'myveryownspecialtoraddress.onion',
+              port: 80,
+              sslPort: 443,
+            },
+          },
+        ],
+      },
+    },
     pubkey: 'npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m',
     caFingerprint: 'SHA-256: 63 2B 11 99 44 40 17 DF 37 FC C3 DF 0F 3D 15',
     ntpSynced: false,
@@ -201,8 +305,21 @@ export const mockPatchData: DataModel = {
       currentDependencies: {},
       hosts: {
         abcdefg: {
-          kind: 'multi',
-          bindings: [],
+          bindings: {
+            80: {
+              enabled: true,
+              net: {
+                assignedPort: 80,
+                assignedSslPort: 443,
+                public: false,
+              },
+              options: {
+                addSsl: null,
+                preferredExternalPort: 443,
+                secure: { ssl: true },
+              },
+            },
+          },
           onions: [],
           domains: {},
           hostnameInfo: {
@@ -257,7 +374,7 @@ export const mockPatchData: DataModel = {
                 public: false,
                 hostname: {
                   kind: 'ipv6',
-                  value: '[fe80:cd00:0000:0cde:1257:0000:211e:72cd]',
+                  value: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
                   scopeId: 2,
                   port: null,
                   sslPort: 1234,
@@ -269,7 +386,7 @@ export const mockPatchData: DataModel = {
                 public: false,
                 hostname: {
                   kind: 'ipv6',
-                  value: '[fe80:cd00:0000:0cde:1257:0000:211e:1234]',
+                  value: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
                   scopeId: 3,
                   port: null,
                   sslPort: 1234,
@@ -287,8 +404,21 @@ export const mockPatchData: DataModel = {
           },
         },
         bcdefgh: {
-          kind: 'multi',
-          bindings: [],
+          bindings: {
+            8332: {
+              enabled: true,
+              net: {
+                assignedPort: 8332,
+                assignedSslPort: null,
+                public: false,
+              },
+              options: {
+                addSsl: null,
+                preferredExternalPort: 8332,
+                secure: { ssl: false },
+              },
+            },
+          },
           onions: [],
           domains: {},
           hostnameInfo: {
@@ -296,8 +426,21 @@ export const mockPatchData: DataModel = {
           },
         },
         cdefghi: {
-          kind: 'multi',
-          bindings: [],
+          bindings: {
+            8333: {
+              enabled: true,
+              net: {
+                assignedPort: 8333,
+                assignedSslPort: null,
+                public: false,
+              },
+              options: {
+                addSsl: null,
+                preferredExternalPort: 8333,
+                secure: { ssl: false },
+              },
+            },
+          },
           onions: [],
           domains: {},
           hostnameInfo: {

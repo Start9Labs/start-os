@@ -5,7 +5,7 @@ import { sdk } from "../test/output.sdk"
 describe("host", () => {
   test("Testing that the types work", () => {
     async function test(effects: Effects) {
-      const foo = sdk.host.multi(effects, "foo")
+      const foo = sdk.MultiHost.of(effects, "foo")
       const fooOrigin = await foo.bindPort(80, {
         protocol: "http" as const,
         preferredExternalPort: 80,

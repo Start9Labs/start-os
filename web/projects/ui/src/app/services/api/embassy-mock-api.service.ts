@@ -19,16 +19,7 @@ import {
 import { CifsBackupTarget, RR } from './api.types'
 import { Mock } from './api.fixures'
 import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
-import {
-  from,
-  interval,
-  map,
-  Observable,
-  shareReplay,
-  startWith,
-  Subject,
-  tap,
-} from 'rxjs'
+import { from, interval, map, shareReplay, startWith, Subject, tap } from 'rxjs'
 import { mockPatchData } from './mock-patch'
 import { AuthService } from '../auth.service'
 import { T } from '@start9labs/start-sdk'
@@ -38,6 +29,7 @@ import {
   MarketplacePkg,
 } from '@start9labs/marketplace'
 import { WebSocketSubject } from 'rxjs/webSocket'
+import { toAcmeUrl } from 'src/app/util/acme'
 
 const PROGRESS: T.FullProgress = {
   overall: {
@@ -1062,6 +1054,283 @@ export class MockApiService extends ApiService {
       upload: 'sideload-upload-guid', // no significance, randomly generated
       progress: 'sideload-progress-guid', // no significance, randomly generated
     }
+  }
+
+  async initAcme(params: RR.InitAcmeReq): Promise<RR.InitAcmeRes> {
+    await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.ADD,
+        path: `/serverInfo/acme`,
+        value: {
+          [toAcmeUrl(params.provider)]: { contact: [params.contact] },
+        },
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async removeAcme(params: RR.RemoveAcmeReq): Promise<RR.RemoveAcmeRes> {
+    await pauseFor(2000)
+
+    const regex = new RegExp('/', 'g')
+
+    const patch: RemoveOperation[] = [
+      {
+        op: PatchOp.REMOVE,
+        path: `/serverInfo/acme/${params.provider.replace(regex, '~1')}`,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async addTorKey(params: RR.AddTorKeyReq): Promise<RR.AddTorKeyRes> {
+    await pauseFor(2000)
+    return 'vanityabcdefghijklmnop'
+  }
+
+  async generateTorKey(params: RR.GenerateTorKeyReq): Promise<RR.AddTorKeyRes> {
+    await pauseFor(2000)
+    return 'abcdefghijklmnopqrstuv'
+  }
+
+  async serverBindingSetPubic(
+    params: RR.PkgBindingSetPublicReq,
+  ): Promise<RR.BindingSetPublicRes> {
+    await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/serverInfo/host/bindings/${params.internalPort}/net/public`,
+        value: params.public,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async serverAddOnion(params: RR.ServerAddOnionReq): Promise<RR.AddOnionRes> {
+    await pauseFor(2000)
+
+    const patch: Operation<any>[] = [
+      {
+        op: PatchOp.ADD,
+        path: `/serverInfo/host/onions/0`,
+        value: params.onion,
+      },
+      {
+        op: PatchOp.ADD,
+        path: `/serverInfo/host/hostnameInfo/80/0`,
+        value: {
+          kind: 'onion',
+          hostname: {
+            port: 80,
+            sslPort: 443,
+            value: params.onion,
+          },
+        },
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async serverRemoveOnion(
+    params: RR.ServerRemoveOnionReq,
+  ): Promise<RR.RemoveOnionRes> {
+    await pauseFor(2000)
+
+    const patch: RemoveOperation[] = [
+      {
+        op: PatchOp.REMOVE,
+        path: `/serverInfo/host/onions/0`,
+      },
+      {
+        op: PatchOp.REMOVE,
+        path: `/serverInfo/host/hostnameInfo/80/-1`,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async serverAddDomain(params: RR.PkgAddDomainReq): Promise<RR.AddDomainRes> {
+    await pauseFor(2000)
+
+    const patch: Operation<any>[] = [
+      {
+        op: PatchOp.ADD,
+        path: `/serverInfo/host/domains`,
+        value: {
+          [params.domain]: { public: !params.private, acme: params.acme },
+        },
+      },
+      {
+        op: PatchOp.ADD,
+        path: `/serverInfo/host/hostnameInfo/80/0`,
+        value: {
+          kind: 'ip',
+          networkInterfaceId: 'eth0',
+          public: false,
+          hostname: {
+            kind: 'domain',
+            domain: params.domain,
+            subdomain: null,
+            port: null,
+            sslPort: 443,
+          },
+        },
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async serverRemoveDomain(
+    params: RR.PkgRemoveDomainReq,
+  ): Promise<RR.RemoveDomainRes> {
+    await pauseFor(2000)
+
+    const patch: RemoveOperation[] = [
+      {
+        op: PatchOp.REMOVE,
+        path: `/serverInfo/host/domains/${params.domain}`,
+      },
+      {
+        op: PatchOp.REMOVE,
+        path: `/serverInfo/host/hostnameInfo/80/0`,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async pkgBindingSetPubic(
+    params: RR.PkgBindingSetPublicReq,
+  ): Promise<RR.BindingSetPublicRes> {
+    await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/packageData/${params.package}/hosts/${params.host}/bindings/${params.internalPort}/net/public`,
+        value: params.public,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async pkgAddOnion(params: RR.PkgAddOnionReq): Promise<RR.AddOnionRes> {
+    await pauseFor(2000)
+
+    const patch: Operation<any>[] = [
+      {
+        op: PatchOp.ADD,
+        path: `/packageData/${params.package}/hosts/${params.host}/onions/0`,
+        value: params.onion,
+      },
+      {
+        op: PatchOp.ADD,
+        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
+        value: {
+          kind: 'onion',
+          hostname: {
+            port: 80,
+            sslPort: 443,
+            value: params.onion,
+          },
+        },
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async pkgRemoveOnion(
+    params: RR.PkgRemoveOnionReq,
+  ): Promise<RR.RemoveOnionRes> {
+    await pauseFor(2000)
+
+    const patch: RemoveOperation[] = [
+      {
+        op: PatchOp.REMOVE,
+        path: `/packageData/${params.package}/hosts/${params.host}/onions/0`,
+      },
+      {
+        op: PatchOp.REMOVE,
+        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async pkgAddDomain(params: RR.PkgAddDomainReq): Promise<RR.AddDomainRes> {
+    await pauseFor(2000)
+
+    const patch: Operation<any>[] = [
+      {
+        op: PatchOp.ADD,
+        path: `/packageData/${params.package}/hosts/${params.host}/domains`,
+        value: {
+          [params.domain]: { public: !params.private, acme: params.acme },
+        },
+      },
+      {
+        op: PatchOp.ADD,
+        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
+        value: {
+          kind: 'ip',
+          networkInterfaceId: 'eth0',
+          public: false,
+          hostname: {
+            kind: 'domain',
+            domain: params.domain,
+            subdomain: null,
+            port: null,
+            sslPort: 443,
+          },
+        },
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async pkgRemoveDomain(
+    params: RR.PkgRemoveDomainReq,
+  ): Promise<RR.RemoveDomainRes> {
+    await pauseFor(2000)
+
+    const patch: RemoveOperation[] = [
+      {
+        op: PatchOp.REMOVE,
+        path: `/packageData/${params.package}/hosts/${params.host}/domains/${params.domain}`,
+      },
+      {
+        op: PatchOp.REMOVE,
+        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
   }
 
   private async initProgress(): Promise<T.FullProgress> {

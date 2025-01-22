@@ -45,7 +45,7 @@ pub enum ErrorKind {
     ConfigGen = 27,
     ParseNumber = 28,
     Database = 29,
-    InvalidPackageId = 30,
+    InvalidId = 30,
     InvalidSignature = 31,
     Backup = 32,
     Restore = 33,
@@ -125,7 +125,7 @@ impl ErrorKind {
             ConfigGen => "Config Generation Error",
             ParseNumber => "Number Parsing Error",
             Database => "Database Error",
-            InvalidPackageId => "Invalid Package ID",
+            InvalidId => "Invalid ID",
             InvalidSignature => "Invalid Signature",
             Backup => "Backup Error",
             Restore => "Restore Error",
@@ -226,7 +226,7 @@ impl From<std::convert::Infallible> for Error {
 }
 impl From<InvalidId> for Error {
     fn from(err: InvalidId) -> Self {
-        Error::new(err, ErrorKind::InvalidPackageId)
+        Error::new(err, ErrorKind::InvalidId)
     }
 }
 impl From<std::io::Error> for Error {

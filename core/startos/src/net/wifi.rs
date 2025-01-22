@@ -899,9 +899,8 @@ impl TypedValueParser for CountryCodeParser {
 #[instrument(skip_all)]
 pub async fn synchronize_network_manager<P: AsRef<Path>>(
     main_datadir: P,
-    wifi: &mut WifiInfo,
+    wifi: &WifiInfo,
 ) -> Result<(), Error> {
-    wifi.interface = find_wifi_iface().await?;
     let persistent = main_datadir.as_ref().join("system-connections");
 
     if tokio::fs::metadata(&persistent).await.is_err() {

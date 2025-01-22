@@ -5,7 +5,7 @@ import { Control } from '../control'
 @Component({
   selector: 'form-toggle',
   templateUrl: './form-toggle.component.html',
-  host: { class: 'g-toggle' },
+  host: { style: 'display: flex' },
 })
 export class FormToggleComponent extends Control<
   IST.ValueSpecToggle,

@@ -77,19 +77,18 @@ type BindOptionsByKnownProtocol =
       preferredExternalPort?: number
       addSsl?: AddSslOptions
     }
-export type BindOptionsByProtocol = BindOptionsByKnownProtocol | BindOptions
-
-export type HostKind = BindParams["kind"]
+export type BindOptionsByProtocol =
+  | BindOptionsByKnownProtocol
+  | (BindOptions & { protocol: null })
 
 const hasStringProtocol = object({
   protocol: string,
 }).test
 
-export class Host {
+export class MultiHost {
   constructor(
     readonly options: {
       effects: Effects
-      kind: HostKind
       id: string
     },
   ) {}
@@ -113,7 +112,7 @@ export class Host {
   async bindPort(
     internalPort: number,
     options: BindOptionsByProtocol,
-  ): Promise<Origin<this>> {
+  ): Promise<Origin> {
     if (hasStringProtocol(options)) {
       return await this.bindPortForKnown(options, internalPort)
     } else {
@@ -130,7 +129,6 @@ export class Host {
     },
   ) {
     const binderOptions = {
-      kind: this.options.kind,
       id: this.options.id,
       internalPort,
       ...options,
@@ -163,7 +161,6 @@ export class Host {
     const secure: Security | null = !protoInfo.secure ? null : { ssl: false }
 
     await this.options.effects.bind({
-      kind: this.options.kind,
       id: this.options.id,
       internalPort,
       preferredExternalPort,
@@ -189,22 +186,4 @@ function inObject<Key extends string>(
   obj: any,
 ): obj is { [K in Key]: unknown } {
   return key in obj
-}
-
-// export class StaticHost extends Host {
-//   constructor(options: { effects: Effects; id: string }) {
-//     super({ ...options, kind: "static" })
-//   }
-// }
-
-// export class SingleHost extends Host {
-//   constructor(options: { effects: Effects; id: string }) {
-//     super({ ...options, kind: "single" })
-//   }
-// }
-
-export class MultiHost extends Host {
-  constructor(options: { effects: Effects; id: string }) {
-    super({ ...options, kind: "multi" })
-  }
 }
