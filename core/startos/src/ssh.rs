@@ -3,7 +3,6 @@ use std::path::Path;
 
 use clap::builder::ValueParserFactory;
 use clap::Parser;
-use color_eyre::eyre::eyre;
 use imbl_value::InternedString;
 use models::FromStrParser;
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
@@ -12,6 +11,7 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
+use crate::hostname::Hostname;
 use crate::prelude::*;
 use crate::util::io::create_file;
 use crate::util::serde::{display_serializable, HandlerExtSerde, Pem, WithIoFormat};
@@ -227,6 +227,7 @@ pub async fn list(ctx: RpcContext) -> Result<Vec<SshKeyResponse>, Error> {
 
 #[instrument(skip_all)]
 pub async fn sync_keys<P: AsRef<Path>>(
+    hostname: &Hostname,
     privkey: &Pem<ssh_key::PrivateKey>,
     pubkeys: &SshKeys,
     ssh_dir: P,
@@ -253,11 +254,13 @@ pub async fn sync_keys<P: AsRef<Path>>(
     f.sync_all().await?;
     let mut f = create_file(ssh_dir.join(id_alg).with_extension("pub")).await?;
     f.write_all(
-        privkey
+        (privkey
             .0
             .public_key()
             .to_openssh()
             .with_kind(ErrorKind::OpenSsh)?
+            + " start9@"
+            + &*hostname.0)
             .as_bytes(),
     )
     .await?;
