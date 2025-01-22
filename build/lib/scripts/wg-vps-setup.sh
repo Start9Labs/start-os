@@ -8,7 +8,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # --- Constants ---
-readonly WIREGUARD_INSTALL_URL="https://raw.githubusercontent.com/k0gen/wireguard-install/master/wireguard-install.sh"
+readonly WIREGUARD_INSTALL_URL="https://raw.githubusercontent.com/start9labs/wg-vps-setup/master/wireguard-install.sh"
 readonly SSH_KEY_DIR="/home/start9/.ssh"
 readonly SSH_KEY_NAME="id_ed25519"
 readonly SSH_PRIVATE_KEY="$SSH_KEY_DIR/$SSH_KEY_NAME"
