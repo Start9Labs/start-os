@@ -5,35 +5,39 @@
   *ngFor="let dep of dependencies"
   (click)="dep.action()"
 >
-  <ion-thumbnail slot="start">
-    <img [src]="dep.icon" alt="" />
-  </ion-thumbnail>
-  <ion-label>
-    <h2 class="montserrat">
-      <ion-icon
-        *ngIf="!!dep.errorText"
-        class="icon"
-        slot="start"
-        name="warning-outline"
-        color="warning"
-      ></ion-icon>
-      {{ dep.title }}
-    </h2>
-    <p>{{ dep.version }}</p>
-    <p>
-      <ion-text [color]="dep.errorText ? 'warning' : 'success'">
-        {{ dep.errorText || 'satisfied' }}
-      </ion-text>
-    </p>
-  </ion-label>
+  <div class="container">
+    <div class="dep-details">
+      <ion-thumbnail slot="start">
+        <img [src]="dep.icon" alt="" />
+      </ion-thumbnail>
+      <ion-label>
+        <h2 class="montserrat">
+          <ion-icon
+            *ngIf="!!dep.errorText"
+            class="icon"
+            slot="start"
+            name="warning-outline"
+            color="warning"
+          ></ion-icon>
+          {{ dep.title }}
+        </h2>
+        <p>{{ dep.version }}</p>
+        <p>
+          <ion-text [color]="dep.errorText ? 'warning' : 'success'">
+            {{ dep.errorText || 'satisfied' }}
+          </ion-text>
+        </p>
+      </ion-label>
+    </div>
+    <dep-action-requests
+      [allPkgs]="allPkgs"
+      [pkg]="pkg"
+      [dep]="dep"
+      [pkgId]="pkgId"
+    ></dep-action-requests>
+  </div>
   <ion-button *ngIf="dep.actionText" slot="end" fill="clear">
     {{ dep.actionText }}
     <ion-icon slot="end" name="arrow-forward"></ion-icon>
   </ion-button>
-  <dep-action-requests
-    [allPkgs]="allPkgs"
-    [pkg]="pkg"
-    [dep]="dep"
-    [pkgId]="pkgId"
-  ></dep-action-requests>
 </ion-item>

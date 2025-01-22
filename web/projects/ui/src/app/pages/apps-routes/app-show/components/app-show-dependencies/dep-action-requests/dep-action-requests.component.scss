@@ -4,5 +4,24 @@
 }
 
 .severity {
-  font-variant: 'all-small-caps';
+  font-variant-caps: all-small-caps;
+}
+
+.line {
+
+  &:after {
+    content: '';
+    display: block;
+    border-left: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    height: 100%;
+    width: 24px;
+    position: absolute;
+    left: -20px;
+    top: -33px;
+  }
+}
+
+ion-icon {
+  margin-right: 17px;
 }

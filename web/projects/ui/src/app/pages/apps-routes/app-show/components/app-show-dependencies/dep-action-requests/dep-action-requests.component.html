@@ -1,5 +1,7 @@
 <ng-container *ngIf="actionRequests[dep.id]?.length">
   <ion-item
+    class="line"
+    lines="none"
     *ngFor="let request of actionRequests[dep.id]"
     button
     (click)="handleAction(request)"
@@ -13,9 +15,10 @@
     ></ion-icon>
     <ion-label>
       <h2 class="highlighted">{{ request.actionName }}</h2>
-      <p class="severity">
+      <p>
         {{ request.reason || 'no reason provided' }} |
         <span
+          class="severity"
           [ngStyle]="{
             color:
               request.severity === 'critical'
