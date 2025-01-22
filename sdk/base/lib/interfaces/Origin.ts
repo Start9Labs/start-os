@@ -1,11 +1,11 @@
 import { AddressInfo } from "../types"
 import { AddressReceipt } from "./AddressReceipt"
-import { Host, Scheme } from "./Host"
+import { MultiHost, Scheme } from "./Host"
 import { ServiceInterfaceBuilder } from "./ServiceInterfaceBuilder"
 
-export class Origin<T extends Host> {
+export class Origin {
   constructor(
-    readonly host: T,
+    readonly host: MultiHost,
     readonly internalPort: number,
     readonly scheme: string | null,
     readonly sslScheme: string | null,

@@ -605,23 +605,12 @@ impl Service {
         })
     }
 
-    pub async fn update_host(&self, host_id: HostId) -> Result<(), Error> {
-        let mut service = self.seed.persistent_container.net_service.lock().await;
-        let host = self
-            .seed
-            .ctx
-            .db
-            .peek()
+    pub async fn sync_host(&self, host_id: HostId) -> Result<(), Error> {
+        self.seed
+            .persistent_container
+            .net_service
+            .sync_host(host_id)
             .await
-            .as_public()
-            .as_package_data()
-            .as_idx(&self.seed.id)
-            .or_not_found(&self.seed.id)?
-            .as_hosts()
-            .as_idx(&host_id)
-            .or_not_found(&host_id)?
-            .de()?;
-        service.update(host_id, host).await
     }
 }
 

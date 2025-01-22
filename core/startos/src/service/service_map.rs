@@ -4,7 +4,8 @@ use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
-use futures::{Future, FutureExt};
+use futures::stream::FuturesUnordered;
+use futures::{Future, FutureExt, StreamExt};
 use helpers::NonDetachingJoinHandle;
 use imbl::OrdMap;
 use imbl_value::InternedString;
@@ -68,8 +69,12 @@ impl ServiceMap {
         progress.start();
         let ids = ctx.db.peek().await.as_public().as_package_data().keys()?;
         progress.set_total(ids.len() as u64);
-        for id in ids {
-            if let Err(e) = self.load(ctx, &id, LoadDisposition::Retry).await {
+        let mut jobs = FuturesUnordered::new();
+        for id in &ids {
+            jobs.push(self.load(ctx, id, LoadDisposition::Retry));
+        }
+        while let Some(res) = jobs.next().await {
+            if let Err(e) = res {
                 tracing::error!("Error loading installed package as service: {e}");
                 tracing::debug!("{e:?}");
             }

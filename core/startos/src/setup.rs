@@ -31,7 +31,7 @@ use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::util::{pvscan, recovery_info, DiskInfo, StartOsRecoveryInfo};
 use crate::disk::REPAIR_DISK_PATH;
 use crate::init::{init, InitPhases, InitResult};
-use crate::net::net_controller::PreInitNetController;
+use crate::net::net_controller::NetController;
 use crate::net::ssl::root_ca_start_time;
 use crate::prelude::*;
 use crate::progress::{FullProgress, PhaseProgressTrackerHandle};
@@ -80,10 +80,11 @@ async fn setup_init(
     ctx: &SetupContext,
     password: Option<String>,
     init_phases: InitPhases,
-) -> Result<(AccountInfo, PreInitNetController), Error> {
-    let InitResult { net_ctrl } = init(&ctx.webserver, &ctx.config, init_phases).await?;
+) -> Result<(AccountInfo, InitResult), Error> {
+    let init_result = init(&ctx.webserver, &ctx.config, init_phases).await?;
 
-    let account = net_ctrl
+    let account = init_result
+        .net_ctrl
         .db
         .mutate(|m| {
             let mut account = AccountInfo::load(m)?;
@@ -99,7 +100,7 @@ async fn setup_init(
         })
         .await?;
 
-    Ok((account, net_ctrl))
+    Ok((account, init_result))
 }
 
 #[derive(Deserialize, Serialize, TS)]
@@ -452,13 +453,13 @@ async fn fresh_setup(
     db.put(&ROOT, &Database::init(&account)?).await?;
     drop(db);
 
-    let InitResult { net_ctrl } = init(&ctx.webserver, &ctx.config, init_phases).await?;
+    let init_result = init(&ctx.webserver, &ctx.config, init_phases).await?;
 
     let rpc_ctx = RpcContext::init(
         &ctx.webserver,
         &ctx.config,
         guid,
-        Some(net_ctrl),
+        Some(init_result),
         rpc_ctx_phases,
     )
     .await?;

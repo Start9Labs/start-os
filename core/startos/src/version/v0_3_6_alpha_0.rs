@@ -478,7 +478,7 @@ async fn previous_account_info(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<Accoun
             password: account_query
                 .try_get("password")
                 .with_ctx(|_| (ErrorKind::Database, "password"))?,
-            tor_key: TorSecretKeyV3::try_from(
+            tor_keys: vec![TorSecretKeyV3::try_from(
                 if let Some(bytes) = account_query
                     .try_get::<Option<Vec<u8>>, _>("tor_key")
                     .with_ctx(|_| (ErrorKind::Database, "tor_key"))?
@@ -503,7 +503,7 @@ async fn previous_account_info(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<Accoun
                             .with_ctx(|_| (ErrorKind::Database, "password.u8 32"))?,
                     )
                 },
-            )?,
+            )?],
             server_id: account_query
                 .try_get("server_id")
                 .with_ctx(|_| (ErrorKind::Database, "server_id"))?,

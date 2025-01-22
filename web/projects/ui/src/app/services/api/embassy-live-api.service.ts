@@ -516,6 +516,118 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  async removeAcme(params: RR.RemoveAcmeReq): Promise<RR.RemoveAcmeRes> {
+    return this.rpcRequest({
+      method: 'net.acme.delete',
+      params,
+    })
+  }
+
+  async initAcme(params: RR.InitAcmeReq): Promise<RR.InitAcmeRes> {
+    return this.rpcRequest({
+      method: 'net.acme.init',
+      params,
+    })
+  }
+
+  async addTorKey(params: RR.AddTorKeyReq): Promise<RR.AddTorKeyRes> {
+    return this.rpcRequest({
+      method: 'net.tor.key.add',
+      params,
+    })
+  }
+
+  async generateTorKey(params: RR.GenerateTorKeyReq): Promise<RR.AddTorKeyRes> {
+    return this.rpcRequest({
+      method: 'net.tor.key.generate',
+      params,
+    })
+  }
+
+  async serverBindingSetPubic(
+    params: RR.ServerBindingSetPublicReq,
+  ): Promise<RR.BindingSetPublicRes> {
+    return this.rpcRequest({
+      method: 'server.host.binding.set-public',
+      params,
+    })
+  }
+
+  async serverAddOnion(params: RR.ServerAddOnionReq): Promise<RR.AddOnionRes> {
+    return this.rpcRequest({
+      method: 'server.host.address.onion.add',
+      params,
+    })
+  }
+
+  async serverRemoveOnion(
+    params: RR.ServerRemoveOnionReq,
+  ): Promise<RR.RemoveOnionRes> {
+    return this.rpcRequest({
+      method: 'server.host.address.onion.remove',
+      params,
+    })
+  }
+
+  async serverAddDomain(
+    params: RR.ServerAddDomainReq,
+  ): Promise<RR.AddDomainRes> {
+    return this.rpcRequest({
+      method: 'server.host.address.domain.add',
+      params,
+    })
+  }
+
+  async serverRemoveDomain(
+    params: RR.ServerRemoveDomainReq,
+  ): Promise<RR.RemoveDomainRes> {
+    return this.rpcRequest({
+      method: 'server.host.address.domain.remove',
+      params,
+    })
+  }
+
+  async pkgBindingSetPubic(
+    params: RR.PkgBindingSetPublicReq,
+  ): Promise<RR.BindingSetPublicRes> {
+    return this.rpcRequest({
+      method: 'package.host.binding.set-public',
+      params,
+    })
+  }
+
+  async pkgAddOnion(params: RR.PkgAddOnionReq): Promise<RR.AddOnionRes> {
+    return this.rpcRequest({
+      method: 'package.host.address.onion.add',
+      params,
+    })
+  }
+
+  async pkgRemoveOnion(
+    params: RR.PkgRemoveOnionReq,
+  ): Promise<RR.RemoveOnionRes> {
+    return this.rpcRequest({
+      method: 'package.host.address.onion.remove',
+      params,
+    })
+  }
+
+  async pkgAddDomain(params: RR.PkgAddDomainReq): Promise<RR.AddDomainRes> {
+    return this.rpcRequest({
+      method: 'package.host.address.domain.add',
+      params,
+    })
+  }
+
+  async pkgRemoveDomain(
+    params: RR.PkgRemoveDomainReq,
+  ): Promise<RR.RemoveDomainRes> {
+    return this.rpcRequest({
+      method: 'package.host.address.domain.remove',
+      params,
+    })
+  }
+
   private async rpcRequest<T>(
     options: RPCOptions,
     urlOverride?: string,

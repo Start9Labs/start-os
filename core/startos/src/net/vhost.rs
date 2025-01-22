@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, SocketAddr};
-use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
@@ -328,17 +327,23 @@ impl VHostServer {
                                                 .headers()
                                                 .get(http::header::HOST)
                                                 .and_then(|host| host.to_str().ok());
-                                            let uri = Uri::from_parts({
-                                                let mut parts = req.uri().to_owned().into_parts();
-                                                parts.scheme = Some("https".parse()?);
-                                                parts.authority =
-                                                    host.map(FromStr::from_str).transpose()?;
-                                                parts
-                                            })?;
-                                            Response::builder()
-                                                .status(http::StatusCode::TEMPORARY_REDIRECT)
-                                                .header(http::header::LOCATION, uri.to_string())
-                                                .body(Body::default())
+                                            if let Some(host) = host {
+                                                let uri = Uri::from_parts({
+                                                    let mut parts =
+                                                        req.uri().to_owned().into_parts();
+                                                    parts.scheme = Some("https".parse()?);
+                                                    parts.authority = Some(host.parse()?);
+                                                    parts
+                                                })?;
+                                                Response::builder()
+                                                    .status(http::StatusCode::TEMPORARY_REDIRECT)
+                                                    .header(http::header::LOCATION, uri.to_string())
+                                                    .body(Body::default())
+                                            } else {
+                                                Response::builder()
+                                                    .status(http::StatusCode::BAD_REQUEST)
+                                                    .body(Body::from("Host header required"))
+                                            }
                                         }
                                         .await
                                         {

@@ -113,7 +113,6 @@ export class MainLoop {
           }))
           .find((conf) => conf.internal == internalPort)
         await effects.bind({
-          kind: "multi",
           id: interfaceId,
           internalPort,
           preferredExternalPort: torConf?.external || internalPort,

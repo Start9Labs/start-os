@@ -464,6 +464,15 @@ export class ServerShowPage {
         disabled$: of(false),
       },
       {
+        title: 'ACME',
+        description: `Add ACME providers to create SSL certificates for clearnet access`,
+        icon: 'finger-print',
+        action: () =>
+          this.navCtrl.navigateForward(['acme'], { relativeTo: this.route }),
+        detail: true,
+        disabled$: of(false),
+      },
+      {
         title: 'Email',
         description: 'Connect to an external SMTP server for sending emails',
         icon: 'mail-outline',

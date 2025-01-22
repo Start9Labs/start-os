@@ -10,19 +10,22 @@ use itertools::Itertools;
 use models::PackageId;
 use openssl::hash::MessageDigest;
 use patch_db::{HasModel, Value};
-use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use torut::onion::OnionAddressV3;
 use ts_rs::TS;
 
 use crate::account::AccountInfo;
 use crate::db::model::package::AllPackageData;
 use crate::net::acme::AcmeProvider;
+use crate::net::host::address::DomainConfig;
+use crate::net::host::binding::{AddSslOptions, BindInfo, BindOptions, NetInfo};
+use crate::net::host::Host;
+use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::system::SmtpValue;
 use crate::util::cpupower::Governor;
 use crate::util::lshw::LshwDevice;
+use crate::util::serde::MaybeUtf8String;
 use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
 
@@ -38,7 +41,6 @@ pub struct Public {
 }
 impl Public {
     pub fn init(account: &AccountInfo) -> Result<Self, Error> {
-        let lan_address = account.hostname.lan_address().parse().unwrap();
         Ok(Self {
             server_info: ServerInfo {
                 arch: get_arch(),
@@ -46,14 +48,42 @@ impl Public {
                 id: account.server_id.clone(),
                 version: Current::default().semver(),
                 hostname: account.hostname.no_dot_host_name(),
+                host: Host {
+                    bindings: [(
+                        80,
+                        BindInfo {
+                            enabled: false,
+                            options: BindOptions {
+                                preferred_external_port: 80,
+                                add_ssl: Some(AddSslOptions {
+                                    preferred_external_port: 443,
+                                    alpn: Some(AlpnInfo::Specified(vec![
+                                        MaybeUtf8String("http/1.1".into()),
+                                        MaybeUtf8String("h2".into()),
+                                    ])),
+                                }),
+                                secure: None,
+                            },
+                            net: NetInfo {
+                                assigned_port: None,
+                                assigned_ssl_port: Some(443),
+                                public: false,
+                            },
+                        },
+                    )]
+                    .into_iter()
+                    .collect(),
+                    onions: account
+                        .tor_keys
+                        .iter()
+                        .map(|k| k.public().get_onion_address())
+                        .collect(),
+                    domains: BTreeMap::new(),
+                    hostname_info: BTreeMap::new(),
+                },
                 last_backup: None,
                 package_version_compat: Current::default().compat().clone(),
                 post_init_migration_todos: BTreeSet::new(),
-                lan_address,
-                onion_address: account.tor_key.public().get_onion_address(),
-                tor_address: format!("https://{}", account.tor_key.public().get_onion_address())
-                    .parse()
-                    .unwrap(),
                 network_interfaces: BTreeMap::new(),
                 acme: BTreeMap::new(),
                 status_info: ServerStatus {
@@ -115,6 +145,7 @@ pub struct ServerInfo {
     pub id: String,
     #[ts(type = "string")]
     pub hostname: InternedString,
+    pub host: Host,
     #[ts(type = "string")]
     pub version: Version,
     #[ts(type = "string")]
@@ -123,13 +154,6 @@ pub struct ServerInfo {
     pub post_init_migration_todos: BTreeSet<Version>,
     #[ts(type = "string | null")]
     pub last_backup: Option<DateTime<Utc>>,
-    #[ts(type = "string")]
-    pub lan_address: Url,
-    #[ts(type = "string")]
-    pub onion_address: OnionAddressV3,
-    /// for backwards compatibility
-    #[ts(type = "string")]
-    pub tor_address: Url,
     #[ts(as = "BTreeMap::<String, NetworkInterfaceInfo>")]
     #[serde(default)]
     pub network_interfaces: BTreeMap<InternedString, NetworkInterfaceInfo>,

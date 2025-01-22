@@ -6,6 +6,7 @@ import { ServerSpecsPage } from './server-specs.page'
 import { ExverPipesModule } from '@start9labs/shared'
 import { TuiLetModule } from '@taiga-ui/cdk'
 import { QRComponentModule } from 'src/app/components/qr/qr.component.module'
+import { InterfaceInfoModule } from 'src/app/components/interface-info/interface-info.module'
 
 const routes: Routes = [
   {
@@ -22,6 +23,7 @@ const routes: Routes = [
     QRComponentModule,
     ExverPipesModule,
     TuiLetModule,
+    InterfaceInfoModule,
   ],
   declarations: [ServerSpecsPage],
 })

@@ -25,73 +25,6 @@
         <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
       </ion-button>
     </ion-item>
-
-    <ion-item-divider>Web Addresses</ion-item-divider>
-    <ion-item>
-      <ion-label class="break-all">
-        <h2>Tor</h2>
-        <p>{{ server.torAddress }}</p>
-      </ion-label>
-      <div slot="end">
-        <ion-button fill="clear" (click)="showQR(server.torAddress)">
-          <ion-icon
-            slot="icon-only"
-            name="qr-code-outline"
-            size="small"
-          ></ion-icon>
-        </ion-button>
-        <ion-button fill="clear" (click)="copy(server.torAddress)">
-          <ion-icon
-            slot="icon-only"
-            name="copy-outline"
-            size="small"
-          ></ion-icon>
-        </ion-button>
-      </div>
-    </ion-item>
-    <ion-item>
-      <ion-label class="break-all">
-        <h2>LAN</h2>
-        <p>{{ server.lanAddress }}</p>
-      </ion-label>
-      <ion-button slot="end" fill="clear" (click)="copy(server.lanAddress)">
-        <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
-      </ion-button>
-    </ion-item>
-    <ng-container *ngFor="let iface of server.networkInterfaces | keyvalue">
-      <ng-container *ngIf="(isLocalhost || iface.key !== 'lo') && iface.value.ipInfo">
-        <ng-container  *ngFor="let ipnet of iface.value.ipInfo.subnets">
-          <ng-container *ngIf="!ipnet.includes('fe80::') || isLocalhost">
-            <ion-item *tuiLet="ipnet.split('/')[0] as ipAddr">
-              <ion-label>
-                <h2>{{ iface.key }} ({{ ipAddr.includes("::") ? "IPv6" : "IPv4" }})</h2>
-                <p>{{
-                  ipAddr.includes("fe80::")
-                    ? "[" + ipAddr + "%" + iface.value.ipInfo.scopeId + "]"
-                    : ipAddr.includes("::")
-                      ? "[" + ipAddr + "]"
-                      : ipAddr 
-                }}</p>
-              </ion-label>
-              <ion-button slot="end" fill="clear" (click)="copy(ipAddr)">
-                <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
-              </ion-button>
-            </ion-item>
-          </ng-container>
-        </ng-container>
-      </ng-container>
-    </ng-container>
-
-    <ion-item-divider>Device Credentials</ion-item-divider>
-    <!-- <ion-item>
-      <ion-label>
-        <h2>Pubkey</h2>
-        <p>{{ server['pubkey'] }}</p>
-      </ion-label>
-      <ion-button slot="end" fill="clear" (click)="copy(server['pubkey'])">
-        <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
-      </ion-button>
-    </ion-item> -->
     <ion-item>
       <ion-label>
         <h2>CA fingerprint</h2>
@@ -101,5 +34,9 @@
         <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
       </ion-button>
     </ion-item>
+
+    <ion-item-divider>Web Addresses</ion-item-divider>
+
+    <interface-info *ngIf="ui$ | async as ui" [iFace]="ui"></interface-info>
   </ion-item-group>
 </ion-content>

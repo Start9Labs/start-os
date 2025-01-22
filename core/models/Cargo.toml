@@ -24,7 +24,7 @@ patch-db = { version = "*", path = "../../patch-db/patch-db", features = [
 rand = "0.8.5"
 regex = "1.10.2"
 reqwest = "0.12"
-rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "refactor/no-dyn-ctx" }
+rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "master" }
 rustls = "0.23"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
