@@ -25,6 +25,7 @@ use crate::context::{CliContext, InitContext};
 use crate::db::model::public::ServerStatus;
 use crate::db::model::Database;
 use crate::disk::mount::util::unmount;
+use crate::hostname::Hostname;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
 use crate::net::net_controller::{NetController, NetService};
 use crate::net::utils::find_wifi_iface;
@@ -35,7 +36,7 @@ use crate::progress::{
 };
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::v2::pack::{CONTAINER_DATADIR, CONTAINER_TOOL};
-use crate::ssh::SSH_AUTHORIZED_KEYS_FILE;
+use crate::ssh::SSH_DIR;
 use crate::system::get_mem_info;
 use crate::util::io::{create_file, IOHook};
 use crate::util::lshw::lshw;
@@ -340,8 +341,10 @@ pub async fn init(
 
     load_ssh_keys.start();
     crate::ssh::sync_keys(
+        &Hostname(peek.as_public().as_server_info().as_hostname().de()?),
+        &peek.as_private().as_ssh_privkey().de()?,
         &peek.as_private().as_ssh_pubkeys().de()?,
-        SSH_AUTHORIZED_KEYS_FILE,
+        SSH_DIR,
     )
     .await?;
     load_ssh_keys.complete();
