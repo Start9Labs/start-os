@@ -7,6 +7,8 @@ use imbl_value::InternedString;
 use models::FromStrParser;
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
+use tokio::fs::OpenOptions;
+use tokio::process::Command;
 use tracing::instrument;
 use ts_rs::TS;
 
@@ -15,6 +17,7 @@ use crate::hostname::Hostname;
 use crate::prelude::*;
 use crate::util::io::create_file;
 use crate::util::serde::{display_serializable, HandlerExtSerde, Pem, WithIoFormat};
+use crate::util::Invoke;
 
 pub const SSH_DIR: &str = "/home/start9/.ssh";
 
@@ -248,7 +251,20 @@ pub async fn sync_keys<P: AsRef<Path>>(
     } else {
         "id_unknown"
     };
-    let mut f = create_file(ssh_dir.join(id_alg)).await?;
+
+    let privkey_path = ssh_dir.join(id_alg);
+    let mut f = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .mode(0o600)
+        .open(&privkey_path)
+        .await
+        .with_ctx(|_| {
+            (
+                ErrorKind::Filesystem,
+                lazy_format!("create {privkey_path:?}"),
+            )
+        })?;
     f.write_all(privkey.to_string().as_bytes()).await?;
     f.write_all(b"\n").await?;
     f.sync_all().await?;
@@ -272,6 +288,13 @@ pub async fn sync_keys<P: AsRef<Path>>(
         f.write_all(key.0.to_key_format().as_bytes()).await?;
         f.write_all(b"\n").await?;
     }
+
+    Command::new("chown")
+        .arg("-R")
+        .arg("start9:startos")
+        .arg(ssh_dir)
+        .invoke(ErrorKind::Filesystem)
+        .await?;
 
     Ok(())
 }
