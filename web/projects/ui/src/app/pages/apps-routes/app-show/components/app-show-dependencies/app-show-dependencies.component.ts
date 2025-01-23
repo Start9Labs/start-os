@@ -25,5 +25,5 @@ export class AppShowDependenciesComponent {
   pkg!: T.PackageDataEntry & { stateInfo: StateInfo }
 
   @Input()
-  pkgId!: string
+  manifest!: T.Manifest
 }

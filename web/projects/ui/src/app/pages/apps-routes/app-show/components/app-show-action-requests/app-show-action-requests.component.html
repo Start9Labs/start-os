@@ -1,33 +1,36 @@
-<ng-container *ngIf="actionRequests.critical.length">
-  <ion-item-divider>Required Actions</ion-item-divider>
-  <ion-item
-    *ngFor="let request of actionRequests.critical"
-    button
-    (click)="handleAction(request)"
-  >
-    <ion-icon slot="start" name="warning-outline" color="warning"></ion-icon>
-    <ion-label>
-      <h2 class="highlighted">{{ request.actionName }}</h2>
-      <p>
-        {{ request.reason || 'no reason provided' }}
-      </p>
-    </ion-label>
-  </ion-item>
-</ng-container>
-
-<ng-container *ngIf="actionRequests.important.length">
-  <ion-item-divider>Requested Actions</ion-item-divider>
-  <ion-item
-    *ngFor="let request of actionRequests.important"
-    button
-    (click)="handleAction(request)"
-  >
-    <ion-icon slot="start" name="play-outline" color="warning"></ion-icon>
-    <ion-label>
-      <h2 class="highlighted">{{ request.actionName }}</h2>
-      <p>
-        {{ request.reason || 'no reason provided' }}
-      </p>
-    </ion-label>
-  </ion-item>
+<ng-container *ngIf="actionRequests[pkgId]?.length">
+  <div class="indent">
+    <ion-item
+      class="line"
+      lines="none"
+      *ngFor="let request of actionRequests[pkgId]"
+      button
+      (click)="handleAction(request)"
+    >
+      <ion-icon
+        slot="start"
+        [name]="
+          request.severity === 'critical' ? 'warning-outline' : 'play-outline'
+        "
+        [color]="request.severity === 'critical' ? 'warning' : 'dark'"
+      ></ion-icon>
+      <ion-label>
+        <h2 class="highlighted">{{ request.actionName }}</h2>
+        <p>
+          {{ request.reason || 'no reason provided' }} |
+          <span
+            class="severity"
+            [ngStyle]="{
+              color:
+                request.severity === 'critical'
+                  ? 'var(--ion-color-warning)'
+                  : 'var(--ion-color-dark)'
+            }"
+          >
+            {{ request.severity === 'critical' ? 'Required' : 'Requested' }}
+          </span>
+        </p>
+      </ion-label>
+    </ion-item>
+  </div>
 </ng-container>

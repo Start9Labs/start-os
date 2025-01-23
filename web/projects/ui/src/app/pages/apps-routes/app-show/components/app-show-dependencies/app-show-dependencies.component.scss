@@ -20,15 +20,6 @@ img {
   gap: 1.2rem;
 }
 
-:host ::ng-deep ion-item {
-  display: inline;
-
-}
-
-dep-action-requests {
-  margin-left: 41px;
-}
-
 ion-label h2 {
   display: flex;
   align-items: center;

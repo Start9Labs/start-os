@@ -20,7 +20,6 @@ import { AppShowHealthChecksComponent } from './components/app-show-health-check
 import { AppShowAdditionalComponent } from './components/app-show-additional/app-show-additional.component'
 import { AppShowErrorComponent } from './components/app-show-error/app-show-error.component'
 import { AppShowActionRequestsComponent } from './components/app-show-action-requests/app-show-action-requests.component'
-import { DepActionRequestsComponent } from './components/app-show-dependencies/dep-action-requests/dep-action-requests.component'
 import { HealthColorPipe } from './pipes/health-color.pipe'
 import { ToHealthChecksPipe } from './pipes/to-health-checks.pipe'
 import { ToButtonsPipe } from './pipes/to-buttons.pipe'
@@ -48,7 +47,6 @@ const routes: Routes = [
     AppShowAdditionalComponent,
     AppShowErrorComponent,
     AppShowActionRequestsComponent,
-    DepActionRequestsComponent,
   ],
   imports: [
     CommonModule,

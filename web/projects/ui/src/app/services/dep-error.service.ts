@@ -104,11 +104,14 @@ export class DepErrorService {
     // action required
     if (
       Object.values(pkg.requestedActions).some(
-        a => a.active && a.request.packageId === depId,
+        a =>
+          a.active &&
+          a.request.packageId === depId &&
+          a.request.severity === 'critical',
       )
     ) {
       return {
-        type: 'actionNeeded',
+        type: 'actionRequired',
       }
     }
 

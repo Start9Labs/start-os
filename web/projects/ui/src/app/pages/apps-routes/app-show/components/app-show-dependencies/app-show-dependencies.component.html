@@ -29,12 +29,12 @@
         </p>
       </ion-label>
     </div>
-    <dep-action-requests
+    <app-show-action-requests
       [allPkgs]="allPkgs"
       [pkg]="pkg"
       [dep]="dep"
-      [pkgId]="pkgId"
-    ></dep-action-requests>
+      [manifest]="manifest"
+    ></app-show-action-requests>
   </div>
   <ion-button *ngIf="dep.actionText" slot="end" fill="clear">
     {{ dep.actionText }}

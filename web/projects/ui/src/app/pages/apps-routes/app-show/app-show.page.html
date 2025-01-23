@@ -20,6 +20,11 @@
         <ng-container
           *ngIf="isInstalled(pkg) && status.primary !== 'backingUp' && status.primary !== 'error'"
         >
+          <ion-item-divider
+            style="--background: unset; z-index: 11; position: relative"
+          >
+            Action Requests
+          </ion-item-divider>
           <!-- ** action requests ** -->
           <app-show-action-requests
             [allPkgs]="pkgPlus.allPkgs"
@@ -37,7 +42,7 @@
             [dependencies]="pkgPlus.dependencies"
             [allPkgs]="pkgPlus.allPkgs"
             [pkg]="pkg"
-            [pkgId]="pkgPlus.manifest.id"
+            [manifest]="pkgPlus.manifest"
           ></app-show-dependencies>
           <!-- ** menu ** -->
           <app-show-menu [buttons]="pkg | toButtons"></app-show-menu>
