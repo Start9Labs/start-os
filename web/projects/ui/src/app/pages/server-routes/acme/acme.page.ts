@@ -7,7 +7,8 @@ import { FormDialogService } from '../../../services/form-dialog.service'
 import { FormComponent } from '../../../components/form.component'
 import { configBuilderToSpec } from '../../../util/configBuilderToSpec'
 import { ISB, utils } from '@start9labs/start-sdk'
-import { ACME_Name, ACME_URL, knownACME, toAcmeName } from 'src/app/util/acme'
+import { knownACME, toAcmeName } from 'src/app/util/acme'
+import { map } from 'rxjs'
 
 @Component({
   selector: 'acme',
@@ -17,7 +18,21 @@ import { ACME_Name, ACME_URL, knownACME, toAcmeName } from 'src/app/util/acme'
 export class ACMEPage {
   readonly docsUrl = 'https://docs.start9.com/0.3.6/user-manual/acme'
 
-  acme$ = this.patch.watch$('serverInfo', 'acme')
+  acme$ = this.patch.watch$('serverInfo', 'acme').pipe(
+    map(acme => {
+      const providerUrls = Object.keys(acme)
+      return providerUrls.map(url => {
+        const contact = acme[url].contact.map(mailto =>
+          mailto.replace('mailto:', ''),
+        )
+        return {
+          url,
+          contact,
+          contactString: contact.join(', '),
+        }
+      })
+    }),
+  )
 
   toAcmeName = toAcmeName
 
@@ -29,17 +44,51 @@ export class ACMEPage {
     private readonly formDialog: FormDialogService,
   ) {}
 
-  async presentFormAcme() {
+  async addAcme(
+    providers: {
+      url: string
+      contact: string[]
+      contactString: string
+    }[],
+  ) {
     this.formDialog.open(FormComponent, {
       label: 'Add ACME Provider',
       data: {
-        spec: await configBuilderToSpec(acmeSpec),
+        spec: await configBuilderToSpec(
+          getAddAcmeSpec(providers.map(p => p.url)),
+        ),
         buttons: [
           {
             text: 'Save',
-            handler: async (val: typeof acmeSpec._TYPE) => this.saveAcme(val),
+            handler: async (
+              val: ReturnType<typeof getAddAcmeSpec>['_TYPE'],
+            ) => {
+              const providerUrl =
+                val.provider.selection === 'other'
+                  ? val.provider.value.url
+                  : val.provider.selection
+
+              return this.saveAcme(providerUrl, val.contact)
+            },
           },
         ],
+      },
+    })
+  }
+
+  async editAcme(provider: string, contact: string[]) {
+    this.formDialog.open(FormComponent, {
+      label: 'Edit ACME Provider',
+      data: {
+        spec: await configBuilderToSpec(editAcmeSpec),
+        buttons: [
+          {
+            text: 'Save',
+            handler: async (val: typeof editAcmeSpec._TYPE) =>
+              this.saveAcme(provider, val.contact),
+          },
+        ],
+        value: { contact },
       },
     })
   }
@@ -56,18 +105,14 @@ export class ACMEPage {
     }
   }
 
-  private async saveAcme(val: typeof acmeSpec._TYPE) {
+  private async saveAcme(providerUrl: string, contact: string[]) {
+    console.log(providerUrl, contact)
     const loader = this.loader.open('Saving').subscribe()
-
-    const rawUrl =
-      val.provider.selection === 'other'
-        ? val.provider.value.url
-        : val.provider.selection
 
     try {
       await this.api.initAcme({
-        provider: new URL(rawUrl).href,
-        contact: [`mailto:${val.contact}`],
+        provider: new URL(providerUrl).href,
+        contact: contact.map(address => `mailto:${address}`),
       })
       return true
     } catch (e: any) {
@@ -79,39 +124,56 @@ export class ACMEPage {
   }
 }
 
-const acmeSpec = ISB.InputSpec.of({
-  provider: ISB.Value.union(
-    { name: 'Provider', default: knownACME['Let\'s Encrypt'] as any },
-    ISB.Variants.of({
-      ...Object.entries(knownACME).reduce(
-        (obj, [name, url]) => ({
-          ...obj,
-          [url]: {
-            name,
-            spec: ISB.InputSpec.of({}),
-          },
-        }),
-        {},
-      ),
-      other: {
-        name: 'Other',
-        spec: ISB.InputSpec.of({
-          url: ISB.Value.text({
-            name: 'URL',
-            default: null,
-            required: true,
-            inputmode: 'url',
-            patterns: [utils.Patterns.url],
-          }),
-        }),
-      },
-    }),
+const emailListSpec = ISB.Value.list(
+  ISB.List.text(
+    {
+      name: 'Contact Emails',
+      description:
+        'Needed to obtain a certificate from a Certificate Authority',
+      minLength: 1,
+    },
+    {
+      inputmode: 'email',
+      patterns: [utils.Patterns.email],
+    },
   ),
-  contact: ISB.Value.text({
-    name: 'Contact Email',
-    default: null,
-    required: true,
-    inputmode: 'email',
-    patterns: [utils.Patterns.email],
-  }),
+)
+
+function getAddAcmeSpec(providers: string[]) {
+  const availableAcme = knownACME.filter(acme => !providers.includes(acme.url))
+
+  return ISB.InputSpec.of({
+    provider: ISB.Value.union(
+      { name: 'Provider', default: (availableAcme[0]?.url as any) || 'other' },
+      ISB.Variants.of({
+        ...availableAcme.reduce(
+          (obj, curr) => ({
+            ...obj,
+            [curr.url]: {
+              name: curr.name,
+              spec: ISB.InputSpec.of({}),
+            },
+          }),
+          {},
+        ),
+        other: {
+          name: 'Other',
+          spec: ISB.InputSpec.of({
+            url: ISB.Value.text({
+              name: 'URL',
+              default: null,
+              required: true,
+              inputmode: 'url',
+              patterns: [utils.Patterns.url],
+            }),
+          }),
+        },
+      }),
+    ),
+    contact: emailListSpec,
+  })
+}
+
+const editAcmeSpec = ISB.InputSpec.of({
+  contact: emailListSpec,
 })

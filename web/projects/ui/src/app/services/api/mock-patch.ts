@@ -65,7 +65,7 @@ export const mockPatchData: DataModel = {
       },
     },
     acme: {
-      [Object.keys(knownACME)[0]]: {
+      [knownACME[0].url]: {
         contact: ['mailto:support@start9.com'],
       },
     },

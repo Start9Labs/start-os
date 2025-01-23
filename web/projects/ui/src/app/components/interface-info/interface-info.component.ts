@@ -19,7 +19,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { FormComponent } from 'src/app/components/form.component'
 import { configBuilderToSpec } from 'src/app/util/configBuilderToSpec'
-import { ACME_URL, toAcmeName } from 'src/app/util/acme'
+import { toAcmeName } from 'src/app/util/acme'
 import { ConfigService } from 'src/app/services/config.service'
 
 export type MappedInterface = T.ServiceInterface & {
@@ -167,7 +167,7 @@ export class InterfaceInfoComponent {
     }
   }
 
-  async showAcme(url: ACME_URL | string | null): Promise<void> {
+  async showAcme(url: string | null): Promise<void> {
     const alert = await this.alertCtrl.create({
       header: 'ACME Provider',
       message: toAcmeName(url),
