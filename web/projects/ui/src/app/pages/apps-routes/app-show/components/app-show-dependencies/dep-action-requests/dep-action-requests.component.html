@@ -11,7 +11,7 @@
       [name]="
         request.severity === 'critical' ? 'warning-outline' : 'play-outline'
       "
-      color="warning"
+      [color]="request.severity === 'critical' ? 'warning' : 'dark'"
     ></ion-icon>
     <ion-label>
       <h2 class="highlighted">{{ request.actionName }}</h2>
@@ -23,7 +23,7 @@
             color:
               request.severity === 'critical'
                 ? 'var(--ion-color-warning)'
-                : 'var(--ion-color-primary)'
+                : 'var(--ion-color-dark)'
           }"
         >
           {{ request.severity === 'critical' ? 'Required' : 'Requested' }}
