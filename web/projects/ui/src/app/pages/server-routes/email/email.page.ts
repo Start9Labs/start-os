@@ -65,7 +65,7 @@ export class EmailPage {
         ...value,
       })
     } catch (e: any) {
-      this.errorService.handleError(e)
+      return this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }
