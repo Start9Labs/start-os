@@ -81,6 +81,7 @@ import { MarketplaceControlsComponent } from './controls.component'
 
       .preview-wrapper {
         overflow-y: auto;
+        height: 100%;
         max-width: 100%;
 
         @media (min-width: 768px) {

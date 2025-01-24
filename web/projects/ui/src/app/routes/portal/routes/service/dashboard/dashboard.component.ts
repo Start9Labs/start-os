@@ -1,26 +1,36 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { TuiIcon } from '@taiga-ui/core'
+import { TuiComparator, TuiTable } from '@taiga-ui/addon-table'
 import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
 import { DepErrorService } from 'src/app/services/dep-error.service'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { getInstalledPrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
+import { getManifest } from 'src/app/utils/get-package-data'
 import { ServiceComponent } from './service.component'
 import { ServicesService } from './services.service'
 
 @Component({
   standalone: true,
   template: `
-    <table>
+    <table tuiTable [(sorter)]="sorter">
       <thead>
         <tr>
           <th [style.width.rem]="3"></th>
-          <th>Name</th>
-          <th>Version</th>
-          <th [style.width.rem]="13">Status</th>
+          <th tuiTh [requiredSort]="true" [sorter]="name">Name</th>
+          <th tuiTh>Version</th>
+          <th
+            tuiTh
+            [requiredSort]="true"
+            [sorter]="status"
+            [style.width.rem]="13"
+          >
+            Status
+          </th>
           <th [style.width.rem]="8" [style.text-indent.rem]="1.5">Controls</th>
         </tr>
       </thead>
       <tbody>
-        @for (pkg of services(); track $index) {
+        @for (pkg of services() | tuiTableSort; track $index) {
           <tr
             appService
             [pkg]="pkg"
@@ -39,15 +49,12 @@ import { ServicesService } from './services.service'
   styles: `
     :host {
       position: relative;
-      max-width: 64rem;
-      margin: 0 auto;
       font-size: 1rem;
       overflow: hidden;
     }
 
     table {
-      width: calc(100% - 4rem);
-      margin: 2rem;
+      width: 100%;
     }
 
     tr:not(:last-child) {
@@ -57,6 +64,8 @@ import { ServicesService } from './services.service'
     th {
       text-transform: uppercase;
       color: var(--tui-text-secondary);
+      background: none;
+      border: none;
       font: var(--tui-font-text-s);
       font-weight: bold;
       text-align: left;
@@ -69,22 +78,25 @@ import { ServicesService } from './services.service'
     }
 
     :host-context(tui-root._mobile) {
-      height: calc(100vh - 7.375rem);
-
-      table {
-        width: 100%;
-        margin: 0;
-      }
-
       thead {
         display: none;
       }
     }
   `,
-  imports: [TuiIcon, ServiceComponent, ToManifestPipe],
+  imports: [ServiceComponent, ToManifestPipe, TuiTable],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardComponent {
   readonly services = toSignal(inject(ServicesService))
   readonly errors = toSignal(inject(DepErrorService).depErrors$)
+
+  readonly name: TuiComparator<PackageDataEntry> = (a, b) =>
+    getManifest(b).title.toLowerCase() > getManifest(a).title.toLowerCase()
+      ? -1
+      : 1
+
+  readonly status: TuiComparator<PackageDataEntry> = (a, b) =>
+    getInstalledPrimaryStatus(b) > getInstalledPrimaryStatus(a) ? -1 : 1
+
+  sorter = this.name
 }

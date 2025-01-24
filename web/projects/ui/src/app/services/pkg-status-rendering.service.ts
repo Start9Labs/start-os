@@ -27,16 +27,15 @@ export function renderPkgStatus(
   return { primary, dependency, health }
 }
 
-function getInstalledPrimaryStatus(pkg: T.PackageDataEntry): PrimaryStatus {
-  if (
-    Object.values(pkg.requestedActions).some(
-      r => r.active && r.request.severity === 'critical',
-    )
-  ) {
-    return 'actionRequired'
-  } else {
-    return pkg.status.main
-  }
+export function getInstalledPrimaryStatus({
+  requestedActions,
+  status,
+}: T.PackageDataEntry): PrimaryStatus {
+  return Object.values(requestedActions).some(
+    r => r.active && r.request.severity === 'critical',
+  )
+    ? 'actionRequired'
+    : status.main
 }
 
 function getDependencyStatus(depErrors: PkgDependencyErrors): DependencyStatus {
