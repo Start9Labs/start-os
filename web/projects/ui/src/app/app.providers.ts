@@ -20,7 +20,7 @@ import {
 } from '@taiga-ui/kit'
 import { tuiTextfieldOptionsProvider } from '@taiga-ui/legacy'
 import { PatchDB } from 'patch-db-client'
-import { filter, pairwise } from 'rxjs'
+import { filter, of, pairwise } from 'rxjs'
 import {
   PATCH_CACHE,
   PatchDbSource,
@@ -52,10 +52,10 @@ export const APP_PROVIDERS: Provider[] = [
   tuiDropdownOptionsProvider({ appearance: 'start-os' }),
   {
     provide: TUI_DATE_FORMAT,
-    useValue: {
+    useValue: of({
       mode: 'MDY',
       separator: '/',
-    },
+    }),
   },
   {
     provide: TUI_DATE_VALUE_TRANSFORMER,

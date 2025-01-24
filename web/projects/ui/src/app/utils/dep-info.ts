@@ -8,7 +8,7 @@ export function getDepDetails(
   allPkgs: AllPackageData,
   depId: string,
 ) {
-  const { title, icon, versionRange } = pkg.currentDependencies[depId]
+  const { title, icon, versionRange } = pkg.currentDependencies[depId] || {}
 
   if (
     allPkgs[depId] &&

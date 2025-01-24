@@ -49,11 +49,24 @@ import { getMenu } from 'src/app/utils/system-utilities'
       @import '@taiga-ui/core/styles/taiga-ui-local';
 
       :host {
+        position: relative;
         display: flex;
-        backdrop-filter: blur(1rem);
         border-radius: inherit;
         margin-inline-end: 0.875rem;
         isolation: isolate;
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: -1rem;
+          right: -0.5rem;
+          bottom: 0;
+          transform: skewX(30deg);
+          border-radius: var(--bumper);
+          z-index: -1;
+          backdrop-filter: blur(1rem);
+        }
       }
 
       .link {

@@ -172,7 +172,8 @@ export class ActionInputModal {
 
   async execute(input: object) {
     if (await this.checkConflicts(input)) {
-      return this.actionService.execute(this.pkgInfo.id, this.actionId, input)
+      await this.actionService.execute(this.pkgInfo.id, this.actionId, input)
+      this.context.$implicit.complete()
     }
   }
 
