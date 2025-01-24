@@ -24,7 +24,7 @@ check_root() {
     if [[ "$EUID" -ne 0 ]]; then
         exec sudo "$0" "${SCRIPT_ARGS[@]}"
     fi
-    sudo chown -R start9:start9 "$SSH_KEY_DIR"
+    sudo chown -R start9:startos "$SSH_KEY_DIR"
 }
 
 # Function to print banner
@@ -274,7 +274,7 @@ echo "SSH Port: $SSH_PORT"
 echo -e "\n${GREEN}Proceeding with SSH key-based authentication...${NC}\n"
 
 # Copy SSH public key to the remote server
-if ! ssh-copy-id -i "$SSH_PUBLIC_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$VPS_IP" >/dev/null 2>&1; then
+if ! ssh-copy-id -i "$SSH_PUBLIC_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$VPS_IP"; then
     echo -e "${RED}Failed to copy SSH key to the remote server. Please ensure you have correct credentials.${NC}"
     exit 1
 fi
