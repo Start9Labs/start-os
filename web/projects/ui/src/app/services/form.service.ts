@@ -55,7 +55,10 @@ export class FormService {
 
   getListItem(spec: IST.ValueSpecList, entry?: any) {
     if (IST.isValueSpecListOf(spec, 'text')) {
-      return this.formBuilder.control(entry, stringValidators(spec.spec))
+      return this.formBuilder.control(entry, [
+        ...stringValidators(spec.spec),
+        Validators.required,
+      ])
     } else if (IST.isValueSpecListOf(spec, 'object')) {
       return this.getFormGroup(spec.spec.spec, [], entry)
     }
@@ -116,12 +119,15 @@ export class FormService {
       case 'object':
         return this.getFormGroup(spec.spec, [], currentValue)
       case 'list':
-        const mapped = (
-          Array.isArray(currentValue) ? currentValue : (spec.default as any[])
-        ).map(entry => {
-          return this.getListItem(spec, entry)
-        })
-        return this.formBuilder.array(mapped, listValidators(spec))
+        const array = Array.isArray(currentValue) ? currentValue : spec.default
+        const length = Math.max(array.length, spec.minLength || 0)
+
+        return this.formBuilder.array(
+          Array.from({ length }).map((_, index) =>
+            this.getListItem(spec, array[index]),
+          ),
+          listValidators(spec),
+        )
       case 'file':
         return this.formBuilder.control(
           currentValue || null,
