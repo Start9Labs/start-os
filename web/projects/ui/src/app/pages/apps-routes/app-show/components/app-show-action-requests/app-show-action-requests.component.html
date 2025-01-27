@@ -1,4 +1,10 @@
 <ng-container *ngIf="actionRequests[pkgId]?.length">
+  <ion-item-divider
+    *ngIf="!dep"
+    style="--background: unset; z-index: 11; position: relative"
+  >
+    Action Requests
+  </ion-item-divider>
   <div class="indent">
     <ion-item
       class="line"
