@@ -58,7 +58,8 @@ export class AppShowActionRequestsComponent {
   }
   constructor(private readonly actionService: ActionService) {}
 
-  async handleAction(request: T.ActionRequest) {
+  async handleAction(request: T.ActionRequest, e: Event) {
+    e.stopPropagation()
     const self = request.packageId === this.manifest.id
     this.actionService.present({
       pkgInfo: {

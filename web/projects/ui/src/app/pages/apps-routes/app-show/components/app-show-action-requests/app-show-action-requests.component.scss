@@ -34,5 +34,6 @@ ion-icon {
 }
 
 :host ::ng-deep ion-item {
-  display: inline;
+  display: table-row;
+  width: fit-content;
 }

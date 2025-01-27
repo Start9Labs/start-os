@@ -11,7 +11,7 @@
       lines="none"
       *ngFor="let request of actionRequests[pkgId]"
       button
-      (click)="handleAction(request)"
+      (click)="handleAction(request, $event)"
     >
       <ion-icon
         slot="start"
