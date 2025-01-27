@@ -25,31 +25,28 @@
 
     <ion-item-divider>Saved Providers</ion-item-divider>
 
-    <ion-item button detail="false" (click)="presentFormAcme()">
-      <ion-icon slot="start" name="add" color="dark"></ion-icon>
-      <ion-label>
-        <b>Add Provider</b>
-      </ion-label>
-    </ion-item>
-
     <ng-container *ngIf="acme$ | async as acme">
-      <ion-item *ngFor="let provider of acme | keyvalue">
+      <ion-item button detail="false" (click)="addAcme(acme)">
+        <ion-icon slot="start" name="add" color="dark"></ion-icon>
+        <ion-label>
+          <b>Add Provider</b>
+        </ion-label>
+      </ion-item>
+
+      <ion-item *ngFor="let provider of acme">
         <ion-icon slot="start" name="finger-print" size="medium"></ion-icon>
         <ion-label>
-          <h2>{{ toAcmeName(provider.key) }}</h2>
-          <p *ngFor="let contact of provider.value.contact">
-            Contact: {{ contact }}
-          </p>
+          <h2>{{ toAcmeName(provider.url) }}</h2>
+          <p>Contact: {{ provider.contactString }}</p>
         </ion-label>
-        <ion-button
-          slot="end"
-          fill="clear"
-          color="danger"
-          (click)="removeAcme(provider.key)"
-        >
-          <ion-icon slot="start" name="close"></ion-icon>
-          Remove
-        </ion-button>
+        <ion-buttons slot="end">
+          <ion-button (click)="editAcme(provider.url, provider.contact)">
+            <ion-icon slot="start" name="pencil"></ion-icon>
+          </ion-button>
+          <ion-button (click)="removeAcme(provider.url)">
+            <ion-icon slot="start" name="trash-outline"></ion-icon>
+          </ion-button>
+        </ion-buttons>
       </ion-item>
     </ng-container>
   </ion-item-group>

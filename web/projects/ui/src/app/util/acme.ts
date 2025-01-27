@@ -1,21 +1,21 @@
-export function toAcmeName(url: ACME_URL | string | null): ACME_Name | string {
-  return (
-    Object.entries(knownACME).find(([_, val]) => val === url)?.[0] ||
-    url ||
-    'System CA'
-  )
+export function toAcmeName(url: string | null): string | 'System CA' {
+  return knownACME.find(acme => acme.url === url)?.name || url || 'System CA'
 }
 
-export function toAcmeUrl(name: ACME_Name | string): ACME_URL | string {
-  return knownACME[name as ACME_Name] || name
+export function toAcmeUrl(name: string): string {
+  return knownACME.find(acme => acme.name === name)?.url || name
 }
 
-export const knownACME = {
-  'Let\'s Encrypt': 'https://acme-v02.api.letsencrypt.org/directory',
-  'Let\'s Encrypt (Staging)':
-    'https://acme-staging-v02.api.letsencrypt.org/directory',
-}
-
-export type ACME_Name = keyof typeof knownACME
-
-export type ACME_URL = (typeof knownACME)[ACME_Name]
+export const knownACME: {
+  name: string
+  url: string
+}[] = [
+  {
+    name: `Let's Encrypt`,
+    url: 'https://acme-v02.api.letsencrypt.org/directory',
+  },
+  {
+    name: `Let's Encrypt (Staging)`,
+    url: 'https://acme-staging-v02.api.letsencrypt.org/directory',
+  },
+]

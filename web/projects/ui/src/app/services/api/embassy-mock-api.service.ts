@@ -1064,7 +1064,7 @@ export class MockApiService extends ApiService {
         op: PatchOp.ADD,
         path: `/serverInfo/acme`,
         value: {
-          [toAcmeUrl(params.provider)]: { contact: [params.contact] },
+          [toAcmeUrl(params.provider)]: { contact: params.contact },
         },
       },
     ]
