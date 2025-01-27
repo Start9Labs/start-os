@@ -101,7 +101,9 @@ done
     killall firefox-esr
 ) &
 matchbox-window-manager -use_titlebar no &
-firefox-esr http://localhost --profile /home/kiosk/fx-profile
+cp -r /home/kiosk/fx-profile /home/kiosk/fx-profile-tmp
+firefox-esr http://localhost --profile /home/kiosk/fx-profile-tmp
+rm -rf /home/kiosk/fx-profile-tmp
 EOF
 chmod +x /home/kiosk/kiosk.sh
 

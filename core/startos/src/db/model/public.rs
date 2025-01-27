@@ -16,9 +16,9 @@ use ts_rs::TS;
 use crate::account::AccountInfo;
 use crate::db::model::package::AllPackageData;
 use crate::net::acme::AcmeProvider;
-use crate::net::host::address::DomainConfig;
 use crate::net::host::binding::{AddSslOptions, BindInfo, BindOptions, NetInfo};
 use crate::net::host::Host;
+use crate::net::utils::ipv6_is_local;
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
 use crate::progress::FullProgress;
@@ -190,14 +190,29 @@ impl NetworkInterfaceInfo {
     pub fn public(&self) -> bool {
         self.public.unwrap_or_else(|| {
             !self.ip_info.as_ref().map_or(true, |ip_info| {
-                ip_info.subnets.iter().all(|ipnet| {
-                    match ipnet.addr() {
-                        IpAddr::V4(ip4) => {
-                            ip4.is_loopback()
-                            || (ip4.is_private() && !ip4.octets().starts_with(&[10, 59])) // reserving 10.59 for public wireguard configurations
-                            || ip4.is_link_local()
+                let ip4s = ip_info
+                    .subnets
+                    .iter()
+                    .filter_map(|ipnet| {
+                        if let IpAddr::V4(ip4) = ipnet.addr() {
+                            Some(ip4)
+                        } else {
+                            None
                         }
-                        IpAddr::V6(_) => true,
+                    })
+                    .collect::<BTreeSet<_>>();
+                if !ip4s.is_empty() {
+                    return ip4s.iter().all(|ip4| {
+                        ip4.is_loopback()
+                    || (ip4.is_private() && !ip4.octets().starts_with(&[10, 59])) // reserving 10.59 for public wireguard configurations
+                    || ip4.is_link_local()
+                    });
+                }
+                ip_info.subnets.iter().all(|ipnet| {
+                    if let IpAddr::V6(ip6) = ipnet.addr() {
+                        ipv6_is_local(ip6)
+                    } else {
+                        true
                     }
                 })
             })

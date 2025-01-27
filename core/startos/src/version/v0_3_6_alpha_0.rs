@@ -193,7 +193,7 @@ pub struct Version;
 
 impl VersionT for Version {
     type Previous = v0_3_5_2::Version;
-    type PreUpRes = (AccountInfo, SshKeys, CifsTargets, Notifications);
+    type PreUpRes = (AccountInfo, SshKeys, CifsTargets);
     fn semver(self) -> exver::Version {
         V0_3_6_alpha_0.clone()
     }
@@ -208,15 +208,9 @@ impl VersionT for Version {
 
         let cifs = previous_cifs(&pg).await?;
 
-        let notifications = previous_notifications(pg).await?;
-
-        Ok((account, ssh_keys, cifs, notifications))
+        Ok((account, ssh_keys, cifs))
     }
-    fn up(
-        self,
-        db: &mut Value,
-        (account, ssh_keys, cifs, notifications): Self::PreUpRes,
-    ) -> Result<(), Error> {
+    fn up(self, db: &mut Value, (account, ssh_keys, cifs): Self::PreUpRes) -> Result<(), Error> {
         let wifi = json!({
             "infterface": db["server-info"]["wifi"]["interface"],
             "ssids": db["server-info"]["wifi"]["ssids"],
@@ -298,7 +292,7 @@ impl VersionT for Version {
             value["sshPubkeys"] = to_value(&ssh_keys)?;
             value["availablePorts"] = to_value(&AvailablePorts::new())?;
             value["sessions"] = to_value(&Sessions::new())?;
-            value["notifications"] = to_value(&notifications)?;
+            value["notifications"] = to_value(&Notifications::new())?;
             value["cifs"] = to_value(&cifs)?;
             value["packageStores"] = json!({});
             value
@@ -375,64 +369,6 @@ impl VersionT for Version {
     }
 }
 
-async fn previous_notifications(pg: sqlx::Pool<sqlx::Postgres>) -> Result<Notifications, Error> {
-    let notification_cursor = sqlx::query(r#"SELECT * FROM notifications"#)
-        .fetch_all(&pg)
-        .await?;
-    let notifications = {
-        let mut notifications = Notifications::default();
-        for row in notification_cursor {
-            let package_id = serde_json::from_str::<PackageId>(
-                row.try_get("package_id")
-                    .with_ctx(|_| (ErrorKind::Database, "package_id"))?,
-            )
-            .ok();
-
-            let created_at = row
-                .try_get("created_at")
-                .with_ctx(|_| (ErrorKind::Database, "created_at"))?;
-            let code = row
-                .try_get::<i64, _>("code")
-                .with_ctx(|_| (ErrorKind::Database, "code"))? as u32;
-            let id = row
-                .try_get::<i64, _>("id")
-                .with_ctx(|_| (ErrorKind::Database, "id"))? as u32;
-            let level = serde_json::from_str(
-                row.try_get("level")
-                    .with_ctx(|_| (ErrorKind::Database, "level"))?,
-            )
-            .with_kind(ErrorKind::Database)
-            .with_ctx(|_| (ErrorKind::Database, "level: serde_json "))?;
-            let title = row
-                .try_get("title")
-                .with_ctx(|_| (ErrorKind::Database, "title"))?;
-            let message = row
-                .try_get("message")
-                .with_ctx(|_| (ErrorKind::Database, "message"))?;
-            let data = serde_json::from_str(
-                row.try_get("data")
-                    .with_ctx(|_| (ErrorKind::Database, "data"))?,
-            )
-            .unwrap_or_default();
-
-            notifications.0.insert(
-                id,
-                Notification {
-                    package_id,
-                    created_at,
-                    code,
-                    level,
-                    title,
-                    message,
-                    data,
-                },
-            );
-        }
-        notifications
-    };
-    Ok(notifications)
-}
-
 #[tracing::instrument(skip_all)]
 async fn previous_cifs(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<CifsTargets, Error> {
     let cifs = sqlx::query(r#"SELECT * FROM cifs_shares"#)
@@ -440,7 +376,7 @@ async fn previous_cifs(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<CifsTargets, E
         .await?
         .into_iter()
         .map(|row| {
-            let id: i64 = row.try_get("id")?;
+            let id: i32 = row.try_get("id")?;
             Ok::<_, Error>((
                 id,
                 Cifs {

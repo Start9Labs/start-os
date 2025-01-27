@@ -412,20 +412,6 @@ pub async fn init(
     Command::new("update-ca-certificates")
         .invoke(crate::ErrorKind::OpenSsl)
         .await?;
-    if tokio::fs::metadata("/home/kiosk/profile").await.is_ok() {
-        Command::new("certutil")
-            .arg("-A")
-            .arg("-n")
-            .arg("StartOS Local Root CA")
-            .arg("-t")
-            .arg("TCu,Cuw,Tuw")
-            .arg("-i")
-            .arg("/usr/local/share/ca-certificates/startos-root-ca.crt")
-            .arg("-d")
-            .arg("/home/kiosk/fx-profile")
-            .invoke(ErrorKind::OpenSsl)
-            .await?;
-    }
     load_ca_cert.complete();
 
     load_wifi.start();

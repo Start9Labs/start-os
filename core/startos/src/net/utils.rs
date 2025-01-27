@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6};
 use std::path::Path;
 
@@ -5,12 +6,18 @@ use async_stream::try_stream;
 use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
 use futures::{StreamExt, TryStreamExt};
+use helpers::NonDetachingJoinHandle;
+use imbl_value::InternedString;
 use ipnet::{IpNet, Ipv4Net, Ipv6Net};
 use nix::net::if_::if_nametoindex;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::process::Command;
 
+use crate::db::model::public::NetworkInterfaceInfo;
+use crate::net::network_interface::NetworkInterfaceListener;
+use crate::net::web_server::Accept;
 use crate::prelude::*;
+use crate::util::sync::Watch;
 use crate::util::Invoke;
 
 pub fn ipv6_is_link_local(addr: Ipv6Addr) -> bool {
@@ -121,7 +128,7 @@ pub async fn find_eth_iface() -> Result<String, Error> {
     ))
 }
 
-pub async fn all_socket_addrs_for(port: u16) -> Result<Vec<SocketAddr>, Error> {
+pub async fn all_socket_addrs_for(port: u16) -> Result<Vec<(InternedString, SocketAddr)>, Error> {
     let mut res = Vec::new();
 
     let raw = String::from_utf8(
@@ -153,14 +160,17 @@ pub async fn all_socket_addrs_for(port: u16) -> Result<Vec<SocketAddr>, Error> {
             .parse::<IpNet>()
             .with_ctx(|_| (ErrorKind::ParseSysInfo, err("ipnet", idx, ipnet_str)))?;
         match ipnet.addr() {
-            IpAddr::V4(ip4) => res.push(SocketAddr::new(ip4.into(), port)),
-            IpAddr::V6(ip6) => res.push(SocketAddr::V6(SocketAddrV6::new(
-                ip6,
-                port,
-                0,
-                if_nametoindex(ifname)
-                    .with_ctx(|_| (ErrorKind::ParseSysInfo, "reading scope_id"))?,
-            ))),
+            IpAddr::V4(ip4) => res.push((ifname.into(), SocketAddr::new(ip4.into(), port))),
+            IpAddr::V6(ip6) => res.push((
+                ifname.into(),
+                SocketAddr::V6(SocketAddrV6::new(
+                    ip6,
+                    port,
+                    0,
+                    if_nametoindex(ifname)
+                        .with_ctx(|_| (ErrorKind::ParseSysInfo, "reading scope_id"))?,
+                )),
+            )),
         }
     }
 
