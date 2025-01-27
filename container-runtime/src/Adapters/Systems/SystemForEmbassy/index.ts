@@ -51,6 +51,7 @@ function todo(): never {
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
 export const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
 const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig" as utils.StorePath
+const DEPENDS_ON_PATH_PREFIX = "/dependsOn" as utils.StorePath
 
 const matchResult = object({
   result: any,
@@ -695,7 +696,12 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     rawDepends: { [x: string]: readonly string[] },
   ) {
-    const dependsOn: Record<string, readonly string[] | null> = {
+    const storedDependsOn = (await effects.store.get({
+      packageId: this.manifest.id,
+      path: DEPENDS_ON_PATH_PREFIX,
+    })) as Record<string, readonly string[] | null>
+
+    const dependsOn: Record<string, readonly string[] | null> = storedDependsOn ? storedDependsOn : {
       ...Object.fromEntries(
         Object.entries(this.manifest.dependencies || {})?.map((x) => [
           x[0],
@@ -704,6 +710,12 @@ export class SystemForEmbassy implements System {
       ),
       ...rawDepends,
     }
+
+    await effects.store.set({
+      path: DEPENDS_ON_PATH_PREFIX,
+      value: dependsOn,
+    })
+
     await effects.setDependencies({
       dependencies: Object.entries(dependsOn).flatMap(
         ([key, value]): T.Dependencies => {
@@ -722,17 +734,6 @@ export class SystemForEmbassy implements System {
                 },
               ]
             }
-            // current dep since default in config
-            if (dependency.requirement.type === "opt-out") {
-              return [
-                {
-                  id: key,
-                  versionRange,
-                  kind: "exists",
-                },
-              ]
-            }
-            // if opt-in, not a current dep, only changed through config
             return []
           }
           // if from rawDepends (ie. config)
