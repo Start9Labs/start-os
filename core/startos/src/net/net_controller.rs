@@ -710,6 +710,7 @@ impl NetService {
             drop(ctrl);
             Ok(())
         } else {
+            self.shutdown = true;
             tracing::warn!("NetService dropped after NetController is shutdown");
             Err(Error::new(
                 eyre!("NetController is shutdown"),
