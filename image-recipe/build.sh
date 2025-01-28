@@ -206,8 +206,8 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 		echo "Configuring raspi kernel '\$v'"
     	extract-ikconfig "/usr/lib/modules/\$v/kernel/kernel/configs.ko.xz" > /boot/config-\$v
 	done
-	mkinitramfs -c gzip -o /boot/initramfs8 6.6.62-v8+
-	mkinitramfs -c gzip -o /boot/initramfs_2712 6.6.62-v8-16k+
+	mkinitramfs -c gzip -o /boot/initramfs8 6.6.74-v8+
+	mkinitramfs -c gzip -o /boot/initramfs_2712 6.6.74-v8-16k+
 fi
 
 useradd --shell /bin/bash -G startos -m start9

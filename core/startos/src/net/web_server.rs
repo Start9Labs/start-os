@@ -15,7 +15,9 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::oneshot;
 
 use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
-use crate::net::network_interface::NetworkInterfaceListener;
+use crate::net::network_interface::{
+    NetworkInterfaceListener, SelfContainedNetworkInterfaceListener,
+};
 use crate::net::static_server::{
     diagnostic_ui_router, init_ui_router, install_ui_router, main_ui_router, redirecter, refresher,
     setup_ui_router,
@@ -106,15 +108,12 @@ impl Acceptor<Vec<TcpListener>> {
     }
 }
 
-pub type UpgradableListener = Option<Either<Vec<TcpListener>, NetworkInterfaceListener>>;
+pub type UpgradableListener =
+    Option<Either<SelfContainedNetworkInterfaceListener, NetworkInterfaceListener>>;
 
 impl Acceptor<UpgradableListener> {
-    pub async fn bind_upgradable(
-        listen: impl IntoIterator<Item = SocketAddr>,
-    ) -> Result<Self, Error> {
-        Ok(Self::new(Some(Either::Left(
-            futures::future::try_join_all(listen.into_iter().map(TcpListener::bind)).await?,
-        ))))
+    pub fn bind_upgradable(listener: SelfContainedNetworkInterfaceListener) -> Self {
+        Self::new(Some(Either::Left(listener)))
     }
 }
 

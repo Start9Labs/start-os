@@ -81,6 +81,8 @@ clean:
 	rm -rf container-runtime/dist
 	rm -rf container-runtime/node_modules
 	rm -f container-runtime/*.squashfs
+	if [ -d container-runtime/tmp/combined ] && mountpoint container-runtime/tmp/combined; then sudo umount container-runtime/tmp/combined; fi
+	if [ -d container-runtime/tmp/lower ] && mountpoint container-runtime/tmp/lower; then sudo umount container-runtime/tmp/lower; fi
 	rm -rf container-runtime/tmp
 	(cd sdk && make clean)
 	rm -f ENVIRONMENT.txt

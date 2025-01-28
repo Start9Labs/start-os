@@ -219,7 +219,6 @@ pub struct InitPhases {
     enable_zram: PhaseProgressTrackerHandle,
     update_server_info: PhaseProgressTrackerHandle,
     launch_service_network: PhaseProgressTrackerHandle,
-    run_migrations: PhaseProgressTrackerHandle,
     validate_db: PhaseProgressTrackerHandle,
     postinit: Option<PhaseProgressTrackerHandle>,
 }
@@ -244,7 +243,6 @@ impl InitPhases {
             enable_zram: handle.add_phase("Enabling ZRAM".into(), Some(1)),
             update_server_info: handle.add_phase("Updating server info".into(), Some(1)),
             launch_service_network: handle.add_phase("Launching service intranet".into(), Some(1)),
-            run_migrations: handle.add_phase("Running migrations".into(), Some(10)),
             validate_db: handle.add_phase("Validating database".into(), Some(1)),
             postinit: if Path::new("/media/startos/config/postinit.sh").exists() {
                 Some(handle.add_phase("Running postinit.sh".into(), Some(5)))
@@ -297,7 +295,6 @@ pub async fn init(
         mut enable_zram,
         mut update_server_info,
         mut launch_service_network,
-        run_migrations,
         mut validate_db,
         postinit,
     }: InitPhases,
@@ -412,20 +409,6 @@ pub async fn init(
     Command::new("update-ca-certificates")
         .invoke(crate::ErrorKind::OpenSsl)
         .await?;
-    if tokio::fs::metadata("/home/kiosk/profile").await.is_ok() {
-        Command::new("certutil")
-            .arg("-A")
-            .arg("-n")
-            .arg("StartOS Local Root CA")
-            .arg("-t")
-            .arg("TCu,Cuw,Tuw")
-            .arg("-i")
-            .arg("/usr/local/share/ca-certificates/startos-root-ca.crt")
-            .arg("-d")
-            .arg("/home/kiosk/fx-profile")
-            .invoke(ErrorKind::OpenSsl)
-            .await?;
-    }
     load_ca_cert.complete();
 
     load_wifi.start();

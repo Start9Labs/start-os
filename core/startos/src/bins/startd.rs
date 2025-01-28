@@ -12,6 +12,7 @@ use tracing::instrument;
 use crate::context::config::ServerConfig;
 use crate::context::rpc::InitRpcContextPhases;
 use crate::context::{DiagnosticContext, InitContext, RpcContext};
+use crate::net::network_interface::SelfContainedNetworkInterfaceListener;
 use crate::net::utils::ipv6_is_local;
 use crate::net::web_server::{Acceptor, UpgradableListener, WebServer};
 use crate::shutdown::Shutdown;
@@ -150,17 +151,9 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
             .expect("failed to initialize runtime");
         rt.block_on(async {
             let addrs = crate::net::utils::all_socket_addrs_for(80).await?;
-            let mut server = WebServer::new(
-                Acceptor::bind_upgradable(addrs.into_iter().filter(|addr| match addr.ip() {
-                    IpAddr::V4(ip4) => {
-                        ip4.is_loopback()
-                        || (ip4.is_private() && !ip4.octets().starts_with(&[10, 59])) // reserving 10.59 for public wireguard configurations
-                        || ip4.is_link_local()
-                    }
-                    IpAddr::V6(ip6) => ipv6_is_local(ip6),
-                }))
-                .await?,
-            );
+            let mut server = WebServer::new(Acceptor::bind_upgradable(
+                SelfContainedNetworkInterfaceListener::bind(80),
+            ));
             match inner_main(&mut server, &config).await {
                 Ok(a) => {
                     server.shutdown().await;

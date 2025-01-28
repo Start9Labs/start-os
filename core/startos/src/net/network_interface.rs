@@ -29,6 +29,7 @@ use crate::db::model::public::{IpInfo, NetworkInterfaceInfo, NetworkInterfaceTyp
 use crate::db::model::Database;
 use crate::net::forward::START9_BRIDGE_IFACE;
 use crate::net::utils::{ipv6_is_link_local, ipv6_is_local};
+use crate::net::web_server::Accept;
 use crate::prelude::*;
 use crate::util::future::Until;
 use crate::util::io::open_file;
@@ -411,8 +412,10 @@ async fn watcher(
 }
 
 async fn get_wan_ipv4(iface: &str) -> Result<Option<Ipv4Addr>, Error> {
-    Ok(reqwest::Client::builder()
-        .interface(iface)
+    let client = reqwest::Client::builder();
+    #[cfg(target_os = "linux")]
+    let client = client.interface(iface);
+    Ok(client
         .build()?
         .get("http://ip4only.me/api/")
         .timeout(Duration::from_secs(10))
@@ -647,6 +650,10 @@ impl NetworkInterfaceController {
         self.ip_info.clone_unseen()
     }
 
+    pub fn ip_info(&self) -> BTreeMap<InternedString, NetworkInterfaceInfo> {
+        self.ip_info.read()
+    }
+
     async fn sync(
         db: &TypedPatchDb<Database>,
         info: &BTreeMap<InternedString, NetworkInterfaceInfo>,
@@ -790,11 +797,13 @@ impl NetworkInterfaceController {
 
     pub fn upgrade_listener(
         &self,
-        listener: impl IntoIterator<Item = TcpListener>,
+        SelfContainedNetworkInterfaceListener {
+            mut listener,
+            ..
+        }: SelfContainedNetworkInterfaceListener,
     ) -> Result<NetworkInterfaceListener, Error> {
-        let listeners = ListenerMap::from_listener(listener)?;
-        let port = listeners.port;
-        let arc = Arc::new(());
+        let port = listener.listeners.port;
+        let arc = &listener._arc;
         self.listeners.mutate(|l| {
             if l.get(&port).filter(|w| w.strong_count() > 0).is_some() {
                 return Err(Error::new(
@@ -802,16 +811,13 @@ impl NetworkInterfaceController {
                     ErrorKind::Network,
                 ));
             }
-            l.insert(port, Arc::downgrade(&arc));
+            l.insert(port, Arc::downgrade(arc));
             Ok(())
         })?;
         let ip_info = self.ip_info.clone_unseen();
         ip_info.mark_changed();
-        Ok(NetworkInterfaceListener {
-            _arc: arc,
-            ip_info,
-            listeners,
-        })
+        listener.change_ip_info_source(ip_info);
+        Ok(listener)
     }
 
     pub async fn set_public(
@@ -1050,6 +1056,26 @@ impl NetworkInterfaceListener {
         self.listeners.poll_accept(cx)
     }
 
+    pub(super) fn new(
+        mut ip_info: Watch<BTreeMap<InternedString, NetworkInterfaceInfo>>,
+        port: u16,
+    ) -> Self {
+        ip_info.mark_unseen();
+        Self {
+            ip_info,
+            listeners: ListenerMap::new(port),
+            _arc: Arc::new(()),
+        }
+    }
+
+    pub fn change_ip_info_source(
+        &mut self,
+        mut ip_info: Watch<BTreeMap<InternedString, NetworkInterfaceInfo>>,
+    ) {
+        ip_info.mark_unseen();
+        self.ip_info = ip_info;
+    }
+
     pub async fn accept(&mut self, public: bool) -> Result<Accepted, Error> {
         futures::future::poll_fn(|cx| self.poll_accept(cx, public)).await
     }
@@ -1063,82 +1089,25 @@ pub struct Accepted {
     pub bind: SocketAddr,
 }
 
-// async fn _ips() -> Result<BTreeSet<IpAddr>, Error> {
-//     Ok(init_ips()
-//         .await?
-//         .values()
-//         .flat_map(|i| {
-//             std::iter::empty()
-//                 .chain(i.ipv4.map(IpAddr::from))
-//                 .chain(i.ipv6.map(IpAddr::from))
-//         })
-//         .collect())
-// }
-
-// pub async fn ips() -> Result<BTreeSet<IpAddr>, Error> {
-//     let ips = CACHED_IPS.read().await.clone();
-//     if !ips.is_empty() {
-//         return Ok(ips);
-//     }
-//     let ips = _ips().await?;
-//     *CACHED_IPS.write().await = ips.clone();
-//     Ok(ips)
-// }
-
-// pub async fn init_ips() -> Result<BTreeMap<String, IpInfo>, Error> {
-//     let mut res = BTreeMap::new();
-//     let mut ifaces = list_interfaces();
-//     while let Some(iface) = ifaces.try_next().await? {
-//         if iface_is_physical(&iface).await {
-//             let ip_info = IpInfo::for_interface(&iface).await?;
-//             res.insert(iface, ip_info);
-//         }
-//     }
-//     Ok(res)
-// }
-
-// // #[command(subcommands(update))]
-// pub fn dhcp<C: Context>() -> ParentHandler<C> {
-//     ParentHandler::new().subcommand(
-//         "update",
-//         from_fn_async::<_, _, (), Error, (RpcContext, UpdateParams)>(update)
-//             .no_display()
-//             .with_about("Update IP assigned by dhcp")
-//             .with_call_remote::<CliContext>(),
-//     )
-// }
-// #[derive(Deserialize, Serialize, Parser, TS)]
-// #[serde(rename_all = "camelCase")]
-// #[command(rename_all = "kebab-case")]
-// pub struct UpdateParams {
-//     interface: String,
-// }
-
-// pub async fn update(
-//     ctx: RpcContext,
-//     UpdateParams { interface }: UpdateParams,
-// ) -> Result<(), Error> {
-//     if iface_is_physical(&interface).await {
-//         let ip_info = IpInfo::for_interface(&interface).await?;
-//         ctx.db
-//             .mutate(|db| {
-//                 db.as_public_mut()
-//                     .as_server_info_mut()
-//                     .as_ip_info_mut()
-//                     .insert(&interface, &ip_info)
-//             })
-//             .await?;
-
-//         let mut cached = CACHED_IPS.write().await;
-//         if cached.is_empty() {
-//             *cached = _ips().await?;
-//         } else {
-//             cached.extend(
-//                 std::iter::empty()
-//                     .chain(ip_info.ipv4.map(IpAddr::from))
-//                     .chain(ip_info.ipv6.map(IpAddr::from)),
-//             );
-//         }
-//     }
-//     Ok(())
-// }
+pub struct SelfContainedNetworkInterfaceListener {
+    _watch_thread: NonDetachingJoinHandle<()>,
+    listener: NetworkInterfaceListener,
+}
+impl SelfContainedNetworkInterfaceListener {
+    pub fn bind(port: u16) -> Self {
+        let ip_info = Watch::new(BTreeMap::new());
+        let _watch_thread = tokio::spawn(watcher(ip_info.clone(), Watch::new(false))).into();
+        Self {
+            _watch_thread,
+            listener: NetworkInterfaceListener::new(ip_info, port),
+        }
+    }
+}
+impl Accept for SelfContainedNetworkInterfaceListener {
+    fn poll_accept(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<super::web_server::Accepted, Error>> {
+        Accept::poll_accept(&mut self.listener, cx)
+    }
+}

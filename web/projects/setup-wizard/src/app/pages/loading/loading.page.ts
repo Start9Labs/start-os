@@ -76,14 +76,18 @@ export class LoadingPage {
     guid: string
     progress: T.FullProgress
   } | void> {
-    const res = await this.api.getStatus()
+    try {
+      const res = await this.api.getStatus()
 
-    if (!res) {
-      this.navCtrl.navigateRoot('/home')
-    } else if (res.status === 'complete') {
-      this.navCtrl.navigateForward(`/success`)
-    } else {
-      return res
+      if (!res) {
+        this.navCtrl.navigateRoot('/home')
+      } else if (res.status === 'complete') {
+        this.navCtrl.navigateForward(`/success`)
+      } else {
+        return res
+      }
+    } catch (e: any) {
+      this.errorService.handleError(e)
     }
   }
 
