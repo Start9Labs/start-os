@@ -290,7 +290,6 @@ impl RpcContext {
         self.services.shutdown_all().await?;
         self.is_closed.store(true, Ordering::SeqCst);
         tracing::info!("RPC Context is shutdown");
-        // TODO: shutdown http servers
         Ok(())
     }
 

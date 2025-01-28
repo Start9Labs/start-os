@@ -219,7 +219,7 @@ impl NetServiceData {
 
         // LAN
         let server_info = peek.as_public().as_server_info();
-        let net_ifaces = server_info.as_network_interfaces().de()?;
+        let net_ifaces = ctrl.net_iface.ip_info();
         let hostname = server_info.as_hostname().de()?;
         for (port, bind) in &host.bindings {
             if !bind.enabled {
@@ -586,21 +586,24 @@ impl NetServiceData {
 
     async fn update_all(&mut self) -> Result<(), Error> {
         let ctrl = self.net_controller()?;
-        if let Some(id) = &self.id {
+        if let Some(id) = self.id.clone() {
             for (host_id, host) in ctrl
                 .db
                 .peek()
                 .await
                 .as_public()
                 .as_package_data()
-                .as_idx(id)
-                .or_not_found(id)?
+                .as_idx(&id)
+                .or_not_found(&id)?
                 .as_hosts()
                 .as_entries()?
             {
-                self.update(&*ctrl, host_id, host.de()?).await?;
+                tracing::info!("Updating host {host_id} for {id}");
+                self.update(&*ctrl, host_id.clone(), host.de()?).await?;
+                tracing::info!("Updated host {host_id} for {id}");
             }
         } else {
+            tracing::info!("Updating host for Main UI");
             self.update(
                 &*ctrl,
                 HostId::default(),
@@ -613,6 +616,7 @@ impl NetServiceData {
                     .de()?,
             )
             .await?;
+            tracing::info!("Updated host for Main UI");
         }
         Ok(())
     }

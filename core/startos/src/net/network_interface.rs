@@ -412,8 +412,10 @@ async fn watcher(
 }
 
 async fn get_wan_ipv4(iface: &str) -> Result<Option<Ipv4Addr>, Error> {
-    Ok(reqwest::Client::builder()
-        .interface(iface)
+    let client = reqwest::Client::builder();
+    #[cfg(target_os = "linux")]
+    let client = client.interface(iface);
+    Ok(client
         .build()?
         .get("http://ip4only.me/api/")
         .timeout(Duration::from_secs(10))
@@ -646,6 +648,10 @@ impl NetworkInterfaceController {
 
     pub fn subscribe(&self) -> Watch<BTreeMap<InternedString, NetworkInterfaceInfo>> {
         self.ip_info.clone_unseen()
+    }
+
+    pub fn ip_info(&self) -> BTreeMap<InternedString, NetworkInterfaceInfo> {
+        self.ip_info.read()
     }
 
     async fn sync(
