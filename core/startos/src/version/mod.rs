@@ -55,8 +55,7 @@ impl Current {
                 let pre_ups = PreUps::load(&from, &self).await?;
                 db.apply_function(|mut db| {
                     migrate_from_unchecked(&from, &self, pre_ups, &mut db)?;
-                    from_value::<Database>(db.clone())?;
-                    Ok::<_, Error>((db, ()))
+                    Ok::<_, Error>((to_value(&from_value::<Database>(db.clone())?)?, ()))
                 })
                 .await?;
             }
