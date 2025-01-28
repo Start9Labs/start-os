@@ -1623,6 +1623,7 @@ export module Mock {
           ISB.List.text(
             {
               name: 'RPC Auth',
+              minLength: 3,
               description:
                 'api keys that are authorized to access your Bitcoin node.',
             },
