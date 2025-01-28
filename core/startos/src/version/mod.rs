@@ -12,6 +12,7 @@ use patch_db::json_ptr::ROOT;
 use crate::context::RpcContext;
 use crate::db::model::Database;
 use crate::prelude::*;
+use crate::progress::PhaseProgressTrackerHandle;
 use crate::Error;
 
 mod v0_3_5;
@@ -65,31 +66,44 @@ impl Current {
     }
 }
 
-pub async fn post_init(ctx: &RpcContext) -> Result<(), Error> {
-    let mut peek;
-    while let Some(version) = {
-        peek = ctx.db.peek().await;
-        peek.as_public()
-            .as_server_info()
-            .as_post_init_migration_todos()
-            .de()?
-            .first()
-            .cloned()
-            .map(Version::from_exver_version)
-            .as_ref()
-            .map(Version::as_version_t)
-            .transpose()?
-    } {
-        version.0.post_up(ctx).await?;
-        ctx.db
-            .mutate(|db| {
-                db.as_public_mut()
-                    .as_server_info_mut()
-                    .as_post_init_migration_todos_mut()
-                    .mutate(|m| Ok(m.remove(&version.0.semver())))
-            })
-            .await?;
+pub async fn post_init(
+    ctx: &RpcContext,
+    mut progress: PhaseProgressTrackerHandle,
+) -> Result<(), Error> {
+    let mut peek = ctx.db.peek().await;
+    let todos = peek
+        .as_public()
+        .as_server_info()
+        .as_post_init_migration_todos()
+        .de()?;
+    if !todos.is_empty() {
+        progress.set_total(todos.len() as u64);
+        while let Some(version) = {
+            peek = ctx.db.peek().await;
+            peek.as_public()
+                .as_server_info()
+                .as_post_init_migration_todos()
+                .de()?
+                .first()
+                .cloned()
+                .map(Version::from_exver_version)
+                .as_ref()
+                .map(Version::as_version_t)
+                .transpose()?
+        } {
+            version.0.post_up(ctx).await?;
+            ctx.db
+                .mutate(|db| {
+                    db.as_public_mut()
+                        .as_server_info_mut()
+                        .as_post_init_migration_todos_mut()
+                        .mutate(|m| Ok(m.remove(&version.0.semver())))
+                })
+                .await?;
+            progress += 1;
+        }
     }
+    progress.complete();
     Ok(())
 }
 

@@ -85,7 +85,7 @@ pub struct InitRpcContextPhases {
     load_db: PhaseProgressTrackerHandle,
     init_net_ctrl: PhaseProgressTrackerHandle,
     cleanup_init: CleanupInitPhases,
-    // TODO: migrations
+    run_migrations: PhaseProgressTrackerHandle,
 }
 impl InitRpcContextPhases {
     pub fn new(handle: &FullProgressTracker) -> Self {
@@ -93,6 +93,7 @@ impl InitRpcContextPhases {
             load_db: handle.add_phase("Loading database".into(), Some(5)),
             init_net_ctrl: handle.add_phase("Initializing network".into(), Some(1)),
             cleanup_init: CleanupInitPhases::new(handle),
+            run_migrations: handle.add_phase("Running migrations".into(), Some(10)),
         }
     }
 }
@@ -125,6 +126,7 @@ impl RpcContext {
             mut load_db,
             mut init_net_ctrl,
             cleanup_init,
+            run_migrations,
         }: InitRpcContextPhases,
     ) -> Result<Self, Error> {
         let tor_proxy = config.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
@@ -276,7 +278,9 @@ impl RpcContext {
         let res = Self(seed.clone());
         res.cleanup_and_initialize(cleanup_init).await?;
         tracing::info!("Cleaned up transient states");
-        crate::version::post_init(&res).await?;
+
+        crate::version::post_init(&res, run_migrations).await?;
+        tracing::info!("Completed migrations");
         Ok(res)
     }
 
