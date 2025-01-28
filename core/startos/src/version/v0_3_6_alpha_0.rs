@@ -383,9 +383,10 @@ async fn previous_cifs(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<CifsTargets, E
                     hostname: row
                         .try_get("hostname")
                         .with_ctx(|_| (ErrorKind::Database, "hostname"))?,
-                    path: serde_json::from_str(row.try_get("path")?)
-                        .with_kind(ErrorKind::Database)
-                        .with_ctx(|_| (ErrorKind::Database, "path"))?,
+                    path: row
+                        .try_get::<String, _>("path")
+                        .with_ctx(|_| (ErrorKind::Database, "path"))?
+                        .into(),
                     username: row
                         .try_get("username")
                         .with_ctx(|_| (ErrorKind::Database, "username"))?,
