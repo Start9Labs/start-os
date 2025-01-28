@@ -51,7 +51,7 @@ function todo(): never {
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
 export const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
 const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig" as utils.StorePath
-const DEPENDS_ON_PATH_PREFIX = "/dependsOn" as utils.StorePath
+const EMBASSY_DEPENDS_ON_PATH_PREFIX = "/embassyDependsOn" as utils.StorePath
 
 const matchResult = object({
   result: any,
@@ -698,21 +698,21 @@ export class SystemForEmbassy implements System {
   ) {
     const storedDependsOn = (await effects.store.get({
       packageId: this.manifest.id,
-      path: DEPENDS_ON_PATH_PREFIX,
-    })) as Record<string, readonly string[] | null>
+      path: EMBASSY_DEPENDS_ON_PATH_PREFIX,
+    })) as Record<string, readonly string[]>
 
-    const dependsOn: Record<string, readonly string[] | null> = storedDependsOn ? storedDependsOn : {
+    const dependsOn: Record<string, readonly string[]> = storedDependsOn ? storedDependsOn : {
       ...Object.fromEntries(
-        Object.entries(this.manifest.dependencies || {})?.map((x) => [
+        Object.entries(this.manifest.dependencies || {})?.filter(x => x[1].requirement.type === "required").map((x) => [
           x[0],
-          null,
+          [],
         ]) || [],
       ),
       ...rawDepends,
     }
 
     await effects.store.set({
-      path: DEPENDS_ON_PATH_PREFIX,
+      path: EMBASSY_DEPENDS_ON_PATH_PREFIX,
       value: dependsOn,
     })
 
@@ -721,22 +721,6 @@ export class SystemForEmbassy implements System {
         ([key, value]): T.Dependencies => {
           const dependency = this.manifest.dependencies?.[key]
           if (!dependency) return []
-          // if from manifest.dependencies
-          if (value == null) {
-            const versionRange = dependency.version
-            if (dependency.requirement.type === "required") {
-              return [
-                {
-                  id: key,
-                  versionRange,
-                  kind: "running",
-                  healthChecks: [],
-                },
-              ]
-            }
-            return []
-          }
-          // if from rawDepends (ie. config)
           const versionRange = dependency.version
           const kind = "running"
           return [
