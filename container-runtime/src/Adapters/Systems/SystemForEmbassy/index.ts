@@ -701,11 +701,11 @@ export class SystemForEmbassy implements System {
       path: EMBASSY_DEPENDS_ON_PATH_PREFIX,
     })) as Record<string, readonly string[]>
 
-    const dependsOn: Record<string, readonly string[]> = storedDependsOn ? storedDependsOn : {
+    const dependsOn: Record<string, readonly string[] | null> = storedDependsOn ? storedDependsOn : {
       ...Object.fromEntries(
-        Object.entries(this.manifest.dependencies || {})?.filter(x => x[1].requirement.type === "required").map((x) => [
+        Object.entries(this.manifest.dependencies || {})?.map((x) => [
           x[0],
-          [],
+          null,
         ]) || [],
       ),
       ...rawDepends,
@@ -721,6 +721,26 @@ export class SystemForEmbassy implements System {
         ([key, value]): T.Dependencies => {
           const dependency = this.manifest.dependencies?.[key]
           if (!dependency) return []
+          if (value == null) {
+            const versionRange = dependency.version
+            if (dependency.requirement.type === "required") {
+              return [
+                {
+                  id: key,
+                  versionRange,
+                  kind: "running",
+                  healthChecks: [],
+                },
+              ]
+            }
+            return [
+              {
+                kind: "exists",
+                id: key,
+                versionRange,
+              },
+            ]
+          }
           const versionRange = dependency.version
           const kind = "running"
           return [
