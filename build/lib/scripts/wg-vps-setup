@@ -5,7 +5,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 BLUE='\033[1;34m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0;37m' # No Color
 
 # --- Constants ---
 readonly WIREGUARD_INSTALL_URL="https://raw.githubusercontent.com/start9labs/wg-vps-setup/master/wireguard-install.sh"
@@ -72,6 +72,34 @@ validate_ip() {
     else
         return 1
     fi
+}
+
+# Function for configuring SSH key authentication on remote server
+configure_ssh_key_auth() {
+    echo -e "${BLUE}Configuring SSH key authentication on remote server...${NC}"
+
+    ssh -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$VPS_IP" '
+        # Check if PubkeyAuthentication is commented out
+        if grep -q "^#PubkeyAuthentication" /etc/ssh/sshd_config; then
+            sed -i "s/^#PubkeyAuthentication.*/PubkeyAuthentication yes/" /etc/ssh/sshd_config
+        # Check if PubkeyAuthentication exists but is not enabled
+        elif grep -q "^PubkeyAuthentication" /etc/ssh/sshd_config; then
+            sed -i "s/^PubkeyAuthentication.*/PubkeyAuthentication yes/" /etc/ssh/sshd_config
+        # Add PubkeyAuthentication if it doesnt exist
+        else
+            echo "PubkeyAuthentication yes" >> /etc/ssh/sshd_config
+        fi
+
+        # Configure AuthorizedKeysFile if needed
+        if grep -q "^#AuthorizedKeysFile" /etc/ssh/sshd_config; then
+            sed -i "s/^#AuthorizedKeysFile.*/AuthorizedKeysFile     .ssh\/authorized_keys .ssh\/authorized_keys2/" /etc/ssh/sshd_config
+        elif ! grep -q "^AuthorizedKeysFile" /etc/ssh/sshd_config; then
+            echo "AuthorizedKeysFile     .ssh/authorized_keys .ssh/authorized_keys2" >> /etc/ssh/sshd_config
+        fi
+
+        # Reload SSH service
+        systemctl reload sshd
+    '
 }
 
 # Function to handle StartOS connection (download only)
@@ -283,11 +311,27 @@ echo -e "${GREEN}SSH key-based authentication configured successfully!${NC}"
 
 # Test SSH connection using key-based authentication
 echo -e "\nTesting SSH connection with key-based authentication..."
-if ! ssh -q -o BatchMode=yes -o ConnectTimeout=5 -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$VPS_IP" exit; then
-    echo -e "${RED}SSH connection with key-based authentication failed. Please check your configuration.${NC}"
-    exit 1
-fi
+if ! ssh -q -o BatchMode=yes -o ConnectTimeout=5 -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$VPS_IP" 'grep -q "^PubkeyAuthentication yes" /etc/ssh/sshd_config'; then
+    echo -e "\n${RED}SSH key-based authentication is not enabled on your VPS.${NC}"
+    echo -e "\n${YELLOW}Would you like this script to automatically enable SSH key authentication? (y/N):${NC} "
+    read -r answer
 
+    if [[ "$answer" =~ ^[Yy]$ ]]; then
+        configure_ssh_key_auth
+    else
+        echo -e "\n${BLUE}------------------------------------------------------------------${NC}"
+        echo -e "${YELLOW}To manually enable SSH key authentication:${NC}"
+        echo -e "\n   ${YELLOW}1. Connect to your VPS and edit sshd_config:${NC}"
+        echo "      nano /etc/ssh/sshd_config"
+        echo -e "\n   ${YELLOW}2. Find and uncomment or add the line:${NC}"
+        echo "      PubkeyAuthentication yes"
+        echo -e "\n   ${YELLOW}3. Restart the SSH service:${NC}"
+        echo "      systemctl restart sshd"
+        echo -e "${BLUE}------------------------------------------------------------------${NC}"
+        echo -e "\n${YELLOW}Please enable SSH key authentication and run this script again.${NC}"
+        exit 1
+    fi
+fi
 echo -e "${GREEN}SSH connection successful with key-based authentication!${NC}"
 
 # Download the WireGuard install script locally
@@ -309,7 +353,7 @@ if ! install_wireguard; then
 fi
 
 # Remove the local install script
-rm wireguard-install.sh >/dev/null 2>&1
+rm wireguard-install.sh
 
 # Handle the StartOS config (download)
 if ! handle_startos_connection; then
