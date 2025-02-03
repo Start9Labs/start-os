@@ -353,7 +353,7 @@ if ! install_wireguard; then
 fi
 
 # Remove the local install script
-rm wireguard-install.sh
+rm wireguard-install.sh >/dev/null 2>&1
 
 # Handle the StartOS config (download)
 if ! handle_startos_connection; then
