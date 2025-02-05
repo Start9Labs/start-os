@@ -733,13 +733,7 @@ export class SystemForEmbassy implements System {
                 },
               ]
             }
-            return [
-              {
-                kind: "exists",
-                id: key,
-                versionRange,
-              },
-            ]
+            return []
           }
           const versionRange = dependency.version
           const kind = "running"
