@@ -315,6 +315,7 @@ export class SystemForEmbassy implements System {
         )
         .catch(() => []),
     )
+    console.log(`***DEPS IN CONTAINER SET***\n${oldDeps}`)
     await this.setDependencies(effects, oldDeps)
   }
 
@@ -688,6 +689,7 @@ export class SystemForEmbassy implements System {
         }),
       )
       const dependsOn = answer["depends-on"] ?? answer.dependsOn ?? {}
+      console.log(`***DEPENDS ON POST CONFIG *** \n${dependsOn}`)
       await this.setDependencies(effects, dependsOn)
       return
     }
@@ -696,12 +698,13 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     rawDepends: { [x: string]: readonly string[] },
   ) {
+    console.log(`***RAW DEPENDS*** \n${rawDepends}`)
     const storedDependsOn = (await effects.store.get({
       packageId: this.manifest.id,
       path: EMBASSY_DEPENDS_ON_PATH_PREFIX,
     })) as Record<string, readonly string[]>
 
-    const dependsOn: Record<string, readonly string[] | null> = storedDependsOn ? storedDependsOn : {
+    const dependsOn: Record<string, readonly string[] | null> = storedDependsOn ? { ...storedDependsOn, ...rawDepends } : {
       ...Object.fromEntries(
         Object.entries(this.manifest.dependencies || {})?.map((x) => [
           x[0],
@@ -710,6 +713,8 @@ export class SystemForEmbassy implements System {
       ),
       ...rawDepends,
     }
+
+    console.log(`***DEPENDS ON*** \n${dependsOn}`)
 
     await effects.store.set({
       path: EMBASSY_DEPENDS_ON_PATH_PREFIX,
