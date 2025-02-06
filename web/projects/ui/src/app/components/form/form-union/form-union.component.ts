@@ -30,6 +30,7 @@ export class FormUnionComponent implements OnChanges {
 
   private readonly form = inject(FormGroupName)
   private readonly formService = inject(FormService)
+  private readonly values: Record<string, any> = {}
 
   get union(): string {
     return this.form.value.selection
@@ -37,10 +38,13 @@ export class FormUnionComponent implements OnChanges {
 
   @tuiPure
   onUnion(union: string) {
+    this.values[this.union] = this.form.control.controls['value'].value
     this.form.control.setControl(
       'value',
       this.formService.getFormGroup(
         union ? this.spec.variants[union].spec : {},
+        [],
+        this.values[union],
       ),
       {
         emitEvent: false,
