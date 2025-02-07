@@ -37,18 +37,14 @@ export class FormService {
     }
   }
 
-  getUnionObject(
-    spec: IST.ValueSpecUnion,
-    selected: string | null,
-  ): UntypedFormGroup {
-    const group = this.getFormGroup({
-      selection: this.getUnionSelectSpec(spec, selected),
-    })
+  getUnionObject(spec: IST.ValueSpecUnion, value: any): UntypedFormGroup {
+    const valid = spec.variants[value?.selection]
+    const selected = valid ? value?.selection : spec.default
+    const selection = this.getUnionSelectSpec(spec, selected)
+    const group = this.getFormGroup({ selection })
+    const control = selected ? spec.variants[selected].spec : {}
 
-    group.setControl(
-      'value',
-      this.getFormGroup(selected ? spec.variants[selected].spec : {}),
-    )
+    group.setControl('value', this.getFormGroup(control, [], value?.value))
 
     return group
   }
@@ -134,13 +130,7 @@ export class FormService {
           fileValidators(spec),
         )
       case 'union':
-        const currentSelection = currentValue?.selection
-        const isValid = !!spec.variants[currentSelection]
-
-        return this.getUnionObject(
-          spec,
-          isValid ? currentSelection : spec.default,
-        )
+        return this.getUnionObject(spec, currentValue)
       case 'toggle':
         value = currentValue === undefined ? spec.default : currentValue
         return this.formBuilder.control(value)
