@@ -316,7 +316,7 @@ export class SystemForEmbassy implements System {
         .catch(() => []),
     )
     console.log(`***DEPS IN CONTAINER SET***\n`, oldDeps)
-    await this.setDependencies(effects, oldDeps)
+    await this.setDependencies(effects, oldDeps, false)
   }
 
   async exit(): Promise<void> {
@@ -666,7 +666,7 @@ export class SystemForEmbassy implements System {
         ),
       )
       const dependsOn = answer["depends-on"] ?? answer.dependsOn ?? {}
-      await this.setDependencies(effects, dependsOn)
+      await this.setDependencies(effects, dependsOn, true)
       return
     } else if (setConfigValue.type === "script") {
       const moduleCode = await this.moduleCode
@@ -690,13 +690,14 @@ export class SystemForEmbassy implements System {
       )
       const dependsOn = answer["depends-on"] ?? answer.dependsOn ?? {}
       console.log(`***DEPENDS ON POST CONFIG *** \n`, dependsOn)
-      await this.setDependencies(effects, dependsOn)
+      await this.setDependencies(effects, dependsOn, true)
       return
     }
   }
   private async setDependencies(
     effects: Effects,
     rawDepends: { [x: string]: readonly string[] },
+    configuring: boolean,
   ) {
     console.log(`***RAW DEPENDS*** \n`, rawDepends)
     const storedDependsOn = (await effects.store.get({
@@ -704,17 +705,22 @@ export class SystemForEmbassy implements System {
       path: EMBASSY_DEPENDS_ON_PATH_PREFIX,
     })) as Record<string, readonly string[]>
 
-    const dependsOn: Record<string, readonly string[] | null> = storedDependsOn
-      ? { ...storedDependsOn, ...rawDepends }
-      : {
-          ...Object.fromEntries(
-            Object.entries(this.manifest.dependencies || {})?.filter(x => x[1].requirement.type === "required").map((x) => [
-              x[0],
-              null,
-            ]) || [],
-          ),
+    const requiredDeps = {
+      ...Object.fromEntries(
+        Object.entries(this.manifest.dependencies || {})
+          ?.filter((x) => x[1].requirement.type === "required")
+          .map((x) => [x[0], []]) || [],
+      ),
+    }
+
+    const dependsOn: Record<string, readonly string[]> = configuring
+      ? {
+          ...requiredDeps,
           ...rawDepends,
         }
+      : storedDependsOn
+        ? storedDependsOn
+        : requiredDeps
 
     console.log(`***DEPENDS ON*** \n`, dependsOn)
 
@@ -728,20 +734,6 @@ export class SystemForEmbassy implements System {
         ([key, value]): T.Dependencies => {
           const dependency = this.manifest.dependencies?.[key]
           if (!dependency) return []
-          if (value == null) {
-            const versionRange = dependency.version
-            if (dependency.requirement.type === "required") {
-              return [
-                {
-                  id: key,
-                  versionRange,
-                  kind: "running",
-                  healthChecks: [],
-                },
-              ]
-            }
-            return []
-          }
           const versionRange = dependency.version
           const kind = "running"
           return [
