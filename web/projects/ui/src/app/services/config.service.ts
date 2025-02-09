@@ -1,8 +1,8 @@
 import { DOCUMENT } from '@angular/common'
 import { Inject, Injectable } from '@angular/core'
 import { WorkspaceConfig } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { T, utils } from '@start9labs/start-sdk'
+import { PackageDataEntry } from './patch-db/data-model'
 
 const {
   gitHash,
@@ -28,6 +28,7 @@ export class ConfigService {
   api = api
   marketplace = marketplace
   skipStartupAlerts = useMocks && mocks.skipStartupAlerts
+  supportsWebSockets = !!window.WebSocket
 
   isTor(): boolean {
     return useMocks ? mocks.maskAs === 'tor' : this.hostname.endsWith('.onion')
@@ -40,33 +41,52 @@ export class ConfigService {
   }
 
   isLocalhost(): boolean {
-    return (
-      this.hostname === 'localhost' ||
-      (useMocks && mocks.maskAs === 'localhost')
-    )
+    return useMocks
+      ? mocks.maskAs === 'localhost'
+      : this.hostname === 'localhost' || this.hostname === '127.0.0.1'
   }
 
   isIpv4(): boolean {
-    return isValidIpv4(this.hostname) || (useMocks && mocks.maskAs === 'ipv4')
+    return useMocks
+      ? mocks.maskAs === 'ipv4'
+      : new RegExp(utils.Patterns.ipv4.regex).test(this.hostname)
+  }
+
+  isLanIpv4(): boolean {
+    return useMocks
+      ? mocks.maskAs === 'ipv4'
+      : new RegExp(utils.Patterns.ipv4.regex).test(this.hostname) &&
+          (this.hostname.startsWith('192.168.') ||
+            this.hostname.startsWith('10.') ||
+            (this.hostname.startsWith('172.') &&
+              !![this.hostname.split('.').map(Number)[1]].filter(
+                n => n >= 16 && n < 32,
+              ).length))
   }
 
   isIpv6(): boolean {
-    return isValidIpv6(this.hostname) || (useMocks && mocks.maskAs === 'ipv6')
+    return useMocks
+      ? mocks.maskAs === 'ipv6'
+      : new RegExp(utils.Patterns.ipv6.regex).test(this.hostname)
   }
 
   isClearnet(): boolean {
-    return (
-      (useMocks && mocks.maskAs === 'clearnet') ||
-      (!this.isTor() &&
-        !this.isLocal() &&
-        !this.isLocalhost() &&
-        !this.isIpv4() &&
-        !this.isIpv6())
-    )
+    return useMocks
+      ? mocks.maskAs === 'clearnet'
+      : this.isHttps() &&
+          !this.isTor() &&
+          !this.isLocal() &&
+          !this.isLocalhost() &&
+          !this.isLanIpv4() &&
+          !this.isIpv6()
   }
 
   isLanHttp(): boolean {
     return !this.isTor() && !this.isLocalhost() && !this.isHttps()
+  }
+
+  isHttps(): boolean {
+    return useMocks ? mocks.maskAsHttps : this.protocol === 'https:'
   }
 
   isSecure(): boolean {
@@ -82,46 +102,155 @@ export class ConfigService {
 
   /** ${scheme}://${username}@${host}:${externalPort}${suffix} */
   launchableAddress(
-    ui: T.ServiceInterface,
-    hosts: PackageDataEntry['hosts'],
+    interfaces: PackageDataEntry['serviceInterfaces'],
+    hosts: T.Hosts,
   ): string {
-    if (
-      ui.type !== 'ui' ||
-      (ui.addressInfo.scheme !== 'http' && ui.addressInfo.sslScheme !== 'https')
+    const ui = Object.values(interfaces).find(
+      i =>
+        i.type === 'ui' &&
+        (i.addressInfo.scheme === 'http' ||
+          i.addressInfo.sslScheme === 'https'),
     )
-      return ''
 
-    const hostnameInfo =
-      hosts[ui.addressInfo.hostId]?.hostnameInfo[ui.addressInfo.internalPort]
+    if (!ui) return ''
+
+    const host = hosts[ui.addressInfo.hostId]
+
+    if (!host) return ''
+
+    let hostnameInfo = host.hostnameInfo[ui.addressInfo.internalPort]
+    hostnameInfo = hostnameInfo.filter(
+      h =>
+        this.isLocalhost() ||
+        h.kind !== 'ip' ||
+        h.hostname.kind !== 'ipv6' ||
+        !h.hostname.value.startsWith('fe80::'),
+    )
+    if (this.isLocalhost()) {
+      const local = hostnameInfo.find(
+        h => h.kind === 'ip' && h.hostname.kind === 'local',
+      )
+      if (local) {
+        hostnameInfo.unshift({
+          kind: 'ip',
+          networkInterfaceId: 'lo',
+          public: false,
+          hostname: {
+            kind: 'local',
+            port: local.hostname.port,
+            sslPort: local.hostname.sslPort,
+            value: 'localhost',
+          },
+        })
+      }
+    }
 
     if (!hostnameInfo) return ''
 
     const addressInfo = ui.addressInfo
-    const scheme = this.isHttps()
-      ? ui.addressInfo.sslScheme === 'https'
-        ? 'https'
-        : 'http'
-      : ui.addressInfo.scheme === 'http'
-        ? 'http'
-        : 'https'
     const username = addressInfo.username ? addressInfo.username + '@' : ''
     const suffix = addressInfo.suffix || ''
-    const url = new URL(`${scheme}://${username}placeholder${suffix}`)
-
-    const onionHostname = hostnameInfo.find(h => h.kind === 'onion')
-      ?.hostname as T.OnionHostname | undefined
-
-    if (this.isTor() && onionHostname) {
-      url.hostname = onionHostname.value
-    } else {
-      const ipHostname = hostnameInfo.find(h => h.kind === 'ip')?.hostname as
-        | T.IpHostname
+    const url = new URL(`https://${username}placeholder${suffix}`)
+    const use = (hostname: {
+      value: string
+      port: number | null
+      sslPort: number | null
+    }) => {
+      url.hostname = hostname.value
+      const useSsl =
+        hostname.port && hostname.sslPort ? this.isHttps() : !!hostname.sslPort
+      url.protocol = useSsl
+        ? `${addressInfo.sslScheme || 'https'}:`
+        : `${addressInfo.scheme || 'http'}:`
+      const port = useSsl ? hostname.sslPort : hostname.port
+      const omitPort = useSsl
+        ? ui.addressInfo.sslScheme === 'https' && port === 443
+        : ui.addressInfo.scheme === 'http' && port === 80
+      if (!omitPort && port) url.port = String(port)
+    }
+    const useFirst = (
+      hostnames: (
+        | {
+            value: string
+            port: number | null
+            sslPort: number | null
+          }
         | undefined
+      )[],
+    ) => {
+      const first = hostnames.find(h => h)
+      if (first) {
+        use(first)
+      }
+      return !!first
+    }
 
-      if (!ipHostname) return ''
+    const ipHostnames = hostnameInfo
+      .filter(h => h.kind === 'ip')
+      .map(h => h.hostname) as T.IpHostname[]
+    const domainHostname = ipHostnames
+      .filter(h => h.kind === 'domain')
+      .map(h => h as T.IpHostname & { kind: 'domain' })
+      .map(h => ({
+        value: h.domain,
+        sslPort: h.sslPort,
+        port: h.port,
+      }))[0]
+    const wanIpHostname = hostnameInfo
+      .filter(h => h.kind === 'ip' && h.public && h.hostname.kind !== 'domain')
+      .map(h => h.hostname as Exclude<T.IpHostname, { kind: 'domain' }>)
+      .map(h => ({
+        value: h.value,
+        sslPort: h.sslPort,
+        port: h.port,
+      }))[0]
+    const onionHostname = hostnameInfo
+      .filter(h => h.kind === 'onion')
+      .map(h => h as T.HostnameInfo & { kind: 'onion' })
+      .map(h => ({
+        value: h.hostname.value,
+        sslPort: h.hostname.sslPort,
+        port: h.hostname.port,
+      }))[0]
+    const localHostname = ipHostnames
+      .filter(h => h.kind === 'local')
+      .map(h => h as T.IpHostname & { kind: 'local' })
+      .map(h => ({ value: h.value, sslPort: h.sslPort, port: h.port }))[0]
 
-      url.hostname = this.hostname
-      url.port = String(ipHostname.sslPort || ipHostname.port)
+    if (this.isClearnet()) {
+      if (
+        !useFirst([domainHostname, wanIpHostname, onionHostname, localHostname])
+      ) {
+        return ''
+      }
+    } else if (this.isTor()) {
+      if (
+        !useFirst([onionHostname, domainHostname, wanIpHostname, localHostname])
+      ) {
+        return ''
+      }
+    } else if (this.isIpv6()) {
+      const ipv6Hostname = ipHostnames.find(h => h.kind === 'ipv6') as {
+        kind: 'ipv6'
+        value: string
+        scopeId: number
+        port: number | null
+        sslPort: number | null
+      }
+
+      if (!useFirst([ipv6Hostname, localHostname])) {
+        return ''
+      }
+    } else {
+      // ipv4 or .local or localhost
+
+      if (!localHostname) return ''
+
+      use({
+        value: this.hostname,
+        port: localHostname.port,
+        sslPort: localHostname.sslPort,
+      })
     }
 
     return url.href
@@ -130,32 +259,6 @@ export class ConfigService {
   getHost(): string {
     return this.host
   }
-
-  private isHttps(): boolean {
-    return useMocks ? mocks.maskAsHttps : this.protocol === 'https:'
-  }
-}
-
-export function isValidIpv4(address: string): boolean {
-  const regexExp =
-    /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/
-  return regexExp.test(address)
-}
-
-export function isValidIpv6(address: string): boolean {
-  const regexExp =
-    /(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))/gi
-  return regexExp.test(address)
-}
-
-export function removeProtocol(str: string): string {
-  if (str.startsWith('http://')) return str.slice(7)
-  if (str.startsWith('https://')) return str.slice(8)
-  return str
-}
-
-export function removePort(str: string): string {
-  return str.split(':')[0]
 }
 
 export function hasUi(

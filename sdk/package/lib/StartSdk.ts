@@ -102,7 +102,6 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
       | "clearServiceInterfaces"
       | "bind"
       | "getHostInfo"
-      | "getPrimaryUrl"
     type MainUsedEffects = "setMainStatus" | "setHealth"
     type CallbackEffects = "constRetry" | "clearCallbacks"
     type AlreadyExposed = "getSslCertificate" | "getSystemSmtp"
@@ -216,18 +215,14 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           }),
       },
 
-      host: {
-        // static: (effects: Effects, id: string) =>
-        //   new StaticHost({ id, effects }),
-        // single: (effects: Effects, id: string) =>
-        //   new SingleHost({ id, effects }),
-        multi: (effects: Effects, id: string) => new MultiHost({ id, effects }),
+      MultiHost: {
+        of: (effects: Effects, id: string) => new MultiHost({ id, effects }),
       },
       nullIfEmpty,
       runCommand: async <A extends string>(
         effects: Effects,
         image: {
-          id: keyof Manifest["images"] & T.ImageId
+          imageId: keyof Manifest["images"] & T.ImageId
           sharedRun?: boolean
         },
         command: T.CommandType,
@@ -379,7 +374,6 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           id: 'ui',
           description: 'The primary web app for this service.',
           type: 'ui',
-          hasPrimary: false,
           masked: false,
           schemeOverride: null,
           username: null,
@@ -397,8 +391,6 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           id: string
           /** The human readable description. */
           description: string
-          /** No effect until StartOS v0.4.0. If true, forces the user to select one URL (i.e. .onion, .local, or IP address) as the primary URL. This is needed by some services to function properly. */
-          hasPrimary: boolean
           /** Affects how the interface appears to the user. One of: 'ui', 'api', 'p2p'. If 'ui', the user will see a "Launch UI" button */
           type: ServiceInterfaceType
           /** (optional) prepends the provided username to all URLs. */
@@ -552,7 +544,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           inputSpecSpec,
           async ({ effects, input }) => {
             // ** UI multi-host **
-            const uiMulti = sdk.host.multi(effects, 'ui-multi')
+            const uiMulti = sdk.MultiHost.of(effects, 'ui-multi')
             const uiMultiOrigin = await uiMulti.bindPort(80, {
               protocol: 'http',
             })
@@ -562,7 +554,6 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
               id: 'primary-ui',
               description: 'The primary web app for this service.',
               type: 'ui',
-              hasPrimary: false,
               masked: false,
               schemeOverride: null,
               username: null,
@@ -575,7 +566,6 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
               id: 'admin-ui',
               description: 'The admin web app for this service.',
               type: 'ui',
-              hasPrimary: false,
               masked: false,
               schemeOverride: null,
               username: null,
@@ -586,7 +576,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
             const uiReceipt = await uiMultiOrigin.export([primaryUi, adminUi])
        
             // ** API multi-host **
-            const apiMulti = sdk.host.multi(effects, 'api-multi')
+            const apiMulti = sdk.MultiHost.of(effects, 'api-multi')
             const apiMultiOrigin = await apiMulti.bindPort(5959, {
               protocol: 'http',
             })
@@ -596,7 +586,6 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
               id: 'api',
               description: 'The advanced API for this service.',
               type: 'api',
-              hasPrimary: false,
               masked: false,
               schemeOverride: null,
               username: null,
@@ -686,6 +675,18 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           healthReceipts: HealthReceipt[],
         ) {
           return Daemons.of<Manifest>({ effects, started, healthReceipts })
+        },
+      },
+      SubContainer: {
+        of(
+          effects: Effects,
+          image: {
+            imageId: T.ImageId & keyof Manifest["images"]
+            sharedRun?: boolean
+          },
+          name: string,
+        ) {
+          return SubContainer.of(effects, image, name)
         },
       },
       List: {
@@ -1269,7 +1270,6 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
                * @example default: 'radio1'
                */
               default: keyof Variants & string
-              required: boolean
               /**
                * @description A mapping of unique radio options to their human readable display format.
                * @example
@@ -1410,7 +1410,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
 
 export async function runCommand<Manifest extends T.SDKManifest>(
   effects: Effects,
-  image: { id: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
+  image: { imageId: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
   command: string | [string, ...string[]],
   options: CommandOptions & {
     mounts?: { path: string; options: MountOptions }[]

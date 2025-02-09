@@ -8,7 +8,7 @@ import {
   SetHealth,
   BindParams,
   HostId,
-  LanInfo,
+  NetInfo,
   Host,
   ExportServiceInterfaceParams,
   ServiceInterface,
@@ -117,7 +117,7 @@ export type Effects = {
     packageId?: PackageId
     hostId: HostId
     internalPort: number
-  }): Promise<LanInfo>
+  }): Promise<NetInfo>
   /** Removes all network bindings, called in the setupInputSpec */
   clearBindings(options: {
     except: { id: HostId; internalPort: number }[]
@@ -129,12 +129,6 @@ export type Effects = {
     hostId: HostId
     callback?: () => void
   }): Promise<Host | null>
-  /** Returns the primary url that a user has selected for a host, if it exists */
-  getPrimaryUrl(options: {
-    packageId?: PackageId
-    hostId: HostId
-    callback?: () => void
-  }): Promise<UrlString | null>
   /** Returns the IP address of the container */
   getContainerIp(): Promise<string>
   // interface

@@ -6,16 +6,17 @@ import * as CP from "node:child_process"
 
 const cpExec = promisify(CP.exec)
 
-export function containsAddress(x: string, port: number) {
+export function containsAddress(x: string, port: number, address?: bigint) {
   const readPorts = x
     .split("\n")
     .filter(Boolean)
     .splice(1)
-    .map((x) => x.split(" ").filter(Boolean)[1]?.split(":")?.[1])
-    .filter(Boolean)
-    .map((x) => Number.parseInt(x, 16))
-    .filter(Number.isFinite)
-  return readPorts.indexOf(port) >= 0
+    .map((x) => x.split(" ").filter(Boolean)[1]?.split(":"))
+    .filter((x) => x?.length > 1)
+    .map(([addr, p]) => [BigInt(`0x${addr}`), Number.parseInt(p, 16)] as const)
+  return !!readPorts.find(
+    ([addr, p]) => (address === undefined || address === addr) && port === p,
+  )
 }
 
 /**
@@ -40,8 +41,18 @@ export async function checkPortListening(
           port,
         ) ||
         containsAddress(
+          await cpExec(`cat /proc/net/tcp6`, {}).then(stringFromStdErrOut),
+          port,
+          BigInt(0),
+        ) ||
+        containsAddress(
           await cpExec("cat /proc/net/udp", {}).then(stringFromStdErrOut),
           port,
+        ) ||
+        containsAddress(
+          await cpExec("cat /proc/net/udp6", {}).then(stringFromStdErrOut),
+          port,
+          BigInt(0),
         )
       if (hasAddress) {
         return { result: "success", message: options.successMessage }

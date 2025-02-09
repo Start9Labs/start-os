@@ -2,6 +2,7 @@
 import type { Alerts } from "./Alerts"
 import type { Dependencies } from "./Dependencies"
 import type { Description } from "./Description"
+import type { GitHash } from "./GitHash"
 import type { HardwareRequirements } from "./HardwareRequirements"
 import type { ImageConfig } from "./ImageConfig"
 import type { ImageId } from "./ImageId"
@@ -30,6 +31,6 @@ export type Manifest = {
   alerts: Alerts
   dependencies: Dependencies
   hardwareRequirements: HardwareRequirements
-  gitHash: string | null
+  gitHash?: GitHash
   osVersion: string
 }

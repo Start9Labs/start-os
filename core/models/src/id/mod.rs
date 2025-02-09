@@ -43,7 +43,7 @@ impl TryFrom<InternedString> for Id {
         if ID_REGEX.is_match(&value) {
             Ok(Id(value))
         } else {
-            Err(InvalidId)
+            Err(InvalidId(value))
         }
     }
 }
@@ -53,7 +53,7 @@ impl TryFrom<String> for Id {
         if ID_REGEX.is_match(&value) {
             Ok(Id(InternedString::intern(value)))
         } else {
-            Err(InvalidId)
+            Err(InvalidId(InternedString::intern(value)))
         }
     }
 }
@@ -63,7 +63,7 @@ impl TryFrom<&str> for Id {
         if ID_REGEX.is_match(value) {
             Ok(Id(InternedString::intern(value)))
         } else {
-            Err(InvalidId)
+            Err(InvalidId(InternedString::intern(value)))
         }
     }
 }

@@ -1,19 +1,16 @@
 use std::collections::BTreeMap;
-use std::future::Future;
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
+use const_format::formatcp;
 use ed25519_dalek::SigningKey;
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::{json, InternedString};
-use itertools::Itertools;
 use models::PackageId;
-use openssl::pkey::{PKey, Private};
+use openssl::pkey::PKey;
 use openssl::x509::X509;
-use patch_db::ModelExt;
 use sqlx::postgres::PgConnectOptions;
 use sqlx::{PgPool, Row};
-use ssh_key::Fingerprint;
 use tokio::process::Command;
 use torut::onion::TorSecretKeyV3;
 
@@ -23,15 +20,11 @@ use crate::account::AccountInfo;
 use crate::auth::Sessions;
 use crate::backup::target::cifs::CifsTargets;
 use crate::context::RpcContext;
-use crate::db::model::Database;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::util::unmount;
 use crate::hostname::Hostname;
 use crate::net::forward::AvailablePorts;
 use crate::net::keys::KeyStore;
-use crate::net::ssl::CertStore;
-use crate::net::tor;
-use crate::net::tor::OnionStore;
 use crate::notifications::{Notification, Notifications};
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
@@ -39,6 +32,7 @@ use crate::ssh::{SshKeys, SshPubKey};
 use crate::util::crypto::ed25519_expand_key;
 use crate::util::serde::{Pem, PemEncoding};
 use crate::util::Invoke;
+use crate::{DATA_DIR, PACKAGE_DATA};
 
 lazy_static::lazy_static! {
     static ref V0_3_6_alpha_0: exver::Version = exver::Version::new(
@@ -191,7 +185,6 @@ async fn init_postgres(datadir: impl AsRef<Path>) -> Result<PgPool, Error> {
         .run(&secret_store)
         .await
         .with_kind(crate::ErrorKind::Database)?;
-    dbg!("Init Postgres Done");
     Ok(secret_store)
 }
 
@@ -200,7 +193,7 @@ pub struct Version;
 
 impl VersionT for Version {
     type Previous = v0_3_5_2::Version;
-    type PreUpRes = (AccountInfo, SshKeys, CifsTargets, Notifications);
+    type PreUpRes = (AccountInfo, SshKeys, CifsTargets);
     fn semver(self) -> exver::Version {
         V0_3_6_alpha_0.clone()
     }
@@ -208,22 +201,16 @@ impl VersionT for Version {
         &V0_3_0_COMPAT
     }
     async fn pre_up(self) -> Result<Self::PreUpRes, Error> {
-        let pg = init_postgres("/embassy-data").await?;
+        let pg = init_postgres(DATA_DIR).await?;
         let account = previous_account_info(&pg).await?;
 
         let ssh_keys = previous_ssh_keys(&pg).await?;
 
         let cifs = previous_cifs(&pg).await?;
 
-        let notifications = previous_notifications(pg).await?;
-
-        Ok((account, ssh_keys, cifs, notifications))
+        Ok((account, ssh_keys, cifs))
     }
-    fn up(
-        self,
-        db: &mut Value,
-        (account, ssh_keys, cifs, notifications): Self::PreUpRes,
-    ) -> Result<(), Error> {
+    fn up(self, db: &mut Value, (account, ssh_keys, cifs): Self::PreUpRes) -> Result<(), Error> {
         let wifi = json!({
             "infterface": db["server-info"]["wifi"]["interface"],
             "ssids": db["server-info"]["wifi"]["ssids"],
@@ -305,7 +292,7 @@ impl VersionT for Version {
             value["sshPubkeys"] = to_value(&ssh_keys)?;
             value["availablePorts"] = to_value(&AvailablePorts::new())?;
             value["sessions"] = to_value(&Sessions::new())?;
-            value["notifications"] = to_value(&notifications)?;
+            value["notifications"] = to_value(&Notifications::new())?;
             value["cifs"] = to_value(&cifs)?;
             value["packageStores"] = json!({});
             value
@@ -315,7 +302,6 @@ impl VersionT for Version {
             "private": private,
         });
 
-        dbg!("Should be done with the up");
         *db = next;
         Ok(())
     }
@@ -329,7 +315,7 @@ impl VersionT for Version {
     #[instrument(skip(self, ctx))]
     /// MUST be idempotent, and is run after *all* db migrations
     async fn post_up(self, ctx: &RpcContext) -> Result<(), Error> {
-        let path = Path::new("/embassy-data/package-data/archive/");
+        let path = Path::new(formatcp!("{PACKAGE_DATA}/archive/"));
         if !path.is_dir() {
             return Err(Error::new(
                 eyre!(
@@ -383,64 +369,6 @@ impl VersionT for Version {
     }
 }
 
-async fn previous_notifications(pg: sqlx::Pool<sqlx::Postgres>) -> Result<Notifications, Error> {
-    let notification_cursor = sqlx::query(r#"SELECT * FROM notifications"#)
-        .fetch_all(&pg)
-        .await?;
-    let notifications = {
-        let mut notifications = Notifications::default();
-        for row in notification_cursor {
-            let package_id = serde_json::from_str::<PackageId>(
-                row.try_get("package_id")
-                    .with_ctx(|_| (ErrorKind::Database, "package_id"))?,
-            )
-            .ok();
-
-            let created_at = row
-                .try_get("created_at")
-                .with_ctx(|_| (ErrorKind::Database, "created_at"))?;
-            let code = row
-                .try_get::<i64, _>("code")
-                .with_ctx(|_| (ErrorKind::Database, "code"))? as u32;
-            let id = row
-                .try_get::<i64, _>("id")
-                .with_ctx(|_| (ErrorKind::Database, "id"))? as u32;
-            let level = serde_json::from_str(
-                row.try_get("level")
-                    .with_ctx(|_| (ErrorKind::Database, "level"))?,
-            )
-            .with_kind(ErrorKind::Database)
-            .with_ctx(|_| (ErrorKind::Database, "level: serde_json "))?;
-            let title = row
-                .try_get("title")
-                .with_ctx(|_| (ErrorKind::Database, "title"))?;
-            let message = row
-                .try_get("message")
-                .with_ctx(|_| (ErrorKind::Database, "message"))?;
-            let data = serde_json::from_str(
-                row.try_get("data")
-                    .with_ctx(|_| (ErrorKind::Database, "data"))?,
-            )
-            .unwrap_or_default();
-
-            notifications.0.insert(
-                id,
-                Notification {
-                    package_id,
-                    created_at,
-                    code,
-                    level,
-                    title,
-                    message,
-                    data,
-                },
-            );
-        }
-        notifications
-    };
-    Ok(notifications)
-}
-
 #[tracing::instrument(skip_all)]
 async fn previous_cifs(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<CifsTargets, Error> {
     let cifs = sqlx::query(r#"SELECT * FROM cifs_shares"#)
@@ -448,16 +376,17 @@ async fn previous_cifs(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<CifsTargets, E
         .await?
         .into_iter()
         .map(|row| {
-            let id: i64 = row.try_get("id")?;
+            let id: i32 = row.try_get("id")?;
             Ok::<_, Error>((
                 id,
                 Cifs {
                     hostname: row
                         .try_get("hostname")
                         .with_ctx(|_| (ErrorKind::Database, "hostname"))?,
-                    path: serde_json::from_str(row.try_get("path")?)
-                        .with_kind(ErrorKind::Database)
-                        .with_ctx(|_| (ErrorKind::Database, "path"))?,
+                    path: row
+                        .try_get::<String, _>("path")
+                        .with_ctx(|_| (ErrorKind::Database, "path"))?
+                        .into(),
                     username: row
                         .try_get("username")
                         .with_ctx(|_| (ErrorKind::Database, "username"))?,
@@ -486,7 +415,7 @@ async fn previous_account_info(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<Accoun
             password: account_query
                 .try_get("password")
                 .with_ctx(|_| (ErrorKind::Database, "password"))?,
-            tor_key: TorSecretKeyV3::try_from(
+            tor_keys: vec![TorSecretKeyV3::try_from(
                 if let Some(bytes) = account_query
                     .try_get::<Option<Vec<u8>>, _>("tor_key")
                     .with_ctx(|_| (ErrorKind::Database, "tor_key"))?
@@ -511,7 +440,7 @@ async fn previous_account_info(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<Accoun
                             .with_ctx(|_| (ErrorKind::Database, "password.u8 32"))?,
                     )
                 },
-            )?,
+            )?],
             server_id: account_query
                 .try_get("server_id")
                 .with_ctx(|_| (ErrorKind::Database, "server_id"))?,

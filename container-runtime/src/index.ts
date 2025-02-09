@@ -11,7 +11,7 @@ new RpcListener(getDependencies)
 
 /**
 
-So, this is going to be sent into a running comtainer along with any of the other node modules that are going to be needed and used.
+So, this is going to be sent into a running container along with any of the other node modules that are going to be needed and used.
 
 Once the container is started, we will go into a loading/ await state.
 This is the init system, and it will always be running, and it will be waiting for a command to be sent to it.
@@ -38,5 +38,5 @@ There are
 
 /**
 TODO:
-Should I seperate those adapter in/out?
+Should I separate those adapter in/out?
  */

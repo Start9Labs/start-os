@@ -51,10 +51,16 @@ pub async fn get_ssl_certificate(
                 .iter()
                 .map(|(_, m)| m.as_hosts().as_entries())
                 .flatten_ok()
-                .map_ok(|(_, m)| m.as_addresses().de())
+                .map_ok(|(_, m)| {
+                    Ok(m.as_onions()
+                        .de()?
+                        .iter()
+                        .map(InternedString::from_display)
+                        .chain(m.as_domains().keys()?)
+                        .collect::<Vec<_>>())
+                })
                 .map(|a| a.and_then(|a| a))
                 .flatten_ok()
-                .map_ok(|a| InternedString::from_display(&a))
                 .try_collect::<_, BTreeSet<_>, _>()?;
             for hostname in &hostnames {
                 if let Some(internal) = hostname
@@ -135,10 +141,16 @@ pub async fn get_ssl_key(
                 .into_iter()
                 .map(|m| m.as_hosts().as_entries())
                 .flatten_ok()
-                .map_ok(|(_, m)| m.as_addresses().de())
+                .map_ok(|(_, m)| {
+                    Ok(m.as_onions()
+                        .de()?
+                        .iter()
+                        .map(InternedString::from_display)
+                        .chain(m.as_domains().keys()?)
+                        .collect::<Vec<_>>())
+                })
                 .map(|a| a.and_then(|a| a))
                 .flatten_ok()
-                .map_ok(|a| InternedString::from_display(&a))
                 .try_collect::<_, BTreeSet<_>, _>()?;
             for hostname in &hostnames {
                 if let Some(internal) = hostname

@@ -18,6 +18,13 @@ sudo mount -t overlay -olowerdir=tmp/lower,upperdir=tmp/upper,workdir=tmp/work o
 QEMU=
 if [ "$ARCH" != "$(uname -m)" ]; then
     QEMU=/usr/bin/qemu-${ARCH}-static
+    if ! which qemu-$ARCH-static > /dev/null; then
+        >&2 echo qemu-user-static is required for cross-platform builds
+        sudo umount tmp/combined
+        sudo umount tmp/lower
+        sudo rm -rf tmp
+        exit 1
+    fi
     sudo cp $(which qemu-$ARCH-static) tmp/combined${QEMU}
 fi
 

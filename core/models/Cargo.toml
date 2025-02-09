@@ -24,7 +24,8 @@ patch-db = { version = "*", path = "../../patch-db/patch-db", features = [
 rand = "0.8.5"
 regex = "1.10.2"
 reqwest = "0.12"
-rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "refactor/no-dyn-ctx" }
+rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "master" }
+rustls = "0.23"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
 sqlx = { version = "0.7.2", features = [
@@ -39,3 +40,4 @@ tokio = { version = "1", features = ["full"] }
 torut = { git = "https://github.com/Start9Labs/torut.git", branch = "update/dependencies" }
 tracing = "0.1.39"
 yasi = "0.1.5"
+zbus = "5"

@@ -3,7 +3,6 @@ use std::path::Path;
 
 use color_eyre::eyre::eyre;
 use exver::{Version, VersionRange};
-use helpers::const_true;
 use imbl_value::InternedString;
 pub use models::PackageId;
 use models::{mime, ImageId, VolumeId};
@@ -62,8 +61,8 @@ pub struct Manifest {
     pub dependencies: Dependencies,
     #[serde(default)]
     pub hardware_requirements: HardwareRequirements,
-    #[serde(default)]
-    #[ts(type = "string | null")]
+    #[ts(optional)]
+    #[serde(default = "GitHash::load_sync")]
     pub git_hash: Option<GitHash>,
     #[serde(default = "current_version")]
     #[ts(type = "string")]

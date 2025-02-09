@@ -2,7 +2,6 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use axum::Router;
 use futures::future::ready;
-use imbl_value::InternedString;
 use models::DataUrl;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler, Server};
 use serde::{Deserialize, Serialize};
@@ -11,13 +10,13 @@ use ts_rs::TS;
 use crate::context::CliContext;
 use crate::middleware::cors::Cors;
 use crate::net::static_server::{bad_request, not_found, server_error};
-use crate::net::web_server::WebServer;
+use crate::net::web_server::{Accept, WebServer};
 use crate::prelude::*;
 use crate::registry::auth::Auth;
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfoMiddleware;
 use crate::registry::os::index::OsIndex;
-use crate::registry::package::index::{Category, PackageIndex};
+use crate::registry::package::index::PackageIndex;
 use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::Guid;
 use crate::util::serde::HandlerExtSerde;
@@ -144,7 +143,7 @@ pub fn registry_router(ctx: RegistryContext) -> Router {
         )
 }
 
-impl WebServer {
+impl<A: Accept + Send + Sync + 'static> WebServer<A> {
     pub fn serve_registry(&mut self, ctx: RegistryContext) {
         self.serve_router(registry_router(ctx))
     }

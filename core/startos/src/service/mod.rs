@@ -48,7 +48,7 @@ use crate::util::net::WebSocketExt;
 use crate::util::serde::{NoOutput, Pem};
 use crate::util::Never;
 use crate::volume::data_dir;
-use crate::CAP_1_KiB;
+use crate::{CAP_1_KiB, DATA_DIR, PACKAGE_DATA};
 
 pub mod action;
 pub mod cli;
@@ -149,10 +149,10 @@ impl ServiceRef {
                                     .values()
                                     .flat_map(|h| h.bindings.values())
                                     .flat_map(|b| {
-                                        b.lan
+                                        b.net
                                             .assigned_port
                                             .into_iter()
-                                            .chain(b.lan.assigned_ssl_port)
+                                            .chain(b.net.assigned_ssl_port)
                                     }),
                             );
                             Ok(())
@@ -167,17 +167,18 @@ impl ServiceRef {
             {
                 let state = pde.state_info.expect_removing()?;
                 for volume_id in &state.manifest.volumes {
-                    let path = data_dir(&ctx.datadir, &state.manifest.id, volume_id);
+                    let path = data_dir(DATA_DIR, &state.manifest.id, volume_id);
                     if tokio::fs::metadata(&path).await.is_ok() {
                         tokio::fs::remove_dir_all(&path).await?;
                     }
                 }
-                let logs_dir = ctx.datadir.join("logs").join(&state.manifest.id);
+                let logs_dir = Path::new(PACKAGE_DATA)
+                    .join("logs")
+                    .join(&state.manifest.id);
                 if tokio::fs::metadata(&logs_dir).await.is_ok() {
                     tokio::fs::remove_dir_all(&logs_dir).await?;
                 }
-                let archive_path = ctx
-                    .datadir
+                let archive_path = Path::new(PACKAGE_DATA)
                     .join("archive")
                     .join("installed")
                     .join(&state.manifest.id);
@@ -278,7 +279,7 @@ impl Service {
             let ctx = ctx.clone();
             move |s9pk: S9pk, i: Model<PackageDataEntry>| async move {
                 for volume_id in &s9pk.as_manifest().volumes {
-                    let path = data_dir(&ctx.datadir, &s9pk.as_manifest().id, volume_id);
+                    let path = data_dir(DATA_DIR, &s9pk.as_manifest().id, volume_id);
                     if tokio::fs::metadata(&path).await.is_err() {
                         tokio::fs::create_dir_all(&path).await?;
                     }
@@ -291,7 +292,7 @@ impl Service {
                 Self::new(ctx, s9pk, start_stop).await.map(Some)
             }
         };
-        let s9pk_dir = ctx.datadir.join(PKG_ARCHIVE_DIR).join("installed"); // TODO: make this based on hash
+        let s9pk_dir = Path::new(DATA_DIR).join(PKG_ARCHIVE_DIR).join("installed"); // TODO: make this based on hash
         let s9pk_path = s9pk_dir.join(id).with_extension("s9pk");
         let Some(entry) = ctx
             .db
@@ -604,27 +605,11 @@ impl Service {
         })
     }
 
-    pub async fn update_host(&self, host_id: HostId) -> Result<(), Error> {
-        let host = self
-            .seed
-            .ctx
-            .db
-            .peek()
-            .await
-            .as_public()
-            .as_package_data()
-            .as_idx(&self.seed.id)
-            .or_not_found(&self.seed.id)?
-            .as_hosts()
-            .as_idx(&host_id)
-            .or_not_found(&host_id)?
-            .de()?;
+    pub async fn sync_host(&self, host_id: HostId) -> Result<(), Error> {
         self.seed
             .persistent_container
             .net_service
-            .lock()
-            .await
-            .update(host_id, host)
+            .sync_host(host_id)
             .await
     }
 }
@@ -934,7 +919,6 @@ pub async fn attach(
                                 .with_kind(ErrorKind::Network)?;
                             current_out = "stdout";
                         }
-                        dbg!(&current_out);
                         ws.send(Message::Binary(out))
                             .await
                             .with_kind(ErrorKind::Network)?;
@@ -948,7 +932,6 @@ pub async fn attach(
                                 .with_kind(ErrorKind::Network)?;
                             current_out = "stderr";
                         }
-                        dbg!(&current_out);
                         ws.send(Message::Binary(err))
                             .await
                             .with_kind(ErrorKind::Network)?;

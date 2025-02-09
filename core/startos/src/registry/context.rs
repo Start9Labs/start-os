@@ -19,7 +19,6 @@ use crate::context::config::{ContextConfig, CONFIG_PATH};
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::registry::auth::{SignatureHeader, AUTH_SIG_HEADER};
-use crate::registry::device_info::{DeviceInfo, DEVICE_INFO_HEADER};
 use crate::registry::signer::sign::AnySigningKey;
 use crate::registry::RegistryDatabase;
 use crate::rpc_continuations::RpcContinuations;

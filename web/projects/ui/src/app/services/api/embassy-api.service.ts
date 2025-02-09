@@ -7,6 +7,7 @@ import { RPCOptions } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { Observable } from 'rxjs'
 import { BackupTargetType, RR } from './api.types'
+import { WebSocketSubject } from 'rxjs/webSocket'
 
 export abstract class ApiService {
   // http
@@ -32,7 +33,7 @@ export abstract class ApiService {
   abstract openWebsocket$<T>(
     guid: string,
     config?: RR.WebsocketConfig<T>,
-  ): Observable<T>
+  ): WebSocketSubject<T>
 
   // state
 
@@ -137,6 +138,14 @@ export abstract class ApiService {
     params: RR.SetOsOutboundProxyReq,
   ): Promise<RR.SetOsOutboundProxyRes>
 
+  // smtp
+
+  abstract setSmtp(params: RR.SetSMTPReq): Promise<RR.SetSMTPRes>
+
+  abstract clearSmtp(params: RR.ClearSMTPReq): Promise<RR.ClearSMTPRes>
+
+  abstract testSmtp(params: RR.TestSMTPReq): Promise<RR.TestSMTPRes>
+
   // marketplace URLs
 
   abstract registryRequest<T>(
@@ -220,14 +229,6 @@ export abstract class ApiService {
   abstract connectWifi(params: RR.ConnectWifiReq): Promise<RR.ConnectWifiRes>
 
   abstract deleteWifi(params: RR.DeleteWifiReq): Promise<RR.DeleteWifiRes>
-
-  // email
-
-  abstract testEmail(params: RR.TestEmailReq): Promise<RR.TestEmailRes>
-
-  abstract configureEmail(
-    params: RR.ConfigureEmailReq,
-  ): Promise<RR.ConfigureEmailRes>
 
   // ssh
 
@@ -342,4 +343,48 @@ export abstract class ApiService {
   abstract setServiceOutboundProxy(
     params: RR.SetServiceOutboundProxyReq,
   ): Promise<RR.SetServiceOutboundProxyRes>
+
+  abstract initAcme(params: RR.InitAcmeReq): Promise<RR.InitAcmeRes>
+
+  abstract removeAcme(params: RR.RemoveAcmeReq): Promise<RR.RemoveAcmeRes>
+
+  abstract addTorKey(params: RR.AddTorKeyReq): Promise<RR.AddTorKeyRes>
+
+  abstract generateTorKey(
+    params: RR.GenerateTorKeyReq,
+  ): Promise<RR.AddTorKeyRes>
+
+  abstract serverBindingSetPubic(
+    params: RR.ServerBindingSetPublicReq,
+  ): Promise<RR.BindingSetPublicRes>
+
+  abstract serverAddOnion(params: RR.ServerAddOnionReq): Promise<RR.AddOnionRes>
+
+  abstract serverRemoveOnion(
+    params: RR.ServerRemoveOnionReq,
+  ): Promise<RR.RemoveOnionRes>
+
+  abstract serverAddDomain(
+    params: RR.ServerAddDomainReq,
+  ): Promise<RR.AddDomainRes>
+
+  abstract serverRemoveDomain(
+    params: RR.ServerRemoveDomainReq,
+  ): Promise<RR.RemoveDomainRes>
+
+  abstract pkgBindingSetPubic(
+    params: RR.PkgBindingSetPublicReq,
+  ): Promise<RR.BindingSetPublicRes>
+
+  abstract pkgAddOnion(params: RR.PkgAddOnionReq): Promise<RR.AddOnionRes>
+
+  abstract pkgRemoveOnion(
+    params: RR.PkgRemoveOnionReq,
+  ): Promise<RR.RemoveOnionRes>
+
+  abstract pkgAddDomain(params: RR.PkgAddDomainReq): Promise<RR.AddDomainRes>
+
+  abstract pkgRemoveDomain(
+    params: RR.PkgRemoveDomainReq,
+  ): Promise<RR.RemoveDomainRes>
 }

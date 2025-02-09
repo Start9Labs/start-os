@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use crate::context::config::ClientConfig;
 use crate::context::CliContext;
-use crate::util::logger::EmbassyLogger;
+use crate::util::logger::LOGGER;
 use crate::version::{Current, VersionT};
 
 lazy_static::lazy_static! {
@@ -13,7 +13,8 @@ lazy_static::lazy_static! {
 }
 
 pub fn main(args: impl IntoIterator<Item = OsString>) {
-    EmbassyLogger::init();
+    LOGGER.enable();
+
     if let Err(e) = CliApp::new(
         |cfg: ClientConfig| Ok(CliContext::init(cfg.load()?)?),
         crate::expanded_api(),

@@ -1,31 +1,37 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::future::Future;
+use std::panic::RefUnwindSafe;
 
 use clap::Parser;
 use imbl_value::InternedString;
+use itertools::Itertools;
 use models::{HostId, PackageId};
-use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, OrEmpty, ParentHandler};
 use serde::{Deserialize, Serialize};
+use torut::onion::OnionAddressV3;
 use ts_rs::TS;
 
-use crate::context::{CliContext, RpcContext};
+use crate::context::RpcContext;
 use crate::db::model::DatabaseModel;
 use crate::net::forward::AvailablePorts;
-use crate::net::host::address::HostAddress;
-use crate::net::host::binding::{BindInfo, BindOptions};
+use crate::net::host::address::{address_api, DomainConfig, HostAddress};
+use crate::net::host::binding::{binding, BindInfo, BindOptions};
 use crate::net::service_interface::HostnameInfo;
 use crate::prelude::*;
 
 pub mod address;
 pub mod binding;
 
-#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct Host {
-    pub kind: HostKind,
     pub bindings: BTreeMap<u16, BindInfo>,
-    pub addresses: BTreeSet<HostAddress>,
+    #[ts(type = "string[]")]
+    pub onions: BTreeSet<OnionAddressV3>,
+    #[ts(as = "BTreeMap::<String, DomainConfig>")]
+    pub domains: BTreeMap<InternedString, DomainConfig>,
     /// COMPUTED: NetService::update
     pub hostname_info: BTreeMap<u16, Vec<HostnameInfo>>, // internal port -> Hostnames
 }
@@ -35,27 +41,26 @@ impl AsRef<Host> for Host {
     }
 }
 impl Host {
-    pub fn new(kind: HostKind) -> Self {
-        Self {
-            kind,
-            bindings: BTreeMap::new(),
-            addresses: BTreeSet::new(),
-            hostname_info: BTreeMap::new(),
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
-    pub fn addresses(&self) -> impl Iterator<Item = &HostAddress> {
-        // TODO: handle primary
-        self.addresses.iter()
+    pub fn addresses<'a>(&'a self) -> impl Iterator<Item = HostAddress> + 'a {
+        self.onions
+            .iter()
+            .cloned()
+            .map(|address| HostAddress::Onion { address })
+            .chain(
+                self.domains
+                    .iter()
+                    .map(
+                        |(address, DomainConfig { public, acme })| HostAddress::Domain {
+                            address: address.clone(),
+                            public: *public,
+                            acme: acme.clone(),
+                        },
+                    ),
+            )
     }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub enum HostKind {
-    Multi,
-    // Single,
-    // Static,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
@@ -76,10 +81,12 @@ impl Map for Hosts {
 
 pub fn host_for<'a>(
     db: &'a mut DatabaseModel,
-    package_id: &PackageId,
+    package_id: Option<&PackageId>,
     host_id: &HostId,
-    host_kind: HostKind,
 ) -> Result<&'a mut Model<Host>, Error> {
+    let Some(package_id) = package_id else {
+        return Ok(db.as_public_mut().as_server_info_mut().as_host_mut());
+    };
     fn host_info<'a>(
         db: &'a mut DatabaseModel,
         package_id: &PackageId,
@@ -103,23 +110,31 @@ pub fn host_for<'a>(
         None
     };
     host_info(db, package_id)?.upsert(host_id, || {
-        let mut h = Host::new(host_kind);
-        h.addresses.insert(HostAddress::Onion {
-            address: tor_key
+        let mut h = Host::new();
+        h.onions.insert(
+            tor_key
                 .or_not_found("generated tor key")?
                 .public()
                 .get_onion_address(),
-        });
+        );
         Ok(h)
     })
 }
 
+pub fn all_hosts(db: &DatabaseModel) -> impl Iterator<Item = Result<&Model<Host>, Error>> {
+    [Ok(db.as_public().as_server_info().as_host())]
+        .into_iter()
+        .chain(
+            [db.as_public().as_package_data().as_entries()]
+                .into_iter()
+                .flatten_ok()
+                .map(|entry| entry.and_then(|(_, v)| v.as_hosts().as_entries()))
+                .flatten_ok()
+                .map_ok(|(_, v)| v),
+        )
+}
+
 impl Model<Host> {
-    pub fn set_kind(&mut self, kind: HostKind) -> Result<(), Error> {
-        match (self.as_kind().de()?, kind) {
-            (HostKind::Multi, HostKind::Multi) => Ok(()),
-        }
-    }
     pub fn add_binding(
         &mut self,
         available_ports: &mut AvailablePorts,
@@ -139,16 +154,78 @@ impl Model<Host> {
 }
 
 #[derive(Deserialize, Serialize, Parser)]
-pub struct HostParams {
+pub struct RequiresPackageId {
     package: PackageId,
 }
 
-pub fn host<C: Context>() -> ParentHandler<C, HostParams> {
-    ParentHandler::<C, HostParams>::new()
+#[derive(Deserialize, Serialize, Parser)]
+pub struct RequiresHostId {
+    host: HostId,
+}
+
+pub trait HostApiKind: 'static {
+    type Params: Send + Sync + 'static;
+    type InheritedParams: Send + Sync + 'static;
+    type Inheritance: RefUnwindSafe + OrEmpty<Self::Inheritance> + Send + Sync + 'static;
+    fn inheritance(params: Self::Params, inherited: Self::InheritedParams) -> Self::Inheritance;
+    fn host_for<'a>(
+        inheritance: &Self::Inheritance,
+        db: &'a mut DatabaseModel,
+    ) -> Result<&'a mut Model<Host>, Error>;
+    fn sync_host(
+        ctx: &RpcContext,
+        inheritance: Self::Inheritance,
+    ) -> impl Future<Output = Result<(), Error>> + Send;
+}
+pub struct ForPackage;
+impl HostApiKind for ForPackage {
+    type Params = RequiresHostId;
+    type InheritedParams = PackageId;
+    type Inheritance = (PackageId, HostId);
+    fn inheritance(
+        RequiresHostId { host }: Self::Params,
+        package: Self::InheritedParams,
+    ) -> Self::Inheritance {
+        (package, host)
+    }
+    fn host_for<'a>(
+        (package, host): &Self::Inheritance,
+        db: &'a mut DatabaseModel,
+    ) -> Result<&'a mut Model<Host>, Error> {
+        host_for(db, Some(package), host)
+    }
+    async fn sync_host(ctx: &RpcContext, (package, host): Self::Inheritance) -> Result<(), Error> {
+        let service = ctx.services.get(&package).await;
+        let service_ref = service.as_ref().or_not_found(&package)?;
+        service_ref.sync_host(host).await?;
+        Ok(())
+    }
+}
+pub struct ForServer;
+impl HostApiKind for ForServer {
+    type Params = Empty;
+    type InheritedParams = Empty;
+    type Inheritance = Empty;
+    fn inheritance(_: Self::Params, _: Self::InheritedParams) -> Self::Inheritance {
+        Empty {}
+    }
+    fn host_for<'a>(
+        _: &Self::Inheritance,
+        db: &'a mut DatabaseModel,
+    ) -> Result<&'a mut Model<Host>, Error> {
+        host_for(db, None, &HostId::default())
+    }
+    async fn sync_host(ctx: &RpcContext, _: Self::Inheritance) -> Result<(), Error> {
+        ctx.os_net_service.sync_host(HostId::default()).await
+    }
+}
+
+pub fn host_api<C: Context>() -> ParentHandler<C, RequiresPackageId> {
+    ParentHandler::<C, RequiresPackageId>::new()
         .subcommand(
             "list",
             from_fn_async(list_hosts)
-                .with_inherited(|HostParams { package }, _| package)
+                .with_inherited(|RequiresPackageId { package }, _| package)
                 .with_custom_display_fn(|_, ids| {
                     for id in ids {
                         println!("{id}")
@@ -159,8 +236,19 @@ pub fn host<C: Context>() -> ParentHandler<C, HostParams> {
         )
         .subcommand(
             "address",
-            address::<C>().with_inherited(|HostParams { package }, _| package),
+            address_api::<C, ForPackage>()
+                .with_inherited(|RequiresPackageId { package }, _| package),
         )
+        .subcommand(
+            "binding",
+            binding::<C, ForPackage>().with_inherited(|RequiresPackageId { package }, _| package),
+        )
+}
+
+pub fn server_host_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::<C>::new()
+        .subcommand("address", address_api::<C, ForServer>())
+        .subcommand("binding", binding::<C, ForServer>())
 }
 
 pub async fn list_hosts(
@@ -177,123 +265,4 @@ pub async fn list_hosts(
         .or_not_found(&package)?
         .into_hosts()
         .keys()
-}
-
-#[derive(Deserialize, Serialize, Parser)]
-pub struct AddressApiParams {
-    host: HostId,
-}
-
-pub fn address<C: Context>() -> ParentHandler<C, AddressApiParams, PackageId> {
-    ParentHandler::<C, AddressApiParams, PackageId>::new()
-        .subcommand(
-            "add",
-            from_fn_async(add_address)
-                .with_inherited(|AddressApiParams { host }, package| (package, host))
-                .no_display()
-                .with_about("Add an address to this host")
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "remove",
-            from_fn_async(remove_address)
-                .with_inherited(|AddressApiParams { host }, package| (package, host))
-                .no_display()
-                .with_about("Remove an address from this host")
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "list",
-            from_fn_async(list_addresses)
-                .with_inherited(|AddressApiParams { host }, package| (package, host))
-                .with_custom_display_fn(|_, res| {
-                    for address in res {
-                        println!("{address}")
-                    }
-                    Ok(())
-                })
-                .with_about("List addresses for this host")
-                .with_call_remote::<CliContext>(),
-        )
-}
-
-#[derive(Deserialize, Serialize, Parser)]
-pub struct AddressParams {
-    pub address: HostAddress,
-}
-
-pub async fn add_address(
-    ctx: RpcContext,
-    AddressParams { address }: AddressParams,
-    (package, host): (PackageId, HostId),
-) -> Result<(), Error> {
-    ctx.db
-        .mutate(|db| {
-            if let HostAddress::Onion { address } = address {
-                db.as_private()
-                    .as_key_store()
-                    .as_onion()
-                    .get_key(&address)?;
-            }
-
-            db.as_public_mut()
-                .as_package_data_mut()
-                .as_idx_mut(&package)
-                .or_not_found(&package)?
-                .as_hosts_mut()
-                .as_idx_mut(&host)
-                .or_not_found(&host)?
-                .as_addresses_mut()
-                .mutate(|a| Ok(a.insert(address)))
-        })
-        .await?;
-    let service = ctx.services.get(&package).await;
-    let service_ref = service.as_ref().or_not_found(&package)?;
-    service_ref.update_host(host).await?;
-
-    Ok(())
-}
-
-pub async fn remove_address(
-    ctx: RpcContext,
-    AddressParams { address }: AddressParams,
-    (package, host): (PackageId, HostId),
-) -> Result<(), Error> {
-    ctx.db
-        .mutate(|db| {
-            db.as_public_mut()
-                .as_package_data_mut()
-                .as_idx_mut(&package)
-                .or_not_found(&package)?
-                .as_hosts_mut()
-                .as_idx_mut(&host)
-                .or_not_found(&host)?
-                .as_addresses_mut()
-                .mutate(|a| Ok(a.remove(&address)))
-        })
-        .await?;
-    let service = ctx.services.get(&package).await;
-    let service_ref = service.as_ref().or_not_found(&package)?;
-    service_ref.update_host(host).await?;
-
-    Ok(())
-}
-
-pub async fn list_addresses(
-    ctx: RpcContext,
-    _: Empty,
-    (package, host): (PackageId, HostId),
-) -> Result<BTreeSet<HostAddress>, Error> {
-    ctx.db
-        .peek()
-        .await
-        .into_public()
-        .into_package_data()
-        .into_idx(&package)
-        .or_not_found(&package)?
-        .into_hosts()
-        .into_idx(&host)
-        .or_not_found(&host)?
-        .into_addresses()
-        .de()
 }

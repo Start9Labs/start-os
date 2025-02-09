@@ -1,6 +1,7 @@
+use axum::body::Body;
 use axum::extract::Request;
 use axum::response::Response;
-use http::{HeaderMap, HeaderValue};
+use http::{HeaderMap, HeaderValue, Method};
 use rpc_toolkit::{Empty, Middleware};
 
 #[derive(Clone)]
@@ -52,6 +53,13 @@ impl<Context: Send + Sync + 'static> Middleware<Context> for Cors {
         request: &mut Request,
     ) -> Result<(), Response> {
         self.get_cors_headers(request);
+        if request.method() == Method::OPTIONS {
+            let mut response = Response::new(Body::empty());
+            response
+                .headers_mut()
+                .extend(std::mem::take(&mut self.headers));
+            return Err(response);
+        }
         Ok(())
     }
     async fn process_http_response(&mut self, _: &Context, response: &mut Response) {

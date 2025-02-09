@@ -31,7 +31,7 @@ export type CurrentDependenciesResult<Manifest extends T.SDKManifest> = {
   [K in RequiredDependenciesOf<Manifest>]: DependencyRequirement
 } & {
   [K in OptionalDependenciesOf<Manifest>]?: DependencyRequirement
-} & Record<string, DependencyRequirement>
+}
 
 export function setupDependencies<Manifest extends T.SDKManifest>(
   fn: (options: {
@@ -48,14 +48,16 @@ export function setupDependencies<Manifest extends T.SDKManifest>(
     }
     const dependencyType = await fn(options)
     return await options.effects.setDependencies({
-      dependencies: Object.entries(dependencyType).map(
-        ([id, { versionRange, ...x }, ,]) =>
-          ({
-            // id,
-            ...x,
-            versionRange: versionRange.toString(),
-          }) as T.DependencyRequirement,
-      ),
+      dependencies: Object.entries(dependencyType)
+        .map(([k, v]) => [k, v as DependencyRequirement] as const)
+        .map(
+          ([id, { versionRange, ...x }]) =>
+            ({
+              id,
+              ...x,
+              versionRange: versionRange.toString(),
+            }) as T.DependencyRequirement,
+        ),
     })
   }
   return cell.updater

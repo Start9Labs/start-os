@@ -5,7 +5,7 @@ import { HealthCheckResult } from "../health/checkFns"
 import { Trigger } from "../trigger"
 import * as T from "../../../base/lib/types"
 import { Mounts } from "./Mounts"
-import { ExecSpawnable, MountOptions } from "../util/SubContainer"
+import { ExecSpawnable, MountOptions, SubContainer } from "../util/SubContainer"
 
 import { promisify } from "node:util"
 import * as CP from "node:child_process"
@@ -49,16 +49,18 @@ type DaemonsParams<
 > = {
   /** The command line command to start the daemon */
   command: T.CommandType
-  /** Information about the image in which the daemon runs */
-  image: {
-    /** The ID of the image. Must be one of the image IDs declared in the manifest */
-    id: keyof Manifest["images"] & T.ImageId
-    /**
-     * Whether or not to share the `/run` directory with the parent container.
-     * This is useful if you are trying to connect to a service that exposes a unix domain socket or auth cookie via the `/run` directory
-     */
-    sharedRun?: boolean
-  }
+  /** Information about the subcontainer in which the daemon runs */
+  subcontainer:
+    | {
+        /** The ID of the image. Must be one of the image IDs declared in the manifest */
+        imageId: keyof Manifest["images"] & T.ImageId
+        /**
+         * Whether or not to share the `/run` directory with the parent container.
+         * This is useful if you are trying to connect to a service that exposes a unix domain socket or auth cookie via the `/run` directory
+         */
+        sharedRun?: boolean
+      }
+    | SubContainer
   /** For mounting the necessary volumes. Syntax: sdk.Mounts.of().addVolume() */
   mounts: Mounts<Manifest>
   env?: Record<string, string>
@@ -147,11 +149,16 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     options: DaemonsParams<Manifest, Ids, Command, Id>,
   ) {
     const daemonIndex = this.daemons.length
-    const daemon = Daemon.of()(this.effects, options.image, options.command, {
-      ...options,
-      mounts: options.mounts.build(),
-      subcontainerName: id,
-    })
+    const daemon = Daemon.of()(
+      this.effects,
+      options.subcontainer,
+      options.command,
+      {
+        ...options,
+        mounts: options.mounts.build(),
+        subcontainerName: id,
+      },
+    )
     const healthDaemon = new HealthDaemon(
       daemon,
       daemonIndex,
@@ -178,14 +185,18 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   }
 
   async build() {
-    this.updateMainHealth()
-    this.healthDaemons.forEach((x) =>
-      x.addWatcher(() => this.updateMainHealth()),
-    )
     const built = {
-      term: async (options?: { signal?: Signals; timeout?: number }) => {
+      term: async () => {
         try {
-          await Promise.all(this.healthDaemons.map((x) => x.term(options)))
+          for (let result of await Promise.allSettled(
+            this.healthDaemons.map((x) =>
+              x.term({ timeout: x.sigtermTimeout }),
+            ),
+          )) {
+            if (result.status === "rejected") {
+              console.error(result.reason)
+            }
+          }
         } finally {
           this.effects.setMainStatus({ status: "stopped" })
         }
@@ -193,9 +204,5 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     }
     this.started(() => built.term())
     return built
-  }
-
-  private updateMainHealth() {
-    this.effects.setMainStatus({ status: "running" })
   }
 }

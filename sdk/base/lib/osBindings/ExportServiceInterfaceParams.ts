@@ -7,7 +7,6 @@ export type ExportServiceInterfaceParams = {
   id: ServiceInterfaceId
   name: string
   description: string
-  hasPrimary: boolean
   masked: boolean
   addressInfo: AddressInfo
   type: ServiceInterfaceType

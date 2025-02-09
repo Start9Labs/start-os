@@ -2,6 +2,7 @@ use std::ops::Deref;
 use std::path::PathBuf;
 use std::time::Duration;
 
+use axum::extract::ws;
 use clap::builder::ValueParserFactory;
 use clap::{value_parser, CommandFactory, FromArgMatches, Parser};
 use color_eyre::eyre::eyre;
@@ -12,7 +13,7 @@ use itertools::Itertools;
 use models::{FromStrParser, VersionString};
 use reqwest::header::{HeaderMap, CONTENT_LENGTH};
 use reqwest::Url;
-use rpc_toolkit::yajrc::{GenericRpcMethod, RpcError};
+use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::HandlerArgs;
 use rustyline_async::ReadlineEvent;
 use serde::{Deserialize, Serialize};
@@ -188,7 +189,7 @@ pub async fn sideload(
     SideloadParams { session }: SideloadParams,
 ) -> Result<SideloadResponse, Error> {
     let (upload, file) = upload(&ctx, session.clone()).await?;
-    let (err_send, err_recv) = oneshot::channel::<Error>();
+    let (err_send, mut err_recv) = oneshot::channel::<Error>();
     let progress = Guid::new();
     let progress_tracker = FullProgressTracker::new();
     let mut progress_listener = progress_tracker.stream(Some(Duration::from_millis(200)));
@@ -198,42 +199,43 @@ pub async fn sideload(
             RpcContinuation::ws_authed(
                 &ctx,
                 session,
-                |mut ws| {
-                    use axum::extract::ws::Message;
-                    async move {
-                        if let Err(e) = async {
-                            type RpcResponse = rpc_toolkit::yajrc::RpcResponse<
-                                GenericRpcMethod<&'static str, (), FullProgress>,
-                            >;
+                |mut ws| async move {
+                    if let Err(e) = async {
+                        loop {
                             tokio::select! {
-                                res = async {
-                                    while let Some(progress) = progress_listener.next().await {
-                                        ws.send(Message::Text(
+                                progress = progress_listener.next() => {
+                                    if let Some(progress) = progress {
+                                        ws.send(ws::Message::Text(
                                             serde_json::to_string(&progress)
                                                 .with_kind(ErrorKind::Serialization)?,
                                         ))
                                         .await
                                         .with_kind(ErrorKind::Network)?;
+                                        if progress.overall.is_complete() {
+                                            return ws.normal_close("complete").await;
+                                        }
+                                    } else {
+                                        return ws.normal_close("complete").await;
                                     }
-                                    Ok::<_, Error>(())
-                                } => res?,
-                                err = err_recv => {
+                                }
+                                msg = ws.recv() => {
+                                    if msg.transpose().with_kind(ErrorKind::Network)?.is_none() {
+                                        return Ok(())
+                                    }
+                                }
+                                err = (&mut err_recv) => {
                                     if let Ok(e) = err {
                                         ws.close_result(Err::<&str, _>(e.clone_output())).await?;
                                         return Err(e)
                                     }
                                 }
                             }
-
-                            ws.normal_close("complete").await?;
-
-                            Ok::<_, Error>(())
                         }
-                        .await
-                        {
-                            tracing::error!("Error tracking sideload progress: {e}");
-                            tracing::debug!("{e:?}");
-                        }
+                    }
+                    .await
+                    {
+                        tracing::error!("Error tracking sideload progress: {e}");
+                        tracing::debug!("{e:?}");
                     }
                 },
                 Duration::from_secs(600),
@@ -258,9 +260,9 @@ pub async fn sideload(
         }
         .await
         {
-            let _ = err_send.send(e.clone_output());
             tracing::error!("Error sideloading package: {e}");
             tracing::debug!("{e:?}");
+            let _ = err_send.send(e);
         }
     });
     Ok(SideloadResponse { upload, progress })

@@ -3,10 +3,12 @@ use std::io::Cursor;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use axum::extract::ws::{self};
 use color_eyre::eyre::eyre;
+use const_format::formatcp;
 use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
 use models::ResultExt;
@@ -23,21 +25,24 @@ use crate::context::{CliContext, InitContext};
 use crate::db::model::public::ServerStatus;
 use crate::db::model::Database;
 use crate::disk::mount::util::unmount;
+use crate::hostname::Hostname;
 use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
-use crate::net::net_controller::PreInitNetController;
+use crate::net::net_controller::{NetController, NetService};
+use crate::net::utils::find_wifi_iface;
+use crate::net::web_server::{UpgradableListener, WebServerAcceptorSetter};
 use crate::prelude::*;
 use crate::progress::{
     FullProgress, FullProgressTracker, PhaseProgressTrackerHandle, PhasedProgressBar,
 };
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::v2::pack::{CONTAINER_DATADIR, CONTAINER_TOOL};
-use crate::ssh::SSH_AUTHORIZED_KEYS_FILE;
+use crate::ssh::SSH_DIR;
 use crate::system::get_mem_info;
 use crate::util::io::{create_file, IOHook};
 use crate::util::lshw::lshw;
 use crate::util::net::WebSocketExt;
 use crate::util::{cpupower, Invoke};
-use crate::Error;
+use crate::{Error, MAIN_DATA, PACKAGE_DATA};
 
 pub const SYSTEM_REBUILD_PATH: &str = "/media/startos/config/system-rebuild";
 pub const STANDBY_MODE_PATH: &str = "/media/startos/config/standby";
@@ -195,7 +200,8 @@ pub async fn init_postgres(datadir: impl AsRef<Path>) -> Result<(), Error> {
 }
 
 pub struct InitResult {
-    pub net_ctrl: PreInitNetController,
+    pub net_ctrl: Arc<NetController>,
+    pub os_net_service: NetService,
 }
 
 pub struct InitPhases {
@@ -213,7 +219,6 @@ pub struct InitPhases {
     enable_zram: PhaseProgressTrackerHandle,
     update_server_info: PhaseProgressTrackerHandle,
     launch_service_network: PhaseProgressTrackerHandle,
-    run_migrations: PhaseProgressTrackerHandle,
     validate_db: PhaseProgressTrackerHandle,
     postinit: Option<PhaseProgressTrackerHandle>,
 }
@@ -238,7 +243,6 @@ impl InitPhases {
             enable_zram: handle.add_phase("Enabling ZRAM".into(), Some(1)),
             update_server_info: handle.add_phase("Updating server info".into(), Some(1)),
             launch_service_network: handle.add_phase("Launching service intranet".into(), Some(1)),
-            run_migrations: handle.add_phase("Running migrations".into(), Some(10)),
             validate_db: handle.add_phase("Validating database".into(), Some(1)),
             postinit: if Path::new("/media/startos/config/postinit.sh").exists() {
                 Some(handle.add_phase("Running postinit.sh".into(), Some(5)))
@@ -274,6 +278,7 @@ pub async fn run_script<P: AsRef<Path>>(path: P, mut progress: PhaseProgressTrac
 
 #[instrument(skip_all)]
 pub async fn init(
+    webserver: &WebServerAcceptorSetter<UpgradableListener>,
     cfg: &ServerConfig,
     InitPhases {
         preinit,
@@ -290,7 +295,6 @@ pub async fn init(
         mut enable_zram,
         mut update_server_info,
         mut launch_service_network,
-        run_migrations,
         mut validate_db,
         postinit,
     }: InitPhases,
@@ -317,7 +321,7 @@ pub async fn init(
         })?;
         tokio::fs::set_permissions(LOCAL_AUTH_COOKIE_PATH, Permissions::from_mode(0o046)).await?;
         Command::new("chown")
-            .arg("root:embassy")
+            .arg("root:startos")
             .arg(LOCAL_AUTH_COOKIE_PATH)
             .invoke(crate::ErrorKind::Filesystem)
             .await?;
@@ -334,8 +338,10 @@ pub async fn init(
 
     load_ssh_keys.start();
     crate::ssh::sync_keys(
+        &Hostname(peek.as_public().as_server_info().as_hostname().de()?),
+        &peek.as_private().as_ssh_privkey().de()?,
         &peek.as_private().as_ssh_pubkeys().de()?,
-        SSH_AUTHORIZED_KEYS_FILE,
+        SSH_DIR,
     )
     .await?;
     load_ssh_keys.complete();
@@ -344,22 +350,25 @@ pub async fn init(
     let account = AccountInfo::load(&peek)?;
 
     start_net.start();
-    let net_ctrl = PreInitNetController::init(
-        db.clone(),
-        cfg.tor_control
-            .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
-        cfg.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
-            Ipv4Addr::new(127, 0, 0, 1),
-            9050,
-        ))),
-        &account.hostname,
-        account.tor_key,
-    )
-    .await?;
+    let net_ctrl = Arc::new(
+        NetController::init(
+            db.clone(),
+            cfg.tor_control
+                .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
+            cfg.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
+                Ipv4Addr::new(127, 0, 0, 1),
+                9050,
+            ))),
+            &account.hostname,
+        )
+        .await?,
+    );
+    webserver.try_upgrade(|a| net_ctrl.net_iface.upgrade_listener(a))?;
+    let os_net_service = net_ctrl.os_bindings().await?;
     start_net.complete();
 
     mount_logs.start();
-    let log_dir = cfg.datadir().join("main/logs");
+    let log_dir = Path::new(MAIN_DATA).join("logs");
     if tokio::fs::metadata(&log_dir).await.is_err() {
         tokio::fs::create_dir_all(&log_dir).await?;
     }
@@ -390,8 +399,6 @@ pub async fn init(
     mount_logs.complete();
     tracing::info!("Mounted Logs");
 
-    let mut server_info = peek.as_public().as_server_info().de()?;
-
     load_ca_cert.start();
     // write to ca cert store
     tokio::fs::write(
@@ -402,58 +409,46 @@ pub async fn init(
     Command::new("update-ca-certificates")
         .invoke(crate::ErrorKind::OpenSsl)
         .await?;
-    if tokio::fs::metadata("/home/kiosk/profile").await.is_ok() {
-        Command::new("certutil")
-            .arg("-A")
-            .arg("-n")
-            .arg("StartOS Local Root CA")
-            .arg("-t")
-            .arg("TCu,Cuw,Tuw")
-            .arg("-i")
-            .arg("/usr/local/share/ca-certificates/startos-root-ca.crt")
-            .arg("-d")
-            .arg("/home/kiosk/fx-profile")
-            .invoke(ErrorKind::OpenSsl)
-            .await?;
-    }
     load_ca_cert.complete();
 
     load_wifi.start();
-    crate::net::wifi::synchronize_wpa_supplicant_conf(
-        &cfg.datadir().join("main"),
-        &mut server_info.wifi,
-    )
-    .await?;
+    let wifi_interface = find_wifi_iface().await?;
+    let wifi = db
+        .mutate(|db| {
+            let wifi = db.as_public_mut().as_server_info_mut().as_wifi_mut();
+            wifi.as_interface_mut().ser(&wifi_interface)?;
+            wifi.de()
+        })
+        .await?;
+    crate::net::wifi::synchronize_network_manager(MAIN_DATA, &wifi).await?;
     load_wifi.complete();
     tracing::info!("Synchronized WiFi");
 
     init_tmp.start();
-    let tmp_dir = cfg.datadir().join("package-data/tmp");
+    let tmp_dir = Path::new(PACKAGE_DATA).join("tmp");
     if tokio::fs::metadata(&tmp_dir).await.is_ok() {
         tokio::fs::remove_dir_all(&tmp_dir).await?;
     }
     if tokio::fs::metadata(&tmp_dir).await.is_err() {
         tokio::fs::create_dir_all(&tmp_dir).await?;
     }
-    let tmp_var = cfg.datadir().join(format!("package-data/tmp/var"));
+    let tmp_var = Path::new(PACKAGE_DATA).join("tmp/var");
     if tokio::fs::metadata(&tmp_var).await.is_ok() {
         tokio::fs::remove_dir_all(&tmp_var).await?;
     }
     crate::disk::mount::util::bind(&tmp_var, "/var/tmp", false).await?;
-    let downloading = cfg
-        .datadir()
-        .join(format!("package-data/archive/downloading"));
+    let downloading = Path::new(PACKAGE_DATA).join("archive/downloading");
     if tokio::fs::metadata(&downloading).await.is_ok() {
         tokio::fs::remove_dir_all(&downloading).await?;
     }
-    let tmp_docker = cfg
-        .datadir()
-        .join(format!("package-data/tmp/{CONTAINER_TOOL}"));
+    let tmp_docker = Path::new(PACKAGE_DATA).join(formatcp!("tmp/{CONTAINER_TOOL}"));
     crate::disk::mount::util::bind(&tmp_docker, CONTAINER_DATADIR, false).await?;
     init_tmp.complete();
 
+    let server_info = db.peek().await.into_public().into_server_info();
     set_governor.start();
-    let governor = if let Some(governor) = &server_info.governor {
+    let selected_governor = server_info.as_governor().de()?;
+    let governor = if let Some(governor) = &selected_governor {
         if cpupower::get_available_governors()
             .await?
             .contains(governor)
@@ -474,11 +469,11 @@ pub async fn init(
     set_governor.complete();
 
     sync_clock.start();
-    server_info.ntp_synced = false;
+    let mut ntp_synced = false;
     let mut not_made_progress = 0u32;
     for _ in 0..1800 {
         if check_time_is_synchronized().await? {
-            server_info.ntp_synced = true;
+            ntp_synced = true;
             break;
         }
         let t = SystemTime::now();
@@ -495,7 +490,7 @@ pub async fn init(
             break;
         }
     }
-    if !server_info.ntp_synced {
+    if !ntp_synced {
         tracing::warn!("Timed out waiting for system time to synchronize");
     } else {
         tracing::info!("Syncronized system clock");
@@ -503,16 +498,16 @@ pub async fn init(
     sync_clock.complete();
 
     enable_zram.start();
-    if server_info.zram {
-        crate::system::enable_zram().await?
+    if server_info.as_zram().de()? {
+        crate::system::enable_zram().await?;
+        tracing::info!("Enabled ZRAM");
     }
     enable_zram.complete();
 
     update_server_info.start();
-    server_info.ip_info = crate::net::dhcp::init_ips().await?;
-    server_info.ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
-    server_info.devices = lshw().await?;
-    server_info.status_info = ServerStatus {
+    let ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
+    let devices = lshw().await?;
+    let status_info = ServerStatus {
         updated: false,
         update_progress: None,
         backup_progress: None,
@@ -520,10 +515,15 @@ pub async fn init(
         restarting: false,
     };
     db.mutate(|v| {
-        v.as_public_mut().as_server_info_mut().ser(&server_info)?;
+        let server_info = v.as_public_mut().as_server_info_mut();
+        server_info.as_ntp_synced_mut().ser(&ntp_synced)?;
+        server_info.as_ram_mut().ser(&ram)?;
+        server_info.as_devices_mut().ser(&devices)?;
+        server_info.as_status_info_mut().ser(&status_info)?;
         Ok(())
     })
     .await?;
+    tracing::info!("Updated server info");
     update_server_info.complete();
 
     launch_service_network.start();
@@ -532,6 +532,7 @@ pub async fn init(
         .arg("lxc-net.service")
         .invoke(ErrorKind::Lxc)
         .await?;
+    tracing::info!("Launched service intranet");
     launch_service_network.complete();
 
     validate_db.start();
@@ -540,6 +541,7 @@ pub async fn init(
         d.ser(&model)
     })
     .await?;
+    tracing::info!("Validated database");
     validate_db.complete();
 
     if let Some(progress) = postinit {
@@ -548,7 +550,10 @@ pub async fn init(
 
     tracing::info!("System initialized.");
 
-    Ok(InitResult { net_ctrl })
+    Ok(InitResult {
+        net_ctrl,
+        os_net_service,
+    })
 }
 
 pub fn init_api<C: Context>() -> ParentHandler<C> {

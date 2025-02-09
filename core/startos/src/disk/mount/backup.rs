@@ -7,7 +7,6 @@ use models::PackageId;
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 
-use super::filesystem::ecryptfs::EcryptFS;
 use super::guard::{GenericMountGuard, TmpMountGuard};
 use crate::auth::check_password;
 use crate::backup::target::BackupInfo;

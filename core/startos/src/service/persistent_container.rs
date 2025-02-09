@@ -39,7 +39,7 @@ use crate::util::io::create_file;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::Invoke;
 use crate::volume::data_dir;
-use crate::ARCH;
+use crate::{ARCH, DATA_DIR, PACKAGE_DATA};
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -110,7 +110,7 @@ pub struct PersistentContainer {
     pub(super) images: BTreeMap<ImageId, Arc<MountGuard>>,
     pub(super) subcontainers: Arc<Mutex<BTreeMap<Guid, Subcontainer>>>,
     pub(super) state: Arc<watch::Sender<ServiceState>>,
-    pub(super) net_service: Mutex<NetService>,
+    pub(super) net_service: NetService,
     destroyed: bool,
 }
 
@@ -121,8 +121,8 @@ impl PersistentContainer {
             .lxc_manager
             .create(
                 Some(
-                    &ctx.datadir
-                        .join("package-data/logs")
+                    &Path::new(PACKAGE_DATA)
+                        .join("logs")
                         .join(&s9pk.as_manifest().id),
                 ),
                 LxcConfig::default(),
@@ -157,7 +157,7 @@ impl PersistentContainer {
                 .await?;
             let mount = MountGuard::mount(
                 &IdMapped::new(
-                    Bind::new(data_dir(&ctx.datadir, &s9pk.as_manifest().id, volume)),
+                    Bind::new(data_dir(DATA_DIR, &s9pk.as_manifest().id, volume)),
                     0,
                     100000,
                     65536,
@@ -285,7 +285,7 @@ impl PersistentContainer {
             images,
             subcontainers: Arc::new(Mutex::new(BTreeMap::new())),
             state: Arc::new(watch::channel(ServiceState::new(start)).0),
-            net_service: Mutex::new(net_service),
+            net_service,
             destroyed: false,
         })
     }
@@ -452,7 +452,7 @@ impl PersistentContainer {
     #[instrument(skip_all)]
     pub async fn exit(mut self) -> Result<(), Error> {
         if let Some(destroy) = self.destroy(false) {
-            dbg!(destroy.await)?;
+            destroy.await?;
         }
         tracing::info!("Service for {} exited", self.s9pk.as_manifest().id);
 

@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use tokio::process::Command;
@@ -10,17 +11,17 @@ use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::disk::REPAIR_DISK_PATH;
 use crate::firmware::{check_for_firmware_update, update_firmware};
-use crate::init::{InitPhases, InitResult, STANDBY_MODE_PATH};
-use crate::net::web_server::WebServer;
+use crate::init::{InitPhases, STANDBY_MODE_PATH};
+use crate::net::web_server::{UpgradableListener, WebServer};
 use crate::prelude::*;
 use crate::progress::FullProgressTracker;
 use crate::shutdown::Shutdown;
 use crate::util::Invoke;
-use crate::PLATFORM;
+use crate::{DATA_DIR, PLATFORM};
 
 #[instrument(skip_all)]
 async fn setup_or_init(
-    server: &mut WebServer,
+    server: &mut WebServer<UpgradableListener>,
     config: &ServerConfig,
 ) -> Result<Result<(RpcContext, FullProgressTracker), Shutdown>, Error> {
     if let Some(firmware) = check_for_firmware_update()
@@ -111,7 +112,7 @@ async fn setup_or_init(
         .await
         .is_err()
     {
-        let ctx = SetupContext::init(config)?;
+        let ctx = SetupContext::init(server, config)?;
 
         server.serve_setup(ctx.clone());
 
@@ -156,7 +157,7 @@ async fn setup_or_init(
             let disk_guid = Arc::new(String::from(guid_string.trim()));
             let requires_reboot = crate::disk::main::import(
                 &**disk_guid,
-                config.datadir(),
+                DATA_DIR,
                 if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
                     RepairStrategy::Aggressive
                 } else {
@@ -178,18 +179,26 @@ async fn setup_or_init(
             tracing::info!("Loaded Disk");
 
             if requires_reboot.0 {
+                tracing::info!("Rebooting...");
                 let mut reboot_phase = handle.add_phase("Rebooting".into(), Some(1));
                 reboot_phase.start();
                 return Ok(Err(Shutdown {
-                    export_args: Some((disk_guid, config.datadir().to_owned())),
+                    export_args: Some((disk_guid, Path::new(DATA_DIR).to_owned())),
                     restart: true,
                 }));
             }
 
-            let InitResult { net_ctrl } = crate::init::init(config, init_phases).await?;
+            let init_result =
+                crate::init::init(&server.acceptor_setter(), config, init_phases).await?;
 
-            let rpc_ctx =
-                RpcContext::init(config, disk_guid, Some(net_ctrl), rpc_ctx_phases).await?;
+            let rpc_ctx = RpcContext::init(
+                &server.acceptor_setter(),
+                config,
+                disk_guid,
+                Some(init_result),
+                rpc_ctx_phases,
+            )
+            .await?;
 
             Ok::<_, Error>(Ok((rpc_ctx, handle)))
         }
@@ -203,7 +212,7 @@ async fn setup_or_init(
 
 #[instrument(skip_all)]
 pub async fn main(
-    server: &mut WebServer,
+    server: &mut WebServer<UpgradableListener>,
     config: &ServerConfig,
 ) -> Result<Result<(RpcContext, FullProgressTracker), Shutdown>, Error> {
     if &*PLATFORM == "raspberrypi" && tokio::fs::metadata(STANDBY_MODE_PATH).await.is_ok() {

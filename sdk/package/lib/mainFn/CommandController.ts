@@ -23,7 +23,7 @@ export class CommandController {
       effects: T.Effects,
       subcontainer:
         | {
-            id: keyof Manifest["images"] & T.ImageId
+            imageId: keyof Manifest["images"] & T.ImageId
             sharedRun?: boolean
           }
         | SubContainer,
@@ -60,51 +60,59 @@ export class CommandController {
               }
               return subc
             })()
-      let childProcess: cp.ChildProcess
-      if (options.runAsInit) {
-        childProcess = await subc.launch(commands, {
-          env: options.env,
+
+      try {
+        let childProcess: cp.ChildProcess
+        if (options.runAsInit) {
+          childProcess = await subc.launch(commands, {
+            env: options.env,
+          })
+        } else {
+          childProcess = await subc.spawn(commands, {
+            env: options.env,
+            stdio: options.onStdout || options.onStderr ? "pipe" : "inherit",
+          })
+        }
+
+        if (options.onStdout) childProcess.stdout?.on("data", options.onStdout)
+        if (options.onStderr) childProcess.stderr?.on("data", options.onStderr)
+
+        const state = { exited: false }
+        const answer = new Promise<null>((resolve, reject) => {
+          childProcess.on("exit", (code) => {
+            state.exited = true
+            if (
+              code === 0 ||
+              code === 143 ||
+              (code === null && childProcess.signalCode == "SIGTERM")
+            ) {
+              return resolve(null)
+            }
+            if (code) {
+              return reject(
+                new Error(`${commands[0]} exited with code ${code}`),
+              )
+            } else {
+              return reject(
+                new Error(
+                  `${commands[0]} exited with signal ${childProcess.signalCode}`,
+                ),
+              )
+            }
+          })
         })
-      } else {
-        childProcess = await subc.spawn(commands, {
-          env: options.env,
-          stdio: options.onStdout || options.onStderr ? "pipe" : "inherit",
-        })
+
+        return new CommandController(
+          answer,
+          state,
+          subc,
+          childProcess,
+          options.sigtermTimeout,
+        )
+      } catch (e) {
+        await subc.destroy()
+        throw e
       }
-
-      if (options.onStdout) childProcess.stdout?.on("data", options.onStdout)
-      if (options.onStderr) childProcess.stderr?.on("data", options.onStderr)
-
-      const state = { exited: false }
-      const answer = new Promise<null>((resolve, reject) => {
-        childProcess.on("exit", (code) => {
-          state.exited = true
-          if (
-            code === 0 ||
-            code === 143 ||
-            (code === null && childProcess.signalCode == "SIGTERM")
-          ) {
-            return resolve(null)
-          }
-          if (code) {
-            return reject(new Error(`${commands[0]} exited with code ${code}`))
-          } else {
-            return reject(
-              new Error(
-                `${commands[0]} exited with signal ${childProcess.signalCode}`,
-              ),
-            )
-          }
-        })
-      })
-
-      return new CommandController(
-        answer,
-        state,
-        subc,
-        childProcess,
-        options.sigtermTimeout,
-      )
     }
   }
   get subContainerHandle() {
@@ -121,7 +129,7 @@ export class CommandController {
       if (!this.state.exited) {
         this.process.kill("SIGKILL")
       }
-      await this.subcontainer.destroy?.().catch((_) => {})
+      await this.subcontainer.destroy().catch((_) => {})
     }
   }
   async term({ signal = SIGTERM, timeout = this.sigtermTimeout } = {}) {
@@ -141,7 +149,7 @@ export class CommandController {
 
       await this.runningAnswer
     } finally {
-      await this.subcontainer.destroy?.()
+      await this.subcontainer.destroy()
     }
   }
 }

@@ -7,7 +7,7 @@ use futures::future::BoxFuture;
 use futures::{Future, FutureExt};
 use imbl::Vector;
 use imbl_value::{to_value, InternedString};
-use patch_db::json_ptr::{JsonPointer, ROOT};
+use patch_db::json_ptr::ROOT;
 
 use crate::context::RpcContext;
 use crate::db::model::Database;
@@ -29,7 +29,12 @@ mod v0_3_6_alpha_7;
 mod v0_3_6_alpha_8;
 mod v0_3_6_alpha_9;
 
-pub type Current = v0_3_6_alpha_9::Version; // VERSION_BUMP
+mod v0_3_6_alpha_10;
+mod v0_3_6_alpha_11;
+mod v0_3_6_alpha_12;
+mod v0_3_6_alpha_13;
+
+pub type Current = v0_3_6_alpha_13::Version; // VERSION_BUMP
 
 impl Current {
     #[instrument(skip(self, db))]
@@ -52,7 +57,7 @@ impl Current {
                 let pre_ups = PreUps::load(&from, &self).await?;
                 db.apply_function(|mut db| {
                     migrate_from_unchecked(&from, &self, pre_ups, &mut db)?;
-                    Ok::<_, Error>((db, ()))
+                    Ok::<_, Error>((to_value(&from_value::<Database>(db.clone())?)?, ()))
                 })
                 .await?;
             }
@@ -62,31 +67,44 @@ impl Current {
     }
 }
 
-pub async fn post_init(ctx: &RpcContext) -> Result<(), Error> {
-    let mut peek;
-    while let Some(version) = {
-        peek = ctx.db.peek().await;
-        peek.as_public()
-            .as_server_info()
-            .as_post_init_migration_todos()
-            .de()?
-            .first()
-            .cloned()
-            .map(Version::from_exver_version)
-            .as_ref()
-            .map(Version::as_version_t)
-            .transpose()?
-    } {
-        version.0.post_up(ctx).await?;
-        ctx.db
-            .mutate(|db| {
-                db.as_public_mut()
-                    .as_server_info_mut()
-                    .as_post_init_migration_todos_mut()
-                    .mutate(|m| Ok(m.remove(&version.0.semver())))
-            })
-            .await?;
+pub async fn post_init(
+    ctx: &RpcContext,
+    mut progress: PhaseProgressTrackerHandle,
+) -> Result<(), Error> {
+    let mut peek = ctx.db.peek().await;
+    let todos = peek
+        .as_public()
+        .as_server_info()
+        .as_post_init_migration_todos()
+        .de()?;
+    if !todos.is_empty() {
+        progress.set_total(todos.len() as u64);
+        while let Some(version) = {
+            peek = ctx.db.peek().await;
+            peek.as_public()
+                .as_server_info()
+                .as_post_init_migration_todos()
+                .de()?
+                .first()
+                .cloned()
+                .map(Version::from_exver_version)
+                .as_ref()
+                .map(Version::as_version_t)
+                .transpose()?
+        } {
+            version.0.post_up(ctx).await?;
+            ctx.db
+                .mutate(|db| {
+                    db.as_public_mut()
+                        .as_server_info_mut()
+                        .as_post_init_migration_todos_mut()
+                        .mutate(|m| Ok(m.remove(&version.0.semver())))
+                })
+                .await?;
+            progress += 1;
+        }
     }
+    progress.complete();
     Ok(())
 }
 
@@ -108,6 +126,10 @@ enum Version {
     V0_3_6_alpha_7(Wrapper<v0_3_6_alpha_7::Version>),
     V0_3_6_alpha_8(Wrapper<v0_3_6_alpha_8::Version>),
     V0_3_6_alpha_9(Wrapper<v0_3_6_alpha_9::Version>),
+    V0_3_6_alpha_10(Wrapper<v0_3_6_alpha_10::Version>),
+    V0_3_6_alpha_11(Wrapper<v0_3_6_alpha_11::Version>),
+    V0_3_6_alpha_12(Wrapper<v0_3_6_alpha_12::Version>),
+    V0_3_6_alpha_13(Wrapper<v0_3_6_alpha_13::Version>), // VERSION_BUMP
     Other(exver::Version),
 }
 
@@ -141,6 +163,10 @@ impl Version {
             Self::V0_3_6_alpha_7(v) => DynVersion(Box::new(v.0)),
             Self::V0_3_6_alpha_8(v) => DynVersion(Box::new(v.0)),
             Self::V0_3_6_alpha_9(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_10(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_11(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_12(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_13(v) => DynVersion(Box::new(v.0)), // VERSION_BUMP
             Self::Other(v) => {
                 return Err(Error::new(
                     eyre!("unknown version {v}"),
@@ -166,6 +192,10 @@ impl Version {
             Version::V0_3_6_alpha_7(Wrapper(x)) => x.semver(),
             Version::V0_3_6_alpha_8(Wrapper(x)) => x.semver(),
             Version::V0_3_6_alpha_9(Wrapper(x)) => x.semver(),
+            Version::V0_3_6_alpha_10(Wrapper(x)) => x.semver(),
+            Version::V0_3_6_alpha_11(Wrapper(x)) => x.semver(),
+            Version::V0_3_6_alpha_12(Wrapper(x)) => x.semver(),
+            Version::V0_3_6_alpha_13(Wrapper(x)) => x.semver(), // VERSION_BUMP
             Version::Other(x) => x.clone(),
         }
     }

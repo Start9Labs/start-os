@@ -21,7 +21,9 @@ impl KeyStore {
             local_certs: CertStore::new(account)?,
             acme: AcmeCertStore::new(),
         };
-        res.onion.insert(account.tor_key.clone());
+        for tor_key in account.tor_keys.iter().cloned() {
+            res.onion.insert(tor_key);
+        }
         Ok(res)
     }
 }

@@ -51,6 +51,7 @@ function todo(): never {
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
 export const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
 const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig" as utils.StorePath
+const EMBASSY_DEPENDS_ON_PATH_PREFIX = "/embassyDependsOn" as utils.StorePath
 
 const matchResult = object({
   result: any,
@@ -314,7 +315,7 @@ export class SystemForEmbassy implements System {
         )
         .catch(() => []),
     )
-    await this.setDependencies(effects, oldDeps)
+    await this.setDependencies(effects, oldDeps, false)
   }
 
   async exit(): Promise<void> {
@@ -401,6 +402,7 @@ export class SystemForEmbassy implements System {
         return [
           port,
           {
+            protocol: null,
             secure: null,
             preferredExternalPort: Number.parseInt(
               torPort || lanPort || String(port),
@@ -425,7 +427,6 @@ export class SystemForEmbassy implements System {
               name: interfaceValue.name,
               id: `${id}-${internal}`,
               description: interfaceValue.description,
-              hasPrimary: false,
               type:
                 interfaceValue.ui &&
                 (origin.scheme === "http" || origin.sslScheme === "https")
@@ -664,7 +665,7 @@ export class SystemForEmbassy implements System {
         ),
       )
       const dependsOn = answer["depends-on"] ?? answer.dependsOn ?? {}
-      await this.setDependencies(effects, dependsOn)
+      await this.setDependencies(effects, dependsOn, true)
       return
     } else if (setConfigValue.type === "script") {
       const moduleCode = await this.moduleCode
@@ -687,48 +688,47 @@ export class SystemForEmbassy implements System {
         }),
       )
       const dependsOn = answer["depends-on"] ?? answer.dependsOn ?? {}
-      await this.setDependencies(effects, dependsOn)
+      await this.setDependencies(effects, dependsOn, true)
       return
     }
   }
   private async setDependencies(
     effects: Effects,
     rawDepends: { [x: string]: readonly string[] },
+    configuring: boolean,
   ) {
-    const dependsOn: Record<string, readonly string[] | null> = {
+    const storedDependsOn = (await effects.store.get({
+      packageId: this.manifest.id,
+      path: EMBASSY_DEPENDS_ON_PATH_PREFIX,
+    })) as Record<string, readonly string[]>
+
+    const requiredDeps = {
       ...Object.fromEntries(
-        Object.entries(this.manifest.dependencies || {})?.map((x) => [
-          x[0],
-          null,
-        ]) || [],
+        Object.entries(this.manifest.dependencies || {})
+          ?.filter((x) => x[1].requirement.type === "required")
+          .map((x) => [x[0], []]) || [],
       ),
-      ...rawDepends,
     }
+
+    const dependsOn: Record<string, readonly string[]> = configuring
+      ? {
+          ...requiredDeps,
+          ...rawDepends,
+        }
+      : storedDependsOn
+        ? storedDependsOn
+        : requiredDeps
+
+    await effects.store.set({
+      path: EMBASSY_DEPENDS_ON_PATH_PREFIX,
+      value: dependsOn,
+    })
+
     await effects.setDependencies({
       dependencies: Object.entries(dependsOn).flatMap(
         ([key, value]): T.Dependencies => {
           const dependency = this.manifest.dependencies?.[key]
           if (!dependency) return []
-          if (value == null) {
-            const versionRange = dependency.version
-            if (dependency.requirement.type === "required") {
-              return [
-                {
-                  id: key,
-                  versionRange,
-                  kind: "running",
-                  healthChecks: [],
-                },
-              ]
-            }
-            return [
-              {
-                kind: "exists",
-                id: key,
-                versionRange,
-              },
-            ]
-          }
           const versionRange = dependency.version
           const kind = "running"
           return [

@@ -11,7 +11,7 @@ import { PATCH_CACHE } from 'src/app/services/patch-db/patch-db-source'
 import { ApiService } from './embassy-api.service'
 import { BackupTargetType, RR } from './api.types'
 import { ConfigService } from '../config.service'
-import { webSocket } from 'rxjs/webSocket'
+import { webSocket, WebSocketSubject } from 'rxjs/webSocket'
 import { Observable, filter, firstValueFrom } from 'rxjs'
 import { AuthService } from '../auth.service'
 import { DOCUMENT } from '@angular/common'
@@ -95,7 +95,7 @@ export class LiveApiService extends ApiService {
   openWebsocket$<T>(
     guid: string,
     config: RR.WebsocketConfig<T> = {},
-  ): Observable<T> {
+  ): WebSocketSubject<T> {
     const { location } = this.document.defaultView!
     const protocol = location.protocol === 'http:' ? 'ws' : 'wss'
     const host = location.host
@@ -458,16 +458,18 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'wifi.delete', params })
   }
 
-  // email
+  // smtp
 
-  async testEmail(params: RR.TestEmailReq): Promise<RR.TestEmailRes> {
-    return this.rpcRequest({ method: 'email.test', params })
+  async setSmtp(params: RR.SetSMTPReq): Promise<RR.SetSMTPRes> {
+    return this.rpcRequest({ method: 'server.set-smtp', params })
   }
 
-  async configureEmail(
-    params: RR.ConfigureEmailReq,
-  ): Promise<RR.ConfigureEmailRes> {
-    return this.rpcRequest({ method: 'email.configure', params })
+  async clearSmtp(params: RR.ClearSMTPReq): Promise<RR.ClearSMTPRes> {
+    return this.rpcRequest({ method: 'server.clear-smtp', params })
+  }
+
+  async testSmtp(params: RR.TestSMTPReq): Promise<RR.TestSMTPRes> {
+    return this.rpcRequest({ method: 'server.test-smtp', params })
   }
 
   // ssh
@@ -638,6 +640,118 @@ export class LiveApiService extends ApiService {
     params: RR.SetServiceOutboundProxyReq,
   ): Promise<RR.SetServiceOutboundProxyRes> {
     return this.rpcRequest({ method: 'package.proxy.set-outbound', params })
+  }
+
+  async removeAcme(params: RR.RemoveAcmeReq): Promise<RR.RemoveAcmeRes> {
+    return this.rpcRequest({
+      method: 'net.acme.delete',
+      params,
+    })
+  }
+
+  async initAcme(params: RR.InitAcmeReq): Promise<RR.InitAcmeRes> {
+    return this.rpcRequest({
+      method: 'net.acme.init',
+      params,
+    })
+  }
+
+  async addTorKey(params: RR.AddTorKeyReq): Promise<RR.AddTorKeyRes> {
+    return this.rpcRequest({
+      method: 'net.tor.key.add',
+      params,
+    })
+  }
+
+  async generateTorKey(params: RR.GenerateTorKeyReq): Promise<RR.AddTorKeyRes> {
+    return this.rpcRequest({
+      method: 'net.tor.key.generate',
+      params,
+    })
+  }
+
+  async serverBindingSetPubic(
+    params: RR.ServerBindingSetPublicReq,
+  ): Promise<RR.BindingSetPublicRes> {
+    return this.rpcRequest({
+      method: 'server.host.binding.set-public',
+      params,
+    })
+  }
+
+  async serverAddOnion(params: RR.ServerAddOnionReq): Promise<RR.AddOnionRes> {
+    return this.rpcRequest({
+      method: 'server.host.address.onion.add',
+      params,
+    })
+  }
+
+  async serverRemoveOnion(
+    params: RR.ServerRemoveOnionReq,
+  ): Promise<RR.RemoveOnionRes> {
+    return this.rpcRequest({
+      method: 'server.host.address.onion.remove',
+      params,
+    })
+  }
+
+  async serverAddDomain(
+    params: RR.ServerAddDomainReq,
+  ): Promise<RR.AddDomainRes> {
+    return this.rpcRequest({
+      method: 'server.host.address.domain.add',
+      params,
+    })
+  }
+
+  async serverRemoveDomain(
+    params: RR.ServerRemoveDomainReq,
+  ): Promise<RR.RemoveDomainRes> {
+    return this.rpcRequest({
+      method: 'server.host.address.domain.remove',
+      params,
+    })
+  }
+
+  async pkgBindingSetPubic(
+    params: RR.PkgBindingSetPublicReq,
+  ): Promise<RR.BindingSetPublicRes> {
+    return this.rpcRequest({
+      method: 'package.host.binding.set-public',
+      params,
+    })
+  }
+
+  async pkgAddOnion(params: RR.PkgAddOnionReq): Promise<RR.AddOnionRes> {
+    return this.rpcRequest({
+      method: 'package.host.address.onion.add',
+      params,
+    })
+  }
+
+  async pkgRemoveOnion(
+    params: RR.PkgRemoveOnionReq,
+  ): Promise<RR.RemoveOnionRes> {
+    return this.rpcRequest({
+      method: 'package.host.address.onion.remove',
+      params,
+    })
+  }
+
+  async pkgAddDomain(params: RR.PkgAddDomainReq): Promise<RR.AddDomainRes> {
+    return this.rpcRequest({
+      method: 'package.host.address.domain.add',
+      params,
+    })
+  }
+
+  async pkgRemoveDomain(
+    params: RR.PkgRemoveDomainReq,
+  ): Promise<RR.RemoveDomainRes> {
+    return this.rpcRequest({
+      method: 'package.host.address.domain.remove',
+      params,
+    })
   }
 
   private async rpcRequest<T>(

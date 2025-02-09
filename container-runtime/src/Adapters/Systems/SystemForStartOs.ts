@@ -74,8 +74,8 @@ export class SystemForStartOs implements System {
   async exit(): Promise<void> {}
 
   async start(effects: Effects): Promise<void> {
+    if (this.runningMain) return
     effects.constRetry = utils.once(() => effects.restart())
-    if (this.runningMain) await this.stop()
     let mainOnTerm: () => Promise<void> | undefined
     const started = async (onTerm: () => Promise<void>) => {
       await effects.setMainStatus({ status: "running" })
@@ -98,8 +98,11 @@ export class SystemForStartOs implements System {
 
   async stop(): Promise<void> {
     if (this.runningMain) {
-      await this.runningMain.stop()
-      this.runningMain = undefined
+      try {
+        await this.runningMain.stop()
+      } finally {
+        this.runningMain = undefined
+      }
     }
   }
 }

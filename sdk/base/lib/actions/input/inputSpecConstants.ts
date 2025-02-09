@@ -25,9 +25,9 @@ export const customSmtp = InputSpec.of<InputSpecOf<SmtpValue>, never>({
     name: "From Address",
     required: true,
     default: null,
-    placeholder: "<name>test@example.com",
+    placeholder: "Example Name <test@example.com>",
     inputmode: "email",
-    patterns: [Patterns.email],
+    patterns: [Patterns.emailWithName],
   }),
   login: Value.text({
     name: "Login",

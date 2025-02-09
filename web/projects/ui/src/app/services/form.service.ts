@@ -124,11 +124,6 @@ export class FormService {
           ),
           listValidators(spec),
         )
-      case 'file':
-        return this.formBuilder.control(
-          currentValue || null,
-          fileValidators(spec),
-        )
       case 'union':
         return this.getUnionObject(spec, currentValue)
       case 'toggle':
@@ -136,7 +131,7 @@ export class FormService {
         return this.formBuilder.control(value)
       case 'select':
         value = currentValue === undefined ? spec.default : currentValue
-        return this.formBuilder.control(value)
+        return this.formBuilder.control(value, [Validators.required])
       case 'multiselect':
         value = currentValue === undefined ? spec.default : currentValue
         return this.formBuilder.control(value, multiselectValidators(spec))

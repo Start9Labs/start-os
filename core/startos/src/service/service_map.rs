@@ -1,9 +1,11 @@
+use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
-use futures::{Future, FutureExt};
+use futures::stream::FuturesUnordered;
+use futures::{Future, FutureExt, StreamExt};
 use helpers::NonDetachingJoinHandle;
 use imbl::OrdMap;
 use imbl_value::InternedString;
@@ -27,6 +29,7 @@ use crate::service::start_stop::StartStop;
 use crate::service::{LoadDisposition, Service, ServiceRef};
 use crate::status::MainStatus;
 use crate::util::serde::Pem;
+use crate::DATA_DIR;
 
 pub type DownloadInstallFuture = BoxFuture<'static, Result<InstallFuture, Error>>;
 pub type InstallFuture = BoxFuture<'static, Result<(), Error>>;
@@ -66,8 +69,12 @@ impl ServiceMap {
         progress.start();
         let ids = ctx.db.peek().await.as_public().as_package_data().keys()?;
         progress.set_total(ids.len() as u64);
-        for id in ids {
-            if let Err(e) = self.load(ctx, &id, LoadDisposition::Retry).await {
+        let mut jobs = FuturesUnordered::new();
+        for id in &ids {
+            jobs.push(self.load(ctx, id, LoadDisposition::Retry));
+        }
+        while let Some(res) = jobs.next().await {
+            if let Err(e) = res {
                 tracing::error!("Error loading installed package as service: {e}");
                 tracing::debug!("{e:?}");
             }
@@ -220,8 +227,7 @@ impl ServiceMap {
         Ok(async move {
             let (installed_path, sync_progress_task) = reload_guard
                 .handle(async {
-                    let download_path = ctx
-                        .datadir
+                    let download_path = Path::new(DATA_DIR)
                         .join(PKG_ARCHIVE_DIR)
                         .join("downloading")
                         .join(&id)
@@ -251,8 +257,7 @@ impl ServiceMap {
                     file.sync_all().await?;
                     download_progress.complete();
 
-                    let installed_path = ctx
-                        .datadir
+                    let installed_path = Path::new(DATA_DIR)
                         .join(PKG_ARCHIVE_DIR)
                         .join("installed")
                         .join(&id)

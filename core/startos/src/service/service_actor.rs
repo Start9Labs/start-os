@@ -36,7 +36,7 @@ impl Actor for ServiceActor {
                     ServiceActorLoopNext::DontWait => (),
                 }
             }
-        })
+        });
     }
 }
 
@@ -92,7 +92,6 @@ async fn service_actor_loop(
                             ..
                         } => MainStatus::Stopped,
                     };
-                    let previous = i.as_status().de()?;
                     i.as_status_mut().ser(&main_status)?;
                     return Ok(previous
                         .major_changes(&main_status)

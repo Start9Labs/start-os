@@ -1,5 +1,7 @@
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { Mock } from './api.fixures'
+import { knownACME } from 'src/app/utils/acme'
+const version = require('../../../../../../package.json').version
 
 export const mockPatchData: DataModel = {
   ui: {
@@ -26,100 +28,158 @@ export const mockPatchData: DataModel = {
     ackInstructions: {},
   },
   serverInfo: {
+    arch: 'x86_64',
     id: 'abcdefgh',
-    version: '0.3.5.1',
-    country: 'us',
-    ui: [
-      {
-        kind: 'ip',
-        networkInterfaceId: 'elan0',
-        public: false,
-        hostname: {
-          kind: 'local',
-          value: 'adjective-noun.local',
-          port: null,
-          sslPort: 1111,
-        },
-      },
-      {
-        kind: 'onion',
-        hostname: {
-          value: 'myveryownspecialtoraddress.onion',
-          port: 80,
-          sslPort: 443,
-        },
-      },
-      {
-        kind: 'ip',
-        networkInterfaceId: 'elan0',
-        public: false,
-        hostname: {
-          kind: 'ipv4',
-          value: '192.168.1.5',
-          port: null,
-          sslPort: 1111,
-        },
-      },
-      {
-        kind: 'ip',
-        networkInterfaceId: 'elan0',
-        public: false,
-        hostname: {
-          kind: 'ipv6',
-          value: '[2001:db8:85a3:8d3:1319:8a2e:370:7348]',
-          port: null,
-          sslPort: 1111,
-        },
-      },
-    ],
-    network: {
-      domains: [],
-      start9ToSubdomain: null,
-      wifi: {
-        enabled: false,
-        lastRegion: null,
-        interface: 'test',
-        ssids: [],
-        selected: null,
-      },
-      wanConfig: {
-        upnp: false,
-        forwards: [
-          {
-            assigned: 443,
-            override: null,
-            target: 443,
-            error: null,
-          },
-          {
-            assigned: 80,
-            override: null,
-            target: 80,
-            error: null,
-          },
-          {
-            assigned: 8332,
-            override: null,
-            target: 8332,
-            error: null,
-          },
-        ],
-      },
-      proxies: [],
-      outboundProxy: null,
-    },
+    version,
     lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
+    networkInterfaces: {
+      eth0: {
+        public: false,
+        ipInfo: {
+          scopeId: 1,
+          deviceType: 'ethernet',
+          subnets: ['10.0.0.2/24'],
+          wanIp: null,
+          ntpServers: [],
+        },
+      },
+      wlan0: {
+        public: false,
+        ipInfo: {
+          scopeId: 2,
+          deviceType: 'wireless',
+          subnets: [
+            '10.0.90.12/24',
+            'fe80::cd00:0000:0cde:1257:0000:211e:72cd/64',
+          ],
+          wanIp: null,
+          ntpServers: [],
+        },
+      },
+    },
+    acme: {
+      [knownACME[0].url]: {
+        contact: ['mailto:support@start9.com'],
+      },
+    },
     unreadNotifications: {
       count: 4,
       recent: Mock.Notifications,
     },
-    eosVersionCompat: '>=0.3.0 <=0.3.0.1',
+    // password is asdfasdf
+    passwordHash:
+      '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+    packageVersionCompat: '>=0.3.0 <=0.3.6',
+    postInitMigrationTodos: [],
     statusInfo: {
       currentBackup: null,
       updated: false,
       updateProgress: null,
       restarting: false,
       shuttingDown: false,
+    },
+    hostname: 'random-words',
+    host: {
+      bindings: {
+        80: {
+          enabled: true,
+          net: {
+            assignedPort: null,
+            assignedSslPort: 443,
+            public: false,
+          },
+          options: {
+            preferredExternalPort: 80,
+            addSsl: {
+              preferredExternalPort: 443,
+              alpn: { specified: ['http/1.1', 'h2'] },
+            },
+            secure: null,
+          },
+        },
+      },
+      domains: {},
+      onions: ['myveryownspecialtoraddress'],
+      hostnameInfo: {
+        80: [
+          {
+            kind: 'ip',
+            networkInterfaceId: 'eth0',
+            public: false,
+            hostname: {
+              kind: 'local',
+              value: 'adjective-noun.local',
+              port: null,
+              sslPort: 443,
+            },
+          },
+          {
+            kind: 'ip',
+            networkInterfaceId: 'wlan0',
+            public: false,
+            hostname: {
+              kind: 'local',
+              value: 'adjective-noun.local',
+              port: null,
+              sslPort: 443,
+            },
+          },
+          {
+            kind: 'ip',
+            networkInterfaceId: 'eth0',
+            public: false,
+            hostname: {
+              kind: 'ipv4',
+              value: '10.0.0.1',
+              port: null,
+              sslPort: 443,
+            },
+          },
+          {
+            kind: 'ip',
+            networkInterfaceId: 'wlan0',
+            public: false,
+            hostname: {
+              kind: 'ipv4',
+              value: '10.0.0.2',
+              port: null,
+              sslPort: 443,
+            },
+          },
+          {
+            kind: 'ip',
+            networkInterfaceId: 'eth0',
+            public: false,
+            hostname: {
+              kind: 'ipv6',
+              value: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
+              scopeId: 2,
+              port: null,
+              sslPort: 443,
+            },
+          },
+          {
+            kind: 'ip',
+            networkInterfaceId: 'wlan0',
+            public: false,
+            hostname: {
+              kind: 'ipv6',
+              value: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
+              scopeId: 3,
+              port: null,
+              sslPort: 443,
+            },
+          },
+          {
+            kind: 'onion',
+            hostname: {
+              value: 'myveryownspecialtoraddress.onion',
+              port: 80,
+              sslPort: 443,
+            },
+          },
+        ],
+      },
     },
     pubkey: 'npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m',
     caFingerprint: 'SHA-256: 63 2B 11 99 44 40 17 DF 37 FC C3 DF 0F 3D 15',
@@ -171,6 +231,15 @@ export const mockPatchData: DataModel = {
           hasInput: true,
           group: null,
         },
+        rpc: {
+          name: 'Set RPC',
+          description: 'Create RPC Credentials',
+          warning: null,
+          visibility: 'enabled',
+          allowedStatuses: 'any',
+          hasInput: true,
+          group: null,
+        },
         properties: {
           name: 'View Properties',
           description: 'view important information about Bitcoin',
@@ -194,7 +263,6 @@ export const mockPatchData: DataModel = {
       serviceInterfaces: {
         ui: {
           id: 'ui',
-          hasPrimary: false,
           masked: false,
           name: 'Web UI',
           description:
@@ -211,7 +279,6 @@ export const mockPatchData: DataModel = {
         },
         rpc: {
           id: 'rpc',
-          hasPrimary: false,
           masked: false,
           name: 'RPC',
           description:
@@ -228,7 +295,6 @@ export const mockPatchData: DataModel = {
         },
         p2p: {
           id: 'p2p',
-          hasPrimary: true,
           masked: false,
           name: 'P2P',
           description:
@@ -247,9 +313,23 @@ export const mockPatchData: DataModel = {
       currentDependencies: {},
       hosts: {
         abcdefg: {
-          kind: 'multi',
-          bindings: [],
-          addresses: [],
+          bindings: {
+            80: {
+              enabled: true,
+              net: {
+                assignedPort: 80,
+                assignedSslPort: 443,
+                public: false,
+              },
+              options: {
+                addSsl: null,
+                preferredExternalPort: 443,
+                secure: { ssl: true },
+              },
+            },
+          },
+          onions: [],
+          domains: {},
           hostnameInfo: {
             80: [
               {
@@ -302,7 +382,8 @@ export const mockPatchData: DataModel = {
                 public: false,
                 hostname: {
                   kind: 'ipv6',
-                  value: '[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]',
+                  value: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
+                  scopeId: 2,
                   port: null,
                   sslPort: 1234,
                 },
@@ -313,7 +394,8 @@ export const mockPatchData: DataModel = {
                 public: false,
                 hostname: {
                   kind: 'ipv6',
-                  value: '[FE80:CD00:0000:0CDE:1257:0000:211E:1234]',
+                  value: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
+                  scopeId: 3,
                   port: null,
                   sslPort: 1234,
                 },
@@ -330,17 +412,45 @@ export const mockPatchData: DataModel = {
           },
         },
         bcdefgh: {
-          kind: 'multi',
-          bindings: [],
-          addresses: [],
+          bindings: {
+            8332: {
+              enabled: true,
+              net: {
+                assignedPort: 8332,
+                assignedSslPort: null,
+                public: false,
+              },
+              options: {
+                addSsl: null,
+                preferredExternalPort: 8332,
+                secure: { ssl: false },
+              },
+            },
+          },
+          onions: [],
+          domains: {},
           hostnameInfo: {
             8332: [],
           },
         },
         cdefghi: {
-          kind: 'multi',
-          bindings: [],
-          addresses: [],
+          bindings: {
+            8333: {
+              enabled: true,
+              net: {
+                assignedPort: 8333,
+                assignedSslPort: null,
+                public: false,
+              },
+              options: {
+                addSsl: null,
+                preferredExternalPort: 8333,
+                secure: { ssl: false },
+              },
+            },
+          },
+          onions: [],
+          domains: {},
           hostnameInfo: {
             8333: [],
           },
@@ -388,11 +498,29 @@ export const mockPatchData: DataModel = {
       status: {
         main: 'stopped',
       },
-      actions: {},
+      actions: {
+        config: {
+          name: 'Config',
+          description: 'LND needs configuration before starting',
+          warning: null,
+          visibility: 'enabled',
+          allowedStatuses: 'any',
+          hasInput: true,
+          group: null,
+        },
+        connect: {
+          name: 'Connect',
+          description: 'View LND connection details',
+          warning: null,
+          visibility: 'enabled',
+          allowedStatuses: 'any',
+          hasInput: true,
+          group: null,
+        },
+      },
       serviceInterfaces: {
         grpc: {
           id: 'grpc',
-          hasPrimary: false,
           masked: false,
           name: 'GRPC',
           description:
@@ -409,7 +537,6 @@ export const mockPatchData: DataModel = {
         },
         lndconnect: {
           id: 'lndconnect',
-          hasPrimary: false,
           masked: true,
           name: 'LND Connect',
           description:
@@ -426,7 +553,6 @@ export const mockPatchData: DataModel = {
         },
         p2p: {
           id: 'p2p',
-          hasPrimary: true,
           masked: false,
           name: 'P2P',
           description:
@@ -464,6 +590,24 @@ export const mockPatchData: DataModel = {
       developerKey: 'developer-key',
       outboundProxy: null,
       requestedActions: {
+        config: {
+          active: true,
+          request: {
+            packageId: 'lnd',
+            actionId: 'config',
+            severity: 'critical',
+            reason: 'LND needs configuration before starting',
+          },
+        },
+        connect: {
+          active: true,
+          request: {
+            packageId: 'lnd',
+            actionId: 'connect',
+            severity: 'important',
+            reason: 'View LND connection details',
+          },
+        },
         'bitcoind/config': {
           active: true,
           request: {
@@ -475,10 +619,24 @@ export const mockPatchData: DataModel = {
               kind: 'partial',
               value: {
                 color: '#ffffff',
+                testnet: false,
+              },
+            },
+          },
+        },
+        'bitcoind/rpc': {
+          active: true,
+          request: {
+            packageId: 'bitcoind',
+            actionId: 'rpc',
+            severity: 'important',
+            reason: `LND want's its own RPC credentials`,
+            input: {
+              kind: 'partial',
+              value: {
                 rpcsettings: {
                   rpcuser: 'lnd',
                 },
-                testnet: false,
               },
             },
           },

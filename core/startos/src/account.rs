@@ -24,7 +24,7 @@ pub struct AccountInfo {
     pub server_id: String,
     pub hostname: Hostname,
     pub password: String,
-    pub tor_key: TorSecretKeyV3,
+    pub tor_keys: Vec<TorSecretKeyV3>,
     pub root_ca_key: PKey<Private>,
     pub root_ca_cert: X509,
     pub ssh_key: ssh_key::PrivateKey,
@@ -34,7 +34,7 @@ impl AccountInfo {
     pub fn new(password: &str, start_time: SystemTime) -> Result<Self, Error> {
         let server_id = generate_id();
         let hostname = generate_hostname();
-        let tor_key = TorSecretKeyV3::generate();
+        let tor_key = vec![TorSecretKeyV3::generate()];
         let root_ca_key = generate_key()?;
         let root_ca_cert = make_root_cert(&root_ca_key, &hostname, start_time)?;
         let ssh_key = ssh_key::PrivateKey::from(ssh_key::private::Ed25519Keypair::random(
@@ -45,7 +45,7 @@ impl AccountInfo {
             server_id,
             hostname,
             password: hash_password(password)?,
-            tor_key,
+            tor_keys: tor_key,
             root_ca_key,
             root_ca_cert,
             ssh_key,
@@ -58,8 +58,11 @@ impl AccountInfo {
         let hostname = Hostname(db.as_public().as_server_info().as_hostname().de()?);
         let password = db.as_private().as_password().de()?;
         let key_store = db.as_private().as_key_store();
-        let tor_addr = db.as_public().as_server_info().as_onion_address().de()?;
-        let tor_key = key_store.as_onion().get_key(&tor_addr)?;
+        let tor_addrs = db.as_public().as_server_info().as_host().as_onions().de()?;
+        let tor_keys = tor_addrs
+            .into_iter()
+            .map(|tor_addr| key_store.as_onion().get_key(&tor_addr))
+            .collect::<Result<_, _>>()?;
         let cert_store = key_store.as_local_certs();
         let root_ca_key = cert_store.as_root_key().de()?.0;
         let root_ca_cert = cert_store.as_root_cert().de()?.0;
@@ -70,7 +73,7 @@ impl AccountInfo {
             server_id,
             hostname,
             password,
-            tor_key,
+            tor_keys,
             root_ca_key,
             root_ca_cert,
             ssh_key,
@@ -83,16 +86,15 @@ impl AccountInfo {
         server_info.as_id_mut().ser(&self.server_id)?;
         server_info.as_hostname_mut().ser(&self.hostname.0)?;
         server_info
-            .as_lan_address_mut()
-            .ser(&self.hostname.lan_address().parse()?)?;
-        server_info
             .as_pubkey_mut()
             .ser(&self.ssh_key.public_key().to_openssh()?)?;
-        let onion_address = self.tor_key.public().get_onion_address();
-        server_info.as_onion_address_mut().ser(&onion_address)?;
-        server_info
-            .as_tor_address_mut()
-            .ser(&format!("https://{onion_address}").parse()?)?;
+        server_info.as_host_mut().as_onions_mut().ser(
+            &self
+                .tor_keys
+                .iter()
+                .map(|tor_key| tor_key.public().get_onion_address())
+                .collect(),
+        )?;
         db.as_private_mut().as_password_mut().ser(&self.password)?;
         db.as_private_mut()
             .as_ssh_privkey_mut()
@@ -101,7 +103,9 @@ impl AccountInfo {
             .as_compat_s9pk_key_mut()
             .ser(Pem::new_ref(&self.compat_s9pk_key))?;
         let key_store = db.as_private_mut().as_key_store_mut();
-        key_store.as_onion_mut().insert_key(&self.tor_key)?;
+        for tor_key in &self.tor_keys {
+            key_store.as_onion_mut().insert_key(tor_key)?;
+        }
         let cert_store = key_store.as_local_certs_mut();
         cert_store
             .as_root_key_mut()

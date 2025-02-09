@@ -1615,7 +1615,43 @@ export module Mock {
             },
             internal: {
               name: 'Internal',
-              spec: ISB.InputSpec.of({}),
+              spec: ISB.InputSpec.of({
+                listitems: ISB.Value.list(
+                  ISB.List.text(
+                    {
+                      name: 'RPC Allowed IPs',
+                      minLength: 1,
+                      maxLength: 10,
+                      default: ['192.168.1.1'],
+                      description:
+                        'external ip addresses that are authorized to access your Bitcoin node',
+                      warning:
+                        'Any IP you allow here will have RPC access to your Bitcoin node.',
+                    },
+                    {
+                      patterns: [
+                        {
+                          regex:
+                            '((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|((^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]).){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$)|(^[a-z2-7]{16}\\.onion$)|(^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$))',
+                          description:
+                            'must be a valid ipv4, ipv6, or domain name',
+                        },
+                      ],
+                    },
+                  ),
+                ),
+                name: ISB.Value.text({
+                  name: 'Name',
+                  required: false,
+                  default: null,
+                  patterns: [
+                    {
+                      regex: '^[a-zA-Z]+$',
+                      description: 'Must contain only letters.',
+                    },
+                  ],
+                }),
+              }),
             },
             external: {
               name: 'External',
@@ -1763,6 +1799,10 @@ export module Mock {
     },
     'bitcoin-node': {
       selection: 'internal',
+      value: {
+        listitems: ['192.168.1.1', '192.1681.23'],
+        name: 'Matt',
+      },
     },
     port: 20,
     rpcallowip: undefined,
@@ -1797,6 +1837,15 @@ export module Mock {
         hasInput: true,
         group: null,
       },
+      rpc: {
+        name: 'Set RPC',
+        description: 'Create RPC Credentials',
+        warning: null,
+        visibility: 'enabled',
+        allowedStatuses: 'any',
+        hasInput: true,
+        group: null,
+      },
       properties: {
         name: 'View Properties',
         description: 'view important information about Bitcoin',
@@ -1820,7 +1869,6 @@ export module Mock {
     serviceInterfaces: {
       ui: {
         id: 'ui',
-        hasPrimary: false,
         masked: false,
         name: 'Web UI',
         description:
@@ -1837,7 +1885,6 @@ export module Mock {
       },
       rpc: {
         id: 'rpc',
-        hasPrimary: false,
         masked: false,
         name: 'RPC',
         description:
@@ -1854,7 +1901,6 @@ export module Mock {
       },
       p2p: {
         id: 'p2p',
-        hasPrimary: true,
         masked: false,
         name: 'P2P',
         description:
@@ -1873,9 +1919,23 @@ export module Mock {
     currentDependencies: {},
     hosts: {
       abcdefg: {
-        kind: 'multi',
-        bindings: [],
-        addresses: [],
+        bindings: {
+          80: {
+            enabled: true,
+            net: {
+              assignedPort: 80,
+              assignedSslPort: 443,
+              public: false,
+            },
+            options: {
+              addSsl: null,
+              preferredExternalPort: 443,
+              secure: { ssl: true },
+            },
+          },
+        },
+        onions: [],
+        domains: {},
         hostnameInfo: {
           80: [
             {
@@ -1928,7 +1988,8 @@ export module Mock {
               public: false,
               hostname: {
                 kind: 'ipv6',
-                value: '[FE80:CD00:0000:0CDE:1257:0000:211E:729CD]',
+                value: '[fe80:cd00:0000:0cde:1257:0000:211e:72cd]',
+                scopeId: 2,
                 port: null,
                 sslPort: 1234,
               },
@@ -1939,7 +2000,8 @@ export module Mock {
               public: false,
               hostname: {
                 kind: 'ipv6',
-                value: '[FE80:CD00:0000:0CDE:1257:0000:211E:1234]',
+                value: '[fe80:cd00:0000:0cde:1257:0000:211e:1234]',
+                scopeId: 3,
                 port: null,
                 sslPort: 1234,
               },
@@ -1956,17 +2018,45 @@ export module Mock {
         },
       },
       bcdefgh: {
-        kind: 'multi',
-        bindings: [],
-        addresses: [],
+        bindings: {
+          8332: {
+            enabled: true,
+            net: {
+              assignedPort: 8332,
+              assignedSslPort: null,
+              public: false,
+            },
+            options: {
+              addSsl: null,
+              preferredExternalPort: 8332,
+              secure: { ssl: false },
+            },
+          },
+        },
+        onions: [],
+        domains: {},
         hostnameInfo: {
           8332: [],
         },
       },
       cdefghi: {
-        kind: 'multi',
-        bindings: [],
-        addresses: [],
+        bindings: {
+          8333: {
+            enabled: true,
+            net: {
+              assignedPort: 8333,
+              assignedSslPort: null,
+              public: false,
+            },
+            options: {
+              addSsl: null,
+              preferredExternalPort: 8333,
+              secure: { ssl: false },
+            },
+          },
+        },
+        onions: [],
+        domains: {},
         hostnameInfo: {
           8333: [],
         },
@@ -2016,7 +2106,6 @@ export module Mock {
     serviceInterfaces: {
       ui: {
         id: 'ui',
-        hasPrimary: false,
         masked: false,
         name: 'Web UI',
         description: 'A launchable web app for Bitcoin Proxy',
@@ -2061,11 +2150,29 @@ export module Mock {
     status: {
       main: 'stopped',
     },
-    actions: {},
+    actions: {
+      config: {
+        name: 'Config',
+        description: 'LND needs configuration before starting',
+        warning: null,
+        visibility: 'enabled',
+        allowedStatuses: 'any',
+        hasInput: true,
+        group: null,
+      },
+      connect: {
+        name: 'Connect',
+        description: 'View LND connection details',
+        warning: null,
+        visibility: 'enabled',
+        allowedStatuses: 'any',
+        hasInput: true,
+        group: null,
+      },
+    },
     serviceInterfaces: {
       grpc: {
         id: 'grpc',
-        hasPrimary: false,
         masked: false,
         name: 'GRPC',
         description:
@@ -2082,7 +2189,6 @@ export module Mock {
       },
       lndconnect: {
         id: 'lndconnect',
-        hasPrimary: false,
         masked: true,
         name: 'LND Connect',
         description:
@@ -2099,7 +2205,6 @@ export module Mock {
       },
       p2p: {
         id: 'p2p',
-        hasPrimary: true,
         masked: false,
         name: 'P2P',
         description:
@@ -2136,6 +2241,24 @@ export module Mock {
     developerKey: 'developer-key',
     outboundProxy: null,
     requestedActions: {
+      config: {
+        active: true,
+        request: {
+          packageId: 'lnd',
+          actionId: 'config',
+          severity: 'critical',
+          reason: 'LND needs configuration before starting',
+        },
+      },
+      connect: {
+        active: true,
+        request: {
+          packageId: 'lnd',
+          actionId: 'connect',
+          severity: 'important',
+          reason: 'View LND connection details',
+        },
+      },
       'bitcoind/config': {
         active: true,
         request: {
@@ -2147,10 +2270,24 @@ export module Mock {
             kind: 'partial',
             value: {
               color: '#ffffff',
+              testnet: false,
+            },
+          },
+        },
+      },
+      'bitcoind/rpc': {
+        active: true,
+        request: {
+          packageId: 'bitcoind',
+          actionId: 'rpc',
+          severity: 'important',
+          reason: `LND want's its own RPC credentials`,
+          input: {
+            kind: 'partial',
+            value: {
               rpcsettings: {
                 rpcuser: 'lnd',
               },
-              testnet: false,
             },
           },
         },

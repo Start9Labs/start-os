@@ -1,134 +1,278 @@
-use std::convert::Infallible;
+use std::future::Future;
 use std::net::SocketAddr;
+use std::ops::Deref;
+use std::sync::atomic::AtomicBool;
+use std::sync::{Arc, RwLock};
 use std::task::Poll;
 use std::time::Duration;
 
-use axum::extract::Request;
 use axum::Router;
-use axum_server::Handle;
-use bytes::Bytes;
-use futures::future::{ready, BoxFuture};
+use futures::future::Either;
 use futures::FutureExt;
 use helpers::NonDetachingJoinHandle;
-use tokio::sync::{oneshot, watch};
+use hyper_util::rt::{TokioIo, TokioTimer};
+use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::oneshot;
 
 use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
+use crate::net::network_interface::{
+    NetworkInterfaceListener, SelfContainedNetworkInterfaceListener,
+};
 use crate::net::static_server::{
-    diagnostic_ui_router, init_ui_router, install_ui_router, main_ui_router, refresher,
+    diagnostic_ui_router, init_ui_router, install_ui_router, main_ui_router, redirecter, refresher,
     setup_ui_router,
 };
 use crate::prelude::*;
+use crate::util::actor::background::BackgroundJobQueue;
+use crate::util::sync::Watch;
 
-#[derive(Clone)]
-pub struct SwappableRouter(watch::Sender<Router>);
-impl SwappableRouter {
-    pub fn new(router: Router) -> Self {
-        Self(watch::channel(router).0)
-    }
-    pub fn swap(&self, router: Router) {
-        let _ = self.0.send_replace(router);
-    }
+pub struct Accepted {
+    pub https_redirect: bool,
+    pub stream: TcpStream,
 }
 
-pub struct SwappableRouterService {
-    router: watch::Receiver<Router>,
-    changed: Option<BoxFuture<'static, ()>>,
+pub trait Accept {
+    fn poll_accept(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>>;
 }
-impl SwappableRouterService {
-    fn router(&self) -> Router {
-        self.router.borrow().clone()
-    }
-    fn changed(&mut self, cx: &mut std::task::Context<'_>) -> Poll<()> {
-        let mut changed = if let Some(changed) = self.changed.take() {
-            changed
-        } else {
-            let mut router = self.router.clone();
-            async move {
-                router.changed().await;
+
+impl Accept for Vec<TcpListener> {
+    fn poll_accept(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>> {
+        for listener in &*self {
+            if let Poll::Ready((stream, _)) = listener.poll_accept(cx)? {
+                return Poll::Ready(Ok(Accepted {
+                    https_redirect: false,
+                    stream,
+                }));
             }
-            .boxed()
-        };
-        if changed.poll_unpin(cx).is_ready() {
-            return Poll::Ready(());
         }
-        self.changed = Some(changed);
         Poll::Pending
     }
 }
-impl Clone for SwappableRouterService {
-    fn clone(&self) -> Self {
+impl Accept for NetworkInterfaceListener {
+    fn poll_accept(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>> {
+        NetworkInterfaceListener::poll_accept(self, cx, true).map(|res| {
+            res.map(|a| Accepted {
+                https_redirect: a.is_public,
+                stream: a.stream,
+            })
+        })
+    }
+}
+
+impl<A: Accept, B: Accept> Accept for Either<A, B> {
+    fn poll_accept(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>> {
+        match self {
+            Either::Left(a) => a.poll_accept(cx),
+            Either::Right(b) => b.poll_accept(cx),
+        }
+    }
+}
+impl<A: Accept> Accept for Option<A> {
+    fn poll_accept(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>> {
+        match self {
+            None => Poll::Pending,
+            Some(a) => a.poll_accept(cx),
+        }
+    }
+}
+
+#[pin_project::pin_project]
+pub struct Acceptor<A: Accept> {
+    acceptor: Watch<A>,
+}
+impl<A: Accept + Send + Sync + 'static> Acceptor<A> {
+    pub fn new(acceptor: A) -> Self {
         Self {
-            router: self.router.clone(),
-            changed: None,
+            acceptor: Watch::new(acceptor),
         }
+    }
+
+    fn poll_changed(&mut self, cx: &mut std::task::Context<'_>) -> Poll<()> {
+        self.acceptor.poll_changed(cx)
+    }
+
+    fn poll_accept(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>> {
+        let _ = self.poll_changed(cx);
+        self.acceptor.peek_mut(|a| a.poll_accept(cx))
+    }
+
+    async fn accept(&mut self) -> Result<Accepted, Error> {
+        std::future::poll_fn(|cx| self.poll_accept(cx)).await
     }
 }
-impl<B> tower_service::Service<Request<B>> for SwappableRouterService
-where
-    B: axum::body::HttpBody<Data = Bytes> + Send + 'static,
-    B::Error: Into<axum::BoxError>,
-{
-    type Response = <Router as tower_service::Service<Request<B>>>::Response;
-    type Error = <Router as tower_service::Service<Request<B>>>::Error;
-    type Future = <Router as tower_service::Service<Request<B>>>::Future;
-    #[inline]
-    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<(), Self::Error>> {
-        if self.changed(cx).is_ready() {
-            return Poll::Ready(Ok(()));
-        }
-        tower_service::Service::<Request<B>>::poll_ready(&mut self.router(), cx)
-    }
-    fn call(&mut self, req: Request<B>) -> Self::Future {
-        self.router().call(req)
+impl Acceptor<Vec<TcpListener>> {
+    pub async fn bind(listen: impl IntoIterator<Item = SocketAddr>) -> Result<Self, Error> {
+        Ok(Self::new(
+            futures::future::try_join_all(listen.into_iter().map(TcpListener::bind)).await?,
+        ))
     }
 }
 
-impl<T> tower_service::Service<T> for SwappableRouter {
-    type Response = SwappableRouterService;
-    type Error = Infallible;
-    type Future = futures::future::Ready<Result<Self::Response, Self::Error>>;
-    #[inline]
-    fn poll_ready(
-        &mut self,
-        _: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Result<(), Self::Error>> {
-        Poll::Ready(Ok(()))
-    }
-    fn call(&mut self, _: T) -> Self::Future {
-        ready(Ok(SwappableRouterService {
-            router: self.0.subscribe(),
-            changed: None,
-        }))
+pub type UpgradableListener =
+    Option<Either<SelfContainedNetworkInterfaceListener, NetworkInterfaceListener>>;
+
+impl Acceptor<UpgradableListener> {
+    pub fn bind_upgradable(listener: SelfContainedNetworkInterfaceListener) -> Self {
+        Self::new(Some(Either::Left(listener)))
     }
 }
 
-pub struct WebServer {
+pub struct WebServerAcceptorSetter<A: Accept> {
+    acceptor: Watch<A>,
+}
+impl<A: Accept, B: Accept> WebServerAcceptorSetter<Option<Either<A, B>>> {
+    pub fn try_upgrade<F: FnOnce(A) -> Result<B, Error>>(&self, f: F) -> Result<(), Error> {
+        let mut res = Ok(());
+        self.acceptor.send_modify(|a| {
+            *a = match a.take() {
+                Some(Either::Left(a)) => match f(a) {
+                    Ok(b) => Some(Either::Right(b)),
+                    Err(e) => {
+                        res = Err(e);
+                        None
+                    }
+                },
+                x => x,
+            }
+        });
+        res
+    }
+}
+impl<A: Accept> Deref for WebServerAcceptorSetter<A> {
+    type Target = Watch<A>;
+    fn deref(&self) -> &Self::Target {
+        &self.acceptor
+    }
+}
+
+pub struct WebServer<A: Accept> {
     shutdown: oneshot::Sender<()>,
-    router: SwappableRouter,
+    router: Watch<Option<Router>>,
+    acceptor: Watch<A>,
     thread: NonDetachingJoinHandle<()>,
 }
-impl WebServer {
-    pub fn new(bind: SocketAddr) -> Self {
-        let router = SwappableRouter::new(refresher());
-        let thread_router = router.clone();
+impl<A: Accept + Send + Sync + 'static> WebServer<A> {
+    pub fn acceptor_setter(&self) -> WebServerAcceptorSetter<A> {
+        WebServerAcceptorSetter {
+            acceptor: self.acceptor.clone(),
+        }
+    }
+
+    pub fn new(mut acceptor: Acceptor<A>) -> Self {
+        let acceptor_send = acceptor.acceptor.clone();
+        let router = Watch::<Option<Router>>::new(None);
+        let service = router.clone_unseen();
         let (shutdown, shutdown_recv) = oneshot::channel();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
-            let handle = Handle::new();
-            let mut server = axum_server::bind(bind).handle(handle.clone());
-            server.http_builder().http1().preserve_header_case(true);
-            server.http_builder().http1().title_case_headers(true);
+            #[derive(Clone)]
+            struct QueueRunner {
+                queue: Arc<RwLock<Option<BackgroundJobQueue>>>,
+            }
+            impl<Fut> hyper::rt::Executor<Fut> for QueueRunner
+            where
+                Fut: Future + Send + 'static,
+            {
+                fn execute(&self, fut: Fut) {
+                    if let Some(q) = &*self.queue.read().unwrap() {
+                        q.add_job(fut);
+                    } else {
+                        tracing::warn!("job queued after shutdown");
+                    }
+                }
+            }
 
-            if let (Err(e), _) = tokio::join!(server.serve(thread_router), async {
-                let _ = shutdown_recv.await;
-                handle.graceful_shutdown(Some(Duration::from_secs(0)));
-            }) {
-                tracing::error!("Spawning hyper server error: {}", e);
+            struct SwappableRouter(Watch<Option<Router>>, bool);
+            impl hyper::service::Service<hyper::Request<hyper::body::Incoming>> for SwappableRouter {
+                type Response = <Router as tower_service::Service<
+                    hyper::Request<hyper::body::Incoming>,
+                >>::Response;
+                type Error = <Router as tower_service::Service<
+                    hyper::Request<hyper::body::Incoming>,
+                >>::Error;
+                type Future = <Router as tower_service::Service<
+                    hyper::Request<hyper::body::Incoming>,
+                >>::Future;
+
+                fn call(&self, req: hyper::Request<hyper::body::Incoming>) -> Self::Future {
+                    use tower_service::Service;
+
+                    if self.1 {
+                        redirecter().call(req)
+                    } else {
+                        let router = self.0.read();
+                        if let Some(mut router) = router {
+                            router.call(req)
+                        } else {
+                            refresher().call(req)
+                        }
+                    }
+                }
+            }
+
+            let accept = AtomicBool::new(true);
+            let queue_cell = Arc::new(RwLock::new(None));
+            let graceful = hyper_util::server::graceful::GracefulShutdown::new();
+            let mut server = hyper_util::server::conn::auto::Builder::new(QueueRunner {
+                queue: queue_cell.clone(),
+            });
+            server
+                .http1()
+                .timer(TokioTimer::new())
+                .title_case_headers(true)
+                .preserve_header_case(true)
+                .http2()
+                .timer(TokioTimer::new())
+                .enable_connect_protocol()
+                .keep_alive_interval(Duration::from_secs(60))
+                .keep_alive_timeout(Duration::from_secs(300));
+            let (queue, mut runner) = BackgroundJobQueue::new();
+            *queue_cell.write().unwrap() = Some(queue.clone());
+
+            let handler = async {
+                loop {
+                    if let Err(e) = async {
+                        let accepted = acceptor.accept().await?;
+                        queue.add_job(
+                            graceful.watch(
+                                server
+                                    .serve_connection_with_upgrades(
+                                        TokioIo::new(accepted.stream),
+                                        SwappableRouter(service.clone(), accepted.https_redirect),
+                                    )
+                                    .into_owned(),
+                            ),
+                        );
+
+                        Ok::<_, Error>(())
+                    }
+                    .await
+                    {
+                        tracing::error!("Error accepting HTTP connection: {e}");
+                        tracing::debug!("{e:?}");
+                    }
+                }
+            }
+            .boxed();
+
+            tokio::select! {
+                _ = shutdown_recv => (),
+                _ = handler => (),
+                _ = &mut runner => (),
+            }
+
+            accept.store(false, std::sync::atomic::Ordering::SeqCst);
+            drop(queue);
+            drop(queue_cell.write().unwrap().take());
+
+            if !runner.is_empty() {
+                runner.await;
             }
         }));
         Self {
             shutdown,
             router,
             thread,
+            acceptor: acceptor_send,
         }
     }
 
@@ -138,7 +282,7 @@ impl WebServer {
     }
 
     pub fn serve_router(&mut self, router: Router) {
-        self.router.swap(router)
+        self.router.send(Some(router))
     }
 
     pub fn serve_main(&mut self, ctx: RpcContext) {
