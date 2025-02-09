@@ -232,6 +232,15 @@ export const mockPatchData: DataModel = {
           hasInput: true,
           group: null,
         },
+        rpc: {
+          name: 'Set RPC',
+          description: 'Create RPC Credentials',
+          warning: null,
+          visibility: 'enabled',
+          allowedStatuses: 'any',
+          hasInput: true,
+          group: null,
+        },
         properties: {
           name: 'View Properties',
           description: 'view important information about Bitcoin',
@@ -487,7 +496,26 @@ export const mockPatchData: DataModel = {
       status: {
         main: 'stopped',
       },
-      actions: {},
+      actions: {
+        config: {
+          name: 'Config',
+          description: 'LND needs configuration before starting',
+          warning: null,
+          visibility: 'enabled',
+          allowedStatuses: 'any',
+          hasInput: true,
+          group: null,
+        },
+        connect: {
+          name: 'Connect',
+          description: 'View LND connection details',
+          warning: null,
+          visibility: 'enabled',
+          allowedStatuses: 'any',
+          hasInput: true,
+          group: null,
+        },
+      },
       serviceInterfaces: {
         grpc: {
           id: 'grpc',
@@ -559,6 +587,24 @@ export const mockPatchData: DataModel = {
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
       requestedActions: {
+        config: {
+          active: true,
+          request: {
+            packageId: 'lnd',
+            actionId: 'config',
+            severity: 'critical',
+            reason: 'LND needs configuration before starting',
+          },
+        },
+        connect: {
+          active: true,
+          request: {
+            packageId: 'lnd',
+            actionId: 'connect',
+            severity: 'important',
+            reason: 'View LND connection details',
+          },
+        },
         'bitcoind/config': {
           active: true,
           request: {
@@ -570,10 +616,24 @@ export const mockPatchData: DataModel = {
               kind: 'partial',
               value: {
                 color: '#ffffff',
+                testnet: false,
+              },
+            },
+          },
+        },
+        'bitcoind/rpc': {
+          active: true,
+          request: {
+            packageId: 'bitcoind',
+            actionId: 'rpc',
+            severity: 'important',
+            reason: `LND want's its own RPC credentials`,
+            input: {
+              kind: 'partial',
+              value: {
                 rpcsettings: {
                   rpcuser: 'lnd',
                 },
-                testnet: false,
               },
             },
           },

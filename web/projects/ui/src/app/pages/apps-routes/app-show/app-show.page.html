@@ -35,6 +35,9 @@
           <app-show-dependencies
             *ngIf="pkgPlus.dependencies.length"
             [dependencies]="pkgPlus.dependencies"
+            [allPkgs]="pkgPlus.allPkgs"
+            [pkg]="pkg"
+            [manifest]="pkgPlus.manifest"
           ></app-show-dependencies>
           <!-- ** menu ** -->
           <app-show-menu [buttons]="pkg | toButtons"></app-show-menu>

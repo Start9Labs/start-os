@@ -1,5 +1,5 @@
-.light {
-  color: var(--ion-color-dark);
+ion-icon {
+  margin-right: 32px;
 }
 
 .highlighted {
@@ -7,10 +7,33 @@
   font-weight: bold;
 }
 
-.dependency {
-  display: inline-flex;
-  img {
-    max-width: 16px;
-    margin: 0 2px 0 5px;
+.severity {
+  font-variant-caps: all-small-caps;
+  font-weight: bold;
+  letter-spacing: 0.2px;
+  font-size: 16px;
+}
+
+.line {
+
+  &:after {
+    content: '';
+    display: block;
+    border-left: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    height: 100%;
+    width: 24px;
+    position: absolute;
+    left: -20px;
+    top: -33px;
   }
+}
+
+.indent { 
+  margin-left: 41px
+}
+
+:host ::ng-deep ion-item {
+  display: table-row;
+  width: fit-content;
 }

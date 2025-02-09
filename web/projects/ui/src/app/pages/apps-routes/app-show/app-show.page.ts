@@ -143,7 +143,7 @@ export class AppShowPage {
         fixText = 'Update'
         fixAction = () => this.installDep(pkg, manifest, depId)
       } else if (depError.type === 'actionRequired') {
-        errorText = 'Action Required (see above)'
+        errorText = 'Action Required (see below)'
       } else if (depError.type === 'notRunning') {
         errorText = 'Not running'
         fixText = 'Start'
