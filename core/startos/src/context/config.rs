@@ -63,7 +63,7 @@ pub trait ContextConfig: DeserializeOwned + Default {
 pub struct ClientConfig {
     #[arg(short = 'c', long = "config")]
     pub config: Option<PathBuf>,
-    #[arg(short = 'h', long = "host")]
+    #[arg(short = 'H', long = "host")]
     pub host: Option<Url>,
     #[arg(short = 'r', long = "registry")]
     pub registry: Option<Url>,
