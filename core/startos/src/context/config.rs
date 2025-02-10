@@ -61,17 +61,17 @@ pub trait ContextConfig: DeserializeOwned + Default {
 #[command(name = "start-cli")]
 #[command(version = crate::version::Current::default().semver().to_string())]
 pub struct ClientConfig {
-    #[arg(short = 'c', long = "config")]
+    #[arg(short = 'c', long)]
     pub config: Option<PathBuf>,
-    #[arg(short = 'H', long = "host")]
+    #[arg(short = 'H', long)]
     pub host: Option<Url>,
-    #[arg(short = 'r', long = "registry")]
+    #[arg(short = 'r', long)]
     pub registry: Option<Url>,
-    #[arg(short = 'p', long = "proxy")]
+    #[arg(short = 'p', long)]
     pub proxy: Option<Url>,
-    #[arg(long = "cookie-path")]
+    #[arg(long)]
     pub cookie_path: Option<PathBuf>,
-    #[arg(long = "developer-key-path")]
+    #[arg(long)]
     pub developer_key_path: Option<PathBuf>,
 }
 impl ContextConfig for ClientConfig {
