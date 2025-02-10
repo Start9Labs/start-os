@@ -20,7 +20,7 @@ pub fn init(ctx: CliContext) -> Result<(), Error> {
                 .with_ctx(|_| (crate::ErrorKind::Filesystem, parent.display().to_string()))?;
         }
         tracing::info!("Generating new developer key...");
-        let secret = SigningKey::generate(&mut rand::thread_rng());
+        let secret = SigningKey::generate(&mut ssh_key::rand_core::OsRng::default());
         tracing::info!("Writing key to {}", ctx.developer_key_path.display());
         let keypair_bytes = ed25519::KeypairBytes {
             secret_key: secret.to_bytes(),

@@ -13,6 +13,7 @@ use crate::disk::OsPartitionInfo;
 use crate::init::init_postgres;
 use crate::prelude::*;
 use crate::util::serde::IoFormat;
+use crate::version::VersionT;
 use crate::MAIN_DATA;
 
 pub const DEVICE_CONFIG_PATH: &str = "/media/startos/config/config.yaml"; // "/media/startos/config/config.yaml";
@@ -57,6 +58,8 @@ pub trait ContextConfig: DeserializeOwned + Default {
 #[derive(Debug, Default, Deserialize, Serialize, Parser)]
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
+#[command(name = "start-cli")]
+#[command(version = crate::version::Current::default().semver().to_string())]
 pub struct ClientConfig {
     #[arg(short = 'c', long = "config")]
     pub config: Option<PathBuf>,

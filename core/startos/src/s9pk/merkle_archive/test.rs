@@ -51,7 +51,7 @@ fn test(files: Vec<(PathBuf, String)>) -> Result<(), Error> {
             check_set.insert(path.to_owned(), content);
         }
     }
-    let key = SigningKey::generate(&mut rand::thread_rng());
+    let key = SigningKey::generate(&mut ssh_key::rand_core::OsRng::default());
     let mut a1 = MerkleArchive::new(root, key, "test");
     tokio::runtime::Builder::new_current_thread()
         .enable_io()

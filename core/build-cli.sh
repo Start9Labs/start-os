@@ -40,11 +40,15 @@ if [[ "${ENVIRONMENT}" =~ (^|-)unstable($|-) ]]; then
 	RUSTFLAGS="--cfg tokio_unstable"
 fi
 
-alias 'rust-zig-builder'='docker run $USE_TTY --rm -e "RUSTFLAGS=$RUSTFLAGS" -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$HOME/.cargo/git":/root/.cargo/git -v "$(pwd)":/home/rust/src -w /home/rust/src -P messense/cargo-zigbuild'
+if which zig > /dev/null && [ "$ENFORCE_USE_DOCKER" != 1 ]; do
+	echo "FEATURES=\"$FEATURES\""
+	echo "RUSTFLAGS=\"$RUSTFLAGS\""
+	RUSTFLAGS=$RUSTFLAGS sh -c "cd core && cargo zigbuild --release --no-default-features --features cli,$FEATURES --locked --bin start-cli --target=$TARGET"
+else
+	alias 'rust-zig-builder'='docker run $USE_TTY --rm -e "RUSTFLAGS=$RUSTFLAGS" -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$HOME/.cargo/git":/root/.cargo/git -v "$(pwd)":/home/rust/src -w /home/rust/src -P messense/cargo-zigbuild'
+	RUSTFLAGS=$RUSTFLAGS rust-zig-builder sh -c "cd core && cargo zigbuild --release --no-default-features --features cli,$FEATURES --locked --bin start-cli --target=$TARGET"
 
-echo "FEATURES=\"$FEATURES\""
-echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-zig-builder sh -c "cd core && cargo zigbuild --release --no-default-features --features cli,daemon,$FEATURES --locked --bin start-cli --target=$TARGET"
-if [ "$(ls -nd core/target/$TARGET/release/start-cli | awk '{ print $3 }')" != "$UID" ]; then
-	rust-zig-builder sh -c "cd core && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
+	if [ "$(ls -nd core/target/$TARGET/release/start-cli | awk '{ print $3 }')" != "$UID" ]; then
+		rust-zig-builder sh -c "cd core && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
+	fi
 fi
