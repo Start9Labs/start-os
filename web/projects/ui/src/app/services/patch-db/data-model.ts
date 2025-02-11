@@ -3,7 +3,16 @@ import { T } from '@start9labs/start-sdk'
 
 export type DataModel = {
   ui: UIData
-  serverInfo: ServerInfo
+  serverInfo: Omit<
+    T.Public['serverInfo'],
+    'wifi' | 'unreadNotificationCount'
+  > & {
+    network: NetworkInfo
+    unreadNotifications: {
+      count: number
+      recent: ServerNotifications
+    }
+  }
   packageData: Record<string, PackageDataEntry>
 }
 
@@ -17,7 +26,6 @@ export type UIData = {
   }
   ackInstructions: Record<string, boolean>
   theme: string
-  desktop: readonly string[]
 }
 
 export type UIMarketplaceData = {
@@ -31,30 +39,6 @@ export type UIMarketplaceData = {
 
 export type UIStore = {
   name?: string
-}
-
-export type ServerInfo = {
-  id: string
-  version: string
-  country: string
-  ui: T.HostnameInfo[]
-  network: NetworkInfo
-  lastBackup: string | null
-  unreadNotifications: {
-    count: number
-    recent: ServerNotifications
-  }
-  statusInfo: ServerStatusInfo
-  eosVersionCompat: string
-  pubkey: string
-  caFingerprint: string
-  ntpSynced: boolean
-  smtp: T.SmtpValue | null
-  passwordHash: string
-  platform: string
-  arch: string
-  governor: string | null
-  zram: boolean
 }
 
 export type NetworkInfo = {

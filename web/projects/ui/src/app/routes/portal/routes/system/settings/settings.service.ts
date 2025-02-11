@@ -107,27 +107,6 @@ export class SettingsService {
         icon: '@tui.monitor',
         routerLink: 'ui',
       },
-      {
-        title: 'Restart',
-        icon: '@tui.refresh-cw',
-        description: 'Restart Start OS server',
-        action: () => this.promptPower('Restart'),
-      },
-      {
-        title: 'Shutdown',
-        icon: '@tui.power',
-        description: 'Turn Start OS server off',
-        action: () => this.promptPower('Shutdown'),
-      },
-      {
-        title: 'Logout',
-        icon: '@tui.log-out',
-        description: 'Log off from Start OS',
-        action: () => {
-          this.api.logout({}).catch(e => console.error('Failed to log out', e))
-          this.auth.setUnverified()
-        },
-      },
     ],
     'Privacy and Security': [
       {
@@ -148,6 +127,29 @@ export class SettingsService {
         description: 'View and manage device access',
         icon: '@tui.clock',
         routerLink: 'sessions',
+      },
+    ],
+    Power: [
+      {
+        title: 'Restart',
+        icon: '@tui.refresh-cw',
+        description: 'Restart Start OS server',
+        action: () => this.promptPower('Restart'),
+      },
+      {
+        title: 'Shutdown',
+        icon: '@tui.power',
+        description: 'Turn Start OS server off',
+        action: () => this.promptPower('Shutdown'),
+      },
+      {
+        title: 'Logout',
+        icon: '@tui.log-out',
+        description: 'Log off from Start OS',
+        action: () => {
+          this.api.logout({}).catch(e => console.error('Failed to log out', e))
+          this.auth.setUnverified()
+        },
       },
     ],
   }

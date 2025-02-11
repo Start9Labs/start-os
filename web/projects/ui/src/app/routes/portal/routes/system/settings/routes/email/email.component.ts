@@ -29,6 +29,16 @@ import { EmailInfoComponent } from './info.component'
           [spec]="resolved"
         ></form-group>
         <button
+          *ngIf="isSaved"
+          tuiButton
+          appearance="destructive"
+          [style.margin-top.rem]="1"
+          [style.margin-right.rem]="1"
+          (click)="save(null)"
+        >
+          Delete
+        </button>
+        <button
           tuiButton
           [style.margin-top.rem]="1"
           [disabled]="form.invalid"
@@ -80,6 +90,8 @@ export class SettingsEmailComponent {
   private readonly api = inject(ApiService)
 
   testAddress = ''
+  isSaved = false
+
   readonly spec: Promise<IST.InputSpec> = configBuilderToSpec(
     inputSpec.constants.customSmtp,
   )
@@ -91,13 +103,19 @@ export class SettingsEmailComponent {
       ),
     )
 
-  async save(value: unknown): Promise<void> {
+  async save(
+    value: typeof inputSpec.constants.customSmtp._TYPE | null,
+  ): Promise<void> {
     const loader = this.loader.open('Saving...').subscribe()
 
     try {
-      await this.api.configureEmail(
-        inputSpec.constants.customSmtp.validator.unsafeCast(value),
-      )
+      if (value) {
+        await this.api.setSmtp(value)
+        this.isSaved = true
+      } else {
+        await this.api.clearSmtp({})
+        this.isSaved = false
+      }
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -109,7 +127,7 @@ export class SettingsEmailComponent {
     const loader = this.loader.open('Sending...').subscribe()
 
     try {
-      await this.api.testEmail({
+      await this.api.testSmtp({
         to: this.testAddress,
         ...form.value,
       })

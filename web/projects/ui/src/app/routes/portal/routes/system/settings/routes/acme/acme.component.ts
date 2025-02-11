@@ -1,21 +1,31 @@
-import { Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { DataModel } from '../../../services/patch-db/data-model'
-import { FormDialogService } from '../../../services/form-dialog.service'
-import { FormComponent } from '../../../components/form.component'
-import { configBuilderToSpec } from '../../../util/configBuilderToSpec'
 import { ISB, utils } from '@start9labs/start-sdk'
-import { knownACME, toAcmeName } from 'src/app/util/acme'
+import { knownACME, toAcmeName } from 'src/app/utils/acme'
 import { map } from 'rxjs'
+import { CommonModule } from '@angular/common'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
+import { FormDialogService } from 'src/app/services/form-dialog.service'
+import { FormComponent } from 'src/app/routes/portal/components/form.component'
 
 @Component({
   selector: 'acme',
-  templateUrl: 'acme.page.html',
-  styleUrls: ['acme.page.scss'],
+  template: ``,
+  styles: [],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  standalone: true,
+  imports: [CommonModule],
 })
-export class ACMEPage {
+export class SettingsACMEComponent {
+  private readonly formDialog = inject(FormDialogService)
+  private readonly loader = inject(LoadingService)
+  private readonly errorService = inject(ErrorService)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
+  private readonly api = inject(ApiService)
+
   readonly docsUrl = 'https://docs.start9.com/0.3.6/user-manual/acme'
 
   acme$ = this.patch.watch$('serverInfo', 'acme').pipe(
@@ -35,14 +45,6 @@ export class ACMEPage {
   )
 
   toAcmeName = toAcmeName
-
-  constructor(
-    private readonly loader: LoadingService,
-    private readonly errorService: ErrorService,
-    private readonly api: ApiService,
-    private readonly patch: PatchDB<DataModel>,
-    private readonly formDialog: FormDialogService,
-  ) {}
 
   async addAcme(
     providers: {

@@ -12,7 +12,7 @@ import { RouterPortComponent } from './table.component'
     <ng-container *ngIf="server$ | async as server">
       <router-info [enabled]="!server.network.wanConfig.upnp" />
       <table
-        *ngIf="server.ui | primaryIp as ip"
+        *ngIf="server.host.hostnameInfo[80] | primaryIp as ip"
         tuiTextfieldAppearance="unstyled"
         tuiTextfieldSize="m"
         [tuiTextfieldLabelOutside]="true"

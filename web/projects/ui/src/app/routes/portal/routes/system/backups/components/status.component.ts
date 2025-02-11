@@ -1,12 +1,5 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  Input,
-} from '@angular/core'
-import { Exver } from '@start9labs/shared'
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { TuiIcon } from '@taiga-ui/core'
-import { BackupTarget } from 'src/app/services/api/api.types'
 import { BackupType } from '../types/backup-type'
 
 @Component({

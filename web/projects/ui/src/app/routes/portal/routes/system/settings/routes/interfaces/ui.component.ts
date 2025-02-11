@@ -5,10 +5,28 @@ import { PatchDB } from 'patch-db-client'
 import { Observable, map } from 'rxjs'
 import {
   InterfaceComponent,
-  ServiceInterfaceWithAddresses,
+  MappedServiceInterface,
 } from 'src/app/routes/portal/components/interfaces/interface.component'
-import { getMultihostAddresses } from 'src/app/routes/portal/components/interfaces/interface.utils'
+import { getAddresses } from 'src/app/routes/portal/components/interfaces/interface.utils'
+import { ConfigService } from 'src/app/services/config.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+
+const iface: T.ServiceInterface = {
+  id: '',
+  name: 'StartOS User Interface',
+  description:
+    'The primary user interface for your StartOS server, accessible from any browser.',
+  type: 'ui' as const,
+  masked: false,
+  addressInfo: {
+    hostId: '',
+    internalPort: 80,
+    scheme: 'http',
+    sslScheme: 'https',
+    suffix: '',
+    username: null,
+  },
+}
 
 @Component({
   template: `
@@ -23,43 +41,17 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
   imports: [CommonModule, InterfaceComponent],
 })
 export class StartOsUiComponent {
-  readonly ui$: Observable<ServiceInterfaceWithAddresses> = inject(
-    PatchDB<DataModel>,
+  private readonly config = inject(ConfigService)
+
+  readonly ui$: Observable<MappedServiceInterface> = inject<PatchDB<DataModel>>(
+    PatchDB,
   )
-    .watch$('serverInfo', 'ui')
+    .watch$('serverInfo')
     .pipe(
-      map(hosts => {
-        const serviceInterface: T.ServiceInterface = {
-          id: 'startos-ui',
-          name: 'StartOS UI',
-          description: 'The primary web user interface for StartOS',
-          type: 'ui',
-          hasPrimary: false,
-          masked: false,
-          addressInfo: {
-            hostId: '',
-            username: null,
-            internalPort: 80,
-            scheme: 'http',
-            sslScheme: 'https',
-            suffix: '',
-          },
-        }
-
-        // @TODO Aiden confirm this is correct
-        const host: T.Host = {
-          kind: 'multi',
-          bindings: {},
-          hostnameInfo: {
-            80: hosts,
-          },
-          addresses: [],
-        }
-
-        return {
-          ...serviceInterface,
-          addresses: getMultihostAddresses(serviceInterface, host),
-        }
-      }),
+      map(server => ({
+        ...iface,
+        public: server.host.bindings[iface.addressInfo.internalPort].net.public,
+        addresses: getAddresses(iface, server.host, this.config),
+      })),
     )
 }

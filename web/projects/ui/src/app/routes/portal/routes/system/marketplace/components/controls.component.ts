@@ -22,7 +22,6 @@ import {
   DataModel,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { ClientStorageService } from 'src/app/services/client-storage.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { hasCurrentDeps } from 'src/app/utils/has-deps'
 import { getAllPackages, getManifest } from 'src/app/utils/get-package-data'
@@ -60,16 +59,14 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
             </button>
           }
           @case (0) {
-            @if (showDevTools$ | async) {
-              <button
-                tuiButton
-                type="button"
-                appearance="tertiary-solid"
-                (click)="tryInstall()"
-              >
-                Reinstall
-              </button>
-            }
+            <button
+              tuiButton
+              type="button"
+              appearance="tertiary-solid"
+              (click)="tryInstall()"
+            >
+              Reinstall
+            </button>
           }
         }
       }
@@ -113,8 +110,6 @@ export class MarketplaceControlsComponent {
 
   @Input()
   localFlavor!: boolean
-
-  readonly showDevTools$ = inject(ClientStorageService).showDevTools$
 
   async tryInstall() {
     const currentUrl = await firstValueFrom(

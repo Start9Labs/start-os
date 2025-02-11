@@ -6,6 +6,13 @@ export default [
     component: SettingsComponent,
     children: [
       {
+        path: 'acme',
+        loadComponent: () =>
+          import('./routes/acme/acme.component').then(
+            m => m.SettingsACMEComponent,
+          ),
+      },
+      {
         path: 'email',
         loadComponent: () =>
           import('./routes/email/email.component').then(

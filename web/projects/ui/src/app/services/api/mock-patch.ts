@@ -7,7 +7,6 @@ export const mockPatchData: DataModel = {
   ui: {
     name: `Matt's Server`,
     theme: 'Dark',
-    desktop: ['lnd'],
     marketplace: {
       selectedUrl: 'https://registry.start9.com/',
       knownHosts: {
@@ -32,6 +31,23 @@ export const mockPatchData: DataModel = {
     id: 'abcdefgh',
     version,
     lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
+    network: {
+      wifi: {
+        enabled: false,
+        interface: 'wlan0',
+        ssids: [],
+        selected: null,
+        lastRegion: null,
+      },
+      start9ToSubdomain: null,
+      domains: [],
+      wanConfig: {
+        upnp: true,
+        forwards: [],
+      },
+      proxies: [],
+      outboundProxy: null,
+    },
     networkInterfaces: {
       eth0: {
         public: false,
@@ -72,11 +88,12 @@ export const mockPatchData: DataModel = {
     packageVersionCompat: '>=0.3.0 <=0.3.6',
     postInitMigrationTodos: [],
     statusInfo: {
-      currentBackup: null,
+      // currentBackup: null,
       updated: false,
       updateProgress: null,
       restarting: false,
       shuttingDown: false,
+      backupProgress: {},
     },
     hostname: 'random-words',
     host: {
@@ -194,9 +211,8 @@ export const mockPatchData: DataModel = {
     platform: 'x86_64-nonfree',
     zram: true,
     governor: 'performance',
-    passwordHash:
-      '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-    arch: 'x86_64',
+    ram: 8 * 1024 * 1024 * 1024,
+    devices: [],
   },
   packageData: {
     bitcoind: {

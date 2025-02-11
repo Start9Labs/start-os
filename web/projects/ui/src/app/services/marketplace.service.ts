@@ -19,7 +19,6 @@ import {
   switchMap,
   distinctUntilChanged,
   ReplaySubject,
-  tap,
 } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'

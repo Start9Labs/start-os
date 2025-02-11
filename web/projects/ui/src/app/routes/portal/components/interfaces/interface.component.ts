@@ -104,10 +104,10 @@ export class InterfaceComponent {
     packageId: string
     interfaceId: string
   }
-  @Input({ required: true }) serviceInterface!: ServiceInterfaceWithAddresses
+  @Input({ required: true }) serviceInterface!: MappedServiceInterface
 }
 
-export type ServiceInterfaceWithAddresses = T.ServiceInterface & {
+export type MappedServiceInterface = T.ServiceInterface & {
   addresses: {
     clearnet: AddressDetails[]
     local: AddressDetails[]

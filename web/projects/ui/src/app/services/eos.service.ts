@@ -20,7 +20,7 @@ export class EOSService {
   )
 
   readonly backingUp$ = this.patch
-    .watch$('serverInfo', 'statusInfo', 'currentBackup')
+    .watch$('serverInfo', 'statusInfo', 'backupProgress')
     .pipe(
       map(obj => !!obj),
       distinctUntilChanged(),

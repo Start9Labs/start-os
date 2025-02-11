@@ -79,13 +79,18 @@ export class UILaunchComponent {
   @tuiPure
   getInterfaces(pkg?: PackageDataEntry): T.ServiceInterface[] {
     return pkg
-      ? Object.values(pkg.serviceInterfaces).filter(({ type }) => type === 'ui')
+      ? Object.values(pkg.serviceInterfaces).filter(
+          i =>
+            i.type === 'ui' &&
+            (i.addressInfo.scheme === 'http' ||
+              i.addressInfo.sslScheme === 'https'),
+        )
       : []
   }
 
-  getHref(info?: T.ServiceInterface): string | null {
-    return info && this.isRunning
-      ? this.config.launchableAddress(info, this.pkg.hosts)
+  getHref(ui?: T.ServiceInterface): string | null {
+    return ui && this.isRunning
+      ? this.config.launchableAddress(ui, this.pkg.hosts)
       : null
   }
 }

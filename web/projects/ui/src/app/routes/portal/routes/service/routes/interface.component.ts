@@ -6,7 +6,8 @@ import { PatchDB } from 'patch-db-client'
 import { combineLatest, map } from 'rxjs'
 import { InterfaceComponent } from 'src/app/routes/portal/components/interfaces/interface.component'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { getMultihostAddresses } from '../../../components/interfaces/interface.utils'
+import { getAddresses } from '../../../components/interfaces/interface.utils'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   template: `
@@ -22,6 +23,7 @@ import { getMultihostAddresses } from '../../../components/interfaces/interface.
 })
 export class ServiceInterfaceRoute {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
+  private readonly config = inject(ConfigService)
 
   readonly context = {
     packageId: getPkgId(),
@@ -40,7 +42,11 @@ export class ServiceInterfaceRoute {
   ]).pipe(
     map(([iFace, hosts]) => ({
       ...iFace,
-      addresses: getMultihostAddresses(iFace, hosts[iFace.addressInfo.hostId]),
+      addresses: getAddresses(
+        iFace,
+        hosts[iFace.addressInfo.hostId],
+        this.config,
+      ),
     })),
   )
 }
