@@ -13,7 +13,6 @@ import {
 import {
   InstallingState,
   PackageDataEntry,
-  Proxy,
   StateInfo,
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
@@ -574,25 +573,22 @@ export class MockApiService extends ApiService {
   async addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes> {
     await pauseFor(2000)
 
-    const type: Proxy['type'] = 'inbound-outbound'
-
     const patch = [
       {
-        op: PatchOp.REPLACE,
-        path: '/serverInfo/network/proxies',
-        value: [
-          {
-            id: 'abcd-efgh-ijkl-mnop',
+        op: PatchOp.ADD,
+        path: `/serverInfo/network/networkInterfaces/wga1`,
+        value: {
+          inbound: true,
+          outbound: true,
+          ipInfo: {
             name: params.name,
-            createdAt: new Date(),
-            type,
-            endpoint: '10.25.2.17',
-            usedBy: {
-              domains: [],
-              services: [],
-            },
+            scopeId: 3,
+            deviceType: 'wireguard',
+            subnets: [],
+            wanIp: '1.1.1.1',
+            ntpServers: [],
           },
-        ],
+        },
       },
     ]
     this.mockRevision(patch)
@@ -639,12 +635,10 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/serverInfo/network/start9ToSubdomain',
+        path: '/serverInfo/network/start9To',
         value: {
-          value: 'xyz',
-          createdAt: new Date(),
-          networkStrategy: params.networkStrategy,
-          usedBy: [],
+          subdomain: 'xyz',
+          networkInterfaceId: params.networkInterfaceId,
         },
       },
     ]
@@ -660,7 +654,7 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/serverInfo/network/start9ToSubdomain',
+        path: '/serverInfo/network/start9To',
         value: null,
       },
     ]
@@ -675,16 +669,13 @@ export class MockApiService extends ApiService {
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: '/serverInfo/network/domains',
-        value: [
-          {
-            value: params.hostname,
-            createdAt: new Date(),
+        path: `/serverInfo/network/domains`,
+        value: {
+          [params.hostname]: {
+            networkInterfaceId: params.networkInterfaceId,
             provider: params.provider.name,
-            networkStrategy: params.networkStrategy,
-            usedBy: [],
           },
-        ],
+        },
       },
     ]
     this.mockRevision(patch)
@@ -698,7 +689,7 @@ export class MockApiService extends ApiService {
       {
         op: PatchOp.REPLACE,
         path: '/serverInfo/network/domains',
-        value: [],
+        value: {},
       },
     ]
     this.mockRevision(patch)

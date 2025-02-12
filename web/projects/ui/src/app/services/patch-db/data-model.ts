@@ -1,17 +1,13 @@
-import { BackupJob, ServerNotifications } from '../api/api.types'
+import { BackupJob } from '../api/api.types'
 import { T } from '@start9labs/start-sdk'
 
 export type DataModel = {
   ui: UIData
   serverInfo: Omit<
     T.Public['serverInfo'],
-    'wifi' | 'unreadNotificationCount'
+    'wifi' | 'networkInterfaces' | 'host'
   > & {
     network: NetworkInfo
-    unreadNotifications: {
-      count: number
-      recent: ServerNotifications
-    }
   }
   packageData: Record<string, PackageDataEntry>
 }
@@ -42,14 +38,30 @@ export type UIStore = {
 }
 
 export type NetworkInfo = {
-  wifi: WiFiInfo
-  start9ToSubdomain: Omit<Domain, 'provider'> | null
-  domains: Domain[]
+  wifi: T.WifiInfo & { enabled: boolean }
+  host: T.Host
+  networkInterfaces: {
+    [id: string]: {
+      inbound: boolean | null
+      outbound: boolean | null
+      ipInfo:
+        | (T.IpInfo & {
+            name: string
+          })
+        | null
+    }
+  }
+  start9To: {
+    subdomain: string
+    networkInterfaceId: string
+  } | null
+  domains: {
+    [key: string]: Domain
+  }
   wanConfig: {
     upnp: boolean
     forwards: PortForward[]
   }
-  proxies: Proxy[]
   outboundProxy: string | null
 }
 
@@ -65,40 +77,9 @@ export type PortForward = {
   error: string | null
 }
 
-export type WiFiInfo = {
-  enabled: boolean
-  lastRegion: string | null
-  interface: string | null
-  ssids: Array<string>
-  selected: string | null
-}
-
 export type Domain = {
-  value: string
-  createdAt: string
   provider: string
-  networkStrategy: NetworkStrategy
-  usedBy: {
-    service: { id: string | null; title: string } // null means startos
-    interfaces: { id: string | null; title: string }[] // null means startos
-  }[]
-}
-
-export type NetworkStrategy =
-  | { proxy: string }
-  | { ipStrategy: 'ipv4' | 'ipv6' | 'dualstack' }
-
-export type Proxy = {
-  id: string
-  name: string
-  createdAt: string
-  type: 'outbound' | 'inbound-outbound' | 'vlan' | { error: string }
-  endpoint: string
-  // below is overlay only
-  usedBy: {
-    services: { id: string | null; title: string }[] // implies outbound - null means startos
-    domains: string[] // implies inbound
-  }
+  networkInterfaceId: string
 }
 
 export interface ServerStatusInfo {

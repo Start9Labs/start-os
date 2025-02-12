@@ -22,14 +22,14 @@ export const REMOVE: Partial<TuiDialogOptions<TuiConfirmData>> = {
 
 export function getClearnetSpec({
   domains,
-  start9ToSubdomain,
+  start9To,
 }: NetworkInfo): Promise<IST.InputSpec> {
-  const start9ToDomain = `${start9ToSubdomain?.value}.start9.to`
-  const base = start9ToSubdomain ? { [start9ToDomain]: start9ToDomain } : {}
+  const start9ToDomain = `${start9To?.subdomain}.start9.to`
+  const base = start9To ? { [start9ToDomain]: start9ToDomain } : {}
 
-  const values = domains.reduce((prev, curr) => {
+  const values = Object.keys(domains).reduce((prev, curr) => {
     return {
-      [curr.value]: curr.value,
+      [curr]: curr,
       ...prev,
     }
   }, base)
@@ -38,7 +38,7 @@ export function getClearnetSpec({
     ISB.InputSpec.of({
       domain: ISB.Value.select({
         name: 'Domain',
-        default: domains[0].value,
+        default: '',
         values,
       }),
       subdomain: ISB.Value.text({

@@ -19,27 +19,27 @@ export default [
             m => m.SettingsEmailComponent,
           ),
       },
-      {
-        path: 'domains',
-        loadComponent: () =>
-          import('./routes/domains/domains.component').then(
-            m => m.SettingsDomainsComponent,
-          ),
-      },
-      {
-        path: 'proxies',
-        loadComponent: () =>
-          import('./routes/proxies/proxies.component').then(
-            m => m.SettingsProxiesComponent,
-          ),
-      },
-      {
-        path: 'router',
-        loadComponent: () =>
-          import('./routes/router/router.component').then(
-            m => m.SettingsRouterComponent,
-          ),
-      },
+      // {
+      //   path: 'domains',
+      //   loadComponent: () =>
+      //     import('./routes/domains/domains.component').then(
+      //       m => m.SettingsDomainsComponent,
+      //     ),
+      // },
+      // {
+      //   path: 'proxies',
+      //   loadComponent: () =>
+      //     import('./routes/proxies/proxies.component').then(
+      //       m => m.SettingsProxiesComponent,
+      //     ),
+      // },
+      // {
+      //   path: 'router',
+      //   loadComponent: () =>
+      //     import('./routes/router/router.component').then(
+      //       m => m.SettingsRouterComponent,
+      //     ),
+      // },
       {
         path: 'wifi',
         loadComponent: () =>

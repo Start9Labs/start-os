@@ -26,18 +26,20 @@ export class ProxyService {
   ) {}
 
   async presentModalSetOutboundProxy(current: string | null, pkgId?: string) {
-    const network = await firstValueFrom(
-      this.patch.watch$('serverInfo', 'network'),
+    const networkInterfaces = await firstValueFrom(
+      this.patch.watch$('serverInfo', 'network', 'networkInterfaces'),
     )
     const config = ISB.InputSpec.of({
       proxyId: ISB.Value.select({
         name: 'Select Proxy',
         default: current || '',
-        values: network.proxies
-          .filter(p => p.type === 'outbound' || p.type === 'inbound-outbound')
+        values: Object.entries(networkInterfaces)
+          .filter(
+            ([_, n]) => n.outbound && n.ipInfo?.deviceType === 'wireguard',
+          )
           .reduce<Record<string, string>>(
-            (prev, curr) => ({
-              [curr.id]: curr.name,
+            (prev, [id, n]) => ({
+              [id]: n.ipInfo!.name,
               ...prev,
             }),
             {},

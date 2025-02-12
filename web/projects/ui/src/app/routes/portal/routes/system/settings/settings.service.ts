@@ -63,24 +63,24 @@ export class SettingsService {
       },
     ],
     Network: [
-      {
-        title: 'Domains',
-        description: 'Manage domains for clearnet connectivity',
-        icon: '@tui.globe',
-        routerLink: 'domains',
-      },
-      {
-        title: 'Proxies',
-        description: 'Manage proxies for inbound and outbound connections',
-        icon: '@tui.shuffle',
-        routerLink: 'proxies',
-      },
-      {
-        title: 'Router Config',
-        description: 'Connect or configure your router for clearnet',
-        icon: '@tui.radio',
-        routerLink: 'router',
-      },
+      // {
+      //   title: 'Domains',
+      //   description: 'Manage domains for clearnet connectivity',
+      //   icon: '@tui.globe',
+      //   routerLink: 'domains',
+      // },
+      // {
+      //   title: 'Proxies',
+      //   description: 'Manage proxies for inbound and outbound connections',
+      //   icon: '@tui.shuffle',
+      //   routerLink: 'proxies',
+      // },
+      // {
+      //   title: 'Router Config',
+      //   description: 'Connect or configure your router for clearnet',
+      //   icon: '@tui.radio',
+      //   routerLink: 'router',
+      // },
       {
         title: 'WiFi',
         description: 'Add or remove WiFi networks',
@@ -109,12 +109,12 @@ export class SettingsService {
       },
     ],
     'Privacy and Security': [
-      {
-        title: 'Outbound Proxy',
-        description: 'Proxy outbound traffic from the StartOS main process',
-        icon: '@tui.shield',
-        action: () => this.setOutboundProxy(),
-      },
+      // {
+      //   title: 'Outbound Proxy',
+      //   description: 'Proxy outbound traffic from the StartOS main process',
+      //   icon: '@tui.shield',
+      //   action: () => this.setOutboundProxy(),
+      // },
       {
         title: 'SSH',
         description:
@@ -154,12 +154,12 @@ export class SettingsService {
     ],
   }
 
-  private async setOutboundProxy(): Promise<void> {
-    const proxy = await firstValueFrom(
-      this.patch.watch$('serverInfo', 'network', 'outboundProxy'),
-    )
-    await this.proxyService.presentModalSetOutboundProxy(proxy)
-  }
+  // private async setOutboundProxy(): Promise<void> {
+  //   const proxy = await firstValueFrom(
+  //     this.patch.watch$('serverInfo', 'network', 'outboundProxy'),
+  //   )
+  //   await this.proxyService.presentModalSetOutboundProxy(proxy)
+  // }
 
   private promptResetTor() {
     this.wipe = false

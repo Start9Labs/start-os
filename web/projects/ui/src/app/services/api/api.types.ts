@@ -1,7 +1,4 @@
-import {
-  DomainInfo,
-  NetworkStrategy,
-} from 'src/app/services/patch-db/data-model'
+import { DomainInfo } from 'src/app/services/patch-db/data-model'
 import { FetchLogsReq, FetchLogsRes } from '@start9labs/shared'
 import { Dump } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -184,7 +181,7 @@ export module RR {
 
   // domains
 
-  export type ClaimStart9ToReq = { networkStrategy: NetworkStrategy } // net.domain.me.claim
+  export type ClaimStart9ToReq = { networkInterfaceId: string } // net.domain.me.claim
   export type ClaimStart9ToRes = null
 
   export type DeleteStart9ToReq = {} // net.domain.me.delete
@@ -197,7 +194,7 @@ export module RR {
       username: string | null
       password: string | null
     }
-    networkStrategy: NetworkStrategy
+    networkInterfaceId: string
   } // net.domain.add
   export type AddDomainRes = null
 
@@ -677,10 +674,10 @@ export type ServerNotification<T extends number> = {
 export type NotificationData<T> = T extends 0
   ? null
   : T extends 1
-  ? BackupReport
-  : T extends 2
-  ? string
-  : any
+    ? BackupReport
+    : T extends 2
+      ? string
+      : any
 
 export type BackupReport = {
   server: {

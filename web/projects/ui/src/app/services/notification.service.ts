@@ -20,7 +20,7 @@ export class NotificationService {
   private readonly localUnreadCount$ = new Subject<number>()
 
   readonly unreadCount$ = merge(
-    this.patch.watch$('serverInfo', 'unreadNotifications', 'count'),
+    this.patch.watch$('serverInfo', 'unreadNotificationCount'),
     this.localUnreadCount$,
   ).pipe(shareReplay(1))
 

@@ -68,22 +68,13 @@ export class SettingsDomainsComponent {
   private readonly api = inject(ApiService)
   private readonly dialogs = inject(TuiDialogService)
 
-  readonly domains$ = this.patch.watch$('serverInfo', 'network').pipe(
-    map(network => {
-      const start9ToSubdomain = network.start9ToSubdomain
-      const start9To = !start9ToSubdomain
-        ? []
-        : [
-            {
-              ...start9ToSubdomain,
-              value: `${start9ToSubdomain.value}.start9.to`,
-              provider: 'Start9',
-            },
-          ]
-
-      return { start9To, custom: network.domains }
-    }),
+  private readonly start9To$ = this.patch.watch$(
+    'serverInfo',
+    'network',
+    'start9To',
   )
+
+  readonly domains$ = this.patch.watch$('serverInfo', 'network', 'domains')
 
   delete(hostname?: string) {
     this.dialogs

@@ -46,12 +46,12 @@ export class StartOsUiComponent {
   readonly ui$: Observable<MappedServiceInterface> = inject<PatchDB<DataModel>>(
     PatchDB,
   )
-    .watch$('serverInfo')
+    .watch$('serverInfo', 'network', 'host')
     .pipe(
-      map(server => ({
+      map(host => ({
         ...iface,
-        public: server.host.bindings[iface.addressInfo.internalPort].net.public,
-        addresses: getAddresses(iface, server.host, this.config),
+        public: host.bindings[iface.addressInfo.internalPort].net.public,
+        addresses: getAddresses(iface, host, this.config),
       })),
     )
 }
