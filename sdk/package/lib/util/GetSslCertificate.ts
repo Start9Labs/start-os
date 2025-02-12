@@ -9,7 +9,7 @@ export class GetSslCertificate {
   ) {}
 
   /**
-   * Returns the system SMTP credentials. Restarts the service if the credentials change
+   * Returns the an SSL Certificate for the given hostnames if permitted. Restarts the service if it changes
    */
   const() {
     return this.effects.getSslCertificate({
@@ -19,7 +19,7 @@ export class GetSslCertificate {
     })
   }
   /**
-   * Returns the system SMTP credentials. Does nothing if the credentials change
+   * Returns the an SSL Certificate for the given hostnames if permitted. Does nothing if it changes
    */
   once() {
     return this.effects.getSslCertificate({
@@ -27,8 +27,9 @@ export class GetSslCertificate {
       algorithm: this.algorithm,
     })
   }
+
   /**
-   * Watches the system SMTP credentials. Takes a custom callback function to run whenever the credentials change
+   * Watches the SSL Certificate for the given hostnames if permitted. Returns an async iterator that yields whenever the value changes
    */
   async *watch() {
     while (true) {
@@ -43,5 +44,35 @@ export class GetSslCertificate {
       })
       await waitForNext
     }
+  }
+
+  /**
+   * Watches the SSL Certificate for the given hostnames if permitted. Takes a custom callback function to run whenever it changes
+   */
+  onChange(
+    callback: (
+      value: [string, string, string] | null,
+      error?: Error,
+    ) => void | Promise<void>,
+  ) {
+    ;(async () => {
+      for await (const value of this.watch()) {
+        try {
+          await callback(value)
+        } catch (e) {
+          console.error(
+            "callback function threw an error @ GetSslCertificate.onChange",
+            e,
+          )
+        }
+      }
+    })()
+      .catch((e) => callback(null, e))
+      .catch((e) =>
+        console.error(
+          "callback function threw an error @ GetSslCertificate.onChange",
+          e,
+        ),
+      )
   }
 }
