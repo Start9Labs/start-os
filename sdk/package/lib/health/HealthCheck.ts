@@ -1,4 +1,4 @@
-import { Effects, HealthReceipt } from "../../../base/lib/types"
+import { Effects, HealthCheckId, HealthReceipt } from "../../../base/lib/types"
 import { HealthCheckResult } from "./checkFns/HealthCheckResult"
 import { Trigger } from "../trigger"
 import { TriggerInput } from "../trigger/TriggerInput"
@@ -8,6 +8,7 @@ import { object, unknown } from "ts-matches"
 
 export type HealthCheckParams = {
   effects: Effects
+  id: HealthCheckId
   name: string
   trigger?: Trigger
   fn(): Promise<HealthCheckResult> | HealthCheckResult
@@ -35,7 +36,7 @@ export function healthCheck(o: HealthCheckParams) {
         const { result, message } = await o.fn()
         await o.effects.setHealth({
           name: o.name,
-          id: o.name,
+          id: o.id,
           result,
           message: message || "",
         })
@@ -46,7 +47,7 @@ export function healthCheck(o: HealthCheckParams) {
       } catch (e) {
         await o.effects.setHealth({
           name: o.name,
-          id: o.name,
+          id: o.id,
           result: "failure",
           message: asMessage(e) || "",
         })

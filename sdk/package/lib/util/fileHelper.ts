@@ -1,7 +1,6 @@
 import * as matches from "ts-matches"
 import * as YAML from "yaml"
 import * as TOML from "@iarna/toml"
-import merge from "lodash.merge"
 import * as T from "../../../base/lib/types"
 import * as fs from "node:fs/promises"
 import { asError } from "../../../base/lib/util"
@@ -41,6 +40,24 @@ async function onCreated(path: string) {
       return
     }
   }
+}
+
+function fileMerge(...args: any[]): any {
+  let res = args.shift()
+  for (const arg of args) {
+    if (res === arg) continue
+    else if (
+      typeof res === "object" &&
+      typeof arg === "object" &&
+      !Array.isArray(res) &&
+      !Array.isArray(arg)
+    ) {
+      for (const key of Object.keys(arg)) {
+        res[key] = fileMerge(res[key], arg[key])
+      }
+    } else res = arg
+  }
+  return res
 }
 
 /**
@@ -158,11 +175,38 @@ export class FileHelper<A> {
     return null
   }
 
+  private readOnChange(
+    callback: (value: A | null, error?: Error) => void | Promise<void>,
+  ) {
+    ;(async () => {
+      for await (const value of this.readWatch()) {
+        try {
+          await callback(value)
+        } catch (e) {
+          console.error(
+            "callback function threw an error @ FileHelper.read.onChange",
+            e,
+          )
+        }
+      }
+    })()
+      .catch((e) => callback(null, e))
+      .catch((e) =>
+        console.error(
+          "callback function threw an error @ FileHelper.read.onChange",
+          e,
+        ),
+      )
+  }
+
   get read() {
     return {
       once: () => this.readOnce(),
       const: (effects: T.Effects) => this.readConst(effects),
       watch: () => this.readWatch(),
+      onChange: (
+        callback: (value: A | null, error?: Error) => void | Promise<void>,
+      ) => this.readOnChange(callback),
     }
   }
 
@@ -171,7 +215,7 @@ export class FileHelper<A> {
    */
   async write(data: A) {
     const fileData = (await this.readFile()) || {}
-    const mergeData = merge({}, fileData, data)
+    const mergeData = fileMerge({}, fileData, data)
     return await this.writeFile(this.validate(mergeData))
   }
 
@@ -184,7 +228,7 @@ export class FileHelper<A> {
       (() => {
         throw new Error(`${this.path}: does not exist`)
       })()
-    const mergeData = merge({}, fileData, data)
+    const mergeData = fileMerge({}, fileData, data)
     return await this.writeFile(this.validate(mergeData))
   }
 
