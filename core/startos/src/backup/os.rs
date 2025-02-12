@@ -82,11 +82,13 @@ impl OsBackupV0 {
                 root_ca_key: self.root_ca_key.0,
                 root_ca_cert: self.root_ca_cert.0,
                 ssh_key: ssh_key::PrivateKey::random(
-                    &mut rand::thread_rng(),
+                    &mut ssh_key::rand_core::OsRng::default(),
                     ssh_key::Algorithm::Ed25519,
                 )?,
                 tor_keys: vec![TorSecretKeyV3::from(self.tor_key.0)],
-                compat_s9pk_key: ed25519_dalek::SigningKey::generate(&mut rand::thread_rng()),
+                compat_s9pk_key: ed25519_dalek::SigningKey::generate(
+                    &mut ssh_key::rand_core::OsRng::default(),
+                ),
             },
             ui: self.ui,
         })

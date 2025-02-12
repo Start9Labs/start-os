@@ -464,9 +464,9 @@ async fn previous_account_info(pg: &sqlx::Pool<sqlx::Postgres>) -> Result<Accoun
                     .as_bytes(),
             )
             .with_ctx(|_| (ErrorKind::Database, "X509::from_pem"))?,
-            compat_s9pk_key: SigningKey::generate(&mut rand::thread_rng()),
+            compat_s9pk_key: SigningKey::generate(&mut ssh_key::rand_core::OsRng::default()),
             ssh_key: ssh_key::PrivateKey::random(
-                &mut rand::thread_rng(),
+                &mut ssh_key::rand_core::OsRng::default(),
                 ssh_key::Algorithm::Ed25519,
             )
             .with_ctx(|_| (ErrorKind::Database, "X509::ssh_key::PrivateKey::random"))?,

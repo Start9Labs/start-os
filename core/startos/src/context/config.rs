@@ -13,6 +13,7 @@ use crate::disk::OsPartitionInfo;
 use crate::init::init_postgres;
 use crate::prelude::*;
 use crate::util::serde::IoFormat;
+use crate::version::VersionT;
 use crate::MAIN_DATA;
 
 pub const DEVICE_CONFIG_PATH: &str = "/media/startos/config/config.yaml"; // "/media/startos/config/config.yaml";
@@ -57,18 +58,20 @@ pub trait ContextConfig: DeserializeOwned + Default {
 #[derive(Debug, Default, Deserialize, Serialize, Parser)]
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
+#[command(name = "start-cli")]
+#[command(version = crate::version::Current::default().semver().to_string())]
 pub struct ClientConfig {
-    #[arg(short = 'c', long = "config")]
+    #[arg(short = 'c', long)]
     pub config: Option<PathBuf>,
-    #[arg(short = 'h', long = "host")]
+    #[arg(short = 'H', long)]
     pub host: Option<Url>,
-    #[arg(short = 'r', long = "registry")]
+    #[arg(short = 'r', long)]
     pub registry: Option<Url>,
-    #[arg(short = 'p', long = "proxy")]
+    #[arg(short = 'p', long)]
     pub proxy: Option<Url>,
-    #[arg(long = "cookie-path")]
+    #[arg(long)]
     pub cookie_path: Option<PathBuf>,
-    #[arg(long = "developer-key-path")]
+    #[arg(long)]
     pub developer_key_path: Option<PathBuf>,
 }
 impl ContextConfig for ClientConfig {
