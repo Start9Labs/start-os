@@ -13,7 +13,7 @@ export type Run<
     | InputSpec<Record<string, never>, never>,
 > = (options: {
   effects: T.Effects
-  input: ExtractInputSpecType<A> & Record<string, any>
+  input: ExtractInputSpecType<A>
 }) => Promise<(T.ActionResult & { version: "1" }) | null | void | undefined>
 export type GetInput<
   A extends
@@ -22,12 +22,7 @@ export type GetInput<
     | InputSpec<Record<string, any>, never>,
 > = (options: {
   effects: T.Effects
-}) => Promise<
-  | null
-  | void
-  | undefined
-  | (ExtractPartialInputSpecType<A> & Record<string, any>)
->
+}) => Promise<null | void | undefined | ExtractPartialInputSpecType<A>>
 
 export type MaybeFn<T> = T | ((options: { effects: T.Effects }) => Promise<T>)
 function callMaybeFn<T>(
@@ -63,8 +58,8 @@ export class Action<
     readonly id: Id,
     private readonly metadataFn: MaybeFn<T.ActionMetadata>,
     private readonly inputSpec: InputSpecType,
-    private readonly getInputFn: GetInput<ExtractInputSpecType<InputSpecType>>,
-    private readonly runFn: Run<ExtractInputSpecType<InputSpecType>>,
+    private readonly getInputFn: GetInput<InputSpecType>,
+    private readonly runFn: Run<InputSpecType>,
   ) {}
   static withInput<
     Id extends T.ActionId,
@@ -77,8 +72,8 @@ export class Action<
     id: Id,
     metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
     inputSpec: InputSpecType,
-    getInput: GetInput<ExtractInputSpecType<InputSpecType>>,
-    run: Run<ExtractInputSpecType<InputSpecType>>,
+    getInput: GetInput<InputSpecType>,
+    run: Run<InputSpecType>,
   ): Action<Id, Store, InputSpecType> {
     return new Action(
       id,

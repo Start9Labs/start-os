@@ -422,6 +422,9 @@ impl ImageSource {
                     // docker buildx build ${path} -o type=image,name=start9/${id}
                     let tag = format!("start9/{id}/{image_id}:{}", new_guid());
                     let mut command = Command::new(CONTAINER_TOOL);
+                    if CONTAINER_TOOL == "docker" {
+                        command.arg("buildx");
+                    }
                     command
                         .arg("build")
                         .arg(workdir)
@@ -553,6 +556,7 @@ impl ImageSource {
                         Command::new(CONTAINER_TOOL)
                             .arg("create")
                             .arg(&docker_platform)
+                            .arg("--entrypoint=/bin/sh")
                             .arg(&tag)
                             .invoke(ErrorKind::Docker)
                             .await?,

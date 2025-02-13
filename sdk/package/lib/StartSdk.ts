@@ -301,14 +301,12 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
             | Record<string, any>
             | InputSpec<any, any>
             | InputSpec<any, never>,
-          Type extends
-            ExtractInputSpecType<InputSpecType> = ExtractInputSpecType<InputSpecType>,
         >(
           id: Id,
           metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
           inputSpec: InputSpecType,
-          getInput: GetInput<Type>,
-          run: Run<Type>,
+          getInput: GetInput<InputSpecType>,
+          run: Run<InputSpecType>,
         ) => Action.withInput(id, metadata, inputSpec, getInput, run),
         /**
          * @description Use this function to create an action that does not accept form input
