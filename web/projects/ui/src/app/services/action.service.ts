@@ -7,8 +7,8 @@ import { filter } from 'rxjs'
 import {
   ActionInputModal,
   PackageActionData,
-} from 'src/app/routes/portal/routes/service/modals/action-input.component'
-import { ActionSuccessPage } from 'src/app/routes/portal/routes/service/modals/action-success/action-success.page'
+} from 'src/app/routes/portal/routes/services/modals/action-input.component'
+import { ActionSuccessPage } from 'src/app/routes/portal/routes/services/modals/action-success/action-success.page'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 

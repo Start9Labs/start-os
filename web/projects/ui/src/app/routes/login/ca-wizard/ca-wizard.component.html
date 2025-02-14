@@ -28,7 +28,6 @@
       <a
         tuiButton
         size="s"
-        appearance="tertiary-solid"
         iconEnd="@tui.download"
         href="/static/local-root-ca.crt"
       >
@@ -61,7 +60,7 @@
         tuiButton
         size="s"
         class="refresh"
-        appearance="success-solid"
+        appearance="positive"
         iconEnd="@tui.refresh-cw"
         (click)="refresh()"
       >
@@ -84,22 +83,13 @@
 
 <ng-template #trusted>
   <div tuiCardLarge tuiSurface="floating" class="card">
-    <tui-icon
-      icon="@tui.shield"
-      tuiAppearance="icon-success"
-      [style.font-size.rem]="4"
-    />
+    <tui-icon icon="@tui.shield" class="g-success" [style.font-size.rem]="4" />
     <h1>Root CA Trusted!</h1>
     <p>
       You have successfully trusted your server's Root CA and may now log in
       securely.
     </p>
-    <button
-      tuiButton
-      appearance="tertiary-solid"
-      iconEnd="@tui.external-link"
-      (click)="launchHttps()"
-    >
+    <button tuiButton iconEnd="@tui.external-link" (click)="launchHttps()">
       Go to login
     </button>
   </div>

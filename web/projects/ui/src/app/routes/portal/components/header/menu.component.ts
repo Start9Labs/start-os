@@ -52,7 +52,7 @@ import { ABOUT } from './about.component'
         <a
           tuiOption
           iconStart="@tui.wrench"
-          routerLink="/portal/system/settings"
+          routerLink="/portal/settings"
           (click)="open = false"
         >
           System Settings

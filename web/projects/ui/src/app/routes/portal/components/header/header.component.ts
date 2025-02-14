@@ -54,7 +54,11 @@ import { HeaderStatusComponent } from './status.component'
             border-radius: inherit;
             backdrop-filter: blur(1rem);
             transform: skewX(30deg);
-            background: rgb(75 75 75 / 65%);
+            background: color-mix(
+              in hsl,
+              var(--start9-base-2) 75%,
+              transparent
+            );
             box-shadow: inset 0 1px rgb(255 255 255 / 25%);
             z-index: -1;
           }

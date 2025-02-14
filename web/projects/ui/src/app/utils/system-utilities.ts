@@ -8,35 +8,35 @@ export const SYSTEM_UTILITIES: Record<string, { icon: string; title: string }> =
       icon: '@tui.layout-grid',
       title: 'Services',
     },
-    '/portal/system/marketplace': {
+    '/portal/marketplace': {
       icon: '@tui.shopping-cart',
       title: 'Marketplace',
     },
-    '/portal/system/sideload': {
+    '/portal/sideload': {
       icon: '@tui.upload',
       title: 'Sideload',
     },
-    // '/portal/system/updates': {
+    // '/portal/updates': {
     //   icon: '@tui.globe',
     //   title: 'Updates',
     // },
-    '/portal/system/backups': {
+    '/portal/backups': {
       icon: '@tui.save',
       title: 'Backups',
     },
-    '/portal/system/metrics': {
+    '/portal/metrics': {
       icon: '@tui.activity',
       title: 'Metrics',
     },
-    '/portal/system/logs': {
+    '/portal/logs': {
       icon: '@tui.file-text',
       title: 'Logs',
     },
-    '/portal/system/settings': {
+    '/portal/settings': {
       icon: '@tui.wrench',
       title: 'Settings',
     },
-    '/portal/system/notifications': {
+    '/portal/notifications': {
       icon: '@tui.bell',
       title: 'Notifications',
     },
