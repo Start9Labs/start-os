@@ -81,11 +81,11 @@ export class BadgeService {
 
   getCount(id: string): Observable<number> {
     switch (id) {
-      // case '/portal/system/updates':
+      // case '/portal/updates':
       //   return this.updates$
-      case '/portal/system/settings':
+      case '/portal/settings':
         return this.settings$
-      case '/portal/system/notifications':
+      case '/portal/notifications':
         return this.notifications.unreadCount$
       default:
         return EMPTY

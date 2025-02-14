@@ -56,7 +56,7 @@ export class ProxyService {
         buttons: [
           {
             text: 'Manage proxies',
-            link: '/portal/system/settings/proxies',
+            link: '/portal/settings/proxies',
           },
           {
             text: 'Save',

@@ -46,7 +46,6 @@ export * from './types/url'
 export * from './types/workspace-config'
 
 export * from './tokens/relative-url'
-export * from './tokens/theme'
 
 export * from './util/base-64'
 export * from './util/convert-ansi'

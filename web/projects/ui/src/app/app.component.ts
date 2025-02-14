@@ -1,10 +1,8 @@
 import { Component, inject, OnInit } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { Title } from '@angular/platform-browser'
-import { THEME } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map, merge, startWith } from 'rxjs'
-import { AuthService } from './services/auth.service'
 import { ConnectionService } from './services/connection.service'
 import { PatchDataService } from './services/patch-data.service'
 import { DataModel } from './services/patch-db/data-model'
@@ -19,8 +17,6 @@ export class AppComponent implements OnInit {
   private readonly title = inject(Title)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
-  readonly auth = inject(AuthService)
-  readonly theme$ = inject(THEME)
   readonly subscription = merge(
     inject(PatchDataService),
     inject(PatchMonitorService),
@@ -30,14 +26,13 @@ export class AppComponent implements OnInit {
 
   readonly offline$ = combineLatest([
     inject(ConnectionService),
-    this.auth.isVerified$,
     this.patch
       .watch$('serverInfo', 'statusInfo')
       .pipe(startWith({ restarting: false, shuttingDown: false })),
   ]).pipe(
     map(
-      ([connected, verified, status]) =>
-        connected && (!verified || status.restarting || status.shuttingDown),
+      ([connected, { restarting, shuttingDown }]) =>
+        connected && (restarting || shuttingDown),
     ),
     startWith(true),
   )

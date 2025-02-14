@@ -4,7 +4,6 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { ServiceWorkerModule } from '@angular/service-worker'
 import { TuiRoot } from '@taiga-ui/core'
 import { SidebarHostComponent } from 'src/app/components/sidebar-host.component'
-import { SvgDefinitionsComponent } from 'src/app/components/svg-definitions.component'
 import { ToastContainerComponent } from 'src/app/components/toast-container.component'
 import { environment } from '../environments/environment'
 import { AppComponent } from './app.component'
@@ -26,7 +25,6 @@ import { RoutingModule } from './routing.module'
       registrationStrategy: 'registerWhenStable:30000',
     }),
     SidebarHostComponent,
-    SvgDefinitionsComponent,
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],

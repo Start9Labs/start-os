@@ -42,7 +42,7 @@ export class ClearnetAddressesDirective implements AddressesService {
         buttons: [
           {
             text: 'Manage domains',
-            link: 'portal/system/settings/domains',
+            link: 'portal/settings/domains',
           },
           {
             text: 'Save',

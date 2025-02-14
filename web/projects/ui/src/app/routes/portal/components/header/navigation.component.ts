@@ -94,7 +94,7 @@ import { getMenu } from 'src/app/utils/system-utilities'
           position: absolute;
           inset: 0;
           transform: skewX(30deg);
-          background: rgb(75 75 75 / 65%);
+          background: color-mix(in hsl, var(--start9-base-2) 75%, transparent);
           box-shadow: inset 0 1px rgb(255 255 255 / 25%);
           z-index: -1;
         }
@@ -129,7 +129,7 @@ import { getMenu } from 'src/app/utils/system-utilities'
 
           &::before {
             border-radius: var(--bumper);
-            filter: brightness(0.65);
+            filter: brightness(0.5);
           }
 
           span {

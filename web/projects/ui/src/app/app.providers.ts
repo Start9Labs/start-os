@@ -5,7 +5,7 @@ import {
   AbstractCategoryService,
   FilterPackagesPipe,
 } from '@start9labs/marketplace'
-import { RELATIVE_URL, THEME, WorkspaceConfig } from '@start9labs/shared'
+import { RELATIVE_URL, WorkspaceConfig } from '@start9labs/shared'
 import {
   TUI_DATE_FORMAT,
   TUI_DIALOGS_CLOSE,
@@ -35,7 +35,6 @@ import { ClientStorageService } from './services/client-storage.service'
 import { DateTransformerService } from './services/date-transformer.service'
 import { DatetimeTransformerService } from './services/datetime-transformer.service'
 import { StorageService } from './services/storage.service'
-import { ThemeSwitcherService } from './services/theme-switcher.service'
 
 const {
   useMocks,
@@ -83,10 +82,6 @@ export const APP_PROVIDERS: Provider[] = [
   {
     provide: RELATIVE_URL,
     useValue: `/${api.url}/${api.version}`,
-  },
-  {
-    provide: THEME,
-    useExisting: ThemeSwitcherService,
   },
   {
     provide: AbstractCategoryService,

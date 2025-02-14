@@ -1,151 +1,66 @@
 @import '@taiga-ui/core/styles/taiga-ui-local';
 
-:root {
-  --tui-background-accent-1: #3880ff;
-  --tui-background-accent-1-hover: #4c8dff;
-  --tui-background-accent-1-pressed: #3171e0;
+[tuiTheme='dark'] {
+  --tui-background-base: rgba(23, 23, 23, 1);
+  --tui-background-base-alt: rgba(23, 24, 29, 1);
+  --tui-background-neutral-1: rgba(255, 255, 255, 0.06);
+  --tui-background-neutral-1-hover: rgba(255, 255, 255, 0.12);
+  --tui-background-neutral-1-pressed: rgba(255, 255, 255, 0.18);
+  --tui-background-neutral-2: rgba(255, 255, 255, 0.16);
+  --tui-background-neutral-2-hover: rgba(255, 255, 255, 0.2);
+  --tui-background-neutral-2-pressed: rgba(255, 255, 255, 0.24);
+
+  --tui-background-accent-1: rgba(53, 96, 240, 1);
+  --tui-background-accent-1-hover: rgba(50, 92, 227, 1);
+  --tui-background-accent-1-pressed: rgba(50, 92, 227, 1); /* update */
+  --tui-background-accent-2: rgba(180, 59, 201, 1);
+  --tui-background-accent-2-hover: rgba(166, 0, 191, 1);
+  --tui-background-accent-2-pressed: rgba(166, 0, 191, 1); /* update */
+
+  --tui-background-elevation-1: rgba(23, 24, 29, 1);
+  --tui-background-elevation-2: rgba(33, 33, 33, 1);
+  --tui-background-elevation-3: rgba(34, 34, 34, 1);
+
+  --tui-border-normal: rgba(255, 255, 255, 0.14);
+  --tui-border-hover: rgba(255, 255, 255, 0.4);
+
+  --tui-status-negative: rgba(236, 46, 52, 1);
+  --tui-status-negative-pale: color-mix(in hsl, var(--tui-status-negative) 12%, transparent);
+  --tui-status-negative-pale-hover: color-mix(in hsl, var(--tui-status-negative) 24%, transparent);
+  --tui-status-positive: rgba(0, 151, 0, 1);  /* update */
+  --tui-status-positive-pale: color-mix(in hsl, var(--tui-status-positive) 12%, transparent);
+  --tui-status-positive-pale-hover: color-mix(in hsl, var(--tui-status-positive) 24%, transparent);
+  --tui-status-warning: rgba(255, 179, 0, 1);
+  --tui-status-warning-pale: color-mix(in hsl, var(--tui-status-warning) 12%, transparent);
+  --tui-status-warning-pale-hover: color-mix(in hsl, var(--tui-status-warning) 24%, transparent);
+  --tui-status-info: rgba(128, 89, 229, 1);
+  --tui-status-info-pale: color-mix(in hsl, var(--tui-status-info) 12%, transparent);
+  --tui-status-info-pale-hover: color-mix(in hsl, var(--tui-status-info) 24%, transparent);
+  --tui-status-neutral: rgba(137, 137, 137, 1);
+
+  --tui-text-primary: rgba(255, 255, 255, 1);
+  --tui-text-secondary: rgba(255, 255, 255, 0.7);
+  --tui-text-tertiary: rgba(255, 255, 255, 0.5);
+
+  --tui-text-action: rgba(53, 96, 240, 1);
+  --tui-text-action-hover: rgba(50, 92, 227, 1);
+  --tui-text-positive: rgba(0, 151, 0, 1);  /* update */
+  --tui-text-positive-hover: rgba(0, 151, 0, 1);  /* update */
+  --tui-text-negative: rgba(236, 46, 52, 1);
+  --tui-text-negative-hover: rgba(236, 46, 52, 1);
+
+  --start9-base-1: rgba(34, 36, 40, 1);
+  --start9-base-2: rgba(46, 47, 52, 1);
+  --start9-base-3: rgba(50, 51, 53, 1);
+  --start9-base-4: rgba(52, 54, 58, 1);
+  --start9-base-5: rgba(60, 62, 64, 1);
 }
 
-/* stylelint-disable order/order */
-[tuiAppearance][data-appearance='secondary-warning'] {
-  background: var(--tui-status-warning-pale);
-  color: var(--tui-text-primary);
-
-  @include appearance-hover {
-    background: var(--tui-status-warning-pale-hover);
-  }
-
-  @include appearance-active {
-    background: var(--tui-status-warning-pale-hover);
-  }
-}
-
-[tuiAppearance][data-appearance='icon-success'] {
-  color: var(--tui-status-positive);
-}
-
-[tuiAppearance][data-appearance='icon-warning'] {
-  color: var(--tui-status-warning);
-}
-
-[tuiAppearance][data-appearance='icon-error'] {
-  color: var(--tui-status-negative);
-}
-
-[tuiAppearance][data-appearance='primary'] {
+[tuiAppearance][data-appearance^='primary'] {
   @include appearance-disabled {
-    background: #eaecee;
+    background: var(--tui-status-neutral);
     color: #333;
   }
-}
-
-[tuiAppearance][data-appearance='secondary-solid'] {
-  background: #3dc2ff;
-  color: #fff;
-
-  @include appearance-hover {
-    background: #50c8ff;
-  }
-
-  @include appearance-active {
-    background: #36abe0;
-  }
-
-  @include appearance-disabled {
-    background: #eaecee;
-    color: #333;
-  }
-}
-
-[tuiAppearance][data-appearance='tertiary-solid'] {
-  background: #5260ff;
-  color: #fff;
-
-  @include appearance-hover {
-    background: #6370ff;
-  }
-
-  @include appearance-active {
-    background: #4854e0;
-  }
-
-  @include appearance-disabled {
-    background: #eaecee;
-    color: #333;
-  }
-}
-
-[tuiAppearance][data-appearance='success-solid'] {
-  background: #2dd36f;
-  color: #fff;
-
-  @include appearance-hover {
-    background: #42d77d;
-  }
-
-  @include appearance-active {
-    background: #28ba62;
-  }
-
-  @include appearance-disabled {
-    background: #eaecee;
-    color: #333;
-  }
-}
-
-[tuiAppearance][data-appearance='warning-solid'] {
-  background: #ffc409;
-  color: #fff;
-
-  @include appearance-hover {
-    background: #ffca22;
-  }
-
-  @include appearance-active {
-    background: #e0ac08;
-  }
-
-  @include appearance-disabled {
-    background: #eaecee;
-    color: #333;
-  }
-}
-
-[tuiAppearance][data-appearance='danger-solid'] {
-  background: #eb445a;
-  color: #fff;
-
-  @include appearance-hover {
-    background: #ed576b;
-  }
-
-  @include appearance-active {
-    background: #cf3c4f;
-  }
-
-  @include appearance-disabled {
-    background: #eaecee;
-    color: #333;
-  }
-}
-
-[tuiAppearance][data-appearance='input-file'] {
-  &:hover,
-  &:active {
-    background: transparent !important;
-  }
-
-  tui-root._mobile &::after {
-    display: none;
-  }
-}
-
-tui-dialog {
-  transform: translate3d(0, 0, 0);
-}
-
-tui-opt-group[data-label^='⚠️']::before {
-  color: var(--tui-status-warning);
 }
 
 tui-hint[data-appearance='onDark'] {
@@ -153,32 +68,35 @@ tui-hint[data-appearance='onDark'] {
   color: #222 !important;
 }
 
-[tuiLink] {
-  color: var(--tui-text-action) !important;
-
-  &:hover {
-    color: var(--tui-text-action-hover) !important;
-  }
-}
-
-[tuiAppearance][data-appearance='drawer'] {
-  // TODO: Theme
-  background: rgb(81 80 83 / 86%);
-  border-radius: 10rem;
-
-  &._focused::after {
-    color: var(--tui-background-accent-1);
-  }
-}
-
 tui-dropdown[data-appearance='start-os'][data-appearance='start-os'] {
   border: 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(0.25rem);
-  box-shadow: 0 0.25rem 0.25rem rgb(0 0 0 / 25%);
   border-radius: 0.325rem;
   // TODO: Replace --tui-background-elevation-2 when Taiga UI is updated
-  background: rgb(63 63 63 / 80%);
+  background-color: color-mix(
+    in hsl,
+    var(--tui-background-elevation-3) 75%,
+    transparent
+  );
+  background-image: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.15),
+      transparent
+    ),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.15), transparent);
+  background-size: 1px 100%;
+  background-repeat: no-repeat;
+  background-position:
+    top left,
+    top right;
+  box-shadow:
+    0 0.25rem 0.125rem rgba(0, 0, 0, 0.25),
+    0 -0.125rem 0.25rem rgba(55, 155, 255, 0.08),
+    0 0 0.5rem rgba(0, 0, 0, 0.3),
+    inset 0 -0.125rem rgba(255, 255, 255, 0.03),
+    inset 0 1px rgba(255, 255, 255, 0.15),
+    inset 0 0 1rem rgba(0, 0, 0, 0.25),
+    var(--tui-shadow-medium);
 
   tui-opt-group {
     &::before {
@@ -214,4 +132,8 @@ tui-dropdown[data-appearance='start-os'][data-appearance='start-os'] {
 a[tuiIconButton]:not([href]) {
   pointer-events: none;
   opacity: var(--tui-disabled-opacity);
+}
+
+tui-badge-notification {
+  background: var(--tui-status-negative);
 }
