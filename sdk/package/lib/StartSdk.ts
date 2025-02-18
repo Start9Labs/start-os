@@ -229,9 +229,18 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         options: CommandOptions & {
           mounts?: { path: string; options: MountOptions }[]
         },
-        name: string,
+        /**
+         * A name to use to refer to the ephemeral subcontainer for debugging purposes
+         */
+        name?: string,
       ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> => {
-        return runCommand<Manifest>(effects, image, command, options, name)
+        return runCommand<Manifest>(
+          effects,
+          image,
+          command,
+          options,
+          name || (Array.isArray(command) ? command.join(" ") : command),
+        )
       },
       /**
        * @description Use this class to create an Action. By convention, each Action should receive its own file.
@@ -685,6 +694,18 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           name: string,
         ) {
           return SubContainer.of(effects, image, name)
+        },
+        with<T>(
+          effects: T.Effects,
+          image: {
+            imageId: T.ImageId & keyof Manifest["images"]
+            sharedRun?: boolean
+          },
+          mounts: { options: MountOptions; path: string }[],
+          name: string,
+          fn: (subContainer: SubContainer) => Promise<T>,
+        ): Promise<T> {
+          return SubContainer.with(effects, image, mounts, name, fn)
         },
       },
       List: {
