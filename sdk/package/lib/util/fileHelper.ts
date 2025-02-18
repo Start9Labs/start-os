@@ -211,24 +211,18 @@ export class FileHelper<A> {
   }
 
   /**
-   * Accepts full structured data and performs a merge with the existing file on disk if it exists.
+   * Accepts full structured data and overwrites the existing file on disk if it exists.
    */
   async write(data: A) {
-    const fileData = (await this.readFile()) || {}
-    const mergeData = fileMerge({}, fileData, data)
-    return await this.writeFile(this.validate(mergeData))
+    return await this.writeFile(this.validate(data))
   }
 
   /**
    * Accepts partial structured data and performs a merge with the existing file on disk.
    */
   async merge(data: T.DeepPartial<A>) {
-    const fileData =
-      (await this.readFile()) ||
-      (() => {
-        throw new Error(`${this.path}: does not exist`)
-      })()
-    const mergeData = fileMerge({}, fileData, data)
+    const fileData = (await this.readFile()) || null
+    const mergeData = fileMerge(fileData, data)
     return await this.writeFile(this.validate(mergeData))
   }
 

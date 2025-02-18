@@ -229,9 +229,18 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         options: CommandOptions & {
           mounts?: { path: string; options: MountOptions }[]
         },
-        name: string,
+        /**
+         * A name to use to refer to the ephemeral subcontainer for debugging purposes
+         */
+        name?: string,
       ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> => {
-        return runCommand<Manifest>(effects, image, command, options, name)
+        return runCommand<Manifest>(
+          effects,
+          image,
+          command,
+          options,
+          name || (Array.isArray(command) ? command.join(" ") : command),
+        )
       },
       /**
        * @description Use this class to create an Action. By convention, each Action should receive its own file.
@@ -686,6 +695,18 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         ) {
           return SubContainer.of(effects, image, name)
         },
+        with<T>(
+          effects: T.Effects,
+          image: {
+            imageId: T.ImageId & keyof Manifest["images"]
+            sharedRun?: boolean
+          },
+          mounts: { options: MountOptions; path: string }[],
+          name: string,
+          fn: (subContainer: SubContainer) => Promise<T>,
+        ): Promise<T> {
+          return SubContainer.with(effects, image, mounts, name, fn)
+        },
       },
       List: {
         /**
@@ -700,108 +721,15 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
          * @param aSpec - attributes describing each member of the list.
          */
         obj: <Type extends Record<string, any>>(
-          a: {
-            name: string
-            description?: string | null
-            /** Presents a warning before adding/removing/editing a list item. */
-            warning?: string | null
-            default?: []
-            minLength?: number | null
-            maxLength?: number | null
-          },
-          aSpec: {
-            spec: InputSpec<Type, Store>
-            /**
-             * @description The ID of a required field on the inner object whose value will be used to display items in the list.
-             * @example
-             * In this example, we use the value of the `label` field to display members of the list.
-             *
-             * ```
-              spec: InputSpec.of({
-                label: Value.text({
-                  name: 'Label',
-                  required: false,
-                  default: null,
-                })
-              })
-              displayAs: 'label',
-              uniqueBy: null,
-             * ```
-             *
-             */
-            displayAs?: null | string
-            /**
-             * @description The ID(s) of required fields on the inner object whose value(s) will be used to enforce uniqueness in the list.
-             * @example
-             * In this example, we use the `label` field to enforce uniqueness, meaning the label field must be unique from other entries.
-             *
-             * ```
-              spec: InputSpec.of({
-                label: Value.text({
-                  name: 'Label',
-                  required: true,
-                  default: null,
-                })
-                pubkey: Value.text({
-                  name: 'Pubkey',
-                  required: true,
-                  default: null,
-                })
-              })
-              displayAs: 'label',
-              uniqueBy: 'label',
-             * ```
-             * @example
-             * In this example, we use the `label` field AND the `pubkey` field to enforce uniqueness, meaning both these fields must be unique from other entries.
-             *
-             * ```
-              spec: InputSpec.of({
-                label: Value.text({
-                  name: 'Label',
-                  required: true,
-                  default: null,
-                })
-                pubkey: Value.text({
-                  name: 'Pubkey',
-                  required: true,
-                  default: null,
-                })
-              })
-              displayAs: 'label',
-              uniqueBy: { all: ['label', 'pubkey'] },
-             * ```
-             */
-            uniqueBy?: null | UniqueBy
-          },
+          a: Parameters<typeof List.obj<Type, Store>>[0],
+          aSpec: Parameters<typeof List.obj<Type, Store>>[1],
         ) => List.obj<Type, Store>(a, aSpec),
         /**
          * @description Create a list of dynamic text inputs.
          * @param a - attributes of the list itself.
          * @param aSpec - attributes describing each member of the list.
          */
-        dynamicText: (
-          getA: LazyBuild<
-            Store,
-            {
-              name: string
-              description?: string | null
-              warning?: string | null
-              default?: string[]
-              minLength?: number | null
-              maxLength?: number | null
-              disabled?: false | string
-              generate?: null | RandomString
-              spec: {
-                masked?: boolean
-                placeholder?: string | null
-                minLength?: number | null
-                maxLength?: number | null
-                patterns: Pattern[]
-                inputmode?: ListValueSpecText["inputmode"]
-              }
-            }
-          >,
-        ) => List.dynamicText<Store>(getA),
+        dynamicText: List.dynamicText<Store>,
       },
       StorePath: pathBuilder<Store>(),
       Value: {
@@ -1090,244 +1018,14 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
          */
         list: Value.list,
         hidden: Value.hidden,
-        dynamicToggle: (
-          a: LazyBuild<
-            Store,
-            {
-              name: string
-              description?: string | null
-              /** Presents a warning prompt before permitting the value to change. */
-              warning?: string | null
-              default: boolean
-              disabled?: false | string
-            }
-          >,
-        ) => Value.dynamicToggle<Store>(a),
-        dynamicText: (
-          getA: LazyBuild<
-            Store,
-            {
-              name: string
-              description?: string | null
-              /** Presents a warning prompt before permitting the value to change. */
-              warning?: string | null
-              /**
-               * @description optionally provide a default value.
-               * @type { string | RandomString | null }
-               * @example default: null
-               * @example default: 'World'
-               * @example default: { charset: 'abcdefg', len: 16 }
-               */
-              default: DefaultString | null
-              required: boolean
-              /**
-               * @description Mask (aka camouflage) text input with dots: ● ● ●
-               * @default false
-               */
-              masked?: boolean
-              placeholder?: string | null
-              minLength?: number | null
-              maxLength?: number | null
-              /**
-               * @description A list of regular expressions to which the text must conform to pass validation. A human readable description is provided in case the validation fails.
-               * @default []
-               * @example
-               * ```
-                [
-                  {
-                    regex: "[a-z]",
-                    description: "May only contain lower case letters from the English alphabet."
-                  }
-                ]
-               * ```
-               */
-              patterns?: Pattern[]
-              /**
-               * @description Informs the browser how to behave and which keyboard to display on mobile
-               * @default "text"
-               */
-              inputmode?: ValueSpecText["inputmode"]
-              /**
-               * @description Displays a button that will generate a random string according to the provided charset and len attributes.
-               */
-              generate?: null | RandomString
-            }
-          >,
-        ) => Value.dynamicText<Store>(getA),
-        dynamicTextarea: (
-          getA: LazyBuild<
-            Store,
-            {
-              name: string
-              description?: string | null
-              /** Presents a warning prompt before permitting the value to change. */
-              warning?: string | null
-              default: string | null
-              required: boolean
-              minLength?: number | null
-              maxLength?: number | null
-              placeholder?: string | null
-              disabled?: false | string
-            }
-          >,
-        ) => Value.dynamicTextarea<Store>(getA),
-        dynamicNumber: (
-          getA: LazyBuild<
-            Store,
-            {
-              name: string
-              description?: string | null
-              /** Presents a warning prompt before permitting the value to change. */
-              warning?: string | null
-              /**
-               * @description optionally provide a default value.
-               * @type { number | null }
-               * @example default: null
-               * @example default: 7
-               */
-              default: number | null
-              required: boolean
-              min?: number | null
-              max?: number | null
-              /**
-               * @description How much does the number increase/decrease when using the arrows provided by the browser.
-               * @default 1
-               */
-              step?: number | null
-              /**
-               * @description Requires the number to be an integer.
-               */
-              integer: boolean
-              /**
-               * @description Optionally display units to the right of the input box.
-               */
-              units?: string | null
-              placeholder?: string | null
-              disabled?: false | string
-            }
-          >,
-        ) => Value.dynamicNumber<Store>(getA),
-        dynamicColor: (
-          getA: LazyBuild<
-            Store,
-            {
-              name: string
-              description?: string | null
-              /** Presents a warning prompt before permitting the value to change. */
-              warning?: string | null
-              /**
-               * @description optionally provide a default value.
-               * @type { string | null }
-               * @example default: null
-               * @example default: 'ffffff'
-               */
-              default: string | null
-              required: boolean
-              disabled?: false | string
-            }
-          >,
-        ) => Value.dynamicColor<Store>(getA),
-        dynamicDatetime: (
-          getA: LazyBuild<
-            Store,
-            {
-              name: string
-              description?: string | null
-              /** Presents a warning prompt before permitting the value to change. */
-              warning?: string | null
-              /**
-               * @description optionally provide a default value.
-               * @type { string | null }
-               * @example default: null
-               * @example default: '1985-12-16 18:00:00.000'
-               */
-              default: string
-              required: boolean
-              /**
-               * @description Informs the browser how to behave and which date/time component to display.
-               * @default "datetime-local"
-               */
-              inputmode?: ValueSpecDatetime["inputmode"]
-              min?: string | null
-              max?: string | null
-              disabled?: false | string
-            }
-          >,
-        ) => Value.dynamicDatetime<Store>(getA),
-        dynamicSelect: <Variants extends Record<string, string>>(
-          getA: LazyBuild<
-            Store,
-            {
-              name: string
-              description?: string | null
-              /** Presents a warning prompt before permitting the value to change. */
-              warning?: string | null
-              /**
-               * @description provide a default value from the list of values.
-               * @type { default: string }
-               * @example default: 'radio1'
-               */
-              default: keyof Variants & string
-              /**
-               * @description A mapping of unique radio options to their human readable display format.
-               * @example
-               * ```
-                {
-                  radio1: "Radio 1"
-                  radio2: "Radio 2"
-                  radio3: "Radio 3"
-                }
-               * ```
-               */
-              values: Variants
-              /**
-               * @options
-               *   - false - The field can be modified.
-               *   - string - The field cannot be modified. The provided text explains why.
-               *   - string[] - The field can be modified, but the values contained in the array cannot be selected.
-               * @default false
-               */
-              disabled?: false | string | string[]
-            }
-          >,
-        ) => Value.dynamicSelect<Store>(getA),
-        dynamicMultiselect: (
-          getA: LazyBuild<
-            Store,
-            {
-              name: string
-              description?: string | null
-              /** Presents a warning prompt before permitting the value to change. */
-              warning?: string | null
-              /**
-               * @description A simple list of which options should be checked by default.
-               */
-              default: string[]
-              /**
-               * @description A mapping of checkbox options to their human readable display format.
-               * @example
-               * ```
-                {
-                  option1: "Option 1"
-                  option2: "Option 2"
-                  option3: "Option 3"
-                }
-               * ```
-               */
-              values: Record<string, string>
-              minLength?: number | null
-              maxLength?: number | null
-              /**
-               * @options
-               *   - false - The field can be modified.
-               *   - string - The field cannot be modified. The provided text explains why.
-               *   - string[] - The field can be modified, but the values contained in the array cannot be selected.
-               * @default false
-               */
-              disabled?: false | string | string[]
-            }
-          >,
-        ) => Value.dynamicMultiselect<Store>(getA),
+        dynamicToggle: Value.dynamicToggle<Store>,
+        dynamicText: Value.dynamicText<Store>,
+        dynamicTextarea: Value.dynamicTextarea<Store>,
+        dynamicNumber: Value.dynamicNumber<Store>,
+        dynamicColor: Value.dynamicColor<Store>,
+        dynamicDatetime: Value.dynamicDatetime<Store>,
+        dynamicSelect: Value.dynamicSelect<Store>,
+        dynamicMultiselect: Value.dynamicMultiselect<Store>,
         filteredUnion: <
           VariantValues extends {
             [K in string]: {
@@ -1336,16 +1034,13 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
             }
           },
         >(
-          getDisabledFn: LazyBuild<Store, string[]>,
-          a: {
-            name: string
-            description?: string | null
-            warning?: string | null
-            default: keyof VariantValues & string
-          },
-          aVariants:
-            | Variants<VariantValues, Store>
-            | Variants<VariantValues, never>,
+          getDisabledFn: Parameters<
+            typeof Value.filteredUnion<VariantValues, Store>
+          >[0],
+          a: Parameters<typeof Value.filteredUnion<VariantValues, Store>>[1],
+          aVariants: Parameters<
+            typeof Value.filteredUnion<VariantValues, Store>
+          >[2],
         ) =>
           Value.filteredUnion<VariantValues, Store>(
             getDisabledFn,
@@ -1361,33 +1056,10 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
             }
           },
         >(
-          getA: LazyBuild<
-            Store,
-            {
-              name: string
-              description?: string | null
-              /** Presents a warning prompt before permitting the value to change. */
-              warning?: string | null
-              /**
-               * @description provide a default value from the list of variants.
-               * @type { string }
-               * @example default: 'variant1'
-               */
-              default: keyof VariantValues & string
-              required: boolean
-              /**
-               * @options
-               *   - false - The field can be modified.
-               *   - string - The field cannot be modified. The provided text explains why.
-               *   - string[] - The field can be modified, but the values contained in the array cannot be selected.
-               * @default false
-               */
-              disabled: false | string | string[]
-            }
-          >,
-          aVariants:
-            | Variants<VariantValues, Store>
-            | Variants<VariantValues, never>,
+          getA: Parameters<typeof Value.dynamicUnion<VariantValues, Store>>[0],
+          aVariants: Parameters<
+            typeof Value.dynamicUnion<VariantValues, Store>
+          >[1],
         ) => Value.dynamicUnion<VariantValues, Store>(getA, aVariants),
       },
       Variants: {
