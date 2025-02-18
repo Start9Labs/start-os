@@ -974,7 +974,7 @@ export class SystemForEmbassy implements System {
     })) as U.Config
     if (!oldConfig) return
     const moduleCode = await this.moduleCode
-    const method = moduleCode.dependencies?.[id]?.autoConfigure
+    const method = moduleCode?.dependencies?.[id]?.autoConfigure
     if (!method) return
     const newConfig = (await method(
       polyfillEffects(effects, this.manifest),
