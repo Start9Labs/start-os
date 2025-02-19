@@ -30,15 +30,15 @@ pub fn notification<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
-            "delete",
-            from_fn_async(delete)
+            "remove",
+            from_fn_async(remove)
                 .no_display()
                 .with_about("Delete notification for a given id")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
-            "delete-before",
-            from_fn_async(delete_before)
+            "remove-before",
+            from_fn_async(remove_before)
                 .no_display()
                 .with_about("Delete notifications preceding a given id")
                 .with_call_remote::<CliContext>(),
@@ -126,7 +126,7 @@ pub struct DeleteParams {
     id: u32,
 }
 
-pub async fn delete(ctx: RpcContext, DeleteParams { id }: DeleteParams) -> Result<(), Error> {
+pub async fn remove(ctx: RpcContext, DeleteParams { id }: DeleteParams) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
             db.as_private_mut().as_notifications_mut().remove(&id)?;
@@ -142,7 +142,7 @@ pub struct DeleteBeforeParams {
     before: u32,
 }
 
-pub async fn delete_before(
+pub async fn remove_before(
     ctx: RpcContext,
     DeleteBeforeParams { before }: DeleteBeforeParams,
 ) -> Result<(), Error> {

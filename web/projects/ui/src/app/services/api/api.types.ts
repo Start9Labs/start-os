@@ -132,10 +132,10 @@ export module RR {
   } // notification.list
   export type GetNotificationsRes = ServerNotification<number>[]
 
-  export type DeleteNotificationReq = { id: number } // notification.delete
+  export type DeleteNotificationReq = { id: number } // notification.remove
   export type DeleteNotificationRes = null
 
-  export type DeleteAllNotificationsReq = { before: number } // notification.delete-before
+  export type DeleteAllNotificationsReq = { before: number } // notification.remove-before
   export type DeleteAllNotificationsRes = null
 
   // wifi
@@ -166,7 +166,7 @@ export module RR {
   export type ConnectWifiReq = { ssid: string } // wifi.connect
   export type ConnectWifiRes = null
 
-  export type DeleteWifiReq = { ssid: string } // wifi.delete
+  export type DeleteWifiReq = { ssid: string } // wifi.remove
   export type DeleteWifiRes = null
 
   // ssh
@@ -177,7 +177,7 @@ export module RR {
   export type AddSSHKeyReq = { key: string } // ssh.add
   export type AddSSHKeyRes = SSHKey
 
-  export type DeleteSSHKeyReq = { fingerprint: string } // ssh.delete
+  export type DeleteSSHKeyReq = { fingerprint: string } // ssh.remove
   export type DeleteSSHKeyRes = null
 
   // backup
