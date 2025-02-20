@@ -1,11 +1,10 @@
-import { inject, Pipe, PipeTransform } from '@angular/core'
-import { CopyService, MARKDOWN } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { inject, INJECTOR, Pipe, PipeTransform } from '@angular/core'
+import { CopyService } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
-import { from } from 'rxjs'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
+import ServiceMarkdownRoute from '../routes/markdown.component'
 
 export const FALLBACK_URL = 'Not provided'
 
@@ -21,9 +20,11 @@ export interface AdditionalItem {
   standalone: true,
 })
 export class ToAdditionalPipe implements PipeTransform {
-  private readonly api = inject(ApiService)
   private readonly copyService = inject(CopyService)
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly markdown = inject(TuiDialogService).open(
+    new PolymorpheusComponent(ServiceMarkdownRoute, inject(INJECTOR)),
+    { label: 'License', size: 'l' },
+  )
 
   transform(pkg: PackageDataEntry): AdditionalItem[] {
     const manifest = getManifest(pkg)
@@ -36,6 +37,10 @@ export class ToAdditionalPipe implements PipeTransform {
         }).format(new Date(pkg.installedAt || 0)),
       },
       {
+        name: 'Version',
+        description: manifest.version,
+      },
+      {
         name: 'Git Hash',
         description: manifest.gitHash || 'Unknown',
         icon: manifest.gitHash ? '@tui.copy' : '',
@@ -46,11 +51,15 @@ export class ToAdditionalPipe implements PipeTransform {
         name: 'License',
         description: manifest.license,
         icon: '@tui.chevron-right',
-        action: () => this.showLicense(manifest),
+        action: () => this.markdown.subscribe(),
       },
       {
         name: 'Website',
         description: manifest.marketingSite || FALLBACK_URL,
+      },
+      {
+        name: 'Donation Link',
+        description: manifest.donationUrl || FALLBACK_URL,
       },
       {
         name: 'Source Repository',
@@ -61,21 +70,13 @@ export class ToAdditionalPipe implements PipeTransform {
         description: manifest.supportSite || FALLBACK_URL,
       },
       {
-        name: 'Donation Link',
-        description: manifest.donationUrl || FALLBACK_URL,
+        name: 'Registry',
+        description: pkg.registry || FALLBACK_URL,
+      },
+      {
+        name: 'Binary Source',
+        description: manifest.wrapperRepo,
       },
     ]
-  }
-
-  private showLicense({ id, version }: T.Manifest) {
-    this.dialogs
-      .open(MARKDOWN, {
-        label: 'License',
-        size: 'l',
-        data: {
-          content: from(this.api.getStaticInstalled(id, 'LICENSE.md')),
-        },
-      })
-      .subscribe()
   }
 }

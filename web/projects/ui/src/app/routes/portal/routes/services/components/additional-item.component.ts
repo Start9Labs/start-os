@@ -1,17 +1,14 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { TuiIcon } from '@taiga-ui/core'
-import {
-  AdditionalItem,
-  FALLBACK_URL,
-} from 'src/app/routes/portal/routes/services/pipes/to-additional.pipe'
+import { TuiIcon, TuiTitle } from '@taiga-ui/core'
+import { AdditionalItem, FALLBACK_URL } from '../pipes/to-additional.pipe'
 
 @Component({
   selector: '[additionalItem]',
   template: `
-    <div [style.flex]="1">
+    <span tuiTitle>
       <strong>{{ additionalItem.name }}</strong>
-      <div>{{ additionalItem.description }}</div>
-    </div>
+      <span tuiSubtitle>{{ additionalItem.description }}</span>
+    </span>
     @if (icon) {
       <tui-icon [icon]="icon" />
     }
@@ -33,7 +30,7 @@ import {
   },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiIcon],
+  imports: [TuiIcon, TuiTitle],
 })
 export class ServiceAdditionalItemComponent {
   @Input({ required: true })

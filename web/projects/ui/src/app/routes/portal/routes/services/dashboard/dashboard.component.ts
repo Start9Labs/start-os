@@ -84,10 +84,11 @@ import { ServicesService } from './services.service'
       }
     }
   `,
+  host: { class: 'g-page' },
   imports: [ServiceComponent, ToManifestPipe, TuiTable],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DashboardComponent {
+export default class DashboardComponent {
   readonly services = toSignal(inject(ServicesService))
   readonly errors = toSignal(inject(DepErrorService).depErrors$)
 

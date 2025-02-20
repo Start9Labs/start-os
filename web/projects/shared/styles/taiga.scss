@@ -25,17 +25,49 @@
   --tui-border-hover: rgba(255, 255, 255, 0.4);
 
   --tui-status-negative: rgba(236, 46, 52, 1);
-  --tui-status-negative-pale: color-mix(in hsl, var(--tui-status-negative) 12%, transparent);
-  --tui-status-negative-pale-hover: color-mix(in hsl, var(--tui-status-negative) 24%, transparent);
-  --tui-status-positive: rgba(0, 151, 0, 1);  /* update */
-  --tui-status-positive-pale: color-mix(in hsl, var(--tui-status-positive) 12%, transparent);
-  --tui-status-positive-pale-hover: color-mix(in hsl, var(--tui-status-positive) 24%, transparent);
+  --tui-status-negative-pale: color-mix(
+    in hsl,
+    var(--tui-status-negative) 12%,
+    transparent
+  );
+  --tui-status-negative-pale-hover: color-mix(
+    in hsl,
+    var(--tui-status-negative) 24%,
+    transparent
+  );
+  --tui-status-positive: rgba(0, 151, 0, 1); /* update */
+  --tui-status-positive-pale: color-mix(
+    in hsl,
+    var(--tui-status-positive) 12%,
+    transparent
+  );
+  --tui-status-positive-pale-hover: color-mix(
+    in hsl,
+    var(--tui-status-positive) 24%,
+    transparent
+  );
   --tui-status-warning: rgba(255, 179, 0, 1);
-  --tui-status-warning-pale: color-mix(in hsl, var(--tui-status-warning) 12%, transparent);
-  --tui-status-warning-pale-hover: color-mix(in hsl, var(--tui-status-warning) 24%, transparent);
+  --tui-status-warning-pale: color-mix(
+    in hsl,
+    var(--tui-status-warning) 12%,
+    transparent
+  );
+  --tui-status-warning-pale-hover: color-mix(
+    in hsl,
+    var(--tui-status-warning) 24%,
+    transparent
+  );
   --tui-status-info: rgba(128, 89, 229, 1);
-  --tui-status-info-pale: color-mix(in hsl, var(--tui-status-info) 12%, transparent);
-  --tui-status-info-pale-hover: color-mix(in hsl, var(--tui-status-info) 24%, transparent);
+  --tui-status-info-pale: color-mix(
+    in hsl,
+    var(--tui-status-info) 12%,
+    transparent
+  );
+  --tui-status-info-pale-hover: color-mix(
+    in hsl,
+    var(--tui-status-info) 24%,
+    transparent
+  );
   --tui-status-neutral: rgba(137, 137, 137, 1);
 
   --tui-text-primary: rgba(255, 255, 255, 1);
@@ -44,8 +76,8 @@
 
   --tui-text-action: rgba(53, 96, 240, 1);
   --tui-text-action-hover: rgba(50, 92, 227, 1);
-  --tui-text-positive: rgba(0, 151, 0, 1);  /* update */
-  --tui-text-positive-hover: rgba(0, 151, 0, 1);  /* update */
+  --tui-text-positive: rgba(0, 151, 0, 1); /* update */
+  --tui-text-positive-hover: rgba(0, 151, 0, 1); /* update */
   --tui-text-negative: rgba(236, 46, 52, 1);
   --tui-text-negative-hover: rgba(236, 46, 52, 1);
 
@@ -136,4 +168,12 @@ a[tuiIconButton]:not([href]) {
 
 tui-badge-notification {
   background: var(--tui-status-negative);
+}
+
+[tuiCell][data-height='spacious'] {
+  padding-block: 0.75rem;
+
+  [tuiTitle] {
+    font: var(--tui-font-text-l);
+  }
 }

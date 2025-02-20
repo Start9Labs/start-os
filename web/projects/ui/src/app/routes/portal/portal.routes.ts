@@ -17,10 +17,7 @@ const ROUTES: Routes = [
       },
       {
         path: 'services',
-        loadChildren: () =>
-          import('./routes/services/services.module').then(
-            m => m.ServicesModule,
-          ),
+        loadChildren: () => import('./routes/services/services.routes'),
       },
       {
         title: systemTabResolver,

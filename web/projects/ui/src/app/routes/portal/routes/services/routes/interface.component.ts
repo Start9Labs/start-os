@@ -17,11 +17,12 @@ import { ConfigService } from 'src/app/services/config.service'
       [serviceInterface]="serviceInterface"
     />
   `,
+  host: { class: 'g-subpage' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [CommonModule, InterfaceComponent],
 })
-export class ServiceInterfaceRoute {
+export default class ServiceInterfaceRoute {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly config = inject(ConfigService)
 

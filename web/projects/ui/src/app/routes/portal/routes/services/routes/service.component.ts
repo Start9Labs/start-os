@@ -5,8 +5,6 @@ import { isEmptyObject } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map, switchMap } from 'rxjs'
-import { ServiceBackupsComponent } from 'src/app/routes/portal/routes/services/components/backups.component'
-import { InstallingProgressPipe } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
 import { ConnectionService } from 'src/app/services/connection.service'
 import {
   DepErrorService,
@@ -31,7 +29,6 @@ import { ServiceDependenciesComponent } from '../components/dependencies.compone
 import { ServiceErrorComponent } from '../components/error.component'
 import { ServiceHealthChecksComponent } from '../components/health-checks.component'
 import { ServiceInterfaceListComponent } from '../components/interface-list.component'
-import { ServiceMenuComponent } from '../components/menu.component'
 import { ServiceProgressComponent } from '../components/progress.component'
 import { ServiceStatusComponent } from '../components/status.component'
 import { ToActionRequestsPipe } from '../pipes/to-action-requests.pipe'
@@ -40,8 +37,8 @@ import { DependencyInfo } from '../types/dependency-info'
 @Component({
   template: `
     @if (service$ | async; as service) {
-      <section [style.grid-column]="'span 3'">
-        <h3>Status</h3>
+      <section class="g-card">
+        <header>Status</header>
         <service-status
           [connected]="!!(connected$ | async)"
           [installingInfo]="service.pkg.stateInfo.installingInfo"
@@ -54,75 +51,55 @@ import { DependencyInfo } from '../types/dependency-info'
       </section>
 
       @if (isInstalled(service)) {
-        <section [style.grid-column]="'span 3'">
-          <h3>Backups</h3>
-          <service-backups [pkg]="service.pkg" />
-        </section>
-
         @if (service.pkg.status.main === 'error') {
           <section class="error">
-            <h3>Error</h3>
+            <header>Error</header>
             <service-error [pkg]="service.pkg" />
           </section>
         } @else {
-          <section [style.grid-column]="'span 6'">
-            <h3>Metrics</h3>
+          <section class="g-card" [style.grid-column]="'span 2'">
+            <header>Metrics</header>
             TODO
           </section>
         }
 
-        <section [style.grid-column]="'span 4'" [style.align-self]="'start'">
-          <h3>Menu</h3>
-          <service-menu [pkg]="service.pkg" />
-        </section>
-
-        <div>
-          @if (service.pkg | toActionRequests: service.allPkgs; as requests) {
-            @if (requests.critical.length) {
-              <section>
-                <h3>Required Actions</h3>
-                @for (request of requests.critical; track $index) {
-                  <button
-                    [actionRequest]="request"
-                    [pkg]="service.pkg"
-                    [allPkgs]="service.allPkgs"
-                  ></button>
-                }
-              </section>
-            }
-
-            @if (requests.important.length) {
-              <section>
-                <h3>Requested Actions</h3>
-                @for (request of requests.important; track $index) {
-                  <button
-                    [actionRequest]="request"
-                    [pkg]="service.pkg"
-                    [allPkgs]="service.allPkgs"
-                  ></button>
-                }
-              </section>
-            }
-          }
-
-          <section>
-            <h3>Health Checks</h3>
-            <service-health-checks [checks]="(health$ | async) || []" />
-          </section>
-
-          <section>
-            <h3>Dependencies</h3>
-            <service-dependencies [dependencies]="service.dependencies" />
-          </section>
-        </div>
-
-        <section [style.grid-column]="'span 4'" [style.align-self]="'start'">
-          <h3>Service Interfaces</h3>
+        <section class="g-card" [style.grid-column]="'span 3'">
+          <header>Interfaces</header>
           <service-interface-list
             [pkg]="service.pkg"
             [status]="service.status"
           />
         </section>
+
+        <section class="g-card">
+          <header>Dependencies</header>
+          <service-dependencies [dependencies]="service.dependencies" />
+        </section>
+
+        <section class="g-card">
+          <header>Health Checks</header>
+          <service-health-checks [checks]="(health$ | async) || []" />
+        </section>
+
+        @if (service.pkg | toActionRequests: service.allPkgs; as requests) {
+          <section class="g-card">
+            <header>Tasks</header>
+            @for (request of requests.critical; track $index) {
+              <button
+                [actionRequest]="request"
+                [pkg]="service.pkg"
+                [allPkgs]="service.allPkgs"
+              ></button>
+            }
+            @for (request of requests.important; track $index) {
+              <button
+                [actionRequest]="request"
+                [pkg]="service.pkg"
+                [allPkgs]="service.allPkgs"
+              ></button>
+            }
+          </section>
+        }
       }
 
       @if (isInstalling(service.pkg.stateInfo.state)) {
@@ -138,60 +115,41 @@ import { DependencyInfo } from '../types/dependency-info'
   styles: `
     :host {
       display: grid;
-      grid-template-columns: repeat(12, 1fr);
-      flex-direction: column;
+      grid-template-columns: repeat(3, 1fr);
+      grid-auto-rows: max-content;
       gap: 1rem;
-      margin: 1rem -1rem 0;
     }
 
-    :host-context(tui-root._mobile) {
-      display: flex;
-    }
-
-    section {
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      padding: 1rem 1.5rem 0.5rem;
-      border-radius: 0.5rem;
-      background: var(--tui-background-neutral-1);
-      box-shadow: inset 0 7rem 0 -4rem var(--tui-background-neutral-1);
-      clip-path: polygon(0 1.5rem, 1.5rem 0, 100% 0, 100% 100%, 0 100%);
-
-      &.error {
-        box-shadow: inset 0 7rem 0 -4rem var(--tui-status-negative-pale);
-        grid-column: span 6;
-
-        h3 {
-          color: var(--tui-status-negative);
-        }
-      }
-
-      ::ng-deep [tuiCell] {
-        width: stretch;
-        margin: 0 -1rem;
-
-        &:not(:last-child) {
-          box-shadow: 0 0.51rem 0 -0.5rem;
-        }
-      }
-    }
-
-    h3 {
-      margin-bottom: 1.25rem;
-    }
-
-    div {
-      display: flex;
-      flex-direction: column;
-      gap: inherit;
-      grid-column: span 4;
-    }
-
-    :host-context(tui-root._mobile) {
-      margin: 0;
-    }
+    //section {
+    //  display: flex;
+    //  flex-direction: column;
+    //  width: 100%;
+    //  padding: 1rem 1.5rem 0.5rem;
+    //  border-radius: 0.5rem;
+    //  background: var(--tui-background-neutral-1);
+    //  box-shadow: inset 0 7rem 0 -4rem var(--tui-background-neutral-1);
+    //  clip-path: polygon(0 1.5rem, 1.5rem 0, 100% 0, 100% 100%, 0 100%);
+    //
+    //  &.error {
+    //    box-shadow: inset 0 7rem 0 -4rem var(--tui-status-negative-pale);
+    //    grid-column: span 6;
+    //
+    //    h3 {
+    //      color: var(--tui-status-negative);
+    //    }
+    //  }
+    //
+    //  ::ng-deep [tuiCell] {
+    //    width: stretch;
+    //    margin: 0 -1rem;
+    //
+    //    &:not(:last-child) {
+    //      box-shadow: 0 0.51rem 0 -0.5rem;
+    //    }
+    //  }
+    //}
   `,
+  host: { class: 'g-subpage' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [
@@ -202,12 +160,9 @@ import { DependencyInfo } from '../types/dependency-info'
     ServiceInterfaceListComponent,
     ServiceHealthChecksComponent,
     ServiceDependenciesComponent,
-    ServiceMenuComponent,
-    ServiceBackupsComponent,
     ServiceActionRequestComponent,
     ServiceErrorComponent,
     ToActionRequestsPipe,
-    InstallingProgressPipe,
   ],
 })
 export class ServiceRoute {
