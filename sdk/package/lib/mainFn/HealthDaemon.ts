@@ -25,6 +25,7 @@ export class HealthDaemon {
   private _health: HealthCheckResult = { result: "starting", message: null }
   private healthWatchers: Array<() => unknown> = []
   private running = false
+  private started?: number
   private resolveReady: (() => void) | undefined
   private readyPromise: Promise<void>
   constructor(
@@ -75,6 +76,7 @@ export class HealthDaemon {
 
     if (newStatus) {
       ;(await this.daemon).start()
+      this.started = performance.now()
       this.setupHealthCheck()
     } else {
       ;(await this.daemon).stop()
@@ -146,14 +148,21 @@ export class HealthDaemon {
     this._health = health
     this.healthWatchers.forEach((watcher) => watcher())
     const display = this.ready.display
-    const result = health.result
     if (!display) {
       return
     }
+    let result = health.result
+    if (
+      result === "failure" &&
+      this.started &&
+      performance.now() - this.started <= (this.ready.gracePeriod ?? 5000)
+    )
+      result = "starting"
     await this.effects.setHealth({
       ...health,
       id: this.id,
       name: display,
+      result,
     } as SetHealth)
   }
 

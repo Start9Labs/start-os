@@ -127,7 +127,11 @@ export type SmtpValue = {
   password: string | null | undefined
 }
 
-export type CommandType = string | [string, ...string[]]
+export class UseEntrypoint {
+  constructor(readonly overridCmd?: string[]) {}
+}
+
+export type CommandType = string | [string, ...string[]] | UseEntrypoint
 
 export type DaemonReturned = {
   wait(): Promise<unknown>

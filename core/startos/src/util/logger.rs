@@ -61,30 +61,31 @@ impl StartOSLogger {
         use tracing_subscriber::prelude::*;
         use tracing_subscriber::{fmt, EnvFilter};
 
-        let filter_layer = EnvFilter::builder()
-            .with_default_directive(
-                format!("{}=info", std::module_path!().split("::").next().unwrap())
-                    .parse()
-                    .unwrap(),
-            )
-            .from_env_lossy();
-        #[cfg(feature = "unstable")]
-        let filter_layer = filter_layer
-            .add_directive("tokio=trace".parse().unwrap())
-            .add_directive("runtime=trace".parse().unwrap());
+        let filter_layer = || {
+            EnvFilter::builder()
+                .with_default_directive(
+                    format!("{}=info", std::module_path!().split("::").next().unwrap())
+                        .parse()
+                        .unwrap(),
+                )
+                .from_env_lossy()
+        };
+
         let fmt_layer = fmt::layer()
             .with_writer(logfile)
             .with_line_number(true)
             .with_file(true)
-            .with_target(true);
+            .with_target(true)
+            .with_filter(filter_layer());
 
-        let sub = tracing_subscriber::registry()
-            .with(filter_layer)
-            .with(fmt_layer)
-            .with(ErrorLayer::default());
+        let sub = tracing_subscriber::registry();
 
         #[cfg(feature = "unstable")]
         let sub = sub.with(console_subscriber::spawn());
+        #[cfg(not(feature = "unstable"))]
+        let sub = sub.with(filter_layer());
+
+        let sub = sub.with(fmt_layer).with(ErrorLayer::default());
 
         sub
     }

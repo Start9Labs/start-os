@@ -11,14 +11,17 @@ export type HealthCheckParams = {
   id: HealthCheckId
   name: string
   trigger?: Trigger
+  gracePeriod?: number
   fn(): Promise<HealthCheckResult> | HealthCheckResult
   onFirstSuccess?: () => unknown | Promise<unknown>
 }
 
 export function healthCheck(o: HealthCheckParams) {
   new Promise(async () => {
+    const start = performance.now()
     let currentValue: TriggerInput = {}
     const getCurrentValue = () => currentValue
+    const gracePeriod = o.gracePeriod ?? 5000
     const trigger = (o.trigger ?? defaultTrigger)(getCurrentValue)
     const triggerFirstSuccess = once(() =>
       Promise.resolve(
@@ -33,7 +36,9 @@ export function healthCheck(o: HealthCheckParams) {
       res = await trigger.next()
     ) {
       try {
-        const { result, message } = await o.fn()
+        let { result, message } = await o.fn()
+        if (result === "failure" && performance.now() - start <= gracePeriod)
+          result = "starting"
         await o.effects.setHealth({
           name: o.name,
           id: o.id,
@@ -48,7 +53,8 @@ export function healthCheck(o: HealthCheckParams) {
         await o.effects.setHealth({
           name: o.name,
           id: o.id,
-          result: "failure",
+          result:
+            performance.now() - start <= gracePeriod ? "starting" : "failure",
           message: asMessage(e) || "",
         })
         currentValue.lastResult = "failure"

@@ -349,9 +349,6 @@ export class SystemForEmbassy implements System {
       ) {
         await effects.action.clearRequests({ only: ["needs-config"] })
       }
-      await effects.setDataVersion({
-        version: ExtendedVersion.parseEmver(this.manifest.version).toString(),
-      })
     } else if (this.manifest.config) {
       await effects.action.request({
         packageId: this.manifest.id,
@@ -361,6 +358,9 @@ export class SystemForEmbassy implements System {
         reason: "This service must be configured before it can be run",
       })
     }
+    await effects.setDataVersion({
+      version: ExtendedVersion.parseEmver(this.manifest.version).toString(),
+    })
   }
   async exportNetwork(effects: Effects) {
     for (const [id, interfaceValue] of Object.entries(

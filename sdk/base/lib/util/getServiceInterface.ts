@@ -17,6 +17,7 @@ export const getHostname = (url: string): Hostname | null => {
 
 export type Filled = {
   hostnames: HostnameInfo[]
+  publicHostnames: HostnameInfo[]
   onionHostnames: HostnameInfo[]
   localHostnames: HostnameInfo[]
   ipHostnames: HostnameInfo[]
@@ -25,6 +26,7 @@ export type Filled = {
   nonIpHostnames: HostnameInfo[]
 
   urls: UrlString[]
+  publicUrls: UrlString[]
   onionUrls: UrlString[]
   localUrls: UrlString[]
   ipUrls: UrlString[]
@@ -105,6 +107,9 @@ export const filledAddress = (
   return {
     ...addressInfo,
     hostnames,
+    get publicHostnames() {
+      return hostnames.filter((h) => h.kind === "onion" || h.public)
+    },
     get onionHostnames() {
       return hostnames.filter((h) => h.kind === "onion")
     },
@@ -140,6 +145,9 @@ export const filledAddress = (
     },
     get urls() {
       return this.hostnames.flatMap(toUrl)
+    },
+    get publicUrls() {
+      return this.publicHostnames.flatMap(toUrl)
     },
     get onionUrls() {
       return this.onionHostnames.flatMap(toUrl)

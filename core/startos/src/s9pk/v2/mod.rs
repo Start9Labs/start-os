@@ -27,6 +27,7 @@ pub const SIG_CONTEXT: &str = "s9pk";
 pub mod compat;
 pub mod manifest;
 pub mod pack;
+pub mod recipe;
 
 /**
     /

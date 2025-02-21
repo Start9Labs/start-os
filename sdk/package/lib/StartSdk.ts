@@ -26,7 +26,7 @@ import {
 import * as patterns from "../../base/lib/util/patterns"
 import { BackupSync, Backups } from "./backup/Backups"
 import { smtpInputSpec } from "../../base/lib/actions/input/inputSpecConstants"
-import { Daemons } from "./mainFn/Daemons"
+import { CommandController, Daemons } from "./mainFn/Daemons"
 import { healthCheck, HealthCheckParams } from "./health/HealthCheck"
 import { checkPortListening } from "./health/checkFns/checkPortListening"
 import { checkWebUrl, runHealthScript } from "./health/checkFns"
@@ -71,6 +71,7 @@ import { GetInput } from "../../base/lib/actions/setupActions"
 import { Run } from "../../base/lib/actions/setupActions"
 import * as actions from "../../base/lib/actions"
 import { setupInit } from "./inits/setupInit"
+import * as fs from "node:fs/promises"
 
 export const SDKVersion = testTypeVersion("0.3.6")
 
@@ -124,6 +125,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         effects.getServicePortForward(...args),
       clearBindings: (effects, ...args) => effects.clearBindings(...args),
       getContainerIp: (effects, ...args) => effects.getContainerIp(...args),
+      getOsIp: (effects, ...args) => effects.getOsIp(...args),
       getSslKey: (effects, ...args) => effects.getSslKey(...args),
       setDataVersion: (effects, ...args) => effects.setDataVersion(...args),
       getDataVersion: (effects, ...args) => effects.getDataVersion(...args),
@@ -219,6 +221,8 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         of: (effects: Effects, id: string) => new MultiHost({ id, effects }),
       },
       nullIfEmpty,
+      useEntrypoint: (overrideCmd?: string[]) =>
+        new T.UseEntrypoint(overrideCmd),
       runCommand: async <A extends string>(
         effects: Effects,
         image: {
@@ -234,13 +238,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
          */
         name?: string,
       ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> => {
-        return runCommand<Manifest>(
-          effects,
-          image,
-          command,
-          options,
-          name || (Array.isArray(command) ? command.join(" ") : command),
-        )
+        return runCommand<Manifest>(effects, image, command, options, name)
       },
       /**
        * @description Use this class to create an Action. By convention, each Action should receive its own file.
@@ -1081,18 +1079,37 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
 export async function runCommand<Manifest extends T.SDKManifest>(
   effects: Effects,
   image: { imageId: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
-  command: string | [string, ...string[]],
+  command: T.CommandType,
   options: CommandOptions & {
     mounts?: { path: string; options: MountOptions }[]
   },
-  name: string,
+  name?: string,
 ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
-  const commands = splitCommand(command)
+  let commands: string[]
+  if (command instanceof T.UseEntrypoint) {
+    const imageMeta: T.ImageMetadata = await fs
+      .readFile(`/media/startos/images/${image.imageId}.json`, {
+        encoding: "utf8",
+      })
+      .catch(() => "{}")
+      .then(JSON.parse)
+    commands = imageMeta.entrypoint ?? []
+    commands.concat(...(command.overridCmd ?? imageMeta.cmd ?? []))
+  } else commands = splitCommand(command)
   return SubContainer.with(
     effects,
     image,
     options.mounts || [],
-    name,
+    name ||
+      commands
+        .map((c) => {
+          if (c.includes(" ")) {
+            return `"${c.replace(/"/g, `\"`)}"`
+          } else {
+            return c
+          }
+        })
+        .join(" "),
     (subcontainer) => subcontainer.exec(commands),
   )
 }

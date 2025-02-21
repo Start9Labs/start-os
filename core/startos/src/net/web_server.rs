@@ -267,7 +267,7 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
             if !runner.is_empty() {
                 tokio::time::timeout(Duration::from_secs(60), runner)
                     .await
-                    .ok();
+                    .log_err();
             }
         }));
         Self {

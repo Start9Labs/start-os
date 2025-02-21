@@ -1,3 +1,4 @@
+use std::backtrace;
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
@@ -484,10 +485,12 @@ impl Drop for RpcContext {
     fn drop(&mut self) {
         #[cfg(feature = "unstable")]
         if self.0.is_closed.load(Ordering::SeqCst) {
-            tracing::info!(
-                "RpcContext dropped. {} left.",
-                Arc::strong_count(&self.0) - 1
-            );
+            let count = Arc::strong_count(&self.0) - 1;
+            tracing::info!("RpcContext dropped. {} left.", count);
+            if count > 0 {
+                tracing::debug!("{}", backtrace::Backtrace::force_capture());
+                tracing::debug!("{:?}", eyre!(""))
+            }
         }
     }
 }

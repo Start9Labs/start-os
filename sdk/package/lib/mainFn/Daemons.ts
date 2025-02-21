@@ -38,6 +38,12 @@ export type Ready = {
   fn: (
     spawnable: ExecSpawnable,
   ) => Promise<HealthCheckResult> | HealthCheckResult
+  /**
+   * A duration in milliseconds to treat a failing health check as "starting"
+   *
+   * defaults to 5000
+   */
+  gracePeriod?: number
   trigger?: Trigger
 }
 
