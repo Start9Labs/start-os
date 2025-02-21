@@ -9,6 +9,7 @@ import {
 } from "../util/SubContainer"
 import { splitCommand } from "../util"
 import * as cp from "child_process"
+import * as fs from "node:fs/promises"
 
 export class CommandController {
   private constructor(
@@ -45,7 +46,17 @@ export class CommandController {
         onStderr?: (chunk: Buffer | string | any) => void
       },
     ) => {
-      const commands = splitCommand(command)
+      let commands: string[]
+      if (command instanceof T.UseEntrypoint) {
+        const imageMeta: T.ImageMetadata = await fs
+          .readFile(`/media/startos/images/${subcontainer.imageId}.json`, {
+            encoding: "utf8",
+          })
+          .catch(() => "{}")
+          .then(JSON.parse)
+        commands = imageMeta.entrypoint ?? []
+        commands.concat(...(command.overridCmd ?? imageMeta.cmd ?? []))
+      } else commands = splitCommand(command)
       const subc =
         subcontainer instanceof SubContainer
           ? subcontainer
@@ -55,10 +66,15 @@ export class CommandController {
                 subcontainer,
                 options?.subcontainerName || commands.join(" "),
               )
-              for (let mount of options.mounts || []) {
-                await subc.mount(mount.options, mount.path)
+              try {
+                for (let mount of options.mounts || []) {
+                  await subc.mount(mount.options, mount.path)
+                }
+                return subc
+              } catch (e) {
+                await subc.destroy()
+                throw e
               }
-              return subc
             })()
 
       try {

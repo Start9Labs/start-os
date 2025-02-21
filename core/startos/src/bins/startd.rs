@@ -2,6 +2,7 @@ use std::cmp::max;
 use std::ffi::OsString;
 use std::net::IpAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use clap::Parser;
 use color_eyre::eyre::eyre;
@@ -149,7 +150,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
             .enable_all()
             .build()
             .expect("failed to initialize runtime");
-        rt.block_on(async {
+        let res = rt.block_on(async {
             let mut server = WebServer::new(Acceptor::bind_upgradable(
                 SelfContainedNetworkInterfaceListener::bind(80),
             ));
@@ -194,7 +195,9 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
                     .await
                 }
             }
-        })
+        });
+        rt.shutdown_timeout(Duration::from_secs(60));
+        res
     };
 
     match res {

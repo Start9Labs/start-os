@@ -98,21 +98,27 @@ impl ExecParams {
         if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
             cmd.uid(uid);
         } else if let Some(user) = user {
-            let (uid, gid) = std::fs::read_to_string("/etc/passwd")
-                .with_ctx(|_| (ErrorKind::Filesystem, "read /etc/passwd"))?
-                .lines()
-                .find_map(|l| {
-                    let mut split = l.trim().split(":");
-                    if user != split.next()? {
-                        return None;
-                    }
-                    split.next(); // throw away x
-                    Some((split.next()?.parse().ok()?, split.next()?.parse().ok()?))
-                    // uid gid
-                })
-                .or_not_found(lazy_format!("{user} in /etc/passwd"))?;
-            cmd.uid(uid);
-            cmd.gid(gid);
+            let passwd = std::fs::read_to_string("/etc/passwd")
+                .with_ctx(|_| (ErrorKind::Filesystem, "read /etc/passwd"));
+            if passwd.is_err() && user == "root" {
+                cmd.uid(0);
+                cmd.gid(0);
+            } else {
+                let (uid, gid) = passwd?
+                    .lines()
+                    .find_map(|l| {
+                        let mut split = l.trim().split(":");
+                        if user != split.next()? {
+                            return None;
+                        }
+                        split.next(); // throw away x
+                        Some((split.next()?.parse().ok()?, split.next()?.parse().ok()?))
+                        // uid gid
+                    })
+                    .or_not_found(lazy_format!("{user} in /etc/passwd"))?;
+                cmd.uid(uid);
+                cmd.gid(gid);
+            }
         };
         if let Some(workdir) = workdir {
             cmd.current_dir(workdir);

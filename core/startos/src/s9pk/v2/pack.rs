@@ -26,6 +26,7 @@ use crate::s9pk::merkle_archive::source::{
     into_dyn_read, ArchiveSource, DynFileSource, DynRead, FileSource, TmpSource,
 };
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
+use crate::s9pk::v2::recipe::DirRecipe;
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::s9pk::S9pk;
 use crate::util::io::{create_file, open_file, TmpDir};
@@ -363,6 +364,7 @@ pub enum ImageSource {
         build_args: Option<BTreeMap<String, BuildArg>>,
     },
     DockerTag(String),
+    // Recipe(DirRecipe),
 }
 impl ImageSource {
     pub fn ingredients(&self) -> Vec<PathBuf> {
@@ -399,6 +401,8 @@ impl ImageSource {
             working_dir: PathBuf,
             #[serde(default)]
             user: String,
+            entrypoint: Option<Vec<String>>,
+            cmd: Option<Vec<String>>,
         }
         async move {
             match self {
@@ -531,6 +535,8 @@ impl ImageSource {
                                         } else {
                                             config.user.into()
                                         },
+                                        entrypoint: config.entrypoint,
+                                        cmd: config.cmd,
                                     })
                                     .with_kind(ErrorKind::Serialization)?
                                     .into(),
@@ -625,6 +631,8 @@ pub struct ImageMetadata {
     pub workdir: PathBuf,
     #[ts(type = "string")]
     pub user: InternedString,
+    pub entrypoint: Option<Vec<String>>,
+    pub cmd: Option<Vec<String>>,
 }
 
 #[instrument(skip_all)]

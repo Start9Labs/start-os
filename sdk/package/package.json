@@ -55,6 +55,6 @@
     "ts-node": "^10.9.1",
     "ts-pegjs": "^4.2.1",
     "tsx": "^4.7.1",
-    "typescript": "^5.0.4"
+    "typescript": "^5.7.3"
   }
 }
