@@ -5,6 +5,7 @@ use models::ImageId;
 use tokio::process::Command;
 
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
+use crate::disk::mount::guard::GenericMountGuard;
 use crate::rpc_continuations::Guid;
 use crate::service::effects::prelude::*;
 use crate::service::persistent_container::Subcontainer;
@@ -40,6 +41,24 @@ pub async fn destroy_subcontainer_fs(
         .await
         .remove(&guid)
     {
+        #[cfg(feature = "container-runtime")]
+        if tokio::fs::metadata(overlay.overlay.path().join("proc/1"))
+            .await
+            .is_ok()
+        {
+            let procfs = context
+                .seed
+                .persistent_container
+                .lxc_container
+                .get()
+                .or_not_found("lxc container")?
+                .rootfs_dir()
+                .join("proc");
+            let overlay_path = overlay.overlay.path().to_owned();
+            tokio::task::spawn_blocking(move || sync::kill_init(&procfs, &overlay_path))
+                .await
+                .with_kind(ErrorKind::Unknown)??;
+        }
         overlay.overlay.unmount(true).await?;
     } else {
         tracing::warn!("Could not find a subcontainer fs to destroy; assumming that it already is destroyed and will be skipping");

@@ -20,6 +20,54 @@ const FWD_SIGNALS: &[c_int] = &[
     SIGTSTP, SIGTTIN, SIGTTOU, SIGURG, SIGUSR1, SIGUSR2, SIGVTALRM,
 ];
 
+pub fn kill_init(procfs: &Path, chroot: &Path) -> Result<(), Error> {
+    if chroot.join("proc/1").exists() {
+        let ns_id = procfs::process::Process::new_with_root(chroot.join("proc/1"))
+            .with_ctx(|_| (ErrorKind::Filesystem, "open subcontainer procfs"))?
+            .namespaces()
+            .with_ctx(|_| (ErrorKind::Filesystem, "read subcontainer pid 1 ns"))?
+            .0
+            .get(OsStr::new("pid"))
+            .or_not_found("pid namespace")?
+            .identifier;
+        for proc in procfs::process::all_processes_with_root(procfs)
+            .with_ctx(|_| (ErrorKind::Filesystem, "open procfs"))?
+        {
+            let proc = proc.with_ctx(|_| (ErrorKind::Filesystem, "read single process details"))?;
+            let pid = proc.pid();
+            if proc
+                .namespaces()
+                .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("read pid {} ns", pid)))?
+                .0
+                .get(OsStr::new("pid"))
+                .map_or(false, |ns| ns.identifier == ns_id)
+            {
+                let pids = proc.read::<NSPid>("status").with_ctx(|_| {
+                    (
+                        ErrorKind::Filesystem,
+                        lazy_format!("read pid {} NSpid", pid),
+                    )
+                })?;
+                if pids.0.len() == 2 && pids.0[1] == 1 {
+                    nix::sys::signal::kill(Pid::from_raw(pid), nix::sys::signal::SIGKILL)
+                        .with_ctx(|_| {
+                            (
+                                ErrorKind::Filesystem,
+                                lazy_format!(
+                                    "kill pid {} (determined to be pid 1 in subcontainer)",
+                                    pid
+                                ),
+                            )
+                        })?;
+                }
+            }
+        }
+        nix::mount::umount(&chroot.join("proc"))
+            .with_ctx(|_| (ErrorKind::Filesystem, "unmounting subcontainer procfs"))?;
+    }
+    Ok(())
+}
+
 struct NSPid(Vec<i32>);
 impl procfs::FromBufRead for NSPid {
     fn from_buf_read<R: std::io::BufRead>(r: R) -> procfs::ProcResult<Self> {
@@ -140,51 +188,7 @@ pub fn launch(
         command,
     }: ExecParams,
 ) -> Result<(), Error> {
-    if chroot.join("proc/1").exists() {
-        let ns_id = procfs::process::Process::new_with_root(chroot.join("proc/1"))
-            .with_ctx(|_| (ErrorKind::Filesystem, "open subcontainer procfs"))?
-            .namespaces()
-            .with_ctx(|_| (ErrorKind::Filesystem, "read subcontainer pid 1 ns"))?
-            .0
-            .get(OsStr::new("pid"))
-            .or_not_found("pid namespace")?
-            .identifier;
-        for proc in
-            procfs::process::all_processes().with_ctx(|_| (ErrorKind::Filesystem, "open procfs"))?
-        {
-            let proc = proc.with_ctx(|_| (ErrorKind::Filesystem, "read single process details"))?;
-            let pid = proc.pid();
-            if proc
-                .namespaces()
-                .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("read pid {} ns", pid)))?
-                .0
-                .get(OsStr::new("pid"))
-                .map_or(false, |ns| ns.identifier == ns_id)
-            {
-                let pids = proc.read::<NSPid>("status").with_ctx(|_| {
-                    (
-                        ErrorKind::Filesystem,
-                        lazy_format!("read pid {} NSpid", pid),
-                    )
-                })?;
-                if pids.0.len() == 2 && pids.0[1] == 1 {
-                    nix::sys::signal::kill(Pid::from_raw(pid), nix::sys::signal::SIGKILL)
-                        .with_ctx(|_| {
-                            (
-                                ErrorKind::Filesystem,
-                                lazy_format!(
-                                    "kill pid {} (determined to be pid 1 in subcontainer)",
-                                    pid
-                                ),
-                            )
-                        })?;
-                }
-            }
-        }
-        nix::mount::umount(&chroot.join("proc"))
-            .with_ctx(|_| (ErrorKind::Filesystem, "unmounting subcontainer procfs"))?;
-    }
-
+    kill_init(Path::new("/proc"), &chroot)?;
     if (std::io::stdin().is_terminal()
         && std::io::stdout().is_terminal()
         && std::io::stderr().is_terminal())
