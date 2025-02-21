@@ -187,7 +187,7 @@ pub fn acme<C: Context>() -> ParentHandler<C> {
             from_fn_async(remove)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Setup ACME certificate acquisition")
+                .with_about("Remove ACME certificate acquisition configuration")
                 .with_call_remote::<CliContext>(),
         )
 }

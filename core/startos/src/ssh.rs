@@ -99,8 +99,8 @@ pub fn ssh<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
-            "delete",
-            from_fn_async(delete)
+            "remove",
+            from_fn_async(remove)
                 .no_display()
                 .with_about("Remove ssh key")
                 .with_call_remote::<CliContext>(),
@@ -159,7 +159,7 @@ pub struct DeleteParams {
 }
 
 #[instrument(skip_all)]
-pub async fn delete(
+pub async fn remove(
     ctx: RpcContext,
     DeleteParams { fingerprint }: DeleteParams,
 ) -> Result<(), Error> {

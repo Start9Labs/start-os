@@ -150,7 +150,6 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
             .build()
             .expect("failed to initialize runtime");
         rt.block_on(async {
-            let addrs = crate::net::utils::all_socket_addrs_for(80).await?;
             let mut server = WebServer::new(Acceptor::bind_upgradable(
                 SelfContainedNetworkInterfaceListener::bind(80),
             ));

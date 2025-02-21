@@ -37,7 +37,7 @@ export class LiveApiService extends ApiService {
     @Inject(PATCH_CACHE) private readonly cache$: Observable<Dump<DataModel>>,
   ) {
     super()
-    ; (window as any).rpcClient = this
+    ;(window as any).rpcClient = this
   }
 
   // for sideloading packages
@@ -343,14 +343,14 @@ export class LiveApiService extends ApiService {
   async deleteNotification(
     params: RR.DeleteNotificationReq,
   ): Promise<RR.DeleteNotificationRes> {
-    return this.rpcRequest({ method: 'notification.delete', params })
+    return this.rpcRequest({ method: 'notification.remove', params })
   }
 
   async deleteAllNotifications(
     params: RR.DeleteAllNotificationsReq,
   ): Promise<RR.DeleteAllNotificationsRes> {
     return this.rpcRequest({
-      method: 'notification.delete-before',
+      method: 'notification.remove-before',
       params,
     })
   }
@@ -379,7 +379,7 @@ export class LiveApiService extends ApiService {
   }
 
   async deleteWifi(params: RR.DeleteWifiReq): Promise<RR.DeleteWifiRes> {
-    return this.rpcRequest({ method: 'wifi.delete', params })
+    return this.rpcRequest({ method: 'wifi.remove', params })
   }
 
   // smtp
@@ -407,7 +407,7 @@ export class LiveApiService extends ApiService {
   }
 
   async deleteSshKey(params: RR.DeleteSSHKeyReq): Promise<RR.DeleteSSHKeyRes> {
-    return this.rpcRequest({ method: 'ssh.delete', params })
+    return this.rpcRequest({ method: 'ssh.remove', params })
   }
 
   // backup
@@ -518,7 +518,7 @@ export class LiveApiService extends ApiService {
 
   async removeAcme(params: RR.RemoveAcmeReq): Promise<RR.RemoveAcmeRes> {
     return this.rpcRequest({
-      method: 'net.acme.delete',
+      method: 'net.acme.remove',
       params,
     })
   }
