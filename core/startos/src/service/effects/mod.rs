@@ -1,9 +1,11 @@
+use std::net::Ipv4Addr;
+
 use rpc_toolkit::{from_fn, from_fn_async, from_fn_blocking, Context, HandlerExt, ParentHandler};
 
-use crate::echo;
 use crate::prelude::*;
 use crate::service::cli::ContainerCliContext;
 use crate::service::effects::context::EffectContext;
+use crate::{echo, HOST_IP};
 
 mod action;
 pub mod callbacks;
@@ -133,6 +135,10 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "get-container-ip",
             from_fn_async(net::info::get_container_ip).no_cli(),
+        )
+        .subcommand(
+            "get-os-ip",
+            from_fn(|_: C| Ok::<_, Error>(Ipv4Addr::from(HOST_IP))),
         )
         .subcommand(
             "export-service-interface",

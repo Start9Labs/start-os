@@ -131,6 +131,8 @@ export type Effects = {
   }): Promise<Host | null>
   /** Returns the IP address of the container */
   getContainerIp(): Promise<string>
+  /** Returns the IP address of the container */
+  getOsIp(): Promise<string>
   // interface
   /** Creates an interface bound to a specific host and port to show to the user */
   exportServiceInterface(options: ExportServiceInterfaceParams): Promise<null>

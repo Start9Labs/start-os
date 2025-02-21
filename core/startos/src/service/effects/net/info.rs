@@ -1,6 +1,7 @@
 use std::net::Ipv4Addr;
 
 use crate::service::effects::prelude::*;
+use crate::HOST_IP;
 
 pub async fn get_container_ip(context: EffectContext) -> Result<Ipv4Addr, Error> {
     let context = context.deref()?;

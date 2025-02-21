@@ -198,6 +198,9 @@ export function makeEffects(context: EffectContext): Effects {
         T.Effects["getContainerIp"]
       >
     },
+    getOsIp(...[]: Parameters<T.Effects["getOsIp"]>) {
+      return rpcRound("get-os-ip", {}) as ReturnType<T.Effects["getOsIp"]>
+    },
     getHostInfo: ((...[allOptions]: Parameters<T.Effects["getHostInfo"]>) => {
       const options = {
         ...allOptions,

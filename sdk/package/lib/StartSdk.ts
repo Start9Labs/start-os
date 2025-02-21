@@ -125,6 +125,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         effects.getServicePortForward(...args),
       clearBindings: (effects, ...args) => effects.clearBindings(...args),
       getContainerIp: (effects, ...args) => effects.getContainerIp(...args),
+      getOsIp: (effects, ...args) => effects.getOsIp(...args),
       getSslKey: (effects, ...args) => effects.getSslKey(...args),
       setDataVersion: (effects, ...args) => effects.setDataVersion(...args),
       getDataVersion: (effects, ...args) => effects.getDataVersion(...args),
