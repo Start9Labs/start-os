@@ -397,7 +397,10 @@ function peg$parse(input, options) {
     return { flavor: flavor || null, upstream, downstream }
   };// @ts-ignore
 
-  var peg$f15 = function(major, minor, patch) {
+  var peg$f15 = function(major, minor, patch, revision) {// @ts-ignore
+ return revision };// @ts-ignore
+
+  var peg$f16 = function(major, minor, patch, revision) {
 // @ts-ignore
     return {
 // @ts-ignore
@@ -419,16 +422,16 @@ function peg$parse(input, options) {
     }
   };// @ts-ignore
 
-  var peg$f16 = function(flavor) {// @ts-ignore
+  var peg$f17 = function(flavor) {// @ts-ignore
  return flavor };// @ts-ignore
 
-  var peg$f17 = function() {// @ts-ignore
+  var peg$f18 = function() {// @ts-ignore
  return text() };// @ts-ignore
 
-  var peg$f18 = function() {// @ts-ignore
+  var peg$f19 = function() {// @ts-ignore
  return text(); };// @ts-ignore
 
-  var peg$f19 = function(number, prerelease) {
+  var peg$f20 = function(number, prerelease) {
 // @ts-ignore
     return { 
 // @ts-ignore
@@ -438,22 +441,22 @@ function peg$parse(input, options) {
     };
   };// @ts-ignore
 
-  var peg$f20 = function(first, rest) {
+  var peg$f21 = function(first, rest) {
 // @ts-ignore
     return [first].concat(rest.map(r => r[1]));
   };// @ts-ignore
 
-  var peg$f21 = function(segment) {
+  var peg$f22 = function(segment) {
 // @ts-ignore
     return segment;
   };// @ts-ignore
 
-  var peg$f22 = function(first, rest) { 
+  var peg$f23 = function(first, rest) { 
 // @ts-ignore
     return [first].concat(rest.map(r => r[1]));
   };// @ts-ignore
 
-  var peg$f23 = function() {// @ts-ignore
+  var peg$f24 = function() {// @ts-ignore
  return parseInt(text(), 10); };
 // @ts-ignore
   var peg$currPos = 0;
@@ -1603,9 +1606,9 @@ peg$parseEmVer() {
 // @ts-ignore
                 if (s8 !== peg$FAILED) {
 // @ts-ignore
-                  s7 = [s7, s8];
+                  peg$savedPos = s6;
 // @ts-ignore
-                  s6 = s7;
+                  s6 = peg$f15(s1, s3, s5, s8);
 // @ts-ignore
                 } else {
 // @ts-ignore
@@ -1628,7 +1631,7 @@ peg$parseEmVer() {
 // @ts-ignore
               peg$savedPos = s0;
 // @ts-ignore
-              s0 = peg$f15(s1, s3, s5);
+              s0 = peg$f16(s1, s3, s5, s6);
 // @ts-ignore
             } else {
 // @ts-ignore
@@ -1714,7 +1717,7 @@ peg$parseFlavor() {
 // @ts-ignore
           peg$savedPos = s0;
 // @ts-ignore
-          s0 = peg$f16(s2);
+          s0 = peg$f17(s2);
 // @ts-ignore
         } else {
 // @ts-ignore
@@ -1794,7 +1797,7 @@ peg$parseLowercase() {
 // @ts-ignore
       peg$savedPos = s0;
 // @ts-ignore
-      s1 = peg$f17();
+      s1 = peg$f18();
     }
 // @ts-ignore
     s0 = s1;
@@ -1856,7 +1859,7 @@ peg$parseString() {
 // @ts-ignore
       peg$savedPos = s0;
 // @ts-ignore
-      s1 = peg$f18();
+      s1 = peg$f19();
     }
 // @ts-ignore
     s0 = s1;
@@ -1887,7 +1890,7 @@ peg$parseVersion() {
 // @ts-ignore
       peg$savedPos = s0;
 // @ts-ignore
-      s0 = peg$f19(s1, s2);
+      s0 = peg$f20(s1, s2);
 // @ts-ignore
     } else {
 // @ts-ignore
@@ -2015,7 +2018,7 @@ peg$parsePreRelease() {
 // @ts-ignore
         peg$savedPos = s0;
 // @ts-ignore
-        s0 = peg$f20(s2, s3);
+        s0 = peg$f21(s2, s3);
 // @ts-ignore
       } else {
 // @ts-ignore
@@ -2073,7 +2076,7 @@ peg$parsePreReleaseSegment() {
 // @ts-ignore
       peg$savedPos = s0;
 // @ts-ignore
-      s0 = peg$f21(s2);
+      s0 = peg$f22(s2);
 // @ts-ignore
     } else {
 // @ts-ignore
@@ -2186,7 +2189,7 @@ peg$parseVersionNumber() {
 // @ts-ignore
       peg$savedPos = s0;
 // @ts-ignore
-      s0 = peg$f22(s1, s2);
+      s0 = peg$f23(s1, s2);
 // @ts-ignore
     } else {
 // @ts-ignore
@@ -2252,7 +2255,7 @@ peg$parseDigit() {
 // @ts-ignore
       peg$savedPos = s0;
 // @ts-ignore
-      s1 = peg$f23();
+      s1 = peg$f24();
     }
 // @ts-ignore
     s0 = s1;
@@ -2491,7 +2494,7 @@ export type ExtendedVersion = {
 export type EmVer = {
   flavor: null;
   upstream: { number: [Digit, Digit, Digit]; prerelease: [] };
-  downstream: { number: [any]; prerelease: [] };
+  downstream: { number: [0 | NonNullable<Digit | null>]; prerelease: [] };
 };
 export type Flavor = Lowercase_1;
 export type Lowercase_1 = string;
