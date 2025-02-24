@@ -265,6 +265,7 @@ export class SubContainer implements ExecSpawnable {
     if (options?.input) {
       await new Promise<null>((resolve, reject) => {
         try {
+          child.stdin.on("error", (e) => reject(e))
           child.stdin.write(options.input, (e) => {
             if (e) {
               reject(e)
