@@ -41,7 +41,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
           <td class="available">
             <tui-icon
               [icon]="target.value.mountable ? '@tui.check' : '@tui.x'"
-              [class]="target.value.mountable ? 'g-success' : 'g-error'"
+              [class]="target.value.mountable ? 'g-positive' : 'g-negative'"
             />
           </td>
           <td class="path">{{ target.value.path }}</td>

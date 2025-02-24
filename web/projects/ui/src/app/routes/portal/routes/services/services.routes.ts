@@ -1,21 +1,6 @@
 import { inject } from '@angular/core'
-import {
-  ActivatedRoute,
-  ActivatedRouteSnapshot,
-  ResolveFn,
-  Routes,
-} from '@angular/router'
-import { getPkgId } from '@start9labs/shared'
-import {
-  combineLatest,
-  defer,
-  filter,
-  from,
-  map,
-  Observable,
-  of,
-  switchMap,
-} from 'rxjs'
+import { ActivatedRouteSnapshot, ResolveFn, Routes } from '@angular/router'
+import { defer, map, Observable, of } from 'rxjs'
 import { share } from 'rxjs/operators'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 

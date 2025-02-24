@@ -133,8 +133,8 @@ hr {
   }
 }
 
-.g-table {
-  width: 100%;
+.g-table:not([tuiTable]) {
+  width: stretch;
   min-width: 40rem;
   border-spacing: 0;
 
@@ -192,6 +192,38 @@ hr {
         overflow: hidden;
       }
     }
+  }
+}
+
+.g-table[tuiTable] {
+  width: stretch;
+
+  tr:not(:last-child) {
+    box-shadow: inset 0 -1px var(--tui-background-neutral-1);
+  }
+
+  th {
+    text-transform: uppercase;
+    color: var(--tui-text-secondary);
+    background: none;
+    border: none;
+    font: var(--tui-font-text-s);
+    font-weight: bold;
+    text-align: left;
+    padding: 0 0.5rem;
+  }
+
+  td {
+    padding: 0.5rem;
+  }
+
+  td:only-child {
+    text-align: center;
+    padding: 1rem;
+  }
+
+  tui-root._mobile & thead {
+    display: none;
   }
 }
 
@@ -264,7 +296,7 @@ button.g-action {
   }
 }
 
-.g-success {
+.g-positive {
   color: var(--tui-status-positive) !important;
 }
 
@@ -272,12 +304,16 @@ button.g-action {
   color: var(--tui-status-warning) !important;
 }
 
-.g-error.g-error {
+.g-negative.g-negative {
   color: var(--tui-status-negative) !important;
 }
 
 .g-info {
   color: var(--tui-status-info) !important;
+}
+
+.g-secondary {
+  color: var(--tui-text-secondary) !important;
 }
 
 ng-component {

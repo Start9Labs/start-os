@@ -1,6 +1,13 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
-import { AdditionalItem, FALLBACK_URL } from '../pipes/to-additional.pipe'
+
+export const FALLBACK_URL = 'Not provided'
+export interface AdditionalItem {
+  name: string
+  description: string
+  icon?: string
+  action?: () => void
+}
 
 @Component({
   selector: '[additionalItem]',

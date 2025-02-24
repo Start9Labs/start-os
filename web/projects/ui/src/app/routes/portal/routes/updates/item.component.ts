@@ -55,7 +55,7 @@
 //         </div>
 //         @if (localPkg.stateInfo.state === 'updating') {
 //           <tui-progress-circle
-//             class="g-success"
+//             class="g-positive"
 //             size="s"
 //             [max]="1"
 //             [value]="

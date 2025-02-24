@@ -10,7 +10,7 @@ import { RouterModule } from '@angular/router'
     <a tuiCell [routerLink]="disabled ? null : '/attach'">
       <tui-icon icon="@tui.box" />
       <span tuiTitle>
-        <span class="g-success">Use Existing Drive</span>
+        <span class="g-positive">Use Existing Drive</span>
         <span tuiSubtitle>
           Attach an existing StartOS data drive (not a backup)
         </span>

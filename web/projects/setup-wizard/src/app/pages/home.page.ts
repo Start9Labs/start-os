@@ -33,7 +33,7 @@ import { StateService } from 'src/app/services/state.service'
             <a tuiCell [routerLink]="error || recover ? null : '/storage'">
               <tui-icon icon="@tui.plus" />
               <span tuiTitle>
-                <span class="g-success">Start Fresh</span>
+                <span class="g-positive">Start Fresh</span>
                 <span tuiSubtitle>
                   Get started with a brand new Start9 server
                 </span>

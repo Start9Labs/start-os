@@ -170,10 +170,16 @@ tui-badge-notification {
   background: var(--tui-status-negative);
 }
 
-[tuiCell][data-height='spacious'] {
-  padding-block: 0.75rem;
+[tuiCell] {
+  &[data-height='spacious'] {
+    padding-block: 0.75rem;
 
-  [tuiTitle] {
-    font: var(--tui-font-text-l);
+    [tuiTitle] {
+      font: var(--tui-font-text-l);
+    }
+  }
+
+  tui-avatar {
+    align-self: center !important;
   }
 }

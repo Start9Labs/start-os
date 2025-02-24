@@ -12,7 +12,7 @@ import { ServicesService } from './services.service'
 @Component({
   standalone: true,
   template: `
-    <table tuiTable [(sorter)]="sorter">
+    <table tuiTable class="g-table" [(sorter)]="sorter">
       <thead>
         <tr>
           <th [style.width.rem]="3"></th>
@@ -52,36 +52,6 @@ import { ServicesService } from './services.service'
       position: relative;
       font-size: 1rem;
       overflow: hidden;
-    }
-
-    table {
-      width: 100%;
-    }
-
-    tr:not(:last-child) {
-      box-shadow: inset 0 -1px var(--tui-background-neutral-1);
-    }
-
-    th {
-      text-transform: uppercase;
-      color: var(--tui-text-secondary);
-      background: none;
-      border: none;
-      font: var(--tui-font-text-s);
-      font-weight: bold;
-      text-align: left;
-      padding: 0 0.5rem;
-    }
-
-    td {
-      text-align: center;
-      padding: 1rem;
-    }
-
-    :host-context(tui-root._mobile) {
-      thead {
-        display: none;
-      }
     }
   `,
   host: { class: 'g-page' },

@@ -63,10 +63,6 @@ import { StatusComponent } from './status.component'
       border-radius: 100%;
     }
 
-    td {
-      padding: 0.5rem;
-    }
-
     a {
       color: var(--tui-text-primary);
       font-weight: bold;

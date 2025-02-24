@@ -37,10 +37,7 @@ export type PackageActionData = {
     id: string
     metadata: T.ActionMetadata
   }
-  requestInfo?: {
-    dependentId?: string
-    request: T.ActionRequest
-  }
+  requestInfo?: T.ActionRequest
 }
 
 @Component({
@@ -153,12 +150,12 @@ export class ActionInputModal {
       return {
         spec: res.spec,
         originalValue,
-        operations: this.requestInfo?.request.input
+        operations: this.requestInfo?.input
           ? compare(
               JSON.parse(JSON.stringify(originalValue)),
               utils.deepMerge(
                 JSON.parse(JSON.stringify(originalValue)),
-                this.requestInfo.request.input.value,
+                this.requestInfo.input.value,
               ) as object,
             )
           : null,

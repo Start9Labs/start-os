@@ -45,7 +45,7 @@ import { parseS9pk } from './sideload.utils'
           @if (error()) {
             <div>
               <tui-avatar appearance="secondary" src="@tui.circle-x" />
-              <p class="g-error">{{ error() }}</p>
+              <p class="g-negative">{{ error() }}</p>
               <button tuiButton>Try again</button>
             </div>
           } @else {
@@ -53,7 +53,7 @@ import { parseS9pk } from './sideload.utils'
               <tui-avatar appearance="secondary" src="@tui.cloud-upload" />
               <p>Upload .s9pk package file</p>
               @if (isTor) {
-                <p class="g-success">Tip: switch to LAN for faster uploads</p>
+                <p class="g-positive">Tip: switch to LAN for faster uploads</p>
               }
               <button tuiButton>Upload</button>
             </div>

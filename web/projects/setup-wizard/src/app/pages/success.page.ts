@@ -21,7 +21,7 @@ import { StateService } from 'src/app/services/state.service'
     @if (isKiosk) {
       <section tuiCardLarge>
         <h1 class="heading">
-          <tui-icon icon="@tui.check-square" class="g-success" />
+          <tui-icon icon="@tui.check-square" class="g-positive" />
           Setup Complete!
         </h1>
         <button tuiButton (click)="exitKiosk()" iconEnd="@tui.log-in">
@@ -31,7 +31,7 @@ import { StateService } from 'src/app/services/state.service'
     } @else if (lanAddress) {
       <section tuiCardLarge>
         <h1 class="heading">
-          <tui-icon icon="@tui.check-square" class="g-success" />
+          <tui-icon icon="@tui.check-square" class="g-positive" />
           Setup Complete!
         </h1>
         @if (stateService.setupType === 'restore') {
@@ -122,7 +122,7 @@ export default class SuccessPage implements AfterViewInit {
     this.document.location.hostname,
   )
 
-  torAddress?: string
+  torAddresses?: string[]
   lanAddress?: string
   cert?: string
   disableLogin = this.stateService.setupType === 'fresh'
@@ -136,8 +136,8 @@ export default class SuccessPage implements AfterViewInit {
     const lanAddress = this.document.getElementById('lan-addr')
     const html = this.documentation?.nativeElement.innerHTML || ''
 
-    if (torAddress) torAddress.innerHTML = this.torAddress!
-    if (lanAddress) lanAddress.innerHTML = this.lanAddress!
+    if (torAddress) torAddress.innerHTML = this.torAddresses?.join('\n') || ''
+    if (lanAddress) lanAddress.innerHTML = this.lanAddress || ''
 
     this.document
       .getElementById('cert')
@@ -158,7 +158,9 @@ export default class SuccessPage implements AfterViewInit {
     try {
       const ret = await this.api.complete()
       if (!this.isKiosk) {
-        this.torAddress = ret.torAddress.replace(/^https:/, 'http:')
+        this.torAddresses = ret.torAddresses.map(a =>
+          a.replace(/^https:/, 'http:'),
+        )
         this.lanAddress = ret.lanAddress.replace(/^https:/, 'http:')
         this.cert = ret.rootCa
 

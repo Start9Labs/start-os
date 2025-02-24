@@ -5,8 +5,7 @@ import {
   inject,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { Router, RouterModule } from '@angular/router'
-import { getPkgId } from '@start9labs/shared'
+import { ActivatedRoute, Router, RouterModule } from '@angular/router'
 import { TuiAppearance, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar, TuiFade } from '@taiga-ui/kit'
 import { TuiCell, tuiCellOptionsProvider } from '@taiga-ui/layout'
@@ -63,7 +62,8 @@ const ICONS = {
       position: sticky;
       top: 1px;
       left: 1px;
-      min-width: 16rem;
+      margin: 1px;
+      width: 16rem;
       padding: 0.5rem;
       text-transform: capitalize;
       box-shadow: 1px 0 var(--tui-border-normal);
@@ -90,7 +90,9 @@ const ICONS = {
       aside {
         top: 0;
         left: 0;
+        width: 100%;
         padding: 0;
+        margin: 0;
         z-index: 1;
         box-shadow: inset 0 1px 0 1px var(--tui-background-neutral-1);
 
@@ -135,7 +137,7 @@ const ICONS = {
 export class ServiceOutletComponent {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly router = inject(Router)
-  private readonly id = getPkgId()
+  private readonly params = inject(ActivatedRoute).paramMap
 
   protected readonly icons = ICONS
   protected readonly nav = [
@@ -148,7 +150,8 @@ export class ServiceOutletComponent {
 
   protected readonly service = toSignal(
     this.router.events.pipe(
-      map(() => this.id),
+      switchMap(() => this.params),
+      map(params => params.get('pkgId')),
       filter(Boolean),
       distinctUntilChanged(),
       switchMap(id => this.patch.watch$('packageData', id)),
