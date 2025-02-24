@@ -46,7 +46,7 @@ ExtendedVersion
   }
 
 EmVer
-  = major:Digit "." minor:Digit "." patch:Digit ("." revision:Digit)? {
+  = major:Digit "." minor:Digit "." patch:Digit revision:( "." revision:Digit { return revision } )? {
     return {
       flavor: null,
       upstream: {

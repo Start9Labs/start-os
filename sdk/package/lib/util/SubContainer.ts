@@ -263,18 +263,27 @@ export class SubContainer implements ExecSpawnable {
       options || {},
     )
     if (options?.input) {
-      await new Promise<null>((resolve, reject) =>
-        child.stdin.write(options.input, (e) => {
-          if (e) {
-            reject(e)
-          } else {
-            resolve(null)
-          }
-        }),
-      )
-      await new Promise<null>((resolve) => child.stdin.end(resolve))
+      await new Promise<null>((resolve, reject) => {
+        try {
+          child.stdin.write(options.input, (e) => {
+            if (e) {
+              reject(e)
+            } else {
+              resolve(null)
+            }
+          })
+        } catch (e) {
+          reject(e)
+        }
+      })
+      await new Promise<null>((resolve, reject) => {
+        try {
+          child.stdin.end(resolve)
+        } catch (e) {
+          reject(e)
+        }
+      })
     }
-    const pid = child.pid
     const stdout = { data: "" as string }
     const stderr = { data: "" as string }
     const appendData =
