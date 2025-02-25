@@ -8,10 +8,10 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   template: '<logs [fetchLogs]="fetch" [followLogs]="follow" [context]="id" />',
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  styles: [':host { height: 100%}'],
+  host: { class: 'g-subpage' },
   imports: [LogsComponent],
 })
-export class ServiceLogsRoute {
+export default class ServiceLogsRoute {
   private readonly api = inject(ApiService)
 
   readonly id = getPkgId()

@@ -5,8 +5,7 @@ import {
 } from '@start9labs/marketplace'
 import { RPCOptions } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { Observable } from 'rxjs'
-import { BackupTargetType, RR } from './api.types'
+import { RR } from './api.types'
 import { WebSocketSubject } from 'rxjs/webSocket'
 
 export abstract class ApiService {
@@ -14,8 +13,6 @@ export abstract class ApiService {
 
   // for sideloading packages
   abstract uploadPackage(guid: string, body: Blob): Promise<void>
-
-  abstract uploadFile(body: Blob): Promise<string>
 
   // for getting static files: ex icons, instructions, licenses
   abstract getStaticProxy(
@@ -118,10 +115,6 @@ export abstract class ApiService {
 
   abstract updateServer(url?: string): Promise<RR.UpdateServerRes>
 
-  abstract setServerClearnetAddress(
-    params: RR.SetServerClearnetAddressReq,
-  ): Promise<RR.SetServerClearnetAddressRes>
-
   abstract restartServer(
     params: RR.RestartServerReq,
   ): Promise<RR.RestartServerRes>
@@ -134,9 +127,13 @@ export abstract class ApiService {
 
   abstract resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes>
 
-  abstract setOsOutboundProxy(
-    params: RR.SetOsOutboundProxyReq,
-  ): Promise<RR.SetOsOutboundProxyRes>
+  // @TODO 041
+
+  // ** server outbound proxy **
+
+  // abstract setOsOutboundProxy(
+  //   params: RR.SetOsOutboundProxyReq,
+  // ): Promise<RR.SetOsOutboundProxyRes>
 
   // smtp
 
@@ -187,33 +184,39 @@ export abstract class ApiService {
     params: RR.DeleteNotificationReq,
   ): Promise<RR.DeleteNotificationRes>
 
-  // network
+  // ** proxies **
 
-  abstract addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes>
+  // @TODO 041
 
-  abstract updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes>
+  // abstract addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes>
 
-  abstract deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes>
+  // abstract updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes>
 
-  // domains
+  // abstract deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes>
 
-  abstract claimStart9ToDomain(
-    params: RR.ClaimStart9ToReq,
-  ): Promise<RR.ClaimStart9ToRes>
+  // ** domains **
 
-  abstract deleteStart9ToDomain(
-    params: RR.DeleteStart9ToReq,
-  ): Promise<RR.DeleteStart9ToRes>
+  // @TODO 041
 
-  abstract addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes>
+  // abstract claimStart9ToDomain(
+  //   params: RR.ClaimStart9ToReq,
+  // ): Promise<RR.ClaimStart9ToRes>
 
-  abstract deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes>
+  // abstract deleteStart9ToDomain(
+  //   params: RR.DeleteStart9ToReq,
+  // ): Promise<RR.DeleteStart9ToRes>
 
-  // port forwards
+  // abstract addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes>
 
-  abstract overridePortForward(
-    params: RR.OverridePortReq,
-  ): Promise<RR.OverridePortRes>
+  // abstract deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes>
+
+  // ** port forwards **
+
+  // @TODO 041
+
+  // abstract overridePortForward(
+  //   params: RR.OverridePortReq,
+  // ): Promise<RR.OverridePortRes>
 
   // wifi
 
@@ -245,54 +248,70 @@ export abstract class ApiService {
   ): Promise<RR.GetBackupTargetsRes>
 
   abstract addBackupTarget(
-    type: BackupTargetType,
-    params:
-      | RR.AddCifsBackupTargetReq
-      | RR.AddCloudBackupTargetReq
-      | RR.AddDiskBackupTargetReq,
+    params: RR.AddBackupTargetReq,
   ): Promise<RR.AddBackupTargetRes>
 
   abstract updateBackupTarget(
-    type: BackupTargetType,
-    params:
-      | RR.UpdateCifsBackupTargetReq
-      | RR.UpdateCloudBackupTargetReq
-      | RR.UpdateDiskBackupTargetReq,
+    params: RR.UpdateBackupTargetReq,
   ): Promise<RR.UpdateBackupTargetRes>
 
   abstract removeBackupTarget(
     params: RR.RemoveBackupTargetReq,
   ): Promise<RR.RemoveBackupTargetRes>
 
-  abstract getBackupJobs(
-    params: RR.GetBackupJobsReq,
-  ): Promise<RR.GetBackupJobsRes>
-
-  abstract createBackupJob(
-    params: RR.CreateBackupJobReq,
-  ): Promise<RR.CreateBackupJobRes>
-
-  abstract updateBackupJob(
-    params: RR.UpdateBackupJobReq,
-  ): Promise<RR.UpdateBackupJobRes>
-
-  abstract deleteBackupJob(
-    params: RR.DeleteBackupJobReq,
-  ): Promise<RR.DeleteBackupJobRes>
-
-  abstract getBackupRuns(
-    params: RR.GetBackupRunsReq,
-  ): Promise<RR.GetBackupRunsRes>
-
-  abstract deleteBackupRuns(
-    params: RR.DeleteBackupRunsReq,
-  ): Promise<RR.DeleteBackupRunsRes>
-
   abstract getBackupInfo(
     params: RR.GetBackupInfoReq,
   ): Promise<RR.GetBackupInfoRes>
 
   abstract createBackup(params: RR.CreateBackupReq): Promise<RR.CreateBackupRes>
+
+  // @TODO 041
+
+  // ** automated backups **
+
+  // abstract addBackupTarget(
+  //   type: BackupTargetType,
+  //   params:
+  //     | RR.AddCifsBackupTargetReq
+  //     | RR.AddCloudBackupTargetReq
+  //     | RR.AddDiskBackupTargetReq,
+  // ): Promise<RR.AddBackupTargetRes>
+
+  // abstract updateBackupTarget(
+  //   type: BackupTargetType,
+  //   params:
+  //     | RR.UpdateCifsBackupTargetReq
+  //     | RR.UpdateCloudBackupTargetReq
+  //     | RR.UpdateDiskBackupTargetReq,
+  // ): Promise<RR.UpdateBackupTargetRes>
+
+  // abstract removeBackupTarget(
+  //   params: RR.RemoveBackupTargetReq,
+  // ): Promise<RR.RemoveBackupTargetRes>
+
+  // abstract getBackupJobs(
+  //   params: RR.GetBackupJobsReq,
+  // ): Promise<RR.GetBackupJobsRes>
+
+  // abstract createBackupJob(
+  //   params: RR.CreateBackupJobReq,
+  // ): Promise<RR.CreateBackupJobRes>
+
+  // abstract updateBackupJob(
+  //   params: RR.UpdateBackupJobReq,
+  // ): Promise<RR.UpdateBackupJobRes>
+
+  // abstract deleteBackupJob(
+  //   params: RR.DeleteBackupJobReq,
+  // ): Promise<RR.DeleteBackupJobRes>
+
+  // abstract getBackupRuns(
+  //   params: RR.GetBackupRunsReq,
+  // ): Promise<RR.GetBackupRunsRes>
+
+  // abstract deleteBackupRuns(
+  //   params: RR.DeleteBackupRunsReq,
+  // ): Promise<RR.DeleteBackupRunsRes>
 
   // package
 
@@ -336,13 +355,13 @@ export abstract class ApiService {
 
   abstract sideloadPackage(): Promise<RR.SideloadPackageRes>
 
-  abstract setInterfaceClearnetAddress(
-    params: RR.SetInterfaceClearnetAddressReq,
-  ): Promise<RR.SetInterfaceClearnetAddressRes>
+  // @TODO 041
 
-  abstract setServiceOutboundProxy(
-    params: RR.SetServiceOutboundProxyReq,
-  ): Promise<RR.SetServiceOutboundProxyRes>
+  // ** service outbound proxy **
+
+  // abstract setServiceOutboundProxy(
+  //   params: RR.SetServiceOutboundProxyReq,
+  // ): Promise<RR.SetServiceOutboundProxyRes>
 
   abstract initAcme(params: RR.InitAcmeReq): Promise<RR.InitAcmeRes>
 

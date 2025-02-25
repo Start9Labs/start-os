@@ -9,7 +9,7 @@ import {
 } from '@start9labs/shared'
 import { PATCH_CACHE } from 'src/app/services/patch-db/patch-db-source'
 import { ApiService } from './embassy-api.service'
-import { BackupTargetType, RR } from './api.types'
+import { RR } from './api.types'
 import { ConfigService } from '../config.service'
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket'
 import { Observable, filter, firstValueFrom } from 'rxjs'
@@ -49,14 +49,6 @@ export class LiveApiService extends ApiService {
       method: Method.POST,
       body,
       url: `/rest/rpc/${guid}`,
-    })
-  }
-
-  async uploadFile(body: Blob): Promise<string> {
-    return this.httpRequest({
-      method: Method.POST,
-      body,
-      url: `/rest/upload`,
     })
   }
 
@@ -253,7 +245,8 @@ export class LiveApiService extends ApiService {
   async followServerMetrics(
     params: RR.FollowServerMetricsReq,
   ): Promise<RR.FollowServerMetricsRes> {
-    return this.rpcRequest({ method: 'server.metrics', params })
+    // @TODO 040 implement .follow
+    return this.rpcRequest({ method: 'server.metrics.follow', params })
   }
 
   async updateServer(url?: string): Promise<RR.UpdateServerRes> {
@@ -261,12 +254,6 @@ export class LiveApiService extends ApiService {
       registry: url || this.config.marketplace.start9,
     }
     return this.rpcRequest({ method: 'server.update', params })
-  }
-
-  async setServerClearnetAddress(
-    params: RR.SetServerClearnetAddressReq,
-  ): Promise<RR.SetServerClearnetAddressRes> {
-    return this.rpcRequest({ method: 'server.set-clearnet', params })
   }
 
   async restartServer(
@@ -289,11 +276,11 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'net.tor.reset', params })
   }
 
-  async setOsOutboundProxy(
-    params: RR.SetOsOutboundProxyReq,
-  ): Promise<RR.SetOsOutboundProxyRes> {
-    return this.rpcRequest({ method: 'server.proxy.set-outbound', params })
-  }
+  // async setOsOutboundProxy(
+  //   params: RR.SetOsOutboundProxyReq,
+  // ): Promise<RR.SetOsOutboundProxyRes> {
+  //   return this.rpcRequest({ method: 'server.proxy.set-outbound', params })
+  // }
 
   // marketplace URLs
 
@@ -389,49 +376,49 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'notification.mark-unseen', params })
   }
 
-  // network
+  // proxies
 
-  async addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes> {
-    return this.rpcRequest({ method: 'net.proxy.add', params })
-  }
+  // async addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes> {
+  //   return this.rpcRequest({ method: 'net.proxy.add', params })
+  // }
 
-  async updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes> {
-    return this.rpcRequest({ method: 'net.proxy.update', params })
-  }
+  // async updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes> {
+  //   return this.rpcRequest({ method: 'net.proxy.update', params })
+  // }
 
-  async deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes> {
-    return this.rpcRequest({ method: 'net.proxy.delete', params })
-  }
+  // async deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes> {
+  //   return this.rpcRequest({ method: 'net.proxy.delete', params })
+  // }
 
   // domains
 
-  async claimStart9ToDomain(
-    params: RR.ClaimStart9ToReq,
-  ): Promise<RR.ClaimStart9ToRes> {
-    return this.rpcRequest({ method: 'net.domain.me.claim', params })
-  }
+  // async claimStart9ToDomain(
+  //   params: RR.ClaimStart9ToReq,
+  // ): Promise<RR.ClaimStart9ToRes> {
+  //   return this.rpcRequest({ method: 'net.domain.me.claim', params })
+  // }
 
-  async deleteStart9ToDomain(
-    params: RR.DeleteStart9ToReq,
-  ): Promise<RR.DeleteStart9ToRes> {
-    return this.rpcRequest({ method: 'net.domain.me.delete', params })
-  }
+  // async deleteStart9ToDomain(
+  //   params: RR.DeleteStart9ToReq,
+  // ): Promise<RR.DeleteStart9ToRes> {
+  //   return this.rpcRequest({ method: 'net.domain.me.delete', params })
+  // }
 
-  async addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes> {
-    return this.rpcRequest({ method: 'net.domain.add', params })
-  }
+  // async addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes> {
+  //   return this.rpcRequest({ method: 'net.domain.add', params })
+  // }
 
-  async deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes> {
-    return this.rpcRequest({ method: 'net.domain.delete', params })
-  }
+  // async deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes> {
+  //   return this.rpcRequest({ method: 'net.domain.delete', params })
+  // }
 
   // port forwards
 
-  async overridePortForward(
-    params: RR.OverridePortReq,
-  ): Promise<RR.OverridePortRes> {
-    return this.rpcRequest({ method: 'net.port-forwards.override', params })
-  }
+  // async overridePortForward(
+  //   params: RR.OverridePortReq,
+  // ): Promise<RR.OverridePortRes> {
+  //   return this.rpcRequest({ method: 'net.port-forwards.override', params })
+  // }
 
   // wifi
 
@@ -455,7 +442,7 @@ export class LiveApiService extends ApiService {
   }
 
   async deleteWifi(params: RR.DeleteWifiReq): Promise<RR.DeleteWifiRes> {
-    return this.rpcRequest({ method: 'wifi.delete', params })
+    return this.rpcRequest({ method: 'wifi.remove', params })
   }
 
   // smtp
@@ -483,7 +470,7 @@ export class LiveApiService extends ApiService {
   }
 
   async deleteSshKey(params: RR.DeleteSSHKeyReq): Promise<RR.DeleteSSHKeyRes> {
-    return this.rpcRequest({ method: 'ssh.delete', params })
+    return this.rpcRequest({ method: 'ssh.remove', params })
   }
 
   // backup
@@ -495,60 +482,22 @@ export class LiveApiService extends ApiService {
   }
 
   async addBackupTarget(
-    type: BackupTargetType,
-    params: RR.AddCifsBackupTargetReq | RR.AddCloudBackupTargetReq,
+    params: RR.AddBackupTargetReq,
   ): Promise<RR.AddBackupTargetRes> {
     params.path = params.path.replace('/\\/g', '/')
-    return this.rpcRequest({ method: `backup.target.${type}.add`, params })
+    return this.rpcRequest({ method: 'backup.target.cifs.add', params })
   }
 
   async updateBackupTarget(
-    type: BackupTargetType,
-    params: RR.UpdateCifsBackupTargetReq | RR.UpdateCloudBackupTargetReq,
+    params: RR.UpdateBackupTargetReq,
   ): Promise<RR.UpdateBackupTargetRes> {
-    return this.rpcRequest({ method: `backup.target.${type}.update`, params })
+    return this.rpcRequest({ method: 'backup.target.cifs.update', params })
   }
 
   async removeBackupTarget(
     params: RR.RemoveBackupTargetReq,
   ): Promise<RR.RemoveBackupTargetRes> {
-    return this.rpcRequest({ method: 'backup.target.remove', params })
-  }
-
-  async getBackupJobs(
-    params: RR.GetBackupJobsReq,
-  ): Promise<RR.GetBackupJobsRes> {
-    return this.rpcRequest({ method: 'backup.job.list', params })
-  }
-
-  async createBackupJob(
-    params: RR.CreateBackupJobReq,
-  ): Promise<RR.CreateBackupJobRes> {
-    return this.rpcRequest({ method: 'backup.job.create', params })
-  }
-
-  async updateBackupJob(
-    params: RR.UpdateBackupJobReq,
-  ): Promise<RR.UpdateBackupJobRes> {
-    return this.rpcRequest({ method: 'backup.job.update', params })
-  }
-
-  async deleteBackupJob(
-    params: RR.DeleteBackupJobReq,
-  ): Promise<RR.DeleteBackupJobRes> {
-    return this.rpcRequest({ method: 'backup.job.delete', params })
-  }
-
-  async getBackupRuns(
-    params: RR.GetBackupRunsReq,
-  ): Promise<RR.GetBackupRunsRes> {
-    return this.rpcRequest({ method: 'backup.runs.list', params })
-  }
-
-  async deleteBackupRuns(
-    params: RR.DeleteBackupRunsReq,
-  ): Promise<RR.DeleteBackupRunsRes> {
-    return this.rpcRequest({ method: 'backup.runs.delete', params })
+    return this.rpcRequest({ method: 'backup.target.cifs.remove', params })
   }
 
   async getBackupInfo(
@@ -560,6 +509,63 @@ export class LiveApiService extends ApiService {
   async createBackup(params: RR.CreateBackupReq): Promise<RR.CreateBackupRes> {
     return this.rpcRequest({ method: 'backup.create', params })
   }
+
+  // async addBackupTarget(
+  //   type: BackupTargetType,
+  //   params: RR.AddCifsBackupTargetReq | RR.AddCloudBackupTargetReq,
+  // ): Promise<RR.AddBackupTargetRes> {
+  //   params.path = params.path.replace('/\\/g', '/')
+  //   return this.rpcRequest({ method: `backup.target.${type}.add`, params })
+  // }
+
+  // async updateBackupTarget(
+  //   type: BackupTargetType,
+  //   params: RR.UpdateCifsBackupTargetReq | RR.UpdateCloudBackupTargetReq,
+  // ): Promise<RR.UpdateBackupTargetRes> {
+  //   return this.rpcRequest({ method: `backup.target.${type}.update`, params })
+  // }
+
+  // async removeBackupTarget(
+  //   params: RR.RemoveBackupTargetReq,
+  // ): Promise<RR.RemoveBackupTargetRes> {
+  //   return this.rpcRequest({ method: 'backup.target.remove', params })
+  // }
+
+  // async getBackupJobs(
+  //   params: RR.GetBackupJobsReq,
+  // ): Promise<RR.GetBackupJobsRes> {
+  //   return this.rpcRequest({ method: 'backup.job.list', params })
+  // }
+
+  // async createBackupJob(
+  //   params: RR.CreateBackupJobReq,
+  // ): Promise<RR.CreateBackupJobRes> {
+  //   return this.rpcRequest({ method: 'backup.job.create', params })
+  // }
+
+  // async updateBackupJob(
+  //   params: RR.UpdateBackupJobReq,
+  // ): Promise<RR.UpdateBackupJobRes> {
+  //   return this.rpcRequest({ method: 'backup.job.update', params })
+  // }
+
+  // async deleteBackupJob(
+  //   params: RR.DeleteBackupJobReq,
+  // ): Promise<RR.DeleteBackupJobRes> {
+  //   return this.rpcRequest({ method: 'backup.job.delete', params })
+  // }
+
+  // async getBackupRuns(
+  //   params: RR.GetBackupRunsReq,
+  // ): Promise<RR.GetBackupRunsRes> {
+  //   return this.rpcRequest({ method: 'backup.runs.list', params })
+  // }
+
+  // async deleteBackupRuns(
+  //   params: RR.DeleteBackupRunsReq,
+  // ): Promise<RR.DeleteBackupRunsRes> {
+  //   return this.rpcRequest({ method: 'backup.runs.delete', params })
+  // }
 
   // package
 
@@ -630,21 +636,15 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async setInterfaceClearnetAddress(
-    params: RR.SetInterfaceClearnetAddressReq,
-  ): Promise<RR.SetInterfaceClearnetAddressRes> {
-    return this.rpcRequest({ method: 'package.interface.set-clearnet', params })
-  }
-
-  async setServiceOutboundProxy(
-    params: RR.SetServiceOutboundProxyReq,
-  ): Promise<RR.SetServiceOutboundProxyRes> {
-    return this.rpcRequest({ method: 'package.proxy.set-outbound', params })
-  }
+  // async setServiceOutboundProxy(
+  //   params: RR.SetServiceOutboundProxyReq,
+  // ): Promise<RR.SetServiceOutboundProxyRes> {
+  //   return this.rpcRequest({ method: 'package.proxy.set-outbound', params })
+  // }
 
   async removeAcme(params: RR.RemoveAcmeReq): Promise<RR.RemoveAcmeRes> {
     return this.rpcRequest({
-      method: 'net.acme.delete',
+      method: 'net.acme.remove',
       params,
     })
   }

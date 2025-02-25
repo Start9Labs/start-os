@@ -18,7 +18,7 @@ import { InstallingProgressDisplayPipe } from '../pipes/install-progress.pipe'
       <tui-loader size="s" />
     } @else {
       @if (healthy) {
-        <tui-icon icon="@tui.check" class="g-success" />
+        <tui-icon icon="@tui.check" class="g-positive" />
       } @else {
         <tui-icon icon="@tui.triangle-alert" class="g-warning" />
       }

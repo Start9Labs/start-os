@@ -20,10 +20,11 @@ export const SYSTEM_UTILITIES: Record<string, { icon: string; title: string }> =
     //   icon: '@tui.globe',
     //   title: 'Updates',
     // },
-    '/portal/backups': {
-      icon: '@tui.save',
-      title: 'Backups',
-    },
+    // @TODO 041
+    // '/portal/backups': {
+    //   icon: '@tui.save',
+    //   title: 'Backups',
+    // },
     '/portal/metrics': {
       icon: '@tui.activity',
       title: 'Metrics',

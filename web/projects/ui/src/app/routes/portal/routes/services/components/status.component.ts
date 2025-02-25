@@ -7,36 +7,49 @@ import {
 } from '@angular/core'
 import { TuiIcon, TuiLoader } from '@taiga-ui/core'
 import { InstallingInfo } from 'src/app/services/patch-db/data-model'
-import { StatusRendering } from 'src/app/services/pkg-status-rendering.service'
+import {
+  PrimaryRendering,
+  PrimaryStatus,
+  StatusRendering,
+} from 'src/app/services/pkg-status-rendering.service'
 import { InstallingProgressDisplayPipe } from '../pipes/install-progress.pipe'
 
 @Component({
   selector: 'service-status',
   template: `
-    @if (installingInfo) {
-      <strong>
-        <tui-loader size="s" [inheritColor]="true" />
-        Installing
-        <span class="loading-dots"></span>
-        {{ installingInfo.progress.overall | installingProgressString }}
-      </strong>
-    } @else {
-      <tui-icon [icon]="icon" [style.margin-bottom.rem]="0.25" />
-      {{ connected ? rendering.display : 'Unknown' }}
-      @if (rendering.showDots) {
-        <span class="loading-dots"></span>
+    <header>Status</header>
+    <div [class]="class">
+      @if (installingInfo) {
+        <strong>
+          <tui-loader size="s" [inheritColor]="true" />
+          Installing
+          <span class="loading-dots"></span>
+          {{ installingInfo.progress.overall | installingProgressString }}
+        </strong>
+      } @else {
+        <tui-icon [icon]="icon" [style.margin-bottom.rem]="0.25" />
+        {{ connected ? rendering.display : 'Unknown' }}
+        @if (rendering.showDots) {
+          <span class="loading-dots"></span>
+        }
       }
-    }
+      <ng-content />
+    </div>
   `,
   styles: [
     `
       :host {
-        display: block;
-        font-size: x-large;
-        white-space: nowrap;
-        margin: auto 0;
-        min-height: 2.75rem;
-        color: var(--tui-text-secondary);
+        display: grid;
+        grid-template-rows: min-content 1fr;
+        align-items: center;
+        font: var(--tui-font-heading-6);
+        text-align: center;
+      }
+
+      status {
+        display: grid;
+        grid-template-rows: min-content 1fr 1fr;
+        align-items: center;
       }
 
       tui-loader {
@@ -44,21 +57,16 @@ import { InstallingProgressDisplayPipe } from '../pipes/install-progress.pipe'
         vertical-align: bottom;
         margin: 0 0.25rem -0.125rem 0;
       }
-
-      div {
-        font-size: 1rem;
-        color: var(--tui-text-secondary);
-        margin: 1rem 0;
-      }
     `,
   ],
-  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { class: 'g-card' },
   standalone: true,
-  imports: [CommonModule, InstallingProgressDisplayPipe, TuiIcon, TuiLoader],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [InstallingProgressDisplayPipe, TuiIcon, TuiLoader],
 })
 export class ServiceStatusComponent {
   @Input({ required: true })
-  rendering!: StatusRendering
+  status!: PrimaryStatus
 
   @Input()
   installingInfo?: InstallingInfo
@@ -66,22 +74,25 @@ export class ServiceStatusComponent {
   @Input()
   connected = false
 
-  @HostBinding('class')
   get class(): string | null {
     if (!this.connected) return null
 
     switch (this.rendering.color) {
       case 'danger':
-        return 'g-error'
+        return 'g-negative'
       case 'warning':
         return 'g-warning'
       case 'success':
-        return 'g-success'
+        return 'g-positive'
       case 'primary':
         return 'g-info'
       default:
         return null
     }
+  }
+
+  get rendering() {
+    return PrimaryRendering[this.status]
   }
 
   get icon(): string {

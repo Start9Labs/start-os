@@ -28,7 +28,7 @@
 //           {{ host.name }}
 //         </h3>
 //         @if (data.errors.includes(host.url)) {
-//           <p class="g-error">Request Failed</p>
+//           <p class="g-negative">Request Failed</p>
 //         }
 //         @if (data.mp[host.url]?.packages | filterUpdates: data.local; as pkgs) {
 //           @for (pkg of pkgs; track pkg) {

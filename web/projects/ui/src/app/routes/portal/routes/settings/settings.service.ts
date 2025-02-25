@@ -21,7 +21,6 @@ import { switchMap } from 'rxjs/operators'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { PROMPT } from 'src/app/routes/portal/modals/prompt.component'
 import { AuthService } from 'src/app/services/auth.service'
-import { ProxyService } from 'src/app/services/proxy.service'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { getServerInfo } from 'src/app/utils/get-server-info'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
@@ -35,7 +34,6 @@ import { ConfigService } from 'src/app/services/config.service'
 export class SettingsService {
   private readonly alerts = inject(TuiAlertService)
   private readonly dialogs = inject(TuiDialogService)
-  private readonly proxyService = inject(ProxyService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly formDialog = inject(FormDialogService)

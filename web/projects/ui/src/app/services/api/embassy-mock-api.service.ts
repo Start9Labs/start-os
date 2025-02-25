@@ -16,7 +16,7 @@ import {
   StateInfo,
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
-import { BackupTargetType, RR } from './api.types'
+import { CifsBackupTarget, RR } from './api.types'
 import { Mock } from './api.fixures'
 import { from, interval, map, shareReplay, startWith, Subject, tap } from 'rxjs'
 import { mockPatchData } from './mock-patch'
@@ -77,11 +77,6 @@ export class MockApiService extends ApiService {
 
   async uploadPackage(guid: string, body: Blob): Promise<void> {
     await pauseFor(2000)
-  }
-
-  async uploadFile(body: Blob): Promise<string> {
-    await pauseFor(2000)
-    return 'returnedhash'
   }
 
   async getStaticProxy(
@@ -391,23 +386,6 @@ export class MockApiService extends ApiService {
     return 'updating'
   }
 
-  async setServerClearnetAddress(
-    params: RR.SetServerClearnetAddressReq,
-  ): Promise<RR.SetServerClearnetAddressRes> {
-    await pauseFor(2000)
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: '/serverInfo/ui/domainInfo',
-        value: params.domainInfo,
-      },
-    ]
-
-    this.mockRevision(patch)
-
-    return null
-  }
-
   async restartServer(
     params: RR.RestartServerReq,
   ): Promise<RR.RestartServerRes> {
@@ -474,22 +452,22 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async setOsOutboundProxy(
-    params: RR.SetOsOutboundProxyReq,
-  ): Promise<RR.SetOsOutboundProxyRes> {
-    await pauseFor(2000)
+  // async setOsOutboundProxy(
+  //   params: RR.SetOsOutboundProxyReq,
+  // ): Promise<RR.SetOsOutboundProxyRes> {
+  //   await pauseFor(2000)
 
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: '/serverInfo/network/outboundProxy',
-        value: params.proxy,
-      },
-    ]
-    this.mockRevision(patch)
+  //   const patch = [
+  //     {
+  //       op: PatchOp.REPLACE,
+  //       path: '/serverInfo/network/outboundProxy',
+  //       value: params.proxy,
+  //     },
+  //   ]
+  //   this.mockRevision(patch)
 
-    return null
-  }
+  //   return null
+  // }
 
   // marketplace URLs
 
@@ -570,151 +548,151 @@ export class MockApiService extends ApiService {
 
   // network
 
-  async addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes> {
-    await pauseFor(2000)
+  // async addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes> {
+  //   await pauseFor(2000)
 
-    const patch = [
-      {
-        op: PatchOp.ADD,
-        path: `/serverInfo/network/networkInterfaces/wga1`,
-        value: {
-          inbound: true,
-          outbound: true,
-          ipInfo: {
-            name: params.name,
-            scopeId: 3,
-            deviceType: 'wireguard',
-            subnets: [],
-            wanIp: '1.1.1.1',
-            ntpServers: [],
-          },
-        },
-      },
-    ]
-    this.mockRevision(patch)
+  //   const patch = [
+  //     {
+  //       op: PatchOp.ADD,
+  //       path: `/serverInfo/network/networkInterfaces/wga1`,
+  //       value: {
+  //         inbound: true,
+  //         outbound: true,
+  //         ipInfo: {
+  //           name: params.name,
+  //           scopeId: 3,
+  //           deviceType: 'wireguard',
+  //           subnets: [],
+  //           wanIp: '1.1.1.1',
+  //           ntpServers: [],
+  //         },
+  //       },
+  //     },
+  //   ]
+  //   this.mockRevision(patch)
 
-    return null
-  }
+  //   return null
+  // }
 
-  async updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes> {
-    await pauseFor(2000)
+  // async updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes> {
+  //   await pauseFor(2000)
 
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: `/serverInfo/network/proxies/0/name`,
-        value: params.name,
-      },
-    ]
-    this.mockRevision(patch)
+  //   const patch = [
+  //     {
+  //       op: PatchOp.REPLACE,
+  //       path: `/serverInfo/network/proxies/0/name`,
+  //       value: params.name,
+  //     },
+  //   ]
+  //   this.mockRevision(patch)
 
-    return null
-  }
+  //   return null
+  // }
 
-  async deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes> {
-    await pauseFor(2000)
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: '/serverInfo/network/proxies',
-        value: [],
-      },
-    ]
-    this.mockRevision(patch)
+  // async deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes> {
+  //   await pauseFor(2000)
+  //   const patch = [
+  //     {
+  //       op: PatchOp.REPLACE,
+  //       path: '/serverInfo/network/proxies',
+  //       value: [],
+  //     },
+  //   ]
+  //   this.mockRevision(patch)
 
-    return null
-  }
+  //   return null
+  // }
 
   // domains
 
-  async claimStart9ToDomain(
-    params: RR.ClaimStart9ToReq,
-  ): Promise<RR.ClaimStart9ToRes> {
-    await pauseFor(2000)
+  // async claimStart9ToDomain(
+  //   params: RR.ClaimStart9ToReq,
+  // ): Promise<RR.ClaimStart9ToRes> {
+  //   await pauseFor(2000)
 
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: '/serverInfo/network/start9To',
-        value: {
-          subdomain: 'xyz',
-          networkInterfaceId: params.networkInterfaceId,
-        },
-      },
-    ]
-    this.mockRevision(patch)
+  //   const patch = [
+  //     {
+  //       op: PatchOp.REPLACE,
+  //       path: '/serverInfo/network/start9To',
+  //       value: {
+  //         subdomain: 'xyz',
+  //         networkInterfaceId: params.networkInterfaceId,
+  //       },
+  //     },
+  //   ]
+  //   this.mockRevision(patch)
 
-    return null
-  }
+  //   return null
+  // }
 
-  async deleteStart9ToDomain(
-    params: RR.DeleteStart9ToReq,
-  ): Promise<RR.DeleteStart9ToRes> {
-    await pauseFor(2000)
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: '/serverInfo/network/start9To',
-        value: null,
-      },
-    ]
-    this.mockRevision(patch)
+  // async deleteStart9ToDomain(
+  //   params: RR.DeleteStart9ToReq,
+  // ): Promise<RR.DeleteStart9ToRes> {
+  //   await pauseFor(2000)
+  //   const patch = [
+  //     {
+  //       op: PatchOp.REPLACE,
+  //       path: '/serverInfo/network/start9To',
+  //       value: null,
+  //     },
+  //   ]
+  //   this.mockRevision(patch)
 
-    return null
-  }
+  //   return null
+  // }
 
-  async addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes> {
-    await pauseFor(2000)
+  // async addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes> {
+  //   await pauseFor(2000)
 
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: `/serverInfo/network/domains`,
-        value: {
-          [params.hostname]: {
-            networkInterfaceId: params.networkInterfaceId,
-            provider: params.provider.name,
-          },
-        },
-      },
-    ]
-    this.mockRevision(patch)
+  //   const patch = [
+  //     {
+  //       op: PatchOp.REPLACE,
+  //       path: `/serverInfo/network/domains`,
+  //       value: {
+  //         [params.hostname]: {
+  //           networkInterfaceId: params.networkInterfaceId,
+  //           provider: params.provider.name,
+  //         },
+  //       },
+  //     },
+  //   ]
+  //   this.mockRevision(patch)
 
-    return null
-  }
+  //   return null
+  // }
 
-  async deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes> {
-    await pauseFor(2000)
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: '/serverInfo/network/domains',
-        value: {},
-      },
-    ]
-    this.mockRevision(patch)
+  // async deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes> {
+  //   await pauseFor(2000)
+  //   const patch = [
+  //     {
+  //       op: PatchOp.REPLACE,
+  //       path: '/serverInfo/network/domains',
+  //       value: {},
+  //     },
+  //   ]
+  //   this.mockRevision(patch)
 
-    return null
-  }
+  //   return null
+  // }
 
   // port forwards
 
-  async overridePortForward(
-    params: RR.OverridePortReq,
-  ): Promise<RR.OverridePortRes> {
-    await pauseFor(2000)
+  // async overridePortForward(
+  //   params: RR.OverridePortReq,
+  // ): Promise<RR.OverridePortRes> {
+  //   await pauseFor(2000)
 
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: '/serverInfo/network/wanConfig/forwards/0/override',
-        value: params.port,
-      },
-    ]
-    this.mockRevision(patch)
+  //   const patch = [
+  //     {
+  //       op: PatchOp.REPLACE,
+  //       path: '/serverInfo/network/wanConfig/forwards/0/override',
+  //       value: params.port,
+  //     },
+  //   ]
+  //   this.mockRevision(patch)
 
-    return null
-  }
+  //   return null
+  // }
 
   // wifi
 
@@ -814,21 +792,16 @@ export class MockApiService extends ApiService {
   }
 
   async addBackupTarget(
-    type: BackupTargetType,
-    params:
-      | RR.AddCifsBackupTargetReq
-      | RR.AddCloudBackupTargetReq
-      | RR.AddDiskBackupTargetReq,
+    params: RR.AddBackupTargetReq,
   ): Promise<RR.AddBackupTargetRes> {
     await pauseFor(2000)
-    const { path, name } = params
+    const { hostname, path, username } = params
     return {
       latfgvwdbhjsndmk: {
-        name,
         type: 'cifs',
-        hostname: 'mockhotname',
+        hostname,
         path: path.replace(/\\/g, '/'),
-        username: 'mockusername',
+        username,
         mountable: true,
         startOs: {},
       },
@@ -836,67 +809,23 @@ export class MockApiService extends ApiService {
   }
 
   async updateBackupTarget(
-    type: BackupTargetType,
-    params: RR.UpdateCifsBackupTargetReq | RR.UpdateCloudBackupTargetReq,
+    params: RR.UpdateBackupTargetReq,
   ): Promise<RR.UpdateBackupTargetRes> {
     await pauseFor(2000)
-    return { [params.id]: Mock.BackupTargets.saved[params.id] }
+    const { id, hostname, path, username } = params
+    return {
+      [id]: {
+        ...(Mock.BackupTargets[id] as CifsBackupTarget),
+        hostname,
+        path,
+        username,
+      },
+    }
   }
 
   async removeBackupTarget(
     params: RR.RemoveBackupTargetReq,
   ): Promise<RR.RemoveBackupTargetRes> {
-    await pauseFor(2000)
-    return null
-  }
-
-  async getBackupJobs(
-    params: RR.GetBackupJobsReq,
-  ): Promise<RR.GetBackupJobsRes> {
-    await pauseFor(2000)
-    return Mock.BackupJobs
-  }
-
-  async createBackupJob(
-    params: RR.CreateBackupJobReq,
-  ): Promise<RR.CreateBackupJobRes> {
-    await pauseFor(2000)
-    return {
-      id: 'hjdfbjsahdbn',
-      name: params.name,
-      targetId: Object.keys(Mock.BackupTargets.saved)[0],
-      cron: params.cron,
-      packageIds: params.packageIds,
-    }
-  }
-
-  async updateBackupJob(
-    params: RR.UpdateBackupJobReq,
-  ): Promise<RR.UpdateBackupJobRes> {
-    await pauseFor(2000)
-    return {
-      ...Mock.BackupJobs[0],
-      ...params,
-    }
-  }
-
-  async deleteBackupJob(
-    params: RR.DeleteBackupJobReq,
-  ): Promise<RR.DeleteBackupJobRes> {
-    await pauseFor(2000)
-    return null
-  }
-
-  async getBackupRuns(
-    params: RR.GetBackupRunsReq,
-  ): Promise<RR.GetBackupRunsRes> {
-    await pauseFor(2000)
-    return Mock.BackupRuns
-  }
-
-  async deleteBackupRuns(
-    params: RR.DeleteBackupRunsReq,
-  ): Promise<RR.DeleteBackupRunsRes> {
     await pauseFor(2000)
     return null
   }
@@ -976,6 +905,94 @@ export class MockApiService extends ApiService {
 
     return null
   }
+
+  // async addBackupTarget(
+  //   type: BackupTargetType,
+  //   params:
+  //     | RR.AddCifsBackupTargetReq
+  //     | RR.AddCloudBackupTargetReq
+  //     | RR.AddDiskBackupTargetReq,
+  // ): Promise<RR.AddBackupTargetRes> {
+  //   await pauseFor(2000)
+  //   const { path, name } = params
+  //   return {
+  //     latfgvwdbhjsndmk: {
+  //       name,
+  //       type: 'cifs',
+  //       hostname: 'mockhotname',
+  //       path: path.replace(/\\/g, '/'),
+  //       username: 'mockusername',
+  //       mountable: true,
+  //       startOs: {},
+  //     },
+  //   }
+  // }
+
+  // async updateBackupTarget(
+  //   type: BackupTargetType,
+  //   params: RR.UpdateCifsBackupTargetReq | RR.UpdateCloudBackupTargetReq,
+  // ): Promise<RR.UpdateBackupTargetRes> {
+  //   await pauseFor(2000)
+  //   return { [params.id]: Mock.BackupTargets.saved[params.id] }
+  // }
+
+  // async removeBackupTarget(
+  //   params: RR.RemoveBackupTargetReq,
+  // ): Promise<RR.RemoveBackupTargetRes> {
+  //   await pauseFor(2000)
+  //   return null
+  // }
+
+  // async getBackupJobs(
+  //   params: RR.GetBackupJobsReq,
+  // ): Promise<RR.GetBackupJobsRes> {
+  //   await pauseFor(2000)
+  //   return Mock.BackupJobs
+  // }
+
+  // async createBackupJob(
+  //   params: RR.CreateBackupJobReq,
+  // ): Promise<RR.CreateBackupJobRes> {
+  //   await pauseFor(2000)
+  //   return {
+  //     id: 'hjdfbjsahdbn',
+  //     name: params.name,
+  //     targetId: Object.keys(Mock.BackupTargets.saved)[0],
+  //     cron: params.cron,
+  //     packageIds: params.packageIds,
+  //   }
+  // }
+
+  // async updateBackupJob(
+  //   params: RR.UpdateBackupJobReq,
+  // ): Promise<RR.UpdateBackupJobRes> {
+  //   await pauseFor(2000)
+  //   return {
+  //     ...Mock.BackupJobs[0],
+  //     ...params,
+  //   }
+  // }
+
+  // async deleteBackupJob(
+  //   params: RR.DeleteBackupJobReq,
+  // ): Promise<RR.DeleteBackupJobRes> {
+  //   await pauseFor(2000)
+  //   return null
+  // }
+
+  // async getBackupRuns(
+  //   params: RR.GetBackupRunsReq,
+  // ): Promise<RR.GetBackupRunsRes> {
+  //   await pauseFor(2000)
+  //   return Mock.BackupRuns
+  // }
+
+  // async deleteBackupRuns(
+  //   params: RR.DeleteBackupRunsReq,
+  // ): Promise<RR.DeleteBackupRunsRes> {
+  //   await pauseFor(2000)
+  //   return null
+  // }
 
   // package
 
@@ -1308,37 +1325,21 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async setInterfaceClearnetAddress(
-    params: RR.SetInterfaceClearnetAddressReq,
-  ): Promise<RR.SetInterfaceClearnetAddressRes> {
-    await pauseFor(2000)
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: `/packageData/${params.packageId}/serviceInterfaces/${params.interfaceId}/addressInfo/domainInfo`,
-        value: params.domainInfo,
-      },
-    ]
-    this.mockRevision(patch)
+  // async setServiceOutboundProxy(
+  //   params: RR.SetServiceOutboundProxyReq,
+  // ): Promise<RR.SetServiceOutboundProxyRes> {
+  //   await pauseFor(2000)
+  //   const patch = [
+  //     {
+  //       op: PatchOp.REPLACE,
+  //       path: `/packageData/${params.packageId}/outboundProxy`,
+  //       value: params.proxy,
+  //     },
+  //   ]
+  //   this.mockRevision(patch)
 
-    return null
-  }
-
-  async setServiceOutboundProxy(
-    params: RR.SetServiceOutboundProxyReq,
-  ): Promise<RR.SetServiceOutboundProxyRes> {
-    await pauseFor(2000)
-    const patch = [
-      {
-        op: PatchOp.REPLACE,
-        path: `/packageData/${params.packageId}/outboundProxy`,
-        value: params.proxy,
-      },
-    ]
-    this.mockRevision(patch)
-
-    return null
-  }
+  //   return null
+  // }
 
   async initAcme(params: RR.InitAcmeReq): Promise<RR.InitAcmeRes> {
     await pauseFor(2000)
@@ -1820,6 +1821,16 @@ export class MockApiService extends ApiService {
         },
       ]
       this.mockRevision(patch3)
+      // quickly revert server to "running" for continued testing
+      await pauseFor(100)
+      const patch4 = [
+        {
+          op: PatchOp.REPLACE,
+          path: '/serverInfo/status',
+          value: 'running',
+        },
+      ]
+      this.mockRevision(patch4)
       // set patch indicating update is complete
       await pauseFor(100)
       const patch6 = [

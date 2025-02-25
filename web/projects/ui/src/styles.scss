@@ -65,8 +65,76 @@ hr {
   }
 }
 
-.g-table {
-  width: 100%;
+.g-subpage {
+  height: 100%;
+  min-height: fit-content;
+  flex: 1;
+  padding: 2rem;
+
+  tui-root._mobile & {
+    padding: 1rem;
+  }
+}
+
+.g-card {
+  transition: all 300ms ease-in-out;
+  padding: 1.25rem 1.5rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background-color: color-mix(in hsl, var(--start9-base-1) 50%, transparent);
+  background-image: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.15),
+      transparent
+    ),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.15), transparent);
+  background-size: 1px 100%;
+  background-repeat: no-repeat;
+  background-position:
+    top left,
+    top right;
+  box-sizing: border-box;
+  box-shadow:
+    0 0.25rem 0.125rem rgba(0, 0, 0, 0.25),
+    0 -0.125rem 0.25rem rgba(55, 155, 255, 0.08),
+    0 0 0.5rem rgba(0, 0, 0, 0.3),
+    inset 0 -0.125rem rgba(255, 255, 255, 0.03),
+    inset 0 2px rgba(255, 255, 255, 0.1),
+    inset 0 1px rgba(255, 255, 255, 0.15),
+    inset 0 0 1rem rgba(0, 0, 0, 0.25);
+
+  &:hover {
+    box-shadow:
+      0 0.375rem 0.5rem rgba(0, 0, 0, 0.25),
+      0 -0.125rem 0.25rem rgba(55, 155, 255, 0.08),
+      0 0 0.5rem rgba(0, 0, 0, 0.3),
+      inset 0 -0.125rem rgba(255, 255, 255, 0.03),
+      inset 0 2px rgba(255, 255, 255, 0.1),
+      inset 0 1px rgba(255, 255, 255, 0.15),
+      inset 0 0 1rem rgba(0, 0, 0, 0.25);
+  }
+
+  > [tuiCell]:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 1rem;
+    right: 1rem;
+    height: 1px;
+    background: var(--tui-border-normal);
+  }
+
+  > header {
+    padding-bottom: 0.75rem;
+    margin: -0.5rem 0 0.5rem;
+    background: var(--tui-background-neutral-1);
+    box-shadow: 0 -10rem 0 10rem var(--tui-background-neutral-1);
+    font: var(--tui-font-heading-6);
+  }
+}
+
+.g-table:not([tuiTable]) {
+  width: stretch;
   min-width: 40rem;
   border-spacing: 0;
 
@@ -124,6 +192,38 @@ hr {
         overflow: hidden;
       }
     }
+  }
+}
+
+.g-table[tuiTable] {
+  width: stretch;
+
+  tr:not(:last-child) {
+    box-shadow: inset 0 -1px var(--tui-background-neutral-1);
+  }
+
+  th {
+    text-transform: uppercase;
+    color: var(--tui-text-secondary);
+    background: none;
+    border: none;
+    font: var(--tui-font-text-s);
+    font-weight: bold;
+    text-align: left;
+    padding: 0 0.5rem;
+  }
+
+  td {
+    padding: 0.5rem;
+  }
+
+  td:only-child {
+    text-align: center;
+    padding: 1rem;
+  }
+
+  tui-root._mobile & thead {
+    display: none;
   }
 }
 
@@ -196,7 +296,7 @@ button.g-action {
   }
 }
 
-.g-success {
+.g-positive {
   color: var(--tui-status-positive) !important;
 }
 
@@ -204,12 +304,16 @@ button.g-action {
   color: var(--tui-status-warning) !important;
 }
 
-.g-error.g-error {
+.g-negative.g-negative {
   color: var(--tui-status-negative) !important;
 }
 
 .g-info {
   color: var(--tui-status-info) !important;
+}
+
+.g-secondary {
+  color: var(--tui-text-secondary) !important;
 }
 
 ng-component {

@@ -10,22 +10,28 @@ import { ServiceHealthCheckComponent } from 'src/app/routes/portal/routes/servic
 import { ConnectionService } from 'src/app/services/connection.service'
 
 @Component({
+  standalone: true,
   selector: 'service-health-checks',
   template: `
+    <header>Health Checks</header>
     @for (check of checks; track $index) {
       <service-health-check
         [check]="check"
         [connected]="!!(connected$ | async)"
       />
-    }
-
-    @if (!checks.length) {
-      No health checks
+    } @empty {
+      <blockquote>No health checks</blockquote>
     }
   `,
-  styles: ':host { display: block; min-height: var(--tui-height-s) }',
+  styles: `
+    blockquote {
+      text-align: center;
+      font: var(--tui-font-text-l);
+      color: var(--tui-text-tertiary);
+    }
+  `,
+  host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [AsyncPipe, ServiceHealthCheckComponent],
 })
 export class ServiceHealthChecksComponent {

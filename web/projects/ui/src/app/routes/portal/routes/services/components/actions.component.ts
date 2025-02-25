@@ -1,4 +1,3 @@
-import { TuiButton } from '@taiga-ui/core'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -7,22 +6,20 @@ import {
 } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
 import { tuiPure } from '@taiga-ui/cdk'
-import { tuiButtonOptionsProvider } from '@taiga-ui/core'
+import { TuiButton } from '@taiga-ui/core'
 import { DependencyInfo } from 'src/app/routes/portal/routes/services/types/dependency-info'
-import { ControlsService } from '../../../../../services/controls.service'
+import { ControlsService } from 'src/app/services/controls.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { PackageStatus } from 'src/app/services/pkg-status-rendering.service'
+import { PrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getManifest } from 'src/app/utils/get-package-data'
-
-const STOPPABLE = ['running', 'starting', 'restarting']
 
 @Component({
   selector: 'service-actions',
   template: `
-    @if (canStop) {
+    @if (['running', 'starting', 'restarting'].includes(status)) {
       <button
         tuiButton
-        appearance="primary-destructive"
+        appearance="outline-destructive"
         iconStart="@tui.square"
         (click)="actions.stop(manifest)"
       >
@@ -30,9 +27,10 @@ const STOPPABLE = ['running', 'starting', 'restarting']
       </button>
     }
 
-    @if (canRestart) {
+    @if (status === 'running') {
       <button
         tuiButton
+        appearance="outline"
         iconStart="@tui.rotate-cw"
         (click)="actions.restart(manifest)"
       >
@@ -40,11 +38,12 @@ const STOPPABLE = ['running', 'starting', 'restarting']
       </button>
     }
 
-    @if (canStart) {
+    @if (status === 'stopped') {
       <button
         tuiButton
+        appearance="outline"
         iconStart="@tui.play"
-        (click)="actions.start(manifest, hasUnmet(service.dependencies))"
+        (click)="actions.start(manifest, hasUnmet(dependencies))"
       >
         Start
       </button>
@@ -53,42 +52,32 @@ const STOPPABLE = ['running', 'starting', 'restarting']
   styles: [
     `
       :host {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        padding-bottom: 1rem;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+        gap: 1rem;
+        justify-content: center;
+        margin-block-start: 1rem;
       }
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [TuiButton],
-  providers: [tuiButtonOptionsProvider({ size: 's' })],
 })
 export class ServiceActionsComponent {
   @Input({ required: true })
-  service!: {
-    pkg: PackageDataEntry
-    dependencies: readonly DependencyInfo[]
-    status: PackageStatus
-  }
+  pkg!: PackageDataEntry
+
+  @Input({ required: true })
+  status!: PrimaryStatus
+
+  // TODO
+  dependencies: readonly DependencyInfo[] = []
 
   readonly actions = inject(ControlsService)
 
   get manifest(): T.Manifest {
-    return getManifest(this.service.pkg)
-  }
-
-  get canStop(): boolean {
-    return STOPPABLE.includes(this.service.status.primary)
-  }
-
-  get canStart(): boolean {
-    return this.service.status.primary === 'stopped'
-  }
-
-  get canRestart(): boolean {
-    return this.service.status.primary === 'running'
+    return getManifest(this.pkg)
   }
 
   @tuiPure

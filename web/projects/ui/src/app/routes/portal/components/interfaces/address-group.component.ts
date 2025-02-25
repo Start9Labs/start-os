@@ -13,30 +13,29 @@ import { AddressDetails, AddressesService } from './interface.utils'
   selector: 'app-address-group',
   template: `
     <div>
-      @if (addresses.length) {
+      @if (addresses.length && !service.static) {
         <button
           class="icon-add-btn"
           tuiIconButton
-          appearance="secondary"
           iconStart="@tui.plus"
           (click)="service.add()"
-        >
-          Add
-        </button>
+        ></button>
       }
       <ng-content />
     </div>
     @for (address of addresses; track $index) {
       <app-address-item [label]="address.label" [address]="address.url" />
     } @empty {
-      <button
-        tuiButton
-        iconStart="@tui.plus"
-        [style.align-self]="'flex-start'"
-        (click)="service.add()"
-      >
-        Add Address
-      </button>
+      @if (!service.static) {
+        <button
+          tuiButton
+          iconStart="@tui.plus"
+          [style.align-self]="'flex-start'"
+          (click)="service.add()"
+        >
+          Add Address
+        </button>
+      }
     }
   `,
   imports: [AddressItemComponent, TuiButton],

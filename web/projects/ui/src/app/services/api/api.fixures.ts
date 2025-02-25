@@ -1,7 +1,6 @@
 import {
   InstalledState,
   PackageDataEntry,
-  ServerStatusInfo,
 } from 'src/app/services/patch-db/data-model'
 import { RR, ServerMetrics, ServerNotifications } from './api.types'
 import { BTC_ICON, LND_ICON, PROXY_ICON, REGISTRY_ICON } from './api-icons'
@@ -22,14 +21,15 @@ const mockDescription = {
   long: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
 }
 
-export module Mock {
-  export const ServerUpdated: ServerStatusInfo = {
-    currentBackup: null,
+export namespace Mock {
+  export const ServerUpdated: T.ServerStatus = {
+    backupProgress: null,
     updateProgress: null,
     updated: true,
     restarting: false,
     shuttingDown: false,
   }
+
   export const MarketplaceEos: RR.CheckOSUpdateRes = {
     version: '0.3.6',
     headline: 'Our biggest release ever.',
@@ -1012,131 +1012,192 @@ export module Mock {
   }
 
   export const BackupTargets: RR.GetBackupTargetsRes = {
-    unknownDisks: [
-      {
-        logicalname: 'sbc4',
-        label: 'My Backup Drive',
-        capacity: 2000000000000,
-        used: 100000000000,
-        model: 'T7',
-        vendor: 'Samsung',
-        startOs: {},
-      },
-    ],
-    saved: {
-      hsbdjhasbasda: {
-        type: 'cifs',
-        name: 'Embassy Backups',
-        hostname: 'smb://192.169.10.0',
-        path: '/Desktop/embassy-backups',
-        username: 'TestUser',
-        mountable: true,
-        startOs: {
-          abcdefgh: {
-            hostname: 'adjective-noun.local',
-            version: '0.3.6',
-            timestamp: new Date().toISOString(),
-            passwordHash:
-              '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-            wrappedKey: '',
-          },
+    hsbdjhasbasda: {
+      type: 'cifs',
+      hostname: 'smb://192.169.10.0',
+      path: '/Desktop/startos-backups',
+      username: 'TestUser',
+      mountable: false,
+      startOs: {
+        '1234-5678-9876-5432': {
+          hostname: 'adjective-noun',
+          timestamp: new Date().toISOString(),
+          version: '0.3.6',
+          passwordHash:
+            // password is asdfasdf
+            '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+          wrappedKey: '',
         },
       },
-      ftcvewdnkemfksdm: {
-        type: 'cloud',
-        name: 'Dropbox 1',
-        provider: 'dropbox',
-        path: '/Home/backups',
-        mountable: false,
-        startOs: {},
-      },
-      csgashbdjkasnd: {
-        type: 'cifs',
-        name: 'Network Folder 2',
-        hostname: 'smb://192.169.10.0',
-        path: '/Desktop/embassy-backups-2',
-        username: 'TestUser',
-        mountable: true,
-        startOs: {},
-      },
-      powjefhjbnwhdva: {
-        type: 'disk',
-        name: 'Physical Drive 1',
-        logicalname: 'sdba1',
-        label: 'Another Drive',
-        capacity: 2000000000000,
-        used: 100000000000,
-        model: null,
-        vendor: 'SSK',
-        mountable: true,
-        path: '/HomeFolder/Documents',
-        startOs: {
-          'different-server': {
-            hostname: 'different-server.local',
-            version: '0.3.6',
-            timestamp: new Date().toISOString(),
-            passwordHash:
-              '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-            wrappedKey: '',
-          },
+    },
+    // 'ftcvewdnkemfksdm': {
+    //   type: 'disk',
+    //   logicalname: 'sdba1',
+    //   label: 'Matt Stuff',
+    //   capacity: 1000000000000,
+    //   used: 0,
+    //   model: 'Evo SATA 2.5',
+    //   vendor: 'Samsung',
+    //   startOs: {},
+    // },
+    csgashbdjkasnd: {
+      type: 'cifs',
+      hostname: 'smb://192.169.10.0',
+      path: '/Desktop/startos-backups-2',
+      username: 'TestUser',
+      mountable: true,
+      startOs: {},
+    },
+    powjefhjbnwhdva: {
+      type: 'disk',
+      logicalname: 'sdba1',
+      label: 'Another Drive',
+      capacity: 2000000000000,
+      used: 100000000000,
+      model: null,
+      vendor: 'SSK',
+      startOs: {
+        '1234-5678-9876-5432': {
+          hostname: 'adjective-noun',
+          timestamp: new Date().toISOString(),
+          version: '0.3.6',
+          passwordHash:
+            // password is asdfasdf
+            '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+          wrappedKey: '',
         },
       },
     },
   }
 
-  export const BackupJobs: RR.GetBackupJobsRes = [
-    {
-      id: 'lalalalalala-babababababa',
-      name: 'My Backup Job',
-      targetId: Object.keys(BackupTargets.saved)[0],
-      cron: '0 3 * * *',
-      packageIds: ['bitcoind', 'lnd'],
-    },
-    {
-      id: 'hahahahaha-mwmwmwmwmwmw',
-      name: 'Another Backup Job',
-      targetId: Object.keys(BackupTargets.saved)[1],
-      cron: '0 * * * *',
-      packageIds: ['lnd'],
-    },
-  ]
+  // @TODO 041
 
-  export const BackupRuns: RR.GetBackupRunsRes = [
-    {
-      id: 'kladhbfweubdsk',
-      startedAt: new Date().toISOString(),
-      completedAt: new Date(new Date().valueOf() + 10000).toISOString(),
-      packageIds: ['bitcoind', 'lnd'],
-      job: BackupJobs[0],
-      report: {
-        server: {
-          attempted: true,
-          error: null,
-        },
-        packages: {
-          bitcoind: { error: null },
-          lnd: { error: null },
-        },
-      },
-    },
-    {
-      id: 'kladhbfwhrfeubdsk',
-      startedAt: new Date().toISOString(),
-      completedAt: new Date(new Date().valueOf() + 10000).toISOString(),
-      packageIds: ['bitcoind', 'lnd'],
-      job: BackupJobs[0],
-      report: {
-        server: {
-          attempted: true,
-          error: null,
-        },
-        packages: {
-          bitcoind: { error: null },
-          lnd: { error: null },
-        },
-      },
-    },
-  ]
+  // export const BackupTargets: RR.GetBackupTargetsRes = {
+  //   unknownDisks: [
+  //     {
+  //       logicalname: 'sbc4',
+  //       label: 'My Backup Drive',
+  //       capacity: 2000000000000,
+  //       used: 100000000000,
+  //       model: 'T7',
+  //       vendor: 'Samsung',
+  //       startOs: {},
+  //     },
+  //   ],
+  //   saved: {
+  //     hsbdjhasbasda: {
+  //       type: 'cifs',
+  //       name: 'Embassy Backups',
+  //       hostname: 'smb://192.169.10.0',
+  //       path: '/Desktop/embassy-backups',
+  //       username: 'TestUser',
+  //       mountable: true,
+  //       startOs: {
+  //         abcdefgh: {
+  //           hostname: 'adjective-noun.local',
+  //           version: '0.3.6',
+  //           timestamp: new Date().toISOString(),
+  //           passwordHash:
+  //             '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+  //           wrappedKey: '',
+  //         },
+  //       },
+  //     },
+  //     ftcvewdnkemfksdm: {
+  //       type: 'cloud',
+  //       name: 'Dropbox 1',
+  //       provider: 'dropbox',
+  //       path: '/Home/backups',
+  //       mountable: false,
+  //       startOs: {},
+  //     },
+  //     csgashbdjkasnd: {
+  //       type: 'cifs',
+  //       name: 'Network Folder 2',
+  //       hostname: 'smb://192.169.10.0',
+  //       path: '/Desktop/embassy-backups-2',
+  //       username: 'TestUser',
+  //       mountable: true,
+  //       startOs: {},
+  //     },
+  //     powjefhjbnwhdva: {
+  //       type: 'disk',
+  //       name: 'Physical Drive 1',
+  //       logicalname: 'sdba1',
+  //       label: 'Another Drive',
+  //       capacity: 2000000000000,
+  //       used: 100000000000,
+  //       model: null,
+  //       vendor: 'SSK',
+  //       mountable: true,
+  //       path: '/HomeFolder/Documents',
+  //       startOs: {
+  //         'different-server': {
+  //           hostname: 'different-server.local',
+  //           version: '0.3.6',
+  //           timestamp: new Date().toISOString(),
+  //           passwordHash:
+  //             '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+  //           wrappedKey: '',
+  //         },
+  //       },
+  //     },
+  //   },
+  // }
+
+  // export const BackupJobs: RR.GetBackupJobsRes = [
+  //   {
+  //     id: 'lalalalalala-babababababa',
+  //     name: 'My Backup Job',
+  //     targetId: Object.keys(BackupTargets.saved)[0],
+  //     cron: '0 3 * * *',
+  //     packageIds: ['bitcoind', 'lnd'],
+  //   },
+  //   {
+  //     id: 'hahahahaha-mwmwmwmwmwmw',
+  //     name: 'Another Backup Job',
+  //     targetId: Object.keys(BackupTargets.saved)[1],
+  //     cron: '0 * * * *',
+  //     packageIds: ['lnd'],
+  //   },
+  // ]
+
+  // export const BackupRuns: RR.GetBackupRunsRes = [
+  //   {
+  //     id: 'kladhbfweubdsk',
+  //     startedAt: new Date().toISOString(),
+  //     completedAt: new Date(new Date().valueOf() + 10000).toISOString(),
+  //     packageIds: ['bitcoind', 'lnd'],
+  //     job: BackupJobs[0],
+  //     report: {
+  //       server: {
+  //         attempted: true,
+  //         error: null,
+  //       },
+  //       packages: {
+  //         bitcoind: { error: null },
+  //         lnd: { error: null },
+  //       },
+  //     },
+  //   },
+  //   {
+  //     id: 'kladhbfwhrfeubdsk',
+  //     startedAt: new Date().toISOString(),
+  //     completedAt: new Date(new Date().valueOf() + 10000).toISOString(),
+  //     packageIds: ['bitcoind', 'lnd'],
+  //     job: BackupJobs[0],
+  //     report: {
+  //       server: {
+  //         attempted: true,
+  //         error: null,
+  //       },
+  //       packages: {
+  //         bitcoind: { error: null },
+  //         lnd: { error: null },
+  //       },
+  //     },
+  //   },
+  // ]
 
   export const BackupInfo: RR.GetBackupInfoRes = {
     version: '0.3.6',
@@ -1819,9 +1880,7 @@ export module Mock {
     },
     dataVersion: MockManifestBitcoind.version,
     icon: '/assets/img/service-icons/bitcoind.svg',
-    installedAt: new Date().toISOString(),
     lastBackup: null,
-    nextBackup: null,
     status: {
       main: 'running',
       started: new Date().toISOString(),
@@ -2065,7 +2124,6 @@ export module Mock {
     storeExposedDependents: [],
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
-    outboundProxy: null,
     requestedActions: {
       'bitcoind-config': {
         request: {
@@ -2096,9 +2154,7 @@ export module Mock {
     },
     dataVersion: MockManifestBitcoinProxy.version,
     icon: '/assets/img/service-icons/btc-rpc-proxy.png',
-    installedAt: new Date().toISOString(),
     lastBackup: null,
-    nextBackup: null,
     status: {
       main: 'stopped',
     },
@@ -2133,7 +2189,6 @@ export module Mock {
     storeExposedDependents: [],
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
-    outboundProxy: null,
     requestedActions: {},
   }
 
@@ -2144,9 +2199,7 @@ export module Mock {
     },
     dataVersion: MockManifestLnd.version,
     icon: '/assets/img/service-icons/lnd.png',
-    installedAt: new Date().toISOString(),
     lastBackup: null,
-    nextBackup: null,
     status: {
       main: 'stopped',
     },
@@ -2239,7 +2292,6 @@ export module Mock {
     storeExposedDependents: [],
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
-    outboundProxy: null,
     requestedActions: {
       config: {
         active: true,

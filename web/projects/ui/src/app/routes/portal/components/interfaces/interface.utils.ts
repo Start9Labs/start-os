@@ -1,11 +1,10 @@
-import { ISB, IST, T, utils } from '@start9labs/start-sdk'
+import { T, utils } from '@start9labs/start-sdk'
 import { TuiDialogOptions } from '@taiga-ui/core'
 import { TuiConfirmData } from '@taiga-ui/kit'
 import { ConfigService } from 'src/app/services/config.service'
-import { NetworkInfo } from 'src/app/services/patch-db/data-model'
-import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 
 export abstract class AddressesService {
+  abstract static: boolean
   abstract add(): Promise<void>
   abstract remove(): Promise<void>
 }
@@ -20,37 +19,7 @@ export const REMOVE: Partial<TuiDialogOptions<TuiConfirmData>> = {
   },
 }
 
-export function getClearnetSpec({
-  domains,
-  start9To,
-}: NetworkInfo): Promise<IST.InputSpec> {
-  const start9ToDomain = `${start9To?.subdomain}.start9.to`
-  const base = start9To ? { [start9ToDomain]: start9ToDomain } : {}
-
-  const values = Object.keys(domains).reduce((prev, curr) => {
-    return {
-      [curr]: curr,
-      ...prev,
-    }
-  }, base)
-
-  return configBuilderToSpec(
-    ISB.InputSpec.of({
-      domain: ISB.Value.select({
-        name: 'Domain',
-        default: '',
-        values,
-      }),
-      subdomain: ISB.Value.text({
-        name: 'Subdomain',
-        required: false,
-        default: '',
-      }),
-    }),
-  )
-}
-
-// @TODO Aiden audit
+// @TODO 040 Aiden audit
 export function getAddresses(
   serviceInterface: T.ServiceInterface,
   host: T.Host,
@@ -142,8 +111,6 @@ export function getAddresses(
   //   (value, index, self) => index === self.findIndex(t => t.url === value.url),
   // )
 }
-
-function getLabel(name: string, url: string, multiple: boolean) {}
 
 export type AddressDetails = {
   label: string

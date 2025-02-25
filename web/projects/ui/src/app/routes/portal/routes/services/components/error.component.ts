@@ -20,17 +20,15 @@ import { getManifest } from 'src/app/utils/get-package-data'
   standalone: true,
   selector: 'service-error',
   template: `
+    <header>Error</header>
     <tui-line-clamp
-      style="pointer-events: none; margin: 1rem 0 -1rem; color: var(--tui-status-negative);"
       [linesLimit]="2"
       [content]="error?.message"
       (overflownChange)="overflow = $event"
     />
-    <h4 class="g-title">
-      <span [style.display]="'flex'">
-        Actions
-        <tui-icon [style.margin-left.rem]="0.25" [tuiTooltip]="hint" />
-      </span>
+    <h4>
+      Actions
+      <tui-icon [tuiTooltip]="hint" />
     </h4>
     <ng-template #hint>
       <div>
@@ -54,6 +52,32 @@ import { getManifest } from 'src/app/utils/get-package-data'
       }
     </p>
   `,
+  styles: `
+    :host {
+      grid-column: span 2;
+    }
+
+    header {
+      --tui-background-neutral-1: var(--tui-status-negative-pale);
+    }
+
+    tui-line-clamp {
+      pointer-events: none;
+      margin: 1rem 0;
+      color: var(--tui-status-negative);
+    }
+
+    h4 {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font: var(--tui-font-text-m);
+      font-weight: bold;
+      color: var(--tui-text-secondary);
+      text-transform: uppercase;
+    }
+  `,
+  host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, TuiIcon, TuiTooltip, TuiLineClamp],
 })

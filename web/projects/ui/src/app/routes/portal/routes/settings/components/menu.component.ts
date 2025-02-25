@@ -22,6 +22,7 @@ import { SettingsUpdateComponent } from './update.component'
         />
         <ng-container *ngFor="let btn of cat.value">
           <settings-button [button]="btn">
+            <!-- // @TODO 041
             <div
               *ngIf="btn.title === 'Outbound Proxy'"
               tuiSubtitle
@@ -32,7 +33,7 @@ import { SettingsUpdateComponent } from './update.component'
               "
             >
               {{ server.network.outboundProxy || 'None' }}
-            </div>
+            </div> -->
           </settings-button>
         </ng-container>
       </section>

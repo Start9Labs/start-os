@@ -1,12 +1,10 @@
-import { DomainInfo } from 'src/app/services/patch-db/data-model'
-import { FetchLogsReq, FetchLogsRes } from '@start9labs/shared'
 import { Dump } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { StartOSDiskInfo } from '@start9labs/shared'
+import { StartOSDiskInfo, FetchLogsReq, FetchLogsRes } from '@start9labs/shared'
 import { IST, T } from '@start9labs/start-sdk'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
-export module RR {
+export namespace RR {
   // websocket
 
   export type WebsocketConfig<T> = Omit<WebSocketSubjectConfig<T>, 'url'>
@@ -70,7 +68,7 @@ export module RR {
     uptime: number // seconds
   }
 
-  export type GetServerLogsReq = FetchLogsReq // server.logs & server.kernel-logs & server.tor-logs
+  export type GetServerLogsReq = FetchLogsReq // server.logs & server.kernel-logs
   export type GetServerLogsRes = FetchLogsRes
 
   export type FollowServerLogsReq = {
@@ -83,6 +81,7 @@ export module RR {
     guid: string
   }
 
+  // @TODO 040 implement websocket
   export type FollowServerMetricsReq = {} // server.metrics.follow
   export type FollowServerMetricsRes = {
     guid: string
@@ -91,9 +90,6 @@ export module RR {
 
   export type UpdateServerReq = { registry: string } // server.update
   export type UpdateServerRes = 'updating' | 'no-updates'
-
-  export type SetServerClearnetAddressReq = { domainInfo: DomainInfo | null } // server.set-clearnet
-  export type SetServerClearnetAddressRes = null
 
   export type RestartServerReq = {} // server.restart
   export type RestartServerRes = null
@@ -109,11 +105,6 @@ export module RR {
     reason: string
   } // net.tor.reset
   export type ResetTorRes = null
-
-  export type SetOsOutboundProxyReq = {
-    proxy: string | null
-  } // server.proxy.set-outbound
-  export type SetOsOutboundProxyRes = null
 
   // smtp
 
@@ -139,18 +130,13 @@ export module RR {
 
   // notification
 
-  export type FollowNotificationsReq = {}
-  export type FollowNotificationsRes = {
-    notifications: ServerNotifications
-    guid: string
-  }
-
   export type GetNotificationsReq = {
     before?: number
     limit?: number
   } // notification.list
   export type GetNotificationsRes = ServerNotification<number>[]
 
+  // @TODO 040 all these notification endpoints need updating
   export type DeleteNotificationReq = { ids: number[] } // notification.delete
   export type DeleteNotificationRes = null
 
@@ -163,50 +149,11 @@ export module RR {
   export type MarkUnseenNotificationReq = DeleteNotificationReq // notification.mark-unseen
   export type MarkUnseenNotificationRes = null
 
-  // network
-
-  export type AddProxyReq = {
-    name: string
-    config: string
-  } // net.proxy.add
-  export type AddProxyRes = null
-
-  export type UpdateProxyReq = {
-    name: string
-  } // net.proxy.update
-  export type UpdateProxyRes = null
-
-  export type DeleteProxyReq = { id: string } // net.proxy.delete
-  export type DeleteProxyRes = null
-
-  // domains
-
-  export type ClaimStart9ToReq = { networkInterfaceId: string } // net.domain.me.claim
-  export type ClaimStart9ToRes = null
-
-  export type DeleteStart9ToReq = {} // net.domain.me.delete
-  export type DeleteStart9ToRes = null
-
-  export type AddDomainReq = {
-    hostname: string
-    provider: {
-      name: string
-      username: string | null
-      password: string | null
-    }
-    networkInterfaceId: string
-  } // net.domain.add
-  export type AddDomainRes = null
-
-  export type DeleteDomainReq = { hostname: string } // net.domain.delete
-  export type DeleteDomainRes = null
-
-  // port forwards
-
-  export type OverridePortReq = { target: number; port: number } // net.port-forwards.override
-  export type OverridePortRes = null
-
   // wifi
+
+  // @TODO remove for 040, set at server scope
+  // export type SetWifiCountryReq = { country: string }
+  // export type SetWifiCountryRes = null
 
   export type GetWifiReq = {}
   export type GetWifiRes = {
@@ -228,22 +175,15 @@ export module RR {
   }
   export type AddWifiRes = null
 
+  // @TODO 040
   export type EnableWifiReq = { enable: boolean } // wifi.enable
   export type EnableWifiRes = null
 
   export type ConnectWifiReq = { ssid: string } // wifi.connect
   export type ConnectWifiRes = null
 
-  export type DeleteWifiReq = { ssid: string } // wifi.delete
+  export type DeleteWifiReq = { ssid: string } // wifi.remove
   export type DeleteWifiRes = null
-
-  // email
-
-  export type ConfigureEmailReq = T.SmtpValue // email.configure
-  export type ConfigureEmailRes = null
-
-  export type TestEmailReq = ConfigureEmailReq & { to: string } // email.test
-  export type TestEmailRes = null
 
   // ssh
 
@@ -253,84 +193,44 @@ export module RR {
   export type AddSSHKeyReq = { key: string } // ssh.add
   export type AddSSHKeyRes = SSHKey
 
-  export type DeleteSSHKeyReq = { fingerprint: string } // ssh.delete
+  export type DeleteSSHKeyReq = { fingerprint: string } // ssh.remove
   export type DeleteSSHKeyRes = null
 
   // backup
 
   export type GetBackupTargetsReq = {} // backup.target.list
-  export type GetBackupTargetsRes = {
-    unknownDisks: UnknownDisk[]
-    saved: Record<string, BackupTarget>
-  }
+  export type GetBackupTargetsRes = { [id: string]: BackupTarget }
 
-  export type AddCifsBackupTargetReq = {
-    name: string
-    path: string
+  export type AddBackupTargetReq = {
+    // backup.target.cifs.add
     hostname: string
+    path: string
     username: string
-    password?: string
-  } // backup.target.cifs.add
-  export type AddCloudBackupTargetReq = {
-    name: string
-    path: string
-    provider: CloudProvider
-    [params: string]: any
-  } // backup.target.cloud.add
-  export type AddDiskBackupTargetReq = {
-    logicalname: string
-    name: string
-    path: string
-  } // backup.target.disk.add
-  export type AddBackupTargetRes = Record<string, BackupTarget>
+    password: string | null
+  }
+  export type AddBackupTargetRes = { [id: string]: CifsBackupTarget }
 
-  export type UpdateCifsBackupTargetReq = AddCifsBackupTargetReq & {
-    id: string
-  } // backup.target.cifs.update
-  export type UpdateCloudBackupTargetReq = AddCloudBackupTargetReq & {
-    id: string
-  } // backup.target.cloud.update
-  export type UpdateDiskBackupTargetReq = Omit<
-    AddDiskBackupTargetReq,
-    'logicalname'
-  > & {
-    id: string
-  } // backup.target.disk.update
+  export type UpdateBackupTargetReq = AddBackupTargetReq & { id: string } // backup.target.cifs.update
   export type UpdateBackupTargetRes = AddBackupTargetRes
 
-  export type RemoveBackupTargetReq = { id: string } // backup.target.remove
+  export type RemoveBackupTargetReq = { id: string } // backup.target.cifs.remove
   export type RemoveBackupTargetRes = null
 
-  export type GetBackupJobsReq = {} // backup.job.list
-  export type GetBackupJobsRes = BackupJob[]
-
-  export type CreateBackupJobReq = {
-    name: string
+  export type GetBackupInfoReq = {
+    // backup.target.info
     targetId: string
-    cron: string
-    packageIds: string[]
-    now: boolean
-  } // backup.job.create
-  export type CreateBackupJobRes = BackupJob
-
-  export type UpdateBackupJobReq = Omit<CreateBackupJobReq, 'now'> & {
-    id: string
-  } // backup.job.update
-  export type UpdateBackupJobRes = CreateBackupJobRes
-
-  export type DeleteBackupJobReq = { id: string } // backup.job.delete
-  export type DeleteBackupJobRes = null
-
-  export type GetBackupRunsReq = {} // backup.runs
-  export type GetBackupRunsRes = BackupRun[]
-
-  export type DeleteBackupRunsReq = { ids: string[] } // backup.runs.delete
-  export type DeleteBackupRunsRes = null
-
-  export type GetBackupInfoReq = { targetId: string; password: string } // backup.target.info
+    serverId: string
+    password: string
+  }
   export type GetBackupInfoRes = BackupInfo
 
-  export type CreateBackupReq = { targetId: string; packageIds: string[] } // backup.create
+  export type CreateBackupReq = {
+    // backup.create
+    targetId: string
+    packageIds: string[]
+    oldPassword: string | null
+    password: string
+  }
   export type CreateBackupRes = null
 
   // package
@@ -375,7 +275,7 @@ export module RR {
     private: boolean
     acme: string | null // "letsencrypt" | "letsencrypt-staging" | Url | null
   }
-  export type ServerAddDomainRes = null
+  export type AddDomainRes = null
 
   export type ServerRemoveDomainReq = {
     // server.host.address.domain.remove
@@ -409,8 +309,8 @@ export module RR {
     host: T.HostId // string
   }
 
-  export type GetPackageLogsReq = GetServerLogsReq & { id: string } // package.logs
-  export type GetPackageLogsRes = GetServerLogsRes
+  export type GetPackageLogsReq = FetchLogsReq & { id: string } // package.logs
+  export type GetPackageLogsRes = FetchLogsRes
 
   export type FollowPackageLogsReq = FollowServerLogsReq & { id: string } // package.logs.follow
   export type FollowPackageLogsRes = FollowServerLogsRes
@@ -458,24 +358,11 @@ export module RR {
   export type SideloadPackageReq = {
     manifest: T.Manifest
     icon: string // base64
-    size: number // bytes
   }
   export type SideloadPackageRes = {
-    upload: string
-    progress: string
+    upload: string // guid
+    progress: string // guid
   }
-
-  export type SetInterfaceClearnetAddressReq = SetServerClearnetAddressReq & {
-    packageId: string
-    interfaceId: string
-  } // package.interface.set-clearnet
-  export type SetInterfaceClearnetAddressRes = null
-
-  export type SetServiceOutboundProxyReq = {
-    packageId: string
-    proxy: string | null
-  } // package.proxy.set-outbound
-  export type SetServiceOutboundProxyRes = null
 
   // registry
 
@@ -534,20 +421,6 @@ export type ServerMetrics = {
   }
 }
 
-export type AppMetrics = {
-  memory: {
-    percentageUsed: MetricData
-    used: MetricData
-  }
-  cpu: {
-    percentageUsed: MetricData
-  }
-  disk: {
-    percentageUsed: MetricData
-    used: MetricData
-  }
-}
-
 export type Session = {
   loggedIn: string
   lastActive: string
@@ -576,59 +449,41 @@ export type PlatformType =
   | 'desktop'
   | 'hybrid'
 
-export type RemoteBackupTarget = CifsBackupTarget | CloudBackupTarget
-export type BackupTarget = RemoteBackupTarget | DiskBackupTarget
+export type BackupTarget = DiskBackupTarget | CifsBackupTarget
 
-export type BackupTargetType = 'disk' | 'cifs' | 'cloud'
-
-export interface UnknownDisk {
-  logicalname: string
+export interface DiskBackupTarget {
+  type: 'disk'
   vendor: string | null
   model: string | null
+  logicalname: string | null
   label: string | null
   capacity: number
   used: number | null
   startOs: Record<string, StartOSDiskInfo>
 }
 
-export interface BaseBackupTarget {
-  type: BackupTargetType
-  name: string
-  mountable: boolean
+export interface CifsBackupTarget {
+  type: 'cifs'
+  hostname: string
   path: string
+  username: string
+  mountable: boolean
   startOs: Record<string, StartOSDiskInfo>
 }
 
-export interface DiskBackupTarget extends UnknownDisk, BaseBackupTarget {
+export type RecoverySource = DiskRecoverySource | CifsRecoverySource
+
+export interface DiskRecoverySource {
   type: 'disk'
+  logicalname: string // partition logicalname
 }
 
-export interface CifsBackupTarget extends BaseBackupTarget {
+export interface CifsRecoverySource {
   type: 'cifs'
   hostname: string
+  path: string
   username: string
-}
-
-export interface CloudBackupTarget extends BaseBackupTarget {
-  type: 'cloud'
-  provider: 'dropbox' | 'google-drive'
-}
-
-export type BackupRun = {
-  id: string
-  startedAt: string
-  completedAt: string
-  packageIds: string[]
-  job: BackupJob
-  report: BackupReport
-}
-
-export type BackupJob = {
-  id: string
-  name: string
-  targetId: string
-  cron: string // '* * * * * *' https://cloud.google.com/scheduler/docs/configuring/cron-job-schedules
-  packageIds: string[]
+  password: string
 }
 
 export type BackupInfo = {
@@ -664,12 +519,15 @@ export type ServerNotification<T extends number> = {
   packageId: string | null
   createdAt: string
   code: T
-  level: 'success' | 'info' | 'warning' | 'error'
+  level: NotificationLevel
   title: string
   message: string
   data: NotificationData<T>
+  // @TODO 040
   read: boolean
 }
+
+export type NotificationLevel = 'success' | 'info' | 'warning' | 'error'
 
 export type NotificationData<T> = T extends 0
   ? null
@@ -716,8 +574,6 @@ export type Encrypted = {
   encrypted: string
 }
 
-export type CloudProvider = 'dropbox' | 'google-drive'
-
 export type DependencyError =
   | DependencyErrorNotInstalled
   | DependencyErrorNotRunning
@@ -752,3 +608,213 @@ export type DependencyErrorHealthChecksFailed = {
 export type DependencyErrorTransitive = {
   type: 'transitive'
 }
+
+// **** @TODO 041 ****
+
+// export namespace RR041 {
+//   // ** domains **
+
+//   export type ClaimStart9ToReq = { networkInterfaceId: string } // net.domain.me.claim
+//   export type ClaimStart9ToRes = null
+
+//   export type DeleteStart9ToReq = {} // net.domain.me.delete
+//   export type DeleteStart9ToRes = null
+
+//   export type AddDomainReq = {
+//     hostname: string
+//     provider: {
+//       name: string
+//       username: string | null
+//       password: string | null
+//     }
+//     networkInterfaceId: string
+//   } // net.domain.add
+//   export type AddDomainRes = null
+
+//   export type DeleteDomainReq = { hostname: string } // net.domain.delete
+//   export type DeleteDomainRes = null
+
+//   // port forwards
+
+//   export type OverridePortReq = { target: number; port: number } // net.port-forwards.override
+//   export type OverridePortRes = null
+
+//   // ** proxies **
+
+//   export type AddProxyReq = {
+//     name: string
+//     config: string
+//   } // net.proxy.add
+//   export type AddProxyRes = null
+
+//   export type UpdateProxyReq = {
+//     name: string
+//   } // net.proxy.update
+//   export type UpdateProxyRes = null
+
+//   export type DeleteProxyReq = { id: string } // net.proxy.delete
+//   export type DeleteProxyRes = null
+
+//   // ** set outbound proxies **
+
+//   export type SetOsOutboundProxyReq = {
+//     proxy: string | null
+//   } // server.proxy.set-outbound
+//   export type SetOsOutboundProxyRes = null
+
+//   export type SetServiceOutboundProxyReq = {
+//     packageId: string
+//     proxy: string | null
+//   } // package.proxy.set-outbound
+//   export type SetServiceOutboundProxyRes = null
+
+//   // ** automated backups **
+
+//   export type GetBackupTargetsReq = {} // backup.target.list
+//   export type GetBackupTargetsRes = {
+//     unknownDisks: UnknownDisk[]
+//     saved: Record<string, BackupTarget>
+//   }
+
+//   export type AddCifsBackupTargetReq = {
+//     name: string
+//     path: string
+//     hostname: string
+//     username: string
+//     password?: string
+//   } // backup.target.cifs.add
+//   export type AddCloudBackupTargetReq = {
+//     name: string
+//     path: string
+//     provider: CloudProvider
+//     [params: string]: any
+//   } // backup.target.cloud.add
+//   export type AddDiskBackupTargetReq = {
+//     logicalname: string
+//     name: string
+//     path: string
+//   } // backup.target.disk.add
+//   export type AddBackupTargetRes = Record<string, BackupTarget>
+
+//   export type UpdateCifsBackupTargetReq = AddCifsBackupTargetReq & {
+//     id: string
+//   } // backup.target.cifs.update
+//   export type UpdateCloudBackupTargetReq = AddCloudBackupTargetReq & {
+//     id: string
+//   } // backup.target.cloud.update
+//   export type UpdateDiskBackupTargetReq = Omit<
+//     AddDiskBackupTargetReq,
+//     'logicalname'
+//   > & {
+//     id: string
+//   } // backup.target.disk.update
+//   export type UpdateBackupTargetRes = AddBackupTargetRes
+
+//   export type RemoveBackupTargetReq = { id: string } // backup.target.remove
+//   export type RemoveBackupTargetRes = null
+
+//   export type GetBackupJobsReq = {} // backup.job.list
+//   export type GetBackupJobsRes = BackupJob[]
+
+//   export type CreateBackupJobReq = {
+//     name: string
+//     targetId: string
+//     cron: string
+//     packageIds: string[]
+//     now: boolean
+//   } // backup.job.create
+//   export type CreateBackupJobRes = BackupJob
+
+//   export type UpdateBackupJobReq = Omit<CreateBackupJobReq, 'now'> & {
+//     id: string
+//   } // backup.job.update
+//   export type UpdateBackupJobRes = CreateBackupJobRes
+
+//   export type DeleteBackupJobReq = { id: string } // backup.job.delete
+//   export type DeleteBackupJobRes = null
+
+//   export type GetBackupRunsReq = {} // backup.runs
+//   export type GetBackupRunsRes = BackupRun[]
+
+//   export type DeleteBackupRunsReq = { ids: string[] } // backup.runs.delete
+//   export type DeleteBackupRunsRes = null
+
+//   export type GetBackupInfoReq = { targetId: string; password: string } // backup.target.info
+//   export type GetBackupInfoRes = BackupInfo
+
+//   export type CreateBackupReq = { targetId: string; packageIds: string[] } // backup.create
+//   export type CreateBackupRes = null
+// }
+
+// @TODO 041 types
+
+// export type AppMetrics = {
+//   memory: {
+//     percentageUsed: MetricData
+//     used: MetricData
+//   }
+//   cpu: {
+//     percentageUsed: MetricData
+//   }
+//   disk: {
+//     percentageUsed: MetricData
+//     used: MetricData
+//   }
+// }
+
+// export type RemoteBackupTarget = CifsBackupTarget | CloudBackupTarget
+// export type BackupTarget = RemoteBackupTarget | DiskBackupTarget
+
+// export type BackupTargetType = 'disk' | 'cifs' | 'cloud'
+
+// export interface UnknownDisk {
+//   logicalname: string
+//   vendor: string | null
+//   model: string | null
+//   label: string | null
+//   capacity: number
+//   used: number | null
+//   startOs: Record<string, StartOSDiskInfo>
+// }
+
+// export interface BaseBackupTarget {
+//   type: BackupTargetType
+//   name: string
+//   mountable: boolean
+//   path: string
+//   startOs: Record<string, StartOSDiskInfo>
+// }
+
+// export interface DiskBackupTarget extends UnknownDisk, BaseBackupTarget {
+//   type: 'disk'
+// }
+
+// export interface CifsBackupTarget extends BaseBackupTarget {
+//   type: 'cifs'
+//   hostname: string
+//   username: string
+// }
+
+// export interface CloudBackupTarget extends BaseBackupTarget {
+//   type: 'cloud'
+//   provider: 'dropbox' | 'google-drive'
+// }
+
+// export type BackupRun = {
+//   id: string
+//   startedAt: string
+//   completedAt: string
+//   packageIds: string[]
+//   job: BackupJob
+//   report: BackupReport
+// }
+
+// export type BackupJob = {
+//   id: string
+//   name: string
+//   targetId: string
+//   cron: string // '* * * * * *' https://cloud.google.com/scheduler/docs/configuring/cron-job-schedules
+//   packageIds: string[]
+// }
+
+// export type CloudProvider = 'dropbox' | 'google-drive'

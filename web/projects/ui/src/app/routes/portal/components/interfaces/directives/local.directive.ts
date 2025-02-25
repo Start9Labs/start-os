@@ -9,6 +9,7 @@ import { AddressesService } from '../interface.utils'
   ],
 })
 export class LocalAddressesDirective implements AddressesService {
+  static = true
   async add() {}
   async remove() {}
 }

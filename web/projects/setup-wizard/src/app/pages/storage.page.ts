@@ -34,7 +34,7 @@ import { StateService } from 'src/app/services/state.service'
       @for (d of drives; track d) {
         <button tuiCell [drive]="d" [disabled]="isSmall(d)" (click)="select(d)">
           @if (isSmall(d)) {
-            <span tuiSubtitle class="g-error">Drive capacity too small</span>
+            <span tuiSubtitle class="g-negative">Drive capacity too small</span>
           }
         </button>
       }

@@ -19,7 +19,7 @@ const iface: T.ServiceInterface = {
   type: 'ui' as const,
   masked: false,
   addressInfo: {
-    hostId: '',
+    hostId: 'startos-ui',
     internalPort: 80,
     scheme: 'http',
     sslScheme: 'https',

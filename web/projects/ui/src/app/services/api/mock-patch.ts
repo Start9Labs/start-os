@@ -39,13 +39,6 @@ export const mockPatchData: DataModel = {
         selected: null,
         lastRegion: null,
       },
-      start9To: null,
-      domains: {},
-      wanConfig: {
-        upnp: true,
-        forwards: [],
-      },
-      outboundProxy: null,
       host: {
         bindings: {
           80: {
@@ -225,9 +218,7 @@ export const mockPatchData: DataModel = {
       },
       dataVersion: '0.20.0:0',
       icon: '/assets/img/service-icons/bitcoind.svg',
-      installedAt: new Date().toISOString(),
       lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
-      nextBackup: new Date(new Date().valueOf() + 100000000).toISOString(),
       status: {
         main: 'stopped',
       },
@@ -475,18 +466,17 @@ export const mockPatchData: DataModel = {
       storeExposedDependents: [],
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
-      outboundProxy: null,
       requestedActions: {
-        'bitcoind-config': {
-          request: {
-            packageId: 'bitcoind',
-            actionId: 'config',
-            severity: 'critical',
-            reason:
-              'You must run Config before starting Bitcoin for the first time',
-          },
-          active: true,
-        },
+        // 'bitcoind-config': {
+        //   request: {
+        //     packageId: 'bitcoind',
+        //     actionId: 'config',
+        //     severity: 'critical',
+        //     reason:
+        //       'You must run Config before starting Bitcoin for the first time',
+        //   },
+        //   active: true,
+        // },
         'bitcoind-properties': {
           request: {
             packageId: 'bitcoind',
@@ -508,9 +498,7 @@ export const mockPatchData: DataModel = {
       },
       dataVersion: '0.11.0:0.0.1',
       icon: '/assets/img/service-icons/lnd.png',
-      installedAt: new Date().toISOString(),
       lastBackup: null,
-      nextBackup: null,
       status: {
         main: 'stopped',
       },
@@ -604,7 +592,6 @@ export const mockPatchData: DataModel = {
       storeExposedDependents: [],
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
-      outboundProxy: null,
       requestedActions: {
         config: {
           active: true,

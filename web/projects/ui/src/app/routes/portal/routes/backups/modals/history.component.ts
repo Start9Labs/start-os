@@ -71,9 +71,9 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
             <td class="title">{{ run.job.name || 'No job' }}</td>
             <td class="result">
               @if (run.report | hasError) {
-                <tui-icon icon="@tui.x" class="g-error" />
+                <tui-icon icon="@tui.x" class="g-negative" />
               } @else {
-                <tui-icon icon="@tui.check" class="g-success" />
+                <tui-icon icon="@tui.check" class="g-positive" />
               }
               <button tuiLink (click)="showReport(run)">Report</button>
             </td>
