@@ -79,11 +79,6 @@ export class MockApiService extends ApiService {
     await pauseFor(2000)
   }
 
-  async uploadFile(body: Blob): Promise<string> {
-    await pauseFor(2000)
-    return 'returnedhash'
-  }
-
   async getStaticProxy(
     pkg: MarketplacePkg,
     path: 'LICENSE.md' | 'instructions.md',

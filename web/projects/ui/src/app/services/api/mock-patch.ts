@@ -467,16 +467,16 @@ export const mockPatchData: DataModel = {
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
       requestedActions: {
-        'bitcoind-config': {
-          request: {
-            packageId: 'bitcoind',
-            actionId: 'config',
-            severity: 'critical',
-            reason:
-              'You must run Config before starting Bitcoin for the first time',
-          },
-          active: true,
-        },
+        // 'bitcoind-config': {
+        //   request: {
+        //     packageId: 'bitcoind',
+        //     actionId: 'config',
+        //     severity: 'critical',
+        //     reason:
+        //       'You must run Config before starting Bitcoin for the first time',
+        //   },
+        //   active: true,
+        // },
         'bitcoind-properties': {
           request: {
             packageId: 'bitcoind',

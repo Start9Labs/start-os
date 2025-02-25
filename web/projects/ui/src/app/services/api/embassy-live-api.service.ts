@@ -52,14 +52,6 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async uploadFile(body: Blob): Promise<string> {
-    return this.httpRequest({
-      method: Method.POST,
-      body,
-      url: `/rest/upload`,
-    })
-  }
-
   // for getting static files: ex. instructions, licenses
 
   async getStaticProxy(
@@ -253,7 +245,8 @@ export class LiveApiService extends ApiService {
   async followServerMetrics(
     params: RR.FollowServerMetricsReq,
   ): Promise<RR.FollowServerMetricsRes> {
-    return this.rpcRequest({ method: 'server.metrics', params })
+    // @TODO 040 implement .follow
+    return this.rpcRequest({ method: 'server.metrics.follow', params })
   }
 
   async updateServer(url?: string): Promise<RR.UpdateServerRes> {
@@ -449,7 +442,7 @@ export class LiveApiService extends ApiService {
   }
 
   async deleteWifi(params: RR.DeleteWifiReq): Promise<RR.DeleteWifiRes> {
-    return this.rpcRequest({ method: 'wifi.delete', params })
+    return this.rpcRequest({ method: 'wifi.remove', params })
   }
 
   // smtp
@@ -477,7 +470,7 @@ export class LiveApiService extends ApiService {
   }
 
   async deleteSshKey(params: RR.DeleteSSHKeyReq): Promise<RR.DeleteSSHKeyRes> {
-    return this.rpcRequest({ method: 'ssh.delete', params })
+    return this.rpcRequest({ method: 'ssh.remove', params })
   }
 
   // backup
@@ -651,7 +644,7 @@ export class LiveApiService extends ApiService {
 
   async removeAcme(params: RR.RemoveAcmeReq): Promise<RR.RemoveAcmeRes> {
     return this.rpcRequest({
-      method: 'net.acme.delete',
+      method: 'net.acme.remove',
       params,
     })
   }
