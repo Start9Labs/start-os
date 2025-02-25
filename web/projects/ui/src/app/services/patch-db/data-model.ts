@@ -1,8 +1,8 @@
-import { BackupJob } from '../api/api.types'
 import { T } from '@start9labs/start-sdk'
 
-export type DataModel = {
+export type DataModel = Omit<T.Public, 'serverInfo'> & {
   ui: UIData
+  // @TODO 040
   serverInfo: Omit<
     T.Public['serverInfo'],
     'wifi' | 'networkInterfaces' | 'host'
@@ -51,54 +51,24 @@ export type NetworkInfo = {
         | null
     }
   }
-  start9To: {
-    subdomain: string
-    networkInterfaceId: string
-  } | null
-  domains: {
-    [key: string]: Domain
-  }
-  wanConfig: {
-    upnp: boolean
-    forwards: PortForward[]
-  }
-  outboundProxy: string | null
-}
-
-export type DomainInfo = {
-  domain: string
-  subdomain: string | null
-}
-
-export type PortForward = {
-  assigned: number
-  override: number | null
-  target: number
-  error: string | null
-}
-
-export type Domain = {
-  provider: string
-  networkInterfaceId: string
-}
-
-export interface ServerStatusInfo {
-  currentBackup: null | {
-    job: BackupJob
-    backupProgress: Record<string, boolean>
-  }
-  updated: boolean
-  updateProgress: { size: number | null; downloaded: number } | null
-  restarting: boolean
-  shuttingDown: boolean
+  // @TODO 041
+  // start9To: {
+  //   subdomain: string
+  //   networkInterfaceId: string
+  // } | null
+  // domains: {
+  //   [key: string]: Domain
+  // }
+  // wanConfig: {
+  //   upnp: boolean
+  //   forwards: PortForward[]
+  // }
+  // outboundProxy: string | null
 }
 
 export type PackageDataEntry<T extends StateInfo = StateInfo> =
   T.PackageDataEntry & {
     stateInfo: T
-    installedAt: string
-    outboundProxy: string | null
-    nextBackup: string | null
   }
 
 export type AllPackageData = NonNullable<
@@ -129,3 +99,11 @@ export type InstallingInfo = {
   progress: T.FullProgress
   newManifest: T.Manifest
 }
+
+// @TODO 041
+// export type ServerStatusInfo = Omit<T.ServerStatus, 'backupProgress'> & {
+//   currentBackup: null | {
+//     job: BackupJob
+//     backupProgress: Record<string, boolean>
+//   }
+// }

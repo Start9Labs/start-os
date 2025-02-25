@@ -19,12 +19,13 @@ const ROUTES: Routes = [
         path: 'services',
         loadChildren: () => import('./routes/services/services.routes'),
       },
-      {
-        title: systemTabResolver,
-        path: 'backups',
-        loadComponent: () => import('./routes/backups/backups.component'),
-        data: toNavigationItem('/portal/backups'),
-      },
+      // @TODO 041
+      // {
+      //   title: systemTabResolver,
+      //   path: 'backups',
+      //   loadComponent: () => import('./routes/backups/backups.component'),
+      //   data: toNavigationItem('/portal/backups'),
+      // },
       {
         title: systemTabResolver,
         path: 'logs',

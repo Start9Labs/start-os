@@ -65,13 +65,6 @@ export default class ServiceAboutRoute {
 
           return [
             {
-              name: 'Installed',
-              description: new Intl.DateTimeFormat('en-US', {
-                dateStyle: 'medium',
-                timeStyle: 'medium',
-              }).format(new Date(pkg.installedAt || 0)),
-            },
-            {
               name: 'Version',
               description: manifest.version,
             },

@@ -13,7 +13,7 @@ import { ConfigService } from 'src/app/services/config.service'
   template: `
     <app-interface
       *ngIf="interfacesWithAddresses$ | async as serviceInterface"
-      [packageContext]="context"
+      [packageId]="context.packageId"
       [serviceInterface]="serviceInterface"
     />
   `,

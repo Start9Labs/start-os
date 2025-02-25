@@ -12,9 +12,10 @@ import { PatchDB } from 'patch-db-client'
 import { AddressGroupComponent } from 'src/app/routes/portal/components/interfaces/address-group.component'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ClearnetAddressesDirective } from './directives/clearnet.directive'
-import { LocalAddressesDirective } from './directives/local.directive'
 import { TorAddressesDirective } from './directives/tor.directive'
+import { LocalAddressesDirective } from './directives/local.directive'
 import { AddressDetails } from './interface.utils'
+import { map } from 'rxjs'
 
 @Component({
   standalone: true,
@@ -22,11 +23,11 @@ import { AddressDetails } from './interface.utils'
   template: `
     <h3 class="g-title">Clearnet</h3>
     <app-address-group
-      *ngIf="network$ | async as network"
+      *ngIf="acme$ | async as acme"
       clearnetAddresses
       tuiCardLarge="compact"
       tuiSurface="floating"
-      [network]="network"
+      [acme]="acme"
       [addresses]="serviceInterface.addresses.clearnet"
     >
       <em>
@@ -70,9 +71,8 @@ import { AddressDetails } from './interface.utils'
       [addresses]="serviceInterface.addresses.local"
     >
       <em>
-        Add a local address to expose this interface on your Local Area Network
-        (LAN). Local addresses can only be accessed by devices connected to the
-        same LAN as your server, either directly or using a VPN.
+        Local addresses can only be accessed by devices connected to the same
+        LAN as your server, either directly or using a VPN.
         <a
           href="https://docs.start9.com/latest/user-manual/interface-addresses#local"
           target="_blank"
@@ -95,15 +95,11 @@ import { AddressDetails } from './interface.utils'
   ],
 })
 export class InterfaceComponent {
-  readonly network$ = inject<PatchDB<DataModel>>(PatchDB).watch$(
-    'serverInfo',
-    'network',
-  )
+  readonly acme$ = inject<PatchDB<DataModel>>(PatchDB)
+    .watch$('serverInfo', 'acme')
+    .pipe(map(acme => Object.keys(acme)))
 
-  @Input() packageContext?: {
-    packageId: string
-    interfaceId: string
-  }
+  @Input() packageId?: string
   @Input({ required: true }) serviceInterface!: MappedServiceInterface
 }
 
