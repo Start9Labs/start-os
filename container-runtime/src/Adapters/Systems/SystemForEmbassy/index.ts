@@ -1,4 +1,9 @@
-import { ExtendedVersion, types as T, utils } from "@start9labs/start-sdk"
+import {
+  ExtendedVersion,
+  types as T,
+  utils,
+  VersionRange,
+} from "@start9labs/start-sdk"
 import * as fs from "fs/promises"
 
 import { polyfillEffects } from "./polyfillEffects"
@@ -345,7 +350,8 @@ export class SystemForEmbassy implements System {
     const previousVersion = await effects.getDataVersion()
     if (previousVersion) {
       if (
-        (await this.migration(effects, previousVersion, timeoutMs)).configured
+        (await this.migration(effects, { from: previousVersion }, timeoutMs))
+          .configured
       ) {
         await effects.action.clearRequests({ only: ["needs-config"] })
       }
@@ -543,6 +549,10 @@ export class SystemForEmbassy implements System {
     timeoutMs: number | null,
   ): Promise<void> {
     // TODO Do a migration down if the version exists
+    await this.currentRunning?.clean({ timeout: timeoutMs ?? undefined })
+    if (nextVersion) {
+      await this.migration(effects, { to: nextVersion }, timeoutMs)
+    }
     await effects.setMainStatus({ status: "stopped" })
   }
 
@@ -746,46 +756,37 @@ export class SystemForEmbassy implements System {
 
   async migration(
     effects: Effects,
-    fromVersion: string,
+    version: { from: string } | { to: string },
     timeoutMs: number | null,
   ): Promise<{ configured: boolean }> {
-    const fromEmver = ExtendedVersion.parseEmver(fromVersion)
-    const currentEmver = ExtendedVersion.parseEmver(this.manifest.version)
-    if (!this.manifest.migrations) return { configured: true }
-    const fromMigration = Object.entries(this.manifest.migrations.from)
-      .map(
-        ([version, procedure]) =>
-          [ExtendedVersion.parseEmver(version), procedure] as const,
-      )
-      .find(
-        ([versionEmver, procedure]) =>
-          versionEmver.greaterThan(fromEmver) &&
-          versionEmver.lessThanOrEqual(currentEmver),
-      )
-    const toMigration = Object.entries(this.manifest.migrations.to)
-      .map(
-        ([version, procedure]) =>
-          [ExtendedVersion.parseEmver(version), procedure] as const,
-      )
-      .find(
-        ([versionEmver, procedure]) =>
-          versionEmver.greaterThan(fromEmver) &&
-          versionEmver.lessThanOrEqual(currentEmver),
-      )
-
-    // prettier-ignore
-    const migration = (
-        fromEmver.greaterThan(currentEmver) ? [toMigration, fromMigration] :
-        [fromMigration, toMigration]).filter(Boolean)[0]
+    let migration
+    let args: [string, ...string[]]
+    if ("from" in version) {
+      args = [version.from, "from"]
+      const fromExver = ExtendedVersion.parse(version.from)
+      if (!this.manifest.migrations) return { configured: true }
+      migration = Object.entries(this.manifest.migrations.from)
+        .map(
+          ([version, procedure]) =>
+            [VersionRange.parseEmver(version), procedure] as const,
+        )
+        .find(([versionEmver, _]) => versionEmver.satisfiedBy(fromExver))
+    } else {
+      args = [version.to, "to"]
+      const toExver = ExtendedVersion.parse(version.to)
+      if (!this.manifest.migrations) return { configured: true }
+      migration = Object.entries(this.manifest.migrations.to)
+        .map(
+          ([version, procedure]) =>
+            [VersionRange.parseEmver(version), procedure] as const,
+        )
+        .find(([versionEmver, _]) => versionEmver.satisfiedBy(toExver))
+    }
 
     if (migration) {
-      const [version, procedure] = migration
+      const [_, procedure] = migration
       if (procedure.type === "docker") {
-        const commands = [
-          procedure.entrypoint,
-          ...procedure.args,
-          JSON.stringify(fromVersion),
-        ]
+        const commands = [procedure.entrypoint, ...procedure.args]
         const container = await DockerProcedureContainer.of(
           effects,
           this.manifest.id,
@@ -794,7 +795,11 @@ export class SystemForEmbassy implements System {
           `Migration - ${commands.join(" ")}`,
         )
         return JSON.parse(
-          (await container.execFail(commands, timeoutMs)).stdout.toString(),
+          (
+            await container.execFail(commands, timeoutMs, {
+              input: JSON.stringify(args[0]),
+            })
+          ).stdout.toString(),
         )
       } else if (procedure.type === "script") {
         const moduleCode = await this.moduleCode
@@ -803,7 +808,7 @@ export class SystemForEmbassy implements System {
           throw new Error("Expecting that the method migration exists")
         return (await method(
           polyfillEffects(effects, this.manifest),
-          fromVersion as string,
+          ...args,
         ).then((x) => {
           if ("result" in x) return x.result
           if ("error" in x) throw new Error("Error getting config: " + x.error)
@@ -1177,9 +1182,14 @@ function extractServiceInterfaceId(manifest: Manifest, specInterface: string) {
   return serviceInterfaceId
 }
 async function convertToNewConfig(value: OldGetConfigRes) {
-  const valueSpec: OldConfigSpec = matchOldConfigSpec.unsafeCast(value.spec)
-  const spec = transformConfigSpec(valueSpec)
-  if (!value.config) return { spec, config: null }
-  const config = transformOldConfigToNew(valueSpec, value.config)
-  return { spec, config }
+  try {
+    const valueSpec: OldConfigSpec = matchOldConfigSpec.unsafeCast(value.spec)
+    const spec = transformConfigSpec(valueSpec)
+    if (!value.config) return { spec, config: null }
+    const config = transformOldConfigToNew(valueSpec, value.config) ?? null
+    return { spec, config }
+  } catch (e) {
+    console.error(e)
+    throw e
+  }
 }

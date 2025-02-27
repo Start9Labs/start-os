@@ -166,6 +166,8 @@ export function transformOldConfigToNew(
 
       delete config[key][val.tag.id]
 
+      if (!val.variants[selection]) return obj
+
       newVal = {
         selection,
         value: transformOldConfigToNew(
