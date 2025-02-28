@@ -58,7 +58,7 @@ export function buildManifest<
   )
   return {
     ...manifest,
-    osVersion: SDKVersion,
+    osVersion: manifest.osVersion ?? SDKVersion,
     version: versions.current.options.version,
     releaseNotes: versions.current.options.releaseNotes,
     satisfies: versions.current.options.satisfies || [],

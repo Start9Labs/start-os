@@ -16,7 +16,7 @@ lazy_static::lazy_static! {
         VersionRange::anchor(
             exver::LTE,
             ExtendedVersion::new(
-                Current::default().semver(),
+                Current::default().semver().without_prerelease(),
                 exver::Version::default(),
             )
         ),
