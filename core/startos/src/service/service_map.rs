@@ -286,7 +286,7 @@ impl ServiceMap {
                             .version
                             .clone();
                         service
-                            .uninstall(Some(s9pk.as_manifest().version.clone()))
+                            .uninstall(Some(s9pk.as_manifest().version.clone()), false, false)
                             .await?;
                         progress.complete();
                         Some(version)
@@ -321,12 +321,18 @@ impl ServiceMap {
 
     /// This is ran during the cleanup, so when we are uninstalling the service
     #[instrument(skip_all)]
-    pub async fn uninstall(&self, ctx: &RpcContext, id: &PackageId) -> Result<(), Error> {
+    pub async fn uninstall(
+        &self,
+        ctx: &RpcContext,
+        id: &PackageId,
+        soft: bool,
+        force: bool,
+    ) -> Result<(), Error> {
         let mut guard = self.get_mut(id).await;
         if let Some(service) = guard.take() {
             ServiceRefReloadGuard::new(ctx.clone(), id.clone(), "Uninstall")
                 .handle_last(async move {
-                    let res = service.uninstall(None).await;
+                    let res = service.uninstall(None, soft, force).await;
                     drop(guard);
                     res
                 })

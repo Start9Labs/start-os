@@ -123,6 +123,12 @@ export class VersionRange {
     )
   }
 
+  static parseEmver(range: string): VersionRange {
+    return VersionRange.parseRange(
+      P.parse(range, { startRule: "EmverVersionRange" }),
+    )
+  }
+
   and(right: VersionRange) {
     return new VersionRange({ type: "And", left: this, right })
   }
@@ -291,12 +297,19 @@ export class ExtendedVersion {
   }
 
   static parseEmver(extendedVersion: string): ExtendedVersion {
-    const parsed = P.parse(extendedVersion, { startRule: "EmVer" })
-    return new ExtendedVersion(
-      parsed.flavor,
-      new Version(parsed.upstream.number, parsed.upstream.prerelease),
-      new Version(parsed.downstream.number, parsed.downstream.prerelease),
-    )
+    try {
+      const parsed = P.parse(extendedVersion, { startRule: "Emver" })
+      return new ExtendedVersion(
+        parsed.flavor,
+        new Version(parsed.upstream.number, parsed.upstream.prerelease),
+        new Version(parsed.downstream.number, parsed.downstream.prerelease),
+      )
+    } catch (e) {
+      if (e instanceof Error) {
+        e.message += ` (${extendedVersion})`
+      }
+      throw e
+    }
   }
 
   /**

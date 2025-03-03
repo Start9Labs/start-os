@@ -296,7 +296,7 @@ function peg$parse(input, options) {
   var peg$source = options.grammarSource;
 
 // @ts-ignore
-  var peg$startRuleFunctions = { VersionRange: peg$parseVersionRange, Or: peg$parseOr, And: peg$parseAnd, VersionRangeAtom: peg$parseVersionRangeAtom, Parens: peg$parseParens, Anchor: peg$parseAnchor, VersionSpec: peg$parseVersionSpec, Not: peg$parseNot, Any: peg$parseAny, None: peg$parseNone, CmpOp: peg$parseCmpOp, ExtendedVersion: peg$parseExtendedVersion, EmVer: peg$parseEmVer, Flavor: peg$parseFlavor, Lowercase: peg$parseLowercase, String: peg$parseString, Version: peg$parseVersion, PreRelease: peg$parsePreRelease, PreReleaseSegment: peg$parsePreReleaseSegment, VersionNumber: peg$parseVersionNumber, Digit: peg$parseDigit, _: peg$parse_ };
+  var peg$startRuleFunctions = { VersionRange: peg$parseVersionRange, Or: peg$parseOr, And: peg$parseAnd, VersionRangeAtom: peg$parseVersionRangeAtom, Parens: peg$parseParens, Anchor: peg$parseAnchor, VersionSpec: peg$parseVersionSpec, Not: peg$parseNot, Any: peg$parseAny, None: peg$parseNone, CmpOp: peg$parseCmpOp, ExtendedVersion: peg$parseExtendedVersion, EmverVersionRange: peg$parseEmverVersionRange, EmverVersionRangeAtom: peg$parseEmverVersionRangeAtom, EmverParens: peg$parseEmverParens, EmverAnchor: peg$parseEmverAnchor, EmverNot: peg$parseEmverNot, Emver: peg$parseEmver, Flavor: peg$parseFlavor, Lowercase: peg$parseLowercase, String: peg$parseString, Version: peg$parseVersion, PreRelease: peg$parsePreRelease, PreReleaseSegment: peg$parsePreReleaseSegment, VersionNumber: peg$parseVersionNumber, Digit: peg$parseDigit, _: peg$parse_ };
 // @ts-ignore
   var peg$startRuleFunction = peg$parseVersionRange;
 
@@ -397,10 +397,19 @@ function peg$parse(input, options) {
     return { flavor: flavor || null, upstream, downstream }
   };// @ts-ignore
 
-  var peg$f15 = function(major, minor, patch, revision) {// @ts-ignore
+  var peg$f15 = function(expr) {// @ts-ignore
+ return { type: "Parens", expr } };// @ts-ignore
+
+  var peg$f16 = function(operator, version) {// @ts-ignore
+ return { type: "Anchor", operator, version } };// @ts-ignore
+
+  var peg$f17 = function(value) {// @ts-ignore
+ return { type: "Not", value: value }};// @ts-ignore
+
+  var peg$f18 = function(major, minor, patch, revision) {// @ts-ignore
  return revision };// @ts-ignore
 
-  var peg$f16 = function(major, minor, patch, revision) {
+  var peg$f19 = function(major, minor, patch, revision) {
 // @ts-ignore
     return {
 // @ts-ignore
@@ -422,16 +431,16 @@ function peg$parse(input, options) {
     }
   };// @ts-ignore
 
-  var peg$f17 = function(flavor) {// @ts-ignore
+  var peg$f20 = function(flavor) {// @ts-ignore
  return flavor };// @ts-ignore
 
-  var peg$f18 = function() {// @ts-ignore
+  var peg$f21 = function() {// @ts-ignore
  return text() };// @ts-ignore
 
-  var peg$f19 = function() {// @ts-ignore
+  var peg$f22 = function() {// @ts-ignore
  return text(); };// @ts-ignore
 
-  var peg$f20 = function(number, prerelease) {
+  var peg$f23 = function(number, prerelease) {
 // @ts-ignore
     return { 
 // @ts-ignore
@@ -441,22 +450,22 @@ function peg$parse(input, options) {
     };
   };// @ts-ignore
 
-  var peg$f21 = function(first, rest) {
+  var peg$f24 = function(first, rest) {
 // @ts-ignore
     return [first].concat(rest.map(r => r[1]));
   };// @ts-ignore
 
-  var peg$f22 = function(segment) {
+  var peg$f25 = function(segment) {
 // @ts-ignore
     return segment;
   };// @ts-ignore
 
-  var peg$f23 = function(first, rest) { 
+  var peg$f26 = function(first, rest) { 
 // @ts-ignore
     return [first].concat(rest.map(r => r[1]));
   };// @ts-ignore
 
-  var peg$f24 = function() {// @ts-ignore
+  var peg$f27 = function() {// @ts-ignore
  return parseInt(text(), 10); };
 // @ts-ignore
   var peg$currPos = 0;
@@ -1536,7 +1545,336 @@ peg$parseExtendedVersion() {
 
 // @ts-ignore
   function // @ts-ignore
-peg$parseEmVer() {
+peg$parseEmverVersionRange() {
+// @ts-ignore
+    var s0, s1, s2, s3, s4, s5, s6, s7;
+
+// @ts-ignore
+    s0 = peg$currPos;
+// @ts-ignore
+    s1 = peg$parseEmverVersionRangeAtom();
+// @ts-ignore
+    if (s1 !== peg$FAILED) {
+// @ts-ignore
+      s2 = [];
+// @ts-ignore
+      s3 = peg$currPos;
+// @ts-ignore
+      s4 = peg$parse_();
+// @ts-ignore
+      s5 = peg$currPos;
+// @ts-ignore
+      s6 = peg$parseOr();
+// @ts-ignore
+      if (s6 === peg$FAILED) {
+// @ts-ignore
+        s6 = peg$parseAnd();
+      }
+// @ts-ignore
+      if (s6 !== peg$FAILED) {
+// @ts-ignore
+        s7 = peg$parse_();
+// @ts-ignore
+        s6 = [s6, s7];
+// @ts-ignore
+        s5 = s6;
+// @ts-ignore
+      } else {
+// @ts-ignore
+        peg$currPos = s5;
+// @ts-ignore
+        s5 = peg$FAILED;
+      }
+// @ts-ignore
+      if (s5 === peg$FAILED) {
+// @ts-ignore
+        s5 = null;
+      }
+// @ts-ignore
+      s6 = peg$parseEmverVersionRangeAtom();
+// @ts-ignore
+      if (s6 !== peg$FAILED) {
+// @ts-ignore
+        s4 = [s4, s5, s6];
+// @ts-ignore
+        s3 = s4;
+// @ts-ignore
+      } else {
+// @ts-ignore
+        peg$currPos = s3;
+// @ts-ignore
+        s3 = peg$FAILED;
+      }
+// @ts-ignore
+      while (s3 !== peg$FAILED) {
+// @ts-ignore
+        s2.push(s3);
+// @ts-ignore
+        s3 = peg$currPos;
+// @ts-ignore
+        s4 = peg$parse_();
+// @ts-ignore
+        s5 = peg$currPos;
+// @ts-ignore
+        s6 = peg$parseOr();
+// @ts-ignore
+        if (s6 === peg$FAILED) {
+// @ts-ignore
+          s6 = peg$parseAnd();
+        }
+// @ts-ignore
+        if (s6 !== peg$FAILED) {
+// @ts-ignore
+          s7 = peg$parse_();
+// @ts-ignore
+          s6 = [s6, s7];
+// @ts-ignore
+          s5 = s6;
+// @ts-ignore
+        } else {
+// @ts-ignore
+          peg$currPos = s5;
+// @ts-ignore
+          s5 = peg$FAILED;
+        }
+// @ts-ignore
+        if (s5 === peg$FAILED) {
+// @ts-ignore
+          s5 = null;
+        }
+// @ts-ignore
+        s6 = peg$parseEmverVersionRangeAtom();
+// @ts-ignore
+        if (s6 !== peg$FAILED) {
+// @ts-ignore
+          s4 = [s4, s5, s6];
+// @ts-ignore
+          s3 = s4;
+// @ts-ignore
+        } else {
+// @ts-ignore
+          peg$currPos = s3;
+// @ts-ignore
+          s3 = peg$FAILED;
+        }
+      }
+// @ts-ignore
+      s1 = [s1, s2];
+// @ts-ignore
+      s0 = s1;
+// @ts-ignore
+    } else {
+// @ts-ignore
+      peg$currPos = s0;
+// @ts-ignore
+      s0 = peg$FAILED;
+    }
+
+// @ts-ignore
+    return s0;
+  }
+
+// @ts-ignore
+  function // @ts-ignore
+peg$parseEmverVersionRangeAtom() {
+// @ts-ignore
+    var s0;
+
+// @ts-ignore
+    s0 = peg$parseEmverParens();
+// @ts-ignore
+    if (s0 === peg$FAILED) {
+// @ts-ignore
+      s0 = peg$parseEmverAnchor();
+// @ts-ignore
+      if (s0 === peg$FAILED) {
+// @ts-ignore
+        s0 = peg$parseEmverNot();
+// @ts-ignore
+        if (s0 === peg$FAILED) {
+// @ts-ignore
+          s0 = peg$parseAny();
+// @ts-ignore
+          if (s0 === peg$FAILED) {
+// @ts-ignore
+            s0 = peg$parseNone();
+          }
+        }
+      }
+    }
+
+// @ts-ignore
+    return s0;
+  }
+
+// @ts-ignore
+  function // @ts-ignore
+peg$parseEmverParens() {
+// @ts-ignore
+    var s0, s1, s2, s3, s4, s5;
+
+// @ts-ignore
+    s0 = peg$currPos;
+// @ts-ignore
+    if (input.charCodeAt(peg$currPos) === 40) {
+// @ts-ignore
+      s1 = peg$c2;
+// @ts-ignore
+      peg$currPos++;
+// @ts-ignore
+    } else {
+// @ts-ignore
+      s1 = peg$FAILED;
+// @ts-ignore
+      if (peg$silentFails === 0) { peg$fail(peg$e2); }
+    }
+// @ts-ignore
+    if (s1 !== peg$FAILED) {
+// @ts-ignore
+      s2 = peg$parse_();
+// @ts-ignore
+      s3 = peg$parseEmverVersionRange();
+// @ts-ignore
+      if (s3 !== peg$FAILED) {
+// @ts-ignore
+        s4 = peg$parse_();
+// @ts-ignore
+        if (input.charCodeAt(peg$currPos) === 41) {
+// @ts-ignore
+          s5 = peg$c3;
+// @ts-ignore
+          peg$currPos++;
+// @ts-ignore
+        } else {
+// @ts-ignore
+          s5 = peg$FAILED;
+// @ts-ignore
+          if (peg$silentFails === 0) { peg$fail(peg$e3); }
+        }
+// @ts-ignore
+        if (s5 !== peg$FAILED) {
+// @ts-ignore
+          peg$savedPos = s0;
+// @ts-ignore
+          s0 = peg$f15(s3);
+// @ts-ignore
+        } else {
+// @ts-ignore
+          peg$currPos = s0;
+// @ts-ignore
+          s0 = peg$FAILED;
+        }
+// @ts-ignore
+      } else {
+// @ts-ignore
+        peg$currPos = s0;
+// @ts-ignore
+        s0 = peg$FAILED;
+      }
+// @ts-ignore
+    } else {
+// @ts-ignore
+      peg$currPos = s0;
+// @ts-ignore
+      s0 = peg$FAILED;
+    }
+
+// @ts-ignore
+    return s0;
+  }
+
+// @ts-ignore
+  function // @ts-ignore
+peg$parseEmverAnchor() {
+// @ts-ignore
+    var s0, s1, s2, s3;
+
+// @ts-ignore
+    s0 = peg$currPos;
+// @ts-ignore
+    s1 = peg$parseCmpOp();
+// @ts-ignore
+    if (s1 === peg$FAILED) {
+// @ts-ignore
+      s1 = null;
+    }
+// @ts-ignore
+    s2 = peg$parse_();
+// @ts-ignore
+    s3 = peg$parseEmver();
+// @ts-ignore
+    if (s3 !== peg$FAILED) {
+// @ts-ignore
+      peg$savedPos = s0;
+// @ts-ignore
+      s0 = peg$f16(s1, s3);
+// @ts-ignore
+    } else {
+// @ts-ignore
+      peg$currPos = s0;
+// @ts-ignore
+      s0 = peg$FAILED;
+    }
+
+// @ts-ignore
+    return s0;
+  }
+
+// @ts-ignore
+  function // @ts-ignore
+peg$parseEmverNot() {
+// @ts-ignore
+    var s0, s1, s2, s3;
+
+// @ts-ignore
+    s0 = peg$currPos;
+// @ts-ignore
+    if (input.charCodeAt(peg$currPos) === 33) {
+// @ts-ignore
+      s1 = peg$c5;
+// @ts-ignore
+      peg$currPos++;
+// @ts-ignore
+    } else {
+// @ts-ignore
+      s1 = peg$FAILED;
+// @ts-ignore
+      if (peg$silentFails === 0) { peg$fail(peg$e5); }
+    }
+// @ts-ignore
+    if (s1 !== peg$FAILED) {
+// @ts-ignore
+      s2 = peg$parse_();
+// @ts-ignore
+      s3 = peg$parseEmverVersionRangeAtom();
+// @ts-ignore
+      if (s3 !== peg$FAILED) {
+// @ts-ignore
+        peg$savedPos = s0;
+// @ts-ignore
+        s0 = peg$f17(s3);
+// @ts-ignore
+      } else {
+// @ts-ignore
+        peg$currPos = s0;
+// @ts-ignore
+        s0 = peg$FAILED;
+      }
+// @ts-ignore
+    } else {
+// @ts-ignore
+      peg$currPos = s0;
+// @ts-ignore
+      s0 = peg$FAILED;
+    }
+
+// @ts-ignore
+    return s0;
+  }
+
+// @ts-ignore
+  function // @ts-ignore
+peg$parseEmver() {
 // @ts-ignore
     var s0, s1, s2, s3, s4, s5, s6, s7, s8;
 
@@ -1608,7 +1946,7 @@ peg$parseEmVer() {
 // @ts-ignore
                   peg$savedPos = s6;
 // @ts-ignore
-                  s6 = peg$f15(s1, s3, s5, s8);
+                  s6 = peg$f18(s1, s3, s5, s8);
 // @ts-ignore
                 } else {
 // @ts-ignore
@@ -1631,7 +1969,7 @@ peg$parseEmVer() {
 // @ts-ignore
               peg$savedPos = s0;
 // @ts-ignore
-              s0 = peg$f16(s1, s3, s5, s6);
+              s0 = peg$f19(s1, s3, s5, s6);
 // @ts-ignore
             } else {
 // @ts-ignore
@@ -1717,7 +2055,7 @@ peg$parseFlavor() {
 // @ts-ignore
           peg$savedPos = s0;
 // @ts-ignore
-          s0 = peg$f17(s2);
+          s0 = peg$f20(s2);
 // @ts-ignore
         } else {
 // @ts-ignore
@@ -1797,7 +2135,7 @@ peg$parseLowercase() {
 // @ts-ignore
       peg$savedPos = s0;
 // @ts-ignore
-      s1 = peg$f18();
+      s1 = peg$f21();
     }
 // @ts-ignore
     s0 = s1;
@@ -1859,7 +2197,7 @@ peg$parseString() {
 // @ts-ignore
       peg$savedPos = s0;
 // @ts-ignore
-      s1 = peg$f19();
+      s1 = peg$f22();
     }
 // @ts-ignore
     s0 = s1;
@@ -1890,7 +2228,7 @@ peg$parseVersion() {
 // @ts-ignore
       peg$savedPos = s0;
 // @ts-ignore
-      s0 = peg$f20(s1, s2);
+      s0 = peg$f23(s1, s2);
 // @ts-ignore
     } else {
 // @ts-ignore
@@ -2018,7 +2356,7 @@ peg$parsePreRelease() {
 // @ts-ignore
         peg$savedPos = s0;
 // @ts-ignore
-        s0 = peg$f21(s2, s3);
+        s0 = peg$f24(s2, s3);
 // @ts-ignore
       } else {
 // @ts-ignore
@@ -2076,7 +2414,7 @@ peg$parsePreReleaseSegment() {
 // @ts-ignore
       peg$savedPos = s0;
 // @ts-ignore
-      s0 = peg$f22(s2);
+      s0 = peg$f25(s2);
 // @ts-ignore
     } else {
 // @ts-ignore
@@ -2189,7 +2527,7 @@ peg$parseVersionNumber() {
 // @ts-ignore
       peg$savedPos = s0;
 // @ts-ignore
-      s0 = peg$f23(s1, s2);
+      s0 = peg$f26(s1, s2);
 // @ts-ignore
     } else {
 // @ts-ignore
@@ -2255,7 +2593,7 @@ peg$parseDigit() {
 // @ts-ignore
       peg$savedPos = s0;
 // @ts-ignore
-      s1 = peg$f24();
+      s1 = peg$f27();
     }
 // @ts-ignore
     s0 = s1;
@@ -2426,7 +2764,7 @@ peggyParser.SyntaxError.prototype.name = "PeggySyntaxError";
 
 export interface ParseOptions {
   filename?: string;
-  startRule?: "VersionRange" | "Or" | "And" | "VersionRangeAtom" | "Parens" | "Anchor" | "VersionSpec" | "Not" | "Any" | "None" | "CmpOp" | "ExtendedVersion" | "EmVer" | "Flavor" | "Lowercase" | "String" | "Version" | "PreRelease" | "PreReleaseSegment" | "VersionNumber" | "Digit" | "_";
+  startRule?: "VersionRange" | "Or" | "And" | "VersionRangeAtom" | "Parens" | "Anchor" | "VersionSpec" | "Not" | "Any" | "None" | "CmpOp" | "ExtendedVersion" | "EmverVersionRange" | "EmverVersionRangeAtom" | "EmverParens" | "EmverAnchor" | "EmverNot" | "Emver" | "Flavor" | "Lowercase" | "String" | "Version" | "PreRelease" | "PreReleaseSegment" | "VersionNumber" | "Digit" | "_";
   tracer?: any;
   [key: string]: any;
 }
@@ -2446,7 +2784,12 @@ export type ParseFunction = <Options extends ParseOptions>(
     StartRule extends "None" ? None :
     StartRule extends "CmpOp" ? CmpOp :
     StartRule extends "ExtendedVersion" ? ExtendedVersion :
-    StartRule extends "EmVer" ? EmVer :
+    StartRule extends "EmverVersionRange" ? EmverVersionRange :
+    StartRule extends "EmverVersionRangeAtom" ? EmverVersionRangeAtom :
+    StartRule extends "EmverParens" ? EmverParens :
+    StartRule extends "EmverAnchor" ? EmverAnchor :
+    StartRule extends "EmverNot" ? EmverNot :
+    StartRule extends "Emver" ? Emver :
     StartRule extends "Flavor" ? Flavor :
     StartRule extends "Lowercase" ? Lowercase_1 :
     StartRule extends "String" ? String_1 :
@@ -2491,7 +2834,24 @@ export type ExtendedVersion = {
   upstream: Version;
   downstream: Version;
 };
-export type EmVer = {
+export type EmverVersionRange = [
+  EmverVersionRangeAtom,
+  [_, [Or | And, _] | null, EmverVersionRangeAtom][]
+];
+export type EmverVersionRangeAtom =
+  | EmverParens
+  | EmverAnchor
+  | EmverNot
+  | Any
+  | None;
+export type EmverParens = { type: "Parens"; expr: EmverVersionRange };
+export type EmverAnchor = {
+  type: "Anchor";
+  operator: CmpOp | null;
+  version: Emver;
+};
+export type EmverNot = { type: "Not"; value: EmverVersionRangeAtom };
+export type Emver = {
   flavor: null;
   upstream: { number: [Digit, Digit, Digit]; prerelease: [] };
   downstream: { number: [0 | NonNullable<Digit | null>]; prerelease: [] };
