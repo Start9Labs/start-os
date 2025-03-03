@@ -12,7 +12,7 @@
     "skipLibCheck": true,
     "module": "commonjs",
     "outDir": "../baseDist",
-    "target": "es2018"
+    "target": "es2021"
   },
   "include": ["lib/**/*"],
   "exclude": ["lib/**/*.spec.ts", "lib/**/*.gen.ts", "list", "node_modules"]

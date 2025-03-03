@@ -1,10 +1,11 @@
 import { Effects } from "../Effects"
+import * as T from "../types"
 
 export class GetSystemSmtp {
   constructor(readonly effects: Effects) {}
 
   /**
-   * Returns the system SMTP credentials. Restarts the service if the credentials change
+   * Returns the system SMTP credentials. Reruns the context from which it has been called if the underlying value changes
    */
   const() {
     return this.effects.getSystemSmtp({
@@ -17,8 +18,9 @@ export class GetSystemSmtp {
   once() {
     return this.effects.getSystemSmtp({})
   }
+
   /**
-   * Watches the system SMTP credentials. Takes a custom callback function to run whenever the credentials change
+   * Watches the system SMTP credentials. Returns an async iterator that yields whenever the value changes
    */
   async *watch() {
     while (true) {
@@ -31,5 +33,35 @@ export class GetSystemSmtp {
       })
       await waitForNext
     }
+  }
+
+  /**
+   * Watches the system SMTP credentials. Takes a custom callback function to run whenever the credentials change
+   */
+  onChange(
+    callback: (
+      value: T.SmtpValue | null,
+      error?: Error,
+    ) => void | Promise<void>,
+  ) {
+    ;(async () => {
+      for await (const value of this.watch()) {
+        try {
+          await callback(value)
+        } catch (e) {
+          console.error(
+            "callback function threw an error @ GetSystemSmtp.onChange",
+            e,
+          )
+        }
+      }
+    })()
+      .catch((e) => callback(null, e))
+      .catch((e) =>
+        console.error(
+          "callback function threw an error @ GetSystemSmtp.onChange",
+          e,
+        ),
+      )
   }
 }

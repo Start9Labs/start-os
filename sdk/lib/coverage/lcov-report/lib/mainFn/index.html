@@ -1,191 +1,276 @@
-
 <!doctype html>
 <html lang="en">
-
-<head>
+  <head>
     <title>Code coverage report for lib/mainFn</title>
     <meta charset="utf-8" />
     <link rel="stylesheet" href="../../prettify.css" />
     <link rel="stylesheet" href="../../base.css" />
     <link rel="shortcut icon" type="image/x-icon" href="../../favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style type='text/css'>
-        .coverage-summary .sorter {
-            background-image: url(../../sort-arrow-sprite.png);
-        }
+    <style type="text/css">
+      .coverage-summary .sorter {
+        background-image: url(../../sort-arrow-sprite.png);
+      }
     </style>
-</head>
-    
-<body>
-<div class='wrapper'>
-    <div class='pad1'>
+  </head>
+
+  <body>
+    <div class="wrapper">
+      <div class="pad1">
         <h1><a href="../../index.html">All files</a> lib/mainFn</h1>
-        <div class='clearfix'>
-            
-            <div class='fl pad1y space-right2'>
-                <span class="strong">15.78% </span>
-                <span class="quiet">Statements</span>
-                <span class='fraction'>36/228</span>
-            </div>
-        
-            
-            <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
-                <span class="quiet">Branches</span>
-                <span class='fraction'>0/38</span>
-            </div>
-        
-            
-            <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
-                <span class="quiet">Functions</span>
-                <span class='fraction'>0/77</span>
-            </div>
-        
-            
-            <div class='fl pad1y space-right2'>
-                <span class="strong">15.16% </span>
-                <span class="quiet">Lines</span>
-                <span class='fraction'>32/211</span>
-            </div>
-        
-            
+        <div class="clearfix">
+          <div class="fl pad1y space-right2">
+            <span class="strong">15.78% </span>
+            <span class="quiet">Statements</span>
+            <span class="fraction">36/228</span>
+          </div>
+
+          <div class="fl pad1y space-right2">
+            <span class="strong">0% </span>
+            <span class="quiet">Branches</span>
+            <span class="fraction">0/38</span>
+          </div>
+
+          <div class="fl pad1y space-right2">
+            <span class="strong">0% </span>
+            <span class="quiet">Functions</span>
+            <span class="fraction">0/77</span>
+          </div>
+
+          <div class="fl pad1y space-right2">
+            <span class="strong">15.16% </span>
+            <span class="quiet">Lines</span>
+            <span class="fraction">32/211</span>
+          </div>
         </div>
         <p class="quiet">
-            Press <em>n</em> or <em>j</em> to go to the next uncovered block, <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
+          Press <em>n</em> or <em>j</em> to go to the next uncovered block,
+          <em>b</em>, <em>p</em> or <em>k</em> for the previous block.
         </p>
         <template id="filterTemplate">
-            <div class="quiet">
-                Filter:
-                <input oninput="onInput()" type="search" id="fileSearch">
-            </div>
+          <div class="quiet">
+            Filter:
+            <input oninput="onInput()" type="search" id="fileSearch" />
+          </div>
         </template>
+      </div>
+      <div class="status-line low"></div>
+      <div class="pad1">
+        <table class="coverage-summary">
+          <thead>
+            <tr>
+              <th data-col="file" data-fmt="html" data-html="true" class="file">
+                File
+              </th>
+              <th
+                data-col="pic"
+                data-type="number"
+                data-fmt="html"
+                data-html="true"
+                class="pic"
+              ></th>
+              <th
+                data-col="statements"
+                data-type="number"
+                data-fmt="pct"
+                class="pct"
+              >
+                Statements
+              </th>
+              <th
+                data-col="statements_raw"
+                data-type="number"
+                data-fmt="html"
+                class="abs"
+              ></th>
+              <th
+                data-col="branches"
+                data-type="number"
+                data-fmt="pct"
+                class="pct"
+              >
+                Branches
+              </th>
+              <th
+                data-col="branches_raw"
+                data-type="number"
+                data-fmt="html"
+                class="abs"
+              ></th>
+              <th
+                data-col="functions"
+                data-type="number"
+                data-fmt="pct"
+                class="pct"
+              >
+                Functions
+              </th>
+              <th
+                data-col="functions_raw"
+                data-type="number"
+                data-fmt="html"
+                class="abs"
+              ></th>
+              <th
+                data-col="lines"
+                data-type="number"
+                data-fmt="pct"
+                class="pct"
+              >
+                Lines
+              </th>
+              <th
+                data-col="lines_raw"
+                data-type="number"
+                data-fmt="html"
+                class="abs"
+              ></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="file low" data-value="CommandController.ts">
+                <a href="CommandController.ts.html">CommandController.ts</a>
+              </td>
+              <td data-value="10.41" class="pic low">
+                <div class="chart">
+                  <div class="cover-fill" style="width: 10%"></div>
+                  <div class="cover-empty" style="width: 90%"></div>
+                </div>
+              </td>
+              <td data-value="10.41" class="pct low">10.41%</td>
+              <td data-value="48" class="abs low">5/48</td>
+              <td data-value="0" class="pct low">0%</td>
+              <td data-value="24" class="abs low">0/24</td>
+              <td data-value="0" class="pct low">0%</td>
+              <td data-value="12" class="abs low">0/12</td>
+              <td data-value="10.41" class="pct low">10.41%</td>
+              <td data-value="48" class="abs low">5/48</td>
+            </tr>
+
+            <tr>
+              <td class="file low" data-value="Daemon.ts">
+                <a href="Daemon.ts.html">Daemon.ts</a>
+              </td>
+              <td data-value="15.62" class="pic low">
+                <div class="chart">
+                  <div class="cover-fill" style="width: 15%"></div>
+                  <div class="cover-empty" style="width: 85%"></div>
+                </div>
+              </td>
+              <td data-value="15.62" class="pct low">15.62%</td>
+              <td data-value="32" class="abs low">5/32</td>
+              <td data-value="0" class="pct low">0%</td>
+              <td data-value="1" class="abs low">0/1</td>
+              <td data-value="0" class="pct low">0%</td>
+              <td data-value="13" class="abs low">0/13</td>
+              <td data-value="16.66" class="pct low">16.66%</td>
+              <td data-value="30" class="abs low">5/30</td>
+            </tr>
+
+            <tr>
+              <td class="file low" data-value="Daemons.ts">
+                <a href="Daemons.ts.html">Daemons.ts</a>
+              </td>
+              <td data-value="31.81" class="pic low">
+                <div class="chart">
+                  <div class="cover-fill" style="width: 31%"></div>
+                  <div class="cover-empty" style="width: 69%"></div>
+                </div>
+              </td>
+              <td data-value="31.81" class="pct low">31.81%</td>
+              <td data-value="44" class="abs low">14/44</td>
+              <td data-value="100" class="pct high">100%</td>
+              <td data-value="0" class="abs high">0/0</td>
+              <td data-value="0" class="pct low">0%</td>
+              <td data-value="16" class="abs low">0/16</td>
+              <td data-value="28.94" class="pct low">28.94%</td>
+              <td data-value="38" class="abs low">11/38</td>
+            </tr>
+
+            <tr>
+              <td class="file low" data-value="HealthDaemon.ts">
+                <a href="HealthDaemon.ts.html">HealthDaemon.ts</a>
+              </td>
+              <td data-value="6.94" class="pic low">
+                <div class="chart">
+                  <div class="cover-fill" style="width: 6%"></div>
+                  <div class="cover-empty" style="width: 94%"></div>
+                </div>
+              </td>
+              <td data-value="6.94" class="pct low">6.94%</td>
+              <td data-value="72" class="abs low">5/72</td>
+              <td data-value="0" class="pct low">0%</td>
+              <td data-value="12" class="abs low">0/12</td>
+              <td data-value="0" class="pct low">0%</td>
+              <td data-value="22" class="abs low">0/22</td>
+              <td data-value="7.81" class="pct low">7.81%</td>
+              <td data-value="64" class="abs low">5/64</td>
+            </tr>
+
+            <tr>
+              <td class="file low" data-value="Mounts.ts">
+                <a href="Mounts.ts.html">Mounts.ts</a>
+              </td>
+              <td data-value="4.34" class="pic low">
+                <div class="chart">
+                  <div class="cover-fill" style="width: 4%"></div>
+                  <div class="cover-empty" style="width: 96%"></div>
+                </div>
+              </td>
+              <td data-value="4.34" class="pct low">4.34%</td>
+              <td data-value="23" class="abs low">1/23</td>
+              <td data-value="0" class="pct low">0%</td>
+              <td data-value="1" class="abs low">0/1</td>
+              <td data-value="0" class="pct low">0%</td>
+              <td data-value="12" class="abs low">0/12</td>
+              <td data-value="4.34" class="pct low">4.34%</td>
+              <td data-value="23" class="abs low">1/23</td>
+            </tr>
+
+            <tr>
+              <td class="file medium" data-value="index.ts">
+                <a href="index.ts.html">index.ts</a>
+              </td>
+              <td data-value="66.66" class="pic medium">
+                <div class="chart">
+                  <div class="cover-fill" style="width: 66%"></div>
+                  <div class="cover-empty" style="width: 34%"></div>
+                </div>
+              </td>
+              <td data-value="66.66" class="pct medium">66.66%</td>
+              <td data-value="9" class="abs medium">6/9</td>
+              <td data-value="100" class="pct high">100%</td>
+              <td data-value="0" class="abs high">0/0</td>
+              <td data-value="0" class="pct low">0%</td>
+              <td data-value="2" class="abs low">0/2</td>
+              <td data-value="62.5" class="pct medium">62.5%</td>
+              <td data-value="8" class="abs medium">5/8</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="push"></div>
+      <!-- for sticky footer -->
     </div>
-    <div class='status-line low'></div>
-    <div class="pad1">
-<table class="coverage-summary">
-<thead>
-<tr>
-   <th data-col="file" data-fmt="html" data-html="true" class="file">File</th>
-   <th data-col="pic" data-type="number" data-fmt="html" data-html="true" class="pic"></th>
-   <th data-col="statements" data-type="number" data-fmt="pct" class="pct">Statements</th>
-   <th data-col="statements_raw" data-type="number" data-fmt="html" class="abs"></th>
-   <th data-col="branches" data-type="number" data-fmt="pct" class="pct">Branches</th>
-   <th data-col="branches_raw" data-type="number" data-fmt="html" class="abs"></th>
-   <th data-col="functions" data-type="number" data-fmt="pct" class="pct">Functions</th>
-   <th data-col="functions_raw" data-type="number" data-fmt="html" class="abs"></th>
-   <th data-col="lines" data-type="number" data-fmt="pct" class="pct">Lines</th>
-   <th data-col="lines_raw" data-type="number" data-fmt="html" class="abs"></th>
-</tr>
-</thead>
-<tbody><tr>
-	<td class="file low" data-value="CommandController.ts"><a href="CommandController.ts.html">CommandController.ts</a></td>
-	<td data-value="10.41" class="pic low">
-	<div class="chart"><div class="cover-fill" style="width: 10%"></div><div class="cover-empty" style="width: 90%"></div></div>
-	</td>
-	<td data-value="10.41" class="pct low">10.41%</td>
-	<td data-value="48" class="abs low">5/48</td>
-	<td data-value="0" class="pct low">0%</td>
-	<td data-value="24" class="abs low">0/24</td>
-	<td data-value="0" class="pct low">0%</td>
-	<td data-value="12" class="abs low">0/12</td>
-	<td data-value="10.41" class="pct low">10.41%</td>
-	<td data-value="48" class="abs low">5/48</td>
-	</tr>
-
-<tr>
-	<td class="file low" data-value="Daemon.ts"><a href="Daemon.ts.html">Daemon.ts</a></td>
-	<td data-value="15.62" class="pic low">
-	<div class="chart"><div class="cover-fill" style="width: 15%"></div><div class="cover-empty" style="width: 85%"></div></div>
-	</td>
-	<td data-value="15.62" class="pct low">15.62%</td>
-	<td data-value="32" class="abs low">5/32</td>
-	<td data-value="0" class="pct low">0%</td>
-	<td data-value="1" class="abs low">0/1</td>
-	<td data-value="0" class="pct low">0%</td>
-	<td data-value="13" class="abs low">0/13</td>
-	<td data-value="16.66" class="pct low">16.66%</td>
-	<td data-value="30" class="abs low">5/30</td>
-	</tr>
-
-<tr>
-	<td class="file low" data-value="Daemons.ts"><a href="Daemons.ts.html">Daemons.ts</a></td>
-	<td data-value="31.81" class="pic low">
-	<div class="chart"><div class="cover-fill" style="width: 31%"></div><div class="cover-empty" style="width: 69%"></div></div>
-	</td>
-	<td data-value="31.81" class="pct low">31.81%</td>
-	<td data-value="44" class="abs low">14/44</td>
-	<td data-value="100" class="pct high">100%</td>
-	<td data-value="0" class="abs high">0/0</td>
-	<td data-value="0" class="pct low">0%</td>
-	<td data-value="16" class="abs low">0/16</td>
-	<td data-value="28.94" class="pct low">28.94%</td>
-	<td data-value="38" class="abs low">11/38</td>
-	</tr>
-
-<tr>
-	<td class="file low" data-value="HealthDaemon.ts"><a href="HealthDaemon.ts.html">HealthDaemon.ts</a></td>
-	<td data-value="6.94" class="pic low">
-	<div class="chart"><div class="cover-fill" style="width: 6%"></div><div class="cover-empty" style="width: 94%"></div></div>
-	</td>
-	<td data-value="6.94" class="pct low">6.94%</td>
-	<td data-value="72" class="abs low">5/72</td>
-	<td data-value="0" class="pct low">0%</td>
-	<td data-value="12" class="abs low">0/12</td>
-	<td data-value="0" class="pct low">0%</td>
-	<td data-value="22" class="abs low">0/22</td>
-	<td data-value="7.81" class="pct low">7.81%</td>
-	<td data-value="64" class="abs low">5/64</td>
-	</tr>
-
-<tr>
-	<td class="file low" data-value="Mounts.ts"><a href="Mounts.ts.html">Mounts.ts</a></td>
-	<td data-value="4.34" class="pic low">
-	<div class="chart"><div class="cover-fill" style="width: 4%"></div><div class="cover-empty" style="width: 96%"></div></div>
-	</td>
-	<td data-value="4.34" class="pct low">4.34%</td>
-	<td data-value="23" class="abs low">1/23</td>
-	<td data-value="0" class="pct low">0%</td>
-	<td data-value="1" class="abs low">0/1</td>
-	<td data-value="0" class="pct low">0%</td>
-	<td data-value="12" class="abs low">0/12</td>
-	<td data-value="4.34" class="pct low">4.34%</td>
-	<td data-value="23" class="abs low">1/23</td>
-	</tr>
-
-<tr>
-	<td class="file medium" data-value="index.ts"><a href="index.ts.html">index.ts</a></td>
-	<td data-value="66.66" class="pic medium">
-	<div class="chart"><div class="cover-fill" style="width: 66%"></div><div class="cover-empty" style="width: 34%"></div></div>
-	</td>
-	<td data-value="66.66" class="pct medium">66.66%</td>
-	<td data-value="9" class="abs medium">6/9</td>
-	<td data-value="100" class="pct high">100%</td>
-	<td data-value="0" class="abs high">0/0</td>
-	<td data-value="0" class="pct low">0%</td>
-	<td data-value="2" class="abs low">0/2</td>
-	<td data-value="62.5" class="pct medium">62.5%</td>
-	<td data-value="8" class="abs medium">5/8</td>
-	</tr>
-
-</tbody>
-</table>
-</div>
-                <div class='push'></div><!-- for sticky footer -->
-            </div><!-- /wrapper -->
-            <div class='footer quiet pad2 space-top1 center small'>
-                Code coverage generated by
-                <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2024-08-28T21:46:45.516Z
-            </div>
-        <script src="../../prettify.js"></script>
-        <script>
-            window.onload = function () {
-                prettyPrint();
-            };
-        </script>
-        <script src="../../sorter.js"></script>
-        <script src="../../block-navigation.js"></script>
-    </body>
+    <!-- /wrapper -->
+    <div class="footer quiet pad2 space-top1 center small">
+      Code coverage generated by
+      <a
+        href="https://istanbul.js.org/"
+        target="_blank"
+        rel="noopener noreferrer"
+        >istanbul</a
+      >
+      at 2024-08-28T21:46:45.516Z
+    </div>
+    <script src="../../prettify.js"></script>
+    <script>
+      window.onload = function () {
+        prettyPrint();
+      };
+    </script>
+    <script src="../../sorter.js"></script>
+    <script src="../../block-navigation.js"></script>
+  </body>
 </html>
-    

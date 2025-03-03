@@ -38,9 +38,10 @@ impl AccountInfo {
         let root_ca_key = generate_key()?;
         let root_ca_cert = make_root_cert(&root_ca_key, &hostname, start_time)?;
         let ssh_key = ssh_key::PrivateKey::from(ssh_key::private::Ed25519Keypair::random(
-            &mut rand::thread_rng(),
+            &mut ssh_key::rand_core::OsRng::default(),
         ));
-        let compat_s9pk_key = ed25519_dalek::SigningKey::generate(&mut rand::thread_rng());
+        let compat_s9pk_key =
+            ed25519_dalek::SigningKey::generate(&mut ssh_key::rand_core::OsRng::default());
         Ok(Self {
             server_id,
             hostname,

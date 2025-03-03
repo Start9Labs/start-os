@@ -12,7 +12,7 @@ export class GetStore<Store, StoreValue> {
   ) {}
 
   /**
-   * Returns the value of Store at the provided path. Restart the service if the value changes
+   * Returns the value of Store at the provided path. Reruns the context from which it has been called if the underlying value changes
    */
   const() {
     return this.effects.store.get<Store, StoreValue>({
@@ -32,7 +32,7 @@ export class GetStore<Store, StoreValue> {
   }
 
   /**
-   * Watches the value of Store at the provided path. Takes a custom callback function to run whenever the value changes
+   * Watches the value of Store at the provided path. Returns an async iterator that yields whenever the value changes
    */
   async *watch() {
     while (true) {
@@ -47,6 +47,33 @@ export class GetStore<Store, StoreValue> {
       })
       await waitForNext
     }
+  }
+
+  /**
+   * Watches the value of Store at the provided path. Takes a custom callback function to run whenever the value changes
+   */
+  onChange(
+    callback: (value: StoreValue | null, error?: Error) => void | Promise<void>,
+  ) {
+    ;(async () => {
+      for await (const value of this.watch()) {
+        try {
+          await callback(value)
+        } catch (e) {
+          console.error(
+            "callback function threw an error @ GetStore.onChange",
+            e,
+          )
+        }
+      }
+    })()
+      .catch((e) => callback(null, e))
+      .catch((e) =>
+        console.error(
+          "callback function threw an error @ GetStore.onChange",
+          e,
+        ),
+      )
   }
 }
 export function getStore<Store, StoreValue>(

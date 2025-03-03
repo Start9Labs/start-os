@@ -79,6 +79,7 @@ describe("startosTypeValidation ", () => {
       },
       getSystemSmtp: {} as WithCallback<GetSystemSmtpParams>,
       getContainerIp: undefined,
+      getOsIp: undefined,
       getServicePortForward: {} as GetServicePortForwardParams,
       clearServiceInterfaces: {} as ClearServiceInterfacesParams,
       exportServiceInterface: {} as ExportServiceInterfaceParams,

@@ -265,7 +265,9 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
             drop(queue_cell.write().unwrap().take());
 
             if !runner.is_empty() {
-                runner.await;
+                tokio::time::timeout(Duration::from_secs(60), runner)
+                    .await
+                    .log_err();
             }
         }));
         Self {

@@ -514,11 +514,17 @@ pub async fn cli_install(
 #[command(rename_all = "kebab-case")]
 pub struct UninstallParams {
     id: PackageId,
+    #[arg(long, help = "Do not delete the service data")]
+    #[serde(default)]
+    soft: bool,
+    #[arg(long, help = "Ignore errors in service uninit script")]
+    #[serde(default)]
+    force: bool,
 }
 
 pub async fn uninstall(
     ctx: RpcContext,
-    UninstallParams { id }: UninstallParams,
+    UninstallParams { id, soft, force }: UninstallParams,
 ) -> Result<PackageId, Error> {
     ctx.db
         .mutate(|db| {
@@ -540,7 +546,7 @@ pub async fn uninstall(
     let return_id = id.clone();
 
     tokio::spawn(async move {
-        if let Err(e) = ctx.services.uninstall(&ctx, &id).await {
+        if let Err(e) = ctx.services.uninstall(&ctx, &id, soft, force).await {
             tracing::error!("Error uninstalling service {id}: {e}");
             tracing::debug!("{e:?}");
         }

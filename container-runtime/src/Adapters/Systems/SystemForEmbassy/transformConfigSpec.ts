@@ -146,6 +146,7 @@ export function transformOldConfigToNew(
   spec: OldConfigSpec,
   config: Record<string, any>,
 ): Record<string, any> {
+  if (!config) return config
   return Object.entries(spec).reduce((obj, [key, val]) => {
     let newVal = config[key]
 
@@ -157,8 +158,15 @@ export function transformOldConfigToNew(
     }
 
     if (isUnion(val)) {
-      const selection = config[key][val.tag.id]
+      if (!config[key]) return obj
+
+      const selection = config[key]?.[val.tag.id]
+
+      if (!selection) return obj
+
       delete config[key][val.tag.id]
+
+      if (!val.variants[selection]) return obj
 
       newVal = {
         selection,
@@ -170,6 +178,8 @@ export function transformOldConfigToNew(
     }
 
     if (isList(val) && isObjectList(val)) {
+      if (!config[key]) return obj
+
       newVal = (config[key] as object[]).map((obj) =>
         transformOldConfigToNew(
           matchOldConfigSpec.unsafeCast(val.spec.spec),

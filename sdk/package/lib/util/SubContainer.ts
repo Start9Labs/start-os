@@ -46,6 +46,15 @@ export interface ExecSpawnable {
  * @see {@link ExecSpawnable}
  */
 export class SubContainer implements ExecSpawnable {
+  private static finalizationEffects: { effects?: T.Effects } = {}
+  private static registry = new FinalizationRegistry((guid: string) => {
+    if (this.finalizationEffects.effects) {
+      this.finalizationEffects.effects.subcontainer
+        .destroyFs({ guid })
+        .catch((e) => console.error("failed to cleanup SubContainer", guid, e))
+    }
+  })
+
   private leader: cp.ChildProcess
   private leaderExited: boolean = false
   private waitProc: () => Promise<null>
@@ -55,6 +64,8 @@ export class SubContainer implements ExecSpawnable {
     readonly rootfs: string,
     readonly guid: T.Guid,
   ) {
+    if (!SubContainer.finalizationEffects.effects)
+      SubContainer.finalizationEffects.effects = effects
     this.leaderExited = false
     this.leader = cp.spawn("start-cli", ["subcontainer", "launch", rootfs], {
       killSignal: "SIGKILL",
@@ -94,6 +105,8 @@ export class SubContainer implements ExecSpawnable {
       imageId,
       name,
     })
+    const res = new SubContainer(effects, imageId, rootfs, guid)
+    SubContainer.registry.register(res, guid, res)
 
     const shared = ["dev", "sys"]
     if (!!sharedRun) {
@@ -111,7 +124,7 @@ export class SubContainer implements ExecSpawnable {
       await execFile("mount", ["--rbind", from, to])
     }
 
-    return new SubContainer(effects, imageId, rootfs, guid)
+    return res
   }
 
   static async with<T>(
@@ -202,6 +215,7 @@ export class SubContainer implements ExecSpawnable {
       const guid = this.guid
       await this.killLeader()
       await this.effects.subcontainer.destroyFs({ guid })
+      SubContainer.registry.unregister(this)
       return null
     }
   }
@@ -224,8 +238,9 @@ export class SubContainer implements ExecSpawnable {
       .catch(() => "{}")
       .then(JSON.parse)
     let extra: string[] = []
+    let user = imageMeta.user || "root"
     if (options?.user) {
-      extra.push(`--user=${options.user}`)
+      user = options.user
       delete options.user
     }
     let workdir = imageMeta.workdir || "/"
@@ -239,6 +254,7 @@ export class SubContainer implements ExecSpawnable {
         "subcontainer",
         "exec",
         `--env=/media/startos/images/${this.imageId}.env`,
+        `--user=${user}`,
         `--workdir=${workdir}`,
         ...extra,
         this.rootfs,
@@ -247,18 +263,28 @@ export class SubContainer implements ExecSpawnable {
       options || {},
     )
     if (options?.input) {
-      await new Promise<null>((resolve, reject) =>
-        child.stdin.write(options.input, (e) => {
-          if (e) {
-            reject(e)
-          } else {
-            resolve(null)
-          }
-        }),
-      )
-      await new Promise<null>((resolve) => child.stdin.end(resolve))
+      await new Promise<null>((resolve, reject) => {
+        try {
+          child.stdin.on("error", (e) => reject(e))
+          child.stdin.write(options.input, (e) => {
+            if (e) {
+              reject(e)
+            } else {
+              resolve(null)
+            }
+          })
+        } catch (e) {
+          reject(e)
+        }
+      })
+      await new Promise<null>((resolve, reject) => {
+        try {
+          child.stdin.end(resolve)
+        } catch (e) {
+          reject(e)
+        }
+      })
     }
-    const pid = child.pid
     const stdout = { data: "" as string }
     const stderr = { data: "" as string }
     const appendData =
@@ -294,15 +320,16 @@ export class SubContainer implements ExecSpawnable {
     options?: CommandOptions,
   ): Promise<cp.ChildProcessWithoutNullStreams> {
     await this.waitProc()
-    const imageMeta: any = await fs
+    const imageMeta: T.ImageMetadata = await fs
       .readFile(`/media/startos/images/${this.imageId}.json`, {
         encoding: "utf8",
       })
       .catch(() => "{}")
       .then(JSON.parse)
     let extra: string[] = []
+    let user = imageMeta.user || "root"
     if (options?.user) {
-      extra.push(`--user=${options.user}`)
+      user = options.user
       delete options.user
     }
     let workdir = imageMeta.workdir || "/"
@@ -318,6 +345,7 @@ export class SubContainer implements ExecSpawnable {
         "subcontainer",
         "launch",
         `--env=/media/startos/images/${this.imageId}.env`,
+        `--user=${user}`,
         `--workdir=${workdir}`,
         ...extra,
         this.rootfs,
@@ -336,15 +364,16 @@ export class SubContainer implements ExecSpawnable {
     options: CommandOptions & StdioOptions = { stdio: "inherit" },
   ): Promise<cp.ChildProcess> {
     await this.waitProc()
-    const imageMeta: any = await fs
+    const imageMeta: T.ImageMetadata = await fs
       .readFile(`/media/startos/images/${this.imageId}.json`, {
         encoding: "utf8",
       })
       .catch(() => "{}")
       .then(JSON.parse)
     let extra: string[] = []
-    if (options.user) {
-      extra.push(`--user=${options.user}`)
+    let user = imageMeta.user || "root"
+    if (options?.user) {
+      user = options.user
       delete options.user
     }
     let workdir = imageMeta.workdir || "/"
@@ -358,6 +387,7 @@ export class SubContainer implements ExecSpawnable {
         "subcontainer",
         "exec",
         `--env=/media/startos/images/${this.imageId}.env`,
+        `--user=${user}`,
         `--workdir=${workdir}`,
         ...extra,
         this.rootfs,

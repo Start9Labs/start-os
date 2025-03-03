@@ -17,6 +17,7 @@ export const getHostname = (url: string): Hostname | null => {
 
 export type Filled = {
   hostnames: HostnameInfo[]
+  publicHostnames: HostnameInfo[]
   onionHostnames: HostnameInfo[]
   localHostnames: HostnameInfo[]
   ipHostnames: HostnameInfo[]
@@ -25,6 +26,7 @@ export type Filled = {
   nonIpHostnames: HostnameInfo[]
 
   urls: UrlString[]
+  publicUrls: UrlString[]
   onionUrls: UrlString[]
   localUrls: UrlString[]
   ipUrls: UrlString[]
@@ -105,6 +107,9 @@ export const filledAddress = (
   return {
     ...addressInfo,
     hostnames,
+    get publicHostnames() {
+      return hostnames.filter((h) => h.kind === "onion" || h.public)
+    },
     get onionHostnames() {
       return hostnames.filter((h) => h.kind === "onion")
     },
@@ -140,6 +145,9 @@ export const filledAddress = (
     },
     get urls() {
       return this.hostnames.flatMap(toUrl)
+    },
+    get publicUrls() {
+      return this.publicHostnames.flatMap(toUrl)
     },
     get onionUrls() {
       return this.onionHostnames.flatMap(toUrl)
@@ -205,7 +213,7 @@ export class GetServiceInterface {
   ) {}
 
   /**
-   * Returns the value of Store at the provided path. Restart the service if the value changes
+   * Returns the requested service interface. Reruns the context from which it has been called if the underlying value changes
    */
   async const() {
     const { id, packageId } = this.opts
@@ -220,7 +228,7 @@ export class GetServiceInterface {
     return interfaceFilled
   }
   /**
-   * Returns the value of ServiceInterfacesFilled at the provided path. Does nothing if the value changes
+   * Returns the requested service interface. Does nothing if the value changes
    */
   async once() {
     const { id, packageId } = this.opts
@@ -234,7 +242,7 @@ export class GetServiceInterface {
   }
 
   /**
-   * Watches the value of ServiceInterfacesFilled at the provided path. Takes a custom callback function to run whenever the value changes
+   * Watches the requested service interface. Returns an async iterator that yields whenever the value changes
    */
   async *watch() {
     const { id, packageId } = this.opts
@@ -251,6 +259,36 @@ export class GetServiceInterface {
       })
       await waitForNext
     }
+  }
+
+  /**
+   * Watches the requested service interface. Takes a custom callback function to run whenever the value changes
+   */
+  onChange(
+    callback: (
+      value: ServiceInterfaceFilled | null,
+      error?: Error,
+    ) => void | Promise<void>,
+  ) {
+    ;(async () => {
+      for await (const value of this.watch()) {
+        try {
+          await callback(value)
+        } catch (e) {
+          console.error(
+            "callback function threw an error @ GetServiceInterface.onChange",
+            e,
+          )
+        }
+      }
+    })()
+      .catch((e) => callback(null, e))
+      .catch((e) =>
+        console.error(
+          "callback function threw an error @ GetServiceInterface.onChange",
+          e,
+        ),
+      )
   }
 }
 export function getServiceInterface(

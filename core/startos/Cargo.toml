@@ -14,7 +14,7 @@ keywords = [
 name = "start-os"
 readme = "README.md"
 repository = "https://github.com/Start9Labs/start-os"
-version = "0.3.6-alpha.13" # VERSION_BUMP
+version = "0.3.6-alpha.15" # VERSION_BUMP
 license = "MIT"
 
 [lib]
@@ -40,7 +40,7 @@ path = "src/main.rs"
 [features]
 cli = []
 container-runtime = ["procfs", "tty-spawn"]
-daemon = []
+daemon = ["mail-send"]
 registry = []
 default = ["cli", "daemon", "registry", "container-runtime"]
 dev = []
@@ -71,7 +71,7 @@ basic-cookies = "0.1.4"
 blake3 = { version = "1.5.0", features = ["mmap", "rayon"] }
 bytes = "1"
 chrono = { version = "0.4.31", features = ["serde"] }
-clap = "4.4.12"
+clap = { version = "4.4.12", features = ["string"] }
 color-eyre = "0.6.2"
 console = "0.15.7"
 console-subscriber = { version = "0.3.0", optional = true }
@@ -167,7 +167,7 @@ procfs = { version = "0.16.0", optional = true }
 proptest = "1.3.1"
 proptest-derive = "0.5.0"
 qrcode = "0.14.1"
-rand = { version = "0.8.5", features = ["std"] }
+rand = "0.9.0"
 regex = "1.10.2"
 reqwest = { version = "0.12.4", features = ["stream", "json", "socks"] }
 reqwest_cookie_store = "0.8.0"
@@ -224,7 +224,7 @@ urlencoding = "2.1.3"
 uuid = { version = "1.4.1", features = ["v4"] }
 zbus = "5.1.1"
 zeroize = "1.6.0"
-mail-send = { git = "https://github.com/dr-bonez/mail-send.git", branch = "main" }
+mail-send = { git = "https://github.com/dr-bonez/mail-send.git", branch = "main", optional = true }
 rustls = "0.23.20"
 rustls-pki-types = { version = "1.10.1", features = ["alloc"] }
 

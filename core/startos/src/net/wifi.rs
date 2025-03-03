@@ -54,8 +54,8 @@ pub fn wifi<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
-            "delete",
-            from_fn_async(delete)
+            "remove",
+            from_fn_async(remove)
                 .no_display()
                 .with_about("Remove a wifi network")
                 .with_call_remote::<CliContext>(),
@@ -230,7 +230,7 @@ pub async fn connect(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result
 }
 
 #[instrument(skip_all)]
-pub async fn delete(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<(), Error> {
+pub async fn remove(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<(), Error> {
     let wifi_manager = wifi_manager(&ctx)?;
     if !ssid.is_ascii() {
         return Err(Error::new(

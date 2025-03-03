@@ -532,10 +532,10 @@ export type NotificationLevel = 'success' | 'info' | 'warning' | 'error'
 export type NotificationData<T> = T extends 0
   ? null
   : T extends 1
-    ? BackupReport
-    : T extends 2
-      ? string
-      : any
+  ? BackupReport
+  : T extends 2
+  ? string
+  : any
 
 export type BackupReport = {
   server: {

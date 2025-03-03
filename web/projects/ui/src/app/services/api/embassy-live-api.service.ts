@@ -352,7 +352,7 @@ export class LiveApiService extends ApiService {
   async deleteNotifications(
     params: RR.DeleteNotificationReq,
   ): Promise<RR.DeleteNotificationRes> {
-    return this.rpcRequest({ method: 'notification.delete', params })
+    return this.rpcRequest({ method: 'notification.remove', params })
   }
 
   async markSeenNotifications(

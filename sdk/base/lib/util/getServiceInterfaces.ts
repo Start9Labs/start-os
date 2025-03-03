@@ -47,7 +47,7 @@ export class GetServiceInterfaces {
   ) {}
 
   /**
-   * Returns the value of Store at the provided path. Restart the service if the value changes
+   * Returns the service interfaces for the package. Reruns the context from which it has been called if the underlying value changes
    */
   async const() {
     const { packageId } = this.opts
@@ -62,7 +62,7 @@ export class GetServiceInterfaces {
     return interfaceFilled
   }
   /**
-   * Returns the value of ServiceInterfacesFilled at the provided path. Does nothing if the value changes
+   * Returns the service interfaces for the package. Does nothing if the value changes
    */
   async once() {
     const { packageId } = this.opts
@@ -76,7 +76,7 @@ export class GetServiceInterfaces {
   }
 
   /**
-   * Watches the value of ServiceInterfacesFilled at the provided path. Takes a custom callback function to run whenever the value changes
+   * Watches the service interfaces for the package. Returns an async iterator that yields whenever the value changes
    */
   async *watch() {
     const { packageId } = this.opts
@@ -92,6 +92,36 @@ export class GetServiceInterfaces {
       })
       await waitForNext
     }
+  }
+
+  /**
+   * Watches the service interfaces for the package. Takes a custom callback function to run whenever the value changes
+   */
+  onChange(
+    callback: (
+      value: ServiceInterfaceFilled[] | null,
+      error?: Error,
+    ) => void | Promise<void>,
+  ) {
+    ;(async () => {
+      for await (const value of this.watch()) {
+        try {
+          await callback(value)
+        } catch (e) {
+          console.error(
+            "callback function threw an error @ GetServiceInterfaces.onChange",
+            e,
+          )
+        }
+      }
+    })()
+      .catch((e) => callback(null, e))
+      .catch((e) =>
+        console.error(
+          "callback function threw an error @ GetServiceInterfaces.onChange",
+          e,
+        ),
+      )
   }
 }
 export function getServiceInterfaces(
