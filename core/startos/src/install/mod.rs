@@ -514,10 +514,10 @@ pub async fn cli_install(
 #[command(rename_all = "kebab-case")]
 pub struct UninstallParams {
     id: PackageId,
-    #[arg(long)]
+    #[arg(long, help = "Do not delete the service data")]
     #[serde(default)]
     soft: bool,
-    #[arg(long)]
+    #[arg(long, help = "Ignore errors in service uninit script")]
     #[serde(default)]
     force: bool,
 }

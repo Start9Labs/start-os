@@ -548,7 +548,6 @@ export class SystemForEmbassy implements System {
     nextVersion: Optional<string>,
     timeoutMs: number | null,
   ): Promise<void> {
-    // TODO Do a migration down if the version exists
     await this.currentRunning?.clean({ timeout: timeoutMs ?? undefined })
     if (nextVersion) {
       await this.migration(effects, { to: nextVersion }, timeoutMs)

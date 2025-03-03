@@ -130,7 +130,9 @@ impl ServiceRef {
                 None,
             ) // TODO timeout
             .await;
-        if !force {
+        if force {
+            uninit_res.log_err();
+        } else {
             uninit_res?;
         }
         let id = self.seed.persistent_container.s9pk.as_manifest().id.clone();

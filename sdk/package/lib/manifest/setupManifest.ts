@@ -4,7 +4,7 @@ import {
   SDKManifest,
   SDKImageInputSpec,
 } from "../../../base/lib/types/ManifestTypes"
-import { SDKVersion } from "../StartSdk"
+import { OSVersion } from "../StartSdk"
 import { VersionGraph } from "../version/VersionGraph"
 import { execSync } from "child_process"
 
@@ -58,7 +58,7 @@ export function buildManifest<
   )
   return {
     ...manifest,
-    osVersion: manifest.osVersion ?? SDKVersion,
+    osVersion: manifest.osVersion ?? OSVersion,
     version: versions.current.options.version,
     releaseNotes: versions.current.options.releaseNotes,
     satisfies: versions.current.options.satisfies || [],
