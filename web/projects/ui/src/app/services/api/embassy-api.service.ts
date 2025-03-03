@@ -177,12 +177,12 @@ export abstract class ApiService {
   ): Promise<RR.MarkSeenAllNotificationsRes>
 
   abstract markUnseenNotifications(
-    params: RR.DeleteNotificationReq,
-  ): Promise<RR.DeleteNotificationRes>
+    params: RR.DeleteNotificationsReq,
+  ): Promise<RR.DeleteNotificationsRes>
 
   abstract deleteNotifications(
-    params: RR.DeleteNotificationReq,
-  ): Promise<RR.DeleteNotificationRes>
+    params: RR.DeleteNotificationsReq,
+  ): Promise<RR.DeleteNotificationsRes>
 
   // ** proxies **
 
@@ -220,7 +220,11 @@ export abstract class ApiService {
 
   // wifi
 
-  abstract enableWifi(params: RR.EnableWifiReq): Promise<RR.EnableWifiRes>
+  abstract enableWifi(params: RR.EnabledWifiReq): Promise<RR.EnabledWifiRes>
+
+  abstract setWifiCountry(
+    params: RR.SetWifiCountryReq,
+  ): Promise<RR.SetWifiCountryRes>
 
   abstract getWifi(
     params: RR.GetWifiReq,

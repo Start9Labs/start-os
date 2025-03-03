@@ -137,16 +137,16 @@ export namespace RR {
   export type GetNotificationsRes = ServerNotification<number>[]
 
   // @TODO 040 all these notification endpoints need updating
-  export type DeleteNotificationReq = { ids: number[] } // notification.delete
-  export type DeleteNotificationRes = null
+  export type DeleteNotificationsReq = { ids: number[] } // notification.remove
+  export type DeleteNotificationsRes = null
 
-  export type MarkSeenNotificationReq = DeleteNotificationReq // notification.mark-seen
+  export type MarkSeenNotificationReq = DeleteNotificationsReq // notification.mark-seen
   export type MarkSeenNotificationRes = null
 
   export type MarkSeenAllNotificationsReq = { before: number } // notification.mark-seen-before
   export type MarkSeenAllNotificationsRes = null
 
-  export type MarkUnseenNotificationReq = DeleteNotificationReq // notification.mark-unseen
+  export type MarkUnseenNotificationReq = DeleteNotificationsReq // notification.mark-unseen
   export type MarkUnseenNotificationRes = null
 
   // wifi
@@ -175,9 +175,12 @@ export namespace RR {
   }
   export type AddWifiRes = null
 
-  // @TODO 040
-  export type EnableWifiReq = { enable: boolean } // wifi.enable
-  export type EnableWifiRes = null
+  // @TODO 040 need endpoint
+  export type EnabledWifiReq = { enable: boolean } // wifi.set-enabled
+  export type EnabledWifiRes = null
+
+  export type SetWifiCountryReq = { country: string } // wifi.country.set
+  export type SetWifiCountryRes = null
 
   export type ConnectWifiReq = { ssid: string } // wifi.connect
   export type ConnectWifiRes = null
@@ -523,7 +526,7 @@ export type ServerNotification<T extends number> = {
   title: string
   message: string
   data: NotificationData<T>
-  // @TODO 040
+  // @TODO 040 need attr
   read: boolean
 }
 
@@ -532,10 +535,10 @@ export type NotificationLevel = 'success' | 'info' | 'warning' | 'error'
 export type NotificationData<T> = T extends 0
   ? null
   : T extends 1
-  ? BackupReport
-  : T extends 2
-  ? string
-  : any
+    ? BackupReport
+    : T extends 2
+      ? string
+      : any
 
 export type BackupReport = {
   server: {

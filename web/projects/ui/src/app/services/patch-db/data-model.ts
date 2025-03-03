@@ -2,7 +2,7 @@ import { T } from '@start9labs/start-sdk'
 
 export type DataModel = Omit<T.Public, 'serverInfo'> & {
   ui: UIData
-  // @TODO 040
+  // @TODO 040 change patch DB to match below
   serverInfo: Omit<
     T.Public['serverInfo'],
     'wifi' | 'networkInterfaces' | 'host'
