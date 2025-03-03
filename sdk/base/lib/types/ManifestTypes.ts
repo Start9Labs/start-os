@@ -49,6 +49,11 @@ export type SDKManifest = {
     readonly long: string
   }
   /**
+   * override the StartOS version this package was made for
+   * defaults to the version the SDK was built for
+   */
+  osVersion?: string
+  /**
    * @description A mapping of OS images needed to run the container processes. Each image ID is a unique key.
    * @example
    * Using dockerTag...

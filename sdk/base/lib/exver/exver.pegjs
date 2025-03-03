@@ -49,7 +49,25 @@ ExtendedVersion
     return { flavor: flavor || null, upstream, downstream }
   }
 
-EmVer
+EmverVersionRange
+  = first:EmverVersionRangeAtom rest:(_ ((Or / And) _)? EmverVersionRangeAtom)*
+
+EmverVersionRangeAtom
+  = EmverParens
+  / EmverAnchor
+  / EmverNot
+  / Any
+  / None
+
+EmverParens
+  = "(" _ expr:EmverVersionRange _ ")" { return { type: "Parens", expr } }
+
+EmverAnchor
+  = operator:CmpOp? _ version:Emver { return { type: "Anchor", operator, version } }
+
+EmverNot = "!" _ value:EmverVersionRangeAtom { return { type: "Not", value: value }}
+
+Emver
   = major:Digit "." minor:Digit "." patch:Digit revision:( "." revision:Digit { return revision } )? {
     return {
       flavor: null,

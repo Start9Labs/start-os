@@ -444,8 +444,8 @@ function parseDfOutput(output: string): { used: number; total: number } {
     .map((x) => x.split(/\s+/))
   const index = lines.splice(0, 1)[0].map((x) => x.toLowerCase())
   const usedIndex = index.indexOf("used")
-  const availableIndex = index.indexOf("available")
+  const sizeIndex = index.indexOf("size")
   const used = lines.map((x) => Number.parseInt(x[usedIndex]))[0] || 0
-  const total = lines.map((x) => Number.parseInt(x[availableIndex]))[0] || 0
+  const total = lines.map((x) => Number.parseInt(x[sizeIndex]))[0] || 0
   return { used, total }
 }

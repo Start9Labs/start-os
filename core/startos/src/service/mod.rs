@@ -117,8 +117,11 @@ impl ServiceRef {
     pub async fn uninstall(
         self,
         target_version: Option<models::VersionString>,
+        soft: bool,
+        force: bool,
     ) -> Result<(), Error> {
-        self.seed
+        let uninit_res = self
+            .seed
             .persistent_container
             .execute::<NoOutput>(
                 Guid::new(),
@@ -126,7 +129,12 @@ impl ServiceRef {
                 to_value(&target_version)?,
                 None,
             ) // TODO timeout
-            .await?;
+            .await;
+        if force {
+            uninit_res.log_err();
+        } else {
+            uninit_res?;
+        }
         let id = self.seed.persistent_container.s9pk.as_manifest().id.clone();
         let ctx = self.seed.ctx.clone();
         self.shutdown().await?;
@@ -166,24 +174,26 @@ impl ServiceRef {
                 .await?
             {
                 let state = pde.state_info.expect_removing()?;
-                for volume_id in &state.manifest.volumes {
-                    let path = data_dir(DATA_DIR, &state.manifest.id, volume_id);
-                    if tokio::fs::metadata(&path).await.is_ok() {
-                        tokio::fs::remove_dir_all(&path).await?;
+                if !soft {
+                    for volume_id in &state.manifest.volumes {
+                        let path = data_dir(DATA_DIR, &state.manifest.id, volume_id);
+                        if tokio::fs::metadata(&path).await.is_ok() {
+                            tokio::fs::remove_dir_all(&path).await?;
+                        }
                     }
-                }
-                let logs_dir = Path::new(PACKAGE_DATA)
-                    .join("logs")
-                    .join(&state.manifest.id);
-                if tokio::fs::metadata(&logs_dir).await.is_ok() {
-                    tokio::fs::remove_dir_all(&logs_dir).await?;
-                }
-                let archive_path = Path::new(PACKAGE_DATA)
-                    .join("archive")
-                    .join("installed")
-                    .join(&state.manifest.id);
-                if tokio::fs::metadata(&archive_path).await.is_ok() {
-                    tokio::fs::remove_file(&archive_path).await?;
+                    let logs_dir = Path::new(PACKAGE_DATA)
+                        .join("logs")
+                        .join(&state.manifest.id);
+                    if tokio::fs::metadata(&logs_dir).await.is_ok() {
+                        tokio::fs::remove_dir_all(&logs_dir).await?;
+                    }
+                    let archive_path = Path::new(PACKAGE_DATA)
+                        .join("archive")
+                        .join("installed")
+                        .join(&state.manifest.id);
+                    if tokio::fs::metadata(&archive_path).await.is_ok() {
+                        tokio::fs::remove_file(&archive_path).await?;
+                    }
                 }
             }
         }
@@ -397,7 +407,7 @@ impl Service {
                             tracing::debug!("{e:?}")
                         })
                     {
-                        match service.uninstall(None).await {
+                        match service.uninstall(None, false, false).await {
                             Err(e) => {
                                 tracing::error!("Error uninstalling service: {e}");
                                 tracing::debug!("{e:?}")
