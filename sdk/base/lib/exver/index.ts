@@ -131,8 +131,8 @@ function flavorAnd(a: FlavorAtom, b: FlavorAtom): FlavorAtom | null {
 
 /**
  * Truth tables for version numbers and flavors. For each flavor we need a separate table, which
- * is quite straightforward. But `and` together with `not` produces version constraints like
- * ">2.0 for any flavor besides xyz", which means we need tables for sets of notflavors as well.
+ * is quite straightforward. But in order to exhaustively enumerate the boolean values of every
+ * combination of flavors and versions we also need tables for flavor negations.
  */
 type VersionRangeTables = DeepMap<FlavorAtom, VersionRangeTable> | boolean;
 
@@ -197,12 +197,12 @@ class VersionRangeTable {
   }
 
   /**
-   * Creates a version table which has the given value for the given flavor, and `false` for any other flavor.
+   * Creates a version table which is `true` for the given flavor, and `false` for any other flavor.
    */
-  static full(flavor: string | null, value: boolean): VersionRangeTables {
+  static eqFlavor(flavor: string | null): VersionRangeTables {
     return new DeepMap([
-      [{ type: 'Flavor', flavor } as FlavorAtom, new VersionRangeTable([], [value])],
-      //make sure the truth table is exhaustive
+      [{ type: 'Flavor', flavor } as FlavorAtom, new VersionRangeTable([], [true])],
+      // make sure the truth table is exhaustive, or `not` will not work properly.
       [{ type: 'FlavorNot', flavors: new Set([flavor]) } as FlavorAtom, new VersionRangeTable([], [false])],
     ]);
   }
@@ -599,7 +599,7 @@ export class VersionRange {
             )
         }
       case "Flavor":
-        return VersionRangeTable.full(this.atom.flavor, true)
+        return VersionRangeTable.eqFlavor(this.atom.flavor)
       case "Not":
         return VersionRangeTable.not(this.atom.value.tables())
       case "And":
