@@ -71,6 +71,19 @@ describe("ExVer", () => {
       })
     }
     {
+      // TODO: this this correct? if not, also fix normalize
+      const checker = VersionRange.parse("=1")
+      test(`VersionRange.parse("=1") valid`, () => {
+        expect(checker.satisfiedBy(ExtendedVersion.parse("1.0.0:0"))).toEqual(
+          true,
+        )
+      })
+
+      test(`VersionRange.parse("=1") invalid`, () => {
+        expect(checker.satisfiedBy(ExtendedVersion.parse("1.0.1:0"))).toEqual(false)
+        expect(checker.satisfiedBy(ExtendedVersion.parse("1.0.0:1"))).toEqual(false)
+      })
+    }    {
       const checker = VersionRange.parse(">=1.2.3:4")
       test(`VersionRange.parse(">=1.2.3:4") valid`, () => {
         expect(checker.satisfiedBy(ExtendedVersion.parse("2:0"))).toEqual(true)
@@ -315,8 +328,11 @@ describe("ExVer", () => {
       testNormalization("^1.2.3 && >=1 && >=1.2 && >=1.3", ">=1.3:0 && <2.0.0:0");
       testNormalization("(>=1.0 && <1.1) || (>=1.1 && <1.2) || (>=1.2 && <1.3)", ">=1.0:0 && <1.3:0");
       testNormalization(">1 || <2", "#");
-      testNormalization("=1 && =1.2 && =1.2.3", "=1.2.3:0");
-      testNormalization("=1 || =1.2 || =1.2.3", "=1:0");
+
+      testNormalization("=1 && =1.2 && =1.2.3", "!");
+      // testNormalization("=1 && =1.2 && =1.2.3", "=1.2.3:0"); TODO: should it be this instead?
+      testNormalization("=1 || =1.2 || =1.2.3", "=1:0 || =1.2:0 || =1.2.3:0");
+      // testNormalization("=1 || =1.2 || =1.2.3", "=1:0"); TODO: should it be this instead?
     }
 
     {

@@ -57,10 +57,12 @@ type FlavorNot = {
 type FlavorAtom = Flavor | FlavorNot;
 
 /**
- * A point that splits a number line of versions, so that every possible semver is either to the left or right.
- * The side field is here to handle inclusivity.
- * For example, consider the version `2.0`. For side=-1 the version point is like `1.999*.999*.**` (that is, 2.0.0.0.** is to the right) and
- * for side=+1 the point is like `2.0.0.0.**.1` (that is, 2.0.0.0.** is to the left).
+ * Splits a number line of versions in half, so that every possible semver is either to the left or right.
+ * The `side` field handles inclusively.
+ *
+ * # Example
+ * Consider the version `1.2.3`. For side=-1 the version point is like `1.2.2.999*.999*.**` (that is, 1.2.3.0.0.** is greater) and
+ * for side=+1 the point is like `1.2.3.0.0.**.1` (that is, 1.2.3.0.0.** is less).
  */
 type VersionRangePoint = {
   upstream: Version,
@@ -563,7 +565,7 @@ export class VersionRange {
       case "Anchor":
         switch (this.atom.operator) {
           case "=":
-            // equivalent to `>=2.0 && <=2.0 && #flavor`
+            // `=1.2.3` is equivalent to `>=1.2.3 && <1.2.4 && #flavor`
             return VersionRangeTable.and(
               VersionRangeTable.cmp(this.atom.version, -1, false, true),
               VersionRangeTable.cmp(this.atom.version, 1, true, false),
@@ -577,20 +579,20 @@ export class VersionRange {
           case "<=":
             return VersionRangeTable.cmp(this.atom.version, 1, true, false)
           case "!=":
-            // equivalent to `!(<2.0 && >2.0 && #flavor)`
-            // **not** equivalent to `(<2.0 || >2.0) && #flavor`
+            // `!=1.2.3` is equivalent to `!(>=1.2.3 && <=1.2.3 && #flavor)`
+            // **not** equivalent to `(<1.2.3 || >1.2.3) && #flavor`
             return VersionRangeTable.not(VersionRangeTable.and(
               VersionRangeTable.cmp(this.atom.version, -1, false, true),
               VersionRangeTable.cmp(this.atom.version, 1, true, false),
             ))
           case "^":
-            // equivalent to `>=2.0 && <3.0 && #flavor`
+            // `^1.2.3` is equivalent to `>=1.2.3 && <2.0.0 && #flavor`
             return VersionRangeTable.and(
               VersionRangeTable.cmp(this.atom.version, -1, false, true),
               VersionRangeTable.cmp(this.atom.version.incrementMajor(), -1, true, false),
             )
           case "~":
-            // equivalent to `>=2.0 && <2.1 && #flavor`
+            // `~1.2.3` is equivalent to `>=1.2.3 && <1.3.0 && #flavor`
             return VersionRangeTable.and(
               VersionRangeTable.cmp(this.atom.version, -1, false, true),
               VersionRangeTable.cmp(this.atom.version.incrementMinor(), -1, true, false),
