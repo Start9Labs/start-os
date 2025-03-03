@@ -28,7 +28,8 @@
     "lodash.merge": "^4.6.2",
     "mime-types": "^2.1.35",
     "ts-matches": "^6.2.1",
-    "yaml": "^2.2.2"
+    "yaml": "^2.2.2",
+    "deep-equality-data-structures": "^1.5.0"
   },
   "prettier": {
     "trailingComma": "all",

@@ -320,7 +320,7 @@ class VersionRangeTable {
    * Expresses this truth table as a series of version range operators.
    * https://en.wikipedia.org/wiki/Canonical_normal_form#Minterms
    */
-  static miniterms(tables: VersionRangeTables): VersionRange {
+  static minterms(tables: VersionRangeTables): VersionRange {
     let collapse = VersionRangeTable.collapse(tables);
     if (tables === true || collapse === true) {
       return VersionRange.any()
@@ -571,7 +571,7 @@ export class VersionRange {
       case "Anchor":
         switch (this.atom.operator) {
           case "=":
-            // `=1.2.3` is equivalent to `>=1.2.3 && <1.2.4 && #flavor`
+            // `=1.2.3` is equivalent to `>=1.2.3 && <=1.2.4 && #flavor`
             return VersionRangeTable.and(
               VersionRangeTable.cmp(this.atom.version, -1, false, true),
               VersionRangeTable.cmp(this.atom.version, 1, true, false),
@@ -628,7 +628,7 @@ export class VersionRange {
   }
 
   normalize(): VersionRange {
-    return VersionRangeTable.miniterms(this.tables());
+    return VersionRangeTable.minterms(this.tables());
   }
 }
 
