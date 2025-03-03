@@ -298,6 +298,7 @@ describe("ExVer", () => {
         });
       }
 
+      testNormalization("=2.0", "=2.0:0");
       testNormalization("=1 && =2", "!");
       testNormalization("!(=1 && =2)", "*");
       testNormalization("!=1 || !=2", "*");
@@ -314,8 +315,8 @@ describe("ExVer", () => {
       testNormalization("^1.2.3 && >=1 && >=1.2 && >=1.3", ">=1.3:0 && <2.0.0:0");
       testNormalization("(>=1.0 && <1.1) || (>=1.1 && <1.2) || (>=1.2 && <1.3)", ">=1.0:0 && <1.3:0");
       testNormalization(">1 || <2", "#");
-      //testNormalization("=1 && =1.2 && =1.2.3", ">=1.2.3:0 && <=1.2.3:0") what should this be?
-      //testNormalization("=1 || =1.2 || =1.2.3", ">=1:0 && <=1:0") what should this be?
+      testNormalization("=1 && =1.2 && =1.2.3", "=1.2.3:0");
+      testNormalization("=1 || =1.2 || =1.2.3", "=1:0");
     }
 
     {

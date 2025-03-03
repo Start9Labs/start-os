@@ -23,7 +23,7 @@ export type ValidateExVers<T> =
 
 type Anchor = {
   type: "Anchor"
-  operator: P.CmpOp,
+  operator: P.CmpOp
   version: ExtendedVersion
 }
 
@@ -56,6 +56,12 @@ type FlavorNot = {
 
 type FlavorAtom = Flavor | FlavorNot;
 
+/**
+ * A point that splits a number line of versions, so that every possible semver is either to the left or right.
+ * The side field is here to handle inclusivity.
+ * For example, consider the version `2.0`. For side=-1 the version point is like `1.999*.999*.**` (that is, 2.0.0.0.** is to the right) and
+ * for side=+1 the point is like `2.0.0.0.**.1` (that is, 2.0.0.0.** is to the left).
+ */
 type VersionRangePoint = {
   upstream: Version,
   downstream: Version,
@@ -115,13 +121,23 @@ function flavorAnd(a: FlavorAtom, b: FlavorAtom): FlavorAtom | null {
         return b;
       }
     } else {
-      return { type: 'FlavorNot', flavors: a.flavors.union(b.flavors) };
+      // TODO: use Set.union if targeting esnext or later
+      return { type: 'FlavorNot', flavors: new Set([...a.flavors, ...b.flavors]) };
     }
   }
 }
 
+/**
+ * Truth tables for version numbers and flavors. For each flavor we need a separate table, which
+ * is quite straightforward. But `and` together with `not` produces version constraints like
+ * ">2.0 for any flavor besides xyz", which means we need tables for sets of notflavors as well.
+ */
 type VersionRangeTables = DeepMap<FlavorAtom, VersionRangeTable> | boolean;
 
+/**
+ * A truth table for version numbers. This is easiest to picture as a number line, cut up into
+ * ranges of versions between version points.
+ */
 class VersionRangeTable {
   private constructor(protected points: Array<VersionRangePoint>, protected values: boolean[]) {}
 
@@ -178,6 +194,9 @@ class VersionRangeTable {
     }
   }
 
+  /**
+   * Creates a version table which has the given value for the given flavor, and `false` for any other flavor.
+   */
   static full(flavor: string | null, value: boolean): VersionRangeTables {
     return new DeepMap([
       [{ type: 'Flavor', flavor } as FlavorAtom, new VersionRangeTable([], [value])],
@@ -186,14 +205,21 @@ class VersionRangeTable {
     ]);
   }
 
+  /**
+   * Creates a version table with exactly two ranges (to the left and right of the given point) and with `false` for any other flavor.
+   * This is easiest to understand by looking at `VersionRange.tables`.
+   */
   static cmpPoint(flavor: string | null, point: VersionRangePoint, left: boolean, right: boolean): VersionRangeTables {
     return new DeepMap([
       [{ type: 'Flavor', flavor } as FlavorAtom, new VersionRangeTable([point], [left, right])],
-      // make sure the truth table is exhaustive
+      // make sure the truth table is exhaustive, or `not` will not work properly.
       [{ type: 'FlavorNot', flavors: new Set([flavor]) } as FlavorAtom, new VersionRangeTable([], [false])],
     ]);
   }
 
+  /**
+   * Helper for `cmpPoint`.
+   */
   static cmp(version: ExtendedVersion, side: -1 | 1, left: boolean, right: boolean): VersionRangeTables {
     return VersionRangeTable.cmpPoint(version.flavor, { upstream: version.upstream, downstream: version.downstream, side }, left, right)
   }
@@ -202,6 +228,7 @@ class VersionRangeTable {
     if (tables === true || tables === false) {
       return !tables;
     }
+    // because tables are always exhaustive, we can simply invert each range
     for (let [f, t] of tables) {
       for (let i = 0; i < t.values.length; i++) {
         t.values[i] = !t.values[i];
@@ -266,6 +293,9 @@ class VersionRangeTable {
     return out_tables;
   }
 
+  /**
+   * If this is true for all versions or false for all versions, returen that value. Otherwise return null.
+   */
   static collapse(tables: VersionRangeTables): boolean | null {
     if (tables === true || tables === false) {
       return tables;
@@ -284,6 +314,10 @@ class VersionRangeTable {
     }
   }
 
+  /**
+   * Expresses this truth table as a series of version range operators.
+   * https://en.wikipedia.org/wiki/Canonical_normal_form#Minterms
+   */
   static miniterms(tables: VersionRangeTables): VersionRange {
     let collapse = VersionRangeTable.collapse(tables);
     if (tables === true || collapse === true) {
@@ -325,11 +359,12 @@ class VersionRangeTable {
           if (p != null && p.side < 0) {
             term.push(VersionRange.anchor('>=', new ExtendedVersion(cmp_flavor, p.upstream, p.downstream)));
           }
-          if (p != null && p.side >= 0)
+          if (p != null && p.side >= 0) {
             term.push(VersionRange.anchor('>', new ExtendedVersion(cmp_flavor, p.upstream, p.downstream)));
           }
           if (q != null && q.side < 0) {
             term.push(VersionRange.anchor('<', new ExtendedVersion(cmp_flavor, q.upstream, q.downstream)));
+          }
           if (q != null && q.side >= 0) {
             term.push(VersionRange.anchor('<=', new ExtendedVersion(cmp_flavor, q.upstream, q.downstream)));
           }
@@ -528,6 +563,7 @@ export class VersionRange {
       case "Anchor":
         switch (this.atom.operator) {
           case "=":
+            // equivalent to `>=2.0 && <=2.0 && #flavor`
             return VersionRangeTable.and(
               VersionRangeTable.cmp(this.atom.version, -1, false, true),
               VersionRangeTable.cmp(this.atom.version, 1, true, false),
@@ -541,16 +577,20 @@ export class VersionRange {
           case "<=":
             return VersionRangeTable.cmp(this.atom.version, 1, true, false)
           case "!=":
+            // equivalent to `!(<2.0 && >2.0 && #flavor)`
+            // **not** equivalent to `(<2.0 || >2.0) && #flavor`
             return VersionRangeTable.not(VersionRangeTable.and(
               VersionRangeTable.cmp(this.atom.version, -1, false, true),
               VersionRangeTable.cmp(this.atom.version, 1, true, false),
             ))
           case "^":
+            // equivalent to `>=2.0 && <3.0 && #flavor`
             return VersionRangeTable.and(
               VersionRangeTable.cmp(this.atom.version, -1, false, true),
               VersionRangeTable.cmp(this.atom.version.incrementMajor(), -1, true, false),
             )
           case "~":
+            // equivalent to `>=2.0 && <2.1 && #flavor`
             return VersionRangeTable.and(
               VersionRangeTable.cmp(this.atom.version, -1, false, true),
               VersionRangeTable.cmp(this.atom.version.incrementMinor(), -1, true, false),
