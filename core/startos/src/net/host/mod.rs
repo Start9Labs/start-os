@@ -255,7 +255,7 @@ pub async fn list_hosts(
     ctx: RpcContext,
     _: Empty,
     package: PackageId,
-) -> Result<Vec<HostId>, Error> {
+) -> Result<BTreeSet<HostId>, Error> {
     ctx.db
         .peek()
         .await

@@ -1,6 +1,5 @@
 use std::cmp::max;
 use std::ffi::OsString;
-use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -14,7 +13,6 @@ use crate::context::config::ServerConfig;
 use crate::context::rpc::InitRpcContextPhases;
 use crate::context::{DiagnosticContext, InitContext, RpcContext};
 use crate::net::network_interface::SelfContainedNetworkInterfaceListener;
-use crate::net::utils::ipv6_is_local;
 use crate::net::web_server::{Acceptor, UpgradableListener, WebServer};
 use crate::shutdown::Shutdown;
 use crate::system::launch_metrics_task;

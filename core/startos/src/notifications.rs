@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use clap::builder::ValueParserFactory;
 use clap::Parser;
 use color_eyre::eyre::eyre;
+use helpers::const_true;
 use imbl_value::InternedString;
 use models::{FromStrParser, PackageId};
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
@@ -15,7 +16,7 @@ use ts_rs::TS;
 
 use crate::backup::BackupReport;
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::{Database, DatabaseModel};
+use crate::db::model::DatabaseModel;
 use crate::prelude::*;
 use crate::util::serde::HandlerExtSerde;
 
@@ -33,14 +34,35 @@ pub fn notification<C: Context>() -> ParentHandler<C> {
             "remove",
             from_fn_async(remove)
                 .no_display()
-                .with_about("Delete notification for a given id")
+                .with_about("Remove notification for given ids")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
             "remove-before",
             from_fn_async(remove_before)
                 .no_display()
-                .with_about("Delete notifications preceding a given id")
+                .with_about("Remove notifications preceding a given id")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "mark-seen",
+            from_fn_async(mark_seen)
+                .no_display()
+                .with_about("Mark given notifications as seen")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "mark-seen-before",
+            from_fn_async(mark_seen_before)
+                .no_display()
+                .with_about("Mark notifications preceding a given id as seen")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "mark-unseen",
+            from_fn_async(mark_unseen)
+                .no_display()
+                .with_about("Mark given notifications as unseen")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -55,7 +77,7 @@ pub fn notification<C: Context>() -> ParentHandler<C> {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-pub struct ListParams {
+pub struct ListNotificationParams {
     #[ts(type = "number | null")]
     before: Option<u32>,
     #[ts(type = "number | null")]
@@ -65,7 +87,7 @@ pub struct ListParams {
 #[instrument(skip_all)]
 pub async fn list(
     ctx: RpcContext,
-    ListParams { before, limit }: ListParams,
+    ListNotificationParams { before, limit }: ListNotificationParams,
 ) -> Result<Vec<NotificationWithId>, Error> {
     ctx.db
         .mutate(|db| {
@@ -121,38 +143,124 @@ pub async fn list(
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-pub struct DeleteParams {
-    #[ts(type = "number")]
-    id: u32,
+pub struct ModifyNotificationParams {
+    #[ts(type = "number[]")]
+    ids: Vec<u32>,
 }
 
-pub async fn remove(ctx: RpcContext, DeleteParams { id }: DeleteParams) -> Result<(), Error> {
+pub async fn remove(
+    ctx: RpcContext,
+    ModifyNotificationParams { ids }: ModifyNotificationParams,
+) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
-            db.as_private_mut().as_notifications_mut().remove(&id)?;
+            let n = db.as_private_mut().as_notifications_mut();
+            for id in ids {
+                n.remove(&id)?;
+            }
             Ok(())
         })
         .await
 }
+
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-pub struct DeleteBeforeParams {
+pub struct ModifyNotificationBeforeParams {
     #[ts(type = "number")]
     before: u32,
 }
 
 pub async fn remove_before(
     ctx: RpcContext,
-    DeleteBeforeParams { before }: DeleteBeforeParams,
+    ModifyNotificationBeforeParams { before }: ModifyNotificationBeforeParams,
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
-            for id in db.as_private().as_notifications().keys()? {
-                if id < before {
-                    db.as_private_mut().as_notifications_mut().remove(&id)?;
+            let n = db.as_private_mut().as_notifications_mut();
+            for id in n.keys()?.range(..before) {
+                n.remove(&id)?;
+            }
+            Ok(())
+        })
+        .await
+}
+
+pub async fn mark_seen(
+    ctx: RpcContext,
+    ModifyNotificationParams { ids }: ModifyNotificationParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            let mut diff = 0;
+            let n = db.as_private_mut().as_notifications_mut();
+            for id in ids {
+                if !n
+                    .as_idx_mut(&id)
+                    .or_not_found(lazy_format!("Notification #{id}"))?
+                    .as_seen_mut()
+                    .replace(&true)?
+                {
+                    diff += 1;
                 }
             }
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_unread_notification_count_mut()
+                .mutate(|n| Ok(*n -= diff))?;
+            Ok(())
+        })
+        .await
+}
+
+pub async fn mark_seen_before(
+    ctx: RpcContext,
+    ModifyNotificationBeforeParams { before }: ModifyNotificationBeforeParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            let mut diff = 0;
+            let n = db.as_private_mut().as_notifications_mut();
+            for id in n.keys()?.range(..before) {
+                if !n
+                    .as_idx_mut(&id)
+                    .or_not_found(lazy_format!("Notification #{id}"))?
+                    .as_seen_mut()
+                    .replace(&true)?
+                {
+                    diff += 1;
+                }
+            }
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_unread_notification_count_mut()
+                .mutate(|n| Ok(*n -= diff))?;
+            Ok(())
+        })
+        .await
+}
+
+pub async fn mark_unseen(
+    ctx: RpcContext,
+    ModifyNotificationParams { ids }: ModifyNotificationParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            let mut diff = 0;
+            let n = db.as_private_mut().as_notifications_mut();
+            for id in ids {
+                if n.as_idx_mut(&id)
+                    .or_not_found(lazy_format!("Notification #{id}"))?
+                    .as_seen_mut()
+                    .replace(&false)?
+                {
+                    diff += 1;
+                }
+            }
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_unread_notification_count_mut()
+                .mutate(|n| Ok(*n += diff))?;
             Ok(())
         })
         .await
@@ -253,8 +361,9 @@ impl Map for Notifications {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, HasModel)]
 #[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
 pub struct Notification {
     pub package_id: Option<PackageId>,
     pub created_at: DateTime<Utc>,
@@ -263,6 +372,8 @@ pub struct Notification {
     pub title: String,
     pub message: String,
     pub data: Value,
+    #[serde(default = "const_true")]
+    pub seen: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -323,6 +434,7 @@ pub fn notify<T: NotificationType>(
             title,
             message,
             data,
+            seen: false,
         },
     )
 }

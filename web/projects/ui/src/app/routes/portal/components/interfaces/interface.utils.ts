@@ -19,7 +19,6 @@ export const REMOVE: Partial<TuiDialogOptions<TuiConfirmData>> = {
   },
 }
 
-// @TODO 040 Aiden audit
 export function getAddresses(
   serviceInterface: T.ServiceInterface,
   host: T.Host,
@@ -102,14 +101,12 @@ export function getAddresses(
 
   return {
     clearnet,
-    local,
+    local: local.filter(
+      (value, index, self) =>
+        index === self.findIndex(t => t.url === value.url),
+    ),
     tor,
   }
-
-  // @TODO Aiden what was going on here in 036?
-  // return mappedAddresses.filter(
-  //   (value, index, self) => index === self.findIndex(t => t.url === value.url),
-  // )
 }
 
 export type AddressDetails = {

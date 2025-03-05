@@ -81,7 +81,6 @@ export namespace RR {
     guid: string
   }
 
-  // @TODO 040 implement websocket
   export type FollowServerMetricsReq = {} // server.metrics.follow
   export type FollowServerMetricsRes = {
     guid: string
@@ -136,7 +135,6 @@ export namespace RR {
   } // notification.list
   export type GetNotificationsRes = ServerNotification<number>[]
 
-  // @TODO 040 all these notification endpoints need updating
   export type DeleteNotificationsReq = { ids: number[] } // notification.remove
   export type DeleteNotificationsRes = null
 
@@ -526,8 +524,7 @@ export type ServerNotification<T extends number> = {
   title: string
   message: string
   data: NotificationData<T>
-  // @TODO 040 need attr
-  read: boolean
+  seen: boolean
 }
 
 export type NotificationLevel = 'success' | 'info' | 'warning' | 'error'

@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::marker::PhantomData;
 use std::str::FromStr;
 
@@ -267,7 +267,7 @@ where
     T::Key: FromStr + Ord + Clone,
     Error: From<<T::Key as FromStr>::Err>,
 {
-    pub fn keys(&self) -> Result<Vec<T::Key>, Error> {
+    pub fn keys(&self) -> Result<BTreeSet<T::Key>, Error> {
         use serde::de::Error;
         match &self.value {
             Value::Object(o) => o

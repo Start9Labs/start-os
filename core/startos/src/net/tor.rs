@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::SocketAddr;
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Weak};
@@ -179,7 +179,7 @@ pub async fn add_key(
     Ok(key.public().get_onion_address())
 }
 
-pub async fn list_keys(ctx: RpcContext) -> Result<Vec<OnionAddressV3>, Error> {
+pub async fn list_keys(ctx: RpcContext) -> Result<BTreeSet<OnionAddressV3>, Error> {
     ctx.db
         .peek()
         .await

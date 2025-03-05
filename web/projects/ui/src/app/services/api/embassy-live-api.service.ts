@@ -245,7 +245,6 @@ export class LiveApiService extends ApiService {
   async followServerMetrics(
     params: RR.FollowServerMetricsReq,
   ): Promise<RR.FollowServerMetricsRes> {
-    // @TODO 040 implement .follow
     return this.rpcRequest({ method: 'server.metrics.follow', params })
   }
 

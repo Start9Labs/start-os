@@ -88,7 +88,7 @@ pub async fn mount(
     Ok(())
 }
 
-pub async fn get_installed_packages(context: EffectContext) -> Result<Vec<PackageId>, Error> {
+pub async fn get_installed_packages(context: EffectContext) -> Result<BTreeSet<PackageId>, Error> {
     context
         .deref()?
         .seed

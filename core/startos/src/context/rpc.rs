@@ -1,4 +1,3 @@
-use std::backtrace;
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
@@ -41,7 +40,7 @@ use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
 use crate::util::lshw::LshwDevice;
-use crate::util::sync::SyncMutex;
+use crate::util::sync::{SyncMutex, Watch};
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
@@ -57,7 +56,7 @@ pub struct RpcContextSeed {
     pub os_net_service: NetService,
     pub s9pk_arch: Option<&'static str>,
     pub services: ServiceMap,
-    pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
+    pub metrics_cache: Watch<Option<crate::system::Metrics>>,
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
     pub tor_socks: SocketAddr,
     pub lxc_manager: Arc<LxcManager>,
@@ -174,7 +173,7 @@ impl RpcContext {
         tracing::info!("Initialized Net Controller");
 
         let services = ServiceMap::default();
-        let metrics_cache = RwLock::<Option<crate::system::Metrics>>::new(None);
+        let metrics_cache = Watch::<Option<crate::system::Metrics>>::new(None);
         let tor_proxy_url = format!("socks5h://{tor_proxy}");
 
         let crons = SyncMutex::new(BTreeMap::new());
@@ -488,7 +487,7 @@ impl Drop for RpcContext {
             let count = Arc::strong_count(&self.0) - 1;
             tracing::info!("RpcContext dropped. {} left.", count);
             if count > 0 {
-                tracing::debug!("{}", backtrace::Backtrace::force_capture());
+                tracing::debug!("{}", std::backtrace::Backtrace::force_capture());
                 tracing::debug!("{:?}", eyre!(""))
             }
         }
