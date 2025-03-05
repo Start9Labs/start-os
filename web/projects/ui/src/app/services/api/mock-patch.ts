@@ -191,6 +191,7 @@ export const mockPatchData: DataModel = {
       backupProgress: {},
     },
     hostname: 'random-words',
+    // @ts-ignore
     host: {
       bindings: {
         80: {

@@ -54,7 +54,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
   `,
   styles: `
     :host {
-      grid-column: span 2;
+      grid-column: span 4;
     }
 
     header {

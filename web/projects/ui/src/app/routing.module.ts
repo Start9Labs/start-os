@@ -40,6 +40,7 @@ const routes: Routes = [
       paramsInheritanceStrategy: 'always',
       preloadingStrategy: PreloadAllModules,
       initialNavigation: 'disabled',
+      bindToComponentInputs: true,
     }),
   ],
   exports: [RouterModule],

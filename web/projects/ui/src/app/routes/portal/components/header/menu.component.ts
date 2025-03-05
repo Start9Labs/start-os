@@ -1,16 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { RouterLink } from '@angular/router'
-import {
-  TuiButton,
-  TuiDataList,
-  TuiDialogService,
-  TuiDropdown,
-  TuiIcon,
-} from '@taiga-ui/core'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
+import { TuiButton, TuiDataList, TuiDropdown, TuiIcon } from '@taiga-ui/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
-import { RESOURCES } from 'src/app/utils/resources'
 import { STATUS } from 'src/app/services/status.service'
+import { RESOURCES } from 'src/app/utils/resources'
 import { ABOUT } from './about.component'
 
 @Component({
@@ -102,7 +97,7 @@ import { ABOUT } from './about.component'
 export class HeaderMenuComponent {
   private readonly api = inject(ApiService)
   private readonly auth = inject(AuthService)
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialogs = inject(TuiResponsiveDialogService)
 
   open = false
 

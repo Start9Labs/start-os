@@ -4,8 +4,7 @@ const MARKETPLACE_ROUTES: Routes = [
   {
     path: '',
     pathMatch: 'full',
-    loadComponent: () =>
-      import('./marketplace.component').then(m => m.MarketplaceComponent),
+    loadComponent: () => import('./marketplace.component'),
   },
 ]
 

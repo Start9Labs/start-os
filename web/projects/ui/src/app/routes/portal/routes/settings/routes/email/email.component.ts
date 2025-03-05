@@ -5,6 +5,7 @@ import {
   ReactiveFormsModule,
   UntypedFormGroup,
 } from '@angular/forms'
+import { RouterLink } from '@angular/router'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { IST, inputSpec } from '@start9labs/start-sdk'
 import { TuiButton, TuiDialogService } from '@taiga-ui/core'
@@ -15,11 +16,16 @@ import { FormModule } from 'src/app/routes/portal/components/form/form.module'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormService } from 'src/app/services/form.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { TitleDirective } from 'src/app/services/title.service'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { EmailInfoComponent } from './info.component'
 
 @Component({
   template: `
+    <ng-container *title>
+      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
+      Email
+    </ng-container>
     <email-info />
     <ng-container *ngIf="form$ | async as form">
       <form [formGroup]="form" [style.text-align]="'right'">
@@ -31,7 +37,7 @@ import { EmailInfoComponent } from './info.component'
         <button
           *ngIf="isSaved"
           tuiButton
-          appearance="destructive"
+          appearance="secondary-destructive"
           [style.margin-top.rem]="1"
           [style.margin-right.rem]="1"
           (click)="save(null)"
@@ -79,6 +85,8 @@ import { EmailInfoComponent } from './info.component'
     TuiButton,
     TuiInputModule,
     EmailInfoComponent,
+    RouterLink,
+    TitleDirective,
   ],
 })
 export class SettingsEmailComponent {

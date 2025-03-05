@@ -1,27 +1,27 @@
-import { TuiScrollbar } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
+import { ActivatedRoute, Router } from '@angular/router'
 import {
   AbstractCategoryService,
   FilterPackagesPipe,
   FilterPackagesPipeModule,
 } from '@start9labs/marketplace'
-import { tap, withLatestFrom } from 'rxjs'
-import { MarketplaceNotificationComponent } from './components/notification.component'
-import { MarketplaceMenuComponent } from './components/menu.component'
-import { MarketplaceTileComponent } from './components/tile.component'
-import { MarketplaceControlsComponent } from './components/controls.component'
-import { MarketplacePreviewComponent } from './modals/preview.component'
-import { MarketplaceSidebarsComponent } from './components/sidebars.component'
-import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { ActivatedRoute, Router } from '@angular/router'
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
+import { TuiScrollbar } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
+import { tap, withLatestFrom } from 'rxjs'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { TitleDirective } from 'src/app/services/title.service'
+import { MarketplaceMenuComponent } from './components/menu.component'
+import { MarketplaceNotificationComponent } from './components/notification.component'
+import { MarketplaceSidebarsComponent } from './components/sidebars.component'
+import { MarketplaceTileComponent } from './components/tile.component'
 
 @Component({
   standalone: true,
   template: `
+    <ng-container *title>Marketplace</ng-container>
     <marketplace-menu />
     <tui-scrollbar>
       <div class="marketplace-content-wrapper">
@@ -152,14 +152,13 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     MarketplaceTileComponent,
     MarketplaceMenuComponent,
     MarketplaceNotificationComponent,
-    MarketplaceControlsComponent,
-    MarketplacePreviewComponent,
     MarketplaceSidebarsComponent,
     TuiScrollbar,
     FilterPackagesPipeModule,
+    TitleDirective,
   ],
 })
-export class MarketplaceComponent {
+export default class MarketplaceComponent {
   private readonly categoryService = inject(AbstractCategoryService)
   private readonly marketplaceService = inject(MarketplaceService)
   private readonly router = inject(Router)
