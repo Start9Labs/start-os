@@ -1,12 +1,9 @@
-import { TuiScrollbar } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
-import { NavigationEnd, Router, RouterOutlet } from '@angular/router'
+import { RouterOutlet } from '@angular/router'
+import { TuiScrollbar } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
-import { filter } from 'rxjs'
 import { TabsComponent } from 'src/app/routes/portal/components/tabs.component'
-import { BreadcrumbsService } from 'src/app/services/breadcrumbs.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { HeaderComponent } from './components/header/header.component'
 
@@ -48,15 +45,5 @@ import { HeaderComponent } from './components/header/header.component'
   ],
 })
 export class PortalComponent {
-  private readonly breadcrumbs = inject(BreadcrumbsService)
-  private readonly _ = inject(Router)
-    .events.pipe(
-      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
-      takeUntilDestroyed(),
-    )
-    .subscribe(e => {
-      this.breadcrumbs.update(e.url.replace('/portal/services/', ''))
-    })
-
   readonly name$ = inject<PatchDB<DataModel>>(PatchDB).watch$('ui', 'name')
 }

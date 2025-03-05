@@ -1,14 +1,20 @@
+import { RouterLink } from '@angular/router'
 import { TuiButton } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ErrorService } from '@start9labs/shared'
 import { catchError, defer, of } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { TitleDirective } from 'src/app/services/title.service'
 import { SSHInfoComponent } from './info.component'
 import { SSHTableComponent } from './table.component'
 
 @Component({
   template: `
+    <ng-container *title>
+      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
+      SSH
+    </ng-container>
     <ssh-info />
     <h3 class="g-title">
       Saved Keys
@@ -25,7 +31,14 @@ import { SSHTableComponent } from './table.component'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiButton, SSHTableComponent, SSHInfoComponent],
+  imports: [
+    CommonModule,
+    TuiButton,
+    SSHTableComponent,
+    SSHInfoComponent,
+    RouterLink,
+    TitleDirective,
+  ],
 })
 export class SettingsSSHComponent {
   private readonly errorService = inject(ErrorService)

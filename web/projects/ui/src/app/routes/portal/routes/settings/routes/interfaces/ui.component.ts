@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { RouterLink } from '@angular/router'
 import { T } from '@start9labs/start-sdk'
+import { TuiButton } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { Observable, map } from 'rxjs'
 import {
@@ -10,6 +12,7 @@ import {
 import { getAddresses } from 'src/app/routes/portal/components/interfaces/interface.utils'
 import { ConfigService } from 'src/app/services/config.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { TitleDirective } from 'src/app/services/title.service'
 
 const iface: T.ServiceInterface = {
   id: '',
@@ -30,6 +33,10 @@ const iface: T.ServiceInterface = {
 
 @Component({
   template: `
+    <ng-container *title>
+      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
+      Web Addresses
+    </ng-container>
     <app-interface
       *ngIf="ui$ | async as ui"
       [style.max-width.rem]="50"
@@ -38,7 +45,13 @@ const iface: T.ServiceInterface = {
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, InterfaceComponent],
+  imports: [
+    CommonModule,
+    InterfaceComponent,
+    RouterLink,
+    TuiButton,
+    TitleDirective,
+  ],
 })
 export class StartOsUiComponent {
   private readonly config = inject(ConfigService)

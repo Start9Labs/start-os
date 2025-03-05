@@ -8,18 +8,20 @@ import {
 import { FormsModule } from '@angular/forms'
 import { T } from '@start9labs/start-sdk'
 import { tuiIsString } from '@taiga-ui/cdk'
-import { TuiButton, TuiLink } from '@taiga-ui/core'
+import { TuiButton } from '@taiga-ui/core'
 import {
   TuiAvatar,
   TuiFiles,
   tuiInputFilesOptionsProvider,
 } from '@taiga-ui/kit'
 import { ConfigService } from 'src/app/services/config.service'
+import { TitleDirective } from 'src/app/services/title.service'
 import { SideloadPackageComponent } from './package.component'
 import { parseS9pk } from './sideload.utils'
 
 @Component({
   template: `
+    <ng-container *title>Sideload</ng-container>
     @if (file && package()) {
       <sideload-package [package]="package()!" [file]="file!">
         <button
@@ -82,10 +84,10 @@ import { parseS9pk } from './sideload.utils'
   imports: [
     FormsModule,
     TuiFiles,
-    TuiLink,
     TuiAvatar,
     TuiButton,
     SideloadPackageComponent,
+    TitleDirective,
   ],
 })
 export default class SideloadComponent {

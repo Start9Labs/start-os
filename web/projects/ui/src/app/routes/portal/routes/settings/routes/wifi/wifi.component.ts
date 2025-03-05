@@ -6,6 +6,7 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
+import { RouterLink } from '@angular/router'
 import { ErrorService, LoadingService, pauseFor } from '@start9labs/shared'
 import {
   TuiAlertService,
@@ -25,6 +26,7 @@ import {
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { TitleDirective } from 'src/app/services/title.service'
 import { WifiInfoComponent } from './info.component'
 import { WifiTableComponent } from './table.component'
 import { parseWifi, WifiData, WiFiForm } from './utils'
@@ -32,6 +34,10 @@ import { wifiSpec } from './wifi.const'
 
 @Component({
   template: `
+    <ng-container *title>
+      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
+      WiFi
+    </ng-container>
     <wifi-info />
     @if (status()?.interface) {
       <h3 class="g-title">
@@ -87,6 +93,8 @@ import { wifiSpec } from './wifi.const'
     TuiAppearance,
     WifiInfoComponent,
     WifiTableComponent,
+    TitleDirective,
+    RouterLink,
   ],
 })
 export class SettingsWifiComponent {

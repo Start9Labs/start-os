@@ -25,8 +25,10 @@ import { MappedInterface } from '../types/mapped-interface'
     <td>
       <tui-badge size="m" [appearance]="appearance">{{ info.type }}</tui-badge>
     </td>
-    <td class="g-secondary">{{ info.description }}</td>
-    <td class="hosting">
+    <td class="g-secondary" [style.grid-area]="'2 / span 4'">
+      {{ info.description }}
+    </td>
+    <td>
       @if (info.public) {
         <button
           tuiButton
@@ -49,10 +51,10 @@ import { MappedInterface } from '../types/mapped-interface'
         </button>
       }
     </td>
-    <td>
+    <td [style.grid-area]="'span 2'">
       @if (info.type === 'ui') {
         <a
-          tuiButton
+          tuiIconButton
           appearance="action"
           iconStart="@tui.external-link"
           target="_blank"
@@ -76,20 +78,15 @@ import { MappedInterface } from '../types/mapped-interface'
       text-transform: uppercase;
     }
 
-    .hosting {
-      white-space: nowrap;
-    }
-
     :host-context(tui-root._mobile) {
-      display: block;
-      padding: 0.5rem 0;
+      display: grid;
+      grid-template-columns: repeat(3, min-content) 1fr 2rem;
+      align-items: center;
+      padding: 1rem 0.5rem;
+      gap: 0.5rem;
 
       td {
-        display: inline-block;
-      }
-
-      .hosting {
-        font-size: 0;
+        padding: 0;
       }
     }
   `,

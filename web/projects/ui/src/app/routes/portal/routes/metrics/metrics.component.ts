@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { TuiProgress } from '@taiga-ui/kit'
 import { CpuComponent } from 'src/app/routes/portal/routes/metrics/cpu.component'
+import { TitleDirective } from 'src/app/services/title.service'
 import { TemperatureComponent } from 'src/app/routes/portal/routes/metrics/temperature.component'
 import { MetricComponent } from 'src/app/routes/portal/routes/metrics/metric.component'
 import { MetricsService } from 'src/app/routes/portal/routes/metrics/metrics.service'
@@ -12,6 +13,7 @@ import { TimeService } from 'src/app/services/time.service'
   standalone: true,
   selector: 'app-metrics',
   template: `
+    <ng-container *title>Metrics</ng-container>
     <section>
       <app-metric class="wide" label="Storage" [style.max-height.%]="85">
         <progress
@@ -168,7 +170,7 @@ import { TimeService } from 'src/app/services/time.service'
     MetricComponent,
     TemperatureComponent,
     CpuComponent,
-    AsyncPipe,
+    TitleDirective,
   ],
 })
 export default class SystemMetricsComponent {

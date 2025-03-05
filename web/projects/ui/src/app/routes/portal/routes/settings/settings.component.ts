@@ -1,10 +1,12 @@
 import { TuiIcon } from '@taiga-ui/core'
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { RouterModule } from '@angular/router'
+import { TitleDirective } from 'src/app/services/title.service'
 import { SettingsMenuComponent } from './components/menu.component'
 
 @Component({
   template: `
+    <ng-container *title><span>Settings</span></ng-container>
     <a
       routerLink="/portal/settings"
       routerLinkActive="_current"
@@ -25,6 +27,7 @@ import { SettingsMenuComponent } from './components/menu.component'
       }
 
       a,
+      span:not(:last-child),
       settings-menu {
         display: none;
       }
@@ -39,6 +42,6 @@ import { SettingsMenuComponent } from './components/menu.component'
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [RouterModule, TuiIcon, SettingsMenuComponent],
+  imports: [RouterModule, TuiIcon, SettingsMenuComponent, TitleDirective],
 })
 export class SettingsComponent {}

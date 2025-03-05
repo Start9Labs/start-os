@@ -7,8 +7,8 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink, RouterLinkActive } from '@angular/router'
-import { TuiSheetDialogService, TuiTabBar } from '@taiga-ui/addon-mobile'
-import { TuiDialogService, TuiIcon } from '@taiga-ui/core'
+import { TuiResponsiveDialogService, TuiTabBar } from '@taiga-ui/addon-mobile'
+import { TuiIcon } from '@taiga-ui/core'
 import { TuiBadgeNotification } from '@taiga-ui/kit'
 import { ABOUT } from 'src/app/routes/portal/components/header/about.component'
 import { BadgeService } from 'src/app/services/badge.service'
@@ -133,8 +133,7 @@ const FILTER = ['/portal/services', '/portal/settings', '/portal/marketplace']
   ],
 })
 export class TabsComponent {
-  private readonly sheets = inject(TuiSheetDialogService)
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly links = viewChildren(RouterLinkActive)
 
   index = 3
@@ -154,7 +153,7 @@ export class TabsComponent {
   }
 
   more(content: TemplateRef<any>) {
-    this.sheets.open(content, { label: 'Start OS' }).subscribe({
+    this.dialogs.open(content, { label: 'Start OS' }).subscribe({
       complete: () => this.update(),
     })
   }

@@ -69,16 +69,14 @@ hr {
   height: 100%;
   min-height: fit-content;
   flex: 1;
-  padding: 2rem;
-
-  tui-root._mobile & {
-    padding: 1rem;
-  }
+  padding: 1rem;
 }
 
 .g-card {
-  transition: all 300ms ease-in-out;
-  padding: 1.25rem 1.5rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 3.25rem 1rem 0.5rem;
   border-radius: 0.5rem;
   overflow: hidden;
   background-color: color-mix(in hsl, var(--start9-base-1) 50%, transparent);
@@ -103,33 +101,38 @@ hr {
     inset 0 1px rgba(255, 255, 255, 0.15),
     inset 0 0 1rem rgba(0, 0, 0, 0.25);
 
-  &:hover {
-    box-shadow:
-      0 0.375rem 0.5rem rgba(0, 0, 0, 0.25),
-      0 -0.125rem 0.25rem rgba(55, 155, 255, 0.08),
-      0 0 0.5rem rgba(0, 0, 0, 0.3),
-      inset 0 -0.125rem rgba(255, 255, 255, 0.03),
-      inset 0 2px rgba(255, 255, 255, 0.1),
-      inset 0 1px rgba(255, 255, 255, 0.15),
-      inset 0 0 1rem rgba(0, 0, 0, 0.25);
+  > [tuiCell] {
+    margin: 0 -0.5rem;
+
+    &:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 1rem;
+      right: 1rem;
+      height: 1px;
+      background: var(--tui-border-normal);
+    }
   }
 
-  > [tuiCell]:not(:last-child)::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 1rem;
-    right: 1rem;
-    height: 1px;
-    background: var(--tui-border-normal);
+  > table {
+    margin: 0 -0.5rem;
+
+    td:empty,
+    th:empty {
+      display: none;
+    }
   }
 
   > header {
-    padding-bottom: 0.75rem;
-    margin: -0.5rem 0 0.5rem;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 0.5rem 1rem;
     background: var(--tui-background-neutral-1);
-    box-shadow: 0 -10rem 0 10rem var(--tui-background-neutral-1);
-    font: var(--tui-font-heading-6);
+    font: var(--tui-font-text-l);
+    font-weight: bold;
   }
 }
 
@@ -197,6 +200,10 @@ hr {
 
 .g-table[tuiTable] {
   width: stretch;
+
+  &:not(:has(tbody tr)) {
+    display: none;
+  }
 
   tr:not(:last-child) {
     box-shadow: inset 0 -1px var(--tui-background-neutral-1);

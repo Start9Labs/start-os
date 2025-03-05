@@ -4,9 +4,11 @@ import { TuiSelectModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy'
 import { LogsComponent } from 'src/app/routes/portal/components/logs/logs.component'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { TitleDirective } from 'src/app/services/title.service'
 
 @Component({
   template: `
+    <ng-container *title>Logs</ng-container>
     <tui-select
       tuiTextfieldAppearance="secondary"
       tuiTextfieldSize="m"
@@ -59,6 +61,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
     TuiSelectModule,
     TuiTextfieldControllerModule,
     LogsComponent,
+    TitleDirective,
   ],
 })
 export default class SystemLogsComponent {
