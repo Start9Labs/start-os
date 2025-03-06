@@ -5,7 +5,7 @@ import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
 import { TuiCell } from '@taiga-ui/layout'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { ServiceActionRequestsComponent } from './action-requests.component'
+import { ServicePlaceholderComponent } from './placeholder.component'
 
 @Component({
   selector: 'service-dependencies',
@@ -24,33 +24,15 @@ import { ServiceActionRequestsComponent } from './action-requests.component'
         </span>
         <tui-icon icon="@tui.arrow-right" />
       </a>
-      @if (services[d.key]; as service) {
-        <service-action-requests [pkg]="service" />
-      }
     } @empty {
-      <blockquote>No dependencies</blockquote>
+      <service-placeholder icon="@tui.boxes">
+        No dependencies
+      </service-placeholder>
     }
   `,
   styles: `
-    a {
-      margin: 0 -1rem;
-
-      &::after {
-        display: none;
-      }
-    }
-
-    service-action-requests {
-      display: block;
-      padding: 1rem 0 0 2.375rem;
-      margin: -1rem 0 1rem 1.125rem;
-      box-shadow: inset 0.125rem 0 var(--tui-border-normal);
-    }
-
-    blockquote {
-      text-align: center;
-      font: var(--tui-font-text-l);
-      color: var(--tui-text-tertiary);
+    :host {
+      grid-column: span 3;
     }
   `,
   host: { class: 'g-card' },
@@ -58,12 +40,12 @@ import { ServiceActionRequestsComponent } from './action-requests.component'
   standalone: true,
   imports: [
     KeyValuePipe,
+    RouterLink,
     TuiCell,
     TuiAvatar,
     TuiTitle,
-    ServiceActionRequestsComponent,
-    RouterLink,
     TuiIcon,
+    ServicePlaceholderComponent,
   ],
 })
 export class ServiceDependenciesComponent {

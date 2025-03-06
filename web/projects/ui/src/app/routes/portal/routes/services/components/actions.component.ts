@@ -56,7 +56,21 @@ import { getManifest } from 'src/app/utils/get-package-data'
         grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
         gap: 1rem;
         justify-content: center;
+        inline-size: 20rem;
+        max-inline-size: 100%;
         margin-block-start: 1rem;
+      }
+
+      :host-context(tui-root._mobile) {
+        display: flex;
+        margin: 0;
+        inline-size: min-content;
+
+        [tuiButton] {
+          font-size: 0;
+          gap: 0;
+          border-radius: 100%;
+        }
       }
     `,
   ],

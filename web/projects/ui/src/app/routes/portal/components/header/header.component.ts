@@ -1,16 +1,16 @@
-import { AsyncPipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { toSignal } from '@angular/core/rxjs-interop'
 import {
-  IsActiveMatchOptions,
-  RouterLink,
-  RouterLinkActive,
-} from '@angular/router'
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  OnInit,
+  viewChild,
+  ViewContainerRef,
+} from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { PatchDB } from 'patch-db-client'
-import { BreadcrumbsService } from 'src/app/services/breadcrumbs.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { TitleService } from 'src/app/services/title.service'
 import { HeaderMenuComponent } from './menu.component'
-import { HeaderMobileComponent } from './mobile.component'
 import { HeaderNavigationComponent } from './navigation.component'
 import { HeaderSnekDirective } from './snek.directive'
 import { HeaderStatusComponent } from './status.component'
@@ -19,7 +19,8 @@ import { HeaderStatusComponent } from './status.component'
   selector: 'header[appHeader]',
   template: `
     <header-navigation />
-    <div class="item item_center" [headerMobile]="breadcrumbs$ | async">
+    <div class="item item_center">
+      <div class="mobile"><ng-container #vcr /></div>
       <img
         [appSnek]="snekScore()"
         class="snek"
@@ -40,6 +41,10 @@ import { HeaderStatusComponent } from './status.component'
         border-radius: var(--bumper);
         margin: var(--bumper);
         overflow: hidden;
+
+        .mobile {
+          display: none;
+        }
 
         .item {
           position: relative;
@@ -65,6 +70,7 @@ import { HeaderStatusComponent } from './status.component'
 
           &_center {
             flex: 1;
+            min-width: 0;
           }
 
           &_connection::before {
@@ -116,25 +122,36 @@ import { HeaderStatusComponent } from './status.component'
         .item_center::before {
           left: -2rem;
         }
+
+        .mobile {
+          display: flex;
+          height: 100%;
+          align-items: center;
+          font: var(--tui-font-text-l);
+          padding: 1rem;
+          white-space: nowrap;
+          overflow: hidden;
+
+          ::ng-deep > [tuiIconButton] {
+            margin-inline-start: -1rem;
+          }
+        }
       }
     `,
   ],
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    RouterLink,
-    RouterLinkActive,
-    AsyncPipe,
     HeaderStatusComponent,
     HeaderNavigationComponent,
     HeaderSnekDirective,
-    HeaderMobileComponent,
     HeaderMenuComponent,
   ],
 })
-export class HeaderComponent {
-  readonly options = OPTIONS
-  readonly breadcrumbs$ = inject(BreadcrumbsService)
+export class HeaderComponent implements OnInit {
+  private readonly title = inject(TitleService)
+
+  readonly vcr = viewChild.required('vcr', { read: ViewContainerRef })
   readonly snekScore = toSignal(
     inject<PatchDB<DataModel>>(PatchDB).watch$(
       'ui',
@@ -144,11 +161,8 @@ export class HeaderComponent {
     ),
     { initialValue: 0 },
   )
-}
 
-const OPTIONS: IsActiveMatchOptions = {
-  paths: 'exact',
-  queryParams: 'ignored',
-  fragment: 'ignored',
-  matrixParams: 'ignored',
+  ngOnInit() {
+    this.title.register(this.vcr())
+  }
 }

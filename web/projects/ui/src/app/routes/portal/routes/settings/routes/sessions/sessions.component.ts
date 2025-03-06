@@ -1,3 +1,4 @@
+import { RouterLink } from '@angular/router'
 import { TuiLet } from '@taiga-ui/cdk'
 import { TuiButton } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
@@ -6,10 +7,15 @@ import { ErrorService, LoadingService } from '@start9labs/shared'
 import { from, map, merge, Observable, Subject } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Session } from 'src/app/services/api/api.types'
+import { TitleDirective } from 'src/app/services/title.service'
 import { SSHTableComponent } from './table.component'
 
 @Component({
   template: `
+    <ng-container *title>
+      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
+      Active Sessions
+    </ng-container>
     <h3 class="g-title">Current session</h3>
     <table
       class="g-table"
@@ -36,7 +42,14 @@ import { SSHTableComponent } from './table.component'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiButton, SSHTableComponent, TuiLet],
+  imports: [
+    CommonModule,
+    TuiButton,
+    SSHTableComponent,
+    TuiLet,
+    RouterLink,
+    TitleDirective,
+  ],
 })
 export class SettingsSessionsComponent {
   private readonly loader = inject(LoadingService)

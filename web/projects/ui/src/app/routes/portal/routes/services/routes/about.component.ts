@@ -41,7 +41,7 @@ import ServiceMarkdownRoute from './markdown.component'
       display: flex;
       flex-direction: column;
       max-width: 32rem;
-      padding: 0.75rem;
+      padding: 0.5rem 1rem;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

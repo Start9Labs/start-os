@@ -1,4 +1,4 @@
-import { TuiLineClamp, TuiCheckbox, TuiSkeleton } from '@taiga-ui/kit'
+import { TuiCheckbox, TuiSkeleton } from '@taiga-ui/kit'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -7,7 +7,6 @@ import {
   signal,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { BehaviorSubject } from 'rxjs'
 import {
   ServerNotification,
   ServerNotifications,
@@ -76,13 +75,7 @@ import { NotificationItemComponent } from './item.component'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [
-    FormsModule,
-    TuiCheckbox,
-    TuiLineClamp,
-    NotificationItemComponent,
-    TuiSkeleton,
-  ],
+  imports: [FormsModule, TuiCheckbox, NotificationItemComponent, TuiSkeleton],
 })
 export class NotificationsTableComponent implements OnChanges {
   @Input() notifications?: ServerNotifications

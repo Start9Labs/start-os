@@ -46,11 +46,7 @@ import { ServiceStatusComponent } from '../components/status.component'
       <service-interfaces [pkg]="pkg()" [disabled]="status() !== 'running'" />
       <service-dependencies [pkg]="pkg()" [services]="services()" />
       <service-health-checks [checks]="health()" />
-
-      <section class="g-card">
-        <header>Tasks</header>
-        <service-action-requests [pkg]="pkg()" />
-      </section>
+      <service-action-requests [pkg]="pkg()" [services]="services()" />
     }
 
     @if (installing()) {
@@ -65,7 +61,7 @@ import { ServiceStatusComponent } from '../components/status.component'
   styles: `
     :host {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(6, 1fr);
       grid-auto-rows: max-content;
       gap: 1rem;
     }
@@ -79,7 +75,7 @@ import { ServiceStatusComponent } from '../components/status.component'
       grid-template-columns: 1fr;
 
       > * {
-        grid-column: span 1 !important;
+        grid-column: span 1;
       }
     }
   `,

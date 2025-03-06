@@ -39,6 +39,11 @@ export const mockPatchData: DataModel = {
         selected: null,
         lastRegion: null,
       },
+      acme: {
+        [knownACME[0].url]: {
+          contact: ['mailto:support@start9.com'],
+        },
+      },
       host: {
         bindings: {
           80: {
@@ -169,11 +174,6 @@ export const mockPatchData: DataModel = {
             ntpServers: [],
           },
         },
-      },
-    },
-    acme: {
-      [knownACME[0].url]: {
-        contact: ['mailto:support@start9.com'],
       },
     },
     unreadNotificationCount: 4,

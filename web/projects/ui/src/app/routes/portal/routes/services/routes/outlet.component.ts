@@ -6,12 +6,13 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router, RouterModule } from '@angular/router'
-import { TuiAppearance, TuiIcon, TuiTitle } from '@taiga-ui/core'
+import { TuiAppearance, TuiButton, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar, TuiFade } from '@taiga-ui/kit'
 import { TuiCell, tuiCellOptionsProvider } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { TitleDirective } from 'src/app/services/title.service'
 import { getManifest } from 'src/app/utils/get-package-data'
 
 const ICONS = {
@@ -25,6 +26,13 @@ const ICONS = {
 @Component({
   template: `
     @if (service()) {
+      <div *title class="title">
+        <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
+        <tui-avatar size="xs" [style.margin-inline-end.rem]="0.75">
+          <img alt="" [src]="service()?.icon" />
+        </tui-avatar>
+        <span tuiFade>{{ manifest()?.title }}</span>
+      </div>
       <aside>
         <header tuiCell>
           <tui-avatar><img alt="" [src]="service()?.icon" /></tui-avatar>
@@ -56,6 +64,16 @@ const ICONS = {
     :host {
       display: flex;
       padding: 0;
+    }
+
+    .title {
+      display: flex;
+      align-items: center;
+      margin-inline-start: -1rem;
+
+      &:not(:only-child) {
+        display: none;
+      }
     }
 
     aside {
@@ -108,10 +126,13 @@ const ICONS = {
           flex: 1;
           justify-content: center;
           border-radius: 0;
+          padding: 0.125rem;
           background: var(--tui-background-neutral-1);
+          box-shadow: inset 0 -1px var(--tui-background-neutral-1);
 
           &.active {
             background: none;
+            box-shadow: none;
           }
 
           [tuiTitle] {
@@ -131,6 +152,8 @@ const ICONS = {
     TuiAppearance,
     TuiIcon,
     TuiFade,
+    TitleDirective,
+    TuiButton,
   ],
   providers: [tuiCellOptionsProvider({ height: 'spacious' })],
 })

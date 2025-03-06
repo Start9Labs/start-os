@@ -9,10 +9,12 @@ import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
 import { RR, ServerNotifications } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { NotificationService } from 'src/app/services/notification.service'
+import { TitleDirective } from 'src/app/services/title.service'
 import { NotificationsTableComponent } from './table.component'
 
 @Component({
   template: `
+    <ng-container *title>Notifications</ng-container>
     <h3 class="g-title">
       <button
         appearance="primary"
@@ -54,7 +56,13 @@ import { NotificationsTableComponent } from './table.component'
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiDropdown, TuiButton, TuiDataList, NotificationsTableComponent],
+  imports: [
+    TuiDropdown,
+    TuiButton,
+    TuiDataList,
+    NotificationsTableComponent,
+    TitleDirective,
+  ],
 })
 export default class NotificationsComponent {
   readonly service = inject(NotificationService)

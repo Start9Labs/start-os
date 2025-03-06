@@ -27,23 +27,21 @@ import { ServiceInterfaceComponent } from './interface.component'
           <th tuiTh></th>
         </tr>
       </thead>
-      @for (info of interfaces(); track $index) {
-        <tr
-          serviceInterface
-          [info]="info"
-          [pkg]="pkg()"
-          [disabled]="disabled()"
-        ></tr>
-      }
+      <tbody>
+        @for (info of interfaces(); track $index) {
+          <tr
+            serviceInterface
+            [info]="info"
+            [pkg]="pkg()"
+            [disabled]="disabled()"
+          ></tr>
+        }
+      </tbody>
     </table>
   `,
   styles: `
     :host {
-      grid-column: span 2;
-    }
-
-    table {
-      margin: 0 -0.5rem;
+      grid-column: span 4;
     }
   `,
   host: { class: 'g-card' },

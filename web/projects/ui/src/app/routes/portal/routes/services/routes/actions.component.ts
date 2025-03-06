@@ -55,14 +55,6 @@ const OTHER = 'Other Custom Actions'
       flex-direction: column;
       margin-bottom: 2rem;
     }
-
-    [tuiCell] {
-      margin: 0 -1rem;
-
-      &:last-child {
-        margin-bottom: -0.75rem;
-      }
-    }
   `,
   host: { class: 'g-subpage' },
   changeDetection: ChangeDetectionStrategy.OnPush,

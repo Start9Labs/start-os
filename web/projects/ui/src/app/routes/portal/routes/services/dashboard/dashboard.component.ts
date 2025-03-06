@@ -5,6 +5,7 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
 import { DepErrorService } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { getInstalledPrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
+import { TitleDirective } from 'src/app/services/title.service'
 import { getManifest } from 'src/app/utils/get-package-data'
 import { ServiceComponent } from './service.component'
 import { ServicesService } from './services.service'
@@ -12,6 +13,7 @@ import { ServicesService } from './services.service'
 @Component({
   standalone: true,
   template: `
+    <ng-container *title>Services</ng-container>
     <table tuiTable class="g-table" [(sorter)]="sorter">
       <thead>
         <tr>
@@ -55,7 +57,7 @@ import { ServicesService } from './services.service'
     }
   `,
   host: { class: 'g-page' },
-  imports: [ServiceComponent, ToManifestPipe, TuiTable],
+  imports: [ServiceComponent, ToManifestPipe, TuiTable, TitleDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class DashboardComponent {
