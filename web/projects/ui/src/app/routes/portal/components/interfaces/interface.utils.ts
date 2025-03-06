@@ -100,12 +100,18 @@ export function getAddresses(
   })
 
   return {
-    clearnet,
+    clearnet: clearnet.filter(
+      (value, index, self) =>
+        index === self.findIndex(t => t.url === value.url),
+    ),
     local: local.filter(
       (value, index, self) =>
         index === self.findIndex(t => t.url === value.url),
     ),
-    tor,
+    tor: tor.filter(
+      (value, index, self) =>
+        index === self.findIndex(t => t.url === value.url),
+    ),
   }
 }
 
