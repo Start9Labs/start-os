@@ -80,11 +80,17 @@ export function getAddresses(
       } else {
         const hostnameKind = h.hostname.kind
 
-        if (hostnameKind === 'domain') {
+        if (h.public) {
           clearnet.push({
-            label: 'Domain',
+            label:
+              hostnameKind == 'domain'
+                ? 'Domain'
+                : `${h.networkInterfaceId} (${hostnameKind})`,
             url,
-            acme: host.domains[h.hostname.domain]?.acme,
+            acme:
+              hostnameKind == 'domain'
+                ? host.domains[h.hostname.domain]?.acme
+                : null, // @TODO Matt make sure this is handled correctly - looks like ACME settings aren't built yet anyway, but ACME settings aren't *available* for public IPs
           })
         } else {
           local.push({
