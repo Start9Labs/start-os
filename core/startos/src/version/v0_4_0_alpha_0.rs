@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::json;
 
@@ -31,9 +29,27 @@ impl VersionT for Version {
         &V0_3_0_COMPAT
     }
     fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
-        // db["public"]["serverInfo"]["network"] = json!({
-
-        // });
+        let host = db["public"]["serverInfo"]["host"].clone();
+        let mut wifi = db["public"]["serverInfo"]["wifi"].clone();
+        wifi["enabled"] = Value::Bool(true);
+        let mut network_interfaces = db["public"]["serverInfo"]["networkInterfaces"].clone();
+        for (k, v) in network_interfaces
+            .as_object_mut()
+            .into_iter()
+            .flat_map(|m| m.iter_mut())
+        {
+            v["inbound"] = v["public"].clone();
+            if v["ipInfo"].is_object() {
+                v["ipInfo"]["name"] = Value::String((&**k).to_owned().into());
+            }
+        }
+        let acme = db["public"]["serverInfo"]["acme"].clone();
+        db["public"]["serverInfo"]["network"] = json!({
+            "host": host,
+            "wifi": wifi,
+            "networkInterfaces": network_interfaces,
+            "acme": acme,
+        });
         Ok(())
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {
