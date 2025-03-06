@@ -1,6 +1,6 @@
 import { T } from '@start9labs/start-sdk'
 
-export type DataModel = T.Public
+export type DataModel = T.Public & { ui: UIData; packageData: AllPackageData }
 
 export type UIData = {
   name: string | null

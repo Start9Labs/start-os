@@ -36,6 +36,8 @@ mod v0_3_6_alpha_13;
 mod v0_3_6_alpha_14;
 mod v0_3_6_alpha_15;
 
+mod v0_4_0_alpha_0;
+
 pub type Current = v0_3_6_alpha_15::Version; // VERSION_BUMP
 
 impl Current {

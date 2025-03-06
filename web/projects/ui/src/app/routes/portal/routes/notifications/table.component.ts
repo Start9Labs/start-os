@@ -40,7 +40,7 @@ import { NotificationItemComponent } from './item.component'
         @for (notification of notifications; track $index) {
           <tr
             [notificationItem]="notification"
-            [style.font-weight]="notification.read ? 'normal' : 'bold'"
+            [style.font-weight]="notification.seen ? 'normal' : 'bold'"
           >
             <input
               tuiCheckbox
