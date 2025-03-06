@@ -1,16 +1,6 @@
 import { T } from '@start9labs/start-sdk'
 
-export type DataModel = Omit<T.Public, 'serverInfo'> & {
-  ui: UIData
-  // @TODO 040 change patch DB to match below
-  serverInfo: Omit<
-    T.Public['serverInfo'],
-    'wifi' | 'networkInterfaces' | 'host'
-  > & {
-    network: NetworkInfo
-  }
-  packageData: Record<string, PackageDataEntry>
-}
+export type DataModel = T.Public
 
 export type UIData = {
   name: string | null
@@ -37,20 +27,7 @@ export type UIStore = {
   name?: string
 }
 
-export type NetworkInfo = {
-  wifi: T.WifiInfo & { enabled: boolean }
-  host: T.Host
-  networkInterfaces: {
-    [id: string]: {
-      inbound: boolean | null
-      outbound: boolean | null
-      ipInfo:
-        | (T.IpInfo & {
-            name: string
-          })
-        | null
-    }
-  }
+export type NetworkInfo = T.NetworkInfo & {
   // @TODO 041
   // start9To: {
   //   subdomain: string

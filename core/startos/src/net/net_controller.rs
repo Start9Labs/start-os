@@ -188,7 +188,11 @@ impl NetServiceData {
             let host = ctrl
                 .db
                 .mutate(|db| {
-                    let host = db.as_public_mut().as_server_info_mut().as_host_mut();
+                    let host = db
+                        .as_public_mut()
+                        .as_server_info_mut()
+                        .as_network_mut()
+                        .as_host_mut();
                     host.as_bindings_mut().mutate(|b| {
                         for (internal_port, info) in b {
                             if !except.contains(&BindId {
@@ -326,7 +330,7 @@ impl NetServiceData {
                 for (interface, public, ip_info) in
                     net_ifaces.iter().filter_map(|(interface, info)| {
                         if let Some(ip_info) = &info.ip_info {
-                            Some((interface, info.public(), ip_info))
+                            Some((interface, info.inbound(), ip_info))
                         } else {
                             None
                         }
@@ -612,6 +616,7 @@ impl NetServiceData {
                     .await
                     .as_public()
                     .as_server_info()
+                    .as_network()
                     .as_host()
                     .de()?,
             )

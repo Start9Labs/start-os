@@ -24,21 +24,28 @@ use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
 use crate::{Error, ErrorKind};
 
-type WifiManager = Arc<RwLock<WpaCli>>;
+type WifiManager = Arc<RwLock<Option<WpaCli>>>;
 
-pub fn wifi_manager(ctx: &RpcContext) -> Result<&WifiManager, Error> {
-    if let Some(wifi_manager) = ctx.wifi_manager.as_ref() {
-        Ok(wifi_manager)
-    } else {
-        Err(Error::new(
-            color_eyre::eyre::eyre!("No WiFi interface available"),
-            ErrorKind::Wifi,
-        ))
-    }
-}
+// pub fn wifi_manager(ctx: &RpcContext) -> Result<&WifiManager, Error> {
+//     if let Some(wifi_manager) = ctx.wifi_manager.as_ref() {
+//         Ok(wifi_manager)
+//     } else {
+//         Err(Error::new(
+//             color_eyre::eyre::eyre!("No WiFi interface available"),
+//             ErrorKind::Wifi,
+//         ))
+//     }
+// }
 
 pub fn wifi<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
+        .subcommand(
+            "set-enabled",
+            from_fn_async(set_enabled)
+                .no_display()
+                .with_about("Enable or disable wifi")
+                .with_call_remote::<CliContext>(),
+        )
         .subcommand(
             "add",
             from_fn_async(add)
@@ -80,6 +87,48 @@ pub fn wifi<C: Context>() -> ParentHandler<C> {
         )
 }
 
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct SetWifiEnabledParams {
+    pub enabled: bool,
+}
+
+pub async fn set_enabled(
+    ctx: RpcContext,
+    SetWifiEnabledParams { enabled }: SetWifiEnabledParams,
+) -> Result<(), Error> {
+    if enabled {
+        Command::new("rfkill")
+            .arg("unblock")
+            .arg("all")
+            .invoke(ErrorKind::Wifi)
+            .await?;
+    } else {
+        Command::new("rfkill")
+            .arg("block")
+            .arg("all")
+            .invoke(ErrorKind::Wifi)
+            .await?;
+    }
+    let iface = if let Some(man) = ctx.wifi_manager.read().await.as_ref().filter(|_| enabled) {
+        Some(man.interface.clone())
+    } else {
+        None
+    };
+    ctx.db
+        .mutate(|d| {
+            d.as_public_mut()
+                .as_server_info_mut()
+                .as_network_mut()
+                .as_wifi_mut()
+                .as_interface_mut()
+                .ser(&iface)
+        })
+        .await?;
+    Ok(())
+}
+
 pub fn available<C: Context>() -> ParentHandler<C> {
     ParentHandler::new().subcommand(
         "get",
@@ -110,7 +159,7 @@ pub struct AddParams {
 }
 #[instrument(skip_all)]
 pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Result<(), Error> {
-    let wifi_manager = wifi_manager(&ctx)?;
+    let wifi_manager = ctx.wifi_manager.clone();
     if !ssid.is_ascii() {
         return Err(Error::new(
             color_eyre::eyre::eyre!("SSID may not have special characters"),
@@ -130,9 +179,14 @@ pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Re
         password: &Psk,
     ) -> Result<(), Error> {
         tracing::info!("Adding new WiFi network: '{}'", ssid.0);
-        let mut wpa_supplicant = wifi_manager.write().await;
+        let mut wpa_supplicant = wifi_manager.write_owned().await;
+        let wpa_supplicant = wpa_supplicant.as_mut().ok_or_else(|| {
+            Error::new(
+                color_eyre::eyre::eyre!("No WiFi interface available"),
+                ErrorKind::Wifi,
+            )
+        })?;
         wpa_supplicant.add_network(db, ssid, password).await?;
-        drop(wpa_supplicant);
         Ok(())
     }
     if let Err(err) = add_procedure(
@@ -154,6 +208,7 @@ pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Re
         .mutate(|db| {
             db.as_public_mut()
                 .as_server_info_mut()
+                .as_network_mut()
                 .as_wifi_mut()
                 .as_ssids_mut()
                 .mutate(|s| {
@@ -173,7 +228,7 @@ pub struct SsidParams {
 
 #[instrument(skip_all)]
 pub async fn connect(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<(), Error> {
-    let wifi_manager = wifi_manager(&ctx)?;
+    let wifi_manager = ctx.wifi_manager.clone();
     if !ssid.is_ascii() {
         return Err(Error::new(
             color_eyre::eyre::eyre!("SSID may not have special characters"),
@@ -185,10 +240,14 @@ pub async fn connect(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result
         wifi_manager: WifiManager,
         ssid: &Ssid,
     ) -> Result<(), Error> {
-        let wpa_supplicant = wifi_manager.read().await;
+        let mut wpa_supplicant = wifi_manager.write_owned().await;
+        let wpa_supplicant = wpa_supplicant.as_mut().ok_or_else(|| {
+            Error::new(
+                color_eyre::eyre::eyre!("No WiFi interface available"),
+                ErrorKind::Wifi,
+            )
+        })?;
         let current = wpa_supplicant.get_current_network().await?;
-        drop(wpa_supplicant);
-        let mut wpa_supplicant = wifi_manager.write().await;
         let connected = wpa_supplicant.select_network(db.clone(), ssid).await?;
         if connected {
             tracing::info!("Successfully connected to WiFi: '{}'", ssid.0);
@@ -218,7 +277,11 @@ pub async fn connect(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result
 
     ctx.db
         .mutate(|db| {
-            let wifi = db.as_public_mut().as_server_info_mut().as_wifi_mut();
+            let wifi = db
+                .as_public_mut()
+                .as_server_info_mut()
+                .as_network_mut()
+                .as_wifi_mut();
             wifi.as_ssids_mut().mutate(|s| {
                 s.insert(ssid.clone());
                 Ok(())
@@ -231,17 +294,22 @@ pub async fn connect(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result
 
 #[instrument(skip_all)]
 pub async fn remove(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<(), Error> {
-    let wifi_manager = wifi_manager(&ctx)?;
+    let wifi_manager = ctx.wifi_manager.clone();
     if !ssid.is_ascii() {
         return Err(Error::new(
             color_eyre::eyre::eyre!("SSID may not have special characters"),
             ErrorKind::Wifi,
         ));
     }
-    let wpa_supplicant = wifi_manager.read().await;
+
+    let mut wpa_supplicant = wifi_manager.write_owned().await;
+    let wpa_supplicant = wpa_supplicant.as_mut().ok_or_else(|| {
+        Error::new(
+            color_eyre::eyre::eyre!("No WiFi interface available"),
+            ErrorKind::Wifi,
+        )
+    })?;
     let current = wpa_supplicant.get_current_network().await?;
-    drop(wpa_supplicant);
-    let mut wpa_supplicant = wifi_manager.write().await;
     let ssid = Ssid(ssid);
     let is_current_being_removed = matches!(current, Some(current) if current == ssid);
     let is_current_removed_and_no_hardwire =
@@ -254,7 +322,11 @@ pub async fn remove(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<
 
     ctx.db
         .mutate(|db| {
-            let wifi = db.as_public_mut().as_server_info_mut().as_wifi_mut();
+            let wifi = db
+                .as_public_mut()
+                .as_server_info_mut()
+                .as_network_mut()
+                .as_wifi_mut();
             wifi.as_ssids_mut().mutate(|s| {
                 s.remove(&ssid.0);
                 Ok(())
@@ -379,8 +451,14 @@ fn display_wifi_list(params: WithIoFormat<Empty>, info: Vec<WifiListOut>) {
 // #[command(display(display_wifi_info))]
 #[instrument(skip_all)]
 pub async fn get(ctx: RpcContext, _: Empty) -> Result<WifiListInfo, Error> {
-    let wifi_manager = wifi_manager(&ctx)?;
-    let wpa_supplicant = wifi_manager.read().await;
+    let wifi_manager = ctx.wifi_manager.clone();
+    let wpa_supplicant = wifi_manager.read_owned().await;
+    let wpa_supplicant = wpa_supplicant.as_ref().ok_or_else(|| {
+        Error::new(
+            color_eyre::eyre::eyre!("No WiFi interface available"),
+            ErrorKind::Wifi,
+        )
+    })?;
     let (list_networks, current_res, country_res, ethernet_res, signal_strengths) = tokio::join!(
         wpa_supplicant.list_networks_low(),
         wpa_supplicant.get_current_network(),
@@ -427,8 +505,14 @@ pub async fn get(ctx: RpcContext, _: Empty) -> Result<WifiListInfo, Error> {
 
 #[instrument(skip_all)]
 pub async fn get_available(ctx: RpcContext, _: Empty) -> Result<Vec<WifiListOut>, Error> {
-    let wifi_manager = wifi_manager(&ctx)?;
-    let wpa_supplicant = wifi_manager.read().await;
+    let wifi_manager = ctx.wifi_manager.clone();
+    let wpa_supplicant = wifi_manager.read_owned().await;
+    let wpa_supplicant = wpa_supplicant.as_ref().ok_or_else(|| {
+        Error::new(
+            color_eyre::eyre::eyre!("No WiFi interface available"),
+            ErrorKind::Wifi,
+        )
+    })?;
     let (wifi_list, network_list) = tokio::join!(
         wpa_supplicant.list_wifi_low(),
         wpa_supplicant.list_networks_low()
@@ -463,14 +547,20 @@ pub async fn set_country(
     ctx: RpcContext,
     SetCountryParams { country }: SetCountryParams,
 ) -> Result<(), Error> {
-    let wifi_manager = wifi_manager(&ctx)?;
+    let wifi_manager = ctx.wifi_manager.clone();
     if !interface_connected(&ctx.ethernet_interface).await? {
         return Err(Error::new(
             color_eyre::eyre::eyre!("Won't change country without hardwire connection"),
             crate::ErrorKind::Wifi,
         ));
     }
-    let mut wpa_supplicant = wifi_manager.write().await;
+    let mut wpa_supplicant = wifi_manager.write_owned().await;
+    let wpa_supplicant = wpa_supplicant.as_mut().ok_or_else(|| {
+        Error::new(
+            color_eyre::eyre::eyre!("No WiFi interface available"),
+            ErrorKind::Wifi,
+        )
+    })?;
     wpa_supplicant.set_country_low(country.alpha2()).await?;
     for (network_id, _wifi_info) in wpa_supplicant.list_networks_low().await? {
         wpa_supplicant.remove_network_low(network_id).await?;
@@ -734,6 +824,7 @@ impl WpaCli {
         db.mutate(|d| {
             d.as_public_mut()
                 .as_server_info_mut()
+                .as_network_mut()
                 .as_wifi_mut()
                 .as_last_region_mut()
                 .ser(&new_country)
@@ -909,13 +1000,21 @@ pub async fn synchronize_network_manager<P: AsRef<Path>>(
     crate::disk::mount::util::bind(&persistent, "/etc/NetworkManager/system-connections", false)
         .await?;
 
+    if !wifi.enabled {
+        Command::new("rfkill")
+            .arg("block")
+            .arg("all")
+            .invoke(ErrorKind::Wifi)
+            .await?;
+    }
+
     Command::new("systemctl")
         .arg("restart")
         .arg("NetworkManager")
         .invoke(ErrorKind::Wifi)
         .await?;
 
-    let Some(wifi_iface) = &wifi.interface else {
+    let Some(wifi_iface) = wifi.interface.as_ref().filter(|_| wifi.enabled) else {
         return Ok(());
     };
 

@@ -63,7 +63,7 @@ pub struct RpcContextSeed {
     pub open_authed_continuations: OpenAuthedContinuations<Option<InternedString>>,
     pub rpc_continuations: RpcContinuations,
     pub callbacks: ServiceCallbacks,
-    pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
+    pub wifi_manager: Arc<RwLock<Option<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
     pub client: Client,
     pub start_time: Instant,
@@ -244,9 +244,7 @@ impl RpcContext {
             open_authed_continuations: OpenAuthedContinuations::new(),
             rpc_continuations: RpcContinuations::new(),
             callbacks: Default::default(),
-            wifi_manager: wifi_interface
-                .clone()
-                .map(|i| Arc::new(RwLock::new(WpaCli::init(i)))),
+            wifi_manager: Arc::new(RwLock::new(wifi_interface.clone().map(|i| WpaCli::init(i)))),
             current_secret: Arc::new(
                 Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).map_err(|e| {
                     tracing::debug!("{:?}", e);

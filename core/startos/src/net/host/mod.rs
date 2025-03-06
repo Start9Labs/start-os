@@ -85,7 +85,11 @@ pub fn host_for<'a>(
     host_id: &HostId,
 ) -> Result<&'a mut Model<Host>, Error> {
     let Some(package_id) = package_id else {
-        return Ok(db.as_public_mut().as_server_info_mut().as_host_mut());
+        return Ok(db
+            .as_public_mut()
+            .as_server_info_mut()
+            .as_network_mut()
+            .as_host_mut());
     };
     fn host_info<'a>(
         db: &'a mut DatabaseModel,
@@ -122,7 +126,7 @@ pub fn host_for<'a>(
 }
 
 pub fn all_hosts(db: &DatabaseModel) -> impl Iterator<Item = Result<&Model<Host>, Error>> {
-    [Ok(db.as_public().as_server_info().as_host())]
+    [Ok(db.as_public().as_server_info().as_network().as_host())]
         .into_iter()
         .chain(
             [db.as_public().as_package_data().as_entries()]

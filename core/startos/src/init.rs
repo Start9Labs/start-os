@@ -415,7 +415,11 @@ pub async fn init(
     let wifi_interface = find_wifi_iface().await?;
     let wifi = db
         .mutate(|db| {
-            let wifi = db.as_public_mut().as_server_info_mut().as_wifi_mut();
+            let wifi = db
+                .as_public_mut()
+                .as_server_info_mut()
+                .as_network_mut()
+                .as_wifi_mut();
             wifi.as_interface_mut().ser(&wifi_interface)?;
             wifi.de()
         })

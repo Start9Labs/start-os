@@ -48,44 +48,50 @@ impl Public {
                 id: account.server_id.clone(),
                 version: Current::default().semver(),
                 hostname: account.hostname.no_dot_host_name(),
-                host: Host {
-                    bindings: [(
-                        80,
-                        BindInfo {
-                            enabled: false,
-                            options: BindOptions {
-                                preferred_external_port: 80,
-                                add_ssl: Some(AddSslOptions {
-                                    preferred_external_port: 443,
-                                    alpn: Some(AlpnInfo::Specified(vec![
-                                        MaybeUtf8String("http/1.1".into()),
-                                        MaybeUtf8String("h2".into()),
-                                    ])),
-                                }),
-                                secure: None,
-                            },
-                            net: NetInfo {
-                                assigned_port: None,
-                                assigned_ssl_port: Some(443),
-                                public: false,
-                            },
-                        },
-                    )]
-                    .into_iter()
-                    .collect(),
-                    onions: account
-                        .tor_keys
-                        .iter()
-                        .map(|k| k.public().get_onion_address())
-                        .collect(),
-                    domains: BTreeMap::new(),
-                    hostname_info: BTreeMap::new(),
-                },
                 last_backup: None,
                 package_version_compat: Current::default().compat().clone(),
                 post_init_migration_todos: BTreeSet::new(),
-                network_interfaces: BTreeMap::new(),
-                acme: BTreeMap::new(),
+                network: NetworkInfo {
+                    host: Host {
+                        bindings: [(
+                            80,
+                            BindInfo {
+                                enabled: false,
+                                options: BindOptions {
+                                    preferred_external_port: 80,
+                                    add_ssl: Some(AddSslOptions {
+                                        preferred_external_port: 443,
+                                        alpn: Some(AlpnInfo::Specified(vec![
+                                            MaybeUtf8String("http/1.1".into()),
+                                            MaybeUtf8String("h2".into()),
+                                        ])),
+                                    }),
+                                    secure: None,
+                                },
+                                net: NetInfo {
+                                    assigned_port: None,
+                                    assigned_ssl_port: Some(443),
+                                    public: false,
+                                },
+                            },
+                        )]
+                        .into_iter()
+                        .collect(),
+                        onions: account
+                            .tor_keys
+                            .iter()
+                            .map(|k| k.public().get_onion_address())
+                            .collect(),
+                        domains: BTreeMap::new(),
+                        hostname_info: BTreeMap::new(),
+                    },
+                    wifi: WifiInfo {
+                        enabled: true,
+                        ..Default::default()
+                    },
+                    network_interfaces: BTreeMap::new(),
+                    acme: BTreeMap::new(),
+                },
                 status_info: ServerStatus {
                     backup_progress: None,
                     updated: false,
@@ -93,7 +99,6 @@ impl Public {
                     shutting_down: false,
                     restarting: false,
                 },
-                wifi: WifiInfo::default(),
                 unread_notification_count: 0,
                 password_hash: account.password.clone(),
                 pubkey: ssh_key::PublicKey::from(&account.ssh_key)
@@ -145,7 +150,6 @@ pub struct ServerInfo {
     pub id: String,
     #[ts(type = "string")]
     pub hostname: InternedString,
-    pub host: Host,
     #[ts(type = "string")]
     pub version: Version,
     #[ts(type = "string")]
@@ -154,14 +158,9 @@ pub struct ServerInfo {
     pub post_init_migration_todos: BTreeSet<Version>,
     #[ts(type = "string | null")]
     pub last_backup: Option<DateTime<Utc>>,
-    #[ts(as = "BTreeMap::<String, NetworkInterfaceInfo>")]
-    #[serde(default)]
-    pub network_interfaces: BTreeMap<InternedString, NetworkInterfaceInfo>,
-    #[serde(default)]
-    pub acme: BTreeMap<AcmeProvider, AcmeSettings>,
+    pub network: NetworkInfo,
     #[serde(default)]
     pub status_info: ServerStatus,
-    pub wifi: WifiInfo,
     #[ts(type = "number")]
     pub unread_notification_count: u64,
     pub password_hash: String,
@@ -178,17 +177,32 @@ pub struct ServerInfo {
     pub devices: Vec<LshwDevice>,
 }
 
+#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+#[ts(export)]
+pub struct NetworkInfo {
+    pub wifi: WifiInfo,
+    pub host: Host,
+    #[ts(as = "BTreeMap::<String, NetworkInterfaceInfo>")]
+    #[serde(default)]
+    pub network_interfaces: BTreeMap<InternedString, NetworkInterfaceInfo>,
+    #[serde(default)]
+    pub acme: BTreeMap<AcmeProvider, AcmeSettings>,
+}
+
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct NetworkInterfaceInfo {
-    pub public: Option<bool>,
+    pub inbound: Option<bool>,
+    pub outbound: Option<bool>,
     pub ip_info: Option<IpInfo>,
 }
 impl NetworkInterfaceInfo {
-    pub fn public(&self) -> bool {
-        self.public.unwrap_or_else(|| {
+    pub fn inbound(&self) -> bool {
+        self.inbound.unwrap_or_else(|| {
             !self.ip_info.as_ref().map_or(true, |ip_info| {
                 let ip4s = ip_info
                     .subnets
@@ -224,6 +238,8 @@ impl NetworkInterfaceInfo {
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct IpInfo {
+    #[ts(type = "string")]
+    pub name: InternedString,
     pub scope_id: u32,
     pub device_type: Option<NetworkInterfaceType>,
     #[ts(type = "string[]")]
@@ -276,6 +292,7 @@ pub struct ServerStatus {
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct WifiInfo {
+    pub enabled: bool,
     pub interface: Option<String>,
     pub ssids: BTreeSet<String>,
     pub selected: Option<String>,

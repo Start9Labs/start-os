@@ -173,7 +173,6 @@ export namespace RR {
   }
   export type AddWifiRes = null
 
-  // @TODO 040 need endpoint
   export type EnabledWifiReq = { enable: boolean } // wifi.set-enabled
   export type EnabledWifiRes = null
 
