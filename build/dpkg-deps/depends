@@ -43,6 +43,7 @@ podman
 postgresql
 psmisc
 qemu-guest-agent
+rfkill
 rsync
 samba-common-bin
 smartmontools
