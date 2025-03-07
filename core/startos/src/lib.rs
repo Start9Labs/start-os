@@ -89,7 +89,7 @@ use crate::context::{
 use crate::disk::fsck::RequiresReboot;
 use crate::net::net;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
-use crate::util::serde::HandlerExtSerde;
+use crate::util::serde::{HandlerExtSerde, WithIoFormat};
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
@@ -242,10 +242,18 @@ pub fn server<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "metrics",
-            from_fn_async(system::metrics)
-                .with_display_serializable()
-                .with_about("Display information about the server i.e. temperature, RAM, CPU, and disk usage")
-                .with_call_remote::<CliContext>()
+            ParentHandler::<C, WithIoFormat<Empty>>::new()
+                .root_handler(
+                    from_fn_async(system::metrics)
+                        .with_display_serializable()
+                        .with_about("Display information about the server i.e. temperature, RAM, CPU, and disk usage")
+                        .with_call_remote::<CliContext>()
+                )
+                .subcommand(
+                    "follow", 
+                    from_fn_async(system::metrics_follow)
+                        .no_cli()
+                )
         )
         .subcommand(
             "shutdown",

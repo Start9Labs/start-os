@@ -155,7 +155,7 @@ impl LanPortForwardController {
             let mut interfaces = ip_info.peek_and_mark_seen(|ip_info| {
                 ip_info
                     .iter()
-                    .map(|(iface, info)| (iface.clone(), info.public()))
+                    .map(|(iface, info)| (iface.clone(), info.inbound()))
                     .collect()
             });
             let mut reply: Option<oneshot::Sender<Result<(), Error>>> = None;
@@ -175,7 +175,7 @@ impl LanPortForwardController {
                         interfaces = ip_info.peek(|ip_info| {
                             ip_info
                                 .iter()
-                                .map(|(iface, info)| (iface.clone(), info.public()))
+                                .map(|(iface, info)| (iface.clone(), info.inbound()))
                                 .collect()
                         });
                     }

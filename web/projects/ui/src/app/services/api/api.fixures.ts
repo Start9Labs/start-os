@@ -771,7 +771,7 @@ export namespace Mock {
           },
         },
       },
-      read: false,
+      seen: false,
     },
     {
       id: 2,
@@ -782,7 +782,7 @@ export namespace Mock {
       title: 'SSH Key Added',
       message: 'A new SSH key was added. If you did not do this, shit is bad.',
       data: null,
-      read: false,
+      seen: false,
     },
     {
       id: 3,
@@ -793,7 +793,7 @@ export namespace Mock {
       title: 'SSH Key Removed',
       message: 'A SSH key was removed.',
       data: null,
-      read: false,
+      seen: false,
     },
     {
       id: 4,
@@ -811,7 +811,7 @@ export namespace Mock {
         )
         .join(''),
       data: null,
-      read: false,
+      seen: false,
     },
     {
       id: 5,
@@ -822,7 +822,7 @@ export namespace Mock {
       title: 'Welcome to StartOS 0.3.6!',
       message: 'Click "View Details" to learn all about the new version',
       data: markdown,
-      read: false,
+      seen: false,
     },
   ]
 

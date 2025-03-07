@@ -461,6 +461,7 @@ impl VHostServer {
                         target.acme.as_ref().and_then(|a| {
                             peek.as_public()
                                 .as_server_info()
+                                .as_network()
                                 .as_acme()
                                 .as_idx(a)
                                 .map(|s| (domain, a, s))

@@ -186,7 +186,7 @@ pub async fn add_domain<Kind: HostApiKind>(
     ctx.db
         .mutate(|db| {
             if let Some(acme) = &acme {
-                if !db.as_public().as_server_info().as_acme().contains_key(&acme)? {
+                if !db.as_public().as_server_info().as_network().as_acme().contains_key(&acme)? {
                     return Err(Error::new(eyre!("unknown acme provider {}, please run acme.init for this provider first", acme.0), ErrorKind::InvalidRequest));
                 }
             }

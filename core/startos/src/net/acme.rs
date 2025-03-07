@@ -255,7 +255,7 @@ pub async fn init(
     ctx.db
         .mutate(|db| {
             db.as_public_mut()
-                .as_server_info_mut()
+                .as_server_info_mut().as_network_mut()
                 .as_acme_mut()
                 .insert(&provider, &AcmeSettings { contact })
         })
@@ -276,7 +276,7 @@ pub async fn remove(
     ctx.db
         .mutate(|db| {
             db.as_public_mut()
-                .as_server_info_mut()
+                .as_server_info_mut().as_network_mut()
                 .as_acme_mut()
                 .remove(&provider)
         })

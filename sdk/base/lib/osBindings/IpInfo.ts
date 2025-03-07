@@ -2,6 +2,7 @@
 import type { NetworkInterfaceType } from "./NetworkInterfaceType"
 
 export type IpInfo = {
+  name: string
   scopeId: number
   deviceType: NetworkInterfaceType | null
   subnets: string[]

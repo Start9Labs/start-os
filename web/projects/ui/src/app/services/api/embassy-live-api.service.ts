@@ -245,7 +245,6 @@ export class LiveApiService extends ApiService {
   async followServerMetrics(
     params: RR.FollowServerMetricsReq,
   ): Promise<RR.FollowServerMetricsRes> {
-    // @TODO 040 implement .follow
     return this.rpcRequest({ method: 'server.metrics.follow', params })
   }
 
@@ -350,8 +349,8 @@ export class LiveApiService extends ApiService {
   }
 
   async deleteNotifications(
-    params: RR.DeleteNotificationReq,
-  ): Promise<RR.DeleteNotificationRes> {
+    params: RR.DeleteNotificationsReq,
+  ): Promise<RR.DeleteNotificationsRes> {
     return this.rpcRequest({ method: 'notification.remove', params })
   }
 
@@ -422,7 +421,7 @@ export class LiveApiService extends ApiService {
 
   // wifi
 
-  async enableWifi(params: RR.EnableWifiReq): Promise<RR.EnableWifiRes> {
+  async enableWifi(params: RR.EnabledWifiReq): Promise<RR.EnabledWifiRes> {
     return this.rpcRequest({ method: 'wifi.enable', params })
   }
 
@@ -431,6 +430,12 @@ export class LiveApiService extends ApiService {
     timeout?: number,
   ): Promise<RR.GetWifiRes> {
     return this.rpcRequest({ method: 'wifi.get', params, timeout })
+  }
+
+  async setWifiCountry(
+    params: RR.SetWifiCountryReq,
+  ): Promise<RR.SetWifiCountryRes> {
+    return this.rpcRequest({ method: 'wifi.country.set', params })
   }
 
   async addWifi(params: RR.AddWifiReq): Promise<RR.AddWifiRes> {

@@ -28,7 +28,7 @@ export class SettingsACMEComponent {
 
   readonly docsUrl = 'https://docs.start9.com/0.3.6/user-manual/acme'
 
-  acme$ = this.patch.watch$('serverInfo', 'acme').pipe(
+  acme$ = this.patch.watch$('serverInfo', 'network', 'acme').pipe(
     map(acme => {
       const providerUrls = Object.keys(acme)
       return providerUrls.map(url => {

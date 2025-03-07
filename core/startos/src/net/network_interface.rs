@@ -58,7 +58,7 @@ pub fn network_interface_api<C: Context>() -> ParentHandler<C> {
                             info.ip_info.as_ref()
                                 .and_then(|ip_info| ip_info.device_type)
                                 .map_or_else(|| "UNKNOWN".to_owned(), |ty| format!("{ty:?}")),
-                            info.public(),
+                            info.inbound(),
                             info.ip_info.as_ref().map_or_else(
                                 || "<DISCONNECTED>".to_owned(),
                                 |ip_info| ip_info.subnets
@@ -86,18 +86,18 @@ pub fn network_interface_api<C: Context>() -> ParentHandler<C> {
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
-            "set-public",
-            from_fn_async(set_public)
+            "set-inbound",
+            from_fn_async(set_inbound)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Indicate whether this interface is publicly addressable")
+                .with_about("Indicate whether this interface has inbound access from the WAN")
                 .with_call_remote::<CliContext>(),
         ).subcommand(
-            "unset-public",
-            from_fn_async(unset_public)
+            "unset-inbound",
+            from_fn_async(unset_inbound)
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
-                .with_about("Allow this interface to infer whether it is publicly addressable based on its IPv4 address")
+                .with_about("Allow this interface to infer whether it has inbound access from the WAN based on its IPv4 address")
                 .with_call_remote::<CliContext>(),
         ).subcommand("forget",
             from_fn_async(forget_iface)
@@ -116,36 +116,36 @@ async fn list_interfaces(
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
 #[ts(export)]
-struct NetworkInterfaceSetPublicParams {
+struct NetworkInterfaceSetInboundParams {
     #[ts(type = "string")]
     interface: InternedString,
-    public: Option<bool>,
+    inbound: Option<bool>,
 }
 
-async fn set_public(
+async fn set_inbound(
     ctx: RpcContext,
-    NetworkInterfaceSetPublicParams { interface, public }: NetworkInterfaceSetPublicParams,
+    NetworkInterfaceSetInboundParams { interface, inbound }: NetworkInterfaceSetInboundParams,
 ) -> Result<(), Error> {
     ctx.net_controller
         .net_iface
-        .set_public(&interface, Some(public.unwrap_or(true)))
+        .set_inbound(&interface, Some(inbound.unwrap_or(true)))
         .await
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
 #[ts(export)]
-struct UnsetPublicParams {
+struct UnsetInboundParams {
     #[ts(type = "string")]
     interface: InternedString,
 }
 
-async fn unset_public(
+async fn unset_inbound(
     ctx: RpcContext,
-    UnsetPublicParams { interface }: UnsetPublicParams,
+    UnsetInboundParams { interface }: UnsetInboundParams,
 ) -> Result<(), Error> {
     ctx.net_controller
         .net_iface
-        .set_public(&interface, None)
+        .set_inbound(&interface, None)
         .await
 }
 
@@ -193,6 +193,9 @@ mod active_connection {
         default_service = "org.freedesktop.NetworkManager"
     )]
     pub trait ActiveConnection {
+        #[zbus(property)]
+        fn id(&self) -> Result<String, Error>;
+
         #[zbus(property)]
         fn state_flags(&self) -> Result<u32, Error>;
 
@@ -511,6 +514,8 @@ async fn watch_ip(
                                 _ => None,
                             };
 
+                            let name = InternedString::from(active_connection_proxy.id().await?);
+
                             let dhcp4_config = active_connection_proxy.dhcp4_config().await?;
                             let ip4_proxy =
                                 Ip4ConfigProxy::new(&connection, ip4_config.clone()).await?;
@@ -568,6 +573,7 @@ async fn watch_ip(
                                                 }
                                             };
                                             Some(IpInfo {
+                                                name: name.clone(),
                                                 scope_id,
                                                 device_type,
                                                 subnets,
@@ -579,11 +585,14 @@ async fn watch_ip(
                                         };
 
                                         write_to.send_if_modified(|m| {
-                                            let public = m.get(&iface).map_or(None, |i| i.public);
+                                            let (inbound, outbound) = m
+                                                .get(&iface)
+                                                .map_or((None, None), |i| (i.inbound, i.outbound));
                                             m.insert(
                                                 iface.clone(),
                                                 NetworkInterfaceInfo {
-                                                    public,
+                                                    inbound,
+                                                    outbound,
                                                     ip_info: ip_info.clone(),
                                                 },
                                             )
@@ -663,6 +672,7 @@ impl NetworkInterfaceController {
         db.mutate(|db| {
             db.as_public_mut()
                 .as_server_info_mut()
+                .as_network_mut()
                 .as_network_interfaces_mut()
                 .ser(info)
         })
@@ -731,6 +741,7 @@ impl NetworkInterfaceController {
                     .await
                     .as_public()
                     .as_server_info()
+                    .as_network()
                     .as_network_interfaces()
                     .de()
                 {
@@ -820,7 +831,7 @@ impl NetworkInterfaceController {
         Ok(listener)
     }
 
-    pub async fn set_public(
+    pub async fn set_inbound(
         &self,
         interface: &InternedString,
         public: Option<bool>,
@@ -828,7 +839,7 @@ impl NetworkInterfaceController {
         let mut sub = self
             .db
             .subscribe(
-                "/public/serverInfo/networkInterfaces"
+                "/public/serverInfo/network/networkInterfaces"
                     .parse::<JsonPointer<_, _>>()
                     .with_kind(ErrorKind::Database)?,
             )
@@ -843,7 +854,7 @@ impl NetworkInterfaceController {
                         return false;
                     }
                 }
-                .public,
+                .inbound,
                 public,
             );
             prev != public
@@ -861,7 +872,7 @@ impl NetworkInterfaceController {
         let mut sub = self
             .db
             .subscribe(
-                "/public/serverInfo/networkInterfaces"
+                "/public/serverInfo/network/networkInterfaces"
                     .parse::<JsonPointer<_, _>>()
                     .with_kind(ErrorKind::Database)?,
             )
@@ -955,8 +966,10 @@ impl ListenerMap {
     ) -> Result<(), Error> {
         let mut keep = BTreeSet::<SocketAddr>::new();
         for info in ip_info.values().chain([&NetworkInterfaceInfo {
-            public: Some(false),
+            inbound: Some(false),
+            outbound: Some(false),
             ip_info: Some(IpInfo {
+                name: "lo".into(),
                 scope_id: 1,
                 device_type: None,
                 subnets: [
@@ -969,7 +982,7 @@ impl ListenerMap {
                 ntp_servers: Default::default(),
             }),
         }]) {
-            if public || !info.public() {
+            if public || !info.inbound() {
                 if let Some(ip_info) = &info.ip_info {
                     for ipnet in &ip_info.subnets {
                         let addr = match ipnet.addr() {
@@ -988,7 +1001,7 @@ impl ListenerMap {
                         };
                         keep.insert(addr);
                         if let Some((_, is_public, wan_ip)) = self.listeners.get_mut(&addr) {
-                            *is_public = info.public();
+                            *is_public = info.inbound();
                             *wan_ip = info.ip_info.as_ref().and_then(|i| i.wan_ip);
                             continue;
                         }
@@ -1006,7 +1019,7 @@ impl ListenerMap {
                                         .into(),
                                 )
                                 .with_kind(ErrorKind::Network)?,
-                                info.public(),
+                                info.inbound(),
                                 info.ip_info.as_ref().and_then(|i| i.wan_ip),
                             ),
                         );

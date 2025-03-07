@@ -95,7 +95,7 @@ export default class NotificationsComponent {
     this.notifications.set(
       current.map(c => ({
         ...c,
-        read: toUpdate.some(n => n.id === c.id) || c.read,
+        read: toUpdate.some(n => n.id === c.id) || c.seen,
       })),
     )
 
@@ -111,7 +111,7 @@ export default class NotificationsComponent {
     this.notifications.set(
       current.map(c => ({
         ...c,
-        read: c.read && !toUpdate.some(n => n.id === c.id),
+        read: c.seen && !toUpdate.some(n => n.id === c.id),
       })),
     )
 

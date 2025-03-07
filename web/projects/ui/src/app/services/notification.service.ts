@@ -25,7 +25,7 @@ export class NotificationService {
   ).pipe(shareReplay(1))
 
   async markSeen(notifications: ServerNotifications) {
-    const ids = notifications.filter(n => !n.read).map(n => n.id)
+    const ids = notifications.filter(n => !n.seen).map(n => n.id)
 
     this.updateCount(-ids.length)
 
@@ -43,7 +43,7 @@ export class NotificationService {
   }
 
   async markUnseen(notifications: ServerNotifications) {
-    const ids = notifications.filter(n => n.read).map(n => n.id)
+    const ids = notifications.filter(n => n.seen).map(n => n.id)
 
     this.updateCount(ids.length)
 
@@ -53,7 +53,7 @@ export class NotificationService {
   }
 
   async remove(notifications: ServerNotifications): Promise<void> {
-    this.updateCount(-notifications.filter(n => !n.read).length)
+    this.updateCount(-notifications.filter(n => !n.seen).length)
 
     this.api
       .deleteNotifications({ ids: notifications.map(n => n.id) })

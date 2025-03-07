@@ -96,7 +96,7 @@ import { map } from 'rxjs'
 })
 export class InterfaceComponent {
   readonly acme$ = inject<PatchDB<DataModel>>(PatchDB)
-    .watch$('serverInfo', 'acme')
+    .watch$('serverInfo', 'network', 'acme')
     .pipe(map(acme => Object.keys(acme)))
 
   @Input() packageId?: string

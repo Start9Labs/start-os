@@ -519,8 +519,8 @@ export class MockApiService extends ApiService {
   }
 
   async deleteNotifications(
-    params: RR.DeleteNotificationReq,
-  ): Promise<RR.DeleteNotificationRes> {
+    params: RR.DeleteNotificationsReq,
+  ): Promise<RR.DeleteNotificationsRes> {
     await pauseFor(2000)
     return null
   }
@@ -696,7 +696,7 @@ export class MockApiService extends ApiService {
 
   // wifi
 
-  async enableWifi(params: RR.EnableWifiReq): Promise<RR.EnableWifiRes> {
+  async enableWifi(params: RR.EnabledWifiReq): Promise<RR.EnabledWifiRes> {
     await pauseFor(2000)
     const patch = [
       {
@@ -707,6 +707,13 @@ export class MockApiService extends ApiService {
     ]
     this.mockRevision(patch)
 
+    return null
+  }
+
+  async setWifiCountry(
+    params: RR.SetWifiCountryReq,
+  ): Promise<RR.SetWifiCountryRes> {
+    await pauseFor(2000)
     return null
   }
 

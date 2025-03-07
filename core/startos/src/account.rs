@@ -59,7 +59,13 @@ impl AccountInfo {
         let hostname = Hostname(db.as_public().as_server_info().as_hostname().de()?);
         let password = db.as_private().as_password().de()?;
         let key_store = db.as_private().as_key_store();
-        let tor_addrs = db.as_public().as_server_info().as_host().as_onions().de()?;
+        let tor_addrs = db
+            .as_public()
+            .as_server_info()
+            .as_network()
+            .as_host()
+            .as_onions()
+            .de()?;
         let tor_keys = tor_addrs
             .into_iter()
             .map(|tor_addr| key_store.as_onion().get_key(&tor_addr))
@@ -89,13 +95,17 @@ impl AccountInfo {
         server_info
             .as_pubkey_mut()
             .ser(&self.ssh_key.public_key().to_openssh()?)?;
-        server_info.as_host_mut().as_onions_mut().ser(
-            &self
-                .tor_keys
-                .iter()
-                .map(|tor_key| tor_key.public().get_onion_address())
-                .collect(),
-        )?;
+        server_info
+            .as_network_mut()
+            .as_host_mut()
+            .as_onions_mut()
+            .ser(
+                &self
+                    .tor_keys
+                    .iter()
+                    .map(|tor_key| tor_key.public().get_onion_address())
+                    .collect(),
+            )?;
         db.as_private_mut().as_password_mut().ser(&self.password)?;
         db.as_private_mut()
             .as_ssh_privkey_mut()

@@ -217,7 +217,7 @@ impl PackParams {
                 })
                 .map_err(Error::from)
                 .try_fold(
-                    Err(Error::new(eyre!("icon not found"), ErrorKind::NotFound)),
+                    Err(Error::new(eyre!("license not found"), ErrorKind::NotFound)),
                     |acc, x| async move {
                         match acc {
                             Ok(_) => Err(Error::new(eyre!("multiple licenses found in working directory, please specify which to use with `--license`"), ErrorKind::InvalidRequest)),
