@@ -5,9 +5,9 @@ import {
   input,
 } from '@angular/core'
 import { TuiTable } from '@taiga-ui/addon-table'
+import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { ServiceActionRequestComponent } from './action-request.component'
-import { ServicePlaceholderComponent } from './placeholder.component'
 
 @Component({
   standalone: true,
@@ -30,9 +30,9 @@ import { ServicePlaceholderComponent } from './placeholder.component'
       </tbody>
     </table>
     @if (!requests().length) {
-      <service-placeholder icon="@tui.list-checks">
+      <app-placeholder icon="@tui.list-checks">
         All tasks complete
-      </service-placeholder>
+      </app-placeholder>
     }
   `,
   styles: `
@@ -42,11 +42,7 @@ import { ServicePlaceholderComponent } from './placeholder.component'
   `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    TuiTable,
-    ServiceActionRequestComponent,
-    ServicePlaceholderComponent,
-  ],
+  imports: [TuiTable, ServiceActionRequestComponent, PlaceholderComponent],
 })
 export class ServiceActionRequestsComponent {
   readonly pkg = input.required<PackageDataEntry>()

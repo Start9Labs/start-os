@@ -15,7 +15,7 @@ import { BadgeService } from 'src/app/services/badge.service'
 import { RESOURCES } from 'src/app/utils/resources'
 import { getMenu } from 'src/app/utils/system-utilities'
 
-const FILTER = ['/portal/services', '/portal/settings', '/portal/marketplace']
+const FILTER = ['/portal/services', '/portal/system', '/portal/marketplace']
 
 @Component({
   standalone: true,
@@ -43,12 +43,12 @@ const FILTER = ['/portal/services', '/portal/settings', '/portal/marketplace']
       <a
         tuiTabBarItem
         icon="@tui.settings"
-        routerLink="/portal/settings"
+        routerLink="/portal/system"
         routerLinkActive
         [badge]="badge()"
         (isActiveChange)="update()"
       >
-        Settings
+        System
       </a>
       <button
         tuiTabBarItem
@@ -140,7 +140,7 @@ export class TabsComponent {
 
   readonly resources = RESOURCES
   readonly menu = getMenu().filter(item => !FILTER.includes(item.routerLink))
-  readonly badge = toSignal(inject(BadgeService).getCount('/portal/settings'), {
+  readonly badge = toSignal(inject(BadgeService).getCount('/portal/system'), {
     initialValue: 0,
   })
 

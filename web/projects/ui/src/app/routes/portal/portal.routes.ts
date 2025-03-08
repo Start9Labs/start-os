@@ -40,9 +40,9 @@ const ROUTES: Routes = [
       },
       {
         title: systemTabResolver,
-        path: 'settings',
-        loadChildren: () => import('./routes/settings/settings.routes'),
-        data: toNavigationItem('/portal/settings'),
+        path: 'system',
+        loadChildren: () => import('./routes/system/system.routes'),
+        data: toNavigationItem('/portal/system'),
       },
       {
         title: systemTabResolver,
