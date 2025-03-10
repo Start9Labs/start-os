@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { Component, inject, OnInit, signal } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiButton, TuiNotification } from '@taiga-ui/core'
+import { TuiButton, TuiLink, TuiNotification } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import {
@@ -32,6 +32,7 @@ import {
       folders on your Local Area Network (LAN), or third party clouds such as
       Dropbox or Google Drive.
       <a
+        tuiLink
         href="https://docs.start9.com/latest/user-manual/backups/backup-targets"
         target="_blank"
         rel="noreferrer"
@@ -75,6 +76,7 @@ import {
     TuiButton,
     BackupsPhysicalComponent,
     BackupsTargetsComponent,
+    TuiLink,
   ],
 })
 export class BackupsTargetsModal implements OnInit {

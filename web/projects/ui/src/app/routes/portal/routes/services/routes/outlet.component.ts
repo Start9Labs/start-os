@@ -8,7 +8,7 @@ import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router, RouterModule } from '@angular/router'
 import { TuiAppearance, TuiButton, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar, TuiFade } from '@taiga-ui/kit'
-import { TuiCell, tuiCellOptionsProvider } from '@taiga-ui/layout'
+import { TuiCell } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -155,7 +155,6 @@ const ICONS = {
     TitleDirective,
     TuiButton,
   ],
-  providers: [tuiCellOptionsProvider({ height: 'spacious' })],
 })
 export class ServiceOutletComponent {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)

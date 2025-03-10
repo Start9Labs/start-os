@@ -29,11 +29,7 @@ export class EOSService {
   readonly updatingOrBackingUp$ = combineLatest([
     this.updating$,
     this.backingUp$,
-  ]).pipe(
-    map(([updating, backingUp]) => {
-      return updating || backingUp
-    }),
-  )
+  ]).pipe(map(([updating, backingUp]) => updating || backingUp))
 
   readonly showUpdate$ = combineLatest([
     this.updateAvailable$,

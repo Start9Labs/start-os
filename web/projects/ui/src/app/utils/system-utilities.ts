@@ -33,9 +33,9 @@ export const SYSTEM_UTILITIES: Record<string, { icon: string; title: string }> =
       icon: '@tui.file-text',
       title: 'Logs',
     },
-    '/portal/settings': {
-      icon: '@tui.wrench',
-      title: 'Settings',
+    '/portal/system': {
+      icon: '@tui.settings',
+      title: 'System',
     },
     '/portal/notifications': {
       icon: '@tui.bell',

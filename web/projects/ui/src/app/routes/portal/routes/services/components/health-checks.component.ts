@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
 import { TuiTable } from '@taiga-ui/addon-table'
+import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { ServiceHealthCheckComponent } from './health-check.component'
-import { ServicePlaceholderComponent } from './placeholder.component'
 
 @Component({
   standalone: true,
@@ -23,9 +23,9 @@ import { ServicePlaceholderComponent } from './placeholder.component'
       </tbody>
     </table>
     @if (!checks().length) {
-      <service-placeholder icon="@tui.heart-pulse">
+      <app-placeholder icon="@tui.heart-pulse">
         No health checks
-      </service-placeholder>
+      </app-placeholder>
     }
   `,
   styles: `
@@ -35,7 +35,7 @@ import { ServicePlaceholderComponent } from './placeholder.component'
   `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ServiceHealthCheckComponent, ServicePlaceholderComponent, TuiTable],
+  imports: [ServiceHealthCheckComponent, PlaceholderComponent, TuiTable],
 })
 export class ServiceHealthChecksComponent {
   readonly checks = input.required<readonly T.NamedHealthCheckResult[]>()

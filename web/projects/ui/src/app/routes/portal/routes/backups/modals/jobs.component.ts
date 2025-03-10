@@ -7,6 +7,7 @@ import {
   TuiIcon,
   TuiButton,
   TuiNotification,
+  TuiLink,
 } from '@taiga-ui/core'
 import { TuiConfirmData, TUI_CONFIRM, TuiSkeleton } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -25,6 +26,7 @@ import { EDIT } from './edit.component'
       data is safely backed up. StartOS will issue a notification whenever one
       of your scheduled backups succeeds or fails.
       <a
+        tuiLink
         href="https://docs.start9.com/latest/user-manual/backups/backup-jobs"
         target="_blank"
         rel="noreferrer"
@@ -144,6 +146,7 @@ import { EDIT } from './edit.component'
     ToHumanCronPipe,
     GetBackupIconPipe,
     TuiSkeleton,
+    TuiLink,
   ],
 })
 export class BackupsJobsModal implements OnInit {

@@ -76,16 +76,16 @@ hr {
   position: relative;
   display: flex;
   flex-direction: column;
-  padding: 3.25rem 1rem 0.5rem;
+  padding: 3.125rem 1rem 0.5rem;
   border-radius: 0.5rem;
   overflow: hidden;
   background-color: color-mix(in hsl, var(--start9-base-1) 50%, transparent);
   background-image: linear-gradient(
       to bottom,
-      rgba(255, 255, 255, 0.15),
+      var(--tui-background-neutral-2),
       transparent
     ),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.15), transparent);
+    linear-gradient(to bottom, var(--tui-background-neutral-2), transparent);
   background-size: 1px 100%;
   background-repeat: no-repeat;
   background-position:
@@ -101,8 +101,13 @@ hr {
     inset 0 1px rgba(255, 255, 255, 0.15),
     inset 0 0 1rem rgba(0, 0, 0, 0.25);
 
-  > [tuiCell] {
-    margin: 0 -0.5rem;
+  &:is(form) {
+    padding-top: 3.75rem;
+  }
+
+  [tuiCell] {
+    margin: 0 -0.625rem;
+    border-radius: var(--tui-radius-s);
 
     &:not(:last-child)::after {
       content: '';
@@ -111,7 +116,7 @@ hr {
       left: 1rem;
       right: 1rem;
       height: 1px;
-      background: var(--tui-border-normal);
+      background: var(--tui-background-neutral-1);
     }
   }
 
@@ -129,10 +134,19 @@ hr {
     top: 0;
     left: 0;
     right: 0;
+    display: flex;
+    align-items: center;
     padding: 0.5rem 1rem;
     background: var(--tui-background-neutral-1);
     font: var(--tui-font-text-l);
     font-weight: bold;
+  }
+
+  > footer {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    padding: 1rem 0 0.5rem;
   }
 }
 

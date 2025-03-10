@@ -4,8 +4,8 @@ import { RouterLink } from '@angular/router'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
 import { TuiCell } from '@taiga-ui/layout'
+import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { ServicePlaceholderComponent } from './placeholder.component'
 
 @Component({
   selector: 'service-dependencies',
@@ -25,9 +25,7 @@ import { ServicePlaceholderComponent } from './placeholder.component'
         <tui-icon icon="@tui.arrow-right" />
       </a>
     } @empty {
-      <service-placeholder icon="@tui.boxes">
-        No dependencies
-      </service-placeholder>
+      <app-placeholder icon="@tui.boxes">No dependencies</app-placeholder>
     }
   `,
   styles: `
@@ -45,7 +43,7 @@ import { ServicePlaceholderComponent } from './placeholder.component'
     TuiAvatar,
     TuiTitle,
     TuiIcon,
-    ServicePlaceholderComponent,
+    PlaceholderComponent,
   ],
 })
 export class ServiceDependenciesComponent {
