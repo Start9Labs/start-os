@@ -58,11 +58,16 @@ check:
 fmt: package/node_modules base/node_modules
 	npx prettier . "**/*.ts" --write
 
+package/package-lock.json: package/package.json
+	cd package && npm i
 
-package/node_modules: package/package.json
+base/package-lock.json: base/package.json
+	cd base && npm i
+
+package/node_modules: package/package-lock.json
 	cd package && npm ci
 
-base/node_modules: base/package.json
+base/node_modules: base/package-lock.json
 	cd base && npm ci
 
 node_modules: package/node_modules base/node_modules
