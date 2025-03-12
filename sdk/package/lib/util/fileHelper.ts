@@ -3,7 +3,7 @@ import * as YAML from "yaml"
 import * as TOML from "@iarna/toml"
 import * as T from "../../../base/lib/types"
 import * as fs from "node:fs/promises"
-import { asError } from "../../../base/lib/util"
+import { asError, partialDiff } from "../../../base/lib/util"
 
 const previousPath = /(.+?)\/([^/]*)$/
 
@@ -101,6 +101,7 @@ function fileMerge(...args: any[]): any {
  * ```
  */
 export class FileHelper<A> {
+  private consts: (() => void)[] = []
   protected constructor(
     readonly path: string,
     readonly writeData: (dataIn: A) => string,
@@ -108,27 +109,37 @@ export class FileHelper<A> {
     readonly validate: (value: unknown) => A,
   ) {}
 
-  /**
-   * Accepts structured data and overwrites the existing file on disk.
-   */
-  private async writeFile(data: A): Promise<null> {
+  private async writeFileRaw(data: string): Promise<null> {
     const parent = previousPath.exec(this.path)
     if (parent) {
       await fs.mkdir(parent[1], { recursive: true })
     }
 
-    await fs.writeFile(this.path, this.writeData(data))
+    await fs.writeFile(this.path, data)
 
     return null
   }
 
-  private async readFile(): Promise<unknown> {
+  /**
+   * Accepts structured data and overwrites the existing file on disk.
+   */
+  private async writeFile(data: A): Promise<null> {
+    return await this.writeFileRaw(this.writeData(data))
+  }
+
+  private async readFileRaw(): Promise<string | null> {
     if (!(await exists(this.path))) {
       return null
     }
-    return this.readData(
-      await fs.readFile(this.path).then((data) => data.toString("utf-8")),
-    )
+    return await fs.readFile(this.path).then((data) => data.toString("utf-8"))
+  }
+
+  private async readFile(): Promise<unknown> {
+    const raw = await this.readFileRaw()
+    if (raw === null) {
+      return raw
+    }
+    return this.readData(raw)
   }
 
   /**
@@ -143,7 +154,12 @@ export class FileHelper<A> {
   private async readConst(effects: T.Effects): Promise<A | null> {
     const watch = this.readWatch()
     const res = await watch.next()
-    watch.next().then(effects.constRetry)
+    if (!this.consts.includes(effects.constRetry))
+      this.consts.push(effects.constRetry)
+    watch.next().then(() => {
+      this.consts = this.consts.filter((a) => a === effects.constRetry)
+      effects.constRetry
+    })
     return res.value
   }
 
@@ -213,17 +229,35 @@ export class FileHelper<A> {
   /**
    * Accepts full structured data and overwrites the existing file on disk if it exists.
    */
-  async write(data: A) {
-    return await this.writeFile(this.validate(data))
+  async write(effects: T.Effects, data: A) {
+    await this.writeFile(this.validate(data))
+    if (this.consts.includes(effects.constRetry))
+      throw new Error(`Canceled: write after const: ${this.path}`)
+    return null
   }
 
   /**
    * Accepts partial structured data and performs a merge with the existing file on disk.
    */
-  async merge(data: T.DeepPartial<A>) {
-    const fileData = (await this.readFile()) || null
-    const mergeData = fileMerge(fileData, data)
-    return await this.writeFile(this.validate(mergeData))
+  async merge(effects: T.Effects, data: T.DeepPartial<A>) {
+    const fileDataRaw = await this.readFileRaw()
+    let fileData: any = fileDataRaw === null ? null : this.readData(fileDataRaw)
+    try {
+      fileData = this.validate(fileData)
+    } catch (_) {}
+    const mergeData = this.validate(fileMerge({}, fileData, data))
+    const toWrite = this.writeData(mergeData)
+    if (toWrite !== fileDataRaw) {
+      this.writeFile(mergeData)
+      if (this.consts.includes(effects.constRetry)) {
+        const diff = partialDiff(fileData, mergeData as any)
+        if (!diff) {
+          return null
+        }
+        throw new Error(`Canceled: write after const: ${this.path}`)
+      }
+    }
+    return null
   }
 
   /**

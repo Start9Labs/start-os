@@ -24,10 +24,7 @@ export function partialDiff<T>(
       return
     }
   } else if (typeof prev === "object" && typeof next === "object") {
-    if (prev === null) {
-      return { diff: next }
-    }
-    if (next === null) return
+    if (prev === null || next === null) return { diff: next }
     const res = { diff: {} as Record<keyof T, any> }
     for (let key in next) {
       const diff = partialDiff(prev[key], next[key])

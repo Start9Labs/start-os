@@ -1,7 +1,7 @@
 import * as T from "../../../base/lib/types"
 import { MountOptions } from "../util/SubContainer"
 
-type MountArray = { path: string; options: MountOptions }[]
+type MountArray = { mountpoint: string; options: MountOptions }[]
 
 export class Mounts<Manifest extends T.SDKManifest> {
   private constructor(
@@ -102,7 +102,7 @@ export class Mounts<Manifest extends T.SDKManifest> {
     return ([] as MountArray)
       .concat(
         this.volumes.map((v) => ({
-          path: v.mountpoint,
+          mountpoint: v.mountpoint,
           options: {
             type: "volume",
             id: v.id,
@@ -113,7 +113,7 @@ export class Mounts<Manifest extends T.SDKManifest> {
       )
       .concat(
         this.assets.map((a) => ({
-          path: a.mountpoint,
+          mountpoint: a.mountpoint,
           options: {
             type: "assets",
             id: a.id,
@@ -123,7 +123,7 @@ export class Mounts<Manifest extends T.SDKManifest> {
       )
       .concat(
         this.dependencies.map((d) => ({
-          path: d.mountpoint,
+          mountpoint: d.mountpoint,
           options: {
             type: "pointer",
             packageId: d.dependencyId,
