@@ -62,7 +62,7 @@ export class DockerProcedureContainer {
           )
         } else if (volumeMount.type === "assets") {
           await subcontainer.mount(
-            { type: "assets", id: mount, subpath: null },
+            { type: "assets", subpath: mount },
             mounts[mount],
           )
         } else if (volumeMount.type === "certificate") {

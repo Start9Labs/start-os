@@ -166,7 +166,7 @@ export class SubContainer implements ExecSpawnable {
           ? options.subpath
           : `/${options.subpath}`
         : "/"
-      const from = `/media/startos/assets/${options.id}${subpath}`
+      const from = `/media/startos/assets/${subpath}`
 
       await fs.mkdir(from, { recursive: true })
       await fs.mkdir(path, { recursive: true })
@@ -449,7 +449,6 @@ export type MountOptionsVolume = {
 
 export type MountOptionsAssets = {
   type: "assets"
-  id: string
   subpath: string | null
 }
 

@@ -53,7 +53,6 @@ pub struct Manifest {
     pub donation_url: Option<Url>,
     pub description: Description,
     pub images: BTreeMap<ImageId, ImageConfig>,
-    pub assets: BTreeSet<VolumeId>, // TODO: AssetsId
     pub volumes: BTreeSet<VolumeId>,
     #[serde(default)]
     pub alerts: Alerts,
@@ -93,8 +92,11 @@ impl Manifest {
                     .map_or(false, |mime| mime.starts_with("image/"))
             });
         }
-        for assets in &self.assets {
-            expected.check_file(Path::new("assets").join(assets).with_extension("squashfs"))?;
+        if let Err(e) = expected.check_file(Path::new("assets.squashfs")) {
+            // backwards compatibility for alpha s9pks - remove eventually
+            if expected.check_dir("assets").is_err() {
+                return Err(e);
+            }
         }
         for (image_id, config) in &self.images {
             let mut check_arch = |arch: &str| {

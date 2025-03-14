@@ -21,5 +21,6 @@ export abstract class Drop {
   drop(): void {
     this.onDrop()
     Drop.registry.unregister(this)
+    delete Drop.weak[this.id]
   }
 }

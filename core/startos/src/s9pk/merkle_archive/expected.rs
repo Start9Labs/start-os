@@ -36,6 +36,25 @@ impl<'a, T: Clone> Expected<'a, T> {
             ))
         }
     }
+    pub fn check_dir(&mut self, path: impl AsRef<Path>) -> Result<(), Error> {
+        if let Some(dir) = self
+            .dir
+            .get_path(path.as_ref())
+            .and_then(|e| e.as_directory())
+        {
+            for entry in dir.file_paths(path.as_ref()) {
+                if !entry.to_string_lossy().ends_with("/") {
+                    self.keep.insert_path(entry, Entry::file(()))?;
+                }
+            }
+            Ok(())
+        } else {
+            Err(Error::new(
+                eyre!("directory {} missing from archive", path.as_ref().display()),
+                ErrorKind::ParseS9pk,
+            ))
+        }
+    }
     pub fn check_stem(
         &mut self,
         path: impl AsRef<Path>,
