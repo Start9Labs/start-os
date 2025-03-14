@@ -12,7 +12,6 @@ export class Mounts<Manifest extends T.SDKManifest> {
       readonly: boolean
     }[],
     readonly assets: {
-      id: Manifest["assets"][number]
       subpath: string | null
       mountpoint: string
     }[],
@@ -49,15 +48,12 @@ export class Mounts<Manifest extends T.SDKManifest> {
   }
 
   addAssets(
-    /** The ID of the asset directory to mount. This is typically the same as the folder name in your assets directory */
-    id: Manifest["assets"][number],
     /** The path within the asset directory to mount. Use `null` to mount the entire volume */
     subpath: string | null,
     /** Where to mount the asset. e.g. /asset */
     mountpoint: string,
   ) {
     this.assets.push({
-      id,
       subpath,
       mountpoint,
     })
@@ -116,7 +112,6 @@ export class Mounts<Manifest extends T.SDKManifest> {
           mountpoint: a.mountpoint,
           options: {
             type: "assets",
-            id: a.id,
             subpath: a.subpath,
           },
         })),

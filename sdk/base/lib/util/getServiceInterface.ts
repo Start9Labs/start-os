@@ -217,7 +217,9 @@ export class GetServiceInterface {
    */
   async const() {
     const { id, packageId } = this.opts
-    const callback = () => this.effects.constRetry()
+    const callback =
+      this.effects.constRetry &&
+      (() => this.effects.constRetry && this.effects.constRetry())
     const interfaceFilled = await makeInterfaceFilled({
       effects: this.effects,
       id,

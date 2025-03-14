@@ -26,7 +26,7 @@ import * as patterns from "../../base/lib/util/patterns"
 import { BackupSync, Backups } from "./backup/Backups"
 import { smtpInputSpec } from "../../base/lib/actions/input/inputSpecConstants"
 import { CommandController, Daemons } from "./mainFn/Daemons"
-import { HealthCheck, HealthCheckParams } from "./health/HealthCheck"
+import { HealthCheck } from "./health/HealthCheck"
 import { checkPortListening } from "./health/checkFns/checkPortListening"
 import { checkWebUrl, runHealthScript } from "./health/checkFns"
 import { List } from "../../base/lib/actions/input/builder/list"
@@ -419,11 +419,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         hostnames: string[],
         algorithm?: T.Algorithm,
       ) => new GetSslCertificate(effects, hostnames, algorithm),
-      HealthCheck: {
-        of(effects: T.Effects, o: Omit<HealthCheckParams, "effects">) {
-          return HealthCheck.of({ effects, ...o })
-        },
-      },
+      HealthCheck,
       healthCheck: {
         checkPortListening,
         checkWebUrl,

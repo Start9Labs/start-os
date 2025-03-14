@@ -7,7 +7,6 @@ import { once, asError, Drop } from "../util"
 import { object, unknown } from "ts-matches"
 
 export type HealthCheckParams = {
-  effects: Effects
   id: HealthCheckId
   name: string
   trigger?: Trigger
@@ -27,7 +26,7 @@ export class HealthCheck extends Drop {
   }
   private currentValue: TriggerInput = {}
   private promise: Promise<void>
-  private constructor(o: HealthCheckParams) {
+  private constructor(effects: Effects, o: HealthCheckParams) {
     super()
     this.promise = Promise.resolve().then(async () => {
       const getCurrentValue = () => this.currentValue
@@ -72,7 +71,7 @@ export class HealthCheck extends Drop {
                 performance.now() - started <= gracePeriod
               )
                 result = "starting"
-              await o.effects.setHealth({
+              await effects.setHealth({
                 name: o.name,
                 id: o.id,
                 result,
@@ -83,7 +82,7 @@ export class HealthCheck extends Drop {
                 console.error(asError(err))
               })
             } catch (e) {
-              await o.effects.setHealth({
+              await effects.setHealth({
                 name: o.name,
                 id: o.id,
                 result:
@@ -104,8 +103,8 @@ export class HealthCheck extends Drop {
       }
     })
   }
-  static of(options: HealthCheckParams): HealthCheck {
-    return new HealthCheck(options)
+  static of(effects: Effects, options: HealthCheckParams): HealthCheck {
+    return new HealthCheck(effects, options)
   }
   start() {
     if (this.started) return

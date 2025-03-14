@@ -154,12 +154,14 @@ export class FileHelper<A> {
   private async readConst(effects: T.Effects): Promise<A | null> {
     const watch = this.readWatch()
     const res = await watch.next()
-    if (!this.consts.includes(effects.constRetry))
-      this.consts.push(effects.constRetry)
-    watch.next().then(() => {
-      this.consts = this.consts.filter((a) => a === effects.constRetry)
-      effects.constRetry
-    })
+    if (effects.constRetry) {
+      if (!this.consts.includes(effects.constRetry))
+        this.consts.push(effects.constRetry)
+      watch.next().then(() => {
+        this.consts = this.consts.filter((a) => a === effects.constRetry)
+        effects.constRetry && effects.constRetry()
+      })
+    }
     return res.value
   }
 
@@ -231,7 +233,7 @@ export class FileHelper<A> {
    */
   async write(effects: T.Effects, data: A) {
     await this.writeFile(this.validate(data))
-    if (this.consts.includes(effects.constRetry))
+    if (effects.constRetry && this.consts.includes(effects.constRetry))
       throw new Error(`Canceled: write after const: ${this.path}`)
     return null
   }
@@ -249,7 +251,7 @@ export class FileHelper<A> {
     const toWrite = this.writeData(mergeData)
     if (toWrite !== fileDataRaw) {
       this.writeFile(mergeData)
-      if (this.consts.includes(effects.constRetry)) {
+      if (effects.constRetry && this.consts.includes(effects.constRetry)) {
         const diff = partialDiff(fileData, mergeData as any)
         if (!diff) {
           return null
