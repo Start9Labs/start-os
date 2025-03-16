@@ -73,7 +73,7 @@ export default class DashboardComponent {
     getInstalledPrimaryStatus(b) > getInstalledPrimaryStatus(a) ? -1 : 1
 
   readonly uptime: TuiComparator<any> = (a, b) =>
-    a.startedAt || '' > b.startedAt || '' ? -1 : 1
+    a.status.started || '' > a.status.started || '' ? -1 : 1
 
   sorter = this.name
 }
