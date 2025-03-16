@@ -170,7 +170,7 @@ export const polyfillEffects = (
           {
             mounts: [
               {
-                path: "/drive",
+                mountpoint: "/drive",
                 options: {
                   type: "volume",
                   id: input.volumeId,
@@ -212,7 +212,7 @@ export const polyfillEffects = (
           {
             mounts: [
               {
-                path: "/drive",
+                mountpoint: "/drive",
                 options: {
                   type: "volume",
                   id: input.volumeId,

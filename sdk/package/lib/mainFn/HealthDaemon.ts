@@ -39,7 +39,6 @@ export class HealthDaemon {
     readonly sigtermTimeout: number = DEFAULT_SIGTERM_TIMEOUT,
   ) {
     this.readyPromise = new Promise((resolve) => (this.resolveReady = resolve))
-    this.updateStatus()
     this.dependencies.forEach((d) => d.addWatcher(() => this.updateStatus()))
   }
 
@@ -166,8 +165,8 @@ export class HealthDaemon {
     } as SetHealth)
   }
 
-  private async updateStatus() {
-    const healths = this.dependencies.map((d) => d._health)
-    this.changeRunning(healths.every((x) => x.result === "success"))
+  async updateStatus() {
+    const healths = this.dependencies.map((d) => d.running && d._health)
+    this.changeRunning(healths.every((x) => x && x.result === "success"))
   }
 }

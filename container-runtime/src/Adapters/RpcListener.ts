@@ -306,7 +306,6 @@ export class RpcListener {
         const effects = makeEffects({
           procedureId: null,
           callbacks,
-          constRetry: () => {},
         })
         return handleRpc(
           id,
@@ -337,7 +336,6 @@ export class RpcListener {
               this.callbacks = new CallbackHolder(
                 makeEffects({
                   procedureId: null,
-                  constRetry: () => {},
                 }),
               )
               const callbacks = this.callbackHolderFor("containerInit")
@@ -345,7 +343,6 @@ export class RpcListener {
                 makeEffects({
                   procedureId: null,
                   callbacks,
-                  constRetry: () => {},
                 }),
               )
               this._system = system
@@ -427,7 +424,6 @@ export class RpcListener {
     const effects = makeEffects({
       procedureId,
       callbacks,
-      constRetry: () => {},
     })
 
     return (async () => {

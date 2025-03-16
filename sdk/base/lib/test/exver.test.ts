@@ -80,10 +80,15 @@ describe("ExVer", () => {
       })
 
       test(`VersionRange.parse("=1") invalid`, () => {
-        expect(checker.satisfiedBy(ExtendedVersion.parse("1.0.1:0"))).toEqual(false)
-        expect(checker.satisfiedBy(ExtendedVersion.parse("1.0.0:1"))).toEqual(false)
+        expect(checker.satisfiedBy(ExtendedVersion.parse("1.0.1:0"))).toEqual(
+          false,
+        )
+        expect(checker.satisfiedBy(ExtendedVersion.parse("1.0.0:1"))).toEqual(
+          false,
+        )
       })
-    }    {
+    }
+    {
       const checker = VersionRange.parse(">=1.2.3:4")
       test(`VersionRange.parse(">=1.2.3:4") valid`, () => {
         expect(checker.satisfiedBy(ExtendedVersion.parse("2:0"))).toEqual(true)
@@ -306,32 +311,44 @@ describe("ExVer", () => {
     {
       function testNormalization(input: string, expected: string) {
         test(`"${input}" normalizes to "${expected}"`, () => {
-          const checker = VersionRange.parse(input).normalize();
-          expect(checker.toString()).toEqual(expected);
-        });
+          const checker = VersionRange.parse(input).normalize()
+          expect(checker.toString()).toEqual(expected)
+        })
       }
 
-      testNormalization("=2.0", "=2.0:0");
-      testNormalization("=1 && =2", "!");
-      testNormalization("!(=1 && =2)", "*");
-      testNormalization("!=1 || !=2", "*");
-      testNormalization("(!=#foo:1 || !=#foo:2) && #foo", "#foo");
-      testNormalization("!=#foo:1 || !=#bar:2", "<#foo:1:0 || >#foo:1:0 || !#foo || <#bar:2:0 || >#bar:2:0 || !#bar");
-      testNormalization("!(=1 || =2)", "<1:0 || (>1:0 && <2:0) || >2:0 || !#");
-      testNormalization("=1 && (=2 || =3)", "!");
-      testNormalization("=1 && (=1 || =2)", "=1:0");
-      testNormalization("=#foo:1 && =#bar:1", "!");
-      testNormalization("!(=#foo:1) && !(=#bar:1)", "<#foo:1:0 || >#foo:1:0 || <#bar:1:0 || >#bar:1:0 || (!#foo && !#bar)");
-      testNormalization("!(=#foo:1) && !(=#bar:1) && >2", ">2:0");
-      testNormalization("~1.2.3", ">=1.2.3:0 && <1.3.0:0");
-      testNormalization("^1.2.3", ">=1.2.3:0 && <2.0.0:0");
-      testNormalization("^1.2.3 && >=1 && >=1.2 && >=1.3", ">=1.3:0 && <2.0.0:0");
-      testNormalization("(>=1.0 && <1.1) || (>=1.1 && <1.2) || (>=1.2 && <1.3)", ">=1.0:0 && <1.3:0");
-      testNormalization(">1 || <2", "#");
+      testNormalization("=2.0", "=2.0:0")
+      testNormalization("=1 && =2", "!")
+      testNormalization("!(=1 && =2)", "*")
+      testNormalization("!=1 || !=2", "*")
+      testNormalization("(!=#foo:1 || !=#foo:2) && #foo", "#foo")
+      testNormalization(
+        "!=#foo:1 || !=#bar:2",
+        "<#foo:1:0 || >#foo:1:0 || !#foo || <#bar:2:0 || >#bar:2:0 || !#bar",
+      )
+      testNormalization("!(=1 || =2)", "<1:0 || (>1:0 && <2:0) || >2:0 || !#")
+      testNormalization("=1 && (=2 || =3)", "!")
+      testNormalization("=1 && (=1 || =2)", "=1:0")
+      testNormalization("=#foo:1 && =#bar:1", "!")
+      testNormalization(
+        "!(=#foo:1) && !(=#bar:1)",
+        "<#foo:1:0 || >#foo:1:0 || <#bar:1:0 || >#bar:1:0 || (!#foo && !#bar)",
+      )
+      testNormalization("!(=#foo:1) && !(=#bar:1) && >2", ">2:0")
+      testNormalization("~1.2.3", ">=1.2.3:0 && <1.3.0:0")
+      testNormalization("^1.2.3", ">=1.2.3:0 && <2.0.0:0")
+      testNormalization(
+        "^1.2.3 && >=1 && >=1.2 && >=1.3",
+        ">=1.3:0 && <2.0.0:0",
+      )
+      testNormalization(
+        "(>=1.0 && <1.1) || (>=1.1 && <1.2) || (>=1.2 && <1.3)",
+        ">=1.0:0 && <1.3:0",
+      )
+      testNormalization(">1 || <2", "#")
 
-      testNormalization("=1 && =1.2 && =1.2.3", "!");
+      testNormalization("=1 && =1.2 && =1.2.3", "!")
       // testNormalization("=1 && =1.2 && =1.2.3", "=1.2.3:0"); TODO: should it be this instead?
-      testNormalization("=1 || =1.2 || =1.2.3", "=1:0 || =1.2:0 || =1.2.3:0");
+      testNormalization("=1 || =1.2 || =1.2.3", "=1:0 || =1.2:0 || =1.2.3:0")
       // testNormalization("=1 || =1.2 || =1.2.3", "=1:0"); TODO: should it be this instead?
     }
 
@@ -350,8 +367,12 @@ describe("ExVer", () => {
         const checker = VersionRange.parse("=1 || =2")
 
         expect(checker.satisfiedBy(ExtendedVersion.parse("1:0"))).toEqual(true)
-        expect(checker.satisfiedBy(ExtendedVersion.parse("1.2:0"))).toEqual(false) // really?
-        expect(checker.satisfiedBy(ExtendedVersion.parse("1.2.3:0"))).toEqual(false) // really?
+        expect(checker.satisfiedBy(ExtendedVersion.parse("1.2:0"))).toEqual(
+          false,
+        ) // really?
+        expect(checker.satisfiedBy(ExtendedVersion.parse("1.2.3:0"))).toEqual(
+          false,
+        ) // really?
         expect(checker.satisfiedBy(ExtendedVersion.parse("2:0"))).toEqual(true)
         expect(checker.satisfiedBy(ExtendedVersion.parse("3:0"))).toEqual(false)
       })

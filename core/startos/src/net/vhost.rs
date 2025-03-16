@@ -258,16 +258,6 @@ impl VHostServer {
             }
         }
 
-        if let Err(e) = socket2::SockRef::from(&accepted.stream).set_tcp_keepalive(
-            &socket2::TcpKeepalive::new()
-                .with_time(Duration::from_secs(900))
-                .with_interval(Duration::from_secs(60))
-                .with_retries(5),
-        ) {
-            tracing::error!("Failed to set tcp keepalive: {e}");
-            tracing::debug!("{e:?}");
-        }
-
         tokio::spawn(async move {
             let bind = accepted.bind;
             if let Err(e) =

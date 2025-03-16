@@ -36,7 +36,7 @@ let hostSystemId = 0
 export type EffectContext = {
   procedureId: string | null
   callbacks?: CallbackHolder
-  constRetry: () => void
+  constRetry?: () => void
 }
 
 const rpcRoundFor =

@@ -85,14 +85,6 @@ export type SDKManifest = {
    */
   readonly images: Record<ImageId, SDKImageInputSpec>
   /**
-   * @description A list of readonly asset directories that will mount to the container. Each item here must
-   *   correspond to a directory in the /assets directory of this project.
-   *
-   *   Most projects will not make use of this.
-   * @example []
-   */
-  readonly assets: string[]
-  /**
    * @description A list of data volumes that will mount to the container. Must contain at least one volume.
    * @example ['main']
    */

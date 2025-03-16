@@ -1,7 +1,7 @@
 import * as T from "../../../base/lib/types"
 import { MountOptions } from "../util/SubContainer"
 
-type MountArray = { path: string; options: MountOptions }[]
+type MountArray = { mountpoint: string; options: MountOptions }[]
 
 export class Mounts<Manifest extends T.SDKManifest> {
   private constructor(
@@ -12,7 +12,6 @@ export class Mounts<Manifest extends T.SDKManifest> {
       readonly: boolean
     }[],
     readonly assets: {
-      id: Manifest["assets"][number]
       subpath: string | null
       mountpoint: string
     }[],
@@ -49,15 +48,12 @@ export class Mounts<Manifest extends T.SDKManifest> {
   }
 
   addAssets(
-    /** The ID of the asset directory to mount. This is typically the same as the folder name in your assets directory */
-    id: Manifest["assets"][number],
     /** The path within the asset directory to mount. Use `null` to mount the entire volume */
     subpath: string | null,
     /** Where to mount the asset. e.g. /asset */
     mountpoint: string,
   ) {
     this.assets.push({
-      id,
       subpath,
       mountpoint,
     })
@@ -102,7 +98,7 @@ export class Mounts<Manifest extends T.SDKManifest> {
     return ([] as MountArray)
       .concat(
         this.volumes.map((v) => ({
-          path: v.mountpoint,
+          mountpoint: v.mountpoint,
           options: {
             type: "volume",
             id: v.id,
@@ -113,17 +109,16 @@ export class Mounts<Manifest extends T.SDKManifest> {
       )
       .concat(
         this.assets.map((a) => ({
-          path: a.mountpoint,
+          mountpoint: a.mountpoint,
           options: {
             type: "assets",
-            id: a.id,
             subpath: a.subpath,
           },
         })),
       )
       .concat(
         this.dependencies.map((d) => ({
-          path: d.mountpoint,
+          mountpoint: d.mountpoint,
           options: {
             type: "pointer",
             packageId: d.dependencyId,

@@ -1,4 +1,4 @@
-import { HealthReceipt, Signals } from "../../../base/lib/types"
+import { Signals } from "../../../base/lib/types"
 
 import { HealthCheckResult } from "../health/checkFns"
 
@@ -15,6 +15,7 @@ export { CommandController } from "./CommandController"
 import { HealthDaemon } from "./HealthDaemon"
 import { Daemon } from "./Daemon"
 import { CommandController } from "./CommandController"
+import { HealthCheck } from "../health/HealthCheck"
 
 export const cpExec = promisify(CP.exec)
 export const cpExecFile = promisify(CP.execFile)
@@ -115,6 +116,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     readonly daemons: Promise<Daemon>[],
     readonly ids: Ids[],
     readonly healthDaemons: HealthDaemon[],
+    readonly healthChecks: HealthCheck[],
   ) {}
   /**
    * Returns an empty new Daemons class with the provided inputSpec.
@@ -129,7 +131,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   static of<Manifest extends T.SDKManifest>(options: {
     effects: T.Effects
     started: (onTerm: () => PromiseLike<void>) => PromiseLike<null>
-    healthReceipts: HealthReceipt[]
+    healthChecks: HealthCheck[]
   }) {
     return new Daemons<Manifest, never>(
       options.effects,
@@ -137,6 +139,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       [],
       [],
       [],
+      options.healthChecks,
     )
   }
   /**
@@ -187,28 +190,33 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       daemons,
       ids,
       healthDaemons,
+      this.healthChecks,
     )
   }
 
-  async build() {
-    const built = {
-      term: async () => {
-        try {
-          for (let result of await Promise.allSettled(
-            this.healthDaemons.map((x) =>
-              x.term({ timeout: x.sigtermTimeout }),
-            ),
-          )) {
-            if (result.status === "rejected") {
-              console.error(result.reason)
-            }
-          }
-        } finally {
-          this.effects.setMainStatus({ status: "stopped" })
+  async term() {
+    try {
+      this.healthChecks.forEach((health) => health.stop())
+      for (let result of await Promise.allSettled(
+        this.healthDaemons.map((x) => x.term({ timeout: x.sigtermTimeout })),
+      )) {
+        if (result.status === "rejected") {
+          console.error(result.reason)
         }
-      },
+      }
+    } finally {
+      this.effects.setMainStatus({ status: "stopped" })
     }
-    this.started(() => built.term())
-    return built
+  }
+
+  async build() {
+    for (const daemon of this.healthDaemons) {
+      await daemon.updateStatus()
+    }
+    for (const health of this.healthChecks) {
+      health.start()
+    }
+    this.started(() => this.term())
+    return this
   }
 }
