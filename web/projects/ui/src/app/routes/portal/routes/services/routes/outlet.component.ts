@@ -99,6 +99,10 @@ const ICONS = {
 
     .active {
       color: var(--tui-text-primary);
+
+      [tuiTitle] {
+        font-weight: bold;
+      }
     }
 
     :host-context(tui-root._mobile) {

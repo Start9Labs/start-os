@@ -11,10 +11,10 @@ import { getPkgId } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { InterfaceComponent } from 'src/app/routes/portal/components/interfaces/interface.component'
+import { getAddresses } from 'src/app/routes/portal/components/interfaces/interface.utils'
 import { ConfigService } from 'src/app/services/config.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
-import { getAddresses } from '../../../components/interfaces/interface.utils'
 
 @Component({
   template: `

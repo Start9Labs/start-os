@@ -29,10 +29,7 @@ export function getAddresses(
   tor: AddressDetails[]
 } {
   const addressInfo = serviceInterface.addressInfo
-
-  let hostnames = host.hostnameInfo[addressInfo.internalPort]
-
-  hostnames = hostnames.filter(
+  const hostnames = host.hostnameInfo[addressInfo.internalPort].filter(
     h =>
       config.isLocalhost() ||
       h.kind !== 'ip' ||
@@ -121,7 +118,17 @@ export function getAddresses(
   }
 }
 
+export type MappedServiceInterface = T.ServiceInterface & {
+  public: boolean
+  addresses: {
+    clearnet: AddressDetails[]
+    local: AddressDetails[]
+    tor: AddressDetails[]
+  }
+}
+
 export type AddressDetails = {
   label: string
   url: string
+  acme?: string | null
 }

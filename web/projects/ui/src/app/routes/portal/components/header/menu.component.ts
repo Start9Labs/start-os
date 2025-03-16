@@ -105,11 +105,6 @@ import { ABOUT } from './about.component'
         opacity: 0.5;
       }
 
-      [tuiOption] {
-        justify-content: flex-start;
-        gap: 0.5rem;
-      }
-
       :host-context(tui-root._mobile) {
         [tuiIconButton] {
           box-shadow: inset -1.25rem 0 0 -1rem var(--status);

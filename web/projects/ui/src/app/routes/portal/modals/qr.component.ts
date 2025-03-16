@@ -6,7 +6,7 @@ import { QrCodeModule } from 'ng-qrcode'
 @Component({
   standalone: true,
   selector: 'qr',
-  template: '<qr-code [value]="context.data" size="400"></qr-code>',
+  template: '<qr-code [value]="context.data" size="350"></qr-code>',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [QrCodeModule],
 })

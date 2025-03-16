@@ -1,112 +1,42 @@
-import { CommonModule } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  Input,
-} from '@angular/core'
-import { T } from '@start9labs/start-sdk'
-import { TuiSurface } from '@taiga-ui/core'
-import { TuiCardLarge } from '@taiga-ui/layout'
-import { PatchDB } from 'patch-db-client'
-import { AddressGroupComponent } from 'src/app/routes/portal/components/interfaces/address-group.component'
-import { DataModel } from 'src/app/services/patch-db/data-model'
-import { ClearnetAddressesDirective } from './directives/clearnet.directive'
-import { TorAddressesDirective } from './directives/tor.directive'
-import { LocalAddressesDirective } from './directives/local.directive'
-import { AddressDetails } from './interface.utils'
-import { map } from 'rxjs'
+import { ChangeDetectionStrategy, Component, input, Input } from '@angular/core'
+import { tuiButtonOptionsProvider } from '@taiga-ui/core'
+import { InterfaceClearnetComponent } from 'src/app/routes/portal/components/interfaces/clearnet.component'
+import { InterfaceLocalComponent } from 'src/app/routes/portal/components/interfaces/local.component'
+import { InterfaceTorComponent } from 'src/app/routes/portal/components/interfaces/tor.component'
+import { MappedServiceInterface } from './interface.utils'
 
 @Component({
   standalone: true,
   selector: 'app-interface',
   template: `
-    <h3 class="g-title">Clearnet</h3>
-    <app-address-group
-      *ngIf="acme$ | async as acme"
-      clearnetAddresses
-      tuiCardLarge="compact"
-      tuiSurface="floating"
-      [acme]="acme"
-      [addresses]="serviceInterface.addresses.clearnet"
-    >
-      <em>
-        Add a clearnet address to expose this interface on the Internet.
-        Clearnet addresses are fully public and not anonymous.
-        <a
-          href="https://docs.start9.com/latest/user-manual/interface-addresses#clearnet"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <strong>Learn More</strong>
-        </a>
-      </em>
-    </app-address-group>
-
-    <h3 class="g-title">Tor</h3>
-    <app-address-group
-      torAddresses
-      tuiCardLarge="compact"
-      tuiSurface="floating"
-      [addresses]="serviceInterface.addresses.tor"
-    >
-      <em>
-        Add an onion address to anonymously expose this interface on the
-        darknet. Onion addresses can only be reached over the Tor network.
-        <a
-          href="https://docs.start9.com/latest/user-manual/interface-addresses#tor"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <strong>Learn More</strong>
-        </a>
-      </em>
-    </app-address-group>
-
-    <h3 class="g-title">Local</h3>
-    <app-address-group
-      localAddresses
-      tuiCardLarge="compact"
-      tuiSurface="floating"
-      [addresses]="serviceInterface.addresses.local"
-    >
-      <em>
-        Local addresses can only be accessed by devices connected to the same
-        LAN as your server, either directly or using a VPN.
-        <a
-          href="https://docs.start9.com/latest/user-manual/interface-addresses#local"
-          target="_blank"
-          rel="noreferrer"
-        >
-          <strong>Learn More</strong>
-        </a>
-      </em>
-    </app-address-group>
+    <section [clearnet]="serviceInterface().addresses.clearnet"></section>
+    <section [tor]="serviceInterface().addresses.tor"></section>
+    <section [local]="serviceInterface().addresses.local"></section>
   `,
+  styles: `
+    :host {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    section {
+      padding-block-end: 1rem;
+    }
+
+    :host-context(tui-root:not(._mobile)) section ::ng-deep > header {
+      background: none;
+    }
+  `,
+  providers: [tuiButtonOptionsProvider({ size: 'xs' })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
-    AddressGroupComponent,
-    TuiCardLarge,
-    TuiSurface,
-    ClearnetAddressesDirective,
-    TorAddressesDirective,
-    LocalAddressesDirective,
+    InterfaceClearnetComponent,
+    InterfaceTorComponent,
+    InterfaceLocalComponent,
   ],
 })
 export class InterfaceComponent {
-  readonly acme$ = inject<PatchDB<DataModel>>(PatchDB)
-    .watch$('serverInfo', 'network', 'acme')
-    .pipe(map(acme => Object.keys(acme)))
-
-  @Input() packageId?: string
-  @Input({ required: true }) serviceInterface!: MappedServiceInterface
-}
-
-export type MappedServiceInterface = T.ServiceInterface & {
-  addresses: {
-    clearnet: AddressDetails[]
-    local: AddressDetails[]
-    tor: AddressDetails[]
-  }
+  readonly packageId = input('')
+  readonly serviceInterface = input.required<MappedServiceInterface>()
 }
