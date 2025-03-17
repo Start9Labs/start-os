@@ -20,10 +20,6 @@ export {
 } from "./dependencies/setupDependencies"
 
 export type ExposedStorePaths = string[] & Affine<"ExposedStorePaths">
-declare const HealthProof: unique symbol
-export type HealthReceipt = {
-  [HealthProof]: never
-}
 
 export type DaemonBuildable = {
   build(): Promise<{

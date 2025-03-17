@@ -163,15 +163,17 @@ export class VersionGraph<CurrentVersion extends string> {
           (v.metadata instanceof ExtendedVersion &&
             v.metadata.equals(this.currentVersion())),
       ),
-    ).reduce(
-      (acc, x) =>
-        acc.or(
-          x.metadata instanceof VersionRange
-            ? x.metadata
-            : VersionRange.anchor("=", x.metadata),
-        ),
-      VersionRange.none(),
-    ),
+    )
+      .reduce(
+        (acc, x) =>
+          acc.or(
+            x.metadata instanceof VersionRange
+              ? x.metadata
+              : VersionRange.anchor("=", x.metadata),
+          ),
+        VersionRange.none(),
+      )
+      .normalize(),
   )
   canMigrateTo = once(() =>
     Array.from(
@@ -182,15 +184,17 @@ export class VersionGraph<CurrentVersion extends string> {
           (v.metadata instanceof ExtendedVersion &&
             v.metadata.equals(this.currentVersion())),
       ),
-    ).reduce(
-      (acc, x) =>
-        acc.or(
-          x.metadata instanceof VersionRange
-            ? x.metadata
-            : VersionRange.anchor("=", x.metadata),
-        ),
-      VersionRange.none(),
-    ),
+    )
+      .reduce(
+        (acc, x) =>
+          acc.or(
+            x.metadata instanceof VersionRange
+              ? x.metadata
+              : VersionRange.anchor("=", x.metadata),
+          ),
+        VersionRange.none(),
+      )
+      .normalize(),
   )
 }
 

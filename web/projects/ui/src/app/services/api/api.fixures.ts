@@ -117,7 +117,6 @@ export namespace Mock {
         emulateMissingAs: 'aarch64',
       },
     },
-    assets: [],
     volumes: ['main'],
     hardwareRequirements: {
       device: [],
@@ -174,7 +173,6 @@ export namespace Mock {
         emulateMissingAs: 'aarch64',
       },
     },
-    assets: [],
     volumes: ['main'],
     hardwareRequirements: {
       device: [],
@@ -224,7 +222,6 @@ export namespace Mock {
         emulateMissingAs: 'aarch64',
       },
     },
-    assets: [],
     volumes: ['main'],
     hardwareRequirements: {
       device: [],

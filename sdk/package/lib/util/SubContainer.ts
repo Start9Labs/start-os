@@ -130,14 +130,14 @@ export class SubContainer implements ExecSpawnable {
   static async with<T>(
     effects: T.Effects,
     image: { imageId: T.ImageId; sharedRun?: boolean },
-    mounts: { options: MountOptions; path: string }[],
+    mounts: { options: MountOptions; mountpoint: string }[],
     name: string,
     fn: (subContainer: SubContainer) => Promise<T>,
   ): Promise<T> {
     const subContainer = await SubContainer.of(effects, image, name)
     try {
       for (let mount of mounts) {
-        await subContainer.mount(mount.options, mount.path)
+        await subContainer.mount(mount.options, mount.mountpoint)
       }
       return await fn(subContainer)
     } finally {
@@ -166,7 +166,7 @@ export class SubContainer implements ExecSpawnable {
           ? options.subpath
           : `/${options.subpath}`
         : "/"
-      const from = `/media/startos/assets/${options.id}${subpath}`
+      const from = `/media/startos/assets/${subpath}`
 
       await fs.mkdir(from, { recursive: true })
       await fs.mkdir(path, { recursive: true })
@@ -449,7 +449,6 @@ export type MountOptionsVolume = {
 
 export type MountOptionsAssets = {
   type: "assets"
-  id: string
   subpath: string | null
 }
 

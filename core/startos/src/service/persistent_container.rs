@@ -106,7 +106,7 @@ pub struct PersistentContainer {
     // procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
     js_mount: MountGuard,
     volumes: BTreeMap<VolumeId, MountGuard>,
-    assets: BTreeMap<VolumeId, MountGuard>,
+    assets: Vec<MountGuard>,
     pub(super) images: BTreeMap<ImageId, Arc<MountGuard>>,
     pub(super) subcontainers: Arc<Mutex<BTreeMap<Guid, Subcontainer>>>,
     pub(super) state: Arc<watch::Sender<ServiceState>>,
@@ -168,35 +168,63 @@ impl PersistentContainer {
             .await?;
             volumes.insert(volume.clone(), mount);
         }
-        let mut assets = BTreeMap::new();
-        for asset in &s9pk.as_manifest().assets {
-            let mountpoint = lxc_container
-                .rootfs_dir()
-                .join("media/startos/assets")
-                .join(asset);
-            tokio::fs::create_dir_all(&mountpoint).await?;
-            Command::new("chown")
-                .arg("100000:100000")
-                .arg(&mountpoint)
-                .invoke(crate::ErrorKind::Filesystem)
-                .await?;
-            let s9pk_asset_path = Path::new("assets").join(asset).with_extension("squashfs");
-            let sqfs = s9pk
-                .as_archive()
-                .contents()
-                .get_path(&s9pk_asset_path)
-                .and_then(|e| e.as_file())
-                .or_not_found(s9pk_asset_path.display())?;
-            assets.insert(
-                asset.clone(),
+
+        let mountpoint = lxc_container.rootfs_dir().join("media/startos/assets");
+        tokio::fs::create_dir_all(&mountpoint).await?;
+        Command::new("chown")
+            .arg("100000:100000")
+            .arg(&mountpoint)
+            .invoke(crate::ErrorKind::Filesystem)
+            .await?;
+        let assets = if let Some(sqfs) = s9pk
+            .as_archive()
+            .contents()
+            .get_path("assets.squashfs")
+            .and_then(|e| e.as_file())
+        {
+            vec![
                 MountGuard::mount(
                     &IdMapped::new(LoopDev::from(&**sqfs), 0, 100000, 65536),
                     mountpoint,
                     MountType::ReadWrite,
                 )
                 .await?,
-            );
-        }
+            ]
+        } else if let Some(dir) = s9pk
+            .as_archive()
+            .contents()
+            .get_path("assets")
+            .and_then(|e| e.as_directory())
+        {
+            // backwards compatibility for alpha s9pks - remove eventually
+            let mut assets = Vec::new();
+            for (asset, entry) in &**dir {
+                let mountpoint = lxc_container
+                    .rootfs_dir()
+                    .join("media/startos/assets")
+                    .join(Path::new(asset).with_extension(""));
+                tokio::fs::create_dir_all(&mountpoint).await?;
+                Command::new("chown")
+                    .arg("100000:100000")
+                    .arg(&mountpoint)
+                    .invoke(crate::ErrorKind::Filesystem)
+                    .await?;
+                let Some(sqfs) = entry.as_file() else {
+                    continue;
+                };
+                assets.push(
+                    MountGuard::mount(
+                        &IdMapped::new(LoopDev::from(&**sqfs), 0, 100000, 65536),
+                        mountpoint,
+                        MountType::ReadWrite,
+                    )
+                    .await?,
+                );
+            }
+            assets
+        } else {
+            Vec::new()
+        };
 
         let mut images = BTreeMap::new();
         let image_path = lxc_container.rootfs_dir().join("media/startos/images");
@@ -432,7 +460,7 @@ impl PersistentContainer {
             for (_, volume) in volumes {
                 errs.handle(volume.unmount(true).await);
             }
-            for (_, assets) in assets {
+            for assets in assets {
                 errs.handle(assets.unmount(true).await);
             }
             for (_, overlay) in std::mem::take(&mut *subcontainers.lock().await) {

@@ -7,18 +7,20 @@ import {
   SubContainerHandle,
   SubContainer,
 } from "../util/SubContainer"
-import { splitCommand } from "../util"
+import { Drop, splitCommand } from "../util"
 import * as cp from "child_process"
 import * as fs from "node:fs/promises"
 
-export class CommandController {
+export class CommandController extends Drop {
   private constructor(
     readonly runningAnswer: Promise<unknown>,
     private state: { exited: boolean },
     private readonly subcontainer: SubContainer,
     private process: cp.ChildProcess,
     readonly sigtermTimeout: number = DEFAULT_SIGTERM_TIMEOUT,
-  ) {}
+  ) {
+    super()
+  }
   static of<Manifest extends T.SDKManifest>() {
     return async <A extends string>(
       effects: T.Effects,
@@ -33,7 +35,7 @@ export class CommandController {
         subcontainerName?: string
         // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
         sigtermTimeout?: number
-        mounts?: { path: string; options: MountOptions }[]
+        mounts?: { mountpoint: string; options: MountOptions }[]
         runAsInit?: boolean
         env?:
           | {
@@ -68,7 +70,7 @@ export class CommandController {
               )
               try {
                 for (let mount of options.mounts || []) {
-                  await subc.mount(mount.options, mount.path)
+                  await subc.mount(mount.options, mount.mountpoint)
                 }
                 return subc
               } catch (e) {
@@ -135,37 +137,42 @@ export class CommandController {
     return new SubContainerHandle(this.subcontainer)
   }
   async wait({ timeout = NO_TIMEOUT } = {}) {
+    const self = this.weak()
     if (timeout > 0)
       setTimeout(() => {
-        this.term()
+        self.term()
       }, timeout)
     try {
-      return await this.runningAnswer
+      return await self.runningAnswer
     } finally {
-      if (!this.state.exited) {
-        this.process.kill("SIGKILL")
+      if (!self.state.exited) {
+        self.process.kill("SIGKILL")
       }
-      await this.subcontainer.destroy().catch((_) => {})
+      await self.subcontainer.destroy().catch((_) => {})
     }
   }
   async term({ signal = SIGTERM, timeout = this.sigtermTimeout } = {}) {
+    const self = this.weak()
     try {
-      if (!this.state.exited) {
+      if (!self.state.exited) {
         if (signal !== "SIGKILL") {
           setTimeout(() => {
-            if (!this.state.exited) this.process.kill("SIGKILL")
+            if (!self.state.exited) self.process.kill("SIGKILL")
           }, timeout)
         }
-        if (!this.process.kill(signal)) {
+        if (!self.process.kill(signal)) {
           console.error(
             `failed to send signal ${signal} to pid ${this.process.pid}`,
           )
         }
       }
 
-      await this.runningAnswer
+      await self.runningAnswer
     } finally {
-      await this.subcontainer.destroy()
+      await self.subcontainer.destroy()
     }
+  }
+  onDrop(): void {
+    this.term().catch(console.error)
   }
 }

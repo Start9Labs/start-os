@@ -19,7 +19,6 @@ import {
   SyncOptions,
   ServiceInterfaceId,
   PackageId,
-  HealthReceipt,
   ServiceInterfaceType,
   Effects,
 } from "../../base/lib/types"
@@ -27,7 +26,7 @@ import * as patterns from "../../base/lib/util/patterns"
 import { BackupSync, Backups } from "./backup/Backups"
 import { smtpInputSpec } from "../../base/lib/actions/input/inputSpecConstants"
 import { CommandController, Daemons } from "./mainFn/Daemons"
-import { healthCheck, HealthCheckParams } from "./health/HealthCheck"
+import { HealthCheck } from "./health/HealthCheck"
 import { checkPortListening } from "./health/checkFns/checkPortListening"
 import { checkWebUrl, runHealthScript } from "./health/checkFns"
 import { List } from "../../base/lib/actions/input/builder/list"
@@ -231,7 +230,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         },
         command: T.CommandType,
         options: CommandOptions & {
-          mounts?: { path: string; options: MountOptions }[]
+          mounts?: { mountpoint: string; options: MountOptions }[]
         },
         /**
          * A name to use to refer to the ephemeral subcontainer for debugging purposes
@@ -420,11 +419,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         hostnames: string[],
         algorithm?: T.Algorithm,
       ) => new GetSslCertificate(effects, hostnames, algorithm),
-      HealthCheck: {
-        of(effects: T.Effects, o: Omit<HealthCheckParams, "effects">) {
-          return healthCheck({ effects, ...o })
-        },
-      },
+      HealthCheck,
       healthCheck: {
         checkPortListening,
         checkWebUrl,
@@ -677,9 +672,9 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         of(
           effects: Effects,
           started: (onTerm: () => PromiseLike<void>) => PromiseLike<null>,
-          healthReceipts: HealthReceipt[],
+          healthChecks: HealthCheck[],
         ) {
-          return Daemons.of<Manifest>({ effects, started, healthReceipts })
+          return Daemons.of<Manifest>({ effects, started, healthChecks })
         },
       },
       SubContainer: {
@@ -699,7 +694,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
             imageId: T.ImageId & keyof Manifest["images"]
             sharedRun?: boolean
           },
-          mounts: { options: MountOptions; path: string }[],
+          mounts: { options: MountOptions; mountpoint: string }[],
           name: string,
           fn: (subContainer: SubContainer) => Promise<T>,
         ): Promise<T> {
@@ -1081,7 +1076,7 @@ export async function runCommand<Manifest extends T.SDKManifest>(
   image: { imageId: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
   command: T.CommandType,
   options: CommandOptions & {
-    mounts?: { path: string; options: MountOptions }[]
+    mounts?: { mountpoint: string; options: MountOptions }[]
   },
   name?: string,
 ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {

@@ -16,10 +16,8 @@ import { execSync } from "child_process"
 export function setupManifest<
   Id extends string,
   VolumesTypes extends VolumeId,
-  AssetTypes extends VolumeId,
   Manifest extends {
     id: Id
-    assets: AssetTypes[]
     volumes: VolumesTypes[]
   } & SDKManifest,
 >(manifest: Manifest & SDKManifest): Manifest {
@@ -31,12 +29,10 @@ export function buildManifest<
   Version extends string,
   Dependencies extends Record<string, unknown>,
   VolumesTypes extends VolumeId,
-  AssetTypes extends VolumeId,
   ImagesTypes extends ImageId,
   Manifest extends {
     dependencies: Dependencies
     id: Id
-    assets: AssetTypes[]
     images: Record<ImagesTypes, SDKImageInputSpec>
     volumes: VolumesTypes[]
   },

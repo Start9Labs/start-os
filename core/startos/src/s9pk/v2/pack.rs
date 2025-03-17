@@ -694,18 +694,13 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
     .await?;
 
     let assets_dir = params.assets();
-    for assets in s9pk.as_manifest().assets.clone() {
-        s9pk.as_archive_mut().contents_mut().insert_path(
-            Path::new("assets").join(&assets).with_extension("squashfs"),
-            Entry::file(TmpSource::new(
-                tmp_dir.clone(),
-                PackSource::Squashfs(Arc::new(SqfsDir::new(
-                    assets_dir.join(&assets),
-                    tmp_dir.clone(),
-                ))),
-            )),
-        )?;
-    }
+    s9pk.as_archive_mut().contents_mut().insert_path(
+        "assets.squashfs",
+        Entry::file(TmpSource::new(
+            tmp_dir.clone(),
+            PackSource::Squashfs(Arc::new(SqfsDir::new(assets_dir, tmp_dir.clone()))),
+        )),
+    )?;
 
     s9pk.load_images(tmp_dir.clone()).await?;
 
@@ -816,9 +811,7 @@ pub async fn list_ingredients(_: CliContext, params: PackParams) -> Result<Vec<P
     }
 
     let assets_dir = params.assets();
-    for assets in manifest.assets {
-        ingredients.push(assets_dir.join(assets));
-    }
+    ingredients.push(assets_dir);
 
     for image in manifest.images.values() {
         ingredients.extend(image.source.ingredients());

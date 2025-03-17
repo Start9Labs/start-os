@@ -1034,6 +1034,15 @@ impl ListenerMap {
     fn poll_accept(&self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>> {
         for (bind_addr, listener) in self.listeners.iter() {
             if let Poll::Ready((stream, addr)) = listener.0.poll_accept(cx)? {
+                if let Err(e) = socket2::SockRef::from(&stream).set_tcp_keepalive(
+                    &socket2::TcpKeepalive::new()
+                        .with_time(Duration::from_secs(900))
+                        .with_interval(Duration::from_secs(60))
+                        .with_retries(5),
+                ) {
+                    tracing::error!("Failed to set tcp keepalive: {e}");
+                    tracing::debug!("{e:?}");
+                }
                 return Poll::Ready(Ok(Accepted {
                     stream,
                     peer: addr,

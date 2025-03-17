@@ -129,25 +129,16 @@ impl S9pk<TmpSource<PackSource>> {
         tokio_tar::Archive::new(reader.assets().await?)
             .unpack(&asset_dir)
             .await?;
-        for (asset_id, _) in manifest
-            .volumes
-            .iter()
-            .filter(|(_, v)| v.get("type").and_then(|v| v.as_str()) == Some("assets"))
-        {
-            let assets_path = asset_dir.join(&asset_id);
-            let sqfs_path = assets_path.with_extension("squashfs");
-            Command::new("mksquashfs")
-                .arg(&assets_path)
-                .arg(&sqfs_path)
-                .invoke(ErrorKind::Filesystem)
-                .await?;
-            archive.insert_path(
-                Path::new("assets")
-                    .join(&asset_id)
-                    .with_extension("squashfs"),
-                Entry::file(TmpSource::new(tmp_dir.clone(), PackSource::File(sqfs_path))),
-            )?;
-        }
+        let sqfs_path = asset_dir.with_extension("squashfs");
+        Command::new("mksquashfs")
+            .arg(&asset_dir)
+            .arg(&sqfs_path)
+            .invoke(ErrorKind::Filesystem)
+            .await?;
+        archive.insert_path(
+            "assets.squashfs",
+            Entry::file(TmpSource::new(tmp_dir.clone(), PackSource::File(sqfs_path))),
+        )?;
 
         // javascript
         let js_dir = tmp_dir.join("javascript");
@@ -217,12 +208,6 @@ impl TryFrom<ManifestV1> for Manifest {
             donation_url: value.donation_url,
             description: value.description,
             images: BTreeMap::new(),
-            assets: value
-                .volumes
-                .iter()
-                .filter(|(_, v)| v.get("type").and_then(|v| v.as_str()) == Some("assets"))
-                .map(|(id, _)| id.clone())
-                .collect(),
             volumes: value
                 .volumes
                 .iter()

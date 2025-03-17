@@ -18,7 +18,9 @@ export class GetStore<Store, StoreValue> {
     return this.effects.store.get<Store, StoreValue>({
       ...this.options,
       path: extractJsonPath(this.path),
-      callback: () => this.effects.constRetry(),
+      callback:
+        this.effects.constRetry &&
+        (() => this.effects.constRetry && this.effects.constRetry()),
     })
   }
   /**

@@ -7,7 +7,6 @@ import {
   ISB,
   IST,
   types,
-  T,
   matches,
   utils,
 } from "../../base/lib"
@@ -21,10 +20,10 @@ export {
   ISB,
   IST,
   types,
-  T,
   matches,
   utils,
 }
+export * as T from "./types"
 export { Daemons } from "./mainFn/Daemons"
 export { SubContainer } from "./util/SubContainer"
 export { StartSdk } from "./StartSdk"

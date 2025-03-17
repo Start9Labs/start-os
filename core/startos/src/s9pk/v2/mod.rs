@@ -60,7 +60,7 @@ fn priority(s: &str) -> Option<usize> {
         "instructions.md" => Some(3),
         "dependencies" => Some(4),
         "javascript.squashfs" => Some(5),
-        "assets" => Some(6),
+        "assets.squashfs" => Some(6),
         "images" => Some(7),
         _ => None,
     }

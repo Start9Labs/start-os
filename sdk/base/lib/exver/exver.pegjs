@@ -14,6 +14,7 @@ VersionRangeAtom
   / Not
   / Any
   / None
+  / FlavorAtom
 
 Parens
   = "(" _ expr:VersionRange _ ")" { return { type: "Parens", expr } }
@@ -24,13 +25,16 @@ Anchor
 VersionSpec
   = flavor:Flavor? upstream:Version downstream:( ":" Version )? { return { flavor: flavor || null, upstream, downstream: downstream ? downstream[1] : { number: [0], prerelease: [] } } }
 
+FlavorAtom
+  = "#" flavor:Lowercase { return { type: "Flavor", flavor: flavor } }
+
 Not = "!" _ value:VersionRangeAtom { return { type: "Not", value: value }}
 
 Any = "*" { return { type: "Any" } }
 
 None = "!" { return { type: "None" } }
 
-CmpOp 
+CmpOp
   = ">=" { return ">="; }
   / "<=" { return "<="; }
   / ">" { return ">"; }
@@ -89,7 +93,7 @@ String
 
 Version
   = number:VersionNumber prerelease: PreRelease? {
-    return { 
+    return {
       number,
       prerelease: prerelease || []
     };
@@ -106,7 +110,7 @@ PreReleaseSegment
   }
 
 VersionNumber
-  = first:Digit rest:("." Digit)* { 
+  = first:Digit rest:("." Digit)* {
     return [first].concat(rest.map(r => r[1]));
   }
 
