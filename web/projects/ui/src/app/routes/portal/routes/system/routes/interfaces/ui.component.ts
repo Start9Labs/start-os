@@ -5,11 +5,11 @@ import { T } from '@start9labs/start-sdk'
 import { TuiButton } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { Observable, map } from 'rxjs'
+import { InterfaceComponent } from 'src/app/routes/portal/components/interfaces/interface.component'
 import {
-  InterfaceComponent,
+  getAddresses,
   MappedServiceInterface,
-} from 'src/app/routes/portal/components/interfaces/interface.component'
-import { getAddresses } from 'src/app/routes/portal/components/interfaces/interface.utils'
+} from 'src/app/routes/portal/components/interfaces/interface.utils'
 import { ConfigService } from 'src/app/services/config.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'

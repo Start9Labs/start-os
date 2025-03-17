@@ -27,7 +27,7 @@ import { StatusComponent } from './status.component'
       <a [routerLink]="routerLink">{{ manifest.title }}</a>
     </td>
     <td [style.grid-area]="'2 / 2'">{{ manifest.version }}</td>
-    <td [appUptime]="$any(pkg).startedAt"></td>
+    <td [appUptime]="$any(pkg.status).started"></td>
     <td
       [style.grid-area]="'3 / 2'"
       appStatus
