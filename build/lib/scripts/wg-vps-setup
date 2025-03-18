@@ -1,5 +1,33 @@
 #!/bin/bash
 
+# =============================================================================
+# StartOS WireGuard VPS Setup Tool
+# =============================================================================
+#
+# This script automates the setup of a WireGuard VPN server on a remote VPS
+# for StartOS Clearnet functionality. It handles:
+#
+# 1. SSH key-based authentication setup
+# 2. Root access configuration (if needed)
+# 3. WireGuard server installation
+# 4. Configuration file generation and import
+#
+# Usage:
+#   wg-vps-setup [-h] [-i IP] [-u USERNAME] [-p PORT] [-k SSH_KEY]
+#
+# Options:
+#   -h    Show help message
+#   -i    VPS IP address
+#   -u    SSH username (default: root)
+#   -p    SSH port (default: 22)
+#   -k    Path to custom SSH private key
+#
+# Example:
+#   wg-vps-setup -i 110.18.1.1 -u debian
+#
+# Note: This script requires root privileges and will auto-elevate if needed.
+# =============================================================================
+
 # Colors for better output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -51,8 +79,14 @@ print_usage() {
 # Function to display end message
 display_end_message() {
     echo -e "\n${BLUE}------------------------------------------------------------------${NC}"
-    echo -e "${NC}WireGuard server setup complete!"
+    echo -e "${GREEN}WireGuard server setup complete!${NC}"
     echo -e "${BLUE}------------------------------------------------------------------${NC}"
+    echo -e "\n${GREEN}Clearnet functionality has been enabled via VPS (${VPS_IP})${NC}"
+    echo -e "\n${YELLOW}Next steps:${NC}"
+    echo -e "1. Return to the StartOS UI"
+    echo -e "2. Complete the Clearnet setup in the interface"
+    echo -e "3. Your VPS will handle all Clearnet traffic through WireGuard"
+    echo -e "\n${BLUE}------------------------------------------------------------------${NC}"
 }
 
 # Function to validate IP address
@@ -263,10 +297,19 @@ enable_root_login() {
         # Reload SSH service
         sudo systemctl reload sshd
         
-        echo "Root SSH access has been configured successfully!"
-        echo -e "\033[1;33mIMPORTANT: Root access is now configured to use SSH keys only.${NC}"
-        echo -e "\033[1;33mPlease try to log in as root now using your SSH key.${NC}"
-        echo -e "\033[1;33mIf successful, run this script again without the -u parameter.${NC}"
+        # Verify the changes
+        if ! sudo grep -q "^PermitRootLogin prohibit-password" /etc/ssh/sshd_config; then
+            echo -e "\033[1;31mError: Failed to verify root login configuration.\033[0m"
+            exit 1
+        fi
+        
+        # Test root SSH access
+        if ! sudo -n true 2>/dev/null; then
+            echo -e "\033[1;33mNOTE: Please try to log in as root now using your SSH key.\033[0m"
+            echo -e "\033[1;33mIf successful, run this script again without the -u parameter.\033[0m"
+        else
+            echo -e "\033[1;32mRoot SSH access has been configured successfully!\033[0m"
+        fi
     '; then
         echo -e "${RED}Failed to configure root SSH access.${NC}"
         return 1
@@ -417,27 +460,30 @@ if [ "$SSH_USER" != "root" ]; then
 fi
 
 # Check if root login is permitted when connecting as root
-if [ "$SSH_USER" = "root" ] && ! ssh -q -o BatchMode=yes -o ConnectTimeout=5 -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$VPS_IP" 'grep -q "^PermitRootLogin.*yes" /etc/ssh/sshd_config'; then
-    echo -e "\n${RED}Root SSH login is not enabled on your VPS.${NC}"
-    echo -e "\n${YELLOW}Would you like this script to automatically enable root SSH access? (y/N):${NC} "
-    read -r answer
+if [ "$SSH_USER" = "root" ]; then
+    # Check for both "yes" and "prohibit-password" as valid root login settings
+    if ! ssh -q -o BatchMode=yes -o ConnectTimeout=5 -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$VPS_IP" 'grep -q "^PermitRootLogin.*\(yes\|prohibit-password\)" /etc/ssh/sshd_config'; then
+        echo -e "\n${RED}Root SSH login is not enabled on your VPS.${NC}"
+        echo -e "\n${YELLOW}Would you like this script to automatically enable root SSH access? (y/N):${NC} "
+        read -r answer
 
-    if [[ "$answer" =~ ^[Yy]$ ]]; then
-        configure_ssh_key_auth
-    else
-        echo -e "\n${BLUE}------------------------------------------------------------------${NC}"
-        echo -e "${YELLOW}To manually configure SSH for root access:${NC}"
-        echo -e "\n   ${YELLOW}1. Connect to your VPS and edit sshd_config:${NC}"
-        echo "      sudo nano /etc/ssh/sshd_config"
-        echo -e "\n   ${YELLOW}2. Find and uncomment or add these lines:${NC}"
-        echo "      PubkeyAuthentication yes"
-        echo "      PermitRootLogin yes"
-        echo "      AuthorizedKeysFile     .ssh/authorized_keys .ssh/authorized_keys2"
-        echo -e "\n   ${YELLOW}3. Restart the SSH service:${NC}"
-        echo "      sudo systemctl restart sshd"
-        echo -e "${BLUE}------------------------------------------------------------------${NC}"
-        echo -e "\n${YELLOW}Please enable root SSH access and run this script again.${NC}"
-        exit 1
+        if [[ "$answer" =~ ^[Yy]$ ]]; then
+            configure_ssh_key_auth
+        else
+            echo -e "\n${BLUE}------------------------------------------------------------------${NC}"
+            echo -e "${YELLOW}To manually configure SSH for root access:${NC}"
+            echo -e "\n   ${YELLOW}1. Connect to your VPS and edit sshd_config:${NC}"
+            echo "      sudo nano /etc/ssh/sshd_config"
+            echo -e "\n   ${YELLOW}2. Find and uncomment or add these lines:${NC}"
+            echo "      PubkeyAuthentication yes"
+            echo "      PermitRootLogin prohibit-password"
+            echo "      AuthorizedKeysFile     .ssh/authorized_keys .ssh/authorized_keys2"
+            echo -e "\n   ${YELLOW}3. Restart the SSH service:${NC}"
+            echo "      sudo systemctl restart sshd"
+            echo -e "${BLUE}------------------------------------------------------------------${NC}"
+            echo -e "\n${YELLOW}Please enable root SSH access and run this script again.${NC}"
+            exit 1
+        fi
     fi
 fi
 
