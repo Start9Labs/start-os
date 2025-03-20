@@ -112,7 +112,8 @@ pub async fn zram(ctx: RpcContext, ZramParams { enable }: ZramParams) -> Result<
                 .ser(&enable)?;
             Ok(())
         })
-        .await?;
+        .await
+        .result?;
     Ok(())
 }
 
@@ -168,7 +169,8 @@ pub async fn governor(
                     .as_governor_mut()
                     .ser(&Some(set))
             })
-            .await?;
+            .await
+            .result?;
     }
     let current = ctx
         .db
@@ -856,7 +858,8 @@ pub async fn set_system_smtp(ctx: RpcContext, smtp: SmtpValue) -> Result<(), Err
                 .as_smtp_mut()
                 .ser(&smtp)
         })
-        .await?;
+        .await
+        .result?;
     if let Some(callbacks) = ctx.callbacks.get_system_smtp() {
         callbacks.call(vector![to_value(&smtp)?]).await?;
     }
@@ -870,7 +873,8 @@ pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
                 .as_smtp_mut()
                 .ser(&None)
         })
-        .await?;
+        .await
+        .result?;
     if let Some(callbacks) = ctx.callbacks.get_system_smtp() {
         callbacks.call(vector![Value::Null]).await?;
     }

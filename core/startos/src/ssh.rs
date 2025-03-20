@@ -145,7 +145,8 @@ pub async fn add(ctx: RpcContext, AddParams { key }: AddParams) -> Result<SshKey
                 },
             ))
         })
-        .await?;
+        .await
+        .result?;
     sync_pubkeys(&keys, SSH_DIR).await?;
     Ok(res)
 }
@@ -177,7 +178,8 @@ pub async fn remove(
                 })
             }
         })
-        .await?;
+        .await
+        .result?;
     sync_pubkeys(&keys, SSH_DIR).await
 }
 

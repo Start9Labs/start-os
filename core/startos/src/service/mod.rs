@@ -171,7 +171,8 @@ impl ServiceRef {
                         Ok(None)
                     }
                 })
-                .await?
+                .await
+                .result?
             {
                 let state = pde.state_info.expect_removing()?;
                 if !soft {
@@ -336,7 +337,8 @@ impl Service {
                 // TODO: delete s9pk?
                 ctx.db
                     .mutate(|v| v.as_public_mut().as_package_data_mut().remove(id))
-                    .await?;
+                    .await
+                    .result?;
                 Ok(None)
             }
             PackageStateMatchModelRef::Updating(s) => {
@@ -392,7 +394,7 @@ impl Service {
                                 })
                         }
                     })
-                    .await?;
+                    .await.result?;
                 handle_installed(s9pk, entry).await
             }
             PackageStateMatchModelRef::Removing(_) | PackageStateMatchModelRef::Restoring(_) => {
@@ -419,7 +421,8 @@ impl Service {
 
                 ctx.db
                     .mutate(|v| v.as_public_mut().as_package_data_mut().remove(id))
-                    .await?;
+                    .await
+                    .result?;
 
                 Ok(None)
             }
@@ -550,7 +553,8 @@ impl Service {
 
                 Ok(())
             })
-            .await?;
+            .await
+            .result?;
 
         Ok(service)
     }

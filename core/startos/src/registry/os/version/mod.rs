@@ -98,6 +98,7 @@ pub async fn add_version(
                 })
         })
         .await
+        .result
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
@@ -122,6 +123,7 @@ pub async fn remove_version(
             Ok(())
         })
         .await
+        .result
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]

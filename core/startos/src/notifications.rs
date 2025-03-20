@@ -116,6 +116,7 @@ pub async fn list(
             }
         })
         .await
+        .result
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -133,6 +134,7 @@ pub async fn remove(ctx: RpcContext, DeleteParams { id }: DeleteParams) -> Resul
             Ok(())
         })
         .await
+        .result
 }
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
@@ -156,6 +158,7 @@ pub async fn remove_before(
             Ok(())
         })
         .await
+        .result
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -180,6 +183,7 @@ pub async fn create(
     ctx.db
         .mutate(|db| notify(db, package, level, title, message, ()))
         .await
+        .result
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, TS)]

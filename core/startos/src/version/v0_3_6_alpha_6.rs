@@ -45,7 +45,8 @@ impl VersionT for Version {
                 )?;
                 Ok(())
             })
-            .await?;
+            .await
+            .result?;
         Ok(())
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {

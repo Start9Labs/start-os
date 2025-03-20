@@ -666,7 +666,8 @@ impl NetworkInterfaceController {
                 .as_network_interfaces_mut()
                 .ser(info)
         })
-        .await?;
+        .await
+        .result?;
 
         let ntp: BTreeSet<_> = info
             .values()

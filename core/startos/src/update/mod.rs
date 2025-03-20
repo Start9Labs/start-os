@@ -288,7 +288,8 @@ async fn maybe_do_update(
                 .ser(&status)?;
             Ok(status)
         })
-        .await?;
+        .await
+        .result?;
 
     if status.updated {
         return Err(Error::new(
@@ -332,12 +333,10 @@ async fn maybe_do_update(
                         status_info.as_update_progress_mut().ser(&None)?;
                         status_info.as_updated_mut().ser(&true)
                     })
-                    .await?;
-                progress_task.await.with_kind(ErrorKind::Unknown)??;
-                CIRCLE_OF_5THS_SHORT
-                    .play()
                     .await
-                    .expect("could not play sound");
+                    .result?;
+                progress_task.await.with_kind(ErrorKind::Unknown)??;
+                CIRCLE_OF_5THS_SHORT.play().await.log_err();
             }
             Err(e) => {
                 let err_string = format!("Update was not successful because of {}", e);
@@ -358,24 +357,13 @@ async fn maybe_do_update(
                         )
                     })
                     .await
-                    .unwrap();
+                    .result
+                    .log_err();
                 // TODO: refactor sound lib to make compound tempos easier to deal with
-                UPDATE_FAILED_1
-                    .play()
-                    .await
-                    .expect("could not play song: update failed 1");
-                UPDATE_FAILED_2
-                    .play()
-                    .await
-                    .expect("could not play song: update failed 2");
-                UPDATE_FAILED_3
-                    .play()
-                    .await
-                    .expect("could not play song: update failed 3");
-                UPDATE_FAILED_4
-                    .play()
-                    .await
-                    .expect("could not play song: update failed 4");
+                UPDATE_FAILED_1.play().await.log_err();
+                UPDATE_FAILED_2.play().await.log_err();
+                UPDATE_FAILED_3.play().await.log_err();
+                UPDATE_FAILED_4.play().await.log_err();
             }
         }
         Ok::<(), Error>(())

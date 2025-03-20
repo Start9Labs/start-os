@@ -89,6 +89,7 @@ pub async fn add_package(
             }
         })
         .await
+        .result
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]

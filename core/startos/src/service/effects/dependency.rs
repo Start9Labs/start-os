@@ -249,6 +249,7 @@ pub async fn set_dependencies(
                 .ser(&CurrentDependencies(deps))
         })
         .await
+        .result
 }
 
 pub async fn get_dependencies(context: EffectContext) -> Result<Vec<DependencyRequirement>, Error> {

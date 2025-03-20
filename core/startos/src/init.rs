@@ -419,7 +419,8 @@ pub async fn init(
             wifi.as_interface_mut().ser(&wifi_interface)?;
             wifi.de()
         })
-        .await?;
+        .await
+        .result?;
     crate::net::wifi::synchronize_network_manager(MAIN_DATA, &wifi).await?;
     load_wifi.complete();
     tracing::info!("Synchronized WiFi");
@@ -522,7 +523,8 @@ pub async fn init(
         server_info.as_status_info_mut().ser(&status_info)?;
         Ok(())
     })
-    .await?;
+    .await
+    .result?;
     tracing::info!("Updated server info");
     update_server_info.complete();
 
@@ -540,7 +542,8 @@ pub async fn init(
         let model = d.de()?;
         d.ser(&model)
     })
-    .await?;
+    .await
+    .result?;
     tracing::info!("Validated database");
     validate_db.complete();
 

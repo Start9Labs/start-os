@@ -46,6 +46,15 @@ pub async fn get_status(
     let context = context.deref()?;
     let id = package_id.unwrap_or_else(|| context.seed.id.clone());
     let db = context.seed.ctx.db.peek().await;
+
+    if let Some(callback) = callback {
+        let callback = callback.register(&context.seed.persistent_container);
+        context.seed.ctx.callbacks.add_get_status(
+            id.clone(),
+            super::callbacks::CallbackHandler::new(&context, callback),
+        );
+    }
+
     let status = db
         .as_public()
         .as_package_data()
@@ -53,14 +62,6 @@ pub async fn get_status(
         .or_not_found(&id)?
         .as_status()
         .de()?;
-
-    if let Some(callback) = callback {
-        let callback = callback.register(&context.seed.persistent_container);
-        context.seed.ctx.callbacks.add_get_status(
-            id,
-            super::callbacks::CallbackHandler::new(&context, callback),
-        );
-    }
 
     Ok(status)
 }

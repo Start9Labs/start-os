@@ -148,6 +148,7 @@ pub async fn add_signer(ctx: RegistryContext, signer: SignerInfo) -> Result<Guid
     ctx.db
         .mutate(|db| db.as_index_mut().as_signers_mut().add_signer(&signer))
         .await
+        .result
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
@@ -206,6 +207,7 @@ pub async fn edit_signer(
                 })
         })
         .await
+        .result
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
@@ -246,6 +248,7 @@ pub async fn cli_add_signer(
             .await?
             .mutate(|db| db.as_index_mut().as_signers_mut().add_signer(&signer))
             .await
+            .result
     } else {
         from_value(
             ctx.call_remote::<RegistryContext>(
@@ -279,6 +282,7 @@ pub async fn add_admin(
             Ok(())
         })
         .await
+        .result
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
@@ -310,7 +314,8 @@ pub async fn cli_add_admin(
                 db.as_admins_mut().mutate(|a| Ok(a.insert(signer)))?;
                 Ok(())
             })
-            .await?;
+            .await
+            .result?;
     } else {
         ctx.call_remote::<RegistryContext>(
             &parent_method.into_iter().chain(method).join("."),

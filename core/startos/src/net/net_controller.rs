@@ -178,7 +178,8 @@ impl NetServiceData {
                     }
                     Ok(res)
                 })
-                .await?;
+                .await
+                .result?;
             let mut errors = ErrorCollection::new();
             for (id, host) in hosts.0 {
                 errors.handle(self.update(ctrl, id, host).await);
@@ -202,7 +203,8 @@ impl NetServiceData {
                     })?;
                     host.de()
                 })
-                .await?;
+                .await
+                .result?;
             self.update(ctrl, HostId::default(), host).await
         }
     }
@@ -580,7 +582,8 @@ impl NetServiceData {
                     .as_hostname_info_mut()
                     .ser(&hostname_info)
             })
-            .await?;
+            .await
+            .result?;
         Ok(())
     }
 
@@ -681,7 +684,8 @@ impl NetService {
                 db.as_private_mut().as_available_ports_mut().ser(&ports)?;
                 Ok(host)
             })
-            .await?;
+            .await
+            .result?;
         data.update(&*ctrl, id, host).await
     }
 

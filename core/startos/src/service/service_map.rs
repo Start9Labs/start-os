@@ -117,7 +117,8 @@ impl ServiceMap {
                         }
                         Ok(())
                     })
-                    .await?;
+                    .await
+                    .result?;
             }
         }
         shutdown_err?;
@@ -174,54 +175,62 @@ impl ServiceMap {
         let mut reload_guard = ServiceRefReloadGuard::new(ctx.clone(), id.clone(), op_name);
 
         reload_guard
-            .handle(ctx.db.mutate({
-                let manifest = manifest.clone();
-                let id = id.clone();
-                let install_progress = progress.snapshot();
-                move |db| {
-                    if let Some(pde) = db.as_public_mut().as_package_data_mut().as_idx_mut(&id) {
-                        let prev = pde.as_state_info().expect_installed()?.de()?;
-                        pde.as_state_info_mut()
-                            .ser(&PackageState::Updating(UpdatingState {
-                                manifest: prev.manifest,
-                                installing_info: InstallingInfo {
-                                    new_manifest: manifest,
-                                    progress: install_progress,
-                                },
-                            }))?;
-                    } else {
-                        let installing = InstallingState {
-                            installing_info: InstallingInfo {
-                                new_manifest: manifest,
-                                progress: install_progress,
-                            },
-                        };
-                        db.as_public_mut().as_package_data_mut().insert(
-                            &id,
-                            &PackageDataEntry {
-                                state_info: if restoring {
-                                    PackageState::Restoring(installing)
-                                } else {
-                                    PackageState::Installing(installing)
-                                },
-                                data_version: None,
-                                status: MainStatus::Stopped,
-                                registry: None,
-                                developer_key: Pem::new(developer_key),
-                                icon,
-                                last_backup: None,
-                                current_dependencies: Default::default(),
-                                actions: Default::default(),
-                                requested_actions: Default::default(),
-                                service_interfaces: Default::default(),
-                                hosts: Default::default(),
-                                store_exposed_dependents: Default::default(),
-                            },
-                        )?;
-                    };
-                    Ok(())
-                }
-            }))
+            .handle(async {
+                ctx.db
+                    .mutate({
+                        let manifest = manifest.clone();
+                        let id = id.clone();
+                        let install_progress = progress.snapshot();
+                        move |db| {
+                            if let Some(pde) =
+                                db.as_public_mut().as_package_data_mut().as_idx_mut(&id)
+                            {
+                                let prev = pde.as_state_info().expect_installed()?.de()?;
+                                pde.as_state_info_mut().ser(&PackageState::Updating(
+                                    UpdatingState {
+                                        manifest: prev.manifest,
+                                        installing_info: InstallingInfo {
+                                            new_manifest: manifest,
+                                            progress: install_progress,
+                                        },
+                                    },
+                                ))?;
+                            } else {
+                                let installing = InstallingState {
+                                    installing_info: InstallingInfo {
+                                        new_manifest: manifest,
+                                        progress: install_progress,
+                                    },
+                                };
+                                db.as_public_mut().as_package_data_mut().insert(
+                                    &id,
+                                    &PackageDataEntry {
+                                        state_info: if restoring {
+                                            PackageState::Restoring(installing)
+                                        } else {
+                                            PackageState::Installing(installing)
+                                        },
+                                        data_version: None,
+                                        status: MainStatus::Stopped,
+                                        registry: None,
+                                        developer_key: Pem::new(developer_key),
+                                        icon,
+                                        last_backup: None,
+                                        current_dependencies: Default::default(),
+                                        actions: Default::default(),
+                                        requested_actions: Default::default(),
+                                        service_interfaces: Default::default(),
+                                        hosts: Default::default(),
+                                        store_exposed_dependents: Default::default(),
+                                    },
+                                )?;
+                            };
+                            Ok(())
+                        }
+                    })
+                    .await
+                    .result
+            })
             .await?;
 
         Ok(async move {
@@ -425,7 +434,8 @@ impl ServiceRefReloadInfo {
                         (),
                     )
                 })
-                .await?;
+                .await
+                .result?;
         }
         Ok(())
     }

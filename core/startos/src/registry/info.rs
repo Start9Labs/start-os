@@ -79,6 +79,7 @@ pub async fn set_name(
     ctx.db
         .mutate(|db| db.as_index_mut().as_name_mut().ser(&Some(name)))
         .await
+        .result
 }
 
 #[derive(Debug, Deserialize, Serialize, TS)]
@@ -95,6 +96,7 @@ pub async fn set_icon(
     ctx.db
         .mutate(|db| db.as_index_mut().as_icon_mut().ser(&Some(icon)))
         .await
+        .result
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
