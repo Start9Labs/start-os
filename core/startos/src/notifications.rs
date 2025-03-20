@@ -115,7 +115,8 @@ pub async fn list(
                 }
             }
         })
-        .await.result
+        .await
+        .result
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -132,7 +133,8 @@ pub async fn remove(ctx: RpcContext, DeleteParams { id }: DeleteParams) -> Resul
             db.as_private_mut().as_notifications_mut().remove(&id)?;
             Ok(())
         })
-        .await.result
+        .await
+        .result
 }
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
@@ -155,7 +157,8 @@ pub async fn remove_before(
             }
             Ok(())
         })
-        .await.result
+        .await
+        .result
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -179,7 +182,8 @@ pub async fn create(
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| notify(db, package, level, title, message, ()))
-        .await.result
+        .await
+        .result
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, TS)]

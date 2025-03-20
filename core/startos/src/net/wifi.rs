@@ -741,7 +741,8 @@ impl WpaCli {
                 .as_last_region_mut()
                 .ser(&new_country)
         })
-        .await.result
+        .await
+        .result
     }
     async fn check_active_network(&self, ssid: &Ssid) -> Result<Option<NetworkId>, Error> {
         Ok(self

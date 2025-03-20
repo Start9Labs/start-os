@@ -136,7 +136,8 @@ async fn cli_apply(
                     (),
                 ))
             })
-            .await.result?;
+            .await
+            .result?;
     } else {
         let method = parent_method.into_iter().chain(method).join(".");
         context
@@ -177,5 +178,6 @@ pub async fn apply(
                 })?,
             )
         })
-        .await.result
+        .await
+        .result
 }

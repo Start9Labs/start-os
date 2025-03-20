@@ -147,7 +147,8 @@ pub fn display_signers<T>(params: WithIoFormat<T>, signers: BTreeMap<Guid, Signe
 pub async fn add_signer(ctx: RegistryContext, signer: SignerInfo) -> Result<Guid, Error> {
     ctx.db
         .mutate(|db| db.as_index_mut().as_signers_mut().add_signer(&signer))
-        .await.result
+        .await
+        .result
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
@@ -205,7 +206,8 @@ pub async fn edit_signer(
                     Ok(())
                 })
         })
-        .await.result
+        .await
+        .result
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
@@ -245,7 +247,8 @@ pub async fn cli_add_signer(
         TypedPatchDb::<RegistryDatabase>::load(PatchDb::open(database).await?)
             .await?
             .mutate(|db| db.as_index_mut().as_signers_mut().add_signer(&signer))
-            .await.result
+            .await
+            .result
     } else {
         from_value(
             ctx.call_remote::<RegistryContext>(
@@ -278,7 +281,8 @@ pub async fn add_admin(
             db.as_admins_mut().mutate(|a| Ok(a.insert(signer)))?;
             Ok(())
         })
-        .await.result
+        .await
+        .result
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
@@ -310,7 +314,8 @@ pub async fn cli_add_admin(
                 db.as_admins_mut().mutate(|a| Ok(a.insert(signer)))?;
                 Ok(())
             })
-            .await.result?;
+            .await
+            .result?;
     } else {
         ctx.call_remote::<RegistryContext>(
             &parent_method.into_iter().chain(method).join("."),

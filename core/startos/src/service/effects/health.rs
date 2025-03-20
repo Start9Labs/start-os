@@ -40,6 +40,7 @@ pub async fn set_health(
                     Ok(())
                 })
         })
-        .await.result?;
+        .await
+        .result?;
     Ok(())
 }
