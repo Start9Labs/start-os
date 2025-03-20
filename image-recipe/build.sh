@@ -147,7 +147,7 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 fi
 
 cat > config/archives/backports.pref <<- EOF
-Package: *
+Package: linux-image-*
 Pin: release n=${IB_SUITE}-backports
 Pin-Priority: 500
 EOF
