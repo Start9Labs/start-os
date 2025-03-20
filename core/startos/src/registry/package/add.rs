@@ -88,7 +88,7 @@ pub async fn add_package(
                 Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
             }
         })
-        .await
+        .await.result
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]

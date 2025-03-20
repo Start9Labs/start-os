@@ -27,6 +27,15 @@ pub async fn get_host_info(
     let db = context.seed.ctx.db.peek().await;
     let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
 
+    if let Some(callback) = callback {
+        let callback = callback.register(&context.seed.persistent_container);
+        context.seed.ctx.callbacks.add_get_host_info(
+            package_id.clone(),
+            host_id.clone(),
+            CallbackHandler::new(&context, callback),
+        );
+    }
+
     let res = db
         .as_public()
         .as_package_data()
@@ -34,15 +43,6 @@ pub async fn get_host_info(
         .and_then(|m| m.as_hosts().as_idx(&host_id))
         .map(|m| m.de())
         .transpose()?;
-
-    if let Some(callback) = callback {
-        let callback = callback.register(&context.seed.persistent_container);
-        context.seed.ctx.callbacks.add_get_host_info(
-            package_id,
-            host_id,
-            CallbackHandler::new(&context, callback),
-        );
-    }
 
     Ok(res)
 }

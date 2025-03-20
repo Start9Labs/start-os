@@ -65,7 +65,7 @@ impl HasLoggedOutSessions {
 
                 Ok(())
             })
-            .await?;
+            .await.result?;
         Ok(HasLoggedOutSessions(()))
     }
 }
@@ -136,7 +136,7 @@ impl HasValidSession {
                             Ok(())
                         })
                 })
-                .await?;
+                .await.result?;
         }
         Ok(Self(SessionType::Session(session_token)))
     }

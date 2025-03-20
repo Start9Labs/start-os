@@ -131,7 +131,7 @@ async fn add_asset(
                 Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
             }
         })
-        .await?;
+        .await.result?;
 
     Ok(())
 }

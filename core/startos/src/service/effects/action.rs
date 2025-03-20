@@ -71,7 +71,7 @@ pub async fn export_action(
             value.insert(id, metadata);
             model.ser(&value)
         })
-        .await?;
+        .await.result?;
     Ok(())
 }
 
@@ -102,7 +102,7 @@ async fn clear_actions(
                 .as_actions_mut()
                 .mutate(|a| Ok(a.retain(|e, _| except.contains(e))))
         })
-        .await?;
+        .await.result?;
     Ok(())
 }
 
@@ -271,7 +271,7 @@ async fn request_action(
                 .as_requested_actions_mut()
                 .insert(&replay_id, &ActionRequestEntry { active, request })
         })
-        .await?;
+        .await.result?;
     Ok(())
 }
 
@@ -310,6 +310,6 @@ async fn clear_action_requests(
                     }))
                 })
         })
-        .await?;
+        .await.result?;
     Ok(())
 }

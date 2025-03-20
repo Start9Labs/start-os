@@ -74,7 +74,7 @@ pub async fn add_version_signer(
 
             Ok(())
         })
-        .await
+        .await.result
 }
 
 pub async fn remove_version_signer(
@@ -100,7 +100,7 @@ pub async fn remove_version_signer(
 
             Ok(())
         })
-        .await
+        .await.result
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]

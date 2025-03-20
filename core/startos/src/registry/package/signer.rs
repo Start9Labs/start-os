@@ -73,7 +73,7 @@ pub async fn add_package_signer(
 
             Ok(())
         })
-        .await
+        .await.result
 }
 
 pub async fn remove_package_signer(
@@ -99,7 +99,7 @@ pub async fn remove_package_signer(
 
             Ok(())
         })
-        .await
+        .await.result
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]

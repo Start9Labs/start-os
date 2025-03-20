@@ -161,7 +161,8 @@ pub async fn add(ctx: RpcContext, AddParams { ssid, password }: AddParams) -> Re
                     Ok(())
                 })
         })
-        .await?;
+        .await
+        .result?;
     Ok(())
 }
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -225,7 +226,8 @@ pub async fn connect(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result
             })?;
             wifi.as_selected_mut().ser(&Some(ssid))
         })
-        .await?;
+        .await
+        .result?;
     Ok(())
 }
 
@@ -262,7 +264,8 @@ pub async fn remove(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<
             wifi.as_selected_mut()
                 .map_mutate(|s| Ok(s.filter(|s| s == &ssid.0)))
         })
-        .await?;
+        .await
+        .result?;
     Ok(())
 }
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -738,7 +741,7 @@ impl WpaCli {
                 .as_last_region_mut()
                 .ser(&new_country)
         })
-        .await
+        .await.result
     }
     async fn check_active_network(&self, ssid: &Ssid) -> Result<Option<NetworkId>, Error> {
         Ok(self

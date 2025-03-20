@@ -541,7 +541,7 @@ pub async fn uninstall(
                 )),
             })
         })
-        .await?;
+        .await.result?;
 
     let return_id = id.clone();
 

@@ -78,7 +78,7 @@ pub async fn add_category(
                     },
                 )
         })
-        .await?;
+        .await.result?;
     Ok(())
 }
 
@@ -102,7 +102,7 @@ pub async fn remove_category(
                 .as_categories_mut()
                 .remove(&id)
         })
-        .await?;
+        .await.result?;
     Ok(())
 }
 

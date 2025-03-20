@@ -74,7 +74,7 @@ impl<'a> async_acme::cache::AcmeCache for AcmeCertCache<'a> {
                     .as_accounts_mut()
                     .insert(&contacts, &Pem::new(key))
             })
-            .await?;
+            .await.result?;
         Ok(())
     }
 
@@ -166,7 +166,7 @@ impl<'a> async_acme::cache::AcmeCache for AcmeCertCache<'a> {
                     .upsert(&directory_url, || Ok(BTreeMap::new()))?
                     .insert(&identifiers, &cert)
             })
-            .await?;
+            .await.result?;
 
         Ok(())
     }
@@ -259,7 +259,7 @@ pub async fn init(
                 .as_acme_mut()
                 .insert(&provider, &AcmeSettings { contact })
         })
-        .await?;
+        .await.result?;
     Ok(())
 }
 
@@ -280,6 +280,6 @@ pub async fn remove(
                 .as_acme_mut()
                 .remove(&provider)
         })
-        .await?;
+        .await.result?;
     Ok(())
 }

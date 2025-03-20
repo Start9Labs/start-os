@@ -81,7 +81,7 @@ pub async fn get_ssl_certificate(
                 .as_local_certs_mut()
                 .cert_for(&hostnames)
         })
-        .await?;
+        .await.result?;
     let fullchain = match algorithm {
         Algorithm::Ecdsa => cert.fullchain_nistp256(),
         Algorithm::Ed25519 => cert.fullchain_ed25519(),
@@ -171,7 +171,7 @@ pub async fn get_ssl_key(
                 .as_local_certs_mut()
                 .cert_for(&hostnames)
         })
-        .await?;
+        .await.result?;
     let key = match algorithm {
         Algorithm::Ecdsa => cert.leaf.keys.nistp256,
         Algorithm::Ed25519 => cert.leaf.keys.ed25519,

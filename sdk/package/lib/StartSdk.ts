@@ -104,7 +104,10 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
       | "getHostInfo"
     type MainUsedEffects = "setMainStatus" | "setHealth"
     type CallbackEffects = "constRetry" | "clearCallbacks"
-    type AlreadyExposed = "getSslCertificate" | "getSystemSmtp"
+    type AlreadyExposed =
+      | "getSslCertificate"
+      | "getSystemSmtp"
+      | "getContainerIp"
 
     // prettier-ignore
     type StartSdkEffectWrapper = {
@@ -123,7 +126,6 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
       getServicePortForward: (effects, ...args) =>
         effects.getServicePortForward(...args),
       clearBindings: (effects, ...args) => effects.clearBindings(...args),
-      getContainerIp: (effects, ...args) => effects.getContainerIp(...args),
       getOsIp: (effects, ...args) => effects.getOsIp(...args),
       getSslKey: (effects, ...args) => effects.getSslKey(...args),
       setDataVersion: (effects, ...args) => effects.setDataVersion(...args),
@@ -191,7 +193,61 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           opts: { packageId: PackageId },
         ) => getServiceInterfaces(effects, opts),
       },
-
+      getContainerIp: (
+        effects: T.Effects,
+        options: Omit<
+          Parameters<T.Effects["getContainerIp"]>[0],
+          "callback"
+        > = {},
+      ) => {
+        async function* watch() {
+          while (true) {
+            let callback: () => void = () => {}
+            const waitForNext = new Promise<void>((resolve) => {
+              callback = resolve
+            })
+            yield await effects.getContainerIp({ ...options, callback })
+            await waitForNext
+          }
+        }
+        return {
+          const: () =>
+            effects.getContainerIp({
+              ...options,
+              callback:
+                effects.constRetry &&
+                (() => effects.constRetry && effects.constRetry()),
+            }),
+          once: () => effects.getContainerIp(options),
+          watch,
+          onChange: (
+            callback: (
+              value: string | null,
+              error?: Error,
+            ) => void | Promise<void>,
+          ) => {
+            ;(async () => {
+              for await (const value of watch()) {
+                try {
+                  await callback(value)
+                } catch (e) {
+                  console.error(
+                    "callback function threw an error @ getContainerIp.onChange",
+                    e,
+                  )
+                }
+              }
+            })()
+              .catch((e) => callback(null, e))
+              .catch((e) =>
+                console.error(
+                  "callback function threw an error @ getContainerIp.onChange",
+                  e,
+                ),
+              )
+          },
+        }
+      },
       store: {
         get: <E extends Effects, StoreValue = unknown>(
           effects: E,

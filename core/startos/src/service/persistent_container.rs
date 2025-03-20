@@ -7,7 +7,7 @@ use std::time::Duration;
 use futures::future::ready;
 use futures::Future;
 use helpers::NonDetachingJoinHandle;
-use imbl::Vector;
+use imbl::{vector, Vector};
 use imbl_value::InternedString;
 use models::{ImageId, ProcedureName, VolumeId};
 use rpc_toolkit::{Empty, Server, ShutdownHandle};
@@ -297,10 +297,16 @@ impl PersistentContainer {
                     .await?;
             }
         }
+        let ip = lxc_container.ip().await?;
         let net_service = ctx
             .net_controller
-            .create_service(s9pk.as_manifest().id.clone(), lxc_container.ip().await?)
+            .create_service(s9pk.as_manifest().id.clone(), ip)
             .await?;
+        if let Some(callbacks) = ctx.callbacks.get_container_ip(&s9pk.as_manifest().id) {
+            callbacks
+                .call(vector![Value::String(Arc::new(ip.to_string()))])
+                .await?;
+        }
         Ok(Self {
             s9pk,
             lxc_container: OnceCell::new_with(Some(lxc_container)),

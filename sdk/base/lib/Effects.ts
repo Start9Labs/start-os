@@ -130,7 +130,10 @@ export type Effects = {
     callback?: () => void
   }): Promise<Host | null>
   /** Returns the IP address of the container */
-  getContainerIp(): Promise<string>
+  getContainerIp(options: {
+    packageId?: PackageId
+    callback?: () => void
+  }): Promise<string>
   /** Returns the IP address of StartOS */
   getOsIp(): Promise<string>
   // interface

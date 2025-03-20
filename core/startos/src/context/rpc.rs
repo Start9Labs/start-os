@@ -202,7 +202,8 @@ impl RpcContext {
                                 .ser(&true)
                         })
                         .await
-                        .unwrap()
+                        .result
+                        .log_err();
                     })
                     .into(),
                 )
@@ -330,7 +331,8 @@ impl RpcContext {
                 }
                 Ok(())
             })
-            .await?;
+            .await
+            .result?;
         let db = self.db.clone();
         self.add_cron(async move {
             loop {
@@ -355,6 +357,7 @@ impl RpcContext {
                         Ok(())
                     })
                     .await
+                    .result
                 {
                     tracing::error!("Error in session cleanup cron: {e}");
                     tracing::debug!("{e:?}");
@@ -424,7 +427,8 @@ impl RpcContext {
                 }
                 Ok(())
             })
-            .await?;
+            .await
+            .result?;
         check_requested_actions.complete();
 
         Ok(())

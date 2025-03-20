@@ -499,7 +499,8 @@ impl VHostServer {
                             .as_local_certs_mut()
                             .cert_for(&hostnames)
                     })
-                    .await?;
+                    .await
+                    .result?;
                 let cfg = ServerConfig::builder_with_provider(crypto_provider.clone())
                     .with_safe_default_protocol_versions()
                     .with_kind(crate::ErrorKind::OpenSsl)?

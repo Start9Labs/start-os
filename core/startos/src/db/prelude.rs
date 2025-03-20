@@ -5,7 +5,7 @@ use std::str::FromStr;
 use chrono::{DateTime, Utc};
 pub use imbl_value::Value;
 use patch_db::value::InternedString;
-pub use patch_db::{HasModel, PatchDb};
+pub use patch_db::{HasModel, MutateResult, PatchDb};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 

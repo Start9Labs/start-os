@@ -54,7 +54,8 @@ impl Current {
                     rollback_to_unchecked(&from, &self, &mut db)?;
                     Ok::<_, Error>((db, ()))
                 })
-                .await?;
+                .await
+                .result?;
             }
             Ordering::Less => {
                 let pre_ups = PreUps::load(&from, &self).await?;
@@ -62,7 +63,8 @@ impl Current {
                     migrate_from_unchecked(&from, &self, pre_ups, &mut db)?;
                     Ok::<_, Error>((to_value(&from_value::<Database>(db.clone())?)?, ()))
                 })
-                .await?;
+                .await
+                .result?;
             }
             Ordering::Equal => (),
         }
@@ -103,7 +105,8 @@ pub async fn post_init(
                         .as_post_init_migration_todos_mut()
                         .mutate(|m| Ok(m.remove(&version.0.semver())))
                 })
-                .await?;
+                .await
+                .result?;
             progress += 1;
         }
     }

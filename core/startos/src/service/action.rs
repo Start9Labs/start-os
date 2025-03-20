@@ -158,7 +158,8 @@ impl Handler<RunAction> for ServiceActor {
                 }
                 Ok(())
             })
-            .await?;
+            .await
+            .result?;
         Ok(result)
     }
 }
