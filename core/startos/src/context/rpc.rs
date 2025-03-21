@@ -1,4 +1,3 @@
-use std::backtrace;
 use std::collections::{BTreeMap, BTreeSet};
 use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
@@ -63,7 +62,7 @@ pub struct RpcContextSeed {
     pub lxc_manager: Arc<LxcManager>,
     pub open_authed_continuations: OpenAuthedContinuations<Option<InternedString>>,
     pub rpc_continuations: RpcContinuations,
-    pub callbacks: ServiceCallbacks,
+    pub callbacks: Arc<ServiceCallbacks>,
     pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
     pub client: Client,
@@ -231,6 +230,7 @@ impl RpcContext {
             sync_db: watch::Sender::new(db.sequence().await),
             db,
             account: RwLock::new(account),
+            callbacks: net_controller.callbacks.clone(),
             net_controller,
             os_net_service,
             s9pk_arch: if config.multi_arch_s9pks.unwrap_or(false) {
@@ -245,7 +245,6 @@ impl RpcContext {
             lxc_manager: Arc::new(LxcManager::new()),
             open_authed_continuations: OpenAuthedContinuations::new(),
             rpc_continuations: RpcContinuations::new(),
-            callbacks: Default::default(),
             wifi_manager: wifi_interface
                 .clone()
                 .map(|i| Arc::new(RwLock::new(WpaCli::init(i)))),
@@ -492,7 +491,7 @@ impl Drop for RpcContext {
             let count = Arc::strong_count(&self.0) - 1;
             tracing::info!("RpcContext dropped. {} left.", count);
             if count > 0 {
-                tracing::debug!("{}", backtrace::Backtrace::force_capture());
+                tracing::debug!("{}", std::backtrace::Backtrace::force_capture());
                 tracing::debug!("{:?}", eyre!(""))
             }
         }
