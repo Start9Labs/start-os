@@ -1,6 +1,6 @@
 import { DOCUMENT } from '@angular/common'
 import { Component, ElementRef, Inject, NgZone, ViewChild } from '@angular/core'
-import { DownloadHTMLService, ErrorToastService } from '@start9labs/shared'
+import { DownloadHTMLService, ErrorService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api/api.service'
 import { StateService } from 'src/app/services/state.service'
 
@@ -8,14 +8,14 @@ import { StateService } from 'src/app/services/state.service'
   selector: 'success',
   templateUrl: 'success.page.html',
   styleUrls: ['success.page.scss'],
-  providers: [DownloadHTMLService],
 })
 export class SuccessPage {
   @ViewChild('canvas', { static: true })
-  private canvas: ElementRef<HTMLCanvasElement> = {} as ElementRef<HTMLCanvasElement>
+  private canvas: ElementRef<HTMLCanvasElement> =
+    {} as ElementRef<HTMLCanvasElement>
   private ctx: CanvasRenderingContext2D = {} as CanvasRenderingContext2D
 
-  torAddress?: string
+  torAddresses?: string[]
   lanAddress?: string
   cert?: string
 
@@ -28,7 +28,7 @@ export class SuccessPage {
 
   constructor(
     @Inject(DOCUMENT) private readonly document: Document,
-    private readonly errCtrl: ErrorToastService,
+    private readonly errorService: ErrorService,
     private readonly stateService: StateService,
     private readonly api: ApiService,
     private readonly downloadHtml: DownloadHTMLService,
@@ -52,7 +52,7 @@ export class SuccessPage {
     const torAddress = this.document.getElementById('tor-addr')
     const lanAddress = this.document.getElementById('lan-addr')
 
-    if (torAddress) torAddress.innerHTML = this.torAddress!
+    if (torAddress) torAddress.innerHTML = this.torAddresses!.join('\n')
     if (lanAddress) lanAddress.innerHTML = this.lanAddress!
 
     this.document
@@ -76,14 +76,16 @@ export class SuccessPage {
     try {
       const ret = await this.api.complete()
       if (!this.isKiosk) {
-        this.torAddress = ret['tor-address'].replace(/^https:/, 'http:')
-        this.lanAddress = ret['lan-address'].replace(/^https:/, 'http:')
-        this.cert = ret['root-ca']
+        this.torAddresses = ret.torAddresses.map(a =>
+          a.replace(/^https:/, 'http:'),
+        )
+        this.lanAddress = ret.lanAddress.replace(/^https:/, 'http:')
+        this.cert = ret.rootCa
 
         await this.api.exit()
       }
     } catch (e: any) {
-      await this.errCtrl.present(e)
+      this.errorService.handleError(e)
     }
   }
 

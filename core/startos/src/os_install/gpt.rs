@@ -50,7 +50,7 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
                         if part_info.guid.is_some() {
                             if entry.first_lba < if use_efi { 33759266 } else { 33570850 } {
                                 return Err(Error::new(
-                                    eyre!("Not enough space before embassy data"),
+                                    eyre!("Not enough space before StartOS data"),
                                     crate::ErrorKind::InvalidRequest,
                                 ));
                             }
@@ -87,7 +87,7 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
             gpt.add_partition(
                 "root",
                 15 * 1024 * 1024 * 1024,
-                match *crate::ARCH {
+                match crate::ARCH {
                     "x86_64" => gpt::partition_types::LINUX_ROOT_X64,
                     "aarch64" => gpt::partition_types::LINUX_ROOT_ARM_64,
                     _ => gpt::partition_types::LINUX_FS,

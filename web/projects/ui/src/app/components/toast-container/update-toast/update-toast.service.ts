@@ -7,7 +7,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 @Injectable({ providedIn: 'root' })
 export class UpdateToastService extends Observable<boolean> {
   private readonly stream$ = this.patch
-    .watch$('server-info', 'status-info', 'updated')
+    .watch$('serverInfo', 'statusInfo', 'updated')
     .pipe(distinctUntilChanged(), filter(Boolean), endWith(false))
 
   constructor(private readonly patch: PatchDB<DataModel>) {

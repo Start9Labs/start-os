@@ -1,0 +1,43 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Past Release Notes</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="dismiss()" class="enter-click">
+        <ion-icon name="close"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding with-widgets">
+  <ng-container *ngIf="notes$ | async as notes; else loading">
+    <div *ngFor="let note of notes | keyvalue : asIsOrder">
+      <ion-button
+        expand="full"
+        color="light"
+        class="version-button"
+        [class.ion-activated]="isSelected(note.key)"
+        (click)="setSelected(note.key)"
+      >
+        <p class="version">{{ note.key }}</p>
+      </ion-button>
+      <ion-card
+        tuiElement
+        #element="elementRef"
+        class="panel"
+        color="light"
+        [id]="note.key"
+        [style.maxHeight.px]="getDocSize(note.key, element)"
+      >
+        <ion-text
+          id="release-notes"
+          [innerHTML]="note.value | markdown"
+        ></ion-text>
+      </ion-card>
+    </div>
+  </ng-container>
+
+  <ng-template #loading>
+    <text-spinner text="Loading Release Notes"></text-spinner>
+  </ng-template>
+</ion-content>

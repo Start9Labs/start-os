@@ -1,22 +1,11 @@
-import { Component, Inject, Input } from '@angular/core'
-import { WINDOW } from '@ng-web-apis/common'
+import { Component } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ModalController, ToastController } from '@ionic/angular'
-import { copyToClipboard, getPkgId } from '@start9labs/shared'
-import { getUiInterfaceKey } from 'src/app/services/config.service'
-import {
-  DataModel,
-  InstalledPackageDataEntry,
-  InterfaceDef,
-} from 'src/app/services/patch-db/data-model'
+import { getPkgId } from '@start9labs/shared'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { PatchDB } from 'patch-db-client'
-import { QRComponent } from 'src/app/components/qr/qr.component'
-import { getPackage } from '../../../util/get-package-data'
-
-interface LocalInterface {
-  def: InterfaceDef
-  addresses: InstalledPackageDataEntry['interface-addresses'][string]
-}
+import { combineLatest, map } from 'rxjs'
+import { getAddresses } from 'src/app/components/interface-info/interface-info.component'
+import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   selector: 'app-interfaces',
@@ -24,105 +13,48 @@ interface LocalInterface {
   styleUrls: ['./app-interfaces.page.scss'],
 })
 export class AppInterfacesPage {
-  ui?: LocalInterface
-  other: LocalInterface[] = []
   readonly pkgId = getPkgId(this.route)
+
+  private readonly serviceInterfaces$ = this.patch.watch$(
+    'packageData',
+    this.pkgId,
+    'serviceInterfaces',
+  )
+  private readonly hosts$ = this.patch.watch$(
+    'packageData',
+    this.pkgId,
+    'hosts',
+  )
+
+  readonly serviceInterfacesWithHostInfo$ = combineLatest([
+    this.serviceInterfaces$,
+    this.hosts$,
+  ]).pipe(
+    map(([interfaces, hosts]) => {
+      const sorted = Object.values(interfaces)
+        .sort(iface =>
+          iface.name.toLowerCase() > iface.name.toLowerCase() ? -1 : 1,
+        )
+        .map(iface => {
+          const host = hosts[iface.addressInfo.hostId]
+          return {
+            ...iface,
+            public: host.bindings[iface.addressInfo.internalPort].net.public,
+            addresses: getAddresses(iface, host, this.config),
+          }
+        })
+
+      return {
+        ui: sorted.filter(val => val.type === 'ui'),
+        api: sorted.filter(val => val.type === 'api'),
+        p2p: sorted.filter(val => val.type === 'p2p'),
+      }
+    }),
+  )
 
   constructor(
     private readonly route: ActivatedRoute,
     private readonly patch: PatchDB<DataModel>,
+    private readonly config: ConfigService,
   ) {}
-
-  async ngOnInit() {
-    const pkg = await getPackage(this.patch, this.pkgId)
-    if (!pkg) return
-
-    const interfaces = pkg.manifest.interfaces
-    const uiKey = getUiInterfaceKey(interfaces)
-
-    if (!pkg.installed) return
-
-    const addressesMap = pkg.installed['interface-addresses']
-
-    if (uiKey) {
-      const uiAddresses = addressesMap[uiKey]
-      this.ui = {
-        def: interfaces[uiKey],
-        addresses: {
-          'lan-address': uiAddresses['lan-address']
-            ? 'https://' + uiAddresses['lan-address']
-            : '',
-          // leave http for services
-          'tor-address': uiAddresses['tor-address']
-            ? 'http://' + uiAddresses['tor-address']
-            : '',
-        },
-      }
-    }
-
-    this.other = Object.keys(interfaces)
-      .filter(key => key !== uiKey)
-      .map(key => {
-        const addresses = addressesMap[key]
-        return {
-          def: interfaces[key],
-          addresses: {
-            'lan-address': addresses['lan-address']
-              ? 'https://' + addresses['lan-address']
-              : '',
-            'tor-address': addresses['tor-address']
-              ? // leave http for services
-                'http://' + addresses['tor-address']
-              : '',
-          },
-        }
-      })
-  }
-}
-
-@Component({
-  selector: 'app-interfaces-item',
-  templateUrl: './app-interfaces-item.component.html',
-  styleUrls: ['./app-interfaces.page.scss'],
-})
-export class AppInterfacesItemComponent {
-  @Input()
-  interface!: LocalInterface
-
-  constructor(
-    private readonly toastCtrl: ToastController,
-    private readonly modalCtrl: ModalController,
-    @Inject(WINDOW) private readonly windowRef: Window,
-  ) {}
-
-  launch(url: string): void {
-    this.windowRef.open(url, '_blank', 'noreferrer')
-  }
-
-  async showQR(text: string): Promise<void> {
-    const modal = await this.modalCtrl.create({
-      component: QRComponent,
-      componentProps: {
-        text,
-      },
-      cssClass: 'qr-modal',
-    })
-    await modal.present()
-  }
-
-  async copy(address: string): Promise<void> {
-    let message = ''
-    await copyToClipboard(address || '').then(success => {
-      message = success
-        ? 'Copied to clipboard!'
-        : 'Failed to copy to clipboard.'
-    })
-
-    const toast = await this.toastCtrl.create({
-      header: message,
-      position: 'bottom',
-      duration: 1000,
-    })
-    await toast.present()
-  }
 }

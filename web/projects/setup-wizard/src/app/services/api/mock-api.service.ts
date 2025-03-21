@@ -1,42 +1,152 @@
 import { Injectable } from '@angular/core'
-import { encodeBase64, pauseFor } from '@start9labs/shared'
 import {
-  ApiService,
-  AttachReq,
-  CifsRecoverySource,
-  CompleteRes,
-  ExecuteReq,
-} from './api.service'
+  DiskListResponse,
+  StartOSDiskInfo,
+  encodeBase64,
+  pauseFor,
+} from '@start9labs/shared'
+import { ApiService } from './api.service'
 import * as jose from 'node-jose'
-
-let tries: number
+import { T } from '@start9labs/start-sdk'
+import {
+  Observable,
+  concatMap,
+  delay,
+  from,
+  interval,
+  map,
+  mergeScan,
+  of,
+  startWith,
+  switchMap,
+  switchScan,
+  takeWhile,
+} from 'rxjs'
 
 @Injectable({
   providedIn: 'root',
 })
 export class MockApiService extends ApiService {
-  async getStatus() {
-    const restoreOrMigrate = true
+  // fullProgress$(): Observable<T.FullProgress> {
+  //   const phases = [
+  //     {
+  //       name: 'Preparing Data',
+  //       progress: null,
+  //     },
+  //     {
+  //       name: 'Transferring Data',
+  //       progress: null,
+  //     },
+  //     {
+  //       name: 'Finalizing Setup',
+  //       progress: null,
+  //     },
+  //   ]
+
+  //   return from(phases).pipe(
+  //     switchScan((acc, val, i) => {}, { overall: null, phases }),
+  //   )
+  // }
+
+  // namedProgress$(namedProgress: T.NamedProgress): Observable<T.NamedProgress> {
+  //   return of(namedProgress).pipe(startWith(namedProgress))
+  // }
+
+  // progress$(progress: T.Progress): Observable<T.Progress> {}
+
+  // websocket
+
+  openProgressWebsocket$(guid: string): Observable<T.FullProgress> {
+    return of(PROGRESS)
+    // const numPhases = PROGRESS.phases.length
+
+    // return of(PROGRESS).pipe(
+    //   switchMap(full =>
+    //     from(PROGRESS.phases).pipe(
+    //       mergeScan((full, phase, i) => {
+    //         if (
+    //           !phase.progress ||
+    //           typeof phase.progress !== 'object' ||
+    //           !phase.progress.total
+    //         ) {
+    //           full.phases[i].progress = true
+
+    //           if (
+    //             full.overall &&
+    //             typeof full.overall === 'object' &&
+    //             full.overall.total
+    //           ) {
+    //             const step = full.overall.total / numPhases
+    //             full.overall.done += step
+    //           }
+
+    //           return of(full).pipe(delay(2000))
+    //         } else {
+    //           const total = phase.progress.total
+    //           const step = total / 4
+    //           let done = phase.progress.done
+
+    //           return interval(1000).pipe(
+    //             takeWhile(() => done < total),
+    //             map(() => {
+    //               done += step
+
+    //               console.error(done)
+
+    //               if (
+    //                 full.overall &&
+    //                 typeof full.overall === 'object' &&
+    //                 full.overall.total
+    //               ) {
+    //                 const step = full.overall.total / numPhases / 4
+
+    //                 full.overall.done += step
+    //               }
+
+    //               if (done === total) {
+    //                 full.phases[i].progress = true
+
+    //                 if (i === numPhases - 1) {
+    //                   full.overall = true
+    //                 }
+    //               }
+    //               return full
+    //             }),
+    //           )
+    //         }
+    //       }, full),
+    //     ),
+    //   ),
+    // )
+  }
+
+  private statusIndex = 0
+  async getStatus(): Promise<T.SetupStatusRes | null> {
     await pauseFor(1000)
 
-    if (tries === undefined) {
-      tries = 0
-      return null
-    }
+    this.statusIndex++
 
-    tries++
-
-    const total = tries <= 4 ? tries * 268435456 : 1073741824
-    const progress = tries > 4 ? (tries - 4) * 268435456 : 0
-
-    return {
-      'bytes-transferred': restoreOrMigrate ? progress : 0,
-      'total-bytes': restoreOrMigrate ? total : null,
-      complete: progress === total,
+    switch (this.statusIndex) {
+      case 2:
+        return {
+          status: 'running',
+          progress: PROGRESS,
+          guid: 'progress-guid',
+        }
+      case 3:
+        return {
+          status: 'complete',
+          torAddresses: ['https://asdafsadasdasasdasdfasdfasdf.onion'],
+          hostname: 'adjective-noun',
+          lanAddress: 'https://adjective-noun.local',
+          rootCa: encodeBase64(rootCA),
+        }
+      default:
+        return null
     }
   }
 
-  async getPubKey() {
+  async getPubKey(): Promise<void> {
     await pauseFor(1000)
 
     // randomly generated
@@ -52,7 +162,7 @@ export class MockApiService extends ApiService {
     })
   }
 
-  async getDrives() {
+  async getDrives(): Promise<DiskListResponse> {
     await pauseFor(1000)
     return [
       {
@@ -65,12 +175,15 @@ export class MockApiService extends ApiService {
             label: null,
             capacity: 1979120929996,
             used: null,
-            'embassy-os': {
-              version: '0.2.17',
-              full: true,
-              'password-hash':
-                '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-              'wrapped-key': null,
+            startOs: {
+              '1234-5678-9876-5432': {
+                hostname: 'adjective-noun',
+                version: '0.2.17',
+                timestamp: new Date().toISOString(),
+                passwordHash:
+                  '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+                wrappedKey: null,
+              },
             },
             guid: null,
           },
@@ -88,12 +201,15 @@ export class MockApiService extends ApiService {
             label: null,
             capacity: 73264762332,
             used: null,
-            'embassy-os': {
-              version: '0.3.3',
-              full: true,
-              'password-hash':
-                '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-              'wrapped-key': null,
+            startOs: {
+              '1234-5678-9876-5432': {
+                hostname: 'adjective-noun',
+                version: '0.2.17',
+                timestamp: new Date().toISOString(),
+                passwordHash:
+                  '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+                wrappedKey: null,
+              },
             },
             guid: null,
           },
@@ -111,12 +227,15 @@ export class MockApiService extends ApiService {
             label: null,
             capacity: 73264762332,
             used: null,
-            'embassy-os': {
-              version: '0.3.2',
-              full: true,
-              'password-hash':
-                '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-              'wrapped-key': null,
+            startOs: {
+              '1234-5678-9876-5432': {
+                hostname: 'adjective-noun',
+                version: '0.2.17',
+                timestamp: new Date().toISOString(),
+                passwordHash:
+                  '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+                wrappedKey: null,
+              },
             },
             guid: 'guid-guid-guid-guid',
           },
@@ -127,35 +246,51 @@ export class MockApiService extends ApiService {
     ]
   }
 
-  async verifyCifs(params: CifsRecoverySource) {
+  async verifyCifs(
+    params: T.VerifyCifsParams,
+  ): Promise<Record<string, StartOSDiskInfo>> {
     await pauseFor(1000)
     return {
-      version: '0.3.0',
-      full: true,
-      'password-hash':
-        '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
-      'wrapped-key': '',
+      '9876-5432-1234-5678': {
+        hostname: 'adjective-noun',
+        version: '0.3.6',
+        timestamp: new Date().toISOString(),
+        passwordHash:
+          '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
+        wrappedKey: '',
+      },
     }
   }
 
-  async attach(params: AttachReq) {
+  async attach(params: T.AttachParams): Promise<T.SetupProgress> {
     await pauseFor(1000)
-  }
 
-  async execute(setupInfo: ExecuteReq) {
-    await pauseFor(1000)
-  }
-
-  async complete(): Promise<CompleteRes> {
-    await pauseFor(1000)
     return {
-      'tor-address': 'https://asdafsadasdasasdasdfasdfasdf.onion',
-      'lan-address': 'https://adjective-noun.local',
-      'root-ca': encodeBase64(rootCA),
+      progress: PROGRESS,
+      guid: 'progress-guid',
     }
   }
 
-  async exit() {
+  async execute(setupInfo: T.SetupExecuteParams): Promise<T.SetupProgress> {
+    await pauseFor(1000)
+
+    return {
+      progress: PROGRESS,
+      guid: 'progress-guid',
+    }
+  }
+
+  async complete(): Promise<T.SetupResult> {
+    await pauseFor(1000)
+    return {
+      torAddresses: ['https://asdafsadasdasasdasdfasdfasdf.onion'],
+      hostname: 'adjective-noun',
+      lanAddress: 'https://adjective-noun.local',
+      rootCa: encodeBase64(rootCA),
+    }
+  }
+
+  async exit(): Promise<void> {
     await pauseFor(1000)
   }
 }
@@ -182,3 +317,8 @@ Rf3ZOPm9QP92YpWyYDkfAU04xdDo1vR0MYjKPkl4LjRqSU/tcCJnPMbJiwq+bWpX
 2WJoEBXB/p15Kn6JxjI0ze2SnSI48JZ8it4fvxrhOo0VoLNIuCuNXJOwU17Rdl1W
 YJidaq7je6k18AdgPA0Kh8y1XtfUH3fTaVw4
 -----END CERTIFICATE-----`
+
+const PROGRESS = {
+  overall: null,
+  phases: [],
+}

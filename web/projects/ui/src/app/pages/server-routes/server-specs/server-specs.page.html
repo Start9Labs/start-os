@@ -13,7 +13,7 @@
     <ion-item>
       <ion-label>
         <h2>Version</h2>
-        <p>{{ server.version | displayEmver }}</p>
+        <p>{{ server.version }}</p>
       </ion-label>
     </ion-item>
     <ion-item>
@@ -25,82 +25,18 @@
         <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
       </ion-button>
     </ion-item>
-
-    <ion-item-divider>Web Addresses</ion-item-divider>
-    <ion-item>
-      <ion-label class="break-all">
-        <h2>Tor</h2>
-        <p>{{ server['tor-address'] }}</p>
-      </ion-label>
-      <div slot="end">
-        <ion-button fill="clear" (click)="showQR(server['tor-address'])">
-          <ion-icon
-            slot="icon-only"
-            name="qr-code-outline"
-            size="small"
-          ></ion-icon>
-        </ion-button>
-        <ion-button fill="clear" (click)="copy(server['tor-address'])">
-          <ion-icon
-            slot="icon-only"
-            name="copy-outline"
-            size="small"
-          ></ion-icon>
-        </ion-button>
-      </div>
-    </ion-item>
-    <ion-item>
-      <ion-label class="break-all">
-        <h2>LAN</h2>
-        <p>{{ server['lan-address'] }}</p>
-      </ion-label>
-      <ion-button slot="end" fill="clear" (click)="copy(server['lan-address'])">
-        <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
-      </ion-button>
-    </ion-item>
-    <ng-container *ngFor="let iface of server['ip-info'] | keyvalue">
-      <ion-item *tuiLet="iface.value.ipv4 as ipv4">
-        <ion-label>
-          <h2>{{ iface.key }} (IPv4)</h2>
-          <p>{{ ipv4 || 'n/a' }}</p>
-        </ion-label>
-        <ion-button *ngIf="ipv4" slot="end" fill="clear" (click)="copy(ipv4)">
-          <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
-        </ion-button>
-      </ion-item>
-      <ion-item *tuiLet="iface.value.ipv6 as ipv6">
-        <ion-label>
-          <h2>{{ iface.key }} (IPv6)</h2>
-          <p>{{ ipv6 || 'n/a' }}</p>
-        </ion-label>
-        <ion-button *ngIf="ipv6" slot="end" fill="clear" (click)="copy(ipv6)">
-          <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
-        </ion-button>
-      </ion-item>
-    </ng-container>
-
-    <ion-item-divider>Device Credentials</ion-item-divider>
-    <!-- <ion-item>
-      <ion-label>
-        <h2>Pubkey</h2>
-        <p>{{ server['pubkey'] }}</p>
-      </ion-label>
-      <ion-button slot="end" fill="clear" (click)="copy(server['pubkey'])">
-        <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
-      </ion-button>
-    </ion-item> -->
     <ion-item>
       <ion-label>
         <h2>CA fingerprint</h2>
-        <p>{{ server['ca-fingerprint'] }}</p>
+        <p>{{ server.caFingerprint }}</p>
       </ion-label>
-      <ion-button
-        slot="end"
-        fill="clear"
-        (click)="copy(server['ca-fingerprint'])"
-      >
+      <ion-button slot="end" fill="clear" (click)="copy(server.caFingerprint)">
         <ion-icon slot="icon-only" name="copy-outline"></ion-icon>
       </ion-button>
     </ion-item>
+
+    <ion-item-divider>Web Addresses</ion-item-divider>
+
+    <interface-info *ngIf="ui$ | async as ui" [iFace]="ui"></interface-info>
   </ion-item-group>
 </ion-content>

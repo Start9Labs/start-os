@@ -32,7 +32,7 @@ export class TimeService {
 
   readonly now$ = combineLatest([
     this.time$,
-    this.patch.watch$('server-info', 'ntp-synced'),
+    this.patch.watch$('serverInfo', 'ntpSynced'),
   ]).pipe(
     map(([time, synced]) => ({
       value: time.now,

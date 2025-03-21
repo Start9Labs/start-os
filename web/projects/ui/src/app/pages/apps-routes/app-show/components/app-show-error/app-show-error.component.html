@@ -1,0 +1,31 @@
+<ion-item-divider>Message</ion-item-divider>
+<div class="code-block ion-margin">
+  <code>
+    <ion-text color="warning">{{ error.message }}</ion-text>
+  </code>
+</div>
+
+<ion-item-divider>Actions</ion-item-divider>
+<div class="ion-margin">
+  <p>
+    <b>Rebuild Container</b>
+    is harmless action that and only takes a few seconds to complete. It will
+    likely resolve this issue.
+    <b>Uninstall Service</b>
+    is a dangerous action that will remove the service from StartOS and wipe all
+    its data.
+  </p>
+  <ion-button class="ion-margin-end" (click)="rebuild()">
+    Rebuild Container
+  </ion-button>
+  <ion-button (click)="tryUninstall()" color="danger">
+    Uninstall Service
+  </ion-button>
+</div>
+
+<ng-container *ngIf="error.debug">
+  <ion-item-divider>Full Stack Trace</ion-item-divider>
+  <div class="code-block ion-margin">
+    <code>{{ error.message }}</code>
+  </div>
+</ng-container>

@@ -3,11 +3,8 @@ import { CommonModule } from '@angular/common'
 import { Routes, RouterModule } from '@angular/router'
 import { IonicModule } from '@ionic/angular'
 import { SharedPipesModule } from '@start9labs/shared'
-
-import {
-  AppInterfacesItemComponent,
-  AppInterfacesPage,
-} from './app-interfaces.page'
+import { AppInterfacesPage } from './app-interfaces.page'
+import { InterfaceInfoModule } from 'src/app/components/interface-info/interface-info.module'
 
 const routes: Routes = [
   {
@@ -22,7 +19,8 @@ const routes: Routes = [
     IonicModule,
     RouterModule.forChild(routes),
     SharedPipesModule,
+    InterfaceInfoModule,
   ],
-  declarations: [AppInterfacesPage, AppInterfacesItemComponent],
+  declarations: [AppInterfacesPage],
 })
 export class AppInterfacesPageModule {}

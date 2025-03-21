@@ -81,11 +81,14 @@ const routes: Routes = [
       import('./wifi/wifi.module').then(m => m.WifiPageModule),
   },
   {
-    path: 'experimental-features',
+    path: 'email',
     loadChildren: () =>
-      import('./experimental-features/experimental-features.module').then(
-        m => m.ExperimentalFeaturesPageModule,
-      ),
+      import('./email/email.module').then(m => m.EmailPageModule),
+  },
+  {
+    path: 'acme',
+    loadChildren: () =>
+      import('./acme/acme.module').then(m => m.ACMEPageModule),
   },
 ]
 

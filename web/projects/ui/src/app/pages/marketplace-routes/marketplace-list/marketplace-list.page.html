@@ -62,9 +62,10 @@
                   >
                     <marketplace-item [pkg]="pkg">
                       <marketplace-status
+                        *ngIf="localPkgs[pkg.id] as localPkg"
                         class="status"
-                        [version]="pkg.manifest.version"
-                        [localPkg]="localPkgs[pkg.manifest.id]"
+                        [version]="pkg.version"
+                        [localPkg]="localPkg"
                       ></marketplace-status>
                     </marketplace-item>
                   </ion-col>

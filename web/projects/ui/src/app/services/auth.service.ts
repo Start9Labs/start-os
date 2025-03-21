@@ -12,7 +12,7 @@ export enum AuthState {
   providedIn: 'root',
 })
 export class AuthService {
-  private readonly LOGGED_IN_KEY = 'loggedInKey'
+  private readonly LOGGED_IN_KEY = 'loggedIn'
   private readonly authState$ = new ReplaySubject<AuthState>(1)
 
   readonly isVerified$ = this.authState$.pipe(
@@ -27,9 +27,9 @@ export class AuthService {
   ) {}
 
   init(): void {
-    const loggedIn = this.storage.get(this.LOGGED_IN_KEY)
+    const loggedIn = this.storage.get<boolean>(this.LOGGED_IN_KEY)
     if (loggedIn) {
-      this.setVerified()
+      this.authState$.next(AuthState.VERIFIED)
     } else {
       this.setUnverified()
     }

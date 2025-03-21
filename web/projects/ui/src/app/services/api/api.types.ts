@@ -1,20 +1,28 @@
-import { Dump, Revision } from 'patch-db-client'
-import { MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
-import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
-import {
-  DataModel,
-  HealthCheckResult,
-  Manifest,
-} from 'src/app/services/patch-db/data-model'
+import { Dump } from 'patch-db-client'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
+import { IST, T } from '@start9labs/start-sdk'
+import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 
 export module RR {
+  // websocket
+
+  export type WebsocketConfig<T> = Omit<WebSocketSubjectConfig<T>, 'url'>
+
+  // state
+
+  export type EchoReq = { message: string } // server.echo
+  export type EchoRes = string
+
+  export type ServerState = 'initializing' | 'error' | 'running'
+
   // DB
 
-  export type GetRevisionsRes = Revision[] | Dump<DataModel>
-
-  export type GetDumpRes = Dump<DataModel>
+  export type SubscribePatchReq = {}
+  export type SubscribePatchRes = {
+    dump: Dump<DataModel>
+    guid: string
+  }
 
   export type SetDBValueReq<T> = { pointer: string; value: T } // db.put.ui
   export type SetDBValueRes = null
@@ -24,6 +32,7 @@ export module RR {
   export type LoginReq = {
     password: string
     metadata: SessionMetadata
+    ephemeral?: boolean
   } // auth.login - unauthed
   export type loginRes = null
 
@@ -31,15 +40,27 @@ export module RR {
   export type LogoutRes = null
 
   export type ResetPasswordReq = {
-    'old-password': string
-    'new-password': string
+    oldPassword: string
+    newPassword: string
   } // auth.reset-password
   export type ResetPasswordRes = null
 
-  // server
+  // diagnostic
 
-  export type EchoReq = { message: string; timeout?: number } // server.echo
-  export type EchoRes = string
+  export type DiagnosticErrorRes = {
+    code: number
+    message: string
+    data: { details: string }
+  }
+
+  // init
+
+  export type InitGetProgressRes = {
+    progress: T.FullProgress
+    guid: string
+  }
+
+  // server
 
   export type GetSystemTimeReq = {} // server.time
   export type GetSystemTimeRes = {
@@ -50,16 +71,20 @@ export module RR {
   export type GetServerLogsReq = ServerLogsReq // server.logs & server.kernel-logs
   export type GetServerLogsRes = LogsRes
 
-  export type FollowServerLogsReq = { limit?: number } // server.logs.follow & server.kernel-logs.follow
+  export type FollowServerLogsReq = {
+    limit?: number // (optional) default is 50. Ignored if cursor provided
+    boot?: number | string | null // (optional) number is offset (0: current, -1 prev, +1 first), string is a specific boot id, null is all. Default is undefined
+    cursor?: string // the last known log. Websocket will return all logs since this log
+  } // server.logs.follow & server.kernel-logs.follow
   export type FollowServerLogsRes = {
-    'start-cursor': string
+    startCursor: string
     guid: string
   }
 
   export type GetServerMetricsReq = {} // server.metrics
   export type GetServerMetricsRes = Metrics
 
-  export type UpdateServerReq = { 'marketplace-url': string } // server.update
+  export type UpdateServerReq = { registry: string } // server.update
   export type UpdateServerRes = 'updating' | 'no-updates'
 
   export type RestartServerReq = {} // server.restart
@@ -68,19 +93,25 @@ export module RR {
   export type ShutdownServerReq = {} // server.shutdown
   export type ShutdownServerRes = null
 
-  export type SystemRebuildReq = {} // server.rebuild
-  export type SystemRebuildRes = null
+  export type DiskRepairReq = {} // server.disk.repair
+  export type DiskRepairRes = null
 
   export type ResetTorReq = {
-    'wipe-state': boolean
+    wipeState: boolean
     reason: string
   } // net.tor.reset
   export type ResetTorRes = null
 
-  export type ToggleZramReq = {
-    enable: boolean
-  } // server.experimental.zram
-  export type ToggleZramRes = null
+  // smtp
+
+  export type SetSMTPReq = T.SmtpValue // server.set-smtp
+  export type SetSMTPRes = null
+
+  export type ClearSMTPReq = {} // server.clear-smtp
+  export type ClearSMTPRes = null
+
+  export type TestSMTPReq = SetSMTPReq & { to: string } // server.test-smtp
+  export type TestSMTPRes = null
 
   // sessions
 
@@ -101,10 +132,10 @@ export module RR {
   } // notification.list
   export type GetNotificationsRes = ServerNotification<number>[]
 
-  export type DeleteNotificationReq = { id: number } // notification.delete
+  export type DeleteNotificationReq = { id: number } // notification.remove
   export type DeleteNotificationRes = null
 
-  export type DeleteAllNotificationsReq = { before: number } // notification.delete-before
+  export type DeleteAllNotificationsReq = { before: number } // notification.remove-before
   export type DeleteAllNotificationsRes = null
 
   // wifi
@@ -120,7 +151,7 @@ export module RR {
     connected: string | null
     country: string | null
     ethernet: boolean
-    'available-wifi': AvailableWifi[]
+    availableWifi: AvailableWifi[]
   }
 
   export type AddWifiReq = {
@@ -135,7 +166,7 @@ export module RR {
   export type ConnectWifiReq = { ssid: string } // wifi.connect
   export type ConnectWifiRes = null
 
-  export type DeleteWifiReq = { ssid: string } // wifi.delete
+  export type DeleteWifiReq = { ssid: string } // wifi.remove
   export type DeleteWifiRes = null
 
   // ssh
@@ -146,7 +177,7 @@ export module RR {
   export type AddSSHKeyReq = { key: string } // ssh.add
   export type AddSSHKeyRes = SSHKey
 
-  export type DeleteSSHKeyReq = { fingerprint: string } // ssh.delete
+  export type DeleteSSHKeyReq = { fingerprint: string } // ssh.remove
   export type DeleteSSHKeyRes = null
 
   // backup
@@ -169,23 +200,98 @@ export module RR {
   export type RemoveBackupTargetReq = { id: string } // backup.target.cifs.remove
   export type RemoveBackupTargetRes = null
 
-  export type GetBackupInfoReq = { 'target-id': string; password: string } // backup.target.info
+  export type GetBackupInfoReq = {
+    // backup.target.info
+    targetId: string
+    serverId: string
+    password: string
+  }
   export type GetBackupInfoRes = BackupInfo
 
   export type CreateBackupReq = {
     // backup.create
-    'target-id': string
-    'package-ids': string[]
-    'old-password': string | null
+    targetId: string
+    packageIds: string[]
+    oldPassword: string | null
     password: string
   }
   export type CreateBackupRes = null
 
   // package
 
-  export type GetPackagePropertiesReq = { id: string } // package.properties
-  export type GetPackagePropertiesRes<T extends number> =
-    PackagePropertiesVersioned<T>
+  export type InitAcmeReq = {
+    provider: 'letsencrypt' | 'letsencrypt-staging' | string
+    contact: string[]
+  }
+  export type InitAcmeRes = null
+
+  export type RemoveAcmeReq = {
+    provider: string
+  }
+  export type RemoveAcmeRes = null
+
+  export type AddTorKeyReq = {
+    // net.tor.key.add
+    key: string
+  }
+  export type GenerateTorKeyReq = {} // net.tor.key.generate
+  export type AddTorKeyRes = string // onion address without .onion suffix
+
+  export type ServerBindingSetPublicReq = {
+    // server.host.binding.set-public
+    internalPort: number
+    public: boolean | null // default true
+  }
+  export type BindingSetPublicRes = null
+
+  export type ServerAddOnionReq = {
+    // server.host.address.onion.add
+    onion: string // address *with* .onion suffix
+  }
+  export type AddOnionRes = null
+
+  export type ServerRemoveOnionReq = ServerAddOnionReq // server.host.address.onion.remove
+  export type RemoveOnionRes = null
+
+  export type ServerAddDomainReq = {
+    // server.host.address.domain.add
+    domain: string // FQDN
+    private: boolean
+    acme: string | null // "letsencrypt" | "letsencrypt-staging" | Url | null
+  }
+  export type AddDomainRes = null
+
+  export type ServerRemoveDomainReq = {
+    // server.host.address.domain.remove
+    domain: string // FQDN
+  }
+  export type RemoveDomainRes = null
+
+  export type PkgBindingSetPublicReq = ServerBindingSetPublicReq & {
+    // package.host.binding.set-public
+    package: T.PackageId // string
+    host: T.HostId // string
+  }
+
+  export type PkgAddOnionReq = ServerAddOnionReq & {
+    // package.host.address.onion.add
+    package: T.PackageId // string
+    host: T.HostId // string
+  }
+
+  export type PkgRemoveOnionReq = PkgAddOnionReq // package.host.address.onion.remove
+
+  export type PkgAddDomainReq = ServerAddDomainReq & {
+    // package.host.address.domain.add
+    package: T.PackageId // string
+    host: T.HostId // string
+  }
+
+  export type PkgRemoveDomainReq = ServerRemoveDomainReq & {
+    // package.host.address.domain.remove
+    package: T.PackageId // string
+    host: T.HostId // string
+  }
 
   export type GetPackageLogsReq = ServerLogsReq & { id: string } // package.logs
   export type GetPackageLogsRes = LogsRes
@@ -193,41 +299,30 @@ export module RR {
   export type FollowPackageLogsReq = FollowServerLogsReq & { id: string } // package.logs.follow
   export type FollowPackageLogsRes = FollowServerLogsRes
 
-  export type GetPackageMetricsReq = { id: string } // package.metrics
-  export type GetPackageMetricsRes = Metric
-
-  export type InstallPackageReq = {
-    id: string
-    'version-spec'?: string
-    'version-priority'?: 'min' | 'max'
-    'marketplace-url': string
-  } // package.install
+  export type InstallPackageReq = T.InstallParams
   export type InstallPackageRes = null
 
-  export type GetPackageConfigReq = { id: string } // package.config.get
-  export type GetPackageConfigRes = { spec: ConfigSpec; config: object }
+  export type GetActionInputReq = { packageId: string; actionId: string } // package.action.get-input
+  export type GetActionInputRes = {
+    spec: IST.InputSpec
+    value: object | null
+  }
 
-  export type DrySetPackageConfigReq = { id: string; config: object } // package.config.set.dry
-  export type DrySetPackageConfigRes = Breakages
-
-  export type SetPackageConfigReq = DrySetPackageConfigReq // package.config.set
-  export type SetPackageConfigRes = null
+  export type ActionReq = {
+    packageId: string
+    actionId: string
+    input: object | null
+  } // package.action.run
+  export type ActionRes = (T.ActionResult & { version: '1' }) | null
 
   export type RestorePackagesReq = {
     // package.backup.restore
     ids: string[]
-    'target-id': string
-    'old-password': string | null
+    targetId: string
+    serverId: string
     password: string
   }
   export type RestorePackagesRes = null
-
-  export type ExecutePackageActionReq = {
-    id: string
-    'action-id': string
-    input?: object
-  } // package.action
-  export type ExecutePackageActionRes = ActionResponse
 
   export type StartPackageReq = { id: string } // package.start
   export type StartPackageRes = null
@@ -238,51 +333,34 @@ export module RR {
   export type StopPackageReq = { id: string } // package.stop
   export type StopPackageRes = null
 
+  export type RebuildPackageReq = { id: string } // package.rebuild
+  export type RebuildPackageRes = null
+
   export type UninstallPackageReq = { id: string } // package.uninstall
   export type UninstallPackageRes = null
 
-  export type DryConfigureDependencyReq = {
-    'dependency-id': string
-    'dependent-id': string
-  } // package.dependency.configure.dry
-  export type DryConfigureDependencyRes = {
-    'old-config': object
-    'new-config': object
-    spec: ConfigSpec
-  }
-
   export type SideloadPackageReq = {
-    manifest: Manifest
+    manifest: T.Manifest
     icon: string // base64
   }
-  export type SideloadPacakgeRes = string //guid
-
-  // marketplace
-
-  export type GetMarketplaceInfoReq = { 'server-id': string }
-  export type GetMarketplaceInfoRes = StoreInfo
-
-  export type GetMarketplaceEosReq = { 'server-id': string }
-  export type GetMarketplaceEosRes = MarketplaceEOS
-
-  export type GetMarketplacePackagesReq = {
-    ids?: { id: string; version: string }[]
-    // iff !ids
-    category?: string
-    query?: string
-    page?: number
-    'per-page'?: number
+  export type SideloadPackageRes = {
+    upload: string // guid
+    progress: string // guid
   }
-  export type GetMarketplacePackagesRes = MarketplacePkg[]
 
-  export type GetReleaseNotesReq = { id: string }
-  export type GetReleaseNotesRes = { [version: string]: string }
+  // registry
+
+  /** these are returned in ASCENDING order. the newest available version will be the LAST in the object */
+  export type GetRegistryOsUpdateRes = { [version: string]: T.OsVersionInfo }
+
+  export type CheckOSUpdateReq = { serverId: string }
+  export type CheckOSUpdateRes = OSUpdate
 }
 
-export interface MarketplaceEOS {
+export interface OSUpdate {
   version: string
   headline: string
-  'release-notes': { [version: string]: string }
+  releaseNotes: { [version: string]: string }
 }
 
 export interface Breakages {
@@ -292,13 +370,6 @@ export interface Breakages {
 export interface TaggedDependencyError {
   dependency: string
   error: DependencyError
-}
-
-export interface ActionResponse {
-  message: string
-  value: string | null
-  copyable: boolean
-  qr: boolean
 }
 
 interface MetricData {
@@ -312,23 +383,23 @@ export interface Metrics {
   }
   memory: {
     total: MetricData
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     used: MetricData
     available: MetricData
-    'zram-total': MetricData
-    'zram-used': MetricData
-    'zram-available': MetricData
+    zramTotal: MetricData
+    zramUsed: MetricData
+    zramAvailable: MetricData
   }
   cpu: {
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     idle: MetricData
-    'user-space': MetricData
-    'kernel-space': MetricData
+    userSpace: MetricData
+    kernelSpace: MetricData
     wait: MetricData
   }
   disk: {
     capacity: MetricData
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     used: MetricData
     available: MetricData
   }
@@ -342,8 +413,9 @@ export interface Metric {
 }
 
 export interface Session {
-  'last-active': string
-  'user-agent': string
+  loggedIn: string
+  lastActive: string
+  userAgent: string
   metadata: SessionMetadata
 }
 
@@ -378,7 +450,7 @@ export interface DiskBackupTarget {
   label: string | null
   capacity: number
   used: number | null
-  'embassy-os': StartOSDiskInfo | null
+  startOs: Record<string, StartOSDiskInfo>
 }
 
 export interface CifsBackupTarget {
@@ -387,7 +459,7 @@ export interface CifsBackupTarget {
   path: string
   username: string
   mountable: boolean
-  'embassy-os': StartOSDiskInfo | null
+  startOs: Record<string, StartOSDiskInfo>
 }
 
 export type RecoverySource = DiskRecoverySource | CifsRecoverySource
@@ -408,7 +480,7 @@ export interface CifsRecoverySource {
 export interface BackupInfo {
   version: string
   timestamp: string
-  'package-backups': {
+  packageBackups: {
     [id: string]: PackageBackupInfo
   }
 }
@@ -416,7 +488,7 @@ export interface BackupInfo {
 export interface PackageBackupInfo {
   title: string
   version: string
-  'os-version': string
+  osVersion: string
   timestamp: string
 }
 
@@ -425,7 +497,7 @@ export interface ServerSpecs {
 }
 
 export interface SSHKey {
-  'created-at': string
+  createdAt: string
   alg: string
   hostname: string
   fingerprint: string
@@ -435,8 +507,8 @@ export type ServerNotifications = ServerNotification<any>[]
 
 export interface ServerNotification<T extends number> {
   id: number
-  'package-id': string | null
-  'created-at': string
+  packageId: string | null
+  createdAt: string
   code: T
   level: NotificationLevel
   title: string
@@ -455,6 +527,8 @@ export type NotificationData<T> = T extends 0
   ? null
   : T extends 1
   ? BackupReport
+  : T extends 2
+  ? string
   : any
 
 export interface BackupReport {
@@ -498,44 +572,33 @@ export type DependencyError =
   | DependencyErrorNotInstalled
   | DependencyErrorNotRunning
   | DependencyErrorIncorrectVersion
-  | DependencyErrorConfigUnsatisfied
+  | DependencyErrorActionRequired
   | DependencyErrorHealthChecksFailed
   | DependencyErrorTransitive
 
-export enum DependencyErrorType {
-  NotInstalled = 'not-installed',
-  NotRunning = 'not-running',
-  IncorrectVersion = 'incorrect-version',
-  ConfigUnsatisfied = 'config-unsatisfied',
-  HealthChecksFailed = 'health-checks-failed',
-  InterfaceHealthChecksFailed = 'interface-health-checks-failed',
-  Transitive = 'transitive',
-}
-
 export interface DependencyErrorNotInstalled {
-  type: DependencyErrorType.NotInstalled
+  type: 'notInstalled'
 }
 
 export interface DependencyErrorNotRunning {
-  type: DependencyErrorType.NotRunning
+  type: 'notRunning'
 }
 
 export interface DependencyErrorIncorrectVersion {
-  type: DependencyErrorType.IncorrectVersion
+  type: 'incorrectVersion'
   expected: string // version range
   received: string // version
 }
 
-export interface DependencyErrorConfigUnsatisfied {
-  type: DependencyErrorType.ConfigUnsatisfied
-  error: string
+export interface DependencyErrorActionRequired {
+  type: 'actionRequired'
 }
 
 export interface DependencyErrorHealthChecksFailed {
-  type: DependencyErrorType.HealthChecksFailed
-  check: HealthCheckResult
+  type: 'healthChecksFailed'
+  check: T.NamedHealthCheckResult
 }
 
 export interface DependencyErrorTransitive {
-  type: DependencyErrorType.Transitive
+  type: 'transitive'
 }

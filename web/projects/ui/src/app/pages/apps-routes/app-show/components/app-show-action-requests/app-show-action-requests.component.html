@@ -1,0 +1,42 @@
+<ng-container *ngIf="actionRequests[pkgId]?.length">
+  <ion-item-divider
+    *ngIf="!dep"
+    style="--background: unset; z-index: 11; position: relative"
+  >
+    Action Requests
+  </ion-item-divider>
+  <div class="indent">
+    <ion-item
+      class="line"
+      lines="none"
+      *ngFor="let request of actionRequests[pkgId]"
+      button
+      (click)="handleAction(request, $event)"
+    >
+      <ion-icon
+        slot="start"
+        [name]="
+          request.severity === 'critical' ? 'warning-outline' : 'play-outline'
+        "
+        [color]="request.severity === 'critical' ? 'warning' : 'dark'"
+      ></ion-icon>
+      <ion-label>
+        <h2 class="highlighted">{{ request.actionName }}</h2>
+        <p>
+          {{ request.reason || 'no reason provided' }} |
+          <span
+            class="severity"
+            [ngStyle]="{
+              color:
+                request.severity === 'critical'
+                  ? 'var(--ion-color-warning)'
+                  : 'var(--ion-color-dark)'
+            }"
+          >
+            {{ request.severity === 'critical' ? 'Required' : 'Requested' }}
+          </span>
+        </p>
+      </ion-label>
+    </ion-item>
+  </div>
+</ng-container>

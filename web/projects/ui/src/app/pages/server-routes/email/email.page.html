@@ -1,0 +1,70 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Email</ion-title>
+    <ion-buttons slot="start">
+      <ion-back-button defaultHref="system"></ion-back-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <tui-notification>
+    Fill out the form below to connect to an external SMTP server. With your
+    permission, installed services can use the SMTP server to send emails. To
+    grant permission to a particular service, visit that service's "Actions"
+    page. Not all services support sending emails.
+    <a
+      href="https://docs.start9.com/latest/user-manual/0.3.5.x/smtp"
+      target="_blank"
+      rel="noreferrer"
+    >
+      View instructions
+    </a>
+  </tui-notification>
+  <ng-container *ngIf="form$ | async as form">
+    <form [formGroup]="form" [style.text-align]="'right'">
+      <h3 class="g-title">SMTP Credentials</h3>
+      <form-group
+        *ngIf="spec | async as resolved"
+        [spec]="resolved"
+      ></form-group>
+      <button
+        *ngIf="isSaved"
+        tuiButton
+        appearance="destructive"
+        [style.margin-top.rem]="1"
+        [style.margin-right.rem]="1"
+        (click)="save(null)"
+      >
+        Delete
+      </button>
+      <button
+        tuiButton
+        [style.margin-top.rem]="1"
+        [disabled]="form.invalid"
+        (click)="save(form.value)"
+      >
+        Save
+      </button>
+    </form>
+    <form [style.text-align]="'right'">
+      <h3 class="g-title">Send Test Email</h3>
+      <tui-input
+        [(ngModel)]="testAddress"
+        [ngModelOptions]="{ standalone: true }"
+      >
+        To Address
+        <input tuiTextfield inputmode="email" />
+      </tui-input>
+      <button
+        tuiButton
+        appearance="secondary"
+        [style.margin-top.rem]="1"
+        [disabled]="!testAddress || form.invalid"
+        (click)="sendTestEmail(form.value)"
+      >
+        Send
+      </button>
+    </form>
+  </ng-container>
+</ion-content>

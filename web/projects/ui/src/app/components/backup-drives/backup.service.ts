@@ -7,7 +7,8 @@ import {
   DiskBackupTarget,
 } from 'src/app/services/api/api.types'
 import { MappedBackupTarget } from 'src/app/types/mapped-backup-target'
-import { getErrorMessage, Emver } from '@start9labs/shared'
+import { getErrorMessage } from '@start9labs/shared'
+import { Version } from '@start9labs/start-sdk'
 
 @Injectable({
   providedIn: 'root',
@@ -18,10 +19,7 @@ export class BackupService {
   loading = true
   loadingError: string | IonicSafeString = ''
 
-  constructor(
-    private readonly embassyApi: ApiService,
-    private readonly emver: Emver,
-  ) {}
+  constructor(private readonly embassyApi: ApiService) {}
 
   async getBackupTargets(): Promise<void> {
     this.loading = true
@@ -34,7 +32,7 @@ export class BackupService {
         .map(([id, cifs]) => {
           return {
             id,
-            hasValidBackup: this.hasValidBackup(cifs),
+            hasAnyBackup: this.hasAnyBackup(cifs),
             entry: cifs as CifsBackupTarget,
           }
         })
@@ -44,7 +42,7 @@ export class BackupService {
         .map(([id, drive]) => {
           return {
             id,
-            hasValidBackup: this.hasValidBackup(drive),
+            hasAnyBackup: this.hasAnyBackup(drive),
             entry: drive as DiskBackupTarget,
           }
         })
@@ -55,8 +53,18 @@ export class BackupService {
     }
   }
 
-  hasValidBackup(target: BackupTarget): boolean {
-    const backup = target['embassy-os']
-    return !!backup && this.emver.compare(backup.version, '0.3.0') !== -1
+  hasAnyBackup(target: BackupTarget): boolean {
+    return Object.values(target.startOs).some(
+      s => Version.parse(s.version).compare(Version.parse('0.3.6')) !== 'less',
+    )
+  }
+
+  hasThisBackup(target: BackupTarget, id: string): boolean {
+    return (
+      target.startOs[id] &&
+      Version.parse(target.startOs[id].version).compare(
+        Version.parse('0.3.6'),
+      ) !== 'less'
+    )
   }
 }

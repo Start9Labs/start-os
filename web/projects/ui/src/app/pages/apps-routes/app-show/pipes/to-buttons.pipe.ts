@@ -4,9 +4,9 @@ import { ModalController, NavController } from '@ionic/angular'
 import { MarkdownComponent } from '@start9labs/shared'
 import {
   DataModel,
+  InstalledState,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { ModalService } from 'src/app/services/modal.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { from, map, Observable } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
@@ -28,50 +28,31 @@ export class ToButtonsPipe implements PipeTransform {
     private readonly route: ActivatedRoute,
     private readonly navCtrl: NavController,
     private readonly modalCtrl: ModalController,
-    private readonly modalService: ModalService,
     private readonly apiService: ApiService,
+    private readonly api: ApiService,
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
-  transform(pkg: PackageDataEntry): Button[] {
-    const pkgTitle = pkg.manifest.title
+  transform(pkg: PackageDataEntry<InstalledState>): Button[] {
+    const manifest = pkg.stateInfo.manifest
 
     return [
       // instructions
       {
         action: () => this.presentModalInstructions(pkg),
         title: 'Instructions',
-        description: `Understand how to use ${pkgTitle}`,
+        description: `Understand how to use ${manifest.title}`,
         icon: 'list-outline',
         highlighted$: this.patch
-          .watch$('ui', 'ack-instructions', pkg.manifest.id)
+          .watch$('ui', 'ackInstructions', manifest.id)
           .pipe(map(seen => !seen)),
-      },
-      // config
-      {
-        action: async () =>
-          this.modalService.presentModalConfig({ pkgId: pkg.manifest.id }),
-        title: 'Config',
-        description: `Customize ${pkgTitle}`,
-        icon: 'options-outline',
-      },
-      // properties
-      {
-        action: () =>
-          this.navCtrl.navigateForward(['properties'], {
-            relativeTo: this.route,
-          }),
-        title: 'Properties',
-        description:
-          'Runtime information, credentials, and other values of interest',
-        icon: 'briefcase-outline',
       },
       // actions
       {
         action: () =>
           this.navCtrl.navigateForward(['actions'], { relativeTo: this.route }),
         title: 'Actions',
-        description: `Uninstall and other commands specific to ${pkgTitle}`,
+        description: `All actions for ${manifest.title}`,
         icon: 'flash-outline',
       },
       // interfaces
@@ -97,16 +78,21 @@ export class ToButtonsPipe implements PipeTransform {
     ]
   }
 
-  private async presentModalInstructions(pkg: PackageDataEntry) {
+  private async presentModalInstructions(
+    pkg: PackageDataEntry<InstalledState>,
+  ) {
     this.apiService
-      .setDbValue<boolean>(['ack-instructions', pkg.manifest.id], true)
+      .setDbValue<boolean>(['ackInstructions', pkg.stateInfo.manifest.id], true)
       .catch(e => console.error('Failed to mark instructions as seen', e))
 
     const modal = await this.modalCtrl.create({
       componentProps: {
         title: 'Instructions',
         content: from(
-          this.apiService.getStatic(pkg['static-files']['instructions']),
+          this.api.getStaticInstalled(
+            pkg.stateInfo.manifest.id,
+            'instructions.md',
+          ),
         ),
       },
       component: MarkdownComponent,
@@ -115,17 +101,22 @@ export class ToButtonsPipe implements PipeTransform {
     await modal.present()
   }
 
-  private viewInMarketplaceButton(pkg: PackageDataEntry): Button {
-    const url = pkg.installed?.['marketplace-url']
+  private viewInMarketplaceButton(
+    pkg: PackageDataEntry<InstalledState>,
+  ): Button {
+    const url = pkg.registry
     const queryParams = url ? { url } : {}
 
     let button: Button = {
       title: 'Marketplace Listing',
       icon: 'storefront-outline',
       action: () =>
-        this.navCtrl.navigateForward([`marketplace/${pkg.manifest.id}`], {
-          queryParams,
-        }),
+        this.navCtrl.navigateForward(
+          [`marketplace/${pkg.stateInfo.manifest.id}`],
+          {
+            queryParams,
+          },
+        ),
       disabled: false,
       description: 'View service in the marketplace',
     }
