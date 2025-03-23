@@ -33,7 +33,7 @@ const ICONS = {
         </tui-avatar>
         <span tuiFade>{{ manifest()?.title }}</span>
       </div>
-      <aside>
+      <aside class="g-aside">
         <header tuiCell>
           <tui-avatar><img alt="" [src]="service()?.icon" /></tui-avatar>
           <span tuiTitle>
@@ -74,23 +74,6 @@ const ICONS = {
       &:not(:only-child) {
         display: none;
       }
-    }
-
-    aside {
-      position: sticky;
-      top: 1px;
-      left: 1px;
-      margin: 1px;
-      width: 16rem;
-      padding: 0.5rem;
-      text-transform: capitalize;
-      box-shadow: 1px 0 var(--tui-border-normal);
-      backdrop-filter: blur(1rem);
-      background-color: color-mix(
-        in hsl,
-        var(--tui-background-base) 90%,
-        transparent
-      );
     }
 
     header {

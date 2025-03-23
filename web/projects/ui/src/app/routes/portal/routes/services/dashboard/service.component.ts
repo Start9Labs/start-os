@@ -8,11 +8,11 @@ import {
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { tuiPure } from '@taiga-ui/cdk'
+import { UptimeComponent } from 'src/app/routes/portal/components/uptime.component'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { PkgDependencyErrors } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
-import { UptimeComponent } from './uptime.component'
 import { ControlsComponent } from './controls.component'
 import { StatusComponent } from './status.component'
 

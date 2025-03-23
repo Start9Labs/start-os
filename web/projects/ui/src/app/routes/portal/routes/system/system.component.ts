@@ -1,43 +1,114 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterModule } from '@angular/router'
+import { TuiIcon, TuiTitle } from '@taiga-ui/core'
+import { TuiBadgeNotification } from '@taiga-ui/kit'
+import { TuiCell } from '@taiga-ui/layout'
+import { BadgeService } from 'src/app/services/badge.service'
 import { TitleDirective } from 'src/app/services/title.service'
-import { SystemMenuComponent } from './components/menu.component'
+import { SYSTEM_MENU } from './system.const'
 
 @Component({
   template: `
-    <ng-container *title><span>System System</span></ng-container>
-    <system-menu />
+    <span *title>System</span>
+    <aside class="g-aside">
+      @for (cat of menu; track $index) {
+        @if ($index) {
+          <hr [style.margin.rem]="0.5" />
+        }
+        @for (page of cat; track $index) {
+          <a
+            tuiCell="s"
+            routerLinkActive="active"
+            [routerLink]="page.routerLink"
+          >
+            <tui-icon [icon]="page.icon" />
+            <span tuiTitle>
+              <span>
+                {{ page.title }}
+                @if (page.routerLink === 'general' && badge()) {
+                  <tui-badge-notification>{{ badge() }}</tui-badge-notification>
+                }
+              </span>
+            </span>
+          </a>
+        }
+      }
+    </aside>
     <router-outlet />
   `,
   styles: [
     `
       :host {
-        padding-top: 1rem;
+        display: flex;
+        padding: 0;
+      }
 
-        ::ng-deep tui-notification {
-          position: sticky;
-          left: 0;
+      [tuiCell] {
+        color: var(--tui-text-secondary);
+
+        &.active {
+          color: var(--tui-text-primary);
+
+          [tuiTitle] {
+            font-weight: bold;
+          }
         }
       }
 
-      span:not(:last-child),
-      system-menu:not(:nth-last-child(2)) {
+      span:not(:last-child) {
         display: none;
       }
 
-      system-menu,
       router-outlet + ::ng-deep * {
+        height: fit-content;
+        flex: 1;
         display: flex;
         flex-direction: column;
         gap: 1rem;
-        margin: 0 auto;
-        max-width: 45rem;
+        padding: 1rem;
+      }
+
+      :host-context(tui-root._mobile) {
+        aside {
+          padding: 0;
+          width: 100%;
+          background: none;
+          box-shadow: none;
+
+          &:not(:nth-last-child(2)) {
+            display: none;
+          }
+        }
+
+        [tuiCell] {
+          color: var(--tui-text-primary);
+          margin: 0.5rem 0;
+
+          [tuiTitle] {
+            font: var(--tui-font-text-l);
+          }
+        }
+
+        hr {
+          background: var(--tui-border-normal);
+        }
       }
     `,
   ],
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [RouterModule, SystemMenuComponent, TitleDirective],
+  imports: [
+    RouterModule,
+    TuiCell,
+    TuiIcon,
+    TuiTitle,
+    TitleDirective,
+    TuiBadgeNotification,
+  ],
 })
-export class SystemComponent {}
+export class SystemComponent {
+  readonly menu = SYSTEM_MENU
+  readonly badge = toSignal(inject(BadgeService).getCount('/portal/system'))
+}

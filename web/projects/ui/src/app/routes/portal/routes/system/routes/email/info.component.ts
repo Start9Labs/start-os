@@ -12,10 +12,19 @@ import { TuiLink, TuiNotification } from '@taiga-ui/core'
         href="https://docs.start9.com/latest/user-manual/smtp"
         target="_blank"
         rel="noreferrer"
-      >
-        View instructions
-      </a>
+        iconEnd="@tui.external-link"
+        [textContent]="'View instructions'"
+      ></a>
     </tui-notification>
+  `,
+  styles: `
+    :host {
+      grid-column: span 2;
+    }
+
+    :host-context(tui-root._mobile) {
+      grid-column: 1;
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,

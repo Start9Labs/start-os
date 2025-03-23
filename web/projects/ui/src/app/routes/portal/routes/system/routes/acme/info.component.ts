@@ -12,9 +12,9 @@ import { TuiLink, TuiNotification } from '@taiga-ui/core'
         href="https://docs.start9.com/latest/user-manual/acme"
         target="_blank"
         rel="noreferrer"
-      >
-        View instructions
-      </a>
+        iconEnd="@tui.external-link"
+        [textContent]="'View instructions'"
+      ></a>
     </tui-notification>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

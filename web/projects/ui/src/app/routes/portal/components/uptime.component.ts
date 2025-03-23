@@ -19,10 +19,11 @@ export class UptimeComponent implements OnChanges, OnDestroy {
   appUptime = ''
 
   ngOnChanges() {
+    clearInterval(this.interval)
+
     if (!this.appUptime) {
       this.el.textContent = '-'
     } else {
-      clearInterval(this.interval)
       this.el.textContent = uptime(new Date(this.appUptime))
       this.interval = setInterval(() => {
         this.el.textContent = uptime(new Date(this.appUptime))

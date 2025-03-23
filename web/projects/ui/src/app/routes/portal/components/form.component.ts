@@ -99,7 +99,7 @@ export interface FormContext<T> {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FormComponent<T extends Record<string, any>> implements OnInit {
-  private readonly confirmService = inject(TuiConfirmService)
+  private readonly confirm = inject(TuiConfirmService, { optional: true })
   private readonly formService = inject(FormService)
   private readonly invalidService = inject(InvalidService)
   private readonly context = inject<TuiDialogContext<void, FormContext<T>>>(
@@ -115,7 +115,7 @@ export class FormComponent<T extends Record<string, any>> implements OnInit {
   form = new FormGroup({})
 
   ngOnInit() {
-    this.confirmService.markAsPristine()
+    this.confirm?.markAsPristine()
     this.form = this.formService.createForm(this.spec, this.value)
     this.process(this.operations)
   }
@@ -136,7 +136,7 @@ export class FormComponent<T extends Record<string, any>> implements OnInit {
   }
 
   markAsDirty() {
-    this.confirmService.markAsDirty()
+    this.confirm?.markAsDirty()
   }
 
   close() {
