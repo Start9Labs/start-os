@@ -71,6 +71,17 @@ import { EmailInfoComponent } from './info.component'
       </form>
     </ng-container>
   `,
+  styles: `
+    :host {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr;
+      align-items: start;
+    }
+
+    :host-context(tui-root._mobile) {
+      grid-template-columns: 1fr;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [

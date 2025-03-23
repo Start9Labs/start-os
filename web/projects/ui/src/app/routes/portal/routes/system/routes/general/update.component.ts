@@ -23,12 +23,10 @@ import { EOSService } from 'src/app/services/eos.service'
       Release Notes
     </h3>
     <tui-scrollbar style="margin-bottom: 24px; max-height: 50vh;">
-      <ng-container *ngFor="let v of versions">
-        <h4 class="g-title">
-          {{ v.version }}
-        </h4>
+      @for (v of versions; track $index) {
+        <h4 class="g-title">{{ v.version }}</h4>
         <div safeLinks [innerHTML]="v.notes | markdown | dompurify"></div>
-      </ng-container>
+      }
     </tui-scrollbar>
     <button tuiButton tuiAutoFocus style="float: right;" (click)="update()">
       Begin Update

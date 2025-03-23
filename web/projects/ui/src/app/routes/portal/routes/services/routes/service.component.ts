@@ -11,6 +11,7 @@ import { isEmptyObject } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs'
+import { UptimeComponent } from 'src/app/routes/portal/components/uptime.component'
 import { ConnectionService } from 'src/app/services/connection.service'
 import {
   DataModel,
@@ -33,6 +34,9 @@ import { ServiceStatusComponent } from '../components/status.component'
       [installingInfo]="pkg().stateInfo.installingInfo"
       [status]="status()"
     >
+      @if ($any(pkg().status).started; as started) {
+        <p class="g-secondary" [appUptime]="started"></p>
+      }
       @if (installed() && connected()) {
         <service-actions [pkg]="pkg()" [status]="status()" />
       }
@@ -92,6 +96,7 @@ import { ServiceStatusComponent } from '../components/status.component'
     ServiceDependenciesComponent,
     ServiceErrorComponent,
     ServiceActionRequestsComponent,
+    UptimeComponent,
   ],
 })
 export class ServiceRoute {

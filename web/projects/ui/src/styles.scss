@@ -61,7 +61,6 @@ hr {
   tui-root._mobile & {
     // For tui-tab-bar
     height: calc(100vh - 3.875rem - var(--tui-height-l));
-    padding: 1rem;
   }
 }
 
@@ -72,11 +71,28 @@ hr {
   padding: 1rem;
 }
 
+.g-aside {
+  position: sticky;
+  top: 1px;
+  left: 1px;
+  margin: 1px;
+  width: 16rem;
+  padding: 0.5rem;
+  text-transform: capitalize;
+  box-shadow: 1px 0 var(--tui-border-normal);
+  backdrop-filter: blur(1rem);
+  background-color: color-mix(
+    in hsl,
+    var(--tui-background-base) 90%,
+    transparent
+  );
+}
+
 .g-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  padding: 3.125rem 1rem 0.5rem;
+  padding: 3.25rem 1rem 0.375rem;
   border-radius: 0.5rem;
   overflow: hidden;
   background-color: color-mix(in hsl, var(--start9-base-1) 50%, transparent);
@@ -102,7 +118,7 @@ hr {
     inset 0 0 1rem rgba(0, 0, 0, 0.25);
 
   &:is(form) {
-    padding-top: 3.75rem;
+    padding-top: 4rem;
   }
 
   [tuiCell] {

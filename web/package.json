@@ -69,6 +69,7 @@
     "cron": "^2.2.0",
     "cronstrue": "^2.21.0",
     "dompurify": "^2.3.6",
+    "deep-equality-data-structures": "1.5.1",
     "fast-json-patch": "^3.1.1",
     "fuse.js": "^6.4.6",
     "jose": "^4.9.0",
