@@ -12,6 +12,7 @@ export type UIData = {
   }
   ackInstructions: Record<string, boolean>
   theme: string
+  language: 'english' | 'spanish'
 }
 
 export type UIMarketplaceData = {

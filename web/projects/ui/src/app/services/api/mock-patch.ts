@@ -24,6 +24,7 @@ export const mockPatchData: DataModel = {
         highScore: 0,
       },
     },
+    language: 'english',
     ackInstructions: {},
   },
   serverInfo: {
