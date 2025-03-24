@@ -4,13 +4,14 @@ import { RouterModule } from '@angular/router'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiBadgeNotification } from '@taiga-ui/kit'
 import { TuiCell } from '@taiga-ui/layout'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 import { BadgeService } from 'src/app/services/badge.service'
 import { TitleDirective } from 'src/app/services/title.service'
 import { SYSTEM_MENU } from './system.const'
 
 @Component({
   template: `
-    <span *title>System</span>
+    <span *title>{{ 'system.outlet.general' | i18n }}</span>
     <aside class="g-aside">
       @for (cat of menu; track $index) {
         @if ($index) {
@@ -20,13 +21,13 @@ import { SYSTEM_MENU } from './system.const'
           <a
             tuiCell="s"
             routerLinkActive="active"
-            [routerLink]="page.routerLink"
+            [routerLink]="page.item.split('.').at(-1)"
           >
             <tui-icon [icon]="page.icon" />
             <span tuiTitle>
               <span>
-                {{ page.title }}
-                @if (page.routerLink === 'general' && badge()) {
+                {{ page.item | i18n }}
+                @if (page.item === 'system.outlet.general' && badge()) {
                   <tui-badge-notification>{{ badge() }}</tui-badge-notification>
                 }
               </span>
@@ -106,6 +107,7 @@ import { SYSTEM_MENU } from './system.const'
     TuiTitle,
     TitleDirective,
     TuiBadgeNotification,
+    i18nPipe,
   ],
 })
 export class SystemComponent {

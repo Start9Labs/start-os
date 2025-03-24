@@ -1,14 +1,15 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { TuiLink, TuiNotification, TuiTitle } from '@taiga-ui/core'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 
 @Component({
   selector: 'system-sync',
   template: `
     <tui-notification appearance="warning">
       <div tuiTitle>
-        Clock sync failure
+        {{ 'system.general.sync.title' | i18n }}
         <div tuiSubtitle>
-          This will cause connectivity issues. Refer to the
+          {{ 'system.general.sync.subtitle' | i18n }}
           <a
             tuiLink
             iconEnd="@tui.external-link"
@@ -17,13 +18,12 @@ import { TuiLink, TuiNotification, TuiTitle } from '@taiga-ui/core'
             rel="noreferrer"
             [textContent]="'StartOS docs'"
           ></a>
-          to resolve it
         </div>
       </div>
     </tui-notification>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiNotification, TuiTitle, TuiLink],
+  imports: [TuiNotification, TuiTitle, TuiLink, i18nPipe],
 })
 export class SystemSyncComponent {}

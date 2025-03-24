@@ -1,60 +1,50 @@
 export const SYSTEM_MENU = [
   [
     {
-      title: 'General',
       icon: '@tui.settings',
-      routerLink: 'general',
+      item: 'system.outlet.general',
     },
     {
-      title: 'Email',
       icon: '@tui.mail',
-      routerLink: 'email',
+      item: 'system.outlet.email',
     },
   ],
   [
     {
-      title: 'Create Backup',
       icon: '@tui.copy-plus',
-      routerLink: 'backup',
+      item: 'system.outlet.backup',
     },
     {
-      title: 'Restore Backup',
       icon: '@tui.database-backup',
-      routerLink: 'restore',
+      item: 'system.outlet.restore',
     },
   ],
   [
     {
-      title: 'User Interface Addresses',
       icon: '@tui.monitor',
-      routerLink: 'interfaces',
+      item: 'system.outlet.interfaces',
     },
     {
-      title: 'ACME',
       icon: '@tui.award',
-      routerLink: 'acme',
+      item: 'system.outlet.acme',
     },
     {
-      title: 'WiFi',
       icon: '@tui.wifi',
-      routerLink: 'wifi',
+      item: 'system.outlet.wifi',
     },
   ],
   [
     {
-      title: 'Active Sessions',
       icon: '@tui.clock',
-      routerLink: 'sessions',
+      item: 'system.outlet.sessions',
     },
     {
-      title: 'SSH',
       icon: '@tui.terminal',
-      routerLink: 'ssh',
+      item: 'system.outlet.ssh',
     },
     {
-      title: 'Change Password',
       icon: '@tui.key',
-      routerLink: 'password',
+      item: 'system.outlet.password',
     },
   ],
-]
+] as const

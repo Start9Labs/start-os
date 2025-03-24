@@ -21,6 +21,8 @@ import {
 import { tuiTextfieldOptionsProvider } from '@taiga-ui/legacy'
 import { PatchDB } from 'patch-db-client'
 import { filter, of, pairwise } from 'rxjs'
+import { I18N_PROVIDERS } from 'src/app/i18n/i18n.providers'
+import { i18nService } from 'src/app/i18n/i18n.service'
 import {
   PATCH_CACHE,
   PatchDbSource,
@@ -43,6 +45,7 @@ const {
 
 export const APP_PROVIDERS: Provider[] = [
   NG_EVENT_PLUGINS,
+  I18N_PROVIDERS,
   FilterPackagesPipe,
   UntypedFormBuilder,
   tuiNumberFormatProvider({ decimalSeparator: '.', thousandSeparator: '' }),
@@ -75,7 +78,6 @@ export const APP_PROVIDERS: Provider[] = [
   },
   {
     provide: APP_INITIALIZER,
-    deps: [StorageService, AuthService, ClientStorageService, Router],
     useFactory: appInitializer,
     multi: true,
   },
@@ -100,16 +102,18 @@ export const APP_PROVIDERS: Provider[] = [
   },
 ]
 
-export function appInitializer(
-  storage: StorageService,
-  auth: AuthService,
-  localStorage: ClientStorageService,
-  router: Router,
-): () => void {
+export function appInitializer(): () => void {
+  const storage = inject(StorageService)
+  const auth = inject(AuthService)
+  const localStorage = inject(ClientStorageService)
+  const router = inject(Router)
+  const i18n = inject(i18nService)
+
   return () => {
     storage.migrate036()
     auth.init()
     localStorage.init()
     router.initialNavigation()
+    i18n.setLanguage(i18n.language)
   }
 }
