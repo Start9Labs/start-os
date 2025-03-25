@@ -14,6 +14,10 @@ export class i18nService extends TuiLanguageSwitcherService {
   readonly loading = signal(false)
 
   override setLanguage(language: TuiLanguageName): void {
+    if (this.language === language) {
+      return
+    }
+
     super.setLanguage(language)
     this.loading.set(true)
     this.api.setDbValue(['language'], language).then(() =>

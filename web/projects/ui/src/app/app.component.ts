@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { Title } from '@angular/platform-browser'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map, merge, startWith } from 'rxjs'
+import { i18nService } from 'src/app/i18n/i18n.service'
 import { ConnectionService } from './services/connection.service'
 import { PatchDataService } from './services/patch-data.service'
 import { DataModel } from './services/patch-db/data-model'
@@ -15,6 +16,7 @@ import { PatchMonitorService } from './services/patch-monitor.service'
 })
 export class AppComponent implements OnInit {
   private readonly title = inject(Title)
+  private readonly i18n = inject(i18nService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
   readonly subscription = merge(
@@ -37,9 +39,10 @@ export class AppComponent implements OnInit {
     startWith(true),
   )
 
-  async ngOnInit() {
-    this.patch
-      .watch$('ui', 'name')
-      .subscribe(name => this.title.setTitle(name || 'StartOS'))
+  ngOnInit() {
+    this.patch.watch$('ui').subscribe(({ name, language }) => {
+      this.title.setTitle(name || 'StartOS')
+      this.i18n.setLanguage(language)
+    })
   }
 }
