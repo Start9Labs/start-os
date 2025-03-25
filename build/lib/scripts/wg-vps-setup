@@ -270,7 +270,7 @@ install_wireguard() {
     fi
 
     # Run the remote install script and let it complete
-    if ! ssh -o ConnectTimeout=60 -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" -t "$SSH_USER@$VPS_IP" "bash -c 'export TERM=xterm-256color; export STARTOS_HOSTNAME=$(hostname); bash ~/wireguard-install.sh'"; then
+    if ! ssh -o ConnectTimeout=60 -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" -t "$SSH_USER@$VPS_IP" "bash -c 'export TERM=xterm-256color; export STARTOS_HOSTNAME=clearnet; bash ~/wireguard-install.sh'"; then
         echo -e "${RED}WireGuard installation failed on remote server.${NC}"
         return 1
     fi
