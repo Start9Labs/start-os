@@ -6,6 +6,7 @@ import {
   INJECTOR,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
+import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
@@ -16,13 +17,21 @@ import {
   tuiFadeIn,
   TuiIcon,
   tuiScaleIn,
+  TuiTextfield,
   TuiTitle,
 } from '@taiga-ui/core'
-import { TUI_CONFIRM } from '@taiga-ui/kit'
+import {
+  TUI_CONFIRM,
+  TuiButtonLoading,
+  TuiButtonSelect,
+  TuiDataListWrapper,
+} from '@taiga-ui/kit'
 import { TuiCell, tuiCellOptionsProvider, TuiHeader } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { filter } from 'rxjs'
+import { i18nPipe } from 'src/app/i18n/i18n.pipe'
+import { i18nService } from 'src/app/i18n/i18n.service'
 import { PROMPT } from 'src/app/routes/portal/modals/prompt.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
@@ -36,13 +45,19 @@ import { SystemWipeComponent } from './wipe.component'
 @Component({
   template: `
     <ng-container *title>
-      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
-      General Settings
+      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+        {{ 'ui.back' | i18n }}
+      </a>
+      {{ 'system.general.title' | i18n }}
     </ng-container>
     <header tuiHeader>
       <hgroup tuiTitle>
-        <h3>General</h3>
-        <p tuiSubtitle>Manage your overall setup and preferences</p>
+        <h3>
+          {{ 'system.general.title' | i18n }}
+        </h3>
+        <p tuiSubtitle>
+          {{ 'system.general.subtitle' | i18n }}
+        </p>
       </hgroup>
     </header>
     @if (server(); as server) {
@@ -52,7 +67,9 @@ import { SystemWipeComponent } from './wipe.component'
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.zap" />
         <span tuiTitle>
-          <strong>Software Update</strong>
+          <strong>
+            {{ 'system.general.update' | i18n }}
+          </strong>
           <span tuiSubtitle>{{ server.version }}</span>
         </span>
         <button
@@ -62,12 +79,12 @@ import { SystemWipeComponent } from './wipe.component'
           (click)="onUpdate()"
         >
           @if (server.statusInfo.updated) {
-            Restart to apply
+            {{ 'system.general.restart' | i18n }}
           } @else {
             @if (eos.showUpdate$ | async) {
-              Update
+              {{ 'ui.update' | i18n }}
             } @else {
-              Check for updates
+              {{ 'system.general.check' | i18n }}
             }
           }
         </button>
@@ -75,36 +92,65 @@ import { SystemWipeComponent } from './wipe.component'
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.app-window" />
         <span tuiTitle>
-          <strong>Browser Tab Title</strong>
+          <strong>
+            {{ 'system.general.tab' | i18n }}
+          </strong>
           <span tuiSubtitle>{{ name() }}</span>
         </span>
-        <button tuiButton (click)="onTitle()">Change</button>
+        <button tuiButton (click)="onTitle()">
+          {{ 'ui.change' | i18n }}
+        </button>
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.languages" />
         <span tuiTitle>
-          <strong>Language</strong>
-          <span tuiSubtitle>English</span>
+          <strong>
+            {{ 'system.general.language' | i18n }}
+          </strong>
+          <span tuiSubtitle>{{ i18n.language }}</span>
         </span>
-        <button tuiButton>Change</button>
+        <button
+          tuiButtonSelect
+          tuiButton
+          [loading]="i18n.loading()"
+          [ngModel]="i18n.language"
+          (ngModelChange)="i18n.setLanguage($event)"
+        >
+          {{ 'ui.change' | i18n }}
+          <tui-data-list-wrapper
+            *tuiTextfieldDropdown
+            size="l"
+            [items]="languages"
+          />
+        </button>
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.circle-power" (click)="count = count + 1" />
         <span tuiTitle>
-          <strong>Reset Tor</strong>
-          <span tuiSubtitle>Restart the Tor daemon on your server</span>
+          <strong>
+            {{ 'system.general.tor' | i18n }}
+          </strong>
+          <span tuiSubtitle>
+            {{ 'system.general.daemon' | i18n }}
+          </span>
         </span>
-        <button tuiButton appearance="glass" (click)="onReset()">Reset</button>
+        <button tuiButton appearance="glass" (click)="onReset()">
+          {{ 'ui.reset' | i18n }}
+        </button>
       </div>
       @if (count > 4) {
         <div tuiCell tuiAppearance="outline-grayscale" @tuiScaleIn @tuiFadeIn>
           <tui-icon icon="@tui.briefcase-medical" />
           <span tuiTitle>
-            <strong>Disk Repair</strong>
-            <span tuiSubtitle>Attempt automatic repair</span>
+            <strong>
+              {{ 'system.general.disk' | i18n }}
+            </strong>
+            <span tuiSubtitle>
+              {{ 'system.general.attempt' | i18n }}
+            </span>
           </span>
           <button tuiButton appearance="glass" (click)="onRepair()">
-            Repair
+            {{ 'system.general.repair' | i18n }}
           </button>
         </div>
       }
@@ -122,6 +168,11 @@ import { SystemWipeComponent } from './wipe.component'
     [tuiCell] {
       background: var(--tui-background-neutral-1);
     }
+
+    [tuiSubtitle],
+    tui-data-list-wrapper ::ng-deep [tuiOption] {
+      text-transform: capitalize;
+    }
   `,
   providers: [tuiCellOptionsProvider({ height: 'spacious' })],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -130,14 +181,20 @@ import { SystemWipeComponent } from './wipe.component'
   imports: [
     AsyncPipe,
     RouterLink,
+    i18nPipe,
     TuiTitle,
     TuiHeader,
     TuiCell,
     TuiAppearance,
     TuiButton,
+    TuiIcon,
     TitleDirective,
     SystemSyncComponent,
-    TuiIcon,
+    TuiButtonLoading,
+    TuiButtonSelect,
+    TuiDataListWrapper,
+    TuiTextfield,
+    FormsModule,
   ],
 })
 export default class SystemGeneralComponent {
@@ -159,6 +216,8 @@ export default class SystemGeneralComponent {
   readonly server = toSignal(this.patch.watch$('serverInfo'))
   readonly name = toSignal(this.patch.watch$('ui', 'name'))
   readonly eos = inject(EOSService)
+  readonly i18n = inject(i18nService)
+  readonly languages = ['english', 'spanish']
 
   onUpdate() {
     if (this.server()?.statusInfo.updated) {
