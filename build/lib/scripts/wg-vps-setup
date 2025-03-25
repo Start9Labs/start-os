@@ -79,7 +79,7 @@ print_usage() {
 # Function to display end message
 display_end_message() {
     echo -e "\n${BLUE}------------------------------------------------------------------${NC}"
-    echo -e "${GREEN}WireGuard server setup complete!${NC}"
+    echo -e "${GREEN}Magic Clearnet server setup complete!${NC}"
     echo -e "${BLUE}------------------------------------------------------------------${NC}"
     echo -e "\n${GREEN}Clearnet functionality has been enabled via VPS (${VPS_IP})${NC}"
     echo -e "\n${YELLOW}Next steps:${NC}"
