@@ -109,7 +109,7 @@ rm -rf /var/lib/tor/*
 ln -sf /usr/lib/startos/scripts/chroot-and-upgrade /usr/bin/chroot-and-upgrade
 ln -sf /usr/lib/startos/scripts/tor-check /usr/bin/tor-check
 ln -sf /usr/lib/startos/scripts/gather-debug-info /usr/bin/gather-debug-info
-ln -sf /usr/lib/startos/scripts/wg-vps-setup /usr/bin/wg-vps-setup
+ln -sf /usr/lib/startos/scripts/magic-clearnet /usr/bin/magic-clearnet
 
 echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-startos.conf
 

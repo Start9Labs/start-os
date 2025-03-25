@@ -13,7 +13,7 @@
 # 4. Configuration file generation and import
 #
 # Usage:
-#   wg-vps-setup [-h] [-i IP] [-u USERNAME] [-p PORT] [-k SSH_KEY]
+#   magic-clearnet [-h] [-i IP] [-u USERNAME] [-p PORT] [-k SSH_KEY]
 #
 # Options:
 #   -h    Show help message
@@ -23,7 +23,7 @@
 #   -k    Path to custom SSH private key
 #
 # Example:
-#   wg-vps-setup -i 110.18.1.1 -u debian
+#   magic-clearnet -i 110.18.1.1 -u debian
 #
 # Note: This script requires root privileges and will auto-elevate if needed.
 # =============================================================================
@@ -36,7 +36,7 @@ YELLOW='\033[1;33m'
 NC='\033[0;37m' # No Color
 
 # --- Constants ---
-readonly WIREGUARD_INSTALL_URL="https://raw.githubusercontent.com/start9labs/wg-vps-setup/master/wireguard-install.sh"
+readonly WIREGUARD_INSTALL_URL="https://raw.githubusercontent.com/start9labs/magic-clearnet/master/wireguard-install.sh"
 readonly SSH_KEY_DIR="/home/start9/.ssh"
 readonly SSH_KEY_NAME="id_ed25519"
 readonly SSH_PRIVATE_KEY="$SSH_KEY_DIR/$SSH_KEY_NAME"
