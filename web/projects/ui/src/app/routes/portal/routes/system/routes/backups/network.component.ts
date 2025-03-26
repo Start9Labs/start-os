@@ -14,6 +14,7 @@ import { TuiCell } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
+import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { CifsBackupTarget, RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
@@ -37,69 +38,132 @@ const ERROR =
       </button>
     </header>
 
-    @for (target of service.cifs(); track $index) {
-      <button tuiCell (click)="select(target)">
-        <tui-icon icon="@tui.folder-open" />
-        <span tuiTitle>
-          <strong>{{ target.entry.path.split('/').pop() }}</strong>
-          @if (target.entry.mountable) {
-            <span tuiSubtitle [backupStatus]="target.hasAnyBackup"></span>
-          } @else {
-            <span tuiSubtitle>
-              <tui-icon
-                icon="@tui.signal-high"
-                class="g-negative"
-                [style.font-size.rem]="1"
-              />
-              Unable to connect
-            </span>
-          }
-          <span tuiSubtitle>
-            <b>Hostname:</b>
-            {{ target.entry.hostname }}
-          </span>
-          <span tuiSubtitle>
-            <b>Path:</b>
-            {{ target.entry.path }}
-          </span>
-        </span>
-        <button
-          tuiIconButton
-          appearance="action-destructive"
-          iconStart="@tui.trash"
-          (click.stop)="forget(target, $index)"
+    <table [appTable]="['Status', 'Name', 'Hostname', 'Path', '']">
+      @for (target of service.cifs(); track $index) {
+        <tr
+          tabindex="0"
+          (click)="select(target)"
+          (keydown.enter)="select(target)"
         >
-          Forget
-        </button>
-        <button
-          tuiIconButton
-          appearance="icon"
-          size="xs"
-          iconStart="@tui.pencil"
-          (click.stop)="edit(target)"
-        >
-          Edit
-        </button>
-      </button>
-    } @empty {
-      <app-placeholder icon="@tui.folder-x">No network folders</app-placeholder>
-    }
+          <td>
+            @if (target.entry.mountable) {
+              <span [backupStatus]="target.hasAnyBackup"></span>
+            } @else {
+              <span>
+                <tui-icon
+                  icon="@tui.signal-high"
+                  class="g-negative"
+                  [style.font-size.rem]="1"
+                />
+                Unable to connect
+              </span>
+            }
+          </td>
+          <td class="name">{{ target.entry.path.split('/').pop() }}</td>
+          <td>{{ target.entry.hostname }}</td>
+          <td>{{ target.entry.path }}</td>
+          <td>
+            <button
+              tuiIconButton
+              size="s"
+              appearance="action-destructive"
+              iconStart="@tui.trash"
+              (click.stop)="forget(target, $index)"
+            >
+              Forget
+            </button>
+            <button
+              tuiIconButton
+              appearance="icon"
+              size="xs"
+              iconStart="@tui.pencil"
+              (click.stop)="edit(target)"
+            >
+              Edit
+            </button>
+          </td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="5">
+            <app-placeholder icon="@tui.folder-x">
+              No network folders
+            </app-placeholder>
+          </td>
+        </tr>
+      }
+    </table>
   `,
   styles: `
+    @import '@taiga-ui/core/styles/taiga-ui-local';
+
+    tr {
+      cursor: pointer;
+      @include transition(background);
+
+      @media ($tui-mouse) {
+        &:hover {
+          background: var(--tui-background-neutral-1-hover);
+        }
+      }
+    }
+
+    td:first-child {
+      width: 13rem;
+    }
+
     [tuiButton] {
       margin-inline-start: auto;
+    }
+
+    span {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    :host-context(tui-root._mobile) {
+      tr {
+        grid-template-columns: min-content 1fr 4rem;
+        white-space: nowrap;
+      }
+
+      td {
+        grid-column: span 2;
+
+        &:first-child {
+          font-size: 0;
+          width: auto;
+          grid-area: 1 / 2;
+          place-content: center;
+          margin: 0 0.5rem;
+        }
+
+        &:last-child {
+          grid-area: 1 / 3 / 4 / 3;
+          align-self: center;
+          justify-self: end;
+        }
+      }
+
+      .name {
+        color: var(--tui-text-primary);
+        font: var(--tui-font-text-m);
+        font-weight: bold;
+        grid-column: 1;
+        max-width: 12rem;
+      }
     }
   `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiButton,
-    TuiCell,
     TuiIcon,
-    TuiTitle,
     TuiTooltip,
     PlaceholderComponent,
     BackupStatusComponent,
+    TableComponent,
   ],
 })
 export class BackupNetworkComponent {

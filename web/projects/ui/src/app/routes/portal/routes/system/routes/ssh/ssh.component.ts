@@ -1,9 +1,10 @@
 import { RouterLink } from '@angular/router'
 import { TuiTable } from '@taiga-ui/addon-table'
-import { TuiButton } from '@taiga-ui/core'
+import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ErrorService } from '@start9labs/shared'
+import { TuiHeader } from '@taiga-ui/layout'
 import { catchError, defer, of } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { TitleDirective } from 'src/app/services/title.service'
@@ -16,6 +17,14 @@ import { SSHTableComponent } from './table.component'
       <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
       SSH
     </ng-container>
+    <header tuiHeader>
+      <hgroup tuiTitle>
+        <h3>SSH</h3>
+        <p tuiSubtitle>
+          Manage your SSH keys to access your server from the command line
+        </p>
+      </hgroup>
+    </header>
     <ssh-info />
     <section class="g-card">
       <header>
@@ -30,7 +39,7 @@ import { SSHTableComponent } from './table.component'
           Add Key
         </button>
       </header>
-      <table #table tuiTable class="g-table" [keys]="keys$ | async"></table>
+      <div #table [keys]="keys$ | async"></div>
     </section>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -43,6 +52,8 @@ import { SSHTableComponent } from './table.component'
     RouterLink,
     TitleDirective,
     TuiTable,
+    TuiHeader,
+    TuiTitle,
   ],
 })
 export default class SystemSSHComponent {

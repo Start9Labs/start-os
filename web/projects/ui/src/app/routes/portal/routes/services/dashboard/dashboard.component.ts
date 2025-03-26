@@ -55,6 +55,10 @@ import { ServicesService } from './services.service'
       font-size: 1rem;
       overflow: hidden;
     }
+
+    :host-context(tui-root._mobile) {
+      padding: 0;
+    }
   `,
   host: { class: 'g-page' },
   imports: [ServiceComponent, ToManifestPipe, TuiTable, TitleDirective],

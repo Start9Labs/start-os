@@ -19,14 +19,6 @@ import { MappedServiceInterface } from './interface.utils'
       flex-direction: column;
       gap: 1rem;
     }
-
-    section {
-      padding-block-end: 1rem;
-    }
-
-    :host-context(tui-root:not(._mobile)) section ::ng-deep > header {
-      background: none;
-    }
   `,
   providers: [tuiButtonOptionsProvider({ size: 'xs' })],
   changeDetection: ChangeDetectionStrategy.OnPush,

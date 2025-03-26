@@ -26,11 +26,18 @@ import { TuiIcon } from '@taiga-ui/core'
   `,
   styles: `
     :host {
-      color: var(--tui-text-primary);
+      height: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
     }
 
     tui-icon {
       font-size: 1rem;
+    }
+
+    :host-context(tui-root._mobile) {
+      height: auto;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

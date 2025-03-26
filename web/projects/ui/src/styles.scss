@@ -121,6 +121,14 @@ hr {
     padding-top: 4rem;
   }
 
+  tui-root:not(._mobile) &:has(.g-table:not([tuiTable])) {
+    padding-block-end: 1rem;
+
+    > header {
+      background: none;
+    }
+  }
+
   [tuiCell] {
     margin: 0 -0.625rem;
     border-radius: var(--tui-radius-s);
@@ -179,7 +187,6 @@ hr {
   th {
     position: relative;
     font: var(--tui-font-text-s);
-    height: 2rem;
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--tui-background-neutral-1);
     border-left: 0;
@@ -191,6 +198,11 @@ hr {
     background: var(--tui-background-neutral-1);
     font-weight: bold;
     text-align: left;
+  }
+
+  tr:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 0.125rem var(--tui-border-focus);
   }
 
   tui-root._mobile & {
@@ -213,10 +225,6 @@ hr {
       &:last-child {
         box-shadow: none;
       }
-    }
-
-    tr:has(:checked) {
-      box-shadow: inset 0 0 0 0.125rem var(--tui-background-accent-1);
     }
 
     td,

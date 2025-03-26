@@ -3,7 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { ISB, utils } from '@start9labs/start-sdk'
 import { TuiButton, TuiLoader, TuiTitle } from '@taiga-ui/core'
-import { TuiCell } from '@taiga-ui/layout'
+import { TuiCell, TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
@@ -16,6 +16,14 @@ import { AcmeInfoComponent } from './info.component'
 
 @Component({
   template: `
+    <header tuiHeader>
+      <hgroup tuiTitle>
+        <h3>ACME</h3>
+        <p tuiSubtitle>
+          Add ACME providers to create SSL certificates for clearnet access
+        </p>
+      </hgroup>
+    </header>
     <acme-info />
     <section class="g-card">
       <header>
@@ -62,9 +70,21 @@ import { AcmeInfoComponent } from './info.component'
       }
     </section>
   `,
+  styles: `
+    :host {
+      max-width: 40rem;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiButton, TuiLoader, TuiCell, TuiTitle, AcmeInfoComponent],
+  imports: [
+    TuiButton,
+    TuiLoader,
+    TuiCell,
+    TuiTitle,
+    AcmeInfoComponent,
+    TuiHeader,
+  ],
 })
 export default class SystemAcmeComponent {
   private readonly formDialog = inject(FormDialogService)

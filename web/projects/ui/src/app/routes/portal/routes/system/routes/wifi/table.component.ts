@@ -24,27 +24,26 @@ import SystemWifiComponent from './wifi.component'
   template: `
     @for (network of wifi; track $index) {
       @if (network.ssid) {
-        <div tuiCell [style.padding]="0">
+        <button
+          tuiCell
+          [disabled]="network.connected"
+          (click)="prompt(network)"
+        >
           <div tuiTitle>
             <strong tuiFade>
               {{ network.ssid }}
               @if (network.connected) {
-                <tui-badge appearance="success">Connected</tui-badge>
+                <tui-badge appearance="positive">Connected</tui-badge>
               }
             </strong>
           </div>
-          @if (!network.connected) {
-            <button tuiButton size="xs" (click)="prompt(network)">
-              Connect
-            </button>
-          }
           @if (network.connected !== undefined) {
             <button
               tuiIconButton
               size="s"
               appearance="icon"
               iconStart="@tui.trash-2"
-              (click)="forget(network)"
+              (click.stop)="forget(network)"
             >
               Forget
             </button>
@@ -63,14 +62,22 @@ import SystemWifiComponent from './wifi.component'
           } @else {
             <tui-icon icon="@tui.wifi-off" />
           }
-        </div>
+        </button>
       }
     }
   `,
   styles: `
     :host {
       align-items: stretch;
-      white-space: nowrap;
+      padding: 0.5rem !important;
+    }
+
+    [tuiCell] {
+      padding-inline: 1rem !important;
+
+      &:disabled > * {
+        opacity: 1;
+      }
     }
 
     tui-icon {

@@ -14,9 +14,10 @@ import {
   TuiButton,
   TuiDialogOptions,
   TuiLoader,
+  TuiTitle,
 } from '@taiga-ui/core'
 import { TuiSwitch } from '@taiga-ui/kit'
-import { TuiCardLarge } from '@taiga-ui/layout'
+import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { catchError, defer, map, merge, Observable, of, Subject } from 'rxjs'
 import {
@@ -39,6 +40,12 @@ import { wifiSpec } from './wifi.const'
       <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
       WiFi
     </ng-container>
+    <header tuiHeader>
+      <hgroup tuiTitle>
+        <h3>WiFi</h3>
+        <p tuiSubtitle>Add, remove, or connect to WiFi networks</p>
+      </hgroup>
+    </header>
     <wifi-info />
     @if (status()?.interface) {
       <section class="g-card">
@@ -60,7 +67,6 @@ import { wifiSpec } from './wifi.const'
                 tuiCardLarge="compact"
                 tuiAppearance="neutral"
                 [wifi]="data.known"
-                [style.padding-block.rem]="0.5"
               ></div>
             }
             @if (data.available.length) {
@@ -69,11 +75,10 @@ import { wifiSpec } from './wifi.const'
                 tuiCardLarge="compact"
                 tuiAppearance="neutral"
                 [wifi]="data.available"
-                [style.padding-block.rem]="0.5"
               ></div>
             }
             <p>
-              <button tuiButton size="s" (click)="other(data)">Add</button>
+              <button tuiButton (click)="other(data)">Add</button>
             </p>
           } @else {
             <tui-loader [style.height.rem]="5" />
@@ -86,6 +91,11 @@ import { wifiSpec } from './wifi.const'
       <app-placeholder icon="@tui.wifi">
         No wireless interface detected
       </app-placeholder>
+    }
+  `,
+  styles: `
+    :host {
+      max-width: 40rem;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -102,6 +112,8 @@ import { wifiSpec } from './wifi.const'
     TitleDirective,
     RouterLink,
     PlaceholderComponent,
+    TuiHeader,
+    TuiTitle,
   ],
 })
 export default class SystemWifiComponent {

@@ -11,7 +11,7 @@ import { SYSTEM_MENU } from './system.const'
 
 @Component({
   template: `
-    <span *title>{{ 'system.outlet.general' | i18n }}</span>
+    <span *title>{{ 'system.outlet.system' | i18n }}</span>
     <aside class="g-aside">
       @for (cat of menu; track $index) {
         @if ($index) {
@@ -43,6 +43,10 @@ import { SYSTEM_MENU } from './system.const'
       :host {
         display: flex;
         padding: 0;
+      }
+
+      tui-badge-notification {
+        vertical-align: baseline;
       }
 
       [tuiCell] {
@@ -93,6 +97,10 @@ import { SYSTEM_MENU } from './system.const'
 
         hr {
           background: var(--tui-border-normal);
+        }
+
+        ::ng-deep hgroup h3 {
+          display: none;
         }
       }
     `,

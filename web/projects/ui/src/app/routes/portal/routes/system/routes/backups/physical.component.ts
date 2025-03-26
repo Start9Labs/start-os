@@ -6,16 +6,10 @@ import {
 } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { UnitConversionPipesModule } from '@start9labs/shared'
-import {
-  TuiAlertService,
-  TuiButton,
-  TuiIcon,
-  TuiNotification,
-  TuiTitle,
-} from '@taiga-ui/core'
+import { TuiAlertService, TuiButton, TuiIcon } from '@taiga-ui/core'
 import { TuiTooltip } from '@taiga-ui/kit'
-import { TuiCell } from '@taiga-ui/layout'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
+import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { DiskBackupTarget } from 'src/app/services/api/api.types'
 import { BackupService, MappedBackupTarget } from './backup.service'
 import { BackupStatusComponent } from './status.component'
@@ -30,58 +24,97 @@ import { BackupStatusComponent } from './status.component'
       <ng-template #drives><ng-content /></ng-template>
     </header>
 
-    <tui-notification appearance="warning">
-      Warning. Do not use this option if you are using a Raspberry Pi with an
-      external SSD. The Raspberry Pi does not support more than one external
-      drive without additional power and can cause data corruption.
-    </tui-notification>
-
-    @for (target of service.drives(); track $index) {
-      <button tuiCell (click)="select(target)">
-        <tui-icon icon="@tui.save" />
-        <span tuiTitle>
-          <strong>{{ target.entry.label || target.entry.logicalname }}</strong>
-          <span tuiSubtitle [backupStatus]="target.hasAnyBackup"></span>
-          <span tuiSubtitle>
+    <table [appTable]="['Status', 'Name', 'Model', 'Capacity']">
+      @for (target of service.drives(); track $index) {
+        <tr
+          tabindex="0"
+          (click)="select(target)"
+          (keydown.enter)="select(target)"
+        >
+          <td><span [backupStatus]="target.hasAnyBackup"></span></td>
+          <td class="name">
+            {{ target.entry.label || target.entry.logicalname }}
+          </td>
+          <td>
             {{ target.entry.vendor || 'Unknown Vendor' }} -
             {{ target.entry.model || 'Unknown Model' }}
-          </span>
-          <span tuiSubtitle>
-            <b>Capacity:</b>
-            {{ target.entry.capacity | convertBytes }}
-          </span>
-        </span>
-      </button>
-    } @empty {
-      <app-placeholder icon="@tui.save-off">
-        No drives detected
-        <button
-          tuiButton
-          iconStart="@tui.refresh-cw"
-          (click)="service.getBackupTargets()"
-        >
-          Refresh
-        </button>
-      </app-placeholder>
-    }
+          </td>
+          <td>{{ target.entry.capacity | convertBytes }}</td>
+        </tr>
+      } @empty {
+        <tr>
+          <td colspan="4">
+            <app-placeholder icon="@tui.save-off">
+              No drives detected
+              <button
+                tuiButton
+                iconStart="@tui.refresh-cw"
+                (click)="service.getBackupTargets()"
+              >
+                Refresh
+              </button>
+            </app-placeholder>
+          </td>
+        </tr>
+      }
+    </table>
   `,
   styles: `
-    tui-notification {
-      margin: 0.5rem 0 0.75rem;
+    @import '@taiga-ui/core/styles/taiga-ui-local';
+
+    tr {
+      cursor: pointer;
+      @include transition(background);
+
+      @media ($tui-mouse) {
+        &:hover {
+          background: var(--tui-background-neutral-1-hover);
+        }
+      }
+    }
+
+    td:first-child {
+      width: 13rem;
+    }
+
+    :host-context(tui-root._mobile) {
+      tr {
+        max-width: 18rem;
+        grid-template-columns: min-content 2rem;
+        white-space: nowrap;
+      }
+
+      td {
+        grid-column: span 2;
+
+        &:first-child {
+          font-size: 0;
+          width: auto;
+          grid-area: 1 / 2;
+          place-content: center;
+          margin: 0 0.5rem;
+        }
+      }
+
+      .name {
+        color: var(--tui-text-primary);
+        font: var(--tui-font-text-m);
+        font-weight: bold;
+        grid-column: 1;
+        max-width: 12rem;
+      }
     }
   `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiButton,
-    TuiCell,
     TuiIcon,
-    TuiTitle,
     TuiTooltip,
-    TuiNotification,
     UnitConversionPipesModule,
     PlaceholderComponent,
     BackupStatusComponent,
+    TableComponent,
   ],
 })
 export class BackupPhysicalComponent {

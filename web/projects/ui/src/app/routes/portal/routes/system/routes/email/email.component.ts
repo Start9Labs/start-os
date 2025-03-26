@@ -3,8 +3,9 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { IST, inputSpec } from '@start9labs/start-sdk'
-import { TuiButton, TuiDialogService } from '@taiga-ui/core'
+import { inputSpec, IST } from '@start9labs/start-sdk'
+import { TuiButton, TuiDialogService, TuiLink, TuiTitle } from '@taiga-ui/core'
+import { TuiHeader } from '@taiga-ui/layout'
 import { TuiInputModule } from '@taiga-ui/legacy'
 import { PatchDB } from 'patch-db-client'
 import { switchMap, tap } from 'rxjs'
@@ -14,7 +15,6 @@ import { FormService } from 'src/app/services/form.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
-import { EmailInfoComponent } from './info.component'
 
 @Component({
   template: `
@@ -22,18 +22,38 @@ import { EmailInfoComponent } from './info.component'
       <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
       Email
     </ng-container>
-    <email-info />
-    <ng-container *ngIf="form$ | async as form">
-      <form class="g-card" [formGroup]="form">
-        <header>SMTP Credentials</header>
-        <form-group
-          *ngIf="spec | async as resolved"
-          [spec]="resolved"
-        ></form-group>
+    <header tuiHeader>
+      <hgroup tuiTitle>
+        <h3>Email</h3>
+        <p tuiSubtitle>
+          Connect to an external SMTP server for sending emails. Adding SMTP
+          credentials enables StartOS and some services to send you emails.
+          <a
+            tuiLink
+            href="https://docs.start9.com/latest/user-manual/smtp"
+            target="_blank"
+            rel="noreferrer"
+            appearance="action-grayscale"
+            iconEnd="@tui.external-link"
+            [pseudo]="true"
+            [textContent]="'View instructions'"
+          ></a>
+        </p>
+      </hgroup>
+    </header>
+    @if (form$ | async; as form) {
+      <form [formGroup]="form">
+        <header tuiHeader="body-l">
+          <h3 tuiTitle><b>SMTP Credentials</b></h3>
+        </header>
+        @if (spec | async; as resolved) {
+          <form-group [spec]="resolved" />
+        }
         <footer>
           @if (isSaved) {
             <button
               tuiButton
+              size="l"
               appearance="secondary-destructive"
               (click)="save(null)"
             >
@@ -42,6 +62,7 @@ import { EmailInfoComponent } from './info.component'
           }
           <button
             tuiButton
+            size="l"
             [disabled]="form.invalid"
             (click)="save(form.value)"
           >
@@ -49,19 +70,22 @@ import { EmailInfoComponent } from './info.component'
           </button>
         </footer>
       </form>
-      <form class="g-card">
-        <header>Send Test Email</header>
+      <form>
+        <header tuiHeader="body-l">
+          <h3 tuiTitle><b>Send Test Email</b></h3>
+        </header>
         <tui-input
           [(ngModel)]="testAddress"
           [ngModelOptions]="{ standalone: true }"
         >
-          Firstname Lastname &lt;email&#64;example.com&gt;
+          Name Lastname &lt;email&#64;example.com&gt;
           <input tuiTextfieldLegacy inputmode="email" />
         </tui-input>
         <footer>
           <button
             tuiButton
             appearance="secondary"
+            size="l"
             [disabled]="!testAddress || form.invalid"
             (click)="sendTestEmail(form.value)"
           >
@@ -69,17 +93,22 @@ import { EmailInfoComponent } from './info.component'
           </button>
         </footer>
       </form>
-    </ng-container>
+    }
   `,
   styles: `
     :host {
-      display: grid !important;
-      grid-template-columns: 1fr 1fr;
-      align-items: start;
+      max-width: 40rem;
     }
 
-    :host-context(tui-root._mobile) {
-      grid-template-columns: 1fr;
+    form header,
+    form footer {
+      margin: 1rem 0;
+      display: flex;
+      gap: 1rem;
+    }
+
+    footer {
+      justify-content: flex-end;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -91,7 +120,9 @@ import { EmailInfoComponent } from './info.component'
     FormModule,
     TuiButton,
     TuiInputModule,
-    EmailInfoComponent,
+    TuiHeader,
+    TuiTitle,
+    TuiLink,
     RouterLink,
     TitleDirective,
   ],

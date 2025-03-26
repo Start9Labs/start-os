@@ -5,11 +5,11 @@ import { TuiLink, TuiNotification } from '@taiga-ui/core'
   selector: 'ssh-info',
   template: `
     <tui-notification>
-      Adding domains to StartOS enables you to access your server and service
-      interfaces over clearnet.
+      Adding SSH keys to StartOS is useful for command line access, as well as
+      for debugging purposes.
       <a
         tuiLink
-        href="https://docs.start9.com/0.3.5.x/user-manual/ssh"
+        href="https://docs.start9.com/latest/user-manual/ssh"
         target="_blank"
         rel="noreferrer"
       >
