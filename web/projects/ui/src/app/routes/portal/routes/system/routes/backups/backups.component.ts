@@ -46,17 +46,37 @@ import { BACKUP_RESTORE } from './restore.component'
         <p tuiSubtitle>
           @if (type === 'create') {
             Back up StartOS and service data by connecting to a device on your
-            local network or a physical drive connected to your server
+            local network or a physical drive connected to your server.
+            <a
+              tuiLink
+              href="https://docs.start9.com/0.3.5.x/user-manual/backups/backup-create"
+              target="_blank"
+              rel="noreferrer"
+              appearance="action-grayscale"
+              iconEnd="@tui.external-link"
+              [pseudo]="true"
+              [textContent]="'View instructions'"
+            ></a>
           } @else {
             Restore StartOS and service data from a device on your local network
             or a physical drive connected to your server that contains an
-            existing backup
+            existing backup.
+            <a
+              tuiLink
+              href="https://docs.start9.com/0.3.5.x/user-manual/backups/backup-restore"
+              target="_blank"
+              rel="noreferrer"
+              appearance="action-grayscale"
+              iconEnd="@tui.external-link"
+              [pseudo]="true"
+              [textContent]="'View instructions'"
+            ></a>
           }
         </p>
       </hgroup>
     </header>
 
-    @if (server(); as s) {
+    @if (type === 'create' && server(); as s) {
       <tui-notification [appearance]="s.lastBackup | tuiMapper: toAppearance">
         <div tuiTitle>
           Last Backup
@@ -78,8 +98,7 @@ import { BACKUP_RESTORE } from './restore.component'
         />
       } @else {
         <section (networkFolders)="onTarget($event)">
-          {{ text }}
-          a folder on another computer that is connected to the same network as
+          A folder on another computer that is connected to the same network as
           your Start9 server. View the
           <a
             tuiLink
@@ -91,17 +110,7 @@ import { BACKUP_RESTORE } from './restore.component'
           ></a>
         </section>
         <section (physicalFolders)="onTarget($event)">
-          {{ text }}
-          a physical drive that is plugged directly into your Start9 Server.
-          View the
-          <a
-            tuiLink
-            href="https://docs.start9.com/0.3.5.x/user-manual/backups/backup-create#physical-drive"
-            target="_blank"
-            rel="noreferrer"
-            iconEnd="@tui.external-link"
-            [textContent]="'Instructions'"
-          ></a>
+          A physical drive that is plugged directly into your Start9 Server.
         </section>
       }
     }
@@ -150,12 +159,6 @@ export default class SystemBackupComponent implements OnInit {
     } else {
       return 'negative'
     }
-  }
-
-  get text() {
-    return this.type === 'create'
-      ? 'Backup server to'
-      : 'Restore your services from'
   }
 
   ngOnInit() {

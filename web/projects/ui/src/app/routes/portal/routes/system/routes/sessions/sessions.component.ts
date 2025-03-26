@@ -21,7 +21,10 @@ import { SSHTableComponent } from './table.component'
     <header tuiHeader>
       <hgroup tuiTitle>
         <h3>Active Sessions</h3>
-        <p tuiSubtitle>View and manage device access</p>
+        <p tuiSubtitle>
+          A session is a device that is currently logged into StartOS. For best
+          security, terminate sessions you do not recognize or no longer use.
+        </p>
       </hgroup>
     </header>
     <section class="g-card">

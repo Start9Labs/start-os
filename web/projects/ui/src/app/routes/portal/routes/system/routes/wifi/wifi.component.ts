@@ -13,6 +13,7 @@ import {
   TuiAppearance,
   TuiButton,
   TuiDialogOptions,
+  TuiLink,
   TuiLoader,
   TuiTitle,
 } from '@taiga-ui/core'
@@ -29,7 +30,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
-import { WifiInfoComponent } from './info.component'
 import { WifiTableComponent } from './table.component'
 import { parseWifi, WifiData, WiFiForm } from './utils'
 import { wifiSpec } from './wifi.const'
@@ -43,10 +43,23 @@ import { wifiSpec } from './wifi.const'
     <header tuiHeader>
       <hgroup tuiTitle>
         <h3>WiFi</h3>
-        <p tuiSubtitle>Add, remove, or connect to WiFi networks</p>
+        <p tuiSubtitle>
+          Adding WiFi credentials to StartOS allows you to remove the Ethernet
+          cable and move the device anywhere you want. StartOS will
+          automatically connect to available networks.
+          <a
+            tuiLink
+            href="https://docs.start9.com/latest/user-manual/wifi"
+            target="_blank"
+            rel="noreferrer"
+            appearance="action-grayscale"
+            iconEnd="@tui.external-link"
+            [pseudo]="true"
+            [textContent]="'View instructions'"
+          ></a>
+        </p>
       </hgroup>
     </header>
-    <wifi-info />
     @if (status()?.interface) {
       <section class="g-card">
         <header>
@@ -107,13 +120,13 @@ import { wifiSpec } from './wifi.const'
     TuiCardLarge,
     TuiLoader,
     TuiAppearance,
-    WifiInfoComponent,
     WifiTableComponent,
     TitleDirective,
     RouterLink,
     PlaceholderComponent,
     TuiHeader,
     TuiTitle,
+    TuiLink,
   ],
 })
 export default class SystemWifiComponent {
