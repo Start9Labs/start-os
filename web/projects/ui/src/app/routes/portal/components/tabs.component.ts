@@ -10,9 +10,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router'
 import { TuiResponsiveDialogService, TuiTabBar } from '@taiga-ui/addon-mobile'
 import { TuiIcon } from '@taiga-ui/core'
 import { TuiBadgeNotification } from '@taiga-ui/kit'
-import { ABOUT } from 'src/app/routes/portal/components/header/about.component'
 import { BadgeService } from 'src/app/services/badge.service'
-import { RESOURCES } from 'src/app/utils/resources'
 import { getMenu } from 'src/app/utils/system-utilities'
 
 const FILTER = ['/portal/services', '/portal/system', '/portal/marketplace']
@@ -72,20 +70,6 @@ const FILTER = ['/portal/services', '/portal/system', '/portal/marketplace']
               }
             </a>
           }
-          <button class="item" (click)="about()">
-            <tui-icon icon="@tui.info" />
-            About this server
-          </button>
-          @for (link of resources; track $index) {
-            <a class="item" target="_blank" rel="noreferrer" [href]="link.href">
-              <tui-icon [icon]="link.icon" />
-              {{ link.name }}
-              <tui-icon
-                icon="@tui.external-link"
-                [style.margin-inline-start]="'auto'"
-              />
-            </a>
-          }
         </ng-template>
       </button>
     </nav>
@@ -138,7 +122,6 @@ export class TabsComponent {
 
   index = 3
 
-  readonly resources = RESOURCES
   readonly menu = getMenu().filter(item => !FILTER.includes(item.routerLink))
   readonly badge = toSignal(inject(BadgeService).getCount('/portal/system'), {
     initialValue: 0,
@@ -147,10 +130,6 @@ export class TabsComponent {
   readonly all = computed(() =>
     this.menu.reduce((acc, item) => acc + item.badge(), 0),
   )
-
-  about() {
-    this.dialogs.open(ABOUT, { label: 'About this server' }).subscribe()
-  }
 
   more(content: TemplateRef<any>) {
     this.dialogs.open(content, { label: 'Start OS' }).subscribe({

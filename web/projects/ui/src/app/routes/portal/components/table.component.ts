@@ -13,6 +13,11 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core'
     </thead>
     <tbody><ng-content /></tbody>
   `,
+  styles: `
+    :host:has(app-placeholder) thead {
+      display: none;
+    }
+  `,
   host: { class: 'g-table' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

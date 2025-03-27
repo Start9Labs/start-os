@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { ISB, utils } from '@start9labs/start-sdk'
-import { TuiButton, TuiLoader, TuiTitle } from '@taiga-ui/core'
-import { TuiCell } from '@taiga-ui/layout'
+import { TuiButton, TuiLink, TuiLoader, TuiTitle } from '@taiga-ui/core'
+import { TuiCell, TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
@@ -12,11 +12,28 @@ import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { knownACME, toAcmeName } from 'src/app/utils/acme'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
-import { AcmeInfoComponent } from './info.component'
 
 @Component({
   template: `
-    <acme-info />
+    <header tuiHeader>
+      <hgroup tuiTitle>
+        <h3>ACME</h3>
+        <p tuiSubtitle>
+          Add ACME providers in order to generate SSL (https) certificates for
+          clearnet access.
+          <a
+            tuiLink
+            href="https://docs.start9.com/latest/user-manual/acme"
+            target="_blank"
+            rel="noreferrer"
+            appearance="action-grayscale"
+            iconEnd="@tui.external-link"
+            [pseudo]="true"
+            [textContent]="'View instructions'"
+          ></a>
+        </p>
+      </hgroup>
+    </header>
     <section class="g-card">
       <header>
         Saved Providers
@@ -62,9 +79,14 @@ import { AcmeInfoComponent } from './info.component'
       }
     </section>
   `,
+  styles: `
+    :host {
+      max-width: 40rem;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiButton, TuiLoader, TuiCell, TuiTitle, AcmeInfoComponent],
+  imports: [TuiButton, TuiLoader, TuiCell, TuiTitle, TuiHeader, TuiLink],
 })
 export default class SystemAcmeComponent {
   private readonly formDialog = inject(FormDialogService)

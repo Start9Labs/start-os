@@ -1,4 +1,4 @@
-import { signal } from '@angular/core'
+import { forwardRef, signal } from '@angular/core'
 import { tuiCreateToken, tuiProvide } from '@taiga-ui/cdk'
 import {
   TuiLanguageName,
@@ -34,5 +34,8 @@ export const I18N_PROVIDERS = [
       }
     },
   },
-  tuiProvide(TuiLanguageSwitcherService, i18nService),
+  tuiProvide(
+    TuiLanguageSwitcherService,
+    forwardRef(() => i18nService),
+  ),
 ]

@@ -87,9 +87,7 @@ import { InterfaceComponent } from './interface.component'
     :host {
       text-align: right;
       grid-area: 1 / 2 / 3 / 3;
-    }
-
-    .desktop {
+      place-content: center;
     }
 
     .mobile {

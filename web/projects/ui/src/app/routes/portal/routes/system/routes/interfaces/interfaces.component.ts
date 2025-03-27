@@ -2,7 +2,8 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
 import { T } from '@start9labs/start-sdk'
-import { TuiButton } from '@taiga-ui/core'
+import { TuiButton, TuiTitle } from '@taiga-ui/core'
+import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs'
 import { InterfaceComponent } from 'src/app/routes/portal/components/interfaces/interface.component'
@@ -34,13 +35,29 @@ const iface: T.ServiceInterface = {
       <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
       Web Addresses
     </ng-container>
+    <header tuiHeader>
+      <hgroup tuiTitle>
+        <h3>User Interface Addresses</h3>
+        <p tuiSubtitle>
+          View and manage private and public addresses for accessing your
+          StartOS UI
+        </p>
+      </hgroup>
+    </header>
     @if (ui(); as ui) {
       <app-interface [serviceInterface]="ui" />
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [InterfaceComponent, RouterLink, TuiButton, TitleDirective],
+  imports: [
+    InterfaceComponent,
+    RouterLink,
+    TuiButton,
+    TitleDirective,
+    TuiHeader,
+    TuiTitle,
+  ],
 })
 export default class StartOsUiComponent {
   private readonly config = inject(ConfigService)

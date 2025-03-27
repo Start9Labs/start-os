@@ -7,32 +7,25 @@ import {
   Input,
 } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiTable } from '@taiga-ui/addon-table'
-import { TuiDialogOptions, TuiDialogService, TuiButton } from '@taiga-ui/core'
+import { TuiButton, TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
 import {
+  TUI_CONFIRM,
   TuiConfirmData,
   TuiFade,
-  TUI_CONFIRM,
   TuiSkeleton,
 } from '@taiga-ui/kit'
 import { filter, take } from 'rxjs'
+import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { PROMPT } from 'src/app/routes/portal/modals/prompt.component'
 import { SSHKey } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
-  selector: 'table[keys]',
+  selector: '[keys]',
   template: `
-    <thead>
-      <tr>
-        <th tuiTh>Hostname</th>
-        <th tuiTh>Created At</th>
-        <th tuiTh>Algorithm</th>
-        <th tuiTh>Fingerprint</th>
-        <th tuiTh></th>
-      </tr>
-    </thead>
-    <tbody>
+    <table
+      [appTable]="['Hostname', 'Created At', 'Algorithm', 'Fingerprint', '']"
+    >
       @for (key of keys; track $index) {
         <tr>
           <td class="title">{{ key.hostname }}</td>
@@ -62,7 +55,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
           }
         }
       }
-    </tbody>
+    </table>
   `,
   styles: `
     :host-context(tui-root._mobile) {
@@ -109,7 +102,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   `,
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, TuiButton, TuiFade, TuiSkeleton, TuiTable],
+  imports: [CommonModule, TuiButton, TuiFade, TuiSkeleton, TableComponent],
 })
 export class SSHTableComponent {
   private readonly loader = inject(LoadingService)

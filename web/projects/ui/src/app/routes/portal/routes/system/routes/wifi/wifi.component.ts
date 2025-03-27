@@ -13,10 +13,12 @@ import {
   TuiAppearance,
   TuiButton,
   TuiDialogOptions,
+  TuiLink,
   TuiLoader,
+  TuiTitle,
 } from '@taiga-ui/core'
 import { TuiSwitch } from '@taiga-ui/kit'
-import { TuiCardLarge } from '@taiga-ui/layout'
+import { TuiCardLarge, TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { catchError, defer, map, merge, Observable, of, Subject } from 'rxjs'
 import {
@@ -28,7 +30,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
-import { WifiInfoComponent } from './info.component'
 import { WifiTableComponent } from './table.component'
 import { parseWifi, WifiData, WiFiForm } from './utils'
 import { wifiSpec } from './wifi.const'
@@ -39,7 +40,26 @@ import { wifiSpec } from './wifi.const'
       <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
       WiFi
     </ng-container>
-    <wifi-info />
+    <header tuiHeader>
+      <hgroup tuiTitle>
+        <h3>WiFi</h3>
+        <p tuiSubtitle>
+          Adding WiFi credentials to StartOS allows you to remove the Ethernet
+          cable and move the device anywhere you want. StartOS will
+          automatically connect to available networks.
+          <a
+            tuiLink
+            href="https://docs.start9.com/latest/user-manual/wifi"
+            target="_blank"
+            rel="noreferrer"
+            appearance="action-grayscale"
+            iconEnd="@tui.external-link"
+            [pseudo]="true"
+            [textContent]="'View instructions'"
+          ></a>
+        </p>
+      </hgroup>
+    </header>
     @if (status()?.interface) {
       <section class="g-card">
         <header>
@@ -60,7 +80,6 @@ import { wifiSpec } from './wifi.const'
                 tuiCardLarge="compact"
                 tuiAppearance="neutral"
                 [wifi]="data.known"
-                [style.padding-block.rem]="0.5"
               ></div>
             }
             @if (data.available.length) {
@@ -69,11 +88,10 @@ import { wifiSpec } from './wifi.const'
                 tuiCardLarge="compact"
                 tuiAppearance="neutral"
                 [wifi]="data.available"
-                [style.padding-block.rem]="0.5"
               ></div>
             }
             <p>
-              <button tuiButton size="s" (click)="other(data)">Add</button>
+              <button tuiButton (click)="other(data)">Add</button>
             </p>
           } @else {
             <tui-loader [style.height.rem]="5" />
@@ -88,6 +106,11 @@ import { wifiSpec } from './wifi.const'
       </app-placeholder>
     }
   `,
+  styles: `
+    :host {
+      max-width: 40rem;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [
@@ -97,11 +120,13 @@ import { wifiSpec } from './wifi.const'
     TuiCardLarge,
     TuiLoader,
     TuiAppearance,
-    WifiInfoComponent,
     WifiTableComponent,
     TitleDirective,
     RouterLink,
     PlaceholderComponent,
+    TuiHeader,
+    TuiTitle,
+    TuiLink,
   ],
 })
 export default class SystemWifiComponent {

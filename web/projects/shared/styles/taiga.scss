@@ -162,20 +162,3 @@ tui-badge-notification {
     align-self: center !important;
   }
 }
-
-// TODO Remove after Taiga UI update
-[tuiTitle] {
-  h1,
-  h2,
-  h3,
-  h4,
-  h5,
-  h6 {
-    font: inherit;
-    margin: 0;
-  }
-
-  [tuiSubtitle] {
-    margin: 0;
-  }
-}

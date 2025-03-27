@@ -1,10 +1,11 @@
 import { RouterLink } from '@angular/router'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { TuiLet } from '@taiga-ui/cdk'
-import { TuiButton } from '@taiga-ui/core'
+import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
+import { TuiHeader } from '@taiga-ui/layout'
 import { from, map, merge, Observable, Subject } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Session } from 'src/app/services/api/api.types'
@@ -17,14 +18,18 @@ import { SSHTableComponent } from './table.component'
       <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
       Active Sessions
     </ng-container>
+    <header tuiHeader>
+      <hgroup tuiTitle>
+        <h3>Active Sessions</h3>
+        <p tuiSubtitle>
+          A session is a device that is currently logged into StartOS. For best
+          security, terminate sessions you do not recognize or no longer use.
+        </p>
+      </hgroup>
+    </header>
     <section class="g-card">
       <header>Current session</header>
-      <table
-        tuiTable
-        class="g-table"
-        [single]="true"
-        [sessions]="current$ | async"
-      ></table>
+      <div [single]="true" [sessions]="current$ | async"></div>
     </section>
 
     <section *tuiLet="other$ | async as others" class="g-card">
@@ -43,7 +48,7 @@ import { SSHTableComponent } from './table.component'
           </button>
         }
       </header>
-      <table #table tuiTable class="g-table" [sessions]="others"></table>
+      <div #table [sessions]="others"></div>
     </section>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -56,6 +61,8 @@ import { SSHTableComponent } from './table.component'
     RouterLink,
     TitleDirective,
     TuiTable,
+    TuiHeader,
+    TuiTitle,
   ],
 })
 export default class SystemSessionsComponent {

@@ -6,53 +6,32 @@ import {
   OnChanges,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { TuiTable } from '@taiga-ui/addon-table'
 import { TuiIcon } from '@taiga-ui/core'
 import { TuiCheckbox, TuiFade, TuiSkeleton } from '@taiga-ui/kit'
 import { BehaviorSubject } from 'rxjs'
+import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { Session } from 'src/app/services/api/api.types'
 import { PlatformInfoPipe } from './platform-info.pipe'
 
 @Component({
-  selector: 'table[sessions]',
+  selector: '[sessions]',
   template: `
-    <thead>
-      <tr>
-        <th
-          tuiTh
-          [style.width.%]="50"
-          [style.padding-left.rem]="single ? null : 2"
-        >
-          @if (!single) {
-            <input
-              tuiCheckbox
-              size="s"
-              type="checkbox"
-              [disabled]="!sessions?.length"
-              [ngModel]="all"
-              (ngModelChange)="onAll($event)"
-            />
-          }
-          User Agent
-        </th>
-        <th tuiTh [style.width.%]="25">Platform</th>
-        <th tuiTh [style.width.%]="25">Last Active</th>
-      </tr>
-    </thead>
-    <tbody>
+    <table [appTable]="['User Agent', 'Platform', 'Last Active']">
       @for (session of sessions; track $index) {
         <tr>
-          <td [style.padding-left.rem]="single ? null : 2.25">
-            @if (!single) {
-              <input
-                tuiCheckbox
-                size="s"
-                type="checkbox"
-                [ngModel]="selected$.value.includes(session)"
-                (ngModelChange)="onToggle(session)"
-              />
-            }
-            <span tuiFade class="agent">{{ session.userAgent }}</span>
+          <td [style.padding-left.rem]="single ? null : 2.5">
+            <label>
+              @if (!single) {
+                <input
+                  tuiCheckbox
+                  size="s"
+                  type="checkbox"
+                  [ngModel]="selected$.value.includes(session)"
+                  (ngModelChange)="onToggle(session)"
+                />
+              }
+              <span tuiFade class="agent">{{ session.userAgent }}</span>
+            </label>
           </td>
           @if (session.metadata.platforms | platformInfo; as info) {
             <td class="platform">
@@ -64,16 +43,16 @@ import { PlatformInfoPipe } from './platform-info.pipe'
         </tr>
       } @empty {
         @if (sessions) {
-          <tr><td colspan="5">No sessions</td></tr>
+          <tr><td colspan="3">No sessions</td></tr>
         } @else {
           @for (item of single ? [''] : ['', '']; track $index) {
             <tr>
-              <td colspan="5"><div [tuiSkeleton]="true">Loading</div></td>
+              <td colspan="3"><div [tuiSkeleton]="true">Loading</div></td>
             </tr>
           }
         }
       }
-    </tbody>
+    </table>
   `,
   styles: [
     `
@@ -81,16 +60,37 @@ import { PlatformInfoPipe } from './platform-info.pipe'
 
       td {
         position: relative;
+        width: 25%;
+
+        &[colspan] {
+          grid-column: span 2;
+        }
+
+        &:first-child {
+          width: 50%;
+        }
       }
 
       input {
         position: absolute;
         top: 50%;
-        left: 0.5rem;
+        left: 0.75rem;
         transform: translateY(-50%);
       }
 
+      .platform {
+        white-space: nowrap;
+      }
+
       :host-context(tui-root._mobile) {
+        tr {
+          grid-template-columns: 2.5rem 1fr;
+
+          &:has(:checked) .platform {
+            color: var(--tui-text-action);
+          }
+        }
+
         input {
           @include fullsize();
           z-index: 1;
@@ -98,8 +98,12 @@ import { PlatformInfoPipe } from './platform-info.pipe'
           transform: none;
         }
 
-        td:first-child {
-          padding: 0 0.25rem !important;
+        td {
+          width: 100%;
+
+          &:first-child {
+            padding: 0 !important;
+          }
         }
 
         .agent {
@@ -108,11 +112,9 @@ import { PlatformInfoPipe } from './platform-info.pipe'
         }
 
         .platform {
-          font-weight: bold;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
-          padding: 0;
+          font-size: 0;
+          grid-area: 1 / 1 / 3 / 1;
+          place-content: center;
         }
 
         .date {
@@ -131,7 +133,7 @@ import { PlatformInfoPipe } from './platform-info.pipe'
     TuiCheckbox,
     TuiFade,
     TuiSkeleton,
-    TuiTable,
+    TableComponent,
   ],
 })
 export class SSHTableComponent<T extends Session> implements OnChanges {
@@ -143,24 +145,8 @@ export class SSHTableComponent<T extends Session> implements OnChanges {
   @Input()
   single = false
 
-  get all(): boolean | null {
-    if (!this.sessions?.length || !this.selected$.value.length) {
-      return false
-    }
-
-    if (this.sessions?.length === this.selected$.value.length) {
-      return true
-    }
-
-    return null
-  }
-
   ngOnChanges() {
     this.selected$.next([])
-  }
-
-  onAll(selected: boolean) {
-    this.selected$.next((selected && this.sessions) || [])
   }
 
   onToggle(session: T) {

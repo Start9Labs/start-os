@@ -10,6 +10,7 @@ import {
   TuiNotification,
   TuiTitle,
 } from '@taiga-ui/core'
+import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { from } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
@@ -23,22 +24,23 @@ import { getServerInfo } from 'src/app/utils/get-server-info'
   template: `
     <ng-container *title>
       <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
-      Password Reset
+      Change Password
     </ng-container>
-    <tui-notification appearance="warning">
-      <div tuiTitle>
-        <strong>Warning</strong>
-        <div tuiSubtitle>
-          You will still need your current password to decrypt existing backups!
-        </div>
-      </div>
-    </tui-notification>
-    <section class="g-card">
-      <header>Change Master Password</header>
-      @if (spec(); as spec) {
-        <app-form [spec]="spec" [buttons]="buttons" />
-      }
-    </section>
+    <header tuiHeader>
+      <hgroup tuiTitle>
+        <h3>Change Password</h3>
+        <p tuiSubtitle>
+          Change your StartOS master password.
+          <strong>
+            You will still need your current password to decrypt existing
+            backups!
+          </strong>
+        </p>
+      </hgroup>
+    </header>
+    @if (spec(); as spec) {
+      <app-form [spec]="spec" [buttons]="buttons" />
+    }
   `,
   styles: `
     :host {
@@ -46,6 +48,7 @@ import { getServerInfo } from 'src/app/utils/get-server-info'
 
       ::ng-deep footer {
         background: transparent !important;
+        margin: 0;
       }
     }
 
@@ -56,11 +59,11 @@ import { getServerInfo } from 'src/app/utils/get-server-info'
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [
-    TuiNotification,
-    TuiTitle,
-    FormComponent,
     RouterLink,
+    TuiHeader,
+    TuiTitle,
     TuiButton,
+    FormComponent,
     TitleDirective,
   ],
 })

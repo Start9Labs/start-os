@@ -1,13 +1,13 @@
 import { RouterLink } from '@angular/router'
 import { TuiTable } from '@taiga-ui/addon-table'
-import { TuiButton } from '@taiga-ui/core'
+import { TuiButton, TuiLink, TuiTitle } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ErrorService } from '@start9labs/shared'
+import { TuiHeader } from '@taiga-ui/layout'
 import { catchError, defer, of } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { TitleDirective } from 'src/app/services/title.service'
-import { SSHInfoComponent } from './info.component'
 import { SSHTableComponent } from './table.component'
 
 @Component({
@@ -16,7 +16,24 @@ import { SSHTableComponent } from './table.component'
       <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
       SSH
     </ng-container>
-    <ssh-info />
+    <header tuiHeader>
+      <hgroup tuiTitle>
+        <h3>SSH</h3>
+        <p tuiSubtitle>
+          Manage your SSH keys to access your server from the command line
+          <a
+            tuiLink
+            href="https://docs.start9.com/latest/user-manual/ssh"
+            target="_blank"
+            rel="noreferrer"
+            appearance="action-grayscale"
+            iconEnd="@tui.external-link"
+            [pseudo]="true"
+            [textContent]="'View instructions'"
+          ></a>
+        </p>
+      </hgroup>
+    </header>
     <section class="g-card">
       <header>
         Saved Keys
@@ -30,7 +47,7 @@ import { SSHTableComponent } from './table.component'
           Add Key
         </button>
       </header>
-      <table #table tuiTable class="g-table" [keys]="keys$ | async"></table>
+      <div #table [keys]="keys$ | async"></div>
     </section>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -39,10 +56,12 @@ import { SSHTableComponent } from './table.component'
     CommonModule,
     TuiButton,
     SSHTableComponent,
-    SSHInfoComponent,
     RouterLink,
     TitleDirective,
     TuiTable,
+    TuiHeader,
+    TuiTitle,
+    TuiLink,
   ],
 })
 export default class SystemSSHComponent {
