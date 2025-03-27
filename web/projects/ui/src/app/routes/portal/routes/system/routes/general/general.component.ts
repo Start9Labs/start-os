@@ -1,4 +1,4 @@
-import { AsyncPipe } from '@angular/common'
+import { AsyncPipe, DOCUMENT } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -68,7 +68,7 @@ import { SystemWipeComponent } from './wipe.component'
         <tui-icon icon="@tui.zap" />
         <span tuiTitle>
           <strong>
-            {{ 'system.general.update' | i18n }}
+            {{ 'system.general.update.title' | i18n }}
           </strong>
           <span tuiSubtitle>{{ server.version }}</span>
         </span>
@@ -79,12 +79,12 @@ import { SystemWipeComponent } from './wipe.component'
           (click)="onUpdate()"
         >
           @if (server.statusInfo.updated) {
-            {{ 'system.general.restart' | i18n }}
+            {{ 'system.general.update.button.restart' | i18n }}
           } @else {
             @if (eos.showUpdate$ | async) {
               {{ 'ui.update' | i18n }}
             } @else {
-              {{ 'system.general.check' | i18n }}
+              {{ 'system.general.update.button.check' | i18n }}
             }
           }
         </button>
@@ -125,13 +125,27 @@ import { SystemWipeComponent } from './wipe.component'
         </button>
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
+        <tui-icon icon="@tui.download" />
+        <span tuiTitle>
+          <strong>
+            {{ 'system.general.ca.title' | i18n }}
+          </strong>
+          <span tuiSubtitle>
+            {{ 'system.general.ca.subtitle' | i18n }}
+          </span>
+        </span>
+        <button tuiButton (click)="downloadCA()">
+          {{ 'system.general.ca.button' | i18n }}
+        </button>
+      </div>
+      <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.circle-power" (click)="count = count + 1" />
         <span tuiTitle>
           <strong>
-            {{ 'system.general.tor' | i18n }}
+            {{ 'system.general.tor.title' | i18n }}
           </strong>
           <span tuiSubtitle>
-            {{ 'system.general.daemon' | i18n }}
+            {{ 'system.general.tor.subtitle' | i18n }}
           </span>
         </span>
         <button tuiButton appearance="glass" (click)="onReset()">
@@ -143,18 +157,20 @@ import { SystemWipeComponent } from './wipe.component'
           <tui-icon icon="@tui.briefcase-medical" />
           <span tuiTitle>
             <strong>
-              {{ 'system.general.disk' | i18n }}
+              {{ 'system.general.repair.title' | i18n }}
             </strong>
             <span tuiSubtitle>
-              {{ 'system.general.attempt' | i18n }}
+              {{ 'system.general.repair.subtitle' | i18n }}
             </span>
           </span>
           <button tuiButton appearance="glass" (click)="onRepair()">
-            {{ 'system.general.repair' | i18n }}
+            {{ 'system.general.repair.button' | i18n }}
           </button>
         </div>
       }
     }
+    <!-- hidden element for downloading cert -->
+    <a id="download-ca" href="/static/local-root-ca.crt"></a>
   `,
   styles: `
     :host {
@@ -209,6 +225,7 @@ export default class SystemGeneralComponent {
     SystemWipeComponent,
     inject(INJECTOR),
   )
+  private readonly document = inject(DOCUMENT)
 
   wipe = false
   count = 0
@@ -266,6 +283,10 @@ export default class SystemGeneralComponent {
       })
       .pipe(filter(Boolean))
       .subscribe(() => this.resetTor(this.wipe))
+  }
+
+  downloadCA() {
+    this.document.getElementById('download-ca')?.click()
   }
 
   async onRepair() {

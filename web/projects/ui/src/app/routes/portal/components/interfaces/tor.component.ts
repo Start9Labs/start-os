@@ -54,6 +54,16 @@ type OnionForm = {
           Learn More
         </a>
       </ng-template>
+      @if (tor().length) {
+        <button
+          tuiButton
+          iconStart="@tui.plus"
+          [style.margin-inline-start]="'auto'"
+          (click)="add()"
+        >
+          Add
+        </button>
+      }
     </header>
     @if (tor().length) {
       <table [appTable]="['Protocol', 'URL', '']">
@@ -85,7 +95,7 @@ type OnionForm = {
     } @else {
       <app-placeholder icon="@tui.app-window">
         No Tor addresses available
-        <button tuiButton iconStart="@tui.plus">Add</button>
+        <button tuiButton iconStart="@tui.plus" (click)="add()">Add</button>
       </app-placeholder>
     }
   `,
@@ -149,7 +159,7 @@ export class InterfaceTorComponent {
 
   async add() {
     const options: Partial<TuiDialogOptions<FormContext<OnionForm>>> = {
-      label: 'Select Domain/Subdomain',
+      label: 'New Tor Address',
       data: {
         spec: await configBuilderToSpec(
           ISB.InputSpec.of({
