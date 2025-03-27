@@ -7,6 +7,9 @@
 
 .scrollbar {
   flex: 1;
+  background: var(--tui-background-neutral-1);
+  border-radius: var(--tui-radius-m);
+  border: 1rem solid transparent;
 }
 
 .loading-dots {
@@ -27,7 +30,6 @@
   align-items: center;
   justify-content: space-between;
   padding-top: 1rem;
-  border-top: 1px solid var(--tui-background-neutral-1);
 }
 
 [data-status='reconnecting'] {
