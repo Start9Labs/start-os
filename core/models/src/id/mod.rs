@@ -26,7 +26,7 @@ pub use service_interface::ServiceInterfaceId;
 pub use volume::VolumeId;
 
 lazy_static::lazy_static! {
-    static ref ID_REGEX: Regex = Regex::new("^[a-z]+(-[a-z0-9]+)*$").unwrap();
+    static ref ID_REGEX: Regex = Regex::new("^[a-z0-9]+(-[a-z0-9]+)*$").unwrap();
     pub static ref SYSTEM_ID: Id = Id(InternedString::intern("x_system"));
 }
 
