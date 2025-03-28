@@ -34,7 +34,7 @@ export const mockPatchData: DataModel = {
     lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
     network: {
       wifi: {
-        enabled: false,
+        enabled: true,
         interface: 'wlan0',
         ssids: [],
         selected: null,

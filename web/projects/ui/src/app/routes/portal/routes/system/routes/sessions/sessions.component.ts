@@ -10,7 +10,7 @@ import { from, map, merge, Observable, Subject } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { Session } from 'src/app/services/api/api.types'
 import { TitleDirective } from 'src/app/services/title.service'
-import { SSHTableComponent } from './table.component'
+import { SessionsTableComponent } from './table.component'
 
 @Component({
   template: `
@@ -56,7 +56,7 @@ import { SSHTableComponent } from './table.component'
   imports: [
     CommonModule,
     TuiButton,
-    SSHTableComponent,
+    SessionsTableComponent,
     TuiLet,
     RouterLink,
     TitleDirective,

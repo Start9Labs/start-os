@@ -16,7 +16,6 @@ export default {
       acme: 'ACME',
       wifi: 'WiFi',
       sessions: 'Active Sessions',
-      ssh: 'SSH',
       password: 'Change Password',
     },
     general: {

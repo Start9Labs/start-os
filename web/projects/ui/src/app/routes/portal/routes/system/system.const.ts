@@ -39,10 +39,6 @@ export const SYSTEM_MENU = [
       item: 'system.outlet.sessions',
     },
     {
-      icon: '@tui.terminal',
-      item: 'system.outlet.ssh',
-    },
-    {
       icon: '@tui.key',
       item: 'system.outlet.password',
     },

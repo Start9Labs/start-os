@@ -136,7 +136,7 @@ import { PlatformInfoPipe } from './platform-info.pipe'
     TableComponent,
   ],
 })
-export class SSHTableComponent<T extends Session> implements OnChanges {
+export class SessionsTableComponent<T extends Session> implements OnChanges {
   readonly selected$ = new BehaviorSubject<readonly T[]>([])
 
   @Input()
