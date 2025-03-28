@@ -8,6 +8,9 @@ import { i18nPipe } from 'src/app/i18n/i18n.pipe'
 import { BadgeService } from 'src/app/services/badge.service'
 import { TitleDirective } from 'src/app/services/title.service'
 import { SYSTEM_MENU } from './system.const'
+import { PatchDB } from 'patch-db-client'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { AsyncPipe } from '@angular/common'
 
 @Component({
   template: `
@@ -22,6 +25,11 @@ import { SYSTEM_MENU } from './system.const'
             tuiCell="s"
             routerLinkActive="active"
             [routerLink]="page.item.split('.').at(-1)"
+            [style.display]="
+              !(wifiEnabled$ | async) && page.item === 'system.outlet.wifi'
+                ? 'none'
+                : null
+            "
           >
             <tui-icon [icon]="page.icon" />
             <span tuiTitle>
@@ -116,9 +124,16 @@ import { SYSTEM_MENU } from './system.const'
     TitleDirective,
     TuiBadgeNotification,
     i18nPipe,
+    AsyncPipe,
   ],
 })
 export class SystemComponent {
   readonly menu = SYSTEM_MENU
   readonly badge = toSignal(inject(BadgeService).getCount('/portal/system'))
+  readonly wifiEnabled$ = inject<PatchDB<DataModel>>(PatchDB).watch$(
+    'serverInfo',
+    'network',
+    'wifi',
+    'enabled',
+  )
 }

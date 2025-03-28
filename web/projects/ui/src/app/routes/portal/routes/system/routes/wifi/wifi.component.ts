@@ -15,6 +15,7 @@ import {
   TuiDialogOptions,
   TuiLink,
   TuiLoader,
+  TuiNotification,
   TuiTitle,
 } from '@taiga-ui/core'
 import { TuiSwitch } from '@taiga-ui/kit'
@@ -41,24 +42,18 @@ import { wifiSpec } from './wifi.const'
       WiFi
     </ng-container>
     <header tuiHeader>
-      <hgroup tuiTitle>
-        <h3>WiFi</h3>
-        <p tuiSubtitle>
-          Adding WiFi credentials to StartOS allows you to remove the Ethernet
-          cable and move the device anywhere you want. StartOS will
-          automatically connect to available networks.
-          <a
-            tuiLink
-            href="https://docs.start9.com/latest/user-manual/wifi"
-            target="_blank"
-            rel="noreferrer"
-            appearance="action-grayscale"
-            iconEnd="@tui.external-link"
-            [pseudo]="true"
-            [textContent]="'View instructions'"
-          ></a>
-        </p>
-      </hgroup>
+      <tui-notification appearance="negative">
+        <div tuiTitle>
+          Deprecated
+          <div tuiSubtitle>
+            WiFi support will be removed in StartOS v0.4.1. If you do not have
+            access to Ethernet, you can use a WiFi extender to connect to the
+            local network, then connect your server to the extender via
+            Ethernet. Please contact Start9 support with any questions or
+            concerns.
+          </div>
+        </div>
+      </tui-notification>
     </header>
     @if (status()?.interface) {
       <section class="g-card">
@@ -127,6 +122,7 @@ import { wifiSpec } from './wifi.const'
     TuiHeader,
     TuiTitle,
     TuiLink,
+    TuiNotification,
   ],
 })
 export default class SystemWifiComponent {

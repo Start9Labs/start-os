@@ -1,8 +1,15 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
+import { RouterLink } from '@angular/router'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { ISB, utils } from '@start9labs/start-sdk'
-import { TuiButton, TuiLink, TuiLoader, TuiTitle } from '@taiga-ui/core'
+import {
+  TuiButton,
+  TuiIcon,
+  TuiLink,
+  TuiLoader,
+  TuiTitle,
+} from '@taiga-ui/core'
 import { TuiCell, TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs'
@@ -10,11 +17,16 @@ import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { TitleDirective } from 'src/app/services/title.service'
 import { knownACME, toAcmeName } from 'src/app/utils/acme'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 
 @Component({
   template: `
+    <ng-container *title>
+      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
+      ACME
+    </ng-container>
     <header tuiHeader>
       <hgroup tuiTitle>
         <h3>ACME</h3>
@@ -86,7 +98,16 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiButton, TuiLoader, TuiCell, TuiTitle, TuiHeader, TuiLink],
+  imports: [
+    TuiButton,
+    TuiLoader,
+    TuiCell,
+    TuiTitle,
+    TuiHeader,
+    TuiLink,
+    RouterLink,
+    TitleDirective,
+  ],
 })
 export default class SystemAcmeComponent {
   private readonly formDialog = inject(FormDialogService)

@@ -149,10 +149,6 @@ export namespace RR {
 
   // wifi
 
-  // @TODO remove for 040, set at server scope
-  // export type SetWifiCountryReq = { country: string }
-  // export type SetWifiCountryRes = null
-
   export type GetWifiReq = {}
   export type GetWifiRes = {
     ssids: {
