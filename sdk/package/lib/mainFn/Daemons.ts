@@ -172,7 +172,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       daemon,
       daemonIndex,
       options.requires
-        .map((x) => this.ids.indexOf(id as any))
+        .map((x) => this.ids.indexOf(x))
         .filter((x) => x >= 0)
         .map((id) => this.healthDaemons[id]),
       id,

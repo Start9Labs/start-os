@@ -61,7 +61,7 @@ PLATFORM_CONFIG_EXTRAS=()
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	PLATFORM_CONFIG_EXTRAS+=( --firmware-binary false )
 	PLATFORM_CONFIG_EXTRAS+=( --firmware-chroot false )
-	PLATFORM_CONFIG_EXTRAS+=( --linux-packages linux-image-6.6.51+rpt )
+	PLATFORM_CONFIG_EXTRAS+=( --linux-packages linux-image-6.12.20+rpt )
 	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours "rpi-v8 rpi-2712" )
 elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours rockchip64 )
@@ -206,8 +206,8 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 		echo "Configuring raspi kernel '\$v'"
     	extract-ikconfig "/usr/lib/modules/\$v/kernel/kernel/configs.ko.xz" > /boot/config-\$v
 	done
-	mkinitramfs -c gzip -o /boot/initramfs8 6.6.74-v8+
-	mkinitramfs -c gzip -o /boot/initramfs_2712 6.6.74-v8-16k+
+	mkinitramfs -c gzip -o /boot/initramfs8 6.12.20-v8+
+	mkinitramfs -c gzip -o /boot/initramfs_2712 6.12.20-v8-16k+
 fi
 
 useradd --shell /bin/bash -G startos -m start9

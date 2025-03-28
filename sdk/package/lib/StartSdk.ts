@@ -47,7 +47,12 @@ import { GetSystemSmtp } from "./util"
 import { nullIfEmpty } from "./util"
 import { getServiceInterface, getServiceInterfaces } from "./util"
 import { getStore } from "./store/getStore"
-import { CommandOptions, MountOptions, SubContainer } from "./util/SubContainer"
+import {
+  CommandOptions,
+  ExitError,
+  MountOptions,
+  SubContainer,
+} from "./util/SubContainer"
 import { splitCommand } from "./util"
 import { Mounts } from "./mainFn/Mounts"
 import { setupDependencies } from "../../base/lib/dependencies/setupDependencies"
@@ -286,7 +291,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         },
         command: T.CommandType,
         options: CommandOptions & {
-          mounts?: { mountpoint: string; options: MountOptions }[]
+          mounts: Mounts<Manifest>
         },
         /**
          * A name to use to refer to the ephemeral subcontainer for debugging purposes
@@ -583,7 +588,10 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         })
        * ```
        */
-      setupInstall: (fn: InstallFn<Manifest, Store>) => Install.of(fn),
+      setupInstall: (
+        fn: InstallFn<Manifest, Store>,
+        preFn?: InstallFn<Manifest, Store>,
+      ) => Install.of(fn, preFn),
       /**
        * @description Use this function to determine how this service will be hosted and served. The function executes on service install, service update, and inputSpec save.
        *
@@ -1132,7 +1140,7 @@ export async function runCommand<Manifest extends T.SDKManifest>(
   image: { imageId: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
   command: T.CommandType,
   options: CommandOptions & {
-    mounts?: { mountpoint: string; options: MountOptions }[]
+    mounts: Mounts<Manifest>
   },
   name?: string,
 ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
@@ -1150,7 +1158,7 @@ export async function runCommand<Manifest extends T.SDKManifest>(
   return SubContainer.with(
     effects,
     image,
-    options.mounts || [],
+    options.mounts.build(),
     name ||
       commands
         .map((c) => {
@@ -1161,6 +1169,13 @@ export async function runCommand<Manifest extends T.SDKManifest>(
           }
         })
         .join(" "),
-    (subcontainer) => subcontainer.exec(commands),
+    async (subcontainer) => {
+      const res = await subcontainer.exec(commands)
+      if (res.exitCode || res.exitSignal) {
+        throw new ExitError(commands[0], res)
+      } else {
+        return res
+      }
+    },
   )
 }
