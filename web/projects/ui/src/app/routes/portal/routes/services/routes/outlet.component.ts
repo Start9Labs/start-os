@@ -52,6 +52,9 @@ const ICONS = {
             >
               <tui-icon [icon]="icons[item]" />
               <span tuiTitle>{{ item }}</span>
+              @if (item === 'dashboard') {
+                <a routerLink="interface" routerLinkActive="active"></a>
+              }
             </a>
           }
         </nav>
@@ -80,7 +83,12 @@ const ICONS = {
       margin: 0 -0.5rem;
     }
 
-    .active {
+    a a {
+      display: none;
+    }
+
+    .active,
+    a:has(.active) {
       color: var(--tui-text-primary);
 
       [tuiTitle] {
@@ -117,7 +125,8 @@ const ICONS = {
           background: var(--tui-background-neutral-1);
           box-shadow: inset 0 -1px var(--tui-background-neutral-1);
 
-          &.active {
+          &.active,
+          &:has(.active) {
             background: none;
             box-shadow: none;
           }

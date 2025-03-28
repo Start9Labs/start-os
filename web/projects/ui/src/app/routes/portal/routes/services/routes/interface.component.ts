@@ -8,7 +8,9 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
-import { TuiButton } from '@taiga-ui/core'
+import { TuiItem } from '@taiga-ui/cdk'
+import { TuiButton, TuiLink } from '@taiga-ui/core'
+import { TuiBreadcrumbs } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { InterfaceComponent } from 'src/app/routes/portal/components/interfaces/interface.component'
 import { getAddresses } from 'src/app/routes/portal/components/interfaces/interface.utils'
@@ -22,6 +24,12 @@ import { TitleDirective } from 'src/app/services/title.service'
       <a routerLink="../.." tuiIconButton iconStart="@tui.arrow-left">Back</a>
       {{ interface()?.name }}
     </ng-container>
+    <tui-breadcrumbs size="l" [style.margin-block-end.rem]="1">
+      <a *tuiItem tuiLink appearance="action-grayscale" routerLink="../..">
+        Dashboard
+      </a>
+      <span *tuiItem class="g-primary">{{ interface()?.name }}</span>
+    </tui-breadcrumbs>
     @if (interface(); as serviceInterface) {
       <app-interface
         [packageId]="pkgId"
@@ -29,10 +37,23 @@ import { TitleDirective } from 'src/app/services/title.service'
       />
     }
   `,
+  styles: `
+    :host-context(tui-root._mobile) tui-breadcrumbs {
+      display: none;
+    }
+  `,
   host: { class: 'g-subpage' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [InterfaceComponent, RouterLink, TuiButton, TitleDirective],
+  imports: [
+    InterfaceComponent,
+    RouterLink,
+    TuiButton,
+    TitleDirective,
+    TuiBreadcrumbs,
+    TuiItem,
+    TuiLink,
+  ],
 })
 export default class ServiceInterfaceRoute {
   private readonly config = inject(ConfigService)

@@ -29,27 +29,28 @@ interface Log {
 @Component({
   template: `
     <ng-container *title>
-      @if (current()) {
+      @if (current(); as key) {
         <button
-          tuiLink
-          appearance=""
-          iconStart="@tui.chevron-left"
+          tuiIconButton
+          iconStart="@tui.arrow-left"
           (click)="current.set(null)"
         >
           Back
         </button>
+        {{ logs[key].title }}
       } @else {
         Logs
       }
     </ng-container>
     @if (current(); as key) {
       <header tuiTitle>
-        <strong>
+        <strong class="title">
           <button
             tuiIconButton
             appearance="secondary-grayscale"
             iconStart="@tui.x"
             size="s"
+            class="close"
             (click)="current.set(null)"
           >
             Close
@@ -79,6 +80,7 @@ interface Log {
             <strong>{{ log.value.title }}</strong>
             <span tuiSubtitle>{{ log.value.subtitle }}</span>
           </span>
+          <tui-icon icon="@tui.chevron-right" />
         </button>
       }
     }
@@ -107,7 +109,7 @@ interface Log {
         width: 100%;
       }
 
-      [tuiIconButton] {
+      .close {
         position: absolute;
         right: 0;
         border-radius: 100%;
@@ -119,6 +121,8 @@ interface Log {
       }
 
       [tuiCardMedium] {
+        height: 14rem;
+        width: 14rem;
         cursor: pointer;
         box-shadow:
           inset 0 0 0 1px var(--tui-background-neutral-1),
@@ -127,26 +131,32 @@ interface Log {
         [tuiSubtitle] {
           color: var(--tui-text-secondary);
         }
+
+        tui-icon:last-child {
+          align-self: flex-end;
+        }
       }
 
       :host-context(tui-root._mobile) {
         flex-direction: column;
+        justify-content: flex-start;
 
         header {
-          margin-top: -0.5rem;
           padding: 0;
         }
 
+        .title {
+          display: none;
+        }
+
         logs {
-          height: calc(100% - 3rem);
+          height: calc(100% - 2rem);
         }
 
         [tuiCardMedium] {
           width: 100%;
-        }
-
-        [tuiIconButton] {
-          display: none;
+          height: auto;
+          gap: 1rem;
         }
       }
     `,
