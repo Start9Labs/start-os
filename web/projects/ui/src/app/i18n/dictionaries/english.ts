@@ -12,7 +12,7 @@ export default {
       email: 'Email',
       backup: 'Create Backup',
       restore: 'Restore Backup',
-      interfaces: 'User Interface Addresses',
+      interfaces: 'StartOS UI',
       acme: 'ACME',
       wifi: 'WiFi',
       sessions: 'Active Sessions',
@@ -22,16 +22,29 @@ export default {
     general: {
       title: 'General Settings',
       subtitle: 'Manage your overall setup and preferences',
-      update: 'Software Update',
-      restart: 'Restart to apply',
-      check: 'Check for updates',
       tab: 'Browser Tab Title',
       language: 'Language',
-      tor: 'Reset Tor',
-      daemon: 'Restart the Tor daemon on your server',
-      disk: 'Disk Repair',
-      attempt: 'Attempt automatic repair',
-      repair: 'Repair',
+      repair: {
+        title: 'Disk Repair',
+        subtitle: 'Attempt automatic repair',
+        button: 'Repair',
+      },
+      ca: {
+        title: 'Root Certificate Authority',
+        subtitle: `Download your server's Root CA`,
+        button: 'Download',
+      },
+      tor: {
+        title: 'Reset Tor',
+        subtitle: 'Restart the Tor daemon on your server',
+      },
+      update: {
+        title: 'Software Update',
+        button: {
+          restart: 'Restart to apply',
+          check: 'Check for updates',
+        },
+      },
       sync: {
         title: 'Clock sync failure',
         subtitle:

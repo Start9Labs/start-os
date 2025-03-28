@@ -24,16 +24,29 @@ export default {
     general: {
       title: 'Configuración General',
       subtitle: 'Gestiona tu configuración general y preferencias',
-      update: 'Actualización de Software',
-      restart: 'Reiniciar para aplicar',
-      check: 'Buscar actualizaciones',
       tab: 'Título de la Pestaña del Navegador',
       language: 'Idioma',
-      tor: 'Reiniciar Tor',
-      daemon: 'Reiniciar el daemon de Tor en tu servidor',
-      disk: 'Reparación de Disco',
-      attempt: 'Intentar reparación automática',
-      repair: 'Reparar',
+      repair: {
+        title: 'Reparación de Disco',
+        subtitle: 'Intentar reparación automática',
+        button: 'Reparar',
+      },
+      ca: {
+        title: 'Autoridad de Certificación Raíz',
+        subtitle: 'Descarga la autoridad certificadora raíz de tu servidor',
+        button: 'Descarga',
+      },
+      tor: {
+        title: 'Reiniciar Tor',
+        subtitle: 'Reiniciar el daemon de Tor en tu servidor',
+      },
+      update: {
+        title: 'Actualización de Software',
+        button: {
+          restart: 'Reiniciar para aplicar',
+          check: 'Buscar actualizaciones',
+        },
+      },
       sync: {
         title: 'Fallo en la sincronización del reloj',
         subtitle:

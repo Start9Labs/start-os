@@ -14,9 +14,9 @@ import { TitleDirective } from 'src/app/services/title.service'
 
 const iface: T.ServiceInterface = {
   id: '',
-  name: 'StartOS User Interface',
+  name: 'StartOS UI',
   description:
-    'The primary user interface for your StartOS server, accessible from any browser.',
+    'The web user interface for your StartOS server, accessible from any browser.',
   type: 'ui' as const,
   masked: false,
   addressInfo: {
@@ -33,15 +33,12 @@ const iface: T.ServiceInterface = {
   template: `
     <ng-container *title>
       <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
-      Web Addresses
+      StartOS UI
     </ng-container>
     <header tuiHeader>
       <hgroup tuiTitle>
-        <h3>User Interface Addresses</h3>
-        <p tuiSubtitle>
-          View and manage private and public addresses for accessing your
-          StartOS UI
-        </p>
+        <h3>{{ iface.name }}</h3>
+        <p tuiSubtitle>{{ iface.description }}</p>
       </hgroup>
     </header>
     @if (ui(); as ui) {
@@ -61,6 +58,7 @@ const iface: T.ServiceInterface = {
 })
 export default class StartOsUiComponent {
   private readonly config = inject(ConfigService)
+  iface = iface
 
   readonly ui = toSignal(
     inject<PatchDB<DataModel>>(PatchDB)

@@ -61,6 +61,15 @@ type ClearnetForm = {
           Learn More
         </a>
       </ng-template>
+      <button
+        tuiButton
+        appearance="accent"
+        [iconStart]="isPublic() ? '@tui.globe-lock' : '@tui.globe'"
+        [style.margin-inline-start]="'auto'"
+        (click)="toggle()"
+      >
+        Make {{ isPublic() ? 'private' : 'public' }}
+      </button>
       @if (clearnet().length) {
         <button
           tuiButton
@@ -69,14 +78,6 @@ type ClearnetForm = {
           (click)="add()"
         >
           Add
-        </button>
-        <button
-          tuiButton
-          appearance="accent"
-          [iconStart]="isPublic() ? '@tui.globe-lock' : '@tui.globe'"
-          (click)="toggle()"
-        >
-          Make {{ isPublic() ? 'private' : 'public' }}
         </button>
       }
     </header>
@@ -110,8 +111,10 @@ type ClearnetForm = {
       </table>
     } @else {
       <app-placeholder icon="@tui.app-window">
-        No interfaces available
-        <button tuiButton iconStart="@tui.plus" (click)="add()">Add</button>
+        No public addresses
+        <button tuiButton iconStart="@tui.plus" (click)="add()">
+          Add Domain
+        </button>
       </app-placeholder>
     }
   `,
