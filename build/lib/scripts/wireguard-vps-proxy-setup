@@ -59,7 +59,7 @@ check_root() {
 print_banner() {
     echo -e "${BLUE}"
     echo "================================================"
-    echo -e "     ${NC}Wireguard VPS Proxy for StartOS${BLUE}              "
+    echo -e "     ${NC}Wireguard VPS Proxy Setup${BLUE}              "
     echo "================================================"
     echo -e "${NC}"
 }
