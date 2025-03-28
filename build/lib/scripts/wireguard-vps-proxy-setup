@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # =============================================================================
-# Magic Clearnet for StartOS
+# Wireguard VPS Proxy Setup
 # =============================================================================
 #
 # This script automates the setup of a WireGuard VPN server on a remote VPS
@@ -13,7 +13,7 @@
 # 4. Configuration file generation and import
 #
 # Usage:
-#   magic-clearnet [-h] [-i IP] [-u USERNAME] [-p PORT] [-k SSH_KEY]
+#   wireguard-vps-proxy-setup [-h] [-i IP] [-u USERNAME] [-p PORT] [-k SSH_KEY]
 #
 # Options:
 #   -h    Show help message
@@ -23,7 +23,7 @@
 #   -k    Path to custom SSH private key
 #
 # Example:
-#   magic-clearnet -i 110.18.1.1 -u debian
+#   wireguard-vps-proxy-setup -i 110.18.1.1 -u debian
 #
 # Note: This script requires root privileges and will auto-elevate if needed.
 # =============================================================================
@@ -36,7 +36,7 @@ YELLOW='\033[1;33m'
 NC='\033[0;37m' # No Color
 
 # --- Constants ---
-readonly WIREGUARD_INSTALL_URL="https://raw.githubusercontent.com/start9labs/magic-clearnet/master/wireguard-install.sh"
+readonly WIREGUARD_INSTALL_URL="https://raw.githubusercontent.com/start9labs/wireguard-vps-proxy-setup/master/wireguard-install.sh"
 readonly SSH_KEY_DIR="/home/start9/.ssh"
 readonly SSH_KEY_NAME="id_ed25519"
 readonly SSH_PRIVATE_KEY="$SSH_KEY_DIR/$SSH_KEY_NAME"
@@ -59,7 +59,7 @@ check_root() {
 print_banner() {
     echo -e "${BLUE}"
     echo "================================================"
-    echo -e "     ${NC}Magic Clearnet for StartOS${BLUE}              "
+    echo -e "     ${NC}Wireguard VPS Proxy for StartOS${BLUE}              "
     echo "================================================"
     echo -e "${NC}"
 }
@@ -79,7 +79,7 @@ print_usage() {
 # Function to display end message
 display_end_message() {
     echo -e "\n${BLUE}------------------------------------------------------------------${NC}"
-    echo -e "${GREEN}Magic Clearnet server setup complete!${NC}"
+    echo -e "${GREEN}Wireguard VPS Proxy server setup complete!${NC}"
     echo -e "${BLUE}------------------------------------------------------------------${NC}"
     echo -e "\n${GREEN}Clearnet functionality has been enabled via VPS (${VPS_IP})${NC}"
     echo -e "\n${YELLOW}Next steps:${NC}"
