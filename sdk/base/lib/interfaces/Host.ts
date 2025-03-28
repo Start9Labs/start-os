@@ -33,18 +33,6 @@ export const knownProtocols = {
     secure: { ssl: false },
     defaultPort: 22,
   },
-  bitcoin: {
-    secure: { ssl: false },
-    defaultPort: 8333,
-  },
-  lightning: {
-    secure: { ssl: true },
-    defaultPort: 9735,
-  },
-  grpc: {
-    secure: { ssl: true },
-    defaultPort: 50051,
-  },
   dns: {
     secure: { ssl: false },
     defaultPort: 53,
