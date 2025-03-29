@@ -1,32 +1,39 @@
 import { Injectable } from '@angular/core'
 import {
-  StoreIdentity,
-  MarketplacePkg,
   GetPackageRes,
+  Marketplace,
+  MarketplacePkg,
+  StoreData,
   StoreDataWithUrl,
+  StoreIdentity,
 } from '@start9labs/marketplace'
+import { Exver, sameUrl } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
 import {
   BehaviorSubject,
   catchError,
   combineLatest,
+  distinctUntilChanged,
   filter,
   from,
   map,
+  mergeMap,
   Observable,
   of,
-  shareReplay,
-  switchMap,
-  distinctUntilChanged,
+  pairwise,
   ReplaySubject,
+  scan,
+  shareReplay,
+  startWith,
+  switchMap,
+  tap,
 } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
-import { ConfigService } from './config.service'
-import { Exver } from '@start9labs/shared'
 import { ClientStorageService } from './client-storage.service'
-import { T } from '@start9labs/start-sdk'
+import { ConfigService } from './config.service'
 
 @Injectable({
   providedIn: 'root',
@@ -66,7 +73,10 @@ export class MarketplaceService {
         const { start9, community } = this.config.marketplace
         let arr = [
           toStoreIdentity(start9, hosts[start9]),
-          toStoreIdentity(community, hosts[community]),
+          toStoreIdentity(community, {
+            ...hosts[community],
+            name: 'Community Registry',
+          }),
         ]
 
         return arr.concat(
@@ -92,6 +102,32 @@ export class MarketplaceService {
     )
 
   private readonly requestErrors$ = new BehaviorSubject<string[]>([])
+
+  readonly marketplace$: Observable<Marketplace> = this.knownHosts$.pipe(
+    startWith<StoreIdentity[]>([]),
+    pairwise(),
+    mergeMap(([prev, curr]) =>
+      curr.filter(c => !prev.find(p => sameUrl(c.url, p.url))),
+    ),
+    mergeMap(({ url, name }) =>
+      this.fetchRegistry$(url).pipe(
+        tap(data => {
+          if (data?.info.name) this.updateStoreName(url, name, data.info.name)
+        }),
+        map<StoreData | null, [string, StoreData | null]>(data => [url, data]),
+        startWith<[string, StoreData | null]>([url, null]),
+      ),
+    ),
+    scan<[string, StoreData | null], Record<string, StoreData | null>>(
+      (requests, [url, store]) => {
+        requests[url] = store
+
+        return requests
+      },
+      {},
+    ),
+    shareReplay({ bufferSize: 1, refCount: true }),
+  )
 
   constructor(
     private readonly api: ApiService,
@@ -230,10 +266,6 @@ export class MarketplaceService {
         }
   }
 
-  // UI only
-  readonly updateErrors: Record<string, string> = {}
-  readonly updateQueue: Record<string, boolean> = {}
-
   getRequestErrors$(): Observable<string[]> {
     return this.requestErrors$
   }
@@ -250,6 +282,19 @@ export class MarketplaceService {
     }
 
     await this.api.installPackage(params)
+  }
+
+  private async updateStoreName(
+    url: string,
+    oldName: string | undefined,
+    newName: string,
+  ): Promise<void> {
+    if (oldName !== newName) {
+      this.api.setDbValue<string>(
+        ['marketplace', 'knownHosts', url, 'name'],
+        newName,
+      )
+    }
   }
 }
 

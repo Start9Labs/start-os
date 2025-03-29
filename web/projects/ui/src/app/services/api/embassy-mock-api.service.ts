@@ -1054,11 +1054,11 @@ export class MockApiService extends ApiService {
           ...Mock.LocalPkgs[params.id],
           stateInfo: {
             // if installing
-            state: 'installing',
+            // state: 'installing',
 
             // if updating
-            // state: 'updating',
-            // manifest: mockPatchData.packageData[params.id].stateInfo.manifest!,
+            state: 'updating',
+            manifest: mockPatchData.packageData[params.id].stateInfo.manifest!,
 
             // both
             installingInfo: {

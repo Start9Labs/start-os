@@ -57,12 +57,12 @@ const ROUTES: Routes = [
         loadComponent: () => import('./routes/sideload/sideload.component'),
         data: toNavigationItem('/portal/sideload'),
       },
-      // {
-      //   title: systemTabResolver,
-      //   path: 'updates',
-      //   loadComponent: () => import('./routes/updates/updates.component'),
-      //   data: toNavigationItem('/portal/updates'),
-      // },
+      {
+        title: systemTabResolver,
+        path: 'updates',
+        loadComponent: () => import('./routes/updates/updates.component'),
+        data: toNavigationItem('/portal/updates'),
+      },
       {
         title: systemTabResolver,
         path: 'metrics',

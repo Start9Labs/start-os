@@ -9,14 +9,15 @@ import {
   map,
   Observable,
   pairwise,
+  shareReplay,
   startWith,
   switchMap,
 } from 'rxjs'
+import { ConnectionService } from 'src/app/services/connection.service'
 import { EOSService } from 'src/app/services/eos.service'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { NotificationService } from 'src/app/services/notification.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { ConnectionService } from 'src/app/services/connection.service'
 import { getManifest } from 'src/app/utils/get-package-data'
 
 @Injectable({
@@ -54,35 +55,35 @@ export class BadgeService {
     ),
   )
 
-  // private readonly updates$ = combineLatest([
-  //   this.marketplaceService.getMarketplace$(true),
-  //   this.local$,
-  // ]).pipe(
-  //   map(
-  //     ([marketplace, local]) =>
-  //       Object.entries(marketplace).reduce(
-  //         (list, [_, store]) =>
-  //           store?.packages.reduce(
-  //             (result, { id, version }) =>
-  //               local[id] &&
-  //               this.exver.compareExver(
-  //                 version,
-  //                 getManifest(local[id]).version,
-  //               ) === 1
-  //                 ? result.add(id)
-  //                 : result,
-  //             list,
-  //           ) || list,
-  //         new Set<string>(),
-  //       ).size,
-  //   ),
-  //   shareReplay(1),
-  // )
+  private readonly updates$ = combineLatest([
+    this.marketplaceService.marketplace$,
+    this.local$,
+  ]).pipe(
+    map(
+      ([marketplace, local]) =>
+        Object.entries(marketplace).reduce(
+          (list, [_, store]) =>
+            store?.packages.reduce(
+              (result, { id, version }) =>
+                local[id] &&
+                this.exver.compareExver(
+                  version,
+                  getManifest(local[id]).version,
+                ) === 1
+                  ? result.add(id)
+                  : result,
+              list,
+            ) || list,
+          new Set<string>(),
+        ).size,
+    ),
+    shareReplay(1),
+  )
 
   getCount(id: string): Observable<number> {
     switch (id) {
-      // case '/portal/updates':
-      //   return this.updates$
+      case '/portal/updates':
+        return this.updates$
       case '/portal/system':
         return this.system$
       case '/portal/notifications':
