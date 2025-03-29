@@ -54,6 +54,7 @@
     "@taiga-ui/cdk": "4.30.0",
     "@taiga-ui/core": "4.30.0",
     "@taiga-ui/event-plugins": "4.5.0",
+    "@taiga-ui/experimental": "4.30.0",
     "@taiga-ui/icons": "4.30.0",
     "@taiga-ui/kit": "4.30.0",
     "@taiga-ui/layout": "4.30.0",

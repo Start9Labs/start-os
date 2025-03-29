@@ -1,199 +1,311 @@
-// import { Component, inject, Input } from '@angular/core'
-// import { RouterLink } from '@angular/router'
-// import {
-//   MarketplacePkg,
-// } from '@start9labs/marketplace'
-// import {
-//   MarkdownPipeModule,
-//   SafeLinksDirective,
-//   SharedPipesModule,
-// } from '@start9labs/shared'
-// import {
-//   TuiDialogService,
-//   TuiLoader,
-//   TuiIcon,
-//   TuiLink,
-//   TuiButton,
-// } from '@taiga-ui/core'
-// import {
-//   TuiProgress,
-//   TuiAccordion,
-//   TuiAvatar,
-//   TUI_CONFIRM,
-// } from '@taiga-ui/kit'
-// import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
-// import { PatchDB } from 'patch-db-client'
-// import { InstallingProgressPipe } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
-// import { MarketplaceService } from 'src/app/services/marketplace.service'
-// import {
-//   DataModel,
-//   InstalledState,
-//   PackageDataEntry,
-//   UpdatingState,
-// } from 'src/app/services/patch-db/data-model'
-// import { getAllPackages } from 'src/app/utils/get-package-data'
-// import { hasCurrentDeps } from 'src/app/utils/has-deps'
+import { DatePipe } from '@angular/common'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  input,
+  signal,
+} from '@angular/core'
+import { RouterLink } from '@angular/router'
+import { MarketplacePkg } from '@start9labs/marketplace'
+import { MarkdownPipeModule, SafeLinksDirective } from '@start9labs/shared'
+import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
+import {
+  TuiButton,
+  TuiIcon,
+  TuiLink,
+  TuiLoader,
+  TuiTitle,
+} from '@taiga-ui/core'
+import { TuiExpand } from '@taiga-ui/experimental'
+import {
+  TUI_CONFIRM,
+  TuiAvatar,
+  TuiChevron,
+  TuiFade,
+  TuiProgressCircle,
+} from '@taiga-ui/kit'
+import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
+import { PatchDB } from 'patch-db-client'
+import { defaultIfEmpty, firstValueFrom } from 'rxjs'
+import { InstallingProgressPipe } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
+import {
+  DataModel,
+  InstalledState,
+  PackageDataEntry,
+  UpdatingState,
+} from 'src/app/services/patch-db/data-model'
+import { getAllPackages } from 'src/app/utils/get-package-data'
+import { hasCurrentDeps } from 'src/app/utils/has-deps'
+import UpdatesComponent from './updates.component'
 
-// @Component({
-//   selector: 'updates-item',
-//   template: `
-//     <tui-accordion-item borders="top-bottom">
-//       <div class="g-action">
-//         <tui-avatar size="s">
-//           <img alt="" [src]="marketplacePkg.icon" />
-//         </tui-avatar>
-//         <div [style.flex]="1" [style.overflow]="'hidden'">
-//           <strong>{{ marketplacePkg.title }}</strong>
-//           <div>
-//             {{ localPkg.stateInfo.manifest.version }}
-//             <tui-icon icon="@tui.arrow-right" [style.font-size.rem]="1" />
-//             <span [style.color]="'var(--tui-text-positive)'">
-//               {{ marketplacePkg.version }}
-//             </span>
-//           </div>
-//           <div [style.color]="'var(--tui-text-negative)'">{{ errors }}</div>
-//         </div>
-//         @if (localPkg.stateInfo.state === 'updating') {
-//           <tui-progress-circle
-//             class="g-positive"
-//             size="s"
-//             [max]="1"
-//             [value]="
-//               (localPkg.stateInfo.installingInfo.progress.overall
-//                 | installingProgress) || 0
-//             "
-//           />
-//         } @else {
-//           @if (ready) {
-//             <button
-//               tuiButton
-//               size="s"
-//               [appearance]="errors ? 'destructive' : 'primary'"
-//               (click.stop)="onClick()"
-//             >
-//               {{ errors ? 'Retry' : 'Update' }}
-//             </button>
-//           } @else {
-//             <tui-loader [style.width.rem]="2" [inheritColor]="true" />
-//           }
-//         }
-//       </div>
-//       <ng-template tuiAccordionItemContent>
-//         <strong>What's new</strong>
-//         <p
-//           safeLinks
-//           [innerHTML]="marketplacePkg.releaseNotes | markdown | dompurify"
-//         ></p>
-//         <a
-//           tuiLink
-//           iconEnd="@tui.external-link"
-//           routerLink="/marketplace"
-//           [queryParams]="{ url: url, id: marketplacePkg.id }"
-//         >
-//           View listing
-//         </a>
-//       </ng-template>
-//     </tui-accordion-item>
-//   `,
-//   styles: [
-//     `
-//       :host {
-//         display: block;
-//         --tui-background-neutral-1-hover: transparent;
+@Component({
+  standalone: true,
+  selector: 'updates-item',
+  template: `
+    <tr (click)="expanded.set(!expanded())">
+      <td>
+        <div [style.gap.rem]="0.75">
+          <tui-avatar size="s"><img alt="" [src]="item().icon" /></tui-avatar>
+          <span tuiTitle [style.margin]="'-0.125rem 0 0'">
+            <b tuiFade>{{ item().title }}</b>
+            <span tuiSubtitle tuiFade class="mobile">
+              <span class="g-secondary">
+                {{ local().stateInfo.manifest.version }}
+              </span>
+              <tui-icon icon="@tui.arrow-right" />
+              <span class="g-positive">{{ item().version }}</span>
+            </span>
+          </span>
+        </div>
+      </td>
+      <td class="desktop">
+        <div>
+          <span class="g-secondary">
+            {{ local().stateInfo.manifest.version }}
+          </span>
+          <tui-icon icon="@tui.arrow-right" />
+          <span class="g-positive">{{ item().version }}</span>
+        </div>
+      </td>
+      <td class="desktop">{{ item().gitHash }}</td>
+      <td class="desktop">{{ item().s9pk.publishedAt | date }}</td>
+      <td>
+        <div>
+          @if (local().stateInfo.state === 'updating') {
+            <tui-progress-circle
+              class="g-positive"
+              size="xs"
+              [max]="100"
+              [value]="
+                (local().stateInfo.installingInfo?.progress?.overall
+                  | installingProgress) || 0
+              "
+            />
+          } @else {
+            @if (ready()) {
+              <button
+                tuiButton
+                iconStart="@tui.arrow-big-up-dash"
+                [appearance]="error() ? 'destructive' : 'primary'"
+                (click.stop)="onClick()"
+              >
+                {{ error() ? 'Retry' : 'Update' }}
+              </button>
+            } @else {
+              <tui-loader [style.width.rem]="2" [inheritColor]="true" />
+            }
+          }
+          <button tuiIconButton appearance="icon" [tuiChevron]="expanded()">
+            Show more
+          </button>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="5">
+        @if (error()) {
+          <p class="g-negative">{{ error() }}</p>
+        }
+        <tui-expand [expanded]="expanded()">
+          <p tuiTitle class="mobile">
+            <b>Package Hash</b>
+            <span tuiSubtitle>{{ item().gitHash }}</span>
+          </p>
+          <p tuiTitle class="mobile">
+            <b>Published</b>
+            <span tuiSubtitle>{{ item().s9pk.publishedAt | date }}</span>
+          </p>
+          <p tuiTitle>
+            <span>
+              <a
+                tuiLink
+                iconEnd="@tui.external-link"
+                routerLink="/portal/marketplace"
+                [queryParams]="{ url: parent.current()?.url, id: item().id }"
+              >
+                View listing
+              </a>
+              <b>What's new</b>
+            </span>
+          </p>
+          <p
+            safeLinks
+            [innerHTML]="item().releaseNotes | markdown | dompurify"
+          ></p>
+        </tui-expand>
+      </td>
+    </tr>
+  `,
+  styles: `
+    @import '@taiga-ui/core/styles/taiga-ui-local';
 
-//         &:not(:last-child) {
-//           border-bottom: 1px solid var(--tui-background-neutral-1);
-//         }
-//       }
-//     `,
-//   ],
-//   standalone: true,
-//   imports: [
-//     RouterLink,
-//     MarkdownPipeModule,
-//     NgDompurifyModule,
-//     SafeLinksDirective,
-//     SharedPipesModule,
-//     TuiProgress,
-//     TuiAccordion,
-//     TuiAvatar,
-//     TuiIcon,
-//     TuiButton,
-//     TuiLink,
-//     TuiLoader,
-//     InstallingProgressPipe,
-//   ],
-// })
-// export class UpdatesItemComponent {
-//   private readonly dialogs = inject(TuiDialogService)
-//   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
-//   private readonly marketplaceService = inject(MarketplaceService)
+    :host {
+      display: contents;
+    }
 
-//   @Input({ required: true })
-//   marketplacePkg!: MarketplacePkg
+    tui-icon {
+      font-size: 1rem;
+    }
 
-//   @Input({ required: true })
-//   localPkg!: PackageDataEntry<InstalledState | UpdatingState>
+    div {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      white-space: nowrap;
+    }
 
-//   @Input({ required: true })
-//   url!: string
+    tr:first-child {
+      min-height: var(--tui-height-l);
+      word-break: break-word;
+      clip-path: inset(0 round var(--tui-radius-s));
+      cursor: pointer;
+      @include transition(background);
 
-//   get pkgId(): string {
-//     return this.marketplacePkg.id
-//   }
+      @media ($tui-mouse) {
+        &:hover {
+          background: var(--tui-background-neutral-1);
+        }
+      }
+    }
 
-//   get errors(): string {
-//     return this.marketplaceService.updateErrors[this.pkgId]
-//   }
+    td {
+      min-width: 0;
+      vertical-align: middle;
 
-//   get ready(): boolean {
-//     return !this.marketplaceService.updateQueue[this.pkgId]
-//   }
+      &:first-child {
+        white-space: nowrap;
+      }
 
-//   async onClick() {
-//     const { id } = this.marketplacePkg
+      &:last-child {
+        text-align: right;
+        white-space: nowrap;
 
-//     delete this.marketplaceService.updateErrors[id]
-//     this.marketplaceService.updateQueue[id] = true
+        div {
+          justify-content: flex-end;
+        }
+      }
 
-//     if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
-//       const proceed = await this.alert()
+      &[colspan]:only-child {
+        padding: 0 3rem;
+        text-align: left;
 
-//       if (proceed) {
-//         await this.update()
-//       } else {
-//         delete this.marketplaceService.updateQueue[id]
-//       }
-//     } else {
-//       await this.update()
-//     }
-//   }
+        [tuiLink] {
+          float: right;
+        }
+      }
+    }
 
-//   private async update() {
-//     const { id, version } = this.marketplacePkg
+    [tuiTitle] {
+      margin: 1rem 0;
+    }
 
-//     try {
-//       await this.marketplaceService.installPackage(id, version, this.url)
-//       delete this.marketplaceService.updateQueue[id]
-//     } catch (e: any) {
-//       delete this.marketplaceService.updateQueue[id]
-//       this.marketplaceService.updateErrors[id] = e.message
-//     }
-//   }
+    .mobile {
+      display: none;
+    }
 
-//   private async alert(): Promise<boolean> {
-//     return new Promise(async resolve => {
-//       this.dialogs
-//         .open<boolean>(TUI_CONFIRM, {
-//           label: 'Warning',
-//           size: 's',
-//           data: {
-//             content: `Services that depend on ${this.localPkg.stateInfo.manifest.title} will no longer work properly and may crash`,
-//             yes: 'Continue',
-//             no: 'Cancel',
-//           },
-//         })
-//         .subscribe(response => resolve(response))
-//     })
-//   }
-// }
+    :host-context(tui-root._mobile) {
+      tr:first-child {
+        display: grid;
+        grid-template-columns: 1fr min-content;
+        align-items: center;
+        padding: 0.5rem 0;
+      }
+
+      td[colspan]:only-child {
+        padding: 0 0.5rem;
+      }
+
+      [tuiButton] {
+        font-size: 0;
+        gap: 0;
+      }
+
+      .desktop {
+        display: none;
+      }
+
+      .mobile {
+        display: flex;
+      }
+    }
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    RouterLink,
+    TuiExpand,
+    TuiButton,
+    TuiChevron,
+    TuiAvatar,
+    TuiLink,
+    TuiIcon,
+    TuiLoader,
+    TuiProgressCircle,
+    TuiTitle,
+    MarkdownPipeModule,
+    NgDompurifyModule,
+    SafeLinksDirective,
+    DatePipe,
+    InstallingProgressPipe,
+    TuiFade,
+  ],
+})
+export class UpdatesItemComponent {
+  private readonly dialogs = inject(TuiResponsiveDialogService)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
+  private readonly service = inject(MarketplaceService)
+
+  readonly parent = inject(UpdatesComponent)
+  readonly expanded = signal(false)
+  readonly error = signal('')
+  readonly ready = signal(true)
+
+  readonly item = input.required<MarketplacePkg>()
+  readonly local =
+    input.required<PackageDataEntry<InstalledState | UpdatingState>>()
+
+  async onClick() {
+    this.ready.set(false)
+    this.error.set('')
+
+    if (hasCurrentDeps(this.item().id, await getAllPackages(this.patch))) {
+      if (await this.alert()) {
+        await this.update()
+      } else {
+        this.ready.set(true)
+      }
+    } else {
+      await this.update()
+    }
+  }
+
+  private async update() {
+    const { id, version } = this.item()
+    const url = this.parent.current()?.url || ''
+
+    try {
+      await this.service.installPackage(id, version, url)
+      this.ready.set(true)
+    } catch (e: any) {
+      this.ready.set(true)
+      this.error.set(e.message)
+    }
+  }
+
+  private async alert(): Promise<boolean> {
+    return firstValueFrom(
+      this.dialogs
+        .open<boolean>(TUI_CONFIRM, {
+          label: 'Warning',
+          size: 's',
+          data: {
+            content: `Services that depend on ${this.local().stateInfo.manifest.title} will no longer work properly and may crash`,
+            yes: 'Continue',
+            no: 'Cancel',
+          },
+        })
+        .pipe(defaultIfEmpty(false)),
+    )
+  }
+}

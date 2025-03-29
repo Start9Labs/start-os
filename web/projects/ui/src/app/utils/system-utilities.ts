@@ -16,11 +16,10 @@ export const SYSTEM_UTILITIES: Record<string, { icon: string; title: string }> =
       icon: '@tui.upload',
       title: 'Sideload',
     },
-    // @TODO 040
-    // '/portal/updates': {
-    //   icon: '@tui.globe',
-    //   title: 'Updates',
-    // },
+    '/portal/updates': {
+      icon: '@tui.globe',
+      title: 'Updates',
+    },
     // @TODO 041
     // '/portal/backups': {
     //   icon: '@tui.save',
