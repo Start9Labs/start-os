@@ -1,23 +1,39 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+} from '@angular/core'
+import { ServerMetrics } from 'src/app/services/api/api.types'
+import { DataComponent } from './data.component'
+
+const LABELS = {
+  percentageUsed: 'Percentage Used',
+  userSpace: 'User Space',
+  kernelSpace: 'Kernel Space',
+  idle: 'Idle',
+  wait: 'I/O Wait',
+}
 
 @Component({
   standalone: true,
-  selector: 'app-cpu',
+  selector: 'metrics-cpu',
   template: `
-    <div class="meter"></div>
-    <div class="arrow" [style.transform]="transform"></div>
-    <div class="percent">{{ percent }}%</div>
+    <div class="cpu">
+      <div class="meter"></div>
+      <div class="arrow" [style.transform]="transform()"></div>
+      <div class="percent">{{ value()?.percentageUsed?.value }}%</div>
+    </div>
+    <metrics-data [labels]="labels" [value]="value()" />
   `,
   styles: `
     @import '@taiga-ui/core/styles/taiga-ui-local';
 
-    :host {
+    .cpu {
       position: relative;
       margin: 1rem auto;
-      width: 80%;
+      width: 7rem;
       aspect-ratio: 1;
-      background: var(--tui-background-neutral-1);
-      border-radius: 100%;
     }
 
     .meter {
@@ -37,6 +53,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
       bottom: 10%;
       width: 100%;
       text-align: center;
+      font: var(--tui-font-text-l);
     }
 
     .arrow {
@@ -66,16 +83,15 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [DataComponent],
 })
 export class CpuComponent {
-  @Input()
-  value = 0
+  readonly value = input<ServerMetrics['cpu']>()
 
-  get percent(): string {
-    return (100 * this.value).toFixed(1)
-  }
+  readonly transform = computed(
+    (value = this.value()?.percentageUsed?.value || '0') =>
+      `rotate(${60 + (300 * Number.parseFloat(value)) / 100}deg)`,
+  )
 
-  get transform(): string {
-    return `rotate(${60 + 300 * this.value}deg)`
-  }
+  readonly labels = LABELS
 }
