@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 
 @Component({
   standalone: true,
-  selector: 'app-temperature',
+  selector: 'metrics-temperature',
   template: `
     <svg viewBox="0 0 43 95" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
@@ -11,10 +11,6 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
         stroke-width="4"
         stroke-miterlimit="10"
         stroke-linecap="round"
-      />
-      <path
-        d="M21.5011 82.0256C26.7592 82.0256 31.0217 77.7631 31.0217 72.505C31.0217 67.2469 26.7592 62.9844 21.5011 62.9844C16.243 62.9844 11.9805 67.2469 11.9805 72.505C11.9805 77.7631 16.243 82.0256 21.5011 82.0256Z"
-        fill="#3853E3"
       />
       <rect
         x="18"
@@ -33,6 +29,10 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
         class="bar"
         fill="url(#temperature)"
       />
+      <path
+        d="M21.5011 82.0256C26.7592 82.0256 31.0217 77.7631 31.0217 72.505C31.0217 67.2469 26.7592 62.9844 21.5011 62.9844C16.243 62.9844 11.9805 67.2469 11.9805 72.505C11.9805 77.7631 16.243 82.0256 21.5011 82.0256Z"
+        fill="#3853E3"
+      />
       <defs>
         <linearGradient
           id="temperature"
@@ -49,7 +49,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
         </linearGradient>
       </defs>
     </svg>
-    <span>{{ value || '-' }} C°</span>
+    <b>{{ value() || '-' }} C°</b>
   `,
   styles: `
     @import '@taiga-ui/core/styles/taiga-ui-local';
@@ -57,13 +57,16 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
     :host {
       height: 100%;
       display: flex;
+      flex-direction: column;
       align-items: center;
+      justify-content: center;
       margin: auto;
     }
 
     svg {
       width: auto;
       height: 75%;
+      max-width: 100%;
     }
 
     span {
@@ -79,11 +82,10 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
     }
   `,
   host: {
-    '[style.--fill.%]': '100 - value',
+    '[style.--fill.%]': '100 - value()',
   },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TemperatureComponent {
-  @Input()
-  value = 0
+  readonly value = input.required<number>()
 }

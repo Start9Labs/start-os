@@ -123,6 +123,10 @@ export class MockApiService extends ApiService {
       return from(this.initProgress()).pipe(
         startWith(PROGRESS),
       ) as WebSocketSubject<T>
+    } else if (guid === 'metrics-guid') {
+      return interval(1000).pipe(
+        map(() => Mock.getMetrics()),
+      ) as WebSocketSubject<T>
     } else {
       throw new Error('invalid guid type')
     }
@@ -358,7 +362,7 @@ export class MockApiService extends ApiService {
   ): Promise<RR.FollowServerMetricsRes> {
     await pauseFor(2000)
     return {
-      guid: 'iqudh37um-i38u3-34-a51b-jkhd783ein',
+      guid: 'metrics-guid',
       metrics: Mock.getMetrics(),
     }
   }

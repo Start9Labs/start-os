@@ -1,164 +1,84 @@
-import { AsyncPipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+} from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { TuiProgress } from '@taiga-ui/kit'
-import { CpuComponent } from 'src/app/routes/portal/routes/metrics/cpu.component'
 import { TitleDirective } from 'src/app/services/title.service'
-import { TemperatureComponent } from 'src/app/routes/portal/routes/metrics/temperature.component'
-import { MetricComponent } from 'src/app/routes/portal/routes/metrics/metric.component'
-import { MetricsService } from 'src/app/routes/portal/routes/metrics/metrics.service'
-import { TimeService } from 'src/app/services/time.service'
+import { CpuComponent } from './cpu.component'
+import { MemoryComponent } from './memory.component'
+import { MetricsService } from './metrics.service'
+import { StorageComponent } from './storage.component'
+import { TemperatureComponent } from './temperature.component'
+import { TimeComponent } from './time.component'
+import { UptimeComponent } from './uptime.component'
 
 @Component({
   standalone: true,
   selector: 'app-metrics',
   template: `
     <ng-container *title>Metrics</ng-container>
-    <section>
-      <app-metric class="wide" label="Storage" [style.max-height.%]="85">
-        <progress
-          tuiProgressBar
-          [max]="100"
-          [attr.value]="metrics()?.disk?.percentageUsed?.value"
-        ></progress>
-        <footer>
-          <div>
-            <span [attr.data-unit]="metrics()?.disk?.used?.unit">
-              {{ getValue(metrics()?.disk?.used?.value) }}
-            </span>
-            Used
-          </div>
-          <hr />
-          <div>
-            <span [attr.data-unit]="metrics()?.disk?.available?.unit">
-              {{ getValue(metrics()?.disk?.available?.value) }}
-            </span>
-            Available
-          </div>
-        </footer>
-      </app-metric>
-      <app-metric label="CPU">
-        <app-cpu [value]="cpu" />
-      </app-metric>
-      <app-metric label="Memory">
-        <label tuiProgressLabel>
-          <tui-progress-circle size="l" [max]="100" [value]="memory" />
-          {{ metrics()?.memory?.percentageUsed?.value || ' - ' }}%
-        </label>
-        <footer>
-          <div>
-            <span [attr.data-unit]="metrics()?.memory?.used?.unit">
-              {{ getValue(metrics()?.memory?.used?.value) }}
-            </span>
-            Used
-          </div>
-          <hr />
-          <div>
-            <span [attr.data-unit]="metrics()?.memory?.available?.unit">
-              {{ getValue(metrics()?.memory?.available?.value) }}
-            </span>
-            Available
-          </div>
-        </footer>
-      </app-metric>
-      <aside>
-        <app-metric label="Uptime" [style.flex]="'unset'">
-          <label>
-            {{ uptime() }}
-            <div>Days : Hrs : Mins : Secs</div>
-          </label>
-        </app-metric>
-        <app-metric label="Temperature">
-          <app-temperature [value]="temperature" />
-        </app-metric>
-      </aside>
-    </section>
+    <div>
+      <section class="g-card">
+        <header>System Time</header>
+        <metrics-time />
+      </section>
+      <section class="g-card">
+        <header>Uptime</header>
+        <metrics-uptime />
+      </section>
+      <section class="g-card">
+        <header>Temperature</header>
+        <metrics-temperature [value]="temperature()" />
+      </section>
+      <section class="g-card">
+        <header>CPU</header>
+        <metrics-cpu [value]="metrics()?.cpu" />
+      </section>
+      <section class="g-card">
+        <header>Memory</header>
+        <metrics-memory [value]="metrics()?.memory" />
+      </section>
+      <section class="g-card">
+        <header>Storage</header>
+        <metrics-storage [value]="metrics()?.disk" />
+      </section>
+    </div>
   `,
   styles: `
-    section {
-      display: flex;
-      gap: 1rem;
-      padding: 1rem 1rem 0;
-    }
+    :host {
+      padding: 1rem;
 
-    aside {
-      display: flex;
-      flex: 1;
-      flex-direction: column;
-      gap: 1rem;
-    }
+      div {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        grid-auto-flow: dense;
+        gap: 1rem;
+      }
 
-    footer {
-      display: flex;
-      white-space: nowrap;
-      background: var(--tui-background-neutral-1);
-    }
-
-    label {
-      margin: auto;
-      text-align: center;
-      padding: 0.375rem 0;
-    }
-
-    progress {
-      height: 1.5rem;
-      width: 80%;
-      margin: auto;
-      border-radius: 0;
-      clip-path: none;
-      mask: linear-gradient(to right, #000 80%, transparent 80%);
-      mask-size: 5% 100%;
-    }
-
-    hr {
-      height: 100%;
-      width: 1px;
-      margin: 0;
-      background: rgba(0, 0, 0, 0.1);
-    }
-
-    div {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      text-align: center;
-      text-transform: uppercase;
-      color: var(--tui-text-secondary);
-      font-size: 0.5rem;
-      line-height: 1rem;
-
-      span {
-        font-size: 0.75rem;
-        font-weight: bold;
-        color: var(--tui-text-primary);
-        padding-top: 0.4rem;
-
-        &::after {
-          content: attr(data-unit);
-          font-size: 0.5rem;
-          font-weight: normal;
-          color: var(--tui-text-secondary);
-        }
+      header {
+        background: transparent;
       }
     }
 
     :host-context(tui-root._mobile) {
-      section {
-        min-height: 100%;
-        flex-wrap: wrap;
-        margin: 0 -2rem -2rem;
-      }
+      .g-card {
+        grid-column: span 3;
 
-      aside {
-        order: -1;
-        flex-direction: row;
-      }
+        &:nth-child(1),
+        &:nth-child(2) {
+          grid-column: span 2;
+        }
 
-      app-metric {
-        min-width: calc(50% - 0.5rem);
+        &:nth-child(3) {
+          grid-column: span 1;
+          grid-row: span 2;
+          padding-top: 0;
 
-        &.wide {
-          min-width: 100%;
+          header {
+            display: none;
+          }
         }
       }
     }
@@ -166,30 +86,19 @@ import { TimeService } from 'src/app/services/time.service'
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    TuiProgress,
-    MetricComponent,
     TemperatureComponent,
+    StorageComponent,
     CpuComponent,
     TitleDirective,
+    MemoryComponent,
+    UptimeComponent,
+    TimeComponent,
   ],
 })
 export default class SystemMetricsComponent {
   readonly metrics = toSignal(inject(MetricsService))
-  readonly uptime = toSignal(inject(TimeService).uptime$)
 
-  get cpu(): number {
-    return Number(this.metrics()?.cpu.percentageUsed.value || 0) / 100
-  }
-
-  get temperature(): number {
-    return Number(this.metrics()?.general.temperature?.value || 0)
-  }
-
-  get memory(): number {
-    return Number(this.metrics()?.memory?.percentageUsed?.value) || 0
-  }
-
-  getValue(value?: string | null): number | string | undefined {
-    return value == null ? '-' : Number.parseInt(value)
-  }
+  readonly temperature = computed(() =>
+    Number(this.metrics()?.general.temperature?.value || 0),
+  )
 }
