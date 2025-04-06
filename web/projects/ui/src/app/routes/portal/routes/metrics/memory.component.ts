@@ -24,7 +24,7 @@ const LABELS = {
   selector: 'metrics-memory',
   template: `
     <label tuiProgressLabel>
-      <tui-progress-circle size="l" [max]="100" [value]="used()" />
+      <tui-progress-circle size="xl" [max]="100" [value]="used()" />
       {{ value()?.percentageUsed?.value | value }}%
     </label>
     <metrics-data [labels]="labels" [value]="value()" />

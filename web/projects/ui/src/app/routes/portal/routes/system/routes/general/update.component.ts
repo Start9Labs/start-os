@@ -4,7 +4,7 @@ import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import {
   ErrorService,
   LoadingService,
-  MarkdownPipeModule,
+  MarkdownPipe,
   SafeLinksDirective,
 } from '@start9labs/shared'
 import {
@@ -36,7 +36,7 @@ import { EOSService } from 'src/app/services/eos.service'
   standalone: true,
   imports: [
     CommonModule,
-    MarkdownPipeModule,
+    MarkdownPipe,
     NgDompurifyModule,
     SafeLinksDirective,
     TuiAutoFocus,

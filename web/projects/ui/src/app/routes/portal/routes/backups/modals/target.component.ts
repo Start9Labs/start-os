@@ -14,7 +14,9 @@ import {
   TuiDialogService,
   TuiIcon,
   TuiLoader,
+  TuiTitle,
 } from '@taiga-ui/core'
+import { TuiCell } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { BackupTarget } from 'src/app/services/api/api.types'
@@ -34,25 +36,22 @@ import { TARGETS } from './targets.component'
       <h3 class="g-title">Saved Targets</h3>
       @for (target of targets | keyvalue; track $index) {
         <button
-          class="g-action"
+          tuiCell
           [disabled]="isDisabled(target.value)"
           (click)="select(target.value, target.key)"
         >
           @if (target.value | getDisplayInfo; as displayInfo) {
             <tui-icon [icon]="displayInfo.icon" />
-            <div>
+            <span tuiTitle>
               <strong>{{ displayInfo.name }}</strong>
               <backups-status
                 [type]="context.data.type"
                 [mountable]="target.value.mountable"
                 [hasBackup]="hasBackup(target.value)"
               />
-              <div [style.color]="'var(--tui-text-secondary'">
-                {{ displayInfo.description }}
-                <br />
-                {{ displayInfo.path }}
-              </div>
-            </div>
+              <span tuiSubtitle>{{ displayInfo.description }}</span>
+              <span tuiSubtitle>{{ displayInfo.path }}</span>
+            </span>
           }
         </button>
       } @empty {
@@ -70,6 +69,8 @@ import { TARGETS } from './targets.component'
     BackupsStatusComponent,
     GetDisplayInfoPipe,
     KeyValuePipe,
+    TuiCell,
+    TuiTitle,
   ],
 })
 export class BackupsTargetModal {

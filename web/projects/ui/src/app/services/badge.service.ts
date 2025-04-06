@@ -27,10 +27,12 @@ export class BadgeService {
   private readonly notifications = inject(NotificationService)
   private readonly exver = inject(Exver)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
-  private readonly system$ = combineLatest([
-    this.patch.watch$('serverInfo', 'ntpSynced'),
-    inject(EOSService).updateAvailable$,
-  ]).pipe(map(([synced, update]) => Number(!synced) + Number(update)))
+  private readonly system$ = inject(EOSService).updateAvailable$.pipe(
+    map(Number),
+  )
+  private readonly metrics$ = this.patch
+    .watch$('serverInfo', 'ntpSynced')
+    .pipe(map(synced => Number(!synced)))
   private readonly marketplaceService = inject(MarketplaceService)
 
   private readonly local$ = inject(ConnectionService).pipe(
@@ -86,6 +88,8 @@ export class BadgeService {
         return this.updates$
       case '/portal/system':
         return this.system$
+      case '/portal/metrics':
+        return this.metrics$
       case '/portal/notifications':
         return this.notifications.unreadCount$
       default:

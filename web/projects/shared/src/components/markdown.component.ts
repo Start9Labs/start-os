@@ -1,14 +1,13 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { ActivatedRoute } from '@angular/router'
-import {
-  getErrorMessage,
-  MarkdownPipeModule,
-  SafeLinksDirective,
-} from '@start9labs/shared'
-import { TuiLoader, TuiNotification } from '@taiga-ui/core'
+import { ActivatedRoute, Data } from '@angular/router'
+import { TuiDialogContext, TuiLoader, TuiNotification } from '@taiga-ui/core'
+import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 import { catchError, ignoreElements, of } from 'rxjs'
+import { SafeLinksDirective } from '../directives/safe-links.directive'
+import { MarkdownPipe } from '../pipes/markdown.pipe'
+import { getErrorMessage } from '../services/error.service'
 
 @Component({
   template: `
@@ -21,7 +20,7 @@ import { catchError, ignoreElements, of } from 'rxjs'
     @if (content(); as result) {
       <div safeLinks [innerHTML]="result | markdown | dompurify"></div>
     } @else {
-      <tui-loader textContent="Loading" />
+      <tui-loader textContent="Loading" [style.height.%]="100" />
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -30,13 +29,15 @@ import { catchError, ignoreElements, of } from 'rxjs'
   imports: [
     TuiNotification,
     TuiLoader,
-    MarkdownPipeModule,
     NgDompurifyModule,
+    MarkdownPipe,
     SafeLinksDirective,
   ],
 })
-export default class ServiceMarkdownRoute {
-  private readonly data = inject(ActivatedRoute).snapshot.data
+export class MarkdownComponent {
+  private readonly data =
+    injectContext<TuiDialogContext<void, Data>>({ optional: true })?.data ||
+    inject(ActivatedRoute).snapshot.data
 
   readonly content = toSignal<string>(this.data['content'])
   readonly error = toSignal(
@@ -46,3 +47,5 @@ export default class ServiceMarkdownRoute {
     ),
   )
 }
+
+export const MARKDOWN = new PolymorpheusComponent(MarkdownComponent)

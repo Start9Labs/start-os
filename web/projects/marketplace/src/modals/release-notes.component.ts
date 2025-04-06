@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { Exver, MarkdownPipeModule } from '@start9labs/shared'
+import { Exver, MarkdownPipe } from '@start9labs/shared'
 import { TuiButton, TuiDialogContext, TuiLoader } from '@taiga-ui/core'
 import { TuiAccordion } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -21,13 +21,7 @@ import { MarketplacePkg } from '../../src/types'
     </tui-accordion>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    CommonModule,
-    TuiButton,
-    TuiLoader,
-    TuiAccordion,
-    MarkdownPipeModule,
-  ],
+  imports: [CommonModule, TuiButton, TuiLoader, TuiAccordion, MarkdownPipe],
 })
 export class ReleaseNotesComponent {
   private readonly exver = inject(Exver)

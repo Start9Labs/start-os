@@ -1,54 +1,46 @@
 import { CommonModule } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { TuiDialogContext, TuiIcon } from '@taiga-ui/core'
-import {
-  POLYMORPHEUS_CONTEXT,
-  PolymorpheusComponent,
-} from '@taiga-ui/polymorpheus'
+import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { TuiDialogContext, TuiIcon, TuiTitle } from '@taiga-ui/core'
+import { TuiCell } from '@taiga-ui/layout'
+import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { BackupReport } from 'src/app/services/api/api.types'
 
 @Component({
   template: `
-    <h3 class="g-title">Completed: {{ timestamp | date: 'medium' }}</h3>
-    <div class="g-action">
-      <div [style.flex]="1">
+    <h3 class="g-title">Completed: {{ data.createdAt | date: 'medium' }}</h3>
+    <div tuiCell>
+      <div tuiTitle>
         <strong>System data</strong>
-        <div [style.color]="system.color">{{ system.result }}</div>
+        <div tuiSubtitle [style.color]="system.color">{{ system.result }}</div>
       </div>
       <tui-icon [icon]="system.icon" [style.color]="system.color" />
     </div>
-    <div *ngFor="let pkg of report?.packages | keyvalue" class="g-action">
-      <div [style.flex]="1">
-        <strong>{{ pkg.key }}</strong>
-        <div [style.color]="getColor(pkg.value.error)">
-          {{ pkg.value.error ? 'Failed: ' + pkg.value.error : 'Succeeded' }}
+    @for (pkg of data.content.packages | keyvalue; track $index) {
+      <div tuiCell>
+        <div tuiTitle>
+          <strong>{{ pkg.key }}</strong>
+          <div tuiSubtitle [style.color]="getColor(pkg.value.error)">
+            {{ pkg.value.error ? 'Failed: ' + pkg.value.error : 'Succeeded' }}
+          </div>
         </div>
+        <tui-icon
+          [icon]="getIcon(pkg.value.error)"
+          [style.color]="getColor(pkg.value.error)"
+        />
       </div>
-      <tui-icon
-        [icon]="getIcon(pkg.value.error)"
-        [style.color]="getColor(pkg.value.error)"
-      />
-    </div>
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiIcon],
+  imports: [CommonModule, TuiIcon, TuiCell, TuiTitle],
 })
 export class BackupsReportModal {
-  private readonly context =
-    inject<
-      TuiDialogContext<void, { content: BackupReport; timestamp: string }>
-    >(POLYMORPHEUS_CONTEXT)
+  readonly data =
+    injectContext<
+      TuiDialogContext<void, { content: BackupReport; createdAt: string }>
+    >().data
 
   readonly system = this.getSystem()
-
-  get report(): BackupReport {
-    return this.context.data.content
-  }
-
-  get timestamp(): string {
-    return this.context.data.timestamp
-  }
 
   getColor(error: unknown) {
     return error ? 'var(--tui-text-negative)' : 'var(--tui-text-positive)'
@@ -59,7 +51,7 @@ export class BackupsReportModal {
   }
 
   private getSystem() {
-    if (!this.report.server.attempted) {
+    if (!this.data.content.server.attempted) {
       return {
         result: 'Not Attempted',
         icon: '@tui.minus',
@@ -67,9 +59,9 @@ export class BackupsReportModal {
       }
     }
 
-    if (this.report.server.error) {
+    if (this.data.content.server.error) {
       return {
-        result: `Failed: ${this.report.server.error}`,
+        result: `Failed: ${this.data.content.server.error}`,
         icon: '@tui.circle-minus',
         color: 'var(--tui-text-negative)',
       }

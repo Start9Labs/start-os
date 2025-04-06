@@ -19,7 +19,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
     @if (['running', 'starting', 'restarting'].includes(status)) {
       <button
         tuiButton
-        appearance="outline-destructive"
+        appearance="secondary-destructive"
         iconStart="@tui.square"
         (click)="actions.stop(manifest)"
       >
@@ -30,7 +30,6 @@ import { getManifest } from 'src/app/utils/get-package-data'
     @if (status === 'running') {
       <button
         tuiButton
-        appearance="outline"
         iconStart="@tui.rotate-cw"
         (click)="actions.restart(manifest)"
       >
@@ -41,7 +40,6 @@ import { getManifest } from 'src/app/utils/get-package-data'
     @if (status === 'stopped') {
       <button
         tuiButton
-        appearance="outline"
         iconStart="@tui.play"
         (click)="actions.start(manifest, hasUnmet(dependencies))"
       >
@@ -52,19 +50,21 @@ import { getManifest } from 'src/app/utils/get-package-data'
   styles: [
     `
       :host {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+        display: flex;
+        flex-wrap: wrap;
         gap: 1rem;
         justify-content: center;
-        inline-size: 20rem;
         max-inline-size: 100%;
         margin-block-start: 1rem;
+
+        &:nth-child(3) {
+          grid-row: span 2;
+        }
       }
 
       :host-context(tui-root._mobile) {
         display: flex;
         margin: 0;
-        inline-size: min-content;
 
         [tuiButton] {
           font-size: 0;

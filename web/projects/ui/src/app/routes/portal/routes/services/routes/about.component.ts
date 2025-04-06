@@ -5,7 +5,7 @@ import {
   INJECTOR,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { CopyService, getPkgId } from '@start9labs/shared'
+import { CopyService, getPkgId, MarkdownComponent } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
 import { TuiCell } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -17,7 +17,6 @@ import {
   FALLBACK_URL,
   ServiceAdditionalItemComponent,
 } from '../components/additional-item.component'
-import ServiceMarkdownRoute from './markdown.component'
 
 @Component({
   template: `
@@ -52,7 +51,7 @@ import ServiceMarkdownRoute from './markdown.component'
 export default class ServiceAboutRoute {
   private readonly copyService = inject(CopyService)
   private readonly markdown = inject(TuiDialogService).open(
-    new PolymorpheusComponent(ServiceMarkdownRoute, inject(INJECTOR)),
+    new PolymorpheusComponent(MarkdownComponent, inject(INJECTOR)),
     { label: 'License', size: 'l' },
   )
 

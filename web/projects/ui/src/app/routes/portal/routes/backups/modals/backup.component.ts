@@ -31,10 +31,8 @@ interface Package {
       @if (pkgs) {
         @for (pkg of pkgs; track $index) {
           <label tuiBlock>
-            <div class="g-action">
-              <img class="icon" alt="" [src]="pkg.icon" />
-              {{ pkg.title }}
-            </div>
+            <img class="icon" alt="" [src]="pkg.icon" />
+            {{ pkg.title }}
             <input
               type="checkbox"
               tuiCheckbox

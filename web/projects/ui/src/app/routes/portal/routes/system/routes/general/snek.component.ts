@@ -42,7 +42,7 @@ import { injectContext } from '@taiga-ui/polymorpheus'
   ],
   imports: [TuiButton],
 })
-export class HeaderSnekComponent implements AfterViewInit, OnDestroy {
+export class SnekComponent implements AfterViewInit, OnDestroy {
   private readonly document = inject(DOCUMENT)
   private readonly dialog = injectContext<TuiDialogContext<number, number>>()
 

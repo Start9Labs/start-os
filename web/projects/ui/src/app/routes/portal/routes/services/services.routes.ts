@@ -1,5 +1,6 @@
 import { inject } from '@angular/core'
 import { ActivatedRouteSnapshot, ResolveFn, Routes } from '@angular/router'
+import { MarkdownComponent } from '@start9labs/shared'
 import { defer, map, Observable, of } from 'rxjs'
 import { share } from 'rxjs/operators'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -22,7 +23,7 @@ export const ROUTES: Routes = [
       },
       {
         path: 'instructions',
-        loadComponent: () => import('./routes/markdown.component'),
+        component: MarkdownComponent,
         resolve: { content: getStatic('instructions.md') },
         canActivate: [
           ({ paramMap }: ActivatedRouteSnapshot) => {

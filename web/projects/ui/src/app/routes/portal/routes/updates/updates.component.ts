@@ -22,6 +22,7 @@ import {
 import { TuiCell } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map, tap } from 'rxjs'
+import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { ConfigService } from 'src/app/services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
@@ -91,43 +92,35 @@ interface UpdatesData {
           Request Failed
         </tui-notification>
       }
-      <section class="g-card" [style.padding]="'0 1rem 1rem'">
-        <table tuiTable class="g-table">
-          <thead>
-            <tr>
-              <th tuiTh>Name</th>
-              <th tuiTh>Version</th>
-              <th tuiTh>Package Hash</th>
-              <th tuiTh>Published</th>
-              <th tuiTh></th>
-            </tr>
-          </thead>
-          <tbody>
-            @if (
-              data()?.marketplace?.[current()?.url || '']?.packages;
-              as packages
-            ) {
-              @if (packages | filterUpdates: data()?.localPkgs; as updates) {
-                @for (pkg of updates; track $index) {
-                  <updates-item
-                    [item]="pkg"
-                    [local]="data()?.localPkgs?.[pkg.id]!"
-                  />
-                } @empty {
-                  <tr>
-                    <td colspan="5">All services are up to date!</td>
-                  </tr>
-                }
+      <section class="g-card">
+        <header>{{ current()?.name }}</header>
+        <table
+          [appTable]="['Name', 'Version', 'Package Hash', 'Published', '']"
+        >
+          @if (
+            data()?.marketplace?.[current()?.url || '']?.packages;
+            as packages
+          ) {
+            @if (packages | filterUpdates: data()?.localPkgs; as updates) {
+              @for (pkg of updates; track $index) {
+                <updates-item
+                  [item]="pkg"
+                  [local]="data()?.localPkgs?.[pkg.id]!"
+                />
+              } @empty {
+                <tr>
+                  <td colspan="5">All services are up to date!</td>
+                </tr>
               }
-            } @else {
-              <tr>
-                <td colspan="5" [tuiSkeleton]="true">Loading</td>
-              </tr>
-              <tr>
-                <td colspan="5" [tuiSkeleton]="true">Loading</td>
-              </tr>
             }
-          </tbody>
+          } @else {
+            <tr>
+              <td colspan="5" [tuiSkeleton]="true">Loading</td>
+            </tr>
+            <tr>
+              <td colspan="5" [tuiSkeleton]="true">Loading</td>
+            </tr>
+          }
         </table>
       </section>
     </section>
@@ -172,6 +165,11 @@ interface UpdatesData {
       section {
         background: none;
         box-shadow: none;
+        padding: 0.5rem;
+      }
+
+      header {
+        display: none;
       }
 
       [tuiCell] {
@@ -203,7 +201,6 @@ interface UpdatesData {
     TuiTitle,
     TuiNotification,
     TuiSkeleton,
-    TuiTable,
     TuiBadgeNotification,
     TuiFade,
     TuiButton,
@@ -211,6 +208,7 @@ interface UpdatesData {
     FilterUpdatesPipe,
     UpdatesItemComponent,
     TitleDirective,
+    TableComponent,
   ],
 })
 export default class UpdatesComponent {

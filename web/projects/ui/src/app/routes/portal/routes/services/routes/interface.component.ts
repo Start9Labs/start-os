@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -10,7 +11,7 @@ import { RouterLink } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 import { TuiItem } from '@taiga-ui/cdk'
 import { TuiButton, TuiLink } from '@taiga-ui/core'
-import { TuiBreadcrumbs } from '@taiga-ui/kit'
+import { TuiBadge, TuiBreadcrumbs } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { InterfaceComponent } from 'src/app/routes/portal/components/interfaces/interface.component'
 import { getAddresses } from 'src/app/routes/portal/components/interfaces/interface.utils'
@@ -23,12 +24,16 @@ import { TitleDirective } from 'src/app/services/title.service'
     <ng-container *title>
       <a routerLink="../.." tuiIconButton iconStart="@tui.arrow-left">Back</a>
       {{ interface()?.name }}
+      <ng-container *ngTemplateOutlet="badge" />
     </ng-container>
     <tui-breadcrumbs size="l" [style.margin-block-end.rem]="1">
       <a *tuiItem tuiLink appearance="action-grayscale" routerLink="../..">
         Dashboard
       </a>
-      <span *tuiItem class="g-primary">{{ interface()?.name }}</span>
+      <span *tuiItem class="g-primary">
+        {{ interface()?.name }}
+        <ng-container *ngTemplateOutlet="badge" />
+      </span>
     </tui-breadcrumbs>
     @if (interface(); as serviceInterface) {
       <app-interface
@@ -36,6 +41,16 @@ import { TitleDirective } from 'src/app/services/title.service'
         [serviceInterface]="serviceInterface"
       />
     }
+    <ng-template #badge>
+      <tui-badge
+        [iconStart]="interface()?.public ? '@tui.globe' : '@tui.lock'"
+        [style.vertical-align.rem]="-0.125"
+        [style.margin]="'0 0.25rem -0.25rem'"
+        [appearance]="interface()?.public ? 'positive' : 'negative'"
+      >
+        {{ interface()?.public ? 'Public' : 'Private' }}
+      </tui-badge>
+    </ng-template>
   `,
   styles: `
     :host-context(tui-root._mobile) tui-breadcrumbs {
@@ -53,6 +68,8 @@ import { TitleDirective } from 'src/app/services/title.service'
     TuiBreadcrumbs,
     TuiItem,
     TuiLink,
+    TuiBadge,
+    NgTemplateOutlet,
   ],
 })
 export default class ServiceInterfaceRoute {

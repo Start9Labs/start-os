@@ -46,11 +46,6 @@ export default {
           check: 'Buscar actualizaciones',
         },
       },
-      sync: {
-        title: 'Fallo en la sincronización del reloj',
-        subtitle:
-          'Esto causará problemas de conectividad. Para resolverlo, consulta la',
-      },
     },
   },
 } satisfies i18n

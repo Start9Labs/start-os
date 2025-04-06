@@ -39,7 +39,7 @@ import { SessionsTableComponent } from './table.component'
           <button
             tuiButton
             size="xs"
-            appearance="negative"
+            appearance="primary-destructive"
             [style.margin-inline-start]="'auto'"
             [disabled]="!selected.length"
             (click)="terminate(selected, others || [])"
@@ -60,7 +60,6 @@ import { SessionsTableComponent } from './table.component'
     TuiLet,
     RouterLink,
     TitleDirective,
-    TuiTable,
     TuiHeader,
     TuiTitle,
   ],

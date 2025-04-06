@@ -6,13 +6,9 @@ import {
   viewChild,
   ViewContainerRef,
 } from '@angular/core'
-import { toSignal } from '@angular/core/rxjs-interop'
-import { PatchDB } from 'patch-db-client'
-import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleService } from 'src/app/services/title.service'
 import { HeaderMenuComponent } from './menu.component'
 import { HeaderNavigationComponent } from './navigation.component'
-import { HeaderSnekDirective } from './snek.directive'
 import { HeaderStatusComponent } from './status.component'
 
 @Component({
@@ -21,12 +17,6 @@ import { HeaderStatusComponent } from './status.component'
     <header-navigation />
     <div class="item item_center">
       <div class="mobile"><ng-container #vcr /></div>
-      <img
-        [appSnek]="snekScore()"
-        class="snek"
-        alt="Play Snake"
-        src="assets/img/icons/snek.png"
-      />
     </div>
     <header-status class="item item_connection" />
     <header-menu class="item item_corner" />
@@ -105,19 +95,6 @@ import { HeaderStatusComponent } from './status.component'
         }
       }
 
-      .snek {
-        @include center-top();
-        @include transition(opacity);
-        right: 2rem;
-        width: 1rem;
-        opacity: 0.2;
-        cursor: pointer;
-
-        &:hover {
-          opacity: 1;
-        }
-      }
-
       :host-context(tui-root._mobile) {
         .item_center::before {
           left: -2rem;
@@ -144,7 +121,6 @@ import { HeaderStatusComponent } from './status.component'
   imports: [
     HeaderStatusComponent,
     HeaderNavigationComponent,
-    HeaderSnekDirective,
     HeaderMenuComponent,
   ],
 })
@@ -152,15 +128,6 @@ export class HeaderComponent implements OnInit {
   private readonly title = inject(TitleService)
 
   readonly vcr = viewChild.required('vcr', { read: ViewContainerRef })
-  readonly snekScore = toSignal(
-    inject<PatchDB<DataModel>>(PatchDB).watch$(
-      'ui',
-      'gaming',
-      'snake',
-      'highScore',
-    ),
-    { initialValue: 0 },
-  )
 
   ngOnInit() {
     this.title.register(this.vcr())

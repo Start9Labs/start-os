@@ -5,13 +5,10 @@ import {
   Input,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
-import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TuiButton, TuiLink } from '@taiga-ui/core'
 import { TuiBadge } from '@taiga-ui/kit'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { getManifest } from '../../../../../utils/get-package-data'
 import { MappedInterface } from '../types/mapped-interface'
 
 @Component({
@@ -30,25 +27,21 @@ import { MappedInterface } from '../types/mapped-interface'
     </td>
     <td>
       @if (info.public) {
-        <button
-          tuiButton
-          size="s"
+        <a
+          class="hosting"
+          tuiLink
           iconStart="@tui.globe"
           appearance="positive"
-          (click)="toggle()"
-        >
-          Public
-        </button>
+          [textContent]="'Public'"
+        ></a>
       } @else {
-        <button
-          tuiButton
-          size="s"
+        <a
+          class="hosting"
+          tuiLink
           iconStart="@tui.lock"
           appearance="negative"
-          (click)="toggle()"
-        >
-          Private
-        </button>
+          [textContent]="'Private'"
+        ></a>
       }
     </td>
     <td [style.grid-area]="'span 2'">
@@ -70,6 +63,24 @@ import { MappedInterface } from '../types/mapped-interface'
     </td>
   `,
   styles: `
+    @import '@taiga-ui/core/styles/taiga-ui-local';
+
+    :host {
+      cursor: pointer;
+      clip-path: inset(0 round var(--tui-radius-m));
+      @include transition(background);
+    }
+
+    [tuiLink] {
+      background: transparent;
+    }
+
+    @media ($tui-mouse) {
+      :host:hover {
+        background: var(--tui-background-neutral-1);
+      }
+    }
+
     strong {
       white-space: nowrap;
     }
@@ -88,6 +99,10 @@ import { MappedInterface } from '../types/mapped-interface'
       td {
         padding: 0;
       }
+
+      .hosting {
+        font-size: 0;
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -96,9 +111,6 @@ import { MappedInterface } from '../types/mapped-interface'
 })
 export class ServiceInterfaceComponent {
   private readonly config = inject(ConfigService)
-  private readonly errorService = inject(ErrorService)
-  private readonly loader = inject(LoadingService)
-  private readonly api = inject(ApiService)
 
   @Input({ required: true })
   info!: MappedInterface
@@ -124,32 +136,5 @@ export class ServiceInterfaceComponent {
     return this.disabled
       ? 'null'
       : this.config.launchableAddress(this.info, this.pkg.hosts)
-  }
-
-  async toggle() {
-    const loader = this.loader
-      .open(`Making ${this.info.public ? 'private' : 'public'}`)
-      .subscribe()
-
-    const params = {
-      internalPort: this.info.addressInfo.internalPort,
-      public: !this.info.public,
-    }
-
-    try {
-      if (!this.info.public) {
-        await this.api.pkgBindingSetPubic({
-          ...params,
-          host: this.info.addressInfo.hostId,
-          package: getManifest(this.pkg).id,
-        })
-      } else {
-        await this.api.serverBindingSetPubic(params)
-      }
-    } catch (e: any) {
-      this.errorService.handleError(e)
-    } finally {
-      loader.unsubscribe()
-    }
   }
 }

@@ -70,8 +70,8 @@ import { InstallingProgressDisplayPipe } from '../pipes/install-progress.pipe'
 
       :host-context(tui-root._mobile) {
         div {
-          flex-direction: row;
-          justify-content: space-between;
+          display: grid;
+          grid-template-columns: 1fr max-content;
           padding: 0.5rem 0;
         }
 

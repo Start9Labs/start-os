@@ -32,7 +32,7 @@ const LABELS = {
     .cpu {
       position: relative;
       margin: 1rem auto;
-      width: 7rem;
+      width: 8rem;
       aspect-ratio: 1;
     }
 
