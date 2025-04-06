@@ -38,7 +38,7 @@ import { ConfigService } from 'src/app/services/config.service'
 import { EOSService } from 'src/app/services/eos.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
-import { SystemSyncComponent } from './sync.component'
+import { SnekDirective } from './snek.directive'
 import { UPDATE } from './update.component'
 import { SystemWipeComponent } from './wipe.component'
 
@@ -61,9 +61,6 @@ import { SystemWipeComponent } from './wipe.component'
       </hgroup>
     </header>
     @if (server(); as server) {
-      @if (!server.ntpSynced) {
-        <system-sync />
-      }
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.zap" />
         <span tuiTitle>
@@ -75,6 +72,7 @@ import { SystemWipeComponent } from './wipe.component'
         <button
           tuiButton
           appearance="accent"
+          iconStart="@tui.refresh-cw"
           [disabled]="eos.updatingOrBackingUp$ | async"
           (click)="onUpdate()"
         >
@@ -125,7 +123,7 @@ import { SystemWipeComponent } from './wipe.component'
         </button>
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
-        <tui-icon icon="@tui.download" />
+        <tui-icon icon="@tui.award" />
         <span tuiTitle>
           <strong>
             {{ 'system.general.ca.title' | i18n }}
@@ -134,7 +132,7 @@ import { SystemWipeComponent } from './wipe.component'
             {{ 'system.general.ca.subtitle' | i18n }}
           </span>
         </span>
-        <button tuiButton (click)="downloadCA()">
+        <button tuiButton iconStart="@tui.download" (click)="downloadCA()">
           {{ 'system.general.ca.button' | i18n }}
         </button>
       </div>
@@ -168,6 +166,12 @@ import { SystemWipeComponent } from './wipe.component'
           </button>
         </div>
       }
+      <img
+        [snek]="score()"
+        class="snek"
+        alt="Play Snake"
+        src="assets/img/icons/snek.png"
+      />
     }
     <!-- hidden element for downloading cert -->
     <a id="download-ca" href="/static/local-root-ca.crt"></a>
@@ -175,6 +179,16 @@ import { SystemWipeComponent } from './wipe.component'
   styles: `
     :host {
       max-inline-size: 40rem;
+    }
+
+    .snek {
+      width: 1rem;
+      opacity: 0.2;
+      cursor: pointer;
+
+      &:hover {
+        opacity: 1;
+      }
     }
 
     strong {
@@ -205,12 +219,12 @@ import { SystemWipeComponent } from './wipe.component'
     TuiButton,
     TuiIcon,
     TitleDirective,
-    SystemSyncComponent,
     TuiButtonLoading,
     TuiButtonSelect,
     TuiDataListWrapper,
     TuiTextfield,
     FormsModule,
+    SnekDirective,
   ],
 })
 export default class SystemGeneralComponent {
@@ -235,6 +249,10 @@ export default class SystemGeneralComponent {
   readonly eos = inject(EOSService)
   readonly i18n = inject(i18nService)
   readonly languages = ['english', 'spanish']
+  readonly score = toSignal(
+    this.patch.watch$('ui', 'gaming', 'snake', 'highScore'),
+    { initialValue: 0 },
+  )
 
   onUpdate() {
     if (this.server()?.statusInfo.updated) {

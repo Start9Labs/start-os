@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core'
 import { ErrorService, MARKDOWN } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
-import { firstValueFrom, merge, shareReplay, Subject } from 'rxjs'
+import { firstValueFrom, merge, of, shareReplay, Subject } from 'rxjs'
 import { REPORT } from 'src/app/components/report.component'
 import {
   ServerNotification,
@@ -94,13 +94,14 @@ export class NotificationService {
     full = false,
   ) {
     const label = full || code === 2 ? title : 'Backup Report'
-    const content = code === 1 ? REPORT : MARKDOWN
+    const component = code === 1 ? REPORT : MARKDOWN
+    const content = code === 1 ? data : of(data)
 
     this.dialogs
-      .open(full ? message : content, {
+      .open(full ? message : component, {
         label,
         data: {
-          content: data,
+          content,
           timestamp: createdAt,
         },
       })

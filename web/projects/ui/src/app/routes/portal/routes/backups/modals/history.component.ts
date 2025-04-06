@@ -228,7 +228,7 @@ export class BackupsHistoryModal {
         label: 'Backup Report',
         data: {
           content: report,
-          timestamp: completedAt,
+          createdAt: completedAt,
         },
       })
       .subscribe()

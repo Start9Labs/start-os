@@ -5,7 +5,7 @@ import { NgModule } from '@angular/core'
 import { RouterModule } from '@angular/router'
 import { AboutComponent } from './about.component'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
-import { MarkdownPipeModule, SafeLinksDirective } from '@start9labs/shared'
+import { MarkdownPipe, SafeLinksDirective } from '@start9labs/shared'
 
 @NgModule({
   imports: [
@@ -14,7 +14,7 @@ import { MarkdownPipeModule, SafeLinksDirective } from '@start9labs/shared'
     TuiTagModule,
     NgDompurifyModule,
     SafeLinksDirective,
-    MarkdownPipeModule,
+    MarkdownPipe,
     TuiButton,
   ],
   declarations: [AboutComponent],

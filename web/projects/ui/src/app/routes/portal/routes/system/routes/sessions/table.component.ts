@@ -87,15 +87,19 @@ import { PlatformInfoPipe } from './platform-info.pipe'
           grid-template-columns: 2.5rem 1fr;
 
           &:has(:checked) .platform {
-            color: var(--tui-text-action);
+            visibility: hidden;
           }
         }
 
         input {
-          @include fullsize();
-          z-index: 1;
-          opacity: 0;
-          transform: none;
+          left: 0.25rem;
+
+          &:not(:checked) {
+            @include fullsize();
+            z-index: 1;
+            visibility: hidden;
+            transform: none;
+          }
         }
 
         td {

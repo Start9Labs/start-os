@@ -44,11 +44,6 @@ export default {
           check: 'Check for updates',
         },
       },
-      sync: {
-        title: 'Clock sync failure',
-        subtitle:
-          'This will cause connectivity issues. To resolve it, refer to the',
-      },
     },
   },
 }

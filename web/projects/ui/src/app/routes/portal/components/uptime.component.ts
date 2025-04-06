@@ -6,8 +6,20 @@ import { tuiInjectElement } from '@taiga-ui/cdk'
   selector: '[appUptime]',
   template: '',
   styles: `
+    :host {
+      &::before {
+        content: 'Uptime: ';
+      }
+
+      &:empty::after {
+        content: '-';
+      }
+    }
+
     :host-context(tui-root._mobile) {
-      display: none;
+      grid-row: 2;
+      margin: 0;
+      font: var(--tui-font-text-ui-s);
     }
   `,
 })
@@ -22,7 +34,7 @@ export class UptimeComponent implements OnChanges, OnDestroy {
     clearInterval(this.interval)
 
     if (!this.appUptime) {
-      this.el.textContent = '-'
+      this.el.textContent = ''
     } else {
       this.el.textContent = uptime(new Date(this.appUptime))
       this.interval = setInterval(() => {

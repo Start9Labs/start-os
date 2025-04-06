@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { TuiDialogService, TuiIcon } from '@taiga-ui/core'
+import { TuiDialogService, TuiIcon, TuiTitle } from '@taiga-ui/core'
+import { TuiCell } from '@taiga-ui/layout'
 import { BackupsUpcomingComponent } from './components/upcoming.component'
 import { HISTORY } from './modals/history.component'
 import { JOBS } from './modals/jobs.component'
@@ -12,12 +13,12 @@ import { BackupsRestoreService } from './services/restore.service'
     <section>
       <h3 class="g-title">Options</h3>
       @for (option of options; track $index) {
-        <button class="g-action" (click)="option.action()">
+        <button tuiCell (click)="option.action()">
           <tui-icon [icon]="option.icon" />
-          <div>
+          <span tuiTitle>
             <strong>{{ option.name }}</strong>
-            <div>{{ option.description }}</div>
-          </div>
+            <span tuiSubtitle>{{ option.description }}</span>
+          </span>
         </button>
       }
     </section>
@@ -27,7 +28,7 @@ import { BackupsRestoreService } from './services/restore.service'
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [BackupsUpcomingComponent, TuiIcon],
+  imports: [BackupsUpcomingComponent, TuiIcon, TuiCell, TuiTitle],
 })
 export default class BackupsComponent {
   private readonly dialogs = inject(TuiDialogService)

@@ -1,7 +1,14 @@
-import { DatePipe } from '@angular/common'
+import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { TuiNotification, TuiTitle } from '@taiga-ui/core'
+import {
+  TuiHint,
+  TuiIcon,
+  TuiLink,
+  TuiNotification,
+  TuiTitle,
+} from '@taiga-ui/core'
+import { TuiCell } from '@taiga-ui/layout'
 import { TimeService } from 'src/app/services/time.service'
 
 @Component({
@@ -11,18 +18,45 @@ import { TimeService } from 'src/app/services/time.service'
     @if (now(); as time) {
       @if (!time.synced) {
         <tui-notification appearance="warning">
-          NTP not synced, time could be wrong
+          <ng-container *ngTemplateOutlet="hint" />
         </tui-notification>
       }
-      <div tuiTitle>
-        <div tuiSubtitle class="g-secondary">
-          {{ time.now | date: 'h:mm a z' : 'UTC' }}
+      <div tuiCell>
+        <div tuiTitle [style.text-align]="'center'">
+          <div tuiSubtitle class="g-secondary">
+            {{ time.now | date: 'h:mm a z' : 'UTC' }}
+          </div>
+          <b>{{ time.now | date: 'MMMM d, y' : 'UTC' }}</b>
         </div>
-        <b>{{ time.now | date: 'MMMM d, y' : 'UTC' }}</b>
+        @if (!time.synced) {
+          <tui-icon
+            icon="@tui.circle-alert"
+            class="g-warning"
+            [tuiHint]="hint"
+          />
+        }
       </div>
     } @else {
       Loading...
     }
+    <ng-template #hint>
+      <div tuiTitle>
+        Clock sync failure
+        <div tuiSubtitle>
+          To resolve it, refer to
+          <a
+            tuiLink
+            iconEnd="@tui.external-link"
+            appearance=""
+            href="https://docs.start9.com/0.3.5.x/support/common-issues#clock-sync-failure"
+            target="_blank"
+            rel="noreferrer"
+            [pseudo]="true"
+            [textContent]="'the docs'"
+          ></a>
+        </div>
+      </div>
+    </ng-template>
   `,
   styles: `
     :host {
@@ -32,14 +66,39 @@ import { TimeService } from 'src/app/services/time.service'
       justify-content: center;
       gap: 1rem;
       margin-bottom: 1.5rem;
+
+      [tuiCell],
+      [tuiTitle],
+      [tuiSubtitle] {
+        margin: 0;
+        justify-content: center;
+      }
     }
 
-    [tuiTitle] {
-      text-align: center;
+    tui-icon {
+      display: none;
+    }
+
+    :host-context(tui-root._mobile) {
+      tui-notification {
+        display: none;
+      }
+
+      tui-icon {
+        display: block;
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiNotification, DatePipe, TuiTitle],
+  imports: [
+    CommonModule,
+    TuiNotification,
+    TuiTitle,
+    TuiLink,
+    TuiCell,
+    TuiIcon,
+    TuiHint,
+  ],
 })
 export class TimeComponent {
   readonly now = toSignal(inject(TimeService).now$)

@@ -5,6 +5,7 @@ import {
   inject,
   input,
 } from '@angular/core'
+import { RouterLink } from '@angular/router'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { tuiDefaultSort } from '@taiga-ui/cdk'
 import { ConfigService } from 'src/app/services/config.service'
@@ -31,6 +32,7 @@ import { ServiceInterfaceComponent } from './interface.component'
         @for (info of interfaces(); track $index) {
           <tr
             serviceInterface
+            [routerLink]="info.routerLink"
             [info]="info"
             [pkg]="pkg()"
             [disabled]="disabled()"
@@ -46,7 +48,7 @@ import { ServiceInterfaceComponent } from './interface.component'
   `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ServiceInterfaceComponent, TuiTable],
+  imports: [ServiceInterfaceComponent, TuiTable, RouterLink],
 })
 export class ServiceInterfacesComponent {
   private readonly config = inject(ConfigService)

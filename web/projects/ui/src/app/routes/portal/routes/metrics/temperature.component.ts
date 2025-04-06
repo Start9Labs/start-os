@@ -56,6 +56,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 
     :host {
       height: 100%;
+      min-height: 7.5rem;
       display: flex;
       flex-direction: column;
       align-items: center;

@@ -4,31 +4,31 @@ import { TuiDialogService } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { HeaderSnekComponent } from './snek.component'
+import { SnekComponent } from './snek.component'
 
 @Directive({
   standalone: true,
-  selector: 'img[appSnek]',
+  selector: 'img[snek]',
 })
-export class HeaderSnekDirective {
+export class SnekDirective {
   private readonly dialogs = inject(TuiDialogService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
 
   @Input()
-  appSnek = 0
+  snek = 0
 
   @HostListener('click')
   async onClick() {
     this.dialogs
-      .open<number>(new PolymorpheusComponent(HeaderSnekComponent), {
+      .open<number>(new PolymorpheusComponent(SnekComponent), {
         label: 'Snake!',
         closeable: false,
         dismissible: false,
-        data: this.appSnek,
+        data: this.snek,
       })
-      .pipe(filter(score => score > this.appSnek))
+      .pipe(filter(score => score > this.snek))
       .subscribe(async score => {
         const loader = this.loader.open('Saving high score...').subscribe()
 

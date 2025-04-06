@@ -8,19 +8,14 @@ import {
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { MarketplacePkg } from '@start9labs/marketplace'
-import { MarkdownPipeModule, SafeLinksDirective } from '@start9labs/shared'
+import { MarkdownPipe, SafeLinksDirective } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import {
-  TuiButton,
-  TuiIcon,
-  TuiLink,
-  TuiLoader,
-  TuiTitle,
-} from '@taiga-ui/core'
+import { TuiButton, TuiIcon, TuiLink, TuiTitle } from '@taiga-ui/core'
 import { TuiExpand } from '@taiga-ui/experimental'
 import {
   TUI_CONFIRM,
   TuiAvatar,
+  TuiButtonLoading,
   TuiChevron,
   TuiFade,
   TuiProgressCircle,
@@ -84,20 +79,22 @@ import UpdatesComponent from './updates.component'
               "
             />
           } @else {
-            @if (ready()) {
-              <button
-                tuiButton
-                iconStart="@tui.arrow-big-up-dash"
-                [appearance]="error() ? 'destructive' : 'primary'"
-                (click.stop)="onClick()"
-              >
-                {{ error() ? 'Retry' : 'Update' }}
-              </button>
-            } @else {
-              <tui-loader [style.width.rem]="2" [inheritColor]="true" />
-            }
+            <button
+              tuiButton
+              size="s"
+              [loading]="!ready()"
+              [appearance]="error() ? 'destructive' : 'primary'"
+              (click.stop)="onClick()"
+            >
+              {{ error() ? 'Retry' : 'Update' }}
+            </button>
           }
-          <button tuiIconButton appearance="icon" [tuiChevron]="expanded()">
+          <button
+            tuiIconButton
+            size="s"
+            appearance="icon"
+            [tuiChevron]="expanded()"
+          >
             Show more
           </button>
         </div>
@@ -119,15 +116,16 @@ import UpdatesComponent from './updates.component'
           </p>
           <p tuiTitle>
             <span>
+              <b>What's new</b>
+              (
               <a
                 tuiLink
                 iconEnd="@tui.external-link"
                 routerLink="/portal/marketplace"
                 [queryParams]="{ url: parent.current()?.url, id: item().id }"
-              >
-                View listing
-              </a>
-              <b>What's new</b>
+                [textContent]="'View listing'"
+              ></a>
+              )
             </span>
           </p>
           <p
@@ -139,8 +137,6 @@ import UpdatesComponent from './updates.component'
     </tr>
   `,
   styles: `
-    @import '@taiga-ui/core/styles/taiga-ui-local';
-
     :host {
       display: contents;
     }
@@ -161,13 +157,6 @@ import UpdatesComponent from './updates.component'
       word-break: break-word;
       clip-path: inset(0 round var(--tui-radius-s));
       cursor: pointer;
-      @include transition(background);
-
-      @media ($tui-mouse) {
-        &:hover {
-          background: var(--tui-background-neutral-1);
-        }
-      }
     }
 
     td {
@@ -190,10 +179,6 @@ import UpdatesComponent from './updates.component'
       &[colspan]:only-child {
         padding: 0 3rem;
         text-align: left;
-
-        [tuiLink] {
-          float: right;
-        }
       }
     }
 
@@ -217,11 +202,6 @@ import UpdatesComponent from './updates.component'
         padding: 0 0.5rem;
       }
 
-      [tuiButton] {
-        font-size: 0;
-        gap: 0;
-      }
-
       .desktop {
         display: none;
       }
@@ -236,19 +216,19 @@ import UpdatesComponent from './updates.component'
     RouterLink,
     TuiExpand,
     TuiButton,
+    TuiButtonLoading,
     TuiChevron,
     TuiAvatar,
     TuiLink,
     TuiIcon,
-    TuiLoader,
     TuiProgressCircle,
     TuiTitle,
-    MarkdownPipeModule,
+    TuiFade,
+    MarkdownPipe,
     NgDompurifyModule,
     SafeLinksDirective,
     DatePipe,
     InstallingProgressPipe,
-    TuiFade,
   ],
 })
 export class UpdatesItemComponent {

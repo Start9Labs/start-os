@@ -27,12 +27,16 @@ import { StatusComponent } from './status.component'
       <a [routerLink]="routerLink">{{ manifest.title }}</a>
     </td>
     <td [style.grid-area]="'2 / 2'">{{ manifest.version }}</td>
-    <td [appUptime]="$any(pkg.status).started"></td>
     <td
-      [style.grid-area]="'3 / 2'"
+      [appUptime]="$any(pkg.status).started"
+      [style.grid-column]="2"
+      [style.grid-row]="4"
+    ></td>
+    <td
       appStatus
       [pkg]="pkg"
       [hasDepErrors]="hasError(depErrors)"
+      [style.grid-area]="'3 / 2'"
     ></td>
     <td [style.grid-area]="'2 / 3'" [style.text-align]="'center'">
       <fieldset
@@ -56,6 +60,10 @@ import { StatusComponent } from './status.component'
       }
     }
 
+    td::before {
+      display: none;
+    }
+
     img {
       display: block;
       height: 2rem;
@@ -75,7 +83,7 @@ import { StatusComponent } from './status.component'
     :host-context(tui-root._mobile) {
       position: relative;
       display: grid;
-      grid-template: 2rem 2rem 2rem/6rem 1fr 2rem;
+      grid-template: 1.25rem 1.75rem 1.5rem 1.25rem/6rem 1fr 2rem;
       align-items: center;
       padding: 1rem;
 
@@ -90,6 +98,15 @@ import { StatusComponent } from './status.component'
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+        color: var(--tui-text-secondary);
+
+        &::before {
+          display: inline;
+        }
+
+        &:empty {
+          display: none;
+        }
       }
     }
   `,

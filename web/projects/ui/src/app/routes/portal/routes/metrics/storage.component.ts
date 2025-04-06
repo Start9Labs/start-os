@@ -30,7 +30,7 @@ const LABELS = {
     progress {
       height: 1.5rem;
       width: 80%;
-      margin: 3.75rem auto;
+      margin: 4.25rem auto;
       border-radius: 0;
       clip-path: none;
       mask: linear-gradient(to right, #000 80%, transparent 80%);

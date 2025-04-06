@@ -63,7 +63,7 @@ type ClearnetForm = {
       </ng-template>
       <button
         tuiButton
-        appearance="accent"
+        [appearance]="isPublic() ? 'primary-destructive' : 'accent'"
         [iconStart]="isPublic() ? '@tui.globe-lock' : '@tui.globe'"
         [style.margin-inline-start]="'auto'"
         (click)="toggle()"
