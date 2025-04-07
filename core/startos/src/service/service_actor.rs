@@ -99,7 +99,8 @@ async fn service_actor_loop(
                 }
                 Ok(None)
             })
-            .await?;
+            .await
+            .result?;
         if let Some((previous, new_state)) = major_changes_state {
             if let Some(callbacks) = seed.ctx.callbacks.get_status(id) {
                 callbacks

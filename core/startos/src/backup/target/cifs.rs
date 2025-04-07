@@ -112,7 +112,8 @@ pub async fn add(
             db.as_private_mut().as_cifs_mut().insert(&id, &cifs)?;
             Ok(id)
         })
-        .await?;
+        .await
+        .result?;
     Ok(KeyVal {
         key: BackupTargetId::Cifs { id },
         value: BackupTarget::Cifs(CifsBackupTarget {
@@ -176,7 +177,8 @@ pub async fn update(
                 })?
                 .ser(&cifs)
         })
-        .await?;
+        .await
+        .result?;
     Ok(KeyVal {
         key: BackupTargetId::Cifs { id },
         value: BackupTarget::Cifs(CifsBackupTarget {
@@ -207,7 +209,8 @@ pub async fn remove(ctx: RpcContext, RemoveParams { id }: RemoveParams) -> Resul
     };
     ctx.db
         .mutate(|db| db.as_private_mut().as_cifs_mut().remove(&id))
-        .await?;
+        .await
+        .result?;
     Ok(())
 }
 

@@ -138,6 +138,7 @@ pub async fn list(
             }
         })
         .await
+        .result
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -161,6 +162,7 @@ pub async fn remove(
             Ok(())
         })
         .await
+        .result
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -264,6 +266,7 @@ pub async fn mark_unseen(
             Ok(())
         })
         .await
+        .result
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -288,6 +291,7 @@ pub async fn create(
     ctx.db
         .mutate(|db| notify(db, package, level, title, message, ()))
         .await
+        .result
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, TS)]

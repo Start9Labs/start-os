@@ -1,5 +1,33 @@
 #!/bin/bash
 
+# =============================================================================
+# Wireguard VPS Proxy Setup
+# =============================================================================
+#
+# This script automates the setup of a WireGuard VPN server on a remote VPS
+# for StartOS Clearnet functionality. It handles:
+#
+# 1. SSH key-based authentication setup
+# 2. Root access configuration (if needed)
+# 3. WireGuard server installation
+# 4. Configuration file generation and import
+#
+# Usage:
+#   wireguard-vps-proxy-setup [-h] [-i IP] [-u USERNAME] [-p PORT] [-k SSH_KEY]
+#
+# Options:
+#   -h    Show help message
+#   -i    VPS IP address
+#   -u    SSH username (default: root)
+#   -p    SSH port (default: 22)
+#   -k    Path to custom SSH private key
+#
+# Example:
+#   wireguard-vps-proxy-setup -i 110.18.1.1 -u debian
+#
+# Note: This script requires root privileges and will auto-elevate if needed.
+# =============================================================================
+
 # Colors for better output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -8,7 +36,7 @@ YELLOW='\033[1;33m'
 NC='\033[0;37m' # No Color
 
 # --- Constants ---
-readonly WIREGUARD_INSTALL_URL="https://raw.githubusercontent.com/start9labs/wg-vps-setup/master/wireguard-install.sh"
+readonly WIREGUARD_INSTALL_URL="https://raw.githubusercontent.com/start9labs/wireguard-vps-proxy-setup/master/wireguard-install.sh"
 readonly SSH_KEY_DIR="/home/start9/.ssh"
 readonly SSH_KEY_NAME="id_ed25519"
 readonly SSH_PRIVATE_KEY="$SSH_KEY_DIR/$SSH_KEY_NAME"
@@ -31,7 +59,7 @@ check_root() {
 print_banner() {
     echo -e "${BLUE}"
     echo "================================================"
-    echo -e "     ${NC}StartOS WireGuard VPS Setup Tool${BLUE}              "
+    echo -e "     ${NC}Wireguard VPS Proxy Setup${BLUE}              "
     echo "================================================"
     echo -e "${NC}"
 }
@@ -51,23 +79,53 @@ print_usage() {
 # Function to display end message
 display_end_message() {
     echo -e "\n${BLUE}------------------------------------------------------------------${NC}"
-    echo -e "${NC}WireGuard server setup complete!"
+    echo -e "${GREEN}Wireguard VPS Proxy server setup complete!${NC}"
     echo -e "${BLUE}------------------------------------------------------------------${NC}"
-    echo -e "\n${YELLOW}To expose your services to the Clearnet, use the following commands on your StartOS system (replace placeholders):${NC}"
-    echo -e "\n   ${YELLOW}1. Initialize ACME (This only needs to be done once):${NC}"
-    echo "      start-cli net acme init --provider=letsencrypt --contact=mailto:your-email@example.com"
-    echo -e "\n   ${YELLOW}2. Expose 'hello-world' on port 80 through VPS:${NC}"
-    echo "      start-cli package host hello-world binding ui-multi set-public 80"
-    echo -e "\n   ${YELLOW}3. Add a domain to your 'hello-world' service:${NC}"
-    echo "      start-cli package host hello-world address ui-multi domain add your-domain.example.com --acme=letsencrypt"
-    echo -e "\n   ${YELLOW}Replace '${NC}your-email@example.com${YELLOW}' with your actual email address, '${NC}your-domain.example.com${YELLOW}' with your actual domain and '${NC}hello-world${YELLOW}' with your actual service id.${NC}"
-    echo -e "${BLUE}------------------------------------------------------------------${NC}"
+    echo -e "\n${GREEN}Clearnet functionality has been enabled via VPS (${VPS_IP})${NC}"
+    echo -e "\n${YELLOW}Next steps:${NC}"
+    echo -e "Visit https://docs.start9.com to complete the Clearnet setup"
+    echo -e "\n${BLUE}------------------------------------------------------------------${NC}"
 }
 
 # Function to validate IP address
 validate_ip() {
     local ip=$1
+    # IPv4 validation
     if [[ $ip =~ ^[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}$ ]]; then
+        # Additional IPv4 validation to ensure each octet is <= 255
+        local IFS='.'
+        read -ra ADDR <<< "$ip"
+        for i in "${ADDR[@]}"; do
+            if [ "$i" -gt 255 ]; then
+                return 1
+            fi
+        done
+        return 0
+    # IPv6 validation
+    elif [[ $ip =~ ^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){6}:[0-9a-fA-F]{1,4}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){5}(:[0-9a-fA-F]{1,4}){1,2}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){4}(:[0-9a-fA-F]{1,4}){1,3}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){3}(:[0-9a-fA-F]{1,4}){1,4}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){2}(:[0-9a-fA-F]{1,4}){1,5}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){1}(:[0-9a-fA-F]{1,4}){1,6}$ ]] || \
+         [[ $ip =~ ^::([0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}$ ]] || \
+         [[ $ip =~ ^[0-9a-fA-F]{1,4}::([0-9a-fA-F]{1,4}:){0,5}[0-9a-fA-F]{1,4}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,4}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,3}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,2}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,1}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){1,7}:$ ]] || \
+         [[ $ip =~ ^::([0-9a-fA-F]{1,4}:){0,7}[0-9a-fA-F]{1,4}$ ]] || \
+         [[ $ip =~ ^[0-9a-fA-F]{1,4}::([0-9a-fA-F]{1,4}:){0,6}[0-9a-fA-F]{1,4}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){1,6}(:[0-9a-fA-F]{1,4}){1,1}$ ]] || \
+         [[ $ip =~ ^([0-9a-fA-F]{1,4}:){1,7}:$ ]] || \
+         [[ $ip =~ ^::$ ]]; then
         return 0
     else
         return 1
@@ -88,6 +146,15 @@ configure_ssh_key_auth() {
         # Add PubkeyAuthentication if it doesnt exist
         else
             echo "PubkeyAuthentication yes" >> /etc/ssh/sshd_config
+        fi
+
+        # Enable root login
+        if grep -q "^#PermitRootLogin" /etc/ssh/sshd_config; then
+            sed -i "s/^#PermitRootLogin.*/PermitRootLogin yes/" /etc/ssh/sshd_config
+        elif grep -q "^PermitRootLogin" /etc/ssh/sshd_config; then
+            sed -i "s/^PermitRootLogin.*/PermitRootLogin yes/" /etc/ssh/sshd_config
+        else
+            echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
         fi
 
         # Configure AuthorizedKeysFile if needed
@@ -203,7 +270,7 @@ install_wireguard() {
     fi
 
     # Run the remote install script and let it complete
-    if ! ssh -o ConnectTimeout=60 -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" -t "$SSH_USER@$VPS_IP" "bash -c 'export TERM=xterm-256color; export STARTOS_HOSTNAME=$(hostname); bash ~/wireguard-install.sh'"; then
+    if ! ssh -o ConnectTimeout=60 -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" -t "$SSH_USER@$VPS_IP" "bash -c 'export TERM=xterm-256color; export STARTOS_HOSTNAME=clearnet; bash ~/wireguard-install.sh'"; then
         echo -e "${RED}WireGuard installation failed on remote server.${NC}"
         return 1
     fi
@@ -215,6 +282,74 @@ install_wireguard() {
     fi
 
     echo -e "\n${GREEN}WireGuard installation completed successfully!${NC}"
+    return 0
+}
+
+# Function to enable root login via SSH
+enable_root_login() {
+    echo -e "${BLUE}Checking and configuring root SSH access...${NC}"
+    
+    # Try to modify sshd config using sudo
+    if ! ssh -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$VPS_IP" '
+        # Check if we can use sudo without password
+        if ! sudo -n true 2>/dev/null; then
+            echo -e "\033[1;33mNOTE: You may be prompted for your sudo password.\033[0m"
+        fi
+        
+        # Check if user is in sudo group
+        if ! groups | grep -q sudo; then
+            echo -e "\033[1;31mError: Your user is not in the sudo group. Root access cannot be configured.\033[0m"
+            exit 1
+        fi
+        
+        # Backup sshd config
+        sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+        
+        # Enable root login with SSH keys only
+        if sudo grep -q "^PermitRootLogin" /etc/ssh/sshd_config; then
+            sudo sed -i "s/^PermitRootLogin.*/PermitRootLogin prohibit-password/" /etc/ssh/sshd_config
+        else
+            echo "PermitRootLogin prohibit-password" | sudo tee -a /etc/ssh/sshd_config
+        fi
+        
+        # Ensure password authentication is disabled
+        if sudo grep -q "^PasswordAuthentication" /etc/ssh/sshd_config; then
+            sudo sed -i "s/^PasswordAuthentication.*/PasswordAuthentication no/" /etc/ssh/sshd_config
+        else
+            echo "PasswordAuthentication no" | sudo tee -a /etc/ssh/sshd_config
+        fi
+        
+        # Set up root SSH directory and keys
+        echo -e "\033[1;33mSetting up root SSH access...\033[0m"
+        sudo mkdir -p /root/.ssh
+        sudo cp ~/.ssh/authorized_keys /root/.ssh/
+        sudo chown -R root:root /root/.ssh
+        sudo chmod 700 /root/.ssh
+        sudo chmod 600 /root/.ssh/authorized_keys
+        
+        # Reload SSH service
+        sudo systemctl reload sshd
+        
+        # Verify the changes
+        if ! sudo grep -q "^PermitRootLogin prohibit-password" /etc/ssh/sshd_config; then
+            echo -e "\033[1;31mError: Failed to verify root login configuration.\033[0m"
+            exit 1
+        fi
+        
+        # Test root SSH access
+        if ! sudo -n true 2>/dev/null; then
+            echo -e "\033[1;33mNOTE: Please try to log in as root now using your SSH key.\033[0m"
+            echo -e "\033[1;33mIf successful, run this script again without the -u parameter.\033[0m"
+        else
+            echo -e "\033[1;32mRoot SSH access has been configured successfully!\033[0m"
+        fi
+    '; then
+        echo -e "${RED}Failed to configure root SSH access.${NC}"
+        return 1
+    fi
+    
+    echo -e "${GREEN}Root SSH access has been configured successfully!${NC}"
+    echo -e "${YELLOW}Please try to log in as root now using your SSH key. If successful, run this script again without the -u parameter.${NC}"
     return 0
 }
 
@@ -311,27 +446,80 @@ echo -e "${GREEN}SSH key-based authentication configured successfully!${NC}"
 
 # Test SSH connection using key-based authentication
 echo -e "\nTesting SSH connection with key-based authentication..."
-if ! ssh -q -o BatchMode=yes -o ConnectTimeout=5 -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$VPS_IP" 'grep -q "^PubkeyAuthentication yes" /etc/ssh/sshd_config'; then
-    echo -e "\n${RED}SSH key-based authentication is not enabled on your VPS.${NC}"
-    echo -e "\n${YELLOW}Would you like this script to automatically enable SSH key authentication? (y/N):${NC} "
-    read -r answer
+if ! ssh -q -o BatchMode=yes -o ConnectTimeout=5 -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$VPS_IP" 'exit'; then
+    echo -e "${RED}SSH connection test failed. Please check your credentials and try again.${NC}"
+    exit 1
+fi
 
+# If we're connecting as a non-root user, set up root access first
+if [ "$SSH_USER" != "root" ]; then
+    echo -e "\n${YELLOW}You are connecting as a non-root user. This script needs to enable root SSH access.${NC}"
+    echo -e "${YELLOW}This is a one-time setup that will allow direct root login for WireGuard installation.${NC}"
+    echo -n -e "${YELLOW}Would you like to proceed? (y/N): ${NC}"
+    read -r answer
+    
     if [[ "$answer" =~ ^[Yy]$ ]]; then
-        configure_ssh_key_auth
+        if enable_root_login; then
+            echo -e "\n${BLUE}------------------------------------------------------------------${NC}"
+            echo -e "${GREEN}Root SSH access has been configured successfully!${NC}"
+            echo -e "${YELLOW}Please run this script again without the -u parameter to continue setup.${NC}"
+            echo -e "${BLUE}------------------------------------------------------------------${NC}"
+            exit 0
+        else
+            echo -e "${RED}Failed to configure root SSH access. Please check your sudo privileges and try again.${NC}"
+            exit 1
+        fi
     else
         echo -e "\n${BLUE}------------------------------------------------------------------${NC}"
-        echo -e "${YELLOW}To manually enable SSH key authentication:${NC}"
+        echo -e "${YELLOW}To manually configure SSH for root access:${NC}"
         echo -e "\n   ${YELLOW}1. Connect to your VPS and edit sshd_config:${NC}"
-        echo "      nano /etc/ssh/sshd_config"
-        echo -e "\n   ${YELLOW}2. Find and uncomment or add the line:${NC}"
+        echo "      sudo nano /etc/ssh/sshd_config"
+        echo -e "\n   ${YELLOW}2. Find and uncomment or add these lines:${NC}"
         echo "      PubkeyAuthentication yes"
+        echo "      PermitRootLogin yes"
+        echo "      AuthorizedKeysFile     .ssh/authorized_keys .ssh/authorized_keys2"
         echo -e "\n   ${YELLOW}3. Restart the SSH service:${NC}"
-        echo "      systemctl restart sshd"
+        echo "      sudo systemctl restart sshd"
+        echo -e "\n   ${YELLOW}4. Copy your SSH key to root user:${NC}"
+        echo "      sudo mkdir -p /root/.ssh"
+        echo "      sudo cp ~/.ssh/authorized_keys /root/.ssh/"
+        echo "      sudo chown -R root:root /root/.ssh"
+        echo "      sudo chmod 700 /root/.ssh"
+        echo "      sudo chmod 600 /root/.ssh/authorized_keys"
         echo -e "${BLUE}------------------------------------------------------------------${NC}"
-        echo -e "\n${YELLOW}Please enable SSH key authentication and run this script again.${NC}"
+        echo -e "\n${YELLOW}After completing these steps, run this script again without the -u parameter.${NC}"
         exit 1
     fi
 fi
+
+# Check if root login is permitted when connecting as root
+if [ "$SSH_USER" = "root" ]; then
+    # Check for both "yes" and "prohibit-password" as valid root login settings
+    if ! ssh -q -o BatchMode=yes -o ConnectTimeout=5 -i "$SSH_PRIVATE_KEY" -o StrictHostKeyChecking=no -p "$SSH_PORT" "$SSH_USER@$VPS_IP" 'grep -q "^PermitRootLogin.*\(yes\|prohibit-password\)" /etc/ssh/sshd_config'; then
+        echo -e "\n${RED}Root SSH login is not enabled on your VPS.${NC}"
+        echo -e "\n${YELLOW}Would you like this script to automatically enable root SSH access? (y/N):${NC} "
+        read -r answer
+
+        if [[ "$answer" =~ ^[Yy]$ ]]; then
+            configure_ssh_key_auth
+        else
+            echo -e "\n${BLUE}------------------------------------------------------------------${NC}"
+            echo -e "${YELLOW}To manually configure SSH for root access:${NC}"
+            echo -e "\n   ${YELLOW}1. Connect to your VPS and edit sshd_config:${NC}"
+            echo "      sudo nano /etc/ssh/sshd_config"
+            echo -e "\n   ${YELLOW}2. Find and uncomment or add these lines:${NC}"
+            echo "      PubkeyAuthentication yes"
+            echo "      PermitRootLogin prohibit-password"
+            echo "      AuthorizedKeysFile     .ssh/authorized_keys .ssh/authorized_keys2"
+            echo -e "\n   ${YELLOW}3. Restart the SSH service:${NC}"
+            echo "      sudo systemctl restart sshd"
+            echo -e "${BLUE}------------------------------------------------------------------${NC}"
+            echo -e "\n${YELLOW}Please enable root SSH access and run this script again.${NC}"
+            exit 1
+        fi
+    fi
+fi
+
 echo -e "${GREEN}SSH connection successful with key-based authentication!${NC}"
 
 # Download the WireGuard install script locally

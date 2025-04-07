@@ -290,7 +290,8 @@ async fn cli_apply(
                 };
                 Ok::<_, Error>((value, ()))
             })
-            .await?;
+            .await
+            .result?;
     } else {
         let method = parent_method.into_iter().chain(method).join(".");
         context
@@ -328,6 +329,7 @@ pub async fn apply(ctx: RpcContext, ApplyParams { expr }: ApplyParams) -> Result
             )
         })
         .await
+        .result
 }
 
 pub fn put<C: Context>() -> ParentHandler<C> {

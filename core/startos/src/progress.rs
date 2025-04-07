@@ -294,7 +294,8 @@ impl FullProgressTracker {
                             Ok(true)
                         }
                     })
-                    .await?
+                    .await
+                    .result?
                 {
                     break;
                 }

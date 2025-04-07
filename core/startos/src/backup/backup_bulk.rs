@@ -59,7 +59,8 @@ impl BackupStatusGuard {
                     .as_backup_progress_mut()
                     .ser(&None)
             })
-            .await?;
+            .await
+            .result?;
         }
         if let Some(db) = self.0.take() {
             match result {
@@ -124,7 +125,8 @@ impl BackupStatusGuard {
                     })
                     .await
                 }
-            }?;
+            }
+            .result?;
         }
         Ok(())
     }
@@ -141,6 +143,7 @@ impl Drop for BackupStatusGuard {
                         .ser(&None)
                 })
                 .await
+                .result
                 .log_err()
             });
         }
@@ -187,7 +190,8 @@ pub async fn backup_all(
                     db.as_public().as_server_info().as_id().de()?,
                 ))
             })
-            .await?,
+            .await
+            .result?,
         BackupStatusGuard::new(ctx.db.clone()),
     );
 
@@ -348,7 +352,8 @@ async fn perform_backup(
                 .as_last_backup_mut()
                 .ser(&Some(timestamp))
         })
-        .await?;
+        .await
+        .result?;
 
     Ok(backup_report)
 }

@@ -193,8 +193,8 @@ export function makeEffects(context: EffectContext): Effects {
         T.Effects["exposeForDependents"]
       >
     },
-    getContainerIp(...[]: Parameters<T.Effects["getContainerIp"]>) {
-      return rpcRound("get-container-ip", {}) as ReturnType<
+    getContainerIp(...[options]: Parameters<T.Effects["getContainerIp"]>) {
+      return rpcRound("get-container-ip", options) as ReturnType<
         T.Effects["getContainerIp"]
       >
     },

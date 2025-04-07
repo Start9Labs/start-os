@@ -98,7 +98,8 @@ async fn setup_init(
                 .ser(&account.password)?;
             Ok(account)
         })
-        .await?;
+        .await
+        .result?;
 
     Ok((account, init_result))
 }

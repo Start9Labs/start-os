@@ -62,7 +62,7 @@ pub struct RpcContextSeed {
     pub lxc_manager: Arc<LxcManager>,
     pub open_authed_continuations: OpenAuthedContinuations<Option<InternedString>>,
     pub rpc_continuations: RpcContinuations,
-    pub callbacks: ServiceCallbacks,
+    pub callbacks: Arc<ServiceCallbacks>,
     pub wifi_manager: Arc<RwLock<Option<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
     pub client: Client,
@@ -201,7 +201,8 @@ impl RpcContext {
                                 .ser(&true)
                         })
                         .await
-                        .unwrap()
+                        .result
+                        .log_err();
                     })
                     .into(),
                 )
@@ -229,6 +230,7 @@ impl RpcContext {
             sync_db: watch::Sender::new(db.sequence().await),
             db,
             account: RwLock::new(account),
+            callbacks: net_controller.callbacks.clone(),
             net_controller,
             os_net_service,
             s9pk_arch: if config.multi_arch_s9pks.unwrap_or(false) {
@@ -243,7 +245,6 @@ impl RpcContext {
             lxc_manager: Arc::new(LxcManager::new()),
             open_authed_continuations: OpenAuthedContinuations::new(),
             rpc_continuations: RpcContinuations::new(),
-            callbacks: Default::default(),
             wifi_manager: Arc::new(RwLock::new(wifi_interface.clone().map(|i| WpaCli::init(i)))),
             current_secret: Arc::new(
                 Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).map_err(|e| {
@@ -327,7 +328,8 @@ impl RpcContext {
                 }
                 Ok(())
             })
-            .await?;
+            .await
+            .result?;
         let db = self.db.clone();
         self.add_cron(async move {
             loop {
@@ -352,6 +354,7 @@ impl RpcContext {
                         Ok(())
                     })
                     .await
+                    .result
                 {
                     tracing::error!("Error in session cleanup cron: {e}");
                     tracing::debug!("{e:?}");
@@ -421,7 +424,8 @@ impl RpcContext {
                 }
                 Ok(())
             })
-            .await?;
+            .await
+            .result?;
         check_requested_actions.complete();
 
         Ok(())

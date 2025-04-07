@@ -139,18 +139,20 @@ impl From<PackSource> for DynFileSource {
 #[derive(Deserialize, Serialize, Parser)]
 pub struct PackParams {
     pub path: Option<PathBuf>,
-    #[arg(short = 'o', long = "output")]
+    #[arg(short, long)]
     pub output: Option<PathBuf>,
-    #[arg(long = "javascript")]
+    #[arg(long)]
     pub javascript: Option<PathBuf>,
-    #[arg(long = "icon")]
+    #[arg(long)]
     pub icon: Option<PathBuf>,
-    #[arg(long = "license")]
+    #[arg(long)]
     pub license: Option<PathBuf>,
-    #[arg(long = "instructions")]
+    #[arg(long)]
     pub instructions: Option<PathBuf>,
-    #[arg(long = "assets")]
+    #[arg(long, conflicts_with = "no-assets")]
     pub assets: Option<PathBuf>,
+    #[arg(long, conflicts_with = "assets")]
+    pub no_assets: bool,
 }
 impl PackParams {
     fn path(&self) -> &Path {
@@ -693,14 +695,16 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
     )
     .await?;
 
-    let assets_dir = params.assets();
-    s9pk.as_archive_mut().contents_mut().insert_path(
-        "assets.squashfs",
-        Entry::file(TmpSource::new(
-            tmp_dir.clone(),
-            PackSource::Squashfs(Arc::new(SqfsDir::new(assets_dir, tmp_dir.clone()))),
-        )),
-    )?;
+    if !params.no_assets {
+        let assets_dir = params.assets();
+        s9pk.as_archive_mut().contents_mut().insert_path(
+            "assets.squashfs",
+            Entry::file(TmpSource::new(
+                tmp_dir.clone(),
+                PackSource::Squashfs(Arc::new(SqfsDir::new(assets_dir, tmp_dir.clone()))),
+            )),
+        )?;
+    }
 
     s9pk.load_images(tmp_dir.clone()).await?;
 
@@ -810,8 +814,10 @@ pub async fn list_ingredients(_: CliContext, params: PackParams) -> Result<Vec<P
         }
     }
 
-    let assets_dir = params.assets();
-    ingredients.push(assets_dir);
+    if !params.no_assets {
+        let assets_dir = params.assets();
+        ingredients.push(assets_dir);
+    }
 
     for image in manifest.images.values() {
         ingredients.extend(image.source.ingredients());

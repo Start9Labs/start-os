@@ -467,3 +467,25 @@ export type MountOptionsBackup = {
 function wait(time: number) {
   return new Promise((resolve) => setTimeout(resolve, time))
 }
+
+export class ExitError extends Error {
+  constructor(
+    readonly command: string,
+    readonly result: {
+      exitCode: number | null
+      exitSignal: T.Signals | null
+      stdout: string | Buffer
+      stderr: string | Buffer
+    },
+  ) {
+    let message: string
+    if (result.exitCode) {
+      message = `${command} failed with exit code ${result.exitCode}: ${result.stderr}`
+    } else if (result.exitSignal) {
+      message = `${command} terminated with signal ${result.exitSignal}: ${result.stderr}`
+    } else {
+      message = `${command} succeeded: ${result.stdout}`
+    }
+    super(message)
+  }
+}

@@ -3,7 +3,7 @@ use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
-use imbl::OrdMap;
+use imbl::{vector, OrdMap};
 use imbl_value::InternedString;
 use ipnet::IpNet;
 use models::{HostId, OptionExt, PackageId};
@@ -26,6 +26,7 @@ use crate::net::tor::TorController;
 use crate::net::utils::ipv6_is_local;
 use crate::net::vhost::{AlpnInfo, TargetInfo, VHostController};
 use crate::prelude::*;
+use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::util::serde::MaybeUtf8String;
 use crate::HOST_IP;
 
@@ -37,6 +38,7 @@ pub struct NetController {
     pub(super) dns: DnsController,
     pub(super) forward: LanPortForwardController,
     pub(super) server_hostnames: Vec<Option<InternedString>>,
+    pub(crate) callbacks: Arc<ServiceCallbacks>,
 }
 
 impl NetController {
@@ -66,6 +68,7 @@ impl NetController {
                 // LAN mDNS
                 Some(hostname.local_domain_name()),
             ],
+            callbacks: Arc::new(ServiceCallbacks::default()),
         })
     }
 
@@ -80,7 +83,7 @@ impl NetController {
         let res = NetService::new(NetServiceData {
             id: Some(package),
             ip,
-            dns,
+            _dns: dns,
             controller: Arc::downgrade(self),
             binds: BTreeMap::new(),
         })?;
@@ -94,7 +97,7 @@ impl NetController {
         let service = NetService::new(NetServiceData {
             id: None,
             ip: [127, 0, 0, 1].into(),
-            dns,
+            _dns: dns,
             controller: Arc::downgrade(self),
             binds: BTreeMap::new(),
         })?;
@@ -131,7 +134,7 @@ struct HostBinds {
 pub struct NetServiceData {
     id: Option<PackageId>,
     ip: Ipv4Addr,
-    dns: Arc<()>,
+    _dns: Arc<()>,
     controller: Weak<NetController>,
     binds: BTreeMap<HostId, HostBinds>,
 }
@@ -178,7 +181,8 @@ impl NetServiceData {
                     }
                     Ok(res)
                 })
-                .await?;
+                .await
+                .result?;
             let mut errors = ErrorCollection::new();
             for (id, host) in hosts.0 {
                 errors.handle(self.update(ctrl, id, host).await);
@@ -206,7 +210,8 @@ impl NetServiceData {
                     })?;
                     host.de()
                 })
-                .await?;
+                .await
+                .result?;
             self.update(ctrl, HostId::default(), host).await
         }
     }
@@ -578,13 +583,22 @@ impl NetServiceData {
             }
         }
 
-        ctrl.db
+        let res = ctrl
+            .db
             .mutate(|db| {
                 host_for(db, self.id.as_ref(), &id)?
                     .as_hostname_info_mut()
                     .ser(&hostname_info)
             })
-            .await?;
+            .await;
+        res.result?;
+        if let Some(pkg_id) = self.id.as_ref() {
+            if res.revision.is_some() {
+                if let Some(cbs) = ctrl.callbacks.get_host_info(&(pkg_id.clone(), id)) {
+                    cbs.call(vector![]).await?;
+                }
+            }
+        }
         Ok(())
     }
 
@@ -639,7 +653,7 @@ impl NetService {
             data: Arc::new(Mutex::new(NetServiceData {
                 id: None,
                 ip: Ipv4Addr::new(0, 0, 0, 0),
-                dns: Default::default(),
+                _dns: Default::default(),
                 controller: Default::default(),
                 binds: BTreeMap::new(),
             })),
@@ -686,7 +700,8 @@ impl NetService {
                 db.as_private_mut().as_available_ports_mut().ser(&ports)?;
                 Ok(host)
             })
-            .await?;
+            .await
+            .result?;
         data.update(&*ctrl, id, host).await
     }
 

@@ -47,7 +47,12 @@ import { GetSystemSmtp } from "./util"
 import { nullIfEmpty } from "./util"
 import { getServiceInterface, getServiceInterfaces } from "./util"
 import { getStore } from "./store/getStore"
-import { CommandOptions, MountOptions, SubContainer } from "./util/SubContainer"
+import {
+  CommandOptions,
+  ExitError,
+  MountOptions,
+  SubContainer,
+} from "./util/SubContainer"
 import { splitCommand } from "./util"
 import { Mounts } from "./mainFn/Mounts"
 import { setupDependencies } from "../../base/lib/dependencies/setupDependencies"
@@ -104,7 +109,10 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
       | "getHostInfo"
     type MainUsedEffects = "setMainStatus" | "setHealth"
     type CallbackEffects = "constRetry" | "clearCallbacks"
-    type AlreadyExposed = "getSslCertificate" | "getSystemSmtp"
+    type AlreadyExposed =
+      | "getSslCertificate"
+      | "getSystemSmtp"
+      | "getContainerIp"
 
     // prettier-ignore
     type StartSdkEffectWrapper = {
@@ -123,7 +131,6 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
       getServicePortForward: (effects, ...args) =>
         effects.getServicePortForward(...args),
       clearBindings: (effects, ...args) => effects.clearBindings(...args),
-      getContainerIp: (effects, ...args) => effects.getContainerIp(...args),
       getOsIp: (effects, ...args) => effects.getOsIp(...args),
       getSslKey: (effects, ...args) => effects.getSslKey(...args),
       setDataVersion: (effects, ...args) => effects.setDataVersion(...args),
@@ -191,7 +198,61 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           opts: { packageId: PackageId },
         ) => getServiceInterfaces(effects, opts),
       },
-
+      getContainerIp: (
+        effects: T.Effects,
+        options: Omit<
+          Parameters<T.Effects["getContainerIp"]>[0],
+          "callback"
+        > = {},
+      ) => {
+        async function* watch() {
+          while (true) {
+            let callback: () => void = () => {}
+            const waitForNext = new Promise<void>((resolve) => {
+              callback = resolve
+            })
+            yield await effects.getContainerIp({ ...options, callback })
+            await waitForNext
+          }
+        }
+        return {
+          const: () =>
+            effects.getContainerIp({
+              ...options,
+              callback:
+                effects.constRetry &&
+                (() => effects.constRetry && effects.constRetry()),
+            }),
+          once: () => effects.getContainerIp(options),
+          watch,
+          onChange: (
+            callback: (
+              value: string | null,
+              error?: Error,
+            ) => void | Promise<void>,
+          ) => {
+            ;(async () => {
+              for await (const value of watch()) {
+                try {
+                  await callback(value)
+                } catch (e) {
+                  console.error(
+                    "callback function threw an error @ getContainerIp.onChange",
+                    e,
+                  )
+                }
+              }
+            })()
+              .catch((e) => callback(null, e))
+              .catch((e) =>
+                console.error(
+                  "callback function threw an error @ getContainerIp.onChange",
+                  e,
+                ),
+              )
+          },
+        }
+      },
       store: {
         get: <E extends Effects, StoreValue = unknown>(
           effects: E,
@@ -230,7 +291,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         },
         command: T.CommandType,
         options: CommandOptions & {
-          mounts?: { mountpoint: string; options: MountOptions }[]
+          mounts: Mounts<Manifest>
         },
         /**
          * A name to use to refer to the ephemeral subcontainer for debugging purposes
@@ -527,7 +588,10 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         })
        * ```
        */
-      setupInstall: (fn: InstallFn<Manifest, Store>) => Install.of(fn),
+      setupInstall: (
+        fn: InstallFn<Manifest, Store>,
+        preFn?: InstallFn<Manifest, Store>,
+      ) => Install.of(fn, preFn),
       /**
        * @description Use this function to determine how this service will be hosted and served. The function executes on service install, service update, and inputSpec save.
        *
@@ -1076,7 +1140,7 @@ export async function runCommand<Manifest extends T.SDKManifest>(
   image: { imageId: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
   command: T.CommandType,
   options: CommandOptions & {
-    mounts?: { mountpoint: string; options: MountOptions }[]
+    mounts: Mounts<Manifest>
   },
   name?: string,
 ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
@@ -1094,7 +1158,7 @@ export async function runCommand<Manifest extends T.SDKManifest>(
   return SubContainer.with(
     effects,
     image,
-    options.mounts || [],
+    options.mounts.build(),
     name ||
       commands
         .map((c) => {
@@ -1105,6 +1169,13 @@ export async function runCommand<Manifest extends T.SDKManifest>(
           }
         })
         .join(" "),
-    (subcontainer) => subcontainer.exec(commands),
+    async (subcontainer) => {
+      const res = await subcontainer.exec(commands)
+      if (res.exitCode || res.exitSignal) {
+        throw new ExitError(commands[0], res)
+      } else {
+        return res
+      }
+    },
   )
 }

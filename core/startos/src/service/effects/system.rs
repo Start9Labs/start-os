@@ -15,6 +15,16 @@ pub async fn get_system_smtp(
     GetSystemSmtpParams { callback }: GetSystemSmtpParams,
 ) -> Result<Option<SmtpValue>, Error> {
     let context = context.deref()?;
+
+    if let Some(callback) = callback {
+        let callback = callback.register(&context.seed.persistent_container);
+        context
+            .seed
+            .ctx
+            .callbacks
+            .add_get_system_smtp(CallbackHandler::new(&context, callback));
+    }
+
     let res = context
         .seed
         .ctx
@@ -25,15 +35,6 @@ pub async fn get_system_smtp(
         .into_server_info()
         .into_smtp()
         .de()?;
-
-    if let Some(callback) = callback {
-        let callback = callback.register(&context.seed.persistent_container);
-        context
-            .seed
-            .ctx
-            .callbacks
-            .add_get_system_smtp(CallbackHandler::new(&context, callback));
-    }
 
     Ok(res)
 }

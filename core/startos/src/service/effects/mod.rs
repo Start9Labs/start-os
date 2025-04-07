@@ -192,6 +192,4 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
             "get-system-smtp",
             from_fn_async(system::get_system_smtp).no_cli(),
         )
-
-    // TODO Callbacks
 }

@@ -65,7 +65,7 @@ pub async fn set_store(
 ) -> Result<(), Error> {
     let context = context.deref()?;
     let package_id = &context.seed.id;
-    context
+    let res = context
         .seed
         .ctx
         .db
@@ -82,10 +82,13 @@ pub async fn set_store(
                 .with_kind(ErrorKind::ParseDbField)?;
             model.ser(&model_value)
         })
-        .await?;
+        .await;
+    res.result?;
 
-    if let Some(callbacks) = context.seed.ctx.callbacks.get_store(package_id, &path) {
-        callbacks.call(vector![]).await?;
+    if let Some(revision) = res.revision {
+        if let Some(callbacks) = context.seed.ctx.callbacks.get_store(package_id, &revision) {
+            callbacks.call(vector![]).await?;
+        }
     }
 
     Ok(())
@@ -116,7 +119,8 @@ pub async fn set_data_version(
                 .as_data_version_mut()
                 .ser(&Some(version))
         })
-        .await?;
+        .await
+        .result?;
 
     Ok(())
 }

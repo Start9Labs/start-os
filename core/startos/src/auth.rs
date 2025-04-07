@@ -247,6 +247,7 @@ pub async fn login_impl(
                 Ok(hash_token.to_login_res())
             })
             .await
+            .result
     }
 }
 
@@ -476,6 +477,7 @@ pub async fn reset_password_impl(
             Ok(())
         })
         .await
+        .result
 }
 
 #[instrument(skip_all)]

@@ -84,7 +84,8 @@ pub async fn shutdown(ctx: RpcContext) -> Result<(), Error> {
                 .as_shutting_down_mut()
                 .ser(&true)
         })
-        .await?;
+        .await
+        .result?;
     ctx.shutdown
         .send(Some(Shutdown {
             export_args: Some((ctx.disk_guid.clone(), Path::new(DATA_DIR).to_owned())),
@@ -104,7 +105,8 @@ pub async fn restart(ctx: RpcContext) -> Result<(), Error> {
                 .as_restarting_mut()
                 .ser(&true)
         })
-        .await?;
+        .await
+        .result?;
     ctx.shutdown
         .send(Some(Shutdown {
             export_args: Some((ctx.disk_guid.clone(), Path::new(DATA_DIR).to_owned())),

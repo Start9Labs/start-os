@@ -42,35 +42,40 @@ pub async fn export_service_interface(
         interface_type: r#type,
     };
 
-    context
+    let res = context
         .seed
         .ctx
         .db
         .mutate(|db| {
-            db.as_public_mut()
+            let ifaces = db
+                .as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
-                .as_service_interfaces_mut()
-                .insert(&id, &service_interface)?;
+                .as_service_interfaces_mut();
+            ifaces.insert(&id, &service_interface)?;
             Ok(())
         })
-        .await?;
-    if let Some(callbacks) = context
-        .seed
-        .ctx
-        .callbacks
-        .get_service_interface(&(package_id.clone(), id))
-    {
-        callbacks.call(vector![]).await?;
-    }
-    if let Some(callbacks) = context
-        .seed
-        .ctx
-        .callbacks
-        .list_service_interfaces(&package_id)
-    {
-        callbacks.call(vector![]).await?;
+        .await;
+    res.result?;
+
+    if res.revision.is_some() {
+        if let Some(callbacks) = context
+            .seed
+            .ctx
+            .callbacks
+            .get_service_interface(&(package_id.clone(), id))
+        {
+            callbacks.call(vector![]).await?;
+        }
+        if let Some(callbacks) = context
+            .seed
+            .ctx
+            .callbacks
+            .list_service_interfaces(&package_id)
+        {
+            callbacks.call(vector![]).await?;
+        }
     }
 
     Ok(())
@@ -98,6 +103,15 @@ pub async fn get_service_interface(
     let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
     let db = context.seed.ctx.db.peek().await;
 
+    if let Some(callback) = callback {
+        let callback = callback.register(&context.seed.persistent_container);
+        context.seed.ctx.callbacks.add_get_service_interface(
+            package_id.clone(),
+            service_interface_id.clone(),
+            CallbackHandler::new(&context, callback),
+        );
+    }
+
     let interface = db
         .as_public()
         .as_package_data()
@@ -105,15 +119,6 @@ pub async fn get_service_interface(
         .and_then(|m| m.as_service_interfaces().as_idx(&service_interface_id))
         .map(|m| m.de())
         .transpose()?;
-
-    if let Some(callback) = callback {
-        let callback = callback.register(&context.seed.persistent_container);
-        context.seed.ctx.callbacks.add_get_service_interface(
-            package_id,
-            service_interface_id,
-            CallbackHandler::new(&context, callback),
-        );
-    }
 
     Ok(interface)
 }
@@ -137,6 +142,14 @@ pub async fn list_service_interfaces(
     let context = context.deref()?;
     let package_id = package_id.unwrap_or_else(|| context.seed.id.clone());
 
+    if let Some(callback) = callback {
+        let callback = callback.register(&context.seed.persistent_container);
+        context.seed.ctx.callbacks.add_list_service_interfaces(
+            package_id.clone(),
+            CallbackHandler::new(&context, callback),
+        );
+    }
+
     let res = context
         .seed
         .ctx
@@ -149,15 +162,6 @@ pub async fn list_service_interfaces(
         .map(|m| m.into_service_interfaces().de())
         .transpose()?
         .unwrap_or_default();
-
-    if let Some(callback) = callback {
-        let callback = callback.register(&context.seed.persistent_container);
-        context
-            .seed
-            .ctx
-            .callbacks
-            .add_list_service_interfaces(package_id, CallbackHandler::new(&context, callback));
-    }
 
     Ok(res)
 }
@@ -176,17 +180,52 @@ pub async fn clear_service_interfaces(
     let context = context.deref()?;
     let package_id = context.seed.id.clone();
 
-    context
+    let res = context
         .seed
         .ctx
         .db
         .mutate(|db| {
+            let mut removed = Vec::new();
             db.as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
                 .as_service_interfaces_mut()
-                .mutate(|s| Ok(s.retain(|id, _| except.contains(id))))
+                .mutate(|s| {
+                    Ok(s.retain(|id, _| {
+                        if except.contains(id) {
+                            true
+                        } else {
+                            removed.push(id.clone());
+                            false
+                        }
+                    }))
+                })?;
+            Ok(removed)
         })
-        .await
+        .await;
+    let removed = res.result?;
+
+    if res.revision.is_some() {
+        for id in removed {
+            if let Some(callbacks) = context
+                .seed
+                .ctx
+                .callbacks
+                .get_service_interface(&(package_id.clone(), id))
+            {
+                callbacks.call(vector![]).await?;
+            }
+        }
+        if let Some(callbacks) = context
+            .seed
+            .ctx
+            .callbacks
+            .list_service_interfaces(&package_id)
+        {
+            callbacks.call(vector![]).await?;
+        }
+    }
+
+    Ok(())
 }

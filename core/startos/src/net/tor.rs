@@ -156,6 +156,7 @@ pub async fn generate_key(ctx: RpcContext) -> Result<OnionAddressV3, Error> {
                 .get_onion_address())
         })
         .await
+        .result
 }
 
 #[derive(Deserialize, Serialize, Parser)]
@@ -175,7 +176,8 @@ pub async fn add_key(
                 .as_onion_mut()
                 .insert_key(&key)
         })
-        .await?;
+        .await
+        .result?;
     Ok(key.public().get_onion_address())
 }
 

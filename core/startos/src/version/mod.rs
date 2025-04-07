@@ -36,6 +36,8 @@ mod v0_3_6_alpha_13;
 mod v0_3_6_alpha_14;
 mod v0_3_6_alpha_15;
 mod v0_3_6_alpha_16;
+mod v0_3_6_alpha_17;
+mod v0_3_6_alpha_18;
 
 mod v0_4_0_alpha_0;
 
@@ -56,7 +58,8 @@ impl Current {
                     rollback_to_unchecked(&from, &self, &mut db)?;
                     Ok::<_, Error>((db, ()))
                 })
-                .await?;
+                .await
+                .result?;
             }
             Ordering::Less => {
                 let pre_ups = PreUps::load(&from, &self).await?;
@@ -64,7 +67,8 @@ impl Current {
                     migrate_from_unchecked(&from, &self, pre_ups, &mut db)?;
                     Ok::<_, Error>((to_value(&from_value::<Database>(db.clone())?)?, ()))
                 })
-                .await?;
+                .await
+                .result?;
             }
             Ordering::Equal => (),
         }
@@ -105,7 +109,8 @@ pub async fn post_init(
                         .as_post_init_migration_todos_mut()
                         .mutate(|m| Ok(m.remove(&version.0.semver())))
                 })
-                .await?;
+                .await
+                .result?;
             progress += 1;
         }
     }
@@ -138,6 +143,8 @@ enum Version {
     V0_3_6_alpha_14(Wrapper<v0_3_6_alpha_14::Version>),
     V0_3_6_alpha_15(Wrapper<v0_3_6_alpha_15::Version>),
     V0_3_6_alpha_16(Wrapper<v0_3_6_alpha_16::Version>),
+    V0_3_6_alpha_17(Wrapper<v0_3_6_alpha_17::Version>),
+    V0_3_6_alpha_18(Wrapper<v0_3_6_alpha_18::Version>),
     V0_4_0_alpha_0(Wrapper<v0_4_0_alpha_0::Version>), // VERSION_BUMP
     Other(exver::Version),
 }
@@ -179,7 +186,9 @@ impl Version {
             Self::V0_3_6_alpha_14(v) => DynVersion(Box::new(v.0)),
             Self::V0_3_6_alpha_15(v) => DynVersion(Box::new(v.0)),
             Self::V0_3_6_alpha_16(v) => DynVersion(Box::new(v.0)),
-            Self::V0_4_0_alpha_0(v) => DynVersion(Box::new(v.0)), // VERSION_BUMP
+            Self::V0_3_6_alpha_17(v) => DynVersion(Box::new(v.0)),
+            Self::V0_3_6_alpha_18(v) => DynVersion(Box::new(v.0)), // VERSION_BUMP
+            Self::V0_4_0_alpha_0(v) => DynVersion(Box::new(v.0)),  // VERSION_BUMP
             Self::Other(v) => {
                 return Err(Error::new(
                     eyre!("unknown version {v}"),
@@ -212,6 +221,8 @@ impl Version {
             Version::V0_3_6_alpha_14(Wrapper(x)) => x.semver(),
             Version::V0_3_6_alpha_15(Wrapper(x)) => x.semver(),
             Version::V0_3_6_alpha_16(Wrapper(x)) => x.semver(),
+            Version::V0_3_6_alpha_17(Wrapper(x)) => x.semver(),
+            Version::V0_3_6_alpha_18(Wrapper(x)) => x.semver(),
             Version::V0_4_0_alpha_0(Wrapper(x)) => x.semver(), // VERSION_BUMP
             Version::Other(x) => x.clone(),
         }

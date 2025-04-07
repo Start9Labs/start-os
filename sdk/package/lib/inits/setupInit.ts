@@ -3,6 +3,7 @@ import { ExtendedVersion } from "../../../base/lib/exver"
 import { UpdateServiceInterfaces } from "../../../base/lib/interfaces/setupInterfaces"
 import { ExposedStorePaths } from "../../../base/lib/types"
 import * as T from "../../../base/lib/types"
+import { StorePath } from "../util"
 import { VersionGraph } from "../version/VersionGraph"
 import { Install } from "./setupInstall"
 import { Uninstall } from "./setupUninstall"
@@ -16,6 +17,7 @@ export function setupInit<Manifest extends T.SDKManifest, Store>(
     effects: T.Effects
   }) => Promise<null | void | undefined>,
   actions: Actions<Store, any>,
+  initStore: Store,
   exposedStore: ExposedStorePaths,
 ): {
   packageInit: T.ExpectedExports.packageInit
@@ -53,6 +55,14 @@ export function setupInit<Manifest extends T.SDKManifest, Store>(
       }
     },
     containerInit: async (opts) => {
+      const prev = await opts.effects.getDataVersion()
+      if (!prev) {
+        await opts.effects.store.set({
+          path: "" as StorePath,
+          value: initStore,
+        })
+        await install.preInstall(opts)
+      }
       await setServiceInterfaces({
         ...opts,
       })

@@ -117,6 +117,7 @@ async fn sign_asset(
             Ok(())
         })
         .await
+        .result
 }
 
 pub async fn sign_iso(ctx: RegistryContext, params: SignAssetParams) -> Result<(), Error> {
