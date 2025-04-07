@@ -77,7 +77,7 @@ import * as actions from "../../base/lib/actions"
 import { setupInit } from "./inits/setupInit"
 import * as fs from "node:fs/promises"
 
-export const OSVersion = testTypeVersion("0.3.6-alpha.17")
+export const OSVersion = testTypeVersion("0.3.6-alpha.18")
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
