@@ -9,6 +9,7 @@ import { Manifest } from "./matchManifest"
 import { DockerProcedureContainer } from "./DockerProcedureContainer"
 import * as cp from "child_process"
 import { Effects } from "../../../Models/Effects"
+import { Mounts } from "@start9labs/start-sdk/package/lib/mainFn/Mounts"
 export const execFile = promisify(cp.execFile)
 export const polyfillEffects = (
   effects: Effects,
@@ -111,7 +112,7 @@ export const polyfillEffects = (
           effects,
           { imageId: manifest.main.image },
           commands,
-          {},
+          { mounts: Mounts.of() },
           commands.join(" "),
         )
         .then((x: any) => ({
@@ -168,17 +169,12 @@ export const polyfillEffects = (
           { imageId: manifest.main.image },
           commands,
           {
-            mounts: [
-              {
-                mountpoint: "/drive",
-                options: {
-                  type: "volume",
-                  id: input.volumeId,
-                  subpath: null,
-                  readonly: false,
-                },
-              },
-            ],
+            mounts: Mounts.of().addVolume(
+              input.volumeId,
+              null,
+              "/drive",
+              false,
+            ),
           },
           commands.join(" "),
         )
@@ -210,17 +206,12 @@ export const polyfillEffects = (
           { imageId: manifest.main.image },
           commands,
           {
-            mounts: [
-              {
-                mountpoint: "/drive",
-                options: {
-                  type: "volume",
-                  id: input.volumeId,
-                  subpath: null,
-                  readonly: false,
-                },
-              },
-            ],
+            mounts: Mounts.of().addVolume(
+              input.volumeId,
+              null,
+              "/drive",
+              false,
+            ),
           },
           commands.join(" "),
         )

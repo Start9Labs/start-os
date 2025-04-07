@@ -14,7 +14,7 @@ keywords = [
 name = "start-os"
 readme = "README.md"
 repository = "https://github.com/Start9Labs/start-os"
-version = "0.3.6-alpha.17" # VERSION_BUMP
+version = "0.3.6-alpha.18" # VERSION_BUMP
 license = "MIT"
 
 [lib]
