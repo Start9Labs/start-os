@@ -12,7 +12,6 @@ config globals 'globals'
 config device
 	option name 'br-lan'
 	option type 'bridge'
-	list ports 'eth0'
 
 config interface 'lan'
 	option device 'br-lan'
@@ -21,3 +20,10 @@ config interface 'lan'
 	option netmask '255.255.255.0'
 	option ip6assign '60'
 
+config interface 'wan'
+	option device 'eth0'
+	option proto 'dhcp'
+
+config interface 'wan6'
+	option device 'eth0'
+	option proto 'dhcpv6'
