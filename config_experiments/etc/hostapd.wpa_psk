@@ -1,0 +1,3 @@
+keyid=admin 00:00:00:00:00:00 password
+keyid=guest vlanid=101 00:00:00:00:00:00 passwordguest
+keyid=foo vlanid=102 00:00:00:00:00:00 passwordfoo

@@ -13,6 +13,16 @@ config device
 	option name 'br-lan'
 	option type 'bridge'
 
+config bridge-vlan
+		option device 'br-lan'
+		option vlan '101'
+		option alias 'guest'
+
+config bridge-vlan
+		option device 'br-lan'
+		option vlan '102'
+		option alias 'foo'
+
 config interface 'lan'
 	option device 'br-lan'
 	option proto 'static'
