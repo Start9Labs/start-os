@@ -7,11 +7,14 @@ config interface 'loopback'
 
 config globals 'globals'
 	option ula_prefix 'fde4:46ef:cbc6::/48'
+	option packet_steering '1'
 
 config device
 	option name 'br-lan'
 	option type 'bridge'
-	list ports 'eth0'
+	list ports 'eth1'
+	list ports 'eth2'
+	list ports 'eth3'
 
 config interface 'lan'
 	option device 'br-lan'
@@ -21,10 +24,13 @@ config interface 'lan'
 	option ip6assign '60'
 
 config interface 'wan'
-	option device 'eth1'
+	option device 'eth0'
 	option proto 'dhcp'
 
 config interface 'wan6'
-	option device 'eth1'
+	option device 'eth0'
 	option proto 'dhcpv6'
+	option reqaddress 'try'
+	option reqprefix 'auto'
+	option norelease '1'
 
