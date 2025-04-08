@@ -7,7 +7,7 @@ import {
   Input,
 } from '@angular/core'
 import { Router } from '@angular/router'
-import { MarketplacePkg } from '@start9labs/marketplace'
+import { MarketplacePkgBase } from '@start9labs/marketplace'
 import {
   Exver,
   ErrorService,
@@ -103,7 +103,7 @@ export class MarketplaceControlsComponent {
   private readonly marketplaceService = inject(MarketplaceService)
 
   @Input({ required: true })
-  pkg!: MarketplacePkg
+  pkg!: MarketplacePkgBase
 
   @Input()
   localPkg!: PackageDataEntry | null

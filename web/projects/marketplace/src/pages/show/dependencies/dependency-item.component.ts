@@ -3,9 +3,8 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { RouterModule } from '@angular/router'
 import { ExverPipesModule } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { TuiLet } from '@taiga-ui/cdk'
 import { TuiAvatar, TuiLineClamp } from '@taiga-ui/kit'
-import { MarketplacePkg } from '../../../types'
+import { MarketplacePkgBase } from '../../../types'
 
 @Component({
   selector: 'marketplace-dep-item',
@@ -97,12 +96,11 @@ import { MarketplacePkg } from '../../../types'
     TuiAvatar,
     ExverPipesModule,
     TuiLineClamp,
-    TuiLet,
   ],
 })
 export class MarketplaceDepItemComponent {
   @Input({ required: true })
-  pkg!: MarketplacePkg
+  pkg!: MarketplacePkgBase
 
   @Input({ required: true })
   dep!: KeyValue<string, T.DependencyMetadata>

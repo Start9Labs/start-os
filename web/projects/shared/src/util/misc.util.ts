@@ -55,3 +55,6 @@ export function toUrl(text: string | null | undefined): string {
 }
 
 export type WithId<T> = T & { id: string }
+
+export type OptionalProperty<T, K extends keyof T> = Omit<T, K> &
+  Partial<Pick<T, K>>

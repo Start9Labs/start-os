@@ -4,7 +4,7 @@
     <div class="detail-container">
       <!-- release date -->
       <marketplace-additional-item
-        *ngIf="pkg.s9pk.publishedAt as published"
+        *ngIf="pkg.s9pk?.publishedAt as published"
         [data]="(published | date: 'medium')!"
         label="Released"
         icon=""

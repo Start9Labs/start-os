@@ -6,7 +6,7 @@ import {
   Input,
   Output,
 } from '@angular/core'
-import { MarketplacePkg } from '../../../types'
+import { MarketplacePkgBase } from '../../../types'
 import { MarketplaceDepItemComponent } from './dependency-item.component'
 
 @Component({
@@ -55,7 +55,7 @@ import { MarketplaceDepItemComponent } from './dependency-item.component'
 })
 export class MarketplaceDependenciesComponent {
   @Input({ required: true })
-  pkg!: MarketplacePkg
+  pkg!: MarketplacePkgBase
 
   @Output() open = new EventEmitter<string>()
 }

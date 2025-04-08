@@ -16,17 +16,17 @@ import {
 import { ConfigService } from 'src/app/services/config.service'
 import { TitleDirective } from 'src/app/services/title.service'
 import { SideloadPackageComponent } from './package.component'
-import { parseS9pk } from './sideload.utils'
-import { MarketplacePkg } from '@start9labs/marketplace'
+import { validateS9pk } from './sideload.utils'
+import { MarketplacePkgBase } from '@start9labs/marketplace'
 
 @Component({
   template: `
     <ng-container *title>Sideload</ng-container>
-    @if (file && package()) {
-      <sideload-package [pkg]="package()!" [file]="file!">
+    @if (file && package(); as pkg) {
+      <sideload-package [pkg]="pkg" [file]="file!">
         <button
           tuiIconButton
-          appearance="secondary"
+          appearance="neutral"
           iconStart="@tui.x"
           [style.border-radius.%]="100"
           [style.justify-self]="'end'"
@@ -98,7 +98,7 @@ export default class SideloadComponent {
   readonly isTor = inject(ConfigService).isTor()
 
   file: File | null = null
-  readonly package = signal<MarketplacePkg | null>(null)
+  readonly package = signal<MarketplacePkgBase | null>(null)
   readonly error = signal('')
 
   clear() {
@@ -108,8 +108,7 @@ export default class SideloadComponent {
   }
 
   async onFile(file: File | null) {
-    const parsed = file ? await parseS9pk(file) : ''
-
+    const parsed = file ? await validateS9pk(file) : ''
     this.file = file
     this.package.set(tuiIsString(parsed) ? null : parsed)
     this.error.set(tuiIsString(parsed) ? parsed : '')

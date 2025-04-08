@@ -217,7 +217,7 @@ export class MarketplaceService {
       map(packages => {
         return Object.entries(packages).flatMap(([id, pkgInfo]) =>
           Object.keys(pkgInfo.best).map(version =>
-            this.convertToMarketplacePkg(
+            this.convertRegistryPkgToMarketplacePkg(
               id,
               version,
               this.exver.getFlavor(version),
@@ -239,12 +239,12 @@ export class MarketplaceService {
       this.api.getRegistryPackage(url, id, version ? `=${version}` : null),
     ).pipe(
       map(pkgInfo =>
-        this.convertToMarketplacePkg(id, version, flavor, pkgInfo),
+        this.convertRegistryPkgToMarketplacePkg(id, version, flavor, pkgInfo),
       ),
     )
   }
 
-  private convertToMarketplacePkg(
+  private convertRegistryPkgToMarketplacePkg(
     id: string,
     version: string | null | undefined,
     flavor: string | null,

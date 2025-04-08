@@ -5,7 +5,7 @@ import {
   AdditionalModule,
   MarketplaceDependenciesComponent,
   MarketplacePackageHeroComponent,
-  MarketplacePkg,
+  MarketplacePkgBase,
 } from '@start9labs/marketplace'
 import {
   ErrorService,
@@ -23,7 +23,8 @@ import { getManifest } from 'src/app/utils/get-package-data'
 @Component({
   selector: 'sideload-package',
   template: `
-    <div class="package-container">
+    <div class="outer-container">
+      <ng-content />
       <marketplace-package-hero [pkg]="pkg">
         <marketplace-controls
           slot="controls"
@@ -54,16 +55,40 @@ import { getManifest } from 'src/app/utils/get-package-data'
         width: 100%;
 
         @media (min-width: 1024px) {
-          max-width: 80%;
           margin: auto;
           padding: 2.5rem 4rem 2rem 4rem;
         }
       }
 
-      .inner-container {
+      .package-details {
+        -moz-column-gap: 2rem;
+        column-gap: 2rem;
+
+        &-main {
+          grid-column: span 12 / span 12;
+        }
+
+        &-additional {
+          grid-column: span 12 / span 12;
+        }
+
+        @media (min-width: 1536px) {
+          grid-template-columns: repeat(12, minmax(0, 1fr));
+          &-main {
+            grid-column: span 8 / span 8;
+          }
+          &-additional {
+            grid-column: span 4 / span 4;
+            margin-top: 0px;
+          }
+        }
+      }
+
+      .controls-wrapper {
         display: flex;
         justify-content: flex-start;
-        margin: -0.5rem 0 1.5rem -1px;
+        gap: 0.5rem;
+        height: 4.5rem;
       }
     `,
   ],
@@ -85,8 +110,12 @@ export class SideloadPackageComponent {
   private readonly exver = inject(Exver)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
+  // @Input({ required: true })
+  // pkg!: MarketplacePkgBase
+
+  // @Alex why do I need to initialize pkg below? I would prefer to do the above, but it's not working
   @Input({ required: true })
-  pkg!: MarketplacePkg
+  pkg: MarketplacePkgBase = {} as MarketplacePkgBase
 
   @Input({ required: true })
   file!: File
@@ -104,7 +133,7 @@ export class SideloadPackageComponent {
   readonly flavor$ = this.local$.pipe(map(pkg => !pkg))
 
   onStatic(type: 'License' | 'Instructions') {
-    // @TODO Matt return License or Instructions
+    // @TODO Aiden return License or Instructions
   }
 
   async upload() {
