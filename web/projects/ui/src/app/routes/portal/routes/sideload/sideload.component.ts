@@ -6,7 +6,6 @@ import {
   signal,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { T } from '@start9labs/start-sdk'
 import { tuiIsString } from '@taiga-ui/cdk'
 import { TuiButton } from '@taiga-ui/core'
 import {
@@ -18,12 +17,13 @@ import { ConfigService } from 'src/app/services/config.service'
 import { TitleDirective } from 'src/app/services/title.service'
 import { SideloadPackageComponent } from './package.component'
 import { parseS9pk } from './sideload.utils'
+import { MarketplacePkg } from '@start9labs/marketplace'
 
 @Component({
   template: `
     <ng-container *title>Sideload</ng-container>
     @if (file && package()) {
-      <sideload-package [package]="package()!" [file]="file!">
+      <sideload-package [pkg]="package()!" [file]="file!">
         <button
           tuiIconButton
           appearance="secondary"
@@ -55,7 +55,10 @@ import { parseS9pk } from './sideload.utils'
               <tui-avatar appearance="secondary" src="@tui.cloud-upload" />
               <p>Upload .s9pk package file</p>
               @if (isTor) {
-                <p class="g-positive">Tip: switch to LAN for faster uploads</p>
+                <p class="g-warning">
+                  Warning: package upload will be slow over Tor. Switch to local
+                  for a better experience.
+                </p>
               }
               <button tuiButton>Upload</button>
             </div>
@@ -69,7 +72,7 @@ import { parseS9pk } from './sideload.utils'
     `
       label {
         height: 100%;
-        max-width: 40rem;
+        max-width: 42rem;
         margin: 0 auto;
       }
 
@@ -95,7 +98,7 @@ export default class SideloadComponent {
   readonly isTor = inject(ConfigService).isTor()
 
   file: File | null = null
-  readonly package = signal<(T.Manifest & { icon: string }) | null>(null)
+  readonly package = signal<MarketplacePkg | null>(null)
   readonly error = signal('')
 
   clear() {

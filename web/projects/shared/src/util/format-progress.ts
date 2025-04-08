@@ -1,22 +1,29 @@
-// @TODO get types from sdk
-type Progress = null | boolean | { done: number; total: number | null }
-type NamedProgress = { name: string; progress: Progress }
-type FullProgress = { overall: Progress; phases: Array<NamedProgress> }
+import { T } from '@start9labs/start-sdk'
 
-export function formatProgress({ phases, overall }: FullProgress): {
+export function formatProgress({ phases, overall }: T.FullProgress): {
   total: number
   message: string
 } {
   return {
     total: getDecimal(overall),
     message: phases
-      .filter(p => p.progress !== true && p.progress !== null)
-      .map(p => `${p.name}${getPhaseBytes(p.progress)}`)
+      .filter(
+        (
+          p,
+        ): p is {
+          name: string
+          progress: {
+            done: number
+            total: number | null
+          }
+        } => p.progress !== true && p.progress !== null,
+      )
+      .map(p => `<b>${p.name}</b>${getPhaseBytes(p.progress)}`)
       .join(', '),
   }
 }
 
-function getDecimal(progress: Progress): number {
+function getDecimal(progress: T.Progress): number {
   if (progress === true) {
     return 1
   } else if (!progress || !progress.total) {
@@ -26,7 +33,7 @@ function getDecimal(progress: Progress): number {
   }
 }
 
-function getPhaseBytes(progress: Progress): string {
+function getPhaseBytes(progress: T.Progress): string {
   return progress === true || !progress
     ? ''
     : `: (${progress.done}/${progress.total})`

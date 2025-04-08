@@ -1,4 +1,5 @@
-import { S9pk, T } from '@start9labs/start-sdk'
+import { MarketplacePkg } from '@start9labs/marketplace'
+import { S9pk } from '@start9labs/start-sdk'
 import cbor from 'cbor'
 
 const MAGIC = new Uint8Array([59, 59])
@@ -9,9 +10,7 @@ interface Positions {
   [key: string]: [bigint, bigint] // [position, length]
 }
 
-export async function parseS9pk(
-  file: File,
-): Promise<(T.Manifest & { icon: string }) | string> {
+export async function parseS9pk(file: File): Promise<MarketplacePkg | string> {
   const magic = new Uint8Array(await blobToBuffer(file.slice(0, 2)))
   const version = new Uint8Array(await blobToBuffer(file.slice(2, 3)))
 
@@ -24,8 +23,9 @@ export async function parseS9pk(
 
         return {
           ...s9pk.manifest,
+          dependencyMetadata: {},
           icon: await s9pk.icon(),
-        }
+        } as any // @TODO Matt
       } else {
         console.error(version)
 

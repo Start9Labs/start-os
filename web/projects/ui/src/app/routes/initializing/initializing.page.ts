@@ -6,16 +6,7 @@ import {
   provideSetupLogsService,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import {
-  catchError,
-  defer,
-  EMPTY,
-  from,
-  map,
-  startWith,
-  switchMap,
-  tap,
-} from 'rxjs'
+import { catchError, defer, from, map, startWith, switchMap, tap } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { StateService } from 'src/app/services/state.service'
 
@@ -36,18 +27,25 @@ export default class InitializingPage {
     defer(() => from(this.api.initFollowProgress())).pipe(
       switchMap(({ guid, progress }) =>
         this.api
-          .openWebsocket$<T.FullProgress>(guid, {})
+          .openWebsocket$<T.FullProgress>(guid, {
+            closeObserver: {
+              next: () => {
+                this.state.syncState()
+              },
+            },
+          })
           .pipe(startWith(progress)),
       ),
       map(formatProgress),
-      tap<{ total: number; message: string }>(({ total }) => {
+      tap(({ total }) => {
         if (total === 1) {
           this.state.syncState()
         }
       }),
-      catchError(e => {
+      catchError((e, caught$) => {
         console.error(e)
-        return EMPTY
+        this.state.syncState()
+        return caught$
       }),
     ),
     { initialValue: { total: 0, message: '' } },

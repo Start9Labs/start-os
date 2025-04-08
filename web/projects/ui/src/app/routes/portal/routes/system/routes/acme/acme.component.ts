@@ -93,7 +93,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
   `,
   styles: `
     :host {
-      max-width: 40rem;
+      max-width: 36rem;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

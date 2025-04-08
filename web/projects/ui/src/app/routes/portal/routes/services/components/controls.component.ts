@@ -1,27 +1,27 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   Input,
 } from '@angular/core'
-import { T } from '@start9labs/start-sdk'
-import { tuiPure } from '@taiga-ui/cdk'
 import { TuiButton } from '@taiga-ui/core'
-import { DependencyInfo } from 'src/app/routes/portal/routes/services/types/dependency-info'
+import { map } from 'rxjs'
 import { ControlsService } from 'src/app/services/controls.service'
+import { DepErrorService } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getManifest } from 'src/app/utils/get-package-data'
 
 @Component({
-  selector: 'service-actions',
+  selector: 'service-controls',
   template: `
     @if (['running', 'starting', 'restarting'].includes(status)) {
       <button
         tuiButton
         appearance="secondary-destructive"
         iconStart="@tui.square"
-        (click)="actions.stop(manifest)"
+        (click)="controls.stop(manifest())"
       >
         Stop
       </button>
@@ -31,7 +31,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
       <button
         tuiButton
         iconStart="@tui.rotate-cw"
-        (click)="actions.restart(manifest)"
+        (click)="controls.restart(manifest())"
       >
         Restart
       </button>
@@ -41,7 +41,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
       <button
         tuiButton
         iconStart="@tui.play"
-        (click)="actions.start(manifest, hasUnmet(dependencies))"
+        (click)="controls.start(manifest(), !!hasUnmet)"
       >
         Start
       </button>
@@ -78,24 +78,26 @@ import { getManifest } from 'src/app/utils/get-package-data'
   standalone: true,
   imports: [TuiButton],
 })
-export class ServiceActionsComponent {
+export class ServiceControlsComponent {
+  private readonly errors = inject(DepErrorService)
+
   @Input({ required: true })
   pkg!: PackageDataEntry
 
   @Input({ required: true })
   status!: PrimaryStatus
 
-  // TODO
-  dependencies: readonly DependencyInfo[] = []
+  readonly manifest = computed(() => getManifest(this.pkg))
 
-  readonly actions = inject(ControlsService)
+  readonly controls = inject(ControlsService)
 
-  get manifest(): T.Manifest {
-    return getManifest(this.pkg)
-  }
-
-  @tuiPure
-  hasUnmet(dependencies: readonly DependencyInfo[]): boolean {
-    return dependencies.some(dep => !!dep.errorText)
-  }
+  readonly hasUnmet = computed(() =>
+    this.errors.getPkgDepErrors$(this.manifest().id).pipe(
+      map(errors =>
+        Object.keys(this.pkg.currentDependencies)
+          .map(id => errors[id])
+          .some(Boolean),
+      ),
+    ),
+  )
 }

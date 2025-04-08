@@ -1,6 +1,5 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { TuiLet } from '@taiga-ui/cdk'
 import { TuiProgress } from '@taiga-ui/kit'
 import { LogsWindowComponent } from './logs-window.component'
 
@@ -31,7 +30,7 @@ import { LogsWindowComponent } from './logs-window.component'
       padding: 1rem;
       margin: 1.5rem;
       text-align: center;
-      /* TODO: Theme */
+      // @TODO Theme
       background: #e0e0e0;
       color: #333;
       --tui-background-neutral-1: rgba(0, 0, 0, 0.1);
@@ -46,11 +45,11 @@ import { LogsWindowComponent } from './logs-window.component'
       text-align: left;
       overflow: hidden;
       border-radius: 2rem;
-      /* TODO: Theme */
+      // @TODO Theme
       background: #181818;
     }
   `,
-  imports: [CommonModule, LogsWindowComponent, TuiLet, TuiProgress],
+  imports: [CommonModule, LogsWindowComponent, TuiProgress],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InitializingComponent {

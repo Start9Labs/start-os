@@ -48,7 +48,7 @@ export class MarketplaceService {
     this.registryUrl$.pipe(
       switchMap(url => this.fetchRegistry$(url)),
       filter(Boolean),
-      // @TODO is updateStoreName needed?
+      // @TODO Matt is updateStoreName needed? @TODO Alex I don't think so, because we update store name in marketplace$. If you agree, can delete this comment.
       map(registry => {
         registry.info.categories = {
           all: {

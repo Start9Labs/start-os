@@ -102,7 +102,7 @@ export class BackupsUpcomingComponent {
   readonly targets = toSignal(from(this.api.getBackupTargets({})))
   readonly current = toSignal(
     inject<PatchDB<DataModel>>(PatchDB)
-      // @TODO remove "as any" once this feature is real
+      // @TODO 041 remove "as any" once this feature is real
       .watch$('serverInfo', 'statusInfo', 'currentBackup' as any, 'job')
       .pipe(map(job => job || {})),
   )

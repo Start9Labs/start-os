@@ -42,7 +42,6 @@ export class LoginPage {
       }
       await this.api.login({
         password: this.password,
-        metadata: { platforms: [] }, // @TODO do we really need platforms now?
         ephemeral: window.location.host === 'localhost',
       })
 

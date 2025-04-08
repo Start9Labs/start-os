@@ -1,7 +1,7 @@
 import { Pipe, PipeTransform } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
 
-// TODO drop these pipes
+// @TODO Alex drop these pipes. This looks like an old note for yourself maybe
 @Pipe({
   standalone: true,
   name: 'installingProgressString',
