@@ -121,9 +121,9 @@ config rule
 
 config zone
 	option name 'vlan_guest'
-	option input 'REJECT'
+	option input 'ACCEPT'
 	option output 'ACCEPT'
-	option forward 'REJECT'
+	option forward 'ACCEPT'
 	list network 'guest'
 
 config forwarding
@@ -154,4 +154,8 @@ config rule
 	list proto 'tcp'
 	list proto 'udp'
 	list proto 'icmp'
+
+config forwarding
+	option src 'vlan_foo'
+	option dest 'wan'
 
