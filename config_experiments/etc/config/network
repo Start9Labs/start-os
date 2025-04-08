@@ -17,7 +17,7 @@ config device
 	list ports 'eth3'
 
 config interface 'lan'
-	option device 'br-lan'
+	option device 'br-lan.99'
 	option proto 'static'
 	option ipaddr '192.168.1.1'
 	option netmask '255.255.255.0'
@@ -33,4 +33,35 @@ config interface 'wan6'
 	option reqaddress 'try'
 	option reqprefix 'auto'
 	option norelease '1'
+
+config bridge-vlan
+	option device 'br-lan'
+	option vlan '101'
+	list ports 'eth2:t'
+	list ports 'eth3:t'
+
+config bridge-vlan
+	option device 'br-lan'
+	option vlan '102'
+	list ports 'eth2:t'
+	list ports 'eth3:t'
+
+config bridge-vlan
+	option device 'br-lan'
+	option vlan '99'
+	list ports 'eth1:u*'
+	list ports 'eth2:t'
+	list ports 'eth3:t'
+
+config interface 'guest'
+	option proto 'static'
+	option device 'br-lan.101'
+	option ipaddr '192.168.2.1'
+	option netmask '255.255.255.0'
+
+config interface 'foo'
+	option proto 'static'
+	option device 'br-lan.102'
+	option ipaddr '192.168.3.1'
+	option netmask '255.255.255.0'
 

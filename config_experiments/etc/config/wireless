@@ -1,3 +1,4 @@
+
 config wifi-device 'radio0'
 	option type 'mac80211'
 	option path 'pci0000:00/0000:00:1c.3/0000:02:00.0'
@@ -5,12 +6,14 @@ config wifi-device 'radio0'
 	option channel '36'
 	option htmode 'HT40'
 	option disabled '0'
+	option cell_density '0'
 
 config wifi-iface 'default_radio0'
 	option device 'radio0'
-	option network 'lan'
+	option network 'lan foo guest'
 	option mode 'ap'
 	option ssid 'OpenWrt'
 	option encryption 'psk2'
 	option wpa_psk_file '/etc/hostapd.wpa_psk'
 	option vlan_file '/etc/hostapd.vlan'
+
