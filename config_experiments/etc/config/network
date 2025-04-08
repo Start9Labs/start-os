@@ -6,22 +6,12 @@ config interface 'loopback'
 	option netmask '255.0.0.0'
 
 config globals 'globals'
-	option ula_prefix 'fded:cc6f:7a03::/48'
-	option packet_steering '1'
+	option ula_prefix 'fde4:46ef:cbc6::/48'
 
 config device
 	option name 'br-lan'
 	option type 'bridge'
-
-config bridge-vlan
-		option device 'br-lan'
-		option vlan '101'
-		option alias 'guest'
-
-config bridge-vlan
-		option device 'br-lan'
-		option vlan '102'
-		option alias 'foo'
+	list ports 'eth0'
 
 config interface 'lan'
 	option device 'br-lan'
@@ -31,9 +21,10 @@ config interface 'lan'
 	option ip6assign '60'
 
 config interface 'wan'
-	option device 'eth0'
+	option device 'eth1'
 	option proto 'dhcp'
 
 config interface 'wan6'
-	option device 'eth0'
+	option device 'eth1'
 	option proto 'dhcpv6'
+
