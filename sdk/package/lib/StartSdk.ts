@@ -30,7 +30,12 @@ import { HealthCheck } from "./health/HealthCheck"
 import { checkPortListening } from "./health/checkFns/checkPortListening"
 import { checkWebUrl, runHealthScript } from "./health/checkFns"
 import { List } from "../../base/lib/actions/input/builder/list"
-import { Install, InstallFn } from "./inits/setupInstall"
+import {
+  Install,
+  InstallFn,
+  PostInstall,
+  PreInstall,
+} from "./inits/setupInstall"
 import { SetupBackupsParams, setupBackups } from "./backup/setupBackups"
 import { UninstallFn, setupUninstall } from "./inits/setupUninstall"
 import { setupMain } from "./mainFn"
@@ -571,12 +576,24 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
       setupDependencies: setupDependencies<Manifest>,
       setupInit: setupInit<Manifest, Store>,
       /**
-       * @description Use this function to execute arbitrary logic *once*, on initial install only.
+       * @description Use this function to execute arbitrary logic *once*, on initial install *before* interfaces, actions, and dependencies are updated.
+       * @example
+       * In the this example, we initialize a config file
+       *
+       * ```
+        const preInstall = sdk.setupPreInstall(async ({ effects }) => {
+          await configFile.write(effects, { name: 'World' })
+        })
+       * ```
+       */
+      setupPreInstall: (fn: InstallFn<Manifest, Store>) => PreInstall.of(fn),
+      /**
+       * @description Use this function to execute arbitrary logic *once*, on initial install *after* interfaces, actions, and dependencies are updated.
        * @example
        * In the this example, we bootstrap our Store with a random, 16-char admin password.
        *
        * ```
-        const install = sdk.setupInstall(async ({ effects }) => {
+        const postInstall = sdk.setupPostInstall(async ({ effects }) => {
           await sdk.store.setOwn(
             effects,
             sdk.StorePath.adminPassword,
@@ -588,10 +605,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         })
        * ```
        */
-      setupInstall: (
-        fn: InstallFn<Manifest, Store>,
-        preFn?: InstallFn<Manifest, Store>,
-      ) => Install.of(fn, preFn),
+      setupPostInstall: (fn: InstallFn<Manifest, Store>) => PostInstall.of(fn),
       /**
        * @description Use this function to determine how this service will be hosted and served. The function executes on service install, service update, and inputSpec save.
        *

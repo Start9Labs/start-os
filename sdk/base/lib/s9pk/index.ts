@@ -1,6 +1,13 @@
-import { DataUrl, Manifest, MerkleArchiveCommitment } from "../osBindings"
+import {
+  DataUrl,
+  DependencyMetadata,
+  Manifest,
+  MerkleArchiveCommitment,
+  PackageId,
+} from "../osBindings"
 import { ArrayBufferReader, MerkleArchive } from "./merkleArchive"
 import mime from "mime-types"
+import { DirectoryContents } from "./merkleArchive/directoryContents"
 
 const magicAndVersion = new Uint8Array([59, 59, 2])
 
@@ -63,6 +70,51 @@ export class S9pk {
       Buffer.from(
         await this.archive.contents.getPath([iconName])!.verifiedFileContents(),
       ).toString("base64")
+    )
+  }
+
+  async dependencyMetadataFor(id: PackageId) {
+    const entry = this.archive.contents.getPath([
+      "dependencies",
+      id,
+      "metadata.json",
+    ])
+    if (!entry) return null
+    return JSON.parse(
+      new TextDecoder().decode(await entry.verifiedFileContents()),
+    ) as { title: string }
+  }
+
+  async dependencyIconFor(id: PackageId) {
+    const dir = this.archive.contents.getPath(["dependencies", id])
+    if (!dir || !(dir.contents instanceof DirectoryContents)) return null
+    const iconName = Object.keys(dir.contents.contents).find(
+      (name) =>
+        name.startsWith("icon.") &&
+        (mime.contentType(name) || null)?.startsWith("image/"),
+    )
+    if (!iconName) return null
+    return (
+      `data:${mime.contentType(iconName)};base64,` +
+      Buffer.from(
+        await dir.contents.getPath([iconName])!.verifiedFileContents(),
+      ).toString("base64")
+    )
+  }
+
+  async dependencyMetadata(): Promise<Record<PackageId, DependencyMetadata>> {
+    return Object.fromEntries(
+      await Promise.all(
+        Object.entries(this.manifest.dependencies).map(async ([id, info]) => [
+          id,
+          {
+            ...(await this.dependencyMetadataFor(id)),
+            icon: await this.dependencyIconFor(id),
+            description: info.description,
+            optional: info.optional,
+          },
+        ]),
+      ),
     )
   }
 }

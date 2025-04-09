@@ -5,12 +5,13 @@ import { ExposedStorePaths } from "../../../base/lib/types"
 import * as T from "../../../base/lib/types"
 import { StorePath } from "../util"
 import { VersionGraph } from "../version/VersionGraph"
-import { Install } from "./setupInstall"
+import { PostInstall, PreInstall } from "./setupInstall"
 import { Uninstall } from "./setupUninstall"
 
 export function setupInit<Manifest extends T.SDKManifest, Store>(
   versions: VersionGraph<string>,
-  install: Install<Manifest, Store>,
+  preInstall: PreInstall<Manifest, Store>,
+  postInstall: PostInstall<Manifest, Store>,
   uninstall: Uninstall<Manifest, Store>,
   setServiceInterfaces: UpdateServiceInterfaces<any>,
   setDependencies: (options: {
@@ -34,7 +35,7 @@ export function setupInit<Manifest extends T.SDKManifest, Store>(
           to: versions.currentVersion(),
         })
       } else {
-        await install.install(opts)
+        await postInstall.postInstall(opts)
         await opts.effects.setDataVersion({
           version: versions.current.options.version,
         })
@@ -61,7 +62,7 @@ export function setupInit<Manifest extends T.SDKManifest, Store>(
           path: "" as StorePath,
           value: initStore,
         })
-        await install.preInstall(opts)
+        await preInstall.preInstall(opts)
       }
       await setServiceInterfaces({
         ...opts,
