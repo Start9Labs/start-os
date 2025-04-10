@@ -134,7 +134,7 @@ export class SideloadPackageComponent {
   readonly flavor$ = this.local$.pipe(map(pkg => !pkg))
 
   onStatic(type: 'License' | 'Instructions') {
-    // @TODO Aiden return License or Instructions
+    // @TODO Matt display License or Instructions
   }
 
   async upload() {
