@@ -137,39 +137,37 @@ export class CommandController extends Drop {
     return new SubContainerHandle(this.subcontainer)
   }
   async wait({ timeout = NO_TIMEOUT } = {}) {
-    const self = this.weak()
     if (timeout > 0)
       setTimeout(() => {
-        self.term()
+        this.term()
       }, timeout)
     try {
-      return await self.runningAnswer
+      return await this.runningAnswer
     } finally {
-      if (!self.state.exited) {
-        self.process.kill("SIGKILL")
+      if (!this.state.exited) {
+        this.process.kill("SIGKILL")
       }
-      await self.subcontainer.destroy().catch((_) => {})
+      await this.subcontainer.destroy().catch((_) => {})
     }
   }
   async term({ signal = SIGTERM, timeout = this.sigtermTimeout } = {}) {
-    const self = this.weak()
     try {
-      if (!self.state.exited) {
+      if (!this.state.exited) {
         if (signal !== "SIGKILL") {
           setTimeout(() => {
-            if (!self.state.exited) self.process.kill("SIGKILL")
+            if (!this.state.exited) this.process.kill("SIGKILL")
           }, timeout)
         }
-        if (!self.process.kill(signal)) {
+        if (!this.process.kill(signal)) {
           console.error(
             `failed to send signal ${signal} to pid ${this.process.pid}`,
           )
         }
       }
 
-      await self.runningAnswer
+      await this.runningAnswer
     } finally {
-      await self.subcontainer.destroy()
+      await this.subcontainer.destroy()
     }
   }
   onDrop(): void {

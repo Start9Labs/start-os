@@ -28,7 +28,10 @@ import { UrlString } from "./util/getServiceInterface"
 /** Used to reach out from the pure js runtime */
 
 export type Effects = {
+  child: (name: string) => Effects
   constRetry?: () => void
+  isInContext: boolean
+  onLeaveContext: (fn: () => void | null | undefined) => void
   clearCallbacks: (
     options: { only: number[] } | { except: number[] },
   ) => Promise<null>

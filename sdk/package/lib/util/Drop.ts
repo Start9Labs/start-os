@@ -1,7 +1,8 @@
 export abstract class Drop {
   private static weak: { [id: number]: Drop } = {}
   private static registry = new FinalizationRegistry((id: number) => {
-    Drop.weak[id].drop()
+    const weak = Drop.weak[id]
+    if (weak) weak.drop()
   })
   private static idCtr: number = 0
   private id: number

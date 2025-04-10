@@ -37,10 +37,15 @@ export class GetStore<Store, StoreValue> {
    * Watches the value of Store at the provided path. Returns an async iterator that yields whenever the value changes
    */
   async *watch() {
-    while (true) {
-      let callback: () => void
+    const resolveCell = { resolve: () => {} }
+    this.effects.onLeaveContext(() => {
+      resolveCell.resolve()
+    })
+    while (this.effects.isInContext) {
+      let callback: () => void = () => {}
       const waitForNext = new Promise<void>((resolve) => {
         callback = resolve
+        resolveCell.resolve = resolve
       })
       yield await this.effects.store.get<Store, StoreValue>({
         ...this.options,

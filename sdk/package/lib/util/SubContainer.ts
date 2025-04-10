@@ -4,6 +4,7 @@ import * as cp from "child_process"
 import { promisify } from "util"
 import { Buffer } from "node:buffer"
 import { once } from "../../../base/lib/util/once"
+import { Drop } from "./Drop"
 
 export const execFile = promisify(cp.execFile)
 const False = () => false
@@ -45,16 +46,8 @@ export interface ExecSpawnable {
  * Implements:
  * @see {@link ExecSpawnable}
  */
-export class SubContainer implements ExecSpawnable {
-  private static finalizationEffects: { effects?: T.Effects } = {}
-  private static registry = new FinalizationRegistry((guid: string) => {
-    if (this.finalizationEffects.effects) {
-      this.finalizationEffects.effects.subcontainer
-        .destroyFs({ guid })
-        .catch((e) => console.error("failed to cleanup SubContainer", guid, e))
-    }
-  })
-
+export class SubContainer extends Drop implements ExecSpawnable {
+  private destroyed = false
   private leader: cp.ChildProcess
   private leaderExited: boolean = false
   private waitProc: () => Promise<null>
@@ -64,8 +57,7 @@ export class SubContainer implements ExecSpawnable {
     readonly rootfs: string,
     readonly guid: T.Guid,
   ) {
-    if (!SubContainer.finalizationEffects.effects)
-      SubContainer.finalizationEffects.effects = effects
+    super()
     this.leaderExited = false
     this.leader = cp.spawn("start-cli", ["subcontainer", "launch", rootfs], {
       killSignal: "SIGKILL",
@@ -106,7 +98,6 @@ export class SubContainer implements ExecSpawnable {
       name,
     })
     const res = new SubContainer(effects, imageId, rootfs, guid)
-    SubContainer.registry.register(res, guid, res)
 
     const shared = ["dev", "sys"]
     if (!!sharedRun) {
@@ -212,12 +203,18 @@ export class SubContainer implements ExecSpawnable {
 
   get destroy() {
     return async () => {
-      const guid = this.guid
-      await this.killLeader()
-      await this.effects.subcontainer.destroyFs({ guid })
-      SubContainer.registry.unregister(this)
+      if (!this.destroyed) {
+        const guid = this.guid
+        await this.killLeader()
+        await this.effects.subcontainer.destroyFs({ guid })
+        this.destroyed = true
+      }
       return null
     }
+  }
+
+  onDrop(): void {
+    this.destroy()
   }
 
   async exec(
