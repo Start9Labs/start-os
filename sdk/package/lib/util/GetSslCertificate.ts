@@ -34,10 +34,15 @@ export class GetSslCertificate {
    * Watches the SSL Certificate for the given hostnames if permitted. Returns an async iterator that yields whenever the value changes
    */
   async *watch() {
-    while (true) {
-      let callback: () => void
+    const resolveCell = { resolve: () => {} }
+    this.effects.onLeaveContext(() => {
+      resolveCell.resolve()
+    })
+    while (this.effects.isInContext) {
+      let callback: () => void = () => {}
       const waitForNext = new Promise<void>((resolve) => {
         callback = resolve
+        resolveCell.resolve = resolve
       })
       yield await this.effects.getSslCertificate({
         hostnames: this.hostnames,

@@ -46,6 +46,9 @@ type EffectsTypeChecker<T extends StringObject = Effects> = {
 describe("startosTypeValidation ", () => {
   test(`checking the params match`, () => {
     typeEquality<EffectsTypeChecker>({
+      child: "",
+      isInContext: {} as never,
+      onLeaveContext: () => {},
       clearCallbacks: {} as ClearCallbacksParams,
       action: {
         clear: {} as ClearActionsParams,

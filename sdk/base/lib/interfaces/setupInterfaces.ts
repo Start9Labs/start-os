@@ -28,24 +28,22 @@ export const setupServiceInterfaces: SetupServiceInterfaces = <
       [] as any as Output) as UpdateServiceInterfaces<Output>,
   }
   cell.updater = (async (options: { effects: T.Effects }) => {
-    options.effects = {
-      ...options.effects,
-      constRetry: once(() => {
-        cell.updater(options)
-      }),
-    }
+    const childEffects = options.effects.child("setupInterfaces")
+    childEffects.constRetry = once(() => {
+      cell.updater({ effects: options.effects })
+    })
     const bindings: T.BindId[] = []
     const interfaces: T.ServiceInterfaceId[] = []
     const res = await fn({
       effects: {
-        ...options.effects,
+        ...childEffects,
         bind: (params: T.BindParams) => {
           bindings.push({ id: params.id, internalPort: params.internalPort })
-          return options.effects.bind(params)
+          return childEffects.bind(params)
         },
         exportServiceInterface: (params: T.ExportServiceInterfaceParams) => {
           interfaces.push(params.id)
-          return options.effects.exportServiceInterface(params)
+          return childEffects.exportServiceInterface(params)
         },
       },
     })

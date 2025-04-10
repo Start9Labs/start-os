@@ -82,10 +82,15 @@ export class GetServiceInterfaces {
    */
   async *watch() {
     const { packageId } = this.opts
-    while (true) {
+    const resolveCell = { resolve: () => {} }
+    this.effects.onLeaveContext(() => {
+      resolveCell.resolve()
+    })
+    while (this.effects.isInContext) {
       let callback: () => void = () => {}
       const waitForNext = new Promise<void>((resolve) => {
         callback = resolve
+        resolveCell.resolve = resolve
       })
       yield await makeManyInterfaceFilled({
         effects: this.effects,

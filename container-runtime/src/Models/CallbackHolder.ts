@@ -14,7 +14,8 @@ export class CallbackHolder {
   constructor(private effects?: T.Effects) {}
 
   private callbacks = new Map<number, Function>()
-  private children: WeakRef<CallbackHolder>[] = []
+  private onLeaveContextCallbacks: Function[] = []
+  private children: Map<string, CallbackHolder> = new Map()
   private newId() {
     return CallbackIdCell.inc++
   }
@@ -32,23 +33,25 @@ export class CallbackHolder {
       })
     return id
   }
-  child(): CallbackHolder {
+  child(name: string): CallbackHolder {
+    this.removeChild(name)
     const child = new CallbackHolder()
-    this.children.push(new WeakRef(child))
+    this.children.set(name, child)
     return child
   }
-  removeChild(child: CallbackHolder) {
-    this.children = this.children.filter((c) => {
-      const ref = c.deref()
-      return ref && ref !== child
-    })
+  removeChild(name: string) {
+    const child = this.children.get(name)
+    if (child) {
+      child.leaveContext()
+      this.children.delete(name)
+    }
   }
   private getCallback(index: number): Function | undefined {
     let callback = this.callbacks.get(index)
     if (callback) this.callbacks.delete(index)
     else {
-      for (let i = 0; i < this.children.length; i++) {
-        callback = this.children[i].deref()?.getCallback(index)
+      for (let [_, child] of this.children) {
+        callback = child.getCallback(index)
         if (callback) return callback
       }
     }
@@ -58,5 +61,22 @@ export class CallbackHolder {
     const callback = this.getCallback(index)
     if (!callback) return Promise.resolve()
     return Promise.resolve().then(() => callback(...args))
+  }
+  onLeaveContext(fn: Function) {
+    this.onLeaveContextCallbacks.push(fn)
+  }
+  leaveContext() {
+    for (let [_, child] of this.children) {
+      child.leaveContext()
+    }
+    this.children = new Map()
+    for (let fn of this.onLeaveContextCallbacks) {
+      try {
+        fn()
+      } catch (e) {
+        console.warn(e)
+      }
+    }
+    this.onLeaveContextCallbacks = []
   }
 }
