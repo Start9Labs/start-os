@@ -22,10 +22,9 @@ import {
   TuiButton,
   TuiDialogContext,
   TuiDialogService,
-  TuiIcon,
   TuiLoader,
 } from '@taiga-ui/core'
-import { TuiRadioList, TuiStringifyContentPipe } from '@taiga-ui/kit'
+import { TuiRadioList } from '@taiga-ui/kit'
 import {
   BehaviorSubject,
   combineLatest,
@@ -53,7 +52,7 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
           @if (!(pkg.dependencyMetadata | empty)) {
             <marketplace-dependencies [pkg]="pkg" (open)="open($event)" />
           }
-          <marketplace-additional [pkg]="pkg">
+          <marketplace-additional [pkg]="pkg" (static)="onStatic($event)">
             @if (versions$ | async; as versions) {
               <marketplace-additional-item
                 (click)="versions.length ? selectVersion(pkg, version) : 0"
@@ -172,10 +171,8 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
     AboutModule,
     SharedPipesModule,
     FormsModule,
-    TuiStringifyContentPipe,
     TuiRadioList,
     TuiLoader,
-    TuiIcon,
     FlavorsComponent,
   ],
 })
@@ -226,6 +223,10 @@ export class MarketplacePreviewComponent {
 
   open(id: string) {
     this.router.navigate([], { queryParams: { id } })
+  }
+
+  onStatic(type: 'License' | 'Instructions') {
+    // @TODO Alex need to display License or Instructions. This requires an API request, check out next/minor
   }
 
   selectVersion(

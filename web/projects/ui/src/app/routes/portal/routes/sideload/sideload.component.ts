@@ -16,7 +16,7 @@ import {
 import { ConfigService } from 'src/app/services/config.service'
 import { TitleDirective } from 'src/app/services/title.service'
 import { SideloadPackageComponent } from './package.component'
-import { validateS9pk } from './sideload.utils'
+import { MarketplacePkgSideload, validateS9pk } from './sideload.utils'
 
 @Component({
   template: `
@@ -96,7 +96,7 @@ export default class SideloadComponent {
   readonly isTor = inject(ConfigService).isTor()
 
   file: File | null = null
-  readonly package = signal<MarketplacePkgBase | null>(null)
+  readonly package = signal<MarketplacePkgSideload | null>(null)
   readonly error = signal('')
 
   clear() {

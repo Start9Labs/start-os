@@ -7,7 +7,6 @@ import {
 } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { CopyService } from '@start9labs/shared'
-import { TuiDialogService } from '@taiga-ui/core'
 import { MarketplacePkgBase } from '../../../types'
 
 @Component({
@@ -25,7 +24,6 @@ export class AdditionalComponent {
 
   constructor(
     readonly copyService: CopyService,
-    private readonly dialogs: TuiDialogService,
     private readonly route: ActivatedRoute,
   ) {}
 

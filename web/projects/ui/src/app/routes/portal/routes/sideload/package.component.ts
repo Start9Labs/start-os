@@ -19,6 +19,7 @@ import { filter, first, map } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
+import { MarketplacePkgSideload } from './sideload.utils'
 
 @Component({
   selector: 'sideload-package',
@@ -111,11 +112,11 @@ export class SideloadPackageComponent {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
   // @Input({ required: true })
-  // pkg!: MarketplacePkgBase
+  // pkg!: MarketplacePkgSideload
 
   // @Alex why do I need to initialize pkg below? I would prefer to do the above, but it's not working
   @Input({ required: true })
-  pkg: MarketplacePkgBase = {} as MarketplacePkgBase
+  pkg: MarketplacePkgSideload = {} as MarketplacePkgSideload
 
   @Input({ required: true })
   file!: File
