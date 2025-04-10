@@ -88,6 +88,7 @@ import { InterfaceComponent } from './interface.component'
       text-align: right;
       grid-area: 1 / 2 / 3 / 3;
       place-content: center;
+      white-space: nowrap;
     }
 
     .mobile {

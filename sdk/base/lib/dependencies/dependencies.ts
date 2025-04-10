@@ -66,7 +66,9 @@ export async function checkDependencies<
     return dep.requirement.kind !== "running" || dep.result.isRunning
   }
   const actionsSatisfied = (packageId: DependencyId) =>
-    Object.keys(find(packageId).result.requestedActions).length === 0
+    Object.entries(find(packageId).result.requestedActions).filter(
+      ([_, req]) => req.active && req.request.severity === "critical",
+    ).length === 0
   const healthCheckSatisfied = (
     packageId: DependencyId,
     healthCheckId?: HealthCheckId,
@@ -129,7 +131,9 @@ export async function checkDependencies<
   }
   const throwIfActionsNotSatisfied = (packageId: DependencyId) => {
     const dep = find(packageId)
-    const reqs = Object.keys(dep.result.requestedActions)
+    const reqs = Object.entries(dep.result.requestedActions)
+      .filter(([_, req]) => req.active && req.request.severity === "critical")
+      .map(([id, _]) => id)
     if (reqs.length) {
       throw new Error(
         `The following action requests have not been fulfilled: ${reqs.join(", ")}`,

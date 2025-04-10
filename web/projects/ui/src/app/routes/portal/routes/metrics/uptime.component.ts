@@ -30,6 +30,7 @@ import { TimeService } from 'src/app/services/time.service'
   styles: `
     :host {
       height: 100%;
+      min-height: var(--tui-height-l);
       display: flex;
       text-align: center;
       justify-content: center;

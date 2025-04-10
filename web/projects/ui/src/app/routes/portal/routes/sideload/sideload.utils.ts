@@ -7,7 +7,7 @@ const VERSION_2 = new Uint8Array([2])
 
 export async function validateS9pk(
   file: File,
-): Promise<MarketplacePkgBase | string> {
+): Promise<MarketplacePkgSideload | string> {
   const magic = new Uint8Array(await blobToBuffer(file.slice(0, 2)))
   const version = new Uint8Array(await blobToBuffer(file.slice(2, 3)))
 
@@ -34,7 +34,7 @@ export async function validateS9pk(
   return 'Invalid package file'
 }
 
-async function parseS9pk(file: File): Promise<MarketplacePkgBase> {
+async function parseS9pk(file: File): Promise<MarketplacePkgSideload> {
   const s9pk = await S9pk.deserialize(file, null)
 
   return {
@@ -44,6 +44,8 @@ async function parseS9pk(file: File): Promise<MarketplacePkgBase> {
     icon: await s9pk.icon(),
     sourceVersion: s9pk.manifest.canMigrateFrom,
     flavor: ExtendedVersion.parse(s9pk.manifest.version).flavor,
+    license: await s9pk.license(),
+    instructions: await s9pk.instructions(),
   }
 }
 
@@ -75,4 +77,9 @@ async function readBlobToArrayBuffer(
 
 function compare(a: Uint8Array, b: Uint8Array) {
   return a.length === b.length && a.every((value, index) => value === b[index])
+}
+
+export type MarketplacePkgSideload = MarketplacePkgBase & {
+  license: string
+  instructions: string
 }

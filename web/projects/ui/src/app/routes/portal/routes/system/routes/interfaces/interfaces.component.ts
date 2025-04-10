@@ -8,6 +8,7 @@ import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs'
 import { InterfaceComponent } from 'src/app/routes/portal/components/interfaces/interface.component'
 import { getAddresses } from 'src/app/routes/portal/components/interfaces/interface.utils'
+import { InterfaceStatusComponent } from 'src/app/routes/portal/components/interfaces/status.component'
 import { ConfigService } from 'src/app/services/config.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
@@ -34,10 +35,14 @@ const iface: T.ServiceInterface = {
     <ng-container *title>
       <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
       StartOS UI
+      <interface-status [public]="!!ui()?.public" />
     </ng-container>
     <header tuiHeader>
       <hgroup tuiTitle>
-        <h3>{{ iface.name }}</h3>
+        <h3>
+          {{ iface.name }}
+          <interface-status [public]="!!ui()?.public" />
+        </h3>
         <p tuiSubtitle>{{ iface.description }}</p>
       </hgroup>
     </header>
@@ -54,6 +59,7 @@ const iface: T.ServiceInterface = {
     TitleDirective,
     TuiHeader,
     TuiTitle,
+    InterfaceStatusComponent,
   ],
 })
 export default class StartOsUiComponent {
