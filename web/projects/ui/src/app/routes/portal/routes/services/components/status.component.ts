@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { T } from '@start9labs/start-sdk'
 import { TuiLoader } from '@taiga-ui/core'
+import { getProgressText } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
 import { InstallingInfo } from 'src/app/services/patch-db/data-model'
 import {
   PrimaryRendering,
   PrimaryStatus,
 } from 'src/app/services/pkg-status-rendering.service'
-import { InstallingProgressDisplayPipe } from '../pipes/install-progress.pipe'
 
 @Component({
   selector: 'service-status',
@@ -17,7 +18,7 @@ import { InstallingProgressDisplayPipe } from '../pipes/install-progress.pipe'
           <tui-loader size="s" [inheritColor]="true" />
           Installing
           <span class="loading-dots"></span>
-          {{ installingInfo.progress.overall | installingProgressString }}
+          {{ getText(installingInfo.progress.overall) }}
         </h3>
       } @else {
         <h3 [class]="class">
@@ -84,7 +85,7 @@ import { InstallingProgressDisplayPipe } from '../pipes/install-progress.pipe'
   host: { class: 'g-card' },
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [InstallingProgressDisplayPipe, TuiLoader],
+  imports: [TuiLoader],
 })
 export class ServiceStatusComponent {
   @Input({ required: true })
@@ -119,5 +120,9 @@ export class ServiceStatusComponent {
 
   get rendering() {
     return PrimaryRendering[this.status]
+  }
+
+  getText(progress: T.Progress): string {
+    return getProgressText(progress)
   }
 }

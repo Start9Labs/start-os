@@ -16,11 +16,6 @@ import { TimeService } from 'src/app/services/time.service'
   selector: 'metrics-time',
   template: `
     @if (now(); as time) {
-      @if (!time.synced) {
-        <tui-notification appearance="warning">
-          <ng-container *ngTemplateOutlet="hint" />
-        </tui-notification>
-      }
       <div tuiCell>
         <div tuiTitle [style.text-align]="'center'">
           <div tuiSubtitle class="g-secondary">
@@ -36,6 +31,11 @@ import { TimeService } from 'src/app/services/time.service'
           />
         }
       </div>
+      @if (!time.synced) {
+        <tui-notification size="s" appearance="warning">
+          <ng-container *ngTemplateOutlet="hint" />
+        </tui-notification>
+      }
     } @else {
       Loading...
     }
@@ -61,10 +61,12 @@ import { TimeService } from 'src/app/services/time.service'
   styles: `
     :host {
       height: 100%;
+      min-height: var(--tui-height-l);
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 1rem;
+      align-items: center;
+      gap: 0.5rem;
       margin-bottom: 1.5rem;
 
       [tuiCell],
@@ -72,11 +74,19 @@ import { TimeService } from 'src/app/services/time.service'
       [tuiSubtitle] {
         margin: 0;
         justify-content: center;
+
+        &::after {
+          display: none;
+        }
       }
     }
 
     tui-icon {
       display: none;
+    }
+
+    tui-notification {
+      width: fit-content;
     }
 
     :host-context(tui-root._mobile) {

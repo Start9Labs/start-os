@@ -1,14 +1,9 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  Input,
-} from '@angular/core'
+import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { tuiPure } from '@taiga-ui/cdk'
 import { TuiIcon, TuiLoader } from '@taiga-ui/core'
+import { getProgressText } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
-import { InstallingProgressDisplayPipe } from '../pipes/install-progress.pipe'
 
 @Component({
   standalone: true,
@@ -31,6 +26,7 @@ import { InstallingProgressDisplayPipe } from '../pipes/install-progress.pipe'
       align-items: center;
       gap: 0.5rem;
       height: 3rem;
+      white-space: nowrap;
     }
 
     :host-context(tui-root._mobile) {
@@ -46,11 +42,8 @@ import { InstallingProgressDisplayPipe } from '../pipes/install-progress.pipe'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiIcon, TuiLoader],
-  providers: [InstallingProgressDisplayPipe],
 })
 export class StatusComponent {
-  private readonly pipe = inject(InstallingProgressDisplayPipe)
-
   @Input()
   pkg!: PackageDataEntry
 
@@ -72,7 +65,7 @@ export class StatusComponent {
 
   get status(): string {
     if (this.pkg.stateInfo.installingInfo) {
-      return `Installing...${this.pipe.transform(this.pkg.stateInfo.installingInfo.progress.overall)}`
+      return `Installing...${getProgressText(this.pkg.stateInfo.installingInfo.progress.overall)}`
     }
 
     switch (this.getStatus(this.pkg).primary) {

@@ -21,14 +21,7 @@ import { ServicesService } from './services.service'
           <th tuiTh [requiredSort]="true" [sorter]="name">Name</th>
           <th tuiTh>Version</th>
           <th tuiTh [requiredSort]="true" [sorter]="uptime">Uptime</th>
-          <th
-            tuiTh
-            [requiredSort]="true"
-            [sorter]="status"
-            [style.width.rem]="13"
-          >
-            Status
-          </th>
+          <th tuiTh [requiredSort]="true" [sorter]="status">Status</th>
           <th [style.width.rem]="8" [style.text-indent.rem]="1.5">Controls</th>
         </tr>
       </thead>

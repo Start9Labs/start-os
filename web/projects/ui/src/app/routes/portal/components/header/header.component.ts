@@ -91,7 +91,7 @@ import { HeaderStatusComponent } from './status.component'
         }
 
         &:has([data-status='success']) {
-          --status: var(--tui-status-positive);
+          --status: transparent;
         }
       }
 
