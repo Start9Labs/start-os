@@ -39,16 +39,13 @@ async function parseS9pk(file: File): Promise<MarketplacePkgSideload> {
 
   return {
     ...s9pk.manifest,
-    // @TODO Aiden uncomment when ready
-    // dependencyMetadata: await s9pk.getDependencyMetadata(),
-    dependencyMetadata: {} as any,
+    dependencyMetadata: await s9pk.dependencyMetadata(),
     gitHash: '',
     icon: await s9pk.icon(),
     sourceVersion: s9pk.manifest.canMigrateFrom,
     flavor: ExtendedVersion.parse(s9pk.manifest.version).flavor,
-    // @TODO Aiden also need to include license and instructions here
-    license: '',
-    instructions: '',
+    license: await s9pk.license(),
+    instructions: await s9pk.instructions(),
   }
 }
 

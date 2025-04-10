@@ -5,7 +5,10 @@ use imbl_value::json;
 use models::{ActionId, PackageId, ProcedureName, ReplayId};
 
 use crate::action::{ActionInput, ActionResult};
-use crate::db::model::package::{ActionRequestCondition, ActionRequestEntry, ActionRequestInput};
+use crate::db::model::package::{
+    ActionRequestCondition, ActionRequestEntry, ActionRequestInput, ActionVisibility,
+    AllowedStatuses,
+};
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
 use crate::service::{Service, ServiceActor};
@@ -123,12 +126,44 @@ impl Handler<RunAction> for ServiceActor {
         &mut self,
         id: Guid,
         RunAction {
-            id: action_id,
+            id: ref action_id,
             input,
         }: RunAction,
         _: &BackgroundJobQueue,
     ) -> Self::Response {
         let container = &self.0.persistent_container;
+        let package_id = &self.0.id;
+        let action = self
+            .0
+            .ctx
+            .db
+            .peek()
+            .await
+            .into_public()
+            .into_package_data()
+            .into_idx(package_id)
+            .or_not_found(package_id)?
+            .into_actions()
+            .into_idx(&action_id)
+            .or_not_found(lazy_format!("{package_id} action {action_id}"))?
+            .de()?;
+        if !matches!(&action.visibility, ActionVisibility::Enabled) {
+            return Err(Error::new(
+                eyre!("action {action_id} is disabled"),
+                ErrorKind::Action,
+            ));
+        }
+        let running = container.state.borrow().running_status.as_ref().is_some();
+        if match action.allowed_statuses {
+            AllowedStatuses::OnlyRunning => !running,
+            AllowedStatuses::OnlyStopped => running,
+            _ => false,
+        } {
+            return Err(Error::new(
+                eyre!("service is not in allowed status for {action_id}"),
+                ErrorKind::Action,
+            ));
+        }
         let result = container
             .execute::<Option<ActionResult>>(
                 id,
@@ -140,7 +175,6 @@ impl Handler<RunAction> for ServiceActor {
             )
             .await
             .with_kind(ErrorKind::Action)?;
-        let package_id = &self.0.id;
         self.0
             .ctx
             .db
@@ -150,7 +184,7 @@ impl Handler<RunAction> for ServiceActor {
                         Ok(update_requested_actions(
                             requested_actions,
                             package_id,
-                            &action_id,
+                            action_id,
                             &input,
                             true,
                         ))

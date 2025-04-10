@@ -186,6 +186,7 @@ pub async fn remove_before(
             Ok(())
         })
         .await
+        .result
 }
 
 pub async fn mark_seen(
@@ -213,6 +214,7 @@ pub async fn mark_seen(
             Ok(())
         })
         .await
+        .result
 }
 
 pub async fn mark_seen_before(
@@ -240,6 +242,7 @@ pub async fn mark_seen_before(
             Ok(())
         })
         .await
+        .result
 }
 
 pub async fn mark_unseen(
