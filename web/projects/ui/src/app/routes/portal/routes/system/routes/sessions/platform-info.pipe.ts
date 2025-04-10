@@ -5,32 +5,41 @@ import { Pipe, PipeTransform } from '@angular/core'
   standalone: true,
 })
 export class PlatformInfoPipe implements PipeTransform {
-  transform(userAgent: string): {
+  transform(userAgent: string | null): {
     name: string
     icon: string
   } {
-    const info = {
-      name: 'CLI',
-      icon: '@tui.terminal',
+    if (!userAgent) {
+      return {
+        name: 'CLI',
+        icon: '@tui.terminal',
+      }
     }
 
-    // @TODO Alex we need to parse the userAgent to determine the platform
+    if (/Android/i.test(userAgent)) {
+      return {
+        name: 'Android Device',
+        icon: '@tui.smartphone',
+      }
+    }
 
-    // if (platforms.includes('desktop')) {
-    //   info.name = 'Desktop/Laptop'
-    //   info.icon = '@tui.monitor'
-    // } else if (platforms.includes('android')) {
-    //   info.name = 'Android Device'
-    // } else if (platforms.includes('iphone')) {
-    //   info.name = 'iPhone'
-    // } else if (platforms.includes('ipad')) {
-    //   info.name = 'iPad'
-    // } else if (platforms.includes('ios')) {
-    //   info.name = 'iOS Device'
-    // } else {
-    //   info.name = 'Unknown Device'
-    // }
+    if (/iPhone/i.test(userAgent)) {
+      return {
+        name: 'iPhone',
+        icon: '@tui.smartphone',
+      }
+    }
 
-    return info
+    if (/iPad/i.test(userAgent)) {
+      return {
+        name: 'iPad',
+        icon: '@tui.smartphone',
+      }
+    }
+
+    return {
+      name: 'Desktop/Laptop',
+      icon: '@tui.monitor',
+    }
   }
 }

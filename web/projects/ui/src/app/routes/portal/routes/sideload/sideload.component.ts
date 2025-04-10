@@ -1,11 +1,11 @@
 import {
   ChangeDetectionStrategy,
-  ChangeDetectorRef,
   Component,
   inject,
   signal,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
+import { MarketplacePkgBase } from '@start9labs/marketplace'
 import { tuiIsString } from '@taiga-ui/cdk'
 import { TuiButton } from '@taiga-ui/core'
 import {
@@ -17,7 +17,6 @@ import { ConfigService } from 'src/app/services/config.service'
 import { TitleDirective } from 'src/app/services/title.service'
 import { SideloadPackageComponent } from './package.component'
 import { validateS9pk } from './sideload.utils'
-import { MarketplacePkgBase } from '@start9labs/marketplace'
 
 @Component({
   template: `
@@ -94,7 +93,6 @@ import { MarketplacePkgBase } from '@start9labs/marketplace'
   ],
 })
 export default class SideloadComponent {
-  private readonly cdr = inject(ChangeDetectorRef)
   readonly isTor = inject(ConfigService).isTor()
 
   file: File | null = null
@@ -108,11 +106,11 @@ export default class SideloadComponent {
   }
 
   async onFile(file: File | null) {
-    const parsed = file ? await validateS9pk(file) : ''
     this.file = file
+
+    const parsed = file ? await validateS9pk(file) : ''
+
     this.package.set(tuiIsString(parsed) ? null : parsed)
     this.error.set(tuiIsString(parsed) ? parsed : '')
-    // @TODO Alex figure out why it is needed even though we use signals
-    this.cdr.markForCheck()
   }
 }
