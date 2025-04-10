@@ -33,10 +33,10 @@ import { PlatformInfoPipe } from './platform-info.pipe'
               <span tuiFade class="agent">{{ session.userAgent }}</span>
             </label>
           </td>
-          @if (session.metadata.platforms | platformInfo; as info) {
+          @if (session.userAgent | platformInfo; as platform) {
             <td class="platform">
-              <tui-icon [icon]="info.icon" />
-              {{ info.name }}
+              <tui-icon [icon]="platform.icon" />
+              {{ platform.name }}
             </td>
           }
           <td class="date">{{ session.lastActive | date: 'medium' }}</td>

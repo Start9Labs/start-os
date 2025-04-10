@@ -26,7 +26,6 @@ use crate::s9pk::merkle_archive::source::{
     into_dyn_read, ArchiveSource, DynFileSource, DynRead, FileSource, TmpSource,
 };
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
-use crate::s9pk::v2::recipe::DirRecipe;
 use crate::s9pk::v2::SIG_CONTEXT;
 use crate::s9pk::S9pk;
 use crate::util::io::{create_file, open_file, TmpDir};
@@ -736,24 +735,33 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
             let dep_path = Path::new("dependencies").join(id);
             to_insert.push((
                 dep_path.join("metadata.json"),
-                Entry::file(PackSource::Buffered(
-                    IoFormat::Json
-                        .to_vec(&DependencyMetadata {
-                            title: s9pk.as_manifest().title.clone(),
-                        })?
-                        .into(),
+                Entry::file(TmpSource::new(
+                    tmp_dir.clone(),
+                    PackSource::Buffered(
+                        IoFormat::Json
+                            .to_vec(&DependencyMetadata {
+                                title: s9pk.as_manifest().title.clone(),
+                            })?
+                            .into(),
+                    ),
                 )),
             ));
             let icon = s9pk.icon().await?;
             to_insert.push((
                 dep_path.join(&*icon.0),
-                Entry::file(PackSource::Buffered(
-                    icon.1.expect_file()?.to_vec(icon.1.hash()).await?.into(),
+                Entry::file(TmpSource::new(
+                    tmp_dir.clone(),
+                    PackSource::Buffered(icon.1.expect_file()?.to_vec(icon.1.hash()).await?.into()),
                 )),
             ));
         } else {
             warn!("no s9pk specified for {id}, leaving metadata empty");
         }
+    }
+    for (path, source) in to_insert {
+        s9pk.as_archive_mut()
+            .contents_mut()
+            .insert_path(path, source)?;
     }
 
     s9pk.validate_and_filter(None)?;

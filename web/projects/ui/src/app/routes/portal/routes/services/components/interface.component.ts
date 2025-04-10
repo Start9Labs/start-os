@@ -5,11 +5,11 @@ import {
   Input,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
+import { T } from '@start9labs/start-sdk'
 import { TuiButton, TuiLink } from '@taiga-ui/core'
 import { TuiBadge } from '@taiga-ui/kit'
 import { ConfigService } from 'src/app/services/config.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { MappedInterface } from '../types/mapped-interface'
 
 @Component({
   selector: 'tr[serviceInterface]',
@@ -113,7 +113,10 @@ export class ServiceInterfaceComponent {
   private readonly config = inject(ConfigService)
 
   @Input({ required: true })
-  info!: MappedInterface
+  info!: T.ServiceInterface & {
+    public: boolean
+    routerLink: string
+  }
 
   @Input({ required: true })
   pkg!: PackageDataEntry

@@ -50,7 +50,7 @@ const OTHER = 'Other Custom Actions'
   `,
   styles: `
     section {
-      max-width: 54rem;
+      max-width: 42rem;
       display: flex;
       flex-direction: column;
       margin-bottom: 2rem;
@@ -74,18 +74,20 @@ export default class ServiceActionsRoute {
           mainStatus: pkg.status.main,
           icon: pkg.icon,
           manifest: getManifest(pkg),
-          actions: Object.keys(pkg.actions).reduce<
-            Record<string, ReadonlyArray<T.ActionMetadata & { id: string }>>
-          >(
-            (acc, id) => {
-              const action = { id, ...pkg.actions[id] }
-              const group = pkg.actions[id].group || OTHER
-              const current = acc[group] || []
+          actions: Object.entries(pkg.actions)
+            .filter(([_, val]) => val.visibility !== 'hidden')
+            .reduce<
+              Record<string, ReadonlyArray<T.ActionMetadata & { id: string }>>
+            >(
+              (acc, [id]) => {
+                const action = { id, ...pkg.actions[id] }
+                const group = pkg.actions[id].group || OTHER
+                const current = acc[group] || []
 
-              return { ...acc, [group]: current.concat(action) }
-            },
-            { [OTHER]: [] },
-          ),
+                return { ...acc, [group]: current.concat(action) }
+              },
+              { [OTHER]: [] },
+            ),
         })),
       ),
   )
@@ -110,7 +112,7 @@ const REBUILD = {
   icon: '@tui.wrench',
   name: 'Rebuild Service',
   description:
-    'Rebuilds the service container. It is harmless and only takes a few seconds to complete, but it should only be necessary if a StartOS bug is preventing dependencies, interfaces, or actions from synchronizing.',
+    'Rebuilds the service container. Only necessary in there is a bug in StartOS',
 }
 
 const UNINSTALL = {

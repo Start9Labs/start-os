@@ -62,7 +62,7 @@ export default class SystemProxiesComponent {
     this.formDialog.open(FormComponent, options)
   }
 
-  // @TODO fix type to be WireguardSpec
+  // @TODO 041 fix type to be WireguardSpec
   private async save({ name, config }: any): Promise<boolean> {
     const loader = this.loader.open('Saving...').subscribe()
 

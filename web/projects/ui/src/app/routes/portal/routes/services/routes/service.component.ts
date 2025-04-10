@@ -19,7 +19,7 @@ import {
 } from 'src/app/services/patch-db/data-model'
 import { getInstalledPrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
 import { ServiceActionRequestsComponent } from '../components/action-requests.component'
-import { ServiceActionsComponent } from '../components/actions.component'
+import { ServiceControlsComponent } from '../components/controls.component'
 import { ServiceDependenciesComponent } from '../components/dependencies.component'
 import { ServiceErrorComponent } from '../components/error.component'
 import { ServiceHealthChecksComponent } from '../components/health-checks.component'
@@ -38,7 +38,7 @@ import { ServiceStatusComponent } from '../components/status.component'
         <p class="g-secondary" [appUptime]="started"></p>
       }
       @if (installed() && connected()) {
-        <service-actions [pkg]="pkg()" [status]="status()" />
+        <service-controls [pkg]="pkg()" [status]="status()" />
       }
     </service-status>
 
@@ -90,7 +90,7 @@ import { ServiceStatusComponent } from '../components/status.component'
     CommonModule,
     ServiceProgressComponent,
     ServiceStatusComponent,
-    ServiceActionsComponent,
+    ServiceControlsComponent,
     ServiceInterfacesComponent,
     ServiceHealthChecksComponent,
     ServiceDependenciesComponent,

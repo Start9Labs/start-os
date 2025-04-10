@@ -72,7 +72,7 @@ pub struct PackageVersionInfo {
     pub icon: DataUrl<'static>,
     pub description: Description,
     pub release_notes: String,
-    pub git_hash: GitHash,
+    pub git_hash: Option<GitHash>,
     #[ts(type = "string")]
     pub license: InternedString,
     #[ts(type = "string")]
@@ -115,7 +115,7 @@ impl PackageVersionInfo {
             icon: s9pk.icon_data_url().await?,
             description: manifest.description.clone(),
             release_notes: manifest.release_notes.clone(),
-            git_hash: manifest.git_hash.clone().or_not_found("git hash")?,
+            git_hash: manifest.git_hash.clone(),
             license: manifest.license.clone(),
             wrapper_repo: manifest.wrapper_repo.clone(),
             upstream_repo: manifest.upstream_repo.clone(),
@@ -153,7 +153,7 @@ impl PackageVersionInfo {
             br -> "DESCRIPTION",
             &textwrap::wrap(&self.description.long, 80).join("\n")
         ]);
-        table.add_row(row![br -> "GIT HASH", AsRef::<str>::as_ref(&self.git_hash)]);
+        table.add_row(row![br -> "GIT HASH", self.git_hash.as_deref().unwrap_or("N/A")]);
         table.add_row(row![br -> "LICENSE", &self.license]);
         table.add_row(row![br -> "PACKAGE REPO", &self.wrapper_repo.to_string()]);
         table.add_row(row![br -> "SERVICE REPO", &self.upstream_repo.to_string()]);

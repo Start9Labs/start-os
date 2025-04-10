@@ -197,9 +197,6 @@ pub struct LoginParams {
     user_agent: Option<String>,
     #[serde(default)]
     ephemeral: bool,
-    #[serde(default)]
-    #[ts(type = "any")]
-    metadata: Value,
 }
 
 #[instrument(skip_all)]
@@ -209,7 +206,6 @@ pub async fn login_impl(
         password,
         user_agent,
         ephemeral,
-        metadata,
     }: LoginParams,
 ) -> Result<LoginRes, Error> {
     let password = password.unwrap_or_default().decrypt(&ctx)?;
@@ -224,7 +220,6 @@ pub async fn login_impl(
                     logged_in: Utc::now(),
                     last_active: Utc::now(),
                     user_agent,
-                    metadata,
                 },
             )
         });
@@ -240,7 +235,6 @@ pub async fn login_impl(
                         logged_in: Utc::now(),
                         last_active: Utc::now(),
                         user_agent,
-                        metadata,
                     },
                 )?;
 
@@ -277,10 +271,7 @@ pub struct Session {
     pub logged_in: DateTime<Utc>,
     #[ts(type = "string")]
     pub last_active: DateTime<Utc>,
-    #[ts(skip)]
     pub user_agent: Option<String>,
-    #[ts(type = "any")]
-    pub metadata: Value,
 }
 
 #[derive(Deserialize, Serialize, TS)]
@@ -327,7 +318,6 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) {
         "LOGGED IN",
         "LAST ACTIVE",
         "USER AGENT",
-        "METADATA",
     ]);
     for (id, session) in arg.sessions.0 {
         let mut row = row![
@@ -335,7 +325,6 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) {
             &format!("{}", session.logged_in),
             &format!("{}", session.last_active),
             session.user_agent.as_deref().unwrap_or("N/A"),
-            &format!("{}", session.metadata),
         ];
         if Some(id) == arg.current {
             row.iter_mut()

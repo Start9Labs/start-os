@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
-import { TuiIcon, TuiTitle } from '@taiga-ui/core'
+import { TuiTitle } from '@taiga-ui/core'
 
 interface ActionItem {
   readonly name: string
@@ -12,7 +12,6 @@ interface ActionItem {
 @Component({
   selector: '[action]',
   template: `
-    <tui-icon [icon]="action.icon || '@tui.circle-play'" />
     <div tuiTitle>
       <strong>{{ action.name }}</strong>
       <div tuiSubtitle>{{ action.description }}</div>
@@ -23,7 +22,7 @@ interface ActionItem {
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiIcon, TuiTitle],
+  imports: [TuiTitle],
   host: {
     '[disabled]': '!!disabled',
   },

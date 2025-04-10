@@ -15,6 +15,7 @@ import { MappedServiceInterface } from './interface.utils'
   `,
   styles: `
     :host {
+      max-width: 56rem;
       display: flex;
       flex-direction: column;
       gap: 1rem;

@@ -6,7 +6,7 @@ import {
 } from '@angular/core'
 import { TuiDialogService } from '@taiga-ui/core'
 import { RELEASE_NOTES } from '../../../modals/release-notes.component'
-import { MarketplacePkg } from '../../../types'
+import { MarketplacePkgBase } from '../../../types'
 
 @Component({
   selector: 'marketplace-about',
@@ -18,7 +18,7 @@ export class AboutComponent {
   private readonly dialogs = inject(TuiDialogService)
 
   @Input({ required: true })
-  pkg!: MarketplacePkg
+  pkg!: MarketplacePkgBase
 
   async onPast() {
     this.dialogs

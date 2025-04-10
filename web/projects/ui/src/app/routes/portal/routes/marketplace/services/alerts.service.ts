@@ -1,6 +1,6 @@
 import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { inject, Injectable } from '@angular/core'
-import { MarketplacePkg } from '@start9labs/marketplace'
+import { MarketplacePkg, MarketplacePkgBase } from '@start9labs/marketplace'
 import { TuiDialogService } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { defaultIfEmpty, firstValueFrom } from 'rxjs'
@@ -60,7 +60,7 @@ export class MarketplaceAlertsService {
     })
   }
 
-  async alertInstall({ alerts }: MarketplacePkg): Promise<boolean> {
+  async alertInstall({ alerts }: MarketplacePkgBase): Promise<boolean> {
     const content = alerts.install
 
     return (

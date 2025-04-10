@@ -103,7 +103,7 @@ import { wifiSpec } from './wifi.const'
   `,
   styles: `
     :host {
-      max-width: 40rem;
+      max-width: 36rem;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

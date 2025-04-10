@@ -1,3 +1,4 @@
+import { OptionalProperty } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 
 export type GetPackageReq = {
@@ -31,11 +32,17 @@ export type StoreData = {
   packages: MarketplacePkg[]
 }
 
-export type MarketplacePkg = T.PackageVersionInfo &
-  Omit<GetPackageRes, 'best'> & {
-    id: T.PackageId
-    version: string
-    flavor: string | null
-  }
+export type MarketplacePkgBase = OptionalProperty<
+  T.PackageVersionInfo,
+  's9pk'
+> & {
+  id: T.PackageId
+  version: string
+  flavor: string | null
+}
+
+export type MarketplacePkg = MarketplacePkgBase &
+  GetPackageRes &
+  T.PackageVersionInfo
 
 export type StoreDataWithUrl = StoreData & { url: string }

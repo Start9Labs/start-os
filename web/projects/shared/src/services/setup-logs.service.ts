@@ -1,5 +1,13 @@
 import { StaticClassProvider } from '@angular/core'
-import { bufferTime, defer, map, Observable, scan, switchMap } from 'rxjs'
+import {
+  bufferTime,
+  defer,
+  filter,
+  map,
+  Observable,
+  scan,
+  switchMap,
+} from 'rxjs'
 import { FollowLogsReq, FollowLogsRes, Log } from '../types/api'
 import { Constructor } from '../types/constructor'
 import { convertAnsi } from '../util/convert-ansi'
@@ -22,7 +30,8 @@ export function provideSetupLogsService(
 export class SetupLogsService extends Observable<readonly string[]> {
   private readonly log$ = defer(() => this.api.followServerLogs({})).pipe(
     switchMap(({ guid }) => this.api.openWebsocket$(guid)),
-    bufferTime(1000),
+    bufferTime(500),
+    filter(logs => !!logs.length),
     map(convertAnsi),
     scan((logs: readonly string[], log) => [...logs, log], []),
   )

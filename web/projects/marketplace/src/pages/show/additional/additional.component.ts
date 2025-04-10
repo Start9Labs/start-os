@@ -7,8 +7,7 @@ import {
 } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
 import { CopyService } from '@start9labs/shared'
-import { TuiDialogService } from '@taiga-ui/core'
-import { MarketplacePkg } from '../../../types'
+import { MarketplacePkgBase } from '../../../types'
 
 @Component({
   selector: 'marketplace-additional',
@@ -18,14 +17,13 @@ import { MarketplacePkg } from '../../../types'
 })
 export class AdditionalComponent {
   @Input({ required: true })
-  pkg!: MarketplacePkg
+  pkg!: MarketplacePkgBase
 
   @Output()
-  readonly static = new EventEmitter<string>()
+  readonly static = new EventEmitter<'License' | 'Instructions'>()
 
   constructor(
     readonly copyService: CopyService,
-    private readonly dialogs: TuiDialogService,
     private readonly route: ActivatedRoute,
   ) {}
 

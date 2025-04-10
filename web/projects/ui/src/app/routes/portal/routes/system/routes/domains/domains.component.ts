@@ -140,7 +140,7 @@ export default class SystemDomainsComponent {
 
     this.formDialog.open(FormComponent, options)
   }
-  // @TODO figure out how to get types here
+  // @TODO 041 figure out how to get types here
   private getNetworkStrategy(strategy: any) {
     return strategy.selection === 'local'
       ? { ipStrategy: strategy.value.ipStrategy }
@@ -162,7 +162,7 @@ export default class SystemDomainsComponent {
       loader.unsubscribe()
     }
   }
-  // @TODO figure out how to get types here
+  // @TODO 041 figure out how to get types here
   private async claimDomain({ strategy }: any): Promise<boolean> {
     const loader = this.loader.open('Saving...').subscribe()
     const networkStrategy = this.getNetworkStrategy(strategy)
@@ -177,7 +177,7 @@ export default class SystemDomainsComponent {
       loader.unsubscribe()
     }
   }
-  // @TODO figure out how to get types here
+  // @TODO 041 figure out how to get types here
   private async save({ provider, strategy, hostname }: any): Promise<boolean> {
     const loader = this.loader.open('Saving...').subscribe()
     const name = provider.selection

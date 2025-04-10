@@ -39,7 +39,7 @@ import {
     section {
       display: flex;
       flex-direction: column;
-      max-width: 32rem;
+      max-width: 36rem;
       padding: 0.5rem 1rem;
     }
   `,

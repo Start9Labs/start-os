@@ -80,7 +80,7 @@ const FILTER = ['/portal/services', '/portal/system', '/portal/marketplace']
     :host {
       display: none;
       backdrop-filter: blur(1rem);
-      // TODO: Theme
+      // TODO Theme
       --tui-background-elevation-1: #333;
       --tui-background-base: #fff;
       --tui-border-normal: var(--tui-background-neutral-1);

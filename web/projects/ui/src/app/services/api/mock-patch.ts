@@ -252,7 +252,7 @@ export const mockPatchData: DataModel = {
           name: 'View Properties',
           description: 'view important information about Bitcoin',
           warning: null,
-          visibility: 'enabled',
+          visibility: 'hidden',
           allowedStatuses: 'any',
           hasInput: false,
           group: null,

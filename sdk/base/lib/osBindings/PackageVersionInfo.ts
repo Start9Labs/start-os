@@ -14,7 +14,7 @@ export type PackageVersionInfo = {
   icon: DataUrl
   description: Description
   releaseNotes: string
-  gitHash: GitHash
+  gitHash: GitHash | null
   license: string
   wrapperRepo: string
   upstreamRepo: string

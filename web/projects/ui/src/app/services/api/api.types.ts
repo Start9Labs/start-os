@@ -31,7 +31,6 @@ export namespace RR {
 
   export type LoginReq = {
     password: string
-    metadata: SessionMetadata
     ephemeral?: boolean
   } // auth.login - unauthed
   export type loginRes = null
@@ -421,29 +420,7 @@ export type Session = {
   loggedIn: string
   lastActive: string
   userAgent: string
-  metadata: SessionMetadata
 }
-
-export type SessionMetadata = {
-  platforms: PlatformType[]
-}
-
-export type PlatformType =
-  | 'cli'
-  | 'ios'
-  | 'ipad'
-  | 'iphone'
-  | 'android'
-  | 'phablet'
-  | 'tablet'
-  | 'cordova'
-  | 'capacitor'
-  | 'electron'
-  | 'pwa'
-  | 'mobile'
-  | 'mobileweb'
-  | 'desktop'
-  | 'hybrid'
 
 export type BackupTarget = DiskBackupTarget | CifsBackupTarget
 
@@ -604,7 +581,7 @@ export type DependencyErrorTransitive = {
   type: 'transitive'
 }
 
-// **** @TODO 041 ****
+// @TODO 041
 
 // export namespace RR041 {
 //   // ** domains **

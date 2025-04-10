@@ -357,11 +357,11 @@ export function listUnique(spec: IST.ValueSpecList): ValidatorFn {
           const objSpec = spec.spec
           let display1: string
           let display2: string
-          let uniqueMessage = isObject(objSpec)
+          let uniqueMessage = isListObject(objSpec)
             ? uniqueByMessageWrapper(objSpec.uniqueBy, objSpec)
             : ''
 
-          if (isObject(objSpec) && objSpec.displayAs) {
+          if (isListObject(objSpec) && objSpec.displayAs) {
             display1 = `"${(Mustache as any).render(
               objSpec.displayAs,
               list[idx],
@@ -390,52 +390,12 @@ function listItemEquals(
   val1: any,
   val2: any,
 ): boolean {
-  // TODO: fix types
   switch (spec.spec.type) {
     case 'text':
       return val1 == val2
     case 'object':
       const obj = spec.spec
       return listObjEquals(obj.uniqueBy, obj, val1, val2)
-    default:
-      return false
-  }
-}
-
-function itemEquals(spec: IST.ValueSpec, val1: any, val2: any): boolean {
-  switch (spec.type) {
-    case 'text':
-    case 'textarea':
-    case 'number':
-    case 'toggle':
-    case 'select':
-      return val1 == val2
-    case 'object':
-      // TODO: 'unique-by' does not exist on ValueSpecObject, fix types
-      return objEquals(
-        (spec as any)['unique-by'],
-        spec as IST.ValueSpecObject,
-        val1,
-        val2,
-      )
-    case 'union':
-      // TODO: 'unique-by' does not exist onIST.ValueSpecUnion, fix types
-      return unionEquals(
-        (spec as any)['unique-by'],
-        spec as IST.ValueSpecUnion,
-        val1,
-        val2,
-      )
-    case 'list':
-      if (val1.length !== val2.length) {
-        return false
-      }
-      for (let idx = 0; idx < val1.length; idx++) {
-        if (listItemEquals(spec, val1[idx], val2[idx])) {
-          return false
-        }
-      }
-      return true
     default:
       return false
   }
@@ -450,17 +410,17 @@ function listObjEquals(
   if (!uniqueBy) {
     return false
   } else if (typeof uniqueBy === 'string') {
-    return itemEquals(spec.spec[uniqueBy], val1[uniqueBy], val2[uniqueBy])
+    return uniqueByEquals(spec.spec[uniqueBy], val1[uniqueBy], val2[uniqueBy])
   } else if ('any' in uniqueBy) {
-    for (let subSpec of uniqueBy.any) {
-      if (listObjEquals(subSpec, spec, val1, val2)) {
+    for (let unique of uniqueBy.any) {
+      if (listObjEquals(unique, spec, val1, val2)) {
         return true
       }
     }
     return false
   } else if ('all' in uniqueBy) {
-    for (let subSpec of uniqueBy.all) {
-      if (!listObjEquals(subSpec, spec, val1, val2)) {
+    for (let unique of uniqueBy.all) {
+      if (!listObjEquals(unique, spec, val1, val2)) {
         return false
       }
     }
@@ -469,66 +429,29 @@ function listObjEquals(
   return false
 }
 
-function objEquals(
-  uniqueBy: IST.UniqueBy,
-  spec: IST.ValueSpecObject,
-  val1: any,
-  val2: any,
-): boolean {
-  if (!uniqueBy) {
-    return false
-  } else if (typeof uniqueBy === 'string') {
-    // TODO: fix types
-    return itemEquals((spec as any)[uniqueBy], val1[uniqueBy], val2[uniqueBy])
-  } else if ('any' in uniqueBy) {
-    for (let subSpec of uniqueBy.any) {
-      if (objEquals(subSpec, spec, val1, val2)) {
-        return true
-      }
-    }
-    return false
-  } else if ('all' in uniqueBy) {
-    for (let subSpec of uniqueBy.all) {
-      if (!objEquals(subSpec, spec, val1, val2)) {
+function uniqueByEquals(spec: IST.ValueSpec, val1: any, val2: any): boolean {
+  switch (spec.type) {
+    case 'text':
+    case 'textarea':
+    case 'number':
+    case 'toggle':
+    case 'select':
+    case 'color':
+    case 'datetime':
+      return val1 == val2
+    case 'list':
+      if (val1.length !== val2.length) {
         return false
       }
-    }
-    return true
-  }
-  return false
-}
-
-function unionEquals(
-  uniqueBy: IST.UniqueBy,
-  spec: IST.ValueSpecUnion,
-  val1: any,
-  val2: any,
-): boolean {
-  const variantSpec = spec.variants[val1.selection].spec
-  if (!uniqueBy) {
-    return false
-  } else if (typeof uniqueBy === 'string') {
-    if (uniqueBy === 'selection') {
-      return val1.selection === val2.selection
-    } else {
-      return itemEquals(variantSpec[uniqueBy], val1[uniqueBy], val2[uniqueBy])
-    }
-  } else if ('any' in uniqueBy) {
-    for (let subSpec of uniqueBy.any) {
-      if (unionEquals(subSpec, spec, val1, val2)) {
-        return true
+      for (let idx = 0; idx < val1.length; idx++) {
+        if (listItemEquals(spec, val1[idx], val2[idx])) {
+          return false
+        }
       }
-    }
-    return false
-  } else if ('all' in uniqueBy) {
-    for (let subSpec of uniqueBy.all) {
-      if (!unionEquals(subSpec, spec, val1, val2)) {
-        return false
-      }
-    }
-    return true
+      return true
+    default:
+      return false
   }
-  return false
 }
 
 function uniqueByMessageWrapper(
@@ -573,7 +496,7 @@ function uniqueByMessage(
     : '(' + ret + ')'
 }
 
-function isObject(
+function isListObject(
   spec: IST.ListValueSpecOf<any>,
 ): spec is IST.ListValueSpecObject {
   // only lists of objects have uniqueBy

@@ -1,5 +1,4 @@
 import { RouterLink } from '@angular/router'
-import { TuiTable } from '@taiga-ui/addon-table'
 import { TuiLet } from '@taiga-ui/cdk'
 import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'

@@ -935,26 +935,17 @@ export namespace Mock {
         loggedIn: '2021-07-14T20:49:17.774Z',
         lastActive: '2021-07-14T20:49:17.774Z',
         userAgent: 'AppleWebKit/{WebKit Rev} (KHTML, like Gecko)',
-        metadata: {
-          platforms: ['iphone', 'mobileweb', 'mobile', 'ios'],
-        },
       },
       klndsfjhbwsajkdnaksj: {
         loggedIn: '2021-07-14T20:49:17.774Z',
         lastActive: '2019-07-14T20:49:17.774Z',
         userAgent: 'AppleWebKit/{WebKit Rev} (KHTML, like Gecko)',
-        metadata: {
-          platforms: ['cli'],
-        },
       },
       b7b1a9cef4284f00af9e9dda6e676177: {
         loggedIn: '2021-07-14T20:49:17.774Z',
         lastActive: '2021-06-14T20:49:17.774Z',
         userAgent:
           'Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:47.0) Gecko/20100101 Firefox/47.0',
-        metadata: {
-          platforms: ['desktop'],
-        },
       },
     },
   }
@@ -1500,7 +1491,6 @@ export namespace Mock {
             },
             {
               spec: ISB.InputSpec.of({
-                /* TODO: Convert range for this value ([0, 2])*/
                 union: ISB.Value.union(
                   {
                     name: 'Preference',
@@ -1560,19 +1550,18 @@ export namespace Mock {
           },
           disabled: ['option2'],
         })),
-        'favorite-number':
-          /* TODO: Convert range for this value ((-100,100])*/ ISB.Value.number(
-            {
-              name: 'Favorite Number',
-              description: 'Your favorite number of all time',
-              warning:
-                'Once you set this number, it can never be changed without severe consequences.',
-              required: false,
-              default: 7,
-              integer: false,
-              units: 'BTC',
-            },
-          ),
+        'favorite-number': ISB.Value.number({
+          name: 'Favorite Number',
+          description: 'Your favorite number of all time',
+          warning:
+            'Once you set this number, it can never be changed without severe consequences.',
+          required: false,
+          default: 7,
+          integer: false,
+          units: 'BTC',
+          min: -100,
+          max: 100,
+        }),
         rpcsettings: ISB.Value.object(
           {
             name: 'RPC Settings',
@@ -1906,7 +1895,7 @@ export namespace Mock {
         name: 'View Properties',
         description: 'view important information about Bitcoin',
         warning: null,
-        visibility: 'enabled',
+        visibility: 'hidden',
         allowedStatuses: 'any',
         hasInput: false,
         group: null,

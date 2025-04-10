@@ -1,3 +1,4 @@
+use std::ops::Deref;
 use std::path::Path;
 
 use tokio::process::Command;
@@ -63,6 +64,13 @@ impl GitHash {
 impl AsRef<str> for GitHash {
     fn as_ref(&self) -> &str {
         &self.0
+    }
+}
+
+impl Deref for GitHash {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
     }
 }
 

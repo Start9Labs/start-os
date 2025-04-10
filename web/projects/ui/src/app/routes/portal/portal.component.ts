@@ -24,7 +24,7 @@ import { HeaderComponent } from './components/header/header.component'
         height: 100%;
         display: flex;
         flex-direction: column;
-        // TODO: Theme
+        // @TODO Theme
         background: url(/assets/img/background_dark.jpeg) fixed center/cover;
       }
 

@@ -22,7 +22,6 @@
     "allowSyntheticDefaultImports": true,
     "paths": {
       /* These paths are relative to each app base folder */
-      /* @TODO Alex the marketplace path is different on 0351. verify */
       "@start9labs/marketplace": ["../marketplace/index"],
       "@start9labs/shared": ["../shared/src/public-api"],
       "path": ["../../node_modules/path-browserify"]
