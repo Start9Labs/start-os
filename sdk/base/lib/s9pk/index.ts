@@ -8,6 +8,7 @@ import {
 import { ArrayBufferReader, MerkleArchive } from "./merkleArchive"
 import mime from "mime-types"
 import { DirectoryContents } from "./merkleArchive/directoryContents"
+import { FileContents } from "./merkleArchive/fileContents"
 
 const magicAndVersion = new Uint8Array([59, 59, 2])
 
@@ -116,5 +117,19 @@ export class S9pk {
         ]),
       ),
     )
+  }
+
+  async instructions(): Promise<string> {
+    const file = this.archive.contents.getPath(["instructions.md"])
+    if (!file || !(file.contents instanceof FileContents))
+      throw new Error("instructions.md not found in archive")
+    return new TextDecoder().decode(await file.verifiedFileContents())
+  }
+
+  async license(): Promise<string> {
+    const file = this.archive.contents.getPath(["LICENSE.md"])
+    if (!file || !(file.contents instanceof FileContents))
+      throw new Error("instructions.md not found in archive")
+    return new TextDecoder().decode(await file.verifiedFileContents())
   }
 }

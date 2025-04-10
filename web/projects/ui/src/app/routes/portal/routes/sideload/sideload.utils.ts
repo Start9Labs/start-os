@@ -39,8 +39,7 @@ async function parseS9pk(file: File): Promise<MarketplacePkgBase> {
 
   return {
     ...s9pk.manifest,
-    // dependencyMetadata: await s9pk.getDependencyMetadata(),
-    dependencyMetadata: {} as any,
+    dependencyMetadata: await s9pk.dependencyMetadata(),
     gitHash: '',
     icon: await s9pk.icon(),
     sourceVersion: s9pk.manifest.canMigrateFrom,
