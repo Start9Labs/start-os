@@ -109,7 +109,7 @@ export function makeEffects(context: EffectContext): Effects {
     constRetry: context.constRetry,
     isInContext: !!context.callbacks,
     onLeaveContext:
-      context.callbacks?.onLeaveContext ||
+      context.callbacks?.onLeaveContext?.bind(context.callbacks) ||
       (() => {
         console.warn(
           "no context for this effects object",
