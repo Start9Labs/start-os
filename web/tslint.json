@@ -1,6 +1,5 @@
 {
   "rules": {
-    "no-unused-variable": true,
     "no-unused-expression": true,
     "semicolon": [true, "never"],
     "no-trailing-whitespace": true,

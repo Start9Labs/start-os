@@ -8,7 +8,7 @@ import {
 
 @Component({
   selector: '[ticker]',
-  template: '<ng-content></ng-content>',
+  template: '<ng-content />',
   styleUrls: ['./ticker.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -21,7 +21,6 @@ export class TickerComponent {
   @HostListener('mouseenter')
   onMouseEnter() {
     const { scrollWidth, clientWidth } = this.elementRef.nativeElement
-
     this.indent = Math.ceil(clientWidth - scrollWidth)
   }
 }

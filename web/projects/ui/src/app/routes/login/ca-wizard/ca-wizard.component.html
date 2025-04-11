@@ -1,0 +1,96 @@
+<div
+  *ngIf="!caTrusted; else trusted"
+  tuiCardLarge
+  tuiSurface="floating"
+  class="card"
+>
+  <tui-icon icon="@tui.lock" [style.font-size.rem]="4" />
+  <h1>Trust Your Root CA</h1>
+  <p>
+    Download and trust your server's Root Certificate Authority to establish a
+    secure (HTTPS) connection. You will need to repeat this on every device you
+    use to connect to your server.
+  </p>
+  <ol>
+    <li>
+      <b>Bookmark this page</b>
+      - Save this page so you can access it later. You can also find the address
+      in the
+      <code>StartOS-info.html</code>
+      file downloaded at the end of initial setup.
+    </li>
+    <li>
+      <b>Download your server's Root CA</b>
+      - Your server uses its Root CA to generate SSL/TLS certificates for itself
+      and installed services. These certificates are then used to encrypt
+      network traffic with your client devices.
+      <br />
+      <a
+        tuiButton
+        size="s"
+        iconEnd="@tui.download"
+        href="/static/local-root-ca.crt"
+      >
+        Download
+      </a>
+    </li>
+    <li>
+      <b>Trust your server's Root CA</b>
+      - Follow instructions for your OS. By trusting your server's Root CA, your
+      device can verify the authenticity of encrypted communications with your
+      server.
+      <br />
+      <a
+        tuiButton
+        size="s"
+        href="https://docs.start9.com/0.3.5.x/user-manual/trust-ca"
+        target="_blank"
+        rel="noreferrer"
+        iconEnd="@tui.external-link"
+      >
+        View Instructions
+      </a>
+    </li>
+    <li>
+      <b>Test</b>
+      - Refresh the page. If refreshing the page does not work, you may need to
+      quit and re-open your browser, then revisit this page.
+      <br />
+      <button
+        tuiButton
+        size="s"
+        class="refresh"
+        appearance="positive"
+        iconEnd="@tui.refresh-cw"
+        (click)="refresh()"
+      >
+        Refresh
+      </button>
+    </li>
+  </ol>
+  <button
+    tuiButton
+    size="s"
+    appearance="flat-grayscale"
+    iconEnd="@tui.external-link"
+    (click)="launchHttps()"
+    [disabled]="caTrusted"
+  >
+    Skip
+  </button>
+  <div><small>(not recommended)</small></div>
+</div>
+
+<ng-template #trusted>
+  <div tuiCardLarge tuiSurface="floating" class="card">
+    <tui-icon icon="@tui.shield" class="g-positive" [style.font-size.rem]="4" />
+    <h1>Root CA Trusted!</h1>
+    <p>
+      You have successfully trusted your server's Root CA and may now log in
+      securely.
+    </p>
+    <button tuiButton iconEnd="@tui.external-link" (click)="launchHttps()">
+      Go to login
+    </button>
+  </div>
+</ng-template>

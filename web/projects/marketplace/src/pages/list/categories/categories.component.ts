@@ -5,19 +5,32 @@ import {
   Input,
   Output,
 } from '@angular/core'
+import { T } from '@start9labs/start-sdk'
+
+const ICONS: Record<string, string> = {
+  all: '@tui.layout-grid',
+  bitcoin: '@tui.bitcoin',
+  messaging: '@tui.message-circle',
+  communications: '@tui.message-circle',
+  data: '@tui.file-text',
+  'developer tools': '@tui.table-split',
+  featured: '@tui.star',
+  lightning: '@tui.zap',
+  media: '@tui.circle-play',
+  networking: '@tui.globe',
+  social: '@tui.users',
+  ai: '@tui.cpu',
+}
 
 @Component({
   selector: 'marketplace-categories',
   templateUrl: 'categories.component.html',
   styleUrls: ['categories.component.scss'],
-  host: {
-    class: 'hidden-scrollbar ion-text-center',
-  },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CategoriesComponent {
   @Input()
-  categories: readonly string[] = []
+  categories?: Record<string, T.Category>
 
   @Input()
   category = ''
@@ -25,8 +38,24 @@ export class CategoriesComponent {
   @Output()
   readonly categoryChange = new EventEmitter<string>()
 
+  readonly fallback: Record<string, T.Category> = {
+    a: { name: '', description: { short: 'a', long: 'a' } },
+    b: { name: '', description: { short: 'a', long: 'a' } },
+    c: { name: '', description: { short: 'a', long: 'a' } },
+    d: { name: '', description: { short: 'a', long: 'a' } },
+    e: { name: '', description: { short: 'a', long: 'a' } },
+  }
+
   switchCategory(category: string): void {
     this.category = category
     this.categoryChange.emit(category)
+  }
+
+  determineIcon(category: string): string {
+    return ICONS[category.toLowerCase()] || '@tui.box'
+  }
+
+  asIsOrder(a: any, b: any) {
+    return 0
   }
 }

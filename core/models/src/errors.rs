@@ -1,14 +1,20 @@
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 
+use axum::http::uri::InvalidUri;
+use axum::http::StatusCode;
 use color_eyre::eyre::eyre;
+use num_enum::TryFromPrimitive;
 use patch_db::Revision;
-use rpc_toolkit::hyper::http::uri::InvalidUri;
 use rpc_toolkit::reqwest;
-use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::yajrc::{
+    RpcError, INVALID_PARAMS_ERROR, INVALID_REQUEST_ERROR, METHOD_NOT_FOUND_ERROR, PARSE_ERROR,
+};
+use serde::{Deserialize, Serialize};
 
 use crate::InvalidId;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, TryFromPrimitive)]
+#[repr(i32)]
 pub enum ErrorKind {
     Unknown = 1,
     Filesystem = 2,
@@ -39,7 +45,7 @@ pub enum ErrorKind {
     ConfigGen = 27,
     ParseNumber = 28,
     Database = 29,
-    InvalidPackageId = 30,
+    InvalidId = 30,
     InvalidSignature = 31,
     Backup = 32,
     Restore = 33,
@@ -81,6 +87,10 @@ pub enum ErrorKind {
     CpuSettings = 69,
     Firmware = 70,
     Timeout = 71,
+    Lxc = 72,
+    Cancelled = 73,
+    Git = 74,
+    DBus = 75,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -115,7 +125,7 @@ impl ErrorKind {
             ConfigGen => "Config Generation Error",
             ParseNumber => "Number Parsing Error",
             Database => "Database Error",
-            InvalidPackageId => "Invalid Package ID",
+            InvalidId => "Invalid ID",
             InvalidSignature => "Invalid Signature",
             Backup => "Backup Error",
             Restore => "Restore Error",
@@ -157,6 +167,10 @@ impl ErrorKind {
             CpuSettings => "CPU Settings Error",
             Firmware => "Firmware Error",
             Timeout => "Timeout Error",
+            Lxc => "LXC Error",
+            Cancelled => "Cancelled",
+            Git => "Git Error",
+            DBus => "DBus Error",
         }
     }
 }
@@ -186,10 +200,33 @@ impl Error {
             revision: None,
         }
     }
+    pub fn clone_output(&self) -> Self {
+        Error {
+            source: ErrorData {
+                details: format!("{}", self.source),
+                debug: format!("{:?}", self.source),
+            }
+            .into(),
+            kind: self.kind,
+            revision: self.revision.clone(),
+        }
+    }
+}
+impl axum::response::IntoResponse for Error {
+    fn into_response(self) -> axum::response::Response {
+        let mut res = axum::Json(RpcError::from(self)).into_response();
+        *res.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+        res
+    }
+}
+impl From<std::convert::Infallible> for Error {
+    fn from(value: std::convert::Infallible) -> Self {
+        match value {}
+    }
 }
 impl From<InvalidId> for Error {
     fn from(err: InvalidId) -> Self {
-        Error::new(err, ErrorKind::InvalidPackageId)
+        Error::new(err, ErrorKind::InvalidId)
     }
 }
 impl From<std::io::Error> for Error {
@@ -207,8 +244,8 @@ impl From<std::string::FromUtf8Error> for Error {
         Error::new(e, ErrorKind::Utf8)
     }
 }
-impl From<emver::ParseError> for Error {
-    fn from(e: emver::ParseError) -> Self {
+impl From<exver::ParseError> for Error {
+    fn from(e: exver::ParseError) -> Self {
         Error::new(e, ErrorKind::ParseVersion)
     }
 }
@@ -287,6 +324,21 @@ impl From<reqwest::Error> for Error {
         Error::new(e, kind)
     }
 }
+impl From<torut::onion::OnionAddressParseError> for Error {
+    fn from(e: torut::onion::OnionAddressParseError) -> Self {
+        Error::new(e, ErrorKind::Tor)
+    }
+}
+impl From<zbus::Error> for Error {
+    fn from(e: zbus::Error) -> Self {
+        Error::new(e, ErrorKind::DBus)
+    }
+}
+impl From<rustls::Error> for Error {
+    fn from(e: rustls::Error) -> Self {
+        Error::new(e, ErrorKind::OpenSsl)
+    }
+}
 impl From<patch_db::value::Error> for Error {
     fn from(value: patch_db::value::Error) -> Self {
         match value.kind {
@@ -296,6 +348,61 @@ impl From<patch_db::value::Error> for Error {
             patch_db::value::ErrorKind::Deserialization => {
                 Error::new(value.source, ErrorKind::Deserialization)
             }
+        }
+    }
+}
+
+#[derive(Clone, Deserialize, Serialize)]
+pub struct ErrorData {
+    pub details: String,
+    pub debug: String,
+}
+impl Display for ErrorData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.details, f)
+    }
+}
+impl Debug for ErrorData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.debug, f)
+    }
+}
+impl std::error::Error for ErrorData {}
+impl From<Error> for ErrorData {
+    fn from(value: Error) -> Self {
+        Self {
+            details: value.to_string(),
+            debug: format!("{:?}", value),
+        }
+    }
+}
+impl From<&RpcError> for ErrorData {
+    fn from(value: &RpcError) -> Self {
+        Self {
+            details: value
+                .data
+                .as_ref()
+                .and_then(|d| {
+                    d.as_object()
+                        .and_then(|d| {
+                            d.get("details")
+                                .and_then(|d| d.as_str().map(|s| s.to_owned()))
+                        })
+                        .or_else(|| d.as_str().map(|s| s.to_owned()))
+                })
+                .unwrap_or_else(|| value.message.clone().into_owned()),
+            debug: value
+                .data
+                .as_ref()
+                .and_then(|d| {
+                    d.as_object()
+                        .and_then(|d| {
+                            d.get("debug")
+                                .and_then(|d| d.as_str().map(|s| s.to_owned()))
+                        })
+                        .or_else(|| d.as_str().map(|s| s.to_owned()))
+                })
+                .unwrap_or_else(|| value.message.clone().into_owned()),
         }
     }
 }
@@ -318,8 +425,38 @@ impl From<Error> for RpcError {
         RpcError {
             code: e.kind as i32,
             message: e.kind.as_str().into(),
-            data: Some(data_object.into()),
+            data: Some(
+                match serde_json::to_value(&ErrorData {
+                    details: format!("{}", e.source),
+                    debug: format!("{:?}", e.source),
+                }) {
+                    Ok(a) => a,
+                    Err(e) => {
+                        tracing::warn!("Error serializing revision for Error object: {}", e);
+                        serde_json::Value::Null
+                    }
+                },
+            ),
         }
+    }
+}
+impl From<RpcError> for Error {
+    fn from(e: RpcError) -> Self {
+        Error::new(
+            ErrorData::from(&e),
+            if let Ok(kind) = e.code.try_into() {
+                kind
+            } else if e.code == METHOD_NOT_FOUND_ERROR.code {
+                ErrorKind::NotFound
+            } else if e.code == PARSE_ERROR.code
+                || e.code == INVALID_PARAMS_ERROR.code
+                || e.code == INVALID_REQUEST_ERROR.code
+            {
+                ErrorKind::Deserialization
+            } else {
+                ErrorKind::Unknown
+            },
+        )
     }
 }
 
@@ -377,10 +514,8 @@ where
     Self: Sized,
 {
     fn with_kind(self, kind: ErrorKind) -> Result<T, Error>;
-    fn with_ctx<F: FnOnce(&E) -> (ErrorKind, D), D: Display + Send + Sync + 'static>(
-        self,
-        f: F,
-    ) -> Result<T, Error>;
+    fn with_ctx<F: FnOnce(&E) -> (ErrorKind, D), D: Display>(self, f: F) -> Result<T, Error>;
+    fn log_err(self) -> Option<T>;
 }
 impl<T, E> ResultExt<T, E> for Result<T, E>
 where
@@ -394,10 +529,7 @@ where
         })
     }
 
-    fn with_ctx<F: FnOnce(&E) -> (ErrorKind, D), D: Display + Send + Sync + 'static>(
-        self,
-        f: F,
-    ) -> Result<T, Error> {
+    fn with_ctx<F: FnOnce(&E) -> (ErrorKind, D), D: Display>(self, f: F) -> Result<T, Error> {
         self.map_err(|e| {
             let (kind, ctx) = f(&e);
             let source = color_eyre::eyre::Error::from(e);
@@ -409,6 +541,52 @@ where
                 revision: None,
             }
         })
+    }
+
+    fn log_err(self) -> Option<T> {
+        match self {
+            Ok(a) => Some(a),
+            Err(e) => {
+                let e: color_eyre::eyre::Error = e.into();
+                tracing::error!("{e}");
+                tracing::debug!("{e:?}");
+                None
+            }
+        }
+    }
+}
+impl<T> ResultExt<T, Error> for Result<T, Error> {
+    fn with_kind(self, kind: ErrorKind) -> Result<T, Error> {
+        self.map_err(|e| Error {
+            source: e.source,
+            kind,
+            revision: e.revision,
+        })
+    }
+
+    fn with_ctx<F: FnOnce(&Error) -> (ErrorKind, D), D: Display>(self, f: F) -> Result<T, Error> {
+        self.map_err(|e| {
+            let (kind, ctx) = f(&e);
+            let source = e.source;
+            let ctx = format!("{}: {}", ctx, source);
+            let source = source.wrap_err(ctx);
+            Error {
+                kind,
+                source,
+                revision: e.revision,
+            }
+        })
+    }
+
+    fn log_err(self) -> Option<T> {
+        match self {
+            Ok(a) => Some(a),
+            Err(e) => {
+                tracing::error!("{e}");
+                tracing::debug!("{e:?}");
+                None
+            }
+        }
     }
 }
 

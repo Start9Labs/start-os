@@ -1,0 +1,12 @@
+{{ spec.name }}
+@if (spec.description || spec.disabled) {
+  <tui-icon [tuiTooltip]="spec | hint" />
+}
+<input
+  tuiSwitch
+  type="checkbox"
+  size="m"
+  [disabled]="!!spec.disabled || readOnly"
+  [(ngModel)]="value"
+  (blur)="onFocus(false)"
+/>

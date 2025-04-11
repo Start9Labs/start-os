@@ -2,11 +2,9 @@ import {
   ChangeDetectionStrategy,
   Component,
   EventEmitter,
-  inject,
   Input,
   Output,
 } from '@angular/core'
-import { THEME } from '@start9labs/shared'
 
 @Component({
   selector: 'marketplace-search',
@@ -16,12 +14,10 @@ import { THEME } from '@start9labs/shared'
 })
 export class SearchComponent {
   @Input()
-  query = ''
+  query?: string | null = ''
 
   @Output()
   readonly queryChange = new EventEmitter<string>()
-
-  readonly theme$ = inject(THEME)
 
   onModelChange(query: string) {
     this.query = query

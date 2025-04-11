@@ -1,27 +1,26 @@
 import { Injectable } from '@angular/core'
-import { Emver } from '@start9labs/shared'
-import { BehaviorSubject, combineLatest } from 'rxjs'
-import { distinctUntilChanged, map } from 'rxjs/operators'
-import { MarketplaceEOS } from 'src/app/services/api/api.types'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PatchDB } from 'patch-db-client'
-import { getServerInfo } from 'src/app/util/get-server-info'
+import { BehaviorSubject, distinctUntilChanged, map, combineLatest } from 'rxjs'
+import { OSUpdate } from 'src/app/services/api/api.types'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { getServerInfo } from 'src/app/utils/get-server-info'
 import { DataModel } from './patch-db/data-model'
+import { Version } from '@start9labs/start-sdk'
 
 @Injectable({
   providedIn: 'root',
 })
 export class EOSService {
-  eos?: MarketplaceEOS
+  osUpdate?: OSUpdate
   updateAvailable$ = new BehaviorSubject<boolean>(false)
 
-  readonly updating$ = this.patch.watch$('server-info', 'status-info').pipe(
-    map(status => !!status['update-progress'] || status.updated),
+  readonly updating$ = this.patch.watch$('serverInfo', 'statusInfo').pipe(
+    map(status => !!status.updateProgress || status.updated),
     distinctUntilChanged(),
   )
 
   readonly backingUp$ = this.patch
-    .watch$('server-info', 'status-info', 'backup-progress')
+    .watch$('serverInfo', 'statusInfo', 'backupProgress')
     .pipe(
       map(obj => !!obj),
       distinctUntilChanged(),
@@ -30,11 +29,7 @@ export class EOSService {
   readonly updatingOrBackingUp$ = combineLatest([
     this.updating$,
     this.backingUp$,
-  ]).pipe(
-    map(([updating, backingUp]) => {
-      return updating || backingUp
-    }),
-  )
+  ]).pipe(map(([updating, backingUp]) => updating || backingUp))
 
   readonly showUpdate$ = combineLatest([
     this.updateAvailable$,
@@ -47,14 +42,15 @@ export class EOSService {
 
   constructor(
     private readonly api: ApiService,
-    private readonly emver: Emver,
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
   async loadEos(): Promise<void> {
-    const { version } = await getServerInfo(this.patch)
-    this.eos = await this.api.getEos()
-    const updateAvailable = this.emver.compare(this.eos.version, version) === 1
+    const { version, id } = await getServerInfo(this.patch)
+    this.osUpdate = await this.api.checkOSUpdate({ serverId: id })
+    const updateAvailable =
+      Version.parse(this.osUpdate.version).compare(Version.parse(version)) ===
+      'greater'
     this.updateAvailable$.next(updateAvailable)
   }
 }

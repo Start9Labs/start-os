@@ -1,15 +1,42 @@
-import { APP_INITIALIZER, Provider } from '@angular/core'
+import { APP_INITIALIZER, inject, Provider } from '@angular/core'
 import { UntypedFormBuilder } from '@angular/forms'
-import { Router, RouteReuseStrategy } from '@angular/router'
-import { IonicRouteStrategy, IonNav } from '@ionic/angular'
-import { RELATIVE_URL, THEME, WorkspaceConfig } from '@start9labs/shared'
+import { Router } from '@angular/router'
+import {
+  AbstractCategoryService,
+  FilterPackagesPipe,
+} from '@start9labs/marketplace'
+import { RELATIVE_URL, WorkspaceConfig } from '@start9labs/shared'
+import {
+  TUI_DATE_FORMAT,
+  TUI_DIALOGS_CLOSE,
+  tuiButtonOptionsProvider,
+  tuiDropdownOptionsProvider,
+  tuiNumberFormatProvider,
+} from '@taiga-ui/core'
+import { NG_EVENT_PLUGINS } from '@taiga-ui/event-plugins'
+import {
+  TUI_DATE_TIME_VALUE_TRANSFORMER,
+  TUI_DATE_VALUE_TRANSFORMER,
+} from '@taiga-ui/kit'
+import { tuiTextfieldOptionsProvider } from '@taiga-ui/legacy'
+import { PatchDB } from 'patch-db-client'
+import { filter, of, pairwise } from 'rxjs'
+import { I18N_PROVIDERS } from 'src/app/i18n/i18n.providers'
+import { i18nService } from 'src/app/i18n/i18n.service'
+import {
+  PATCH_CACHE,
+  PatchDbSource,
+} from 'src/app/services/patch-db/patch-db-source'
+import { StateService } from 'src/app/services/state.service'
 import { ApiService } from './services/api/embassy-api.service'
-import { MockApiService } from './services/api/embassy-mock-api.service'
 import { LiveApiService } from './services/api/embassy-live-api.service'
+import { MockApiService } from './services/api/embassy-mock-api.service'
 import { AuthService } from './services/auth.service'
+import { CategoryService } from './services/category.service'
 import { ClientStorageService } from './services/client-storage.service'
-import { FilterPackagesPipe } from '../../../marketplace/src/pipes/filter-packages.pipe'
-import { ThemeSwitcherService } from './services/theme-switcher.service'
+import { DateTransformerService } from './services/date-transformer.service'
+import { DatetimeTransformerService } from './services/datetime-transformer.service'
+import { StorageService } from './services/storage.service'
 
 const {
   useMocks,
@@ -17,20 +44,40 @@ const {
 } = require('../../../../config.json') as WorkspaceConfig
 
 export const APP_PROVIDERS: Provider[] = [
+  NG_EVENT_PLUGINS,
+  I18N_PROVIDERS,
   FilterPackagesPipe,
   UntypedFormBuilder,
-  IonNav,
+  tuiNumberFormatProvider({ decimalSeparator: '.', thousandSeparator: '' }),
+  tuiButtonOptionsProvider({ size: 'm' }),
+  tuiTextfieldOptionsProvider({ hintOnDisabled: true }),
+  tuiDropdownOptionsProvider({ appearance: 'start-os' }),
   {
-    provide: RouteReuseStrategy,
-    useClass: IonicRouteStrategy,
+    provide: TUI_DATE_FORMAT,
+    useValue: of({
+      mode: 'MDY',
+      separator: '/',
+    }),
+  },
+  {
+    provide: TUI_DATE_VALUE_TRANSFORMER,
+    useClass: DateTransformerService,
+  },
+  {
+    provide: TUI_DATE_TIME_VALUE_TRANSFORMER,
+    useClass: DatetimeTransformerService,
   },
   {
     provide: ApiService,
     useClass: useMocks ? MockApiService : LiveApiService,
   },
   {
+    provide: PatchDB,
+    deps: [PatchDbSource, PATCH_CACHE],
+    useClass: PatchDB,
+  },
+  {
     provide: APP_INITIALIZER,
-    deps: [AuthService, ClientStorageService, Router],
     useFactory: appInitializer,
     multi: true,
   },
@@ -39,19 +86,34 @@ export const APP_PROVIDERS: Provider[] = [
     useValue: `/${api.url}/${api.version}`,
   },
   {
-    provide: THEME,
-    useExisting: ThemeSwitcherService,
+    provide: AbstractCategoryService,
+    useClass: CategoryService,
+  },
+  {
+    provide: TUI_DIALOGS_CLOSE,
+    useFactory: () =>
+      inject(StateService).pipe(
+        pairwise(),
+        filter(
+          ([prev, curr]) =>
+            prev === 'running' && (curr === 'error' || curr === 'initializing'),
+        ),
+      ),
   },
 ]
 
-export function appInitializer(
-  auth: AuthService,
-  localStorage: ClientStorageService,
-  router: Router,
-): () => void {
+export function appInitializer(): () => void {
+  const storage = inject(StorageService)
+  const auth = inject(AuthService)
+  const localStorage = inject(ClientStorageService)
+  const router = inject(Router)
+  const i18n = inject(i18nService)
+
   return () => {
+    storage.migrate036()
     auth.init()
     localStorage.init()
     router.initialNavigation()
+    i18n.setLanguage(i18n.language)
   }
 }
