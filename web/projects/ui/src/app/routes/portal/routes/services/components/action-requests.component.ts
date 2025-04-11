@@ -50,7 +50,13 @@ export class ServiceActionRequestsComponent {
 
   readonly requests = computed(() =>
     Object.values(this.pkg().requestedActions)
-      .filter(r => r.active)
+      // @TODO Alex uncomment filter line below to produce infinite loop on service details page when dependency not installed. This means the page is infinitely trying to re-render
+      // .filter(r => r.active)
+      .filter(
+        r =>
+          this.services()[r.request.packageId]?.actions[r.request.actionId] &&
+          r.active,
+      )
       .sort((a, b) => a.request.severity.localeCompare(b.request.severity)),
   )
 }
