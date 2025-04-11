@@ -22,7 +22,7 @@ export class CommandController extends Drop {
     super()
   }
   static of<Manifest extends T.SDKManifest>() {
-    return async <A extends string>(
+    return async (
       effects: T.Effects,
       subcontainer:
         | {
@@ -62,24 +62,17 @@ export class CommandController extends Drop {
       const subc =
         subcontainer instanceof SubContainer
           ? subcontainer
-          : await (async () => {
-              const subc = await SubContainer.of(
-                effects,
-                subcontainer,
-                options?.subcontainerName || commands.join(" "),
-              )
-              try {
-                for (let mount of options.mounts || []) {
-                  await subc.mount(mount.options, mount.mountpoint)
-                }
-                return subc
-              } catch (e) {
-                await subc.destroy()
-                throw e
-              }
-            })()
+          : await SubContainer.of(
+              effects,
+              subcontainer,
+              options?.subcontainerName || commands.join(" "),
+            )
 
       try {
+        for (let mount of options.mounts || []) {
+          await subc.mount(mount.options, mount.mountpoint)
+        }
+
         let childProcess: cp.ChildProcess
         if (options.runAsInit) {
           childProcess = await subc.launch(commands, {
