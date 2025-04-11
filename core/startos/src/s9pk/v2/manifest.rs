@@ -95,7 +95,9 @@ impl Manifest {
         if let Err(e) = expected.check_file(Path::new("assets.squashfs")) {
             // backwards compatibility for alpha s9pks - remove eventually
             if expected.check_dir("assets").is_err() {
-                return Err(e);
+                tracing::warn!("{e}");
+                tracing::debug!("{e:?}");
+                // return Err(e);
             }
         }
         for (image_id, config) in &self.images {
