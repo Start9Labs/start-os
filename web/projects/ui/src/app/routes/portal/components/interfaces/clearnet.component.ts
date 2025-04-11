@@ -82,10 +82,9 @@ type ClearnetForm = {
       }
     </header>
     @if (clearnet().length) {
-      <table [appTable]="['Domain', 'ACME', 'URL', '']">
+      <table [appTable]="['ACME', 'URL', '']">
         @for (address of clearnet(); track $index) {
           <tr>
-            <td [style.width.rem]="15">{{ address.label }}</td>
             <td>{{ address.acme | acme }}</td>
             <td>{{ address.url | mask }}</td>
             <td [actions]="address.url">

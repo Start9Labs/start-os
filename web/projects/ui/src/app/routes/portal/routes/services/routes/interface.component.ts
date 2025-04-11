@@ -1,4 +1,3 @@
-import { NgTemplateOutlet } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -11,7 +10,7 @@ import { RouterLink } from '@angular/router'
 import { getPkgId } from '@start9labs/shared'
 import { TuiItem } from '@taiga-ui/cdk'
 import { TuiButton, TuiLink } from '@taiga-ui/core'
-import { TuiBadge, TuiBreadcrumbs } from '@taiga-ui/kit'
+import { TuiBreadcrumbs } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { InterfaceComponent } from 'src/app/routes/portal/components/interfaces/interface.component'
 import { getAddresses } from 'src/app/routes/portal/components/interfaces/interface.utils'
@@ -59,8 +58,6 @@ import { TitleDirective } from 'src/app/services/title.service'
     TuiBreadcrumbs,
     TuiItem,
     TuiLink,
-    TuiBadge,
-    NgTemplateOutlet,
     InterfaceStatusComponent,
   ],
 })

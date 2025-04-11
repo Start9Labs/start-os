@@ -41,7 +41,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
       <button
         tuiButton
         iconStart="@tui.play"
-        (click)="controls.start(manifest(), !!hasUnmet)"
+        (click)="controls.start(manifest(), !!hasUnmet())"
       >
         Start
       </button>
@@ -91,6 +91,7 @@ export class ServiceControlsComponent {
 
   readonly controls = inject(ControlsService)
 
+  // @TODO Alex observable in signal?
   readonly hasUnmet = computed(() =>
     this.errors.getPkgDepErrors$(this.manifest().id).pipe(
       map(errors =>
