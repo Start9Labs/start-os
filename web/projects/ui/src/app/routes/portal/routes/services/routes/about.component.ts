@@ -14,39 +14,44 @@ import { map } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
 import {
+  AdditionalItem,
   FALLBACK_URL,
   ServiceAdditionalItemComponent,
 } from '../components/additional-item.component'
+import { KeyValuePipe } from '@angular/common'
 
 @Component({
   template: `
-    <section class="g-card">
-      @for (additional of items(); track $index) {
-        @if (additional.description.startsWith('http')) {
-          <a tuiCell [additionalItem]="additional"></a>
-        } @else {
-          <button
-            tuiCell
-            [style.pointer-events]="!additional.icon ? 'none' : null"
-            [additionalItem]="additional"
-            (click)="additional.action?.()"
-          ></button>
+    @for (group of items() | keyvalue; track $index) {
+      <section class="g-card">
+        <header>{{ group.key }}</header>
+        @for (additional of group.value; track $index) {
+          @if (additional.description.startsWith('http')) {
+            <a tuiCell [additionalItem]="additional"></a>
+          } @else {
+            <button
+              tuiCell
+              [style.pointer-events]="!additional.icon ? 'none' : null"
+              [additionalItem]="additional"
+              (click)="additional.action?.()"
+            ></button>
+          }
         }
-      }
-    </section>
+      </section>
+    }
   `,
   styles: `
     section {
+      max-width: 42rem;
       display: flex;
       flex-direction: column;
-      max-width: 36rem;
-      padding: 0.5rem 1rem;
+      margin-bottom: 2rem;
     }
   `,
+  host: { class: 'g-subpage' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  host: { class: 'g-subpage' },
-  imports: [ServiceAdditionalItemComponent, TuiCell],
+  imports: [ServiceAdditionalItemComponent, TuiCell, KeyValuePipe],
 })
 export default class ServiceAboutRoute {
   private readonly copyService = inject(CopyService)
@@ -55,56 +60,62 @@ export default class ServiceAboutRoute {
     { label: 'License', size: 'l' },
   )
 
-  readonly items = toSignal(
+  readonly items = toSignal<Record<string, AdditionalItem[]>>(
     inject<PatchDB<DataModel>>(PatchDB)
       .watch$('packageData', getPkgId())
       .pipe(
         map(pkg => {
           const manifest = getManifest(pkg)
 
-          return [
-            {
-              name: 'Version',
-              description: manifest.version,
-            },
-            {
-              name: 'Git Hash',
-              description: manifest.gitHash || 'Unknown',
-              icon: manifest.gitHash ? '@tui.copy' : '',
-              action: () =>
-                manifest.gitHash && this.copyService.copy(manifest.gitHash),
-            },
-            {
-              name: 'License',
-              description: manifest.license,
-              icon: '@tui.chevron-right',
-              action: () => this.markdown.subscribe(),
-            },
-            {
-              name: 'Website',
-              description: manifest.marketingSite || FALLBACK_URL,
-            },
-            {
-              name: 'Donation Link',
-              description: manifest.donationUrl || FALLBACK_URL,
-            },
-            {
-              name: 'Source Repository',
-              description: manifest.upstreamRepo,
-            },
-            {
-              name: 'Support Site',
-              description: manifest.supportSite || FALLBACK_URL,
-            },
-            {
-              name: 'Registry',
-              description: pkg.registry || FALLBACK_URL,
-            },
-            {
-              name: 'Binary Source',
-              description: manifest.wrapperRepo,
-            },
-          ]
+          return {
+            General: [
+              {
+                name: 'Version',
+                description: manifest.version,
+                icon: '@tui.copy',
+                action: () => this.copyService.copy(manifest.version),
+              },
+              {
+                name: 'Git Hash',
+                description: manifest.gitHash || 'Unknown',
+                icon: manifest.gitHash ? '@tui.copy' : '',
+                action: () =>
+                  manifest.gitHash && this.copyService.copy(manifest.gitHash),
+              },
+              {
+                name: 'License',
+                description: manifest.license,
+                icon: '@tui.chevron-right',
+                action: () => this.markdown.subscribe(),
+              },
+            ],
+            Links: [
+              {
+                name: 'Installed From',
+                description: pkg.registry || FALLBACK_URL,
+              },
+              {
+                name: 'Service Repository',
+                description: manifest.upstreamRepo,
+              },
+              {
+                name: 'Package Repository',
+                description: manifest.wrapperRepo,
+              },
+              {
+                name: 'Marketing Site',
+                description: manifest.marketingSite || FALLBACK_URL,
+              },
+              {
+                name: 'Support Site',
+                description: manifest.supportSite || FALLBACK_URL,
+              },
+              {
+                name: 'Donation Link',
+                description: manifest.donationUrl || FALLBACK_URL,
+              },
+            ],
+          }
         }),
       ),
   )

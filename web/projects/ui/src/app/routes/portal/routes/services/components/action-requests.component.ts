@@ -37,6 +37,7 @@ import { ServiceActionRequestComponent } from './action-request.component'
   `,
   styles: `
     :host {
+      min-height: 12rem;
       grid-column: span 6;
     }
   `,

@@ -36,6 +36,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
   `,
   styles: `
     :host {
+      min-height: 12rem;
       grid-column: span 3;
     }
   `,
