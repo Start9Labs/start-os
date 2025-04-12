@@ -16,7 +16,8 @@ export class FormMultiselectComponent extends Control<
 
   private readonly isDisabled = (item: string) =>
     Array.isArray(this.spec.disabled) &&
-    this.spec.disabled.includes(this.inverted[item])
+    !!this.inverted[item] &&
+    this.spec.disabled.includes(this.inverted[item]!)
 
   private readonly isExceedingLimit = (item: string) =>
     !!this.spec.maxLength &&
@@ -44,6 +45,6 @@ export class FormMultiselectComponent extends Control<
 
   @tuiPure
   private memoize(value: null | readonly string[]): string[] {
-    return value?.map(key => this.spec.values[key]) || []
+    return value?.map(key => this.spec.values[key] || '') || []
   }
 }

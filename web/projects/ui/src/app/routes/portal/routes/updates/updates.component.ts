@@ -10,7 +10,6 @@ import {
   StoreIconComponentModule,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { TuiTable } from '@taiga-ui/addon-table'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import { TuiButton, TuiNotification, TuiTitle } from '@taiga-ui/core'
 import {
@@ -88,7 +87,10 @@ interface UpdatesData {
     </aside>
     <section class="g-subpage">
       @if (data()?.errors?.includes(current()?.url || '')) {
-        <tui-notification appearance="negative">
+        <tui-notification
+          appearance="negative"
+          [style.margin-block-end.rem]="1"
+        >
           Request Failed
         </tui-notification>
       }
@@ -222,7 +224,9 @@ export default class UpdatesComponent {
     combineLatest({
       hosts: this.marketplaceService
         .getKnownHosts$(true)
-        .pipe(tap(([store]) => !this.isMobile && this.current.set(store))),
+        .pipe(
+          tap(([store]) => !this.isMobile && store && this.current.set(store)),
+        ),
       marketplace: this.marketplaceService.marketplace$,
       localPkgs: inject<PatchDB<DataModel>>(PatchDB)
         .watch$('packageData')

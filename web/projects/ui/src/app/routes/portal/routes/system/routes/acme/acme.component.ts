@@ -120,9 +120,9 @@ export default class SystemAcmeComponent {
     this.patch.watch$('serverInfo', 'network', 'acme').pipe(
       map(acme =>
         Object.keys(acme).map(url => {
-          const contact = acme[url].contact.map(mailto =>
-            mailto.replace('mailto:', ''),
-          )
+          const contact =
+            acme[url]?.contact.map(mailto => mailto.replace('mailto:', '')) ||
+            []
           return {
             url,
             contact,

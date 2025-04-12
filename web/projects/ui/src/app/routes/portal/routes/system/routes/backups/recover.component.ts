@@ -91,12 +91,12 @@ export class BackupsRecoverComponent {
 
           return Object.keys(backups)
             .map(id => ({
-              ...backups[id],
+              ...backups[id]!,
               id,
               installed: !!packageData[id],
               checked: false,
               newerOs:
-                Version.parse(backups[id].osVersion).compare(
+                Version.parse(backups[id]?.osVersion || '').compare(
                   Version.parse(this.config.version),
                 ) === 'greater',
             }))

@@ -14,7 +14,8 @@ export class FormSelectComponent extends Control<IST.ValueSpecSelect, string> {
 
   readonly disabledItemHandler = (item: string) =>
     Array.isArray(this.spec.disabled) &&
-    this.spec.disabled.includes(this.inverted[item])
+    !!this.inverted[item] &&
+    this.spec.disabled.includes(this.inverted[item]!)
 
   get disabled(): boolean {
     return typeof this.spec.disabled === 'string'

@@ -16,10 +16,10 @@ import { getManifest } from 'src/app/utils/get-package-data'
 @Component({
   selector: 'service-controls',
   template: `
-    @if (['running', 'starting', 'restarting'].includes(status)) {
+    @if (status && ['running', 'starting', 'restarting'].includes(status)) {
       <button
         tuiButton
-        appearance="secondary-destructive"
+        appearance="primary-destructive"
         iconStart="@tui.square"
         (click)="controls.stop(manifest())"
       >
@@ -41,7 +41,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
       <button
         tuiButton
         iconStart="@tui.play"
-        (click)="controls.start(manifest(), !!hasUnmet)"
+        (click)="controls.start(manifest(), !!hasUnmet())"
       >
         Start
       </button>
@@ -50,16 +50,22 @@ import { getManifest } from 'src/app/utils/get-package-data'
   styles: [
     `
       :host {
+        width: 100%;
+        max-width: 18rem;
         display: flex;
         flex-wrap: wrap;
         gap: 1rem;
         justify-content: center;
-        max-inline-size: 100%;
         margin-block-start: 1rem;
 
         &:nth-child(3) {
           grid-row: span 2;
         }
+      }
+
+      [tuiButton] {
+        flex: 1;
+        min-width: fit-content;
       }
 
       :host-context(tui-root._mobile) {
@@ -85,12 +91,13 @@ export class ServiceControlsComponent {
   pkg!: PackageDataEntry
 
   @Input({ required: true })
-  status!: PrimaryStatus
+  status?: PrimaryStatus
 
   readonly manifest = computed(() => getManifest(this.pkg))
 
   readonly controls = inject(ControlsService)
 
+  // @TODO Alex observable in signal?
   readonly hasUnmet = computed(() =>
     this.errors.getPkgDepErrors$(this.manifest().id).pipe(
       map(errors =>

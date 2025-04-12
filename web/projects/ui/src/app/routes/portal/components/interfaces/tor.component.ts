@@ -15,7 +15,12 @@ import {
   TuiLink,
   TuiOption,
 } from '@taiga-ui/core'
-import { TUI_CONFIRM, TuiTooltip } from '@taiga-ui/kit'
+import {
+  TUI_CONFIRM,
+  TuiFade,
+  TuiFluidTypography,
+  TuiTooltip,
+} from '@taiga-ui/kit'
 import { defaultIfEmpty, firstValueFrom } from 'rxjs'
 import {
   FormComponent,
@@ -69,8 +74,12 @@ type OnionForm = {
       <table [appTable]="['Protocol', 'URL', '']">
         @for (address of tor(); track $index) {
           <tr>
-            <td [style.width.rem]="15">{{ address.label }}</td>
-            <td>{{ address.url | mask }}</td>
+            <td [style.width.rem]="12">{{ address.label }}</td>
+            <td>
+              <div [tuiFluidTypography]="[0.625, 0.8125]" tuiFade>
+                {{ address.url | mask }}
+              </div>
+            </td>
             <td [actions]="address.url">
               <button
                 tuiButton
@@ -99,6 +108,12 @@ type OnionForm = {
       </app-placeholder>
     }
   `,
+  styles: `
+    [tuiFade] {
+      white-space: nowrap;
+      max-width: 30rem;
+    }
+  `,
   host: { class: 'g-card' },
   imports: [
     TuiButton,
@@ -111,6 +126,8 @@ type OnionForm = {
     PlaceholderComponent,
     MaskPipe,
     InterfaceActionsComponent,
+    TuiFade,
+    TuiFluidTypography,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

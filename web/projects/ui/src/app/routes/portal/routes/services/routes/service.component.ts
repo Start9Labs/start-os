@@ -10,9 +10,10 @@ import { ActivatedRoute } from '@angular/router'
 import { isEmptyObject } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
-import { map } from 'rxjs'
+import { map, of } from 'rxjs'
 import { UptimeComponent } from 'src/app/routes/portal/components/uptime.component'
 import { ConnectionService } from 'src/app/services/connection.service'
+import { DepErrorService } from 'src/app/services/dep-error.service'
 import {
   DataModel,
   PackageDataEntry,
@@ -31,31 +32,36 @@ import { ServiceStatusComponent } from '../components/status.component'
   template: `
     <service-status
       [connected]="!!connected()"
-      [installingInfo]="pkg().stateInfo.installingInfo"
+      [installingInfo]="pkg()?.stateInfo?.installingInfo"
       [status]="status()"
     >
-      @if ($any(pkg().status).started; as started) {
+      @if ($any(pkg()?.status)?.started; as started) {
         <p class="g-secondary" [appUptime]="started"></p>
       }
-      @if (installed() && connected()) {
-        <service-controls [pkg]="pkg()" [status]="status()" />
+      @if (installed() && connected() && pkg(); as pkg) {
+        <service-controls [pkg]="pkg" [status]="status()" />
       }
     </service-status>
 
-    @if (installed()) {
-      @if (pkg().status.main === 'error') {
-        <service-error [pkg]="pkg()" />
+    @if (installed() && pkg(); as pkg) {
+      @if (pkg.status.main === 'error') {
+        <service-error [pkg]="pkg" />
       }
-
-      <service-interfaces [pkg]="pkg()" [disabled]="status() !== 'running'" />
-      <service-dependencies [pkg]="pkg()" [services]="services()" />
+      <service-interfaces [pkg]="pkg" [disabled]="status() !== 'running'" />
+      @if (errors() | async; as errors) {
+        <service-dependencies
+          [pkg]="pkg"
+          [services]="services()"
+          [errors]="errors"
+        />
+      }
       <service-health-checks [checks]="health()" />
-      <service-action-requests [pkg]="pkg()" [services]="services()" />
+      <service-action-requests [pkg]="pkg" [services]="services() || {}" />
     }
 
-    @if (installing()) {
+    @if (installing() && pkg(); as pkg) {
       @for (
-        item of pkg().stateInfo.installingInfo?.progress?.phases;
+        item of pkg.stateInfo.installingInfo?.progress?.phases;
         track $index
       ) {
         <p [progress]="item.progress">{{ item.name }}</p>
@@ -100,6 +106,7 @@ import { ServiceStatusComponent } from '../components/status.component'
   ],
 })
 export class ServiceRoute {
+  private readonly errorService = inject(DepErrorService)
   protected readonly connected = toSignal(inject(ConnectionService))
 
   protected readonly id = toSignal(
@@ -111,10 +118,14 @@ export class ServiceRoute {
     { initialValue: {} as Record<string, PackageDataEntry> },
   )
 
+  protected readonly errors = computed((id = this.id()) =>
+    id ? this.errorService.getPkgDepErrors$(id) : of({}),
+  )
+
   protected readonly pkg = computed(() => this.services()[this.id() || ''])
 
-  protected readonly health = computed(() =>
-    this.pkg() ? toHealthCheck(this.pkg().status) : [],
+  protected readonly health = computed((pkg = this.pkg()) =>
+    pkg ? toHealthCheck(pkg.status) : [],
   )
 
   protected readonly status = computed((pkg = this.pkg()) =>

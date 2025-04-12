@@ -42,7 +42,7 @@ export class AppComponent implements OnInit {
   ngOnInit() {
     this.patch.watch$('ui').subscribe(({ name, language }) => {
       this.title.setTitle(name || 'StartOS')
-      this.i18n.setLanguage(language)
+      this.i18n.setLanguage(language || 'english')
     })
   }
 }

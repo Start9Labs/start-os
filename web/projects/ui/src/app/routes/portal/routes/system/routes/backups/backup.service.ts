@@ -68,10 +68,11 @@ export class BackupService {
   }
 
   hasThisBackup({ startOs }: BackupTarget, id: string): boolean {
+    const item = startOs[id]
+
     return (
-      startOs[id] &&
-      Version.parse(startOs[id].version).compare(Version.parse('0.3.6')) !==
-        'less'
+      !!item &&
+      Version.parse(item.version).compare(Version.parse('0.3.6')) !== 'less'
     )
   }
 }

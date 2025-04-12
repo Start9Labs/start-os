@@ -12,24 +12,11 @@ import { StandardActionsService } from 'src/app/services/standard-actions.servic
 import { getManifest } from 'src/app/utils/get-package-data'
 import { ServiceActionComponent } from '../components/action.component'
 
-const OTHER = 'Other Custom Actions'
+const OTHER = 'Custom Actions'
 
 @Component({
   template: `
     @if (package(); as pkg) {
-      <section class="g-card">
-        <header>Standard Actions</header>
-        <button
-          tuiCell
-          [action]="rebuild"
-          (click)="service.rebuild(pkg.manifest.id)"
-        ></button>
-        <button
-          tuiCell
-          [action]="uninstall"
-          (click)="service.uninstall(pkg.manifest)"
-        ></button>
-      </section>
       @for (group of pkg.actions | keyvalue; track $index) {
         @if (group.value.length) {
           <section class="g-card">
@@ -46,6 +33,19 @@ const OTHER = 'Other Custom Actions'
           </section>
         }
       }
+      <section class="g-card">
+        <header>Standard Actions</header>
+        <button
+          tuiCell
+          [action]="rebuild"
+          (click)="service.rebuild(pkg.manifest.id)"
+        ></button>
+        <button
+          tuiCell
+          [action]="uninstall"
+          (click)="service.uninstall(pkg.manifest)"
+        ></button>
+      </section>
     }
   `,
   styles: `
@@ -80,8 +80,8 @@ export default class ServiceActionsRoute {
               Record<string, ReadonlyArray<T.ActionMetadata & { id: string }>>
             >(
               (acc, [id]) => {
-                const action = { id, ...pkg.actions[id] }
-                const group = pkg.actions[id].group || OTHER
+                const action = { id, ...pkg.actions[id]! }
+                const group = pkg.actions[id]?.group || OTHER
                 const current = acc[group] || []
 
                 return { ...acc, [group]: current.concat(action) }

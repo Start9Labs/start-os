@@ -18,7 +18,7 @@ import { EOSService } from 'src/app/services/eos.service'
 
 @Component({
   template: `
-    <h2 style="margin-top: 0">StartOS {{ versions[0].version }}</h2>
+    <h2 style="margin-top: 0">StartOS {{ versions[0]?.version }}</h2>
     <h3 style="color: var(--tui-text-secondary); font-weight: normal">
       Release Notes
     </h3>

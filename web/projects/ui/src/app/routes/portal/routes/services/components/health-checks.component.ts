@@ -30,6 +30,7 @@ import { ServiceHealthCheckComponent } from './health-check.component'
   `,
   styles: `
     :host {
+      min-height: 12rem;
       grid-column: span 3;
     }
   `,

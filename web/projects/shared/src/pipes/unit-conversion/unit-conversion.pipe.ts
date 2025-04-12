@@ -25,9 +25,12 @@ export function convertBytes(bytes: number): string {
 export class DurationToSecondsPipe implements PipeTransform {
   transform(duration?: string | null): number {
     if (!duration) return 0
-    const [, num, , unit] =
-      duration.match(/^([0-9]*(\.[0-9]+)?)(ns|µs|ms|s|m|d)$/) || []
-    return Number(num) * unitsToSeconds[unit]
+
+    const regex = /^([0-9]*(\.[0-9]+)?)(ns|µs|ms|s|m|d)$/
+    const [, num, , unit] = duration.match(regex) || []
+    const multiplier = (unit && unitsToSeconds[unit]) || NaN
+
+    return unit ? Number(num) * multiplier : NaN
   }
 }
 

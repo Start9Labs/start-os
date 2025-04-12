@@ -29,13 +29,14 @@ export function getAddresses(
   tor: AddressDetails[]
 } {
   const addressInfo = serviceInterface.addressInfo
-  const hostnames = host.hostnameInfo[addressInfo.internalPort].filter(
-    h =>
-      config.isLocalhost() ||
-      h.kind !== 'ip' ||
-      h.hostname.kind !== 'ipv6' ||
-      !h.hostname.value.startsWith('fe80::'),
-  )
+  const hostnames =
+    host.hostnameInfo[addressInfo.internalPort]?.filter(
+      h =>
+        config.isLocalhost() ||
+        h.kind !== 'ip' ||
+        h.hostname.kind !== 'ipv6' ||
+        !h.hostname.value.startsWith('fe80::'),
+    ) || []
 
   if (config.isLocalhost()) {
     const local = hostnames.find(
@@ -67,11 +68,10 @@ export function getAddresses(
     addresses.forEach(url => {
       if (h.kind === 'onion') {
         tor.push({
-          label: `Tor${
+          label:
             addresses.length > 1
-              ? ` (${new URL(url).protocol.replace(':', '').toUpperCase()})`
-              : ''
-          }`,
+              ? new URL(url).protocol.replace(':', '').toUpperCase()
+              : '',
           url,
         })
       } else {
@@ -79,14 +79,10 @@ export function getAddresses(
 
         if (h.public) {
           clearnet.push({
-            label:
-              hostnameKind == 'domain'
-                ? 'Domain'
-                : `${h.networkInterfaceId} (${hostnameKind})`,
             url,
             acme:
               hostnameKind == 'domain'
-                ? host.domains[h.hostname.domain]?.acme
+                ? host.domains[h.hostname.domain]?.acme || null
                 : null, // @TODO Matt make sure this is handled correctly - looks like ACME settings aren't built yet anyway, but ACME settings aren't *available* for public IPs
           })
         } else {
@@ -128,7 +124,7 @@ export type MappedServiceInterface = T.ServiceInterface & {
 }
 
 export type AddressDetails = {
-  label: string
+  label?: string
   url: string
   acme?: string | null
 }

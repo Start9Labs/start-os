@@ -17,7 +17,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
   selector: 'tr[actionRequest]',
   template: `
     <td>
-      <tui-avatar size="xs"><img [src]="pkg().icon" alt="" /></tui-avatar>
+      <tui-avatar size="xs"><img [src]="pkg()?.icon" alt="" /></tui-avatar>
       <span>{{ title() }}</span>
     </td>
     <td>
@@ -35,7 +35,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
     </td>
     <td>
       <button tuiButton (click)="handle()">
-        {{ pkg().actions[actionRequest().actionId].name }}
+        {{ pkg()?.actions?.[actionRequest().actionId]?.name }}
       </button>
     </td>
   `,
@@ -79,19 +79,27 @@ export class ServiceActionRequestComponent {
   readonly services = input.required<Record<string, PackageDataEntry>>()
 
   readonly pkg = computed(() => this.services()[this.actionRequest().packageId])
-  readonly title = computed(() => getManifest(this.pkg()).title)
+  readonly title = computed((pkg = this.pkg()) => pkg && getManifest(pkg).title)
 
   async handle() {
+    const title = this.title()
+    const pkg = this.pkg()
+    const metadata = pkg?.actions[this.actionRequest().actionId]
+
+    if (!title || !pkg || !metadata) {
+      return
+    }
+
     this.actionService.present({
       pkgInfo: {
         id: this.actionRequest().packageId,
-        title: this.title(),
-        mainStatus: this.pkg().status.main,
-        icon: this.pkg().icon,
+        title,
+        mainStatus: pkg.status.main,
+        icon: pkg.icon,
       },
       actionInfo: {
         id: this.actionRequest().actionId,
-        metadata: this.pkg().actions[this.actionRequest().actionId],
+        metadata,
       },
       requestInfo: this.actionRequest(),
     })

@@ -2,9 +2,16 @@ import { inject, Injectable } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
-import { TuiConfirmData, TUI_CONFIRM } from '@taiga-ui/kit'
+import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
-import { defaultIfEmpty, filter, firstValueFrom } from 'rxjs'
+import {
+  defaultIfEmpty,
+  defer,
+  filter,
+  firstValueFrom,
+  of,
+  switchMap,
+} from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getAllPackages } from 'src/app/utils/get-package-data'
@@ -20,53 +27,16 @@ export class ControlsService {
   private readonly api = inject(ApiService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
-  async start(manifest: T.Manifest, unmet: boolean): Promise<void> {
-    const deps = `${manifest.title} has unmet dependencies. It will not work as expected.`
+  async start({ title, alerts, id }: T.Manifest, unmet: boolean) {
+    const deps = `${title} has unmet dependencies. It will not work as expected.`
 
     if (
-      (!unmet || (await this.alert(deps))) &&
-      (!manifest.alerts.start || (await this.alert(manifest.alerts.start)))
+      (unmet && !(await this.alert(deps))) ||
+      (alerts.start && !(await this.alert(alerts.start)))
     ) {
-      this.doStart(manifest.id)
-    }
-  }
-
-  async stop({ id, title, alerts }: T.Manifest): Promise<void> {
-    let content = alerts.stop || ''
-
-    if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
-      const depMessage = `Services that depend on ${title} will no longer work properly and may crash`
-      content = content ? `${content}.\n\n${depMessage}` : depMessage
+      return
     }
 
-    if (content) {
-      this.dialogs
-        .open(TUI_CONFIRM, getOptions(content, 'Stop'))
-        .pipe(filter(Boolean))
-        .subscribe(() => this.doStop(id))
-    } else {
-      this.doStop(id)
-    }
-  }
-
-  async restart({ id, title }: T.Manifest): Promise<void> {
-    if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
-      this.dialogs
-        .open(
-          TUI_CONFIRM,
-          getOptions(
-            `Services that depend on ${title} may temporarily experiences issues`,
-            'Restart',
-          ),
-        )
-        .pipe(filter(Boolean))
-        .subscribe(() => this.doRestart(id))
-    } else {
-      this.doRestart(id)
-    }
-  }
-
-  private async doStart(id: string): Promise<void> {
     const loader = this.loader.open(`Starting...`).subscribe()
 
     try {
@@ -78,28 +48,55 @@ export class ControlsService {
     }
   }
 
-  private async doStop(id: string): Promise<void> {
-    const loader = this.loader.open(`Stopping...`).subscribe()
+  async stop({ id, title, alerts }: T.Manifest) {
+    const depMessage = `Services that depend on ${title} will no longer work properly and may crash`
+    let content = alerts.stop || ''
 
-    try {
-      await this.api.stopPackage({ id })
-    } catch (e: any) {
-      this.errorService.handleError(e)
-    } finally {
-      loader.unsubscribe()
+    if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
+      content = content ? `${content}.\n\n${depMessage}` : depMessage
     }
+
+    defer(() =>
+      content
+        ? this.dialogs
+            .open(TUI_CONFIRM, getOptions(content, 'Stop'))
+            .pipe(filter(Boolean))
+        : of(null),
+    ).subscribe(async () => {
+      const loader = this.loader.open(`Stopping...`).subscribe()
+
+      try {
+        await this.api.stopPackage({ id })
+      } catch (e: any) {
+        this.errorService.handleError(e)
+      } finally {
+        loader.unsubscribe()
+      }
+    })
   }
 
-  private async doRestart(id: string): Promise<void> {
-    const loader = this.loader.open(`Restarting...`).subscribe()
+  async restart({ id, title }: T.Manifest) {
+    const packages = await getAllPackages(this.patch)
+    const options = getOptions(
+      `Services that depend on ${title} may temporarily experiences issues`,
+      'Restart',
+    )
 
-    try {
-      await this.api.restartPackage({ id })
-    } catch (e: any) {
-      this.errorService.handleError(e)
-    } finally {
-      loader.unsubscribe()
-    }
+    defer(() =>
+      hasCurrentDeps(id, packages)
+        ? this.dialogs.open(TUI_CONFIRM, options).pipe(filter(Boolean))
+        : of(null),
+    ).subscribe(async () => {
+      const loader = this.loader.open(`Restarting...`).subscribe()
+
+      try {
+        await this.api.restartPackage({ id })
+      } catch (e: any) {
+        this.errorService.handleError(e)
+      } finally {
+        loader.unsubscribe()
+      }
+    })
   }
 
   private alert(content: string): Promise<boolean> {
