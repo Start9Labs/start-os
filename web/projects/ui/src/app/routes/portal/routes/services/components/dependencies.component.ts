@@ -21,7 +21,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
         <tui-avatar><img alt="" [src]="d.value.icon" /></tui-avatar>
         <span tuiTitle>
           {{ d.value.title }}
-          @if (!getError(d.key); as error) {
+          @if (getError(d.key); as error) {
             <span tuiSubtitle class="g-warning">{{ error }}</span>
           } @else {
             <span tuiSubtitle class="g-positive">Satisfied</span>

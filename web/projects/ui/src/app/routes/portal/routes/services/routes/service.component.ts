@@ -47,12 +47,11 @@ import { ServiceStatusComponent } from '../components/status.component'
       @if (pkg.status.main === 'error') {
         <service-error [pkg]="pkg" />
       }
-
-      <service-interfaces [pkg]="pkg" [disabled]="status() !== 'running'" />
+      <service-interfaces [pkg]="pkg()" [disabled]="status() !== 'running'" />
       @if (errors() | async; as errors) {
         <service-dependencies
-          [pkg]="pkg"
-          [services]="services() || {}"
+          [pkg]="pkg()"
+          [services]="services()"
           [errors]="errors"
         />
       }
