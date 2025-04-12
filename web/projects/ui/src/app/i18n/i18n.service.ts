@@ -13,7 +13,7 @@ export class i18nService extends TuiLanguageSwitcherService {
 
   readonly loading = signal(false)
 
-  override setLanguage(language: TuiLanguageName): void {
+  override setLanguage(language: TuiLanguageName = 'english'): void {
     if (this.language === language) {
       return
     }

@@ -5,6 +5,7 @@ import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
 import { TuiCell } from '@taiga-ui/layout'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
+import { PkgDependencyErrors } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 
 @Component({
@@ -20,6 +21,11 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
         <tui-avatar><img alt="" [src]="d.value.icon" /></tui-avatar>
         <span tuiTitle>
           {{ d.value.title }}
+          @if (getError(d.key); as error) {
+            <span tuiSubtitle class="g-warning">{{ error }}</span>
+          } @else {
+            <span tuiSubtitle class="g-positive">Satisfied</span>
+          }
           <span tuiSubtitle>{{ d.value.versionRange }}</span>
         </span>
         <tui-icon icon="@tui.arrow-right" />
@@ -52,4 +58,32 @@ export class ServiceDependenciesComponent {
 
   @Input({ required: true })
   services: Record<string, PackageDataEntry> = {}
+
+  @Input({ required: true })
+  errors: PkgDependencyErrors = {}
+
+  getError(id: string): string {
+    const depError = this.errors[id]
+
+    if (!depError) {
+      return ''
+    }
+
+    switch (depError.type) {
+      case 'notInstalled':
+        return 'Not installed'
+      case 'incorrectVersion':
+        return 'Incorrect version'
+      case 'notRunning':
+        return 'Not running'
+      case 'actionRequired':
+        return 'Action required'
+      case 'healthChecksFailed':
+        return 'Required health check not passing'
+      case 'transitive':
+        return 'Dependency has a dependency issue'
+      default:
+        return 'Unknown error'
+    }
+  }
 }

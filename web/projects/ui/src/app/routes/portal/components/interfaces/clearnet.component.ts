@@ -71,21 +71,14 @@ type ClearnetForm = {
         Make {{ isPublic() ? 'private' : 'public' }}
       </button>
       @if (clearnet().length) {
-        <button
-          tuiButton
-          iconStart="@tui.plus"
-          [style.margin-inline-start]="'auto'"
-          (click)="add()"
-        >
-          Add
-        </button>
+        <button tuiButton iconStart="@tui.plus" (click)="add()">Add</button>
       }
     </header>
     @if (clearnet().length) {
       <table [appTable]="['ACME', 'URL', '']">
         @for (address of clearnet(); track $index) {
           <tr>
-            <td>{{ address.acme | acme }}</td>
+            <td [style.width.rem]="12">{{ address.acme | acme }}</td>
             <td>{{ address.url | mask }}</td>
             <td [actions]="address.url">
               <button

@@ -114,6 +114,6 @@ export function appInitializer(): () => void {
     auth.init()
     localStorage.init()
     router.initialNavigation()
-    i18n.setLanguage(i18n.language)
+    i18n.setLanguage(i18n.language || 'english')
   }
 }
