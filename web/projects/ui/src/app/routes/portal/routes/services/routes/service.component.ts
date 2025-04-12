@@ -10,9 +10,10 @@ import { ActivatedRoute } from '@angular/router'
 import { isEmptyObject } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
-import { map } from 'rxjs'
+import { map, of } from 'rxjs'
 import { UptimeComponent } from 'src/app/routes/portal/components/uptime.component'
 import { ConnectionService } from 'src/app/services/connection.service'
+import { DepErrorService } from 'src/app/services/dep-error.service'
 import {
   DataModel,
   PackageDataEntry,
@@ -48,7 +49,13 @@ import { ServiceStatusComponent } from '../components/status.component'
       }
 
       <service-interfaces [pkg]="pkg()" [disabled]="status() !== 'running'" />
-      <service-dependencies [pkg]="pkg()" [services]="services()" />
+      @if (errors() | async; as errors) {
+        <service-dependencies
+          [pkg]="pkg()"
+          [services]="services()"
+          [errors]="errors"
+        />
+      }
       <service-health-checks [checks]="health()" />
       <service-action-requests [pkg]="pkg()" [services]="services()" />
     }
@@ -100,6 +107,7 @@ import { ServiceStatusComponent } from '../components/status.component'
   ],
 })
 export class ServiceRoute {
+  private readonly errorService = inject(DepErrorService)
   protected readonly connected = toSignal(inject(ConnectionService))
 
   protected readonly id = toSignal(
@@ -109,6 +117,10 @@ export class ServiceRoute {
   protected readonly services = toSignal(
     inject<PatchDB<DataModel>>(PatchDB).watch$('packageData'),
     { initialValue: {} as Record<string, PackageDataEntry> },
+  )
+
+  protected readonly errors = computed((id = this.id()) =>
+    id ? this.errorService.getPkgDepErrors$(id) : of({}),
   )
 
   protected readonly pkg = computed(() => this.services()[this.id() || ''])

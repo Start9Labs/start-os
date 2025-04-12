@@ -19,7 +19,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
     @if (['running', 'starting', 'restarting'].includes(status)) {
       <button
         tuiButton
-        appearance="secondary-destructive"
+        appearance="primary-destructive"
         iconStart="@tui.square"
         (click)="controls.stop(manifest())"
       >
@@ -50,16 +50,22 @@ import { getManifest } from 'src/app/utils/get-package-data'
   styles: [
     `
       :host {
+        width: 100%;
+        max-width: 18rem;
         display: flex;
         flex-wrap: wrap;
         gap: 1rem;
         justify-content: center;
-        max-inline-size: 100%;
         margin-block-start: 1rem;
 
         &:nth-child(3) {
           grid-row: span 2;
         }
+      }
+
+      [tuiButton] {
+        flex: 1;
+        min-width: fit-content;
       }
 
       :host-context(tui-root._mobile) {

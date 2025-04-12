@@ -45,6 +45,7 @@ import {
         font: var(--tui-font-heading-4);
         font-weight: normal;
         margin: 0;
+        text-align: center;
       }
 
       div {
@@ -74,6 +75,10 @@ import {
           display: grid;
           grid-template-columns: 1fr max-content;
           padding: 0.5rem 0;
+        }
+
+        h3 {
+          text-align: left;
         }
 
         small {

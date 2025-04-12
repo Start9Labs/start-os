@@ -30,15 +30,6 @@ const RUNNING = ['running', 'starting', 'restarting']
       >
         Stop
       </button>
-
-      <button
-        tuiIconButton
-        iconStart="@tui.rotate-cw"
-        [disabled]="status().primary !== 'running'"
-        (click)="controls.restart(manifest())"
-      >
-        Restart
-      </button>
     } @else {
       <button
         *tuiLet="hasUnmet() | async as hasUnmet"

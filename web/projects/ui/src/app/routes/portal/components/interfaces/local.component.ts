@@ -29,7 +29,7 @@ import { MaskPipe } from './mask.pipe'
     <table [appTable]="['Network Interface', 'URL', '']">
       @for (address of local(); track $index) {
         <tr>
-          <td [style.width.rem]="15">{{ address.label }}</td>
+          <td [style.width.rem]="12">{{ address.label }}</td>
           <td>{{ address.url | mask }}</td>
           <td [actions]="address.url"></td>
         </tr>
