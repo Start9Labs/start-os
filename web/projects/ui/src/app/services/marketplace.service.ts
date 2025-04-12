@@ -249,20 +249,23 @@ export class MarketplaceService {
     flavor: string | null,
     pkgInfo: GetPackageRes,
   ): MarketplacePkg {
-    version =
+    const ver =
       version ||
       Object.keys(pkgInfo.best).find(v => this.exver.getFlavor(v) === flavor) ||
       null
+    const best = ver && pkgInfo.best[ver]
 
-    return !version || !pkgInfo.best[version]
-      ? ({} as MarketplacePkg)
-      : {
-          id,
-          version,
-          flavor,
-          ...pkgInfo,
-          ...pkgInfo.best[version],
-        }
+    if (!best) {
+      return {} as MarketplacePkg
+    }
+
+    return {
+      id,
+      flavor,
+      version: ver || '',
+      ...pkgInfo,
+      ...best,
+    }
   }
 
   getRequestErrors$(): Observable<string[]> {

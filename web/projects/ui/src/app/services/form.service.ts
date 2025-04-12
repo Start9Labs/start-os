@@ -42,9 +42,12 @@ export class FormService {
     const selected = valid ? value?.selection : spec.default
     const selection = this.getUnionSelectSpec(spec, selected)
     const group = this.getFormGroup({ selection })
-    const control = selected ? spec.variants[selected].spec : {}
+    const control = selected ? spec.variants[selected]?.spec : {}
 
-    group.setControl('value', this.getFormGroup(control, [], value?.value))
+    group.setControl(
+      'value',
+      this.getFormGroup(control || {}, [], value?.value),
+    )
 
     return group
   }
@@ -410,7 +413,12 @@ function listObjEquals(
   if (!uniqueBy) {
     return false
   } else if (typeof uniqueBy === 'string') {
-    return uniqueByEquals(spec.spec[uniqueBy], val1[uniqueBy], val2[uniqueBy])
+    const uniqueBySpec = spec.spec[uniqueBy]
+
+    return (
+      !!uniqueBySpec &&
+      uniqueByEquals(uniqueBySpec, val1[uniqueBy], val2[uniqueBy])
+    )
   } else if ('any' in uniqueBy) {
     for (let unique of uniqueBy.any) {
       if (listObjEquals(unique, spec, val1, val2)) {
@@ -522,8 +530,12 @@ export function convertValuesRecursive(
       convertValuesRecursive(valueSpec.spec, group.get(key) as UntypedFormGroup)
     } else if (valueSpec.type === 'union') {
       const formGr = group.get(key) as UntypedFormGroup
-      const spec = valueSpec.variants[formGr.controls['selection'].value].spec
-      convertValuesRecursive(spec, formGr)
+      const value = formGr.controls['selection']?.value
+      const spec = !!value && valueSpec.variants[value]?.spec
+
+      if (spec) {
+        convertValuesRecursive(spec, formGr)
+      }
     } else if (valueSpec.type === 'list') {
       const formArr = group.get(key) as UntypedFormArray
       const { controls } = formArr

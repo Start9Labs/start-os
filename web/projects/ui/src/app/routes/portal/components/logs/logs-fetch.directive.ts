@@ -15,7 +15,7 @@ export class LogsFetchDirective {
 
   @Output()
   readonly logsFetch = defer(() => this.observer).pipe(
-    filter(([{ isIntersecting }]) => isIntersecting && !this.component.scroll),
+    filter(([entry]) => !!entry?.isIntersecting && !this.component.scroll),
     switchMap(() =>
       from(
         this.component.fetchLogs({

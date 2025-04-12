@@ -72,7 +72,7 @@ export default class StartOsUiComponent {
       .pipe(
         map(host => ({
           ...iface,
-          public: host.bindings[iface.addressInfo.internalPort].net.public,
+          public: !!host.bindings[iface.addressInfo.internalPort]?.net.public,
           addresses: getAddresses(iface, host, this.config),
         })),
       ),

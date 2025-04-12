@@ -501,9 +501,9 @@ export class MockApiService extends ApiService {
   ): Promise<GetPackageRes> {
     await pauseFor(2000)
     if (!versionRange || versionRange === '=*') {
-      return Mock.RegistryPackages[id]
+      return Mock.RegistryPackages[id]!
     } else {
-      return Mock.OtherPackageVersions[id][versionRange]
+      return Mock.OtherPackageVersions[id]![versionRange]!
     }
   }
 
@@ -870,7 +870,7 @@ export class MockApiService extends ApiService {
 
         this.mockRevision([
           {
-            ...appPatch[0],
+            ...appPatch[0]!,
             value: 'stopped',
           },
         ])
@@ -1055,18 +1055,18 @@ export class MockApiService extends ApiService {
         op: PatchOp.ADD,
         path: `/packageData/${params.id}`,
         value: {
-          ...Mock.LocalPkgs[params.id],
+          ...Mock.LocalPkgs[params.id]!,
           stateInfo: {
             // if installing
             // state: 'installing',
 
             // if updating
             state: 'updating',
-            manifest: mockPatchData.packageData[params.id].stateInfo.manifest!,
+            manifest: mockPatchData.packageData[params.id]?.stateInfo.manifest!,
 
             // both
             installingInfo: {
-              newManifest: Mock.LocalPkgs[params.id].stateInfo.manifest,
+              newManifest: Mock.LocalPkgs[params.id]?.stateInfo.manifest!,
               progress: PROGRESS,
             },
           },
@@ -1123,11 +1123,11 @@ export class MockApiService extends ApiService {
         op: PatchOp.ADD,
         path: `/packageData/${id}`,
         value: {
-          ...Mock.LocalPkgs[id],
+          ...Mock.LocalPkgs[id]!,
           stateInfo: {
             state: 'restoring',
             installingInfo: {
-              newManifest: Mock.LocalPkgs[id].stateInfo.manifest!,
+              newManifest: Mock.LocalPkgs[id]?.stateInfo.manifest!,
               progress: PROGRESS,
             },
           },
@@ -1640,7 +1640,7 @@ export class MockApiService extends ApiService {
       ) {
         await pauseFor(2000)
 
-        progress.phases[i].progress = true
+        progress.phases[i]!.progress = true
 
         if (
           progress.overall &&
@@ -1671,7 +1671,7 @@ export class MockApiService extends ApiService {
           if (phase.progress.done === phase.progress.total) {
             await pauseFor(250)
 
-            progress.phases[i].progress = true
+            progress.phases[i]!.progress = true
           }
         }
       }
@@ -1777,7 +1777,7 @@ export class MockApiService extends ApiService {
         path: `/packageData/${id}/stateInfo`,
         value: {
           state: 'installed',
-          manifest: Mock.LocalPkgs[id].stateInfo.manifest,
+          manifest: Mock.LocalPkgs[id]?.stateInfo.manifest!,
         },
       },
     ]

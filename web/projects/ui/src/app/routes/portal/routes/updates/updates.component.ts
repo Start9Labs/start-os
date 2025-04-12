@@ -224,7 +224,9 @@ export default class UpdatesComponent {
     combineLatest({
       hosts: this.marketplaceService
         .getKnownHosts$(true)
-        .pipe(tap(([store]) => !this.isMobile && this.current.set(store))),
+        .pipe(
+          tap(([store]) => !this.isMobile && store && this.current.set(store)),
+        ),
       marketplace: this.marketplaceService.marketplace$,
       localPkgs: inject<PatchDB<DataModel>>(PatchDB)
         .watch$('packageData')

@@ -16,7 +16,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
 @Component({
   selector: 'service-controls',
   template: `
-    @if (['running', 'starting', 'restarting'].includes(status)) {
+    @if (status && ['running', 'starting', 'restarting'].includes(status)) {
       <button
         tuiButton
         appearance="primary-destructive"
@@ -91,7 +91,7 @@ export class ServiceControlsComponent {
   pkg!: PackageDataEntry
 
   @Input({ required: true })
-  status!: PrimaryStatus
+  status?: PrimaryStatus
 
   readonly manifest = computed(() => getManifest(this.pkg))
 

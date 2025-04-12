@@ -5,13 +5,7 @@ import {
   inject,
   signal,
 } from '@angular/core'
-import {
-  TuiAppearance,
-  TuiButton,
-  TuiIcon,
-  TuiLink,
-  TuiTitle,
-} from '@taiga-ui/core'
+import { TuiAppearance, TuiButton, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiCardMedium } from '@taiga-ui/layout'
 import { LogsComponent } from 'src/app/routes/portal/components/logs/logs.component'
 import { RR } from 'src/app/services/api/api.types'
@@ -37,7 +31,7 @@ interface Log {
         >
           Back
         </button>
-        {{ logs[key].title }}
+        {{ logs[key]?.title }}
       } @else {
         Logs
       }
@@ -55,9 +49,9 @@ interface Log {
           >
             Close
           </button>
-          {{ logs[key].title }}
+          {{ logs[key]?.title }}
         </strong>
-        <p tuiSubtitle>{{ logs[key].subtitle }}</p>
+        <p tuiSubtitle>{{ logs[key]?.subtitle }}</p>
       </header>
       @for (log of logs | keyvalue; track $index) {
         @if (log.key === current()) {
@@ -169,7 +163,6 @@ interface Log {
     TuiCardMedium,
     TuiIcon,
     TuiAppearance,
-    TuiLink,
     TuiButton,
   ],
 })

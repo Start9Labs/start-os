@@ -86,7 +86,7 @@ function toNavigationItem(
   const item = SYSTEM_UTILITIES[id]
   const routerLink = toRouterLink(id)
 
-  return SYSTEM_UTILITIES[id]
+  return item
     ? {
         icon: item.icon,
         title: item.title,
@@ -94,7 +94,7 @@ function toNavigationItem(
       }
     : {
         icon: packages[id]?.icon,
-        title: getManifest(packages[id]).title,
+        title: getManifest(packages[id]!).title,
         routerLink,
       }
 }

@@ -60,7 +60,7 @@ export class DepErrorService {
   ): PkgDependencyErrors {
     const pkg = pkgs[pkgId]
 
-    if (!isInstalled(pkg)) return {}
+    if (!pkg || !isInstalled(pkg)) return {}
 
     return currentDeps(pkgs, pkgId).reduce(
       (innerErrors, depId): PkgDependencyErrors => ({
@@ -88,17 +88,14 @@ export class DepErrorService {
 
     const currentDep = pkg.currentDependencies[depId]
     const depManifest = dep.stateInfo.manifest
+    const expected = currentDep?.versionRange || ''
 
     // incorrect version
-    if (!this.exver.satisfies(depManifest.version, currentDep.versionRange)) {
-      if (
-        depManifest.satisfies.some(
-          v => !this.exver.satisfies(v, currentDep.versionRange),
-        )
-      ) {
+    if (!this.exver.satisfies(depManifest.version, expected)) {
+      if (depManifest.satisfies.some(v => !this.exver.satisfies(v, expected))) {
         return {
+          expected,
           type: 'incorrectVersion',
-          expected: currentDep.versionRange,
           received: depManifest.version,
         }
       }
@@ -128,10 +125,10 @@ export class DepErrorService {
     }
 
     // health check failure
-    if (depStatus === 'running' && currentDep.kind === 'running') {
+    if (depStatus === 'running' && currentDep?.kind === 'running') {
       for (let id of currentDep.healthChecks) {
         const check = dep.status.health[id]
-        if (check?.result !== 'success') {
+        if (check && check?.result !== 'success') {
           return {
             type: 'healthChecksFailed',
             check,
@@ -142,7 +139,7 @@ export class DepErrorService {
 
     // transitive
     const transitiveError = currentDeps(pkgs, depId).some(transitiveId =>
-      Object.values(outerErrors[transitiveId]).some(err => !!err),
+      Object.values(outerErrors[transitiveId] || {}).some(err => !!err),
     )
 
     if (transitiveError) {

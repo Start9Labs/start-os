@@ -2,7 +2,7 @@
   <section
     class="top"
     waIntersectionObserver
-    (waIntersectionObservee)="onLoading($event[0].isIntersecting)"
+    (waIntersectionObservee)="onLoading(!!$event[0]?.isIntersecting)"
     (logsFetch)="onPrevious($event)"
   >
     @if (loading) {
@@ -41,7 +41,7 @@
     class="bottom"
     waIntersectionObserver
     (waIntersectionObservee)="
-      setScroll($event[$event.length - 1].isIntersecting)
+      setScroll(!!$event[$event.length - 1]?.isIntersecting)
     "
   ></section>
 </tui-scrollbar>

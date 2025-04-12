@@ -29,13 +29,14 @@ export function getAddresses(
   tor: AddressDetails[]
 } {
   const addressInfo = serviceInterface.addressInfo
-  const hostnames = host.hostnameInfo[addressInfo.internalPort].filter(
-    h =>
-      config.isLocalhost() ||
-      h.kind !== 'ip' ||
-      h.hostname.kind !== 'ipv6' ||
-      !h.hostname.value.startsWith('fe80::'),
-  )
+  const hostnames =
+    host.hostnameInfo[addressInfo.internalPort]?.filter(
+      h =>
+        config.isLocalhost() ||
+        h.kind !== 'ip' ||
+        h.hostname.kind !== 'ipv6' ||
+        !h.hostname.value.startsWith('fe80::'),
+    ) || []
 
   if (config.isLocalhost()) {
     const local = hostnames.find(
@@ -81,7 +82,7 @@ export function getAddresses(
             url,
             acme:
               hostnameKind == 'domain'
-                ? host.domains[h.hostname.domain]?.acme
+                ? host.domains[h.hostname.domain]?.acme || null
                 : null, // @TODO Matt make sure this is handled correctly - looks like ACME settings aren't built yet anyway, but ACME settings aren't *available* for public IPs
           })
         } else {

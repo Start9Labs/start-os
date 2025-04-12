@@ -48,6 +48,6 @@ export class LogsWindowComponent {
   }
 
   onBottom(entries: readonly IntersectionObserverEntry[]) {
-    this.scroll = entries[entries.length - 1].isIntersecting
+    this.scroll = !!entries[entries.length - 1]?.isIntersecting
   }
 }

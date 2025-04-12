@@ -70,7 +70,13 @@ export default class SystemSessionsComponent {
   private readonly sessions$ = from(this.api.getSessions({}))
   private readonly local$ = new Subject<readonly SessionWithId[]>()
 
-  readonly current$ = this.sessions$.pipe(map(s => [s.sessions[s.current]]))
+  readonly current$ = this.sessions$.pipe(
+    map(s => {
+      const current = s.sessions[s.current]
+
+      return current ? [current] : []
+    }),
+  )
   readonly other$: Observable<readonly SessionWithId[]> = merge(
     this.local$,
     this.sessions$.pipe(

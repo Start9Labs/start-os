@@ -13,7 +13,10 @@ export function dryUpdate(
         Object.keys(pkg.currentDependencies || {}).some(
           pkgId => pkgId === id,
         ) &&
-        !exver.satisfies(version, pkg.currentDependencies[id].versionRange),
+        !exver.satisfies(
+          version,
+          pkg.currentDependencies[id]?.versionRange || '',
+        ),
     )
     .map(pkg => getManifest(pkg).title)
 }
