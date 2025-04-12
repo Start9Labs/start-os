@@ -181,7 +181,7 @@ export class ActionInputModal {
       .filter(
         id =>
           id !== this.pkgInfo.id &&
-          Object.values(packages[id].requestedActions).some(
+          Object.values(packages[id]!.requestedActions).some(
             ({ request, active }) =>
               !active &&
               request.severity === 'critical' &&
@@ -201,7 +201,7 @@ export class ActionInputModal {
     const message =
       'As a result of this change, the following services will no longer work properly and may crash:<ul>'
     const content = `${message}${breakages.map(
-      id => `<li><b>${getManifest(packages[id]).title}</b></li>`,
+      id => `<li><b>${getManifest(packages[id]!).title}</b></li>`,
     )}</ul>`
     const data: TuiConfirmData = { content, yes: 'Continue', no: 'Cancel' }
 

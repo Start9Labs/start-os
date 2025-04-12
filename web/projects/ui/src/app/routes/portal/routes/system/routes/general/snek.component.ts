@@ -142,8 +142,8 @@ export class SnekComponent implements AfterViewInit, OnDestroy {
 
   handleTouchStart(evt: TouchEvent) {
     const firstTouch = this.getTouches(evt)[0]
-    this.xDown = firstTouch.clientX
-    this.yDown = firstTouch.clientY
+    this.xDown = firstTouch?.clientX
+    this.yDown = firstTouch?.clientY
   }
 
   handleTouchMove(evt: TouchEvent) {
@@ -151,8 +151,8 @@ export class SnekComponent implements AfterViewInit, OnDestroy {
       return
     }
 
-    var xUp = evt.touches[0].clientX
-    var yUp = evt.touches[0].clientY
+    var xUp = evt.touches[0]?.clientX || 0
+    var yUp = evt.touches[0]?.clientY || 0
 
     var xDiff = this.xDown - xUp
     var yDiff = this.yDown - yUp

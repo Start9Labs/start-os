@@ -6,10 +6,7 @@ export function toAcmeUrl(name: string): string {
   return knownACME.find(acme => acme.name === name)?.url || name
 }
 
-export const knownACME: {
-  name: string
-  url: string
-}[] = [
+export const knownACME = [
   {
     name: `Let's Encrypt`,
     url: 'https://acme-v02.api.letsencrypt.org/directory',
@@ -18,4 +15,4 @@ export const knownACME: {
     name: `Let's Encrypt (Staging)`,
     url: 'https://acme-staging-v02.api.letsencrypt.org/directory',
   },
-]
+] as const

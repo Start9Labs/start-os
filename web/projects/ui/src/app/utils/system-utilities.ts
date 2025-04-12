@@ -47,8 +47,8 @@ export function getMenu() {
   const badge = inject(BadgeService)
 
   return Object.keys(SYSTEM_UTILITIES).map(key => ({
-    name: SYSTEM_UTILITIES[key].title,
-    icon: SYSTEM_UTILITIES[key].icon,
+    name: SYSTEM_UTILITIES[key]?.title || '',
+    icon: SYSTEM_UTILITIES[key]?.icon || '',
     routerLink: key,
     badge: toSignal(badge.getCount(key), { initialValue: 0 }),
   }))

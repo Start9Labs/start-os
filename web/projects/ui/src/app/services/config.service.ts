@@ -59,7 +59,7 @@ export class ConfigService {
           (this.hostname.startsWith('192.168.') ||
             this.hostname.startsWith('10.') ||
             (this.hostname.startsWith('172.') &&
-              !![this.hostname.split('.').map(Number)[1]].filter(
+              !![this.hostname.split('.').map(Number)[1] || NaN].filter(
                 n => n >= 16 && n < 32,
               ).length))
   }
@@ -107,13 +107,14 @@ export class ConfigService {
     if (!host) return ''
 
     let hostnameInfo = host.hostnameInfo[ui.addressInfo.internalPort]
-    hostnameInfo = hostnameInfo.filter(
-      h =>
-        this.isLocalhost() ||
-        h.kind !== 'ip' ||
-        h.hostname.kind !== 'ipv6' ||
-        !h.hostname.value.startsWith('fe80::'),
-    )
+    hostnameInfo =
+      hostnameInfo?.filter(
+        h =>
+          this.isLocalhost() ||
+          h.kind !== 'ip' ||
+          h.hostname.kind !== 'ipv6' ||
+          !h.hostname.value.startsWith('fe80::'),
+      ) || []
     if (this.isLocalhost()) {
       const local = hostnameInfo.find(
         h => h.kind === 'ip' && h.hostname.kind === 'local',

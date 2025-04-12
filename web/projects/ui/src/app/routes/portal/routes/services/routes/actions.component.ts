@@ -80,8 +80,8 @@ export default class ServiceActionsRoute {
               Record<string, ReadonlyArray<T.ActionMetadata & { id: string }>>
             >(
               (acc, [id]) => {
-                const action = { id, ...pkg.actions[id] }
-                const group = pkg.actions[id].group || OTHER
+                const action = { id, ...pkg.actions[id]! }
+                const group = pkg.actions[id]?.group || OTHER
                 const current = acc[group] || []
 
                 return { ...acc, [group]: current.concat(action) }

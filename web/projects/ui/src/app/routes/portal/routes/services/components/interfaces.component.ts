@@ -64,7 +64,7 @@ export class ServiceInterfacesComponent {
 
         return {
           ...value,
-          public: !!host?.bindings[value.addressInfo.internalPort].net.public,
+          public: !!host?.bindings[value.addressInfo.internalPort]?.net.public,
           addresses: host ? getAddresses(value, host, this.config) : {},
           routerLink: `./interface/${id}`,
         }

@@ -81,11 +81,16 @@ export default class ServiceInterfaceRoute {
 
     const { serviceInterfaces, hosts } = pkg
     const item = serviceInterfaces[this.interfaceId()]
-    const host = hosts[item.addressInfo.hostId]
+    const key = item?.addressInfo.hostId || ''
+    const host = hosts[key]
+
+    if (!host || !item) {
+      return
+    }
 
     return {
       ...item,
-      public: host.bindings[item.addressInfo.internalPort].net.public,
+      public: !!host?.bindings[item.addressInfo.internalPort]?.net.public,
       addresses: getAddresses(item, host, this.config),
     }
   })

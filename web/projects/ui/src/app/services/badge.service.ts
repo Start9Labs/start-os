@@ -47,7 +47,8 @@ export class BadgeService {
 
             return (
               !curr[id] ||
-              (p.stateInfo.installingInfo && !curr[id].stateInfo.installingInfo)
+              (p.stateInfo.installingInfo &&
+                !curr[id]?.stateInfo.installingInfo)
             )
           }),
         ),
@@ -70,7 +71,7 @@ export class BadgeService {
                 local[id] &&
                 this.exver.compareExver(
                   version,
-                  getManifest(local[id]).version,
+                  getManifest(local[id]!).version,
                 ) === 1
                   ? result.add(id)
                   : result,

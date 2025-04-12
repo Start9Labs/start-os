@@ -8,9 +8,8 @@ import { ActivatedRoute } from '@angular/router'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { ISB } from '@start9labs/start-sdk'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiAlertService, TuiButton, TuiIcon, TuiTitle } from '@taiga-ui/core'
+import { TuiAlertService, TuiButton, TuiIcon } from '@taiga-ui/core'
 import { TUI_CONFIRM, TuiTooltip } from '@taiga-ui/kit'
-import { TuiCell } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
@@ -232,7 +231,7 @@ export class BackupNetworkComponent {
                   ...value,
                 })
 
-                target.entry = Object.values(res)[0]
+                target.entry = Object.values(res)[0]!
                 this.service.cifs.update(cifs => [...cifs])
                 return true
               } catch (e: any) {
@@ -273,7 +272,13 @@ export class BackupNetworkComponent {
       .subscribe()
 
     try {
-      const [[id, entry]] = Object.entries(await this.api.addBackupTarget(v))
+      const [item] = Object.entries(await this.api.addBackupTarget(v))
+      const [id, entry] = item || []
+
+      if (!id || !entry) {
+        throw 'Invalid response from server'
+      }
+
       const hasAnyBackup = this.service.hasAnyBackup(entry)
       const added = { id, entry, hasAnyBackup }
       this.service.cifs.update(cifs => [added, ...cifs])

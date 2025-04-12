@@ -38,11 +38,11 @@ export class FormUnionComponent implements OnChanges {
 
   @tuiPure
   onUnion(union: string) {
-    this.values[this.union] = this.form.control.controls['value'].value
+    this.values[this.union] = this.form.control.controls['value']?.value
     this.form.control.setControl(
       'value',
       this.formService.getFormGroup(
-        union ? this.spec.variants[union].spec : {},
+        union ? this.spec.variants[union]?.spec || {} : {},
         [],
         this.values[union],
       ),

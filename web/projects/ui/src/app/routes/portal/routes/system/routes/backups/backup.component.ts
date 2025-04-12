@@ -136,7 +136,7 @@ export class BackupsBackupComponent {
           // existing backup
         } else {
           try {
-            argon2.verify(entry.startOs[id].passwordHash!, password)
+            argon2.verify(entry.startOs[id]?.passwordHash!, password)
             await this.createBackup(password)
           } catch {
             this.oldPassword(password)
@@ -156,7 +156,7 @@ export class BackupsBackupComponent {
 
   private async oldPassword(password: string) {
     const { id } = await getServerInfo(this.patch)
-    const { passwordHash } = this.context.data.entry.startOs[id]
+    const { passwordHash = '' } = this.context.data.entry.startOs[id] || {}
 
     this.dialogs
       .open<string>(PROMPT, PASSWORD_OPTIONS)

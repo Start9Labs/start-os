@@ -27,7 +27,7 @@ import {
             <small>See below</small>
           }
 
-          @if (rendering.showDots) {
+          @if (rendering?.showDots) {
             <span class="loading-dots"></span>
           }
         </h3>
@@ -94,7 +94,7 @@ import {
 })
 export class ServiceStatusComponent {
   @Input({ required: true })
-  status!: PrimaryStatus
+  status?: PrimaryStatus
 
   @Input()
   installingInfo?: InstallingInfo
@@ -103,13 +103,13 @@ export class ServiceStatusComponent {
   connected = false
 
   get text() {
-    return this.connected ? this.rendering.display : 'Unknown'
+    return this.connected ? this.rendering?.display : 'Unknown'
   }
 
   get class(): string | null {
     if (!this.connected) return null
 
-    switch (this.rendering.color) {
+    switch (this.rendering?.color) {
       case 'danger':
         return 'g-negative'
       case 'warning':
@@ -124,7 +124,7 @@ export class ServiceStatusComponent {
   }
 
   get rendering() {
-    return PrimaryRendering[this.status]
+    return this.status && PrimaryRendering[this.status]
   }
 
   getText(progress: T.Progress): string {
