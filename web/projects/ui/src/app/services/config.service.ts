@@ -35,9 +35,9 @@ export class ConfigService {
   }
 
   isLocal(): boolean {
-    return (
-      this.hostname.endsWith('.local') || (useMocks && mocks.maskAs === 'local')
-    )
+    return useMocks
+      ? mocks.maskAs === 'local'
+      : this.hostname.endsWith('.local')
   }
 
   isLocalhost(): boolean {

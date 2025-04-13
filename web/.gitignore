@@ -13,16 +13,10 @@ Thumbs.db
 UserInterfaceState.xcuserstate
 $RECYCLE.BIN/
 
-start9-ambassador
 *.tar.gz
-config.json
-
-ambassador.tar.gz
 *.log
 log.txt
 npm-debug.log*
-
-postprocess.js
 
 /.angular
 /.idea
@@ -34,8 +28,6 @@ postprocess.js
 /dist
 /out-tsc
 /node_modules
-/platforms
-/plugins
 
 config.json
 proxy.conf.json

@@ -122,5 +122,13 @@
     "hooks": {
       "pre-commit": "lint-staged --concurrent false"
     }
+  },
+  "prettier": {
+    "singleQuote": true,
+    "semi": false,
+    "arrowParens": "avoid",
+    "trailingComma": "all",
+    "htmlWhitespaceSensitivity": "ignore",
+    "tabWidth": 2
   }
 }

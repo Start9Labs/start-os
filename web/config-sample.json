@@ -1,6 +1,5 @@
 {
   "useMocks": true,
-  "enableWidgets": false,
   "ui": {
     "api": {
       "url": "rpc",

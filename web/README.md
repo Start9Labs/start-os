@@ -27,12 +27,12 @@ node --version
 v20.17.0
 
 npm --version
-v10.8.2
+v11.1.0
 ```
 
 #### Install and enable the Prettier extension for your text editor
 
-#### Clone StartOS and load the PatchDB submodule if you have not already
+#### Clone StartOS and load submodules
 
 ```sh
 git clone https://github.com/Start9Labs/start-os.git
@@ -57,7 +57,7 @@ cp config-sample.json config.json
 ```
 
 - By default, "useMocks" is set to `true`.
-- Use "maskAs" to mock the host from which the web UI is served. Valid values are `tor`, `local`, and `localhost`.
+- Use "maskAs" to mock the host from which the web UI is served. Valid values are `tor`, `local`, `localhost`, `ipv4`, `ipv6`, and `clearnet`.
 - Use "maskAsHttps" to mock the protocol over which the web UI is served. `true` means https; `false` means http.
 
 ## Running the development server
