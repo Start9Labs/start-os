@@ -6,7 +6,7 @@ import {
   inject,
   OnDestroy,
 } from '@angular/core'
-import { pauseFor } from '@start9labs/shared'
+import { i18nPipe, pauseFor } from '@start9labs/shared'
 import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
 import { injectContext } from '@taiga-ui/polymorpheus'
 
@@ -17,9 +17,11 @@ import { injectContext } from '@taiga-ui/polymorpheus'
       <canvas id="game"></canvas>
     </div>
     <footer class="footer">
-      <strong>Score: {{ score }}</strong>
-      <span>High Score: {{ highScore }}</span>
-      <button tuiButton (click)="dismiss()">Save and Quit</button>
+      <strong>{{ 'Score' | i18n }}: {{ score }}</strong>
+      <span>{{ 'High score' | i18n }}: {{ highScore }}</span>
+      <button tuiButton (click)="dismiss()">
+        {{ 'Save and quit' | i18n }}
+      </button>
     </footer>
   `,
   styles: [
@@ -40,7 +42,7 @@ import { injectContext } from '@taiga-ui/polymorpheus'
       }
     `,
   ],
-  imports: [TuiButton],
+  imports: [TuiButton, i18nPipe],
 })
 export class SnekComponent implements AfterViewInit, OnDestroy {
   private readonly document = inject(DOCUMENT)

@@ -30,7 +30,7 @@ export class SnekDirective {
       })
       .pipe(filter(score => score > this.snek))
       .subscribe(async score => {
-        const loader = this.loader.open('Saving high score...').subscribe()
+        const loader = this.loader.open('Saving high score').subscribe()
 
         try {
           await this.api.setDbValue<number>(

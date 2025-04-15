@@ -25,7 +25,7 @@ export class AppComponent {
   }
 
   async install(overwrite = false) {
-    const loader = this.loader.open('Installing StartOS...').subscribe()
+    const loader = this.loader.open('Installing StartOS').subscribe()
     const logicalname = this.selected?.logicalname || ''
 
     try {
