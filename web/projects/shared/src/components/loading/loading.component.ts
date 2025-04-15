@@ -1,14 +1,15 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { TuiLoader } from '@taiga-ui/core'
-import { injectContext, PolymorpheusContent } from '@taiga-ui/polymorpheus'
+import { injectContext } from '@taiga-ui/polymorpheus'
 
 @Component({
   standalone: true,
-  template: '<tui-loader [textContent]="content" />',
+  template: '<tui-loader [textContent]="content | i18n" />',
   styleUrls: ['./loading.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiLoader],
+  imports: [TuiLoader, i18nPipe],
 })
 export class LoadingComponent {
-  readonly content = injectContext<{ content: PolymorpheusContent }>().content
+  readonly content = injectContext<{ content: i18nKey }>().content
 }

@@ -16,7 +16,6 @@ import {
 } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import {
-  TuiAlertService,
   TuiAppearance,
   TuiButton,
   tuiFadeIn,
@@ -26,7 +25,6 @@ import {
   TuiTitle,
 } from '@taiga-ui/core'
 import {
-  TUI_CONFIRM,
   TuiButtonLoading,
   TuiButtonSelect,
   TuiDataListWrapper,
@@ -35,7 +33,6 @@ import { TuiCell, tuiCellOptionsProvider, TuiHeader } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { filter } from 'rxjs'
-import { PROMPT } from 'src/app/routes/portal/modals/prompt.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import { EOSService } from 'src/app/services/eos.service'
@@ -44,6 +41,7 @@ import { TitleDirective } from 'src/app/services/title.service'
 import { SnekDirective } from './snek.directive'
 import { UPDATE } from './update.component'
 import { SystemWipeComponent } from './wipe.component'
+import { DialogService } from 'src/app/services/dialog.service'
 
 @Component({
   template: `
@@ -98,14 +96,14 @@ import { SystemWipeComponent } from './wipe.component'
         <tui-icon icon="@tui.languages" />
         <span tuiTitle>
           <strong>{{ 'Language' | i18n }}</strong>
-          <span tuiSubtitle>{{ i18n.language }}</span>
+          <span tuiSubtitle>{{ i18nService.language }}</span>
         </span>
         <button
           tuiButtonSelect
           tuiButton
-          [loading]="i18n.loading()"
-          [ngModel]="i18n.language"
-          (ngModelChange)="i18n.setLanguage($event)"
+          [loading]="i18nService.loading()"
+          [ngModel]="i18nService.language"
+          (ngModelChange)="i18nService.setLanguage($event)"
         >
           {{ 'Change' | i18n }}
           <tui-data-list-wrapper
@@ -211,7 +209,6 @@ import { SystemWipeComponent } from './wipe.component'
   ],
 })
 export default class SystemGeneralComponent {
-  private readonly alerts = inject(TuiAlertService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
@@ -223,6 +220,8 @@ export default class SystemGeneralComponent {
     inject(INJECTOR),
   )
   private readonly document = inject(DOCUMENT)
+  private readonly i18n = inject(i18nPipe)
+  private readonly dialogService = inject(DialogService)
 
   wipe = false
   count = 0
@@ -230,7 +229,7 @@ export default class SystemGeneralComponent {
   readonly server = toSignal(this.patch.watch$('serverInfo'))
   readonly name = toSignal(this.patch.watch$('ui', 'name'))
   readonly eos = inject(EOSService)
-  readonly i18n = inject(i18nService)
+  readonly i18nService = inject(i18nService)
   readonly languages = ['english', 'spanish']
   readonly score = toSignal(
     this.patch.watch$('ui', 'gaming', 'snake', 'highScore'),
@@ -248,11 +247,12 @@ export default class SystemGeneralComponent {
   }
 
   onTitle() {
-    this.dialogs
-      .open<string>(PROMPT, {
+    this.dialogService
+      .openPrompt<string>({
         label: 'Browser Tab Title',
         data: {
-          message: `This value will be displayed as the title of your browser tab.`,
+          message:
+            'This value will be displayed as the title of your browser tab.',
           label: 'Device Name',
           placeholder: 'StartOS',
           required: false,
@@ -261,7 +261,7 @@ export default class SystemGeneralComponent {
         },
       })
       .subscribe(async name => {
-        const loader = this.loader.open('Saving...').subscribe()
+        const loader = this.loader.open('Saving').subscribe()
 
         try {
           await this.api.setDbValue(['name'], name || null)
@@ -273,8 +273,8 @@ export default class SystemGeneralComponent {
 
   onReset() {
     this.wipe = false
-    this.dialogs
-      .open(TUI_CONFIRM, {
+    this.dialogService
+      .openConfirm({
         label: this.isTor ? 'Warning' : 'Confirm',
         data: {
           content: this.reset,
@@ -291,11 +291,11 @@ export default class SystemGeneralComponent {
   }
 
   async onRepair() {
-    this.dialogs
-      .open(TUI_CONFIRM, {
+    this.dialogService
+      .openConfirm({
         label: 'Warning',
         data: {
-          content: `<p>This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action.</p><p>If anything happens to the device during the reboot, such as losing power or unplugging the drive, the filesystem <i>will</i> be in an unrecoverable state. Please proceed with caution.</p>`,
+          content: `<p>${this.i18n.transform('This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action.')}</p><p>${this.i18n.transform('If anything happens to the device during the reboot, such as losing power or unplugging the drive, the filesystem will be in an unrecoverable state. Please proceed with caution.')}</p>`,
           yes: 'Repair',
           no: 'Cancel',
         },
@@ -312,12 +312,12 @@ export default class SystemGeneralComponent {
   }
 
   private async resetTor(wipeState: boolean) {
-    const loader = this.loader.open('Resetting Tor...').subscribe()
+    const loader = this.loader.open('Resetting Tor').subscribe()
 
     try {
       await this.api.resetTor({ wipeState, reason: 'User triggered' })
 
-      this.alerts.open('Tor reset in progress').subscribe()
+      this.dialogService.openAlert('Tor reset in progress').subscribe()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -338,8 +338,8 @@ export default class SystemGeneralComponent {
       if (this.eos.updateAvailable$.value) {
         this.update()
       } else {
-        this.dialogs
-          .open('You are on the latest version of StartOS.', {
+        this.dialogService
+          .openAlert('You are on the latest version of StartOS.', {
             label: 'Up to date!',
             size: 's',
           })
@@ -353,7 +353,7 @@ export default class SystemGeneralComponent {
   }
 
   private async restart() {
-    const loader = this.loader.open(`Beginning restart...`).subscribe()
+    const loader = this.loader.open('Beginning restart').subscribe()
 
     try {
       await this.api.restartServer({})
