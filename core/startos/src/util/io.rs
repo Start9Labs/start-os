@@ -915,6 +915,16 @@ impl Drop for TmpDir {
     }
 }
 
+pub async fn maybe_open_file(path: impl AsRef<Path>) -> Result<Option<File>, Error> {
+    let path = path.as_ref();
+    match File::open(path).await {
+        Ok(a) => Ok(Some(a)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e),
+    }
+    .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("open {path:?}")))
+}
+
 pub async fn open_file(path: impl AsRef<Path>) -> Result<File, Error> {
     let path = path.as_ref();
     File::open(path)

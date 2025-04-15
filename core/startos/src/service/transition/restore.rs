@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use futures::channel::oneshot;
 use futures::FutureExt;
 use models::ProcedureName;
 
@@ -28,10 +29,11 @@ impl Handler<Restore> for ServiceActor {
         jobs: &BackgroundJobQueue,
     ) -> Self::Response {
         // So Need a handle to just a single field in the state
-        let path = restore.path.clone();
+        let path = restore.path;
         let seed = self.0.clone();
 
         let state = self.0.persistent_container.state.clone();
+        let (send_res, recv_res) = oneshot::channel();
         let transition = RemoteCancellable::new(
             async move {
                 let backup_guard = seed
@@ -48,17 +50,10 @@ impl Handler<Restore> for ServiceActor {
                 });
                 Ok::<_, Error>(())
             }
-            .map(|x| {
-                if let Err(err) = x {
-                    tracing::debug!("{:?}", err);
-                    tracing::warn!("{}", err);
-                }
-            }),
+            .map(|res| send_res.send(res)),
         );
         let cancel_handle = transition.cancellation_handle();
-        let transition = transition.shared();
-        let job_transition = transition.clone();
-        jobs.add_job(job_transition.map(|_| ()));
+        jobs.add_job(transition.map(|_| ()));
 
         let mut old = None;
         self.0.persistent_container.state.send_modify(|s| {
@@ -73,9 +68,9 @@ impl Handler<Restore> for ServiceActor {
         if let Some(t) = old {
             t.abort().await;
         }
-        match transition.await {
-            None => Err(Error::new(eyre!("Restoring canceled"), ErrorKind::Unknown)),
-            Some(x) => Ok(x),
+        match recv_res.await {
+            Err(_) => Err(Error::new(eyre!("Restoring canceled"), ErrorKind::Unknown)),
+            Ok(res) => res,
         }
     }
 }

@@ -21,14 +21,13 @@
   },
   "homepage": "https://github.com/Start9Labs/start-sdk#readme",
   "dependencies": {
-    "@iarna/toml": "^2.2.5",
-    "@noble/curves": "^1.4.0",
-    "@noble/hashes": "^1.4.0",
+    "@iarna/toml": "^3.0.0",
+    "@noble/curves": "^1.8.2",
+    "@noble/hashes": "^1.7.2",
     "isomorphic-fetch": "^3.0.0",
-    "lodash.merge": "^4.6.2",
-    "mime-types": "^2.1.35",
+    "mime-types": "^3.0.1",
     "ts-matches": "^6.2.1",
-    "yaml": "^2.2.2",
+    "yaml": "^2.7.1",
     "deep-equality-data-structures": "^1.5.0"
   },
   "prettier": {
