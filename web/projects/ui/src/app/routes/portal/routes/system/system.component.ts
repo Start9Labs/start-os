@@ -1,16 +1,16 @@
+import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterModule } from '@angular/router'
+import { i18nPipe } from '@start9labs/shared'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiBadgeNotification } from '@taiga-ui/kit'
 import { TuiCell } from '@taiga-ui/layout'
-import { i18nPipe } from 'src/app/i18n/i18n.pipe'
+import { PatchDB } from 'patch-db-client'
 import { BadgeService } from 'src/app/services/badge.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
 import { SYSTEM_MENU } from './system.const'
-import { PatchDB } from 'patch-db-client'
-import { DataModel } from 'src/app/services/patch-db/data-model'
-import { AsyncPipe } from '@angular/common'
 
 @Component({
   template: `

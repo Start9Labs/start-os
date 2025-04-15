@@ -8,7 +8,12 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import {
+  ErrorService,
+  i18nPipe,
+  i18nService,
+  LoadingService,
+} from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import {
   TuiAlertService,
@@ -30,8 +35,6 @@ import { TuiCell, tuiCellOptionsProvider, TuiHeader } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { filter } from 'rxjs'
-import { i18nPipe } from 'src/app/i18n/i18n.pipe'
-import { i18nService } from 'src/app/i18n/i18n.service'
 import { PROMPT } from 'src/app/routes/portal/modals/prompt.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'

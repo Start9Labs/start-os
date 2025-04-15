@@ -19,6 +19,12 @@ export * from './components/server.component'
 export * from './directives/drag-scroller.directive'
 export * from './directives/safe-links.directive'
 
+export * from './i18n/dictionaries/english'
+export * from './i18n/dictionaries/spanish'
+export * from './i18n/i18n.pipe'
+export * from './i18n/i18n.providers'
+export * from './i18n/i18n.service'
+
 export * from './pipes/exver/exver.module'
 export * from './pipes/exver/exver.pipe'
 export * from './pipes/shared/shared.module'

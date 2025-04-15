@@ -14,6 +14,8 @@ export type i18n = Record<(typeof ENGLISH)[i18nKey], string>
 export const I18N = tuiCreateToken(signal<i18n | null>(null))
 export const I18N_LOADER =
   tuiCreateToken<(lang: TuiLanguageName) => Promise<i18n>>()
+export const I18N_STORAGE =
+  tuiCreateToken<(lang: TuiLanguageName) => Promise<void>>()
 
 export const I18N_PROVIDERS = [
   tuiLanguageSwitcher(async (language: TuiLanguageName): Promise<unknown> => {
