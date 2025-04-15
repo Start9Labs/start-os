@@ -29,6 +29,6 @@
         "singleline": "never"
       }
     ],
-    "quotemark": [true, "single"]
+    "quotemark": [true, "single", "avoid-escape"]
   }
 }

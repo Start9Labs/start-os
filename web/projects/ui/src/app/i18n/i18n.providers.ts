@@ -8,9 +8,10 @@ import {
 import ENGLISH from './dictionaries/english'
 import { i18nService } from './i18n.service'
 
-export type i18n = typeof ENGLISH
+export type i18nKey = keyof typeof ENGLISH
+export type i18n = Record<(typeof ENGLISH)[i18nKey], string>
 
-export const I18N = tuiCreateToken(signal(ENGLISH))
+export const I18N = tuiCreateToken(signal<i18n | null>(null))
 export const I18N_LOADER =
   tuiCreateToken<(lang: TuiLanguageName) => Promise<i18n>>()
 
@@ -30,7 +31,7 @@ export const I18N_PROVIDERS = [
         case 'spanish':
           return import('./dictionaries/spanish').then(v => v.default)
         default:
-          return import('./dictionaries/english').then(v => v.default)
+          return null
       }
     },
   },

@@ -46,17 +46,15 @@ import { SystemWipeComponent } from './wipe.component'
   template: `
     <ng-container *title>
       <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
-        {{ 'ui.back' | i18n }}
+        {{ 'Back' | i18n }}
       </a>
-      {{ 'system.general.title' | i18n }}
+      {{ 'General Settings' | i18n }}
     </ng-container>
     <header tuiHeader>
       <hgroup tuiTitle>
-        <h3>
-          {{ 'system.general.title' | i18n }}
-        </h3>
+        <h3>{{ 'General Settings' | i18n }}</h3>
         <p tuiSubtitle>
-          {{ 'system.general.subtitle' | i18n }}
+          {{ 'Manage your overall setup and preferences' | i18n }}
         </p>
       </hgroup>
     </header>
@@ -64,9 +62,7 @@ import { SystemWipeComponent } from './wipe.component'
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.zap" />
         <span tuiTitle>
-          <strong>
-            {{ 'system.general.update.title' | i18n }}
-          </strong>
+          <strong>{{ 'Software Update' | i18n }}</strong>
           <span tuiSubtitle>{{ server.version }}</span>
         </span>
         <button
@@ -77,12 +73,12 @@ import { SystemWipeComponent } from './wipe.component'
           (click)="onUpdate()"
         >
           @if (server.statusInfo.updated) {
-            {{ 'system.general.update.button.restart' | i18n }}
+            {{ 'Restart to apply' | i18n }}
           } @else {
             @if (eos.showUpdate$ | async) {
-              {{ 'ui.update' | i18n }}
+              {{ 'Update' | i18n }}
             } @else {
-              {{ 'system.general.update.button.check' | i18n }}
+              {{ 'Check for updates' | i18n }}
             }
           }
         </button>
@@ -90,21 +86,15 @@ import { SystemWipeComponent } from './wipe.component'
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.app-window" />
         <span tuiTitle>
-          <strong>
-            {{ 'system.general.tab' | i18n }}
-          </strong>
+          <strong>{{ 'Browser Tab Title' | i18n }}</strong>
           <span tuiSubtitle>{{ name() }}</span>
         </span>
-        <button tuiButton (click)="onTitle()">
-          {{ 'ui.change' | i18n }}
-        </button>
+        <button tuiButton (click)="onTitle()">{{ 'Change' | i18n }}</button>
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.languages" />
         <span tuiTitle>
-          <strong>
-            {{ 'system.general.language' | i18n }}
-          </strong>
+          <strong>{{ 'Language' | i18n }}</strong>
           <span tuiSubtitle>{{ i18n.language }}</span>
         </span>
         <button
@@ -114,7 +104,7 @@ import { SystemWipeComponent } from './wipe.component'
           [ngModel]="i18n.language"
           (ngModelChange)="i18n.setLanguage($event)"
         >
-          {{ 'ui.change' | i18n }}
+          {{ 'Change' | i18n }}
           <tui-data-list-wrapper
             *tuiTextfieldDropdown
             size="l"
@@ -125,44 +115,34 @@ import { SystemWipeComponent } from './wipe.component'
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.award" />
         <span tuiTitle>
-          <strong>
-            {{ 'system.general.ca.title' | i18n }}
-          </strong>
-          <span tuiSubtitle>
-            {{ 'system.general.ca.subtitle' | i18n }}
-          </span>
+          <strong>{{ 'Root Certificate Authority' | i18n }}</strong>
+          <span tuiSubtitle>{{ "Download your server's Root CA" | i18n }}</span>
         </span>
         <button tuiButton iconStart="@tui.download" (click)="downloadCA()">
-          {{ 'system.general.ca.button' | i18n }}
+          {{ 'Download' | i18n }}
         </button>
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.circle-power" (click)="count = count + 1" />
         <span tuiTitle>
-          <strong>
-            {{ 'system.general.tor.title' | i18n }}
-          </strong>
+          <strong>{{ 'Reset Tor' | i18n }}</strong>
           <span tuiSubtitle>
-            {{ 'system.general.tor.subtitle' | i18n }}
+            {{ 'Restart the Tor daemon on your server' | i18n }}
           </span>
         </span>
         <button tuiButton appearance="glass" (click)="onReset()">
-          {{ 'ui.reset' | i18n }}
+          {{ 'Reset' | i18n }}
         </button>
       </div>
       @if (count > 4) {
         <div tuiCell tuiAppearance="outline-grayscale" @tuiScaleIn @tuiFadeIn>
           <tui-icon icon="@tui.briefcase-medical" />
           <span tuiTitle>
-            <strong>
-              {{ 'system.general.repair.title' | i18n }}
-            </strong>
-            <span tuiSubtitle>
-              {{ 'system.general.repair.subtitle' | i18n }}
-            </span>
+            <strong>{{ 'Disk Repair' | i18n }}</strong>
+            <span tuiSubtitle>{{ 'Attempt automatic repair' | i18n }}</span>
           </span>
           <button tuiButton appearance="glass" (click)="onRepair()">
-            {{ 'system.general.repair.button' | i18n }}
+            {{ 'Repair' | i18n }}
           </button>
         </div>
       }

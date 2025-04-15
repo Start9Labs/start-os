@@ -2,45 +2,54 @@ export const SYSTEM_MENU = [
   [
     {
       icon: '@tui.settings',
-      item: 'system.outlet.general',
+      item: 'General',
+      link: 'general',
     },
     {
       icon: '@tui.mail',
-      item: 'system.outlet.email',
+      item: 'Email',
+      link: 'email',
     },
   ],
   [
     {
       icon: '@tui.copy-plus',
-      item: 'system.outlet.backup',
+      item: 'Create Backup',
+      link: 'backup',
     },
     {
       icon: '@tui.database-backup',
-      item: 'system.outlet.restore',
+      item: 'Restore Backup',
+      link: 'restore',
     },
   ],
   [
     {
       icon: '@tui.monitor',
-      item: 'system.outlet.interfaces',
+      item: 'StartOS UI',
+      link: 'interfaces',
     },
     {
       icon: '@tui.award',
-      item: 'system.outlet.acme',
+      item: 'ACME',
+      link: 'acme',
     },
     {
       icon: '@tui.wifi',
-      item: 'system.outlet.wifi',
+      item: 'WiFi',
+      link: 'wifi',
     },
   ],
   [
     {
       icon: '@tui.clock',
-      item: 'system.outlet.sessions',
+      item: 'Active Sessions',
+      link: 'sessions',
     },
     {
       icon: '@tui.key',
-      item: 'system.outlet.password',
+      item: 'Change Password',
+      link: 'password',
     },
   ],
 ] as const
