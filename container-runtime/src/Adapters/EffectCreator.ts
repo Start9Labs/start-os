@@ -104,7 +104,18 @@ const rpcRoundFor =
 export function makeEffects(context: EffectContext): Effects {
   const rpcRound = rpcRoundFor(context.procedureId)
   const self: Effects = {
+    child: (name) =>
+      makeEffects({ ...context, callbacks: context.callbacks?.child(name) }),
     constRetry: context.constRetry,
+    isInContext: !!context.callbacks,
+    onLeaveContext:
+      context.callbacks?.onLeaveContext?.bind(context.callbacks) ||
+      (() => {
+        console.warn(
+          "no context for this effects object",
+          new Error().stack?.replace(/^Error/, ""),
+        )
+      }),
     clearCallbacks(...[options]: Parameters<T.Effects["clearCallbacks"]>) {
       return rpcRound("clear-callbacks", {
         ...options,
@@ -313,5 +324,14 @@ export function makeEffects(context: EffectContext): Effects {
       >
     },
   }
+  self.onLeaveContext(() => {
+    self.isInContext = false
+    self.onLeaveContext = () => {
+      console.warn(
+        "this effects object is already out of context",
+        new Error().stack?.replace(/^Error/, ""),
+      )
+    }
+  })
   return self
 }

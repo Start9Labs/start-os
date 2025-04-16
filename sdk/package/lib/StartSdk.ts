@@ -113,7 +113,12 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
       | "bind"
       | "getHostInfo"
     type MainUsedEffects = "setMainStatus" | "setHealth"
-    type CallbackEffects = "constRetry" | "clearCallbacks"
+    type CallbackEffects =
+      | "child"
+      | "constRetry"
+      | "isInContext"
+      | "onLeaveContext"
+      | "clearCallbacks"
     type AlreadyExposed =
       | "getSslCertificate"
       | "getSystemSmtp"
@@ -211,10 +216,15 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         > = {},
       ) => {
         async function* watch() {
-          while (true) {
+          const resolveCell = { resolve: () => {} }
+          effects.onLeaveContext(() => {
+            resolveCell.resolve()
+          })
+          while (effects.isInContext) {
             let callback: () => void = () => {}
             const waitForNext = new Promise<void>((resolve) => {
               callback = resolve
+              resolveCell.resolve = resolve
             })
             yield await effects.getContainerIp({ ...options, callback })
             await waitForNext
