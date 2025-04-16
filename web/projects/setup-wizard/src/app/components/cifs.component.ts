@@ -7,7 +7,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
-import { LoadingService, StartOSDiskInfo } from '@start9labs/shared'
+import { i18nKey, LoadingService, StartOSDiskInfo } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import {
   TuiButton,
@@ -131,7 +131,9 @@ export class CifsComponent {
   }
 
   async submit(): Promise<void> {
-    const loader = this.loader.open('Connecting to shared folder').subscribe()
+    const loader = this.loader
+      .open('Connecting to shared folder' as i18nKey)
+      .subscribe()
 
     try {
       const diskInfo = await this.api.verifyCifs({

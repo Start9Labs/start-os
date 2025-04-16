@@ -1,3 +1,5 @@
+import { i18nKey } from '@start9labs/shared'
+
 export const SYSTEM_MENU = [
   [
     {

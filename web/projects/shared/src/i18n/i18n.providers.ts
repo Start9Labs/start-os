@@ -23,6 +23,10 @@ export const I18N_PROVIDERS = [
     switch (language) {
       case 'spanish':
         return import('@taiga-ui/i18n/languages/spanish')
+      case 'polish':
+        return import('@taiga-ui/i18n/languages/polish')
+      case 'german':
+        return import('@taiga-ui/i18n/languages/german')
       default:
         return import('@taiga-ui/i18n/languages/english')
     }
@@ -33,6 +37,10 @@ export const I18N_PROVIDERS = [
       switch (language) {
         case 'spanish':
           return import('./dictionaries/spanish').then(v => v.default)
+        case 'polish':
+          return import('./dictionaries/polish').then(v => v.default)
+        case 'german':
+          return import('./dictionaries/german').then(v => v.default)
         default:
           return null
       }

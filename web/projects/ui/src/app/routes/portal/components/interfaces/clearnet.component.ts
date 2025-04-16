@@ -50,7 +50,7 @@ type ClearnetForm = {
   selector: 'section[clearnet]',
   template: `
     <header>
-      {{ 'Clearnet' | i18n }}
+      Clearnet
       <tui-icon [tuiTooltip]="tooltip" />
       <ng-template #tooltip>
         {{

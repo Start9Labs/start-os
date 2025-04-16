@@ -21,6 +21,9 @@ export * from './directives/safe-links.directive'
 
 export * from './i18n/dictionaries/english'
 export * from './i18n/dictionaries/spanish'
+export * from './i18n/dictionaries/polish'
+export * from './i18n/dictionaries/german'
+
 export * from './i18n/i18n.pipe'
 export * from './i18n/i18n.providers'
 export * from './i18n/i18n.service'

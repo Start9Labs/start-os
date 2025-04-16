@@ -4,7 +4,12 @@ import {
   inject,
   input,
 } from '@angular/core'
-import { CopyService, DialogService, i18nPipe } from '@start9labs/shared'
+import {
+  CopyService,
+  DialogService,
+  i18nKey,
+  i18nPipe,
+} from '@start9labs/shared'
 import {
   TuiButton,
   tuiButtonOptionsProvider,
@@ -119,7 +124,7 @@ export class InterfaceActionsComponent {
     this.dialog
       .openComponent(new PolymorpheusComponent(QRModal), {
         size: 'auto',
-        label: 'Interface URL',
+        label: this.actions() as i18nKey,
         data: this.actions(),
       })
       .subscribe()

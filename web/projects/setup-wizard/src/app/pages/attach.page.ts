@@ -4,6 +4,7 @@ import {
   DiskInfo,
   DriveComponent,
   ErrorService,
+  i18nKey,
   LoadingService,
   toGuid,
 } from '@start9labs/shared'
@@ -84,7 +85,9 @@ export default class AttachPage {
   }
 
   private async attachDrive(guid: string, password: string) {
-    const loader = this.loader.open('Connecting to drive').subscribe()
+    const loader = this.loader
+      .open('Connecting to drive' as i18nKey)
+      .subscribe()
 
     try {
       await this.stateService.importDrive(guid, password)

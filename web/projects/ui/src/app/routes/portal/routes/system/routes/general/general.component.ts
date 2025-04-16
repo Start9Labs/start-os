@@ -14,6 +14,8 @@ import {
   i18nService,
   LoadingService,
   DialogService,
+  languages,
+  i18nKey,
 } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import {
@@ -117,7 +119,7 @@ import { SystemWipeComponent } from './wipe.component'
         <tui-icon icon="@tui.award" />
         <span tuiTitle>
           <strong>{{ 'Root Certificate Authority' | i18n }}</strong>
-          <span tuiSubtitle>{{ "Download your server's Root CA" | i18n }}</span>
+          <span tuiSubtitle>{{ 'Download your Root CA' | i18n }}</span>
         </span>
         <button tuiButton iconStart="@tui.download" (click)="downloadCA()">
           {{ 'Download' | i18n }}
@@ -216,7 +218,6 @@ export default class SystemGeneralComponent {
   private readonly api = inject(ApiService)
   private readonly isTor = inject(ConfigService).isTor()
   private readonly document = inject(DOCUMENT)
-  private readonly i18n = inject(i18nPipe)
   private readonly dialog = inject(DialogService)
 
   wipe = false
@@ -226,7 +227,7 @@ export default class SystemGeneralComponent {
   readonly name = toSignal(this.patch.watch$('ui', 'name'))
   readonly eos = inject(EOSService)
   readonly i18nService = inject(i18nService)
-  readonly languages = ['english', 'spanish']
+  readonly languages = languages
   readonly score = toSignal(
     this.patch.watch$('ui', 'gaming', 'snake', 'highScore'),
     { initialValue: 0 },
@@ -250,7 +251,7 @@ export default class SystemGeneralComponent {
           label: 'Device Name',
           message:
             'This value will be displayed as the title of your browser tab.',
-          placeholder: 'StartOS',
+          placeholder: 'StartOS' as i18nKey,
           required: false,
           buttonText: 'Save',
           initialValue: this.name(),

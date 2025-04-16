@@ -1,5 +1,10 @@
 import { Directive, HostListener, inject, Input } from '@angular/core'
-import { DialogService, ErrorService, LoadingService } from '@start9labs/shared'
+import {
+  DialogService,
+  ErrorService,
+  i18nKey,
+  LoadingService,
+} from '@start9labs/shared'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -22,7 +27,7 @@ export class SnekDirective {
   async onClick() {
     this.dialog
       .openComponent<number>(new PolymorpheusComponent(SnekComponent), {
-        label: 'Snake!',
+        label: 'Snake!' as i18nKey,
         closeable: false,
         dismissible: false,
         data: this.snek,

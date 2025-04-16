@@ -1,6 +1,6 @@
 import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { Component, inject } from '@angular/core'
-import { DiskInfo, LoadingService, toGuid } from '@start9labs/shared'
+import { DiskInfo, i18nKey, LoadingService, toGuid } from '@start9labs/shared'
 import { TuiDialogService } from '@taiga-ui/core'
 import { filter, from } from 'rxjs'
 import { SUCCESS, toWarning } from 'src/app/app.utils'
@@ -25,7 +25,7 @@ export class AppComponent {
   }
 
   async install(overwrite = false) {
-    const loader = this.loader.open('Installing StartOS').subscribe()
+    const loader = this.loader.open('Installing StartOS' as i18nKey).subscribe()
     const logicalname = this.selected?.logicalname || ''
 
     try {
@@ -55,7 +55,7 @@ export class AppComponent {
       )
       .subscribe({
         complete: async () => {
-          const loader = this.loader.open('').subscribe()
+          const loader = this.loader.open('' as i18nKey).subscribe()
 
           try {
             await this.api.reboot()
