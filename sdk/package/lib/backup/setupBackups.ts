@@ -26,12 +26,12 @@ export function setupBackups<M extends T.SDKManifest>(
   } = {
     get createBackup() {
       return (async (options) => {
-        return (await backupsFactory(options)).createBackup()
+        return (await backupsFactory(options)).createBackup(options.effects)
       }) as T.ExpectedExports.createBackup
     },
     get restoreBackup() {
       return (async (options) => {
-        return (await backupsFactory(options)).restoreBackup()
+        return (await backupsFactory(options)).restoreBackup(options.effects)
       }) as T.ExpectedExports.restoreBackup
     },
   }

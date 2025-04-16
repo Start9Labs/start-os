@@ -1,6 +1,7 @@
 import * as T from "../../../base/lib/types"
 import * as child_process from "child_process"
-import { asError } from "../util"
+import * as fs from "fs/promises"
+import { asError, StorePath } from "../util"
 
 export const DEFAULT_OPTIONS: T.SyncOptions = {
   delete: true,
@@ -91,7 +92,7 @@ export class Backups<M extends T.SDKManifest> {
     return this
   }
 
-  async createBackup() {
+  async createBackup(effects: T.Effects) {
     for (const item of this.backupSet) {
       const rsyncResults = await runRsync({
         srcPath: item.dataPath,
@@ -105,10 +106,30 @@ export class Backups<M extends T.SDKManifest> {
       })
       await rsyncResults.wait()
     }
+    await fs.writeFile(
+      "/media/startos/backup/store.json",
+      JSON.stringify(await effects.store.get({ path: "" as StorePath })),
+      { encoding: "utf-8" },
+    )
+    const dataVersion = await effects.getDataVersion()
+    if (dataVersion)
+      await fs.writeFile("/media/startos/backup/dataVersion.txt", dataVersion, {
+        encoding: "utf-8",
+      })
     return
   }
 
-  async restoreBackup() {
+  async restoreBackup(effects: T.Effects) {
+    const store = await fs
+      .readFile("/media/startos/backup/store.json", {
+        encoding: "utf-8",
+      })
+      .catch((_) => null)
+    if (store)
+      await effects.store.set({
+        path: "" as StorePath,
+        value: JSON.parse(store),
+      })
     for (const item of this.backupSet) {
       const rsyncResults = await runRsync({
         srcPath: item.backupPath,
@@ -121,6 +142,12 @@ export class Backups<M extends T.SDKManifest> {
         },
       })
       await rsyncResults.wait()
+      const dataVersion = await fs
+        .readFile("/media/startos/backup/dataVersion.txt", {
+          encoding: "utf-8",
+        })
+        .catch((_) => null)
+      if (dataVersion) await effects.setDataVersion({ version: dataVersion })
     }
     return
   }
