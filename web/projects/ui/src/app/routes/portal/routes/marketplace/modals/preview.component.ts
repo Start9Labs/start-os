@@ -17,13 +17,13 @@ import {
   MarketplacePackageHeroComponent,
   MarketplacePkg,
 } from '@start9labs/marketplace'
-import { Exver, SharedPipesModule } from '@start9labs/shared'
 import {
-  TuiButton,
-  TuiDialogContext,
-  TuiDialogService,
-  TuiLoader,
-} from '@taiga-ui/core'
+  DialogService,
+  Exver,
+  i18nPipe,
+  SharedPipesModule,
+} from '@start9labs/shared'
+import { TuiButton, TuiDialogContext, TuiLoader } from '@taiga-ui/core'
 import { TuiRadioList } from '@taiga-ui/kit'
 import {
   BehaviorSubject,
@@ -77,14 +77,14 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
                     appearance="secondary"
                     (click)="completeWith(null)"
                   >
-                    Cancel
+                    {{ 'Cancel' | i18n }}
                   </button>
                   <button
                     tuiButton
                     appearance="secondary"
                     (click)="completeWith(data.value)"
                   >
-                    Ok
+                    {{ 'Ok' | i18n }}
                   </button>
                 </footer>
               </ng-template>
@@ -174,13 +174,14 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
     TuiRadioList,
     TuiLoader,
     FlavorsComponent,
+    i18nPipe,
   ],
 })
 export class MarketplacePreviewComponent {
   @Input({ required: true })
   pkgId!: string
 
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialog = inject(DialogService)
   private readonly exver = inject(Exver)
   private readonly router = inject(Router)
   private readonly marketplaceService = inject(MarketplaceService)
@@ -233,8 +234,8 @@ export class MarketplacePreviewComponent {
     { version }: MarketplacePkg,
     template: TemplateRef<TuiDialogContext>,
   ) {
-    this.dialogs
-      .open<string>(template, {
+    this.dialog
+      .openComponent<string>(template, {
         label: 'Versions',
         size: 's',
         data: {

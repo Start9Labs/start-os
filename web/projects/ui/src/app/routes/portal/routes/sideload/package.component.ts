@@ -114,7 +114,7 @@ export class SideloadPackageComponent {
   // @Input({ required: true })
   // pkg!: MarketplacePkgSideload
 
-  // @Alex why do I need to initialize pkg below? I would prefer to do the above, but it's not working
+  // @TODO Alex why do I need to initialize pkg below? I would prefer to do the above, but it's not working
   @Input({ required: true })
   pkg: MarketplacePkgSideload = {} as MarketplacePkgSideload
 

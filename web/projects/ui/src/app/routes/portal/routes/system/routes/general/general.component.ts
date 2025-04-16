@@ -13,6 +13,7 @@ import {
   i18nPipe,
   i18nService,
   LoadingService,
+  DialogService,
 } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import {
@@ -41,7 +42,6 @@ import { TitleDirective } from 'src/app/services/title.service'
 import { SnekDirective } from './snek.directive'
 import { UPDATE } from './update.component'
 import { SystemWipeComponent } from './wipe.component'
-import { DialogService } from 'src/app/services/dialog.service'
 
 @Component({
   template: `
@@ -215,13 +215,9 @@ export default class SystemGeneralComponent {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)
   private readonly isTor = inject(ConfigService).isTor()
-  private readonly reset = new PolymorpheusComponent(
-    SystemWipeComponent,
-    inject(INJECTOR),
-  )
   private readonly document = inject(DOCUMENT)
   private readonly i18n = inject(i18nPipe)
-  private readonly dialogService = inject(DialogService)
+  private readonly dialog = inject(DialogService)
 
   wipe = false
   count = 0
@@ -247,13 +243,13 @@ export default class SystemGeneralComponent {
   }
 
   onTitle() {
-    this.dialogService
+    this.dialog
       .openPrompt<string>({
         label: 'Browser Tab Title',
         data: {
+          label: 'Device Name',
           message:
             'This value will be displayed as the title of your browser tab.',
-          label: 'Device Name',
           placeholder: 'StartOS',
           required: false,
           buttonText: 'Save',
@@ -273,11 +269,14 @@ export default class SystemGeneralComponent {
 
   onReset() {
     this.wipe = false
-    this.dialogService
+    this.dialog
       .openConfirm({
         label: this.isTor ? 'Warning' : 'Confirm',
         data: {
-          content: this.reset,
+          content: new PolymorpheusComponent(
+            SystemWipeComponent,
+            inject(INJECTOR),
+          ),
           yes: 'Reset',
           no: 'Cancel',
         },
@@ -291,11 +290,12 @@ export default class SystemGeneralComponent {
   }
 
   async onRepair() {
-    this.dialogService
+    this.dialog
       .openConfirm({
         label: 'Warning',
         data: {
-          content: `<p>${this.i18n.transform('This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action.')}</p><p>${this.i18n.transform('If anything happens to the device during the reboot, such as losing power or unplugging the drive, the filesystem will be in an unrecoverable state. Please proceed with caution.')}</p>`,
+          content:
+            'This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action. If anything happens to the device during the reboot, such as losing power or unplugging the drive, the filesystem will be in an unrecoverable state. Please proceed with caution.',
           yes: 'Repair',
           no: 'Cancel',
         },
@@ -317,7 +317,7 @@ export default class SystemGeneralComponent {
     try {
       await this.api.resetTor({ wipeState, reason: 'User triggered' })
 
-      this.dialogService.openAlert('Tor reset in progress').subscribe()
+      this.dialog.openAlert('Tor reset in progress').subscribe()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -338,10 +338,9 @@ export default class SystemGeneralComponent {
       if (this.eos.updateAvailable$.value) {
         this.update()
       } else {
-        this.dialogService
+        this.dialog
           .openAlert('You are on the latest version of StartOS.', {
             label: 'Up to date!',
-            size: 's',
           })
           .subscribe()
       }

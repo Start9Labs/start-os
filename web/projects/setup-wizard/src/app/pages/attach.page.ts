@@ -84,7 +84,7 @@ export default class AttachPage {
   }
 
   private async attachDrive(guid: string, password: string) {
-    const loader = this.loader.open('Connecting to drive...').subscribe()
+    const loader = this.loader.open('Connecting to drive').subscribe()
 
     try {
       await this.stateService.importDrive(guid, password)

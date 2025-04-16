@@ -50,6 +50,7 @@ import { FormUnionComponent } from './form-union/form-union.component'
 import { HintPipe } from './hint.pipe'
 import { MustachePipe } from './mustache.pipe'
 import { FilterHiddenPipe } from './filter-hidden.pipe'
+import { i18nPipe } from '@start9labs/shared'
 
 @NgModule({
   imports: [
@@ -82,6 +83,7 @@ import { FilterHiddenPipe } from './filter-hidden.pipe'
     TuiAppearance,
     TuiIcon,
     TuiNumberFormat,
+    i18nPipe,
   ],
   declarations: [
     FormGroupComponent,

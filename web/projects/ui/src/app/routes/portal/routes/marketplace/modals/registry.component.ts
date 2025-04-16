@@ -1,12 +1,15 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { ActivatedRoute, Router } from '@angular/router'
+import { Router } from '@angular/router'
 import {
   MarketplaceRegistryComponent,
   StoreIconComponentModule,
 } from '@start9labs/marketplace'
 import {
+  DialogService,
   ErrorService,
+  i18nKey,
+  i18nPipe,
   LoadingService,
   sameUrl,
   toUrl,
@@ -14,11 +17,10 @@ import {
 import {
   TuiButton,
   TuiDialogContext,
-  TuiDialogService,
+  TuiDialogOptions,
   TuiIcon,
   TuiTitle,
 } from '@taiga-ui/core'
-import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { TuiCell } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
@@ -29,13 +31,14 @@ import { ConfigService } from 'src/app/services/config.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
-import { getMarketplaceValueSpec, getPromptOptions } from '../utils/registry'
+import { TuiConfirmData } from '@taiga-ui/kit'
+import { IST, utils } from '@start9labs/start-sdk'
 
 @Component({
   standalone: true,
   template: `
     @if (stores$ | async; as stores) {
-      <h3 class="g-title">Default Registries</h3>
+      <h3 class="g-title">{{ 'Default Registries' | i18n }}</h3>
       @for (registry of stores.standard; track $index) {
         <button
           tuiCell
@@ -45,10 +48,10 @@ import { getMarketplaceValueSpec, getPromptOptions } from '../utils/registry'
           (click)="connect(registry.url)"
         ></button>
       }
-      <h3 class="g-title">Custom Registries</h3>
+      <h3 class="g-title">{{ 'Custom Registries' | i18n }}</h3>
       <button tuiCell (click)="add()" [style.width]="'-webkit-fill-available'">
         <tui-icon icon="@tui.plus" [style.margin-inline.rem]="'0.5'" />
-        <div tuiTitle>Add custom registry</div>
+        <div tuiTitle>{{ 'Add custom registry' | i18n }}</div>
       </button>
       @for (registry of stores.alt; track $index) {
         <div class="connect-container">
@@ -64,7 +67,7 @@ import { getMarketplaceValueSpec, getPromptOptions } from '../utils/registry'
             iconStart="@tui.trash-2"
             (click)="delete(registry.url, registry.name)"
           >
-            Delete
+            {{ 'Delete' | i18n }}
           </button>
         </div>
       }
@@ -88,6 +91,7 @@ import { getMarketplaceValueSpec, getPromptOptions } from '../utils/registry'
     TuiButton,
     MarketplaceRegistryComponent,
     StoreIconComponentModule,
+    i18nPipe,
   ],
 })
 export class MarketplaceRegistryModal {
@@ -95,16 +99,16 @@ export class MarketplaceRegistryModal {
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly formDialog = inject(FormDialogService)
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialog = inject(DialogService)
   private readonly marketplaceService = inject(MarketplaceService)
   private readonly context = injectContext<TuiDialogContext>()
-  private readonly route = inject(ActivatedRoute)
   private readonly router = inject(Router)
   private readonly hosts$ = inject<PatchDB<DataModel>>(PatchDB).watch$(
     'ui',
     'marketplace',
     'knownHosts',
   )
+  private readonly i18n = inject(i18nPipe)
   readonly marketplaceConfig = inject(ConfigService).marketplace
 
   readonly stores$ = combineLatest([
@@ -122,19 +126,19 @@ export class MarketplaceRegistryModal {
   )
 
   add() {
-    const { name, spec } = getMarketplaceValueSpec()
+    const { name, spec } = this.getMarketplaceValueSpec()
 
     this.formDialog.open(FormComponent, {
-      label: name,
+      label: name as i18nKey,
       data: {
         spec,
         buttons: [
           {
-            text: 'Save for Later',
+            text: this.i18n.transform('Save for later'),
             handler: async ({ url }: { url: string }) => this.save(url),
           },
           {
-            text: 'Save and Connect',
+            text: this.i18n.transform('Save and connect'),
             handler: async ({ url }: { url: string }) => this.save(url, true),
             isSubmit: true,
           },
@@ -144,11 +148,19 @@ export class MarketplaceRegistryModal {
   }
 
   delete(url: string, name: string = '') {
-    this.dialogs
-      .open(TUI_CONFIRM, getPromptOptions(name))
+    this.dialog
+      .openConfirm({
+        label: 'Confirm',
+        size: 's',
+        data: {
+          content: 'Are you sure you want to delete this registry?',
+          yes: 'Delete',
+          no: 'Cancel',
+        },
+      })
       .pipe(filter(Boolean))
       .subscribe(async () => {
-        const loader = this.loader.open('Deleting...').subscribe()
+        const loader = this.loader.open('Deleting').subscribe()
         const hosts = await firstValueFrom(this.hosts$)
         const filtered: { [url: string]: UIStore } = Object.keys(hosts)
           .filter(key => !sameUrl(key, url))
@@ -176,7 +188,7 @@ export class MarketplaceRegistryModal {
   ): Promise<void> {
     loader.unsubscribe()
     loader.closed = false
-    loader.add(this.loader.open('Changing Registry...').subscribe())
+    loader.add(this.loader.open('Changing registry').subscribe())
     try {
       this.marketplaceService.setRegistryUrl(url)
       this.router.navigate([], {
@@ -189,6 +201,36 @@ export class MarketplaceRegistryModal {
       this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
+    }
+  }
+
+  private getMarketplaceValueSpec(): IST.ValueSpecObject {
+    return {
+      type: 'object',
+      name: this.i18n.transform('Add Custom Registry')!,
+      description: null,
+      warning: null,
+      spec: {
+        url: {
+          type: 'text',
+          name: 'URL',
+          description: this.i18n.transform(
+            'A fully-qualified URL of the custom registry',
+          )!,
+          inputmode: 'url',
+          required: true,
+          masked: false,
+          minLength: null,
+          maxLength: null,
+          patterns: [utils.Patterns.url],
+          placeholder: 'e.g. https://example.org',
+          default: null,
+          warning: null,
+          disabled: false,
+          immutable: false,
+          generate: null,
+        },
+      },
     }
   }
 
@@ -215,12 +257,13 @@ export class MarketplaceRegistryModal {
     // Error on duplicates
     const hosts = await firstValueFrom(this.hosts$)
     const currentUrls = Object.keys(hosts).map(toUrl)
-    if (currentUrls.includes(url)) throw new Error('Marketplace already added')
+    if (currentUrls.includes(url))
+      throw new Error(this.i18n.transform('Registry already added'))
 
     // Validate
     loader.unsubscribe()
     loader.closed = false
-    loader.add(this.loader.open('Validating marketplace...').subscribe())
+    loader.add(this.loader.open('Validating registry').subscribe())
 
     const { name } = await firstValueFrom(
       this.marketplaceService.fetchInfo$(url),
@@ -229,7 +272,7 @@ export class MarketplaceRegistryModal {
     // Save
     loader.unsubscribe()
     loader.closed = false
-    loader.add(this.loader.open('Saving...').subscribe())
+    loader.add(this.loader.open('Saving').subscribe())
 
     await this.api.setDbValue(['marketplace', 'knownHosts', url], { name })
   }

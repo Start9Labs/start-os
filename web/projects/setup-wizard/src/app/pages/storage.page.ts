@@ -156,7 +156,7 @@ export default class StoragePage {
     logicalname: string,
     password: string,
   ): Promise<void> {
-    const loader = this.loader.open('Connecting to drive...').subscribe()
+    const loader = this.loader.open('Connecting to drive').subscribe()
 
     try {
       await this.stateService.setupEmbassy(logicalname, password)

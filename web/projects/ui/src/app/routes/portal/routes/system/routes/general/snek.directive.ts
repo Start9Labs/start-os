@@ -1,6 +1,5 @@
 import { Directive, HostListener, inject, Input } from '@angular/core'
-import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiDialogService } from '@taiga-ui/core'
+import { DialogService, ErrorService, LoadingService } from '@start9labs/shared'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -11,18 +10,18 @@ import { SnekComponent } from './snek.component'
   selector: 'img[snek]',
 })
 export class SnekDirective {
-  private readonly dialogs = inject(TuiDialogService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
+  private readonly dialog = inject(DialogService)
 
   @Input()
   snek = 0
 
   @HostListener('click')
   async onClick() {
-    this.dialogs
-      .open<number>(new PolymorpheusComponent(SnekComponent), {
+    this.dialog
+      .openComponent<number>(new PolymorpheusComponent(SnekComponent), {
         label: 'Snake!',
         closeable: false,
         dismissible: false,

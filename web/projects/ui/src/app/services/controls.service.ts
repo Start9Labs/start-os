@@ -1,17 +1,14 @@
 import { inject, Injectable } from '@angular/core'
-import { ErrorService, LoadingService } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
-import { TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
-import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit'
-import { PatchDB } from 'patch-db-client'
 import {
-  defaultIfEmpty,
-  defer,
-  filter,
-  firstValueFrom,
-  of,
-  switchMap,
-} from 'rxjs'
+  DialogService,
+  ErrorService,
+  i18nKey,
+  i18nPipe,
+  LoadingService,
+} from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
+import { PatchDB } from 'patch-db-client'
+import { defaultIfEmpty, defer, filter, firstValueFrom, of } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getAllPackages } from 'src/app/utils/get-package-data'
@@ -21,23 +18,25 @@ import { hasCurrentDeps } from 'src/app/utils/has-deps'
   providedIn: 'root',
 })
 export class ControlsService {
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialog = inject(DialogService)
   private readonly errorService = inject(ErrorService)
   private readonly loader = inject(LoadingService)
   private readonly api = inject(ApiService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
+  private readonly i18n = inject(i18nPipe)
 
   async start({ title, alerts, id }: T.Manifest, unmet: boolean) {
-    const deps = `${title} has unmet dependencies. It will not work as expected.`
+    const deps =
+      `${title} ${this.i18n.transform('has unmet dependencies. It will not work as expected.')}` as i18nKey
 
     if (
       (unmet && !(await this.alert(deps))) ||
-      (alerts.start && !(await this.alert(alerts.start)))
+      (alerts.start && !(await this.alert(alerts.start as i18nKey)))
     ) {
       return
     }
 
-    const loader = this.loader.open(`Starting...`).subscribe()
+    const loader = this.loader.open('Starting').subscribe()
 
     try {
       await this.api.startPackage({ id })
@@ -49,7 +48,7 @@ export class ControlsService {
   }
 
   async stop({ id, title, alerts }: T.Manifest) {
-    const depMessage = `Services that depend on ${title} will no longer work properly and may crash`
+    const depMessage = `${this.i18n.transform('Services that depend on')} ${title} ${this.i18n.transform('will no longer work properly and may crash.')}`
     let content = alerts.stop || ''
 
     if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
@@ -58,12 +57,20 @@ export class ControlsService {
 
     defer(() =>
       content
-        ? this.dialogs
-            .open(TUI_CONFIRM, getOptions(content, 'Stop'))
+        ? this.dialog
+            .openConfirm({
+              label: 'Warning',
+              size: 's',
+              data: {
+                content: content as i18nKey,
+                yes: 'Stop',
+                no: 'Cancel',
+              },
+            })
             .pipe(filter(Boolean))
         : of(null),
     ).subscribe(async () => {
-      const loader = this.loader.open(`Stopping...`).subscribe()
+      const loader = this.loader.open('Stopping').subscribe()
 
       try {
         await this.api.stopPackage({ id })
@@ -77,17 +84,24 @@ export class ControlsService {
 
   async restart({ id, title }: T.Manifest) {
     const packages = await getAllPackages(this.patch)
-    const options = getOptions(
-      `Services that depend on ${title} may temporarily experiences issues`,
-      'Restart',
-    )
 
     defer(() =>
       hasCurrentDeps(id, packages)
-        ? this.dialogs.open(TUI_CONFIRM, options).pipe(filter(Boolean))
+        ? this.dialog
+            .openConfirm({
+              label: 'Warning',
+              size: 's',
+              data: {
+                content:
+                  `${this.i18n.transform('Services that depend on')} ${title} ${this.i18n.transform('may temporarily experiences issues')}` as i18nKey,
+                yes: 'Restart',
+                no: 'Cancel',
+              },
+            })
+            .pipe(filter(Boolean))
         : of(null),
     ).subscribe(async () => {
-      const loader = this.loader.open(`Restarting...`).subscribe()
+      const loader = this.loader.open('Restarting').subscribe()
 
       try {
         await this.api.restartPackage({ id })
@@ -99,26 +113,19 @@ export class ControlsService {
     })
   }
 
-  private alert(content: string): Promise<boolean> {
+  private alert(content: i18nKey): Promise<boolean> {
     return firstValueFrom(
-      this.dialogs
-        .open<boolean>(TUI_CONFIRM, getOptions(content))
+      this.dialog
+        .openConfirm<boolean>({
+          label: 'Warning',
+          size: 's',
+          data: {
+            content,
+            yes: 'Continue',
+            no: 'Cancel',
+          },
+        })
         .pipe(defaultIfEmpty(false)),
     )
-  }
-}
-
-function getOptions(
-  content: string,
-  yes = 'Continue',
-): Partial<TuiDialogOptions<TuiConfirmData>> {
-  return {
-    label: 'Warning',
-    size: 's',
-    data: {
-      content,
-      yes,
-      no: 'Cancel',
-    },
   }
 }

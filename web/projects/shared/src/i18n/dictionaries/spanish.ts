@@ -30,4 +30,4 @@ export default {
   26: 'Actualización de software',
   27: 'Reiniciar para aplicar',
   28: 'Buscar actualizaciones',
-} satisfies i18n
+} as any satisfies i18n

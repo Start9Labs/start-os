@@ -81,7 +81,7 @@ export class BackupsRestoreService {
     return of(password).pipe(
       tap(() => argon2.verify(hash || '', password)),
       switchMap(() => {
-        const loader = this.loader.open('Decrypting drive...').subscribe()
+        const loader = this.loader.open('Decrypting drive').subscribe()
 
         return this.api
           .getBackupInfo({ targetId, password })

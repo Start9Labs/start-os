@@ -3,7 +3,12 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { Router } from '@angular/router'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import {
+  ErrorService,
+  i18nKey,
+  i18nPipe,
+  LoadingService,
+} from '@start9labs/shared'
 import { Version } from '@start9labs/start-sdk'
 import { TuiMapperPipe } from '@taiga-ui/cdk'
 import { TuiButton, TuiDialogContext, TuiGroup, TuiTitle } from '@taiga-ui/core'
@@ -24,12 +29,17 @@ import { RecoverData, RecoverOption } from './backup.types'
           <label tuiBlock>
             <span tuiTitle>
               <strong>{{ option.title }}</strong>
-              <span tuiSubtitle>Version {{ option.version }}</span>
               <span tuiSubtitle>
-                Backup made: {{ option.timestamp | date: 'medium' }}
+                {{ 'Version' | i18n }} {{ option.version }}
+              </span>
+              <span tuiSubtitle>
+                {{ 'Backup made' | i18n }}:
+                {{ option.timestamp | date: 'medium' }}
               </span>
               @if (option | tuiMapper: toMessage; as message) {
-                <span [style.color]="message.color">{{ message.text }}</span>
+                <span [style.color]="message.color">
+                  {{ message.text | i18n }}
+                </span>
               }
             </span>
             <input
@@ -48,7 +58,7 @@ import { RecoverData, RecoverOption } from './backup.types'
           [disabled]="isDisabled(options)"
           (click)="restore(options)"
         >
-          Restore Selected
+          {{ 'Restore selected' | i18n }}
         </button>
       </footer>
     }
@@ -70,6 +80,7 @@ import { RecoverData, RecoverOption } from './backup.types'
     TuiCheckbox,
     TuiBlock,
     TuiTitle,
+    i18nPipe,
   ],
 })
 export class BackupsRecoverComponent {
@@ -107,17 +118,21 @@ export class BackupsRecoverComponent {
       ),
   )
 
-  readonly toMessage = ({ newerOs, installed, title }: RecoverOption) => {
+  readonly toMessage = ({
+    newerOs,
+    installed,
+    title,
+  }: RecoverOption): { text: i18nKey; color: string } => {
     if (newerOs) {
       return {
-        text: `Unavailable. Backup was made on a newer version of StartOS.`,
+        text: 'Unavailable. Backup was made on a newer version of StartOS.',
         color: 'var(--tui-status-negative)',
       }
     }
 
     if (installed) {
       return {
-        text: `Unavailable. ${title} is already installed.`,
+        text: 'Unavailable. Service is already installed.',
         color: 'var(--tui-status-warning)',
       }
     }
@@ -136,7 +151,7 @@ export class BackupsRecoverComponent {
     const ids = options.filter(({ checked }) => !!checked).map(({ id }) => id)
     const { targetId, serverId, password } = this.context.data
     const params = { ids, targetId, serverId, password }
-    const loader = this.loader.open('Initializing...').subscribe()
+    const loader = this.loader.open('Initializing').subscribe()
 
     try {
       await this.api.restorePackages(params)

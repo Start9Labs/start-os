@@ -70,7 +70,7 @@ export class RefreshAlertComponent {
   }
 
   async pwaReload() {
-    const loader = this.loader.open('Reloading PWA...').subscribe()
+    const loader = this.loader.open('Reloading PWA').subscribe()
 
     try {
       // attempt to update to the latest client version available

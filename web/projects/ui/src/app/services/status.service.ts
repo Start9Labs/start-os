@@ -5,6 +5,7 @@ import { combineLatest, map, startWith } from 'rxjs'
 import { ConnectionService } from './connection.service'
 import { NetworkService } from './network.service'
 import { DataModel } from './patch-db/data-model'
+import { i18nKey } from '@start9labs/shared'
 
 export const STATUS = new InjectionToken('', {
   factory: () =>
@@ -29,33 +30,40 @@ export const STATUS = new InjectionToken('', {
     ),
 })
 
-const OFFLINE = {
+const OFFLINE: ServerStatus = {
   message: 'No Internet',
   color: 'var(--tui-status-negative)',
   icon: '@tui.cloud-off',
   status: 'error',
 }
-const CONNECTING = {
+const CONNECTING: ServerStatus = {
   message: 'Connecting',
   color: 'var(--tui-status-warning)',
   icon: '@tui.cloud-off',
   status: 'warning',
 }
-const SHUTTING_DOWN = {
-  message: 'Shutting Down',
+const SHUTTING_DOWN: ServerStatus = {
+  message: 'Shutting down',
   color: 'var(--tui-status-neutral)',
   icon: '@tui.power',
   status: 'neutral',
 }
-const RESTARTING = {
+const RESTARTING: ServerStatus = {
   message: 'Restarting',
   color: 'var(--tui-status-neutral)',
   icon: '@tui.power',
   status: 'neutral',
 }
-const CONNECTED = {
+const CONNECTED: ServerStatus = {
   message: 'Connected',
   color: 'var(--tui-status-positive)',
   icon: '@tui.cloud',
   status: 'success',
+}
+
+type ServerStatus = {
+  message: i18nKey
+  color: string
+  icon: string
+  status: 'error' | 'warning' | 'neutral' | 'success'
 }

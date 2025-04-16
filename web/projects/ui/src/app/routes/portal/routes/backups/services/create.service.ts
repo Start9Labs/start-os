@@ -32,7 +32,7 @@ export class BackupsCreateService {
     targetId: string,
     pkgIds: string[],
   ): Promise<void> {
-    const loader = this.loader.open('Beginning backup...').subscribe()
+    const loader = this.loader.open('Beginning backup').subscribe()
 
     await this.api
       .createBackup({ targetId, packageIds: pkgIds })

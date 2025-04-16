@@ -131,9 +131,7 @@ export class CifsComponent {
   }
 
   async submit(): Promise<void> {
-    const loader = this.loader
-      .open('Connecting to shared folder...')
-      .subscribe()
+    const loader = this.loader.open('Connecting to shared folder').subscribe()
 
     try {
       const diskInfo = await this.api.verifyCifs({

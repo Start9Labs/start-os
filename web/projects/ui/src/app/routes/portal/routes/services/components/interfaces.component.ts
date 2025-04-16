@@ -12,19 +12,20 @@ import { ConfigService } from 'src/app/services/config.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { getAddresses } from '../../../components/interfaces/interface.utils'
 import { ServiceInterfaceComponent } from './interface.component'
+import { i18nPipe } from '@start9labs/shared'
 
 @Component({
   standalone: true,
   selector: 'service-interfaces',
   template: `
-    <header>Interfaces</header>
+    <header>{{ 'Interfaces' | i18n }}</header>
     <table tuiTable class="g-table">
       <thead>
         <tr>
-          <th tuiTh>Name</th>
-          <th tuiTh>Type</th>
-          <th tuiTh>Description</th>
-          <th tuiTh>Hosting</th>
+          <th tuiTh>{{ 'Name' | i18n }}</th>
+          <th tuiTh>{{ 'Type' | i18n }}</th>
+          <th tuiTh>{{ 'Description' | i18n }}</th>
+          <th tuiTh>{{ 'Hosting' | i18n }}</th>
           <th tuiTh></th>
         </tr>
       </thead>
@@ -48,7 +49,7 @@ import { ServiceInterfaceComponent } from './interface.component'
   `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ServiceInterfaceComponent, TuiTable, RouterLink],
+  imports: [ServiceInterfaceComponent, TuiTable, RouterLink, i18nPipe],
 })
 export class ServiceInterfacesComponent {
   private readonly config = inject(ConfigService)

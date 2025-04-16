@@ -6,13 +6,14 @@ import {
 } from '@angular/core'
 import { ServerMetrics } from 'src/app/services/api/api.types'
 import { DataComponent } from './data.component'
+import { i18nKey } from '@start9labs/shared'
 
-const LABELS = {
-  percentageUsed: 'Percentage Used',
-  userSpace: 'User Space',
-  kernelSpace: 'Kernel Space',
+const LABELS: Record<string, i18nKey> = {
+  percentageUsed: 'Percentage used',
+  userSpace: 'User space',
+  kernelSpace: 'Kernel space',
   idle: 'Idle',
-  wait: 'I/O Wait',
+  wait: 'I/O wait',
 }
 
 @Component({

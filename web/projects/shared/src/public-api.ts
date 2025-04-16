@@ -41,6 +41,7 @@ export * from './services/exver.service'
 export * from './services/error.service'
 export * from './services/http.service'
 export * from './services/setup-logs.service'
+export * from './services/dialog.service'
 
 export * from './types/api'
 export * from './types/constructor'

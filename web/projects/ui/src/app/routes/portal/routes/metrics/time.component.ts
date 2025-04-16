@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
+import { i18nPipe } from '@start9labs/shared'
 import {
   TuiHint,
   TuiIcon,
@@ -37,11 +38,11 @@ import { TimeService } from 'src/app/services/time.service'
         </tui-notification>
       }
     } @else {
-      Loading...
+      {{ 'Loading' | i18n }}...
     }
     <ng-template #hint>
       <div tuiTitle>
-        Clock sync failure
+        {{ 'Clock sync failure' | i18n }}
         <div tuiSubtitle>
           To resolve it, refer to
           <a
@@ -52,7 +53,7 @@ import { TimeService } from 'src/app/services/time.service'
             target="_blank"
             rel="noreferrer"
             [pseudo]="true"
-            [textContent]="'the docs'"
+            [textContent]="'the docs' | i18n"
           ></a>
         </div>
       </div>
@@ -108,6 +109,7 @@ import { TimeService } from 'src/app/services/time.service'
     TuiCell,
     TuiIcon,
     TuiHint,
+    i18nPipe,
   ],
 })
 export class TimeComponent {

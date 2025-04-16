@@ -1,6 +1,7 @@
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PkgDependencyErrors } from './dep-error.service'
 import { T } from '@start9labs/start-sdk'
+import { i18nKey } from '@start9labs/shared'
 
 export interface PackageStatus {
   primary: PrimaryStatus
@@ -65,7 +66,7 @@ function getHealthStatus(status: T.MainStatus): T.HealthStatus | null {
 }
 
 export interface StatusRendering {
-  display: string
+  display: i18nKey
   color: string
   showDots?: boolean
 }
@@ -138,7 +139,7 @@ export const PrimaryRendering: Record<PrimaryStatus, StatusRendering> = {
     showDots: false,
   },
   actionRequired: {
-    display: 'Action Required',
+    display: 'Task Required',
     color: 'warning',
     showDots: false,
   },

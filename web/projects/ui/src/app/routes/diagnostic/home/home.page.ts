@@ -1,12 +1,11 @@
-import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { Component, Inject } from '@angular/core'
 import { WA_WINDOW } from '@ng-web-apis/common'
-import { LoadingService } from '@start9labs/shared'
-import { TuiDialogService } from '@taiga-ui/core'
+import { DialogService, i18nKey, LoadingService } from '@start9labs/shared'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 
+// @TODO Alex how to use i18nPipe in this component since not standalone?
 @Component({
   selector: 'diagnostic-home',
   templateUrl: 'home.page.html',
@@ -16,15 +15,15 @@ export class HomePage {
   restarted = false
   error?: {
     code: number
-    problem: string
-    solution: string
+    problem: i18nKey
+    solution: i18nKey
     details?: string
   }
 
   constructor(
     private readonly loader: LoadingService,
     private readonly api: ApiService,
-    private readonly dialogs: TuiDialogService,
+    private readonly dialog: DialogService,
     @Inject(WA_WINDOW) private readonly window: Window,
     readonly config: ConfigService,
   ) {}
@@ -64,7 +63,7 @@ export class HomePage {
       } else if (error.code === 2) {
         this.error = {
           code: 2,
-          problem: 'Filesystem I/O error.',
+          problem: 'Filesystem error',
           solution:
             'Repairing the disk could help resolve this issue. Please DO NOT unplug the drive or server during this time or the situation will become worse.',
           details: error.data?.details,
@@ -73,7 +72,7 @@ export class HomePage {
       } else if (error.code === 48) {
         this.error = {
           code: 48,
-          problem: 'Disk management error.',
+          problem: 'Disk management error',
           solution:
             'Repairing the disk could help resolve this issue. Please DO NOT unplug the drive or server during this time or the situation will become worse.',
           details: error.data?.details,
@@ -81,8 +80,8 @@ export class HomePage {
       } else {
         this.error = {
           code: error.code,
-          problem: error.message,
-          solution: 'Please contact support.',
+          problem: error.message as i18nKey,
+          solution: 'Please contact support',
           details: error.data?.details,
         }
       }
@@ -92,7 +91,7 @@ export class HomePage {
   }
 
   async restart(): Promise<void> {
-    const loader = this.loader.open('Loading...').subscribe()
+    const loader = this.loader.open('Loading').subscribe()
 
     try {
       await this.api.diagnosticRestart()
@@ -105,7 +104,7 @@ export class HomePage {
   }
 
   async forgetDrive(): Promise<void> {
-    const loader = this.loader.open('Loading...').subscribe()
+    const loader = this.loader.open('Loading').subscribe()
 
     try {
       await this.api.diagnosticForgetDrive()
@@ -119,15 +118,15 @@ export class HomePage {
   }
 
   async presentAlertRepairDisk() {
-    this.dialogs
-      .open(TUI_CONFIRM, {
+    this.dialog
+      .openConfirm({
         label: 'Warning',
         size: 's',
         data: {
           no: 'Cancel',
           yes: 'Repair',
           content:
-            '<p>This action should only be executed if directed by a Start9 support specialist.</p><p>If anything happens to the device during the reboot, such as losing power or unplugging the drive, the filesystem <i>will</i> be in an unrecoverable state. Please proceed with caution.</p>',
+            'This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action. If anything happens to the device during the reboot, such as losing power or unplugging the drive, the filesystem will be in an unrecoverable state. Please proceed with caution.',
         },
       })
       .pipe(filter(Boolean))
@@ -145,7 +144,7 @@ export class HomePage {
   }
 
   private async repairDisk(): Promise<void> {
-    const loader = this.loader.open('Loading...').subscribe()
+    const loader = this.loader.open('Loading').subscribe()
 
     try {
       await this.api.diagnosticRepairDisk()

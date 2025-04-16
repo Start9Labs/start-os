@@ -8,6 +8,7 @@ import {
   POLYMORPHEUS_CONTEXT,
   PolymorpheusComponent,
 } from '@taiga-ui/polymorpheus'
+import { i18nKey, i18nPipe } from '@start9labs/shared'
 
 @Component({
   standalone: true,
@@ -37,10 +38,10 @@ import {
           appearance="secondary"
           (click)="cancel()"
         >
-          Cancel
+          {{ 'Cancel' | i18n }}
         </button>
         <button tuiButton [disabled]="!value && options.required !== false">
-          {{ options.buttonText || 'Submit' }}
+          {{ options.buttonText || ('Submit' | i18n) }}
         </button>
       </footer>
     </form>
@@ -81,6 +82,7 @@ import {
     TuiButton,
     TuiTextfieldControllerModule,
     TuiAutoFocus,
+    i18nPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -111,11 +113,11 @@ export class PromptModal {
 export const PROMPT = new PolymorpheusComponent(PromptModal)
 
 export interface PromptOptions {
-  message: string
-  label?: string
-  warning?: string
-  buttonText?: string
-  placeholder?: string
+  message: i18nKey
+  label?: i18nKey
+  warning?: i18nKey
+  buttonText?: i18nKey
+  placeholder?: i18nKey
   required?: boolean
   useMask?: boolean
   initialValue?: string | null

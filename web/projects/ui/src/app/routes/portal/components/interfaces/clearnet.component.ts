@@ -6,18 +6,21 @@ import {
   input,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import {
+  DialogService,
+  ErrorService,
+  i18nPipe,
+  LoadingService,
+} from '@start9labs/shared'
 import { ISB, utils } from '@start9labs/start-sdk'
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import {
   TuiAppearance,
   TuiButton,
   TuiDataList,
-  TuiDialogOptions,
   TuiIcon,
   TuiLink,
 } from '@taiga-ui/core'
-import { TUI_CONFIRM, TuiTooltip } from '@taiga-ui/kit'
+import { TuiTooltip } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { defaultIfEmpty, firstValueFrom, map } from 'rxjs'
 import {
@@ -47,18 +50,20 @@ type ClearnetForm = {
   selector: 'section[clearnet]',
   template: `
     <header>
-      Clearnet
+      {{ 'Clearnet' | i18n }}
       <tui-icon [tuiTooltip]="tooltip" />
       <ng-template #tooltip>
-        Add a clearnet address to expose this interface on the Internet.
-        Clearnet addresses are fully public and not anonymous.
+        {{
+          'Add a clearnet address to expose this interface on the Internet. Clearnet addresses are fully public and not anonymous.'
+            | i18n
+        }}
         <a
           tuiLink
           href="https://docs.start9.com/latest/user-manual/interface-addresses#clearnet"
           target="_blank"
           rel="noreferrer"
         >
-          Learn More
+          {{ 'Learn more' | i18n }}
         </a>
       </ng-template>
       <button
@@ -68,14 +73,16 @@ type ClearnetForm = {
         [style.margin-inline-start]="'auto'"
         (click)="toggle()"
       >
-        Make {{ isPublic() ? 'private' : 'public' }}
+        {{ isPublic() ? ('Make private' | i18n) : ('Make public' | i18n) }}
       </button>
       @if (clearnet().length) {
-        <button tuiButton iconStart="@tui.plus" (click)="add()">Add</button>
+        <button tuiButton iconStart="@tui.plus" (click)="add()">
+          {{ 'Add' | i18n }}
+        </button>
       }
     </header>
     @if (clearnet().length) {
-      <table [appTable]="['ACME', 'URL', '']">
+      <table [appTable]="['ACME', 'URL', null]">
         @for (address of clearnet(); track $index) {
           <tr>
             <td [style.width.rem]="12">{{ address.acme | acme }}</td>
@@ -87,7 +94,7 @@ type ClearnetForm = {
                 [style.margin-inline-end.rem]="0.5"
                 (click)="remove(address)"
               >
-                Delete
+                {{ 'Delete' | i18n }}
               </button>
               <button
                 tuiOption
@@ -95,7 +102,7 @@ type ClearnetForm = {
                 iconStart="@tui.trash"
                 (click)="remove(address)"
               >
-                Delete
+                {{ 'Delete' | i18n }}
               </button>
             </td>
           </tr>
@@ -103,9 +110,9 @@ type ClearnetForm = {
       </table>
     } @else {
       <app-placeholder icon="@tui.app-window">
-        No public addresses
+        {{ 'No public addresses' | i18n }}
         <button tuiButton iconStart="@tui.plus" (click)="add()">
-          Add Domain
+          {{ 'Add domain' | i18n }}
         </button>
       </app-placeholder>
     }
@@ -123,11 +130,12 @@ type ClearnetForm = {
     MaskPipe,
     AcmePipe,
     InterfaceActionsComponent,
+    i18nPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InterfaceClearnetComponent {
-  private readonly dialogs = inject(TuiResponsiveDialogService)
+  private readonly dialog = inject(DialogService)
   private readonly formDialog = inject(FormDialogService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
@@ -146,8 +154,8 @@ export class InterfaceClearnetComponent {
 
   async remove({ url }: AddressDetails) {
     const confirm = await firstValueFrom(
-      this.dialogs
-        .open(TUI_CONFIRM, { label: 'Are you sure?', size: 's' })
+      this.dialog
+        .openConfirm({ label: 'Are you sure?', size: 's' })
         .pipe(defaultIfEmpty(false)),
     )
 
@@ -205,8 +213,8 @@ export class InterfaceClearnetComponent {
   }
 
   async add() {
-    const options: Partial<TuiDialogOptions<FormContext<ClearnetForm>>> = {
-      label: 'Select Domain/Subdomain',
+    this.formDialog.open<FormContext<ClearnetForm>>(FormComponent, {
+      label: 'Select Domain',
       data: {
         spec: await configBuilderToSpec(
           ISB.InputSpec.of({
@@ -240,12 +248,11 @@ export class InterfaceClearnetComponent {
           },
         ],
       },
-    }
-    this.formDialog.open(FormComponent, options)
+    })
   }
 
   private async save(domainInfo: ClearnetForm): Promise<boolean> {
-    const loader = this.loader.open('Saving...').subscribe()
+    const loader = this.loader.open('Saving').subscribe()
 
     const { domain, acme } = domainInfo
 

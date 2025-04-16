@@ -6,8 +6,8 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiButton, TuiDialogOptions, TuiIcon, TuiTitle } from '@taiga-ui/core'
+import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
+import { TuiButton, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiBadge, TuiFade } from '@taiga-ui/kit'
 import { TuiCell } from '@taiga-ui/layout'
 import {
@@ -16,8 +16,9 @@ import {
 } from 'src/app/routes/portal/components/form.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
-import { Wifi, WiFiForm, wifiSpec } from './utils'
+import { Wifi, WiFiForm } from './utils'
 import SystemWifiComponent from './wifi.component'
+import { wifiSpec } from './wifi.const'
 
 @Component({
   selector: '[wifi]',
@@ -33,7 +34,9 @@ import SystemWifiComponent from './wifi.component'
             <strong tuiFade>
               {{ network.ssid }}
               @if (network.connected) {
-                <tui-badge appearance="positive">Connected</tui-badge>
+                <tui-badge appearance="positive">
+                  {{ 'Connected' | i18n }}
+                </tui-badge>
               }
             </strong>
           </div>
@@ -45,7 +48,7 @@ import SystemWifiComponent from './wifi.component'
               iconStart="@tui.trash-2"
               (click.stop)="forget(network)"
             >
-              Forget
+              {{ 'Forget' | i18n }}
             </button>
           } @else {
             <tui-icon
@@ -95,6 +98,7 @@ import SystemWifiComponent from './wifi.component'
     TuiButton,
     TuiIcon,
     TuiFade,
+    i18nPipe,
   ],
 })
 export class WifiTableComponent {
@@ -104,6 +108,7 @@ export class WifiTableComponent {
   private readonly formDialog = inject(FormDialogService)
   private readonly component = inject(SystemWifiComponent)
   private readonly cdr = inject(ChangeDetectorRef)
+  private readonly i18n = inject(i18nPipe)
 
   @Input()
   wifi: readonly Wifi[] = []
@@ -132,7 +137,7 @@ export class WifiTableComponent {
   }
 
   async forget({ ssid }: Wifi): Promise<void> {
-    const loader = this.loader.open('Deleting...').subscribe()
+    const loader = this.loader.open('Deleting').subscribe()
 
     try {
       await this.api.deleteWifi({ ssid })
@@ -149,21 +154,19 @@ export class WifiTableComponent {
     if (!network.security.length) {
       await this.component.saveAndConnect(network.ssid)
     } else {
-      const options: Partial<TuiDialogOptions<FormContext<WiFiForm>>> = {
+      this.formDialog.open<FormContext<WiFiForm>>(FormComponent, {
         label: 'Password Needed',
         data: {
           spec: wifiSpec.spec,
           buttons: [
             {
-              text: 'Connect',
+              text: this.i18n.transform('Connect')!,
               handler: async ({ ssid, password }) =>
                 this.component.saveAndConnect(ssid, password),
             },
           ],
         },
-      }
-
-      this.formDialog.open(FormComponent, options)
+      })
     }
   }
 }

@@ -113,7 +113,7 @@ export class BackupsRecoverModal {
 
   async restore(options: RecoverOption[]): Promise<void> {
     const ids = options.filter(({ checked }) => !!checked).map(({ id }) => id)
-    const loader = this.loader.open('Initializing...').subscribe()
+    const loader = this.loader.open('Initializing').subscribe()
 
     const { targetId, serverId, password } = this.context.data
 

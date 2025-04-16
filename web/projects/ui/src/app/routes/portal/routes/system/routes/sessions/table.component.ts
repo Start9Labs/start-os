@@ -12,6 +12,7 @@ import { BehaviorSubject } from 'rxjs'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { Session } from 'src/app/services/api/api.types'
 import { PlatformInfoPipe } from './platform-info.pipe'
+import { i18nPipe } from '@start9labs/shared'
 
 @Component({
   selector: '[sessions]',
@@ -43,11 +44,15 @@ import { PlatformInfoPipe } from './platform-info.pipe'
         </tr>
       } @empty {
         @if (sessions) {
-          <tr><td colspan="3">No sessions</td></tr>
+          <tr>
+            <td colspan="3">{{ 'No sessions' | i18n }}</td>
+          </tr>
         } @else {
           @for (item of single ? [''] : ['', '']; track $index) {
             <tr>
-              <td colspan="3"><div [tuiSkeleton]="true">Loading</div></td>
+              <td colspan="3">
+                <div [tuiSkeleton]="true">{{ 'Loading' | i18n }}</div>
+              </td>
             </tr>
           }
         }
@@ -138,6 +143,7 @@ import { PlatformInfoPipe } from './platform-info.pipe'
     TuiFade,
     TuiSkeleton,
     TableComponent,
+    i18nPipe,
   ],
 })
 export class SessionsTableComponent<T extends Session> implements OnChanges {

@@ -24,7 +24,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   selector: '[keys]',
   template: `
     <table
-      [appTable]="['Hostname', 'Created At', 'Algorithm', 'Fingerprint', '']"
+      [appTable]="['Hostname', 'Created At', 'Algorithm', 'Fingerprint', null]"
     >
       @for (key of keys; track $index) {
         <tr>
@@ -119,7 +119,7 @@ export class SSHTableComponent {
       .open<string>(PROMPT, ADD_OPTIONS)
       .pipe(take(1))
       .subscribe(async key => {
-        const loader = this.loader.open('Saving...').subscribe()
+        const loader = this.loader.open('Saving').subscribe()
 
         try {
           this.keys?.push(await this.api.addSshKey({ key }))
@@ -135,7 +135,7 @@ export class SSHTableComponent {
       .open(TUI_CONFIRM, DELETE_OPTIONS)
       .pipe(filter(Boolean))
       .subscribe(async () => {
-        const loader = this.loader.open('Deleting...').subscribe()
+        const loader = this.loader.open('Deleting').subscribe()
 
         try {
           await this.api.deleteSshKey({ fingerprint: key.fingerprint })

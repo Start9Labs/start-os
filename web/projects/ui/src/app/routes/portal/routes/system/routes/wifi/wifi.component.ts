@@ -7,13 +7,17 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
-import { ErrorService, LoadingService, pauseFor } from '@start9labs/shared'
+import {
+  ErrorService,
+  i18nKey,
+  i18nPipe,
+  LoadingService,
+  pauseFor,
+} from '@start9labs/shared'
 import {
   TuiAlertService,
   TuiAppearance,
   TuiButton,
-  TuiDialogOptions,
-  TuiLink,
   TuiLoader,
   TuiNotification,
   TuiTitle,
@@ -44,13 +48,12 @@ import { wifiSpec } from './wifi.const'
     <header tuiHeader>
       <tui-notification appearance="negative">
         <div tuiTitle>
-          Deprecated
+          {{ 'Deprecated' | i18n }}
           <div tuiSubtitle>
-            WiFi support will be removed in StartOS v0.4.1. If you do not have
-            access to Ethernet, you can use a WiFi extender to connect to the
-            local network, then connect your server to the extender via
-            Ethernet. Please contact Start9 support with any questions or
-            concerns.
+            {{
+              'WiFi support will be removed in StartOS v0.4.1. If you do not have access to Ethernet, you can use a WiFi extender to connect to the local network, then connect your server to the extender via Ethernet. Please contact Start9 support with any questions or concerns.'
+                | i18n
+            }}
           </div>
         </div>
       </tui-notification>
@@ -70,7 +73,7 @@ import { wifiSpec } from './wifi.const'
         @if (status()?.enabled) {
           @if (wifi(); as data) {
             @if (data.known.length) {
-              <p class="g-secondary">KNOWN NETWORKS</p>
+              <p class="g-secondary">{{ 'Known Networks' | i18n }}</p>
               <div
                 tuiCardLarge="compact"
                 tuiAppearance="neutral"
@@ -78,7 +81,7 @@ import { wifiSpec } from './wifi.const'
               ></div>
             }
             @if (data.available.length) {
-              <p class="g-secondary">OTHER NETWORKS</p>
+              <p class="g-secondary">{{ 'Other Networks' | i18n }}</p>
               <div
                 tuiCardLarge="compact"
                 tuiAppearance="neutral"
@@ -86,18 +89,22 @@ import { wifiSpec } from './wifi.const'
               ></div>
             }
             <p>
-              <button tuiButton (click)="other(data)">Add</button>
+              <button tuiButton (click)="other(data)">
+                {{ 'Add' | i18n }}
+              </button>
             </p>
           } @else {
             <tui-loader [style.height.rem]="5" />
           }
         } @else {
-          <app-placeholder icon="@tui.wifi">WiFi is disabled</app-placeholder>
+          <app-placeholder icon="@tui.wifi">
+            {{ 'WiFi is disabled' | i18n }}
+          </app-placeholder>
         }
       </section>
     } @else {
       <app-placeholder icon="@tui.wifi">
-        No wireless interface detected
+        {{ 'No wireless interface detected' | i18n }}
       </app-placeholder>
     }
   `,
@@ -121,8 +128,8 @@ import { wifiSpec } from './wifi.const'
     PlaceholderComponent,
     TuiHeader,
     TuiTitle,
-    TuiLink,
     TuiNotification,
+    i18nPipe,
   ],
 })
 export default class SystemWifiComponent {
@@ -134,13 +141,14 @@ export default class SystemWifiComponent {
   private readonly formDialog = inject(FormDialogService)
   private readonly cdr = inject(ChangeDetectorRef)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
+  private readonly i18n = inject(i18nPipe)
 
   readonly status = toSignal(this.patch.watch$('serverInfo', 'network', 'wifi'))
   readonly wifi = toSignal(merge(this.getWifi$(), this.update$))
 
   async onToggle(enable: boolean) {
     const loader = this.loader
-      .open(enable ? 'Enabling Wifi' : 'Disabling WiFi')
+      .open(enable ? 'Enabling WiFi' : 'Disabling WiFi')
       .subscribe()
 
     try {
@@ -153,31 +161,29 @@ export default class SystemWifiComponent {
   }
 
   other(wifi: WifiData) {
-    const options: Partial<TuiDialogOptions<FormContext<WiFiForm>>> = {
-      label: wifiSpec.name,
+    this.formDialog.open<FormContext<WiFiForm>>(FormComponent, {
+      label: wifiSpec.name as i18nKey,
       data: {
         spec: wifiSpec.spec,
         buttons: [
           {
-            text: 'Save for Later',
+            text: this.i18n.transform('Save for later')!,
             handler: async ({ ssid, password }) =>
               this.save(ssid, password, wifi),
           },
           {
-            text: 'Save and Connect',
+            text: this.i18n.transform('Save and connect')!,
             handler: async ({ ssid, password }) =>
               this.saveAndConnect(ssid, password),
           },
         ],
       },
-    }
-
-    this.formDialog.open(FormComponent, options)
+    })
   }
 
   async saveAndConnect(ssid: string, password?: string): Promise<boolean> {
     const loader = this.loader
-      .open('Connecting. This could take a while...')
+      .open('Connecting. This could take a while')
       .subscribe()
 
     try {
@@ -255,7 +261,7 @@ export default class SystemWifiComponent {
     password: string,
     wifi: WifiData,
   ): Promise<boolean> {
-    const loader = this.loader.open('Saving...').subscribe()
+    const loader = this.loader.open('Saving').subscribe()
 
     try {
       await this.api.addWifi({
