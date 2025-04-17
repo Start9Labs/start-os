@@ -11,7 +11,7 @@
     [disabled]="!canAdd"
     (click)="add()"
   >
-    + Add
+    + {{ 'Add' | i18n }}
   </button>
 </div>
 <tui-error [error]="order | tuiFieldError | async"></tui-error>

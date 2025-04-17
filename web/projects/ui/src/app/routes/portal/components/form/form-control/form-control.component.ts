@@ -9,10 +9,11 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { AbstractTuiNullableControl } from '@taiga-ui/legacy'
 import { filter } from 'rxjs'
-import { TuiAlertService, TuiDialogContext } from '@taiga-ui/core'
+import { TuiDialogContext } from '@taiga-ui/core'
 import { IST } from '@start9labs/start-sdk'
 import { ERRORS } from '../form-group/form-group.component'
 import { FORM_CONTROL_PROVIDERS } from './form-control.providers'
+import { DialogService, i18nKey } from '@start9labs/shared'
 
 @Component({
   selector: 'form-control',
@@ -34,7 +35,7 @@ export class FormControlComponent<
   warned = false
   focused = false
   readonly order = ERRORS
-  private readonly alerts = inject(TuiAlertService)
+  private readonly dialog = inject(DialogService)
 
   get immutable(): boolean {
     return 'immutable' in this.spec && this.spec.immutable
@@ -49,8 +50,8 @@ export class FormControlComponent<
     const previous = this.value
 
     if (!this.warned && this.warning) {
-      this.alerts
-        .open<boolean>(this.warning, {
+      this.dialog
+        .openAlert<boolean>(this.warning as unknown as i18nKey, {
           label: 'Warning',
           appearance: 'warning',
           closeable: false,

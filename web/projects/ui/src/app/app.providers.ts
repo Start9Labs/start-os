@@ -5,7 +5,13 @@ import {
   AbstractCategoryService,
   FilterPackagesPipe,
 } from '@start9labs/marketplace'
-import { RELATIVE_URL, WorkspaceConfig } from '@start9labs/shared'
+import {
+  I18N_PROVIDERS,
+  I18N_STORAGE,
+  i18nService,
+  RELATIVE_URL,
+  WorkspaceConfig,
+} from '@start9labs/shared'
 import {
   TUI_DATE_FORMAT,
   TUI_DIALOGS_CLOSE,
@@ -21,8 +27,6 @@ import {
 import { tuiTextfieldOptionsProvider } from '@taiga-ui/legacy'
 import { PatchDB } from 'patch-db-client'
 import { filter, of, pairwise } from 'rxjs'
-import { I18N_PROVIDERS } from 'src/app/i18n/i18n.providers'
-import { i18nService } from 'src/app/i18n/i18n.service'
 import {
   PATCH_CACHE,
   PatchDbSource,
@@ -99,6 +103,14 @@ export const APP_PROVIDERS: Provider[] = [
             prev === 'running' && (curr === 'error' || curr === 'initializing'),
         ),
       ),
+  },
+  {
+    provide: I18N_STORAGE,
+    useFactory: () => {
+      const api = inject(ApiService)
+
+      return (language: string) => api.setDbValue(['language'], language)
+    },
   },
 ]
 

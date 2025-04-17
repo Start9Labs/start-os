@@ -91,3 +91,51 @@ cp proxy.conf-sample.json proxy.conf.json
 ```sh
 npm run start:ui:proxy
 ```
+
+## Updating translations
+
+### Adding a new translation
+
+When prompting AI to translate the English dictionary, it is recommended to only give it 50-100 entries at a time. Beyond that it struggles. Remember to sanity check the results and ensure keys/values align in the resulting dictionary.
+
+#### Sample AI prompt
+
+Translate the English dictionary below into `<language>`. Format the result as a javascript object with the numeric values of the English dictionary as keys in the translated dictionary. These translations are for the web UI of StartOS, a graphical server operating system optimized for self-hosting. Comments may be included in the English dictionary to provide additional context.
+
+#### Adding to StartOS
+
+- In the `shared` project:
+
+  1. Create a new file (`language.ts`) in `src/i18n/dictionaries`
+  1. Export the dictionary in `src/public-api.ts`
+  1. Update the `I18N_PROVIDERS` array in `src/i18n/i18n.providers.ts` (2 places)
+  1. Update the `languages` array in `/src/i18n/i18n.service.ts`
+
+- Here in this README:
+
+  1. Add the language to the list of supported languages below
+
+### Updating the English dictionary
+
+#### Sample AI prompt
+
+Translate `<original>` into the languages below. Return the translations as a JSON object with the languages as keys.
+
+- Spanish
+- Polish
+- German
+<!-- - Korean
+- Russian
+- Japanese
+- Hebrew
+- Arabic
+- Mandarin
+- Hindi
+- Portuguese
+- French
+- Italian
+- Thai -->
+
+#### Adding to StartOS
+
+In the `shared` project, copy/past the translations into their corresponding dictionaries in `/src/i18n/dictionaries`.

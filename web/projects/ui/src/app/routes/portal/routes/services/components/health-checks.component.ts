@@ -3,17 +3,18 @@ import { T } from '@start9labs/start-sdk'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { ServiceHealthCheckComponent } from './health-check.component'
+import { i18nPipe } from '@start9labs/shared'
 
 @Component({
   standalone: true,
   selector: 'service-health-checks',
   template: `
-    <header>Health Checks</header>
+    <header>{{ 'Health Checks' | i18n }}</header>
     <table tuiTable class="g-table">
       <thead>
         <tr>
-          <th tuiTh>Name</th>
-          <th tuiTh>Status</th>
+          <th tuiTh>{{ 'Name' | i18n }}</th>
+          <th tuiTh>{{ 'Status' | i18n }}</th>
         </tr>
       </thead>
       <tbody>
@@ -24,7 +25,7 @@ import { ServiceHealthCheckComponent } from './health-check.component'
     </table>
     @if (!checks().length) {
       <app-placeholder icon="@tui.heart-pulse">
-        No health checks
+        {{ 'No health checks' | i18n }}
       </app-placeholder>
     }
   `,
@@ -36,7 +37,12 @@ import { ServiceHealthCheckComponent } from './health-check.component'
   `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ServiceHealthCheckComponent, PlaceholderComponent, TuiTable],
+  imports: [
+    ServiceHealthCheckComponent,
+    PlaceholderComponent,
+    TuiTable,
+    i18nPipe,
+  ],
 })
 export class ServiceHealthChecksComponent {
   readonly checks = input.required<readonly T.NamedHealthCheckResult[]>()

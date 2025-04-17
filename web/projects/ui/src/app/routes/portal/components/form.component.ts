@@ -16,7 +16,7 @@ import {
 import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
 import { TuiConfirmService } from '@taiga-ui/kit'
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus'
-import { compare, Operation } from 'fast-json-patch'
+import { Operation } from 'fast-json-patch'
 import { FormModule } from 'src/app/routes/portal/components/form/form.module'
 import { InvalidService } from 'src/app/routes/portal/components/form/invalid.service'
 import { FormService } from 'src/app/services/form.service'

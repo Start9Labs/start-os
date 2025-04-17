@@ -5,7 +5,6 @@ import {
   signal,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { MarketplacePkgBase } from '@start9labs/marketplace'
 import { tuiIsString } from '@taiga-ui/cdk'
 import { TuiButton } from '@taiga-ui/core'
 import {
@@ -17,10 +16,11 @@ import { ConfigService } from 'src/app/services/config.service'
 import { TitleDirective } from 'src/app/services/title.service'
 import { SideloadPackageComponent } from './package.component'
 import { MarketplacePkgSideload, validateS9pk } from './sideload.utils'
+import { i18nKey, i18nPipe } from '@start9labs/shared'
 
 @Component({
   template: `
-    <ng-container *title>Sideload</ng-container>
+    <ng-container *title>{{ 'Sideload' | i18n }}</ng-container>
     @if (file && package(); as pkg) {
       <sideload-package [pkg]="pkg" [file]="file!">
         <button
@@ -31,7 +31,7 @@ import { MarketplacePkgSideload, validateS9pk } from './sideload.utils'
           [style.justify-self]="'end'"
           (click)="clear()"
         >
-          Close
+          {{ 'Close' | i18n }}
         </button>
       </sideload-package>
     } @else {
@@ -43,23 +43,25 @@ import { MarketplacePkgSideload, validateS9pk } from './sideload.utils'
           (ngModelChange)="onFile($event)"
         />
         <ng-template>
-          @if (error()) {
+          @if (error(); as err) {
             <div>
               <tui-avatar appearance="secondary" src="@tui.circle-x" />
-              <p class="g-negative">{{ error() }}</p>
-              <button tuiButton>Try again</button>
+              <p class="g-negative">{{ err | i18n }}</p>
+              <button tuiButton>{{ 'Try again' | i18n }}</button>
             </div>
           } @else {
             <div>
               <tui-avatar appearance="secondary" src="@tui.cloud-upload" />
-              <p>Upload .s9pk package file</p>
+              <p>{{ 'Upload .s9pk package file' | i18n }}</p>
               @if (isTor) {
                 <p class="g-warning">
-                  Warning: package upload will be slow over Tor. Switch to local
-                  for a better experience.
+                  {{
+                    'Warning: package upload will be slow over Tor. Switch to local for a better experience.'
+                      | i18n
+                  }}
                 </p>
               }
-              <button tuiButton>Upload</button>
+              <button tuiButton>{{ 'Upload' | i18n }}</button>
             </div>
           }
         </ng-template>
@@ -90,6 +92,7 @@ import { MarketplacePkgSideload, validateS9pk } from './sideload.utils'
     TuiButton,
     SideloadPackageComponent,
     TitleDirective,
+    i18nPipe,
   ],
 })
 export default class SideloadComponent {
@@ -97,12 +100,12 @@ export default class SideloadComponent {
 
   file: File | null = null
   readonly package = signal<MarketplacePkgSideload | null>(null)
-  readonly error = signal('')
+  readonly error = signal<i18nKey | null>(null)
 
   clear() {
     this.file = null
     this.package.set(null)
-    this.error.set('')
+    this.error.set(null)
   }
 
   async onFile(file: File | null) {
@@ -111,6 +114,6 @@ export default class SideloadComponent {
     const parsed = file ? await validateS9pk(file) : ''
 
     this.package.set(tuiIsString(parsed) ? null : parsed)
-    this.error.set(tuiIsString(parsed) ? parsed : '')
+    this.error.set(tuiIsString(parsed) ? (parsed as i18nKey) : null)
   }
 }

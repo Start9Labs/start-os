@@ -64,7 +64,7 @@ export default class SystemProxiesComponent {
 
   // @TODO 041 fix type to be WireguardSpec
   private async save({ name, config }: any): Promise<boolean> {
-    const loader = this.loader.open('Saving...').subscribe()
+    const loader = this.loader.open('Saving').subscribe()
 
     try {
       await this.api.addProxy({ name, config: config?.filePath || '' })

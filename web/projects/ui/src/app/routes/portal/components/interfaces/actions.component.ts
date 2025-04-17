@@ -4,8 +4,12 @@ import {
   inject,
   input,
 } from '@angular/core'
-import { CopyService } from '@start9labs/shared'
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
+import {
+  CopyService,
+  DialogService,
+  i18nKey,
+  i18nPipe,
+} from '@start9labs/shared'
 import {
   TuiButton,
   tuiButtonOptionsProvider,
@@ -30,18 +34,18 @@ import { InterfaceComponent } from './interface.component'
           rel="noreferrer"
           [href]="actions()"
         >
-          Launch UI
+          {{ 'Launch UI' | i18n }}
         </a>
       }
       <button tuiIconButton iconStart="@tui.qr-code" (click)="showQR()">
-        Show QR
+        {{ 'Show QR' | i18n }}
       </button>
       <button
         tuiIconButton
         iconStart="@tui.copy"
         (click)="copyService.copy(actions())"
       >
-        Copy URL
+        {{ 'Copy URL' | i18n }}
       </button>
     </div>
     <div class="mobile">
@@ -51,7 +55,7 @@ import { InterfaceComponent } from './interface.component'
         tuiDropdownOpen
         [tuiDropdown]="dropdown"
       >
-        Actions
+        {{ 'Actions' | i18n }}
         <ng-template #dropdown let-close>
           <tui-data-list>
             <tui-opt-group>
@@ -63,17 +67,17 @@ import { InterfaceComponent } from './interface.component'
                   rel="noreferrer"
                   [href]="actions()"
                 >
-                  Launch UI
+                  {{ 'Launch UI' | i18n }}
                 </a>
                 <button tuiOption iconStart="@tui.qr-code" (click)="showQR()">
-                  Show QR
+                  {{ 'Show QR' | i18n }}
                 </button>
                 <button
                   tuiOption
                   iconStart="@tui.copy"
                   (click)="copyService.copy(actions()); close()"
                 >
-                  Copy URL
+                  {{ 'Copy URL' | i18n }}
                 </button>
               }
             </tui-opt-group>
@@ -105,22 +109,22 @@ import { InterfaceComponent } from './interface.component'
       }
     }
   `,
-  imports: [TuiButton, TuiDropdown, TuiDataList],
+  imports: [TuiButton, TuiDropdown, TuiDataList, i18nPipe],
   providers: [tuiButtonOptionsProvider({ appearance: 'icon' })],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InterfaceActionsComponent {
-  readonly dialogs = inject(TuiResponsiveDialogService)
+  readonly dialog = inject(DialogService)
   readonly copyService = inject(CopyService)
   readonly interface = inject(InterfaceComponent)
 
   readonly actions = input.required<string>()
 
   showQR() {
-    this.dialogs
-      .open(new PolymorpheusComponent(QRModal), {
+    this.dialog
+      .openComponent(new PolymorpheusComponent(QRModal), {
         size: 'auto',
-        label: 'Interface URL',
+        label: this.actions() as i18nKey,
         data: this.actions(),
       })
       .subscribe()

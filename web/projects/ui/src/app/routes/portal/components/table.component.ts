@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { i18nKey, i18nPipe } from '@start9labs/shared'
 
 @Component({
   standalone: true,
@@ -7,7 +8,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core'
     <thead>
       <tr>
         @for (header of appTable(); track $index) {
-          <th>{{ header }}</th>
+          <th>{{ header | i18n }}</th>
         }
       </tr>
     </thead>
@@ -20,7 +21,8 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core'
   `,
   host: { class: 'g-table' },
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [i18nPipe],
 })
 export class TableComponent {
-  readonly appTable = input.required<readonly string[]>()
+  readonly appTable = input.required<Array<i18nKey | null>>()
 }

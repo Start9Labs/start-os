@@ -10,6 +10,7 @@ import {
 } from '@taiga-ui/legacy'
 import { CAWizardComponent } from './ca-wizard/ca-wizard.component'
 import { LoginPage } from './login.page'
+import { i18nPipe } from '@start9labs/shared'
 
 const routes: Routes = [
   {
@@ -29,6 +30,7 @@ const routes: Routes = [
     TuiTextfieldControllerModule,
     TuiError,
     RouterModule.forChild(routes),
+    i18nPipe,
   ],
   declarations: [LoginPage],
 })

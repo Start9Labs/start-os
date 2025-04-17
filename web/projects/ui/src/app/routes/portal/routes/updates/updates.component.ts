@@ -34,6 +34,7 @@ import { TitleDirective } from 'src/app/services/title.service'
 import { isInstalled, isUpdating } from 'src/app/utils/get-package-data'
 import { FilterUpdatesPipe } from './filter-updates.pipe'
 import { UpdatesItemComponent } from './item.component'
+import { i18nPipe } from '@start9labs/shared'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
@@ -45,14 +46,14 @@ interface UpdatesData {
 @Component({
   template: `
     <ng-container *title>
-      <label>Updates</label>
+      <label>{{ 'Updates' | i18n }}</label>
       @if (current()) {
         <button
           tuiIconButton
           iconStart="@tui.arrow-left"
           (click)="current.set(null)"
         >
-          Back
+          {{ 'Back' | i18n }}
         </button>
         {{ current()?.name }}
       }
@@ -91,13 +92,13 @@ interface UpdatesData {
           appearance="negative"
           [style.margin-block-end.rem]="1"
         >
-          Request Failed
+          {{ 'Request failed' | i18n }}
         </tui-notification>
       }
       <section class="g-card">
         <header>{{ current()?.name }}</header>
         <table
-          [appTable]="['Name', 'Version', 'Package Hash', 'Published', '']"
+          [appTable]="['Name', 'Version', 'Package Hash', 'Published', null]"
         >
           @if (
             data()?.marketplace?.[current()?.url || '']?.packages;
@@ -111,16 +112,18 @@ interface UpdatesData {
                 />
               } @empty {
                 <tr>
-                  <td colspan="5">All services are up to date!</td>
+                  <td colspan="5">
+                    {{ 'All services are up to date!' | i18n }}
+                  </td>
                 </tr>
               }
             }
           } @else {
             <tr>
-              <td colspan="5" [tuiSkeleton]="true">Loading</td>
+              <td colspan="5" [tuiSkeleton]="true">{{ 'Loading' | i18n }}</td>
             </tr>
             <tr>
-              <td colspan="5" [tuiSkeleton]="true">Loading</td>
+              <td colspan="5" [tuiSkeleton]="true">{{ 'Loading' | i18n }}</td>
             </tr>
           }
         </table>
@@ -211,6 +214,7 @@ interface UpdatesData {
     UpdatesItemComponent,
     TitleDirective,
     TableComponent,
+    i18nPipe,
   ],
 })
 export default class UpdatesComponent {

@@ -15,6 +15,7 @@ import {
   LoadingService,
   sameUrl,
   ExverPipesModule,
+  i18nPipe,
 } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
@@ -45,7 +46,7 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
               appearance="secondary-destructive"
               (click)="tryInstall()"
             >
-              Downgrade
+              {{ 'Downgrade' | i18n }}
             </button>
           }
           @case (-1) {
@@ -55,7 +56,7 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
               appearance="primary"
               (click)="tryInstall()"
             >
-              Update
+              {{ 'Update' | i18n }}
             </button>
           }
           @case (0) {
@@ -65,7 +66,7 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
               appearance="secondary-grayscale"
               (click)="tryInstall()"
             >
-              Reinstall
+              {{ 'Reinstall' | i18n }}
             </button>
           }
         }
@@ -76,7 +77,7 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
         appearance="outline-grayscale"
         (click)="showService()"
       >
-        View Installed
+        {{ 'View Installed' | i18n }}
       </button>
     } @else {
       <button
@@ -85,13 +86,19 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
         [appearance]="localFlavor ? 'warning' : 'primary'"
         (click)="tryInstall()"
       >
-        {{ localFlavor ? 'Switch' : 'Install' }}
+        {{ localFlavor ? ('Switch' | i18n) : ('Install' | i18n) }}
       </button>
     }
   `,
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, ExverPipesModule, TuiButton, ToManifestPipe],
+  imports: [
+    CommonModule,
+    ExverPipesModule,
+    TuiButton,
+    ToManifestPipe,
+    i18nPipe,
+  ],
 })
 export class MarketplaceControlsComponent {
   private readonly alerts = inject(MarketplaceAlertsService)
@@ -161,7 +168,7 @@ export class MarketplaceControlsComponent {
   }
 
   private async install(url: string) {
-    const loader = this.loader.open('Beginning Install...').subscribe()
+    const loader = this.loader.open('Beginning install').subscribe()
     const { id, version } = this.pkg
 
     try {

@@ -2,9 +2,15 @@ import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import {
+  DialogService,
+  ErrorService,
+  i18nKey,
+  i18nPipe,
+  LoadingService,
+} from '@start9labs/shared'
 import { inputSpec, IST } from '@start9labs/start-sdk'
-import { TuiButton, TuiDialogService, TuiLink, TuiTitle } from '@taiga-ui/core'
+import { TuiButton, TuiLink, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { TuiInputModule } from '@taiga-ui/legacy'
 import { PatchDB } from 'patch-db-client'
@@ -19,15 +25,19 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 @Component({
   template: `
     <ng-container *title>
-      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
-      Email
+      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+        {{ 'Back' | i18n }}
+      </a>
+      {{ 'Email' | i18n }}
     </ng-container>
     <header tuiHeader>
       <hgroup tuiTitle>
-        <h3>Email</h3>
+        <h3>{{ 'Email' | i18n }}</h3>
         <p tuiSubtitle>
-          Connect to an external SMTP server for sending emails. Adding SMTP
-          credentials enables StartOS and some services to send you emails.
+          {{
+            'Connecting an external SMTP server allows StartOS and your installed services to send you emails.'
+              | i18n
+          }}
           <a
             tuiLink
             href="https://docs.start9.com/latest/user-manual/smtp"
@@ -36,7 +46,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
             appearance="action-grayscale"
             iconEnd="@tui.external-link"
             [pseudo]="true"
-            [textContent]="'View instructions'"
+            [textContent]="'View instructions' | i18n"
           ></a>
         </p>
       </hgroup>
@@ -44,7 +54,9 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
     @if (form$ | async; as form) {
       <form [formGroup]="form">
         <header tuiHeader="body-l">
-          <h3 tuiTitle><b>SMTP Credentials</b></h3>
+          <h3 tuiTitle>
+            <b>{{ 'SMTP Credentials' | i18n }}</b>
+          </h3>
         </header>
         @if (spec | async; as resolved) {
           <form-group [spec]="resolved" />
@@ -57,7 +69,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
               appearance="secondary-destructive"
               (click)="save(null)"
             >
-              Delete
+              {{ 'Delete' | i18n }}
             </button>
           }
           <button
@@ -66,13 +78,15 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
             [disabled]="form.invalid"
             (click)="save(form.value)"
           >
-            Save
+            {{ 'Save' | i18n }}
           </button>
         </footer>
       </form>
       <form>
         <header tuiHeader="body-l">
-          <h3 tuiTitle><b>Send Test Email</b></h3>
+          <h3 tuiTitle>
+            <b>{{ 'Send test email' | i18n }}</b>
+          </h3>
         </header>
         <tui-input
           [(ngModel)]="testAddress"
@@ -89,7 +103,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
             [disabled]="!testAddress || form.invalid"
             (click)="sendTestEmail(form.value)"
           >
-            Send
+            {{ 'Send' | i18n }}
           </button>
         </footer>
       </form>
@@ -125,15 +139,17 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
     TuiLink,
     RouterLink,
     TitleDirective,
+    i18nPipe,
   ],
 })
 export default class SystemEmailComponent {
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialog = inject(DialogService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly formService = inject(FormService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)
+  private readonly i18n = inject(i18nPipe)
 
   testAddress = ''
   isSaved = false
@@ -151,7 +167,7 @@ export default class SystemEmailComponent {
   async save(
     value: typeof inputSpec.constants.customSmtp._TYPE | null,
   ): Promise<void> {
-    const loader = this.loader.open('Saving...').subscribe()
+    const loader = this.loader.open('Saving').subscribe()
 
     try {
       if (value) {
@@ -169,7 +185,7 @@ export default class SystemEmailComponent {
   }
 
   async sendTestEmail(value: typeof inputSpec.constants.customSmtp._TYPE) {
-    const loader = this.loader.open('Sending email...').subscribe()
+    const loader = this.loader.open('Sending email').subscribe()
 
     try {
       await this.api.testSmtp({
@@ -182,12 +198,11 @@ export default class SystemEmailComponent {
       loader.unsubscribe()
     }
 
-    this.dialogs
-      .open(
-        `A test email has been sent to ${this.testAddress}.<br /><br /><b>Check your spam folder and mark as not spam</b>`,
+    this.dialog
+      .openAlert(
+        `${this.i18n.transform('A test email has been sent to')} ${this.testAddress}.<br /><br /><b>${this.i18n.transform('Check your spam folder and mark as not spam.')}</b>` as i18nKey,
         {
           label: 'Success',
-          size: 's',
         },
       )
       .subscribe()

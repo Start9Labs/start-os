@@ -7,8 +7,11 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, RouterLink } from '@angular/router'
-import { UnitConversionPipesModule } from '@start9labs/shared'
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
+import {
+  DialogService,
+  i18nPipe,
+  UnitConversionPipesModule,
+} from '@start9labs/shared'
 import { TuiMapperPipe } from '@taiga-ui/cdk'
 import {
   TuiButton,
@@ -36,17 +39,29 @@ import { BACKUP_RESTORE } from './restore.component'
 @Component({
   template: `
     <ng-container *title>
-      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
-      {{ type === 'create' ? 'Create Backup' : 'Restore Backup' }}
+      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+        {{ 'Back' | i18n }}
+      </a>
+      {{
+        type === 'create' ? ('Create Backup' | i18n) : ('Restore Backup' | i18n)
+      }}
     </ng-container>
 
     <header tuiHeader>
       <hgroup tuiTitle>
-        <h3>{{ type === 'create' ? 'Create Backup' : 'Restore Backup' }}</h3>
+        <h3>
+          {{
+            type === 'create'
+              ? ('Create Backup' | i18n)
+              : ('Restore Backup' | i18n)
+          }}
+        </h3>
         <p tuiSubtitle>
           @if (type === 'create') {
-            Back up StartOS and service data by connecting to a device on your
-            local network or a physical drive connected to your server.
+            {{
+              'Back up StartOS and service data by connecting to a device on your local network or a physical drive connected to your server.'
+                | i18n
+            }}
             <a
               tuiLink
               href="https://docs.start9.com/0.3.5.x/user-manual/backups/backup-create"
@@ -55,12 +70,13 @@ import { BACKUP_RESTORE } from './restore.component'
               appearance="action-grayscale"
               iconEnd="@tui.external-link"
               [pseudo]="true"
-              [textContent]="'View instructions'"
+              [textContent]="'View instructions' | i18n"
             ></a>
           } @else {
-            Restore StartOS and service data from a device on your local network
-            or a physical drive connected to your server that contains an
-            existing backup.
+            {{
+              'Restore StartOS and service data from a device on your local network or a physical drive connected to your server that contains an existing backup.'
+                | i18n
+            }}
             <a
               tuiLink
               href="https://docs.start9.com/0.3.5.x/user-manual/backups/backup-restore"
@@ -69,7 +85,7 @@ import { BACKUP_RESTORE } from './restore.component'
               appearance="action-grayscale"
               iconEnd="@tui.external-link"
               [pseudo]="true"
-              [textContent]="'View instructions'"
+              [textContent]="'View instructions' | i18n"
             ></a>
           }
         </p>
@@ -79,7 +95,7 @@ import { BACKUP_RESTORE } from './restore.component'
     @if (type === 'create' && server(); as s) {
       <tui-notification [appearance]="s.lastBackup | tuiMapper: toAppearance">
         <div tuiTitle>
-          Last Backup
+          {{ 'Last Backup' | i18n }}
           <div tuiSubtitle>
             {{ s.lastBackup ? (s.lastBackup | date: 'medium') : 'never' }}
           </div>
@@ -98,19 +114,26 @@ import { BACKUP_RESTORE } from './restore.component'
         />
       } @else {
         <section (networkFolders)="onTarget($event)">
-          A folder on another computer that is connected to the same network as
-          your Start9 server. View the
+          {{
+            'A folder on another computer that is connected to the same network as your Start9 server.'
+              | i18n
+          }}
           <a
             tuiLink
             href="https://docs.start9.com/0.3.5.x/user-manual/backups/backup-create#network-folder"
             target="_blank"
             rel="noreferrer"
+            appearance="action-grayscale"
             iconEnd="@tui.external-link"
-            [textContent]="'Instructions'"
+            [pseudo]="true"
+            [textContent]="'View instructions' | i18n"
           ></a>
         </section>
         <section (physicalFolders)="onTarget($event)">
-          A physical drive that is plugged directly into your Start9 Server.
+          {{
+            'A physical drive that is plugged directly into your Start9 Server.'
+              | i18n
+          }}
         </section>
       }
     }
@@ -133,10 +156,11 @@ import { BACKUP_RESTORE } from './restore.component'
     BackupNetworkComponent,
     BackupPhysicalComponent,
     BackupProgressComponent,
+    i18nPipe,
   ],
 })
 export default class SystemBackupComponent implements OnInit {
-  readonly dialogs = inject(TuiResponsiveDialogService)
+  readonly dialog = inject(DialogService)
   readonly type = inject(ActivatedRoute).snapshot.data['type']
   readonly service = inject(BackupService)
   readonly eos = inject(EOSService)
@@ -172,6 +196,6 @@ export default class SystemBackupComponent implements OnInit {
         ? 'Select Services to Back Up'
         : 'Select server backup'
 
-    this.dialogs.open(component, { label, data: target }).subscribe()
+    this.dialog.openComponent(component, { label, data: target }).subscribe()
   }
 }

@@ -5,6 +5,7 @@ import {
   input,
 } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
+import { i18nPipe } from '@start9labs/shared'
 import { TuiIcon } from '@taiga-ui/core'
 
 @Component({
@@ -13,14 +14,14 @@ import { TuiIcon } from '@taiga-ui/core'
   template: `
     @if (type === 'create') {
       <tui-icon icon="@tui.cloud" class="g-positive" />
-      Available for backup
+      {{ 'Available for backup' | i18n }}
     } @else {
       @if (backupStatus()) {
         <tui-icon icon="@tui.cloud-upload" class="g-positive" />
-        StartOS backups detected
+        {{ 'StartOS backups detected' | i18n }}
       } @else {
         <tui-icon icon="@tui.cloud-off" class="g-negative" />
-        No StartOS backups
+        {{ 'No StartOS backups detected' | i18n }}
       }
     }
   `,
@@ -41,7 +42,7 @@ import { TuiIcon } from '@taiga-ui/core'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiIcon],
+  imports: [TuiIcon, i18nPipe],
 })
 export class BackupStatusComponent {
   readonly type = inject(ActivatedRoute).snapshot.data['type']

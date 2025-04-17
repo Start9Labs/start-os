@@ -3,6 +3,7 @@ import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import {
   DriveComponent,
+  i18nPipe,
   RELATIVE_URL,
   WorkspaceConfig,
 } from '@start9labs/shared'
@@ -38,6 +39,7 @@ const {
     TuiIcon,
     TuiSurface,
     TuiTitle,
+    i18nPipe,
   ],
   providers: [
     NG_EVENT_PLUGINS,

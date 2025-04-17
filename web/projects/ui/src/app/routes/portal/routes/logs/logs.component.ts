@@ -5,6 +5,7 @@ import {
   inject,
   signal,
 } from '@angular/core'
+import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { TuiAppearance, TuiButton, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiCardMedium } from '@taiga-ui/layout'
 import { LogsComponent } from 'src/app/routes/portal/components/logs/logs.component'
@@ -13,8 +14,8 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { TitleDirective } from 'src/app/services/title.service'
 
 interface Log {
-  title: string
-  subtitle: string
+  title: i18nKey
+  subtitle: i18nKey
   icon: string
   follow: (params: RR.FollowServerLogsReq) => Promise<RR.FollowServerLogsRes>
   fetch: (params: RR.GetServerLogsReq) => Promise<RR.GetServerLogsRes>
@@ -29,11 +30,11 @@ interface Log {
           iconStart="@tui.arrow-left"
           (click)="current.set(null)"
         >
-          Back
+          {{ 'Back' | i18n }}
         </button>
-        {{ logs[key]?.title }}
+        {{ logs[key]?.title | i18n }}
       } @else {
-        Logs
+        {{ 'Logs' | i18n }}
       }
     </ng-container>
     @if (current(); as key) {
@@ -47,16 +48,16 @@ interface Log {
             class="close"
             (click)="current.set(null)"
           >
-            Close
+            {{ 'Close' | i18n }}
           </button>
-          {{ logs[key]?.title }}
+          {{ logs[key]?.title | i18n }}
         </strong>
-        <p tuiSubtitle>{{ logs[key]?.subtitle }}</p>
+        <p tuiSubtitle>{{ logs[key]?.subtitle | i18n }}</p>
       </header>
       @for (log of logs | keyvalue; track $index) {
         @if (log.key === current()) {
           <logs
-            [context]="log.value.title"
+            [context]="log.key"
             [followLogs]="log.value.follow"
             [fetchLogs]="log.value.fetch"
           />
@@ -71,8 +72,8 @@ interface Log {
         >
           <tui-icon [icon]="log.value.icon" />
           <span tuiTitle>
-            <strong>{{ log.value.title }}</strong>
-            <span tuiSubtitle>{{ log.value.subtitle }}</span>
+            <strong>{{ log.value.title | i18n }}</strong>
+            <span tuiSubtitle>{{ log.value.subtitle | i18n }}</span>
           </span>
           <tui-icon icon="@tui.chevron-right" />
         </button>
@@ -164,6 +165,7 @@ interface Log {
     TuiIcon,
     TuiAppearance,
     TuiButton,
+    i18nPipe,
   ],
 })
 export default class SystemLogsComponent {

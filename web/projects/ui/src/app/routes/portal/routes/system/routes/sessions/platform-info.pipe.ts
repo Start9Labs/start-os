@@ -18,7 +18,7 @@ export class PlatformInfoPipe implements PipeTransform {
 
     if (/Android/i.test(userAgent)) {
       return {
-        name: 'Android Device',
+        name: 'Android',
         icon: '@tui.smartphone',
       }
     }

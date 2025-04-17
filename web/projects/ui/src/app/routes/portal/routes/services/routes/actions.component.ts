@@ -1,7 +1,7 @@
 import { KeyValuePipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { getPkgId } from '@start9labs/shared'
+import { getPkgId, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiCell } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
@@ -34,7 +34,7 @@ const OTHER = 'Custom Actions'
         }
       }
       <section class="g-card">
-        <header>Standard Actions</header>
+        <header>{{ 'Standard Actions' | i18n }}</header>
         <button
           tuiCell
           [action]="rebuild"
@@ -59,10 +59,11 @@ const OTHER = 'Custom Actions'
   host: { class: 'g-subpage' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [ServiceActionComponent, TuiCell, KeyValuePipe],
+  imports: [ServiceActionComponent, TuiCell, KeyValuePipe, i18nPipe],
 })
 export default class ServiceActionsRoute {
   private readonly actions = inject(ActionService)
+  private readonly i18n = inject(i18nPipe)
 
   readonly service = inject(StandardActionsService)
   readonly package = toSignal(
@@ -92,8 +93,19 @@ export default class ServiceActionsRoute {
       ),
   )
 
-  readonly rebuild = REBUILD
-  readonly uninstall = UNINSTALL
+  readonly rebuild = {
+    name: this.i18n.transform('Rebuild Service')!,
+    description: this.i18n.transform(
+      'Rebuilds the service container. Only necessary in there is a bug in StartOS',
+    )!,
+  }
+
+  readonly uninstall = {
+    name: this.i18n.transform('Uninstall')!,
+    description: this.i18n.transform(
+      'Uninstalls this service from StartOS and delete all data permanently.',
+    )!,
+  }
 
   handle(
     mainStatus: T.MainStatus['main'],
@@ -106,18 +118,4 @@ export default class ServiceActionsRoute {
       actionInfo: { id: action.id, metadata: action },
     })
   }
-}
-
-const REBUILD = {
-  icon: '@tui.wrench',
-  name: 'Rebuild Service',
-  description:
-    'Rebuilds the service container. Only necessary in there is a bug in StartOS',
-}
-
-const UNINSTALL = {
-  icon: '@tui.trash-2',
-  name: 'Uninstall',
-  description:
-    'Uninstalls this service from StartOS and delete all data permanently.',
 }

@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { TuiProgress } from '@taiga-ui/kit'
 import { LogsWindowComponent } from './logs-window.component'
+import { i18nPipe } from '../i18n/i18n.pipe'
 
 @Component({
   standalone: true,
@@ -9,10 +10,10 @@ import { LogsWindowComponent } from './logs-window.component'
   template: `
     <section>
       <h1 [style.font-size.rem]="2" [style.margin-bottom.rem]="2">
-        Setting up your server
+        {{ 'Setting up your server' | i18n }}
       </h1>
       <div *ngIf="progress.total">
-        Progress: {{ (progress.total * 100).toFixed(0) }}%
+        {{ 'Progress' | i18n }}: {{ (progress.total * 100).toFixed(0) }}%
       </div>
       <progress
         tuiProgressBar
@@ -49,7 +50,7 @@ import { LogsWindowComponent } from './logs-window.component'
       background: #181818;
     }
   `,
-  imports: [CommonModule, LogsWindowComponent, TuiProgress],
+  imports: [CommonModule, LogsWindowComponent, TuiProgress, i18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InitializingComponent {

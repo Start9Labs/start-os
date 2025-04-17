@@ -103,7 +103,7 @@ export class BackupsTargetsModal implements OnInit {
   }
 
   async onDelete(id: string) {
-    const loader = this.loader.open('Removing...').subscribe()
+    const loader = this.loader.open('Removing').subscribe()
 
     try {
       await this.api.removeBackupTarget({ id })
@@ -202,7 +202,7 @@ export class BackupsTargetsModal implements OnInit {
       | RR.AddCloudBackupTargetReq
       | RR.AddDiskBackupTargetReq,
   ): Promise<RR.AddBackupTargetRes> {
-    const loader = this.loader.open('Saving target...').subscribe()
+    const loader = this.loader.open('Saving target').subscribe()
 
     try {
       return await this.api.addBackupTarget(type, value)
@@ -218,7 +218,7 @@ export class BackupsTargetsModal implements OnInit {
       | RR.UpdateCloudBackupTargetReq
       | RR.UpdateDiskBackupTargetReq,
   ): Promise<RR.UpdateBackupTargetRes> {
-    const loader = this.loader.open('Saving target...').subscribe()
+    const loader = this.loader.open('Saving target').subscribe()
 
     try {
       return await this.api.updateBackupTarget(type, value)

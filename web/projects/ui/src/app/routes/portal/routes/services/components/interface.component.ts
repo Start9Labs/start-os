@@ -5,6 +5,7 @@ import {
   Input,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
+import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiButton, TuiLink } from '@taiga-ui/core'
 import { TuiBadge } from '@taiga-ui/kit'
@@ -57,7 +58,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
           [attr.href]="href"
           (click.stop)="(0)"
         >
-          Open
+          {{ 'Open' | i18n }}
         </a>
       }
     </td>
@@ -107,7 +108,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiButton, TuiBadge, TuiLink, RouterLink],
+  imports: [TuiButton, TuiBadge, TuiLink, RouterLink, i18nPipe],
 })
 export class ServiceInterfaceComponent {
   private readonly config = inject(ConfigService)

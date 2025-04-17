@@ -5,6 +5,7 @@ import {
   inject,
   Input,
 } from '@angular/core'
+import { i18nPipe } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
 import { map } from 'rxjs'
 import { ControlsService } from 'src/app/services/controls.service'
@@ -23,7 +24,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
         iconStart="@tui.square"
         (click)="controls.stop(manifest())"
       >
-        Stop
+        {{ 'Stop' | i18n }}
       </button>
     }
 
@@ -33,7 +34,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
         iconStart="@tui.rotate-cw"
         (click)="controls.restart(manifest())"
       >
-        Restart
+        {{ 'Restart' | i18n }}
       </button>
     }
 
@@ -43,7 +44,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
         iconStart="@tui.play"
         (click)="controls.start(manifest(), !!hasUnmet())"
       >
-        Start
+        {{ 'Start' | i18n }}
       </button>
     }
   `,
@@ -82,7 +83,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiButton],
+  imports: [TuiButton, i18nPipe],
 })
 export class ServiceControlsComponent {
   private readonly errors = inject(DepErrorService)

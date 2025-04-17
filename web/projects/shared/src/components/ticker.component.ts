@@ -7,9 +7,24 @@ import {
 } from '@angular/core'
 
 @Component({
+  standalone: true,
   selector: '[ticker]',
   template: '<ng-content />',
-  styleUrls: ['./ticker.component.scss'],
+  styles: `
+    :host {
+      max-width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: text-indent 1s;
+
+      &:hover {
+        text-indent: var(--indent, 0);
+        text-overflow: clip;
+        cursor: default;
+      }
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TickerComponent {

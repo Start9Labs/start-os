@@ -16,7 +16,7 @@
   let-completeWith="completeWith"
 >
   {{ spec.warning }}
-  <p *ngIf="immutable">This value cannot be changed once set!</p>
+  <p *ngIf="immutable">{{ 'This value cannot be changed once set' | i18n }}!</p>
   <div class="buttons">
     <button
       tuiButton
@@ -25,7 +25,7 @@
       size="s"
       (click)="completeWith(true)"
     >
-      Rollback
+      {{ 'Cancel' | i18n }}
     </button>
     <button
       tuiButton
@@ -34,7 +34,7 @@
       size="s"
       (click)="completeWith(false)"
     >
-      Accept
+      {{'Continue' | i18n}}
     </button>
   </div>
 </ng-template>

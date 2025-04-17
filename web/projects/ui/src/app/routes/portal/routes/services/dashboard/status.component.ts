@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  Input,
+} from '@angular/core'
+import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { tuiPure } from '@taiga-ui/cdk'
 import { TuiIcon, TuiLoader } from '@taiga-ui/core'
 import { getProgressText } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
@@ -18,7 +24,7 @@ import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
         <tui-icon icon="@tui.triangle-alert" class="g-warning" />
       }
     }
-    <b [style.color]="color">{{ status }}</b>
+    <b [style.color]="color">{{ status | i18n }}{{ dots }}</b>
   `,
   styles: `
     :host {
@@ -41,7 +47,7 @@ import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiIcon, TuiLoader],
+  imports: [TuiIcon, TuiLoader, i18nPipe],
 })
 export class StatusComponent {
   @Input()
@@ -49,6 +55,8 @@ export class StatusComponent {
 
   @Input()
   hasDepErrors = false
+
+  private readonly i18n = inject(i18nPipe)
 
   get healthy(): boolean {
     return !this.hasDepErrors && this.getStatus(this.pkg).health !== 'failure'
@@ -63,9 +71,9 @@ export class StatusComponent {
     return renderPkgStatus(pkg, {})
   }
 
-  get status(): string {
+  get status(): i18nKey {
     if (this.pkg.stateInfo.installingInfo) {
-      return `Installing...${getProgressText(this.pkg.stateInfo.installingInfo.progress.overall)}`
+      return `${this.i18n.transform('Installing')}...${this.i18n.transform(getProgressText(this.pkg.stateInfo.installingInfo.progress.overall))}` as i18nKey
     }
 
     switch (this.getStatus(this.pkg).primary) {
@@ -74,23 +82,38 @@ export class StatusComponent {
       case 'stopped':
         return 'Stopped'
       case 'actionRequired':
-        return 'Action Required'
+        return 'Task Required'
       case 'updating':
-        return 'Updating...'
+        return 'Updating'
       case 'stopping':
-        return 'Stopping...'
+        return 'Stopping'
       case 'starting':
-        return 'Starting...'
+        return 'Starting'
       case 'backingUp':
-        return 'Backing Up...'
+        return 'Backing Up'
       case 'restarting':
-        return 'Restarting...'
+        return 'Restarting'
       case 'removing':
-        return 'Removing...'
+        return 'Removing'
       case 'restoring':
-        return 'Restoring...'
+        return 'Restoring'
       default:
         return 'Unknown'
+    }
+  }
+
+  get dots(): '...' | '' {
+    switch (this.getStatus(this.pkg).primary) {
+      case 'updating':
+      case 'stopping':
+      case 'starting':
+      case 'backingUp':
+      case 'restarting':
+      case 'removing':
+      case 'restoring':
+        return '...'
+      default:
+        return ''
     }
   }
 

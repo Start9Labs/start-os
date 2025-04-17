@@ -5,11 +5,15 @@ import {
   output,
 } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import {
+  DialogService,
+  ErrorService,
+  i18nPipe,
+  LoadingService,
+} from '@start9labs/shared'
 import { ISB } from '@start9labs/start-sdk'
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
-import { TuiAlertService, TuiButton, TuiIcon } from '@taiga-ui/core'
-import { TUI_CONFIRM, TuiTooltip } from '@taiga-ui/kit'
+import { TuiButton, TuiIcon } from '@taiga-ui/core'
+import { TuiTooltip } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
@@ -29,15 +33,15 @@ const ERROR =
   selector: '[networkFolders]',
   template: `
     <header>
-      Network Folders
+      {{ 'Network Folders' | i18n }}
       <tui-icon [tuiTooltip]="cifs" />
       <ng-template #cifs><ng-content /></ng-template>
       <button tuiButton size="s" iconStart="@tui.plus" (click)="add()">
-        Open New
+        {{ 'Open New' | i18n }}
       </button>
     </header>
 
-    <table [appTable]="['Status', 'Name', 'Hostname', 'Path', '']">
+    <table [appTable]="['Status', 'Name', 'Hostname', 'Path', null]">
       @for (target of service.cifs(); track $index) {
         <tr
           tabindex="0"
@@ -163,32 +167,33 @@ const ERROR =
     PlaceholderComponent,
     BackupStatusComponent,
     TableComponent,
+    i18nPipe,
   ],
 })
 export class BackupNetworkComponent {
-  private readonly dialogs = inject(TuiResponsiveDialogService)
-  private readonly alerts = inject(TuiAlertService)
+  private readonly dialog = inject(DialogService)
   private readonly formDialog = inject(FormDialogService)
   private readonly api = inject(ApiService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly type = inject(ActivatedRoute).snapshot.data['type']
+  private readonly i18n = inject(i18nPipe)
 
   readonly service = inject(BackupService)
   readonly networkFolders = output<MappedBackupTarget<CifsBackupTarget>>()
 
   select(target: MappedBackupTarget<CifsBackupTarget>) {
     if (!target.entry.mountable) {
-      this.alerts
-        .open(ERROR, {
+      this.dialog
+        .openAlert(ERROR, {
           appearance: 'negative',
           label: 'Unable to connect',
           autoClose: 0,
         })
         .subscribe()
     } else if (this.type === 'restore' && !target.hasAnyBackup) {
-      this.alerts
-        .open('Network Folder does not contain a valid backup', {
+      this.dialog
+        .openAlert('Network Folder does not contain a valid backup', {
           appearance: 'negative',
         })
         .subscribe()
@@ -201,10 +206,10 @@ export class BackupNetworkComponent {
     this.formDialog.open(FormComponent, {
       label: 'New Network Folder',
       data: {
-        spec: await configBuilderToSpec(cifsSpec),
+        spec: await configBuilderToSpec(this.cifsSpec()),
         buttons: [
           {
-            text: 'Execute',
+            text: this.i18n.transform('Connect'),
             handler: (value: RR.AddBackupTargetReq) => this.addTarget(value),
           },
         ],
@@ -216,13 +221,13 @@ export class BackupNetworkComponent {
     this.formDialog.open(FormComponent, {
       label: 'Update Network Folder',
       data: {
-        spec: await configBuilderToSpec(cifsSpec),
+        spec: await configBuilderToSpec(this.cifsSpec()),
         buttons: [
           {
-            text: 'Execute',
+            text: this.i18n.transform('Connect'),
             handler: async (value: RR.AddBackupTargetReq) => {
               const loader = this.loader
-                .open('Testing connectivity to shared folder...')
+                .open('Testing connectivity to shared folder')
                 .subscribe()
 
               try {
@@ -249,11 +254,11 @@ export class BackupNetworkComponent {
   }
 
   forget({ id }: MappedBackupTarget<CifsBackupTarget>, index: number) {
-    this.dialogs
-      .open(TUI_CONFIRM, { label: 'Are you sure?', size: 's' })
+    this.dialog
+      .openConfirm({ label: 'Are you sure?', size: 's' })
       .pipe(filter(Boolean))
       .subscribe(async () => {
-        const loader = this.loader.open('Removing...').subscribe()
+        const loader = this.loader.open('Removing').subscribe()
 
         try {
           await this.api.removeBackupTarget({ id })
@@ -268,7 +273,7 @@ export class BackupNetworkComponent {
 
   private async addTarget(v: RR.AddBackupTargetReq): Promise<boolean> {
     const loader = this.loader
-      .open('Testing connectivity to shared folder...')
+      .open('Testing connectivity to shared folder')
       .subscribe()
 
     try {
@@ -290,39 +295,48 @@ export class BackupNetworkComponent {
       loader.unsubscribe()
     }
   }
-}
 
-const cifsSpec = ISB.InputSpec.of({
-  hostname: ISB.Value.text({
-    name: 'Hostname',
-    description:
-      'The hostname of your target device on the Local Area Network.',
-    warning: null,
-    placeholder: `e.g. 'My Computer' OR 'my-computer.local'`,
-    required: true,
-    default: null,
-    patterns: [],
-  }),
-  path: ISB.Value.text({
-    name: 'Path',
-    description: `On Windows, this is the fully qualified path to the shared folder, (e.g. /Desktop/my-folder).\n\n On Linux and Mac, this is the literal name of the shared folder (e.g. my-shared-folder).`,
-    placeholder: 'e.g. my-shared-folder or /Desktop/my-folder',
-    required: true,
-    default: null,
-  }),
-  username: ISB.Value.text({
-    name: 'Username',
-    description: `On Linux, this is the samba username you created when sharing the folder.\n\n On Mac and Windows, this is the username of the user who is sharing the folder.`,
-    required: true,
-    default: null,
-    placeholder: 'My Network Folder',
-  }),
-  password: ISB.Value.text({
-    name: 'Password',
-    description: `On Linux, this is the samba password you created when sharing the folder.\n\n On Mac and Windows, this is the password of the user who is sharing the folder.`,
-    required: false,
-    default: null,
-    masked: true,
-    placeholder: 'My Network Folder',
-  }),
-})
+  cifsSpec() {
+    return ISB.InputSpec.of({
+      hostname: ISB.Value.text({
+        name: this.i18n.transform('Hostname')!,
+        description: this.i18n.transform(
+          'The hostname of your target device on the Local Area Network.',
+        ),
+        warning: null,
+        placeholder: `e.g. 'My Computer' OR 'my-computer.local'`,
+        required: true,
+        default: null,
+        patterns: [],
+      }),
+      path: ISB.Value.text({
+        name: this.i18n.transform('Path')!,
+        description: this.i18n.transform(
+          'On Windows, this is the fully qualified path to the shared folder, (e.g. /Desktop/my-folder). On Linux and Mac, this is the literal name of the shared folder (e.g. my-shared-folder).',
+        ),
+        placeholder: 'e.g. my-shared-folder or /Desktop/my-folder',
+        required: true,
+        default: null,
+      }),
+      username: ISB.Value.text({
+        name: this.i18n.transform('Username')!,
+        description: this.i18n.transform(
+          'On Linux, this is the samba username you created when sharing the folder. On Mac and Windows, this is the username of the user who is sharing the folder.',
+        ),
+        required: true,
+        default: null,
+        placeholder: 'My Network Folder',
+      }),
+      password: ISB.Value.text({
+        name: this.i18n.transform('Password')!,
+        description: this.i18n.transform(
+          'On Linux, this is the samba password you created when sharing the folder. On Mac and Windows, this is the password of the user who is sharing the folder.',
+        ),
+        required: false,
+        default: null,
+        masked: true,
+        placeholder: 'My Network Folder',
+      }),
+    })
+  }
+}

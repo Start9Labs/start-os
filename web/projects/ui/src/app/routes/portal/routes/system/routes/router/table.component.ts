@@ -129,7 +129,7 @@ export class RouterPortComponent implements OnChanges {
   }
 
   async save() {
-    const loader = this.loader.open('Saving...').subscribe()
+    const loader = this.loader.open('Saving').subscribe()
     const { target } = this.portForward
 
     try {

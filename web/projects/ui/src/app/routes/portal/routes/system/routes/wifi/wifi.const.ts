@@ -3,8 +3,7 @@ import { IST } from '@start9labs/start-sdk'
 export const wifiSpec: IST.ValueSpecObject = {
   type: 'object',
   name: 'WiFi Credentials',
-  description:
-    'Enter the network SSID and password. You can connect now or save the network for later.',
+  description: null,
   warning: null,
   spec: {
     ssid: {
@@ -28,12 +27,7 @@ export const wifiSpec: IST.ValueSpecObject = {
       type: 'text',
       minLength: null,
       maxLength: null,
-      patterns: [
-        {
-          regex: '^.{8,}$',
-          description: 'Must be longer than 8 characters',
-        },
-      ],
+      patterns: [],
       name: 'Password',
       description: null,
       inputmode: 'text',

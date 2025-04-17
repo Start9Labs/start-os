@@ -49,6 +49,7 @@ export class MarketplaceService {
       switchMap(url => this.fetchRegistry$(url)),
       filter(Boolean),
       map(registry => {
+        // @TODO Aiden let's drop description. We do not use it. categories should just be Record<string, string>
         registry.info.categories = {
           all: {
             name: 'All',
@@ -178,12 +179,13 @@ export class MarketplaceService {
     return from(this.api.getRegistryInfo(url)).pipe(
       map(info => ({
         ...info,
+        // @TODO Aiden let's drop description. We do not use it. categories should just be Record<string, string>
         categories: {
           all: {
             name: 'All',
             description: {
-              short: 'All services',
-              long: 'An unfiltered list of all services available on this registry.',
+              short: '',
+              long: '',
             },
           },
           ...info.categories,

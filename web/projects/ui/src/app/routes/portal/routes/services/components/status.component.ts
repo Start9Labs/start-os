@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  Input,
+} from '@angular/core'
+import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiLoader } from '@taiga-ui/core'
 import { getProgressText } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
@@ -11,20 +17,20 @@ import {
 @Component({
   selector: 'service-status',
   template: `
-    <header>Status</header>
+    <header>{{ 'Status' | i18n }}</header>
     <div>
       @if (installingInfo) {
         <h3>
           <tui-loader size="s" [inheritColor]="true" />
-          Installing
+          {{ 'Installing' | i18n }}
           <span class="loading-dots"></span>
-          {{ getText(installingInfo.progress.overall) }}
+          {{ getText(installingInfo.progress.overall) | i18n }}
         </h3>
       } @else {
         <h3 [class]="class">
-          {{ text }}
-          @if (text === 'Action Required') {
-            <small>See below</small>
+          {{ text | i18n }}
+          @if (text === 'Task Required') {
+            <small>{{ 'See below' | i18n }}</small>
           }
 
           @if (rendering?.showDots) {
@@ -90,7 +96,7 @@ import {
   host: { class: 'g-card' },
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiLoader],
+  imports: [TuiLoader, i18nPipe],
 })
 export class ServiceStatusComponent {
   @Input({ required: true })
@@ -102,8 +108,10 @@ export class ServiceStatusComponent {
   @Input()
   connected = false
 
-  get text() {
-    return this.connected ? this.rendering?.display : 'Unknown'
+  private readonly i18n = inject(i18nPipe)
+
+  get text(): i18nKey {
+    return this.connected ? this.rendering?.display || 'Unknown' : 'Unknown'
   }
 
   get class(): string | null {
@@ -127,7 +135,7 @@ export class ServiceStatusComponent {
     return this.status && PrimaryRendering[this.status]
   }
 
-  getText(progress: T.Progress): string {
+  getText(progress: T.Progress): i18nKey {
     return getProgressText(progress)
   }
 }

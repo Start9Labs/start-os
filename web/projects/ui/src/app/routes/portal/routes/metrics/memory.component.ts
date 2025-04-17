@@ -8,15 +8,16 @@ import { TuiProgress } from '@taiga-ui/kit'
 import { ServerMetrics } from 'src/app/services/api/api.types'
 import { DataComponent } from './data.component'
 import { ValuePipe } from './value.pipe'
+import { i18nKey } from '@start9labs/shared'
 
-const LABELS = {
-  percentageUsed: 'Percentage Used',
+const LABELS: Record<string, i18nKey> = {
+  percentageUsed: 'Percentage used',
   total: 'Total',
   used: 'Used',
   available: 'Available',
-  zramUsed: 'zram Used',
-  zramTotal: 'zram Total',
-  zramAvailable: 'zram Available',
+  zramUsed: 'zram used',
+  zramTotal: 'zram total',
+  zramAvailable: 'zram available',
 }
 
 @Component({

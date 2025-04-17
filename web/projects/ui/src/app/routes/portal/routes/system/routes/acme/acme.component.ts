@@ -1,15 +1,9 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
 import { ISB, utils } from '@start9labs/start-sdk'
-import {
-  TuiButton,
-  TuiIcon,
-  TuiLink,
-  TuiLoader,
-  TuiTitle,
-} from '@taiga-ui/core'
+import { TuiButton, TuiLink, TuiLoader, TuiTitle } from '@taiga-ui/core'
 import { TuiCell, TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs'
@@ -24,15 +18,19 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 @Component({
   template: `
     <ng-container *title>
-      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
+      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+        {{ 'Back' | i18n }}
+      </a>
       ACME
     </ng-container>
     <header tuiHeader>
       <hgroup tuiTitle>
         <h3>ACME</h3>
         <p tuiSubtitle>
-          Add ACME providers in order to generate SSL (https) certificates for
-          clearnet access.
+          {{
+            'Add ACME providers in order to generate SSL (https) certificates for clearnet access.'
+              | i18n
+          }}
           <a
             tuiLink
             href="https://docs.start9.com/latest/user-manual/acme"
@@ -41,14 +39,14 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
             appearance="action-grayscale"
             iconEnd="@tui.external-link"
             [pseudo]="true"
-            [textContent]="'View instructions'"
+            [textContent]="'View instructions' | i18n"
           ></a>
         </p>
       </hgroup>
     </header>
     <section class="g-card">
       <header>
-        Saved Providers
+        {{ 'Saved Providers' | i18n }}
         @if (acme(); as value) {
           <button
             tuiButton
@@ -57,7 +55,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
             [style.margin-inline-start]="'auto'"
             (click)="addAcme(value)"
           >
-            Add Provider
+            {{ 'Add Provider' | i18n }}
           </button>
         }
       </header>
@@ -66,7 +64,9 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
           <div tuiCell>
             <span tuiTitle>
               <strong>{{ toAcmeName(provider.url) }}</strong>
-              <span tuiSubtitle>Contact: {{ provider.contactString }}</span>
+              <span tuiSubtitle>
+                {{ 'Contact' | i18n }}: {{ provider.contactString }}
+              </span>
             </span>
             <button
               tuiIconButton
@@ -74,7 +74,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
               appearance="icon"
               (click)="editAcme(provider.url, provider.contact)"
             >
-              Edit
+              {{ 'Edit' | i18n }}
             </button>
             <button
               tuiIconButton
@@ -82,7 +82,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
               appearance="icon"
               (click)="removeAcme(provider.url)"
             >
-              Edit
+              {{ 'Edit' | i18n }}
             </button>
           </div>
         }
@@ -107,6 +107,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
     TuiLink,
     RouterLink,
     TitleDirective,
+    i18nPipe,
   ],
 })
 export default class SystemAcmeComponent {
@@ -115,6 +116,7 @@ export default class SystemAcmeComponent {
   private readonly errorService = inject(ErrorService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)
+  private readonly i18n = inject(i18nPipe)
 
   acme = toSignal(
     this.patch.watch$('serverInfo', 'network', 'acme').pipe(
@@ -146,13 +148,13 @@ export default class SystemAcmeComponent {
       label: 'Add ACME Provider',
       data: {
         spec: await configBuilderToSpec(
-          getAddAcmeSpec(providers.map(p => p.url)),
+          this.addAcmeSpec(providers.map(p => p.url)),
         ),
         buttons: [
           {
-            text: 'Save',
+            text: this.i18n.transform('Save'),
             handler: async (
-              val: ReturnType<typeof getAddAcmeSpec>['_TYPE'],
+              val: ReturnType<typeof this.addAcmeSpec>['_TYPE'],
             ) => {
               const providerUrl =
                 val.provider.selection === 'other'
@@ -171,12 +173,13 @@ export default class SystemAcmeComponent {
     this.formDialog.open(FormComponent, {
       label: 'Edit ACME Provider',
       data: {
-        spec: await configBuilderToSpec(editAcmeSpec),
+        spec: await configBuilderToSpec(this.editAcmeSpec()),
         buttons: [
           {
-            text: 'Save',
-            handler: async (val: typeof editAcmeSpec._TYPE) =>
-              this.saveAcme(provider, val.contact),
+            text: this.i18n.transform('Save'),
+            handler: async (
+              val: ReturnType<typeof this.editAcmeSpec>['_TYPE'],
+            ) => this.saveAcme(provider, val.contact),
           },
         ],
         value: { contact },
@@ -213,58 +216,68 @@ export default class SystemAcmeComponent {
       loader.unsubscribe()
     }
   }
-}
 
-const emailListSpec = ISB.Value.list(
-  ISB.List.text(
-    {
-      name: 'Contact Emails',
-      description:
-        'Needed to obtain a certificate from a Certificate Authority',
-      minLength: 1,
-    },
-    {
-      inputmode: 'email',
-      patterns: [utils.Patterns.email],
-    },
-  ),
-)
+  private addAcmeSpec(providers: string[]) {
+    const availableAcme = knownACME.filter(
+      acme => !providers.includes(acme.url),
+    )
 
-function getAddAcmeSpec(providers: string[]) {
-  const availableAcme = knownACME.filter(acme => !providers.includes(acme.url))
-
-  return ISB.InputSpec.of({
-    provider: ISB.Value.union(
-      { name: 'Provider', default: (availableAcme[0]?.url as any) || 'other' },
-      ISB.Variants.of({
-        ...availableAcme.reduce(
-          (obj, curr) => ({
-            ...obj,
-            [curr.url]: {
-              name: curr.name,
-              spec: ISB.InputSpec.of({}),
-            },
-          }),
-          {},
-        ),
-        other: {
-          name: 'Other',
-          spec: ISB.InputSpec.of({
-            url: ISB.Value.text({
-              name: 'URL',
-              default: null,
-              required: true,
-              inputmode: 'url',
-              patterns: [utils.Patterns.url],
-            }),
-          }),
+    return ISB.InputSpec.of({
+      provider: ISB.Value.union(
+        {
+          name: 'Provider',
+          default: (availableAcme[0]?.url as any) || 'other',
         },
-      }),
-    ),
-    contact: emailListSpec,
-  })
-}
+        ISB.Variants.of({
+          ...availableAcme.reduce(
+            (obj, curr) => ({
+              ...obj,
+              [curr.url]: {
+                name: curr.name,
+                spec: ISB.InputSpec.of({}),
+              },
+            }),
+            {},
+          ),
+          other: {
+            name: 'Other',
+            spec: ISB.InputSpec.of({
+              url: ISB.Value.text({
+                name: 'URL',
+                default: null,
+                required: true,
+                inputmode: 'url',
+                patterns: [utils.Patterns.url],
+              }),
+            }),
+          },
+        }),
+      ),
+      contact: this.emailListSpec(),
+    })
+  }
 
-const editAcmeSpec = ISB.InputSpec.of({
-  contact: emailListSpec,
-})
+  private editAcmeSpec() {
+    return ISB.InputSpec.of({
+      contact: this.emailListSpec(),
+    })
+  }
+
+  private emailListSpec() {
+    return ISB.Value.list(
+      ISB.List.text(
+        {
+          name: this.i18n.transform('Contact Emails')!,
+          description: this.i18n.transform(
+            'Needed to obtain a certificate from a Certificate Authority',
+          ),
+          minLength: 1,
+        },
+        {
+          inputmode: 'email',
+          patterns: [utils.Patterns.email],
+        },
+      ),
+    )
+  }
+}

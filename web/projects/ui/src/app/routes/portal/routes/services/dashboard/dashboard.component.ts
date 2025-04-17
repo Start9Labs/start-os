@@ -9,20 +9,29 @@ import { TitleDirective } from 'src/app/services/title.service'
 import { getManifest } from 'src/app/utils/get-package-data'
 import { ServiceComponent } from './service.component'
 import { ServicesService } from './services.service'
+import { i18nPipe } from '@start9labs/shared'
 
 @Component({
   standalone: true,
   template: `
-    <ng-container *title>Services</ng-container>
+    <ng-container *title>{{ 'Services' | i18n }}</ng-container>
     <table tuiTable class="g-table" [(sorter)]="sorter">
       <thead>
         <tr>
           <th [style.width.rem]="3"></th>
-          <th tuiTh [requiredSort]="true" [sorter]="name">Name</th>
-          <th tuiTh>Version</th>
-          <th tuiTh [requiredSort]="true" [sorter]="uptime">Uptime</th>
-          <th tuiTh [requiredSort]="true" [sorter]="status">Status</th>
-          <th [style.width.rem]="8" [style.text-indent.rem]="1.5">Controls</th>
+          <th tuiTh [requiredSort]="true" [sorter]="name">
+            {{ 'Name' | i18n }}
+          </th>
+          <th tuiTh>{{ 'Version' | i18n }}</th>
+          <th tuiTh [requiredSort]="true" [sorter]="uptime">
+            {{ 'Uptime' | i18n }}
+          </th>
+          <th tuiTh [requiredSort]="true" [sorter]="status">
+            {{ 'Status' | i18n }}
+          </th>
+          <th [style.width.rem]="8" [style.text-indent.rem]="1.5">
+            {{ 'Controls' | i18n }}
+          </th>
         </tr>
       </thead>
       <tbody>
@@ -35,7 +44,11 @@ import { ServicesService } from './services.service'
         } @empty {
           <tr>
             <td colspan="6">
-              {{ services() ? 'No services installed' : 'Loading...' }}
+              {{
+                services()
+                  ? ('No services installed' | i18n)
+                  : ('Loading' | i18n)
+              }}
             </td>
           </tr>
         }
@@ -54,7 +67,13 @@ import { ServicesService } from './services.service'
     }
   `,
   host: { class: 'g-page' },
-  imports: [ServiceComponent, ToManifestPipe, TuiTable, TitleDirective],
+  imports: [
+    ServiceComponent,
+    ToManifestPipe,
+    TuiTable,
+    TitleDirective,
+    i18nPipe,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class DashboardComponent {
