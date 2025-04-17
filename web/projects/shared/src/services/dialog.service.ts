@@ -3,14 +3,12 @@ import {
   TuiResponsiveDialogOptions,
   TuiResponsiveDialogService,
 } from '@taiga-ui/addon-mobile'
-import {
-  PROMPT,
-  PromptOptions,
-} from '../../../ui/src/app/routes/portal/modals/prompt.component'
-import { i18nKey, i18nPipe } from '@start9labs/shared'
+import { TuiAlertOptions } from '@taiga-ui/core'
 import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { TuiAlertOptions } from '@taiga-ui/core'
+import { PROMPT, PromptOptions } from '../components/prompt.component'
+import { i18nPipe } from '../i18n/i18n.pipe'
+import { i18nKey } from '../i18n/i18n.providers'
 
 @Injectable({
   providedIn: 'root',

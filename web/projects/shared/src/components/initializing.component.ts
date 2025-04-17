@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { TuiProgress } from '@taiga-ui/kit'
 import { LogsWindowComponent } from './logs-window.component'
-import { i18nPipe } from '@start9labs/shared'
+import { i18nPipe } from '../i18n/i18n.pipe'
 
 @Component({
   standalone: true,

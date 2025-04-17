@@ -5,7 +5,7 @@ import {
   tuiLanguageSwitcher,
   TuiLanguageSwitcherService,
 } from '@taiga-ui/i18n'
-import ENGLISH from './dictionaries/english'
+import { ENGLISH } from './dictionaries/english'
 import { i18nService } from './i18n.service'
 
 export type i18nKey = keyof typeof ENGLISH

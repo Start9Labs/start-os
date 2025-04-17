@@ -1,5 +1,5 @@
 // prettier-ignore
-export default {
+export const ENGLISH = {
   'Change': 1, // verb
   'Update': 2, // verb
   'Reset': 3, // verb
