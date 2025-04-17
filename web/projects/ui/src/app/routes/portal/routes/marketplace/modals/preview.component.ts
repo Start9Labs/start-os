@@ -226,7 +226,7 @@ export class MarketplacePreviewComponent {
     this.router.navigate([], { queryParams: { id } })
   }
 
-  onStatic(type: 'License' | 'Instructions') {
+  onStatic(type: 'license' | 'instructions') {
     // @TODO Alex need to display License or Instructions. This requires an API request, check out next/minor
   }
 

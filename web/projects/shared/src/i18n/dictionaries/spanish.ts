@@ -274,7 +274,7 @@ export default {
   271: 'No proporcionado',
   272: 'Enlaces',
   273: 'Hash de Git',
-  274: 'Licencia',
+  274: 'licencia',
   275: 'Instalado desde',
   276: 'Repositorio del servicio',
   277: 'Repositorio del paquete',
@@ -487,4 +487,5 @@ export default {
   484: 'Actualiza la página. Si actualizar no funciona, puede que necesites cerrar y volver a abrir tu navegador, y luego volver a esta página.',
   485: 'Interfaz de StartOS',
   486: 'WiFi',
+  487: 'Instrucciones',
 } as any satisfies i18n

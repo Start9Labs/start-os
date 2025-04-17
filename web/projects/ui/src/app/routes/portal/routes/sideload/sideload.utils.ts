@@ -41,7 +41,7 @@ async function parseS9pk(file: File): Promise<MarketplacePkgSideload> {
     icon: await s9pk.icon(),
     sourceVersion: s9pk.manifest.canMigrateFrom,
     flavor: ExtendedVersion.parse(s9pk.manifest.version).flavor,
-    license: await s9pk.license(),
+    fullLicense: await s9pk.license(),
     instructions: await s9pk.instructions(),
   }
 }
@@ -77,6 +77,6 @@ function compare(a: Uint8Array, b: Uint8Array) {
 }
 
 export type MarketplacePkgSideload = MarketplacePkgBase & {
-  license: string
   instructions: string
+  fullLicense: string
 }

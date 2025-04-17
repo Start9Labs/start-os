@@ -274,7 +274,7 @@ export default {
   271: 'Nicht angegeben',
   272: 'Links',
   273: 'Git-Hash',
-  274: 'Lizenz',
+  274: 'lizenz',
   275: 'Installiert von',
   276: 'Dienst-Repository',
   277: 'Paket-Repository',
@@ -487,4 +487,5 @@ export default {
   484: 'Laden Sie die Seite neu. Wenn das nicht funktioniert, beenden Sie Ihren Browser und öffnen Sie ihn erneut, um diese Seite erneut zu besuchen.',
   485: 'StartOS-Benutzeroberfläche',
   486: 'WiFi',
+  487: 'Anleitungen',
 } satisfies i18n

@@ -34,7 +34,7 @@ export interface AdditionalItem {
     target: '_blank',
     '[class._disabled]': 'disabled',
     '[attr.href]':
-      'additionalItem.description.startsWith("http") ? additionalItem.description : null',
+      'additionalItem.value.startsWith("http") ? additionalItem.value : null',
   },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
