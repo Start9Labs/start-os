@@ -7,9 +7,10 @@ import {
 import { TuiProgress } from '@taiga-ui/kit'
 import { ServerMetrics } from 'src/app/services/api/api.types'
 import { DataComponent } from './data.component'
+import { i18nKey } from '@start9labs/shared'
 
-const LABELS = {
-  percentageUsed: 'Percentage Used',
+const LABELS: Record<string, i18nKey> = {
+  percentageUsed: 'Percentage used',
   capacity: 'Capacity',
   used: 'Used',
   available: 'Available',

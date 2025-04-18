@@ -1,7 +1,6 @@
 import { inject, Injectable, signal } from '@angular/core'
 import { TuiLanguageName, TuiLanguageSwitcherService } from '@taiga-ui/i18n'
-import { I18N, I18N_LOADER } from './i18n.providers'
-import { ApiService } from '../services/api/embassy-api.service'
+import { I18N, I18N_LOADER, I18N_STORAGE } from './i18n.providers'
 
 @Injectable({
   providedIn: 'root',
@@ -9,7 +8,7 @@ import { ApiService } from '../services/api/embassy-api.service'
 export class i18nService extends TuiLanguageSwitcherService {
   private readonly i18n = inject(I18N)
   private readonly i18nLoader = inject(I18N_LOADER)
-  private readonly api = inject(ApiService)
+  private readonly store = inject(I18N_STORAGE)
 
   readonly loading = signal(false)
 
@@ -20,7 +19,7 @@ export class i18nService extends TuiLanguageSwitcherService {
 
     super.setLanguage(language)
     this.loading.set(true)
-    this.api.setDbValue(['language'], language).then(() =>
+    this.store(language).then(() =>
       this.i18nLoader(language).then(value => {
         this.i18n.set(value)
         this.loading.set(false)
@@ -28,3 +27,6 @@ export class i18nService extends TuiLanguageSwitcherService {
     )
   }
 }
+
+export const languages = ['english', 'spanish', 'polish', 'german'] as const
+export type Languages = (typeof languages)[number]

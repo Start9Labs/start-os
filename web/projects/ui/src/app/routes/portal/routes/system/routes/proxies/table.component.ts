@@ -159,7 +159,7 @@ export class ProxiesTableComponent {
       .open(TUI_CONFIRM, DELETE_OPTIONS)
       .pipe(filter(Boolean))
       .subscribe(async () => {
-        const loader = this.loader.open('Deleting...').subscribe()
+        const loader = this.loader.open('Deleting').subscribe()
 
         try {
           await this.api.deleteProxy({ id })
@@ -191,7 +191,7 @@ export class ProxiesTableComponent {
   }
 
   private async update(value: ProxyUpdate): Promise<boolean> {
-    const loader = this.loader.open('Saving...').subscribe()
+    const loader = this.loader.open('Saving').subscribe()
 
     try {
       await this.api.updateProxy(value)

@@ -4,23 +4,21 @@ import {
   inject,
   input,
 } from '@angular/core'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import {
+  DialogService,
+  ErrorService,
+  i18nPipe,
+  LoadingService,
+} from '@start9labs/shared'
 import { ISB, utils } from '@start9labs/start-sdk'
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import {
   TuiAppearance,
   TuiButton,
-  TuiDialogOptions,
   TuiIcon,
   TuiLink,
   TuiOption,
 } from '@taiga-ui/core'
-import {
-  TUI_CONFIRM,
-  TuiFade,
-  TuiFluidTypography,
-  TuiTooltip,
-} from '@taiga-ui/kit'
+import { TuiFade, TuiFluidTypography, TuiTooltip } from '@taiga-ui/kit'
 import { defaultIfEmpty, firstValueFrom } from 'rxjs'
 import {
   FormComponent,
@@ -48,15 +46,17 @@ type OnionForm = {
       Tor
       <tui-icon [tuiTooltip]="tooltip" />
       <ng-template #tooltip>
-        Add an onion address to anonymously expose this interface on the
-        darknet. Onion addresses can only be reached over the Tor network.
+        {{
+          'Add an onion address to anonymously expose this interface on the darknet. Onion addresses can only be reached over the Tor network.'
+            | i18n
+        }}
         <a
           tuiLink
           href="https://docs.start9.com/latest/user-manual/interface-addresses#tor"
           target="_blank"
           rel="noreferrer"
         >
-          Learn More
+          {{ 'Learn More' | i18n }}
         </a>
       </ng-template>
       @if (tor().length) {
@@ -66,12 +66,12 @@ type OnionForm = {
           [style.margin-inline-start]="'auto'"
           (click)="add()"
         >
-          Add
+          {{ 'Add' | i18n }}
         </button>
       }
     </header>
     @if (tor().length) {
-      <table [appTable]="['Protocol', 'URL', '']">
+      <table [appTable]="['Protocol', 'URL', null]">
         @for (address of tor(); track $index) {
           <tr>
             <td [style.width.rem]="12">{{ address.label }}</td>
@@ -87,7 +87,7 @@ type OnionForm = {
                 [style.margin-inline-end.rem]="0.5"
                 (click)="remove(address)"
               >
-                Delete
+                {{ 'Delete' | i18n }}
               </button>
               <button
                 tuiOption
@@ -95,7 +95,7 @@ type OnionForm = {
                 iconStart="@tui.trash"
                 (click)="remove(address)"
               >
-                Delete
+                {{ 'Delete' | i18n }}
               </button>
             </td>
           </tr>
@@ -103,8 +103,10 @@ type OnionForm = {
       </table>
     } @else {
       <app-placeholder icon="@tui.app-window">
-        No Tor addresses available
-        <button tuiButton iconStart="@tui.plus" (click)="add()">Add</button>
+        {{ 'No onion addresses' | i18n }}
+        <button tuiButton iconStart="@tui.plus" (click)="add()">
+          {{ 'Add' | i18n }}
+        </button>
       </app-placeholder>
     }
   `,
@@ -128,23 +130,25 @@ type OnionForm = {
     InterfaceActionsComponent,
     TuiFade,
     TuiFluidTypography,
+    i18nPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InterfaceTorComponent {
-  private readonly dialogs = inject(TuiResponsiveDialogService)
+  private readonly dialog = inject(DialogService)
   private readonly formDialog = inject(FormDialogService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
   private readonly interface = inject(InterfaceComponent)
+  private readonly i18n = inject(i18nPipe)
 
   readonly tor = input.required<readonly AddressDetails[]>()
 
   async remove({ url }: AddressDetails) {
     const confirm = await firstValueFrom(
-      this.dialogs
-        .open(TUI_CONFIRM, { label: 'Are you sure?', size: 's' })
+      this.dialog
+        .openConfirm({ label: 'Are you sure?', size: 's' })
         .pipe(defaultIfEmpty(false)),
     )
 
@@ -175,15 +179,16 @@ export class InterfaceTorComponent {
   }
 
   async add() {
-    const options: Partial<TuiDialogOptions<FormContext<OnionForm>>> = {
-      label: 'New Tor Address',
+    this.formDialog.open<FormContext<OnionForm>>(FormComponent, {
+      label: 'New Onion Address',
       data: {
         spec: await configBuilderToSpec(
           ISB.InputSpec.of({
             key: ISB.Value.text({
-              name: 'Private Key (optional)',
-              description:
+              name: this.i18n.transform('Private Key (optional)')!,
+              description: this.i18n.transform(
                 'Optionally provide a base64-encoded ed25519 private key for generating the Tor V3 (.onion) address. If not provided, a random key will be generated and used.',
+              ),
               required: false,
               default: null,
               patterns: [utils.Patterns.base64],
@@ -192,17 +197,16 @@ export class InterfaceTorComponent {
         ),
         buttons: [
           {
-            text: 'Save',
+            text: this.i18n.transform('Save')!,
             handler: async value => this.save(value),
           },
         ],
       },
-    }
-    this.formDialog.open(FormComponent, options)
+    })
   }
 
   private async save(form: OnionForm): Promise<boolean> {
-    const loader = this.loader.open('Saving...').subscribe()
+    const loader = this.loader.open('Saving').subscribe()
 
     try {
       let onion = form.key

@@ -3,7 +3,7 @@ import { TuiLet } from '@taiga-ui/cdk'
 import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
 import { TuiHeader } from '@taiga-ui/layout'
 import { from, map, merge, Observable, Subject } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -15,25 +15,27 @@ import { SessionsTableComponent } from './table.component'
   template: `
     <ng-container *title>
       <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
-      Active Sessions
+      {{ 'Active Sessions' | i18n }}
     </ng-container>
     <header tuiHeader>
       <hgroup tuiTitle>
-        <h3>Active Sessions</h3>
+        <h3>{{ 'Active Sessions' | i18n }}</h3>
         <p tuiSubtitle>
-          A session is a device that is currently logged into StartOS. For best
-          security, terminate sessions you do not recognize or no longer use.
+          {{
+            'A session is a device that is currently logged into StartOS. For best security, terminate sessions you do not recognize or no longer use.'
+              | i18n
+          }}
         </p>
       </hgroup>
     </header>
     <section class="g-card">
-      <header>Current session</header>
+      <header>{{ 'Current session' | i18n }}</header>
       <div [single]="true" [sessions]="current$ | async"></div>
     </section>
 
     <section *tuiLet="other$ | async as others" class="g-card">
       <header>
-        Other sessions
+        {{ 'Other sessions' | i18n }}
         @if (table.selected$ | async; as selected) {
           <button
             tuiButton
@@ -43,7 +45,7 @@ import { SessionsTableComponent } from './table.component'
             [disabled]="!selected.length"
             (click)="terminate(selected, others || [])"
           >
-            Terminate selected
+            {{ 'Terminate selected' | i18n }}
           </button>
         }
       </header>
@@ -61,6 +63,7 @@ import { SessionsTableComponent } from './table.component'
     TitleDirective,
     TuiHeader,
     TuiTitle,
+    i18nPipe,
   ],
 })
 export default class SystemSessionsComponent {
@@ -101,9 +104,7 @@ export default class SystemSessionsComponent {
     all: readonly SessionWithId[],
   ) {
     const ids = sessions.map(s => s.id)
-    const loader = this.loader
-      .open(`Terminating session${ids.length > 1 ? 's' : ''}...`)
-      .subscribe()
+    const loader = this.loader.open('Terminating sessions').subscribe()
 
     try {
       await this.api.killSessions({ ids })

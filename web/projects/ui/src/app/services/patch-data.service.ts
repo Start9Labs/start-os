@@ -7,7 +7,7 @@ import { EOSService } from 'src/app/services/eos.service'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { LocalStorageBootstrap } from './patch-db/local-storage-bootstrap'
 
-// Get data from PatchDb after is starts and act upon it
+// @TODO Alex this file has just become checking for StartOS updates. Maybe it can be removed/simplified. I'm not sure why getMarketplace$() line is commented out, I assume we are checking for service updates somewhere else?
 @Injectable({
   providedIn: 'root',
 })
@@ -19,7 +19,6 @@ export class PatchDataService extends Observable<void> {
       this.bootstrapper.update(cache)
 
       if (index === 0) {
-        // check for updates to StartOS and services
         this.checkForUpdates()
       }
     }),

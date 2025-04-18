@@ -13,23 +13,24 @@ import { StorageComponent } from './storage.component'
 import { TemperatureComponent } from './temperature.component'
 import { TimeComponent } from './time.component'
 import { UptimeComponent } from './uptime.component'
+import { i18nPipe } from '@start9labs/shared'
 
 @Component({
   standalone: true,
   selector: 'app-metrics',
   template: `
-    <ng-container *title>Metrics</ng-container>
+    <ng-container *title>{{ 'Metrics' | i18n }}</ng-container>
     <div>
       <section class="g-card">
-        <header>System Time</header>
+        <header>{{ 'System Time' | i18n }}</header>
         <metrics-time />
       </section>
       <section class="g-card">
-        <header>Uptime</header>
+        <header>{{ 'Uptime' | i18n }}</header>
         <metrics-uptime />
       </section>
       <section class="g-card">
-        <header>Temperature</header>
+        <header>{{ 'Temperature' | i18n }}</header>
         <metrics-temperature [value]="temperature()" />
       </section>
       <section class="g-card">
@@ -37,11 +38,11 @@ import { UptimeComponent } from './uptime.component'
         <metrics-cpu [value]="metrics()?.cpu" />
       </section>
       <section class="g-card">
-        <header>Memory</header>
+        <header>{{ 'Memory' | i18n }}</header>
         <metrics-memory [value]="metrics()?.memory" />
       </section>
       <section class="g-card">
-        <header>Storage</header>
+        <header>{{ 'Storage' | i18n }}</header>
         <metrics-storage [value]="metrics()?.disk" />
       </section>
     </div>
@@ -93,6 +94,7 @@ import { UptimeComponent } from './uptime.component'
     MemoryComponent,
     UptimeComponent,
     TimeComponent,
+    i18nPipe,
   ],
 })
 export default class SystemMetricsComponent {

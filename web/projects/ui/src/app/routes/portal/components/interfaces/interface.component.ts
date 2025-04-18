@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, Input } from '@angular/core'
+import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 import { tuiButtonOptionsProvider } from '@taiga-ui/core'
 import { InterfaceClearnetComponent } from 'src/app/routes/portal/components/interfaces/clearnet.component'
 import { InterfaceLocalComponent } from 'src/app/routes/portal/components/interfaces/local.component'

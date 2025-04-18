@@ -1,20 +1,22 @@
 import { Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import * as argon2 from '@start9labs/argon2'
-import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
+import {
+  DialogService,
+  ErrorService,
+  i18nPipe,
+  LoadingService,
+} from '@start9labs/shared'
 import { TuiButton, TuiGroup, TuiLoader, TuiTitle } from '@taiga-ui/core'
 import { TuiBlock, TuiCheckbox } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom, map } from 'rxjs'
-import { PROMPT } from 'src/app/routes/portal/modals/prompt.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
 import { getServerInfo } from 'src/app/utils/get-server-info'
 import { verifyPassword } from 'src/app/utils/verify-password'
-import { PASSWORD_OPTIONS } from './backup.const'
 import { BackupService } from './backup.service'
 import { BackupContext } from './backup.types'
 
@@ -43,7 +45,7 @@ interface Package {
             />
           </label>
         } @empty {
-          No services installed!
+          {{ 'No services installed' | i18n }}
         }
       } @else {
         <tui-loader />
@@ -51,10 +53,10 @@ interface Package {
     </div>
     <footer class="g-buttons">
       <button tuiButton appearance="flat-grayscale" (click)="toggleSelectAll()">
-        Toggle all
+        {{ 'Toggle all' | i18n }}
       </button>
       <button tuiButton [disabled]="!hasSelection" (click)="done()">
-        Done
+        {{ 'Done' | i18n }}
       </button>
     </footer>
   `,
@@ -84,10 +86,11 @@ interface Package {
     TuiBlock,
     TuiCheckbox,
     TuiTitle,
+    i18nPipe,
   ],
 })
 export class BackupsBackupComponent {
-  private readonly dialogs = inject(TuiResponsiveDialogService)
+  private readonly dialog = inject(DialogService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
@@ -126,8 +129,17 @@ export class BackupsBackupComponent {
     const { passwordHash, id } = await getServerInfo(this.patch)
     const { entry } = this.context.data
 
-    this.dialogs
-      .open<string>(PROMPT, PASSWORD_OPTIONS)
+    this.dialog
+      .openPrompt<string>({
+        label: 'Master Password Needed',
+        data: {
+          message: 'Enter your master password to encrypt this backup.',
+          label: 'Master Password',
+          placeholder: 'Enter master password',
+          useMask: true,
+          buttonText: 'Create Backup',
+        },
+      })
       .pipe(verifyPassword(passwordHash, e => this.errorService.handleError(e)))
       .subscribe(async password => {
         // first time backup
@@ -158,8 +170,18 @@ export class BackupsBackupComponent {
     const { id } = await getServerInfo(this.patch)
     const { passwordHash = '' } = this.context.data.entry.startOs[id] || {}
 
-    this.dialogs
-      .open<string>(PROMPT, PASSWORD_OPTIONS)
+    this.dialog
+      .openPrompt<string>({
+        label: 'Original Password Needed',
+        data: {
+          message:
+            'This backup was created with a different password. Enter the original password that was used to encrypt this backup.',
+          label: 'Original Password',
+          placeholder: 'Enter original password',
+          useMask: true,
+          buttonText: 'Create Backup',
+        },
+      })
       .pipe(verifyPassword(passwordHash, e => this.errorService.handleError(e)))
       .subscribe(oldPassword => this.createBackup(password, oldPassword))
   }
@@ -168,7 +190,7 @@ export class BackupsBackupComponent {
     password: string,
     oldPassword: string | null = null,
   ) {
-    const loader = this.loader.open('Beginning backup...').subscribe()
+    const loader = this.loader.open('Beginning backup').subscribe()
     const packageIds = this.pkgs?.filter(p => p.checked).map(p => p.id) || []
     const params = {
       targetId: this.context.data.id,

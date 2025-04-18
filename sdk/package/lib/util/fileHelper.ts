@@ -153,7 +153,7 @@ export class FileHelper<A> {
   }
 
   private async readConst(effects: T.Effects): Promise<A | null> {
-    const watch = this.readWatch()
+    const watch = this.readWatch(effects)
     const res = await watch.next()
     if (effects.constRetry) {
       if (!this.consts.includes(effects.constRetry))
@@ -166,9 +166,9 @@ export class FileHelper<A> {
     return res.value
   }
 
-  private async *readWatch() {
+  private async *readWatch(effects: T.Effects) {
     let res
-    while (true) {
+    while (effects.isInContext) {
       if (await exists(this.path)) {
         const ctrl = new AbortController()
         const watch = fs.watch(this.path, {
@@ -195,10 +195,11 @@ export class FileHelper<A> {
   }
 
   private readOnChange(
+    effects: T.Effects,
     callback: (value: A | null, error?: Error) => void | Promise<void>,
   ) {
     ;(async () => {
-      for await (const value of this.readWatch()) {
+      for await (const value of this.readWatch(effects)) {
         try {
           await callback(value)
         } catch (e) {
@@ -222,10 +223,11 @@ export class FileHelper<A> {
     return {
       once: () => this.readOnce(),
       const: (effects: T.Effects) => this.readConst(effects),
-      watch: () => this.readWatch(),
+      watch: (effects: T.Effects) => this.readWatch(effects),
       onChange: (
+        effects: T.Effects,
         callback: (value: A | null, error?: Error) => void | Promise<void>,
-      ) => this.readOnChange(callback),
+      ) => this.readOnChange(effects, callback),
     }
   }
 

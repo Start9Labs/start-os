@@ -4,7 +4,7 @@ import { Component, Inject, DestroyRef, inject } from '@angular/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { ConfigService } from 'src/app/services/config.service'
-import { LoadingService } from '@start9labs/shared'
+import { i18nKey, LoadingService } from '@start9labs/shared'
 import { DOCUMENT } from '@angular/common'
 
 @Component({
@@ -15,7 +15,7 @@ import { DOCUMENT } from '@angular/common'
 })
 export class LoginPage {
   password = ''
-  error = ''
+  error: i18nKey | null = null
 
   constructor(
     private readonly router: Router,
@@ -27,10 +27,10 @@ export class LoginPage {
   ) {}
 
   async submit() {
-    this.error = ''
+    this.error = null
 
     const loader = this.loader
-      .open('Logging in...')
+      .open('Logging in')
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe()
 
@@ -50,7 +50,7 @@ export class LoginPage {
       this.router.navigate([''], { replaceUrl: true })
     } catch (e: any) {
       // code 7 is for incorrect password
-      this.error = e.code === 7 ? 'Invalid Password' : e.message
+      this.error = e.code === 7 ? 'Invalid password' : (e.message as i18nKey)
     } finally {
       loader.unsubscribe()
     }

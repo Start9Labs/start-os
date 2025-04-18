@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { RouterLink, RouterLinkActive } from '@angular/router'
+import { i18nPipe } from '@start9labs/shared'
 import {
   TUI_ANIMATIONS_SPEED,
-  TuiButton,
   tuiFadeIn,
   TuiHint,
   TuiIcon,
@@ -40,7 +40,7 @@ import { getMenu } from 'src/app/utils/system-utilities'
           }
           <tui-icon [icon]="item.icon" />
         </tui-badged-content>
-        <span>{{ item.name }}</span>
+        <span>{{ item.name | i18n }}</span>
       </a>
     }
   `,
@@ -178,11 +178,11 @@ import { getMenu } from 'src/app/utils/system-utilities'
   imports: [
     TuiBadgeNotification,
     TuiBadgedContent,
-    TuiButton,
     RouterLink,
     TuiIcon,
     RouterLinkActive,
     TuiHint,
+    i18nPipe,
   ],
 })
 export class HeaderNavigationComponent {

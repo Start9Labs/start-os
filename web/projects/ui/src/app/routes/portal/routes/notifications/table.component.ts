@@ -12,6 +12,7 @@ import {
   ServerNotifications,
 } from 'src/app/services/api/api.types'
 import { NotificationItemComponent } from './item.component'
+import { i18nPipe } from '@start9labs/shared'
 
 @Component({
   selector: 'table[notifications]',
@@ -29,10 +30,10 @@ import { NotificationItemComponent } from './item.component'
             (ngModelChange)="onAll($event)"
           />
         </th>
-        <th [style.min-width.rem]="12">Date</th>
-        <th [style.min-width.rem]="12">Title</th>
-        <th [style.min-width.rem]="8">Service</th>
-        <th>Message</th>
+        <th [style.min-width.rem]="12">{{ 'Date' | i18n }}</th>
+        <th [style.min-width.rem]="12">{{ 'Title' | i18n }}</th>
+        <th [style.min-width.rem]="8">{{ 'Service' | i18n }}</th>
+        <th>{{ 'Message' | i18n }}</th>
       </tr>
     </thead>
     <tbody>
@@ -53,13 +54,15 @@ import { NotificationItemComponent } from './item.component'
           </tr>
         } @empty {
           <tr>
-            <td colspan="5">You have no notifications</td>
+            <td colspan="5">{{ 'No notifications' | i18n }}</td>
           </tr>
         }
       } @else {
         @for (row of ['', '']; track $index) {
           <tr>
-            <td colspan="5"><div [tuiSkeleton]="true">Loading</div></td>
+            <td colspan="5">
+              <div [tuiSkeleton]="true">{{ 'Loading' | i18n }}</div>
+            </td>
           </tr>
         }
       }
@@ -75,7 +78,13 @@ import { NotificationItemComponent } from './item.component'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [FormsModule, TuiCheckbox, NotificationItemComponent, TuiSkeleton],
+  imports: [
+    FormsModule,
+    TuiCheckbox,
+    NotificationItemComponent,
+    TuiSkeleton,
+    i18nPipe,
+  ],
 })
 export class NotificationsTableComponent implements OnChanges {
   @Input() notifications?: ServerNotifications

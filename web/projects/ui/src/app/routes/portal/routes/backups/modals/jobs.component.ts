@@ -202,7 +202,7 @@ export class BackupsJobsModal implements OnInit {
       .open(TUI_CONFIRM, PROMPT_OPTIONS)
       .pipe(filter(Boolean))
       .subscribe(async () => {
-        const loader = this.loader.open('Deleting...').subscribe()
+        const loader = this.loader.open('Deleting').subscribe()
 
         try {
           await this.api.removeBackupTarget({ id })

@@ -5,6 +5,7 @@ import {
   inject,
   input,
 } from '@angular/core'
+import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
@@ -22,16 +23,20 @@ import { getManifest } from 'src/app/utils/get-package-data'
     </td>
     <td>
       @if (actionRequest().severity === 'critical') {
-        <strong [style.color]="'var(--tui-status-warning)'">Required</strong>
+        <strong [style.color]="'var(--tui-status-warning)'">
+          {{ 'Required' | i18n }}
+        </strong>
       } @else {
-        <strong [style.color]="'var(--tui-status-info)'">Optional</strong>
+        <strong [style.color]="'var(--tui-status-info)'">
+          {{ 'Optional' | i18n }}
+        </strong>
       }
     </td>
     <td
       [style.color]="'var(--tui-text-secondary)'"
       [style.grid-area]="'2 / span 2'"
     >
-      {{ actionRequest().reason || 'No reason provided' }}
+      {{ actionRequest().reason || ('No reason provided' | i18n) }}
     </td>
     <td>
       <button tuiButton (click)="handle()">
@@ -70,7 +75,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, TuiAvatar],
+  imports: [TuiButton, TuiAvatar, i18nPipe],
 })
 export class ServiceActionRequestComponent {
   private readonly actionService = inject(ActionService)

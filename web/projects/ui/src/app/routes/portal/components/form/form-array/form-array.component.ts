@@ -9,17 +9,16 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { AbstractControl, FormArrayName } from '@angular/forms'
 import {
   TUI_ANIMATIONS_SPEED,
-  TuiDialogService,
   tuiFadeIn,
   tuiHeightCollapse,
   tuiParentStop,
   tuiToAnimationOptions,
 } from '@taiga-ui/core'
-import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { filter } from 'rxjs'
 import { IST } from '@start9labs/start-sdk'
 import { FormService } from 'src/app/services/form.service'
 import { ERRORS } from '../form-group/form-group.component'
+import { DialogService, i18nKey } from '@start9labs/shared'
 
 @Component({
   selector: 'form-array',
@@ -39,8 +38,8 @@ export class FormArrayComponent {
 
   private warned = false
   private readonly formService = inject(FormService)
-  private readonly dialogs = inject(TuiDialogService)
   private readonly destroyRef = inject(DestroyRef)
+  private readonly dialog = inject(DialogService)
 
   get canAdd(): boolean {
     return (
@@ -52,11 +51,15 @@ export class FormArrayComponent {
 
   add() {
     if (!this.warned && this.spec.warning) {
-      this.dialogs
-        .open<boolean>(TUI_CONFIRM, {
+      this.dialog
+        .openConfirm<boolean>({
           label: 'Warning',
           size: 's',
-          data: { content: this.spec.warning, yes: 'Ok', no: 'Cancel' },
+          data: {
+            content: this.spec.warning as i18nKey,
+            yes: 'Ok',
+            no: 'Cancel',
+          },
         })
         .pipe(filter(Boolean), takeUntilDestroyed(this.destroyRef))
         .subscribe(() => {
@@ -70,8 +73,8 @@ export class FormArrayComponent {
   }
 
   removeAt(index: number) {
-    this.dialogs
-      .open<boolean>(TUI_CONFIRM, {
+    this.dialog
+      .openConfirm<boolean>({
         label: 'Confirm',
         size: 's',
         data: {

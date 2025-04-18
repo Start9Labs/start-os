@@ -8,8 +8,9 @@ import {
   ViewChild,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
+import { DialogService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { TuiButton, TuiDialogService, TuiTitle } from '@taiga-ui/core'
+import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import {
   TuiInputModule,
   TuiTextfieldComponent,
@@ -50,7 +51,7 @@ import { QrCodeModule } from 'ng-qrcode'
           [style.pointer-events]="'auto'"
           (click)="masked = !masked"
         >
-          Reveal/Hide
+          {{ 'Reveal/Hide' | i18n }}
         </button>
       }
       @if (member.copyable) {
@@ -64,7 +65,7 @@ import { QrCodeModule } from 'ng-qrcode'
           [style.pointer-events]="'auto'"
           (click)="copy()"
         >
-          Copy
+          {{ 'Copy' | i18n }}
         </button>
       }
       @if (member.qr) {
@@ -78,7 +79,7 @@ import { QrCodeModule } from 'ng-qrcode'
           [style.pointer-events]="'auto'"
           (click)="show(qr)"
         >
-          Show QR
+          {{ 'Show QR' | i18n }}
         </button>
       }
     </ng-template>
@@ -96,7 +97,7 @@ import { QrCodeModule } from 'ng-qrcode'
           [style.border-radius.%]="100"
           (click)="masked = false"
         >
-          Reveal
+          {{ 'Reveal' | i18n }}
         </button>
       }
     </ng-template>
@@ -123,12 +124,13 @@ import { QrCodeModule } from 'ng-qrcode'
     TuiButton,
     QrCodeModule,
     TuiTitle,
+    i18nPipe,
   ],
 })
 export class ActionSuccessMemberComponent {
   @ViewChild(TuiTextfieldComponent, { read: ElementRef })
   private readonly input!: ElementRef<HTMLInputElement>
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialog = inject(DialogService)
 
   @Input()
   member!: T.ActionResultMember & { type: 'single' }
@@ -149,8 +151,8 @@ export class ActionSuccessMemberComponent {
     const masked = this.masked
 
     this.masked = this.member.masked
-    this.dialogs
-      .open(template, { label: 'Scan this QR', size: 's' })
+    this.dialog
+      .openComponent(template, { label: 'Scan this QR', size: 's' })
       .subscribe({
         complete: () => (this.masked = masked),
       })

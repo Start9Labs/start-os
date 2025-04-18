@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { SharedPipesModule, TickerModule } from '@start9labs/shared'
-import { TuiLet } from '@taiga-ui/cdk'
+import { SharedPipesModule, TickerComponent } from '@start9labs/shared'
 
 @Component({
   selector: 'marketplace-package-hero',
@@ -142,7 +141,7 @@ import { TuiLet } from '@taiga-ui/cdk'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, SharedPipesModule, TickerModule, TuiLet],
+  imports: [CommonModule, SharedPipesModule, TickerComponent],
 })
 export class MarketplacePackageHeroComponent {
   @Input({ required: true })

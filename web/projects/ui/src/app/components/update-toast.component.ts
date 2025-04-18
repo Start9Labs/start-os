@@ -1,6 +1,6 @@
 import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
 import { TuiAlert, TuiButton } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import {
@@ -21,14 +21,16 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     <ng-template
       [tuiAlert]="!!(visible$ | async)"
       [tuiAlertOptions]="{
-        label: 'StartOS download complete!',
+        label: 'StartOS download complete' | i18n,
         appearance: 'positive',
         autoClose: 0,
       }"
       (tuiAlertChange)="onDismiss()"
     >
-      Restart your server for these updates to take effect. It can take several
-      minutes to come back online.
+      {{
+        'Restart your server for these updates to take effect. It can take several minutes to come back online.'
+          | i18n
+      }}
       <div>
         <button
           tuiButton
@@ -37,13 +39,13 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
           style="margin-top: 8px"
           (click)="restart()"
         >
-          Restart
+          {{ 'Restart' | i18n }}
         </button>
       </div>
     </ng-template>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, TuiAlert, AsyncPipe],
+  imports: [TuiButton, TuiAlert, AsyncPipe, i18nPipe],
 })
 export class UpdateToastComponent {
   private readonly api = inject(ApiService)
@@ -65,7 +67,7 @@ export class UpdateToastComponent {
   async restart(): Promise<void> {
     this.onDismiss()
 
-    const loader = this.loader.open('Restarting...').subscribe()
+    const loader = this.loader.open('Restarting').subscribe()
 
     try {
       await this.api.restartServer({})

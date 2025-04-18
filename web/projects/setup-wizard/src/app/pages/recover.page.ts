@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common'
 import { Component, inject } from '@angular/core'
 import { Router } from '@angular/router'
 import { ErrorService, ServerComponent } from '@start9labs/shared'
@@ -64,7 +63,6 @@ import { StateService } from 'src/app/services/state.service'
     TuiCell,
     TuiIcon,
     TuiTitle,
-    DatePipe,
     ServerComponent,
     PasswordDirective,
   ],

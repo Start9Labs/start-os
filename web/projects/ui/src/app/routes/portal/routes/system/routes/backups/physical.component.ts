@@ -5,8 +5,12 @@ import {
   output,
 } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { UnitConversionPipesModule } from '@start9labs/shared'
-import { TuiAlertService, TuiButton, TuiIcon } from '@taiga-ui/core'
+import {
+  DialogService,
+  i18nPipe,
+  UnitConversionPipesModule,
+} from '@start9labs/shared'
+import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import { TuiTooltip } from '@taiga-ui/kit'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
@@ -19,7 +23,7 @@ import { BackupStatusComponent } from './status.component'
   selector: '[physicalFolders]',
   template: `
     <header>
-      Physical Drives
+      {{ 'Physical Drives' | i18n }}
       <tui-icon [tuiTooltip]="drives" />
       <ng-template #drives><ng-content /></ng-template>
     </header>
@@ -45,13 +49,13 @@ import { BackupStatusComponent } from './status.component'
         <tr>
           <td colspan="4">
             <app-placeholder icon="@tui.save-off">
-              No drives detected
+              {{ 'No drives detected' | i18n }}
               <button
                 tuiButton
                 iconStart="@tui.refresh-cw"
                 (click)="service.getBackupTargets()"
               >
-                Refresh
+                {{ 'Refresh' | i18n }}
               </button>
             </app-placeholder>
           </td>
@@ -115,10 +119,11 @@ import { BackupStatusComponent } from './status.component'
     PlaceholderComponent,
     BackupStatusComponent,
     TableComponent,
+    i18nPipe,
   ],
 })
 export class BackupPhysicalComponent {
-  private readonly alerts = inject(TuiAlertService)
+  private readonly dialog = inject(DialogService)
   private readonly type = inject(ActivatedRoute).snapshot.data['type']
 
   readonly service = inject(BackupService)
@@ -126,8 +131,8 @@ export class BackupPhysicalComponent {
 
   select(target: MappedBackupTarget<DiskBackupTarget>) {
     if (this.type === 'restore' && !target.hasAnyBackup) {
-      this.alerts
-        .open('Drive partition does not contain a valid backup', {
+      this.dialog
+        .openAlert('Drive partition does not contain a valid backup', {
           appearance: 'negative',
         })
         .subscribe()

@@ -1,15 +1,18 @@
 import { AsyncPipe } from '@angular/common'
 import { Component, inject } from '@angular/core'
-import { getErrorMessage } from '@start9labs/shared'
+import {
+  DialogService,
+  getErrorMessage,
+  i18nKey,
+  i18nPipe,
+} from '@start9labs/shared'
 import { T, utils } from '@start9labs/start-sdk'
 import {
   TuiButton,
   TuiDialogContext,
-  TuiDialogService,
   TuiLoader,
   TuiNotification,
 } from '@taiga-ui/core'
-import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit'
 import { injectContext } from '@taiga-ui/polymorpheus'
 import * as json from 'fast-json-patch'
 import { compare } from 'fast-json-patch'
@@ -78,7 +81,7 @@ export type PackageActionData = {
           type="reset"
           [style.margin-right]="'auto'"
         >
-          Reset Defaults
+          {{ 'Reset defaults' | i18n }}
         </button>
       </app-form>
     } @else {
@@ -113,16 +116,18 @@ export type PackageActionData = {
     TuiButton,
     ActionRequestInfoComponent,
     FormComponent,
+    i18nPipe,
   ],
   providers: [InvalidService],
 })
 export class ActionInputModal {
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialog = inject(DialogService)
   private readonly api = inject(ApiService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly actionService = inject(ActionService)
   private readonly context =
     injectContext<TuiDialogContext<void, PackageActionData>>()
+  private readonly i18n = inject(i18nPipe)
 
   readonly actionId = this.context.data.actionInfo.id
   readonly warning = this.context.data.actionInfo.metadata.warning
@@ -198,15 +203,18 @@ export class ActionInputModal {
 
     if (!breakages.length) return true
 
-    const message =
-      'As a result of this change, the following services will no longer work properly and may crash:<ul>'
+    const message = `${this.i18n.transform('As a result of this change, the following services will no longer work properly and may crash')}:<ul>`
     const content = `${message}${breakages.map(
       id => `<li><b>${getManifest(packages[id]!).title}</b></li>`,
-    )}</ul>`
-    const data: TuiConfirmData = { content, yes: 'Continue', no: 'Cancel' }
+    )}</ul>` as i18nKey
 
     return firstValueFrom(
-      this.dialogs.open<boolean>(TUI_CONFIRM, { data }).pipe(endWith(false)),
+      this.dialog
+        .openConfirm<boolean>({
+          label: 'Warning',
+          data: { content, yes: 'Continue', no: 'Cancel' },
+        })
+        .pipe(endWith(false)),
     )
   }
 }

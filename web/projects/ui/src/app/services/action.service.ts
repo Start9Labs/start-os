@@ -1,7 +1,11 @@
 import { inject, Injectable } from '@angular/core'
-import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiDialogService } from '@taiga-ui/core'
-import { TUI_CONFIRM } from '@taiga-ui/kit'
+import {
+  DialogService,
+  ErrorService,
+  i18nKey,
+  i18nPipe,
+  LoadingService,
+} from '@start9labs/shared'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { filter } from 'rxjs'
 import {
@@ -31,10 +35,11 @@ const allowedStatuses = {
 })
 export class ActionService {
   private readonly api = inject(ApiService)
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialog = inject(DialogService)
   private readonly errorService = inject(ErrorService)
   private readonly loader = inject(LoadingService)
   private readonly formDialog = inject(FormDialogService)
+  private readonly i18n = inject(i18nPipe)
 
   async present(data: PackageActionData) {
     const { pkgInfo, actionInfo } = data
@@ -46,19 +51,19 @@ export class ActionService {
     ) {
       if (actionInfo.metadata.hasInput) {
         this.formDialog.open<PackageActionData>(ActionInputModal, {
-          label: actionInfo.metadata.name,
+          label: actionInfo.metadata.name as i18nKey,
           data,
         })
       } else {
         if (actionInfo.metadata.warning) {
-          this.dialogs
-            .open(TUI_CONFIRM, {
+          this.dialog
+            .openConfirm({
               label: 'Warning',
               size: 's',
               data: {
                 no: 'Cancel',
                 yes: 'Run',
-                content: actionInfo.metadata.warning,
+                content: actionInfo.metadata.warning as i18nKey,
               },
             })
             .pipe(filter(Boolean))
@@ -71,7 +76,6 @@ export class ActionService {
       const statuses = [...allowedStatuses[actionInfo.metadata.allowedStatuses]]
       const last = statuses.pop()
       let statusesStr = statuses.join(', ')
-      let error = ''
       if (statuses.length) {
         if (statuses.length > 1) {
           // oxford comma
@@ -79,18 +83,14 @@ export class ActionService {
         }
         statusesStr += ` or ${last}`
       } else if (last) {
-        statusesStr = `${last}`
-      } else {
-        error = `There is no status for which this action may be run. This is a bug. Please file an issue with the service maintainer.`
+        statusesStr = last
       }
 
-      this.dialogs
-        .open(
-          error ||
-            `Action "${actionInfo.metadata.name}" can only be executed when service is ${statusesStr}`,
+      this.dialog
+        .openAlert(
+          `${this.i18n.transform('Action can only be executed when service is')} ${statusesStr}` as i18nKey,
           {
             label: 'Forbidden',
-            size: 's',
           },
         )
         .pipe(filter(Boolean))
@@ -99,7 +99,7 @@ export class ActionService {
   }
 
   async execute(packageId: string, actionId: string, input?: object) {
-    const loader = this.loader.open('Loading...').subscribe()
+    const loader = this.loader.open('Loading').subscribe()
 
     try {
       const res = await this.api.runAction({
@@ -111,14 +111,16 @@ export class ActionService {
       if (!res) return
 
       if (res.result) {
-        this.dialogs
-          .open(new PolymorpheusComponent(ActionSuccessPage), {
-            label: res.title,
+        this.dialog
+          .openComponent(new PolymorpheusComponent(ActionSuccessPage), {
+            label: res.title as i18nKey,
             data: res,
           })
           .subscribe()
       } else if (res.message) {
-        this.dialogs.open(res.message, { label: res.title }).subscribe()
+        this.dialog
+          .openAlert(res.message as i18nKey, { label: res.title as i18nKey })
+          .subscribe()
       }
     } catch (e: any) {
       this.errorService.handleError(e)

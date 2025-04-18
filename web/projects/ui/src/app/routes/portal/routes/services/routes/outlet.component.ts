@@ -6,6 +6,7 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router, RouterModule } from '@angular/router'
+import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { TuiAppearance, TuiButton, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar, TuiFade } from '@taiga-ui/kit'
 import { TuiCell } from '@taiga-ui/layout'
@@ -14,14 +15,6 @@ import { distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
 import { getManifest } from 'src/app/utils/get-package-data'
-
-const ICONS = {
-  dashboard: '@tui.layout-dashboard',
-  actions: '@tui.clapperboard',
-  instructions: '@tui.book-open-text',
-  logs: '@tui.logs',
-  about: '@tui.info',
-}
 
 @Component({
   template: `
@@ -48,11 +41,11 @@ const ICONS = {
               tuiAppearance="action-grayscale"
               routerLinkActive="active"
               [routerLinkActiveOptions]="{ exact: true }"
-              [routerLink]="item === 'dashboard' ? './' : item"
+              [routerLink]="item.title === 'dashboard' ? './' : item.title"
             >
-              <tui-icon [icon]="icons[item]" />
-              <span tuiTitle>{{ item }}</span>
-              @if (item === 'dashboard') {
+              <tui-icon [icon]="item.icon" />
+              <span tuiTitle>{{ item.title | i18n }}</span>
+              @if (item.title === 'dashboard') {
                 <a routerLink="interface" routerLinkActive="active"></a>
               }
             </a>
@@ -150,6 +143,7 @@ const ICONS = {
     TuiFade,
     TitleDirective,
     TuiButton,
+    i18nPipe,
   ],
 })
 export class ServiceOutletComponent {
@@ -157,14 +151,13 @@ export class ServiceOutletComponent {
   private readonly router = inject(Router)
   private readonly params = inject(ActivatedRoute).paramMap
 
-  protected readonly icons = ICONS
-  protected readonly nav = [
-    'dashboard',
-    'actions',
-    'instructions',
-    'logs',
-    'about',
-  ] as const
+  protected readonly nav: { title: i18nKey; icon: string }[] = [
+    { title: 'dashboard', icon: '@tui.layout-dashboard' },
+    { title: 'actions', icon: '@tui.clapperboard' },
+    { title: 'instructions', icon: '@tui.book-open-text' },
+    { title: 'logs', icon: '@tui.logs' },
+    { title: 'about', icon: '@tui.info' },
+  ]
 
   protected readonly service = toSignal(
     this.router.events.pipe(

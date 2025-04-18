@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  Input,
+} from '@angular/core'
+import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiIcon, TuiLoader } from '@taiga-ui/core'
 
@@ -48,6 +54,8 @@ export class ServiceHealthCheckComponent {
   @Input({ required: true })
   healthCheck!: T.NamedHealthCheckResult
 
+  private readonly i18n = inject(i18nPipe)
+
   get loading(): boolean {
     const { result } = this.healthCheck
 
@@ -82,14 +90,14 @@ export class ServiceHealthCheckComponent {
 
   get message(): string {
     if (!this.healthCheck.result) {
-      return 'Awaiting result...'
+      return this.i18n.transform('Awaiting result')!
     }
 
     switch (this.healthCheck.result) {
       case 'starting':
-        return 'Starting...'
+        return this.i18n.transform('Starting')!
       case 'success':
-        return `Success: ${this.healthCheck.message}`
+        return `${this.i18n.transform('Success')}: ${this.healthCheck.message}`
       case 'loading':
       case 'failure':
         return this.healthCheck.message

@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import {
   ErrorService,
+  i18nPipe,
   LoadingService,
   MarkdownPipe,
   SafeLinksDirective,
@@ -20,7 +21,7 @@ import { EOSService } from 'src/app/services/eos.service'
   template: `
     <h2 style="margin-top: 0">StartOS {{ versions[0]?.version }}</h2>
     <h3 style="color: var(--tui-text-secondary); font-weight: normal">
-      Release Notes
+      {{ 'Release Notes' | i18n }}
     </h3>
     <tui-scrollbar style="margin-bottom: 24px; max-height: 50vh;">
       @for (v of versions; track $index) {
@@ -29,7 +30,7 @@ import { EOSService } from 'src/app/services/eos.service'
       }
     </tui-scrollbar>
     <button tuiButton tuiAutoFocus style="float: right;" (click)="update()">
-      Begin Update
+      {{ 'Begin Update' | i18n }}
     </button>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -42,6 +43,7 @@ import { EOSService } from 'src/app/services/eos.service'
     TuiAutoFocus,
     TuiButton,
     TuiScrollbar,
+    i18nPipe,
   ],
 })
 export class SystemUpdateModal {
@@ -62,7 +64,7 @@ export class SystemUpdateModal {
   ) {}
 
   async update() {
-    const loader = this.loader.open('Beginning update...').subscribe()
+    const loader = this.loader.open('Beginning update').subscribe()
 
     try {
       await this.embassyApi.updateServer()

@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { RouterModule } from '@angular/router'
-import { SharedPipesModule, TickerModule } from '@start9labs/shared'
+import { SharedPipesModule, TickerComponent } from '@start9labs/shared'
 import { TuiLet } from '@taiga-ui/cdk'
 import { ItemComponent } from './item.component'
 
@@ -12,7 +12,7 @@ import { ItemComponent } from './item.component'
     CommonModule,
     RouterModule,
     SharedPipesModule,
-    TickerModule,
+    TickerComponent,
     TuiLet,
   ],
 })

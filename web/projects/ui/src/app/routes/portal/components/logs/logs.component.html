@@ -6,7 +6,7 @@
     (logsFetch)="onPrevious($event)"
   >
     @if (loading) {
-      <tui-loader textContent="Loading older logs" />
+      <tui-loader [textContent]="'Loading older logs' | i18n" />
     }
   </section>
 
@@ -26,14 +26,14 @@
         <p class="loading-dots" [attr.data-status]="status$.value">
           {{
             status$.value === 'reconnecting'
-              ? 'Reconnecting'
-              : 'Waiting for network connectivity'
+              ? ('Reconnecting' | i18n)
+              : ('Waiting for network connectivity' | i18n)
           }}
         </p>
       }
     </section>
   } @else {
-    <tui-loader textContent="Loading logs" [style.margin-top.rem]="5" />
+    <tui-loader [textContent]="'Loading logs' | i18n" [style.margin-top.rem]="5" />
   }
 
   <section
@@ -53,7 +53,7 @@
     iconStart="@tui.circle-arrow-down"
     (click)="setScroll(true); scrollToBottom()"
   >
-    Scroll to bottom
+    {{'Scroll to bottom' | i18n}}
   </button>
   <button
     tuiButton
@@ -61,6 +61,6 @@
     iconStart="@tui.download"
     [logsDownload]="fetchLogs"
   >
-    Download
+    {{'Download' | i18n}}
   </button>
 </footer>

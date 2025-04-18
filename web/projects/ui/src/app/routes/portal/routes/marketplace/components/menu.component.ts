@@ -1,15 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { CommonModule } from '@angular/common'
 import { MenuModule } from '@start9labs/marketplace'
-import {
-  TuiDialogService,
-  TuiIcon,
-  TuiButton,
-  TuiAppearance,
-} from '@taiga-ui/core'
+import { TuiIcon, TuiButton, TuiAppearance } from '@taiga-ui/core'
 import { ConfigService } from 'src/app/services/config.service'
 import { MARKETPLACE_REGISTRY } from '../modals/registry.component'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
+import { DialogService, i18nPipe } from '@start9labs/shared'
 
 @Component({
   standalone: true,
@@ -24,11 +20,11 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
         iconStart="@tui.repeat"
         (click)="changeRegistry()"
       >
-        Change Registry
+        {{ 'Change Registry' | i18n }}
       </button>
       <button slot="mobile" class="mobile-button" (click)="changeRegistry()">
         <tui-icon tuiAppearance="icon" icon="@tui.repeat" />
-        Change Registry
+        {{ 'Change Registry' | i18n }}
       </button>
     </menu>
   `,
@@ -47,17 +43,24 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, MenuModule, TuiButton, TuiIcon, TuiAppearance],
+  imports: [
+    CommonModule,
+    MenuModule,
+    TuiButton,
+    TuiIcon,
+    TuiAppearance,
+    i18nPipe,
+  ],
 })
 export class MarketplaceMenuComponent {
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialog = inject(DialogService)
   readonly marketplace = inject(ConfigService).marketplace
   private readonly marketplaceService = inject(MarketplaceService)
   readonly registry$ = this.marketplaceService.getRegistry$()
 
   changeRegistry() {
-    this.dialogs
-      .open(MARKETPLACE_REGISTRY, {
+    this.dialog
+      .openComponent(MARKETPLACE_REGISTRY, {
         label: 'Change Registry',
       })
       .subscribe()

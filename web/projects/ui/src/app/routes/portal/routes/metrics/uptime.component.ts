@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
+import { i18nPipe } from '@start9labs/shared'
 import { TimeService } from 'src/app/services/time.service'
 
 @Component({
@@ -9,22 +10,22 @@ import { TimeService } from 'src/app/services/time.service'
     @if (uptime(); as time) {
       <div>
         <b>{{ time.days }}</b>
-        Days
+        {{ 'Days' | i18n }}
       </div>
       <div>
         <b>{{ time.hours }}</b>
-        Hours
+        {{ 'Hours' | i18n }}
       </div>
       <div>
         <b>{{ time.minutes }}</b>
-        Minutes
+        {{ 'Minutes' | i18n }}
       </div>
       <div>
         <b>{{ time.seconds }}</b>
-        Seconds
+        {{ 'Seconds' | i18n }}
       </div>
     } @else {
-      Loading...
+      {{ 'Loading' | i18n }}...
     }
   `,
   styles: `
@@ -49,6 +50,7 @@ import { TimeService } from 'src/app/services/time.service'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [i18nPipe],
 })
 export class UptimeComponent {
   readonly uptime = toSignal(inject(TimeService).uptime$)

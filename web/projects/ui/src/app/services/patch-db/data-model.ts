@@ -1,3 +1,4 @@
+import { Languages } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 
 export type DataModel = T.Public & { ui: UIData; packageData: AllPackageData }
@@ -12,7 +13,7 @@ export type UIData = {
   }
   ackInstructions: Record<string, boolean>
   theme: string
-  language: 'english' | 'spanish'
+  language: Languages
 }
 
 export type UIMarketplaceData = {

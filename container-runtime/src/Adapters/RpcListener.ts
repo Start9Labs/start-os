@@ -238,21 +238,6 @@ export class RpcListener {
     return this._system
   }
 
-  private callbackHolders: Map<string, CallbackHolder> = new Map()
-  private removeCallbackHolderFor(procedure: string) {
-    const prev = this.callbackHolders.get(procedure)
-    if (prev) {
-      this.callbackHolders.delete(procedure)
-      this.callbacks?.removeChild(prev)
-    }
-  }
-  private callbackHolderFor(procedure: string): CallbackHolder {
-    this.removeCallbackHolderFor(procedure)
-    const callbackHolder = this.callbacks!.child()
-    this.callbackHolders.set(procedure, callbackHolder)
-    return callbackHolder
-  }
-
   callCallback(callback: number, args: any[]): void {
     if (this.callbacks) {
       this.callbacks
@@ -302,7 +287,7 @@ export class RpcListener {
         return null
       })
       .when(startType, async ({ id }) => {
-        const callbacks = this.callbackHolderFor("main")
+        const callbacks = this.callbacks?.child("main")
         const effects = makeEffects({
           procedureId: null,
           callbacks,
@@ -313,7 +298,7 @@ export class RpcListener {
         )
       })
       .when(stopType, async ({ id }) => {
-        this.removeCallbackHolderFor("main")
+        this.callbacks?.removeChild("main")
         return handleRpc(
           id,
           this.system.stop().then((result) => ({ result })),
@@ -338,7 +323,7 @@ export class RpcListener {
                   procedureId: null,
                 }),
               )
-              const callbacks = this.callbackHolderFor("containerInit")
+              const callbacks = this.callbacks.child("containerInit")
               await system.containerInit(
                 makeEffects({
                   procedureId: null,
@@ -420,7 +405,7 @@ export class RpcListener {
     ): { result: any } => {
       return { result }
     }
-    const callbacks = this.callbackHolderFor(procedure)
+    const callbacks = this.callbacks?.child(procedure)
     const effects = makeEffects({
       procedureId,
       callbacks,

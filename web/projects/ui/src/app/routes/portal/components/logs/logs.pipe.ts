@@ -1,5 +1,10 @@
 import { inject, Pipe, PipeTransform } from '@angular/core'
-import { convertAnsi, Log, toLocalIsoString } from '@start9labs/shared'
+import {
+  convertAnsi,
+  i18nPipe,
+  Log,
+  toLocalIsoString,
+} from '@start9labs/shared'
 import {
   bufferTime,
   catchError,
@@ -30,6 +35,7 @@ export class LogsPipe implements PipeTransform {
   private readonly api = inject(ApiService)
   private readonly logs = inject(LogsComponent)
   private readonly connection = inject(ConnectionService)
+  private readonly i18n = inject(i18nPipe)
 
   transform(
     followLogs: (
@@ -40,7 +46,7 @@ export class LogsPipe implements PipeTransform {
       this.logs.status$.pipe(
         skipWhile(value => value === 'connected'),
         filter(value => value === 'connected'),
-        map(() => getMessage(true)),
+        map(() => this.getMessage(true)),
       ),
       defer(() => followLogs(this.options)).pipe(
         tap(r => this.logs.setCursor(r.startCursor)),
@@ -62,7 +68,7 @@ export class LogsPipe implements PipeTransform {
           filter(Boolean),
           take(1),
           ignoreElements(),
-          startWith(getMessage(false)),
+          startWith(this.getMessage(false)),
         ),
       ),
       repeat(),
@@ -70,15 +76,15 @@ export class LogsPipe implements PipeTransform {
     )
   }
 
+  private getMessage(success: boolean): string {
+    return `<p style="color: ${
+      success ? 'var(--tui-status-positive)' : 'var(--tui-status-negative)'
+    }; text-align: center;">${this.i18n.transform(
+      success ? 'Reconnected' : 'Disconnected',
+    )} at ${toLocalIsoString(new Date())}</p>`
+  }
+
   private get options() {
     return this.logs.status$.value === 'connected' ? { limit: 400 } : {}
   }
-}
-
-function getMessage(success: boolean): string {
-  return `<p style="color: ${
-    success ? 'var(--tui-status-positive)' : 'var(--tui-status-negative)'
-  }; text-align: center;">${
-    success ? 'Reconnected' : 'Disconnected'
-  } at ${toLocalIsoString(new Date())}</p>`
 }

@@ -5,28 +5,31 @@ import { TableComponent } from 'src/app/routes/portal/components/table.component
 import { InterfaceActionsComponent } from './actions.component'
 import { AddressDetails } from './interface.utils'
 import { MaskPipe } from './mask.pipe'
+import { i18nPipe } from '@start9labs/shared'
 
 @Component({
   standalone: true,
   selector: 'section[local]',
   template: `
     <header>
-      Local
+      {{ 'Local' | i18n }}
       <tui-icon [tuiTooltip]="tooltip" />
       <ng-template #tooltip>
-        Local addresses can only be accessed by devices connected to the same
-        LAN as your server, either directly or using a VPN.
+        {{
+          'Local addresses can only be accessed by devices connected to the same LAN as your server, either directly or using a VPN.'
+            | i18n
+        }}
         <a
           tuiLink
           href="https://docs.start9.com/latest/user-manual/interface-addresses#local"
           target="_blank"
           rel="noreferrer"
         >
-          Learn More
+          {{ 'Learn More' | i18n }}
         </a>
       </ng-template>
     </header>
-    <table [appTable]="['Network Interface', 'URL', '']">
+    <table [appTable]="['Network Interface', 'URL', null]">
       @for (address of local(); track $index) {
         <tr>
           <td [style.width.rem]="12">{{ address.label }}</td>
@@ -44,6 +47,7 @@ import { MaskPipe } from './mask.pipe'
     TableComponent,
     InterfaceActionsComponent,
     MaskPipe,
+    i18nPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

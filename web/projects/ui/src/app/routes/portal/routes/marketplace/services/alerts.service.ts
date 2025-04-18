@@ -1,34 +1,37 @@
-import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { inject, Injectable } from '@angular/core'
-import { MarketplacePkg, MarketplacePkgBase } from '@start9labs/marketplace'
-import { TuiDialogService } from '@taiga-ui/core'
+import { MarketplacePkgBase } from '@start9labs/marketplace'
 import { PatchDB } from 'patch-db-client'
 import { defaultIfEmpty, firstValueFrom } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { DialogService, i18nKey, i18nPipe } from '@start9labs/shared'
 
 @Injectable({
   providedIn: 'root',
 })
 export class MarketplaceAlertsService {
-  private readonly dialogs = inject(TuiDialogService)
+  private readonly dialog = inject(DialogService)
   private readonly marketplace$ = inject<PatchDB<DataModel>>(PatchDB).watch$(
     'ui',
     'marketplace',
   )
+  private readonly i18n = inject(i18nPipe)
 
   async alertMarketplace(url: string, originalUrl: string): Promise<boolean> {
     const marketplaces = await firstValueFrom(this.marketplace$)
     const name = marketplaces.knownHosts[url]?.name || url
     const source = marketplaces.knownHosts[originalUrl]?.name || originalUrl
-    const message = source ? `installed from ${source}` : 'side loaded'
+    const message = source
+      ? `${this.i18n.transform('installed from')} ${source}`
+      : this.i18n.transform('sideloaded')
 
     return new Promise(async resolve => {
-      this.dialogs
-        .open<boolean>(TUI_CONFIRM, {
+      this.dialog
+        .openConfirm<boolean>({
           label: 'Warning',
           size: 's',
           data: {
-            content: `This service was originally ${message}, but you are currently connected to ${name}. To install from ${name} anyway, click "Continue".`,
+            content:
+              `${this.i18n.transform('This service was originally')} ${message}, ${this.i18n.transform('but you are currently connected to')} ${name}. ${this.i18n.transform('To install from')} ${name} ${this.i18n.transform('anyway, click "Continue".')}` as i18nKey,
             yes: 'Continue',
             no: 'Cancel',
           },
@@ -39,14 +42,14 @@ export class MarketplaceAlertsService {
   }
 
   async alertBreakages(breakages: string[]): Promise<boolean> {
-    let content: string =
-      'As a result of this update, the following services will no longer work properly and may crash:<ul>'
+    let content =
+      `${this.i18n.transform('As a result of this update, the following services will no longer work properly and may crash')}:<ul>'` as i18nKey
     const bullets = breakages.map(title => `<li><b>${title}</b></li>`)
-    content = `${content}${bullets.join('')}</ul>`
+    content = `${content}${bullets.join('')}</ul>` as i18nKey
 
     return new Promise(async resolve => {
-      this.dialogs
-        .open<boolean>(TUI_CONFIRM, {
+      this.dialog
+        .openConfirm<boolean>({
           label: 'Warning',
           size: 's',
           data: {
@@ -61,13 +64,13 @@ export class MarketplaceAlertsService {
   }
 
   async alertInstall({ alerts }: MarketplacePkgBase): Promise<boolean> {
-    const content = alerts.install
+    const content = alerts.install as i18nKey
 
     return (
       !!content &&
       new Promise(resolve => {
-        this.dialogs
-          .open<boolean>(TUI_CONFIRM, {
+        this.dialog
+          .openConfirm<boolean>({
             label: 'Alert',
             size: 's',
             data: {

@@ -15,6 +15,7 @@ import {
 } from '@taiga-ui/legacy'
 import { QrCodeModule } from 'ng-qrcode'
 import { SingleResult } from './types'
+import { i18nPipe } from '@start9labs/shared'
 
 @Component({
   standalone: true,
@@ -45,7 +46,7 @@ import { SingleResult } from './types'
           [style.pointer-events]="'auto'"
           (click)="masked = !masked"
         >
-          Reveal/Hide
+          {{ 'Reveal/Hide' | i18n }}
         </button>
       }
       @if (single.copyable) {
@@ -59,7 +60,7 @@ import { SingleResult } from './types'
           [style.pointer-events]="'auto'"
           (click)="copy()"
         >
-          Copy
+          {{ 'Copy' | i18n }}
         </button>
       }
     </ng-template>
@@ -77,7 +78,7 @@ import { SingleResult } from './types'
           [style.border-radius.%]="100"
           (click)="masked = false"
         >
-          Reveal
+          {{ 'Reveal' | i18n }}
         </button>
       }
     </ng-template>
@@ -104,6 +105,7 @@ import { SingleResult } from './types'
     TuiTextfieldControllerModule,
     TuiButton,
     QrCodeModule,
+    i18nPipe,
   ],
 })
 export class ActionSuccessSingleComponent {

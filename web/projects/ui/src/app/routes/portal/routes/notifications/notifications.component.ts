@@ -4,7 +4,7 @@ import {
   inject,
   signal,
 } from '@angular/core'
-import { ErrorService } from '@start9labs/shared'
+import { ErrorService, i18nPipe } from '@start9labs/shared'
 import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
 import { RR, ServerNotifications } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -14,7 +14,7 @@ import { NotificationsTableComponent } from './table.component'
 
 @Component({
   template: `
-    <ng-container *title>Notifications</ng-container>
+    <ng-container *title>{{ 'Notifications' | i18n }}</ng-container>
     <h3 class="g-title">
       <button
         appearance="primary"
@@ -29,7 +29,7 @@ import { NotificationsTableComponent } from './table.component'
         [tuiDropdownEnabled]="!!table.selected().length"
         [(tuiDropdownOpen)]="open"
       >
-        Batch Action
+        {{ 'Batch action' | i18n }}
       </button>
       <ng-template #dropdown>
         <tui-data-list>
@@ -37,16 +37,16 @@ import { NotificationsTableComponent } from './table.component'
             tuiOption
             (click)="markSeen(notifications(), table.selected())"
           >
-            Mark seen
+            {{ 'Mark seen' | i18n }}
           </button>
           <button
             tuiOption
             (click)="markUnseen(notifications(), table.selected())"
           >
-            Mark unseen
+            {{ 'Mark unseen' | i18n }}
           </button>
           <button tuiOption (click)="remove(notifications(), table.selected())">
-            Delete
+            {{ 'Delete' | i18n }}
           </button>
         </tui-data-list>
       </ng-template>
@@ -62,6 +62,7 @@ import { NotificationsTableComponent } from './table.component'
     TuiDataList,
     NotificationsTableComponent,
     TitleDirective,
+    i18nPipe,
   ],
 })
 export default class NotificationsComponent {

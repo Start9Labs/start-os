@@ -148,7 +148,7 @@ export default class SystemDomainsComponent {
   }
 
   private async deleteDomain(hostname?: string) {
-    const loader = this.loader.open('Deleting...').subscribe()
+    const loader = this.loader.open('Deleting').subscribe()
 
     try {
       if (hostname) {
@@ -164,7 +164,7 @@ export default class SystemDomainsComponent {
   }
   // @TODO 041 figure out how to get types here
   private async claimDomain({ strategy }: any): Promise<boolean> {
-    const loader = this.loader.open('Saving...').subscribe()
+    const loader = this.loader.open('Saving').subscribe()
     const networkStrategy = this.getNetworkStrategy(strategy)
 
     try {
@@ -179,7 +179,7 @@ export default class SystemDomainsComponent {
   }
   // @TODO 041 figure out how to get types here
   private async save({ provider, strategy, hostname }: any): Promise<boolean> {
-    const loader = this.loader.open('Saving...').subscribe()
+    const loader = this.loader.open('Saving').subscribe()
     const name = provider.selection
 
     try {

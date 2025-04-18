@@ -99,7 +99,13 @@ export class Action<
   async exportMetadata(options: {
     effects: T.Effects
   }): Promise<T.ActionMetadata> {
-    const metadata = await callMaybeFn(this.metadataFn, options)
+    const childEffects = options.effects.child(`setupActions/${this.id}`)
+    childEffects.constRetry = once(() => {
+      this.exportMetadata(options)
+    })
+    const metadata = await callMaybeFn(this.metadataFn, {
+      effects: childEffects,
+    })
     await options.effects.action.export({ id: this.id, metadata })
     return metadata
   }
@@ -131,12 +137,6 @@ export class Actions<
     return new Actions({ ...this.actions, [action.id]: action })
   }
   async update(options: { effects: T.Effects }): Promise<null> {
-    options.effects = {
-      ...options.effects,
-      constRetry: once(() => {
-        this.update(options) // yes, this reuses the options object, but the const retry function will be overwritten each time, so the once-ness is not a problem
-      }),
-    }
     for (let action of Object.values(this.actions)) {
       await action.exportMetadata(options)
     }
