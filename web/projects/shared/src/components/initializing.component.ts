@@ -21,7 +21,7 @@ import { i18nPipe } from '../i18n/i18n.pipe'
         [style.margin]="'1rem auto'"
         [attr.value]="progress.total"
       ></progress>
-      <p>{{ progress.message }}</p>
+      <p [innerHTML]="progress.message"></p>
     </section>
     <logs-window />
   `,

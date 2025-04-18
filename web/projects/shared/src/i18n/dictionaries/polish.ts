@@ -487,4 +487,5 @@ export default {
   484: 'Odśwież stronę. Jeśli to nie pomoże, zamknij i ponownie otwórz przeglądarkę, a następnie wróć do tej strony.',
   485: 'Interfejs StartOS',
   486: 'WiFi',
+  487: 'instrukcje',
 } satisfies i18n

@@ -486,4 +486,5 @@ export const ENGLISH = {
   'Refresh the page. If refreshing the page does not work, you may need to quit and re-open your browser, then revisit this page.': 484,
   'StartOS UI': 485,
   'WiFi': 486,
+  'Instructions': 487,
 } as const

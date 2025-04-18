@@ -4,6 +4,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
+  input,
   Input,
 } from '@angular/core'
 import { Router } from '@angular/router'
@@ -29,6 +30,7 @@ import { getAllPackages, getManifest } from 'src/app/utils/get-package-data'
 import { dryUpdate } from 'src/app/utils/dry-update'
 import { MarketplaceAlertsService } from '../services/alerts.service'
 import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
   selector: 'marketplace-controls',
@@ -108,6 +110,7 @@ export class MarketplaceControlsComponent {
   private readonly exver = inject(Exver)
   private readonly router = inject(Router)
   private readonly marketplaceService = inject(MarketplaceService)
+  private readonly api = inject(ApiService)
 
   @Input({ required: true })
   pkg!: MarketplacePkgBase
@@ -118,18 +121,25 @@ export class MarketplaceControlsComponent {
   @Input()
   localFlavor!: boolean
 
-  async tryInstall() {
-    const currentUrl = await firstValueFrom(
-      this.marketplaceService.getRegistryUrl$(),
-    )
-    const originalUrl = this.localPkg?.registry || ''
-    if (!this.localPkg) {
-      if (await this.alerts.alertInstall(this.pkg)) this.install(currentUrl)
+  // only present if side loading
+  @Input()
+  file?: File
 
+  async tryInstall() {
+    const currentUrl = this.file
+      ? null
+      : await firstValueFrom(this.marketplaceService.getRegistryUrl$())
+    const originalUrl = this.localPkg?.registry || ''
+
+    if (!this.localPkg) {
+      if (await this.alerts.alertInstall(this.pkg)) {
+        this.installOrUpload(currentUrl)
+      }
       return
     }
 
     if (
+      currentUrl &&
       !sameUrl(currentUrl, originalUrl) &&
       !(await this.alerts.alertMarketplace(currentUrl, originalUrl))
     ) {
@@ -144,7 +154,7 @@ export class MarketplaceControlsComponent {
     ) {
       this.dryInstall(currentUrl)
     } else {
-      this.install(currentUrl)
+      this.installOrUpload(currentUrl)
     }
   }
 
@@ -152,7 +162,7 @@ export class MarketplaceControlsComponent {
     this.router.navigate(['/portal/services', this.pkg.id])
   }
 
-  private async dryInstall(url: string) {
+  private async dryInstall(url: string | null) {
     const breakages = dryUpdate(
       this.pkg,
       await getAllPackages(this.patch),
@@ -163,6 +173,14 @@ export class MarketplaceControlsComponent {
       isEmptyObject(breakages) ||
       (await this.alerts.alertBreakages(breakages))
     ) {
+      this.installOrUpload(url)
+    }
+  }
+
+  private async installOrUpload(url: string | null) {
+    if (this.file) {
+      await this.upload()
+    } else if (url) {
       this.install(url)
     }
   }
@@ -173,6 +191,19 @@ export class MarketplaceControlsComponent {
 
     try {
       await this.marketplaceService.installPackage(id, version, url)
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
+  }
+
+  private async upload() {
+    const loader = this.loader.open('Starting upload').subscribe()
+
+    try {
+      const { upload } = await this.api.sideloadPackage()
+      this.api.uploadPackage(upload, this.file!).catch(console.error)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

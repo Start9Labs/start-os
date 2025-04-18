@@ -5,7 +5,6 @@ import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 
-// @TODO Alex how to use i18nPipe in this component since not standalone?
 @Component({
   selector: 'diagnostic-home',
   templateUrl: 'home.page.html',
