@@ -1,3 +1,4 @@
+import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -6,6 +7,7 @@ import {
   Input,
 } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
+import { TuiLet } from '@taiga-ui/cdk'
 import { TuiButton } from '@taiga-ui/core'
 import { map } from 'rxjs'
 import { ControlsService } from 'src/app/services/controls.service'
@@ -40,9 +42,10 @@ import { getManifest } from 'src/app/utils/get-package-data'
 
     @if (status === 'stopped') {
       <button
+        *tuiLet="hasUnmet() | async as hasUnmet"
         tuiButton
         iconStart="@tui.play"
-        (click)="controls.start(manifest(), !!hasUnmet())"
+        (click)="controls.start(manifest(), !!hasUnmet)"
       >
         {{ 'Start' | i18n }}
       </button>
@@ -83,7 +86,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiButton, i18nPipe],
+  imports: [TuiButton, i18nPipe, TuiLet, AsyncPipe],
 })
 export class ServiceControlsComponent {
   private readonly errors = inject(DepErrorService)
@@ -98,7 +101,6 @@ export class ServiceControlsComponent {
 
   readonly controls = inject(ControlsService)
 
-  // @TODO Alex observable in signal?
   readonly hasUnmet = computed(() =>
     this.errors.getPkgDepErrors$(this.manifest().id).pipe(
       map(errors =>
