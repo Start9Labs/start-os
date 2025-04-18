@@ -17,6 +17,7 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::account::AccountInfo;
+use crate::auth::write_shadow;
 use crate::backup::restore::recover_full_embassy;
 use crate::backup::target::BackupTargetFS;
 use crate::context::rpc::InitRpcContextPhases;
@@ -88,8 +89,8 @@ async fn setup_init(
         .db
         .mutate(|m| {
             let mut account = AccountInfo::load(m)?;
-            if let Some(password) = password {
-                account.set_password(&password)?;
+            if let Some(password) = &password {
+                account.set_password(password)?;
             }
             account.save(m)?;
             m.as_public_mut()
@@ -100,6 +101,10 @@ async fn setup_init(
         })
         .await
         .result?;
+
+    if let Some(password) = &password {
+        write_shadow(&password).await?;
+    }
 
     Ok((account, init_result))
 }
@@ -346,6 +351,8 @@ pub async fn complete(ctx: SetupContext) -> Result<SetupResult, Error> {
                 .arg(format!("--hostname={}", res.hostname.0))
                 .invoke(ErrorKind::ParseSysInfo)
                 .await?;
+            Command::new("sync").invoke(ErrorKind::Filesystem).await?;
+
             Ok(res.clone())
         }
         Some(Err(e)) => Err(e.clone_output()),
@@ -464,6 +471,8 @@ async fn fresh_setup(
         rpc_ctx_phases,
     )
     .await?;
+
+    write_shadow(start_os_password).await?;
 
     Ok(((&account).try_into()?, rpc_ctx))
 }

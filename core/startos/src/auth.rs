@@ -9,6 +9,7 @@ use josekit::jwk::Jwk;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
+use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 use ts_rs::TS;
 
@@ -19,6 +20,7 @@ use crate::middleware::auth::{
 };
 use crate::prelude::*;
 use crate::util::crypto::EncryptedWire;
+use crate::util::io::create_file_mod;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::{ensure_code, Error, ResultExt};
 
@@ -39,6 +41,30 @@ impl Map for Sessions {
     fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
         Ok(key.clone())
     }
+}
+
+pub async fn write_shadow(password: &str) -> Result<(), Error> {
+    let shadow_contents = tokio::fs::read_to_string("/etc/shadow").await?;
+    let mut shadow_file =
+        create_file_mod("/media/startos/config/overlay/etc/shadow", 0o640).await?;
+    for line in shadow_contents.lines() {
+        if line.starts_with("start9:") {
+            let rest = line.splitn(3, ":").nth(2).ok_or_else(|| {
+                Error::new(eyre!("malformed /etc/shadow"), ErrorKind::ParseSysInfo)
+            })?;
+            let pw = sha_crypt::sha512_simple(password, &sha_crypt::Sha512Params::default())
+                .map_err(|e| Error::new(eyre!("{e:?}"), ErrorKind::Serialization))?;
+            shadow_file
+                .write_all(format!("start9:{pw}:{rest}\n").as_bytes())
+                .await?;
+        } else {
+            shadow_file.write_all(line.as_bytes()).await?;
+            shadow_file.write_all(b"\n").await?;
+        }
+    }
+    shadow_file.sync_all().await?;
+    tokio::fs::copy("/media/startos/config/overlay/etc/shadow", "/etc/shadow").await?;
+    Ok(())
 }
 
 #[derive(Clone, Serialize, Deserialize, TS)]
@@ -210,7 +236,7 @@ pub async fn login_impl(
 ) -> Result<LoginRes, Error> {
     let password = password.unwrap_or_default().decrypt(&ctx)?;
 
-    if ephemeral {
+    let tok = if ephemeral {
         check_password_against_db(&ctx.db.peek().await, &password)?;
         let hash_token = HashSessionToken::new();
         ctx.ephemeral_sessions.mutate(|s| {
@@ -242,7 +268,16 @@ pub async fn login_impl(
             })
             .await
             .result
+    }?;
+
+    if tokio::fs::metadata("/media/startos/config/overlay/etc/shadow")
+        .await
+        .is_err()
+    {
+        write_shadow(&password).await?;
     }
+
+    Ok(tok)
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]

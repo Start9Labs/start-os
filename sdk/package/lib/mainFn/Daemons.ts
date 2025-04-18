@@ -67,7 +67,7 @@ type DaemonsParams<
          */
         sharedRun?: boolean
       }
-    | SubContainer
+    | SubContainer<Manifest>
   /** For mounting the necessary volumes. Syntax: sdk.Mounts.of().addVolume() */
   mounts: Mounts<Manifest>
   env?: Record<string, string>
@@ -113,9 +113,9 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   private constructor(
     readonly effects: T.Effects,
     readonly started: (onTerm: () => PromiseLike<void>) => PromiseLike<null>,
-    readonly daemons: Promise<Daemon>[],
+    readonly daemons: Promise<Daemon<Manifest>>[],
     readonly ids: Ids[],
-    readonly healthDaemons: HealthDaemon[],
+    readonly healthDaemons: HealthDaemon<Manifest>[],
     readonly healthChecks: HealthCheck[],
   ) {}
   /**
@@ -164,7 +164,6 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       options.command,
       {
         ...options,
-        mounts: options.mounts.build(),
         subcontainerName: id,
       },
     )

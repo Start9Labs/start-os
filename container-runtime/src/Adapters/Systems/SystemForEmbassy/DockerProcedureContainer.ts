@@ -9,6 +9,9 @@ import {
   ExecOptions,
   ExecSpawnable,
 } from "@start9labs/start-sdk/package/lib/util/SubContainer"
+import { Mounts } from "@start9labs/start-sdk/package/lib/mainFn/Mounts"
+import { Manifest } from "@start9labs/start-sdk/base/lib/osBindings"
+import { BackupEffects } from "@start9labs/start-sdk/package/lib/backup/Backups"
 export const exec = promisify(cp.exec)
 export const execFile = promisify(cp.execFile)
 
@@ -42,8 +45,9 @@ export class DockerProcedureContainer {
     name: string,
   ) {
     const subcontainer = await SubContainer.of(
-      effects,
+      effects as BackupEffects,
       { imageId: data.image },
+      null,
       name,
     )
 
@@ -57,14 +61,10 @@ export class DockerProcedureContainer {
         const volumeMount = volumes[mount]
         if (volumeMount.type === "data") {
           await subcontainer.mount(
-            { type: "volume", id: mount, subpath: null, readonly: false },
-            mounts[mount],
+            Mounts.of().addVolume(mount, null, mounts[mount], false),
           )
         } else if (volumeMount.type === "assets") {
-          await subcontainer.mount(
-            { type: "assets", subpath: mount },
-            mounts[mount],
-          )
+          await subcontainer.mount(Mounts.of().addAssets(mount, mounts[mount]))
         } else if (volumeMount.type === "certificate") {
           const hostnames = [
             `${packageId}.embassy`,
@@ -107,10 +107,7 @@ export class DockerProcedureContainer {
             })
             .catch(console.warn)
         } else if (volumeMount.type === "backup") {
-          await subcontainer.mount(
-            { type: "backup", subpath: null },
-            mounts[mount],
-          )
+          await subcontainer.mount(Mounts.of().addBackups(null, mounts[mount]))
         }
       }
     }
