@@ -23,16 +23,9 @@ export class Daemon<Manifest extends T.SDKManifest> {
   static of<Manifest extends T.SDKManifest>() {
     return async <A extends string>(
       effects: T.Effects,
-      subcontainer:
-        | {
-            imageId: keyof Manifest["images"] & T.ImageId
-            sharedRun?: boolean
-          }
-        | SubContainer<Manifest>,
+      subcontainer: SubContainer<Manifest>,
       command: T.CommandType,
       options: {
-        subcontainerName?: string
-        mounts: Mounts<Manifest> | null
         env?:
           | {
               [variable: string]: string
