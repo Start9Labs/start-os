@@ -13,7 +13,7 @@ import { TUI_TRUE_HANDLER, TUI_FALSE_HANDLER } from '@taiga-ui/cdk'
 import { TuiDialogService, TuiIcon, TuiLink, TuiButton } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { from } from 'rxjs'
-import { REPORT } from 'src/app/components/report.component'
+import { REPORT } from 'src/app/components/backup-report.component'
 import { BackupRun } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DurationPipe } from '../pipes/duration.pipe'
@@ -206,7 +206,7 @@ export class BackupsHistoryModal {
   }
 
   async delete() {
-    const loader = this.loader.open('Deleting...').subscribe()
+    const loader = this.loader.open('Deleting').subscribe()
     const ids = this.selected
       .filter(Boolean)
       .map((_, i) => this.runs()?.[i].id || '')

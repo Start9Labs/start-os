@@ -20,7 +20,7 @@ export class AdditionalComponent {
   pkg!: MarketplacePkgBase
 
   @Output()
-  readonly static = new EventEmitter<'License' | 'Instructions'>()
+  readonly static = new EventEmitter<'license' | 'instructions'>()
 
   constructor(
     readonly copyService: CopyService,

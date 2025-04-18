@@ -7,7 +7,7 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
-import { getPkgId } from '@start9labs/shared'
+import { getPkgId, i18nPipe } from '@start9labs/shared'
 import { TuiItem } from '@taiga-ui/cdk'
 import { TuiButton, TuiLink } from '@taiga-ui/core'
 import { TuiBreadcrumbs } from '@taiga-ui/kit'
@@ -22,13 +22,15 @@ import { TitleDirective } from 'src/app/services/title.service'
 @Component({
   template: `
     <ng-container *title>
-      <a routerLink="../.." tuiIconButton iconStart="@tui.arrow-left">Back</a>
+      <a routerLink="../.." tuiIconButton iconStart="@tui.arrow-left">
+        {{ 'Back' | i18n }}
+      </a>
       {{ interface()?.name }}
       <interface-status [public]="!!interface()?.public" />
     </ng-container>
     <tui-breadcrumbs size="l" [style.margin-block-end.rem]="1">
       <a *tuiItem tuiLink appearance="action-grayscale" routerLink="../..">
-        Dashboard
+        {{ 'Dashboard' | i18n }}
       </a>
       <span *tuiItem class="g-primary">
         {{ interface()?.name }}
@@ -59,6 +61,7 @@ import { TitleDirective } from 'src/app/services/title.service'
     TuiItem,
     TuiLink,
     InterfaceStatusComponent,
+    i18nPipe,
   ],
 })
 export default class ServiceInterfaceRoute {

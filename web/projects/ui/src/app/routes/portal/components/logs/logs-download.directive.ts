@@ -24,7 +24,7 @@ export class LogsDownloadDirective {
 
   @HostListener('click')
   async download() {
-    const loader = this.loader.open('Processing 10,000 logs...').subscribe()
+    const loader = this.loader.open('Processing 10,000 logs').subscribe()
 
     try {
       const { entries } = await this.logsDownload({

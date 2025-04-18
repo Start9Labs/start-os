@@ -16,6 +16,7 @@ import { ServerNotification } from 'src/app/services/api/api.types'
 import { NotificationService } from 'src/app/services/notification.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { toRouterLink } from 'src/app/utils/to-router-link'
+import { i18nPipe } from '@start9labs/shared'
 
 @Component({
   selector: '[notificationItem]',
@@ -47,12 +48,12 @@ import { toRouterLink } from 'src/app/utils/to-router-link'
       />
       @if (overflow) {
         <button tuiLink (click)="service.viewModal(notificationItem, true)">
-          View Full
+          {{ 'View full' | i18n }}
         </button>
       }
       @if (notificationItem.code === 1 || notificationItem.code === 2) {
         <button tuiLink (click)="service.viewModal(notificationItem)">
-          View Report
+          {{ 'View report' | i18n }}
         </button>
       }
     </td>
@@ -109,7 +110,7 @@ import { toRouterLink } from 'src/app/utils/to-router-link'
       }
     }
   `,
-  imports: [CommonModule, RouterLink, TuiLineClamp, TuiLink, TuiIcon],
+  imports: [CommonModule, RouterLink, TuiLineClamp, TuiLink, TuiIcon, i18nPipe],
 })
 export class NotificationItemComponent {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)

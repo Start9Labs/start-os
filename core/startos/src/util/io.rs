@@ -915,6 +915,16 @@ impl Drop for TmpDir {
     }
 }
 
+pub async fn maybe_open_file(path: impl AsRef<Path>) -> Result<Option<File>, Error> {
+    let path = path.as_ref();
+    match File::open(path).await {
+        Ok(a) => Ok(Some(a)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(e),
+    }
+    .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("open {path:?}")))
+}
+
 pub async fn open_file(path: impl AsRef<Path>) -> Result<File, Error> {
     let path = path.as_ref();
     File::open(path)
@@ -930,6 +940,23 @@ pub async fn create_file(path: impl AsRef<Path>) -> Result<File, Error> {
             .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mkdir -p {parent:?}")))?;
     }
     File::create(path)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("create {path:?}")))
+}
+
+pub async fn create_file_mod(path: impl AsRef<Path>, mode: u32) -> Result<File, Error> {
+    let path = path.as_ref();
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mkdir -p {parent:?}")))?;
+    }
+    OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .mode(mode)
+        .open(path)
         .await
         .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("create {path:?}")))
 }

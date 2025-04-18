@@ -1,6 +1,7 @@
 import * as matches from "ts-matches"
 import * as YAML from "yaml"
 import * as TOML from "@iarna/toml"
+import * as INI from "ini"
 import * as T from "../../../base/lib/types"
 import * as fs from "node:fs/promises"
 import { asError, partialDiff } from "../../../base/lib/util"
@@ -152,7 +153,7 @@ export class FileHelper<A> {
   }
 
   private async readConst(effects: T.Effects): Promise<A | null> {
-    const watch = this.readWatch()
+    const watch = this.readWatch(effects)
     const res = await watch.next()
     if (effects.constRetry) {
       if (!this.consts.includes(effects.constRetry))
@@ -165,9 +166,9 @@ export class FileHelper<A> {
     return res.value
   }
 
-  private async *readWatch() {
+  private async *readWatch(effects: T.Effects) {
     let res
-    while (true) {
+    while (effects.isInContext) {
       if (await exists(this.path)) {
         const ctrl = new AbortController()
         const watch = fs.watch(this.path, {
@@ -194,10 +195,11 @@ export class FileHelper<A> {
   }
 
   private readOnChange(
+    effects: T.Effects,
     callback: (value: A | null, error?: Error) => void | Promise<void>,
   ) {
     ;(async () => {
-      for await (const value of this.readWatch()) {
+      for await (const value of this.readWatch(effects)) {
         try {
           await callback(value)
         } catch (e) {
@@ -221,10 +223,11 @@ export class FileHelper<A> {
     return {
       once: () => this.readOnce(),
       const: (effects: T.Effects) => this.readConst(effects),
-      watch: () => this.readWatch(),
+      watch: (effects: T.Effects) => this.readWatch(effects),
       onChange: (
+        effects: T.Effects,
         callback: (value: A | null, error?: Error) => void | Promise<void>,
-      ) => this.readOnChange(callback),
+      ) => this.readOnChange(effects, callback),
     }
   }
 
@@ -283,6 +286,7 @@ export class FileHelper<A> {
   ) {
     return new FileHelper<A>(path, toFile, fromFile, validate)
   }
+
   /**
    * Create a File Helper for a .json file.
    */
@@ -294,6 +298,7 @@ export class FileHelper<A> {
       (data) => shape.unsafeCast(data),
     )
   }
+
   /**
    * Create a File Helper for a .toml file
    */
@@ -308,6 +313,7 @@ export class FileHelper<A> {
       (data) => shape.unsafeCast(data),
     )
   }
+
   /**
    * Create a File Helper for a .yaml file
    */
@@ -319,6 +325,41 @@ export class FileHelper<A> {
       path,
       (inData) => YAML.stringify(inData, null, 2),
       (inString) => YAML.parse(inString),
+      (data) => shape.unsafeCast(data),
+    )
+  }
+
+  static ini<A extends Record<string, unknown>>(
+    path: string,
+    shape: matches.Validator<unknown, A>,
+    options?: INI.EncodeOptions & INI.DecodeOptions,
+  ) {
+    return new FileHelper<A>(
+      path,
+      (inData) => INI.stringify(inData, options),
+      (inString) => INI.parse(inString, options),
+      (data) => shape.unsafeCast(data),
+    )
+  }
+
+  static env<A extends Record<string, string>>(
+    path: string,
+    shape: matches.Validator<unknown, A>,
+  ) {
+    return new FileHelper<A>(
+      path,
+      (inData) =>
+        Object.entries(inData)
+          .map(([k, v]) => `${k}=${v}`)
+          .join("\n"),
+      (inString) =>
+        Object.fromEntries(
+          inString
+            .split("\n")
+            .map((line) => line.trim())
+            .filter((line) => !line.startsWith("#") && line.includes("="))
+            .map((line) => line.split("=", 2)),
+        ),
       (data) => shape.unsafeCast(data),
     )
   }

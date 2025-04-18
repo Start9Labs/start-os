@@ -8,10 +8,17 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
-import { ErrorService, LoadingService } from '@start9labs/shared'
+import {
+  ErrorService,
+  i18nPipe,
+  i18nService,
+  LoadingService,
+  DialogService,
+  languages,
+  i18nKey,
+} from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import {
-  TuiAlertService,
   TuiAppearance,
   TuiButton,
   tuiFadeIn,
@@ -21,7 +28,6 @@ import {
   TuiTitle,
 } from '@taiga-ui/core'
 import {
-  TUI_CONFIRM,
   TuiButtonLoading,
   TuiButtonSelect,
   TuiDataListWrapper,
@@ -30,9 +36,6 @@ import { TuiCell, tuiCellOptionsProvider, TuiHeader } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { filter } from 'rxjs'
-import { i18nPipe } from 'src/app/i18n/i18n.pipe'
-import { i18nService } from 'src/app/i18n/i18n.service'
-import { PROMPT } from 'src/app/routes/portal/modals/prompt.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 import { EOSService } from 'src/app/services/eos.service'
@@ -46,17 +49,15 @@ import { SystemWipeComponent } from './wipe.component'
   template: `
     <ng-container *title>
       <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
-        {{ 'ui.back' | i18n }}
+        {{ 'Back' | i18n }}
       </a>
-      {{ 'system.general.title' | i18n }}
+      {{ 'General Settings' | i18n }}
     </ng-container>
     <header tuiHeader>
       <hgroup tuiTitle>
-        <h3>
-          {{ 'system.general.title' | i18n }}
-        </h3>
+        <h3>{{ 'General Settings' | i18n }}</h3>
         <p tuiSubtitle>
-          {{ 'system.general.subtitle' | i18n }}
+          {{ 'Manage your overall setup and preferences' | i18n }}
         </p>
       </hgroup>
     </header>
@@ -64,9 +65,7 @@ import { SystemWipeComponent } from './wipe.component'
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.zap" />
         <span tuiTitle>
-          <strong>
-            {{ 'system.general.update.title' | i18n }}
-          </strong>
+          <strong>{{ 'Software Update' | i18n }}</strong>
           <span tuiSubtitle>{{ server.version }}</span>
         </span>
         <button
@@ -77,12 +76,12 @@ import { SystemWipeComponent } from './wipe.component'
           (click)="onUpdate()"
         >
           @if (server.statusInfo.updated) {
-            {{ 'system.general.update.button.restart' | i18n }}
+            {{ 'Restart to apply' | i18n }}
           } @else {
             @if (eos.showUpdate$ | async) {
-              {{ 'ui.update' | i18n }}
+              {{ 'Update' | i18n }}
             } @else {
-              {{ 'system.general.update.button.check' | i18n }}
+              {{ 'Check for updates' | i18n }}
             }
           }
         </button>
@@ -90,31 +89,25 @@ import { SystemWipeComponent } from './wipe.component'
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.app-window" />
         <span tuiTitle>
-          <strong>
-            {{ 'system.general.tab' | i18n }}
-          </strong>
+          <strong>{{ 'Browser Tab Title' | i18n }}</strong>
           <span tuiSubtitle>{{ name() }}</span>
         </span>
-        <button tuiButton (click)="onTitle()">
-          {{ 'ui.change' | i18n }}
-        </button>
+        <button tuiButton (click)="onTitle()">{{ 'Change' | i18n }}</button>
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.languages" />
         <span tuiTitle>
-          <strong>
-            {{ 'system.general.language' | i18n }}
-          </strong>
-          <span tuiSubtitle>{{ i18n.language }}</span>
+          <strong>{{ 'Language' | i18n }}</strong>
+          <span tuiSubtitle>{{ i18nService.language }}</span>
         </span>
         <button
           tuiButtonSelect
           tuiButton
-          [loading]="i18n.loading()"
-          [ngModel]="i18n.language"
-          (ngModelChange)="i18n.setLanguage($event)"
+          [loading]="i18nService.loading()"
+          [ngModel]="i18nService.language"
+          (ngModelChange)="i18nService.setLanguage($event)"
         >
-          {{ 'ui.change' | i18n }}
+          {{ 'Change' | i18n }}
           <tui-data-list-wrapper
             *tuiTextfieldDropdown
             size="l"
@@ -125,44 +118,34 @@ import { SystemWipeComponent } from './wipe.component'
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.award" />
         <span tuiTitle>
-          <strong>
-            {{ 'system.general.ca.title' | i18n }}
-          </strong>
-          <span tuiSubtitle>
-            {{ 'system.general.ca.subtitle' | i18n }}
-          </span>
+          <strong>{{ 'Root Certificate Authority' | i18n }}</strong>
+          <span tuiSubtitle>{{ 'Download your Root CA' | i18n }}</span>
         </span>
         <button tuiButton iconStart="@tui.download" (click)="downloadCA()">
-          {{ 'system.general.ca.button' | i18n }}
+          {{ 'Download' | i18n }}
         </button>
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.circle-power" (click)="count = count + 1" />
         <span tuiTitle>
-          <strong>
-            {{ 'system.general.tor.title' | i18n }}
-          </strong>
+          <strong>{{ 'Reset Tor' | i18n }}</strong>
           <span tuiSubtitle>
-            {{ 'system.general.tor.subtitle' | i18n }}
+            {{ 'Restart the Tor daemon on your server' | i18n }}
           </span>
         </span>
         <button tuiButton appearance="glass" (click)="onReset()">
-          {{ 'ui.reset' | i18n }}
+          {{ 'Reset' | i18n }}
         </button>
       </div>
       @if (count > 4) {
         <div tuiCell tuiAppearance="outline-grayscale" @tuiScaleIn @tuiFadeIn>
           <tui-icon icon="@tui.briefcase-medical" />
           <span tuiTitle>
-            <strong>
-              {{ 'system.general.repair.title' | i18n }}
-            </strong>
-            <span tuiSubtitle>
-              {{ 'system.general.repair.subtitle' | i18n }}
-            </span>
+            <strong>{{ 'Disk Repair' | i18n }}</strong>
+            <span tuiSubtitle>{{ 'Attempt automatic repair' | i18n }}</span>
           </span>
           <button tuiButton appearance="glass" (click)="onRepair()">
-            {{ 'system.general.repair.button' | i18n }}
+            {{ 'Repair' | i18n }}
           </button>
         </div>
       }
@@ -228,18 +211,14 @@ import { SystemWipeComponent } from './wipe.component'
   ],
 })
 export default class SystemGeneralComponent {
-  private readonly alerts = inject(TuiAlertService)
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)
   private readonly isTor = inject(ConfigService).isTor()
-  private readonly reset = new PolymorpheusComponent(
-    SystemWipeComponent,
-    inject(INJECTOR),
-  )
   private readonly document = inject(DOCUMENT)
+  private readonly dialog = inject(DialogService)
 
   wipe = false
   count = 0
@@ -247,8 +226,8 @@ export default class SystemGeneralComponent {
   readonly server = toSignal(this.patch.watch$('serverInfo'))
   readonly name = toSignal(this.patch.watch$('ui', 'name'))
   readonly eos = inject(EOSService)
-  readonly i18n = inject(i18nService)
-  readonly languages = ['english', 'spanish']
+  readonly i18nService = inject(i18nService)
+  readonly languages = languages
   readonly score = toSignal(
     this.patch.watch$('ui', 'gaming', 'snake', 'highScore'),
     { initialValue: 0 },
@@ -265,20 +244,21 @@ export default class SystemGeneralComponent {
   }
 
   onTitle() {
-    this.dialogs
-      .open<string>(PROMPT, {
+    this.dialog
+      .openPrompt<string>({
         label: 'Browser Tab Title',
         data: {
-          message: `This value will be displayed as the title of your browser tab.`,
           label: 'Device Name',
-          placeholder: 'StartOS',
+          message:
+            'This value will be displayed as the title of your browser tab.',
+          placeholder: 'StartOS' as i18nKey,
           required: false,
           buttonText: 'Save',
           initialValue: this.name(),
         },
       })
       .subscribe(async name => {
-        const loader = this.loader.open('Saving...').subscribe()
+        const loader = this.loader.open('Saving').subscribe()
 
         try {
           await this.api.setDbValue(['name'], name || null)
@@ -290,11 +270,14 @@ export default class SystemGeneralComponent {
 
   onReset() {
     this.wipe = false
-    this.dialogs
-      .open(TUI_CONFIRM, {
+    this.dialog
+      .openConfirm({
         label: this.isTor ? 'Warning' : 'Confirm',
         data: {
-          content: this.reset,
+          content: new PolymorpheusComponent(
+            SystemWipeComponent,
+            inject(INJECTOR),
+          ),
           yes: 'Reset',
           no: 'Cancel',
         },
@@ -308,11 +291,12 @@ export default class SystemGeneralComponent {
   }
 
   async onRepair() {
-    this.dialogs
-      .open(TUI_CONFIRM, {
+    this.dialog
+      .openConfirm({
         label: 'Warning',
         data: {
-          content: `<p>This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action.</p><p>If anything happens to the device during the reboot, such as losing power or unplugging the drive, the filesystem <i>will</i> be in an unrecoverable state. Please proceed with caution.</p>`,
+          content:
+            'This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action. If anything happens to the device during the reboot, such as losing power or unplugging the drive, the filesystem will be in an unrecoverable state. Please proceed with caution.',
           yes: 'Repair',
           no: 'Cancel',
         },
@@ -329,12 +313,12 @@ export default class SystemGeneralComponent {
   }
 
   private async resetTor(wipeState: boolean) {
-    const loader = this.loader.open('Resetting Tor...').subscribe()
+    const loader = this.loader.open('Resetting Tor').subscribe()
 
     try {
       await this.api.resetTor({ wipeState, reason: 'User triggered' })
 
-      this.alerts.open('Tor reset in progress').subscribe()
+      this.dialog.openAlert('Tor reset in progress').subscribe()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -355,10 +339,9 @@ export default class SystemGeneralComponent {
       if (this.eos.updateAvailable$.value) {
         this.update()
       } else {
-        this.dialogs
-          .open('You are on the latest version of StartOS.', {
+        this.dialog
+          .openAlert('You are on the latest version of StartOS.', {
             label: 'Up to date!',
-            size: 's',
           })
           .subscribe()
       }
@@ -370,7 +353,7 @@ export default class SystemGeneralComponent {
   }
 
   private async restart() {
-    const loader = this.loader.open(`Beginning restart...`).subscribe()
+    const loader = this.loader.open('Beginning restart').subscribe()
 
     try {
       await this.api.restartServer({})

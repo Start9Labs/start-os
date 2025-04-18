@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 
-export const FALLBACK_URL = 'Not provided'
+export const NOT_PROVIDED = 'Not provided'
 export interface AdditionalItem {
-  name: string
-  description: string
+  name: i18nKey
+  value: string
   icon?: string
   action?: () => void
 }
@@ -13,8 +14,8 @@ export interface AdditionalItem {
   selector: '[additionalItem]',
   template: `
     <span tuiTitle>
-      <strong>{{ additionalItem.name }}</strong>
-      <span tuiSubtitle>{{ additionalItem.description }}</span>
+      <strong>{{ additionalItem.name | i18n }}</strong>
+      <span tuiSubtitle>{{ additionalItem.value }}</span>
     </span>
     @if (icon) {
       <tui-icon [icon]="icon" />
@@ -33,22 +34,22 @@ export interface AdditionalItem {
     target: '_blank',
     '[class._disabled]': 'disabled',
     '[attr.href]':
-      'additionalItem.description.startsWith("http") ? additionalItem.description : null',
+      'additionalItem.value.startsWith("http") ? additionalItem.value : null',
   },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiIcon, TuiTitle],
+  imports: [TuiIcon, TuiTitle, i18nPipe],
 })
 export class ServiceAdditionalItemComponent {
   @Input({ required: true })
   additionalItem!: AdditionalItem
 
   get disabled(): boolean {
-    return this.additionalItem.description === FALLBACK_URL
+    return this.additionalItem.value === NOT_PROVIDED
   }
 
   get icon(): string | undefined {
-    return this.additionalItem.description.startsWith('http')
+    return this.additionalItem.value.startsWith('http')
       ? '@tui.external-link'
       : this.additionalItem.icon
   }

@@ -1,6 +1,7 @@
 import { KeyValuePipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { RouterLink } from '@angular/router'
+import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
 import { TuiCell } from '@taiga-ui/layout'
@@ -11,7 +12,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 @Component({
   selector: 'service-dependencies',
   template: `
-    <header>Dependencies</header>
+    <header>{{ 'Dependencies' | i18n }}</header>
     @for (d of pkg.currentDependencies | keyvalue; track $index) {
       <a
         tuiCell
@@ -22,16 +23,18 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
         <span tuiTitle>
           {{ d.value.title }}
           @if (getError(d.key); as error) {
-            <span tuiSubtitle class="g-warning">{{ error }}</span>
+            <span tuiSubtitle class="g-warning">{{ error | i18n }}</span>
           } @else {
-            <span tuiSubtitle class="g-positive">Satisfied</span>
+            <span tuiSubtitle class="g-positive">{{ 'Satisfied' | i18n }}</span>
           }
           <span tuiSubtitle>{{ d.value.versionRange }}</span>
         </span>
         <tui-icon icon="@tui.arrow-right" />
       </a>
     } @empty {
-      <app-placeholder icon="@tui.boxes">No dependencies</app-placeholder>
+      <app-placeholder icon="@tui.boxes">
+        {{ 'No dependencies' | i18n }}
+      </app-placeholder>
     }
   `,
   styles: `
@@ -51,6 +54,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
     TuiTitle,
     TuiIcon,
     PlaceholderComponent,
+    i18nPipe,
   ],
 })
 export class ServiceDependenciesComponent {
@@ -63,11 +67,11 @@ export class ServiceDependenciesComponent {
   @Input({ required: true })
   errors: PkgDependencyErrors = {}
 
-  getError(id: string): string {
+  getError(id: string): i18nKey | undefined {
     const depError = this.errors[id]
 
     if (!depError) {
-      return ''
+      return undefined
     }
 
     switch (depError.type) {

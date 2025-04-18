@@ -7,6 +7,7 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink, RouterLinkActive } from '@angular/router'
+import { i18nPipe } from '@start9labs/shared'
 import { TuiResponsiveDialogService, TuiTabBar } from '@taiga-ui/addon-mobile'
 import { TuiIcon } from '@taiga-ui/core'
 import { TuiBadgeNotification } from '@taiga-ui/kit'
@@ -27,7 +28,7 @@ const FILTER = ['/portal/services', '/portal/system', '/portal/marketplace']
         routerLinkActive
         (isActiveChange)="update()"
       >
-        Services
+        {{ 'Services' | i18n }}
       </a>
       <a
         tuiTabBarItem
@@ -36,7 +37,7 @@ const FILTER = ['/portal/services', '/portal/system', '/portal/marketplace']
         routerLinkActive
         (isActiveChange)="update()"
       >
-        Marketplace
+        {{ 'Marketplace' | i18n }}
       </a>
       <a
         tuiTabBarItem
@@ -46,7 +47,7 @@ const FILTER = ['/portal/services', '/portal/system', '/portal/marketplace']
         [badge]="badge()"
         (isActiveChange)="update()"
       >
-        System
+        {{ 'System' | i18n }}
       </a>
       <button
         tuiTabBarItem
@@ -54,7 +55,7 @@ const FILTER = ['/portal/services', '/portal/system', '/portal/marketplace']
         (click)="more(content)"
         [badge]="all()"
       >
-        More
+        {{ 'More' | i18n }}
         <ng-template #content let-observer>
           @for (item of menu; track $index) {
             <a
@@ -114,6 +115,7 @@ const FILTER = ['/portal/services', '/portal/system', '/portal/marketplace']
     TuiTabBar,
     TuiBadgeNotification,
     TuiIcon,
+    i18nPipe,
   ],
 })
 export class TabsComponent {

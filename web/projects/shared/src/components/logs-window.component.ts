@@ -7,7 +7,7 @@ import {
 } from '@ng-web-apis/intersection-observer'
 import { WaMutationObserver } from '@ng-web-apis/mutation-observer'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
-import { SetupLogsService } from '../../services/setup-logs.service'
+import { SetupLogsService } from '../services/setup-logs.service'
 
 @Component({
   standalone: true,

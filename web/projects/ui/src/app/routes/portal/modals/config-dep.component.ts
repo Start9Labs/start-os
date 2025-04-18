@@ -1,12 +1,13 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  inject,
   Input,
   OnInit,
 } from '@angular/core'
 import { TuiNotification } from '@taiga-ui/core'
 import { getValueByPointer, Operation } from 'fast-json-patch'
-import { isObject } from '@start9labs/shared'
+import { i18nPipe, isObject } from '@start9labs/shared'
 import { tuiIsNumber } from '@taiga-ui/cdk'
 import { CommonModule } from '@angular/common'
 
@@ -14,14 +15,14 @@ import { CommonModule } from '@angular/common'
   selector: 'action-request-info',
   template: `
     <tui-notification *ngIf="diff.length">
-      The following modifications were made:
+      {{ 'The following modifications were made' | i18n }}:
       <ul>
         <li *ngFor="let d of diff" [innerHTML]="d"></li>
       </ul>
     </tui-notification>
   `,
   standalone: true,
-  imports: [CommonModule, TuiNotification],
+  imports: [CommonModule, TuiNotification, i18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: [
     `
@@ -37,6 +38,8 @@ export class ActionRequestInfoComponent implements OnInit {
 
   @Input()
   operations: Operation[] = []
+
+  private readonly i18n = inject(i18nPipe)
 
   diff: string[] = []
 
@@ -65,13 +68,13 @@ export class ActionRequestInfoComponent implements OnInit {
   private getMessage(operation: Operation): string {
     switch (operation.op) {
       case 'add':
-        return `added ${this.getNewValue(operation.value)}`
+        return `${this.i18n.transform('added')} ${this.getNewValue(operation.value)}`
       case 'remove':
-        return `removed ${this.getOldValue(operation.path)}`
+        return `${this.i18n.transform('removed')} ${this.getOldValue(operation.path)}`
       case 'replace':
-        return `changed from ${this.getOldValue(
+        return `${this.i18n.transform('changed from')} ${this.getOldValue(
           operation.path,
-        )} to ${this.getNewValue(operation.value)}`
+        )} ${this.i18n.transform('to')} ${this.getNewValue(operation.value)}`
       default:
         return `Unknown operation` // unreachable
     }
@@ -82,9 +85,9 @@ export class ActionRequestInfoComponent implements OnInit {
     if (['string', 'number', 'boolean'].includes(typeof val)) {
       return val
     } else if (isObject(val)) {
-      return 'entry'
+      return this.i18n.transform('entry')!
     } else {
-      return 'list'
+      return this.i18n.transform('list')!
     }
   }
 
@@ -92,9 +95,9 @@ export class ActionRequestInfoComponent implements OnInit {
     if (['string', 'number', 'boolean'].includes(typeof val)) {
       return val
     } else if (isObject(val)) {
-      return 'new entry'
+      return this.i18n.transform('new entry')!
     } else {
-      return 'new list'
+      return this.i18n.transform('new list')!
     }
   }
 }

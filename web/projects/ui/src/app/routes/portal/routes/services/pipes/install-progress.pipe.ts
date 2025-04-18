@@ -1,4 +1,5 @@
 import { Pipe, PipeTransform } from '@angular/core'
+import { i18nKey } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 
 @Pipe({
@@ -13,11 +14,11 @@ export class InstallingProgressPipe implements PipeTransform {
   }
 }
 
-export function getProgressText(progress: T.Progress): string {
+export function getProgressText(progress: T.Progress): i18nKey {
   if (progress === true) return 'finalizing'
   if (!progress || !progress.total) return 'unknown %'
 
   const percentage = Math.round((100 * progress.done) / progress.total)
 
-  return percentage < 99 ? `${percentage}%` : 'finalizing'
+  return percentage < 99 ? (`${percentage}%` as i18nKey) : 'finalizing'
 }

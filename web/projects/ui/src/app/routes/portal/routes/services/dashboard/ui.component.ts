@@ -4,6 +4,7 @@ import {
   inject,
   Input,
 } from '@angular/core'
+import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { tuiPure } from '@taiga-ui/cdk'
 import { TuiDataList, TuiDropdown, TuiButton } from '@taiga-ui/core'
@@ -22,7 +23,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
         [disabled]="!isRunning"
         [tuiDropdown]="content"
       >
-        Launch UI
+        {{ 'Launch UI' | i18n }}
       </button>
       <ng-template #content>
         <tui-data-list>
@@ -56,7 +57,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, TuiDropdown, TuiDataList],
+  imports: [TuiButton, TuiDropdown, TuiDataList, i18nPipe],
 })
 export class UILaunchComponent {
   private readonly config = inject(ConfigService)

@@ -1,5 +1,5 @@
-import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { i18nPipe } from '@start9labs/shared'
 import { TuiIcon } from '@taiga-ui/core'
 import { STATUS } from 'src/app/services/status.service'
 
@@ -16,7 +16,7 @@ import { STATUS } from 'src/app/services/status.service'
         [attr.data-status]="status().status"
       />
     </span>
-    <span>{{ status().message }}</span>
+    <span>{{ status().message | i18n }}</span>
   `,
   styles: [
     `
@@ -48,7 +48,7 @@ import { STATUS } from 'src/app/services/status.service'
   ],
   host: { '[class._connected]': 'status().status === "success"' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiIcon, AsyncPipe],
+  imports: [TuiIcon, i18nPipe],
 })
 export class HeaderStatusComponent {
   readonly status = inject(STATUS)

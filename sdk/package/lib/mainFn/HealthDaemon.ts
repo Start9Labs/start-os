@@ -2,7 +2,7 @@ import { HealthCheckResult } from "../health/checkFns"
 import { defaultTrigger } from "../trigger/defaultTrigger"
 import { Ready } from "./Daemons"
 import { Daemon } from "./Daemon"
-import { SetHealth, Effects } from "../../../base/lib/types"
+import { SetHealth, Effects, SDKManifest } from "../../../base/lib/types"
 import { DEFAULT_SIGTERM_TIMEOUT } from "."
 import { asError } from "../../../base/lib/util/asError"
 
@@ -21,7 +21,7 @@ const oncePromise = <T>() => {
  * -- Running: Daemon is running and the status is in the health
  *
  */
-export class HealthDaemon {
+export class HealthDaemon<Manifest extends SDKManifest> {
   private _health: HealthCheckResult = { result: "starting", message: null }
   private healthWatchers: Array<() => unknown> = []
   private running = false
@@ -29,9 +29,9 @@ export class HealthDaemon {
   private resolveReady: (() => void) | undefined
   private readyPromise: Promise<void>
   constructor(
-    private readonly daemon: Promise<Daemon>,
+    private readonly daemon: Promise<Daemon<Manifest>>,
     readonly daemonIndex: number,
-    private readonly dependencies: HealthDaemon[],
+    private readonly dependencies: HealthDaemon<Manifest>[],
     readonly id: string,
     readonly ids: string[],
     readonly ready: Ready,

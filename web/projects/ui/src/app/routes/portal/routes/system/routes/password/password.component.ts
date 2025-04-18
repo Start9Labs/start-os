@@ -2,14 +2,15 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
 import * as argon2 from '@start9labs/argon2'
-import { ErrorService, LoadingService } from '@start9labs/shared'
-import { ISB } from '@start9labs/start-sdk'
 import {
-  TuiAlertService,
-  TuiButton,
-  TuiNotification,
-  TuiTitle,
-} from '@taiga-ui/core'
+  DialogService,
+  ErrorService,
+  i18nKey,
+  i18nPipe,
+  LoadingService,
+} from '@start9labs/shared'
+import { ISB } from '@start9labs/start-sdk'
+import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { from } from 'rxjs'
@@ -24,16 +25,18 @@ import { getServerInfo } from 'src/app/utils/get-server-info'
   template: `
     <ng-container *title>
       <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
-      Change Password
+      {{ 'Change Password' | i18n }}
     </ng-container>
     <header tuiHeader>
       <hgroup tuiTitle>
-        <h3>Change Password</h3>
+        <h3>{{ 'Change Password' | i18n }}</h3>
         <p tuiSubtitle>
-          Change your StartOS master password.
+          {{ 'Change your StartOS master password.' | i18n }}
           <strong>
-            You will still need your current password to decrypt existing
-            backups!
+            {{
+              'You will still need your current password to decrypt existing backups!'
+                | i18n
+            }}
           </strong>
         </p>
       </hgroup>
@@ -65,20 +68,23 @@ import { getServerInfo } from 'src/app/utils/get-server-info'
     TuiButton,
     FormComponent,
     TitleDirective,
+    i18nPipe,
   ],
 })
 export default class SystemPasswordComponent {
-  private readonly alerts = inject(TuiAlertService)
+  private readonly dialog = inject(DialogService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)
+  private readonly i18n = inject(i18nPipe)
 
-  readonly spec = toSignal(from(configBuilderToSpec(passwordSpec)))
+  readonly spec = toSignal(from(configBuilderToSpec(this.passwordSpec())))
   readonly buttons = [
     {
-      text: 'Save',
-      handler: (value: PasswordSpec) => this.resetPassword(value),
+      text: this.i18n.transform('Save')!,
+      handler: (value: ReturnType<typeof this.passwordSpec>['_TYPE']) =>
+        this.resetPassword(value),
     },
   ]
 
@@ -86,8 +92,8 @@ export default class SystemPasswordComponent {
     newPassword,
     newPasswordConfirm,
     oldPassword,
-  }: PasswordSpec) {
-    let error = ''
+  }: ReturnType<typeof this.passwordSpec>['_TYPE']) {
+    let error: i18nKey | null = null
 
     if (newPassword !== newPasswordConfirm) {
       error = 'New passwords do not match'
@@ -111,38 +117,38 @@ export default class SystemPasswordComponent {
       return
     }
 
-    const loader = this.loader.open('Saving...').subscribe()
+    const loader = this.loader.open('Saving').subscribe()
 
     try {
       await this.api.resetPassword({ oldPassword, newPassword })
-      this.alerts.open('Password changed!').subscribe()
+      this.dialog.openAlert('Password changed').subscribe()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }
   }
+
+  passwordSpec() {
+    return ISB.InputSpec.of({
+      oldPassword: ISB.Value.text({
+        name: this.i18n.transform('Current Password')!,
+        required: true,
+        default: null,
+        masked: true,
+      }),
+      newPassword: ISB.Value.text({
+        name: this.i18n.transform('New Password')!,
+        required: true,
+        default: null,
+        masked: true,
+      }),
+      newPasswordConfirm: ISB.Value.text({
+        name: this.i18n.transform('Retype New Password')!,
+        required: true,
+        default: null,
+        masked: true,
+      }),
+    })
+  }
 }
-
-const passwordSpec = ISB.InputSpec.of({
-  oldPassword: ISB.Value.text({
-    name: 'Current Password',
-    required: true,
-    default: null,
-    masked: true,
-  }),
-  newPassword: ISB.Value.text({
-    name: 'New Password',
-    required: true,
-    default: null,
-    masked: true,
-  }),
-  newPasswordConfirm: ISB.Value.text({
-    name: 'Retype New Password',
-    required: true,
-    default: null,
-    masked: true,
-  }),
-})
-
-export type PasswordSpec = typeof passwordSpec.validator._TYPE

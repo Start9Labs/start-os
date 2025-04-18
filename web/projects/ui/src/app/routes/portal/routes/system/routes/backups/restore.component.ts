@@ -1,18 +1,17 @@
 import { DatePipe, KeyValuePipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import {
+  DialogService,
   ErrorService,
+  i18nPipe,
   LoadingService,
   StartOSDiskInfo,
 } from '@start9labs/shared'
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import { TuiTitle } from '@taiga-ui/core'
 import { TuiCell } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { PROMPT } from 'src/app/routes/portal/modals/prompt.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { verifyPassword } from 'src/app/utils/verify-password'
-import { RESTORE_OPTIONS } from './backup.const'
 import { BackupContext } from './backup.types'
 import { RECOVER } from './recover.component'
 
@@ -23,15 +22,15 @@ import { RECOVER } from './recover.component'
       <button tuiCell (click)="onClick(server.key, server.value)">
         <span tuiTitle>
           <span tuiSubtitle>
-            <b>Local Hostname</b>
+            <b>{{ 'Local Hostname' | i18n }}</b>
             : {{ server.value.hostname }}.local
           </span>
           <span tuiSubtitle>
-            <b>StartOS Version</b>
+            <b>{{ 'StartOS Version' | i18n }}</b>
             : {{ server.value.version }}
           </span>
           <span tuiSubtitle>
-            <b>Created</b>
+            <b>{{ 'Created' | i18n }}</b>
             : {{ server.value.timestamp | date: 'medium' }}
           </span>
         </span>
@@ -44,10 +43,10 @@ import { RECOVER } from './recover.component'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [KeyValuePipe, DatePipe, TuiCell, TuiTitle],
+  imports: [KeyValuePipe, DatePipe, TuiCell, TuiTitle, i18nPipe],
 })
 export class BackupRestoreComponent {
-  private readonly dialogs = inject(TuiResponsiveDialogService)
+  private readonly dialog = inject(DialogService)
   private readonly loader = inject(LoadingService)
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
@@ -56,14 +55,23 @@ export class BackupRestoreComponent {
   readonly target = this.context.data
 
   onClick(serverId: string, { passwordHash }: StartOSDiskInfo) {
-    this.dialogs
-      .open<string>(PROMPT, RESTORE_OPTIONS)
+    this.dialog
+      .openPrompt<string>({
+        label: 'Password Required',
+        data: {
+          message:
+            'Enter the master password that was used to encrypt this backup. On the next screen, you will select the individual services you want to restore.',
+          label: 'Master Password',
+          placeholder: 'Enter master password',
+          useMask: true,
+        },
+      })
       .pipe(verifyPassword(passwordHash, e => this.errorService.handleError(e)))
       .subscribe(async password => await this.restore(serverId, password))
   }
 
   private async restore(serverId: string, password: string): Promise<void> {
-    const loader = this.loader.open('Decrypting drive...').subscribe()
+    const loader = this.loader.open('Decrypting drive').subscribe()
     const params = { targetId: this.target.id, serverId, password }
 
     try {
@@ -76,8 +84,8 @@ export class BackupRestoreComponent {
       }
 
       this.context.$implicit.complete()
-      this.dialogs
-        .open(RECOVER, { label: 'Select Services to Restore', data })
+      this.dialog
+        .openComponent(RECOVER, { label: 'Select services to restore', data })
         .subscribe()
     } finally {
       loader.unsubscribe()

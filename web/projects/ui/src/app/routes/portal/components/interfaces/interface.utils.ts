@@ -1,22 +1,10 @@
 import { T, utils } from '@start9labs/start-sdk'
-import { TuiDialogOptions } from '@taiga-ui/core'
-import { TuiConfirmData } from '@taiga-ui/kit'
 import { ConfigService } from 'src/app/services/config.service'
 
 export abstract class AddressesService {
   abstract static: boolean
   abstract add(): Promise<void>
   abstract remove(): Promise<void>
-}
-
-export const REMOVE: Partial<TuiDialogOptions<TuiConfirmData>> = {
-  label: 'Confirm',
-  size: 's',
-  data: {
-    content: 'Remove clearnet address?',
-    yes: 'Remove',
-    no: 'Cancel',
-  },
 }
 
 export function getAddresses(

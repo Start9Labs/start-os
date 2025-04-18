@@ -1,4 +1,5 @@
 import { MarketplacePkgBase } from '@start9labs/marketplace'
+import { i18nKey } from '@start9labs/shared'
 import { S9pk, ExtendedVersion } from '@start9labs/start-sdk'
 
 const MAGIC = new Uint8Array([59, 59])
@@ -7,31 +8,27 @@ const VERSION_2 = new Uint8Array([2])
 
 export async function validateS9pk(
   file: File,
-): Promise<MarketplacePkgSideload | string> {
-  const magic = new Uint8Array(await blobToBuffer(file.slice(0, 2)))
-  const version = new Uint8Array(await blobToBuffer(file.slice(2, 3)))
+): Promise<MarketplacePkgSideload | i18nKey> {
+  try {
+    const magic = new Uint8Array(await blobToBuffer(file.slice(0, 2)))
+    const version = new Uint8Array(await blobToBuffer(file.slice(2, 3)))
 
-  if (compare(magic, MAGIC)) {
-    try {
+    if (compare(magic, MAGIC)) {
       if (compare(version, VERSION_1)) {
         return 'Version 1 s9pk detected. This package format is deprecated. You can sideload a V1 s9pk via start-cli if necessary.'
       } else if (compare(version, VERSION_2)) {
         return await parseS9pk(file)
       } else {
         console.error(version)
-
         return 'Invalid package file'
       }
-    } catch (e) {
-      console.error(e)
-
-      return e instanceof Error
-        ? `Invalid package file: ${e.message}`
-        : 'Invalid package file'
+    } else {
+      return 'Invalid package file'
     }
+  } catch (e) {
+    console.error(e)
+    return 'Invalid package file'
   }
-
-  return 'Invalid package file'
 }
 
 async function parseS9pk(file: File): Promise<MarketplacePkgSideload> {
@@ -44,7 +41,7 @@ async function parseS9pk(file: File): Promise<MarketplacePkgSideload> {
     icon: await s9pk.icon(),
     sourceVersion: s9pk.manifest.canMigrateFrom,
     flavor: ExtendedVersion.parse(s9pk.manifest.version).flavor,
-    license: await s9pk.license(),
+    fullLicense: await s9pk.license(),
     instructions: await s9pk.instructions(),
   }
 }
@@ -80,6 +77,6 @@ function compare(a: Uint8Array, b: Uint8Array) {
 }
 
 export type MarketplacePkgSideload = MarketplacePkgBase & {
-  license: string
   instructions: string
+  fullLicense: string
 }

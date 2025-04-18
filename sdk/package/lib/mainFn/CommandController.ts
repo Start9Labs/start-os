@@ -10,12 +10,13 @@ import {
 import { Drop, splitCommand } from "../util"
 import * as cp from "child_process"
 import * as fs from "node:fs/promises"
+import { Mounts } from "./Mounts"
 
-export class CommandController extends Drop {
+export class CommandController<Manifest extends T.SDKManifest> extends Drop {
   private constructor(
     readonly runningAnswer: Promise<unknown>,
     private state: { exited: boolean },
-    private readonly subcontainer: SubContainer,
+    private readonly subcontainer: SubContainer<Manifest>,
     private process: cp.ChildProcess,
     readonly sigtermTimeout: number = DEFAULT_SIGTERM_TIMEOUT,
   ) {
@@ -29,13 +30,13 @@ export class CommandController extends Drop {
             imageId: keyof Manifest["images"] & T.ImageId
             sharedRun?: boolean
           }
-        | SubContainer,
+        | SubContainer<Manifest>,
       command: T.CommandType,
       options: {
         subcontainerName?: string
         // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
         sigtermTimeout?: number
-        mounts?: { mountpoint: string; options: MountOptions }[]
+        mounts: Mounts<Manifest> | null
         runAsInit?: boolean
         env?:
           | {
@@ -65,13 +66,12 @@ export class CommandController extends Drop {
           : await SubContainer.of(
               effects,
               subcontainer,
+              null,
               options?.subcontainerName || commands.join(" "),
             )
 
       try {
-        for (let mount of options.mounts || []) {
-          await subc.mount(mount.options, mount.mountpoint)
-        }
+        if (options.mounts) await subc.mount(options.mounts)
 
         let childProcess: cp.ChildProcess
         if (options.runAsInit) {
@@ -130,39 +130,37 @@ export class CommandController extends Drop {
     return new SubContainerHandle(this.subcontainer)
   }
   async wait({ timeout = NO_TIMEOUT } = {}) {
-    const self = this.weak()
     if (timeout > 0)
       setTimeout(() => {
-        self.term()
+        this.term()
       }, timeout)
     try {
-      return await self.runningAnswer
+      return await this.runningAnswer
     } finally {
-      if (!self.state.exited) {
-        self.process.kill("SIGKILL")
+      if (!this.state.exited) {
+        this.process.kill("SIGKILL")
       }
-      await self.subcontainer.destroy().catch((_) => {})
+      await this.subcontainer.destroy().catch((_) => {})
     }
   }
   async term({ signal = SIGTERM, timeout = this.sigtermTimeout } = {}) {
-    const self = this.weak()
     try {
-      if (!self.state.exited) {
+      if (!this.state.exited) {
         if (signal !== "SIGKILL") {
           setTimeout(() => {
-            if (!self.state.exited) self.process.kill("SIGKILL")
+            if (!this.state.exited) this.process.kill("SIGKILL")
           }, timeout)
         }
-        if (!self.process.kill(signal)) {
+        if (!this.process.kill(signal)) {
           console.error(
             `failed to send signal ${signal} to pid ${this.process.pid}`,
           )
         }
       }
 
-      await self.runningAnswer
+      await this.runningAnswer
     } finally {
-      await self.subcontainer.destroy()
+      await this.subcontainer.destroy()
     }
   }
   onDrop(): void {

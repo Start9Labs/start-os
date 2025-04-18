@@ -5,25 +5,18 @@
   class="card"
 >
   <tui-icon icon="@tui.lock" [style.font-size.rem]="4" />
-  <h1>Trust Your Root CA</h1>
+  <h1>{{ 'Trust your Root CA' | i18n }}</h1>
   <p>
-    Download and trust your server's Root Certificate Authority to establish a
-    secure (HTTPS) connection. You will need to repeat this on every device you
-    use to connect to your server.
+    {{ 'Download and trust your Root Certificate Authority to establish a secure (HTTPS) connection. You will need to repeat this on every device you use to connect to your server.' | i18n }}
   </p>
   <ol>
     <li>
-      <b>Bookmark this page</b>
-      - Save this page so you can access it later. You can also find the address
-      in the
-      <code>StartOS-info.html</code>
-      file downloaded at the end of initial setup.
+      <b>{{ 'Bookmark this page' | i18n }}</b>
+      - {{ 'Save this page so you can access it later. You can also find this address in the file downloaded at the end of initial setup.' | i18n }}
     </li>
     <li>
-      <b>Download your server's Root CA</b>
-      - Your server uses its Root CA to generate SSL/TLS certificates for itself
-      and installed services. These certificates are then used to encrypt
-      network traffic with your client devices.
+      <b>{{ 'Download your Root CA' | i18n }}</b>
+      - {{ 'Your server uses its Root CA to generate SSL/TLS certificates for itself and installed services. These certificates are then used to encrypt network traffic with your client devices.' | i18n }}
       <br />
       <a
         tuiButton
@@ -31,14 +24,12 @@
         iconEnd="@tui.download"
         href="/static/local-root-ca.crt"
       >
-        Download
+        {{ 'Download' | i18n }}
       </a>
     </li>
     <li>
-      <b>Trust your server's Root CA</b>
-      - Follow instructions for your OS. By trusting your server's Root CA, your
-      device can verify the authenticity of encrypted communications with your
-      server.
+      <b>{{ 'Trust your Root CA' | i18n }}</b>
+      - {{ 'Follow instructions for your OS. By trusting your Root CA, your device can verify the authenticity of encrypted communications with your server.' | i18n }}
       <br />
       <a
         tuiButton
@@ -48,13 +39,12 @@
         rel="noreferrer"
         iconEnd="@tui.external-link"
       >
-        View Instructions
+        {{ 'View instructions' | i18n }}
       </a>
     </li>
     <li>
-      <b>Test</b>
-      - Refresh the page. If refreshing the page does not work, you may need to
-      quit and re-open your browser, then revisit this page.
+      <b>{{ 'Test' | i18n }}</b>
+      - {{ 'Refresh the page. If refreshing the page does not work, you may need to quit and re-open your browser, then revisit this page.' | i18n }}
       <br />
       <button
         tuiButton
@@ -64,7 +54,7 @@
         iconEnd="@tui.refresh-cw"
         (click)="refresh()"
       >
-        Refresh
+        {{ 'Refresh' | i18n }}
       </button>
     </li>
   </ol>
@@ -76,21 +66,20 @@
     (click)="launchHttps()"
     [disabled]="caTrusted"
   >
-    Skip
+    {{ 'Skip' | i18n }}
   </button>
-  <div><small>(not recommended)</small></div>
+  <div><small>({{ 'not recommended' | i18n }})</small></div>
 </div>
 
 <ng-template #trusted>
   <div tuiCardLarge tuiSurface="floating" class="card">
     <tui-icon icon="@tui.shield" class="g-positive" [style.font-size.rem]="4" />
-    <h1>Root CA Trusted!</h1>
+    <h1>{{ 'Root CA Trusted!' | i18n }}</h1>
     <p>
-      You have successfully trusted your server's Root CA and may now log in
-      securely.
+      {{ 'You have successfully trusted your Root CA and may now log in securely.' | i18n }}
     </p>
     <button tuiButton iconEnd="@tui.external-link" (click)="launchHttps()">
-      Go to login
+      {{ 'Go to login' | i18n }}
     </button>
   </div>
 </ng-template>

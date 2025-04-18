@@ -8,8 +8,13 @@ import {
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { MarketplacePkg } from '@start9labs/marketplace'
-import { MarkdownPipe, SafeLinksDirective } from '@start9labs/shared'
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
+import {
+  DialogService,
+  i18nKey,
+  i18nPipe,
+  MarkdownPipe,
+  SafeLinksDirective,
+} from '@start9labs/shared'
 import { TuiButton, TuiIcon, TuiLink, TuiTitle } from '@taiga-ui/core'
 import { TuiExpand } from '@taiga-ui/experimental'
 import {
@@ -86,7 +91,7 @@ import UpdatesComponent from './updates.component'
               [appearance]="error() ? 'destructive' : 'primary'"
               (click.stop)="onClick()"
             >
-              {{ error() ? 'Retry' : 'Update' }}
+              {{ error() ? ('Retry' | i18n) : ('Update' | i18n) }}
             </button>
           }
           <button
@@ -95,7 +100,7 @@ import UpdatesComponent from './updates.component'
             appearance="icon"
             [tuiChevron]="expanded()"
           >
-            Show more
+            {{ 'Show more' | i18n }}
           </button>
         </div>
       </td>
@@ -107,23 +112,23 @@ import UpdatesComponent from './updates.component'
         }
         <tui-expand [expanded]="expanded()">
           <p tuiTitle class="mobile">
-            <b>Package Hash</b>
+            <b>{{ 'Package Hash' | i18n }}</b>
             <span tuiSubtitle>{{ item().gitHash }}</span>
           </p>
           <p tuiTitle class="mobile">
-            <b>Published</b>
+            <b>{{ 'Published' | i18n }}</b>
             <span tuiSubtitle>{{ item().s9pk.publishedAt | date }}</span>
           </p>
           <p tuiTitle>
             <span>
-              <b>What's new</b>
+              <b>{{ 'Release notes' | i18n }}</b>
               (
               <a
                 tuiLink
                 iconEnd="@tui.external-link"
                 routerLink="/portal/marketplace"
                 [queryParams]="{ url: parent.current()?.url, id: item().id }"
-                [textContent]="'View listing'"
+                [textContent]="'View listing' | i18n"
               ></a>
               )
             </span>
@@ -229,12 +234,14 @@ import UpdatesComponent from './updates.component'
     SafeLinksDirective,
     DatePipe,
     InstallingProgressPipe,
+    i18nPipe,
   ],
 })
 export class UpdatesItemComponent {
-  private readonly dialogs = inject(TuiResponsiveDialogService)
+  private readonly dialog = inject(DialogService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly service = inject(MarketplaceService)
+  private readonly i18n = inject(i18nPipe)
 
   readonly parent = inject(UpdatesComponent)
   readonly expanded = signal(false)
@@ -275,12 +282,13 @@ export class UpdatesItemComponent {
 
   private async alert(): Promise<boolean> {
     return firstValueFrom(
-      this.dialogs
-        .open<boolean>(TUI_CONFIRM, {
+      this.dialog
+        .openConfirm<boolean>({
           label: 'Warning',
           size: 's',
           data: {
-            content: `Services that depend on ${this.local().stateInfo.manifest.title} will no longer work properly and may crash`,
+            content:
+              `${this.i18n.transform('Services that depend on')} ${this.local().stateInfo.manifest.title} ${this.i18n.transform('will no longer work properly and may crash.')}` as i18nKey,
             yes: 'Continue',
             no: 'Cancel',
           },

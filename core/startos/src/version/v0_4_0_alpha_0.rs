@@ -32,7 +32,7 @@ impl VersionT for Version {
     fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
         let host = db["public"]["serverInfo"]["host"].clone();
         let mut wifi = db["public"]["serverInfo"]["wifi"].clone();
-        wifi["enabled"] = Value::Bool(true);
+        wifi["enabled"] = Value::Bool(!wifi["selected"].is_null());
         let mut network_interfaces = db["public"]["serverInfo"]["networkInterfaces"].clone();
         for (k, v) in network_interfaces
             .as_object_mut()

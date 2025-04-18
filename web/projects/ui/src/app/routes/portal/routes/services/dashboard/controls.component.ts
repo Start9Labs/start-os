@@ -15,6 +15,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getManifest } from 'src/app/utils/get-package-data'
 import { UILaunchComponent } from './ui.component'
+import { i18nPipe } from '@start9labs/shared'
 
 const RUNNING = ['running', 'starting', 'restarting']
 
@@ -28,7 +29,7 @@ const RUNNING = ['running', 'starting', 'restarting']
         iconStart="@tui.square"
         (click)="controls.stop(manifest())"
       >
-        Stop
+        {{ 'Stop' | i18n }}
       </button>
     } @else {
       <button
@@ -38,14 +39,14 @@ const RUNNING = ['running', 'starting', 'restarting']
         [disabled]="status().primary !== 'stopped'"
         (click)="controls.start(manifest(), !!hasUnmet)"
       >
-        Start
+        {{ 'Start' | i18n }}
       </button>
     }
 
     <app-ui-launch [pkg]="pkg()" />
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, UILaunchComponent, TuiLet, AsyncPipe],
+  imports: [TuiButton, UILaunchComponent, TuiLet, AsyncPipe, i18nPipe],
   providers: [tuiButtonOptionsProvider({ size: 's', appearance: 'none' })],
   styles: `
     :host {

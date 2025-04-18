@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common'
-import { Component, inject, input } from '@angular/core'
-import { TuiDialogService, TuiIcon, TuiTitle } from '@taiga-ui/core'
+import { Component, input } from '@angular/core'
+import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiCell } from '@taiga-ui/layout'
 import { StartOSDiskInfo } from '../types/api'
 

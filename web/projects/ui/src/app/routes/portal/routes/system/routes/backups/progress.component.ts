@@ -1,6 +1,7 @@
 import { AsyncPipe, KeyValuePipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
+import { i18nPipe } from '@start9labs/shared'
 import { TuiMapperPipe } from '@taiga-ui/cdk'
 import { TuiIcon, TuiLoader, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
@@ -14,7 +15,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
   standalone: true,
   selector: '[backupProgress]',
   template: `
-    <header>Backup Progress</header>
+    <header>{{ 'Backup Progress' | i18n }}</header>
     @for (pkg of pkgs() | keyvalue; track $index) {
       @if (backupProgress()?.[pkg.key]; as progress) {
         <div tuiCell>
@@ -26,13 +27,13 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
             <span tuiSubtitle>
               @if (progress.complete) {
                 <tui-icon icon="@tui.check" class="g-positive" />
-                Complete
+                {{ 'Complete' | i18n }}
               } @else {
                 @if ((pkg.key | tuiMapper: toStatus | async) === 'backingUp') {
                   <tui-loader size="s" />
-                  Backing up
+                  {{ 'Backing up' | i18n }}
                 } @else {
-                  Waiting...
+                  {{ 'Waiting' | i18n }}...
                 }
               }
             </span>
@@ -53,6 +54,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     TuiLoader,
     TuiMapperPipe,
     ToManifestPipe,
+    i18nPipe,
   ],
 })
 export class BackupProgressComponent {

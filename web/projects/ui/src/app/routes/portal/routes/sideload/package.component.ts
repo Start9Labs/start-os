@@ -5,15 +5,13 @@ import {
   AdditionalModule,
   MarketplaceDependenciesComponent,
   MarketplacePackageHeroComponent,
-  MarketplacePkgBase,
 } from '@start9labs/marketplace'
 import {
-  ErrorService,
+  DialogService,
   Exver,
-  LoadingService,
+  MARKDOWN,
   SharedPipesModule,
 } from '@start9labs/shared'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { MarketplaceControlsComponent } from '../marketplace/components/controls.component'
 import { filter, first, map } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
@@ -33,6 +31,7 @@ import { MarketplacePkgSideload } from './sideload.utils'
           [pkg]="pkg"
           [localPkg]="local$ | async"
           [localFlavor]="!!(flavor$ | async)"
+          [file]="file"
         />
       </marketplace-package-hero>
       <div class="package-details">
@@ -105,16 +104,14 @@ import { MarketplacePkgSideload } from './sideload.utils'
   ],
 })
 export class SideloadPackageComponent {
-  private readonly loader = inject(LoadingService)
-  private readonly api = inject(ApiService)
-  private readonly errorService = inject(ErrorService)
   private readonly exver = inject(Exver)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
+  private readonly dialog = inject(DialogService)
 
   // @Input({ required: true })
   // pkg!: MarketplacePkgSideload
 
-  // @Alex why do I need to initialize pkg below? I would prefer to do the above, but it's not working
+  // @TODO Alex why do I need to initialize pkg below? I would prefer to do the above, but it's not working
   @Input({ required: true })
   pkg: MarketplacePkgSideload = {} as MarketplacePkgSideload
 
@@ -133,20 +130,17 @@ export class SideloadPackageComponent {
 
   readonly flavor$ = this.local$.pipe(map(pkg => !pkg))
 
-  onStatic(type: 'License' | 'Instructions') {
-    // @TODO Matt display License or Instructions
-  }
-
-  async upload() {
-    const loader = this.loader.open('Starting upload').subscribe()
-
-    try {
-      const { upload } = await this.api.sideloadPackage()
-      this.api.uploadPackage(upload, this.file).catch(console.error)
-    } catch (e: any) {
-      this.errorService.handleError(e)
-    } finally {
-      loader.unsubscribe()
-    }
+  // @TODO Alex, struggling to get this working. I don't understand how to use this markdown component, only one other example, and it's very different.
+  onStatic(type: 'license' | 'instructions') {
+    this.dialog
+      .openComponent(MARKDOWN, {
+        label: type === 'license' ? 'License' : 'Instructions',
+        size: 'l',
+        data: {
+          content:
+            this.pkg[type === 'license' ? 'fullLicense' : 'instructions'],
+        },
+      })
+      .subscribe()
   }
 }

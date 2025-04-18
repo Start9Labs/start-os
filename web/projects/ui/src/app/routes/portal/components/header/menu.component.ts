@@ -1,15 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { RouterLink } from '@angular/router'
-import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
 import {
-  TuiButton,
-  TuiDataList,
-  TuiDialogOptions,
-  TuiDropdown,
-  TuiIcon,
-} from '@taiga-ui/core'
-import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit'
+  DialogService,
+  ErrorService,
+  i18nPipe,
+  LoadingService,
+} from '@start9labs/shared'
+import { TuiButton, TuiDataList, TuiDropdown, TuiIcon } from '@taiga-ui/core'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
@@ -33,13 +30,13 @@ import { ABOUT } from './about.component'
       @if (status().status !== 'success') {
         <div class="status">
           <tui-icon [icon]="status().icon" />
-          {{ status().message }}
+          {{ status().message | i18n }}
         </div>
       }
       <tui-data-list [style.width.rem]="13">
         <tui-opt-group>
           <button tuiOption iconStart="@tui.info" (click)="about()">
-            About this server
+            {{ 'About this server' | i18n }}
           </button>
         </tui-opt-group>
         <tui-opt-group label="">
@@ -51,7 +48,7 @@ import { ABOUT } from './about.component'
               [iconStart]="link.icon"
               [href]="link.href"
             >
-              {{ link.name }}
+              {{ link.name | i18n }}
             </a>
           }
         </tui-opt-group>
@@ -62,26 +59,26 @@ import { ABOUT } from './about.component'
             routerLink="/portal/system"
             (click)="open = false"
           >
-            System Settings
+            {{ 'System Settings' | i18n }}
           </a>
         </tui-opt-group>
         <tui-opt-group label="">
           <button
             tuiOption
             iconStart="@tui.refresh-cw"
-            (click)="promptPower('Restart')"
+            (click)="promptPower('restart')"
           >
-            Restart
+            {{ 'Restart' | i18n }}
           </button>
           <button
             tuiOption
             iconStart="@tui.power"
-            (click)="promptPower('Shutdown')"
+            (click)="promptPower('shutdown')"
           >
-            Shutdown
+            {{ 'Shutdown' | i18n }}
           </button>
           <button tuiOption iconStart="@tui.log-out" (click)="logout()">
-            Logout
+            {{ 'Logout' | i18n }}
           </button>
         </tui-opt-group>
       </tui-data-list>
@@ -115,14 +112,14 @@ import { ABOUT } from './about.component'
   host: { '[class._open]': 'open' },
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiDropdown, TuiDataList, TuiButton, TuiIcon, RouterLink],
+  imports: [TuiDropdown, TuiDataList, TuiButton, TuiIcon, RouterLink, i18nPipe],
 })
 export class HeaderMenuComponent {
   private readonly api = inject(ApiService)
   private readonly auth = inject(AuthService)
-  private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
+  private readonly dialog = inject(DialogService)
 
   open = false
 
@@ -130,19 +127,41 @@ export class HeaderMenuComponent {
   readonly status = inject(STATUS)
 
   about() {
-    this.dialogs.open(ABOUT, { label: 'About this server' }).subscribe()
+    this.dialog.openComponent(ABOUT, { label: 'About this server' }).subscribe()
   }
 
-  async promptPower(action: 'Restart' | 'Shutdown') {
-    this.dialogs
-      .open(TUI_CONFIRM, getOptions(action))
+  async promptPower(action: 'restart' | 'shutdown') {
+    this.dialog
+      .openConfirm(
+        action === 'restart'
+          ? {
+              label: 'Restart',
+              size: 's',
+              data: {
+                content:
+                  'Are you sure you want to restart your server? It can take several minutes to come back online.',
+                yes: 'Restart',
+                no: 'Cancel',
+              },
+            }
+          : {
+              label: 'Warning',
+              size: 's',
+              data: {
+                content:
+                  'Are you sure you want to power down your server? This can take several minutes, and your server will not come back online automatically. To power on again, You will need to physically unplug your server and plug it back in.',
+                yes: 'Shutdown',
+                no: 'Cancel',
+              },
+            },
+      )
       .pipe(filter(Boolean))
       .subscribe(async () => {
-        const loader = this.loader.open(`Beginning ${action}...`).subscribe()
+        const loader = this.loader.open(`Beginning ${action}`).subscribe()
 
         try {
           await this.api[
-            action === 'Restart' ? 'restartServer' : 'shutdownServer'
+            action === 'restart' ? 'restartServer' : 'shutdownServer'
           ]({})
         } catch (e: any) {
           this.errorService.handleError(e)
@@ -156,30 +175,4 @@ export class HeaderMenuComponent {
     this.api.logout({}).catch(e => console.error('Failed to log out', e))
     this.auth.setUnverified()
   }
-}
-
-function getOptions(
-  operation: 'Restart' | 'Shutdown',
-): Partial<TuiDialogOptions<TuiConfirmData>> {
-  return operation === 'Restart'
-    ? {
-        label: 'Restart',
-        size: 's',
-        data: {
-          content:
-            'Are you sure you want to restart your server? It can take several minutes to come back online.',
-          yes: 'Restart',
-          no: 'Cancel',
-        },
-      }
-    : {
-        label: 'Warning',
-        size: 's',
-        data: {
-          content:
-            'Are you sure you want to power down your server? This can take several minutes, and your server will not come back online automatically. To power on again, You will need to physically unplug your server and plug it back in',
-          yes: 'Shutdown',
-          no: 'Cancel',
-        },
-      }
 }

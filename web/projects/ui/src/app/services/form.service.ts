@@ -243,15 +243,15 @@ function listValidators(spec: IST.ValueSpecList): ValidatorFn[] {
   return validators
 }
 
-function fileValidators(spec: IST.ValueSpecFile): ValidatorFn[] {
-  const validators: ValidatorFn[] = []
+// function fileValidators(spec: IST.ValueSpecFile): ValidatorFn[] {
+//   const validators: ValidatorFn[] = []
 
-  if (spec.required) {
-    validators.push(Validators.required)
-  }
+//   if (spec.required) {
+//     validators.push(Validators.required)
+//   }
 
-  return validators
-}
+//   return validators
+// }
 
 export function numberInRange(
   min: number | null,

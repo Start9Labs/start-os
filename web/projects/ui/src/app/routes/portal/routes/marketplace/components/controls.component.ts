@@ -4,6 +4,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
+  input,
   Input,
 } from '@angular/core'
 import { Router } from '@angular/router'
@@ -15,6 +16,7 @@ import {
   LoadingService,
   sameUrl,
   ExverPipesModule,
+  i18nPipe,
 } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
@@ -28,6 +30,7 @@ import { getAllPackages, getManifest } from 'src/app/utils/get-package-data'
 import { dryUpdate } from 'src/app/utils/dry-update'
 import { MarketplaceAlertsService } from '../services/alerts.service'
 import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
   selector: 'marketplace-controls',
@@ -45,7 +48,7 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
               appearance="secondary-destructive"
               (click)="tryInstall()"
             >
-              Downgrade
+              {{ 'Downgrade' | i18n }}
             </button>
           }
           @case (-1) {
@@ -55,7 +58,7 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
               appearance="primary"
               (click)="tryInstall()"
             >
-              Update
+              {{ 'Update' | i18n }}
             </button>
           }
           @case (0) {
@@ -65,7 +68,7 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
               appearance="secondary-grayscale"
               (click)="tryInstall()"
             >
-              Reinstall
+              {{ 'Reinstall' | i18n }}
             </button>
           }
         }
@@ -76,7 +79,7 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
         appearance="outline-grayscale"
         (click)="showService()"
       >
-        View Installed
+        {{ 'View Installed' | i18n }}
       </button>
     } @else {
       <button
@@ -85,13 +88,19 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
         [appearance]="localFlavor ? 'warning' : 'primary'"
         (click)="tryInstall()"
       >
-        {{ localFlavor ? 'Switch' : 'Install' }}
+        {{ localFlavor ? ('Switch' | i18n) : ('Install' | i18n) }}
       </button>
     }
   `,
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, ExverPipesModule, TuiButton, ToManifestPipe],
+  imports: [
+    CommonModule,
+    ExverPipesModule,
+    TuiButton,
+    ToManifestPipe,
+    i18nPipe,
+  ],
 })
 export class MarketplaceControlsComponent {
   private readonly alerts = inject(MarketplaceAlertsService)
@@ -101,6 +110,7 @@ export class MarketplaceControlsComponent {
   private readonly exver = inject(Exver)
   private readonly router = inject(Router)
   private readonly marketplaceService = inject(MarketplaceService)
+  private readonly api = inject(ApiService)
 
   @Input({ required: true })
   pkg!: MarketplacePkgBase
@@ -111,18 +121,25 @@ export class MarketplaceControlsComponent {
   @Input()
   localFlavor!: boolean
 
-  async tryInstall() {
-    const currentUrl = await firstValueFrom(
-      this.marketplaceService.getRegistryUrl$(),
-    )
-    const originalUrl = this.localPkg?.registry || ''
-    if (!this.localPkg) {
-      if (await this.alerts.alertInstall(this.pkg)) this.install(currentUrl)
+  // only present if side loading
+  @Input()
+  file?: File
 
+  async tryInstall() {
+    const currentUrl = this.file
+      ? null
+      : await firstValueFrom(this.marketplaceService.getRegistryUrl$())
+    const originalUrl = this.localPkg?.registry || ''
+
+    if (!this.localPkg) {
+      if (await this.alerts.alertInstall(this.pkg)) {
+        this.installOrUpload(currentUrl)
+      }
       return
     }
 
     if (
+      currentUrl &&
       !sameUrl(currentUrl, originalUrl) &&
       !(await this.alerts.alertMarketplace(currentUrl, originalUrl))
     ) {
@@ -137,7 +154,7 @@ export class MarketplaceControlsComponent {
     ) {
       this.dryInstall(currentUrl)
     } else {
-      this.install(currentUrl)
+      this.installOrUpload(currentUrl)
     }
   }
 
@@ -145,7 +162,7 @@ export class MarketplaceControlsComponent {
     this.router.navigate(['/portal/services', this.pkg.id])
   }
 
-  private async dryInstall(url: string) {
+  private async dryInstall(url: string | null) {
     const breakages = dryUpdate(
       this.pkg,
       await getAllPackages(this.patch),
@@ -156,16 +173,37 @@ export class MarketplaceControlsComponent {
       isEmptyObject(breakages) ||
       (await this.alerts.alertBreakages(breakages))
     ) {
+      this.installOrUpload(url)
+    }
+  }
+
+  private async installOrUpload(url: string | null) {
+    if (this.file) {
+      await this.upload()
+    } else if (url) {
       this.install(url)
     }
   }
 
   private async install(url: string) {
-    const loader = this.loader.open('Beginning Install...').subscribe()
+    const loader = this.loader.open('Beginning install').subscribe()
     const { id, version } = this.pkg
 
     try {
       await this.marketplaceService.installPackage(id, version, url)
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
+  }
+
+  private async upload() {
+    const loader = this.loader.open('Starting upload').subscribe()
+
+    try {
+      const { upload } = await this.api.sideloadPackage()
+      this.api.uploadPackage(upload, this.file!).catch(console.error)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

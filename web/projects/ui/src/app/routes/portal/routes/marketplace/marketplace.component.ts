@@ -17,11 +17,12 @@ import { MarketplaceMenuComponent } from './components/menu.component'
 import { MarketplaceNotificationComponent } from './components/notification.component'
 import { MarketplaceSidebarsComponent } from './components/sidebars.component'
 import { MarketplaceTileComponent } from './components/tile.component'
+import { i18nPipe } from '@start9labs/shared'
 
 @Component({
   standalone: true,
   template: `
-    <ng-container *title>Marketplace</ng-container>
+    <ng-container *title>{{ 'Marketplace' | i18n }}</ng-container>
     <marketplace-menu />
     <tui-scrollbar>
       <div class="marketplace-content-wrapper">
@@ -48,7 +49,7 @@ import { MarketplaceTileComponent } from './components/tile.component'
             </section>
           } @else {
             <h1 class="loading-text">
-              Loading
+              {{ 'Loading' | i18n }}
               <span class="loading-dots"></span>
             </h1>
           }
@@ -156,6 +157,7 @@ import { MarketplaceTileComponent } from './components/tile.component'
     TuiScrollbar,
     FilterPackagesPipeModule,
     TitleDirective,
+    i18nPipe,
   ],
 })
 export default class MarketplaceComponent {

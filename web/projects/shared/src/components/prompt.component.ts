@@ -1,13 +1,15 @@
-import { TuiTextfieldControllerModule, TuiInputModule } from '@taiga-ui/legacy'
-import { TuiAutoFocus } from '@taiga-ui/cdk'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { TuiDialogContext, TuiButton } from '@taiga-ui/core'
+import { TuiAutoFocus } from '@taiga-ui/cdk'
+import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
+import { TuiInputModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy'
 import {
   POLYMORPHEUS_CONTEXT,
   PolymorpheusComponent,
 } from '@taiga-ui/polymorpheus'
+import { i18nPipe } from '../i18n/i18n.pipe'
+import { i18nKey } from '../i18n/i18n.providers'
 
 @Component({
   standalone: true,
@@ -37,10 +39,10 @@ import {
           appearance="secondary"
           (click)="cancel()"
         >
-          Cancel
+          {{ 'Cancel' | i18n }}
         </button>
         <button tuiButton [disabled]="!value && options.required !== false">
-          {{ options.buttonText || 'Submit' }}
+          {{ options.buttonText || ('Submit' | i18n) }}
         </button>
       </footer>
     </form>
@@ -81,6 +83,7 @@ import {
     TuiButton,
     TuiTextfieldControllerModule,
     TuiAutoFocus,
+    i18nPipe,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -111,11 +114,11 @@ export class PromptModal {
 export const PROMPT = new PolymorpheusComponent(PromptModal)
 
 export interface PromptOptions {
-  message: string
-  label?: string
-  warning?: string
-  buttonText?: string
-  placeholder?: string
+  message: i18nKey
+  label?: i18nKey
+  warning?: i18nKey
+  buttonText?: i18nKey
+  placeholder?: i18nKey
   required?: boolean
   useMask?: boolean
   initialValue?: string | null

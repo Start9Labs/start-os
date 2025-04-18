@@ -5,7 +5,7 @@ import {
   WaIntersectionObserver,
 } from '@ng-web-apis/intersection-observer'
 import { WaMutationObserver } from '@ng-web-apis/mutation-observer'
-import { FetchLogsReq, FetchLogsRes } from '@start9labs/shared'
+import { FetchLogsReq, FetchLogsRes, i18nPipe } from '@start9labs/shared'
 import { TuiLoader, TuiScrollbar, TuiButton } from '@taiga-ui/core'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 import { RR } from 'src/app/services/api/api.types'
@@ -30,6 +30,7 @@ import { BehaviorSubject } from 'rxjs'
     LogsDownloadDirective,
     LogsFetchDirective,
     LogsPipe,
+    i18nPipe,
   ],
   providers: [
     {

@@ -4,6 +4,9 @@ import * as cp from "child_process"
 import { promisify } from "util"
 import { Buffer } from "node:buffer"
 import { once } from "../../../base/lib/util/once"
+import { Drop } from "./Drop"
+import { Mounts } from "../mainFn/Mounts"
+import { BackupEffects } from "../backup/Backups"
 
 export const execFile = promisify(cp.execFile)
 const False = () => false
@@ -45,27 +48,25 @@ export interface ExecSpawnable {
  * Implements:
  * @see {@link ExecSpawnable}
  */
-export class SubContainer implements ExecSpawnable {
-  private static finalizationEffects: { effects?: T.Effects } = {}
-  private static registry = new FinalizationRegistry((guid: string) => {
-    if (this.finalizationEffects.effects) {
-      this.finalizationEffects.effects.subcontainer
-        .destroyFs({ guid })
-        .catch((e) => console.error("failed to cleanup SubContainer", guid, e))
-    }
-  })
+export class SubContainer<
+    Manifest extends T.SDKManifest,
+    Effects extends T.Effects = T.Effects,
+  >
+  extends Drop
+  implements ExecSpawnable
+{
+  private destroyed = false
 
   private leader: cp.ChildProcess
   private leaderExited: boolean = false
   private waitProc: () => Promise<null>
   private constructor(
-    readonly effects: T.Effects,
+    readonly effects: Effects,
     readonly imageId: T.ImageId,
     readonly rootfs: string,
     readonly guid: T.Guid,
   ) {
-    if (!SubContainer.finalizationEffects.effects)
-      SubContainer.finalizationEffects.effects = effects
+    super()
     this.leaderExited = false
     this.leader = cp.spawn("start-cli", ["subcontainer", "launch", rootfs], {
       killSignal: "SIGKILL",
@@ -95,9 +96,23 @@ export class SubContainer implements ExecSpawnable {
         }),
     )
   }
-  static async of(
-    effects: T.Effects,
-    image: { imageId: T.ImageId; sharedRun?: boolean },
+  static async of<Manifest extends T.SDKManifest, Effects extends T.Effects>(
+    effects: Effects,
+    image: {
+      imageId: keyof Manifest["images"] & T.ImageId
+      sharedRun?: boolean
+    },
+    mounts:
+      | (Effects extends BackupEffects
+          ? Mounts<
+              Manifest,
+              {
+                subpath: string | null
+                mountpoint: string
+              }
+            >
+          : Mounts<Manifest, never>)
+      | null,
     name: string,
   ) {
     const { imageId, sharedRun } = image
@@ -105,87 +120,121 @@ export class SubContainer implements ExecSpawnable {
       imageId,
       name,
     })
+
     const res = new SubContainer(effects, imageId, rootfs, guid)
-    SubContainer.registry.register(res, guid, res)
 
-    const shared = ["dev", "sys"]
-    if (!!sharedRun) {
-      shared.push("run")
+    try {
+      if (mounts) {
+        await res.mount(mounts)
+      }
+      const shared = ["dev", "sys"]
+      if (!!sharedRun) {
+        shared.push("run")
+      }
+
+      await fs.mkdir(`${rootfs}/etc`, { recursive: true })
+      await fs.copyFile("/etc/resolv.conf", `${rootfs}/etc/resolv.conf`)
+
+      for (const dirPart of shared) {
+        const from = `/${dirPart}`
+        const to = `${rootfs}/${dirPart}`
+        await fs.mkdir(from, { recursive: true })
+        await fs.mkdir(to, { recursive: true })
+        await execFile("mount", ["--rbind", from, to])
+      }
+
+      return res
+    } finally {
+      await res.destroy()
     }
-
-    await fs.mkdir(`${rootfs}/etc`, { recursive: true })
-    await fs.copyFile("/etc/resolv.conf", `${rootfs}/etc/resolv.conf`)
-
-    for (const dirPart of shared) {
-      const from = `/${dirPart}`
-      const to = `${rootfs}/${dirPart}`
-      await fs.mkdir(from, { recursive: true })
-      await fs.mkdir(to, { recursive: true })
-      await execFile("mount", ["--rbind", from, to])
-    }
-
-    return res
   }
 
-  static async with<T>(
-    effects: T.Effects,
-    image: { imageId: T.ImageId; sharedRun?: boolean },
-    mounts: { options: MountOptions; mountpoint: string }[],
+  static async with<
+    Manifest extends T.SDKManifest,
+    T,
+    Effects extends T.Effects,
+  >(
+    effects: Effects,
+    image: {
+      imageId: keyof Manifest["images"] & T.ImageId
+      sharedRun?: boolean
+    },
+    mounts:
+      | (Effects extends BackupEffects
+          ? Mounts<
+              Manifest,
+              {
+                subpath: string | null
+                mountpoint: string
+              }
+            >
+          : Mounts<Manifest, never>)
+      | null,
     name: string,
-    fn: (subContainer: SubContainer) => Promise<T>,
+    fn: (subContainer: SubContainer<Manifest, Effects>) => Promise<T>,
   ): Promise<T> {
-    const subContainer = await SubContainer.of(effects, image, name)
+    const subContainer = await SubContainer.of(effects, image, mounts, name)
     try {
-      for (let mount of mounts) {
-        await subContainer.mount(mount.options, mount.mountpoint)
-      }
       return await fn(subContainer)
     } finally {
       await subContainer.destroy()
     }
   }
 
-  async mount(options: MountOptions, path: string): Promise<SubContainer> {
-    path = path.startsWith("/")
-      ? `${this.rootfs}${path}`
-      : `${this.rootfs}/${path}`
-    if (options.type === "volume") {
-      const subpath = options.subpath
-        ? options.subpath.startsWith("/")
-          ? options.subpath
-          : `/${options.subpath}`
-        : "/"
-      const from = `/media/startos/volumes/${options.id}${subpath}`
+  async mount(
+    mounts: Effects extends BackupEffects
+      ? Mounts<
+          Manifest,
+          {
+            subpath: string | null
+            mountpoint: string
+          }
+        >
+      : Mounts<Manifest, never>,
+  ): Promise<SubContainer<Manifest, Effects>> {
+    for (let mount of mounts.build()) {
+      let { options, mountpoint } = mount
+      const path = mountpoint.startsWith("/")
+        ? `${this.rootfs}${mountpoint}`
+        : `${this.rootfs}/${mountpoint}`
+      if (options.type === "volume") {
+        const subpath = options.subpath
+          ? options.subpath.startsWith("/")
+            ? options.subpath
+            : `/${options.subpath}`
+          : "/"
+        const from = `/media/startos/volumes/${options.id}${subpath}`
 
-      await fs.mkdir(from, { recursive: true })
-      await fs.mkdir(path, { recursive: true })
-      await execFile("mount", ["--bind", from, path])
-    } else if (options.type === "assets") {
-      const subpath = options.subpath
-        ? options.subpath.startsWith("/")
-          ? options.subpath
-          : `/${options.subpath}`
-        : "/"
-      const from = `/media/startos/assets/${subpath}`
+        await fs.mkdir(from, { recursive: true })
+        await fs.mkdir(path, { recursive: true })
+        await execFile("mount", ["--bind", from, path])
+      } else if (options.type === "assets") {
+        const subpath = options.subpath
+          ? options.subpath.startsWith("/")
+            ? options.subpath
+            : `/${options.subpath}`
+          : "/"
+        const from = `/media/startos/assets/${subpath}`
 
-      await fs.mkdir(from, { recursive: true })
-      await fs.mkdir(path, { recursive: true })
-      await execFile("mount", ["--bind", from, path])
-    } else if (options.type === "pointer") {
-      await this.effects.mount({ location: path, target: options })
-    } else if (options.type === "backup") {
-      const subpath = options.subpath
-        ? options.subpath.startsWith("/")
-          ? options.subpath
-          : `/${options.subpath}`
-        : "/"
-      const from = `/media/startos/backup${subpath}`
+        await fs.mkdir(from, { recursive: true })
+        await fs.mkdir(path, { recursive: true })
+        await execFile("mount", ["--bind", from, path])
+      } else if (options.type === "pointer") {
+        await this.effects.mount({ location: path, target: options })
+      } else if (options.type === "backup") {
+        const subpath = options.subpath
+          ? options.subpath.startsWith("/")
+            ? options.subpath
+            : `/${options.subpath}`
+          : "/"
+        const from = `/media/startos/backup${subpath}`
 
-      await fs.mkdir(from, { recursive: true })
-      await fs.mkdir(path, { recursive: true })
-      await execFile("mount", ["--bind", from, path])
-    } else {
-      throw new Error(`unknown type ${(options as any).type}`)
+        await fs.mkdir(from, { recursive: true })
+        await fs.mkdir(path, { recursive: true })
+        await execFile("mount", ["--bind", from, path])
+      } else {
+        throw new Error(`unknown type ${(options as any).type}`)
+      }
     }
     return this
   }
@@ -212,14 +261,27 @@ export class SubContainer implements ExecSpawnable {
 
   get destroy() {
     return async () => {
-      const guid = this.guid
-      await this.killLeader()
-      await this.effects.subcontainer.destroyFs({ guid })
-      SubContainer.registry.unregister(this)
+      if (!this.destroyed) {
+        const guid = this.guid
+        await this.killLeader()
+        await this.effects.subcontainer.destroyFs({ guid })
+        this.destroyed = true
+      }
       return null
     }
   }
 
+  onDrop(): void {
+    this.destroy()
+  }
+
+  /**
+   * @description run a command inside this subcontainer
+   * @param commands an array representing the command and args to execute
+   * @param options
+   * @param timeoutMs how long to wait before killing the command in ms
+   * @returns
+   */
   async exec(
     command: string[],
     options?: CommandOptions & ExecOptions,
@@ -425,8 +487,17 @@ export class SubContainerHandle implements ExecSpawnable {
 }
 
 export type CommandOptions = {
+  /**
+   * Environment variables to set for this command
+   */
   env?: { [variable: string]: string }
+  /**
+   * the working directory to run this command in
+   */
   cwd?: string
+  /**
+   * the user to run this command as
+   */
   user?: string
 }
 

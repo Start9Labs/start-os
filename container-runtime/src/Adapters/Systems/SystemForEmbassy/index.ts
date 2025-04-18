@@ -46,7 +46,7 @@ import {
   transformNewConfigToOld,
   transformOldConfigToNew,
 } from "./transformConfigSpec"
-import { partialDiff } from "@start9labs/start-sdk/base/lib/util"
+import { partialDiff, StorePath } from "@start9labs/start-sdk/base/lib/util"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -355,6 +355,10 @@ export class SystemForEmbassy implements System {
       ) {
         await effects.action.clearRequests({ only: ["needs-config"] })
       }
+      await effects.store.set({
+        path: EMBASSY_POINTER_PATH_PREFIX,
+        value: this.getConfig(effects, timeoutMs),
+      })
     } else if (this.manifest.config) {
       await effects.action.request({
         packageId: this.manifest.id,
@@ -577,11 +581,31 @@ export class SystemForEmbassy implements System {
       const moduleCode = await this.moduleCode
       await moduleCode.createBackup?.(polyfillEffects(effects, this.manifest))
     }
+    await fs.writeFile(
+      "/media/startos/backup/store.json",
+      JSON.stringify(await effects.store.get({ path: "" as StorePath })),
+      { encoding: "utf-8" },
+    )
+    const dataVersion = await effects.getDataVersion()
+    if (dataVersion)
+      await fs.writeFile("/media/startos/backup/dataVersion.txt", dataVersion, {
+        encoding: "utf-8",
+      })
   }
   async restoreBackup(
     effects: Effects,
     timeoutMs: number | null,
   ): Promise<void> {
+    const store = await fs
+      .readFile("/media/startos/backup/store.json", {
+        encoding: "utf-8",
+      })
+      .catch((_) => null)
+    if (store)
+      await effects.store.set({
+        path: "" as StorePath,
+        value: JSON.parse(store),
+      })
     const restoreBackup = this.manifest.backup.restore
     if (restoreBackup.type === "docker") {
       const commands = [restoreBackup.entrypoint, ...restoreBackup.args]
@@ -600,6 +624,13 @@ export class SystemForEmbassy implements System {
       const moduleCode = await this.moduleCode
       await moduleCode.restoreBackup?.(polyfillEffects(effects, this.manifest))
     }
+
+    const dataVersion = await fs
+      .readFile("/media/startos/backup/dataVersion.txt", {
+        encoding: "utf-8",
+      })
+      .catch((_) => null)
+    if (dataVersion) await effects.setDataVersion({ version: dataVersion })
   }
   async getConfig(effects: Effects, timeoutMs: number | null) {
     return this.getConfigUncleaned(effects, timeoutMs).then(convertToNewConfig)

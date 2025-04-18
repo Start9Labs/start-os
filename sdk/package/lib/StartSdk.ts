@@ -113,7 +113,12 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
       | "bind"
       | "getHostInfo"
     type MainUsedEffects = "setMainStatus" | "setHealth"
-    type CallbackEffects = "constRetry" | "clearCallbacks"
+    type CallbackEffects =
+      | "child"
+      | "constRetry"
+      | "isInContext"
+      | "onLeaveContext"
+      | "clearCallbacks"
     type AlreadyExposed =
       | "getSslCertificate"
       | "getSystemSmtp"
@@ -211,10 +216,15 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         > = {},
       ) => {
         async function* watch() {
-          while (true) {
+          const resolveCell = { resolve: () => {} }
+          effects.onLeaveContext(() => {
+            resolveCell.resolve()
+          })
+          while (effects.isInContext) {
             let callback: () => void = () => {}
             const waitForNext = new Promise<void>((resolve) => {
               callback = resolve
+              resolveCell.resolve = resolve
             })
             yield await effects.getContainerIp({ ...options, callback })
             await waitForNext
@@ -296,7 +306,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         },
         command: T.CommandType,
         options: CommandOptions & {
-          mounts: Mounts<Manifest>
+          mounts: Mounts<Manifest> | null
         },
         /**
          * A name to use to refer to the ephemeral subcontainer for debugging purposes
@@ -756,25 +766,40 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         },
       },
       SubContainer: {
+        /**
+         * @description Create a new SubContainer
+         * @param effects
+         * @param image - what container image to use
+         * @param mounts - what to mount to the subcontainer
+         * @param name - a name to use to refer to the subcontainer for debugging purposes
+         */
         of(
           effects: Effects,
           image: {
             imageId: T.ImageId & keyof Manifest["images"]
             sharedRun?: boolean
           },
+          mounts: Mounts<Manifest> | null,
           name: string,
         ) {
-          return SubContainer.of(effects, image, name)
+          return SubContainer.of(effects, image, mounts, name)
         },
+        /**
+         * @description Create a new SubContainer
+         * @param effects
+         * @param image - what container image to use
+         * @param mounts - what to mount to the subcontainer
+         * @param name - a name to use to refer to the ephemeral subcontainer for debugging purposes
+         */
         with<T>(
           effects: T.Effects,
           image: {
             imageId: T.ImageId & keyof Manifest["images"]
             sharedRun?: boolean
           },
-          mounts: { options: MountOptions; mountpoint: string }[],
+          mounts: Mounts<Manifest> | null,
           name: string,
-          fn: (subContainer: SubContainer) => Promise<T>,
+          fn: (subContainer: SubContainer<Manifest>) => Promise<T>,
         ): Promise<T> {
           return SubContainer.with(effects, image, mounts, name, fn)
         },
@@ -1154,7 +1179,7 @@ export async function runCommand<Manifest extends T.SDKManifest>(
   image: { imageId: keyof Manifest["images"] & T.ImageId; sharedRun?: boolean },
   command: T.CommandType,
   options: CommandOptions & {
-    mounts: Mounts<Manifest>
+    mounts: Mounts<Manifest> | null
   },
   name?: string,
 ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
@@ -1172,7 +1197,7 @@ export async function runCommand<Manifest extends T.SDKManifest>(
   return SubContainer.with(
     effects,
     image,
-    options.mounts.build(),
+    options.mounts,
     name ||
       commands
         .map((c) => {
