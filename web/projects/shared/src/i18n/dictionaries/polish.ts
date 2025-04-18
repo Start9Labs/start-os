@@ -274,7 +274,7 @@ export default {
   271: 'Nie podano',
   272: 'Linki',
   273: 'Hash Git',
-  274: 'licencja',
+  274: 'Licencja',
   275: 'Zainstalowano z',
   276: 'Repozytorium usługi',
   277: 'Repozytorium pakietu',

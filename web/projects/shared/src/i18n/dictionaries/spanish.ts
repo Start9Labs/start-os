@@ -274,7 +274,7 @@ export default {
   271: 'No proporcionado',
   272: 'Enlaces',
   273: 'Hash de Git',
-  274: 'licencia',
+  274: 'Licencia',
   275: 'Instalado desde',
   276: 'Repositorio del servicio',
   277: 'Repositorio del paquete',
