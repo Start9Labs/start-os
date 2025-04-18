@@ -1,6 +1,7 @@
 import { HealthCheckResult } from "./HealthCheckResult"
 import { timeoutPromise } from "./index"
 import { SubContainer } from "../../util/SubContainer"
+import { SDKManifest } from "../../types"
 
 /**
  * Running a health script, is used when we want to have a simple
@@ -9,9 +10,9 @@ import { SubContainer } from "../../util/SubContainer"
  * @param param0
  * @returns
  */
-export const runHealthScript = async (
+export const runHealthScript = async <Manifest extends SDKManifest>(
   runCommand: string[],
-  subcontainer: SubContainer,
+  subcontainer: SubContainer<Manifest>,
   {
     timeout = 30000,
     errorMessage = `Error while running command: ${runCommand}`,

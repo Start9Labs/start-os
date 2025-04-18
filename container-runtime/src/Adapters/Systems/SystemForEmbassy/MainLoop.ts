@@ -6,6 +6,7 @@ import { Daemon } from "@start9labs/start-sdk/package/lib/mainFn/Daemon"
 import { Effects } from "../../../Models/Effects"
 import { off } from "node:process"
 import { CommandController } from "@start9labs/start-sdk/package/lib/mainFn/CommandController"
+import { SDKManifest } from "@start9labs/start-sdk/base/lib/types"
 
 const EMBASSY_HEALTH_INTERVAL = 15 * 1000
 const EMBASSY_PROPERTIES_LOOP = 30 * 1000
@@ -24,7 +25,7 @@ export class MainLoop {
   }[]
 
   private mainEvent?: {
-    daemon: Daemon
+    daemon: Daemon<SDKManifest>
   }
 
   private constructor(
@@ -72,6 +73,7 @@ export class MainLoop {
           env: {
             TINI_SUBREAPER: "true",
           },
+          mounts: null,
           sigtermTimeout: utils.inMs(
             this.system.manifest.main["sigterm-timeout"],
           ),

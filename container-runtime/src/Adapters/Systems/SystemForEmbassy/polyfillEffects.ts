@@ -139,7 +139,7 @@ export const polyfillEffects = (
           effects,
           subcontainer,
           [input.command, ...(input.args || [])],
-          {},
+          { mounts: null },
         ),
       )
       return {

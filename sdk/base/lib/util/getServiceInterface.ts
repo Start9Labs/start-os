@@ -15,8 +15,28 @@ export const getHostname = (url: string): Hostname | null => {
   return last
 }
 
+type FilterKinds = "onion" | "local" | "domain" | "ip" | "ipv4" | "ipv6"
+export type Filter = {
+  visibility?: "public" | "private"
+  kind?: FilterKinds | FilterKinds[]
+  exclude?: Filter
+}
+
+type Formats = "hostname-info" | "urlstring" | "url"
+type FormatReturnTy<Format extends Formats> = Format extends "hostname-info"
+  ? HostnameInfo
+  : Format extends "url"
+    ? URL
+    : UrlString
+
 export type Filled = {
   hostnames: HostnameInfo[]
+
+  filter: <Format extends Formats = "urlstring">(
+    filter: Filter,
+    format?: Format,
+  ) => FormatReturnTy<Format>[]
+
   publicHostnames: HostnameInfo[]
   onionHostnames: HostnameInfo[]
   localHostnames: HostnameInfo[]
@@ -97,6 +117,47 @@ export const addressHostToUrl = (
   return res
 }
 
+function filterRec(
+  hostnames: HostnameInfo[],
+  filter: Filter,
+  invert: boolean,
+): HostnameInfo[] {
+  if (filter.visibility === "public")
+    hostnames = hostnames.filter(
+      (h) => invert !== (h.kind === "onion" || h.public),
+    )
+  if (filter.visibility === "private")
+    hostnames = hostnames.filter(
+      (h) => invert !== (h.kind !== "onion" && !h.public),
+    )
+  if (filter.kind) {
+    const kind = new Set(
+      Array.isArray(filter.kind) ? filter.kind : [filter.kind],
+    )
+    if (kind.has("ip")) {
+      kind.add("ipv4")
+      kind.add("ipv6")
+    }
+    hostnames = hostnames.filter(
+      (h) =>
+        invert !==
+        ((kind.has("onion") && h.kind === "onion") ||
+          (kind.has("local") &&
+            h.kind === "ip" &&
+            h.hostname.kind === "local") ||
+          (kind.has("domain") &&
+            h.kind === "ip" &&
+            h.hostname.kind === "domain") ||
+          (kind.has("ipv4") && h.kind === "ip" && h.hostname.kind === "ipv4") ||
+          (kind.has("ipv6") && h.kind === "ip" && h.hostname.kind === "ipv6")),
+    )
+  }
+
+  if (filter.exclude) return filterRec(hostnames, filter.exclude, !invert)
+
+  return hostnames
+}
+
 export const filledAddress = (
   host: Host,
   addressInfo: AddressInfo,
@@ -107,6 +168,14 @@ export const filledAddress = (
   return {
     ...addressInfo,
     hostnames,
+    filter: <T extends Formats = "urlstring">(filter: Filter, format?: T) => {
+      const res = filterRec(hostnames, filter, false)
+      if (format === "hostname-info") return res as FormatReturnTy<T>[]
+      const urls = res.flatMap(toUrl)
+      if (format === "url")
+        return urls.map((u) => new URL(u)) as FormatReturnTy<T>[]
+      return urls as FormatReturnTy<T>[]
+    },
     get publicHostnames() {
       return hostnames.filter((h) => h.kind === "onion" || h.public)
     },

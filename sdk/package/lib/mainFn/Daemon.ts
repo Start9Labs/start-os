@@ -2,6 +2,7 @@ import * as T from "../../../base/lib/types"
 import { asError } from "../../../base/lib/util/asError"
 import { ExecSpawnable, MountOptions, SubContainer } from "../util/SubContainer"
 import { CommandController } from "./CommandController"
+import { Mounts } from "./Mounts"
 
 const TIMEOUT_INCREMENT_MS = 1000
 const MAX_TIMEOUT_MS = 30000
@@ -10,10 +11,12 @@ const MAX_TIMEOUT_MS = 30000
  * and the others state of running, where it will keep a living running command
  */
 
-export class Daemon {
-  private commandController: CommandController | null = null
+export class Daemon<Manifest extends T.SDKManifest> {
+  private commandController: CommandController<Manifest> | null = null
   private shouldBeRunning = false
-  constructor(private startCommand: () => Promise<CommandController>) {}
+  constructor(
+    private startCommand: () => Promise<CommandController<Manifest>>,
+  ) {}
   get subContainerHandle(): undefined | ExecSpawnable {
     return this.commandController?.subContainerHandle
   }
@@ -25,11 +28,11 @@ export class Daemon {
             imageId: keyof Manifest["images"] & T.ImageId
             sharedRun?: boolean
           }
-        | SubContainer,
+        | SubContainer<Manifest>,
       command: T.CommandType,
       options: {
         subcontainerName?: string
-        mounts?: { mountpoint: string; options: MountOptions }[]
+        mounts: Mounts<Manifest> | null
         env?:
           | {
               [variable: string]: string

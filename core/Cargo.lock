@@ -5511,6 +5511,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha-crypt"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "88e79009728d8311d42d754f2f319a975f9e38f156fd5e422d2451486c78b286"
+dependencies = [
+ "base64ct",
+ "rand 0.8.5",
+ "sha2 0.10.8",
+ "subtle",
+]
+
+[[package]]
 name = "sha1"
 version = "0.10.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6091,6 +6103,7 @@ dependencies = [
  "serde_urlencoded",
  "serde_with",
  "serde_yml",
+ "sha-crypt",
  "sha2 0.10.8",
  "shell-words",
  "signal-hook",

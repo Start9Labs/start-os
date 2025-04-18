@@ -3,7 +3,13 @@ import { MountOptions } from "../util/SubContainer"
 
 type MountArray = { mountpoint: string; options: MountOptions }[]
 
-export class Mounts<Manifest extends T.SDKManifest> {
+export class Mounts<
+  Manifest extends T.SDKManifest,
+  Backups extends {
+    subpath: string | null
+    mountpoint: string
+  } = never,
+> {
   private constructor(
     readonly volumes: {
       id: Manifest["volumes"][number]
@@ -22,10 +28,11 @@ export class Mounts<Manifest extends T.SDKManifest> {
       mountpoint: string
       readonly: boolean
     }[],
+    readonly backups: Backups[],
   ) {}
 
   static of<Manifest extends T.SDKManifest>() {
-    return new Mounts<Manifest>([], [], [])
+    return new Mounts<Manifest>([], [], [], [])
   }
 
   addVolume(
@@ -38,13 +45,20 @@ export class Mounts<Manifest extends T.SDKManifest> {
     /** Whether or not the volume should be readonly for this daemon */
     readonly: boolean,
   ) {
-    this.volumes.push({
-      id,
-      subpath,
-      mountpoint,
-      readonly,
-    })
-    return this
+    return new Mounts<Manifest, Backups>(
+      [
+        ...this.volumes,
+        {
+          id,
+          subpath,
+          mountpoint,
+          readonly,
+        },
+      ],
+      [...this.assets],
+      [...this.dependencies],
+      [...this.backups],
+    )
   }
 
   addAssets(
@@ -53,11 +67,18 @@ export class Mounts<Manifest extends T.SDKManifest> {
     /** Where to mount the asset. e.g. /asset */
     mountpoint: string,
   ) {
-    this.assets.push({
-      subpath,
-      mountpoint,
-    })
-    return this
+    return new Mounts<Manifest, Backups>(
+      [...this.volumes],
+      [
+        ...this.assets,
+        {
+          subpath,
+          mountpoint,
+        },
+      ],
+      [...this.dependencies],
+      [...this.backups],
+    )
   }
 
   addDependency<DependencyManifest extends T.SDKManifest>(
@@ -72,14 +93,36 @@ export class Mounts<Manifest extends T.SDKManifest> {
     /** Whether or not the volume should be readonly for this daemon */
     readonly: boolean,
   ) {
-    this.dependencies.push({
-      dependencyId,
-      volumeId,
-      subpath,
-      mountpoint,
-      readonly,
-    })
-    return this
+    return new Mounts<Manifest, Backups>(
+      [...this.volumes],
+      [...this.assets],
+      [
+        ...this.dependencies,
+        {
+          dependencyId,
+          volumeId,
+          subpath,
+          mountpoint,
+          readonly,
+        },
+      ],
+      [...this.backups],
+    )
+  }
+
+  addBackups(subpath: string | null, mountpoint: string) {
+    return new Mounts<
+      Manifest,
+      {
+        subpath: string | null
+        mountpoint: string
+      }
+    >(
+      [...this.volumes],
+      [...this.assets],
+      [...this.dependencies],
+      [...this.backups, { subpath, mountpoint }],
+    )
   }
 
   build(): MountArray {
@@ -130,3 +173,7 @@ export class Mounts<Manifest extends T.SDKManifest> {
       )
   }
 }
+
+const a = Mounts.of().addBackups(null, "")
+// @ts-expect-error
+const m: Mounts<T.SDKManifest, never> = a
