@@ -4,7 +4,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
-  input,
   Input,
 } from '@angular/core'
 import { Router } from '@angular/router'
@@ -180,8 +179,9 @@ export class MarketplaceControlsComponent {
   private async installOrUpload(url: string | null) {
     if (this.file) {
       await this.upload()
+      this.router.navigate(['/portal', 'services'])
     } else if (url) {
-      this.install(url)
+      await this.install(url)
     }
   }
 

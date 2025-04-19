@@ -64,24 +64,25 @@ export class MarketplaceAlertsService {
   }
 
   async alertInstall({ alerts }: MarketplacePkgBase): Promise<boolean> {
-    const content = alerts.install as i18nKey
+    const content = alerts.install
 
     return (
-      !!content &&
-      new Promise(resolve => {
-        this.dialog
-          .openConfirm<boolean>({
-            label: 'Alert',
-            size: 's',
-            data: {
-              content,
-              yes: 'Install',
-              no: 'Cancel',
-            },
-          })
-          .pipe(defaultIfEmpty(false))
-          .subscribe(response => resolve(response))
-      })
+      !content ||
+      (!!content &&
+        new Promise(resolve => {
+          this.dialog
+            .openConfirm<boolean>({
+              label: 'Alert',
+              size: 's',
+              data: {
+                content: content as i18nKey,
+                yes: 'Install',
+                no: 'Cancel',
+              },
+            })
+            .pipe(defaultIfEmpty(false))
+            .subscribe(response => resolve(response))
+        }))
     )
   }
 }
