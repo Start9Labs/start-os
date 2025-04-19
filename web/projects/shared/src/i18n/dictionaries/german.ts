@@ -488,4 +488,7 @@ export default {
   485: 'StartOS-Benutzeroberfläche',
   486: 'WiFi',
   487: 'Anleitungen',
+  488: 'spanisch',
+  489: 'polnisch',
+  490: 'deutsch',
 } satisfies i18n

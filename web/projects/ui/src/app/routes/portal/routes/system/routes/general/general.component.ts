@@ -1,4 +1,4 @@
-import { AsyncPipe, DOCUMENT } from '@angular/common'
+import { AsyncPipe, DOCUMENT, TitleCasePipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -98,7 +98,10 @@ import { SystemWipeComponent } from './wipe.component'
         <tui-icon icon="@tui.languages" />
         <span tuiTitle>
           <strong>{{ 'Language' | i18n }}</strong>
-          <span tuiSubtitle>{{ i18nService.language }}</span>
+          <!-- @TODO Alex would prefer not to use $any() here if possible -->
+          <span tuiSubtitle>
+            {{ $any(i18nService.language) | i18n | titlecase }}
+          </span>
         </span>
         <button
           tuiButtonSelect
@@ -208,6 +211,7 @@ import { SystemWipeComponent } from './wipe.component'
     TuiTextfield,
     FormsModule,
     SnekDirective,
+    TitleCasePipe,
   ],
 })
 export default class SystemGeneralComponent {
