@@ -491,5 +491,5 @@ export default {
   488: 'spanisch',
   489: 'polnisch',
   490: 'deutsch',
-  491: 'english',
+  491: 'englisch',
 } satisfies i18n
