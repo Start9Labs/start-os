@@ -1,29 +1,29 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
-import { TuiLineClamp } from '@taiga-ui/kit'
+import { TuiFade } from '@taiga-ui/kit'
 
 @Component({
   selector: 'marketplace-additional-item',
   template: `
-    <div class="item-container">
-      <label tuiTitle>
-        <span tuiSubtitle>{{ label }}</span>
-        <tui-line-clamp [content]="data" [linesLimit]="1" />
-      </label>
-      <tui-icon [icon]="icon" />
-    </div>
+    <label tuiTitle>
+      <span tuiSubtitle>{{ label }}</span>
+      <span tuiFade>{{ data }}</span>
+    </label>
+    <tui-icon [icon]="icon" />
   `,
   styles: [
     `
-      .item-container {
+      :host {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        gap: 0.5rem;
         padding: 0.75rem 0.25rem;
+        white-space: nowrap;
 
         &:hover {
-          background-color: rgb(113 113 122 / 0.1);
+          background-color: var(--tui-background-neutral-1);
         }
 
         [tuiSubtitle] {
@@ -34,16 +34,11 @@ import { TuiLineClamp } from '@taiga-ui/kit'
           opacity: 0.7;
         }
       }
-
-      ::ng-deep .t-text {
-        font-family: 'Montserrat';
-        font-weight: 600;
-      }
     `,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiLineClamp, TuiIcon, TuiTitle],
+  imports: [CommonModule, TuiIcon, TuiTitle, TuiFade],
 })
 export class MarketplaceAdditionalItemComponent {
   @Input({ required: true })

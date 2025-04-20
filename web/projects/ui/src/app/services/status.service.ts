@@ -26,7 +26,7 @@ export const STATUS = new InjectionToken('', {
           return CONNECTED
         }),
       ),
-      { initialValue: CONNECTED },
+      { initialValue: CONNECTING },
     ),
 })
 

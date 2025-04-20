@@ -26,7 +26,7 @@ import {
   CifsBackupTarget,
   DiskBackupTarget,
 } from 'src/app/services/api/api.types'
-import { EOSService } from 'src/app/services/eos.service'
+import { OSService } from 'src/app/services/os.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
 import { BACKUP } from './backup.component'
@@ -103,7 +103,7 @@ import { BACKUP_RESTORE } from './restore.component'
       </tui-notification>
     }
 
-    @if (type === 'create' && (eos.backingUp$ | async)) {
+    @if (type === 'create' && (os.backingUp$ | async)) {
       <section backupProgress></section>
     } @else {
       @if (service.loading()) {
@@ -163,7 +163,7 @@ export default class SystemBackupComponent implements OnInit {
   readonly dialog = inject(DialogService)
   readonly type = inject(ActivatedRoute).snapshot.data['type']
   readonly service = inject(BackupService)
-  readonly eos = inject(EOSService)
+  readonly os = inject(OSService)
   readonly server = toSignal(
     inject<PatchDB<DataModel>>(PatchDB).watch$('serverInfo'),
   )

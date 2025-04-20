@@ -115,6 +115,11 @@ const ERROR =
       width: 13rem;
     }
 
+    td:last-child {
+      white-space: nowrap;
+      text-align: right;
+    }
+
     [tuiButton] {
       margin-inline-start: auto;
     }

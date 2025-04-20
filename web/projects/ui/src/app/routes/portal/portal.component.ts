@@ -20,6 +20,8 @@ import { HeaderComponent } from './components/header/header.component'
   `,
   styles: [
     `
+      @import '@taiga-ui/core/styles/taiga-ui-local';
+
       :host {
         height: 100%;
         display: flex;
@@ -32,6 +34,14 @@ import { HeaderComponent } from './components/header/header.component'
         flex: 1;
         overflow: hidden;
         margin: 0 var(--bumper) var(--bumper);
+        filter: grayscale(1) brightness(0.75);
+
+        @include transition(filter);
+
+        header:has([data-status='success']) + &,
+        header:has([data-status='neutral']) + & {
+          filter: none;
+        }
       }
     `,
   ],

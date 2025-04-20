@@ -1,5 +1,5 @@
 import { inject, Injectable, Pipe, PipeTransform } from '@angular/core'
-import { ENGLISH } from './dictionaries/english'
+import { ENGLISH } from './dictionaries/en'
 import { I18N, i18nKey } from './i18n.providers'
 
 @Pipe({

@@ -31,6 +31,9 @@ import { HeaderStatusComponent } from './status.component'
         border-radius: var(--bumper);
         margin: var(--bumper);
         overflow: hidden;
+        filter: grayscale(1) brightness(0.75);
+
+        @include transition(filter);
 
         .mobile {
           display: none;
@@ -88,10 +91,12 @@ import { HeaderStatusComponent } from './status.component'
 
         &:has([data-status='neutral']) {
           --status: var(--tui-status-neutral);
+          filter: none;
         }
 
         &:has([data-status='success']) {
           --status: transparent;
+          filter: none;
         }
       }
 

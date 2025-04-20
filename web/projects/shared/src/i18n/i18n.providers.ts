@@ -5,7 +5,7 @@ import {
   tuiLanguageSwitcher,
   TuiLanguageSwitcherService,
 } from '@taiga-ui/i18n'
-import { ENGLISH } from './dictionaries/english'
+import { ENGLISH } from './dictionaries/en'
 import { i18nService } from './i18n.service'
 
 export type i18nKey = keyof typeof ENGLISH
@@ -36,11 +36,11 @@ export const I18N_PROVIDERS = [
     useValue: async (language: TuiLanguageName): Promise<unknown> => {
       switch (language) {
         case 'spanish':
-          return import('./dictionaries/spanish').then(v => v.default)
+          return import('./dictionaries/es').then(v => v.default)
         case 'polish':
-          return import('./dictionaries/polish').then(v => v.default)
+          return import('./dictionaries/pl').then(v => v.default)
         case 'german':
-          return import('./dictionaries/german').then(v => v.default)
+          return import('./dictionaries/de').then(v => v.default)
         default:
           return null
       }
