@@ -47,21 +47,6 @@ import { SnekDirective } from './snek.directive'
 import { UPDATE } from './update.component'
 import { SystemWipeComponent } from './wipe.component'
 
-const TRANSLATIONS: TuiStringHandler<TuiContext<Languages>> = ({
-  $implicit,
-}) => {
-  switch ($implicit) {
-    case 'polish':
-      return 'polski'
-    case 'german':
-      return 'deutsch'
-    case 'spanish':
-      return 'español'
-    default:
-      return $implicit
-  }
-}
-
 @Component({
   template: `
     <ng-container *title>
@@ -243,6 +228,7 @@ export default class SystemGeneralComponent {
   private readonly isTor = inject(ConfigService).isTor()
   private readonly document = inject(DOCUMENT)
   private readonly dialog = inject(DialogService)
+  private readonly i18n = inject(i18nPipe)
 
   wipe = false
   count = 0
@@ -252,7 +238,9 @@ export default class SystemGeneralComponent {
   readonly os = inject(OSService)
   readonly i18nService = inject(i18nService)
   readonly languages = languages
-  readonly translation = TRANSLATIONS
+  readonly translation: TuiStringHandler<TuiContext<Languages>> = ({
+    $implicit,
+  }) => this.i18n.transform($implicit)!
   readonly score = toSignal(
     this.patch.watch$('ui', 'gaming', 'snake', 'highScore'),
     { initialValue: 0 },
