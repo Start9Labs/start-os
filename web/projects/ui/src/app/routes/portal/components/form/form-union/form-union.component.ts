@@ -24,27 +24,28 @@ import { tuiPure } from '@taiga-ui/cdk'
 })
 export class FormUnionComponent implements OnChanges {
   @Input({ required: true })
-  spec!: IST.ValueSpecUnion
+  spec!: IST.ValueSpecUnion & { others?: Record<string, any> }
 
   selectSpec!: IST.ValueSpecSelect
 
   private readonly form = inject(FormGroupName)
   private readonly formService = inject(FormService)
-  private readonly values: Record<string, any> = {}
 
   get union(): string {
     return this.form.value.selection
   }
 
+  // OTHER?
   @tuiPure
   onUnion(union: string) {
-    this.values[this.union] = this.form.control.controls['value']?.value
+    this.spec.others = this.spec.others || {}
+    this.spec.others[this.union] = this.form.control.controls['value']?.value
     this.form.control.setControl(
       'value',
       this.formService.getFormGroup(
         union ? this.spec.variants[union]?.spec || {} : {},
         [],
-        this.values[union],
+        this.spec.others[union],
       ),
       {
         emitEvent: false,

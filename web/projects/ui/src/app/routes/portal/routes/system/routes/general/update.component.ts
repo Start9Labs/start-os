@@ -15,7 +15,7 @@ import {
 import { TuiDialogContext, TuiScrollbar, TuiButton } from '@taiga-ui/core'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { EOSService } from 'src/app/services/eos.service'
+import { OSService } from 'src/app/services/os.service'
 
 @Component({
   template: `
@@ -47,7 +47,7 @@ import { EOSService } from 'src/app/services/eos.service'
   ],
 })
 export class SystemUpdateModal {
-  readonly versions = Object.entries(this.eosService.osUpdate?.releaseNotes!)
+  readonly versions = Object.entries(this.os.osUpdate?.releaseNotes!)
     .sort(([a], [b]) => a.localeCompare(b))
     .reverse()
     .map(([version, notes]) => ({
@@ -60,7 +60,7 @@ export class SystemUpdateModal {
     private readonly loader: LoadingService,
     private readonly errorService: ErrorService,
     private readonly embassyApi: ApiService,
-    private readonly eosService: EOSService,
+    private readonly os: OSService,
   ) {}
 
   async update() {

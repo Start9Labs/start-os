@@ -75,7 +75,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
       <button
         tuiButton
         type="button"
-        appearance="outline-grayscale"
+        appearance="secondary-grayscale"
         (click)="showService()"
       >
         {{ 'View Installed' | i18n }}

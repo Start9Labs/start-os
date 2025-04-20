@@ -27,6 +27,7 @@ import { i18nKey, i18nPipe } from '@start9labs/shared'
           tuiIconButton
           appearance="neutral"
           iconStart="@tui.x"
+          size="s"
           [style.border-radius.%]="100"
           [style.justify-self]="'end'"
           (click)="clear()"

@@ -194,7 +194,7 @@ export class MarketplaceService {
     )
   }
 
-  getStatic$(
+  fetchStatic$(
     pkg: MarketplacePkg,
     type: 'LICENSE.md' | 'instructions.md',
   ): Observable<string> {

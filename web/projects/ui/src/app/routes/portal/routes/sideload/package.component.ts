@@ -1,5 +1,6 @@
 import { CommonModule } from '@angular/common'
-import { Component, inject, Input } from '@angular/core'
+import { Component, inject, input } from '@angular/core'
+import { toObservable } from '@angular/core/rxjs-interop'
 import {
   AboutModule,
   AdditionalModule,
@@ -12,11 +13,11 @@ import {
   MARKDOWN,
   SharedPipesModule,
 } from '@start9labs/shared'
-import { MarketplaceControlsComponent } from '../marketplace/components/controls.component'
-import { filter, first, map } from 'rxjs'
 import { PatchDB } from 'patch-db-client'
+import { filter, first, map, of, switchMap } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
+import { MarketplaceControlsComponent } from '../marketplace/components/controls.component'
 import { MarketplacePkgSideload } from './sideload.utils'
 
 @Component({
@@ -24,25 +25,25 @@ import { MarketplacePkgSideload } from './sideload.utils'
   template: `
     <div class="outer-container">
       <ng-content />
-      <marketplace-package-hero [pkg]="pkg">
+      <marketplace-package-hero [pkg]="pkg()">
         <marketplace-controls
           slot="controls"
           class="controls-wrapper"
-          [pkg]="pkg"
+          [pkg]="pkg()"
           [localPkg]="local$ | async"
           [localFlavor]="!!(flavor$ | async)"
-          [file]="file"
+          [file]="file()"
         />
       </marketplace-package-hero>
       <div class="package-details">
         <div class="package-details-main">
-          <marketplace-about [pkg]="pkg" />
-          @if (!(pkg.dependencyMetadata | empty)) {
-            <marketplace-dependencies [pkg]="pkg" />
+          <marketplace-about [pkg]="pkg()" />
+          @if (!(pkg().dependencyMetadata | empty)) {
+            <marketplace-dependencies [pkg]="pkg()" />
           }
         </div>
         <div class="package-details-additional">
-          <marketplace-additional [pkg]="pkg" (static)="onStatic($event)" />
+          <marketplace-additional [pkg]="pkg()" (static)="onStatic($event)" />
         </div>
       </div>
     </div>
@@ -108,38 +109,35 @@ export class SideloadPackageComponent {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly dialog = inject(DialogService)
 
-  // @Input({ required: true })
-  // pkg!: MarketplacePkgSideload
+  readonly pkg = input.required<MarketplacePkgSideload>()
+  readonly file = input.required<File>()
 
-  // @TODO Alex why do I need to initialize pkg below? I would prefer to do the above, but it's not working
-  @Input({ required: true })
-  pkg: MarketplacePkgSideload = {} as MarketplacePkgSideload
-
-  @Input({ required: true })
-  file!: File
-
-  readonly local$ = this.patch.watch$('packageData', this.pkg.id).pipe(
+  readonly local$ = toObservable(this.pkg).pipe(
     filter(Boolean),
-    map(pkg =>
-      this.exver.getFlavor(getManifest(pkg).version) === this.pkg.flavor
-        ? pkg
-        : null,
+    switchMap(({ id, flavor }) =>
+      this.patch.watch$('packageData', id).pipe(
+        filter(Boolean),
+        map(pkg =>
+          this.exver.getFlavor(getManifest(pkg).version) === flavor
+            ? pkg
+            : null,
+        ),
+      ),
     ),
     first(),
   )
 
   readonly flavor$ = this.local$.pipe(map(pkg => !pkg))
 
-  // @TODO Alex, struggling to get this working. I don't understand how to use this markdown component, only one other example, and it's very different.
   onStatic(type: 'license' | 'instructions') {
+    const label = type === 'license' ? 'License' : 'Instructions'
+    const key = type === 'license' ? 'fullLicense' : 'instructions'
+
     this.dialog
       .openComponent(MARKDOWN, {
-        label: type === 'license' ? 'License' : 'Instructions',
+        label,
         size: 'l',
-        data: {
-          content:
-            this.pkg[type === 'license' ? 'fullLicense' : 'instructions'],
-        },
+        data: { content: of(this.pkg()[key]) },
       })
       .subscribe()
   }

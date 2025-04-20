@@ -490,4 +490,5 @@ export const ENGLISH = {
   'spanish': 488,
   'polish': 489,
   'german': 490,
+  'english': 491,
 } as const

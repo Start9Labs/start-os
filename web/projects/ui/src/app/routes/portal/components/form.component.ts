@@ -80,7 +80,7 @@ export interface FormContext<T> {
         display: flex;
         justify-content: flex-end;
         padding: 1rem 0;
-        margin: 1rem 0 -1rem;
+        margin: 1rem -1px -1rem;
         gap: 1rem;
         background: var(--tui-background-elevation-1);
         border-top: 1px solid var(--tui-background-base-alt);

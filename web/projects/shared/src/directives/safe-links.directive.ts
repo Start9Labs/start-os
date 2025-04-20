@@ -1,28 +1,39 @@
-import { AfterViewInit, Directive, ElementRef, Inject } from '@angular/core'
 import { DOCUMENT } from '@angular/common'
+import { Directive, inject } from '@angular/core'
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
+import {
+  MutationObserverService,
+  provideMutationObserverInit,
+} from '@ng-web-apis/mutation-observer'
+import { tuiInjectElement } from '@taiga-ui/cdk'
 
-// @TODO Alex: Refactor to use `MutationObserver` so it works with dynamic content
 @Directive({
   selector: '[safeLinks]',
+  providers: [
+    MutationObserverService,
+    provideMutationObserverInit({
+      childList: true,
+      subtree: true,
+    }),
+  ],
   standalone: true,
 })
-export class SafeLinksDirective implements AfterViewInit {
-  constructor(
-    @Inject(DOCUMENT) private readonly document: Document,
-    private readonly elementRef: ElementRef<HTMLElement>,
-  ) {}
-
-  ngAfterViewInit() {
-    Array.from(this.document.links)
-      .filter(
-        link =>
-          link.hostname !== this.document.location.hostname &&
-          this.elementRef.nativeElement.contains(link),
-      )
-      .forEach(link => {
-        link.target = '_blank'
-        link.setAttribute('rel', 'noreferrer')
-        link.classList.add('g-external-link')
-      })
-  }
+export class SafeLinksDirective {
+  private readonly doc = inject(DOCUMENT)
+  private readonly el = tuiInjectElement()
+  private readonly sub = inject(MutationObserverService)
+    .pipe(takeUntilDestroyed())
+    .subscribe(() => {
+      Array.from(this.doc.links)
+        .filter(
+          link =>
+            link.hostname !== this.doc.location.hostname &&
+            this.el.contains(link),
+        )
+        .forEach(link => {
+          link.target = '_blank'
+          link.setAttribute('rel', 'noreferrer')
+          link.classList.add('g-external-link')
+        })
+    })
 }

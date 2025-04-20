@@ -73,7 +73,7 @@ export class FormService {
       UntypedFormGroup | UntypedFormArray | UntypedFormControl
     > = {}
     Object.entries(config).map(([key, spec]) => {
-      group[key] = this.getFormEntry(spec, current ? current[key] : undefined)
+      group[key] = this.getFormEntry(spec, current?.[key])
     })
     return this.formBuilder.group(group, { validators })
   }

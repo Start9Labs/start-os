@@ -2,7 +2,6 @@ import { ErrorHandler, inject, Injectable } from '@angular/core'
 import { TuiAlertService } from '@taiga-ui/core'
 import { HttpError } from '../classes/http-error'
 
-// @TODO Alex: Enable this as ErrorHandler
 @Injectable({
   providedIn: 'root',
 })

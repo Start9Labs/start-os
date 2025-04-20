@@ -7,6 +7,7 @@
 .detail-container {
   display: grid;
   grid-auto-flow: row;
+  grid-auto-columns: minmax(0, 1fr);
 
   & > * + * {
     border-top-width: 1px;

@@ -10,7 +10,7 @@ import { Version } from '@start9labs/start-sdk'
 @Injectable({
   providedIn: 'root',
 })
-export class EOSService {
+export class OSService {
   osUpdate?: OSUpdate
   updateAvailable$ = new BehaviorSubject<boolean>(false)
 
@@ -45,7 +45,7 @@ export class EOSService {
     private readonly patch: PatchDB<DataModel>,
   ) {}
 
-  async loadEos(): Promise<void> {
+  async loadOS(): Promise<void> {
     const { version, id } = await getServerInfo(this.patch)
     this.osUpdate = await this.api.checkOSUpdate({ serverId: id })
     const updateAvailable =

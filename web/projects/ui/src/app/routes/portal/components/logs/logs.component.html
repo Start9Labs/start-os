@@ -33,7 +33,7 @@
       }
     </section>
   } @else {
-    <tui-loader [textContent]="'Loading logs' | i18n" [style.margin-top.rem]="5" />
+    <tui-loader class="loader" [textContent]="'Loading logs' | i18n" />
   }
 
   <section
@@ -53,7 +53,7 @@
     iconStart="@tui.circle-arrow-down"
     (click)="setScroll(true); scrollToBottom()"
   >
-    {{'Scroll to bottom' | i18n}}
+    {{ 'Scroll to bottom' | i18n }}
   </button>
   <button
     tuiButton
@@ -61,6 +61,6 @@
     iconStart="@tui.download"
     [logsDownload]="fetchLogs"
   >
-    {{'Download' | i18n}}
+    {{ 'Download' | i18n }}
   </button>
 </footer>
