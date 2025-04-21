@@ -33,7 +33,7 @@ nvm alias default 20 # this prevents your machine from reverting back to another
 ## Cloning the repository
 
 ```sh
-git clone --recursive https://github.com/Start9Labs/start-os.git --branch next/minor
+git clone --recursive https://github.com/Start9Labs/start-os.git --branch next/major
 cd start-os
 ```
 
