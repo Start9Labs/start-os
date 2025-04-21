@@ -4,6 +4,7 @@ import {
   inject,
   Input,
   OnDestroy,
+  signal,
 } from '@angular/core'
 import { MarketplaceConfig } from '@start9labs/shared'
 import { Subject, takeUntil } from 'rxjs'
@@ -27,7 +28,7 @@ export class MenuComponent implements OnDestroy {
   private readonly categoryService = inject(AbstractCategoryService)
   category = ''
   query = ''
-  open = false
+  readonly open = signal(false)
 
   ngOnInit() {
     this.categoryService
@@ -55,10 +56,6 @@ export class MenuComponent implements OnDestroy {
   onQueryChange(query: string): void {
     this.query = query
     this.categoryService.setQuery(query)
-  }
-
-  toggleMenu(open: boolean): void {
-    this.open = open
   }
 
   ngOnDestroy(): void {

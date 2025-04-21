@@ -1,15 +1,19 @@
 import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { SharedPipesModule } from '@start9labs/shared'
-import { TuiSkeleton } from '@taiga-ui/kit'
-
-import { MenuComponent } from './menu.component'
-import { TuiLoader, TuiIcon, TuiButton, TuiAppearance } from '@taiga-ui/core'
-import { TuiActiveZone, TuiLet } from '@taiga-ui/cdk'
-import { TuiSidebar } from '@taiga-ui/addon-mobile'
-import { SearchModule } from '../../pages/list/search/search.module'
+import { TuiLet } from '@taiga-ui/cdk'
+import {
+  TuiAppearance,
+  TuiButton,
+  TuiIcon,
+  TuiLoader,
+  TuiPopup,
+} from '@taiga-ui/core'
+import { TuiDrawer, TuiSkeleton } from '@taiga-ui/kit'
 import { CategoriesModule } from '../../pages/list/categories/categories.module'
+import { SearchModule } from '../../pages/list/search/search.module'
 import { StoreIconComponentModule } from '../store-icon/store-icon.component.module'
+import { MenuComponent } from './menu.component'
 
 @NgModule({
   imports: [
@@ -17,8 +21,6 @@ import { StoreIconComponentModule } from '../store-icon/store-icon.component.mod
     SharedPipesModule,
     SearchModule,
     CategoriesModule,
-    TuiActiveZone,
-    ...TuiSidebar,
     TuiLoader,
     TuiButton,
     CategoriesModule,
@@ -27,6 +29,8 @@ import { StoreIconComponentModule } from '../store-icon/store-icon.component.mod
     TuiAppearance,
     TuiIcon,
     TuiSkeleton,
+    TuiDrawer,
+    TuiPopup,
   ],
   declarations: [MenuComponent],
   exports: [MenuComponent],
