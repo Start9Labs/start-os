@@ -73,7 +73,6 @@ export class MainLoop {
           env: {
             TINI_SUBREAPER: "true",
           },
-          mounts: null,
           sigtermTimeout: utils.inMs(
             this.system.manifest.main["sigterm-timeout"],
           ),

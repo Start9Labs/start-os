@@ -57,19 +57,7 @@ type DaemonsParams<
   /** The command line command to start the daemon */
   command: T.CommandType
   /** Information about the subcontainer in which the daemon runs */
-  subcontainer:
-    | {
-        /** The ID of the image. Must be one of the image IDs declared in the manifest */
-        imageId: keyof Manifest["images"] & T.ImageId
-        /**
-         * Whether or not to share the `/run` directory with the parent container.
-         * This is useful if you are trying to connect to a service that exposes a unix domain socket or auth cookie via the `/run` directory
-         */
-        sharedRun?: boolean
-      }
-    | SubContainer<Manifest>
-  /** For mounting the necessary volumes. Syntax: sdk.Mounts.of().addVolume() */
-  mounts: Mounts<Manifest>
+  subcontainer: SubContainer<Manifest>
   env?: Record<string, string>
   ready: Ready
   /** An array of IDs of prior daemons whose successful initializations are required before this daemon will initialize */
@@ -164,7 +152,6 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       options.command,
       {
         ...options,
-        subcontainerName: id,
       },
     )
     const healthDaemon = new HealthDaemon(

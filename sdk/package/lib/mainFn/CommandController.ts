@@ -25,18 +25,11 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
   static of<Manifest extends T.SDKManifest>() {
     return async (
       effects: T.Effects,
-      subcontainer:
-        | {
-            imageId: keyof Manifest["images"] & T.ImageId
-            sharedRun?: boolean
-          }
-        | SubContainer<Manifest>,
+      subcontainer: SubContainer<Manifest>,
       command: T.CommandType,
       options: {
-        subcontainerName?: string
         // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
         sigtermTimeout?: number
-        mounts: Mounts<Manifest> | null
         runAsInit?: boolean
         env?:
           | {
@@ -60,26 +53,15 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
         commands = imageMeta.entrypoint ?? []
         commands.concat(...(command.overridCmd ?? imageMeta.cmd ?? []))
       } else commands = splitCommand(command)
-      const subc =
-        subcontainer instanceof SubContainer
-          ? subcontainer
-          : await SubContainer.of(
-              effects,
-              subcontainer,
-              null,
-              options?.subcontainerName || commands.join(" "),
-            )
 
       try {
-        if (options.mounts) await subc.mount(options.mounts)
-
         let childProcess: cp.ChildProcess
         if (options.runAsInit) {
-          childProcess = await subc.launch(commands, {
+          childProcess = await subcontainer.launch(commands, {
             env: options.env,
           })
         } else {
-          childProcess = await subc.spawn(commands, {
+          childProcess = await subcontainer.spawn(commands, {
             env: options.env,
             stdio: options.onStdout || options.onStderr ? "pipe" : "inherit",
           })
@@ -116,12 +98,12 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
         return new CommandController(
           answer,
           state,
-          subc,
+          subcontainer,
           childProcess,
           options.sigtermTimeout,
         )
       } catch (e) {
-        await subc.destroy()
+        await subcontainer.destroy()
         throw e
       }
     }
