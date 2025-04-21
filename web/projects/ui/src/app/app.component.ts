@@ -24,7 +24,7 @@ import { PatchMonitorService } from './services/patch-monitor.service'
 
     tui-root {
       height: 100%;
-      font-family: 'Open Sans', sans-serif;
+      font-family: 'Proxima Nova', sans-serif;
     }
   `,
 })
