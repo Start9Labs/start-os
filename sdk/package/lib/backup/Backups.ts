@@ -76,6 +76,26 @@ export class Backups<M extends T.SDKManifest> {
     return this
   }
 
+  setPreBackup(fn: (effects: BackupEffects) => Promise<void>) {
+    this.preBackup = fn
+    return this
+  }
+
+  setPostBackup(fn: (effects: BackupEffects) => Promise<void>) {
+    this.postBackup = fn
+    return this
+  }
+
+  setPreRestore(fn: (effects: BackupEffects) => Promise<void>) {
+    this.preRestore = fn
+    return this
+  }
+
+  setPostRestore(fn: (effects: BackupEffects) => Promise<void>) {
+    this.postRestore = fn
+    return this
+  }
+
   addVolume(
     volume: M["volumes"][number],
     options?: Partial<{
@@ -128,6 +148,7 @@ export class Backups<M extends T.SDKManifest> {
   }
 
   async restoreBackup(effects: T.Effects) {
+    this.preRestore(effects as BackupEffects)
     const store = await fs
       .readFile("/media/startos/backup/store.json", {
         encoding: "utf-8",
@@ -150,13 +171,14 @@ export class Backups<M extends T.SDKManifest> {
         },
       })
       await rsyncResults.wait()
-      const dataVersion = await fs
-        .readFile("/media/startos/backup/dataVersion.txt", {
-          encoding: "utf-8",
-        })
-        .catch((_) => null)
-      if (dataVersion) await effects.setDataVersion({ version: dataVersion })
     }
+    const dataVersion = await fs
+      .readFile("/media/startos/backup/dataVersion.txt", {
+        encoding: "utf-8",
+      })
+      .catch((_) => null)
+    if (dataVersion) await effects.setDataVersion({ version: dataVersion })
+    this.postRestore(effects as BackupEffects)
     return
   }
 }
