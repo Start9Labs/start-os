@@ -157,6 +157,62 @@
   src: url('/assets/fonts/Courier_New/CourierNew-Bold.ttf');
 }
 
+@font-face {
+  font-family: 'Proxima Nova';
+  font-style: normal;
+  font-weight: 100; // thin
+  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Thin.woff');
+}
+
+@font-face {
+  font-family: 'Proxima Nova';
+  font-style: normal;
+  font-weight: 300; // light
+  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Light.woff');
+}
+
+@font-face {
+  font-family: 'Proxima Nova';
+  font-style: normal;
+  font-weight: 400; // normal
+  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Regular.woff');
+}
+
+@font-face {
+  font-family: 'Proxima Nova';
+  font-style: normal;
+  font-weight: 500; // medium
+  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Medium.woff');
+}
+
+@font-face {
+  font-family: 'Proxima Nova';
+  font-style: normal;
+  font-weight: 600; // semibold
+  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Semibold.woff');
+}
+
+@font-face {
+  font-family: 'Proxima Nova';
+  font-style: normal;
+  font-weight: 700; // bold
+  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Bold.woff');
+}
+
+@font-face {
+  font-family: 'Proxima Nova';
+  font-style: normal;
+  font-weight: 800; // extrabold
+  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Extrabold.woff');
+}
+
+@font-face {
+  font-family: 'Proxima Nova';
+  font-style: normal;
+  font-weight: 900; // black
+  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Black.woff');
+}
+
 $wide-modal: 900px;
 
 :root {

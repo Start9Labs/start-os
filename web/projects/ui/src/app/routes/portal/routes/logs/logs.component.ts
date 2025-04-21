@@ -99,6 +99,10 @@ interface Log {
         padding: 0 1rem;
       }
 
+      strong {
+        font-weight: 700;
+      }
+
       logs {
         height: calc(100% - 4rem);
         width: 100%;
