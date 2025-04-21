@@ -3,7 +3,6 @@ import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { ServiceWorkerModule } from '@angular/service-worker'
 import { TuiRoot } from '@taiga-ui/core'
-import { SidebarHostComponent } from 'src/app/components/sidebar-host.component'
 import { ToastContainerComponent } from 'src/app/components/toast-container.component'
 import { environment } from '../environments/environment'
 import { AppComponent } from './app.component'
@@ -24,7 +23,6 @@ import { RoutingModule } from './routing.module'
       // or after 30 seconds (whichever comes first).
       registrationStrategy: 'registerWhenStable:30000',
     }),
-    SidebarHostComponent,
   ],
   providers: APP_PROVIDERS,
   bootstrap: [AppComponent],

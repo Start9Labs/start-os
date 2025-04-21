@@ -5,6 +5,12 @@
   padding: 0;
 }
 
+tui-drawer {
+  top: 0;
+  border-radius: 0;
+  background-color: rgb(var(--tw-color-zinc-700) / 0.9);
+}
+
 header {
   @include scrollbar-hidden();
 
@@ -131,12 +137,10 @@ header {
     }
 
     &-sidebar {
-      background-color: rgb(var(--tw-color-zinc-700) / 0.9);
-      width: 70vw;
       display: flex;
       flex-direction: column;
       height: 100%;
-      overflow: auto;
+      margin: -1.25rem -1.5rem;
 
       &-top {
         display: flex;
@@ -166,7 +170,7 @@ header {
 
         marketplace-categories {
           flex-grow: 1;
-          padding: 1.25rem 1.25rem 0px 1.25rem;
+          padding: 1.25rem 1.25rem 0 1.25rem;
         }
 
         ::ng-deep a {
@@ -191,7 +195,7 @@ header {
 
       .divide-bar > * + * {
         border-top-width: 1px;
-        border-bottom-width: 0px;
+        border-bottom-width: 0;
         border-color: rgb(113 113 122);
       }
     }
