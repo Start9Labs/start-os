@@ -4,8 +4,8 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 
 set -e
 
-if mountpoint tmp/combined; then sudo umount -R tmp/combined; fi
-if mountpoint tmp/lower; then sudo umount tmp/lower; fi
+if mountpoint -q tmp/combined; then sudo umount -R tmp/combined; fi
+if mountpoint -q tmp/lower; then sudo umount tmp/lower; fi
 sudo rm -rf tmp
 mkdir -p tmp/lower tmp/upper tmp/work tmp/combined
 if which squashfuse > /dev/null; then
