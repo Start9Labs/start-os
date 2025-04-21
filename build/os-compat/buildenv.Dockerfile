@@ -19,6 +19,7 @@ RUN apt-get update && \
     debspawn \
     rsync \
     b3sum \
+    fuse-overlayfs \
     sudo \
     systemd \
     systemd-container \
@@ -32,6 +33,8 @@ RUN systemctl mask \
     getty@tty1.service \
     console-getty.service
 
+RUN git config --global --add safe.directory /root/start-os
+
 RUN mkdir -p /etc/debspawn && \
     echo "AllowUnsafePermissions=true" > /etc/debspawn/global.toml
 
@@ -42,7 +45,9 @@ RUN mkdir -p $NVM_DIR && \
     . $NVM_DIR/nvm.sh \
     nvm install $NODE_VERSION && \
     nvm use $NODE_VERSION && \
-    nvm alias default $NODE_VERSION
+    nvm alias default $NODE_VERSION && \
+    ln -s $(which node) /usr/bin/node && \
+    ln -s $(which npm) /usr/bin/npm
 
 RUN mkdir -p /root/start-os
 WORKDIR /root/start-os

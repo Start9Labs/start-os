@@ -13,7 +13,11 @@ if which squashfuse > /dev/null; then
 else
     sudo mount debian.${ARCH}.squashfs tmp/lower
 fi
-sudo mount -t overlay -olowerdir=tmp/lower,upperdir=tmp/upper,workdir=tmp/work overlay tmp/combined
+if which fuse-overlayfs > /dev/null; then
+    sudo fuse-overlayfs -olowerdir=tmp/lower,upperdir=tmp/upper,workdir=tmp/work overlay tmp/combined
+else
+    sudo mount -t overlay -olowerdir=tmp/lower,upperdir=tmp/upper,workdir=tmp/work overlay tmp/combined
+fi
 
 QEMU=
 if [ "$ARCH" != "$(uname -m)" ]; then

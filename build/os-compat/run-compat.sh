@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$FORCE_COMPAT" -eq 1 ] || ( [ "$REQUIRES" = "linux" ] && [ "$(uname -s)" != "Linux" ] ) || ( [ "$REQUIRES" = "debian" ] && ! which dpkg > /dev/null ); then
+if [ "$FORCE_COMPAT" = 1 ] || ( [ "$REQUIRES" = "linux" ] && [ "$(uname -s)" != "Linux" ] ) || ( [ "$REQUIRES" = "debian" ] && ! which dpkg > /dev/null ); then
     project_pwd="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../.. && pwd)/"
     pwd="$(pwd)/"
     if ! [[ "$pwd" = "$project_pwd"* ]]; then
