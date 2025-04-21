@@ -18,7 +18,6 @@ import {
 import { TuiButton, TuiIcon, TuiLink, TuiTitle } from '@taiga-ui/core'
 import { TuiExpand } from '@taiga-ui/experimental'
 import {
-  TUI_CONFIRM,
   TuiAvatar,
   TuiButtonLoading,
   TuiChevron,
@@ -73,6 +72,14 @@ import UpdatesComponent from './updates.component'
       <td class="desktop">{{ item().s9pk.publishedAt | date }}</td>
       <td>
         <div>
+          <button
+            tuiIconButton
+            size="m"
+            appearance="icon"
+            [tuiChevron]="expanded()"
+          >
+            {{ 'Show more' | i18n }}
+          </button>
           @if (local().stateInfo.state === 'updating') {
             <tui-progress-circle
               class="g-positive"
@@ -94,14 +101,6 @@ import UpdatesComponent from './updates.component'
               {{ error() ? ('Retry' | i18n) : ('Update' | i18n) }}
             </button>
           }
-          <button
-            tuiIconButton
-            size="s"
-            appearance="icon"
-            [tuiChevron]="expanded()"
-          >
-            {{ 'Show more' | i18n }}
-          </button>
         </div>
       </td>
     </tr>

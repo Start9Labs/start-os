@@ -7,6 +7,7 @@ import {
   FilterPackagesPipe,
   FilterPackagesPipeModule,
 } from '@start9labs/marketplace'
+import { i18nPipe } from '@start9labs/shared'
 import { TuiScrollbar } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { tap, withLatestFrom } from 'rxjs'
@@ -15,9 +16,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
 import { MarketplaceMenuComponent } from './components/menu.component'
 import { MarketplaceNotificationComponent } from './components/notification.component'
-import { MarketplaceSidebarsComponent } from './components/sidebars.component'
 import { MarketplaceTileComponent } from './components/tile.component'
-import { i18nPipe } from '@start9labs/shared'
 
 @Component({
   standalone: true,
@@ -56,7 +55,6 @@ import { i18nPipe } from '@start9labs/shared'
         </div>
       </div>
     </tui-scrollbar>
-    <marketplace-sidebars />
   `,
   host: { class: 'g-page' },
   styles: [
@@ -153,7 +151,6 @@ import { i18nPipe } from '@start9labs/shared'
     MarketplaceTileComponent,
     MarketplaceMenuComponent,
     MarketplaceNotificationComponent,
-    MarketplaceSidebarsComponent,
     TuiScrollbar,
     FilterPackagesPipeModule,
     TitleDirective,

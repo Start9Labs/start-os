@@ -17,7 +17,6 @@ export abstract class Control<
     return this.control.spec
   }
 
-  // @TODO Alex: Properly handle already set immutable value
   get readOnly(): boolean {
     return (
       !!this.value && !!this.control.control?.pristine && this.control.immutable

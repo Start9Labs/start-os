@@ -1,12 +1,43 @@
 import { Component, ElementRef, inject, OnInit, ViewChild } from '@angular/core'
-import { INTERSECTION_ROOT } from '@ng-web-apis/intersection-observer'
+import { RouterLink } from '@angular/router'
+import {
+  WA_INTERSECTION_ROOT,
+  WaIntersectionObserver,
+} from '@ng-web-apis/intersection-observer'
+import { WaMutationObserver } from '@ng-web-apis/mutation-observer'
 import { convertAnsi, ErrorService } from '@start9labs/shared'
-import { TuiScrollbar } from '@taiga-ui/core'
+import { tuiProvide } from '@taiga-ui/cdk'
+import { TuiButton, TuiLoader, TuiScrollbar } from '@taiga-ui/core'
+import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
-  selector: 'logs',
-  templateUrl: './logs.page.html',
+  standalone: true,
+  template: `
+    <a
+      routerLink="../"
+      tuiButton
+      iconStart="@tui.chevron-left"
+      appearance="icon"
+      [style.align-self]="'flex-start'"
+    >
+      Back
+    </a>
+    <tui-scrollbar childList subtree (waMutationObserver)="restoreScroll()">
+      <section
+        class="top"
+        waIntersectionObserver
+        (waIntersectionObservee)="onTop(!!$event[0]?.isIntersecting)"
+      >
+        @if (loading) {
+          <tui-loader textContent="Loading logs" />
+        }
+      </section>
+      @for (log of logs; track log) {
+        <pre [innerHTML]="log | dompurify"></pre>
+      }
+    </tui-scrollbar>
+  `,
   styles: `
     :host {
       max-height: 100vh;
@@ -18,14 +49,18 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
       background: var(--tui-background-base);
     }
   `,
-  providers: [
-    {
-      provide: INTERSECTION_ROOT,
-      useExisting: ElementRef,
-    },
+  imports: [
+    RouterLink,
+    WaIntersectionObserver,
+    WaMutationObserver,
+    NgDompurifyModule,
+    TuiButton,
+    TuiLoader,
+    TuiScrollbar,
   ],
+  providers: [tuiProvide(WA_INTERSECTION_ROOT, ElementRef)],
 })
-export class LogsPage implements OnInit {
+export default class LogsPage implements OnInit {
   @ViewChild(TuiScrollbar, { read: ElementRef })
   private readonly scrollbar?: ElementRef<HTMLElement>
   private readonly api = inject(ApiService)

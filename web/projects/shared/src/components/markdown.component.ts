@@ -4,7 +4,7 @@ import { ActivatedRoute, Data } from '@angular/router'
 import { TuiDialogContext, TuiLoader, TuiNotification } from '@taiga-ui/core'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
-import { catchError, ignoreElements, of } from 'rxjs'
+import { catchError, ignoreElements, Observable, of } from 'rxjs'
 import { SafeLinksDirective } from '../directives/safe-links.directive'
 import { MarkdownPipe } from '../pipes/markdown.pipe'
 import { getErrorMessage } from '../services/error.service'
@@ -36,8 +36,9 @@ import { getErrorMessage } from '../services/error.service'
 })
 export class MarkdownComponent {
   private readonly data =
-    injectContext<TuiDialogContext<void, Data>>({ optional: true })?.data ||
-    inject(ActivatedRoute).snapshot.data
+    injectContext<TuiDialogContext<void, { content: Observable<string> }>>({
+      optional: true,
+    })?.data || inject(ActivatedRoute).snapshot.data
 
   readonly content = toSignal<string>(this.data['content'])
   readonly error = toSignal(

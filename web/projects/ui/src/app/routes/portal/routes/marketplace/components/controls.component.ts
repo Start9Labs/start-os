@@ -4,7 +4,6 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
-  input,
   Input,
 } from '@angular/core'
 import { Router } from '@angular/router'
@@ -76,7 +75,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
       <button
         tuiButton
         type="button"
-        appearance="outline-grayscale"
+        appearance="secondary-grayscale"
         (click)="showService()"
       >
         {{ 'View Installed' | i18n }}
@@ -180,8 +179,9 @@ export class MarketplaceControlsComponent {
   private async installOrUpload(url: string | null) {
     if (this.file) {
       await this.upload()
+      this.router.navigate(['/portal', 'services'])
     } else if (url) {
-      this.install(url)
+      await this.install(url)
     }
   }
 

@@ -19,7 +19,7 @@ import {
   tuiDropdownOptionsProvider,
   tuiNumberFormatProvider,
 } from '@taiga-ui/core'
-import { NG_EVENT_PLUGINS } from '@taiga-ui/event-plugins'
+import { provideEventPlugins } from '@taiga-ui/event-plugins'
 import {
   TUI_DATE_TIME_VALUE_TRANSFORMER,
   TUI_DATE_VALUE_TRANSFORMER,
@@ -48,7 +48,7 @@ const {
 } = require('../../../../config.json') as WorkspaceConfig
 
 export const APP_PROVIDERS: Provider[] = [
-  NG_EVENT_PLUGINS,
+  provideEventPlugins(),
   I18N_PROVIDERS,
   FilterPackagesPipe,
   UntypedFormBuilder,

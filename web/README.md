@@ -92,7 +92,24 @@ cp proxy.conf-sample.json proxy.conf.json
 npm run start:ui:proxy
 ```
 
-## Updating translations
+## Translations
+
+### Currently supported languages
+
+- Spanish
+- Polish
+- German
+<!-- - Korean
+- Russian
+- Japanese
+- Hebrew
+- Arabic
+- Mandarin
+- Hindi
+- Portuguese
+- French
+- Italian
+- Thai -->
 
 ### Adding a new translation
 
@@ -119,22 +136,20 @@ Translate the English dictionary below into `<language>`. Format the result as a
 
 #### Sample AI prompt
 
-Translate `<original>` into the languages below. Return the translations as a JSON object with the languages as keys.
+Translate the English dictionary below into the languages beneath the dictionary. Format the result as a javascript object with translated language as keys, mapping to a javascript object with the numeric values of the English dictionary as keys and the translations as values. These translations are for the web UI of StartOS, a graphical server operating system optimized for self-hosting. Comments may be included in the English dictionary to provide additional context.
+
+English dictionary:
+
+```
+'Hello': 420,
+'Goodby': 421
+```
+
+Languages:
 
 - Spanish
 - Polish
 - German
-<!-- - Korean
-- Russian
-- Japanese
-- Hebrew
-- Arabic
-- Mandarin
-- Hindi
-- Portuguese
-- French
-- Italian
-- Thai -->
 
 #### Adding to StartOS
 

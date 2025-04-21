@@ -1850,6 +1850,11 @@ export namespace Mock {
         listitems: ['192.168.1.1', '192.1681.23'],
         name: 'Matt',
       },
+      other: {
+        external: {
+          'public-domain': 'test.com',
+        },
+      },
     },
     port: 20,
     rpcallowip: undefined,

@@ -14,7 +14,7 @@ import {
   switchMap,
 } from 'rxjs'
 import { ConnectionService } from 'src/app/services/connection.service'
-import { EOSService } from 'src/app/services/eos.service'
+import { OSService } from 'src/app/services/os.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { NotificationService } from 'src/app/services/notification.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -27,7 +27,7 @@ export class BadgeService {
   private readonly notifications = inject(NotificationService)
   private readonly exver = inject(Exver)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
-  private readonly system$ = inject(EOSService).updateAvailable$.pipe(
+  private readonly system$ = inject(OSService).updateAvailable$.pipe(
     map(Number),
   )
   private readonly metrics$ = this.patch

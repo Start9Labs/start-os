@@ -21,6 +21,7 @@ import {
   DialogService,
   Exver,
   i18nPipe,
+  MARKDOWN,
   SharedPipesModule,
 } from '@start9labs/shared'
 import { TuiButton, TuiDialogContext, TuiLoader } from '@taiga-ui/core'
@@ -105,14 +106,7 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
       .outer-container {
         display: flex;
         flex-direction: column;
-        padding: 1.75rem;
-        min-width: 100%;
         height: calc(100vh - var(--portal-header-height) - var(--bumper));
-        margin-top: 5rem;
-
-        @media (min-width: 768px) {
-          margin-top: 0;
-        }
       }
 
       .inner-container {
@@ -226,8 +220,21 @@ export class MarketplacePreviewComponent {
     this.router.navigate([], { queryParams: { id } })
   }
 
-  onStatic(type: 'license' | 'instructions') {
-    // @TODO Alex need to display License or Instructions. This requires an API request, check out next/minor
+  onStatic(asset: 'license' | 'instructions') {
+    const label = asset === 'license' ? 'License' : 'Instructions'
+    const content = this.pkg$.pipe(
+      filter(Boolean),
+      switchMap(pkg =>
+        this.marketplaceService.fetchStatic$(
+          pkg,
+          asset === 'license' ? 'LICENSE.md' : 'instructions.md',
+        ),
+      ),
+    )
+
+    this.dialog
+      .openComponent(MARKDOWN, { label, size: 'l', data: { content } })
+      .subscribe()
   }
 
   selectVersion(

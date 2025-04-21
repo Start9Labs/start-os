@@ -1,23 +1,36 @@
-import { Component, inject, OnInit } from '@angular/core'
+import { Component, inject } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { Title } from '@angular/platform-browser'
 import { i18nService } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
-import { combineLatest, map, merge, startWith } from 'rxjs'
-import { ConnectionService } from './services/connection.service'
+import { merge } from 'rxjs'
 import { PatchDataService } from './services/patch-data.service'
 import { DataModel } from './services/patch-db/data-model'
 import { PatchMonitorService } from './services/patch-monitor.service'
 
 @Component({
   selector: 'app-root',
-  templateUrl: 'app.component.html',
-  styleUrls: ['app.component.scss'],
+  template: `
+    <tui-root tuiTheme="dark">
+      <router-outlet />
+      <toast-container />
+    </tui-root>
+  `,
+  styles: `
+    :host {
+      display: block;
+      height: 100%;
+    }
+
+    tui-root {
+      height: 100%;
+      font-family: 'Open Sans', sans-serif;
+    }
+  `,
 })
-export class AppComponent implements OnInit {
+export class AppComponent {
   private readonly title = inject(Title)
   private readonly i18n = inject(i18nService)
-  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
   readonly subscription = merge(
     inject(PatchDataService),
@@ -26,23 +39,11 @@ export class AppComponent implements OnInit {
     .pipe(takeUntilDestroyed())
     .subscribe()
 
-  readonly offline$ = combineLatest([
-    inject(ConnectionService),
-    this.patch
-      .watch$('serverInfo', 'statusInfo')
-      .pipe(startWith({ restarting: false, shuttingDown: false })),
-  ]).pipe(
-    map(
-      ([connected, { restarting, shuttingDown }]) =>
-        connected && (restarting || shuttingDown),
-    ),
-    startWith(true),
-  )
-
-  ngOnInit() {
-    this.patch.watch$('ui').subscribe(({ name, language }) => {
+  readonly ui = inject<PatchDB<DataModel>>(PatchDB)
+    .watch$('ui')
+    .pipe(takeUntilDestroyed())
+    .subscribe(({ name, language }) => {
       this.title.setTitle(name || 'StartOS')
       this.i18n.setLanguage(language || 'english')
     })
-  }
 }

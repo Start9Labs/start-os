@@ -10,9 +10,9 @@ import { toObservable, toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router } from '@angular/router'
 import { ItemModule, MarketplacePkg } from '@start9labs/marketplace'
 import { Exver } from '@start9labs/shared'
-import { TuiSidebar } from '@taiga-ui/addon-mobile'
-import { TuiAutoFocus, TuiClickOutside } from '@taiga-ui/cdk'
-import { TuiButton, TuiDropdownService } from '@taiga-ui/core'
+import { TuiAutoFocus } from '@taiga-ui/cdk'
+import { TuiButton, TuiDropdownService, TuiPopup } from '@taiga-ui/core'
+import { TuiDrawer } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import {
   debounceTime,
@@ -35,38 +35,46 @@ import { MarketplaceControlsComponent } from './controls.component'
   selector: 'marketplace-tile',
   template: `
     <marketplace-item [pkg]="pkg()" (click)="toggle(true)">
-      <marketplace-preview
-        *tuiSidebar="!!open(); direction: 'right'; autoWidth: true"
-        [pkgId]="pkg().id"
-        class="preview-wrapper"
-        (tuiClickOutside)="toggle(false)"
+      <tui-drawer
+        *tuiPopup="open()"
+        [overlay]="true"
+        (click.self)="toggle(false)"
       >
-        <button
-          tuiAutoFocus
-          slot="close"
-          size="xs"
-          class="close-button"
-          tuiIconButton
-          type="button"
-          appearance="icon"
-          iconStart="@tui.x"
-          [tuiAppearanceFocus]="false"
-          (click)="toggle(false)"
-        ></button>
-        <marketplace-controls
-          slot="controls"
-          class="controls-wrapper"
-          [pkg]="pkg()"
-          [localPkg]="local$ | async"
-          [localFlavor]="!!(flavor$ | async)"
-        />
-      </marketplace-preview>
+        <marketplace-preview [pkgId]="pkg().id" class="preview-wrapper">
+          <button
+            tuiAutoFocus
+            slot="close"
+            size="xs"
+            class="close-button"
+            tuiIconButton
+            type="button"
+            appearance="icon"
+            iconStart="@tui.x"
+            [tuiAppearanceFocus]="false"
+            (click)="toggle(false)"
+          ></button>
+          <marketplace-controls
+            slot="controls"
+            class="controls-wrapper"
+            [pkg]="pkg()"
+            [localPkg]="local$ | async"
+            [localFlavor]="!!(flavor$ | async)"
+          />
+        </marketplace-preview>
+      </tui-drawer>
     </marketplace-item>
   `,
   styles: [
     `
       :host {
+        cursor: pointer;
         animation: animateIn 400ms calc(var(--animation-order) * 200ms) both;
+      }
+
+      tui-drawer {
+        top: 0;
+        width: 28rem;
+        border-radius: 0;
       }
 
       @keyframes animateIn {
@@ -119,9 +127,9 @@ import { MarketplaceControlsComponent } from './controls.component'
     CommonModule,
     ItemModule,
     TuiAutoFocus,
-    TuiClickOutside,
-    TuiSidebar,
     TuiButton,
+    TuiPopup,
+    TuiDrawer,
     MarketplaceControlsComponent,
     MarketplacePreviewComponent,
   ],

@@ -21,14 +21,7 @@
         [(query)]="query"
         (queryChange)="onQueryChange($event)"
       />
-      <button
-        tuiButton
-        type="button"
-        appearance="link"
-        (click)="toggleMenu(true)"
-        (tuiActiveZoneChange)="toggleMenu($event)"
-        [style.--tui-padding]="'1.2rem'"
-      >
+      <button tuiButton type="button" appearance="" (click)="open.set(true)">
         <store-icon
           size="42px"
           [style.height.px]="42"
@@ -37,46 +30,47 @@
           [marketplace]="iconConfig"
           [tuiSkeleton]="!registry"
         />
-        <nav
-          *tuiSidebar="open; direction: 'right'; autoWidth: true"
-          class="nav-mobile-sidebar divide-bar"
+        <tui-drawer
+          *tuiPopup="open()"
+          [overlay]="true"
+          (click.self)="open.set(false)"
         >
-          <div class="nav-mobile-sidebar-top">
-            <h1 [tuiSkeleton]="!registry">
-              {{ registry?.info?.name }}
-            </h1>
-            <button
-              [style.--tui-padding]="0"
-              tuiButton
-              type="button"
-              appearance="icon"
-              iconStart="@tui.x"
-              (tuiActiveZoneChange)="toggleMenu($event)"
-              (click)="toggleMenu(false)"
-            ></button>
-          </div>
-          <!-- change registry modal -->
-          <ng-content select="[slot=mobile]"></ng-content>
-          <div class="nav-mobile-sidebar-bottom divide-bar">
-            <marketplace-categories
-              [categories]="registry?.info?.categories"
-              [category]="query ? '' : category"
-              (categoryChange)="onCategoryChange($event); toggleMenu(false)"
-            />
-            <div>
-              <!-- link to store for brochure -->
-              <ng-content select="[slot=store-mobile]" />
-              <a
-                target="_blank"
-                rel="noreferrer"
-                href="https://docs.start9.com/0.3.5.x/developer-docs/"
-              >
-                <span>Package a service</span>
-                <tui-icon tuiAppearance="icon" icon="@tui.external-link" />
-              </a>
+          <nav class="nav-mobile-sidebar divide-bar">
+            <div class="nav-mobile-sidebar-top">
+              <h1 [style.margin]="0" [tuiSkeleton]="!registry">
+                {{ registry?.info?.name }}
+              </h1>
+              <button
+                tuiButton
+                type="button"
+                appearance="icon"
+                iconStart="@tui.x"
+                (click)="open.set(false)"
+              ></button>
             </div>
-          </div>
-        </nav>
+            <!-- change registry modal -->
+            <ng-content select="[slot=mobile]"></ng-content>
+            <div class="nav-mobile-sidebar-bottom divide-bar">
+              <marketplace-categories
+                [categories]="registry?.info?.categories"
+                [category]="query ? '' : category"
+                (categoryChange)="onCategoryChange($event); open.set(false)"
+              />
+              <div>
+                <!-- link to store for brochure -->
+                <ng-content select="[slot=store-mobile]" />
+                <a
+                  target="_blank"
+                  rel="noreferrer"
+                  href="https://docs.start9.com/0.3.5.x/developer-docs/"
+                >
+                  <span>Package a service</span>
+                  <tui-icon tuiAppearance="icon" icon="@tui.external-link" />
+                </a>
+              </div>
+            </div>
+          </nav>
+        </tui-drawer>
       </button>
     </div>
   </div>

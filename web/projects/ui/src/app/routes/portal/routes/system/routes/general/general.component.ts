@@ -9,15 +9,17 @@ import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
 import {
+  DialogService,
   ErrorService,
+  i18nKey,
   i18nPipe,
   i18nService,
-  LoadingService,
-  DialogService,
   languages,
-  i18nKey,
+  Languages,
+  LoadingService,
 } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
+import { TuiContext, TuiStringHandler } from '@taiga-ui/cdk'
 import {
   TuiAppearance,
   TuiButton,
@@ -38,7 +40,7 @@ import { PatchDB } from 'patch-db-client'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
-import { EOSService } from 'src/app/services/eos.service'
+import { OSService } from 'src/app/services/os.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
 import { SnekDirective } from './snek.directive'
@@ -72,13 +74,13 @@ import { SystemWipeComponent } from './wipe.component'
           tuiButton
           appearance="accent"
           iconStart="@tui.refresh-cw"
-          [disabled]="eos.updatingOrBackingUp$ | async"
+          [disabled]="os.updatingOrBackingUp$ | async"
           (click)="onUpdate()"
         >
           @if (server.statusInfo.updated) {
             {{ 'Restart to apply' | i18n }}
           } @else {
-            @if (eos.showUpdate$ | async) {
+            @if (os.showUpdate$ | async) {
               {{ 'Update' | i18n }}
             } @else {
               {{ 'Check for updates' | i18n }}
@@ -98,7 +100,13 @@ import { SystemWipeComponent } from './wipe.component'
         <tui-icon icon="@tui.languages" />
         <span tuiTitle>
           <strong>{{ 'Language' | i18n }}</strong>
-          <span tuiSubtitle>{{ i18nService.language }}</span>
+          <span tuiSubtitle>
+            @if (language; as lang) {
+              {{ lang | i18n }}
+            } @else {
+              {{ i18nService.language }}
+            }
+          </span>
         </span>
         <button
           tuiButtonSelect
@@ -112,6 +120,7 @@ import { SystemWipeComponent } from './wipe.component'
             *tuiTextfieldDropdown
             size="l"
             [items]="languages"
+            [itemContent]="translation"
           />
         </button>
       </div>
@@ -219,24 +228,32 @@ export default class SystemGeneralComponent {
   private readonly isTor = inject(ConfigService).isTor()
   private readonly document = inject(DOCUMENT)
   private readonly dialog = inject(DialogService)
+  private readonly i18n = inject(i18nPipe)
 
   wipe = false
   count = 0
 
   readonly server = toSignal(this.patch.watch$('serverInfo'))
   readonly name = toSignal(this.patch.watch$('ui', 'name'))
-  readonly eos = inject(EOSService)
+  readonly os = inject(OSService)
   readonly i18nService = inject(i18nService)
   readonly languages = languages
+  readonly translation: TuiStringHandler<TuiContext<Languages>> = ({
+    $implicit,
+  }) => this.i18n.transform($implicit)!
   readonly score = toSignal(
     this.patch.watch$('ui', 'gaming', 'snake', 'highScore'),
     { initialValue: 0 },
   )
 
+  get language(): Languages | undefined {
+    return this.languages.find(lang => lang === this.i18nService.language)
+  }
+
   onUpdate() {
     if (this.server()?.statusInfo.updated) {
       this.restart()
-    } else if (this.eos.updateAvailable$.value) {
+    } else if (this.os.updateAvailable$.value) {
       this.update()
     } else {
       this.check()
@@ -334,9 +351,9 @@ export default class SystemGeneralComponent {
     const loader = this.loader.open('Checking for updates').subscribe()
 
     try {
-      await this.eos.loadEos()
+      await this.os.loadOS()
 
-      if (this.eos.updateAvailable$.value) {
+      if (this.os.updateAvailable$.value) {
         this.update()
       } else {
         this.dialog

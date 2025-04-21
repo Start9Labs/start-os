@@ -9,8 +9,7 @@ const ROUTES: Routes = [
   },
   {
     path: 'logs',
-    loadChildren: () =>
-      import('./logs/logs.module').then(m => m.LogsPageModule),
+    loadComponent: () => import('./logs.component'),
   },
 ]
 
