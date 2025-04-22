@@ -91,8 +91,8 @@ pub async fn shutdown(ctx: RpcContext) -> Result<(), Error> {
             export_args: Some((ctx.disk_guid.clone(), Path::new(DATA_DIR).to_owned())),
             restart: false,
         }))
-        .map_err(|_| ())
-        .expect("receiver dropped");
+        .map_err(|_| eyre!("receiver dropped"))
+        .log_err();
     Ok(())
 }
 
@@ -112,8 +112,8 @@ pub async fn restart(ctx: RpcContext) -> Result<(), Error> {
             export_args: Some((ctx.disk_guid.clone(), Path::new(DATA_DIR).to_owned())),
             restart: true,
         }))
-        .map_err(|_| ())
-        .expect("receiver dropped");
+        .map_err(|_| eyre!("receiver dropped"))
+        .log_err();
     Ok(())
 }
 
