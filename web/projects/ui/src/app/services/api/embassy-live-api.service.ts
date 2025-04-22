@@ -294,7 +294,9 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes> {
+  async checkOSUpdate(
+    qp: RR.CheckOSUpdateReq,
+  ): Promise<RR.GetRegistryOsUpdateRes> {
     const { serverId } = qp
 
     return this.registryRequest(this.config.startosRegistry, {

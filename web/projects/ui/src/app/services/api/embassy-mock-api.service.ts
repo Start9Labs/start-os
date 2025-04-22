@@ -484,9 +484,11 @@ export class MockApiService extends ApiService {
     return Error('do not call directly')
   }
 
-  async checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes> {
+  async checkOSUpdate(
+    qp: RR.CheckOSUpdateReq,
+  ): Promise<RR.GetRegistryOsUpdateRes> {
     await pauseFor(2000)
-    return Mock.MarketplaceEos
+    return Mock.RegistryOSUpdate
   }
 
   async getRegistryInfo(registryUrl: string): Promise<T.RegistryInfo> {

@@ -30,23 +30,146 @@ export namespace Mock {
     shuttingDown: false,
   }
 
-  export const MarketplaceEos: RR.CheckOSUpdateRes = {
-    version: '0.3.6',
-    headline: 'Our biggest release ever.',
-    releaseNotes: {
-      '0.3.6': 'Some **Markdown** release _notes_ for 0.3.6',
-      '0.3.5.2': 'Some **Markdown** release _notes_ for 0.3.5.2',
-      '0.3.5.1': 'Some **Markdown** release _notes_ for 0.3.5.1',
-      '0.3.4.4': 'Some **Markdown** release _notes_ for 0.3.4.4',
-      '0.3.4.3': 'Some **Markdown** release _notes_ for 0.3.4.3',
-      '0.3.4.2': 'Some **Markdown** release _notes_ for 0.3.4.2',
-      '0.3.4.1': 'Some **Markdown** release _notes_ for 0.3.4.1',
-      '0.3.4': 'Some **Markdown** release _notes_ for 0.3.4',
-      '0.3.3': 'Some **Markdown** release _notes_ for 0.3.3',
-      '0.3.2.1': 'Some **Markdown** release _notes_ for 0.3.2.1',
-      '0.3.2': 'Some **Markdown** release _notes_ for 0.3.2',
-      '0.3.1': 'Some **Markdown** release _notes_ for 0.3.1',
-      '0.3.0': 'Some **Markdown** release _notes_ from a prior version',
+  export const RegistryOSUpdate: RR.GetRegistryOsUpdateRes = {
+    '0.3.6-alpha.17': {
+      headline: 'v0.3.6-alpha.17',
+      releaseNotes: '',
+      sourceVersion: '>=0.3.5:0 <=0.3.6-alpha.17:0',
+      authorized: ['G24CSA5HNYEPIXJNMK7ZM4KD5SX5N6X4'],
+      iso: {},
+      squashfs: {
+        aarch64: {
+          publishedAt: '2025-03-21T23:55:29.583006392Z',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_aarch64.squashfs',
+          commitment: {
+            hash: 'OUnANnZePtf7rSbj38JESl+iJAV0z0aiZ4opCiwpGbo=',
+            size: 1331900416,
+          },
+          signatures: {
+            '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqPjOeMD2CB3UEASoICgfJlfrO5ygjOSBCCNRyDBs75A=\n-----END PUBLIC KEY-----\n':
+              '-----BEGIN SIGNATURE-----\nMEkwBQYDK2VwBEAMbmYB7TQknW7AdeasgNsqhWBVuRkYzrgZs7I1yHPHmLtMcNRo\nErEz7QKhKTgdzGn1FUQlHJh4GWGd8tkzCi8N\n-----END SIGNATURE-----\n',
+          },
+        },
+        'aarch64-nonfree': {
+          publishedAt: '2025-03-21T23:56:38.299572946Z',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_aarch64-nonfree.squashfs',
+          commitment: {
+            hash: '6k+0RcyRQV+5A+h06OqpHxd4IT6IlFkfdy9dfHIP90c=',
+            size: 1641500672,
+          },
+          signatures: {
+            '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqPjOeMD2CB3UEASoICgfJlfrO5ygjOSBCCNRyDBs75A=\n-----END PUBLIC KEY-----\n':
+              '-----BEGIN SIGNATURE-----\nMEkwBQYDK2VwBEBEc2Vwxgf7Hxnm9GPlmc59DGRP6z0QyIQho7BlTSglXe3yz4FS\n8vtBGpOT9w0tRhZrWn5pInKr2R1OdGqoSosI\n-----END SIGNATURE-----\n',
+          },
+        },
+        raspberrypi: {
+          publishedAt: '2025-03-22T00:08:17.083064390Z',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_raspberrypi.squashfs',
+          commitment: {
+            hash: 'K+XuTZxo1KVsKjNSV8PPOMruCvAEZwerF9mbpFl53Gk=',
+            size: 1544417280,
+          },
+          signatures: {
+            '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqPjOeMD2CB3UEASoICgfJlfrO5ygjOSBCCNRyDBs75A=\n-----END PUBLIC KEY-----\n':
+              '-----BEGIN SIGNATURE-----\nMEkwBQYDK2VwBEAA07qx3oBE23A4XSRs5nRm4pCT534+wMwfozy0dEVdIwJ4tIWn\nnWhREVWXPJjmh5haoF+U4fISBbFKgJZhWbkD\n-----END SIGNATURE-----\n',
+          },
+        },
+        x86_64: {
+          publishedAt: '2025-03-22T00:05:57.684319247Z',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_x86_64.squashfs',
+          commitment: {
+            hash: '3UVkx3TQMBPlSU1OnV48Om9vjjA3s+Nk6dX3auYGpBo=',
+            size: 1424007168,
+          },
+          signatures: {
+            '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqPjOeMD2CB3UEASoICgfJlfrO5ygjOSBCCNRyDBs75A=\n-----END PUBLIC KEY-----\n':
+              '-----BEGIN SIGNATURE-----\nMEkwBQYDK2VwBEDuGbncT5wcXd26p8ieqZyDQKmAcWKx/gP90i2GMNXgCf9L4jA4\nTz+B5PqC6kljRstyT1600wL3R02+fRpqkAUH\n-----END SIGNATURE-----\n',
+          },
+        },
+        'x86_64-nonfree': {
+          publishedAt: '2025-03-22T00:07:11.893777122Z',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.3.6-alpha.17/startos-0.3.6-alpha.17-b8ff331~dev_x86_64-nonfree.squashfs',
+          commitment: {
+            hash: 'IS1gJ56n/HlQqFbl1upMOAtLxyxB0cY0H89Ha+9h1lE=',
+            size: 1743425536,
+          },
+          signatures: {
+            '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqPjOeMD2CB3UEASoICgfJlfrO5ygjOSBCCNRyDBs75A=\n-----END PUBLIC KEY-----\n':
+              '-----BEGIN SIGNATURE-----\nMEkwBQYDK2VwBEBOt5QUnB6XA2kOph45ARpAN9vlftX29Ic/8/Wcp4TmBQz3A+be\n5zGqW1Gvm4eoyocL+PjibxPYXS6kcC8O9YUA\n-----END SIGNATURE-----\n',
+          },
+        },
+      },
+      img: {},
+    },
+    '0.4.0-alpha.0': {
+      headline: 'v0.4.0-alpha.0',
+      releaseNotes: '',
+      sourceVersion: '>=0.3.5:0 <=0.4.0-alpha.0:0',
+      authorized: ['G24CSA5HNYEPIXJNMK7ZM4KD5SX5N6X4'],
+      iso: {},
+      squashfs: {
+        aarch64: {
+          publishedAt: '2025-04-21T20:58:48.140749883Z',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.0/startos-0.4.0-alpha.0-33ae46f~dev_aarch64.squashfs',
+          commitment: {
+            hash: '4elBFVkd/r8hNadKmKtLIs42CoPltMvKe2z3LRqkphk=',
+            size: 1343500288,
+          },
+          signatures: {
+            '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqPjOeMD2CB3UEASoICgfJlfrO5ygjOSBCCNRyDBs75A=\n-----END PUBLIC KEY-----\n':
+              '-----BEGIN SIGNATURE-----\nMEkwBQYDK2VwBEAQlzQCZ07nY4REcknK3aZWtHlcAwSzV+Pae/5wb6ijV/utaNWu\n3BPWtKZFrS8K8fCfDmCHgFScLJCLUk4GwKoI\n-----END SIGNATURE-----\n',
+          },
+        },
+        'aarch64-nonfree': {
+          publishedAt: '2025-04-21T21:07:00.249285116Z',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.0/startos-0.4.0-alpha.0-33ae46f~dev_aarch64-nonfree.squashfs',
+          commitment: {
+            hash: 'MrCEi4jxbmPS7zAiGk/JSKlMsiuKqQy6RbYOxlGHOIQ=',
+            size: 1653075968,
+          },
+          signatures: {
+            '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqPjOeMD2CB3UEASoICgfJlfrO5ygjOSBCCNRyDBs75A=\n-----END PUBLIC KEY-----\n':
+              '-----BEGIN SIGNATURE-----\nMEkwBQYDK2VwBECg1u7PoQAuTvSjtVNGZz0tpZOV8TC0P8xpNSQacGfcklSGN5OT\nsmtu/E+z/o4c9mWa3h9QB4jRTWyYpz49H+gJ\n-----END SIGNATURE-----\n',
+          },
+        },
+        raspberrypi: {
+          publishedAt: '2025-04-21T21:16:12.933319237Z',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.0/startos-0.4.0-alpha.0-33ae46f~dev_raspberrypi.squashfs',
+          commitment: {
+            hash: '/XTVQRCqY3RK544PgitlKu7UplXjkmzWoXUh2E4HCw0=',
+            size: 1490731008,
+          },
+          signatures: {
+            '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqPjOeMD2CB3UEASoICgfJlfrO5ygjOSBCCNRyDBs75A=\n-----END PUBLIC KEY-----\n':
+              '-----BEGIN SIGNATURE-----\nMEkwBQYDK2VwBEDQAJaxCtyZSzUQ+oBB2TP9ctf7AyBD659vkhHVct7DTM+ZUqjm\ncCbUMV77PNlGFmDJEJ9kaGq8LmLMD467zqMA\n-----END SIGNATURE-----\n',
+          },
+        },
+        x86_64: {
+          publishedAt: '2025-04-21T21:14:20.246908903Z',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.0/startos-0.4.0-alpha.0-33ae46f~dev_x86_64.squashfs',
+          commitment: {
+            hash: '/6romKTVQGSaOU7FqSZdw0kFyd7P+NBSYNwM3q7Fe44=',
+            size: 1411657728,
+          },
+          signatures: {
+            '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqPjOeMD2CB3UEASoICgfJlfrO5ygjOSBCCNRyDBs75A=\n-----END PUBLIC KEY-----\n':
+              '-----BEGIN SIGNATURE-----\nMEkwBQYDK2VwBECWOeNTSyjYn2D5FLtyEtjfUbmNPB/vnGFfc3WK+HfuUvZrZEGj\n1bCdShp/4kuLrqEjasonSJTXUQfAJ1NT4gkA\n-----END SIGNATURE-----\n',
+          },
+        },
+        'x86_64-nonfree': {
+          publishedAt: '2025-04-21T21:15:17.955265284Z',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.0/startos-0.4.0-alpha.0-33ae46f~dev_x86_64-nonfree.squashfs',
+          commitment: {
+            hash: 'HCRq9sr/0t85pMdrEgNBeM4x11zVKHszGnD1GDyZbSE=',
+            size: 1731035136,
+          },
+          signatures: {
+            '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAqPjOeMD2CB3UEASoICgfJlfrO5ygjOSBCCNRyDBs75A=\n-----END PUBLIC KEY-----\n':
+              '-----BEGIN SIGNATURE-----\nMEkwBQYDK2VwBECMvpyxKmTCzv+1Dlk28TSzyjCCb6+QNaXNA01rl4OHTN3YcqAQ\n4ubS89dDDoiOkxXv0J+aImG94SUqrSWXglYI\n-----END SIGNATURE-----\n',
+          },
+        },
+      },
+      img: {},
     },
   }
 

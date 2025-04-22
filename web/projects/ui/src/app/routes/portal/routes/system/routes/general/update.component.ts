@@ -47,12 +47,12 @@ import { OSService } from 'src/app/services/os.service'
   ],
 })
 export class SystemUpdateModal {
-  readonly versions = Object.entries(this.os.osUpdate?.releaseNotes!)
+  readonly versions = Object.entries(this.os.osUpdate!)
     .sort(([a], [b]) => a.localeCompare(b))
     .reverse()
-    .map(([version, notes]) => ({
+    .map(([version, info]) => ({
       version,
-      notes,
+      notes: info.releaseNotes,
     }))
 
   constructor(
