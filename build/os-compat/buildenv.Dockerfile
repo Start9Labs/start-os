@@ -39,7 +39,7 @@ RUN mkdir -p /etc/debspawn && \
     echo "AllowUnsafePermissions=true" > /etc/debspawn/global.toml
 
 ENV NVM_DIR=~/.nvm
-ENV NODE_VERSION=20
+ENV NODE_VERSION=22
 RUN mkdir -p $NVM_DIR && \
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash && \
     . $NVM_DIR/nvm.sh \

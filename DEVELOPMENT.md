@@ -25,9 +25,9 @@ docker buildx create --use
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh # proceed with default installation
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
 source ~/.bashrc
-nvm install 20
-nvm use 20
-nvm alias default 20 # this prevents your machine from reverting back to another version
+nvm install 22
+nvm use 22
+nvm alias default 22 # this prevents your machine from reverting back to another version
 ```
 
 ## Cloning the repository
