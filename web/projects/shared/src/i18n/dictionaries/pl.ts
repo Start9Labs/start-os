@@ -492,4 +492,5 @@ export default {
   489: 'polski',
   490: 'niemiecki',
   491: 'angielski',
+  492: 'Menu Startowe',
 } satisfies i18n

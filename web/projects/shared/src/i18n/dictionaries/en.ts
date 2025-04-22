@@ -491,4 +491,5 @@ export const ENGLISH = {
   'polish': 489,
   'german': 490,
   'english': 491,
+  'Start Menu': 492,
 } as const
