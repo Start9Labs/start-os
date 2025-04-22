@@ -7,7 +7,7 @@ import { PackageDataEntry } from './patch-db/data-model'
 const {
   gitHash,
   useMocks,
-  ui: { api, marketplace, mocks },
+  ui: { api, marketplace, mocks, startosRegistry },
 } = require('../../../../../config.json') as WorkspaceConfig
 
 @Injectable({
@@ -27,6 +27,7 @@ export class ConfigService {
   gitHash = gitHash
   api = api
   marketplace = marketplace
+  startosRegistry = startosRegistry
   skipStartupAlerts = useMocks && mocks.skipStartupAlerts
   supportsWebSockets = !!window.WebSocket
 

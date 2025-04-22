@@ -9,6 +9,7 @@
       "start9": "https://registry.start9.com/",
       "community": "https://community-registry.start9.com/"
     },
+    "startosRegistry": "https://registry.start9.com/",
     "mocks": {
       "maskAs": "tor",
       "maskAsHttps": true,

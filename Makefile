@@ -305,7 +305,17 @@ $(COMPRESSED_WEB_UIS): $(WEB_UIS) $(ENVIRONMENT_FILE)
 	./compress-uis.sh
 
 web/config.json: $(GIT_HASH_FILE) web/config-sample.json
-	jq '.useMocks = false' web/config-sample.json | jq '.gitHash = "$(shell cat GIT_HASH.txt)"' > web/config.json
+	@ver=$$(cat VERSION.txt); \
+	case $$ver in \
+		*alpha*) osUrl="https://alpha-registry-x.start9.com/" ;; \
+		*beta*) osUrl="https://beta-registry.start9.com/" ;; \
+		*) osUrl="https://registry.start9.com/" ;; \
+	esac; \
+	gitHash=$$(cat GIT_HASH.txt); \
+	jq '.useMocks = false' web/config-sample.json \
+	| jq --arg gitHash "$$gitHash" '.gitHash = $$gitHash' \
+	| jq --arg osUrl "$$osUrl" '.ui.startosRegistry = $$osUrl' \
+	> web/config.json;
 
 patch-db/client/node_modules/.package-lock.json: patch-db/client/package.json
 	npm --prefix patch-db/client ci

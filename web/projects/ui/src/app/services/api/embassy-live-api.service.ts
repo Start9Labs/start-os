@@ -250,7 +250,7 @@ export class LiveApiService extends ApiService {
 
   async updateServer(url?: string): Promise<RR.UpdateServerRes> {
     const params = {
-      registry: url || this.config.marketplace.start9,
+      registry: url || this.config.startosRegistry,
     }
     return this.rpcRequest({ method: 'server.update', params })
   }
@@ -297,7 +297,7 @@ export class LiveApiService extends ApiService {
   async checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes> {
     const { serverId } = qp
 
-    return this.registryRequest(this.config.marketplace.start9, {
+    return this.registryRequest(this.config.startosRegistry, {
       method: 'os.version.get',
       params: { serverId },
     })
