@@ -298,23 +298,6 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
       nullIfEmpty,
       useEntrypoint: (overrideCmd?: string[]) =>
         new T.UseEntrypoint(overrideCmd),
-      runCommand: async <A extends string>(
-        effects: Effects,
-        image: {
-          imageId: keyof Manifest["images"] & T.ImageId
-          sharedRun?: boolean
-        },
-        command: T.CommandType,
-        options: CommandOptions & {
-          mounts: Mounts<Manifest> | null
-        },
-        /**
-         * A name to use to refer to the ephemeral subcontainer for debugging purposes
-         */
-        name?: string,
-      ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> => {
-        return runCommand<Manifest>(effects, image, command, options, name)
-      },
       /**
        * @description Use this class to create an Action. By convention, each Action should receive its own file.
        *
@@ -785,13 +768,13 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           return SubContainer.of(effects, image, mounts, name)
         },
         /**
-         * @description Create a new SubContainer
+         * @description Run a function with a temporary SubContainer
          * @param effects
          * @param image - what container image to use
          * @param mounts - what to mount to the subcontainer
          * @param name - a name to use to refer to the ephemeral subcontainer for debugging purposes
          */
-        with<T>(
+        withTemp<T>(
           effects: T.Effects,
           image: {
             imageId: T.ImageId & keyof Manifest["images"]
@@ -801,7 +784,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           name: string,
           fn: (subContainer: SubContainer<Manifest>) => Promise<T>,
         ): Promise<T> {
-          return SubContainer.with(effects, image, mounts, name, fn)
+          return SubContainer.withTemp(effects, image, mounts, name, fn)
         },
       },
       List: {
@@ -1194,7 +1177,7 @@ export async function runCommand<Manifest extends T.SDKManifest>(
     commands = imageMeta.entrypoint ?? []
     commands.concat(...(command.overridCmd ?? imageMeta.cmd ?? []))
   } else commands = splitCommand(command)
-  return SubContainer.with(
+  return SubContainer.withTemp(
     effects,
     image,
     options.mounts,

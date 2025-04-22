@@ -1,12 +1,18 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { RouterLink } from '@angular/router'
+import { RouterLink, RouterLinkActive } from '@angular/router'
 import {
   DialogService,
   ErrorService,
   i18nPipe,
   LoadingService,
 } from '@start9labs/shared'
-import { TuiButton, TuiDataList, TuiDropdown, TuiIcon } from '@taiga-ui/core'
+import {
+  TuiButton,
+  TuiDataList,
+  TuiDropdown,
+  TuiHint,
+  TuiIcon,
+} from '@taiga-ui/core'
 import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
@@ -20,6 +26,9 @@ import { ABOUT } from './about.component'
     <button
       tuiIconButton
       appearance=""
+      tuiHintDirection="bottom"
+      [tuiHint]="open ? '' : ('Start Menu' | i18n)"
+      [tuiHintShowDelay]="1000"
       [tuiDropdown]="content"
       [(tuiDropdownOpen)]="open"
       [tuiDropdownMaxHeight]="9999"
@@ -112,7 +121,16 @@ import { ABOUT } from './about.component'
   host: { '[class._open]': 'open' },
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiDropdown, TuiDataList, TuiButton, TuiIcon, RouterLink, i18nPipe],
+  imports: [
+    TuiDropdown,
+    TuiDataList,
+    TuiButton,
+    TuiIcon,
+    RouterLink,
+    i18nPipe,
+    RouterLinkActive,
+    TuiHint,
+  ],
 })
 export class HeaderMenuComponent {
   private readonly api = inject(ApiService)

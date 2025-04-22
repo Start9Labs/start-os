@@ -8,9 +8,10 @@ use rpc_toolkit::{
 
 use crate::context::{CliContext, DiagnosticContext, RpcContext};
 use crate::init::SYSTEM_REBUILD_PATH;
+use crate::prelude::*;
 use crate::shutdown::Shutdown;
 use crate::util::io::delete_file;
-use crate::{Error, DATA_DIR};
+use crate::DATA_DIR;
 
 pub fn diagnostic<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -74,7 +75,8 @@ pub fn restart(ctx: DiagnosticContext) -> Result<(), Error> {
                 .map(|guid| (guid, Path::new(DATA_DIR).to_owned())),
             restart: true,
         })
-        .expect("receiver dropped");
+        .map_err(|_| eyre!("receiver dropped"))
+        .log_err();
     Ok(())
 }
 pub async fn rebuild(ctx: DiagnosticContext) -> Result<(), Error> {

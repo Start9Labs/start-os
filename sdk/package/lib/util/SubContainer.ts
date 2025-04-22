@@ -149,7 +149,7 @@ export class SubContainer<
     }
   }
 
-  static async with<
+  static async withTemp<
     Manifest extends T.SDKManifest,
     T,
     Effects extends T.Effects,
