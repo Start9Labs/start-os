@@ -24,10 +24,10 @@ Additionally, there are two libraries for shared code:
 
 ```sh
 node --version
-v20.17.0
+v22.15.0
 
 npm --version
-v11.1.0
+v11.3.0
 ```
 
 #### Install and enable the Prettier extension for your text editor
