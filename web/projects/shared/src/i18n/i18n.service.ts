@@ -13,18 +13,24 @@ export class i18nService extends TuiLanguageSwitcherService {
   readonly loading = signal(false)
 
   override setLanguage(language: TuiLanguageName = 'english'): void {
-    if (this.language === language) {
-      return
-    }
+    const current = this.language
 
     super.setLanguage(language)
     this.loading.set(true)
-    this.store(language).then(() =>
+
+    if (current === language) {
       this.i18nLoader(language).then(value => {
         this.i18n.set(value)
         this.loading.set(false)
-      }),
-    )
+      })
+    } else {
+      this.store(language).then(() =>
+        this.i18nLoader(language).then(value => {
+          this.i18n.set(value)
+          this.loading.set(false)
+        }),
+      )
+    }
   }
 }
 
