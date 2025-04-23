@@ -41,7 +41,7 @@ impl Context for ContainerCliContext {
                 .runtime
                 .get_or_init(|| {
                     Arc::new(
-                        tokio::runtime::Builder::new_current_thread()
+                        tokio::runtime::Builder::new_multi_thread()
                             .enable_all()
                             .build()
                             .unwrap(),

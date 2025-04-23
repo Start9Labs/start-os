@@ -88,7 +88,9 @@ export class SubContainer<
                 imageId: this.imageId,
                 rootfs: this.rootfs,
               })
-              reject(new Error(`Failed to start subcontainer ${this.imageId}`))
+              return reject(
+                new Error(`Failed to start subcontainer ${this.imageId}`),
+              )
             }
             await wait(1)
           }
@@ -144,8 +146,9 @@ export class SubContainer<
       }
 
       return res
-    } finally {
+    } catch (e) {
       await res.destroy()
+      throw e
     }
   }
 
@@ -272,6 +275,7 @@ export class SubContainer<
   }
 
   onDrop(): void {
+    console.log(`Cleaning up dangling subcontainer ${this.guid}`)
     this.destroy()
   }
 

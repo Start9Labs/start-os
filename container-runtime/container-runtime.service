@@ -1,11 +1,11 @@
 [Unit]
 Description=StartOS Container Runtime
+OnFailure=container-runtime-failure.service
 
 [Service]
 Type=simple
 ExecStart=/usr/bin/node --experimental-detect-module --unhandled-rejections=warn /usr/lib/startos/init/index.js
-Restart=always
-RestartSec=3
+Restart=no
 
 [Install]
 WantedBy=multi-user.target

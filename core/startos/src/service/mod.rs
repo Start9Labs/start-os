@@ -209,7 +209,10 @@ impl ServiceRef {
                 .request(rpc::Exit, Empty {})
                 .await?;
             shutdown.shutdown();
-            hdl.await.with_kind(ErrorKind::Cancelled)?;
+            tokio::time::timeout(Duration::from_secs(30), hdl)
+                .await
+                .with_kind(ErrorKind::Timeout)?
+                .with_kind(ErrorKind::Cancelled)?;
         }
         let service = Arc::try_unwrap(self.0).map_err(|_| {
             Error::new(

@@ -5,7 +5,21 @@ use models::{FromStrParser, PackageId};
 
 use crate::service::effects::prelude::*;
 use crate::service::rpc::CallbackId;
+use crate::service::RebuildParams;
 use crate::status::MainStatus;
+
+pub async fn rebuild(context: EffectContext) -> Result<(), Error> {
+    let seed = context.deref()?.seed.clone();
+    let ctx = seed.ctx.clone();
+    let id = seed.id.clone();
+    drop(seed);
+    tokio::spawn(async move {
+        super::super::rebuild(ctx, RebuildParams { id })
+            .await
+            .log_err()
+    });
+    Ok(())
+}
 
 pub async fn restart(
     context: EffectContext,
