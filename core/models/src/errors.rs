@@ -91,6 +91,8 @@ pub enum ErrorKind {
     Cancelled = 73,
     Git = 74,
     DBus = 75,
+    InstallFailed = 76,
+    UpdateFailed = 77,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -171,6 +173,8 @@ impl ErrorKind {
             Cancelled => "Cancelled",
             Git => "Git Error",
             DBus => "DBus Error",
+            InstallFailed => "Install Failed",
+            UpdateFailed => "Update Failed",
         }
     }
 }

@@ -485,7 +485,11 @@ impl Service {
                 None,
             ) // TODO timeout
             .await
-            .with_kind(ErrorKind::MigrationFailed)?; // TODO: handle cancellation
+            .with_kind(if src_version.is_some() {
+                ErrorKind::UpdateFailed
+            } else {
+                ErrorKind::InstallFailed
+            })?; // TODO: handle cancellation
 
         if let Some(mut progress) = progress {
             progress.finalization_progress.complete();
