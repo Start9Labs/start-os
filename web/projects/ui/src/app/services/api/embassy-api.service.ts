@@ -150,7 +150,9 @@ export abstract class ApiService {
     options: RPCOptions,
   ): Promise<T>
 
-  abstract checkOSUpdate(qp: RR.CheckOSUpdateReq): Promise<RR.CheckOSUpdateRes>
+  abstract checkOSUpdate(
+    qp: RR.CheckOSUpdateReq,
+  ): Promise<RR.GetRegistryOsUpdateRes>
 
   abstract getRegistryInfo(registryUrl: string): Promise<T.RegistryInfo>
 

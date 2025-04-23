@@ -38,7 +38,7 @@ export class SnekDirective {
 
         try {
           await this.api.setDbValue<number>(
-            ['gaming', 'snake', 'high-score'],
+            ['gaming', 'snake', 'highScore'],
             score,
           )
         } catch (e: any) {
