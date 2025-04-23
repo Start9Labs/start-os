@@ -362,16 +362,8 @@ export namespace RR {
   // registry
 
   /** these are returned in ASCENDING order. the newest available version will be the LAST in the object */
-  export type GetRegistryOsUpdateRes = { [version: string]: T.OsVersionInfo }
-
   export type CheckOSUpdateReq = { serverId: string }
-  export type CheckOSUpdateRes = OSUpdate
-}
-
-export type OSUpdate = {
-  version: string
-  headline: string
-  releaseNotes: { [version: string]: string }
+  export type GetRegistryOsUpdateRes = { [version: string]: T.OsVersionInfo }
 }
 
 export type Breakages = {
