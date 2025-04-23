@@ -22,4 +22,4 @@ URL="$BASE_URL/rootfs.squashfs"
 echo "Downloading $URL to debian.${ARCH}.squashfs"
 
 curl -fsSL "$URL" > debian.${ARCH}.squashfs
-curl -fsSL "$BASE_URL/SHA256SUMS" | grep ' rootfs\.squashfs$' | sed 's/rootfs\.squashfs/'"debian.${ARCH}.squashfs/" | sha256sum -c
+curl -fsSL "$BASE_URL/SHA256SUMS" | grep ' rootfs\.squashfs$' | sed 's/rootfs\.squashfs/'"debian.${ARCH}.squashfs/" | shasum -a 256 -c -
