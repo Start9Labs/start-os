@@ -1,17 +1,17 @@
 import type { i18n } from '../i18n.providers'
 
 export default {
-  1: 'Zmień', // verb
-  2: 'Aktualizuj', // verb
-  3: 'Resetuj', // verb
-  4: 'System', // as in, system preferences
-  5: 'Ogólne', // as in, general settings
+  1: 'Zmień',
+  2: 'Aktualizuj',
+  3: 'Resetuj',
+  4: 'System',
+  5: 'Ogólne',
   6: 'E-mail',
   7: 'Utwórz kopię zapasową',
   8: 'Przywróć z kopii zapasowej',
   9: 'Przejdź do logowania',
-  10: 'Testuj', // verb
-  11: 'Pomiń', // as in, skip this step
+  10: 'Testuj',
+  11: 'Pomiń',
   12: 'Aktywne sesje',
   13: 'Zmień hasło',
   14: 'Ustawienia ogólne',
@@ -67,7 +67,7 @@ export default {
   64: 'Upuść plik tutaj',
   65: 'Wyłączone',
   66: 'Wersja',
-  67: 'Kopiuj', // as in, copy to clipboard
+  67: 'Kopiuj',
   68: 'O tym serwerze',
   69: 'Ustawienia systemowe',
   70: 'Uruchom ponownie',
@@ -78,17 +78,17 @@ export default {
   75: 'Wesprzyj Start9',
   76: 'Czy na pewno chcesz ponownie uruchomić serwer? Może to potrwać kilka minut, zanim będzie ponownie dostępny.',
   77: 'Czy na pewno chcesz wyłączyć serwer? Może to potrwać kilka minut, a serwer nie włączy się automatycznie. Aby go ponownie uruchomić, będziesz musiał fizycznie odłączyć i ponownie podłączyć zasilanie.',
-  78: 'Serwisy', // as in, server-side software applications
+  78: 'Serwisy',
   79: 'Rejestr serwisów',
-  80: 'Instalacja ręczna', // installing a service manually
+  80: 'Instalacja ręczna',
   81: 'Aktualizacje',
-  82: 'Metryki', // system info such as CPU, RAM, and storage usage
-  83: 'Logi', // as in, application logs
+  82: 'Metryki',
+  83: 'Logi',
   84: 'Powiadomienia',
   85: 'Uruchom interfejs',
   86: 'Pokaż kod QR',
   87: 'Kopiuj URL',
-  88: 'Akcje', // as in, actions available to the user
+  88: 'Akcje',
   89: 'niezalecane',
   90: 'Główny certyfikat CA zaufany!',
   91: 'Dodaj adres clearnet, aby udostępnić ten interfejs w Internecie. Adresy clearnet są w pełni publiczne i nie zapewniają anonimowości.',
@@ -105,11 +105,11 @@ export default {
   102: 'Opuść',
   103: 'Czy jesteś pewien?',
   104: 'Wybierz domenę',
-  105: 'Lokalna',
+  105: 'Lokalne',
   106: 'Adresy lokalne są dostępne tylko dla urządzeń podłączonych do tej samej sieci LAN co Twój serwer, bezpośrednio lub przez VPN.',
   107: 'Dowiedz się więcej',
-  108: 'Publiczna',
-  109: 'Prywatna',
+  108: 'Publiczny',
+  109: 'Prywatny',
   110: 'Dodaj adres onion, aby anonimowo udostępnić ten interfejs w sieci Tor. Adresy onion są dostępne tylko przez sieć Tor.',
   111: 'Brak adresów onion',
   112: 'Nowy adres Onion',
@@ -128,8 +128,8 @@ export default {
   125: 'dodano',
   126: 'usunięto',
   127: 'zmieniono z',
-  128: 'na', // as in, from [blank] to [blank]
-  129: 'wpis', // as in, "a list entry"
+  128: 'na',
+  129: 'wpis',
   130: 'lista',
   131: 'nowy wpis',
   132: 'nowa lista',
@@ -168,7 +168,7 @@ export default {
   165: 'Pełny adres URL niestandardowego rejestru',
   166: 'Musi być poprawnym adresem URL',
   167: 'zainstalowano z',
-  168: 'zainstalowano ręcznie', // as in, the application was installed by sideloading
+  168: 'zainstalowano ręcznie',
   169: 'Ten serwis został pierwotnie',
   170: 'ale obecnie jesteś połączony z',
   171: 'Aby zainstalować z',
@@ -178,7 +178,7 @@ export default {
   175: 'Procent wykorzystania',
   176: 'Przestrzeń użytkownika',
   177: 'Przestrzeń jądra',
-  178: 'Bezczynność', // a CPU metric
+  178: 'Bezczynność',
   179: 'Oczekiwanie na I/O',
   180: 'ACME',
   181: 'Łącznie',
@@ -190,11 +190,11 @@ export default {
   187: 'Czas systemowy',
   188: 'Czas pracy',
   189: 'Temperatura',
-  190: 'Pamięć', // as in, computer memory
+  190: 'Pamięć',
   191: 'Przestrzeń dyskowa',
-  192: 'Pojemność', // as in, disk capacity
+  192: 'Pojemność',
   193: 'Błąd synchronizacji zegara',
-  194: 'dokumentacja', // as in, the documentation
+  194: 'dokumentacja',
   195: 'Dni',
   196: 'Godziny',
   197: 'Minuty',
@@ -205,8 +205,8 @@ export default {
   202: 'Oznacz jako przeczytane',
   203: 'Oznacz jako nieprzeczytane',
   204: 'Data',
-  205: 'Tytuł', // as in, the title of a book
-  206: 'Serwis', // as in, server-side software application
+  205: 'Tytuł',
+  206: 'Serwis',
   207: 'Wiadomość',
   208: 'Brak powiadomień',
   209: 'Wymagane',
@@ -242,8 +242,8 @@ export default {
   239: 'Brak kontroli stanu',
   240: 'Nazwa',
   241: 'Status',
-  242: 'Otwórz', // verb
-  243: 'Interfejsy', // as in user interface or application program interface
+  242: 'Otwórz',
+  243: 'Interfejsy',
   244: 'Hosting',
   245: 'Instalowanie',
   246: 'Zobacz poniżej',
@@ -282,7 +282,7 @@ export default {
   279: 'Strona wsparcia',
   280: 'Link do darowizny',
   281: 'Standardowe akcje',
-  282: 'Odbuduj serwis', // as in, rebuild a software container
+  282: 'Odbuduj serwis',
   283: 'Odbudowuje kontener serwisu. Konieczne tylko w przypadku błędu w StartOS',
   284: 'Odinstaluj',
   285: 'Odinstalowuje ten serwis z StartOS i trwale usuwa wszystkie dane.',
@@ -290,8 +290,8 @@ export default {
   287: 'panel',
   288: 'akcje',
   289: 'instrukcje',
-  290: 'logi', // as in, "application logs"
-  291: 'informacje', // as in, "about this server"
+  290: 'logi',
+  291: 'informacje',
   292: 'Rozpoczynanie przesyłania',
   293: 'Spróbuj ponownie',
   294: 'Prześlij plik pakietu .s9pk',
@@ -301,15 +301,15 @@ export default {
   298: 'Nieprawidłowy plik pakietu',
   299: 'Dodaj dostawców ACME, aby wygenerować certyfikaty SSL (https) dla dostępu przez clearnet.',
   300: 'Zobacz instrukcje',
-  301: 'Zapisani dostawcy', // as in, ACME service provider, such as Let's Encrypt
+  301: 'Zapisani dostawcy',
   302: 'Dodaj dostawcę',
-  303: 'Kontakt', //  as in, "contact us"
+  303: 'Kontakt',
   304: 'Edytuj',
   305: 'Dodaj dostawcę ACME',
   306: 'Edytuj dostawcę ACME',
   307: 'Adresy e-mail kontaktowe',
   308: 'Wymagane do uzyskania certyfikatu od urzędu certyfikacji',
-  309: 'Przełącz wszystkie',
+  309: 'Zaznacz wszystkie',
   310: 'Gotowe',
   311: 'Wymagane hasło główne',
   312: 'Wprowadź swoje hasło główne, aby zaszyfrować tę kopię zapasową.',
@@ -322,7 +322,7 @@ export default {
   319: 'Rozpoczynanie tworzenia kopii zapasowej',
   320: 'Utwórz kopię zapasową StartOS i danych serwisów, łącząc się z urządzeniem w sieci lokalnej lub z fizycznym dyskiem podłączonym do Twojego serwera.',
   321: 'Przywróć StartOS i dane serwisów z urządzenia w sieci lokalnej lub z fizycznego dysku podłączonego do Twojego serwera, który zawiera istniejącą kopię zapasową.',
-  322: 'Ostatnia kopia zapasowa', // as in, the last time the server was backed up
+  322: 'Ostatnia kopia zapasowa',
   323: 'Folder na innym komputerze, który jest podłączony do tej samej sieci co Twój serwer Start9.',
   324: 'Fizyczny dysk, który jest podłączony bezpośrednio do Twojego serwera Start9.',
   325: 'Wybierz serwisy do kopii zapasowej',
@@ -330,17 +330,17 @@ export default {
   327: 'Foldery sieciowe',
   328: 'Otwórz nowy',
   329: 'Nazwa hosta',
-  330: 'Ścieżka', // as in, a URL path
+  330: 'Ścieżka',
   331: 'URL',
   332: 'Interfejs sieciowy',
-  333: 'Protokół', // as in, http protocol
-  334: 'Model', // as in, a product model
+  333: 'Protokół',
+  334: 'Model',
   335: 'Agent użytkownika',
-  336: 'Platforma', // as in, OS platform, such as iOS, Android, Linux, etc
+  336: 'Platforma',
   337: 'Ostatnia aktywność',
   338: 'Utworzono',
-  339: 'Algorytm', // as in, the encryption algorithm
-  340: 'Odcisk palca', // as in, a fingerprint hash
+  339: 'Algorytm',
+  340: 'Odcisk palca',
   341: 'Hash pakietu',
   342: 'Opublikowano',
   343: 'Nowy folder sieciowy',
@@ -387,7 +387,7 @@ export default {
   384: 'Wysyłanie e-maila',
   385: 'Wiadomość testowa została wysłana na adres',
   386: 'Sprawdź folder spam i oznacz wiadomość jako "nie spam".',
-  387: 'Webowy interfejs użytkownika Twojego serwera StartOS, dostępny z dowolnej przeglądarki.',
+  387: 'Interfejs użytkownika twojego serwera StartOS, dostępny z dowolnej przeglądarki.',
   388: 'Zmień swoje hasło główne StartOS.',
   389: 'Nadal będziesz potrzebować aktualnego hasła, aby odszyfrować istniejące kopie zapasowe!',
   390: 'Nowe hasła nie są zgodne',
@@ -406,7 +406,7 @@ export default {
   403: 'Brak sesji',
   404: 'Wymagane hasło',
   405: 'Połączono',
-  406: 'Zapomnij', // as in, delete or remove
+  406: 'Zapomnij',
   407: 'Dane logowania WiFi',
   408: 'Przestarzałe',
   409: 'Obsługa WiFi zostanie usunięta w StartOS v0.4.1. Jeśli nie masz dostępu do sieci Ethernet, możesz użyć wzmacniacza WiFi do połączenia z siecią lokalną, a następnie podłączyć serwer do wzmacniacza przez Ethernet. W razie pytań lub wątpliwości skontaktuj się z pomocą techniczną Start9.',
@@ -425,7 +425,7 @@ export default {
   422: 'przestaną działać poprawnie i mogą ulec awarii.',
   423: 'Żądanie nie powiodło się',
   424: 'Wszystkie serwisy są aktualne!',
-  425: 'Uruchom', // as in, run a piece of software
+  425: 'Uruchom',
   426: 'Akcja może być wykonana tylko gdy serwis jest',
   427: 'Zabronione',
   428: 'może tymczasowo napotkać problemy',
@@ -485,7 +485,7 @@ export default {
   482: 'Twój serwer używa swojego głównego CA do generowania certyfikatów SSL/TLS dla siebie i zainstalowanych serwisów. Te certyfikaty są następnie używane do szyfrowania ruchu sieciowego z Twoimi urządzeniami klienckimi.',
   483: 'Postępuj zgodnie z instrukcjami dla swojego systemu operacyjnego. Zaufanie głównemu CA pozwala Twojemu urządzeniu weryfikować autentyczność szyfrowanej komunikacji z serwerem.',
   484: 'Odśwież stronę. Jeśli odświeżenie strony nie działa, może być konieczne zamknięcie i ponowne otwarcie przeglądarki, a następnie ponowne odwiedzenie tej strony.',
-  485: 'Interfejs StartOS',
+  485: 'Interfejsy StartOS',
   486: 'WiFi',
   487: 'Instrukcje',
   488: 'hiszpański',
