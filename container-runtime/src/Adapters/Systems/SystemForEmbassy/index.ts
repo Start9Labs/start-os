@@ -368,8 +368,14 @@ export class SystemForEmbassy implements System {
         reason: "This service must be configured before it can be run",
       })
     }
+    const version = ExtendedVersion.parseEmver(this.manifest.version)
+    if (
+      this.manifest.id === "bitcoind" &&
+      this.manifest.title.toLowerCase().includes("knots")
+    )
+      version.flavor = "knots"
     await effects.setDataVersion({
-      version: ExtendedVersion.parseEmver(this.manifest.version).toString(),
+      version: version.toString(),
     })
   }
   async exportNetwork(effects: Effects) {

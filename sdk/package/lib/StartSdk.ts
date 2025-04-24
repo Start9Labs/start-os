@@ -1175,7 +1175,7 @@ export async function runCommand<Manifest extends T.SDKManifest>(
       .catch(() => "{}")
       .then(JSON.parse)
     commands = imageMeta.entrypoint ?? []
-    commands.concat(...(command.overridCmd ?? imageMeta.cmd ?? []))
+    commands = commands.concat(...(command.overridCmd ?? imageMeta.cmd ?? []))
   } else commands = splitCommand(command)
   return SubContainer.withTemp(
     effects,

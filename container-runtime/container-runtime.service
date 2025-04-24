@@ -4,7 +4,7 @@ OnFailure=container-runtime-failure.service
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/node --experimental-detect-module --unhandled-rejections=warn /usr/lib/startos/init/index.js
+ExecStart=/usr/bin/node --experimental-detect-module --trace-warnings --unhandled-rejections=warn /usr/lib/startos/init/index.js
 Restart=no
 
 [Install]

@@ -197,7 +197,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
 
   async build() {
     for (const daemon of this.healthDaemons) {
-      await daemon.updateStatus()
+      await daemon.init()
     }
     for (const health of this.healthChecks) {
       health.start()

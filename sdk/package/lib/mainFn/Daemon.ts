@@ -57,12 +57,16 @@ export class Daemon<Manifest extends T.SDKManifest> {
     ;(async () => {
       while (this.shouldBeRunning) {
         if (this.commandController)
-          await this.commandController.term().catch((err) => console.error(err))
+          await this.commandController
+            .term({ keepSubcontainer: true })
+            .catch((err) => console.error(err))
         this.commandController = await this.startCommand()
-        await this.commandController.wait().catch((err) => console.error(err))
+        await this.commandController
+          .wait({ keepSubcontainer: true })
+          .catch((err) => console.error(err))
         await new Promise((resolve) => setTimeout(resolve, timeoutCounter))
         timeoutCounter += TIMEOUT_INCREMENT_MS
-        timeoutCounter = Math.max(MAX_TIMEOUT_MS, timeoutCounter)
+        timeoutCounter = Math.min(MAX_TIMEOUT_MS, timeoutCounter)
       }
     })().catch((err) => {
       console.error(asError(err))
