@@ -9,6 +9,7 @@ import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, RouterLink } from '@angular/router'
 import {
   DialogService,
+  DocsLinkDirective,
   i18nPipe,
   UnitConversionPipesModule,
 } from '@start9labs/shared'
@@ -64,9 +65,8 @@ import { BACKUP_RESTORE } from './restore.component'
             }}
             <a
               tuiLink
-              href="https://docs.start9.com/0.3.5.x/user-manual/backups/backup-create"
-              target="_blank"
-              rel="noreferrer"
+              docsLink
+              href="/user-manual/backup-create.html"
               appearance="action-grayscale"
               iconEnd="@tui.external-link"
               [pseudo]="true"
@@ -79,9 +79,8 @@ import { BACKUP_RESTORE } from './restore.component'
             }}
             <a
               tuiLink
-              href="https://docs.start9.com/0.3.5.x/user-manual/backups/backup-restore"
-              target="_blank"
-              rel="noreferrer"
+              docsLink
+              href="/user-manual/backup-restore.html"
               appearance="action-grayscale"
               iconEnd="@tui.external-link"
               [pseudo]="true"
@@ -120,9 +119,8 @@ import { BACKUP_RESTORE } from './restore.component'
           }}
           <a
             tuiLink
-            href="https://docs.start9.com/0.3.5.x/user-manual/backups/backup-create#network-folder"
-            target="_blank"
-            rel="noreferrer"
+            docsLink
+            href="/user-manual/backup-create.html#network-folder"
             appearance="action-grayscale"
             iconEnd="@tui.external-link"
             [pseudo]="true"
@@ -157,6 +155,7 @@ import { BACKUP_RESTORE } from './restore.component'
     BackupPhysicalComponent,
     BackupProgressComponent,
     i18nPipe,
+    DocsLinkDirective,
   ],
 })
 export default class SystemBackupComponent implements OnInit {

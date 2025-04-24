@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { TuiLink, TuiNotification } from '@taiga-ui/core'
+import { DocsLinkDirective } from 'projects/shared/src/public-api'
 
 @Component({
   selector: 'router-info',
@@ -14,14 +15,7 @@ import { TuiLink, TuiNotification } from '@taiga-ui/core'
         </p>
         If you are running multiple servers, you may want to override specific
         ports to suite your needs.
-        <a
-          tuiLink
-          href="https://docs.start9.com/latest/user-manual/port-forwards/upnp#override"
-          target="_blank"
-          rel="noreferrer"
-        >
-          View instructions
-        </a>
+        <a tuiLink docsLink href="/@TODO">View instructions</a>
       } @else {
         <strong>UPnP Disabled</strong>
         <p>
@@ -31,21 +25,14 @@ import { TuiLink, TuiNotification } from '@taiga-ui/core'
         </p>
         Alternatively, you can enable UPnP in your router for automatic
         configuration.
-        <a
-          tuiLink
-          href="https://docs.start9.com/latest/user-manual/port-forwards/manual"
-          target="_blank"
-          rel="noreferrer"
-        >
-          View instructions
-        </a>
+        <a tuiLink docsLink href="/@TODO">View instructions</a>
       }
     </tui-notification>
   `,
   styles: ['strong { font-size: 1rem }'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiNotification, TuiLink],
+  imports: [TuiNotification, TuiLink, DocsLinkDirective],
 })
 export class RouterInfoComponent {
   @Input()

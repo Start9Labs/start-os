@@ -13,6 +13,7 @@ export * from './components/markdown.component'
 export * from './components/prompt.component'
 export * from './components/server.component'
 
+export * from './directives/docs-link.directive'
 export * from './directives/drag-scroller.directive'
 export * from './directives/safe-links.directive'
 

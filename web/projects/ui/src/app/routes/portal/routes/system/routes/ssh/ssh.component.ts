@@ -9,6 +9,7 @@ import { catchError, defer, of } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { TitleDirective } from 'src/app/services/title.service'
 import { SSHTableComponent } from './table.component'
+import { DocsLinkDirective } from 'projects/shared/src/public-api'
 
 @Component({
   template: `
@@ -23,9 +24,8 @@ import { SSHTableComponent } from './table.component'
           Manage your SSH keys to access your server from the command line
           <a
             tuiLink
-            href="https://docs.start9.com/latest/user-manual/ssh"
-            target="_blank"
-            rel="noreferrer"
+            docsLink
+            href="/@TODO"
             appearance="action-grayscale"
             iconEnd="@tui.external-link"
             [pseudo]="true"
@@ -62,6 +62,7 @@ import { SSHTableComponent } from './table.component'
     TuiHeader,
     TuiTitle,
     TuiLink,
+    DocsLinkDirective,
   ],
 })
 export default class SystemSSHComponent {

@@ -1,6 +1,6 @@
 import { CommonModule, DOCUMENT } from '@angular/common'
 import { Component, inject } from '@angular/core'
-import { i18nPipe, RELATIVE_URL } from '@start9labs/shared'
+import { DocsLinkDirective, i18nPipe, RELATIVE_URL } from '@start9labs/shared'
 import { TuiButton, TuiIcon, TuiSurface } from '@taiga-ui/core'
 import { TuiCardLarge } from '@taiga-ui/layout'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -18,6 +18,7 @@ import { ConfigService } from 'src/app/services/config.service'
     TuiCardLarge,
     TuiSurface,
     i18nPipe,
+    DocsLinkDirective,
   ],
 })
 export class CAWizardComponent {

@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { i18nPipe } from '@start9labs/shared'
+import { DocsLinkDirective, i18nPipe } from '@start9labs/shared'
 import {
   TuiHint,
   TuiIcon,
@@ -47,11 +47,10 @@ import { TimeService } from 'src/app/services/time.service'
           To resolve it, refer to
           <a
             tuiLink
+            docsLink
             iconEnd="@tui.external-link"
             appearance=""
-            href="https://docs.start9.com/0.3.5.x/support/common-issues#clock-sync-failure"
-            target="_blank"
-            rel="noreferrer"
+            href="/help/common-issues.html#clock-sync-failure"
             [pseudo]="true"
             [textContent]="'the docs' | i18n"
           ></a>
@@ -110,6 +109,7 @@ import { TimeService } from 'src/app/services/time.service'
     TuiIcon,
     TuiHint,
     i18nPipe,
+    DocsLinkDirective,
   ],
 })
 export class TimeComponent {
