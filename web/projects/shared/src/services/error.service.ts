@@ -30,7 +30,6 @@ export function getErrorMessage(e: HttpError | string, link?: string): string {
       'Request Error. Your browser blocked the request. This is usually caused by a corrupt browser cache or an overly aggressive ad blocker. Please clear your browser cache and/or adjust your ad blocker and try again'
   } else if (!e.message) {
     message = 'Unknown Error'
-    // @TODO Alex possible to use the docsLink directive here? If not nbd
     link = 'https://docs.start9.com/help/common-issues.html'
   } else {
     message = e.message
