@@ -1,39 +1,31 @@
 import {
-  Directive,
-  ElementRef,
   computed,
-  effect,
+  Directive,
   inject,
+  InjectionToken,
   input,
 } from '@angular/core'
-import { ConfigService } from '../../../ui/src/app/services/config.service'
+
+const HOST = 'https://staging.docs.start9.com'
+export const VERSION = new InjectionToken<string>('VERSION')
 
 @Directive({
   selector: '[docsLink]',
   standalone: true,
+  host: {
+    target: '_blank',
+    rel: 'noreferrer',
+    '[href]': 'url()',
+  },
 })
 export class DocsLinkDirective {
-  private readonly el = inject(ElementRef<HTMLAnchorElement>)
-  private readonly OS_VERSION = inject(ConfigService).version
+  private readonly version = inject(VERSION)
 
-  readonly isDocs = input<boolean>(true)
   readonly href = input.required<string>()
 
-  private readonly HOST = 'https://staging.docs.start9.com'
-
-  private fullUrl = computed(() => {
+  protected readonly url = computed(() => {
     const path = this.href()
     const relative = path.startsWith('/') ? path : `/${path}`
-    return `${this.HOST}${relative}?os=${this.OS_VERSION}`
-  })
-
-  private _ = effect(() => {
-    const anchor = this.el.nativeElement
-    anchor.target = '_blank'
-    anchor.rel = 'noreferrer'
-
-    if (this.isDocs()) {
-      anchor.href = this.fullUrl()
-    }
+    return `${HOST}${relative}?os=${this.version}`
   })
 }

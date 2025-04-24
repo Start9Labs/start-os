@@ -6,6 +6,7 @@ import {
   ErrorService,
   i18nPipe,
   LoadingService,
+  SafeLinksDirective,
 } from '@start9labs/shared'
 import {
   TuiButton,
@@ -18,7 +19,6 @@ import { filter } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { STATUS } from 'src/app/services/status.service'
-import { RESOURCES } from 'src/app/utils/resources'
 import { ABOUT } from './about.component'
 
 @Component({
@@ -49,18 +49,24 @@ import { ABOUT } from './about.component'
             {{ 'About this server' | i18n }}
           </button>
         </tui-opt-group>
-        <tui-opt-group label="">
-          @for (link of links; track $index) {
-            <a
-              tuiOption
-              docsLink
-              [isDocs]="link.name === 'User manual'"
-              [iconStart]="link.icon"
-              [href]="link.href"
-            >
-              {{ link.name | i18n }}
-            </a>
-          }
+        <tui-opt-group label="" safeLinks>
+          <a tuiOption docsLink iconStart="@tui.book-open" href="/user-manual">
+            {{ 'User manual' | i18n }}
+          </a>
+          <a
+            tuiOption
+            iconStart="@tui.headphones"
+            href="https://start9.com/contact"
+          >
+            {{ 'Contact support' | i18n }}
+          </a>
+          <a
+            tuiOption
+            iconStart="@tui.dollar-sign"
+            href="https://donate.start9.com"
+          >
+            {{ 'Donate to Start9' | i18n }}
+          </a>
         </tui-opt-group>
         <tui-opt-group label="">
           <a
@@ -131,6 +137,7 @@ import { ABOUT } from './about.component'
     i18nPipe,
     TuiHint,
     DocsLinkDirective,
+    SafeLinksDirective,
   ],
 })
 export class HeaderMenuComponent {
@@ -142,7 +149,6 @@ export class HeaderMenuComponent {
 
   open = false
 
-  readonly links = RESOURCES
   readonly status = inject(STATUS)
 
   about() {

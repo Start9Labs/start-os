@@ -10,6 +10,7 @@ import {
   I18N_STORAGE,
   i18nService,
   RELATIVE_URL,
+  VERSION,
   WorkspaceConfig,
 } from '@start9labs/shared'
 import {
@@ -27,6 +28,7 @@ import {
 import { tuiTextfieldOptionsProvider } from '@taiga-ui/legacy'
 import { PatchDB } from 'patch-db-client'
 import { filter, of, pairwise } from 'rxjs'
+import { ConfigService } from 'src/app/services/config.service'
 import {
   PATCH_CACHE,
   PatchDbSource,
@@ -111,6 +113,10 @@ export const APP_PROVIDERS: Provider[] = [
 
       return (language: string) => api.setDbValue(['language'], language)
     },
+  },
+  {
+    provide: VERSION,
+    useFactory: () => inject(ConfigService).version,
   },
 ]
 
