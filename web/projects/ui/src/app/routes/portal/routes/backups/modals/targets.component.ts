@@ -33,7 +33,7 @@ import {
       Dropbox or Google Drive.
       <a
         tuiLink
-        href="https://docs.start9.com/latest/user-manual/backups/backup-targets"
+        href="https://docs.start9.com/@TODO"
         target="_blank"
         rel="noreferrer"
       >

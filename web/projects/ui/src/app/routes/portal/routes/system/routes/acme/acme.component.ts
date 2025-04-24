@@ -33,7 +33,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
           }}
           <a
             tuiLink
-            href="https://docs.start9.com/latest/user-manual/acme"
+            href="https://docs.start9.com/user-manual/connecting-remotely/clearnet.html#adding-acme"
             target="_blank"
             rel="noreferrer"
             appearance="action-grayscale"

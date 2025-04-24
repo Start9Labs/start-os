@@ -16,7 +16,7 @@ import { TuiLink, TuiNotification } from '@taiga-ui/core'
         ports to suite your needs.
         <a
           tuiLink
-          href="https://docs.start9.com/latest/user-manual/port-forwards/upnp#override"
+          href="https://docs.start9.com/@TODO"
           target="_blank"
           rel="noreferrer"
         >
@@ -33,7 +33,7 @@ import { TuiLink, TuiNotification } from '@taiga-ui/core'
         configuration.
         <a
           tuiLink
-          href="https://docs.start9.com/latest/user-manual/port-forwards/manual"
+          href="https://docs.start9.com/@TODO"
           target="_blank"
           rel="noreferrer"
         >

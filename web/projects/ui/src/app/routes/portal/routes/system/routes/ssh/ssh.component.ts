@@ -23,7 +23,7 @@ import { SSHTableComponent } from './table.component'
           Manage your SSH keys to access your server from the command line
           <a
             tuiLink
-            href="https://docs.start9.com/latest/user-manual/ssh"
+            href="https://docs.start9.com/@TODO"
             target="_blank"
             rel="noreferrer"
             appearance="action-grayscale"

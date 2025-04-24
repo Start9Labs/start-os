@@ -21,7 +21,7 @@ import { i18nPipe } from '@start9labs/shared'
         }}
         <a
           tuiLink
-          href="https://docs.start9.com/latest/user-manual/interface-addresses#local"
+          href="https://docs.start9.com/user-manual/connecting-locally.html"
           target="_blank"
           rel="noreferrer"
         >

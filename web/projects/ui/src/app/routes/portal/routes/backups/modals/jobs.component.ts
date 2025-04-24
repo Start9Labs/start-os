@@ -27,7 +27,7 @@ import { EDIT } from './edit.component'
       of your scheduled backups succeeds or fails.
       <a
         tuiLink
-        href="https://docs.start9.com/latest/user-manual/backups/backup-jobs"
+        href="https://docs.start9.com/@TODO"
         target="_blank"
         rel="noreferrer"
       >

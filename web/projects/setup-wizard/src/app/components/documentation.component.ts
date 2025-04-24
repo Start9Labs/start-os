@@ -43,7 +43,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
               <p>
                 Download your server's Root CA and
                 <a
-                  href="https://docs.start9.com/0.3.5.x/user-manual/connecting-lan"
+                  href="https://docs.start9.com/user-manual/trust-ca.html"
                   target="_blank"
                   rel="noreferrer"
                   style="color: #6866cc; font-weight: bold; text-decoration: none"
@@ -110,7 +110,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
               <span style="font-weight: bold">Note:</span>
               This address will only work from a Tor-enabled browser.
               <a
-                href="https://docs.start9.com/0.3.5.x/user-manual/connecting-tor"
+                href="https://docs.start9.com/user-manual/connecting-remotely/tor.html"
                 target="_blank"
                 rel="noreferrer"
                 style="color: #6866cc; font-weight: bold; text-decoration: none"

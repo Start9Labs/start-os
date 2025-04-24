@@ -49,7 +49,7 @@ import { TimeService } from 'src/app/services/time.service'
             tuiLink
             iconEnd="@tui.external-link"
             appearance=""
-            href="https://docs.start9.com/0.3.5.x/support/common-issues#clock-sync-failure"
+            href="https://docs.start9.com/help/common-issues.html#clock-sync-failure"
             target="_blank"
             rel="noreferrer"
             [pseudo]="true"

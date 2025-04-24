@@ -64,7 +64,7 @@ import { BACKUP_RESTORE } from './restore.component'
             }}
             <a
               tuiLink
-              href="https://docs.start9.com/0.3.5.x/user-manual/backups/backup-create"
+              href="https://docs.start9.com/user-manual/backup-create.html"
               target="_blank"
               rel="noreferrer"
               appearance="action-grayscale"
@@ -79,7 +79,7 @@ import { BACKUP_RESTORE } from './restore.component'
             }}
             <a
               tuiLink
-              href="https://docs.start9.com/0.3.5.x/user-manual/backups/backup-restore"
+              href="https://docs.start9.com/user-manual/backup-restore.html"
               target="_blank"
               rel="noreferrer"
               appearance="action-grayscale"
@@ -120,7 +120,7 @@ import { BACKUP_RESTORE } from './restore.component'
           }}
           <a
             tuiLink
-            href="https://docs.start9.com/0.3.5.x/user-manual/backups/backup-create#network-folder"
+            href="https://docs.start9.com/user-manual/backup-create.html#network-folder"
             target="_blank"
             rel="noreferrer"
             appearance="action-grayscale"

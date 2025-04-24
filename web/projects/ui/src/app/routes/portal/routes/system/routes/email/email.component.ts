@@ -40,7 +40,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
           }}
           <a
             tuiLink
-            href="https://docs.start9.com/latest/user-manual/smtp"
+            href="https://docs.start9.com/user-manual/smtp"
             target="_blank"
             rel="noreferrer"
             appearance="action-grayscale"

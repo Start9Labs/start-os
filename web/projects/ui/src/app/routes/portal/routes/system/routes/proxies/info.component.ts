@@ -26,7 +26,7 @@ import { TuiLink, TuiNotification } from '@taiga-ui/core'
       </ol>
       <a
         tuiLink
-        href="https://docs.start9.com/latest/user-manual/vpns/"
+        href="https://docs.start9.com/@TODO"
         target="_blank"
         rel="noreferrer"
       >

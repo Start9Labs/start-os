@@ -52,7 +52,7 @@ type OnionForm = {
         }}
         <a
           tuiLink
-          href="https://docs.start9.com/latest/user-manual/interface-addresses#tor"
+          href="https://docs.start9.com/user-manual/connecting-remotely/tor.html"
           target="_blank"
           rel="noreferrer"
         >

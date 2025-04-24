@@ -8,7 +8,7 @@ import { TuiLink, TuiNotification } from '@taiga-ui/core'
       Adding domains permits accessing your server and services over clearnet.
       <a
         tuiLink
-        href="https://docs.start9.com/latest/user-manual/domains"
+        href="https://docs.start9.com/@TODO"
         target="_blank"
         rel="noreferrer"
       >
