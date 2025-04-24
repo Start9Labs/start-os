@@ -4,7 +4,7 @@ export const RESOURCES: { name: i18nKey; icon: string; href: string }[] = [
   {
     name: 'User manual',
     icon: '@tui.book-open',
-    href: 'https://docs.start9.com/user-manual',
+    href: '/user-manual',
   },
   {
     name: 'Contact support',

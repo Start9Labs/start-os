@@ -6,6 +6,7 @@ import {
 } from '@angular/core'
 import {
   DialogService,
+  DocsLinkDirective,
   ErrorService,
   i18nPipe,
   LoadingService,
@@ -50,12 +51,7 @@ type OnionForm = {
           'Add an onion address to anonymously expose this interface on the darknet. Onion addresses can only be reached over the Tor network.'
             | i18n
         }}
-        <a
-          tuiLink
-          href="https://docs.start9.com/user-manual/connecting-remotely/tor.html"
-          target="_blank"
-          rel="noreferrer"
-        >
+        <a tuiLink docsLink href="/user-manual/connecting-remotely/tor.html">
           {{ 'Learn More' | i18n }}
         </a>
       </ng-template>
@@ -131,6 +127,7 @@ type OnionForm = {
     TuiFade,
     TuiFluidTypography,
     i18nPipe,
+    DocsLinkDirective,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

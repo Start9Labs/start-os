@@ -1,7 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
-import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
+import {
+  DocsLinkDirective,
+  ErrorService,
+  i18nPipe,
+  LoadingService,
+} from '@start9labs/shared'
 import { ISB, utils } from '@start9labs/start-sdk'
 import { TuiButton, TuiLink, TuiLoader, TuiTitle } from '@taiga-ui/core'
 import { TuiCell, TuiHeader } from '@taiga-ui/layout'
@@ -33,9 +38,8 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
           }}
           <a
             tuiLink
-            href="https://docs.start9.com/user-manual/connecting-remotely/clearnet.html#adding-acme"
-            target="_blank"
-            rel="noreferrer"
+            docsLink
+            href="/user-manual/connecting-remotely/clearnet.html#adding-acme"
             appearance="action-grayscale"
             iconEnd="@tui.external-link"
             [pseudo]="true"
@@ -108,6 +112,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
     RouterLink,
     TitleDirective,
     i18nPipe,
+    DocsLinkDirective,
   ],
 })
 export default class SystemAcmeComponent {

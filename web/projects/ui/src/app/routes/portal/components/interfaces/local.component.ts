@@ -5,7 +5,7 @@ import { TableComponent } from 'src/app/routes/portal/components/table.component
 import { InterfaceActionsComponent } from './actions.component'
 import { AddressDetails } from './interface.utils'
 import { MaskPipe } from './mask.pipe'
-import { i18nPipe } from '@start9labs/shared'
+import { DocsLinkDirective, i18nPipe } from '@start9labs/shared'
 
 @Component({
   standalone: true,
@@ -19,12 +19,7 @@ import { i18nPipe } from '@start9labs/shared'
           'Local addresses can only be accessed by devices connected to the same LAN as your server, either directly or using a VPN.'
             | i18n
         }}
-        <a
-          tuiLink
-          href="https://docs.start9.com/user-manual/connecting-locally.html"
-          target="_blank"
-          rel="noreferrer"
-        >
+        <a tuiLink docsLink href="/user-manual/connecting-locally.html">
           {{ 'Learn More' | i18n }}
         </a>
       </ng-template>
@@ -48,6 +43,7 @@ import { i18nPipe } from '@start9labs/shared'
     InterfaceActionsComponent,
     MaskPipe,
     i18nPipe,
+    DocsLinkDirective,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

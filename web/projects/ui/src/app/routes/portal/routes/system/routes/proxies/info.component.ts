@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { TuiLink, TuiNotification } from '@taiga-ui/core'
+import { DocsLinkDirective } from 'projects/shared/src/public-api'
 
 @Component({
   selector: 'proxies-info',
@@ -24,18 +25,11 @@ import { TuiLink, TuiNotification } from '@taiga-ui/core'
           VPN access to your server/services
         </li>
       </ol>
-      <a
-        tuiLink
-        href="https://docs.start9.com/@TODO"
-        target="_blank"
-        rel="noreferrer"
-      >
-        View instructions
-      </a>
+      <a tuiLink docsLink href="/@TODO">View instructions</a>
     </tui-notification>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiNotification, TuiLink],
+  imports: [TuiNotification, TuiLink, DocsLinkDirective],
 })
 export class ProxiesInfoComponent {}

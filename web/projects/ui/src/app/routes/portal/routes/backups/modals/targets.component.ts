@@ -23,6 +23,7 @@ import {
   googleDriveSpec,
   remoteBackupTargetSpec,
 } from '../types/target'
+import { DocsLinkDirective } from 'projects/shared/src/public-api'
 
 @Component({
   template: `
@@ -31,14 +32,7 @@ import {
       backups. They can be physical drives plugged into your server, shared
       folders on your Local Area Network (LAN), or third party clouds such as
       Dropbox or Google Drive.
-      <a
-        tuiLink
-        href="https://docs.start9.com/@TODO"
-        target="_blank"
-        rel="noreferrer"
-      >
-        View instructions
-      </a>
+      <a tuiLink docsLink href="/@TODO">View instructions</a>
     </tui-notification>
     <h3 class="g-title">
       Unknown Physical Drives
@@ -77,6 +71,7 @@ import {
     BackupsPhysicalComponent,
     BackupsTargetsComponent,
     TuiLink,
+    DocsLinkDirective,
   ],
 })
 export class BackupsTargetsModal implements OnInit {

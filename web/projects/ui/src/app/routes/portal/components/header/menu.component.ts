@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { RouterLink, RouterLinkActive } from '@angular/router'
+import { RouterLink } from '@angular/router'
 import {
   DialogService,
+  DocsLinkDirective,
   ErrorService,
   i18nPipe,
   LoadingService,
@@ -52,8 +53,8 @@ import { ABOUT } from './about.component'
           @for (link of links; track $index) {
             <a
               tuiOption
-              target="_blank"
-              rel="noreferrer"
+              docsLink
+              [isDocs]="link.name === 'User manual'"
               [iconStart]="link.icon"
               [href]="link.href"
             >
@@ -128,8 +129,8 @@ import { ABOUT } from './about.component'
     TuiIcon,
     RouterLink,
     i18nPipe,
-    RouterLinkActive,
     TuiHint,
+    DocsLinkDirective,
   ],
 })
 export class HeaderMenuComponent {

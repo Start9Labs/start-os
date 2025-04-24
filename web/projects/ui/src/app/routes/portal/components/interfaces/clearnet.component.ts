@@ -59,7 +59,7 @@ type ClearnetForm = {
         }}
         <a
           tuiLink
-          href="https://docs.start9.com/user-manual/connecting-remotely/clearnet.html"
+          href="/user-manual/connecting-remotely/clearnet.html"
           target="_blank"
           rel="noreferrer"
         >

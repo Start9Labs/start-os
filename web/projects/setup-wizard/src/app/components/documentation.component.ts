@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { DocsLinkDirective } from '@start9labs/shared'
 
 @Component({
   standalone: true,
@@ -43,9 +44,8 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
               <p>
                 Download your server's Root CA and
                 <a
-                  href="https://docs.start9.com/user-manual/trust-ca.html"
-                  target="_blank"
-                  rel="noreferrer"
+                  docsLink
+                  href="/user-manual/trust-ca.html"
                   style="color: #6866cc; font-weight: bold; text-decoration: none"
                 >
                   follow the instructions
@@ -110,9 +110,8 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
               <span style="font-weight: bold">Note:</span>
               This address will only work from a Tor-enabled browser.
               <a
-                href="https://docs.start9.com/user-manual/connecting-remotely/tor.html"
-                target="_blank"
-                rel="noreferrer"
+                docsLink
+                href="/user-manual/connecting-remotely/tor.html"
                 style="color: #6866cc; font-weight: bold; text-decoration: none"
               >
                 Follow the instructions
@@ -135,6 +134,7 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
     </html>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [DocsLinkDirective],
 })
 export class DocumentationComponent {
   @Input({ required: true }) lanAddress!: string
