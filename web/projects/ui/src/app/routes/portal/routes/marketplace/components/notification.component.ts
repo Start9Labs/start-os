@@ -1,5 +1,5 @@
 import { Component, inject, Input } from '@angular/core'
-import { i18nPipe, knownMarketplaceUrls } from '@start9labs/shared'
+import { i18nPipe, knownMarketplaceUrls, sameUrl } from '@start9labs/shared'
 import { TuiNotification } from '@taiga-ui/core'
 import { ConfigService } from 'src/app/services/config.service'
 
@@ -62,19 +62,19 @@ export class MarketplaceNotificationComponent {
   @Input() url = ''
 
   get status() {
-    if (this.url === this.marketplace.prod) {
+    if (sameUrl(this.url, this.marketplace.prod)) {
       return 'success'
     }
 
-    if (this.url === this.marketplace.community) {
+    if (sameUrl(this.url, this.marketplace.community)) {
       return 'info'
     }
 
-    if (this.url === this.marketplace.beta) {
+    if (sameUrl(this.url, this.marketplace.beta)) {
       return 'warning'
     }
 
-    if (this.url === this.marketplace.alpha) {
+    if (sameUrl(this.url, this.marketplace.alpha)) {
       return 'error'
     }
 
