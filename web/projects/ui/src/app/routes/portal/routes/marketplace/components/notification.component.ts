@@ -62,7 +62,7 @@ export class MarketplaceNotificationComponent {
   @Input() url = ''
 
   get status() {
-    if (this.url === this.marketplace.start9) {
+    if (this.url === 'https://registry.start9.com/') {
       return 'success'
     }
 

@@ -8,10 +8,7 @@ export type WorkspaceConfig = {
       version: string
     }
     marketplace: MarketplaceConfig
-    startosRegistry:
-      | 'https://alpha-registry-x.start9.com/'
-      | 'https://beta-registry.start9.com/'
-      | 'https://registry.start9.com/'
+    startosRegistry: RegistryUrl
     mocks: {
       maskAs: 'tor' | 'local' | 'localhost' | 'ipv4' | 'ipv6' | 'clearnet'
       maskAsHttps: boolean
@@ -21,6 +18,11 @@ export type WorkspaceConfig = {
 }
 
 export interface MarketplaceConfig {
-  start9: 'https://registry.start9.com/'
+  start9: RegistryUrl
   community: 'https://community-registry.start9.com/'
 }
+
+export type RegistryUrl =
+  | 'https://alpha-registry-x.start9.com/'
+  | 'https://beta-registry.start9.com/'
+  | 'https://registry.start9.com/'

@@ -72,7 +72,7 @@ export class MarketplaceService {
       map(hosts => {
         const { start9, community } = this.config.marketplace
         let arr = [
-          toStoreIdentity(start9, hosts[start9]),
+          toStoreIdentity(start9, hosts[start9]!),
           toStoreIdentity(community, {
             ...hosts[community],
             name: 'Community Registry',

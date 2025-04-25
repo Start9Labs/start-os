@@ -6,7 +6,6 @@ import { MarketplaceConfig, sameUrl } from '@start9labs/shared'
   template: `
     <img
       *ngIf="icon; else noIcon"
-      [style.border-radius.%]="100"
       [style.max-width]="size || '100%'"
       [src]="icon"
       alt="Marketplace Icon"
@@ -33,7 +32,7 @@ export class StoreIconComponent {
   get icon() {
     const { start9, community } = this.marketplace
 
-    if (sameUrl(this.url, start9)) {
+    if (sameUrl(this.url, 'https://registry.start9.com/')) {
       return 'assets/img/icon_transparent.png'
     } else if (sameUrl(this.url, community)) {
       return 'assets/img/community-store.png'
