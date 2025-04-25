@@ -19,8 +19,6 @@ export type UIData = {
 export type UIMarketplaceData = {
   selectedUrl: string
   knownHosts: {
-    // 'https://registry.start9.com/': UIStore
-    'https://community-registry.start9.com/': UIStore
     [url: string]: UIStore
   }
 }

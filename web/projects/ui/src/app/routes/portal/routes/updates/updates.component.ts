@@ -22,7 +22,6 @@ import { TuiCell } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map, tap } from 'rxjs'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
-import { ConfigService } from 'src/app/services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   DataModel,
@@ -34,7 +33,7 @@ import { TitleDirective } from 'src/app/services/title.service'
 import { isInstalled, isUpdating } from 'src/app/utils/get-package-data'
 import { FilterUpdatesPipe } from './filter-updates.pipe'
 import { UpdatesItemComponent } from './item.component'
-import { i18nPipe } from '@start9labs/shared'
+import { i18nPipe, knownMarketplaceUrls } from '@start9labs/shared'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
@@ -221,7 +220,7 @@ export default class UpdatesComponent {
   private readonly isMobile = inject(TUI_IS_MOBILE)
   private readonly marketplaceService = inject(MarketplaceService)
 
-  readonly mp = inject(ConfigService).marketplace
+  readonly mp = knownMarketplaceUrls
   readonly current = signal<StoreIdentity | null>(null)
 
   readonly data = toSignal<UpdatesData>(

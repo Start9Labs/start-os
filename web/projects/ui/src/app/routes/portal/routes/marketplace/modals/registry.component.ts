@@ -10,28 +10,21 @@ import {
   ErrorService,
   i18nKey,
   i18nPipe,
+  knownMarketplaceUrls,
   LoadingService,
   sameUrl,
   toUrl,
 } from '@start9labs/shared'
-import {
-  TuiButton,
-  TuiDialogContext,
-  TuiDialogOptions,
-  TuiIcon,
-  TuiTitle,
-} from '@taiga-ui/core'
+import { TuiButton, TuiDialogContext, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiCell } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, filter, firstValueFrom, map, Subscription } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { ConfigService } from 'src/app/services/config.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
-import { TuiConfirmData } from '@taiga-ui/kit'
 import { IST, utils } from '@start9labs/start-sdk'
 
 @Component({
@@ -109,7 +102,7 @@ export class MarketplaceRegistryModal {
     'knownHosts',
   )
   private readonly i18n = inject(i18nPipe)
-  readonly marketplaceConfig = inject(ConfigService).marketplace
+  readonly marketplaceConfig = knownMarketplaceUrls
 
   readonly stores$ = combineLatest([
     this.marketplaceService.getKnownHosts$(),

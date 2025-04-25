@@ -315,7 +315,7 @@ web/config.json: $(GIT_HASH_FILE) web/config-sample.json
 	jq '.useMocks = false' web/config-sample.json \
 	| jq --arg gitHash "$$gitHash" '.gitHash = $$gitHash' \
 	| jq --arg osUrl "$$osUrl" '.ui.startosRegistry = $$osUrl' \
-	| jq --arg osUrl "$$osUrl" '.ui.marketplace.start9 = $$osUrl' \
+	| jq --arg osUrl "$$osUrl" '.ui.defaultMarketplace = $$osUrl' \
 	> web/config.json;
 
 patch-db/client/node_modules/.package-lock.json: patch-db/client/package.json

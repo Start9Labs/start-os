@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { MarketplaceConfig, sameUrl } from '@start9labs/shared'
+import { knownMarketplaceUrls, sameUrl } from '@start9labs/shared'
 
 @Component({
   selector: 'store-icon',
   template: `
     <img
       *ngIf="icon; else noIcon"
+      [style.border-radius.%]="100"
       [style.max-width]="size || '100%'"
       [src]="icon"
       alt="Marketplace Icon"
@@ -27,16 +28,19 @@ export class StoreIconComponent {
   @Input()
   size?: string
   @Input({ required: true })
-  marketplace!: MarketplaceConfig
+  marketplace!: typeof knownMarketplaceUrls
 
   get icon() {
-    const { start9, community } = this.marketplace
-
-    if (sameUrl(this.url, 'https://registry.start9.com/')) {
+    if (sameUrl(this.url, this.marketplace.alpha)) {
+      return 'assets/img/icon_alpha.png'
+    } else if (sameUrl(this.url, this.marketplace.beta)) {
+      return 'assets/img/icon_beta.png'
+    } else if (sameUrl(this.url, this.marketplace.prod)) {
       return 'assets/img/icon_transparent.png'
-    } else if (sameUrl(this.url, community)) {
-      return 'assets/img/community-store.png'
+    } else if (sameUrl(this.url, this.marketplace.community)) {
+      return 'assets/img/community-icon.png'
+    } else {
+      return 'assets/img/storefront-outline.png'
     }
-    return null
   }
 }

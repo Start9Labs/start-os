@@ -6,7 +6,7 @@ import {
   OnDestroy,
   signal,
 } from '@angular/core'
-import { MarketplaceConfig } from '@start9labs/shared'
+import { knownMarketplaceUrls } from '@start9labs/shared'
 import { Subject, takeUntil } from 'rxjs'
 import { AbstractCategoryService } from '../../services/category.service'
 import { StoreDataWithUrl } from '../../types'
@@ -19,7 +19,7 @@ import { StoreDataWithUrl } from '../../types'
 })
 export class MenuComponent implements OnDestroy {
   @Input({ required: true })
-  iconConfig!: MarketplaceConfig
+  iconConfig!: typeof knownMarketplaceUrls
 
   @Input({ required: true })
   registry!: StoreDataWithUrl | null

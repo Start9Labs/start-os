@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { StoreIconComponentModule } from './store-icon/store-icon.component.module'
-import { MarketplaceConfig } from '@start9labs/shared'
+import { knownMarketplaceUrls } from '@start9labs/shared'
 
 @Component({
   standalone: true,
@@ -24,7 +24,7 @@ import { MarketplaceConfig } from '@start9labs/shared'
 })
 export class MarketplaceRegistryComponent {
   @Input()
-  marketplace!: MarketplaceConfig
+  marketplace!: typeof knownMarketplaceUrls
 
   @Input()
   registry!: { url: string; selected: boolean; name?: string }

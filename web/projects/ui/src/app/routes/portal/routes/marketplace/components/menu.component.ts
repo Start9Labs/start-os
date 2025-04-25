@@ -5,7 +5,11 @@ import { TuiIcon, TuiButton, TuiAppearance } from '@taiga-ui/core'
 import { ConfigService } from 'src/app/services/config.service'
 import { MARKETPLACE_REGISTRY } from '../modals/registry.component'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { DialogService, i18nPipe } from '@start9labs/shared'
+import {
+  DialogService,
+  i18nPipe,
+  knownMarketplaceUrls,
+} from '@start9labs/shared'
 
 @Component({
   standalone: true,
@@ -54,7 +58,7 @@ import { DialogService, i18nPipe } from '@start9labs/shared'
 })
 export class MarketplaceMenuComponent {
   private readonly dialog = inject(DialogService)
-  readonly marketplace = inject(ConfigService).marketplace
+  readonly marketplace = knownMarketplaceUrls
   private readonly marketplaceService = inject(MarketplaceService)
   readonly registry$ = this.marketplaceService.getRegistry$()
 

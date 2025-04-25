@@ -7,7 +7,7 @@ import {
   StoreDataWithUrl,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { Exver, sameUrl } from '@start9labs/shared'
+import { Exver, knownMarketplaceUrls, sameUrl } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
 import {
@@ -70,9 +70,9 @@ export class MarketplaceService {
     .watch$('ui', 'marketplace', 'knownHosts')
     .pipe(
       map(hosts => {
-        const { start9, community } = this.config.marketplace
+        const { prod, community } = knownMarketplaceUrls
         let arr = [
-          toStoreIdentity(start9, hosts[start9]!),
+          toStoreIdentity(prod, hosts[prod]!),
           toStoreIdentity(community, {
             ...hosts[community],
             name: 'Community Registry',
@@ -81,7 +81,7 @@ export class MarketplaceService {
 
         return arr.concat(
           Object.entries(hosts)
-            .filter(([url, _]) => ![start9, community].includes(url as any))
+            .filter(([url, _]) => ![prod, community].includes(url as any))
             .map(([url, store]) => toStoreIdentity(url, store)),
         )
       }),
@@ -147,7 +147,7 @@ export class MarketplaceService {
   }
 
   setRegistryUrl(url: string | null) {
-    const registryUrl = url || this.config.marketplace.start9
+    const registryUrl = url || this.config.marketplace
     this.registryUrlSubject$.next(registryUrl)
   }
 

@@ -7,7 +7,7 @@ export type WorkspaceConfig = {
       url: string
       version: string
     }
-    marketplace: MarketplaceConfig
+    defaultMarketplace: RegistryUrl
     startosRegistry: RegistryUrl
     mocks: {
       maskAs: 'tor' | 'local' | 'localhost' | 'ipv4' | 'ipv6' | 'clearnet'
@@ -17,12 +17,14 @@ export type WorkspaceConfig = {
   }
 }
 
-export interface MarketplaceConfig {
-  start9: RegistryUrl
-  community: 'https://community-registry.start9.com/'
-}
+export const knownMarketplaceUrls = {
+  alpha: 'https://alpha-registry-x.start9.com/',
+  beta: 'https://beta-registry.start9.com/',
+  prod: 'https://registry.start9.com/',
+  community: 'https://community-registry.start9.com/',
+} as const
 
 export type RegistryUrl =
-  | 'https://alpha-registry-x.start9.com/'
-  | 'https://beta-registry.start9.com/'
-  | 'https://registry.start9.com/'
+  | typeof knownMarketplaceUrls.alpha
+  | typeof knownMarketplaceUrls.beta
+  | typeof knownMarketplaceUrls.prod
