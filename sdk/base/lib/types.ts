@@ -207,3 +207,25 @@ export type DeepPartial<T> = T extends unknown[]
   : T extends {}
     ? { [P in keyof T]?: DeepPartial<T[P]> }
     : T
+
+export type DeepWritable<T> = {
+  -readonly [K in keyof T]: T[K]
+}
+
+export function writable<T>(value: T): DeepWritable<T> {
+  return value
+}
+
+export type DeepReadonly<T> = {
+  readonly [P in keyof T]: DeepReadonly<T[P]>
+}
+
+export function readonly<T>(value: T): DeepReadonly<T> {
+  return value
+}
+
+export type AllowReadonly<T> =
+  | T
+  | {
+      readonly [P in keyof T]: AllowReadonly<T[P]>
+    }

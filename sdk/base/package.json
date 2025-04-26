@@ -26,7 +26,7 @@
     "@noble/hashes": "^1.7.2",
     "isomorphic-fetch": "^3.0.0",
     "mime-types": "^3.0.1",
-    "ts-matches": "^6.3.0",
+    "ts-matches": "^6.3.2",
     "yaml": "^2.7.1",
     "deep-equality-data-structures": "^1.5.0"
   },
