@@ -30,7 +30,7 @@ export namespace Mock {
     shuttingDown: false,
   }
 
-  export const RegistryOSUpdate: RR.GetRegistryOsUpdateRes = {
+  export const RegistryOSUpdate: RR.CheckOsUpdateRes = {
     '0.3.6-alpha.17': {
       headline: 'v0.3.6-alpha.17',
       releaseNotes: '',

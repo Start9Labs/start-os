@@ -1,28 +1,29 @@
 import { inject, Injectable } from '@angular/core'
 import { MarketplacePkgBase } from '@start9labs/marketplace'
-import { PatchDB } from 'patch-db-client'
 import { defaultIfEmpty, firstValueFrom } from 'rxjs'
-import { DataModel } from 'src/app/services/patch-db/data-model'
 import { DialogService, i18nKey, i18nPipe } from '@start9labs/shared'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
 
 @Injectable({
   providedIn: 'root',
 })
 export class MarketplaceAlertsService {
   private readonly dialog = inject(DialogService)
-  private readonly marketplace$ = inject<PatchDB<DataModel>>(PatchDB).watch$(
-    'ui',
-    'marketplace',
-  )
+  private readonly marketplaceService = inject(MarketplaceService)
   private readonly i18n = inject(i18nPipe)
 
-  async alertMarketplace(url: string, originalUrl: string): Promise<boolean> {
-    const marketplaces = await firstValueFrom(this.marketplace$)
-    const name = marketplaces.knownHosts[url]?.name || url
-    const source = marketplaces.knownHosts[originalUrl]?.name || originalUrl
-    const message = source
-      ? `${this.i18n.transform('installed from')} ${source}`
+  async alertMarketplace(
+    url: string,
+    originalUrl: string | null,
+  ): Promise<boolean> {
+    const registries = await firstValueFrom(
+      this.marketplaceService.getRegistries$(),
+    )
+    const message = originalUrl
+      ? `${this.i18n.transform('installed from')} ${registries.find(h => h.url === originalUrl) || originalUrl}`
       : this.i18n.transform('sideloaded')
+
+    const currentName = registries.find(h => h.url === url) || url
 
     return new Promise(async resolve => {
       this.dialog
@@ -31,7 +32,7 @@ export class MarketplaceAlertsService {
           size: 's',
           data: {
             content:
-              `${this.i18n.transform('This service was originally')} ${message}, ${this.i18n.transform('but you are currently connected to')} ${name}. ${this.i18n.transform('To install from')} ${name} ${this.i18n.transform('anyway, click "Continue".')}` as i18nKey,
+              `${this.i18n.transform('This service was originally')} ${message}, ${this.i18n.transform('but you are currently connected to')} ${currentName}. ${this.i18n.transform('To install from')} ${currentName} ${this.i18n.transform('anyway, click "Continue".')}` as i18nKey,
             yes: 'Continue',
             no: 'Cancel',
           },

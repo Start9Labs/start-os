@@ -3,7 +3,7 @@ import { T } from '@start9labs/start-sdk'
 
 export type GetPackageReq = {
   id: string
-  version: string | null
+  targetVersion: string | null
   otherVersions: 'short'
 }
 export type GetPackageRes = T.GetPackageResponse & {
@@ -12,7 +12,7 @@ export type GetPackageRes = T.GetPackageResponse & {
 
 export type GetPackagesReq = {
   id: null
-  version: null
+  targetVersion: null
   otherVersions: 'short'
 }
 
@@ -22,7 +22,7 @@ export type GetPackagesRes = {
 
 export type StoreIdentity = {
   url: string
-  name?: string
+  name: string
 }
 
 export type Marketplace = Record<string, StoreData | null>

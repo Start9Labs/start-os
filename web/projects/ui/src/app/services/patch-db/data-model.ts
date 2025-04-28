@@ -5,26 +5,10 @@ export type DataModel = T.Public & { ui: UIData; packageData: AllPackageData }
 
 export type UIData = {
   name: string | null
-  marketplace: UIMarketplaceData
-  gaming: {
-    snake: {
-      highScore: number
-    }
-  }
+  registries: Record<string, string | null>
   ackInstructions: Record<string, boolean>
-  theme: string
+  snakeHighScore: number
   language: Languages
-}
-
-export type UIMarketplaceData = {
-  selectedUrl: string
-  knownHosts: {
-    [url: string]: UIStore
-  }
-}
-
-export type UIStore = {
-  name?: string
 }
 
 export type NetworkInfo = T.NetworkInfo & {

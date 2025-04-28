@@ -11,7 +11,7 @@ import { RR } from './api/api.types'
   providedIn: 'root',
 })
 export class OSService {
-  osUpdate?: RR.GetRegistryOsUpdateRes
+  osUpdate?: RR.CheckOsUpdateRes
   updateAvailable$ = new BehaviorSubject<boolean>(false)
 
   readonly updating$ = this.patch.watch$('serverInfo', 'statusInfo').pipe(
@@ -46,8 +46,11 @@ export class OSService {
   ) {}
 
   async loadOS(): Promise<void> {
-    const { version, id } = await getServerInfo(this.patch)
-    this.osUpdate = await this.api.checkOSUpdate({ serverId: id })
+    const { version, id, startosRegistry } = await getServerInfo(this.patch)
+    this.osUpdate = await this.api.checkOSUpdate({
+      registry: startosRegistry,
+      serverId: id,
+    })
     const [latestVersion, _] = Object.entries(this.osUpdate).at(-1)!
     const updateAvailable =
       Version.parse(latestVersion).compare(Version.parse(version)) === 'greater'
