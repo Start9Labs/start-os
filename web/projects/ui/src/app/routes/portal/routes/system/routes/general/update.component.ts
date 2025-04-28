@@ -18,7 +18,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { OSService } from 'src/app/services/os.service'
 import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { getServerInfo } from 'src/app/utils/get-server-info'
+import { firstValueFrom } from 'rxjs'
 
 @Component({
   template: `
@@ -70,7 +70,7 @@ export class SystemUpdateModal {
   async update() {
     const loader = this.loader.open('Beginning update').subscribe()
 
-    const { startosRegistry } = await getServerInfo(this.patch)
+    const { startosRegistry } = await firstValueFrom(this.patch.watch$('ui'))
 
     try {
       await this.embassyApi.updateServer({

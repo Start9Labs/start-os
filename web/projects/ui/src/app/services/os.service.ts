@@ -1,6 +1,12 @@
 import { Injectable } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
-import { BehaviorSubject, distinctUntilChanged, map, combineLatest } from 'rxjs'
+import {
+  BehaviorSubject,
+  distinctUntilChanged,
+  map,
+  combineLatest,
+  firstValueFrom,
+} from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { getServerInfo } from 'src/app/utils/get-server-info'
 import { DataModel } from './patch-db/data-model'
@@ -46,7 +52,9 @@ export class OSService {
   ) {}
 
   async loadOS(): Promise<void> {
-    const { version, id, startosRegistry } = await getServerInfo(this.patch)
+    const { version, id } = await getServerInfo(this.patch)
+    const { startosRegistry } = await firstValueFrom(this.patch.watch$('ui'))
+
     this.osUpdate = await this.api.checkOSUpdate({
       registry: startosRegistry,
       serverId: id,

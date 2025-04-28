@@ -8,6 +8,7 @@ export type UIData = {
   registries: Record<string, string | null>
   ackInstructions: Record<string, boolean>
   snakeHighScore: number
+  startosRegistry: string
   language: Languages
 }
 
