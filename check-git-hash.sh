@@ -7,6 +7,7 @@ else
 fi
 
 if ! [ -f ./GIT_HASH.txt ] || [ "$(cat ./GIT_HASH.txt)" != "$GIT_HASH" ]; then
+    >&2 echo Git hash changed from "$([ -f ./GIT_HASH.txt ] && cat ./GIT_HASH.txt)" to "$GIT_HASH"
     echo -n "$GIT_HASH" > ./GIT_HASH.txt
 fi
 

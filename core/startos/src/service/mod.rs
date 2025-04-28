@@ -209,7 +209,10 @@ impl ServiceRef {
                 .request(rpc::Exit, Empty {})
                 .await?;
             shutdown.shutdown();
-            hdl.await.with_kind(ErrorKind::Cancelled)?;
+            tokio::time::timeout(Duration::from_secs(30), hdl)
+                .await
+                .with_kind(ErrorKind::Timeout)?
+                .with_kind(ErrorKind::Cancelled)?;
         }
         let service = Arc::try_unwrap(self.0).map_err(|_| {
             Error::new(
@@ -482,7 +485,11 @@ impl Service {
                 None,
             ) // TODO timeout
             .await
-            .with_kind(ErrorKind::MigrationFailed)?; // TODO: handle cancellation
+            .with_kind(if src_version.is_some() {
+                ErrorKind::UpdateFailed
+            } else {
+                ErrorKind::InstallFailed
+            })?; // TODO: handle cancellation
 
         if let Some(mut progress) = progress {
             progress.finalization_progress.complete();

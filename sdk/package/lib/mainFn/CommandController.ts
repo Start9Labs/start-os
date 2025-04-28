@@ -42,19 +42,21 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
         onStderr?: (chunk: Buffer | string | any) => void
       },
     ) => {
-      let commands: string[]
-      if (command instanceof T.UseEntrypoint) {
-        const imageMeta: T.ImageMetadata = await fs
-          .readFile(`/media/startos/images/${subcontainer.imageId}.json`, {
-            encoding: "utf8",
-          })
-          .catch(() => "{}")
-          .then(JSON.parse)
-        commands = imageMeta.entrypoint ?? []
-        commands.concat(...(command.overridCmd ?? imageMeta.cmd ?? []))
-      } else commands = splitCommand(command)
-
       try {
+        let commands: string[]
+        if (command instanceof T.UseEntrypoint) {
+          const imageMeta: T.ImageMetadata = await fs
+            .readFile(`/media/startos/images/${subcontainer.imageId}.json`, {
+              encoding: "utf8",
+            })
+            .catch(() => "{}")
+            .then(JSON.parse)
+          commands = imageMeta.entrypoint ?? []
+          commands = commands.concat(
+            ...(command.overridCmd ?? imageMeta.cmd ?? []),
+          )
+        } else commands = splitCommand(command)
+
         let childProcess: cp.ChildProcess
         if (options.runAsInit) {
           childProcess = await subcontainer.launch(commands, {
@@ -111,10 +113,10 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
   get subContainerHandle() {
     return new SubContainerHandle(this.subcontainer)
   }
-  async wait({ timeout = NO_TIMEOUT } = {}) {
+  async wait({ timeout = NO_TIMEOUT, keepSubcontainer = false } = {}) {
     if (timeout > 0)
       setTimeout(() => {
-        this.term()
+        this.term({ keepSubcontainer })
       }, timeout)
     try {
       return await this.runningAnswer
@@ -122,10 +124,14 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
       if (!this.state.exited) {
         this.process.kill("SIGKILL")
       }
-      await this.subcontainer.destroy().catch((_) => {})
+      if (!keepSubcontainer) await this.subcontainer.destroy()
     }
   }
-  async term({ signal = SIGTERM, timeout = this.sigtermTimeout } = {}) {
+  async term({
+    signal = SIGTERM,
+    timeout = this.sigtermTimeout,
+    keepSubcontainer = false,
+  } = {}) {
     try {
       if (!this.state.exited) {
         if (signal !== "SIGKILL") {
@@ -142,10 +148,10 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
 
       await this.runningAnswer
     } finally {
-      await this.subcontainer.destroy()
+      if (!keepSubcontainer) await this.subcontainer.destroy()
     }
   }
   onDrop(): void {
-    this.term().catch(console.error)
+    this.term({ keepSubcontainer: true }).catch(console.error)
   }
 }

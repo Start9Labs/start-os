@@ -35,6 +35,12 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
         )
         // control
         .subcommand(
+            "rebuild",
+            from_fn_async(control::rebuild)
+                .no_display()
+                .with_call_remote::<ContainerCliContext>(),
+        )
+        .subcommand(
             "restart",
             from_fn_async(control::restart)
                 .no_display()

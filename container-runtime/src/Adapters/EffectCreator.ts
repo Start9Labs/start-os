@@ -324,14 +324,15 @@ export function makeEffects(context: EffectContext): Effects {
       >
     },
   }
-  self.onLeaveContext(() => {
-    self.isInContext = false
-    self.onLeaveContext = () => {
-      console.warn(
-        "this effects object is already out of context",
-        new Error().stack?.replace(/^Error/, ""),
-      )
-    }
-  })
+  if (context.callbacks?.onLeaveContext)
+    self.onLeaveContext(() => {
+      self.isInContext = false
+      self.onLeaveContext = () => {
+        console.warn(
+          "this effects object is already out of context",
+          new Error().stack?.replace(/^Error/, ""),
+        )
+      }
+    })
   return self
 }

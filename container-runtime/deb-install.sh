@@ -10,7 +10,7 @@ apt-get install -y curl rsync qemu-user-static
 
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
 source ~/.bashrc
-nvm install 20
+nvm install 22
 ln -s $(which node) /usr/bin/node
 
 sed -i '/\(^\|#\)Storage=/c\Storage=persistent' /etc/systemd/journald.conf

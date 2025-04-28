@@ -10,9 +10,20 @@ export abstract class Drop {
   protected constructor() {
     this.id = Drop.idCtr++
     this.ref = { id: this.id }
-    Drop.weak[this.id] = this.weak()
-    Drop.registry.register(this, this.id, this)
+    const weak = this.weak()
+    Drop.weak[this.id] = weak
+    Drop.registry.register(this.ref, this.id, this.ref)
+
+    return new Proxy(this, {
+      set(target: any, prop, value) {
+        if (prop === "ref") return false
+        target[prop] = value
+        ;(weak as any)[prop] = value
+        return true
+      },
+    })
   }
+  protected register() {}
   protected weak(): this {
     const weak = Object.assign(Object.create(Object.getPrototypeOf(this)), this)
     weak.ref = new WeakRef(this.ref)
@@ -21,7 +32,7 @@ export abstract class Drop {
   abstract onDrop(): void
   drop(): void {
     this.onDrop()
-    Drop.registry.unregister(this)
+    Drop.registry.unregister(this.ref)
     delete Drop.weak[this.id]
   }
 }
