@@ -49,14 +49,9 @@ export class MarketplaceService {
       switchMap(url => this.fetchRegistry$(url)),
       filter(Boolean),
       map(registry => {
-        // @TODO Aiden let's drop description. We do not use it. categories should just be Record<string, string>
         registry.info.categories = {
           all: {
             name: 'All',
-            description: {
-              short: 'All registry packages',
-              long: 'An unfiltered list of all packages available on this registry.',
-            },
           },
           ...registry.info.categories,
         }

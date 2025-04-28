@@ -179,27 +179,21 @@ export namespace Mock {
     categories: {
       bitcoin: {
         name: 'Bitcoin',
-        description: mockDescription,
       },
       featured: {
         name: 'Featured',
-        description: mockDescription,
       },
       lightning: {
         name: 'Lightning',
-        description: mockDescription,
       },
       communications: {
         name: 'Communications',
-        description: mockDescription,
       },
       data: {
         name: 'Data',
-        description: mockDescription,
       },
       ai: {
         name: 'AI',
-        description: mockDescription,
       },
     },
   }

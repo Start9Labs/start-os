@@ -45,7 +45,9 @@ pub struct PackageInfoShort {
 pub struct GetPackageParams {
     pub id: Option<PackageId>,
     #[ts(type = "string | null")]
-    pub version: Option<VersionRange>,
+    #[arg(long, short = 'v')]
+    pub target_version: Option<VersionRange>,
+    #[arg(long)]
     pub source_version: Option<VersionString>,
     #[ts(skip)]
     #[arg(skip)]
@@ -188,7 +190,7 @@ pub async fn get_package(ctx: RegistryContext, params: GetPackageParams) -> Resu
         let package_best = best.entry(id.clone()).or_default();
         let package_other = other.entry(id.clone()).or_default();
         if params
-            .version
+            .target_version
             .as_ref()
             .map_or(true, |v| version.satisfies(v))
             && package_best.keys().all(|k| !(**k > version))

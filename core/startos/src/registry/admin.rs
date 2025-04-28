@@ -22,7 +22,12 @@ pub fn admin_api<C: Context>() -> ParentHandler<C> {
             "signer",
             signers_api::<C>().with_about("Commands to add or list signers"),
         )
-        .subcommand("add", from_fn_async(add_admin).no_cli())
+        .subcommand(
+            "add",
+            from_fn_async(add_admin)
+                .with_metadata("admin", Value::Bool(true))
+                .no_cli(),
+        )
         .subcommand(
             "add",
             from_fn_async(cli_add_admin)
@@ -30,8 +35,17 @@ pub fn admin_api<C: Context>() -> ParentHandler<C> {
                 .with_about("Add admin signer"),
         )
         .subcommand(
+            "remove",
+            from_fn_async(remove_admin)
+                .with_metadata("admin", Value::Bool(true))
+                .no_display()
+                .with_about("Remove an admin signer")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
             "list",
             from_fn_async(list_admins)
+                .with_metadata("admin", Value::Bool(true))
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| Ok(display_signers(handle.params, result)))
                 .with_about("List admin signers")
@@ -279,6 +293,27 @@ pub async fn add_admin(
                 "unknown signer {signer}"
             );
             db.as_admins_mut().mutate(|a| Ok(a.insert(signer)))?;
+            Ok(())
+        })
+        .await
+        .result
+}
+
+#[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct RemoveAdminParams {
+    pub signer: Guid,
+}
+
+// TODO: don't allow removing self?
+pub async fn remove_admin(
+    ctx: RegistryContext,
+    RemoveAdminParams { signer }: RemoveAdminParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_admins_mut().mutate(|a| Ok(a.remove(&signer)))?;
             Ok(())
         })
         .await

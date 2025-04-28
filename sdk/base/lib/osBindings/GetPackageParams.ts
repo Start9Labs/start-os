@@ -5,7 +5,7 @@ import type { Version } from "./Version"
 
 export type GetPackageParams = {
   id: PackageId | null
-  version: string | null
+  targetVersion: string | null
   sourceVersion: Version | null
   otherVersions: PackageDetailLevel
 }

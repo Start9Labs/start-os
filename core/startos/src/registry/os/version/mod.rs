@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use chrono::Utc;
 use clap::Parser;
 use exver::{Version, VersionRange};
+use imbl_value::InternedString;
 use itertools::Itertools;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -12,6 +13,7 @@ use ts_rs::TS;
 use crate::context::CliContext;
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
+use crate::registry::device_info::DeviceInfo;
 use crate::registry::os::index::OsVersionInfo;
 use crate::registry::signer::sign::AnyVerifyingKey;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
@@ -44,6 +46,7 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "get",
             from_fn_async(get_version)
+                .with_metadata("get_device_info", Value::Bool(true))
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| {
                     Ok(display_version_info(handle.params, result))
@@ -133,35 +136,47 @@ pub async fn remove_version(
 pub struct GetOsVersionParams {
     #[ts(type = "string | null")]
     #[arg(long = "src")]
-    pub source: Option<Version>,
+    pub source_version: Option<Version>,
     #[ts(type = "string | null")]
-    #[arg(long = "target")]
-    pub target: Option<VersionRange>,
-    #[ts(type = "string | null")]
+    #[arg(long)]
+    pub target_version: Option<VersionRange>,
+    #[arg(long)]
+    pub include_prerelease: Option<bool>,
     #[arg(long = "id")]
     server_id: Option<String>,
     #[ts(type = "string | null")]
-    #[arg(long = "arch")]
-    arch: Option<String>,
+    #[arg(long)]
+    platform: Option<InternedString>,
+    #[ts(skip)]
+    #[arg(skip)]
+    #[serde(rename = "__device_info")]
+    pub device_info: Option<DeviceInfo>,
 }
 
 pub async fn get_version(
     ctx: RegistryContext,
     GetOsVersionParams {
-        source,
-        target,
+        source_version: source,
+        target_version: target,
+        include_prerelease,
         server_id,
-        arch,
+        platform,
+        device_info,
     }: GetOsVersionParams,
 ) -> Result<BTreeMap<Version, OsVersionInfo>, Error> {
-    if let (Some(pool), Some(server_id), Some(arch)) = (&ctx.pool, server_id, arch) {
+    let source = source.or_else(|| device_info.as_ref().map(|d| d.os.version.clone()));
+    let platform = platform.or_else(|| device_info.as_ref().map(|d| d.os.platform.clone()));
+    let include_prerelease = include_prerelease
+        .or_else(|| source.as_ref().map(|s| !s.prerelease().is_empty()))
+        .unwrap_or(cfg!(feature = "dev"));
+    if let (Some(pool), Some(server_id), Some(arch)) = (&ctx.pool, server_id, &platform) {
         let created_at = Utc::now();
 
         query!(
             "INSERT INTO user_activity (created_at, server_id, arch) VALUES ($1, $2, $3)",
             created_at,
             server_id,
-            arch
+            &**arch
         )
         .execute(pool)
         .await?;
@@ -177,7 +192,11 @@ pub async fn get_version(
         .into_iter()
         .map(|(v, i)| i.de().map(|i| (v, i)))
         .filter_ok(|(version, info)| {
-            version.satisfies(&target)
+            (version.prerelease().is_empty() || include_prerelease)
+                && platform
+                    .as_ref()
+                    .map_or(true, |p| info.squashfs.contains_key(p))
+                && version.satisfies(&target)
                 && source
                     .as_ref()
                     .map_or(true, |s| s.satisfies(&info.source_version))

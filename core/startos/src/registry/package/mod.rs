@@ -32,6 +32,13 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
                 .with_about("Add package to registry index"),
         )
         .subcommand(
+            "remove",
+            from_fn_async(add::remove_package)
+                .no_display()
+                .with_about("Add package to registry index")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
             "signer",
             signer::signer_api::<C>().with_about("Add, remove, and list package signers"),
         )

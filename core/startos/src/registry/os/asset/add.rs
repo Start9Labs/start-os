@@ -51,6 +51,28 @@ pub fn add_api<C: Context>() -> ParentHandler<C> {
         )
 }
 
+pub fn remove_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand(
+            "iso",
+            from_fn_async(remove_iso)
+                .with_metadata("get_signer", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand(
+            "img",
+            from_fn_async(remove_img)
+                .with_metadata("get_signer", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand(
+            "squashfs",
+            from_fn_async(remove_squashfs)
+                .with_metadata("get_signer", Value::Bool(true))
+                .no_cli(),
+        )
+}
+
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
@@ -99,6 +121,7 @@ async fn add_asset(
                 .as_authorized()
                 .de()?
                 .contains(&signer_guid)
+                || db.as_admins().de()?.contains(&signer_guid)
             {
                 accessor(
                     db.as_index_mut()
@@ -255,4 +278,75 @@ pub async fn cli_add_asset(
     progress_task.await.with_kind(ErrorKind::Unknown)?;
 
     Ok(())
+}
+
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct RemoveAssetParams {
+    #[ts(type = "string")]
+    pub version: Version,
+    #[ts(type = "string")]
+    pub platform: InternedString,
+    #[serde(rename = "__auth_signer")]
+    #[ts(skip)]
+    pub signer: AnyVerifyingKey,
+}
+
+async fn remove_asset(
+    ctx: RegistryContext,
+    RemoveAssetParams {
+        version,
+        platform,
+        signer,
+    }: RemoveAssetParams,
+    accessor: impl FnOnce(
+            &mut Model<OsVersionInfo>,
+        ) -> &mut Model<BTreeMap<InternedString, RegistryAsset<Blake3Commitment>>>
+        + UnwindSafe
+        + Send,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            let signer_guid = db.as_index().as_signers().get_signer(&signer)?;
+            if db
+                .as_index()
+                .as_os()
+                .as_versions()
+                .as_idx(&version)
+                .or_not_found(&version)?
+                .as_authorized()
+                .de()?
+                .contains(&signer_guid)
+                || db.as_admins().de()?.contains(&signer_guid)
+            {
+                accessor(
+                    db.as_index_mut()
+                        .as_os_mut()
+                        .as_versions_mut()
+                        .as_idx_mut(&version)
+                        .or_not_found(&version)?,
+                )
+                .remove(&platform)?;
+                Ok(())
+            } else {
+                Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
+            }
+        })
+        .await
+        .result?;
+
+    Ok(())
+}
+
+pub async fn remove_iso(ctx: RegistryContext, params: RemoveAssetParams) -> Result<(), Error> {
+    remove_asset(ctx, params, |m| m.as_iso_mut()).await
+}
+
+pub async fn remove_img(ctx: RegistryContext, params: RemoveAssetParams) -> Result<(), Error> {
+    remove_asset(ctx, params, |m| m.as_img_mut()).await
+}
+
+pub async fn remove_squashfs(ctx: RegistryContext, params: RemoveAssetParams) -> Result<(), Error> {
+    remove_asset(ctx, params, |m| m.as_squashfs_mut()).await
 }
