@@ -7,7 +7,7 @@ import {
   StoreDataWithUrl,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { Exver, knownMarketplaceUrls, sameUrl } from '@start9labs/shared'
+import { Exver, defaultRegistries, sameUrl } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
 import {
@@ -31,21 +31,22 @@ import {
 } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { DataModel, UIStore } from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ClientStorageService } from './client-storage.service'
-import { ConfigService } from './config.service'
+
+const { start9, community } = defaultRegistries
 
 @Injectable({
   providedIn: 'root',
 })
 export class MarketplaceService {
-  private readonly registryUrlSubject$ = new ReplaySubject<string>(1)
-  private readonly registryUrl$ = this.registryUrlSubject$.pipe(
+  private readonly currentRegistryUrlSubject$ = new ReplaySubject<string>(1)
+  private readonly currentRegistryUrl$ = this.currentRegistryUrlSubject$.pipe(
     distinctUntilChanged(),
   )
 
-  private readonly registry$: Observable<StoreDataWithUrl> =
-    this.registryUrl$.pipe(
+  private readonly currentRegistry$: Observable<StoreDataWithUrl> =
+    this.currentRegistryUrl$.pipe(
       switchMap(url => this.fetchRegistry$(url)),
       filter(Boolean),
       map(registry => {
@@ -61,36 +62,27 @@ export class MarketplaceService {
       shareReplay(1),
     )
 
-  private readonly knownHosts$: Observable<StoreIdentity[]> = this.patch
-    .watch$('ui', 'marketplace', 'knownHosts')
+  private readonly registries$: Observable<StoreIdentity[]> = this.patch
+    .watch$('ui', 'registries')
     .pipe(
-      map(hosts => {
-        const { prod, community } = knownMarketplaceUrls
-        let arr = [
-          toStoreIdentity(prod, hosts[prod]!),
-          toStoreIdentity(community, {
-            ...hosts[community],
-            name: 'Community Registry',
-          }),
-        ]
-
-        return arr.concat(
-          Object.entries(hosts)
-            .filter(([url, _]) => ![prod, community].includes(url as any))
-            .map(([url, store]) => toStoreIdentity(url, store)),
-        )
-      }),
+      map(registries => [
+        toStoreIdentity(start9, registries[start9]),
+        toStoreIdentity(community, registries[community]),
+        ...Object.entries(registries)
+          .filter(([url, _]) => ![start9, community].includes(url as any))
+          .map(([url, name]) => toStoreIdentity(url, name)),
+      ]),
     )
 
-  private readonly filteredKnownHosts$: Observable<StoreIdentity[]> =
+  private readonly filteredRegistries$: Observable<StoreIdentity[]> =
     combineLatest([
       this.clientStorageService.showDevTools$,
-      this.knownHosts$,
+      this.registries$,
     ]).pipe(
-      map(([devMode, knownHosts]) =>
+      map(([devMode, registries]) =>
         devMode
-          ? knownHosts
-          : knownHosts.filter(
+          ? registries
+          : registries.filter(
               ({ url }) => !url.includes('alpha') && !url.includes('beta'),
             ),
       ),
@@ -98,7 +90,7 @@ export class MarketplaceService {
 
   private readonly requestErrors$ = new BehaviorSubject<string[]>([])
 
-  readonly marketplace$: Observable<Marketplace> = this.knownHosts$.pipe(
+  readonly marketplace$: Observable<Marketplace> = this.registries$.pipe(
     startWith<StoreIdentity[]>([]),
     pairwise(),
     mergeMap(([prev, curr]) =>
@@ -107,7 +99,8 @@ export class MarketplaceService {
     mergeMap(({ url, name }) =>
       this.fetchRegistry$(url).pipe(
         tap(data => {
-          if (data?.info.name) this.updateStoreName(url, name, data.info.name)
+          if (data?.info.name)
+            this.updateRegistryName(url, name, data.info.name)
         }),
         map<StoreData | null, [string, StoreData | null]>(data => [url, data]),
         startWith<[string, StoreData | null]>([url, null]),
@@ -127,27 +120,25 @@ export class MarketplaceService {
   constructor(
     private readonly api: ApiService,
     private readonly patch: PatchDB<DataModel>,
-    private readonly config: ConfigService,
     private readonly clientStorageService: ClientStorageService,
     private readonly exver: Exver,
   ) {}
 
-  getKnownHosts$(filtered = false): Observable<StoreIdentity[]> {
+  getRegistries$(filtered = false): Observable<StoreIdentity[]> {
     // option to filter out hosts containing 'alpha' or 'beta' substrings in registryURL
-    return filtered ? this.filteredKnownHosts$ : this.knownHosts$
+    return filtered ? this.filteredRegistries$ : this.registries$
   }
 
-  getRegistryUrl$() {
-    return this.registryUrl$
+  getCurrentRegistryUrl$() {
+    return this.currentRegistryUrl$
   }
 
-  setRegistryUrl(url: string | null) {
-    const registryUrl = url || this.config.marketplace
-    this.registryUrlSubject$.next(registryUrl)
+  setRegistryUrl(url: string) {
+    this.currentRegistryUrlSubject$.next(url)
   }
 
-  getRegistry$(): Observable<StoreDataWithUrl> {
-    return this.registry$
+  getCurrentRegistry$(): Observable<StoreDataWithUrl> {
+    return this.currentRegistry$
   }
 
   getPackage$(
@@ -156,7 +147,7 @@ export class MarketplaceService {
     flavor: string | null,
     registryUrl?: string,
   ): Observable<MarketplacePkg> {
-    return this.registry$.pipe(
+    return this.currentRegistry$.pipe(
       switchMap(registry => {
         const url = registryUrl || registry.url
         const pkg = registry.packages.find(
@@ -171,17 +162,12 @@ export class MarketplaceService {
   }
 
   fetchInfo$(url: string): Observable<T.RegistryInfo> {
-    return from(this.api.getRegistryInfo(url)).pipe(
+    return from(this.api.getRegistryInfo({ registry: url })).pipe(
       map(info => ({
         ...info,
-        // @TODO Aiden let's drop description. We do not use it. categories should just be Record<string, string>
         categories: {
           all: {
             name: 'All',
-            description: {
-              short: '',
-              long: '',
-            },
           },
           ...info.categories,
         },
@@ -197,7 +183,7 @@ export class MarketplaceService {
   }
 
   private fetchRegistry$(url: string): Observable<StoreDataWithUrl | null> {
-    console.log('FETCHING REGISTRY: ', url)
+    console.warn('FETCHING REGISTRY: ', url)
     return combineLatest([this.fetchInfo$(url), this.fetchPackages$(url)]).pipe(
       map(([info, packages]) => ({ info, packages, url })),
       catchError(e => {
@@ -209,7 +195,14 @@ export class MarketplaceService {
   }
 
   private fetchPackages$(url: string): Observable<MarketplacePkg[]> {
-    return from(this.api.getRegistryPackages(url)).pipe(
+    return from(
+      this.api.getRegistryPackages({
+        registry: url,
+        id: null,
+        targetVersion: null,
+        otherVersions: 'short',
+      }),
+    ).pipe(
       map(packages => {
         return Object.entries(packages).flatMap(([id, pkgInfo]) =>
           Object.keys(pkgInfo.best).map(version =>
@@ -232,7 +225,12 @@ export class MarketplaceService {
     flavor: string | null,
   ): Observable<MarketplacePkg> {
     return from(
-      this.api.getRegistryPackage(url, id, version ? `=${version}` : null),
+      this.api.getRegistryPackage({
+        registry: url,
+        id,
+        targetVersion: version ? `=${version}` : null,
+        otherVersions: 'short',
+      }),
     ).pipe(
       map(pkgInfo =>
         this.convertRegistryPkgToMarketplacePkg(id, version, flavor, pkgInfo),
@@ -283,23 +281,21 @@ export class MarketplaceService {
     await this.api.installPackage(params)
   }
 
-  private async updateStoreName(
+  private async updateRegistryName(
     url: string,
-    oldName: string | undefined,
+    oldName: string | null,
     newName: string,
   ): Promise<void> {
+    console.warn(oldName, newName)
     if (oldName !== newName) {
-      this.api.setDbValue<string>(
-        ['marketplace', 'knownHosts', url, 'name'],
-        newName,
-      )
+      this.api.setDbValue<string>(['registries', url], newName)
     }
   }
 }
 
-function toStoreIdentity(url: string, uiStore: UIStore): StoreIdentity {
+function toStoreIdentity(url: string, name?: string | null): StoreIdentity {
   return {
     url,
-    ...uiStore,
+    name: name || url,
   }
 }

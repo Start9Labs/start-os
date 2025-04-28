@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { knownMarketplaceUrls, sameUrl } from '@start9labs/shared'
+import { knownRegistries, sameUrl } from '@start9labs/shared'
 
 @Component({
   selector: 'store-icon',
@@ -9,13 +9,13 @@ import { knownMarketplaceUrls, sameUrl } from '@start9labs/shared'
       [style.border-radius.%]="100"
       [style.max-width]="size || '100%'"
       [src]="icon"
-      alt="Marketplace Icon"
+      alt="Registry Icon"
     />
     <ng-template #noIcon>
       <img
         [style.max-width]="size || '100%'"
         src="assets/img/storefront-outline.png"
-        alt="Marketplace Icon"
+        alt="Registry Icon"
       />
     </ng-template>
   `,
@@ -27,17 +27,17 @@ export class StoreIconComponent {
   url = ''
   @Input()
   size?: string
-  @Input({ required: true })
-  marketplace!: typeof knownMarketplaceUrls
 
   get icon() {
-    if (sameUrl(this.url, this.marketplace.alpha)) {
+    const { start9Alpha, start9Beta, start9, community } = knownRegistries
+
+    if (sameUrl(this.url, start9Alpha)) {
       return 'assets/img/icon_alpha.png'
-    } else if (sameUrl(this.url, this.marketplace.beta)) {
+    } else if (sameUrl(this.url, start9Beta)) {
       return 'assets/img/icon_beta.png'
-    } else if (sameUrl(this.url, this.marketplace.prod)) {
+    } else if (sameUrl(this.url, start9)) {
       return 'assets/img/icon_transparent.png'
-    } else if (sameUrl(this.url, this.marketplace.community)) {
+    } else if (sameUrl(this.url, community)) {
       return 'assets/img/community-icon.png'
     } else {
       return 'assets/img/storefront-outline.png'

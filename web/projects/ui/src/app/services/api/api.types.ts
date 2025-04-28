@@ -3,6 +3,12 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StartOSDiskInfo, FetchLogsReq, FetchLogsRes } from '@start9labs/shared'
 import { IST, T } from '@start9labs/start-sdk'
 import { WebSocketSubjectConfig } from 'rxjs/webSocket'
+import {
+  GetPackageReq,
+  GetPackageRes,
+  GetPackagesReq,
+  GetPackagesRes,
+} from '@start9labs/marketplace'
 
 export namespace RR {
   // websocket
@@ -86,7 +92,7 @@ export namespace RR {
     metrics: ServerMetrics
   }
 
-  export type UpdateServerReq = { registry: string } // server.update
+  export type UpdateServerReq = { registry: string; targetVersion: string } // server.update
   export type UpdateServerRes = 'updating' | 'no-updates'
 
   export type RestartServerReq = {} // server.restart
@@ -362,8 +368,17 @@ export namespace RR {
   // registry
 
   /** these are returned in ASCENDING order. the newest available version will be the LAST in the object */
-  export type CheckOSUpdateReq = { serverId: string }
-  export type GetRegistryOsUpdateRes = { [version: string]: T.OsVersionInfo }
+  export type CheckOsUpdateReq = { registry: string; serverId: string }
+  export type CheckOsUpdateRes = { [version: string]: T.OsVersionInfo }
+
+  export type GetRegistryInfoReq = { registry: string }
+  export type GetRegistryInfoRes = T.RegistryInfo
+
+  export type GetRegistryPackageReq = GetPackageReq & { registry: string }
+  export type GetRegistryPackageRes = GetPackageRes
+
+  export type GetRegistryPackagesReq = GetPackagesReq & { registry: string }
+  export type GetRegistryPackagesRes = GetPackagesRes
 }
 
 export type Breakages = {

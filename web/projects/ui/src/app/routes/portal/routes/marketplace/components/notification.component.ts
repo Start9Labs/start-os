@@ -1,7 +1,6 @@
-import { Component, inject, Input } from '@angular/core'
-import { i18nPipe, knownMarketplaceUrls, sameUrl } from '@start9labs/shared'
+import { Component, Input } from '@angular/core'
+import { i18nPipe, knownRegistries, sameUrl } from '@start9labs/shared'
 import { TuiNotification } from '@taiga-ui/core'
-import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   standalone: true,
@@ -57,24 +56,24 @@ import { ConfigService } from 'src/app/services/config.service'
   imports: [TuiNotification, i18nPipe],
 })
 export class MarketplaceNotificationComponent {
-  private readonly marketplace = knownMarketplaceUrls
-
   @Input() url = ''
 
   get status() {
-    if (sameUrl(this.url, this.marketplace.prod)) {
+    const { start9, community, start9Beta, start9Alpha } = knownRegistries
+
+    if (sameUrl(this.url, start9)) {
       return 'success'
     }
 
-    if (sameUrl(this.url, this.marketplace.community)) {
+    if (sameUrl(this.url, community)) {
       return 'info'
     }
 
-    if (sameUrl(this.url, this.marketplace.beta)) {
+    if (sameUrl(this.url, start9Beta)) {
       return 'warning'
     }
 
-    if (sameUrl(this.url, this.marketplace.alpha)) {
+    if (sameUrl(this.url, start9Alpha)) {
       return 'error'
     }
 

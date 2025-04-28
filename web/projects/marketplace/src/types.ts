@@ -22,7 +22,7 @@ export type GetPackagesRes = {
 
 export type StoreIdentity = {
   url: string
-  name?: string
+  name: string
 }
 
 export type Marketplace = Record<string, StoreData | null>

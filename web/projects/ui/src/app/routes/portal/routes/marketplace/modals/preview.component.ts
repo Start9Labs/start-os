@@ -194,7 +194,7 @@ export class MarketplacePreviewComponent {
 
   readonly flavors$ = this.flavor$.pipe(
     switchMap(current =>
-      this.marketplaceService.getRegistry$().pipe(
+      this.marketplaceService.getCurrentRegistry$().pipe(
         map(({ packages }) =>
           packages.filter(
             ({ id, flavor }) => id === this.pkgId && flavor !== current,

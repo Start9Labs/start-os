@@ -5,7 +5,6 @@
       [style.border-radius.%]="!registry ? 100 : null"
       size="60px"
       [url]="registry?.url || ''"
-      [marketplace]="iconConfig"
     />
     <h1 [tuiSkeleton]="!registry">
       {{ registry?.info?.name || 'Unnamed Registry' }}
@@ -27,7 +26,6 @@
           [style.height.px]="42"
           [style.border-radius.%]="100"
           [url]="registry?.url || ''"
-          [marketplace]="iconConfig"
           [tuiSkeleton]="!registry"
         />
         <tui-drawer

@@ -7,7 +7,7 @@ import {
   FilterPackagesPipe,
   FilterPackagesPipeModule,
 } from '@start9labs/marketplace'
-import { i18nPipe } from '@start9labs/shared'
+import { defaultRegistries, i18nPipe } from '@start9labs/shared'
 import { TuiScrollbar } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { tap, withLatestFrom } from 'rxjs'
@@ -17,6 +17,7 @@ import { TitleDirective } from 'src/app/services/title.service'
 import { MarketplaceMenuComponent } from './components/menu.component'
 import { MarketplaceNotificationComponent } from './components/notification.component'
 import { MarketplaceTileComponent } from './components/tile.component'
+import { StorageService } from 'src/app/services/storage.service'
 
 @Component({
   standalone: true,
@@ -161,16 +162,19 @@ export default class MarketplaceComponent {
   private readonly categoryService = inject(AbstractCategoryService)
   private readonly marketplaceService = inject(MarketplaceService)
   private readonly router = inject(Router)
-  private readonly patch = inject(PatchDB<DataModel>)
+  private readonly storage = inject(StorageService)
   private readonly route = inject(ActivatedRoute)
     .queryParamMap.pipe(
       takeUntilDestroyed(),
-      withLatestFrom(this.patch.watch$('ui', 'marketplace', 'selectedUrl')),
-      tap(([params, selectedUrl]) => {
+      tap(params => {
         const registry = params.get('registry')
         if (!registry) {
           this.router.navigate([], {
-            queryParams: { registry: selectedUrl },
+            queryParams: {
+              registry:
+                this.storage.get('selectedRegistry') ||
+                defaultRegistries.start9,
+            },
             queryParamsHandling: 'merge',
           })
         } else {
@@ -180,8 +184,8 @@ export default class MarketplaceComponent {
     )
     .subscribe()
 
-  readonly url$ = this.marketplaceService.getRegistryUrl$()
+  readonly url$ = this.marketplaceService.getCurrentRegistryUrl$()
   readonly category$ = this.categoryService.getCategory$()
   readonly query$ = this.categoryService.getQuery$()
-  readonly registry$ = this.marketplaceService.getRegistry$()
+  readonly registry$ = this.marketplaceService.getCurrentRegistry$()
 }

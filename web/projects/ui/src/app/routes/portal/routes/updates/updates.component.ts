@@ -33,7 +33,7 @@ import { TitleDirective } from 'src/app/services/title.service'
 import { isInstalled, isUpdating } from 'src/app/utils/get-package-data'
 import { FilterUpdatesPipe } from './filter-updates.pipe'
 import { UpdatesItemComponent } from './item.component'
-import { i18nPipe, knownMarketplaceUrls } from '@start9labs/shared'
+import { i18nPipe } from '@start9labs/shared'
 
 interface UpdatesData {
   hosts: StoreIdentity[]
@@ -65,7 +65,7 @@ interface UpdatesData {
           (click)="current.set(registry)"
         >
           <tui-avatar>
-            <store-icon [url]="registry.url" [marketplace]="mp" />
+            <store-icon [url]="registry.url" />
           </tui-avatar>
           <span tuiTitle>
             <b tuiFade>{{ registry.name }}</b>
@@ -220,15 +220,17 @@ export default class UpdatesComponent {
   private readonly isMobile = inject(TUI_IS_MOBILE)
   private readonly marketplaceService = inject(MarketplaceService)
 
-  readonly mp = knownMarketplaceUrls
   readonly current = signal<StoreIdentity | null>(null)
 
   readonly data = toSignal<UpdatesData>(
     combineLatest({
       hosts: this.marketplaceService
-        .getKnownHosts$(true)
+        .getRegistries$(true)
         .pipe(
-          tap(([store]) => !this.isMobile && store && this.current.set(store)),
+          tap(
+            ([registry]) =>
+              !this.isMobile && registry && this.current.set(registry),
+          ),
         ),
       marketplace: this.marketplaceService.marketplace$,
       localPkgs: inject<PatchDB<DataModel>>(PatchDB)
