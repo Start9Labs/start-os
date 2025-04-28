@@ -44,7 +44,7 @@ impl VersionT for Version {
                 .collect(),
         );
         ui["snakeHighScore"] = ui["gaming"]["snake"]["highScore"].take();
-        ui["startosRegistry"] = json!("https://registry.start9.com");
+        ui["startosRegistry"] = json!("https://registry.start9.com/");
         ui.remove("marketplace");
         ui.remove("gaming");
         ui.remove("theme");
