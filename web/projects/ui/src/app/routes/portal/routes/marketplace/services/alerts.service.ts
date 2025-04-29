@@ -20,10 +20,10 @@ export class MarketplaceAlertsService {
       this.marketplaceService.getRegistries$(),
     )
     const message = originalUrl
-      ? `${this.i18n.transform('installed from')} ${registries.find(h => h.url === originalUrl) || originalUrl}`
+      ? `${this.i18n.transform('installed from')} ${registries.find(r => r.url === originalUrl)?.name || originalUrl}`
       : this.i18n.transform('sideloaded')
 
-    const currentName = registries.find(h => h.url === url) || url
+    const currentName = registries.find(h => h.url === url)?.name || url
 
     return new Promise(async resolve => {
       this.dialog

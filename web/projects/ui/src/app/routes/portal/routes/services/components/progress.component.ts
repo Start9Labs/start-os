@@ -39,8 +39,16 @@ import { getManifest } from 'src/app/utils/get-package-data'
       track $index
     ) {
       <div *tuiLet="phase.progress | installingProgress as percent">
-        {{ phase.name }}
-        <span>{{ percent }}%</span>
+        {{ phase.name }}:
+        @if (phase.progress === null) {
+          <span>waiting...</span>
+        } @else if (phase.progress === true) {
+          <span>complete!</span>
+        } @else if (phase.progress === false || phase.progress.total === null) {
+          <span>working...</span>
+        } @else {
+          <span>{{ percent }}%</span>
+        }
         <progress
           tuiProgressBar
           size="m"
@@ -49,7 +57,14 @@ import { getManifest } from 'src/app/utils/get-package-data'
               ? 'var(--tui-text-positive)'
               : 'var(--tui-text-action)'
           "
-          [value]="percent / 100"
+          [value]="
+            phase.progress === false ||
+            (phase.progress &&
+              phase.progress !== true &&
+              phase.progress.total === null)
+              ? undefined
+              : percent / 100
+          "
         ></progress>
       </div>
     }
@@ -57,9 +72,6 @@ import { getManifest } from 'src/app/utils/get-package-data'
   styles: `
     div {
       padding: 0.7rem 0;
-      span {
-        text-align: right;
-      }
     }
 
     :host {
