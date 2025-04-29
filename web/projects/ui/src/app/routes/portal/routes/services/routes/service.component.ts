@@ -25,46 +25,41 @@ import { ServiceDependenciesComponent } from '../components/dependencies.compone
 import { ServiceErrorComponent } from '../components/error.component'
 import { ServiceHealthChecksComponent } from '../components/health-checks.component'
 import { ServiceInterfacesComponent } from '../components/interfaces.component'
-import { ServiceProgressComponent } from '../components/progress.component'
+import { ServiceInstallProgressComponent } from '../components/progress.component'
 import { ServiceStatusComponent } from '../components/status.component'
 
 @Component({
   template: `
-    <service-status
-      [connected]="!!connected()"
-      [installingInfo]="pkg()?.stateInfo?.installingInfo"
-      [status]="status()"
-    >
-      @if ($any(pkg()?.status)?.started; as started) {
-        <p class="g-secondary" [appUptime]="started"></p>
-      }
-      @if (installed() && connected() && pkg(); as pkg) {
-        <service-controls [pkg]="pkg" [status]="status()" />
-      }
-    </service-status>
+    @if (pkg(); as pkg) {
+      @if (installing()) {
+        <service-install-progress [pkg]="pkg" />
+      } @else if (installed()) {
+        <service-status
+          [connected]="!!connected()"
+          [installingInfo]="pkg.stateInfo.installingInfo"
+          [status]="status()"
+        >
+          @if ($any(pkg.status)?.started; as started) {
+            <p class="g-secondary" [appUptime]="started"></p>
+          }
+          @if (connected()) {
+            <service-controls [pkg]="pkg" [status]="status()" />
+          }
+        </service-status>
 
-    @if (installed() && pkg(); as pkg) {
-      @if (pkg.status.main === 'error') {
-        <service-error [pkg]="pkg" />
-      }
-      <service-interfaces [pkg]="pkg" [disabled]="status() !== 'running'" />
-      @if (errors() | async; as errors) {
-        <service-dependencies
-          [pkg]="pkg"
-          [services]="services()"
-          [errors]="errors"
-        />
-      }
-      <service-health-checks [checks]="health()" />
-      <service-action-requests [pkg]="pkg" [services]="services() || {}" />
-    }
-
-    @if (installing() && pkg(); as pkg) {
-      @for (
-        item of pkg.stateInfo.installingInfo?.progress?.phases;
-        track $index
-      ) {
-        <p [progress]="item.progress">{{ item.name }}</p>
+        @if (pkg.status.main === 'error') {
+          <service-error [pkg]="pkg" />
+        }
+        <service-interfaces [pkg]="pkg" [disabled]="status() !== 'running'" />
+        @if (errors() | async; as errors) {
+          <service-dependencies
+            [pkg]="pkg"
+            [services]="services()"
+            [errors]="errors"
+          />
+        }
+        <service-health-checks [checks]="health()" />
+        <service-action-requests [pkg]="pkg" [services]="services() || {}" />
       }
     }
   `,
@@ -94,7 +89,7 @@ import { ServiceStatusComponent } from '../components/status.component'
   standalone: true,
   imports: [
     CommonModule,
-    ServiceProgressComponent,
+    ServiceInstallProgressComponent,
     ServiceStatusComponent,
     ServiceControlsComponent,
     ServiceInterfacesComponent,

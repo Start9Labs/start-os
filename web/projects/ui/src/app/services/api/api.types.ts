@@ -319,6 +319,9 @@ export namespace RR {
   export type InstallPackageReq = T.InstallParams
   export type InstallPackageRes = null
 
+  export type CancelInstallPackageReq = { id: string }
+  export type CancelInstallPackageRes = null
+
   export type GetActionInputReq = { packageId: string; actionId: string } // package.action.get-input
   export type GetActionInputRes = {
     spec: IST.InputSpec

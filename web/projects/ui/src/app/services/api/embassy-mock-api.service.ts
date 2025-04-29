@@ -1077,6 +1077,22 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async cancelInstallPackage(
+    params: RR.CancelInstallPackageReq,
+  ): Promise<RR.CancelInstallPackageRes> {
+    await pauseFor(500)
+
+    const patch: RemoveOperation[] = [
+      {
+        op: PatchOp.REMOVE,
+        path: `/packageData/${params.id}`,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
   async getActionInput(
     params: RR.GetActionInputReq,
   ): Promise<RR.GetActionInputRes> {

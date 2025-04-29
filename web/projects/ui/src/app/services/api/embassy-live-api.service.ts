@@ -560,6 +560,12 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'package.install', params })
   }
 
+  async cancelInstallPackage(
+    params: RR.CancelInstallPackageReq,
+  ): Promise<RR.CancelInstallPackageRes> {
+    return this.rpcRequest({ method: 'package.cancel-install', params })
+  }
+
   async getActionInput(
     params: RR.GetActionInputReq,
   ): Promise<RR.GetActionInputRes> {

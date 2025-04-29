@@ -493,4 +493,5 @@ export default {
   490: 'alemán',
   491: 'inglés',
   492: 'Menú de Inicio',
+  493: 'Progreso de instalación',
 } as any satisfies i18n
