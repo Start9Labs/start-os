@@ -35,16 +35,31 @@ impl VersionT for Version {
                 ErrorKind::Database,
             ));
         };
-        ui["registries"] = Value::Object(
-            ui["marketplace"]["knownHosts"]
-                .as_object()
-                .into_iter()
-                .flatten()
-                .map(|(k, v)| (k.clone(), v["name"].clone()))
-                .collect(),
+        ui.insert(
+            "registries".into(),
+            Value::Object(
+                ui.get("marketplace")
+                    .and_then(|m| m.get("knownHosts"))
+                    .and_then(|kh| kh.as_object())
+                    .into_iter()
+                    .flatten()
+                    .map(|(k, v)| (k.clone(), v["name"].clone()))
+                    .collect(),
+            ),
         );
-        ui["snakeHighScore"] = ui["gaming"]["snake"]["highScore"].take();
-        ui["startosRegistry"] = json!("https://registry.start9.com/");
+        if let Some(highscore) = ui
+            .get_mut("gaming")
+            .and_then(|g| g.get_mut("snake"))
+            .and_then(|s| s.get_mut("highScore"))
+            .map(|hs| hs.take())
+            .filter(|s| s.is_number())
+        {
+            ui.insert("snakeHighScore".into(), highscore);
+        }
+        ui.insert(
+            "startosRegistry".into(),
+            json!("https://registry.start9.com/"),
+        );
         ui.remove("marketplace");
         ui.remove("gaming");
         ui.remove("theme");
