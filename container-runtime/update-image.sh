@@ -4,8 +4,8 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 
 set -e
 
-if mountpoint tmp/combined; then sudo umount -R tmp/combined; fi
-if mountpoint tmp/lower; then sudo umount tmp/lower; fi
+if mountpoint -q tmp/combined; then sudo umount -R tmp/combined; fi
+if mountpoint -q tmp/lower; then sudo umount tmp/lower; fi
 sudo rm -rf tmp
 mkdir -p tmp/lower tmp/upper tmp/work tmp/combined
 if which squashfuse > /dev/null; then
@@ -13,7 +13,11 @@ if which squashfuse > /dev/null; then
 else
     sudo mount debian.${ARCH}.squashfs tmp/lower
 fi
-sudo mount -t overlay -olowerdir=tmp/lower,upperdir=tmp/upper,workdir=tmp/work overlay tmp/combined
+if which fuse-overlayfs > /dev/null; then
+    sudo fuse-overlayfs -olowerdir=tmp/lower,upperdir=tmp/upper,workdir=tmp/work overlay tmp/combined
+else
+    sudo mount -t overlay -olowerdir=tmp/lower,upperdir=tmp/upper,workdir=tmp/work overlay tmp/combined
+fi
 
 QEMU=
 if [ "$ARCH" != "$(uname -m)" ]; then
@@ -33,6 +37,8 @@ sudo rsync -a --copy-unsafe-links dist/ tmp/combined/usr/lib/startos/init/
 sudo chown -R 0:0 tmp/combined/usr/lib/startos/
 sudo cp container-runtime.service tmp/combined/lib/systemd/system/container-runtime.service
 sudo chown 0:0 tmp/combined/lib/systemd/system/container-runtime.service
+sudo cp container-runtime-failure.service tmp/combined/lib/systemd/system/container-runtime-failure.service
+sudo chown 0:0 tmp/combined/lib/systemd/system/container-runtime-failure.service
 sudo cp ../core/target/$ARCH-unknown-linux-musl/release/containerbox tmp/combined/usr/bin/start-cli
 sudo chown 0:0 tmp/combined/usr/bin/start-cli
 echo container-runtime | sha256sum | head -c 32 | cat - <(echo) | sudo tee tmp/combined/etc/machine-id

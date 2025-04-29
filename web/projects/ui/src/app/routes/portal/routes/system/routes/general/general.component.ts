@@ -229,6 +229,7 @@ export default class SystemGeneralComponent {
   private readonly document = inject(DOCUMENT)
   private readonly dialog = inject(DialogService)
   private readonly i18n = inject(i18nPipe)
+  private readonly injector = inject(INJECTOR)
 
   wipe = false
   count = 0
@@ -260,7 +261,7 @@ export default class SystemGeneralComponent {
   }
 
   onTitle() {
-    this.dialog
+    const sub = this.dialog
       .openPrompt<string>({
         label: 'Browser Tab Title',
         data: {
@@ -278,8 +279,11 @@ export default class SystemGeneralComponent {
 
         try {
           await this.api.setDbValue(['name'], name || null)
+        } catch (e: any) {
+          this.errorService.handleError(e)
         } finally {
           loader.unsubscribe()
+          sub.unsubscribe()
         }
       })
   }
@@ -292,7 +296,7 @@ export default class SystemGeneralComponent {
         data: {
           content: new PolymorpheusComponent(
             SystemWipeComponent,
-            inject(INJECTOR),
+            this.injector,
           ),
           yes: 'Reset',
           no: 'Cancel',

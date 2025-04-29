@@ -601,10 +601,6 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
       setupPostInstall: (fn: InstallFn<Manifest, Store>) => PostInstall.of(fn),
       /**
        * @description Use this function to determine how this service will be hosted and served. The function executes on service install, service update, and inputSpec save.
-       *
-       *   "input" will be of type `Input` for inputSpec save. It will be `null` for install and update.
-       *
-       *   To learn about creating multi-hosts and interfaces, check out the {@link https://docs.start9.com/packaging-guide/learn/interfaces documentation}.
        * @param inputSpec - The inputSpec spec of this service as exported from /inputSpec/spec.
        * @param fn - an async function that returns an array of interface receipts. The function always has access to `effects`; it has access to `input` only after inputSpec save, otherwise `input` will be null.
        * @example
@@ -612,8 +608,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
        *
        * ```
         export const setInterfaces = sdk.setupInterfaces(
-          inputSpecSpec,
-          async ({ effects, input }) => {
+          async ({ effects }) => {
             // ** UI multi-host **
             const uiMulti = sdk.MultiHost.of(effects, 'ui-multi')
             const uiMultiOrigin = await uiMulti.bindPort(80, {
@@ -1175,7 +1170,7 @@ export async function runCommand<Manifest extends T.SDKManifest>(
       .catch(() => "{}")
       .then(JSON.parse)
     commands = imageMeta.entrypoint ?? []
-    commands.concat(...(command.overridCmd ?? imageMeta.cmd ?? []))
+    commands = commands.concat(...(command.overridCmd ?? imageMeta.cmd ?? []))
   } else commands = splitCommand(command)
   return SubContainer.withTemp(
     effects,

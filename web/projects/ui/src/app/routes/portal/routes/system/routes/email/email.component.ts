@@ -4,6 +4,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms'
 import { RouterLink } from '@angular/router'
 import {
   DialogService,
+  DocsLinkDirective,
   ErrorService,
   i18nKey,
   i18nPipe,
@@ -40,9 +41,8 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
           }}
           <a
             tuiLink
-            href="https://docs.start9.com/latest/user-manual/smtp"
-            target="_blank"
-            rel="noreferrer"
+            docsLink
+            href="/user-manual/smtp"
             appearance="action-grayscale"
             iconEnd="@tui.external-link"
             [pseudo]="true"
@@ -140,6 +140,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
     RouterLink,
     TitleDirective,
     i18nPipe,
+    DocsLinkDirective,
   ],
 })
 export default class SystemEmailComponent {

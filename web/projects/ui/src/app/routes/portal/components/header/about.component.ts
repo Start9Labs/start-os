@@ -1,16 +1,17 @@
-import { TuiCell } from '@taiga-ui/layout'
-import { TuiTitle, TuiButton } from '@taiga-ui/core'
-import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { CopyService, i18nPipe } from '@start9labs/shared'
+import { TuiButton, TuiTitle } from '@taiga-ui/core'
+import { TuiFade } from '@taiga-ui/kit'
+import { TuiCell } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
-import { DataModel } from 'src/app/services/patch-db/data-model'
 import { ConfigService } from 'src/app/services/config.service'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
   template: `
-    <ng-container *ngIf="server$ | async as server">
+    @if (server(); as server) {
       <div tuiCell>
         <div tuiTitle>
           <strong>{{ 'Version' | i18n }}</strong>
@@ -20,7 +21,7 @@ import { ConfigService } from 'src/app/services/config.service'
       <div tuiCell>
         <div tuiTitle>
           <strong>Git Hash</strong>
-          <div tuiSubtitle>{{ gitHash }}</div>
+          <div tuiSubtitle tuiFade>{{ gitHash }}</div>
         </div>
         <button
           tuiIconButton
@@ -34,7 +35,7 @@ import { ConfigService } from 'src/app/services/config.service'
       <div tuiCell>
         <div tuiTitle>
           <strong>CA fingerprint</strong>
-          <div tuiSubtitle>{{ server.caFingerprint }}</div>
+          <div tuiSubtitle tuiFade>{{ server.caFingerprint }}</div>
         </div>
         <button
           tuiIconButton
@@ -45,17 +46,19 @@ import { ConfigService } from 'src/app/services/config.service'
           {{ 'Copy' | i18n }}
         </button>
       </div>
-    </ng-container>
+    }
   `,
-  styles: ['[tuiCell] { padding-inline: 0 }'],
+  styles: '[tuiCell] { padding-inline: 0; white-space: nowrap }',
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [CommonModule, TuiTitle, TuiButton, TuiCell, i18nPipe],
+  imports: [TuiTitle, TuiButton, TuiCell, i18nPipe, TuiFade],
 })
 export class AboutComponent {
-  readonly server$ = inject<PatchDB<DataModel>>(PatchDB).watch$('serverInfo')
   readonly copyService = inject(CopyService)
   readonly gitHash = inject(ConfigService).gitHash
+  readonly server = toSignal(
+    inject<PatchDB<DataModel>>(PatchDB).watch$('serverInfo'),
+  )
 }
 
 export const ABOUT = new PolymorpheusComponent(AboutComponent)

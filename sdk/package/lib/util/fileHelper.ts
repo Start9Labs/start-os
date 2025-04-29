@@ -234,7 +234,7 @@ export class FileHelper<A> {
   /**
    * Accepts full structured data and overwrites the existing file on disk if it exists.
    */
-  async write(effects: T.Effects, data: A) {
+  async write(effects: T.Effects, data: T.AllowReadonly<A> | A) {
     await this.writeFile(this.validate(data))
     if (effects.constRetry && this.consts.includes(effects.constRetry))
       throw new Error(`Canceled: write after const: ${this.path}`)
@@ -244,7 +244,7 @@ export class FileHelper<A> {
   /**
    * Accepts partial structured data and performs a merge with the existing file on disk.
    */
-  async merge(effects: T.Effects, data: T.DeepPartial<A>) {
+  async merge(effects: T.Effects, data: T.AllowReadonly<T.DeepPartial<A>>) {
     const fileDataRaw = await this.readFileRaw()
     let fileData: any = fileDataRaw === null ? null : this.readData(fileDataRaw)
     try {

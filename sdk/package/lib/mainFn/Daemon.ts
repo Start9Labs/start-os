@@ -21,7 +21,7 @@ export class Daemon<Manifest extends T.SDKManifest> {
     return this.commandController?.subContainerHandle
   }
   static of<Manifest extends T.SDKManifest>() {
-    return async <A extends string>(
+    return async (
       effects: T.Effects,
       subcontainer: SubContainer<Manifest>,
       command: T.CommandType,
@@ -54,17 +54,21 @@ export class Daemon<Manifest extends T.SDKManifest> {
     }
     this.shouldBeRunning = true
     let timeoutCounter = 0
-    new Promise(async () => {
+    ;(async () => {
       while (this.shouldBeRunning) {
         if (this.commandController)
-          await this.commandController.term().catch((err) => console.error(err))
+          await this.commandController
+            .term({ keepSubcontainer: true })
+            .catch((err) => console.error(err))
         this.commandController = await this.startCommand()
-        await this.commandController.wait().catch((err) => console.error(err))
+        await this.commandController
+          .wait({ keepSubcontainer: true })
+          .catch((err) => console.error(err))
         await new Promise((resolve) => setTimeout(resolve, timeoutCounter))
         timeoutCounter += TIMEOUT_INCREMENT_MS
-        timeoutCounter = Math.max(MAX_TIMEOUT_MS, timeoutCounter)
+        timeoutCounter = Math.min(MAX_TIMEOUT_MS, timeoutCounter)
       }
-    }).catch((err) => {
+    })().catch((err) => {
       console.error(asError(err))
     })
   }

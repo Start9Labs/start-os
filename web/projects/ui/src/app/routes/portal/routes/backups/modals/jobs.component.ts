@@ -18,6 +18,7 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
 import { ToHumanCronPipe } from '../pipes/to-human-cron.pipe'
 import { BackupJobBuilder } from '../utils/job-builder'
 import { EDIT } from './edit.component'
+import { DocsLinkDirective } from 'projects/shared/src/public-api'
 
 @Component({
   template: `
@@ -25,14 +26,7 @@ import { EDIT } from './edit.component'
       Scheduling automatic backups is an excellent way to ensure your StartOS
       data is safely backed up. StartOS will issue a notification whenever one
       of your scheduled backups succeeds or fails.
-      <a
-        tuiLink
-        href="https://docs.start9.com/latest/user-manual/backups/backup-jobs"
-        target="_blank"
-        rel="noreferrer"
-      >
-        View instructions
-      </a>
+      <a tuiLink docsLink href="/@TODO">View instructions</a>
     </tui-notification>
     <h3 class="g-title">
       Saved Jobs
@@ -147,6 +141,7 @@ import { EDIT } from './edit.component'
     GetBackupIconPipe,
     TuiSkeleton,
     TuiLink,
+    DocsLinkDirective,
   ],
 })
 export class BackupsJobsModal implements OnInit {

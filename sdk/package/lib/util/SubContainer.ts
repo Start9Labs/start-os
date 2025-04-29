@@ -37,6 +37,11 @@ export interface ExecSpawnable {
     options?: CommandOptions & ExecOptions,
     timeoutMs?: number | null,
   ): Promise<ExecResults>
+  execFail(
+    command: string[],
+    options?: CommandOptions & ExecOptions,
+    timeoutMs?: number | null,
+  ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }>
   spawn(
     command: string[],
     options?: CommandOptions & StdioOptions,
@@ -88,7 +93,9 @@ export class SubContainer<
                 imageId: this.imageId,
                 rootfs: this.rootfs,
               })
-              reject(new Error(`Failed to start subcontainer ${this.imageId}`))
+              return reject(
+                new Error(`Failed to start subcontainer ${this.imageId}`),
+              )
             }
             await wait(1)
           }
@@ -144,8 +151,9 @@ export class SubContainer<
       }
 
       return res
-    } finally {
+    } catch (e) {
       await res.destroy()
+      throw e
     }
   }
 
@@ -272,11 +280,13 @@ export class SubContainer<
   }
 
   onDrop(): void {
+    console.log(`Cleaning up dangling subcontainer ${this.guid}`)
     this.destroy()
   }
 
   /**
    * @description run a command inside this subcontainer
+   * DOES NOT THROW ON NONZERO EXIT CODE (see execFail)
    * @param commands an array representing the command and args to execute
    * @param options
    * @param timeoutMs how long to wait before killing the command in ms
@@ -287,6 +297,7 @@ export class SubContainer<
     options?: CommandOptions & ExecOptions,
     timeoutMs: number | null = 30000,
   ): Promise<{
+    throw: () => { stdout: string | Buffer; stderr: string | Buffer }
     exitCode: number | null
     exitSignal: NodeJS.Signals | null
     stdout: string | Buffer
@@ -367,14 +378,41 @@ export class SubContainer<
       child.stderr.on("data", appendData(stderr))
       child.on("exit", (code, signal) => {
         clearTimeout(killTimeout)
-        resolve({
+        const result = {
           exitCode: code,
           exitSignal: signal,
           stdout: stdout.data,
           stderr: stderr.data,
+        }
+        resolve({
+          throw: () =>
+            !code && !signal
+              ? { stdout: stdout.data, stderr: stderr.data }
+              : (() => {
+                  throw new ExitError(command[0], result)
+                })(),
+          ...result,
         })
       })
     })
+  }
+
+  /**
+   * @description run a command inside this subcontainer, throwing on non-zero exit status
+   * @param commands an array representing the command and args to execute
+   * @param options
+   * @param timeoutMs how long to wait before killing the command in ms
+   * @returns
+   */
+  async execFail(
+    command: string[],
+    options?: CommandOptions & ExecOptions,
+    timeoutMs: number | null = 30000,
+  ): Promise<{
+    stdout: string | Buffer
+    stderr: string | Buffer
+  }> {
+    return this.exec(command, options, timeoutMs).then((res) => res.throw())
   }
 
   async launch(
@@ -478,6 +516,15 @@ export class SubContainerHandle implements ExecSpawnable {
   ): Promise<ExecResults> {
     return this.subContainer.exec(command, options, timeoutMs)
   }
+
+  execFail(
+    command: string[],
+    options?: CommandOptions & ExecOptions,
+    timeoutMs?: number | null,
+  ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
+    return this.subContainer.execFail(command, options, timeoutMs)
+  }
+
   spawn(
     command: string[],
     options: CommandOptions & StdioOptions = { stdio: "inherit" },

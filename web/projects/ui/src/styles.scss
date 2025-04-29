@@ -1,5 +1,9 @@
 @import '@taiga-ui/core/styles/taiga-ui-local';
 
+:root {
+  color-scheme: light dark;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -21,7 +25,9 @@ hr {
 
 :root {
   --bumper: 0.375rem;
-  --tui-font-text: 'Proxima Nova', 'Manrope', -apple-system, 'BlinkMacSystemFont', system-ui, 'Roboto', 'Segoe UI', 'Helvetica Neue', sans-serif;
+  --tui-font-text: 'Proxima Nova', 'Manrope', -apple-system,
+    'BlinkMacSystemFont', system-ui, 'Roboto', 'Segoe UI', 'Helvetica Neue',
+    sans-serif;
 }
 
 .g-page {

@@ -169,4 +169,16 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     const healths = this.dependencies.map((d) => d.running && d._health)
     this.changeRunning(healths.every((x) => x && x.result === "success"))
   }
+
+  async init() {
+    if (this.ready.display) {
+      this.effects.setHealth({
+        id: this.id,
+        message: null,
+        name: this.ready.display,
+        result: "starting",
+      })
+    }
+    await this.updateStatus()
+  }
 }

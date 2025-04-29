@@ -171,6 +171,8 @@ export class RpcListener {
     if (!fs.existsSync(SOCKET_PARENT)) {
       fs.mkdirSync(SOCKET_PARENT, { recursive: true })
     }
+    if (fs.existsSync(SOCKET_PATH)) fs.rmSync(SOCKET_PATH, { force: true })
+
     this.unixSocketServer.listen(SOCKET_PATH)
 
     this.unixSocketServer.on("connection", (s) => {

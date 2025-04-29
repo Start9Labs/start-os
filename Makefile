@@ -49,7 +49,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs sudo wormhole wormhole-deb test test-core test-sdk test-container-runtime registry
+.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs wormhole wormhole-deb test test-core test-sdk test-container-runtime registry
 
 all: $(ALL_TARGETS)
 
@@ -57,9 +57,6 @@ touch:
 	touch $(ALL_TARGETS)
 
 metadata: $(VERSION_FILE) $(PLATFORM_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
-
-sudo:
-	sudo true
 
 clean:
 	rm -f system-images/**/*.tar
@@ -116,14 +113,14 @@ debian/control: build/lib/depends build/lib/conflicts
 	./debuild/control.sh
 
 results/$(BASENAME).deb: dpkg-build.sh $(DEBIAN_SRC) $(ALL_TARGETS)
-	PLATFORM=$(PLATFORM) ./dpkg-build.sh
+	PLATFORM=$(PLATFORM) REQUIRES=debian ./build/os-compat/run-compat.sh ./dpkg-build.sh
 
 $(IMAGE_TYPE): results/$(BASENAME).$(IMAGE_TYPE)
 
 squashfs: results/$(BASENAME).squashfs
 
 results/$(BASENAME).$(IMAGE_TYPE) results/$(BASENAME).squashfs: $(IMAGE_RECIPE_SRC) results/$(BASENAME).deb
-	./image-recipe/run-local-build.sh "results/$(BASENAME).deb"
+	REQUIRES=debian ./build/os-compat/run-compat.sh ./image-recipe/run-local-build.sh "results/$(BASENAME).deb"
 
 # For creating os images. DO NOT USE
 install: $(ALL_TARGETS) 
@@ -222,7 +219,7 @@ emulate-reflash: $(ALL_TARGETS)
 upload-ota: results/$(BASENAME).squashfs
 	TARGET=$(TARGET) KEY=$(KEY) ./upload-ota.sh
 
-container-runtime/debian.$(ARCH).squashfs:
+container-runtime/debian.$(ARCH).squashfs: ./container-runtime/download-base-image.sh
 	ARCH=$(ARCH) ./container-runtime/download-base-image.sh
 
 container-runtime/node_modules/.package-lock.json: container-runtime/package.json container-runtime/package-lock.json sdk/dist/package.json
@@ -254,8 +251,8 @@ container-runtime/dist/node_modules/.package-lock.json container-runtime/dist/pa
 	./container-runtime/install-dist-deps.sh
 	touch container-runtime/dist/node_modules/.package-lock.json
 
-container-runtime/rootfs.$(ARCH).squashfs: container-runtime/debian.$(ARCH).squashfs container-runtime/container-runtime.service container-runtime/update-image.sh container-runtime/deb-install.sh container-runtime/dist/index.js container-runtime/dist/node_modules/.package-lock.json core/target/$(ARCH)-unknown-linux-musl/release/containerbox | sudo
-	ARCH=$(ARCH) ./container-runtime/update-image.sh
+container-runtime/rootfs.$(ARCH).squashfs: container-runtime/debian.$(ARCH).squashfs container-runtime/container-runtime.service container-runtime/update-image.sh container-runtime/deb-install.sh container-runtime/dist/index.js container-runtime/dist/node_modules/.package-lock.json core/target/$(ARCH)-unknown-linux-musl/release/containerbox
+	ARCH=$(ARCH) REQUIRES=linux ./build/os-compat/run-compat.sh ./container-runtime/update-image.sh
 
 build/lib/depends build/lib/conflicts: build/dpkg-deps/*
 	build/dpkg-deps/generate.sh
