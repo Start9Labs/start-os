@@ -4,13 +4,19 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import { i18nPipe } from '@start9labs/shared'
+import {
+  ErrorService,
+  i18nKey,
+  i18nPipe,
+  LoadingService,
+} from '@start9labs/shared'
 import { TuiLet } from '@taiga-ui/cdk'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiProgress } from '@taiga-ui/kit'
 import { InstallingProgressPipe } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { getManifest } from 'src/app/utils/get-package-data'
 
 @Component({
   selector: 'service-install-progress',
@@ -70,6 +76,18 @@ export class ServiceInstallProgressComponent {
   pkg!: PackageDataEntry
 
   private readonly api = inject(ApiService)
+  private readonly errorService = inject(ErrorService)
+  private readonly loader = inject(LoadingService)
 
-  cancel() {}
+  async cancel() {
+    const loader = this.loader.open('' as i18nKey).subscribe()
+
+    try {
+      await this.api.cancelInstallPackage({ id: getManifest(this.pkg).id })
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
+  }
 }
