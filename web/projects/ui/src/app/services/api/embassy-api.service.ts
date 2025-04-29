@@ -1,9 +1,4 @@
-import {
-  GetPackageRes,
-  GetPackagesRes,
-  MarketplacePkg,
-} from '@start9labs/marketplace'
-import { RPCOptions } from '@start9labs/shared'
+import { MarketplacePkg } from '@start9labs/marketplace'
 import { T } from '@start9labs/start-sdk'
 import { RR } from './api.types'
 import { WebSocketSubject } from 'rxjs/webSocket'
@@ -113,7 +108,7 @@ export abstract class ApiService {
     params: RR.FollowServerMetricsReq,
   ): Promise<RR.FollowServerMetricsRes>
 
-  abstract updateServer(url?: string): Promise<RR.UpdateServerRes>
+  abstract updateServer(params: RR.UpdateServerReq): Promise<RR.UpdateServerRes>
 
   abstract restartServer(
     params: RR.RestartServerReq,
@@ -145,24 +140,21 @@ export abstract class ApiService {
 
   // marketplace URLs
 
-  abstract registryRequest<T>(
-    registryUrl: string,
-    options: RPCOptions,
-  ): Promise<T>
-
   abstract checkOSUpdate(
-    qp: RR.CheckOSUpdateReq,
-  ): Promise<RR.GetRegistryOsUpdateRes>
+    params: RR.CheckOsUpdateReq,
+  ): Promise<RR.CheckOsUpdateRes>
 
-  abstract getRegistryInfo(registryUrl: string): Promise<T.RegistryInfo>
+  abstract getRegistryInfo(
+    params: RR.GetRegistryInfoReq,
+  ): Promise<RR.GetRegistryInfoRes>
 
   abstract getRegistryPackage(
-    url: string,
-    id: string,
-    versionRange: string | null,
-  ): Promise<GetPackageRes>
+    params: RR.GetRegistryPackageReq,
+  ): Promise<RR.GetRegistryPackageRes>
 
-  abstract getRegistryPackages(registryUrl: string): Promise<GetPackagesRes>
+  abstract getRegistryPackages(
+    params: RR.GetRegistryPackagesReq,
+  ): Promise<RR.GetRegistryPackagesRes>
 
   // notification
 

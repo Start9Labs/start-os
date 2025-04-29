@@ -4,6 +4,7 @@ use std::sync::Arc;
 use clap::Parser;
 use imbl_value::InternedString;
 use itertools::Itertools;
+use models::{PackageId, VersionString};
 use rpc_toolkit::HandlerArgs;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -157,4 +158,56 @@ pub async fn cli_add_package(
     progress_task.await.with_kind(ErrorKind::Unknown)?;
 
     Ok(())
+}
+
+#[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct RemovePackageParams {
+    pub id: PackageId,
+    pub version: VersionString,
+    #[ts(skip)]
+    #[serde(rename = "__auth_signer")]
+    pub signer: AnyVerifyingKey,
+}
+
+pub async fn remove_package(
+    ctx: RegistryContext,
+    RemovePackageParams {
+        id,
+        version,
+        signer,
+    }: RemovePackageParams,
+) -> Result<(), Error> {
+    let peek = ctx.db.peek().await;
+    let signer_guid = peek.as_index().as_signers().get_signer(&signer)?;
+
+    ctx.db
+        .mutate(|db| {
+            if db.as_admins().de()?.contains(&signer_guid)
+                || db
+                    .as_index()
+                    .as_package()
+                    .as_packages()
+                    .as_idx(&id)
+                    .or_not_found(&id)?
+                    .as_authorized()
+                    .de()?
+                    .contains(&signer_guid)
+            {
+                if let Some(package) = db
+                    .as_index_mut()
+                    .as_package_mut()
+                    .as_packages_mut()
+                    .as_idx_mut(&id)
+                {
+                    package.as_versions_mut().remove(&version)?;
+                }
+                Ok(())
+            } else {
+                Err(Error::new(eyre!("UNAUTHORIZED"), ErrorKind::Authorization))
+            }
+        })
+        .await
+        .result
 }

@@ -205,7 +205,6 @@ export default class SystemAcmeComponent {
   }
 
   private async saveAcme(providerUrl: string, contact: string[]) {
-    console.log(providerUrl, contact)
     const loader = this.loader.open('Saving').subscribe()
 
     try {

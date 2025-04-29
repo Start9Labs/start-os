@@ -47,7 +47,6 @@ pub struct PackageInfo {
 #[ts(export)]
 pub struct Category {
     pub name: String,
-    pub description: Description,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]

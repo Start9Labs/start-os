@@ -39,11 +39,11 @@ export class CategoriesComponent {
   readonly categoryChange = new EventEmitter<string>()
 
   readonly fallback: Record<string, T.Category> = {
-    a: { name: '', description: { short: 'a', long: 'a' } },
-    b: { name: '', description: { short: 'a', long: 'a' } },
-    c: { name: '', description: { short: 'a', long: 'a' } },
-    d: { name: '', description: { short: 'a', long: 'a' } },
-    e: { name: '', description: { short: 'a', long: 'a' } },
+    a: { name: '' },
+    b: { name: '' },
+    c: { name: '' },
+    d: { name: '' },
+    e: { name: '' },
   }
 
   switchCategory(category: string): void {

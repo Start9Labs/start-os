@@ -10,7 +10,6 @@ import {
 import { PATCH_CACHE } from 'src/app/services/patch-db/patch-db-source'
 import { ApiService } from './embassy-api.service'
 import { RR } from './api.types'
-import { ConfigService } from '../config.service'
 import { webSocket, WebSocketSubject } from 'rxjs/webSocket'
 import { Observable, filter, firstValueFrom } from 'rxjs'
 import { AuthService } from '../auth.service'
@@ -18,13 +17,7 @@ import { DOCUMENT } from '@angular/common'
 import { DataModel } from '../patch-db/data-model'
 import { Dump, pathFromArray } from 'patch-db-client'
 import { T } from '@start9labs/start-sdk'
-import {
-  GetPackageReq,
-  GetPackageRes,
-  GetPackagesReq,
-  GetPackagesRes,
-  MarketplacePkg,
-} from '@start9labs/marketplace'
+import { MarketplacePkg } from '@start9labs/marketplace'
 import { blake3 } from '@noble/hashes/blake3'
 
 @Injectable()
@@ -32,7 +25,6 @@ export class LiveApiService extends ApiService {
   constructor(
     @Inject(DOCUMENT) private readonly document: Document,
     private readonly http: HttpService,
-    private readonly config: ConfigService,
     private readonly auth: AuthService,
     @Inject(PATCH_CACHE) private readonly cache$: Observable<Dump<DataModel>>,
   ) {
@@ -248,10 +240,7 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'server.metrics.follow', params })
   }
 
-  async updateServer(url?: string): Promise<RR.UpdateServerRes> {
-    const params = {
-      registry: url || this.config.startosRegistry,
-    }
+  async updateServer(params: RR.UpdateServerReq): Promise<RR.UpdateServerRes> {
     return this.rpcRequest({ method: 'server.update', params })
   }
 
@@ -283,61 +272,38 @@ export class LiveApiService extends ApiService {
 
   // marketplace URLs
 
-  async registryRequest<T>(
-    registryUrl: string,
-    options: RPCOptions,
-  ): Promise<T> {
-    return this.rpcRequest({
-      ...options,
-      method: `registry.${options.method}`,
-      params: { registry: registryUrl, ...options.params },
-    })
-  }
-
   async checkOSUpdate(
-    qp: RR.CheckOSUpdateReq,
-  ): Promise<RR.GetRegistryOsUpdateRes> {
-    const { serverId } = qp
-
-    return this.registryRequest(this.config.startosRegistry, {
-      method: 'os.version.get',
-      params: { serverId },
-    })
-  }
-
-  async getRegistryInfo(registryUrl: string): Promise<T.RegistryInfo> {
-    return this.registryRequest(registryUrl, {
-      method: 'info',
-      params: {},
-    })
-  }
-
-  async getRegistryPackage(
-    registryUrl: string,
-    id: string,
-    versionRange: string | null,
-  ): Promise<GetPackageRes> {
-    const params: GetPackageReq = {
-      id,
-      version: versionRange,
-      otherVersions: 'short',
-    }
-
-    return this.registryRequest<GetPackageRes>(registryUrl, {
-      method: 'package.get',
+    params: RR.CheckOsUpdateReq,
+  ): Promise<RR.CheckOsUpdateRes> {
+    return this.rpcRequest({
+      method: 'registry.os.version.get',
       params,
     })
   }
 
-  async getRegistryPackages(registryUrl: string): Promise<GetPackagesRes> {
-    const params: GetPackagesReq = {
-      id: null,
-      version: null,
-      otherVersions: 'short',
-    }
+  async getRegistryInfo(
+    params: RR.GetRegistryInfoReq,
+  ): Promise<RR.GetRegistryInfoRes> {
+    return this.rpcRequest({
+      method: 'registry.info',
+      params,
+    })
+  }
 
-    return this.registryRequest<GetPackagesRes>(registryUrl, {
-      method: 'package.get',
+  async getRegistryPackage(
+    params: RR.GetRegistryPackageReq,
+  ): Promise<RR.GetRegistryPackageRes> {
+    return this.rpcRequest({
+      method: 'registry.package.get',
+      params,
+    })
+  }
+
+  async getRegistryPackages(
+    params: RR.GetRegistryPackagesReq,
+  ): Promise<RR.GetRegistryPackagesRes> {
+    return this.rpcRequest({
+      method: 'registry.package.get',
       params,
     })
   }

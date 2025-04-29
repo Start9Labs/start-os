@@ -22,7 +22,6 @@ import { TuiCell } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map, tap } from 'rxjs'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
-import { ConfigService } from 'src/app/services/config.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   DataModel,
@@ -66,7 +65,7 @@ interface UpdatesData {
           (click)="current.set(registry)"
         >
           <tui-avatar>
-            <store-icon [url]="registry.url" [marketplace]="mp" />
+            <store-icon [url]="registry.url" />
           </tui-avatar>
           <span tuiTitle>
             <b tuiFade>{{ registry.name }}</b>
@@ -221,15 +220,17 @@ export default class UpdatesComponent {
   private readonly isMobile = inject(TUI_IS_MOBILE)
   private readonly marketplaceService = inject(MarketplaceService)
 
-  readonly mp = inject(ConfigService).marketplace
   readonly current = signal<StoreIdentity | null>(null)
 
   readonly data = toSignal<UpdatesData>(
     combineLatest({
       hosts: this.marketplaceService
-        .getKnownHosts$(true)
+        .getRegistries$(true)
         .pipe(
-          tap(([store]) => !this.isMobile && store && this.current.set(store)),
+          tap(
+            ([registry]) =>
+              !this.isMobile && registry && this.current.set(registry),
+          ),
         ),
       marketplace: this.marketplaceService.marketplace$,
       localPkgs: inject<PatchDB<DataModel>>(PatchDB)

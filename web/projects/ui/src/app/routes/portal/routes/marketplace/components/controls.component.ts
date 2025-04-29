@@ -127,8 +127,8 @@ export class MarketplaceControlsComponent {
   async tryInstall() {
     const currentUrl = this.file
       ? null
-      : await firstValueFrom(this.marketplaceService.getRegistryUrl$())
-    const originalUrl = this.localPkg?.registry || ''
+      : await firstValueFrom(this.marketplaceService.getCurrentRegistryUrl$())
+    const originalUrl = this.localPkg?.registry || null
 
     if (!this.localPkg) {
       if (await this.alerts.alertInstall(this.pkg)) {

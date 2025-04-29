@@ -169,6 +169,7 @@ export class MockApiService extends ApiService {
     pathArr: Array<string | number>,
     value: T,
   ): Promise<RR.SetDBValueRes> {
+    console.warn(pathArr, value)
     const pointer = pathFromArray(pathArr)
     const params: RR.SetDBValueReq<T> = { pointer, value }
     await pauseFor(2000)
@@ -367,7 +368,7 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async updateServer(url?: string): Promise<RR.UpdateServerRes> {
+  async updateServer(params?: RR.UpdateServerReq): Promise<RR.UpdateServerRes> {
     await pauseFor(2000)
     const initialProgress = {
       size: null,
@@ -475,41 +476,37 @@ export class MockApiService extends ApiService {
 
   // marketplace URLs
 
-  async registryRequest(
-    registryUrl: string,
-    options: RPCOptions,
-  ): Promise<any> {
-    await pauseFor(2000)
-
-    return Error('do not call directly')
-  }
-
   async checkOSUpdate(
-    qp: RR.CheckOSUpdateReq,
-  ): Promise<RR.GetRegistryOsUpdateRes> {
+    params: RR.CheckOsUpdateReq,
+  ): Promise<RR.CheckOsUpdateRes> {
     await pauseFor(2000)
     return Mock.RegistryOSUpdate
   }
 
-  async getRegistryInfo(registryUrl: string): Promise<T.RegistryInfo> {
+  async getRegistryInfo(
+    params: RR.GetRegistryInfoReq,
+  ): Promise<RR.GetRegistryInfoRes> {
     await pauseFor(2000)
     return Mock.RegistryInfo
   }
 
   async getRegistryPackage(
-    url: string,
-    id: string,
-    versionRange: string,
-  ): Promise<GetPackageRes> {
+    params: RR.GetRegistryPackageReq,
+  ): Promise<RR.GetRegistryPackageRes> {
     await pauseFor(2000)
-    if (!versionRange || versionRange === '=*') {
+
+    const { targetVersion, id } = params
+
+    if (!targetVersion || targetVersion === '=*') {
       return Mock.RegistryPackages[id]!
     } else {
-      return Mock.OtherPackageVersions[id]![versionRange]!
+      return Mock.OtherPackageVersions[id]![targetVersion]!
     }
   }
 
-  async getRegistryPackages(registryUrl: string): Promise<GetPackagesRes> {
+  async getRegistryPackages(
+    params: RR.GetRegistryPackagesReq,
+  ): Promise<RR.GetRegistryPackagesRes> {
     await pauseFor(2000)
     return Mock.RegistryPackages
   }

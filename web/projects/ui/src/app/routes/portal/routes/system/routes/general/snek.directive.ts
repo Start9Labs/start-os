@@ -37,10 +37,7 @@ export class SnekDirective {
         const loader = this.loader.open('Saving high score').subscribe()
 
         try {
-          await this.api.setDbValue<number>(
-            ['gaming', 'snake', 'highScore'],
-            score,
-          )
+          await this.api.setDbValue<number>(['snakeHighScore'], score)
         } catch (e: any) {
           this.errorService.handleError(e)
         } finally {

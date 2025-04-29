@@ -16,6 +16,9 @@ import { TuiDialogContext, TuiScrollbar, TuiButton } from '@taiga-ui/core'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { OSService } from 'src/app/services/os.service'
+import { PatchDB } from 'patch-db-client'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { firstValueFrom } from 'rxjs'
 
 @Component({
   template: `
@@ -61,13 +64,19 @@ export class SystemUpdateModal {
     private readonly errorService: ErrorService,
     private readonly embassyApi: ApiService,
     private readonly os: OSService,
+    private readonly patch: PatchDB<DataModel>,
   ) {}
 
   async update() {
     const loader = this.loader.open('Beginning update').subscribe()
 
+    const { startosRegistry } = await firstValueFrom(this.patch.watch$('ui'))
+
     try {
-      await this.embassyApi.updateServer()
+      await this.embassyApi.updateServer({
+        targetVersion: `=${this.versions[0]!.version}`,
+        registry: startosRegistry,
+      })
       this.context.$implicit.complete()
     } catch (e: any) {
       this.errorService.handleError(e)

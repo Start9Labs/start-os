@@ -6,26 +6,14 @@ const version = require('../../../../../../package.json').version
 export const mockPatchData: DataModel = {
   ui: {
     name: `Matt's Server`,
-    theme: 'Dark',
-    marketplace: {
-      selectedUrl: 'https://registry.start9.com/',
-      knownHosts: {
-        'https://registry.start9.com/': {
-          name: 'Start9 Registry',
-        },
-        'https://community-registry.start9.com/': {},
-        'https://beta-registry.start9.com/': {
-          name: 'Dark9',
-        },
-      },
+    registries: {
+      'https://registry.start9.com/': 'Start9 Registry',
+      'https://community-registry.start9.com/': 'Community Registry',
     },
-    gaming: {
-      snake: {
-        highScore: 0,
-      },
-    },
-    language: 'english',
+    startosRegistry: 'https://registry.start9.com/',
+    snakeHighScore: 0,
     ackInstructions: {},
+    language: 'english',
   },
   serverInfo: {
     arch: 'x86_64',

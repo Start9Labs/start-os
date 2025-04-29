@@ -242,10 +242,9 @@ export default class SystemGeneralComponent {
   readonly translation: TuiStringHandler<TuiContext<Languages>> = ({
     $implicit,
   }) => this.i18n.transform($implicit)!
-  readonly score = toSignal(
-    this.patch.watch$('ui', 'gaming', 'snake', 'highScore'),
-    { initialValue: 0 },
-  )
+  readonly score = toSignal(this.patch.watch$('ui', 'snakeHighScore'), {
+    initialValue: 0,
+  })
 
   get language(): Languages | undefined {
     return this.languages.find(lang => lang === this.i18nService.language)
