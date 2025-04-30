@@ -50,7 +50,6 @@ export class MarketplaceService {
         toStoreIdentity(start9, registries[start9]),
         toStoreIdentity(community, registries[community]),
         ...Object.entries(registries)
-          // @TODO Matt here is the spot where trailing / is not tested for
           .filter(([url, _]) => ![start9, community].includes(url as any))
           .map(([url, name]) => toStoreIdentity(url, name)),
       ]),
@@ -109,7 +108,6 @@ export class MarketplaceService {
       switchMap(url => this.fetchRegistry$(url).pipe(startWith(null))),
     ),
   ]).pipe(
-    // @TODO Matt here is the spot where trailing / is not tested for
     map(([all, url, current]) => current || all[url]),
     filter(Boolean),
     shareReplay(1),
