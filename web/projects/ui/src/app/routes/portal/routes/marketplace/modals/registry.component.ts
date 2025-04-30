@@ -41,7 +41,7 @@ import { StorageService } from 'src/app/services/storage.service'
         ></button>
       }
       <h3 class="g-title">{{ 'Custom Registries' | i18n }}</h3>
-      <button tuiCell (click)="add()" [style.width]="'-webkit-fill-available'">
+      <button tuiCell (click)="add()">
         <tui-icon icon="@tui.plus" [style.margin-inline.rem]="'0.5'" />
         <div tuiTitle>{{ 'Add custom registry' | i18n }}</div>
       </button>
@@ -70,6 +70,10 @@ import { StorageService } from 'src/app/services/storage.service'
         display: flex;
         flex-direction: row;
         align-items: center;
+      }
+
+      [tuiCell] {
+        width: stretch;
       }
     `,
   ],
@@ -102,8 +106,8 @@ export class MarketplaceRegistryModal {
   private readonly storage = inject(StorageService)
 
   readonly registries$ = combineLatest([
-    this.marketplaceService.getRegistries$(),
-    this.marketplaceService.getCurrentRegistryUrl$(),
+    this.marketplaceService.registries$,
+    this.marketplaceService.currentRegistryUrl$,
   ]).pipe(
     map(([registries, currentUrl]) =>
       registries.map(s => ({
@@ -185,7 +189,7 @@ export class MarketplaceRegistryModal {
     loader.closed = false
     loader.add(this.loader.open('Changing registry').subscribe())
     try {
-      this.marketplaceService.setRegistryUrl(url)
+      this.marketplaceService.currentRegistryUrl$.next(url)
       this.router.navigate([], {
         queryParams: { registry: url },
         queryParamsHandling: 'merge',
@@ -231,7 +235,7 @@ export class MarketplaceRegistryModal {
 
   private async save(rawUrl: string, connect = false): Promise<boolean> {
     const loader = this.loader.open('Loading').subscribe()
-    const url = new URL(rawUrl).toString()
+    const url = new URL(rawUrl).origin + '/'
 
     try {
       await this.validateAndSave(url, loader)

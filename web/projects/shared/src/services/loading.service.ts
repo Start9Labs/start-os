@@ -39,7 +39,7 @@ class LoadingComponent {
   useFactory: () => new LoadingService(TUI_DIALOGS, LoadingComponent),
 })
 export class LoadingService extends TuiPopoverService<unknown> {
-  override open<G = void>(textContent: i18nKey) {
+  override open<G = void>(textContent: i18nKey | '' = '') {
     return super.open<G>(textContent)
   }
 }

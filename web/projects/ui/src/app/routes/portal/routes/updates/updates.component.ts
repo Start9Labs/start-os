@@ -224,14 +224,12 @@ export default class UpdatesComponent {
 
   readonly data = toSignal<UpdatesData>(
     combineLatest({
-      hosts: this.marketplaceService
-        .getRegistries$(true)
-        .pipe(
-          tap(
-            ([registry]) =>
-              !this.isMobile && registry && this.current.set(registry),
-          ),
+      hosts: this.marketplaceService.filteredRegistries$.pipe(
+        tap(
+          ([registry]) =>
+            !this.isMobile && registry && this.current.set(registry),
         ),
+      ),
       marketplace: this.marketplaceService.marketplace$,
       localPkgs: inject<PatchDB<DataModel>>(PatchDB)
         .watch$('packageData')
@@ -248,7 +246,7 @@ export default class UpdatesComponent {
             ),
           ),
         ),
-      errors: this.marketplaceService.getRequestErrors$(),
+      errors: this.marketplaceService.requestErrors$,
     }),
   )
 

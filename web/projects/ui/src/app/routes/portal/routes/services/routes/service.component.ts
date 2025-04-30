@@ -42,6 +42,7 @@ import { ServiceStatusComponent } from '../components/status.component'
           @if ($any(pkg.status)?.started; as started) {
             <p class="g-secondary" [appUptime]="started"></p>
           }
+
           @if (connected()) {
             <service-controls [pkg]="pkg" [status]="status()" />
           }
@@ -50,7 +51,9 @@ import { ServiceStatusComponent } from '../components/status.component'
         @if (pkg.status.main === 'error') {
           <service-error [pkg]="pkg" />
         }
+
         <service-interfaces [pkg]="pkg" [disabled]="status() !== 'running'" />
+
         @if (errors() | async; as errors) {
           <service-dependencies
             [pkg]="pkg"
@@ -58,6 +61,7 @@ import { ServiceStatusComponent } from '../components/status.component'
             [errors]="errors"
           />
         }
+
         <service-health-checks [checks]="health()" />
         <service-action-requests [pkg]="pkg" [services]="services() || {}" />
       }
