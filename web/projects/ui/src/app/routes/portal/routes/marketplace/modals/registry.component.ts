@@ -235,7 +235,7 @@ export class MarketplaceRegistryModal {
 
   private async save(rawUrl: string, connect = false): Promise<boolean> {
     const loader = this.loader.open('Loading').subscribe()
-    const url = new URL(rawUrl).toString()
+    const url = new URL(rawUrl).origin + '/'
 
     try {
       await this.validateAndSave(url, loader)
