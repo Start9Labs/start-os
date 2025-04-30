@@ -16,6 +16,7 @@ import { HealthDaemon } from "./HealthDaemon"
 import { Daemon } from "./Daemon"
 import { CommandController } from "./CommandController"
 import { HealthCheck } from "../health/HealthCheck"
+import { Oneshot } from "./Oneshot"
 
 export const cpExec = promisify(CP.exec)
 export const cpExecFile = promisify(CP.execFile)
@@ -48,29 +49,40 @@ export type Ready = {
   trigger?: Trigger
 }
 
-type DaemonsParams<
+type NewDaemonParams<Manifest extends T.SDKManifest> = {
+  /** The command line command to start the daemon */
+  command: T.CommandType
+  /** Information about the subcontainer in which the daemon runs */
+  subcontainer: SubContainer<Manifest>
+  env?: Record<string, string>
+  sigtermTimeout?: number
+  onStdout?: (chunk: Buffer | string | any) => void
+  onStderr?: (chunk: Buffer | string | any) => void
+}
+
+type AddDaemonParams<
   Manifest extends T.SDKManifest,
   Ids extends string,
   Id extends string,
-> =
-  | {
-      /** The command line command to start the daemon */
-      command: T.CommandType
-      /** Information about the subcontainer in which the daemon runs */
-      subcontainer: SubContainer<Manifest>
-      env?: Record<string, string>
-      ready: Ready
-      /** An array of IDs of prior daemons whose successful initializations are required before this daemon will initialize */
-      requires: Exclude<Ids, Id>[]
-      sigtermTimeout?: number
-      onStdout?: (chunk: Buffer | string | any) => void
-      onStderr?: (chunk: Buffer | string | any) => void
-    }
+> = (
+  | NewDaemonParams<Manifest>
   | {
       daemon: Daemon<Manifest>
-      ready: Ready
-      requires: Exclude<Ids, Id>[]
     }
+) & {
+  ready: Ready
+  /** An array of IDs of prior daemons whose successful initializations are required before this daemon will initialize */
+  requires: Exclude<Ids, Id>[]
+}
+
+type AddOneshotParams<
+  Manifest extends T.SDKManifest,
+  Ids extends string,
+  Id extends string,
+> = NewDaemonParams<Manifest> & {
+  /** An array of IDs of prior daemons whose successful initializations are required before this daemon will initialize */
+  requires: Exclude<Ids, Id>[]
+}
 
 type ErrorDuplicateId<Id extends string> = `The id '${Id}' is already used`
 
@@ -148,7 +160,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       ErrorDuplicateId<Id> extends Id ? never :
       Id extends Ids ? ErrorDuplicateId<Id> :
       Id,
-    options: DaemonsParams<Manifest, Ids, Id>,
+    options: AddDaemonParams<Manifest, Ids, Id>,
   ) {
     const daemon =
       "daemon" in options
@@ -165,6 +177,48 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       id,
       this.ids,
       options.ready,
+      this.effects,
+    )
+    const daemons = this.daemons.concat(daemon)
+    const ids = [...this.ids, id] as (Ids | Id)[]
+    const healthDaemons = [...this.healthDaemons, healthDaemon]
+    return new Daemons<Manifest, Ids | Id>(
+      this.effects,
+      this.started,
+      daemons,
+      ids,
+      healthDaemons,
+      this.healthChecks,
+    )
+  }
+
+  addOneshot<Id extends string>(
+    id: "" extends Id
+      ? never
+      : ErrorDuplicateId<Id> extends Id
+        ? never
+        : Id extends Ids
+          ? ErrorDuplicateId<Id>
+          : Id,
+    options: AddOneshotParams<Manifest, Ids, Id>,
+  ) {
+    const daemon = Oneshot.of()(
+      this.effects,
+      options.subcontainer,
+      options.command,
+      {
+        ...options,
+      },
+    )
+    const healthDaemon = new HealthDaemon(
+      daemon,
+      options.requires
+        .map((x) => this.ids.indexOf(x))
+        .filter((x) => x >= 0)
+        .map((id) => this.healthDaemons[id]),
+      id,
+      this.ids,
+      "EXIT_SUCCESS",
       this.effects,
     )
     const daemons = this.daemons.concat(daemon)
