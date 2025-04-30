@@ -150,8 +150,8 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   /**
    * Returns the complete list of daemons, including the one defined here
    * @param id
-   * @param newDaemon
-   * @returns
+   * @param options
+   * @returns a new Daemons object
    */
   addDaemon<Id extends string>(
     // prettier-ignore
@@ -192,6 +192,13 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     )
   }
 
+  /**
+   * Returns the complete list of daemons, including a "oneshot" daemon one defined here
+   * a oneshot daemon is a command that executes once when started, and is considered "running" once it exits successfully
+   * @param id
+   * @param options
+   * @returns a new Daemons object
+   */
   addOneshot<Id extends string>(
     id: "" extends Id
       ? never
