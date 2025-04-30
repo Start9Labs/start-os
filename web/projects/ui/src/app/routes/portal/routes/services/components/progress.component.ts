@@ -39,13 +39,13 @@ import { getManifest } from 'src/app/utils/get-package-data'
       track $index
     ) {
       <div *tuiLet="phase.progress | installingProgress as percent">
-        {{ phase.name }}:
+        {{ $any(phase.name) | i18n }}:
         @if (phase.progress === null) {
-          <span>waiting...</span>
+          <span>{{ 'waiting' | i18n }}</span>
         } @else if (phase.progress === true) {
-          <span>complete!</span>
+          <span>{{ 'complete' | i18n }}!</span>
         } @else if (phase.progress === false || phase.progress.total === null) {
-          <span>working...</span>
+          <span>{{ 'in progress' | i18n }}...</span>
         } @else {
           <span>{{ percent }}%</span>
         }
