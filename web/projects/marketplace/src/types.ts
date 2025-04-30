@@ -25,7 +25,7 @@ export type StoreIdentity = {
   name: string
 }
 
-export type Marketplace = Record<string, StoreData | null>
+export type Marketplace = Record<string, StoreDataWithUrl | null>
 
 export type StoreData = {
   info: T.RegistryInfo

@@ -1,5 +1,6 @@
 import * as T from "../../../base/lib/types"
 import { asError } from "../../../base/lib/util/asError"
+import { Drop } from "../util"
 import { ExecSpawnable, MountOptions, SubContainer } from "../util/SubContainer"
 import { CommandController } from "./CommandController"
 import { Mounts } from "./Mounts"
@@ -11,12 +12,14 @@ const MAX_TIMEOUT_MS = 30000
  * and the others state of running, where it will keep a living running command
  */
 
-export class Daemon<Manifest extends T.SDKManifest> {
+export class Daemon<Manifest extends T.SDKManifest> extends Drop {
   private commandController: CommandController<Manifest> | null = null
   private shouldBeRunning = false
   constructor(
     private startCommand: () => Promise<CommandController<Manifest>>,
-  ) {}
+  ) {
+    super()
+  }
   get subContainerHandle(): undefined | ExecSpawnable {
     return this.commandController?.subContainerHandle
   }
@@ -87,5 +90,8 @@ export class Daemon<Manifest extends T.SDKManifest> {
       ?.term({ ...termOptions })
       .catch((e) => console.error(asError(e)))
     this.commandController = null
+  }
+  onDrop(): void {
+    this.stop().catch((e) => console.error(asError(e)))
   }
 }

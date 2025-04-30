@@ -30,13 +30,11 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   private readyPromise: Promise<void>
   constructor(
     private readonly daemon: Promise<Daemon<Manifest>>,
-    readonly daemonIndex: number,
     private readonly dependencies: HealthDaemon<Manifest>[],
     readonly id: string,
     readonly ids: string[],
     readonly ready: Ready,
     readonly effects: Effects,
-    readonly sigtermTimeout: number = DEFAULT_SIGTERM_TIMEOUT,
   ) {
     this.readyPromise = new Promise((resolve) => (this.resolveReady = resolve))
     this.dependencies.forEach((d) => d.addWatcher(() => this.updateStatus()))
@@ -53,7 +51,6 @@ export class HealthDaemon<Manifest extends SDKManifest> {
 
     await this.daemon.then((d) =>
       d.term({
-        timeout: this.sigtermTimeout,
         ...termOptions,
       }),
     )

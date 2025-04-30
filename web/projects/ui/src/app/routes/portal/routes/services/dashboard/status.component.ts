@@ -18,9 +18,7 @@ import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
     @if (loading) {
       <tui-loader size="s" />
     } @else {
-      @if (healthy) {
-        <tui-icon icon="@tui.check" class="g-positive" />
-      } @else {
+      @if (!healthy) {
         <tui-icon icon="@tui.triangle-alert" class="g-warning" />
       }
     }

@@ -29,9 +29,7 @@ import { StorageService } from 'src/app/services/storage.service'
         <div class="marketplace-content-inner">
           <marketplace-notification [url]="(url$ | async) || ''" />
           <div class="title-wrapper">
-            <h1>
-              {{ category$ | async | titlecase }}
-            </h1>
+            <h1>{{ category$ | async | titlecase }}</h1>
           </div>
           @if (registry$ | async; as registry) {
             <section class="marketplace-content-list">
@@ -178,14 +176,14 @@ export default class MarketplaceComponent {
             queryParamsHandling: 'merge',
           })
         } else {
-          this.marketplaceService.setRegistryUrl(registry)
+          this.marketplaceService.currentRegistryUrl$.next(registry)
         }
       }),
     )
     .subscribe()
 
-  readonly url$ = this.marketplaceService.getCurrentRegistryUrl$()
+  readonly url$ = this.marketplaceService.currentRegistryUrl$
   readonly category$ = this.categoryService.getCategory$()
   readonly query$ = this.categoryService.getQuery$()
-  readonly registry$ = this.marketplaceService.getCurrentRegistry$()
+  readonly registry$ = this.marketplaceService.currentRegistry$
 }

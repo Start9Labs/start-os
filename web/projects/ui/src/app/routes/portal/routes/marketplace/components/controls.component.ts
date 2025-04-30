@@ -127,7 +127,7 @@ export class MarketplaceControlsComponent {
   async tryInstall() {
     const currentUrl = this.file
       ? null
-      : await firstValueFrom(this.marketplaceService.getCurrentRegistryUrl$())
+      : await firstValueFrom(this.marketplaceService.currentRegistryUrl$)
     const originalUrl = this.localPkg?.registry || null
 
     if (!this.localPkg) {

@@ -1,13 +1,12 @@
-import { Injectable } from '@angular/core'
+import { inject, Injectable } from '@angular/core'
 import {
   GetPackageRes,
   Marketplace,
   MarketplacePkg,
-  StoreData,
   StoreDataWithUrl,
   StoreIdentity,
 } from '@start9labs/marketplace'
-import { Exver, defaultRegistries, sameUrl } from '@start9labs/shared'
+import { defaultRegistries, Exver, sameUrl } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { PatchDB } from 'patch-db-client'
 import {
@@ -40,29 +39,11 @@ const { start9, community } = defaultRegistries
   providedIn: 'root',
 })
 export class MarketplaceService {
-  private readonly currentRegistryUrlSubject$ = new ReplaySubject<string>(1)
-  private readonly currentRegistryUrl$ = this.currentRegistryUrlSubject$.pipe(
-    distinctUntilChanged(),
-  )
+  private readonly api = inject(ApiService)
+  private readonly patch: PatchDB<DataModel> = inject(PatchDB)
+  private readonly exver = inject(Exver)
 
-  private readonly currentRegistry$: Observable<StoreDataWithUrl> =
-    this.currentRegistryUrl$.pipe(
-      switchMap(url => this.fetchRegistry$(url)),
-      filter(Boolean),
-      map(registry => {
-        registry.info.categories = {
-          all: {
-            name: 'All',
-          },
-          ...registry.info.categories,
-        }
-
-        return registry
-      }),
-      shareReplay(1),
-    )
-
-  private readonly registries$: Observable<StoreIdentity[]> = this.patch
+  readonly registries$: Observable<StoreIdentity[]> = this.patch
     .watch$('ui', 'registries')
     .pipe(
       map(registries => [
@@ -74,21 +55,23 @@ export class MarketplaceService {
       ]),
     )
 
-  private readonly filteredRegistries$: Observable<StoreIdentity[]> =
-    combineLatest([
-      this.clientStorageService.showDevTools$,
-      this.registries$,
-    ]).pipe(
-      map(([devMode, registries]) =>
-        devMode
-          ? registries
-          : registries.filter(
-              ({ url }) => !url.includes('alpha') && !url.includes('beta'),
-            ),
-      ),
-    )
+  // option to filter out hosts containing 'alpha' or 'beta' substrings in registryURL
+  readonly filteredRegistries$: Observable<StoreIdentity[]> = combineLatest([
+    inject(ClientStorageService).showDevTools$,
+    this.registries$,
+  ]).pipe(
+    map(([devMode, registries]) =>
+      devMode
+        ? registries
+        : registries.filter(
+            ({ url }) => !url.includes('alpha') && !url.includes('beta'),
+          ),
+    ),
+  )
 
-  private readonly requestErrors$ = new BehaviorSubject<string[]>([])
+  readonly currentRegistryUrl$ = new ReplaySubject<string>(1)
+
+  readonly requestErrors$ = new BehaviorSubject<string[]>([])
 
   readonly marketplace$: Observable<Marketplace> = this.registries$.pipe(
     startWith<StoreIdentity[]>([]),
@@ -102,11 +85,11 @@ export class MarketplaceService {
           if (data?.info.name)
             this.updateRegistryName(url, name, data.info.name)
         }),
-        map<StoreData | null, [string, StoreData | null]>(data => [url, data]),
-        startWith<[string, StoreData | null]>([url, null]),
+        map(data => [url, data] satisfies [string, StoreDataWithUrl | null]),
+        startWith<[string, StoreDataWithUrl | null]>([url, null]),
       ),
     ),
-    scan<[string, StoreData | null], Record<string, StoreData | null>>(
+    scan<[string, StoreDataWithUrl | null], Marketplace>(
       (requests, [url, store]) => {
         requests[url] = store
 
@@ -114,32 +97,21 @@ export class MarketplaceService {
       },
       {},
     ),
-    shareReplay({ bufferSize: 1, refCount: true }),
+    shareReplay(1),
   )
 
-  constructor(
-    private readonly api: ApiService,
-    private readonly patch: PatchDB<DataModel>,
-    private readonly clientStorageService: ClientStorageService,
-    private readonly exver: Exver,
-  ) {}
-
-  getRegistries$(filtered = false): Observable<StoreIdentity[]> {
-    // option to filter out hosts containing 'alpha' or 'beta' substrings in registryURL
-    return filtered ? this.filteredRegistries$ : this.registries$
-  }
-
-  getCurrentRegistryUrl$() {
-    return this.currentRegistryUrl$
-  }
-
-  setRegistryUrl(url: string) {
-    this.currentRegistryUrlSubject$.next(url)
-  }
-
-  getCurrentRegistry$(): Observable<StoreDataWithUrl> {
-    return this.currentRegistry$
-  }
+  readonly currentRegistry$: Observable<StoreDataWithUrl> = combineLatest([
+    this.marketplace$,
+    this.currentRegistryUrl$,
+    this.currentRegistryUrl$.pipe(
+      distinctUntilChanged(),
+      switchMap(url => this.fetchRegistry$(url).pipe(startWith(null))),
+    ),
+  ]).pipe(
+    map(([all, url, current]) => current || all[url]),
+    filter(Boolean),
+    shareReplay(1),
+  )
 
   getPackage$(
     id: string,
@@ -161,14 +133,12 @@ export class MarketplaceService {
     )
   }
 
-  fetchInfo$(url: string): Observable<T.RegistryInfo> {
-    return from(this.api.getRegistryInfo({ registry: url })).pipe(
+  fetchInfo$(registry: string): Observable<T.RegistryInfo> {
+    return from(this.api.getRegistryInfo({ registry })).pipe(
       map(info => ({
         ...info,
         categories: {
-          all: {
-            name: 'All',
-          },
+          all: { name: 'All' },
           ...info.categories,
         },
       })),
@@ -261,10 +231,6 @@ export class MarketplaceService {
       ...pkgInfo,
       ...best,
     }
-  }
-
-  getRequestErrors$(): Observable<string[]> {
-    return this.requestErrors$
   }
 
   async installPackage(

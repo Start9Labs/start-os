@@ -362,8 +362,8 @@ export default {
   359: 'La partición de la unidad no contiene una copia de seguridad válida',
   360: 'Progreso de la copia de seguridad',
   361: 'Completo',
-  362: 'Haciendo copia de seguridad',
-  363: 'Esperando',
+  362: 'haciendo copia de seguridad',
+  363: 'esperando',
   364: 'Copia de seguridad realizada',
   365: 'Restauración seleccionada',
   366: 'Inicializando',
@@ -493,4 +493,9 @@ export default {
   490: 'alemán',
   491: 'inglés',
   492: 'Menú de Inicio',
-} as any satisfies i18n
+  493: 'Progreso de instalación',
+  494: 'Descargando',
+  495: 'Validando',
+  496: 'en progreso',
+  497: 'completo',
+} satisfies i18n

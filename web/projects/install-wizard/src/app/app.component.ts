@@ -55,7 +55,7 @@ export class AppComponent {
       )
       .subscribe({
         complete: async () => {
-          const loader = this.loader.open('' as i18nKey).subscribe()
+          const loader = this.loader.open().subscribe()
 
           try {
             await this.api.reboot()

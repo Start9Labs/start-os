@@ -50,10 +50,7 @@ const PROGRESS: T.FullProgress = {
     },
     {
       name: 'Installing',
-      progress: {
-        done: 0,
-        total: 40,
-      },
+      progress: null,
     },
   ],
 }
@@ -1070,6 +1067,22 @@ export class MockApiService extends ApiService {
             },
           },
         },
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async cancelInstallPackage(
+    params: RR.CancelInstallPackageReq,
+  ): Promise<RR.CancelInstallPackageRes> {
+    await pauseFor(500)
+
+    const patch: RemoveOperation[] = [
+      {
+        op: PatchOp.REMOVE,
+        path: `/packageData/${params.id}`,
       },
     ]
     this.mockRevision(patch)

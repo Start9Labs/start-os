@@ -325,6 +325,10 @@ export abstract class ApiService {
     params: RR.InstallPackageReq,
   ): Promise<RR.InstallPackageRes>
 
+  abstract cancelInstallPackage(
+    params: RR.CancelInstallPackageReq,
+  ): Promise<RR.CancelInstallPackageRes>
+
   abstract getActionInput(
     params: RR.GetActionInputReq,
   ): Promise<RR.GetActionInputRes>
