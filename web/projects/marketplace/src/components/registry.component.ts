@@ -17,7 +17,6 @@ import { StoreIconComponentModule } from './store-icon/store-icon.component.modu
       <ng-content />
     }
   `,
-  styles: [':host { border-radius: 0.25rem; width: stretch; }'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [StoreIconComponentModule, TuiIcon, TuiTitle],
 })

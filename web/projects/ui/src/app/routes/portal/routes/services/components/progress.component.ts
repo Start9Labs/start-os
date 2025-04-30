@@ -4,12 +4,8 @@ import {
   inject,
   Input,
 } from '@angular/core'
-import {
-  ErrorService,
-  i18nKey,
-  i18nPipe,
-  LoadingService,
-} from '@start9labs/shared'
+import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { TuiLet } from '@taiga-ui/cdk'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiProgress } from '@taiga-ui/kit'
@@ -52,30 +48,30 @@ import { getManifest } from 'src/app/utils/get-package-data'
         <progress
           tuiProgressBar
           size="m"
-          [style.color]="
-            phase.progress === true
-              ? 'var(--tui-text-positive)'
-              : 'var(--tui-text-action)'
-          "
-          [value]="
-            phase.progress === false ||
-            (phase.progress &&
-              phase.progress !== true &&
-              phase.progress.total === null)
-              ? undefined
-              : percent / 100
-          "
+          [max]="100"
+          [class.g-positive]="phase.progress === true"
+          [value]="isPending(phase.progress) ? undefined : percent"
         ></progress>
       </div>
     }
   `,
   styles: `
-    div {
-      padding: 0.7rem 0;
-    }
-
     :host {
       grid-column: span 6;
+      color: var(--tui-text-secondary);
+    }
+
+    div {
+      padding: 0.25rem 0;
+    }
+
+    span {
+      float: right;
+      text-transform: capitalize;
+    }
+
+    progress {
+      margin: 0.5rem 0;
     }
   `,
   host: { class: 'g-card' },
@@ -91,8 +87,14 @@ export class ServiceInstallProgressComponent {
   private readonly errorService = inject(ErrorService)
   private readonly loader = inject(LoadingService)
 
+  isPending(progress: T.Progress): boolean {
+    return (
+      !progress || (progress && progress !== true && progress.total === null)
+    )
+  }
+
   async cancel() {
-    const loader = this.loader.open('' as i18nKey).subscribe()
+    const loader = this.loader.open().subscribe()
 
     try {
       await this.api.cancelInstallPackage({ id: getManifest(this.pkg).id })

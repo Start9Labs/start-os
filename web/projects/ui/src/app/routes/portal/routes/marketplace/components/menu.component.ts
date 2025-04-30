@@ -53,8 +53,7 @@ import { DialogService, i18nPipe } from '@start9labs/shared'
 })
 export class MarketplaceMenuComponent {
   private readonly dialog = inject(DialogService)
-  private readonly marketplaceService = inject(MarketplaceService)
-  readonly registry$ = this.marketplaceService.getCurrentRegistry$()
+  readonly registry$ = inject(MarketplaceService).currentRegistry$
 
   changeRegistry() {
     this.dialog
