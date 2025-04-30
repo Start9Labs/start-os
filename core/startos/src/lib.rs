@@ -350,6 +350,13 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                 .with_about("Install a package from a marketplace or via sideloading"),
         )
         .subcommand(
+            "cancel-install",
+            from_fn(install::cancel_install)
+                .no_display()
+                .with_about("Cancel an install of a package")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
             "uninstall",
             from_fn_async(install::uninstall)
                 .with_metadata("sync_db", Value::Bool(true))

@@ -16,7 +16,7 @@ use models::{ActionId, PackageId};
 use reqwest::{Client, Proxy};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty};
-use tokio::sync::{broadcast, watch, Mutex, RwLock};
+use tokio::sync::{broadcast, oneshot, watch, Mutex, RwLock};
 use tokio::time::Instant;
 use tracing::instrument;
 
@@ -56,6 +56,7 @@ pub struct RpcContextSeed {
     pub os_net_service: NetService,
     pub s9pk_arch: Option<&'static str>,
     pub services: ServiceMap,
+    pub cancellable_installs: SyncMutex<BTreeMap<PackageId, oneshot::Sender<()>>>,
     pub metrics_cache: Watch<Option<crate::system::Metrics>>,
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
     pub tor_socks: SocketAddr,
@@ -239,6 +240,7 @@ impl RpcContext {
                 Some(crate::ARCH)
             },
             services,
+            cancellable_installs: SyncMutex::new(BTreeMap::new()),
             metrics_cache,
             shutdown,
             tor_socks: tor_proxy,

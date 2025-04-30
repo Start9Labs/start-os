@@ -10,6 +10,7 @@ use ts_rs::TS;
 use url::Url;
 
 use crate::prelude::*;
+use crate::progress::PhaseProgressTrackerHandle;
 use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::registry::signer::commitment::{Commitment, Digestable};
 use crate::registry::signer::sign::{AnySignature, AnyVerifyingKey};
@@ -75,9 +76,10 @@ impl RegistryAsset<MerkleArchiveCommitment> {
     pub async fn deserialize_s9pk_buffered(
         &self,
         client: Client,
+        progress: PhaseProgressTrackerHandle,
     ) -> Result<S9pk<Section<Arc<BufferedHttpSource>>>, Error> {
         S9pk::deserialize(
-            &Arc::new(BufferedHttpSource::new(client, self.url.clone()).await?),
+            &Arc::new(BufferedHttpSource::new(client, self.url.clone(), progress).await?),
             Some(&self.commitment),
         )
         .await
@@ -89,8 +91,12 @@ pub struct BufferedHttpSource {
     file: UploadingFile,
 }
 impl BufferedHttpSource {
-    pub async fn new(client: Client, url: Url) -> Result<Self, Error> {
-        let (mut handle, file) = UploadingFile::new().await?;
+    pub async fn new(
+        client: Client,
+        url: Url,
+        progress: PhaseProgressTrackerHandle,
+    ) -> Result<Self, Error> {
+        let (mut handle, file) = UploadingFile::new(progress).await?;
         let response = client.get(url).send().await?;
         Ok(Self {
             _download: tokio::spawn(async move { handle.download(response).await }).into(),

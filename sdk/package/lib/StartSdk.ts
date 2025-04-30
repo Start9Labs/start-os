@@ -25,7 +25,7 @@ import {
 import * as patterns from "../../base/lib/util/patterns"
 import { BackupSync, Backups } from "./backup/Backups"
 import { smtpInputSpec } from "../../base/lib/actions/input/inputSpecConstants"
-import { CommandController, Daemons } from "./mainFn/Daemons"
+import { CommandController, Daemon, Daemons } from "./mainFn/Daemons"
 import { HealthCheck } from "./health/HealthCheck"
 import { checkPortListening } from "./health/checkFns/checkPortListening"
 import { checkWebUrl, runHealthScript } from "./health/checkFns"
@@ -733,6 +733,11 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         >(
           spec: Spec,
         ) => InputSpec.of<Spec, Store>(spec),
+      },
+      Daemon: {
+        get of() {
+          return Daemon.of<Manifest>()
+        },
       },
       Daemons: {
         of(

@@ -3,14 +3,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
-use futures::future::BoxFuture;
+use futures::future::{BoxFuture, Fuse};
 use futures::stream::FuturesUnordered;
 use futures::{Future, FutureExt, StreamExt};
 use helpers::NonDetachingJoinHandle;
 use imbl::OrdMap;
 use imbl_value::InternedString;
 use models::ErrorData;
-use tokio::sync::{Mutex, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
+use tokio::sync::{oneshot, Mutex, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::instrument;
 
 use crate::context::RpcContext;
@@ -138,41 +138,41 @@ impl ServiceMap {
         Fut: Future<Output = Result<S9pk<S>, Error>>,
         S: FileSource + Clone,
     {
+        let progress = progress.unwrap_or_else(|| FullProgressTracker::new());
+        let mut validate_progress = progress.add_phase("Validating Headers".into(), Some(1));
+        let mut unpack_progress = progress.add_phase("Unpacking".into(), Some(100));
+
         let mut s9pk = s9pk().await?;
+        validate_progress.start();
         s9pk.validate_and_filter(ctx.s9pk_arch)?;
+        validate_progress.complete();
         let manifest = s9pk.as_manifest().clone();
         let id = manifest.id.clone();
         let icon = s9pk.icon_data_url().await?;
         let developer_key = s9pk.as_archive().signer();
         let mut service = self.get_mut(&id).await;
-
+        let size = s9pk.size();
+        if let Some(size) = size {
+            unpack_progress.set_total(size);
+        }
         let op_name = if recovery_source.is_none() {
             if service.is_none() {
-                "Install"
+                "Installing"
             } else {
-                "Update"
+                "Updating"
             }
         } else {
-            "Restore"
+            "Restoring"
         };
-
-        let size = s9pk.size();
-        let progress = progress.unwrap_or_else(|| FullProgressTracker::new());
-        let download_progress_contribution = size.unwrap_or(60);
-        let mut download_progress = progress.add_phase(
-            InternedString::intern("Download"),
-            Some(download_progress_contribution),
-        );
-        if let Some(size) = size {
-            download_progress.set_total(size);
-        }
-        let mut finalization_progress = progress.add_phase(
-            InternedString::intern(op_name),
-            Some(download_progress_contribution / 2),
-        );
+        let mut finalization_progress = progress.add_phase(op_name.into(), Some(50));
         let restoring = recovery_source.is_some();
 
-        let mut reload_guard = ServiceRefReloadGuard::new(ctx.clone(), id.clone(), op_name);
+        let (cancel_send, cancel_recv) = oneshot::channel();
+        ctx.cancellable_installs
+            .mutate(|c| c.insert(id.clone(), cancel_send));
+
+        let mut reload_guard =
+            ServiceRefReloadCancelGuard::new(ctx.clone(), id.clone(), op_name, Some(cancel_recv));
 
         reload_guard
             .handle(async {
@@ -256,15 +256,15 @@ impl ServiceMap {
                             Some(Duration::from_millis(100)),
                         )));
 
-                    download_progress.start();
+                    unpack_progress.start();
                     let mut progress_writer = ProgressTrackerWriter::new(
                         crate::util::io::create_file(&download_path).await?,
-                        download_progress,
+                        unpack_progress,
                     );
                     s9pk.serialize(&mut progress_writer, true).await?;
-                    let (file, mut download_progress) = progress_writer.into_inner();
+                    let (file, mut unpack_progress) = progress_writer.into_inner();
                     file.sync_all().await?;
-                    download_progress.complete();
+                    unpack_progress.complete();
 
                     let installed_path = Path::new(DATA_DIR)
                         .join(PKG_ARCHIVE_DIR)
@@ -339,7 +339,7 @@ impl ServiceMap {
     ) -> Result<(), Error> {
         let mut guard = self.get_mut(id).await;
         if let Some(service) = guard.take() {
-            ServiceRefReloadGuard::new(ctx.clone(), id.clone(), "Uninstall")
+            ServiceRefReloadCancelGuard::new(ctx.clone(), id.clone(), "Uninstall", None)
                 .handle_last(async move {
                     let res = service.uninstall(None, soft, force).await;
                     drop(guard);
@@ -370,32 +370,51 @@ impl ServiceMap {
     }
 }
 
-pub struct ServiceRefReloadGuard(Option<ServiceRefReloadInfo>);
-impl Drop for ServiceRefReloadGuard {
+pub struct ServiceRefReloadCancelGuard(
+    Option<ServiceRefReloadInfo>,
+    Option<Fuse<oneshot::Receiver<()>>>,
+);
+impl Drop for ServiceRefReloadCancelGuard {
     fn drop(&mut self) {
         if let Some(info) = self.0.take() {
             tokio::spawn(info.reload(None));
         }
     }
 }
-impl ServiceRefReloadGuard {
-    pub fn new(ctx: RpcContext, id: PackageId, operation: &'static str) -> Self {
-        Self(Some(ServiceRefReloadInfo { ctx, id, operation }))
+impl ServiceRefReloadCancelGuard {
+    pub fn new(
+        ctx: RpcContext,
+        id: PackageId,
+        operation: &'static str,
+        cancel: Option<oneshot::Receiver<()>>,
+    ) -> Self {
+        Self(
+            Some(ServiceRefReloadInfo { ctx, id, operation }),
+            cancel.map(|c| c.fuse()),
+        )
     }
 
     pub async fn handle<T>(
         &mut self,
         operation: impl Future<Output = Result<T, Error>>,
     ) -> Result<T, Error> {
-        let mut errors = ErrorCollection::new();
-        match operation.await {
+        let res = async {
+            if let Some(cancel) = self.1.as_mut() {
+                tokio::select! {
+                    res = operation => res,
+                    _ = cancel => Err(Error::new(eyre!("Operation Cancelled"), ErrorKind::Cancelled)),
+                }
+            } else {
+                operation.await
+            }
+        }.await;
+        match res {
             Ok(a) => Ok(a),
             Err(e) => {
                 if let Some(info) = self.0.take() {
-                    errors.handle(info.reload(Some(e.clone_output())).await);
+                    tokio::spawn(info.reload(Some(e.clone_output())));
                 }
-                errors.handle::<(), _>(Err(e));
-                errors.into_result().map(|_| unreachable!()) // TODO: there's gotta be a more elegant way?
+                Err(e)
             }
         }
     }

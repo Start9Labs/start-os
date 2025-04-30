@@ -18,6 +18,7 @@ use tokio::sync::watch;
 
 use crate::context::RpcContext;
 use crate::prelude::*;
+use crate::progress::PhaseProgressTrackerHandle;
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::merkle_archive::source::multi_cursor_file::{FileCursor, MultiCursorFile};
 use crate::s9pk::merkle_archive::source::ArchiveSource;
@@ -26,9 +27,10 @@ use crate::util::io::{create_file, TmpDir};
 pub async fn upload(
     ctx: &RpcContext,
     session: Option<InternedString>,
+    progress: PhaseProgressTrackerHandle,
 ) -> Result<(Guid, UploadingFile), Error> {
     let guid = Guid::new();
-    let (mut handle, file) = UploadingFile::new().await?;
+    let (mut handle, file) = UploadingFile::new(progress).await?;
     ctx.rpc_continuations
         .add(
             guid.clone(),
@@ -50,8 +52,8 @@ pub async fn upload(
     Ok((guid, file))
 }
 
-#[derive(Default)]
 struct Progress {
+    tracker: PhaseProgressTrackerHandle,
     expected_size: Option<u64>,
     written: u64,
     error: Option<Error>,
@@ -69,6 +71,7 @@ impl Progress {
         match res {
             Ok(a) => {
                 self.written += *a as u64;
+                self.tracker += *a as u64;
                 true
             }
             Err(e) => self.handle_error(e),
@@ -123,6 +126,7 @@ impl Progress {
         }
     }
     fn complete(&mut self) -> bool {
+        self.tracker.complete();
         match self {
             Self {
                 expected_size: Some(size),
@@ -133,6 +137,7 @@ impl Progress {
                 expected_size: Some(size),
                 written,
                 error,
+                ..
             } if *written > *size && error.is_none() => {
                 *error = Some(Error::new(
                     eyre!("Too many bytes received"),
@@ -171,8 +176,13 @@ pub struct UploadingFile {
     progress: watch::Receiver<Progress>,
 }
 impl UploadingFile {
-    pub async fn new() -> Result<(UploadHandle, Self), Error> {
-        let progress = watch::channel(Progress::default());
+    pub async fn new(progress: PhaseProgressTrackerHandle) -> Result<(UploadHandle, Self), Error> {
+        let progress = watch::channel(Progress {
+            tracker: progress,
+            expected_size: None,
+            written: 0,
+            error: None,
+        });
         let tmp_dir = Arc::new(TmpDir::new().await?);
         let file = create_file(tmp_dir.join("upload.tmp")).await?;
         let uploading = Self {
@@ -327,10 +337,12 @@ impl UploadHandle {
         self.process_headers(request.headers());
         self.process_body(request.into_body().into_data_stream())
             .await;
+        self.progress.send_if_modified(|p| p.complete());
     }
     pub async fn download(&mut self, response: reqwest::Response) {
         self.process_headers(response.headers());
         self.process_body(response.bytes_stream()).await;
+        self.progress.send_if_modified(|p| p.complete());
     }
     fn process_headers(&mut self, headers: &HeaderMap) {
         if let Some(content_length) = headers
@@ -338,8 +350,10 @@ impl UploadHandle {
             .and_then(|a| a.to_str().log_err())
             .and_then(|a| a.parse::<u64>().log_err())
         {
-            self.progress
-                .send_modify(|p| p.expected_size = Some(content_length));
+            self.progress.send_modify(|p| {
+                p.expected_size = Some(content_length);
+                p.tracker.set_total(content_length);
+            });
         }
     }
     async fn process_body<E: Into<Box<(dyn std::error::Error + Send + Sync + 'static)>>>(

@@ -154,13 +154,15 @@ pub async fn install(
         })?
         .s9pk;
 
+    let progress_tracker = FullProgressTracker::new();
+    let download_progress = progress_tracker.add_phase("Downloading".into(), Some(100));
     let download = ctx
         .services
         .install(
             ctx.clone(),
-            || asset.deserialize_s9pk_buffered(ctx.client.clone()),
+            || asset.deserialize_s9pk_buffered(ctx.client.clone(), download_progress),
             None::<Never>,
-            None,
+            Some(progress_tracker),
         )
         .await?;
     tokio::spawn(async move { download.await?.await });
@@ -188,10 +190,15 @@ pub async fn sideload(
     ctx: RpcContext,
     SideloadParams { session }: SideloadParams,
 ) -> Result<SideloadResponse, Error> {
-    let (upload, file) = upload(&ctx, session.clone()).await?;
     let (err_send, mut err_recv) = oneshot::channel::<Error>();
     let progress = Guid::new();
     let progress_tracker = FullProgressTracker::new();
+    let (upload, file) = upload(
+        &ctx,
+        session.clone(),
+        progress_tracker.add_phase("Uploading".into(), Some(100)),
+    )
+    .await?;
     let mut progress_listener = progress_tracker.stream(Some(Duration::from_millis(200)));
     ctx.rpc_continuations
         .add(
@@ -266,6 +273,24 @@ pub async fn sideload(
         }
     });
     Ok(SideloadResponse { upload, progress })
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct CancelInstallParams {
+    pub id: PackageId,
+}
+
+#[instrument(skip_all)]
+pub fn cancel_install(
+    ctx: RpcContext,
+    CancelInstallParams { id }: CancelInstallParams,
+) -> Result<(), Error> {
+    if let Some(cancel) = ctx.cancellable_installs.mutate(|c| c.remove(&id)) {
+        cancel.send(()).ok();
+    }
+    Ok(())
 }
 
 #[derive(Deserialize, Serialize, Parser)]

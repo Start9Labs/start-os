@@ -51,21 +51,26 @@ export type Ready = {
 type DaemonsParams<
   Manifest extends T.SDKManifest,
   Ids extends string,
-  Command extends string,
   Id extends string,
-> = {
-  /** The command line command to start the daemon */
-  command: T.CommandType
-  /** Information about the subcontainer in which the daemon runs */
-  subcontainer: SubContainer<Manifest>
-  env?: Record<string, string>
-  ready: Ready
-  /** An array of IDs of prior daemons whose successful initializations are required before this daemon will initialize */
-  requires: Exclude<Ids, Id>[]
-  sigtermTimeout?: number
-  onStdout?: (chunk: Buffer | string | any) => void
-  onStderr?: (chunk: Buffer | string | any) => void
-}
+> =
+  | {
+      /** The command line command to start the daemon */
+      command: T.CommandType
+      /** Information about the subcontainer in which the daemon runs */
+      subcontainer: SubContainer<Manifest>
+      env?: Record<string, string>
+      ready: Ready
+      /** An array of IDs of prior daemons whose successful initializations are required before this daemon will initialize */
+      requires: Exclude<Ids, Id>[]
+      sigtermTimeout?: number
+      onStdout?: (chunk: Buffer | string | any) => void
+      onStderr?: (chunk: Buffer | string | any) => void
+    }
+  | {
+      daemon: Daemon<Manifest>
+      ready: Ready
+      requires: Exclude<Ids, Id>[]
+    }
 
 type ErrorDuplicateId<Id extends string> = `The id '${Id}' is already used`
 
@@ -136,27 +141,23 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
    * @param newDaemon
    * @returns
    */
-  addDaemon<Id extends string, Command extends string>(
+  addDaemon<Id extends string>(
     // prettier-ignore
     id: 
       "" extends Id ? never :
       ErrorDuplicateId<Id> extends Id ? never :
       Id extends Ids ? ErrorDuplicateId<Id> :
       Id,
-    options: DaemonsParams<Manifest, Ids, Command, Id>,
+    options: DaemonsParams<Manifest, Ids, Id>,
   ) {
-    const daemonIndex = this.daemons.length
-    const daemon = Daemon.of()(
-      this.effects,
-      options.subcontainer,
-      options.command,
-      {
-        ...options,
-      },
-    )
+    const daemon =
+      "daemon" in options
+        ? Promise.resolve(options.daemon)
+        : Daemon.of()(this.effects, options.subcontainer, options.command, {
+            ...options,
+          })
     const healthDaemon = new HealthDaemon(
       daemon,
-      daemonIndex,
       options.requires
         .map((x) => this.ids.indexOf(x))
         .filter((x) => x >= 0)
@@ -165,7 +166,6 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       this.ids,
       options.ready,
       this.effects,
-      options.sigtermTimeout,
     )
     const daemons = this.daemons.concat(daemon)
     const ids = [...this.ids, id] as (Ids | Id)[]
@@ -184,7 +184,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     try {
       this.healthChecks.forEach((health) => health.stop())
       for (let result of await Promise.allSettled(
-        this.healthDaemons.map((x) => x.term({ timeout: x.sigtermTimeout })),
+        this.healthDaemons.map((x) => x.term()),
       )) {
         if (result.status === "rejected") {
           console.error(result.reason)
