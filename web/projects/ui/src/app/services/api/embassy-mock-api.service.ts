@@ -50,10 +50,7 @@ const PROGRESS: T.FullProgress = {
     },
     {
       name: 'Installing',
-      progress: {
-        done: 0,
-        total: 40,
-      },
+      progress: null,
     },
   ],
 }

@@ -27,13 +27,13 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
             <span tuiSubtitle>
               @if (progress.complete) {
                 <tui-icon icon="@tui.check" class="g-positive" />
-                {{ 'Complete' | i18n }}
+                {{ 'complete' | i18n }}
               } @else {
                 @if ((pkg.key | tuiMapper: toStatus | async) === 'backingUp') {
                   <tui-loader size="s" />
-                  {{ 'Backing up' | i18n }}
+                  {{ 'backing up' | i18n }}
                 } @else {
-                  {{ 'Waiting' | i18n }}...
+                  {{ 'waiting' | i18n }}
                 }
               }
             </span>
