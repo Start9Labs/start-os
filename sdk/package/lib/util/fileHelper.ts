@@ -336,7 +336,7 @@ export class FileHelper<A> {
   ) {
     return new FileHelper<A>(
       path,
-      (inData) => INI.stringify(inData, options),
+      (inData) => INI.stringify(JSON.parse(JSON.stringify(inData)), options),
       (inString) => INI.parse(inString, options),
       (data) => shape.unsafeCast(data),
     )
