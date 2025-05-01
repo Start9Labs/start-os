@@ -69,14 +69,14 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
             .catch((err) => console.error(err))
         this.commandController = await this.startCommand()
         if (
-          this.oneshot &&
           (await this.commandController.wait({ keepSubcontainer: true }).then(
             (_) => true,
             (err) => {
               console.error(err)
               return false
             },
-          ))
+          )) &&
+          this.oneshot
         ) {
           for (const fn of this.onExitSuccessFns) {
             try {
