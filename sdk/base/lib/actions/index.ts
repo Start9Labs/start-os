@@ -54,7 +54,7 @@ type ActionRequestBase = {
 }
 type ActionRequestInput<T extends Action<T.ActionId, any, any>> = {
   kind: "partial"
-  value: Partial<GetActionInputType<T>>
+  value: T.DeepPartial<GetActionInputType<T>>
 }
 export type ActionRequestOptions<T extends Action<T.ActionId, any, any>> =
   ActionRequestBase &
