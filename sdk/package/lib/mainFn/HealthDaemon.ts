@@ -5,6 +5,7 @@ import { Daemon } from "./Daemon"
 import { SetHealth, Effects, SDKManifest } from "../../../base/lib/types"
 import { DEFAULT_SIGTERM_TIMEOUT } from "."
 import { asError } from "../../../base/lib/util/asError"
+import { Oneshot } from "./Oneshot"
 
 const oncePromise = <T>() => {
   let resolve: (value: T) => void
@@ -13,6 +14,8 @@ const oncePromise = <T>() => {
   })
   return { resolve: resolve!, promise }
 }
+
+export const EXIT_SUCCESS = "EXIT_SUCCESS" as const
 
 /**
  * Wanted a structure that deals with controlling daemons by their health status
@@ -33,7 +36,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     private readonly dependencies: HealthDaemon<Manifest>[],
     readonly id: string,
     readonly ids: string[],
-    readonly ready: Ready,
+    readonly ready: Ready | typeof EXIT_SUCCESS,
     readonly effects: Effects,
   ) {
     this.readyPromise = new Promise((resolve) => (this.resolveReady = resolve))
@@ -87,6 +90,14 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     this.healthCheckCleanup?.()
   }
   private async setupHealthCheck() {
+    if (this.ready === "EXIT_SUCCESS") {
+      if (this.daemon instanceof Oneshot) {
+        this.daemon.onExitSuccess(() =>
+          this.setHealth({ result: "success", message: null }),
+        )
+      }
+      return
+    }
     if (this.healthCheckCleanup) return
     const trigger = (this.ready.trigger ?? defaultTrigger)(() => ({
       lastResult: this._health.result,
@@ -96,6 +107,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
       done: true
     }>()
     new Promise(async () => {
+      if (this.ready === "EXIT_SUCCESS") return
       for (
         let res = await Promise.race([status, trigger.next()]);
         !res.done;
@@ -142,6 +154,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
 
   private async setHealth(health: HealthCheckResult) {
     this._health = health
+    if (this.ready === "EXIT_SUCCESS") return
     this.healthWatchers.forEach((watcher) => watcher())
     const display = this.ready.display
     if (!display) {
@@ -168,7 +181,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   }
 
   async init() {
-    if (this.ready.display) {
+    if (this.ready !== "EXIT_SUCCESS" && this.ready.display) {
       this.effects.setHealth({
         id: this.id,
         message: null,

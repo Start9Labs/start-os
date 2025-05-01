@@ -1,9 +1,8 @@
 import * as T from "../../../base/lib/types"
 import { asError } from "../../../base/lib/util/asError"
 import { Drop } from "../util"
-import { ExecSpawnable, MountOptions, SubContainer } from "../util/SubContainer"
+import { ExecSpawnable, SubContainer } from "../util/SubContainer"
 import { CommandController } from "./CommandController"
-import { Mounts } from "./Mounts"
 
 const TIMEOUT_INCREMENT_MS = 1000
 const MAX_TIMEOUT_MS = 30000
@@ -15,8 +14,11 @@ const MAX_TIMEOUT_MS = 30000
 export class Daemon<Manifest extends T.SDKManifest> extends Drop {
   private commandController: CommandController<Manifest> | null = null
   private shouldBeRunning = false
-  constructor(
+  protected exitedSuccess = false
+  protected constructor(
     private startCommand: () => Promise<CommandController<Manifest>>,
+    readonly oneshot: boolean = false,
+    protected onExitSuccessFns: (() => void)[] = [],
   ) {
     super()
   }
@@ -29,6 +31,7 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
       subcontainer: SubContainer<Manifest>,
       command: T.CommandType,
       options: {
+        runAsInit?: boolean
         env?:
           | {
               [variable: string]: string
@@ -56,6 +59,7 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
       return
     }
     this.shouldBeRunning = true
+    this.exitedSuccess = false
     let timeoutCounter = 0
     ;(async () => {
       while (this.shouldBeRunning) {
@@ -64,9 +68,27 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
             .term({ keepSubcontainer: true })
             .catch((err) => console.error(err))
         this.commandController = await this.startCommand()
-        await this.commandController
-          .wait({ keepSubcontainer: true })
-          .catch((err) => console.error(err))
+        if (
+          this.oneshot &&
+          (await this.commandController.wait({ keepSubcontainer: true }).then(
+            (_) => true,
+            (err) => {
+              console.error(err)
+              return false
+            },
+          ))
+        ) {
+          for (const fn of this.onExitSuccessFns) {
+            try {
+              fn()
+            } catch (e) {
+              console.error("EXIT_SUCCESS handler", e)
+            }
+          }
+          this.onExitSuccessFns = []
+          this.exitedSuccess = true
+          break
+        }
         await new Promise((resolve) => setTimeout(resolve, timeoutCounter))
         timeoutCounter += TIMEOUT_INCREMENT_MS
         timeoutCounter = Math.min(MAX_TIMEOUT_MS, timeoutCounter)
