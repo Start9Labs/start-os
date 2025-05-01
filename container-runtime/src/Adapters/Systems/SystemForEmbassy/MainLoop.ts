@@ -56,29 +56,27 @@ export class MainLoop {
     if (jsMain) {
       throw new Error("Unreachable")
     }
-    const daemon = new Daemon(async () => {
-      const subcontainer = await DockerProcedureContainer.createSubContainer(
-        effects,
-        this.system.manifest.id,
-        this.system.manifest.main,
-        this.system.manifest.volumes,
-        `Main - ${currentCommand.join(" ")}`,
-      )
-      return CommandController.of()(
-        this.effects,
-        subcontainer,
-        currentCommand,
-        {
-          runAsInit: true,
-          env: {
-            TINI_SUBREAPER: "true",
-          },
-          sigtermTimeout: utils.inMs(
-            this.system.manifest.main["sigterm-timeout"],
-          ),
+    const subcontainer = await DockerProcedureContainer.createSubContainer(
+      effects,
+      this.system.manifest.id,
+      this.system.manifest.main,
+      this.system.manifest.volumes,
+      `Main - ${currentCommand.join(" ")}`,
+    )
+    const daemon = await Daemon.of()(
+      this.effects,
+      subcontainer,
+      currentCommand,
+      {
+        runAsInit: true,
+        env: {
+          TINI_SUBREAPER: "true",
         },
-      )
-    })
+        sigtermTimeout: utils.inMs(
+          this.system.manifest.main["sigterm-timeout"],
+        ),
+      },
+    )
 
     daemon.start()
     return {

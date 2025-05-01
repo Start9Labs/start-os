@@ -54,6 +54,7 @@ type NewDaemonParams<Manifest extends T.SDKManifest> = {
   command: T.CommandType
   /** Information about the subcontainer in which the daemon runs */
   subcontainer: SubContainer<Manifest>
+  runAsInit?: boolean
   env?: Record<string, string>
   sigtermTimeout?: number
   onStdout?: (chunk: Buffer | string | any) => void

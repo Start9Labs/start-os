@@ -31,6 +31,7 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
       subcontainer: SubContainer<Manifest>,
       command: T.CommandType,
       options: {
+        runAsInit?: boolean
         env?:
           | {
               [variable: string]: string
