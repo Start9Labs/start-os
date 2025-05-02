@@ -156,6 +156,10 @@ config rule
 	list proto 'icmp'
 
 config forwarding
-	option src 'vlan_foo'
-	option dest 'wan'
+	option src 'lan'
+	option dest 'vlan_foo'
+
+config forwarding
+	option src 'lan'
+	option dest 'vlan_guest'
 

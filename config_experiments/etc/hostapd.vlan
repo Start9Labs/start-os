@@ -1,3 +1,0 @@
-99 wlan0.admin br-lan
-101 wlan0.guest br-lan
-102 wlan0.foo br-lan
