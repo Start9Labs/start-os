@@ -50,7 +50,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
           size="m"
           [max]="100"
           [class.g-positive]="phase.progress === true"
-          [value]="isPending(phase.progress) ? undefined : percent"
+          [value]="isIndeterminate(phase.progress) ? undefined : percent"
         ></progress>
       </div>
     }
@@ -87,9 +87,10 @@ export class ServiceInstallProgressComponent {
   private readonly errorService = inject(ErrorService)
   private readonly loader = inject(LoadingService)
 
-  isPending(progress: T.Progress): boolean {
+  isIndeterminate(progress: T.Progress): boolean {
     return (
-      !progress || (progress && progress !== true && progress.total === null)
+      progress === false ||
+      (!!progress && progress !== true && progress.total === null)
     )
   }
 
