@@ -16,13 +16,6 @@ config device
 	list ports 'eth2'
 	list ports 'eth3'
 
-config interface 'lan'
-	option device 'br-lan.99'
-	option proto 'static'
-	option ipaddr '192.168.1.1'
-	option netmask '255.255.255.0'
-	option ip6assign '60'
-
 config interface 'wan'
 	option device 'eth0'
 	option proto 'dhcp'
@@ -49,16 +42,24 @@ config bridge-vlan
 	option vlan '99'
 	list ports 'eth1:u*'
 
-config interface 'guest'
+config interface 'lan'
+	option device 'br-lan.99'
 	option proto 'static'
+	option ipaddr '192.168.1.1'
+	option netmask '255.255.255.0'
+	option ip6assign '60'
+
+config interface 'guest'
 	option device 'br-lan.101'
+	option proto 'static'
 	option ipaddr '192.168.2.1'
 	option netmask '255.255.255.0'
 	option ip6assign '60'
 
 config interface 'foo'
-	option proto 'static'
 	option device 'br-lan.102'
+	option proto 'static'
 	option ipaddr '192.168.3.1'
 	option netmask '255.255.255.0'
+	option ip6assign '60'
 

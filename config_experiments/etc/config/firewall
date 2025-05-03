@@ -22,6 +22,20 @@ config zone
 	list network 'wan'
 	list network 'wan6'
 
+config zone
+	option name 'vlan_guest'
+	option input 'ACCEPT'
+	option output 'ACCEPT'
+	option forward 'ACCEPT'
+	list network 'guest'
+
+config zone
+	option name 'vlan_foo'
+	option input 'REJECT'
+	option output 'ACCEPT'
+	option forward 'REJECT'
+	list network 'foo'
+
 config forwarding
 	option src 'lan'
 	option dest 'wan'
@@ -119,23 +133,9 @@ config rule
 	option proto 'udp'
 	option target 'ACCEPT'
 
-config zone
-	option name 'vlan_guest'
-	option input 'ACCEPT'
-	option output 'ACCEPT'
-	option forward 'ACCEPT'
-	list network 'guest'
-
 config forwarding
 	option src 'vlan_guest'
 	option dest 'wan'
-
-config zone
-	option name 'vlan_foo'
-	option input 'REJECT'
-	option output 'ACCEPT'
-	option forward 'REJECT'
-	list network 'foo'
 
 config rule
 	option name 'Allow-DHCP-DNS-Guest'
