@@ -273,7 +273,7 @@ export class MarketplaceRegistryModal {
     loader.closed = false
     loader.add(this.loader.open('Saving').subscribe())
 
-    await this.api.setDbValue(['altRegistries', url], name)
+    await this.api.setDbValue(['registries', url], name)
   }
 }
 
