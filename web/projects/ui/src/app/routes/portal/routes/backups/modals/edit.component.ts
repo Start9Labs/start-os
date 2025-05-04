@@ -63,7 +63,13 @@ import { TARGET, TARGET_CREATE } from './target.component'
       </div>
       <div *ngIf="!job.job.id" class="g-toggle">
         Also Execute Now
-        <input tuiSwitch type="checkbox" name="now" [(ngModel)]="job.now" />
+        <input
+          tuiSwitch
+          type="checkbox"
+          name="now"
+          [showIcons]="false"
+          [(ngModel)]="job.now"
+        />
       </div>
       <button
         tuiButton

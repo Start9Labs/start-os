@@ -66,6 +66,7 @@ import { wifiSpec } from './wifi.const'
             type="checkbox"
             tuiSwitch
             [style.margin-inline-start]="'auto'"
+            [showIcons]="false"
             [ngModel]="status()?.enabled"
             (ngModelChange)="onToggle($event)"
           />
