@@ -22,27 +22,30 @@ keyid=guest 00:00:00:00:00:00 guestpassword
 ## check key of client
 - `hostapd_cli all_sta`
 
-# Security Profiles with secprofd
-
-The idea here was to monitor all ip<->mac parings via addrwatch or by
-participating in dhcp and also monitor keid<->mac pairings via the hostapd unix
-socket (which is used by hostapd_cli under the hood). Then generate nftables
-rules to open and close doors between ip addresses as quickly as possible based
-on their associated mac addresss and keyids.
-
-It is not possible to use mac addrs in nftables because that is a layer 2
-(ethernet), strictly between the device and the router. Routing between devices
-is entirely layer 3 (IP). We could somehow tag packets at layer 2, then check
-the tag in the nftables rules at layer 3. That is basically a IEEE 802.1Q VLAN, and the
-VLAN tagging can be done with hostapd directly!
-
 # Security Profiles with VLANs
+
+Every security profile is simply VLAN with its own subnet. That is basically
+what VLANs are built to do. The config_experiments folder has the UCI configs
+we came up with when manually setting up security profiles on a test device.
 
 The source of truth for all of this is:
 https://forum.openwrt.org/t/individual-per-passphrase-wifi-vlans-using-wpa-psk-file-no-radius-required
 
 I have also gotten a lot of good info from:
 https://fabianlee.org/2023/01/22/openwrt-bridge-vlan-filtering-for-openwrt-21-x-with-dsa-isolated-guest-wi-fi
+
+There are also markdown exports of those articles in the `notes/` folder, useful
+for plugging into LLMs like gemini 2.5 in order to get a bit of a Q&A session.
+
+# Security Profiles with secprofd (Old Idea)
+
+The idea here was to monitor all ip<->mac parings via addrwatch or by
+participating in dhcp and also monitor keid<->mac pairings via the hostapd unix
+socket (which is used by hostapd_cli under the hood). Then generate nftables
+rules to open and close doors between ip addresses as quickly as possible
+based on their associated mac addresss and keyids. This fundementally could not
+work because a lot of the routing happens at layer 2 in-hardware, without ever
+consulting the operating system.
 
 # Wifi Modules
 
