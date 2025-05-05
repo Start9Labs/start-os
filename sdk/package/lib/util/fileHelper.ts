@@ -66,6 +66,10 @@ export type Transformers<Raw = unknown, Transformed = unknown> = {
   onWrite: (value: Transformed) => Raw
 }
 
+type Validator<T, U> = T extends infer R
+  ? matches.Validator<R, U>
+  : matches.Validator<unknown, U>
+
 /**
  * @description Use this class to read/write an underlying configuration file belonging to the upstream service.
  *
@@ -317,7 +321,7 @@ export class FileHelper<A> {
    */
   static json<A>(
     path: string,
-    shape: matches.Validator<unknown, A>,
+    shape: Validator<unknown, A>,
     transformers?: Transformers,
   ) {
     return FileHelper.rawTransformed(
@@ -334,16 +338,16 @@ export class FileHelper<A> {
    */
   static yaml<A extends Record<string, unknown>>(
     path: string,
-    shape: matches.Validator<Record<string, unknown>, A>,
+    shape: Validator<Record<string, unknown>, A>,
   ): FileHelper<A>
   static yaml<A extends Transformed, Transformed = Record<string, unknown>>(
     path: string,
-    shape: matches.Validator<Transformed, A>,
+    shape: Validator<Transformed, A>,
     transformers: Transformers<Record<string, unknown>, Transformed>,
   ): FileHelper<A>
   static yaml<A extends Transformed, Transformed = Record<string, unknown>>(
     path: string,
-    shape: matches.Validator<Transformed, A>,
+    shape: Validator<Transformed, A>,
     transformers?: Transformers<Record<string, unknown>, Transformed>,
   ) {
     return FileHelper.rawTransformed<A, Record<string, unknown>, Transformed>(
@@ -357,18 +361,18 @@ export class FileHelper<A> {
 
   static ini<A extends Record<string, unknown>>(
     path: string,
-    shape: matches.Validator<Record<string, unknown>, A>,
+    shape: Validator<Record<string, unknown>, A>,
     options?: INI.EncodeOptions & INI.DecodeOptions,
   ): FileHelper<A>
   static ini<A extends Transformed, Transformed = Record<string, unknown>>(
     path: string,
-    shape: matches.Validator<Transformed, A>,
+    shape: Validator<Transformed, A>,
     options: INI.EncodeOptions & INI.DecodeOptions,
     transformers: Transformers<Record<string, unknown>, Transformed>,
   ): FileHelper<A>
   static ini<A extends Transformed, Transformed = Record<string, unknown>>(
     path: string,
-    shape: matches.Validator<Transformed, A>,
+    shape: Validator<Transformed, A>,
     options?: INI.EncodeOptions & INI.DecodeOptions,
     transformers?: Transformers<Record<string, unknown>, Transformed>,
   ): FileHelper<A> {
@@ -383,16 +387,16 @@ export class FileHelper<A> {
 
   static env<A extends Record<string, string>>(
     path: string,
-    shape: matches.Validator<Record<string, string>, A>,
+    shape: Validator<Record<string, string>, A>,
   ): FileHelper<A>
   static env<A extends Transformed, Transformed = Record<string, string>>(
     path: string,
-    shape: matches.Validator<Transformed, A>,
+    shape: Validator<Transformed, A>,
     transformers: Transformers<Record<string, string>, Transformed>,
   ): FileHelper<A>
   static env<A extends Transformed, Transformed = Record<string, string>>(
     path: string,
-    shape: matches.Validator<Transformed, A>,
+    shape: Validator<Transformed, A>,
     transformers?: Transformers<Record<string, string>, Transformed>,
   ) {
     return FileHelper.rawTransformed<A, Record<string, string>, Transformed>(
