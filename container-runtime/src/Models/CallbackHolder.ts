@@ -35,10 +35,15 @@ export class CallbackHolder {
   }
   child(name: string): CallbackHolder {
     this.removeChild(name)
-    const child = new CallbackHolder()
+    const child = new CallbackHolder(this.effects)
     this.children.set(name, child)
     return child
   }
+
+  getChild(name: string): CallbackHolder | null {
+    return this.children.get(name) || null
+  }
+
   removeChild(name: string) {
     const child = this.children.get(name)
     if (child) {
@@ -60,7 +65,9 @@ export class CallbackHolder {
   callCallback(index: number, args: any[]): Promise<unknown> {
     const callback = this.getCallback(index)
     if (!callback) return Promise.resolve()
-    return Promise.resolve().then(() => callback(...args))
+    return Promise.resolve()
+      .then(() => callback(...args))
+      .catch((e) => console.error("callback failed", e))
   }
   onLeaveContext(fn: Function) {
     this.onLeaveContextCallbacks.push(fn)

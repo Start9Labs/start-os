@@ -289,7 +289,8 @@ export class RpcListener {
         return null
       })
       .when(startType, async ({ id }) => {
-        const callbacks = this.callbacks?.child("main")
+        const callbacks =
+          this.callbacks?.getChild("main") || this.callbacks?.child("main")
         const effects = makeEffects({
           procedureId: null,
           callbacks,
