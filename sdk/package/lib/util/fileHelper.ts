@@ -66,9 +66,7 @@ export type Transformers<Raw = unknown, Transformed = unknown> = {
   onWrite: (value: Transformed) => Raw
 }
 
-type Validator<T, U> = T extends infer R
-  ? matches.Validator<R, U>
-  : matches.Validator<unknown, U>
+type Validator<T, U> = matches.Validator<T, U> | matches.Validator<unknown, U>
 
 /**
  * @description Use this class to read/write an underlying configuration file belonging to the upstream service.
