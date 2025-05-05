@@ -61,6 +61,11 @@ function fileMerge(...args: any[]): any {
   return res
 }
 
+export type Transformers<Raw = unknown, Transformed = unknown> = {
+  onRead: (value: Raw) => Transformed
+  onWrite: (value: Transformed) => Raw
+}
+
 /**
  * @description Use this class to read/write an underlying configuration file belonging to the upstream service.
  *
@@ -287,30 +292,40 @@ export class FileHelper<A> {
     return new FileHelper<A>(path, toFile, fromFile, validate)
   }
 
-  /**
-   * Create a File Helper for a .json file.
-   */
-  static json<A>(path: string, shape: matches.Validator<unknown, A>) {
+  private static rawTransformed<A extends Transformed, Raw, Transformed>(
+    path: string,
+    toFile: (dataIn: Raw) => string,
+    fromFile: (rawData: string) => Raw,
+    validate: (data: Transformed) => A,
+    transformers: Transformers<Raw, Transformed> | undefined,
+  ) {
     return new FileHelper<A>(
       path,
-      (inData) => JSON.stringify(inData, null, 2),
-      (inString) => JSON.parse(inString),
-      (data) => shape.unsafeCast(data),
+      (inData) => {
+        if (transformers) {
+          return toFile(transformers.onWrite(inData))
+        }
+        return toFile(inData as any as Raw)
+      },
+      fromFile,
+      validate as (a: unknown) => A,
     )
   }
 
   /**
-   * Create a File Helper for a .toml file
+   * Create a File Helper for a .json file.
    */
-  static toml<A extends Record<string, unknown>>(
+  static json<A>(
     path: string,
     shape: matches.Validator<unknown, A>,
+    transformers?: Transformers,
   ) {
-    return new FileHelper<A>(
+    return FileHelper.rawTransformed(
       path,
-      (inData) => TOML.stringify(inData as any),
-      (inString) => TOML.parse(inString),
+      (inData) => JSON.stringify(inData, null, 2),
+      (inString) => JSON.parse(inString),
       (data) => shape.unsafeCast(data),
+      transformers,
     )
   }
 
@@ -319,34 +334,68 @@ export class FileHelper<A> {
    */
   static yaml<A extends Record<string, unknown>>(
     path: string,
-    shape: matches.Validator<unknown, A>,
+    shape: matches.Validator<Record<string, unknown>, A>,
+  ): FileHelper<A>
+  static yaml<A extends Transformed, Transformed = Record<string, unknown>>(
+    path: string,
+    shape: matches.Validator<Transformed, A>,
+    transformers: Transformers<Record<string, unknown>, Transformed>,
+  ): FileHelper<A>
+  static yaml<A extends Transformed, Transformed = Record<string, unknown>>(
+    path: string,
+    shape: matches.Validator<Transformed, A>,
+    transformers?: Transformers<Record<string, unknown>, Transformed>,
   ) {
-    return new FileHelper<A>(
+    return FileHelper.rawTransformed<A, Record<string, unknown>, Transformed>(
       path,
       (inData) => YAML.stringify(inData, null, 2),
       (inString) => YAML.parse(inString),
       (data) => shape.unsafeCast(data),
+      transformers,
     )
   }
 
   static ini<A extends Record<string, unknown>>(
     path: string,
-    shape: matches.Validator<unknown, A>,
+    shape: matches.Validator<Record<string, unknown>, A>,
     options?: INI.EncodeOptions & INI.DecodeOptions,
-  ) {
-    return new FileHelper<A>(
+  ): FileHelper<A>
+  static ini<A extends Transformed, Transformed = Record<string, unknown>>(
+    path: string,
+    shape: matches.Validator<Transformed, A>,
+    options: INI.EncodeOptions & INI.DecodeOptions,
+    transformers: Transformers<Record<string, unknown>, Transformed>,
+  ): FileHelper<A>
+  static ini<A extends Transformed, Transformed = Record<string, unknown>>(
+    path: string,
+    shape: matches.Validator<Transformed, A>,
+    options?: INI.EncodeOptions & INI.DecodeOptions,
+    transformers?: Transformers<Record<string, unknown>, Transformed>,
+  ): FileHelper<A> {
+    return FileHelper.rawTransformed<A, Record<string, unknown>, Transformed>(
       path,
       (inData) => INI.stringify(JSON.parse(JSON.stringify(inData)), options),
       (inString) => INI.parse(inString, options),
       (data) => shape.unsafeCast(data),
+      transformers,
     )
   }
 
   static env<A extends Record<string, string>>(
     path: string,
-    shape: matches.Validator<unknown, A>,
+    shape: matches.Validator<Record<string, string>, A>,
+  ): FileHelper<A>
+  static env<A extends Transformed, Transformed = Record<string, string>>(
+    path: string,
+    shape: matches.Validator<Transformed, A>,
+    transformers: Transformers<Record<string, string>, Transformed>,
+  ): FileHelper<A>
+  static env<A extends Transformed, Transformed = Record<string, string>>(
+    path: string,
+    shape: matches.Validator<Transformed, A>,
+    transformers?: Transformers<Record<string, string>, Transformed>,
   ) {
-    return new FileHelper<A>(
+    return FileHelper.rawTransformed<A, Record<string, string>, Transformed>(
       path,
       (inData) =>
         Object.entries(inData)
@@ -361,6 +410,7 @@ export class FileHelper<A> {
             .map((line) => line.split("=", 2)),
         ),
       (data) => shape.unsafeCast(data),
+      transformers,
     )
   }
 }
