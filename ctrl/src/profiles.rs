@@ -88,7 +88,7 @@ struct ProfileConfig {
     pub fullname: String,
     pub interface: String,
     pub vlan_tag: u16,
-    #[uci(default)]
+    #[uci(default_value = "false")]
     pub access_to_new_profiles: bool,
 }
 
@@ -106,15 +106,15 @@ pub fn get<C: Context>(_ctx: C, query: ProfileIdAndName) -> Result<Profile, Erro
     let (interface, vlan_tag) = parse_config("./etc/config/startwrt", |mut cfg| {
         let mut found = None;
         while cfg.step() {
-            let Ok(ProfileConfig {
+            if cfg.ty() != ProfileConfig::TY {
+                continue;
+            };
+            let ProfileConfig {
                 fullname,
                 interface,
                 vlan_tag,
                 access_to_new_profiles,
-            }) = cfg.get()
-            else {
-                continue;
-            };
+            } = cfg.get()?;
             if match (&query.fullname, &query.interface, query.vlan_tag) {
                 (_, Some(i), Some(v)) => &interface == i && vlan_tag == v,
                 (_, None, Some(v)) => vlan_tag == v,

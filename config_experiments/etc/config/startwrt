@@ -2,8 +2,7 @@ config profile lan
 	option fullname Admin
 	option interface lan
 	option vlan_tag 99
-	# TODO: this should be 1 or 0 once uciedit can parse bools properly
-	option access_to_new_profiles true
+	option access_to_new_profiles 1
 
 config profile guest
 	option fullname Guest

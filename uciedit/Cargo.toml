@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-inpt = "0.1.4"
+inpt = "0.1.5"
 fd-lock-rs = "0.1.4"
 bumpalo = "3.17"
 typed-arena = "2.0.2"

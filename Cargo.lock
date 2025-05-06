@@ -1120,9 +1120,9 @@ dependencies = [
 
 [[package]]
 name = "inpt"
-version = "0.1.4"
+version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7c404ae0087f49e50105337bdf2a75ab004c8ba92df4c25c5f9d104ba185f3c2"
+checksum = "0834f5c5e60c2af4a35375f648ed5c8a37589c7a03727b378ded856522772226"
 dependencies = [
  "console",
  "inpt-macros",

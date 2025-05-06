@@ -1,7 +1,9 @@
 use darling::{FromDeriveInput, FromField};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
-use syn::{parse_macro_input, parse_quote, Data, DeriveInput, GenericArgument, Ident, Path, Type};
+use syn::{
+    parse_macro_input, parse_quote, Data, DeriveInput, Expr, GenericArgument, Ident, Path, Type,
+};
 
 #[derive(FromDeriveInput, Default)]
 #[darling(default, attributes(uci))]
@@ -9,73 +11,90 @@ struct UciSectionOpts {
     ty: Option<String>,
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum ParseMode {
+    FromStr,
+    Inpt,
+    Bool,
+}
+
+use ParseMode::*;
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum AggMode {
+    Optional,
+    Single,
+    List,
+}
+
+use AggMode::*;
+
 #[derive(FromField, Default)]
 #[darling(default, attributes(uci))]
 struct UciFieldOpts {
     rename: Option<String>,
     default: bool,
+    default_value: Option<Expr>,
+    inpt: bool,
 }
 
 struct UciField {
     placehold: Ident,
     field: Ident,
     name: String,
-    is_opt: bool,
-    is_vec: bool,
-    is_inpt: bool,
     default: bool,
+    default_value: Option<Expr>,
+    agg: AggMode,
+    parse: ParseMode,
     crat: Path,
 }
 
 impl UciField {
     fn read_decl(&self) -> TokenStream {
         let UciField { placehold, .. } = self;
-        if self.is_vec {
-            quote!(let mut #placehold = Vec::new();)
-        } else {
-            quote!(let mut #placehold = None;)
+        match self.agg {
+            Optional | Single => quote! { let mut #placehold = None; },
+            List => quote! { let mut #placehold = Vec::new(); },
         }
     }
 
     fn read_option_arm(&self) -> TokenStream {
-        if self.is_vec {
+        if self.agg == List {
             return TokenStream::new();
         }
         let UciField {
-            placehold,
-            name,
-            crat,
-            ..
+            placehold, name, ..
         } = self;
-        if self.is_inpt {
-            quote! {
-                #name if #placehold.is_none() => #placehold = Some(#crat::inpt(&value.as_str()).map_err(|e| #crat::error!("{e}"))?),
-            }
-        } else {
-            quote! {
-                #name if #placehold.is_none() => #placehold = Some(std::str::FromStr::from_str(&value.as_str()).map_err(|e| #crat::Error::parse(e, index))?),
-            }
+        match self.parse {
+            FromStr => quote! {
+                #name if #placehold.is_none() => #placehold = Some(value.parse_fromstr(index)?),
+            },
+            Inpt => quote! {
+                #name if #placehold.is_none() => #placehold = Some(value.parse_inpt(index, arena)?),
+            },
+            Bool => quote! {
+                #name if #placehold.is_none() => #placehold = Some(value.parse_bool(index)?),
+            },
         }
     }
 
     fn read_list_arm(&self) -> TokenStream {
-        if !self.is_vec {
+        if self.agg != List {
             return TokenStream::new();
         }
         let UciField {
-            placehold,
-            name,
-            crat,
-            ..
+            placehold, name, ..
         } = self;
-        if self.is_inpt {
-            quote! {
-                #name => #placehold.push(#crat::inpt(&item.as_str()).map_err(|e| #crat::error!("{e}"))?),
-            }
-        } else {
-            quote! {
-                #name => #placehold.push(std::str::FromStr::from_str(&item.as_str()).map_err(|e| #crat::Error::parse(e, index))?),
-            }
+        match self.parse {
+            FromStr => quote! {
+                #name => #placehold.push(item.parse_fromstr(index)?),
+            },
+            Inpt => quote! {
+                #name => #placehold.push(item.parse_inpt(index, arena)?),
+            },
+            Bool => quote! {
+                #name => #placehold.push(item.parse_bool(index)?),
+            },
         }
     }
 
@@ -87,12 +106,21 @@ impl UciField {
             name,
             ..
         } = self;
-        if self.is_opt || self.is_vec {
-            quote! { #field: #placehold, }
-        } else if self.default {
-            quote! { #field: #placehold.unwrap_or_default(), }
-        } else {
-            quote! { #field: #placehold.ok_or(#crat::Error::MissingOption { line_number: start_index, missing: #name.into() })?, }
+        match (&self.default_value, self.agg, self.default) {
+            (Some(value), Optional, _) => {
+                quote! { #field: #placehold.or_else(|| #value), }
+            }
+            (Some(value), List, _) => {
+                quote! { #field: if #placehold.is_empty() { #value } else { #placehold }, }
+            }
+            (Some(value), Single, _) => {
+                quote! { #field: #placehold.unwrap_or_else(|| #value), }
+            }
+            (None, Optional | List, _) => quote! { #field: #placehold, },
+            (None, Single, true) => quote! { #field: #placehold.unwrap_or_default(), },
+            (None, Single, false) => {
+                quote! { #field: #placehold.ok_or(#crat::Error::MissingOption { line_number: start_index, missing: #name.into() })?, }
+            }
         }
     }
 
@@ -104,32 +132,30 @@ impl UciField {
             name,
             ..
         } = self;
-        match (self.is_opt, self.is_vec) {
-            (false, false) => quote! {
-                let mut #placehold = Some(#crat::Line::Option {
-                    option: #crat::Token::from_str(#name, arena),
-                    value: #crat::Token::from_display(&self.#field, arena),
-                })
-                .into_iter();
+        match (self.agg, self.parse) {
+            (Single, Bool) => quote! {
+                let mut #placehold = [#crat::Line::option_from_bool(#name, self.#field, arena)].into_iter();
             },
-            (true, false) => quote! {
-                let mut #placehold = self.#field.iter().map(|value| #crat::Line::Option {
-                    option: #crat::Token::from_str(#name, arena),
-                    value: #crat::Token::from_display(value, arena),
-                });
+            (Optional, Bool) => quote! {
+                let mut #placehold = self.#field.iter().map(|v| #crat::Line::option_from_bool(#name, *v, arena));
             },
-            (false, true) => quote! {
-                let mut #placehold = self.#field.iter().map(|item| #crat::Line::List {
-                    list: #crat::Token::from_str(#name, arena),
-                    item: #crat::Token::from_display(item, arena),
-                });
+            (List, Bool) => quote! {
+                let mut #placehold = #crat::Line::list_from_bool(#name, &self.#field, arena);
             },
-            _ => panic!("can not be both Option and Vec"),
+            (Single, Inpt | FromStr) => quote! {
+                let mut #placehold = [#crat::Line::option_from_display(#name, &self.#field, arena)].into_iter();
+            },
+            (Optional, Inpt | FromStr) => quote! {
+                let mut #placehold = self.#field.iter().map(|v| #crat::Line::option_from_display(#name, v, arena));
+            },
+            (List, Inpt | FromStr) => quote! {
+                let mut #placehold = #crat::Line::list_from_display(#name, &self.#field, arena);
+            },
         }
     }
 
     fn write_option_arm(&self) -> TokenStream {
-        if self.is_vec {
+        if self.agg == List {
             return TokenStream::new();
         }
         let UciField {
@@ -141,7 +167,7 @@ impl UciField {
     }
 
     fn write_list_arm(&self) -> TokenStream {
-        if !self.is_vec {
+        if self.agg != List {
             return TokenStream::new();
         }
         let UciField {
@@ -283,6 +309,19 @@ fn is_collection_with_generic(ty: &Type, collection: &str) -> bool {
     false
 }
 
+fn is_primative(ty: &Type, ident: &str) -> bool {
+    if let Type::Path(path) = ty {
+        if path.path.segments.len() == 1 {
+            if let Some(segment) = path.path.segments.first() {
+                if segment.ident == ident {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
 #[proc_macro_derive(UciSection, attributes(uci))]
 pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -307,10 +346,22 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     None => i.to_string(),
                     Some(rename) => rename,
                 },
-                is_opt: is_collection_with_generic(&f.ty, "Option"),
-                is_vec: is_collection_with_generic(&f.ty, "Vec"),
-                is_inpt: false,
                 default: o.default,
+                default_value: o.default_value,
+                agg: if is_collection_with_generic(&f.ty, "Option") {
+                    Optional
+                } else if is_collection_with_generic(&f.ty, "Vec") {
+                    List
+                } else {
+                    Single
+                },
+                parse: if o.inpt {
+                    Inpt
+                } else if is_primative(&f.ty, "bool") {
+                    Bool
+                } else {
+                    FromStr
+                },
                 crat: crat.clone(),
             }
         })

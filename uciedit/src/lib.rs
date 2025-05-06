@@ -1,10 +1,11 @@
 extern crate self as uciedit;
 
 pub use inpt::inpt;
-use inpt::split::{Quoted, SingleQuoted, Spaced};
+use inpt::split::{unescape, Quoted, SingleQuoted, Spaced};
 use inpt::{inpt_step, Inpt, InptStep};
+use std::fmt::Display;
 use std::io::{self, BufRead, BufWriter, Seek};
-use std::str::Utf8Error;
+use std::str::{FromStr, Utf8Error};
 use std::{borrow::Cow, fs::File, path::Path};
 use std::{fmt, fs};
 pub use uciedit_macros::UciSection;
@@ -38,10 +39,14 @@ pub enum Error {
         found: String,
     },
     #[error("error parsing a value on line {line_number}: {error:?}")]
-    Parse {
+    ValueDyn {
         line_number: usize,
         error: Box<dyn std::error::Error + Sync + Send>,
     },
+    #[error("error parsing a value on line {line_number}: {desc:?}")]
+    ValueMsg { line_number: usize, desc: String },
+    #[error("error parsing a value on line {line_number}: {found:?} should be a boolean")]
+    ValueBoolean { line_number: usize, found: String },
     #[error("missing option {missing:?} in config")]
     MissingOption { line_number: usize, missing: String },
 }
@@ -51,7 +56,7 @@ impl Error {
         error: impl std::error::Error + Sync + Send + 'static,
         line_number: usize,
     ) -> Self {
-        Error::Parse {
+        Error::ValueDyn {
             line_number,
             error: Box::new(error),
         }
@@ -453,6 +458,52 @@ impl<'a> Line<'a> {
             Line::Comment { indent: true, .. } | Line::Option { .. } | Line::List { .. }
         )
     }
+
+    pub fn option_from_display(option: &'a str, value: impl Display, arena: &'a Arena) -> Self {
+        let option = Token::from_str(option, arena);
+        Line::Option {
+            option,
+            value: Token::from_display(value, arena),
+        }
+    }
+
+    pub fn list_from_display<'i>(
+        list: &'a str,
+        items: impl IntoIterator<Item = impl Display + 'i> + 'i,
+        arena: &'a Arena,
+    ) -> impl Iterator<Item = Self> + 'i
+    where
+        'a: 'i,
+    {
+        let list = Token::from_str(list, arena);
+        items.into_iter().map(move |item| Line::List {
+            list,
+            item: Token::from_display(item, arena),
+        })
+    }
+
+    pub fn option_from_bool(option: &'a str, value: bool, arena: &'a Arena) -> Self {
+        let option = Token::from_str(option, arena);
+        Line::Option {
+            option,
+            value: Token::from_bool(value),
+        }
+    }
+
+    pub fn list_from_bool<'i>(
+        list: &'a str,
+        items: impl IntoIterator<Item = bool> + 'i,
+        arena: &'a Arena,
+    ) -> impl Iterator<Item = Self> + 'i
+    where
+        'a: 'i,
+    {
+        let list = Token::from_str(list, arena);
+        items.into_iter().map(move |item| Line::List {
+            list,
+            item: Token::from_bool(item),
+        })
+    }
 }
 
 #[derive(Inpt, Clone, Copy)]
@@ -463,16 +514,23 @@ pub enum Token<'a> {
 }
 
 impl<'a> Token<'a> {
-    pub fn as_str(&self) -> Cow<str> {
+    pub fn as_str(self) -> Cow<'a, str> {
         // TODO: inpt doesn't currently do unescaping
         match self {
-            Token::Q(x) => x.unescape(),
-            Token::Sq(x) => x.unescape(),
+            Token::Q(x) => unescape(x.inner),
+            Token::Sq(x) => unescape(x.inner),
             Token::W(x) => Cow::Borrowed(x.inner),
         }
     }
 
-    pub fn from_display(s: &impl fmt::Display, arena: &'a Arena) -> Self {
+    pub fn as_arena_str(self, arena: &'a Arena) -> &'a str {
+        match self.as_str() {
+            Cow::Borrowed(x) => x,
+            Cow::Owned(x) => arena.alloc(x),
+        }
+    }
+
+    pub fn from_display(s: impl fmt::Display, arena: &'a Arena) -> Self {
         Self::from_string(s.to_string(), arena)
     }
 
@@ -496,6 +554,47 @@ impl<'a> Token<'a> {
             })
         } else {
             Token::W(Spaced { inner: s })
+        }
+    }
+
+    pub fn from_bool(s: bool) -> Self {
+        match s {
+            false => Token::W(Spaced { inner: "0" }),
+            true => Token::W(Spaced { inner: "1" }),
+        }
+    }
+
+    pub fn parse_fromstr<T: FromStr>(self, line_number: usize) -> Result<T, Error>
+    where
+        T::Err: std::error::Error + Sync + Send + 'static,
+    {
+        match self.as_str().parse::<T>() {
+            Ok(v) => Ok(v),
+            Err(e) => Err(Error::ValueDyn {
+                line_number,
+                error: Box::new(e),
+            }),
+        }
+    }
+
+    pub fn parse_inpt<T: Inpt<'a>>(self, line_number: usize, arena: &'a Arena) -> Result<T, Error> {
+        match inpt(self.as_arena_str(arena)) {
+            Ok(v) => Ok(v),
+            Err(e) => Err(Error::ValueMsg {
+                line_number,
+                desc: e.to_string(),
+            }),
+        }
+    }
+
+    pub fn parse_bool(self, line_number: usize) -> Result<bool, Error> {
+        match self.as_str().trim() {
+            "0" | "no" | "off" | "false" | "disabled" => Ok(false),
+            "1" | "yes" | "on" | "true" | "enabled" => Ok(true),
+            other => Err(Error::ValueBoolean {
+                line_number,
+                found: other.to_string(),
+            }),
         }
     }
 }
