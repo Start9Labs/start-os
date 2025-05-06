@@ -1,15 +1,63 @@
-use eyre::Context;
-pub use eyre::{bail, eyre as error, Error};
+extern crate self as uciedit;
+
 pub use inpt::inpt;
 use inpt::split::{Quoted, SingleQuoted, Spaced};
 use inpt::{inpt_step, Inpt, InptStep};
 use std::fmt::Display;
-use std::io::{BufRead, BufWriter, Seek};
+use std::io::{self, BufRead, BufWriter, Seek};
+use std::str::Utf8Error;
 use std::{borrow::Cow, fs::File, path::Path};
 use std::{fmt, fs};
 pub use uciedit_macros::UciSection;
 
 pub mod openwrt;
+
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
+    #[error(transparent)]
+    Io(#[from] io::Error),
+    #[error(transparent)]
+    Utf8(#[from] Utf8Error),
+    #[error(transparent)]
+    FdLock(#[from] fd_lock_rs::Error),
+    #[error("bad section name on line {line_number}")]
+    BadSectionName { line_number: usize },
+    #[error("bad section type on line {line_number}")]
+    BadSectionType { line_number: usize },
+    #[error("bad option on line {line_number}")]
+    BadOption { line_number: usize },
+    #[error("bad list on line {line_number}")]
+    BadList { line_number: usize },
+    #[error("unknown uci keyword {found:?} on {line_number}")]
+    UnknownKeyword { line_number: usize, found: String },
+    #[error("expected uci section on line {line_number}")]
+    ExpectedSection { line_number: usize },
+    #[error("expected {found:?} section on line {line_number} to be {expected:?}")]
+    ExpectedSectionType {
+        line_number: usize,
+        expected: String,
+        found: String,
+    },
+    #[error("error parsing a value on line {line_number}: {error:?}")]
+    Parse {
+        line_number: usize,
+        error: Box<dyn std::error::Error + Sync + Send>,
+    },
+    #[error("missing option {missing:?} in config")]
+    MissingOption { line_number: usize, missing: String },
+}
+
+impl Error {
+    pub fn parse(
+        error: impl std::error::Error + Sync + Send + 'static,
+        line_number: usize,
+    ) -> Self {
+        Error::Parse {
+            line_number,
+            error: Box::new(error),
+        }
+    }
+}
 
 pub fn parse_config<V>(
     path: impl AsRef<Path>,
@@ -23,7 +71,11 @@ pub fn parse_config_string<V>(
     config: &str,
     with: impl FnOnce(Sections) -> Result<V, Error>,
 ) -> Result<V, Error> {
-    let lines = config.lines().map(Line::parse).collect::<Result<_, _>>()?;
+    let lines = config
+        .lines()
+        .enumerate()
+        .map(|(n, l)| Line::parse(l, n))
+        .collect::<Result<_, _>>()?;
     with(Sections {
         lines: &lines,
         index: 0,
@@ -51,8 +103,7 @@ pub fn rewrite_config<V>(
     let arena = Arena::new();
     for line in BufReader::new(&mut *locked).lines() {
         let line = arena.alloc(line?);
-        let parse =
-            Line::parse(line).with_context(|| format!("syntax error on line {}", lines.len()))?;
+        let parse = Line::parse(line, lines.len())?;
         lines.push(parse);
     }
     let v = with(SectionsMut {
@@ -75,12 +126,12 @@ pub fn rewrite_config_string(
     config: String,
     with: impl for<'a> FnOnce(SectionsMut) -> Result<(), Error>,
 ) -> Result<String, Error> {
-    use std::fmt::Write;
+    use std::io::Write;
 
     let mut lines = Vec::new();
     let arena = Arena::new();
-    for line in arena.alloc(config).lines() {
-        lines.push(Line::parse(line)?);
+    for (num, line) in arena.alloc(config).lines().enumerate() {
+        lines.push(Line::parse(line, num)?);
     }
     with(SectionsMut {
         lines: &mut lines,
@@ -89,11 +140,11 @@ pub fn rewrite_config_string(
         section_start: None,
         retain: true,
     })?;
-    let mut writer = String::new();
+    let mut writer = io::Cursor::new(Vec::new());
     for line in lines {
         write!(writer, "{}", line)?;
     }
-    Ok(writer)
+    Ok(String::from_utf8(writer.into_inner()).map_err(|err| err.utf8_error())?)
 }
 
 pub type Lines<'a> = Vec<Line<'a>>;
@@ -131,6 +182,11 @@ impl<'a> Sections<'a> {
             panic!("call step at least once");
         }
         S::read(self.lines, self.index)
+    }
+
+    pub fn reset(&mut self) {
+        self.index = 0;
+        self.started = false;
     }
 
     pub fn step(&mut self) -> bool {
@@ -190,9 +246,6 @@ impl<'a> SectionsMut<'_, 'a> {
         if self.section_start.is_none() {
             panic!("call step at least once");
         }
-        if self.section_start.is_none() {
-            panic!("call step at least once");
-        }
         S::read(self.lines, self.index)
     }
 
@@ -224,6 +277,13 @@ impl<'a> SectionsMut<'_, 'a> {
             panic!("call step at least once");
         }
         self.retain = retain;
+    }
+
+    pub fn reset(&mut self) {
+        // make sure flagged sections are removed
+        while self.step() {}
+        self.index = 0;
+        self.section_start = None;
     }
 
     pub fn step(&mut self) -> bool {
@@ -275,6 +335,13 @@ impl<'a> SectionsMut<'_, 'a> {
         // Got to the end. If called a second time, check the same index.
         self.section_start = None;
         false
+    }
+}
+
+impl Drop for SectionsMut<'_, '_> {
+    fn drop(&mut self) {
+        // make sure flagged sections are removed
+        while self.step() {}
     }
 }
 
@@ -332,7 +399,7 @@ impl fmt::Display for Line<'_> {
 }
 
 impl<'a> Line<'a> {
-    pub fn parse(line: &'a str) -> Result<Self, Error> {
+    pub fn parse(line: &'a str, line_number: usize) -> Result<Self, Error> {
         let rest = line.trim();
         if rest.is_empty() {
             return Ok(Line::Empty);
@@ -354,29 +421,34 @@ impl<'a> Line<'a> {
             "config" => {
                 let (ty, rest) = match inpt_step::<Token>(rest) {
                     InptStep { data: Ok(ty), rest } => (ty, rest),
-                    _ => bail!("could not parse section type"),
+                    _ => return Err(Error::BadSectionType { line_number }),
                 };
                 let name: Option<_> = if rest.is_empty() {
                     None
                 } else {
                     match inpt::<Token>(rest) {
                         Ok(name) => Some(name),
-                        _ => bail!("could not parse section name"),
+                        _ => return Err(Error::BadSectionName { line_number }),
                     }
                 };
                 Line::Section { ty, name }
             }
             "option" => {
                 let (option, value): (Token, Token) =
-                    inpt(rest).map_err(|err| error!("could not parse option: {err}"))?;
+                    inpt(rest).map_err(|_| Error::BadOption { line_number })?;
                 Line::Option { option, value }
             }
             "list" => {
                 let (list, item): (Token, Token) =
-                    inpt(rest).map_err(|err| error!("could not parse list: {err}"))?;
+                    inpt(rest).map_err(|_| Error::BadList { line_number })?;
                 Line::List { list, item }
             }
-            kw => bail!("unknown UCI keyword {kw:?}"),
+            kw => {
+                return Err(Error::UnknownKeyword {
+                    line_number,
+                    found: kw.into(),
+                })
+            }
         })
     }
 
@@ -448,8 +520,6 @@ impl fmt::Display for Token<'_> {
         }
     }
 }
-
-extern crate self as uciedit; // for proc-macros in the tests below
 
 #[test]
 fn test_read_section() {
@@ -621,7 +691,7 @@ fn test_remove_sections() {
 config retain
     option foo bar
     # comment 1
-    
+
 # section 2
 config remove
     option foo bar

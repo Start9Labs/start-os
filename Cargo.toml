@@ -1,0 +1,8 @@
+[workspace]
+resolver = "2"
+members = ["secprofbox", "uciedit", "uciedit_macros", "ctrl"]
+
+[workspace.dependencies]
+uciedit_macros = { path = "uciedit_macros" }
+uciedit = { path = "uciedit" }
+thiserror = "2.0.12"

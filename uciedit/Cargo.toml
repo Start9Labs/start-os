@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-eyre = "0.6.12"
 inpt = "0.1.4"
 fd-lock-rs = "0.1.4"
 bumpalo = "3.17"
 typed-arena = "2.0.2"
 uciedit_macros = { workspace = true }
 strum = { version = "0.27.1", features = ["derive"] }
+thiserror = {workspace = true}

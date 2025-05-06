@@ -45,7 +45,7 @@ impl UciField {
             }
         } else {
             quote! {
-                #name if #placehold.is_none() => #placehold = Some(std::str::FromStr::from_str(&value.as_str())?),
+                #name if #placehold.is_none() => #placehold = Some(std::str::FromStr::from_str(&value.as_str()).map_err(|e| #crat::Error::parse(e, index))?),
             }
         }
     }
@@ -66,7 +66,7 @@ impl UciField {
             }
         } else {
             quote! {
-                #name => #placehold.push(std::str::FromStr::from_str(&item.as_str())?),
+                #name => #placehold.push(std::str::FromStr::from_str(&item.as_str()).map_err(|e| #crat::Error::parse(e, index))?),
             }
         }
     }
@@ -78,11 +78,11 @@ impl UciField {
             crat,
             ..
         } = self;
+        let missing = field.to_string();
         if self.is_opt || self.is_vec {
             quote! { #field: #placehold, }
         } else {
-            let msg = format!("missing field {}", field);
-            quote! { #field: #placehold.ok_or(#crat::error!(#msg))?, }
+            quote! { #field: #placehold.ok_or(#crat::Error::MissingOption { line_number: start_index, missing: #missing.into() })?, }
         }
     }
 
@@ -161,7 +161,7 @@ fn read_body(fields: &[UciField], struc: Ident, _ty: String, crat: Path) -> Toke
     let init = fields.iter().map(UciField::read_init);
     quote! {
         let Some(#crat::Line::Section { .. }) = lines.get(index) else {
-            #crat::bail!("line {index} does not start a section")
+            return Err(#crat::Error::ExpectedSection { line_number: index })
         };
         #(#decl)*
 
@@ -192,13 +192,12 @@ fn write_body(fields: &[UciField], _struc: Ident, ty: String, crat: Path) -> Tok
     let option_arm = fields.iter().map(UciField::write_option_arm);
     let list_arm = fields.iter().map(UciField::write_list_arm);
     let chain = chained_write_iters(fields);
-    let not_section_err = format!("line {{index}} is not a {ty} section");
     quote! {
         let Some(#crat::Line::Section { ty, .. }) = lines.get(index) else {
-            #crat::bail!("line {index} does not start a section")
+            return Err(#crat::Error::ExpectedSection { line_number: index })
         };
         if ty.as_str() != #ty {
-            #crat::bail!(#not_section_err)
+            return Err(#crat::Error::ExpectedSectionType { line_number: index, expected: (#ty).into(), found: ty.as_str().into(), })
         }
 
         #(#decl)*
@@ -314,6 +313,7 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     quote! {
         impl #impl_generics #crat::UciSection<'a> for #struc #type_generics #where_clause {
             fn read(lines: &#crat::Lines<'a>, mut index: usize) -> Result<Self, #crat::Error> {
+                let start_index = index;
                 #read_body
             }
 

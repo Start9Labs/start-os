@@ -4,14 +4,13 @@ type WanAccess = "ALL" | "NONE";
 type VlanId = number;
 
 type ProfileState = {
-    id: VlanId,
+    vlanid: VlanId,
     name: string,
     gateway_digit: number,
     subnet_digit: number,
     lan_access: LanAccess,
     wan_access: WanAccess,
     block_new_profiles: boolean,
-    vlan_tag: number,
 };
 
 type RichProfileState = ProfileState & {

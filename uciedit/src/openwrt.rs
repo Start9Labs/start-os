@@ -1,3 +1,5 @@
+use std::net::Ipv4Addr;
+
 use uciedit_macros::UciSection;
 
 #[derive(strum::EnumString, strum::Display, Default, PartialEq, Eq)]
@@ -35,4 +37,23 @@ pub struct FirewallRule {
     pub dest_port: Option<String>,
     pub proto: Option<String>,
     pub target: FirewallTarget,
+}
+
+#[derive(strum::EnumString, strum::Display, Default, PartialEq, Eq)]
+#[strum(serialize_all = "lowercase")]
+pub enum InterfaceProto {
+    #[default]
+    NONE,
+    STATIC,
+    DHCP,
+    DHCPV6,
+}
+
+#[derive(UciSection, Default)]
+#[uci(ty = "interface")]
+pub struct NetworkInterface {
+    pub device: String,
+    pub proto: InterfaceProto,
+    pub ipaddr: Option<Ipv4Addr>,
+    pub netmask: Option<Ipv4Addr>,
 }
