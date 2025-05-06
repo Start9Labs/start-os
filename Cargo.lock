@@ -1808,26 +1808,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
-name = "secprofbox"
-version = "0.1.0"
-dependencies = [
- "async_cell",
- "color-eyre",
- "futures",
- "inpt",
- "macaddr",
- "nix 0.29.0",
- "pin-project",
- "serde",
- "serde_yaml",
- "tokio",
- "tracing",
- "tracing-rfc-5424",
- "tracing-subscriber",
- "uciedit",
-]
-
-[[package]]
 name = "security-framework"
 version = "2.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
