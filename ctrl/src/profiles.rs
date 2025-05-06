@@ -55,8 +55,8 @@ pub fn profiles<C: Context>() -> ParentHandler<C> {
         .subcommand("get", from_fn(get::<C>).with_display_serializable())
         .subcommand("delete", from_fn(delete::<C>).no_display())
         .subcommand("list", from_fn(list::<C>).with_display_serializable())
-        .subcommand("create", from_fn(create::<C>).no_display())
-        .subcommand("update", from_fn(update::<C>).no_display())
+        .subcommand("create", from_fn(create::<C>).with_display_serializable())
+        .subcommand("update", from_fn(update::<C>).with_display_serializable())
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Parser)]
@@ -348,7 +348,10 @@ pub fn update<C: Context>(
         Ok::<_, Error>(vlan_tag)
     })?;
     rewrite_firewall(&interface, &all_interfaces, &[], &profile, false)?;
-    todo!()
+    Ok(ProfileId {
+        interface,
+        vlan_tag,
+    })
 }
 
 pub fn create<C: Context>(
@@ -474,37 +477,36 @@ fn rewrite_firewall(
     }
     rewrite_config("./etc/config/firewall", |mut cfg| {
         let mut found_wan = false;
-        let this_zone_name = format!("vlan_{interface}");
+        let mut this_zone_name = format!("vlan_{interface}");
         let mut all_zones = BTreeMap::new();
         while cfg.step() {
-            match &*cfg.ty() {
-                FirewallZone::TY => {
-                    let Ok(zone) = cfg.get::<FirewallZone>() else {
-                        continue;
-                    };
-                    if zone.name == DEFAULT_WAN_ZONE {
-                        found_wan = true;
-                    } else if zone.name == this_zone_name {
-                        if remake_zone {
-                            cfg.remove();
-                        }
-                    } else {
-                        for iface in zone.network {
-                            if all_interfaces.contains(&iface) {
-                                all_zones.insert(iface, zone.name.clone());
-                            }
-                        }
+            let Ok(zone) = cfg.get::<FirewallZone>() else {
+                continue;
+            };
+            if zone.name == DEFAULT_WAN_ZONE {
+                found_wan = true;
+            } else if zone.name == this_zone_name {
+                if remake_zone {
+                    cfg.remove();
+                }
+            } else {
+                for zone_interface in zone.network {
+                    if interface == zone_interface {
+                        this_zone_name = zone.name.clone();
+                    }
+                    if all_interfaces.contains(&zone_interface) {
+                        all_zones.insert(zone_interface, zone.name.clone());
                     }
                 }
-                FirewallForwarding::TY => {
-                    let Ok(fwd) = cfg.get::<FirewallForwarding>() else {
-                        continue;
-                    };
-                    if fwd.src == this_zone_name {
-                        cfg.remove();
-                    }
-                }
-                _ => (),
+            }
+        }
+        cfg.reset();
+        while cfg.step() {
+            let Ok(fwd) = cfg.get::<FirewallForwarding>() else {
+                continue;
+            };
+            if fwd.src == this_zone_name {
+                cfg.remove();
             }
         }
         if !found_wan {
