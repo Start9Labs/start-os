@@ -253,14 +253,18 @@ impl<'a> SectionsMut<'_, 'a> {
         S::read(self.lines, self.index)
     }
 
-    pub fn set<S: UciSection<'a>>(&mut self, section: S) -> Result<(), Error> {
+    pub fn set<S: UciSection<'a>>(&mut self, section: &S) -> Result<(), Error> {
         if self.section_start.is_none() {
             panic!("call step at least once");
         }
         section.write(self.lines, self.arena, self.index)
     }
 
-    pub fn push<S: UciSection<'a>>(&mut self, section: S, name: Option<&str>) -> Result<(), Error> {
+    pub fn push<S: UciSection<'a>>(
+        &mut self,
+        section: &S,
+        name: Option<&str>,
+    ) -> Result<(), Error> {
         section.append(
             self.lines,
             self.arena,
@@ -469,14 +473,14 @@ impl<'a> Line<'a> {
 
     pub fn list_from_display<'i>(
         list: &'a str,
-        items: impl IntoIterator<Item = impl Display + 'i> + 'i,
+        items: &'i [impl Display],
         arena: &'a Arena,
     ) -> impl Iterator<Item = Self> + 'i
     where
         'a: 'i,
     {
         let list = Token::from_str(list, arena);
-        items.into_iter().map(move |item| Line::List {
+        items.iter().map(move |item| Line::List {
             list,
             item: Token::from_display(item, arena),
         })
@@ -492,16 +496,16 @@ impl<'a> Line<'a> {
 
     pub fn list_from_bool<'i>(
         list: &'a str,
-        items: impl IntoIterator<Item = bool> + 'i,
+        items: &'i [bool],
         arena: &'a Arena,
     ) -> impl Iterator<Item = Self> + 'i
     where
         'a: 'i,
     {
         let list = Token::from_str(list, arena);
-        items.into_iter().map(move |item| Line::List {
+        items.iter().map(move |item| Line::List {
             list,
-            item: Token::from_bool(item),
+            item: Token::from_bool(*item),
         })
     }
 }
@@ -535,7 +539,7 @@ impl<'a> Token<'a> {
     }
 
     pub fn from_string(s: String, arena: &'a Arena) -> Self {
-        if s.contains(|c: char| c.is_whitespace()) {
+        if s.contains(|c: char| !(c.is_alphanumeric() || ['_', '-', '.'].contains(&c))) {
             let q = arena.alloc(format!("{:?}", s));
             Token::Q(Quoted {
                 inner: &q[1..q.len() - 1],
@@ -547,7 +551,7 @@ impl<'a> Token<'a> {
     }
 
     pub fn from_str(s: &'a str, arena: &'a Arena) -> Self {
-        if s.contains(|c: char| c.is_whitespace()) {
+        if s.contains(|c: char| !(c.is_alphanumeric() || ['_', '-', '.'].contains(&c))) {
             let q = arena.alloc(format!("{:?}", s));
             Token::Q(Quoted {
                 inner: &q[1..q.len() - 1],

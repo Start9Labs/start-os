@@ -292,14 +292,18 @@ fn append_body(fields: &[UciField], _struc: Ident, ty: String, crat: Path) -> To
     }
 }
 
-fn is_collection_with_generic(ty: &Type, collection: &str) -> bool {
+fn is_collection_with_generic(
+    ty: &Type,
+    collection: &str,
+    check: impl FnOnce(&Type) -> bool,
+) -> bool {
     if let Type::Path(path) = ty {
         if let Some(segment) = path.path.segments.first() {
             if segment.ident == collection {
                 if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
                     if args.args.len() == 1 {
-                        if let GenericArgument::Type(_) = args.args[0] {
-                            return true;
+                        if let GenericArgument::Type(arg) = &args.args[0] {
+                            return check(arg);
                         }
                     }
                 }
@@ -348,16 +352,19 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                 },
                 default: o.default,
                 default_value: o.default_value,
-                agg: if is_collection_with_generic(&f.ty, "Option") {
+                agg: if is_collection_with_generic(&f.ty, "Option", |_| true) {
                     Optional
-                } else if is_collection_with_generic(&f.ty, "Vec") {
+                } else if is_collection_with_generic(&f.ty, "Vec", |_| true) {
                     List
                 } else {
                     Single
                 },
                 parse: if o.inpt {
                     Inpt
-                } else if is_primative(&f.ty, "bool") {
+                } else if is_primative(&f.ty, "bool")
+                    || is_collection_with_generic(&f.ty, "Option", |t| is_primative(t, "bool"))
+                    || is_collection_with_generic(&f.ty, "Vec", |t| is_primative(t, "bool"))
+                {
                     Bool
                 } else {
                     FromStr

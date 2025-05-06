@@ -261,7 +261,7 @@ pub fn update<C: Context>(
                 this_cfg.fullname = profile.fullname.clone();
                 this_cfg.access_to_new_profiles = profile.access_to_new_profiles;
                 let found = (this_cfg.interface.clone(), this_cfg.vlan_tag);
-                cfg.set(this_cfg)?;
+                cfg.set(&this_cfg)?;
                 return Ok(found);
             }
         }
@@ -300,7 +300,7 @@ pub fn update<C: Context>(
                                     .0
                                     .to_string(),
                             );
-                            cfg.set(iface)?;
+                            cfg.set(&iface)?;
                             found_interface = true;
                         }
                     }
@@ -325,7 +325,7 @@ pub fn update<C: Context>(
         if !found_interface {
             let found_bridge = found_bridge.clone().ok_or(ErrorKind::MissingLanBridge)?;
             cfg.push(
-                NetworkInterface {
+                &NetworkInterface {
                     device: format!("{found_bridge}.{vlan_tag}"),
                     proto: InterfaceProto::STATIC,
                     ipaddr: Some(profile.gateway_ip),
@@ -337,7 +337,7 @@ pub fn update<C: Context>(
         if !found_vlan {
             let found_bridge = found_bridge.ok_or(ErrorKind::MissingLanBridge)?;
             cfg.push(
-                NetworkBridgeVlan {
+                &NetworkBridgeVlan {
                     device: found_bridge,
                     vlan: vlan_tag,
                     ports: Vec::new(),
@@ -411,7 +411,7 @@ pub fn create<C: Context>(
                 .expect("we somehow exausted all vlan tags, that should be impossible"),
         };
         cfg.push(
-            NetworkInterface {
+            &NetworkInterface {
                 device: format!("{found_bridge}.{vlan_tag}"),
                 proto: InterfaceProto::STATIC,
                 ipaddr: Some(profile.gateway_ip),
@@ -420,7 +420,7 @@ pub fn create<C: Context>(
             Some(&interface),
         )?;
         cfg.push(
-            NetworkBridgeVlan {
+            &NetworkBridgeVlan {
                 device: found_bridge,
                 vlan: vlan_tag,
                 ports: Vec::new(),
@@ -448,7 +448,7 @@ pub fn create<C: Context>(
             }
         }
         cfg.push(
-            ProfileConfig {
+            &ProfileConfig {
                 fullname: profile.fullname.clone(),
                 interface: interface.clone(),
                 vlan_tag,
@@ -514,7 +514,7 @@ fn rewrite_firewall(
         }
         if remake_zone {
             cfg.push(
-                FirewallZone {
+                &FirewallZone {
                     name: this_zone_name.clone(),
                     input: FirewallTarget::ACCEPT,
                     output: FirewallTarget::ACCEPT,
@@ -529,7 +529,7 @@ fn rewrite_firewall(
                 for other_zone in all_zones.values() {
                     if other_zone != &this_zone_name {
                         cfg.push(
-                            FirewallForwarding {
+                            &FirewallForwarding {
                                 src: this_zone_name.clone(),
                                 dest: other_zone.clone(),
                             },
@@ -543,7 +543,7 @@ fn rewrite_firewall(
                 for other_profile in profile_ids {
                     match all_zones.get(&other_profile.interface) {
                         Some(other_zone) => cfg.push(
-                            FirewallForwarding {
+                            &FirewallForwarding {
                                 src: this_zone_name.clone(),
                                 dest: other_zone.clone(),
                             },
@@ -562,7 +562,7 @@ fn rewrite_firewall(
         for other_profile in wants_access {
             match all_zones.get(&other_profile.interface) {
                 Some(other_zone) => cfg.push(
-                    FirewallForwarding {
+                    &FirewallForwarding {
                         src: other_zone.clone(),
                         dest: this_zone_name.clone(),
                     },
@@ -578,7 +578,7 @@ fn rewrite_firewall(
         }
         match &profile.wan_access {
             WanAccess::All => cfg.push(
-                FirewallForwarding {
+                &FirewallForwarding {
                     src: this_zone_name.clone(),
                     dest: DEFAULT_WAN_ZONE.into(),
                 },
