@@ -1,3 +1,4 @@
+use crate::profiles::ProfileIdAndName;
 use std::backtrace::Backtrace;
 use std::fmt;
 use thiserror::Error;
@@ -8,14 +9,12 @@ pub enum ErrorKind {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     UciEdit(#[from] uciedit::Error),
-    #[error("interface name {0:?} too long")]
-    InterfaceNameTooLong(String),
     #[error("interface name {0:?} conflicts")]
     InterfaceNameConflict(String),
-    #[error("interface name {0:?} has invalid characters")]
-    InterfaceNameInvalid(String),
     #[error("could not find profile identified by {0:?}")]
-    InvalidProfileId(crate::profiles::ProfileId),
+    MissingProfile(ProfileIdAndName),
+    #[error("corrupted profile with {0:?}")]
+    CorruptedProfile(ProfileIdAndName),
     #[error("multiple vlans with tag {0}")]
     DuplicateVlanTag(u16),
     #[error("no lan bridge device found")]
