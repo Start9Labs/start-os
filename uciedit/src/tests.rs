@@ -597,18 +597,18 @@ config bar 'mybar'
         // but new options (from fields not in original config) are appended.
         let expected_written_config = r"
 config complexsection first
-    option name "Section One"
-    option value 42
+    option default_str custom
+    option old_flag 0
+    option enabled 1
     list items item1
     list items "item2 with spaces"
-    option enabled 1
-    option old_flag 0
-    option default_str custom
+    option value 42
+    option name "Section One"
 
 config complexsection second
-    option name "Section Two"
-    option enabled 0
     option default_str "default string"
+    option enabled 0
+    option name "Section Two"
 ";
         assert_eq!(normalize(original_config_str), normalize(expected_written_config.to_string()));
     }
