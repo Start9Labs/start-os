@@ -13,6 +13,16 @@ pub enum FirewallTarget {
 }
 
 #[derive(UciSection, Default)]
+#[uci(ty = "zone")]
+pub struct FirewallZone {
+    pub name: String,
+    pub input: FirewallTarget,
+    pub output: FirewallTarget,
+    pub forward: FirewallTarget,
+    pub network: Vec<String>,
+}
+
+#[derive(UciSection, Default)]
 #[uci(ty = "rule")]
 pub struct FirewallRule {
     /*
@@ -39,6 +49,13 @@ pub struct FirewallRule {
     pub target: FirewallTarget,
 }
 
+#[derive(UciSection, Default)]
+#[uci(ty = "forwarding")]
+pub struct FirewallForwarding {
+    pub src: String,
+    pub dest: String,
+}
+
 #[derive(strum::EnumString, strum::Display, Default, PartialEq, Eq)]
 #[strum(serialize_all = "lowercase")]
 pub enum InterfaceProto {
@@ -53,7 +70,31 @@ pub enum InterfaceProto {
 #[uci(ty = "interface")]
 pub struct NetworkInterface {
     pub device: String,
+    #[uci(default)]
     pub proto: InterfaceProto,
     pub ipaddr: Option<Ipv4Addr>,
     pub netmask: Option<Ipv4Addr>,
+}
+
+#[derive(strum::EnumString, strum::Display, PartialEq, Eq)]
+#[strum(serialize_all = "lowercase")]
+pub enum DeviceType {
+    BRIDGE,
+}
+
+#[derive(UciSection, Default)]
+#[uci(ty = "device")]
+pub struct NetworkDevice {
+    pub name: String,
+    #[uci(rename = "type")]
+    pub ty: Option<DeviceType>,
+    pub ports: Vec<String>,
+}
+
+#[derive(UciSection, Default)]
+#[uci(ty = "bridge-vlan")]
+pub struct NetworkBridgeVlan {
+    pub device: String,
+    pub vlan: u16,
+    pub ports: Vec<String>,
 }

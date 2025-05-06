@@ -274,7 +274,7 @@ pub async fn write_basic_firewall_config(_cfg: &Config) -> Result<(), Error> {
                     target: REJECT,
                     ..Default::default()
                 },
-                None::<String>,
+                None,
             )?;
         }
         if !found_wan_rule {
@@ -286,7 +286,7 @@ pub async fn write_basic_firewall_config(_cfg: &Config) -> Result<(), Error> {
                     target: REJECT,
                     ..Default::default()
                 },
-                None::<String>,
+                None,
             )?;
         }
         if !found_localhost_lan_rule {
@@ -299,13 +299,13 @@ pub async fn write_basic_firewall_config(_cfg: &Config) -> Result<(), Error> {
                     target: ACCEPT,
                     ..Default::default()
                 },
-                None::<String>,
+                None,
             )?;
         }
         if !found_localhost_wan_rule {
             // TODO: what should this be?
         }
-        Ok(())
+        Ok::<_, Error>(())
     })?;
 
     Command::new("/etc/init.d/firewall")

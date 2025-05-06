@@ -23,3 +23,4 @@ axum = "0.7.9"
 thiserror = { workspace = true }
 imbl-value = "0.1.2"
 serde_json = "1.0.140"
+rand = "0.9.1"

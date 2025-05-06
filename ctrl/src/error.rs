@@ -5,13 +5,25 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum ErrorKind {
     #[error(transparent)]
+    Io(#[from] std::io::Error),
+    #[error(transparent)]
+    UciEdit(#[from] uciedit::Error),
+    #[error("interface name {0:?} too long")]
+    InterfaceNameTooLong(String),
+    #[error("interface name {0:?} conflicts")]
+    InterfaceNameConflict(String),
+    #[error("interface name {0:?} has invalid characters")]
+    InterfaceNameInvalid(String),
+    #[error("could not find profile identified by {0:?}")]
+    InvalidProfileId(crate::profiles::ProfileId),
+    #[error("multiple vlans with tag {0}")]
+    DuplicateVlanTag(u16),
+    #[error("no lan bridge device found")]
+    MissingLanBridge,
+    #[error("no lan wan interface found")]
+    MissingWanInterface,
+    #[error(transparent)]
     Other(#[from] color_eyre::eyre::Error),
-    #[error("interface name too long")]
-    InterfaceNameTooLong,
-    #[error("interface name conflicts")]
-    InterfaceNameConflict,
-    #[error("interface name has invalid characters")]
-    InterfaceNameInvalid,
 }
 
 impl<E> From<E> for Error

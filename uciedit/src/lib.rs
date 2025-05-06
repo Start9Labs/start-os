@@ -3,7 +3,6 @@ extern crate self as uciedit;
 pub use inpt::inpt;
 use inpt::split::{Quoted, SingleQuoted, Spaced};
 use inpt::{inpt_step, Inpt, InptStep};
-use std::fmt::Display;
 use std::io::{self, BufRead, BufWriter, Seek};
 use std::str::Utf8Error;
 use std::{borrow::Cow, fs::File, path::Path};
@@ -15,7 +14,7 @@ pub mod openwrt;
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
     #[error(transparent)]
-    Io(#[from] io::Error),
+    Io(#[from] std::io::Error),
     #[error(transparent)]
     Utf8(#[from] Utf8Error),
     #[error(transparent)]
@@ -59,18 +58,18 @@ impl Error {
     }
 }
 
-pub fn parse_config<V>(
+pub fn parse_config<V, E: From<Error> + From<io::Error>>(
     path: impl AsRef<Path>,
-    with: impl FnOnce(Sections) -> Result<V, Error>,
-) -> Result<V, Error> {
+    with: impl FnOnce(Sections) -> Result<V, E>,
+) -> Result<V, E> {
     let text = fs::read_to_string(path)?;
     parse_config_string(&text, with)
 }
 
-pub fn parse_config_string<V>(
+pub fn parse_config_string<V, E: From<Error>>(
     config: &str,
-    with: impl FnOnce(Sections) -> Result<V, Error>,
-) -> Result<V, Error> {
+    with: impl FnOnce(Sections) -> Result<V, E>,
+) -> Result<V, E> {
     let lines = config
         .lines()
         .enumerate()
@@ -84,10 +83,10 @@ pub fn parse_config_string<V>(
 }
 
 /// TODO: async version?
-pub fn rewrite_config<V>(
+pub fn rewrite_config<V, E: From<Error> + From<io::Error>>(
     path: impl AsRef<Path>,
-    with: impl for<'a> FnOnce(SectionsMut) -> Result<V, Error>,
-) -> Result<V, Error> {
+    with: impl for<'a> FnOnce(SectionsMut) -> Result<V, E>,
+) -> Result<V, E> {
     use std::io::Write;
 
     use fd_lock_rs::{FdLock, LockType};
@@ -98,7 +97,7 @@ pub fn rewrite_config<V>(
         .write(true)
         .truncate(false)
         .open(path)?;
-    let mut locked = FdLock::lock(file, LockType::Exclusive, true)?;
+    let mut locked = FdLock::lock(file, LockType::Exclusive, true).map_err(Error::FdLock)?;
     let mut lines = Vec::new();
     let arena = Arena::new();
     for line in BufReader::new(&mut *locked).lines() {
@@ -122,10 +121,10 @@ pub fn rewrite_config<V>(
     Ok(v)
 }
 
-pub fn rewrite_config_string(
+pub fn rewrite_config_string<E: From<Error> + From<io::Error>>(
     config: String,
-    with: impl for<'a> FnOnce(SectionsMut) -> Result<(), Error>,
-) -> Result<String, Error> {
+    with: impl for<'a> FnOnce(SectionsMut) -> Result<(), E>,
+) -> Result<String, E> {
     use std::io::Write;
 
     let mut lines = Vec::new();
@@ -144,7 +143,7 @@ pub fn rewrite_config_string(
     for line in lines {
         write!(writer, "{}", line)?;
     }
-    Ok(String::from_utf8(writer.into_inner()).map_err(|err| err.utf8_error())?)
+    String::from_utf8(writer.into_inner()).map_err(|err| Error::Utf8(err.utf8_error()).into())
 }
 
 pub type Lines<'a> = Vec<Line<'a>>;
@@ -256,11 +255,7 @@ impl<'a> SectionsMut<'_, 'a> {
         section.write(self.lines, self.arena, self.index)
     }
 
-    pub fn push<S: UciSection<'a>>(
-        &mut self,
-        section: S,
-        name: Option<impl Display>,
-    ) -> Result<(), Error> {
+    pub fn push<S: UciSection<'a>>(&mut self, section: S, name: Option<&str>) -> Result<(), Error> {
         section.append(
             self.lines,
             self.arena,
@@ -676,7 +671,7 @@ config other
                 few: vec![5],
             });
         }
-        Ok(())
+        Ok::<_, Error>(())
     })
     .unwrap();
 
@@ -732,7 +727,7 @@ config retain
         while ctx.step() {
             ctx.set_retain(ctx.ty() == "retain");
         }
-        Ok(())
+        Ok::<_, Error>(())
     })
     .unwrap();
 

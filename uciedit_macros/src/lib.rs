@@ -1,4 +1,4 @@
-use darling::FromDeriveInput;
+use darling::{FromDeriveInput, FromField};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
 use syn::{parse_macro_input, parse_quote, Data, DeriveInput, GenericArgument, Ident, Path, Type};
@@ -9,6 +9,13 @@ struct UciSectionOpts {
     ty: Option<String>,
 }
 
+#[derive(FromField, Default)]
+#[darling(default, attributes(uci))]
+struct UciFieldOpts {
+    rename: Option<String>,
+    default: bool,
+}
+
 struct UciField {
     placehold: Ident,
     field: Ident,
@@ -16,6 +23,7 @@ struct UciField {
     is_opt: bool,
     is_vec: bool,
     is_inpt: bool,
+    default: bool,
     crat: Path,
 }
 
@@ -76,13 +84,15 @@ impl UciField {
             placehold,
             field,
             crat,
+            name,
             ..
         } = self;
-        let missing = field.to_string();
         if self.is_opt || self.is_vec {
             quote! { #field: #placehold, }
+        } else if self.default {
+            quote! { #field: #placehold.unwrap_or_default(), }
         } else {
-            quote! { #field: #placehold.ok_or(#crat::Error::MissingOption { line_number: start_index, missing: #missing.into() })?, }
+            quote! { #field: #placehold.ok_or(#crat::Error::MissingOption { line_number: start_index, missing: #name.into() })?, }
         }
     }
 
@@ -288,14 +298,19 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         .fields
         .into_iter()
         .map(|f| {
+            let o = UciFieldOpts::from_field(&f).unwrap();
             let i = f.ident.unwrap();
             UciField {
                 placehold: format_ident!("field_{}", i),
                 field: i.clone(),
-                name: i.to_string(),
+                name: match o.rename {
+                    None => i.to_string(),
+                    Some(rename) => rename,
+                },
                 is_opt: is_collection_with_generic(&f.ty, "Option"),
                 is_vec: is_collection_with_generic(&f.ty, "Vec"),
                 is_inpt: false,
+                default: o.default,
                 crat: crat.clone(),
             }
         })
@@ -311,6 +326,10 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let (impl_generics, _, _) = lt_generics.split_for_impl();
 
     quote! {
+        impl #impl_generics #struc #type_generics #where_clause {
+            pub const TY: &'static str = #ty;
+        }
+
         impl #impl_generics #crat::UciSection<'a> for #struc #type_generics #where_clause {
             fn read(lines: &#crat::Lines<'a>, mut index: usize) -> Result<Self, #crat::Error> {
                 let start_index = index;
