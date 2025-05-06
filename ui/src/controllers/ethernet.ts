@@ -1,5 +1,5 @@
 type PortState = {
-    vlanid: VlanId | null;
+    vlan: VlanId | null;
 };
 
 type RichPortState = PortState & {

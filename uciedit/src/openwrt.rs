@@ -1,5 +1,6 @@
-use std::net::Ipv4Addr;
+use std::{fmt, net::Ipv4Addr};
 
+use inpt::Inpt;
 use uciedit_macros::UciSection;
 
 #[derive(strum::EnumString, strum::Display, Default, PartialEq, Eq, Debug)]
@@ -91,10 +92,39 @@ pub struct NetworkDevice {
     pub ports: Vec<String>,
 }
 
+#[derive(Inpt, Debug)]
+#[inpt(regex = "([^:]+):?([ut*]+)?")]
+pub struct NetworkVlanPort {
+    pub port: String,
+    #[inpt(from_str)]
+    pub tagging: Option<NetworkVlanPortTagging>,
+}
+
+impl fmt::Display for NetworkVlanPort {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.tagging {
+            Some(tagging) => write!(f, "{}:{}", self.port, tagging),
+            None => write!(f, "{}", self.port),
+        }
+    }
+}
+
+#[derive(strum::EnumString, strum::Display, PartialEq, Eq, Debug)]
+#[strum(serialize_all = "lowercase")]
+pub enum NetworkVlanPortTagging {
+    #[strum(serialize = "u")]
+    UNTAGGED,
+    #[strum(serialize = "u*")]
+    PRIMARY,
+    #[strum(serialize = "t")]
+    TAGGED,
+}
+
 #[derive(Debug, UciSection, Default)]
 #[uci(ty = "bridge-vlan")]
 pub struct NetworkBridgeVlan {
     pub device: String,
     pub vlan: u16,
-    pub ports: Vec<String>,
+    #[uci(inpt)]
+    pub ports: Vec<NetworkVlanPort>,
 }

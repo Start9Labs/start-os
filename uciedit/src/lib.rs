@@ -80,8 +80,10 @@ pub fn parse_config_string<V, E: From<Error>>(
         .enumerate()
         .map(|(n, l)| Line::parse(l, n))
         .collect::<Result<_, _>>()?;
+    let arena = Arena::new();
     with(Sections {
         lines: &lines,
+        arena: &arena,
         index: 0,
         started: false,
     })
@@ -156,6 +158,7 @@ pub type Arena = typed_arena::Arena<String>;
 
 pub struct Sections<'a> {
     lines: &'a Lines<'a>,
+    arena: &'a Arena,
     index: usize,
     started: bool,
 }
@@ -185,7 +188,7 @@ impl<'a> Sections<'a> {
         if !self.started {
             panic!("call step at least once");
         }
-        S::read(self.lines, self.index)
+        S::read(self.lines, self.arena, self.index)
     }
 
     pub fn reset(&mut self) {
@@ -250,7 +253,7 @@ impl<'a> SectionsMut<'_, 'a> {
         if self.section_start.is_none() {
             panic!("call step at least once");
         }
-        S::read(self.lines, self.index)
+        S::read(self.lines, self.arena, self.index)
     }
 
     pub fn set<S: UciSection<'a>>(&mut self, section: &S) -> Result<(), Error> {
@@ -350,7 +353,7 @@ impl Drop for SectionsMut<'_, '_> {
 }
 
 pub trait UciSection<'a>: Sized {
-    fn read(lines: &Lines<'a>, index: usize) -> Result<Self, Error>;
+    fn read(lines: &Lines<'a>, arena: &'a Arena, index: usize) -> Result<Self, Error>;
     fn write(&self, lines: &mut Lines<'a>, arena: &'a Arena, index: usize) -> Result<(), Error>;
     fn append(
         &self,

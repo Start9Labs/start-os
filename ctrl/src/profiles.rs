@@ -1,3 +1,4 @@
+use crate::ethernet::DEFAULT_LAN_BRIDGE;
 use crate::utils::DeserializeStdin;
 use crate::{utils::HandlerExtSerde, Error, ErrorKind};
 use clap::Parser;
@@ -8,18 +9,15 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::Read;
 use std::net::Ipv4Addr;
 use std::process::{Command, Stdio};
-use uciedit::{
-    openwrt::{
-        DeviceType, FirewallForwarding, FirewallTarget, FirewallZone, InterfaceProto,
-        NetworkBridgeVlan, NetworkDevice, NetworkInterface,
-    },
-    UciSection,
+use uciedit::openwrt::{
+    DeviceType, FirewallForwarding, FirewallTarget, FirewallZone, InterfaceProto,
+    NetworkBridgeVlan, NetworkDevice, NetworkInterface,
 };
+use uciedit::UciSection;
 use uciedit::{parse_config, rewrite_config};
 
-const DEFAULT_LAN_BRIDGE: &str = "br-lan";
-const DEFAULT_WAN_ZONE: &str = "wan";
-const INTERFACE_NAME_LIMIT: usize = 5;
+pub const DEFAULT_WAN_ZONE: &str = "wan";
+pub const INTERFACE_NAME_LIMIT: usize = 5;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum LanAccess {
@@ -236,11 +234,6 @@ pub fn list<C: Context>(_ctx: C) -> Result<Vec<ProfileIdAndName>, Error> {
     })
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct ProfileValueArgs {
-    profile: Profile,
-}
-
 pub fn update<C: Context>(
     _ctx: C,
     DeserializeStdin(profile): DeserializeStdin<Profile>,
@@ -368,10 +361,9 @@ pub fn create<C: Context>(
         let mut existing_tags = BTreeSet::new();
         let mut found_bridge = None;
         while cfg.step() {
-            let name = cfg.name();
             match &*cfg.ty() {
                 NetworkInterface::TY => {
-                    let Some(name) = name else { continue };
+                    let Some(name) = cfg.name() else { continue };
                     if name == interface {
                         return Err(ErrorKind::InterfaceNameConflict(interface.clone()).into());
                     }

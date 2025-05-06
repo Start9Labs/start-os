@@ -389,7 +389,11 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
 
         impl #impl_generics #crat::UciSection<'a> for #struc #type_generics #where_clause {
-            fn read(lines: &#crat::Lines<'a>, mut index: usize) -> Result<Self, #crat::Error> {
+            fn read(
+                lines: &#crat::Lines<'a>,
+                arena: &'a #crat::Arena,
+                mut index: usize,
+            ) -> Result<Self, #crat::Error> {
                 let start_index = index;
                 #read_body
             }
