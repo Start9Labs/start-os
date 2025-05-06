@@ -2,7 +2,7 @@ use std::net::Ipv4Addr;
 
 use uciedit_macros::UciSection;
 
-#[derive(strum::EnumString, strum::Display, Default, PartialEq, Eq)]
+#[derive(strum::EnumString, strum::Display, Default, PartialEq, Eq, Debug)]
 pub enum FirewallTarget {
     #[default]
     ACCEPT,
@@ -12,7 +12,7 @@ pub enum FirewallTarget {
     NOTRACK,
 }
 
-#[derive(UciSection, Default)]
+#[derive(Debug, UciSection, Default)]
 #[uci(ty = "zone")]
 pub struct FirewallZone {
     pub name: String,
@@ -22,7 +22,7 @@ pub struct FirewallZone {
     pub network: Vec<String>,
 }
 
-#[derive(UciSection, Default)]
+#[derive(Debug, UciSection, Default)]
 #[uci(ty = "rule")]
 pub struct FirewallRule {
     /*
@@ -49,14 +49,14 @@ pub struct FirewallRule {
     pub target: FirewallTarget,
 }
 
-#[derive(UciSection, Default)]
+#[derive(Debug, UciSection, Default)]
 #[uci(ty = "forwarding")]
 pub struct FirewallForwarding {
     pub src: String,
     pub dest: String,
 }
 
-#[derive(strum::EnumString, strum::Display, Default, PartialEq, Eq)]
+#[derive(strum::EnumString, strum::Display, Default, PartialEq, Eq, Debug)]
 #[strum(serialize_all = "lowercase")]
 pub enum InterfaceProto {
     #[default]
@@ -66,7 +66,7 @@ pub enum InterfaceProto {
     DHCPV6,
 }
 
-#[derive(UciSection, Default)]
+#[derive(Debug, UciSection, Default)]
 #[uci(ty = "interface")]
 pub struct NetworkInterface {
     pub device: String,
@@ -76,13 +76,13 @@ pub struct NetworkInterface {
     pub netmask: Option<Ipv4Addr>,
 }
 
-#[derive(strum::EnumString, strum::Display, PartialEq, Eq)]
+#[derive(strum::EnumString, strum::Display, PartialEq, Eq, Debug)]
 #[strum(serialize_all = "lowercase")]
 pub enum DeviceType {
     BRIDGE,
 }
 
-#[derive(UciSection, Default)]
+#[derive(Debug, UciSection, Default)]
 #[uci(ty = "device")]
 pub struct NetworkDevice {
     pub name: String,
@@ -91,7 +91,7 @@ pub struct NetworkDevice {
     pub ports: Vec<String>,
 }
 
-#[derive(UciSection, Default)]
+#[derive(Debug, UciSection, Default)]
 #[uci(ty = "bridge-vlan")]
 pub struct NetworkBridgeVlan {
     pub device: String,

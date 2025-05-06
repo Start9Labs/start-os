@@ -25,12 +25,12 @@ const DEFAULT_WAN_ZONE: &str = "wan";
 const INTERFACE_NAME_LIMIT: usize = 5;
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
 pub enum LanAccess {
     #[serde(rename = "ALL")]
     All,
     #[serde(rename = "SAME_PROFILE")]
     SameProfile,
+    #[serde(rename = "other_profiles")]
     OtherProfiles(Vec<ProfileId>),
 }
 
@@ -108,13 +108,14 @@ pub fn create<C: Context>(
     })?;
     let mut all_interfaces = BTreeSet::<String>::new();
     // FIXME: feature to stage both config rewrites until we are sure about them
-    let vlan_tag = rewrite_config("/etc/config/network", |mut cfg| {
+    let vlan_tag = rewrite_config("./etc/config/network", |mut cfg| {
         let mut existing_tags = BTreeSet::new();
         let mut found_bridge = None;
         while cfg.step() {
-            let Some(name) = cfg.name() else { continue };
+            let name = cfg.name();
             match &*cfg.ty() {
                 NetworkInterface::TY => {
+                    let Some(name) = name else { continue };
                     if name == interface {
                         return Err(ErrorKind::InterfaceNameConflict(interface.clone()).into());
                     }
@@ -188,7 +189,7 @@ fn rewrite_firewall(
     if let Some(interface_in_profile) = &profile.interface {
         assert_eq!(interface_in_profile, interface);
     }
-    rewrite_config("/etc/config/firewall", |mut cfg| {
+    rewrite_config("./etc/config/firewall", |mut cfg| {
         let mut found_wan = false;
         let this_zone_name = format!("vlan_{interface}");
         let mut all_zones = BTreeMap::new();
@@ -313,15 +314,16 @@ pub fn allocate_interface_name(hint: &str) -> Result<String, Error> {
         None | Some("") => random(),
         Some(hint) => hint.to_string(),
     };
-    loop {
+    for _ in 0..100 {
         let ip = Command::new("ip")
             .arg("link")
             .arg("show")
             .arg(&name)
             .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
             .spawn()?;
         let mut ip_out = String::new();
-        ip.stdout
+        ip.stderr
             .ok_or_eyre("ip did not produce output")?
             .read_to_string(&mut ip_out)?;
         if ip_out.contains("does not exist") {
@@ -329,4 +331,5 @@ pub fn allocate_interface_name(hint: &str) -> Result<String, Error> {
         }
         name = random();
     }
+    Err(eyre!("gave up looking for a new interface name").into())
 }
