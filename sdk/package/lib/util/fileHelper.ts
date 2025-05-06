@@ -61,6 +61,18 @@ function fileMerge(...args: any[]): any {
   return res
 }
 
+function filterUndefined<A>(a: A): A {
+  if (a && typeof a === "object" && !Array.isArray(a)) {
+    return Object.entries(a).reduce<Record<string, any>>((acc, [k, v]) => {
+      if (v !== undefined) {
+        acc[k] = filterUndefined(v)
+      }
+      return acc
+    }, {}) as A
+  }
+  return a
+}
+
 export type Transformers<Raw = unknown, Transformed = unknown> = {
   onRead: (value: Raw) => Transformed
   onWrite: (value: Transformed) => Raw
@@ -402,7 +414,7 @@ export class FileHelper<A> {
   ): FileHelper<A> {
     return FileHelper.rawTransformed<A, Record<string, unknown>, Transformed>(
       path,
-      (inData) => INI.stringify(JSON.parse(JSON.stringify(inData)), options),
+      (inData) => INI.stringify(filterUndefined(inData), options),
       (inString) => INI.parse(inString, options),
       (data) => shape.unsafeCast(data),
       transformers,
