@@ -147,7 +147,7 @@ impl Handler<RunAction> for ServiceActor {
             .into_idx(&action_id)
             .or_not_found(lazy_format!("{package_id} action {action_id}"))?
             .de()?;
-        if !matches!(&action.visibility, ActionVisibility::Enabled) {
+        if matches!(&action.visibility, ActionVisibility::Disabled(_)) {
             return Err(Error::new(
                 eyre!("action {action_id} is disabled"),
                 ErrorKind::Action,

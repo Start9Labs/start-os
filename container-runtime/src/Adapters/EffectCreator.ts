@@ -265,6 +265,7 @@ export function makeEffects(context: EffectContext): Effects {
       return rpcRound("mount", options) as ReturnType<T.Effects["mount"]>
     },
     restart(...[]: Parameters<T.Effects["restart"]>) {
+      console.log("Restarting service...")
       return rpcRound("restart", {}) as ReturnType<T.Effects["restart"]>
     },
     setDependencies(
