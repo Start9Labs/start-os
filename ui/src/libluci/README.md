@@ -6,4 +6,8 @@ Because Luci is Apache licensed, we should document our changes here. Key modifi
 - modern JS classes
 - fetch API
 - modern imports
-- type annotations (TODO)
+- type annotations
+
+We are mainly interested in the uci.js bindings. At some point this whole library should be discarded and reimplemented in-house with only the features we actually use (TODO).
+
+As of writing the type annotations are a work in progress. They were written largely by AI so are not entirely trustworthy.

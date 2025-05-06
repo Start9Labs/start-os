@@ -1,3 +1,10 @@
+# Architecture
+
+Currently the ui folder is setup as basically dumb angular starter code,
+since Sam doesn't know anything about writing angular frontends. Only
+the ui/src/libluci and ui/src/controllers folders have anything of note.
+Please look at the README.md files in each directory.
+
 # Identity PSK
 
 The basic pre-installed packages do not suport wpa_psk_file keyids.
