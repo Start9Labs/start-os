@@ -150,18 +150,18 @@ pub fn get<C: Context>(_ctx: C, query: ProfileIdOpt) -> Result<Profile, Error> {
                 let Some(name) = cfg.name() else { continue };
                 if name == id.interface {
                     if iface.proto != InterfaceProto::STATIC {
-                        return Err(ErrorKind::CorruptedProfile(query.clone()).into());
+                        return Err(ErrorKind::CorruptedProfile { id: query.clone() }.into());
                     }
                     if let Some(ip) = iface.ipaddr {
                         wip_profile.gateway_ip = ip;
                     } else {
-                        return Err(ErrorKind::CorruptedProfile(query.clone()).into());
+                        return Err(ErrorKind::CorruptedProfile { id: query.clone() }.into());
                     }
                     return Ok::<_, Error>(());
                 }
             }
         }
-        Err(ErrorKind::CorruptedProfile(query.clone()).into())
+        Err(ErrorKind::CorruptedProfile { id: query.clone() }.into())
     })?;
     parse_config("./etc/config/firewall", |mut cfg| {
         let mut this_zone_name = format!("vlan_{}", id.interface);
@@ -387,7 +387,10 @@ pub fn create<C: Context>(
                 NetworkInterface::TY => {
                     let Some(name) = cfg.name() else { continue };
                     if name == interface {
-                        return Err(ErrorKind::InterfaceNameConflict(interface.clone()).into());
+                        return Err(ErrorKind::InterfaceNameConflict {
+                            name: interface.clone(),
+                        }
+                        .into());
                     }
                     if let Ok(iface) = cfg.get::<NetworkInterface>() {
                         if iface.proto == InterfaceProto::STATIC {
@@ -416,7 +419,7 @@ pub fn create<C: Context>(
         let vlan_tag = match profile.id.vlan_tag {
             Some(chosen_tag) => {
                 if existing_tags.contains(&chosen_tag) {
-                    return Err(ErrorKind::DuplicateVlanTag(chosen_tag).into());
+                    return Err(ErrorKind::DuplicateVlanTag { tag: chosen_tag }.into());
                 }
                 chosen_tag
             }
@@ -569,9 +572,9 @@ fn rewrite_firewall(
                             None,
                         )?,
                         None => {
-                            return Err(ErrorKind::MissingFirewallZone(
-                                other_profile.interface.clone(),
-                            )
+                            return Err(ErrorKind::MissingFirewallZone {
+                                interface: other_profile.interface.clone(),
+                            }
                             .into());
                         }
                     }
@@ -588,9 +591,10 @@ fn rewrite_firewall(
                     None,
                 )?,
                 None => {
-                    return Err(
-                        ErrorKind::MissingFirewallZone(other_profile.interface.clone()).into(),
-                    );
+                    return Err(ErrorKind::MissingFirewallZone {
+                        interface: other_profile.interface.clone(),
+                    }
+                    .into());
                 }
             }
         }
@@ -687,7 +691,7 @@ impl Lookup {
                 return Ok(o);
             }
         }
-        Err(ErrorKind::MissingProfile(q.clone()).into())
+        Err(ErrorKind::MissingProfile { id: q.clone() }.into())
     }
 
     pub fn from_vlan(&self, vlan_tag: u16) -> Option<&ProfileId> {

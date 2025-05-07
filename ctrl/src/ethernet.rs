@@ -1,19 +1,14 @@
-use crate::profiles::{self, ProfileId, ProfileIdOpt, DEFAULT_WAN_ZONE};
+use crate::profiles::{self, ProfileId, ProfileIdOpt};
 use crate::utils::DeserializeStdin;
 use crate::{utils::HandlerExtSerde, Error, ErrorKind};
-use clap::Parser;
-use color_eyre::eyre::{eyre, OptionExt};
-use rpc_toolkit::{from_fn, Context, HandlerExt as _, ParentHandler};
+use rpc_toolkit::{from_fn, Context, ParentHandler};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::io::Read;
-use std::net::Ipv4Addr;
-use std::process::{Command, Stdio};
+use std::collections::{BTreeMap, HashMap, HashSet};
+use std::process::Command;
 use uciedit::openwrt::{
-    DeviceType, FirewallForwarding, FirewallTarget, FirewallZone, InterfaceProto,
-    NetworkBridgeVlan, NetworkDevice, NetworkInterface, NetworkVlanPortTagging,
+    DeviceType, InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface,
+    NetworkVlanPortTagging,
 };
-use uciedit::UciSection;
 use uciedit::{parse_config, rewrite_config};
 
 pub const DEFAULT_LAN_BRIDGE: &str = "br-lan";
@@ -162,7 +157,10 @@ pub fn update<C: Context>(
         for (port_name, port) in &ethernet.ports {
             if Some(port_name) == ethernet.wan_port.as_ref() {
                 if port.profile.is_some() {
-                    return Err(ErrorKind::WanPortWithProfile(port_name.clone()).into());
+                    return Err(ErrorKind::WanPortWithProfile {
+                        port: port_name.clone(),
+                    }
+                    .into());
                 }
             } else {
                 bridge.ports.push(port_name.clone());

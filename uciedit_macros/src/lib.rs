@@ -119,7 +119,7 @@ impl UciField {
             (None, Optional | List, _) => quote! { #field: #placehold, },
             (None, Single, true) => quote! { #field: #placehold.unwrap_or_default(), },
             (None, Single, false) => {
-                quote! { #field: #placehold.ok_or(#crat::Error::MissingOption { line_number: start_index, missing: #name.into() })?, }
+                quote! { #field: #placehold.ok_or(#crat::Error::MissingOption { src: start_index.into(), missing: #name.into() })?, }
             }
         }
     }
@@ -197,7 +197,7 @@ fn read_body(fields: &[UciField], struc: Ident, _ty: String, crat: Path) -> Toke
     let init = fields.iter().map(UciField::read_init);
     quote! {
         let Some(#crat::Line::Section { .. }) = lines.get(index) else {
-            return Err(#crat::Error::ExpectedSection { line_number: index })
+            return Err(#crat::Error::ExpectedSection { src: index.into() })
         };
         #(#decl)*
 
@@ -230,10 +230,10 @@ fn write_body(fields: &[UciField], _struc: Ident, ty: String, crat: Path) -> Tok
     let chain = chained_write_iters(fields);
     quote! {
         let Some(#crat::Line::Section { ty, .. }) = lines.get(index) else {
-            return Err(#crat::Error::ExpectedSection { line_number: index })
+            return Err(#crat::Error::ExpectedSection { src: index.into() })
         };
         if ty.as_str() != #ty {
-            return Err(#crat::Error::ExpectedSectionType { line_number: index, expected: (#ty).into(), found: ty.as_str().into(), })
+            return Err(#crat::Error::ExpectedSectionType { src: index.into(), expected: (#ty).into(), found: ty.as_str().into(), })
         }
 
         #(#decl)*

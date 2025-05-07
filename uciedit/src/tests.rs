@@ -294,7 +294,7 @@ fn test_token_functionality() {
     );
     assert!(matches!(
         Token::from_str("abc", &arena).parse_fromstr::<i32>(0),
-        Err(Error::ValueDyn { .. })
+        Err(Error::ValueMsg { .. })
     ));
 }
 

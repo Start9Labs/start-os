@@ -10,4 +10,5 @@ bumpalo = "3.17"
 typed-arena = "2.0.2"
 uciedit_macros = { workspace = true }
 strum = { version = "0.27.1", features = ["derive"] }
-thiserror = {workspace = true}
+thiserror = { workspace = true}
+serde = { workspace = true }

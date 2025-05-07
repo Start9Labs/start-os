@@ -2360,6 +2360,7 @@ dependencies = [
  "bumpalo",
  "fd-lock-rs",
  "inpt",
+ "serde",
  "strum",
  "thiserror 2.0.12",
  "typed-arena",

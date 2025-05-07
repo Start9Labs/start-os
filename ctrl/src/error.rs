@@ -1,40 +1,60 @@
 use crate::profiles::ProfileIdOpt;
+use color_eyre::eyre;
+use serde::{Serialize, Serializer};
 use std::backtrace::Backtrace;
 use std::fmt;
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+fn serialize_eyre_err<S: Serializer>(err: &eyre::Error, ser: S) -> Result<S::Ok, S::Error> {
+    err.to_string().serialize(ser)
+}
+
+fn serialize_std_err<S: Serializer>(
+    err: &impl std::error::Error,
+    ser: S,
+) -> Result<S::Ok, S::Error> {
+    err.to_string().serialize(ser)
+}
+
+#[derive(Debug, Error, Serialize)]
+#[serde(tag = "error")]
 pub enum ErrorKind {
     #[error(transparent)]
-    Io(#[from] std::io::Error),
+    Io(
+        #[serde(serialize_with = "serialize_std_err")]
+        #[from]
+        std::io::Error,
+    ),
     #[error(transparent)]
     UciEdit(#[from] uciedit::Error),
-    #[error("interface name {0:?} conflicts")]
-    InterfaceNameConflict(String),
-    #[error("could not find profile identified by {0:?}")]
-    MissingProfile(ProfileIdOpt),
-    #[error("corrupted profile with {0:?}")]
-    CorruptedProfile(ProfileIdOpt),
+    #[error("interface name {name:?} conflicts")]
+    InterfaceNameConflict { name: String },
+    #[error("could not find profile identified by {id:?}")]
+    MissingProfile { id: ProfileIdOpt },
+    #[error("corrupted profile with {id:?}")]
+    CorruptedProfile { id: ProfileIdOpt },
     #[error("corrupted wifi devices and interfaces")]
     CorruptedWifi,
     #[error("all wireless interfaces need to be named")]
     UnnamedWirelessInterface,
     #[error("all wireless devices need to be named")]
     UnnamedWirelessDevice,
-    #[error("multiple vlans with tag {0}")]
-    DuplicateVlanTag(u16),
+    #[error("multiple vlans with tag {tag}")]
+    DuplicateVlanTag { tag: u16 },
     #[error("no lan bridge device found")]
     MissingLanBridge,
     #[error("no lan wan interface found")]
     MissingWanInterface,
-    #[error("no firewall zone for interface {0}")]
-    MissingFirewallZone(String),
-    #[error("the wan port can not have a profile")]
-    WanPortWithProfile(String),
-    #[error("missing {0:?} in profile id")]
-    MissingProfileIdField(&'static str),
+    #[error("no firewall zone for interface {interface}")]
+    MissingFirewallZone { interface: String },
+    #[error("the wan port {port} can not have a profile")]
+    WanPortWithProfile { port: String },
     #[error(transparent)]
-    Other(#[from] color_eyre::eyre::Error),
+    Other(
+        #[serde(serialize_with = "serialize_eyre_err")]
+        #[from]
+        eyre::Error,
+    ),
 }
 
 impl<E> From<E> for Error
@@ -58,7 +78,7 @@ pub struct Error {
 impl Error {
     pub fn other(msg: impl fmt::Display + fmt::Debug + Sync + Send + 'static) -> Self {
         Error {
-            kind: ErrorKind::Other(color_eyre::eyre::Error::msg(msg)),
+            kind: ErrorKind::Other(eyre::Error::msg(msg)),
             backtrace: Backtrace::capture(),
         }
     }

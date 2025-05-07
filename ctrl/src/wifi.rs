@@ -1,22 +1,14 @@
 use crate::profiles::{self, ProfileId, ProfileIdOpt};
 use crate::utils::DeserializeStdin;
 use crate::{utils::HandlerExtSerde, Error, ErrorKind};
-use clap::Parser;
-use color_eyre::eyre::{eyre, OptionExt};
-use rpc_toolkit::{from_fn, Context, HandlerExt as _, ParentHandler};
+use rpc_toolkit::{from_fn, Context, ParentHandler};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
-use std::io::Read;
-use std::net::Ipv4Addr;
-use std::os::unix::process::CommandExt;
-use std::process::{Command, Stdio};
+use std::collections::{BTreeSet, HashMap};
+use std::process::Command;
 use uciedit::openwrt::{
-    DeviceType, FirewallForwarding, FirewallTarget, FirewallZone, InterfaceProto,
-    NetworkBridgeVlan, NetworkDevice, NetworkInterface, NetworkVlanPortTagging, WifiChannel,
-    WifiDevice, WifiDynamicVlan, WifiInterface, WifiMode, WifiStation, WifiVlan,
+    WifiChannel, WifiDevice, WifiDynamicVlan, WifiInterface, WifiMode, WifiStation, WifiVlan,
 };
 use uciedit::{parse_config, rewrite_config, Sections};
-use uciedit::{SectionsMut, UciSection};
 
 pub const DEFAULT_LAN_BRIDGE: &str = "br-lan";
 

@@ -6,3 +6,4 @@ members = ["uciedit", "uciedit_macros", "ctrl"]
 uciedit_macros = { path = "uciedit_macros" }
 uciedit = { path = "uciedit" }
 thiserror = "2.0.12"
+serde = { version="1", features = ["derive"] }

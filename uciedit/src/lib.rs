@@ -3,8 +3,10 @@ extern crate self as uciedit;
 pub use inpt::inpt;
 use inpt::split::{unescape, Quoted, SingleQuoted, Spaced};
 use inpt::{inpt_step, Inpt, InptStep};
+use serde::Serializer;
 use std::fmt::Display;
 use std::io::{self, BufRead, BufWriter, Seek};
+use std::path::PathBuf;
 use std::str::{FromStr, Utf8Error};
 use std::{borrow::Cow, fs::File, path::Path};
 use std::{fmt, fs};
@@ -12,41 +14,154 @@ pub use uciedit_macros::UciSection;
 
 pub mod openwrt;
 
-#[derive(thiserror::Error, Debug)]
+#[derive(Debug, serde::Serialize)]
+pub enum Source {
+    Unknown,
+    UnknownLine(usize),
+    Line(PathBuf, usize),
+    Path(PathBuf),
+}
+
+impl From<usize> for Source {
+    fn from(value: usize) -> Self {
+        Source::UnknownLine(value)
+    }
+}
+
+impl fmt::Display for Source {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Source::Unknown => write!(f, "???"),
+            Source::UnknownLine(line) => write!(f, "???:{}", line),
+            Source::Line(path, line) => write!(f, "{}:{}", path.display(), line),
+            Source::Path(path) => write!(f, "{}", path.display()),
+        }
+    }
+}
+
+fn ser_std_err<S: Serializer>(err: &impl std::error::Error, ser: S) -> Result<S::Ok, S::Error> {
+    serde::Serialize::serialize(&err.to_string(), ser)
+}
+
+#[derive(serde::Serialize, thiserror::Error, Debug)]
+#[serde(tag = "what")]
 pub enum Error {
-    #[error(transparent)]
-    Io(#[from] std::io::Error),
-    #[error(transparent)]
-    Utf8(#[from] Utf8Error),
-    #[error(transparent)]
-    FdLock(#[from] fd_lock_rs::Error),
-    #[error("bad section type on line {line_number}: {desc}")]
-    BadSection { line_number: usize, desc: String },
-    #[error("bad option on line {line_number}: {desc}")]
-    BadOption { line_number: usize, desc: String },
-    #[error("bad list on line {line_number}: {desc}")]
-    BadList { line_number: usize, desc: String },
-    #[error("unknown uci keyword {found:?} on {line_number}")]
-    UnknownKeyword { line_number: usize, found: String },
-    #[error("expected uci section on line {line_number}")]
-    ExpectedSection { line_number: usize },
-    #[error("expected {found:?} section on line {line_number} to be {expected:?}")]
+    #[error("{cause} at {src}")]
+    Io {
+        #[serde(serialize_with = "ser_std_err")]
+        cause: std::io::Error,
+        src: Source,
+    },
+    #[error("{cause} at {src}")]
+    Utf8 {
+        #[serde(serialize_with = "ser_std_err")]
+        cause: Utf8Error,
+        src: Source,
+    },
+    #[error("{cause} at {src}")]
+    FdLock {
+        #[serde(serialize_with = "ser_std_err")]
+        cause: fd_lock_rs::Error,
+        src: Source,
+    },
+    #[error("bad section type at {src}: {desc}")]
+    BadSection { src: Source, desc: String },
+    #[error("bad option at {src}: {desc}")]
+    BadOption { src: Source, desc: String },
+    #[error("bad list at {src}: {desc}")]
+    BadList { src: Source, desc: String },
+    #[error("unknown uci keyword {found:?} at {src}")]
+    UnknownKeyword { src: Source, found: String },
+    #[error("expected uci section at {src}")]
+    ExpectedSection { src: Source },
+    #[error("expected {found:?} section at {src} to be {expected:?}")]
     ExpectedSectionType {
-        line_number: usize,
+        src: Source,
         expected: String,
         found: String,
     },
-    #[error("error parsing a value on line {line_number}: {error:?}")]
-    ValueDyn {
-        line_number: usize,
-        error: Box<dyn std::error::Error + Sync + Send>,
-    },
-    #[error("error parsing a value on line {line_number}: {desc:?}")]
-    ValueMsg { line_number: usize, desc: String },
-    #[error("error parsing a value on line {line_number}: {found:?} should be a boolean")]
-    ValueBoolean { line_number: usize, found: String },
-    #[error("missing option {missing:?} on line {line_number}")]
-    MissingOption { line_number: usize, missing: String },
+    #[error("error parsing a value at {src}: {desc:?}")]
+    ValueMsg { src: Source, desc: String },
+    #[error("error parsing a value at {src}: {found:?} should be a boolean")]
+    ValueBoolean { src: Source, found: String },
+    #[error("missing option {missing:?} at {src}")]
+    MissingOption { src: Source, missing: String },
+}
+
+impl Error {
+    pub fn map_src(self, with: impl FnOnce(Source) -> Source) -> Self {
+        use Error::*;
+        match self {
+            Io { cause, src } => Io {
+                cause,
+                src: with(src),
+            },
+            Utf8 { cause, src } => Utf8 {
+                cause,
+                src: with(src),
+            },
+            FdLock { cause, src } => FdLock {
+                cause,
+                src: with(src),
+            },
+            BadSection { src, desc } => BadSection {
+                src: with(src),
+                desc,
+            },
+            BadOption { src, desc } => BadOption {
+                src: with(src),
+                desc,
+            },
+            BadList { src, desc } => BadList {
+                src: with(src),
+                desc,
+            },
+            UnknownKeyword { src, found } => UnknownKeyword {
+                src: with(src),
+                found,
+            },
+            ExpectedSection { src } => ExpectedSection { src: with(src) },
+            ExpectedSectionType {
+                src,
+                expected,
+                found,
+            } => ExpectedSectionType {
+                src: with(src),
+                expected,
+                found,
+            },
+            ValueMsg { src, desc } => ValueMsg {
+                src: with(src),
+                desc,
+            },
+            ValueBoolean { src, found } => ValueBoolean {
+                src: with(src),
+                found,
+            },
+            MissingOption { src, missing } => MissingOption {
+                src: with(src),
+                missing,
+            },
+        }
+    }
+}
+
+trait ResultExt {
+    fn with_path(self, path: &Path) -> Self;
+}
+
+impl<T> ResultExt for Result<T, Error> {
+    fn with_path(self, path: &Path) -> Self {
+        use Source::*;
+        match self {
+            Ok(x) => Ok(x),
+            Err(e) => Err(e.map_src(|src| match src {
+                Unknown => Path(path.to_path_buf()),
+                UnknownLine(n) => Line(path.to_path_buf(), n),
+                _ => src,
+            })),
+        }
+    }
 }
 
 impl Error {
@@ -54,23 +169,41 @@ impl Error {
         error: impl std::error::Error + Sync + Send + 'static,
         line_number: usize,
     ) -> Self {
-        Error::ValueDyn {
-            line_number,
-            error: Box::new(error),
+        Error::ValueMsg {
+            src: Source::UnknownLine(line_number),
+            desc: error.to_string(),
         }
     }
 }
 
-pub fn parse_config<V, E: From<Error> + From<io::Error>>(
+pub fn parse_config<V, E: From<Error>>(
     path: impl AsRef<Path>,
     with: impl FnOnce(Sections) -> Result<V, E>,
 ) -> Result<V, E> {
-    let text = match fs::read_to_string(path) {
+    let text = match fs::read_to_string(path.as_ref()) {
         Ok(text) => text,
         Err(err) if err.kind() == io::ErrorKind::NotFound => String::new(),
-        Err(err) => return Err(err.into()),
+        Err(cause) => {
+            return Err(E::from(Error::Io {
+                cause,
+                src: Source::Path(path.as_ref().to_path_buf()),
+            }))
+        }
     };
-    parse_config_string(&text, with)
+    let lines = text
+        .lines()
+        .enumerate()
+        .map(|(n, l)| Line::parse(l, n))
+        .collect::<Result<_, _>>()
+        .with_path(path.as_ref())?;
+    let arena = Arena::new();
+    with(Sections {
+        lines: &lines,
+        arena: &arena,
+        index: 0,
+        started: false,
+        path: Some(path.as_ref()),
+    })
 }
 
 pub fn parse_config_string<V, E: From<Error>>(
@@ -88,6 +221,7 @@ pub fn parse_config_string<V, E: From<Error>>(
         arena: &arena,
         index: 0,
         started: false,
+        path: None,
     })
 }
 
@@ -98,11 +232,15 @@ pub fn parse_config_string<V, E: From<Error>>(
 // options, so one open could result in many visits. this is related to opening
 // multiple configs
 // TODO: async version?
-pub fn rewrite_config<V, E: From<Error> + From<io::Error>>(
+pub fn rewrite_config<V, E: From<Error>>(
     path: impl AsRef<Path>,
     with: impl for<'a> FnOnce(SectionsMut) -> Result<V, E>,
 ) -> Result<V, E> {
     use std::io::Write;
+    let map_io_error = |cause: io::Error| Error::Io {
+        cause,
+        src: Source::Path(path.as_ref().to_path_buf()),
+    };
 
     use fd_lock_rs::{FdLock, LockType};
     use std::io::BufReader;
@@ -111,13 +249,18 @@ pub fn rewrite_config<V, E: From<Error> + From<io::Error>>(
         .read(true)
         .write(true)
         .truncate(false)
-        .open(path)?;
-    let mut locked = FdLock::lock(file, LockType::Exclusive, true).map_err(Error::FdLock)?;
+        .open(&path)
+        .map_err(map_io_error)?;
+    let mut locked =
+        FdLock::lock(file, LockType::Exclusive, true).map_err(|cause| Error::FdLock {
+            cause,
+            src: Source::Path(path.as_ref().to_path_buf()),
+        })?;
     let mut lines = Vec::new();
     let arena = Arena::new();
     for line in BufReader::new(&mut *locked).lines() {
-        let line = arena.alloc(line?);
-        let parse = Line::parse(line, lines.len())?;
+        let line = arena.alloc(line.map_err(map_io_error)?);
+        let parse = Line::parse(line, lines.len()).with_path(path.as_ref())?;
         lines.push(parse);
     }
     let v = with(SectionsMut {
@@ -126,21 +269,28 @@ pub fn rewrite_config<V, E: From<Error> + From<io::Error>>(
         arena: &arena,
         section_start: None,
         retain: true,
+        path: Some(path.as_ref()),
     })?;
-    locked.set_len(0)?;
-    locked.seek(std::io::SeekFrom::Start(0))?;
+    locked.set_len(0).map_err(map_io_error)?;
+    locked
+        .seek(std::io::SeekFrom::Start(0))
+        .map_err(map_io_error)?;
     let mut writer = BufWriter::new(&mut *locked);
     for line in lines {
-        write!(writer, "{}", line)?;
+        write!(writer, "{}", line).map_err(map_io_error)?;
     }
     Ok(v)
 }
 
-pub fn rewrite_config_string<E: From<Error> + From<io::Error>>(
+pub fn rewrite_config_string<E: From<Error>>(
     config: String,
     with: impl for<'a> FnOnce(SectionsMut) -> Result<(), E>,
 ) -> Result<String, E> {
     use std::io::Write;
+    let map_io_error = |cause: io::Error| Error::Io {
+        cause,
+        src: Source::Unknown,
+    };
 
     let mut lines = Vec::new();
     let arena = Arena::new();
@@ -153,12 +303,19 @@ pub fn rewrite_config_string<E: From<Error> + From<io::Error>>(
         arena: &arena,
         section_start: None,
         retain: true,
+        path: None,
     })?;
     let mut writer = io::Cursor::new(Vec::new());
     for line in lines {
-        write!(writer, "{}", line)?;
+        write!(writer, "{}", line).map_err(map_io_error)?;
     }
-    String::from_utf8(writer.into_inner()).map_err(|err| Error::Utf8(err.utf8_error()).into())
+    String::from_utf8(writer.into_inner()).map_err(|err| {
+        Error::Utf8 {
+            cause: err.utf8_error(),
+            src: Source::Unknown,
+        }
+        .into()
+    })
 }
 
 pub type Lines<'a> = Vec<Line<'a>>;
@@ -169,6 +326,7 @@ pub struct Sections<'a> {
     arena: &'a Arena,
     index: usize,
     started: bool,
+    path: Option<&'a Path>,
 }
 
 impl<'a> Sections<'a> {
@@ -196,7 +354,12 @@ impl<'a> Sections<'a> {
         if !self.started {
             panic!("call step at least once");
         }
-        S::read(self.lines, self.arena, self.index)
+        let res = S::read(self.lines, self.arena, self.index);
+        if let Some(path) = self.path {
+            res.with_path(path)
+        } else {
+            res
+        }
     }
 
     /// like [Sections::get] but returns None if the section is a different type
@@ -276,6 +439,7 @@ pub struct SectionsMut<'l, 'a> {
     arena: &'a Arena,
     section_start: Option<usize>,
     retain: bool,
+    path: Option<&'l Path>,
 }
 
 impl<'a> SectionsMut<'_, 'a> {
@@ -285,6 +449,7 @@ impl<'a> SectionsMut<'_, 'a> {
             arena: self.arena,
             index: self.index,
             started: self.section_start.is_some(),
+            path: self.path,
         }
     }
 
@@ -312,7 +477,12 @@ impl<'a> SectionsMut<'_, 'a> {
         if self.section_start.is_none() {
             panic!("call step at least once");
         }
-        S::read(self.lines, self.arena, self.index)
+        let res = S::read(self.lines, self.arena, self.index);
+        if let Some(path) = self.path {
+            res.with_path(path)
+        } else {
+            res
+        }
     }
 
     /// like [SectionsMut::get] but returns None if the section is a different type
@@ -330,7 +500,12 @@ impl<'a> SectionsMut<'_, 'a> {
         if self.section_start.is_none() {
             panic!("call step at least once");
         }
-        section.write(self.lines, self.arena, self.index)
+        let res = section.write(self.lines, self.arena, self.index);
+        if let Some(path) = self.path {
+            res.with_path(path)
+        } else {
+            res
+        }
     }
 
     pub fn push<S: UciSection<'a>>(
@@ -338,11 +513,16 @@ impl<'a> SectionsMut<'_, 'a> {
         section: &S,
         name: Option<&str>,
     ) -> Result<(), Error> {
-        section.append(
+        let res = section.append(
             self.lines,
             self.arena,
             name.map(|n| self.arena.alloc(n.to_string()).as_str()),
-        )
+        );
+        if let Some(path) = self.path {
+            res.with_path(path)
+        } else {
+            res
+        }
     }
 
     pub fn remove(&mut self) {
@@ -539,7 +719,7 @@ impl<'a> Line<'a> {
         Ok(match &*keyword.as_str() {
             "config" => {
                 match inpt(rest).map_err(|err| Error::BadSection {
-                    line_number,
+                    src: Source::UnknownLine(line_number),
                     desc: err.to_string(),
                 })? {
                     ConfigLine::Named(ty, name, comment) => Line::Section {
@@ -557,7 +737,7 @@ impl<'a> Line<'a> {
             "option" => {
                 let (option, value, comment): (Token, Token, LineComment) =
                     inpt(rest).map_err(|err| Error::BadOption {
-                        line_number,
+                        src: Source::UnknownLine(line_number),
                         desc: err.to_string(),
                     })?;
                 Line::Option {
@@ -569,7 +749,7 @@ impl<'a> Line<'a> {
             "list" => {
                 let (list, item, comment): (Token, Token, LineComment) =
                     inpt(rest).map_err(|err| Error::BadList {
-                        line_number,
+                        src: Source::UnknownLine(line_number),
                         desc: err.to_string(),
                     })?;
                 Line::List {
@@ -580,7 +760,7 @@ impl<'a> Line<'a> {
             }
             kw => {
                 return Err(Error::UnknownKeyword {
-                    line_number,
+                    src: Source::UnknownLine(line_number),
                     found: kw.into(),
                 })
             }
@@ -717,9 +897,9 @@ impl<'a> Token<'a> {
     {
         match self.as_str().parse::<T>() {
             Ok(v) => Ok(v),
-            Err(e) => Err(Error::ValueDyn {
-                line_number,
-                error: Box::new(e),
+            Err(e) => Err(Error::ValueMsg {
+                src: Source::UnknownLine(line_number),
+                desc: e.to_string(),
             }),
         }
     }
@@ -728,7 +908,7 @@ impl<'a> Token<'a> {
         match inpt(self.as_arena_str(arena)) {
             Ok(v) => Ok(v),
             Err(e) => Err(Error::ValueMsg {
-                line_number,
+                src: Source::UnknownLine(line_number),
                 desc: e.to_string(),
             }),
         }
@@ -739,7 +919,7 @@ impl<'a> Token<'a> {
             "0" | "no" | "off" | "false" | "disabled" => Ok(false),
             "1" | "yes" | "on" | "true" | "enabled" => Ok(true),
             other => Err(Error::ValueBoolean {
-                line_number,
+                src: Source::UnknownLine(line_number),
                 found: other.to_string(),
             }),
         }

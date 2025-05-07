@@ -12,7 +12,7 @@ tokio = { version = "1.41.1", features = ["tracing", "process", "socket2", "time
 tracing = "0.1"
 tracing-rfc-5424 = "0.1"
 tracing-subscriber = "0.3"
-serde = { version="1", features = ["derive"] }
+serde = { workspace = true }
 serde_yaml = "0.9.34"
 macaddr = "1.0.0"
 uciedit = { workspace = true, version = "0.1.0" }
