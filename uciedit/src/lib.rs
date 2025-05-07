@@ -20,14 +20,12 @@ pub enum Error {
     Utf8(#[from] Utf8Error),
     #[error(transparent)]
     FdLock(#[from] fd_lock_rs::Error),
-    #[error("bad section name on line {line_number}")]
-    BadSectionName { line_number: usize },
-    #[error("bad section type on line {line_number}")]
-    BadSectionType { line_number: usize },
-    #[error("bad option on line {line_number}")]
-    BadOption { line_number: usize },
-    #[error("bad list on line {line_number}")]
-    BadList { line_number: usize },
+    #[error("bad section type on line {line_number}: {desc}")]
+    BadSection { line_number: usize, desc: String },
+    #[error("bad option on line {line_number}: {desc}")]
+    BadOption { line_number: usize, desc: String },
+    #[error("bad list on line {line_number}: {desc}")]
+    BadList { line_number: usize, desc: String },
     #[error("unknown uci keyword {found:?} on {line_number}")]
     UnknownKeyword { line_number: usize, found: String },
     #[error("expected uci section on line {line_number}")]
@@ -89,7 +87,13 @@ pub fn parse_config_string<V, E: From<Error>>(
     })
 }
 
-/// TODO: async version?
+// TODO: we need a way to open multiple configs, and cancel all if any of the
+// rewrites error
+// TODO: a lot of rewrites require multiple passes. right now this is done
+// with [SectionsMut::reset] but would be nicer if open and visit were separate
+// options, so one open could result in many visits. this is related to opening
+// multiple configs
+// TODO: async version?
 pub fn rewrite_config<V, E: From<Error> + From<io::Error>>(
     path: impl AsRef<Path>,
     with: impl for<'a> FnOnce(SectionsMut) -> Result<V, E>,
@@ -372,14 +376,17 @@ pub enum Line<'a> {
     Section {
         ty: Token<'a>,
         name: Option<Token<'a>>,
+        tail: &'a str,
     },
     Option {
         option: Token<'a>,
         value: Token<'a>,
+        tail: &'a str,
     },
     List {
         list: Token<'a>,
         item: Token<'a>,
+        tail: &'a str,
     },
     Skip,
 }
@@ -393,13 +400,22 @@ impl fmt::Display for Line<'_> {
                 text,
             } => writeln!(f, "#{}", text),
             Line::Comment { indent: true, text } => writeln!(f, "\t#{}", text),
-            Line::Section { ty, name: None } => writeln!(f, "config {}", ty),
+            Line::Section {
+                ty,
+                name: None,
+                tail,
+            } => writeln!(f, "config {}{}", ty, tail),
             Line::Section {
                 ty,
                 name: Some(name),
-            } => writeln!(f, "config {} {}", ty, name),
-            Line::Option { option, value } => writeln!(f, "\toption {} {}", option, value),
-            Line::List { list, item } => writeln!(f, "\tlist {} {}", list, item),
+                tail,
+            } => writeln!(f, "config {} {}{}", ty, name, tail),
+            Line::Option {
+                option,
+                value,
+                tail,
+            } => writeln!(f, "\toption {} {}{}", option, value, tail),
+            Line::List { list, item, tail } => writeln!(f, "\tlist {} {}{}", list, item, tail),
             Line::Skip => Ok(()),
         }
     }
@@ -407,6 +423,28 @@ impl fmt::Display for Line<'_> {
 
 impl<'a> Line<'a> {
     pub fn parse(line: &'a str, line_number: usize) -> Result<Self, Error> {
+        #[derive(Inpt, Clone, Copy)]
+        enum Comment<'a> {
+            #[inpt(regex = r"\s*")]
+            Empty,
+            #[inpt(regex = r"(\s*#.*)")]
+            Commented(&'a str),
+        }
+        impl<'a> From<Comment<'a>> for &'a str {
+            fn from(value: Comment<'a>) -> Self {
+                match value {
+                    Comment::Empty => "",
+                    Comment::Commented(x) => x,
+                }
+            }
+        }
+
+        #[derive(Inpt, Clone, Copy)]
+        enum ConfigLine<'a> {
+            Named(Token<'a>, Token<'a>, Comment<'a>),
+            Unnamed(Token<'a>, Comment<'a>),
+        }
+
         let rest = line.trim();
         if rest.is_empty() {
             return Ok(Line::Empty);
@@ -426,29 +464,45 @@ impl<'a> Line<'a> {
         };
         Ok(match &*keyword.as_str() {
             "config" => {
-                let (ty, rest) = match inpt_step::<Token>(rest) {
-                    InptStep { data: Ok(ty), rest } => (ty, rest),
-                    _ => return Err(Error::BadSectionType { line_number }),
-                };
-                let name: Option<_> = if rest.is_empty() {
-                    None
-                } else {
-                    match inpt::<Token>(rest) {
-                        Ok(name) => Some(name),
-                        _ => return Err(Error::BadSectionName { line_number }),
-                    }
-                };
-                Line::Section { ty, name }
+                match inpt(rest).map_err(|err| Error::BadOption {
+                    line_number,
+                    desc: err.to_string(),
+                })? {
+                    ConfigLine::Named(ty, name, comment) => Line::Section {
+                        ty,
+                        name: Some(name),
+                        tail: comment.into(),
+                    },
+                    ConfigLine::Unnamed(ty, comment) => Line::Section {
+                        ty,
+                        name: None,
+                        tail: comment.into(),
+                    },
+                }
             }
             "option" => {
-                let (option, value): (Token, Token) =
-                    inpt(rest).map_err(|_| Error::BadOption { line_number })?;
-                Line::Option { option, value }
+                let (option, value, comment): (Token, Token, Comment) =
+                    inpt(rest).map_err(|err| Error::BadOption {
+                        line_number,
+                        desc: err.to_string(),
+                    })?;
+                Line::Option {
+                    option,
+                    value,
+                    tail: comment.into(),
+                }
             }
             "list" => {
-                let (list, item): (Token, Token) =
-                    inpt(rest).map_err(|_| Error::BadList { line_number })?;
-                Line::List { list, item }
+                let (list, item, comment): (Token, Token, Comment) =
+                    inpt(rest).map_err(|err| Error::BadList {
+                        line_number,
+                        desc: err.to_string(),
+                    })?;
+                Line::List {
+                    list,
+                    item,
+                    tail: comment.into(),
+                }
             }
             kw => {
                 return Err(Error::UnknownKeyword {
@@ -471,6 +525,7 @@ impl<'a> Line<'a> {
         Line::Option {
             option,
             value: Token::from_display(value, arena),
+            tail: "",
         }
     }
 
@@ -486,6 +541,7 @@ impl<'a> Line<'a> {
         items.iter().map(move |item| Line::List {
             list,
             item: Token::from_display(item, arena),
+            tail: "",
         })
     }
 
@@ -494,6 +550,7 @@ impl<'a> Line<'a> {
         Line::Option {
             option,
             value: Token::from_bool(value),
+            tail: "",
         }
     }
 
@@ -509,7 +566,16 @@ impl<'a> Line<'a> {
         items.iter().map(move |item| Line::List {
             list,
             item: Token::from_bool(*item),
+            tail: "",
         })
+    }
+
+    pub fn section_from(ty: &'a str, name: Option<&'a str>, arena: &'a Arena) -> Self {
+        Line::Section {
+            ty: Token::from_str(ty, arena),
+            name: name.map(|n| Token::from_str(n, arena)),
+            tail: "",
+        }
     }
 }
 

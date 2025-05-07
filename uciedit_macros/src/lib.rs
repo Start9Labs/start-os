@@ -204,11 +204,11 @@ fn read_body(fields: &[UciField], struc: Ident, _ty: String, crat: Path) -> Toke
         loop {
             index += 1;
             match lines.get(index) {
-                Some(#crat::Line::Option { option, value }) => match &*option.as_str() {
+                Some(#crat::Line::Option { option, value, .. }) => match &*option.as_str() {
                     #(#option_arm)*
                     _ => continue,
                 },
-                Some(#crat::Line::List { list, item }) => match &*list.as_str() {
+                Some(#crat::Line::List { list, item, .. }) => match &*list.as_str() {
                     #(#list_arm)*
                     _ => continue,
                 },
@@ -282,10 +282,7 @@ fn append_body(fields: &[UciField], _struc: Ident, ty: String, crat: Path) -> To
             lines.push(#crat::Line::Empty);
         }
 
-        lines.push(#crat::Line::Section {
-            ty: #crat::Token::from_str(#ty, arena),
-            name: name.map(|n| #crat::Token::from_str(n, arena)),
-        });
+        lines.push(#crat::Line::section_from(#ty, name, arena));
         lines.extend(#chain);
 
         Ok(())
@@ -337,13 +334,13 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let Data::Struct(struct_data) = input.data else {
         panic!("only structs are supported")
     };
-    let fields: Vec<_> = struct_data
+    let fields = struct_data
         .fields
         .into_iter()
         .map(|f| {
-            let o = UciFieldOpts::from_field(&f).unwrap();
+            let o = UciFieldOpts::from_field(&f)?;
             let i = f.ident.unwrap();
-            UciField {
+            Ok(UciField {
                 placehold: format_ident!("field_{}", i),
                 field: i.clone(),
                 name: match o.rename {
@@ -370,9 +367,13 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
                     FromStr
                 },
                 crat: crat.clone(),
-            }
+            })
         })
-        .collect();
+        .collect::<Result<Vec<_>, syn::Error>>();
+    let fields = match fields {
+        Ok(f) => f,
+        Err(err) => return err.to_compile_error().into(),
+    };
 
     let read_body = read_body(&fields, struc.clone(), ty.clone(), crat.clone());
     let write_body = write_body(&fields, struc.clone(), ty.clone(), crat.clone());

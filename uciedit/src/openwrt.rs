@@ -23,7 +23,7 @@ pub struct FirewallZone {
     pub network: Vec<String>,
 }
 
-#[derive(Debug, UciSection, Default)]
+#[derive(Debug, UciSection)]
 #[uci(ty = "rule")]
 pub struct FirewallRule {
     /*
@@ -50,7 +50,7 @@ pub struct FirewallRule {
     pub target: FirewallTarget,
 }
 
-#[derive(Debug, UciSection, Default)]
+#[derive(Debug, UciSection)]
 #[uci(ty = "forwarding")]
 pub struct FirewallForwarding {
     pub src: String,
@@ -67,7 +67,7 @@ pub enum InterfaceProto {
     DHCPV6,
 }
 
-#[derive(Debug, UciSection, Default)]
+#[derive(Debug, UciSection)]
 #[uci(ty = "interface")]
 pub struct NetworkInterface {
     pub device: String,
@@ -83,7 +83,7 @@ pub enum DeviceType {
     BRIDGE,
 }
 
-#[derive(Debug, UciSection, Default)]
+#[derive(Debug, UciSection)]
 #[uci(ty = "device")]
 pub struct NetworkDevice {
     pub name: String,
@@ -120,11 +120,78 @@ pub enum NetworkVlanPortTagging {
     TAGGED,
 }
 
-#[derive(Debug, UciSection, Default)]
+#[derive(Debug, UciSection)]
 #[uci(ty = "bridge-vlan")]
 pub struct NetworkBridgeVlan {
     pub device: String,
     pub vlan: u16,
     #[uci(inpt)]
     pub ports: Vec<NetworkVlanPort>,
+}
+
+#[derive(strum::FromRepr, strum::EnumString, Debug, strum::Display, Default, PartialEq, Eq)]
+pub enum WifiDynamicVlan {
+    #[strum(serialize = "0")]
+    #[default]
+    OFF = 0,
+    #[strum(serialize = "1")]
+    ALLOWED = 1,
+    #[strum(serialize = "2")]
+    REQUIRED = 2,
+}
+
+#[derive(strum::EnumString, Debug, strum::Display, Default, PartialEq, Eq)]
+pub enum WifiMode {
+    #[default]
+    #[strum(serialize = "ap")]
+    AP,
+    #[strum(serialize = "sta")]
+    STA,
+    #[strum(serialize = "adhoc")]
+    ADHOC,
+    #[strum(serialize = "monitor")]
+    MONITOR,
+    #[strum(serialize = "mesh")]
+    MESH,
+}
+
+#[derive(Debug, UciSection)]
+#[uci(ty = "wifi-device")]
+pub struct WifiDevice {
+    #[uci(default_value = false)]
+    pub disabled: bool,
+    pub band: String,
+}
+
+#[derive(Debug, UciSection)]
+#[uci(ty = "wifi-iface")]
+pub struct WifiInterface {
+    pub device: String,
+    #[uci(default)]
+    pub mode: WifiMode,
+    pub ssid: String,
+    #[uci(default_value = false)]
+    pub hidden: bool,
+    #[uci(default_value = "none".to_string())]
+    pub encryption: String,
+    pub key: Option<String>,
+    #[uci(default)]
+    pub dynamic_vlan: WifiDynamicVlan,
+}
+
+#[derive(Debug, UciSection)]
+#[uci(ty = "wifi-vlan")]
+pub struct WifiVlan {
+    pub name: String,
+    pub network: String,
+    pub vid: u16,
+    pub iface: Option<String>,
+}
+
+#[derive(Debug, UciSection)]
+#[uci(ty = "wifi-station")]
+pub struct WifiStation {
+    pub key: String,
+    pub vid: Option<u16>,
+    pub iface: Option<String>,
 }
