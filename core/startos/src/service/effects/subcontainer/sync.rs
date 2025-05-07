@@ -197,6 +197,8 @@ pub fn launch(
         command,
     }: ExecParams,
 ) -> Result<(), Error> {
+    use std::io::Write;
+
     kill_init(Path::new("/proc"), &chroot)?;
     //TODO: PTY
     let mut sig = signal_hook::iterator::Signals::new(FWD_SIGNALS)?;
@@ -212,75 +214,181 @@ pub fn launch(
             }
         }
     });
-    let mut cmd = StdCommand::new("/usr/bin/start-cli");
-    cmd.arg("subcontainer").arg("launch-init");
-    if let Some(env) = env {
-        cmd.arg("--env").arg(env);
-    }
-    if let Some(workdir) = workdir {
-        cmd.arg("--workdir").arg(workdir);
-    }
-    if let Some(user) = user {
-        cmd.arg("--user").arg(user);
-    }
-    cmd.arg(&chroot);
-    cmd.args(&command);
-    cmd.stdin(Stdio::piped());
-    cmd.stdout(Stdio::piped());
-    cmd.stderr(Stdio::piped());
-    let (stdin_send, stdin_recv) = oneshot::channel();
+
+    let mut stdin = std::io::stdin();
+    let stdout = std::io::stdout();
+    let stderr = std::io::stderr();
+    let stderr_tty = force_stderr_tty || stderr.is_terminal();
+
+    let tty = force_tty || (stdin.is_terminal() && stdout.is_terminal());
+
+    let raw = if stdin.is_terminal() && stdout.is_terminal() {
+        Some(termion::get_tty()?.into_raw_mode()?)
+    } else {
+        None
+    };
+
+    let pty_size = pty_size.or_else(|| TermSize::get_current());
+
+    let (stdin_send, stdin_recv) = oneshot::channel::<Box<dyn Write + Send>>();
     std::thread::spawn(move || {
-        if let Ok(mut stdin) = stdin_recv.blocking_recv() {
-            std::io::copy(&mut std::io::stdin(), &mut stdin).unwrap();
+        if let Ok(mut cstdin) = stdin_recv.blocking_recv() {
+            if tty {
+                let mut buf = [0_u8; CAP_1_KiB];
+                while let Ok(n) = stdin.read(&mut buf) {
+                    if n == 0 {
+                        break;
+                    }
+                    cstdin.write_all(&buf[..n]).ok();
+                    cstdin.flush().ok();
+                }
+            } else {
+                std::io::copy(&mut stdin, &mut cstdin).unwrap();
+            }
         }
     });
-    let (stdout_send, stdout_recv) = oneshot::channel();
-    std::thread::spawn(move || {
-        if let Ok(mut stdout) = stdout_recv.blocking_recv() {
-            std::io::copy(&mut stdout, &mut std::io::stdout()).unwrap();
+    let (stdout_send, stdout_recv) = oneshot::channel::<Box<dyn std::io::Read + Send>>();
+    let stdout_thread = std::thread::spawn(move || {
+        if let Ok(mut cstdout) = stdout_recv.blocking_recv() {
+            if tty {
+                let mut stdout = stdout.lock();
+                let mut buf = [0_u8; CAP_1_KiB];
+                while let Ok(n) = cstdout.read(&mut buf) {
+                    if n == 0 {
+                        break;
+                    }
+                    stdout.write_all(&buf[..n]).ok();
+                    stdout.flush().ok();
+                }
+            } else {
+                std::io::copy(&mut cstdout, &mut stdout.lock()).unwrap();
+            }
         }
     });
-    let (stderr_send, stderr_recv) = oneshot::channel();
-    std::thread::spawn(move || {
-        if let Ok(mut stderr) = stderr_recv.blocking_recv() {
-            std::io::copy(&mut stderr, &mut std::io::stderr()).unwrap();
-        }
-    });
+    let (stderr_send, stderr_recv) = oneshot::channel::<Box<dyn std::io::Read + Send>>();
+    let stderr_thread = if !stderr_tty {
+        Some(std::thread::spawn(move || {
+            if let Ok(mut cstderr) = stderr_recv.blocking_recv() {
+                std::io::copy(&mut cstderr, &mut stderr.lock()).unwrap();
+            }
+        }))
+    } else {
+        None
+    };
     nix::sched::unshare(CloneFlags::CLONE_NEWPID)
         .with_ctx(|_| (ErrorKind::Filesystem, "unshare pid ns"))?;
     nix::sched::unshare(CloneFlags::CLONE_NEWCGROUP)
         .with_ctx(|_| (ErrorKind::Filesystem, "unshare cgroup ns"))?;
     nix::sched::unshare(CloneFlags::CLONE_NEWIPC)
         .with_ctx(|_| (ErrorKind::Filesystem, "unshare ipc ns"))?;
-    let mut child = cmd
-        .spawn()
-        .map_err(color_eyre::eyre::Report::msg)
-        .with_ctx(|_| (ErrorKind::Filesystem, "spawning child process"))?;
-    send_pid.send(child.id() as i32).unwrap_or_default();
-    stdin_send
-        .send(child.stdin.take().unwrap())
-        .unwrap_or_default();
-    stdout_send
-        .send(child.stdout.take().unwrap())
-        .unwrap_or_default();
-    stderr_send
-        .send(child.stderr.take().unwrap())
-        .unwrap_or_default();
-    // TODO: subreaping, signal handling
-    let exit = child
-        .wait()
-        .with_ctx(|_| (ErrorKind::Filesystem, "waiting on child process"))?;
-    if let Some(code) = exit.code() {
-        nix::mount::umount(&chroot.join("proc"))
-            .with_ctx(|_| (ErrorKind::Filesystem, "umount procfs"))?;
-        std::process::exit(code);
-    } else if exit.success() {
-        Ok(())
+
+    if tty {
+        use pty_process::blocking as pty_process;
+        let (pty, pts) = pty_process::open().with_kind(ErrorKind::Filesystem)?;
+        let mut cmd = pty_process::Command::new("/usr/bin/start-cli");
+        cmd = cmd.arg("subcontainer").arg("launch-init");
+        if let Some(env) = env {
+            cmd = cmd.arg("--env").arg(env);
+        }
+        if let Some(workdir) = workdir {
+            cmd = cmd.arg("--workdir").arg(workdir);
+        }
+        if let Some(user) = user {
+            cmd = cmd.arg("--user").arg(user);
+        }
+        cmd = cmd.arg(&chroot).args(&command);
+        if !stderr_tty {
+            cmd = cmd.stderr(Stdio::piped());
+        }
+        let mut child = cmd
+            .spawn(pts)
+            .map_err(color_eyre::eyre::Report::msg)
+            .with_ctx(|_| (ErrorKind::Filesystem, "spawning child process"))?;
+        send_pid.send(child.id() as i32).unwrap_or_default();
+        if let Some(pty_size) = pty_size {
+            let size = if let Some((x, y)) = pty_size.pixels {
+                ::pty_process::Size::new_with_pixel(pty_size.size.0, pty_size.size.1, x, y)
+            } else {
+                ::pty_process::Size::new(pty_size.size.0, pty_size.size.1)
+            };
+            pty.resize(size).with_kind(ErrorKind::Filesystem)?;
+        }
+        let shared = ArcPty(Arc::new(pty));
+        stdin_send
+            .send(Box::new(shared.clone()))
+            .unwrap_or_default();
+        stdout_send
+            .send(Box::new(shared.clone()))
+            .unwrap_or_default();
+        if let Some(stderr) = child.stderr.take() {
+            stderr_send.send(Box::new(stderr)).unwrap_or_default();
+        }
+        let exit = child
+            .wait()
+            .with_ctx(|_| (ErrorKind::Filesystem, "waiting on child process"))?;
+        stdout_thread.join().unwrap();
+        stderr_thread.map(|t| t.join().unwrap());
+        if let Some(code) = exit.code() {
+            drop(raw);
+            std::process::exit(code);
+        } else if exit.success() {
+            Ok(())
+        } else {
+            Err(Error::new(
+                color_eyre::eyre::Report::msg(exit),
+                ErrorKind::Unknown,
+            ))
+        }
     } else {
-        Err(Error::new(
-            color_eyre::eyre::Report::msg(exit),
-            ErrorKind::Unknown,
-        ))
+        let mut cmd = StdCommand::new("/usr/bin/start-cli");
+        cmd.arg("subcontainer").arg("launch-init");
+        if let Some(env) = env {
+            cmd.arg("--env").arg(env);
+        }
+        if let Some(workdir) = workdir {
+            cmd.arg("--workdir").arg(workdir);
+        }
+        if let Some(user) = user {
+            cmd.arg("--user").arg(user);
+        }
+        cmd.arg(&chroot);
+        cmd.args(&command);
+        cmd.stdin(Stdio::piped());
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
+        let mut child = cmd
+            .spawn()
+            .map_err(color_eyre::eyre::Report::msg)
+            .with_ctx(|_| (ErrorKind::Filesystem, "spawning child process"))?;
+        send_pid.send(child.id() as i32).unwrap_or_default();
+        stdin_send
+            .send(Box::new(child.stdin.take().unwrap()))
+            .unwrap_or_default();
+        stdout_send
+            .send(Box::new(child.stdout.take().unwrap()))
+            .unwrap_or_default();
+        stderr_send
+            .send(Box::new(child.stderr.take().unwrap()))
+            .unwrap_or_default();
+
+        // TODO: subreaping, signal handling
+        let exit = child
+            .wait()
+            .with_ctx(|_| (ErrorKind::Filesystem, "waiting on child process"))?;
+        stdout_thread.join().unwrap();
+        stderr_thread.map(|t| t.join().unwrap());
+        if let Some(code) = exit.code() {
+            nix::mount::umount(&chroot.join("proc"))
+                .with_ctx(|_| (ErrorKind::Filesystem, "umount procfs"))?;
+            std::process::exit(code);
+        } else if exit.success() {
+            Ok(())
+        } else {
+            Err(Error::new(
+                color_eyre::eyre::Report::msg(exit),
+                ErrorKind::Unknown,
+            ))
+        }
     }
 }
 
@@ -515,6 +623,8 @@ pub fn exec(
         let exit = child
             .wait()
             .with_ctx(|_| (ErrorKind::Filesystem, "waiting on child process"))?;
+        stdout_thread.join().unwrap();
+        stderr_thread.map(|t| t.join().unwrap());
         if let Some(code) = exit.code() {
             std::process::exit(code);
         } else if exit.success() {
