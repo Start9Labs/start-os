@@ -33,7 +33,7 @@ async function prepBind(
   const toMeta = await fs.stat(to).catch((_) => null)
 
   if (type === "file" || (!type && from && fromMeta?.isFile())) {
-    if (toMeta && toMeta.isDirectory()) await fs.rm(to, { recursive: false })
+    if (toMeta && toMeta.isDirectory()) await fs.rmdir(to, { recursive: false })
     if (from && !fromMeta) {
       await fs.mkdir(from.replace(/\/[^\/]*\/?$/, ""), { recursive: true })
       await fs.writeFile(from, "")
