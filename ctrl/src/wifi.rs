@@ -1,4 +1,4 @@
-use crate::profiles::{self, ProfileIdAndName};
+use crate::profiles::{self, ProfileId, ProfileIdOpt};
 use crate::utils::DeserializeStdin;
 use crate::{utils::HandlerExtSerde, Error, ErrorKind};
 use clap::Parser;
@@ -20,19 +20,19 @@ use uciedit::{SectionsMut, UciSection};
 
 pub const DEFAULT_LAN_BRIDGE: &str = "br-lan";
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct Password {
-    pub profile: Option<ProfileIdAndName>,
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Password<Id: Ord> {
+    pub profile: Option<Id>,
     pub password: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Wifi {
+pub struct Wifi<Id: Ord = ProfileId> {
     pub ssid: String,
     pub bands: BTreeSet<String>,
     pub enabled: bool,
     pub broadcast: bool,
-    pub passwords: HashSet<Password>,
+    pub passwords: BTreeSet<Password<Id>>,
 }
 
 pub fn wifi<C: Context>() -> ParentHandler<C> {
@@ -80,7 +80,7 @@ pub fn get<C: Context>(_ctx: C) -> Result<Wifi, Error> {
         let Some(first_interface) = relevant_interfaces.first() else {
             return Err(ErrorKind::CorruptedWifi.into());
         };
-        let mut passwords = HashSet::new();
+        let mut passwords = BTreeSet::new();
         ctx.each(|_, station: WifiStation| {
             if let Some(iface) = &station.iface {
                 if !relevant_interfaces.iter().any(|(n, _, _)| n == iface) {
@@ -224,20 +224,12 @@ fn update_inner(wifi: &Wifi, lookup: &profiles::Lookup) -> Result<(), Error> {
                 // admin passwords are handeled above
                 continue;
             };
-            let profile = lookup.resolve(profile)?;
-            let vid = profile
-                .vlan_tag
-                .expect("resolve should always get the vlan_tag");
-            let viface = profile
-                .interface
-                .as_ref()
-                .expect("resolve should always get the vlan_tag");
             for (niface, _, _) in &relevant_interfaces {
                 ctx.push(
                     &WifiVlan {
-                        name: viface.clone(),
-                        network: viface.clone(),
-                        vid,
+                        name: profile.interface.clone(),
+                        network: profile.interface.clone(),
+                        vid: profile.vlan_tag,
                         iface: Some(niface.clone()),
                     },
                     None,
@@ -245,7 +237,7 @@ fn update_inner(wifi: &Wifi, lookup: &profiles::Lookup) -> Result<(), Error> {
                 ctx.push(
                     &WifiStation {
                         key: psswd.password.clone(),
-                        vid: Some(vid),
+                        vid: Some(profile.vlan_tag),
                         iface: Some(niface.clone()),
                     },
                     None,
@@ -258,9 +250,28 @@ fn update_inner(wifi: &Wifi, lookup: &profiles::Lookup) -> Result<(), Error> {
 
 pub fn update<C: Context>(
     _ctx: C,
-    DeserializeStdin(wifi): DeserializeStdin<Wifi>,
+    DeserializeStdin(wifi): DeserializeStdin<Wifi<ProfileIdOpt>>,
 ) -> Result<(), Error> {
     let lookup = profiles::Lookup::parse()?;
+    let wifi = Wifi {
+        ssid: wifi.ssid,
+        bands: wifi.bands,
+        enabled: wifi.enabled,
+        broadcast: wifi.broadcast,
+        passwords: wifi
+            .passwords
+            .into_iter()
+            .map(|pass| {
+                Ok(Password {
+                    profile: match pass.profile {
+                        Some(p) => Some(lookup.resolve(&p)?.clone()),
+                        None => None,
+                    },
+                    password: pass.password,
+                })
+            })
+            .collect::<Result<_, Error>>()?,
+    };
     let res = update_inner(&wifi, &lookup);
     match res {
         Err(Error {

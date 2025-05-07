@@ -1,4 +1,4 @@
-use crate::profiles::ProfileIdAndName;
+use crate::profiles::ProfileIdOpt;
 use std::backtrace::Backtrace;
 use std::fmt;
 use thiserror::Error;
@@ -12,9 +12,9 @@ pub enum ErrorKind {
     #[error("interface name {0:?} conflicts")]
     InterfaceNameConflict(String),
     #[error("could not find profile identified by {0:?}")]
-    MissingProfile(ProfileIdAndName),
+    MissingProfile(ProfileIdOpt),
     #[error("corrupted profile with {0:?}")]
-    CorruptedProfile(ProfileIdAndName),
+    CorruptedProfile(ProfileIdOpt),
     #[error("corrupted wifi devices and interfaces")]
     CorruptedWifi,
     #[error("all wireless interfaces need to be named")]
@@ -31,6 +31,8 @@ pub enum ErrorKind {
     MissingFirewallZone(String),
     #[error("the wan port can not have a profile")]
     WanPortWithProfile(String),
+    #[error("missing {0:?} in profile id")]
+    MissingProfileIdField(&'static str),
     #[error(transparent)]
     Other(#[from] color_eyre::eyre::Error),
 }

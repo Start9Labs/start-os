@@ -1,4 +1,4 @@
-use crate::profiles::{self, ProfileIdAndName, DEFAULT_WAN_ZONE};
+use crate::profiles::{self, ProfileId, ProfileIdOpt, DEFAULT_WAN_ZONE};
 use crate::utils::DeserializeStdin;
 use crate::{utils::HandlerExtSerde, Error, ErrorKind};
 use clap::Parser;
@@ -21,15 +21,15 @@ pub const DEFAULT_WAN_INTERFACE: &str = "wan";
 pub const DEFAULT_WAN6_INTERFACE: &str = "wan6";
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Port {
-    pub profile: Option<ProfileIdAndName>,
+pub struct Port<Id: Ord = ProfileId> {
+    pub profile: Option<Id>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Ethernet {
+pub struct Ethernet<Id: Ord = ProfileId> {
     pub wan_ipv6: bool,
     pub wan_port: Option<String>,
-    pub ports: BTreeMap<String, Port>,
+    pub ports: BTreeMap<String, Port<Id>>,
 }
 
 pub fn ethernet<C: Context>() -> ParentHandler<C> {
@@ -117,9 +117,29 @@ pub fn get<C: Context>(ctx: C) -> Result<Ethernet, Error> {
 
 pub fn update<C: Context>(
     _ctx: C,
-    DeserializeStdin(ethernet): DeserializeStdin<Ethernet>,
+    DeserializeStdin(ethernet): DeserializeStdin<Ethernet<ProfileIdOpt>>,
 ) -> Result<(), Error> {
-    let lookup = profiles::list()?;
+    let lookup = profiles::Lookup::parse()?;
+    let ethernet = Ethernet::<ProfileId> {
+        wan_ipv6: ethernet.wan_ipv6,
+        wan_port: ethernet.wan_port,
+        ports: ethernet
+            .ports
+            .into_iter()
+            .map(|(k, v)| {
+                Ok((
+                    k,
+                    Port {
+                        profile: match v.profile {
+                            Some(id) => Some(lookup.resolve(&id)?.clone()),
+                            None => None,
+                        },
+                    },
+                ))
+            })
+            .collect::<Result<_, Error>>()?,
+    };
+
     rewrite_config("./etc/config/network", |mut cfg| {
         // TODO: avoid duplicating this "find the bridge" logic so much
         let mut found_bridge = None;
@@ -226,13 +246,13 @@ pub fn update<C: Context>(
             cfg.push(&bridge, None)?;
         }
 
-        for profile in &lookup {
+        for profile in lookup.list() {
             let mut ports = Vec::new();
             for (port_name, port) in &ethernet.ports {
                 let Some(port_profile) = &port.profile else {
                     continue;
                 };
-                if !profile.matches(port_profile) {
+                if port_profile != profile {
                     continue;
                 };
                 ports.push(uciedit::openwrt::NetworkVlanPort {
@@ -241,7 +261,7 @@ pub fn update<C: Context>(
                 });
             }
 
-            let vlan = profile.vlan_tag.unwrap();
+            let vlan = profile.vlan_tag;
             cfg.push(
                 &NetworkBridgeVlan {
                     device: bridge.name.clone(),
