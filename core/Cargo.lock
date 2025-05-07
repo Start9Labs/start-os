@@ -4035,6 +4035,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
+name = "numtoa"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6aa2c4e539b869820a2b82e1aef6ff40aa85e65decdd5185e83fb4b1249cd00f"
+
+[[package]]
 name = "object"
 version = "0.32.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4631,6 +4637,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33cb294fe86a74cbcf50d4445b37da762029549ebeea341421c7c70370f86cac"
 
 [[package]]
+name = "pty-process"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8277b026e63da5d2cc435f842b52bedb1d050dfd7d633bba009c3c8e1883a21e"
+dependencies = [
+ "rustix 0.38.44",
+]
+
+[[package]]
 name = "publicsuffix"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4855,6 +4870,12 @@ checksum = "d2f103c6d277498fbceb16e84d317e2a400f160f46904d5f5410848c829511a3"
 dependencies = [
  "bitflags 2.9.0",
 ]
+
+[[package]]
+name = "redox_termios"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "20145670ba436b55d91fc92d25e71160fbfbdd57831631c8d7d36377a476f1cb"
 
 [[package]]
 name = "redox_users"
@@ -5124,6 +5145,7 @@ checksum = "fdb5bc1ae2baa591800df16c9ca78619bf65c0488b41b96ccec5d11220d8c154"
 dependencies = [
  "bitflags 2.9.0",
  "errno 0.3.11",
+ "itoa",
  "libc",
  "linux-raw-sys 0.4.15",
  "windows-sys 0.59.0",
@@ -6086,6 +6108,7 @@ dependencies = [
  "procfs",
  "proptest",
  "proptest-derive",
+ "pty-process",
  "qrcode",
  "rand 0.9.0",
  "regex",
@@ -6113,6 +6136,7 @@ dependencies = [
  "sscanf",
  "ssh-key",
  "tar",
+ "termion",
  "textwrap",
  "thiserror 1.0.69",
  "tokio",
@@ -6132,7 +6156,6 @@ dependencies = [
  "tracing-subscriber",
  "trust-dns-server",
  "ts-rs",
- "tty-spawn",
  "typed-builder",
  "unix-named-pipe",
  "url",
@@ -6306,6 +6329,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755"
 dependencies = [
  "winapi-util",
+]
+
+[[package]]
+name = "termion"
+version = "4.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3669a69de26799d6321a5aa713f55f7e2cd37bd47be044b50f2acafc42c122bb"
+dependencies = [
+ "libc",
+ "libredox",
+ "numtoa",
+ "redox_termios",
 ]
 
 [[package]]
@@ -6940,17 +6975,6 @@ dependencies = [
  "quote",
  "syn 2.0.100",
  "termcolor",
-]
-
-[[package]]
-name = "tty-spawn"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb91489cf2611235ae8d755d66ab028437980ee573e2230c05af41b136236ad1"
-dependencies = [
- "anyhow",
- "nix 0.29.0",
- "signal-hook",
 ]
 
 [[package]]

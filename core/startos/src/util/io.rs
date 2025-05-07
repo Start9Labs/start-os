@@ -5,16 +5,20 @@ use std::mem::MaybeUninit;
 use std::os::unix::prelude::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
+use std::str::FromStr;
 use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
 use std::task::{Poll, Waker};
 use std::time::Duration;
 
 use bytes::{Buf, BytesMut};
+use clap::builder::ValueParserFactory;
 use futures::future::{BoxFuture, Fuse};
 use futures::{AsyncSeek, FutureExt, Stream, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
+use models::FromStrParser;
 use nix::unistd::{Gid, Uid};
+use serde::{Deserialize, Serialize};
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{
     duplex, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, WriteHalf,
@@ -24,6 +28,7 @@ use tokio::sync::{Notify, OwnedMutexGuard};
 use tokio::time::{Instant, Sleep};
 
 use crate::prelude::*;
+use crate::util::sync::SyncMutex;
 use crate::{CAP_1_KiB, CAP_1_MiB};
 
 pub trait AsyncReadSeek: AsyncRead + AsyncSeek {}
@@ -1393,5 +1398,75 @@ impl<T: AsyncRead> Stream for AsyncReadStream<T> {
             Ok(()) => Poll::Ready(Some(Ok(buf.filled().to_vec()))),
             Err(e) => Poll::Ready(Some(Err(e.into()))),
         }
+    }
+}
+
+pub struct SharedIO<T>(pub Arc<SyncMutex<T>>);
+impl<T> SharedIO<T> {
+    pub fn new(t: T) -> Self {
+        Self(Arc::new(SyncMutex::new(t)))
+    }
+}
+impl<T> Clone for SharedIO<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl<T: std::io::Write> std::io::Write for SharedIO<T> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0.mutate(|w| w.write(buf))
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.0.mutate(|w| w.flush())
+    }
+}
+impl<T: std::io::Read> std::io::Read for SharedIO<T> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.0.mutate(|r| r.read(buf))
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TermSize {
+    pub size: (u16, u16),
+    pub pixels: Option<(u16, u16)>,
+}
+impl TermSize {
+    pub fn get_current() -> Option<Self> {
+        if let Some(size) = termion::terminal_size().ok() {
+            Some(Self {
+                size,
+                pixels: termion::terminal_size_pixels().ok(),
+            })
+        } else {
+            None
+        }
+    }
+}
+impl FromStr for TermSize {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        (|| {
+            let mut split = s.split(":");
+            let row: u16 = split.next()?.parse().ok()?;
+            let col: u16 = split.next()?.parse().ok()?;
+            let size = (row, col);
+            let pixels = if let Some(x) = split.next() {
+                let x: u16 = x.parse().ok()?;
+                let y: u16 = split.next()?.parse().ok()?;
+                Some((x, y))
+            } else {
+                None
+            };
+
+            Some(Self { size, pixels }).filter(|_| split.next().is_none())
+        })()
+        .ok_or_else(|| Error::new(eyre!("invalid pty size"), ErrorKind::ParseNumber))
+    }
+}
+impl ValueParserFactory for TermSize {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
     }
 }

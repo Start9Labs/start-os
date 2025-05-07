@@ -13,7 +13,8 @@ use chrono::{DateTime, Utc};
 use clap::Parser;
 use futures::future::BoxFuture;
 use futures::stream::FusedStream;
-use futures::{SinkExt, StreamExt, TryStreamExt};
+use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
+use helpers::NonDetachingJoinHandle;
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
 use models::{ActionId, HostId, ImageId, PackageId, ProcedureName};
@@ -23,6 +24,7 @@ use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerF
 use serde::{Deserialize, Serialize};
 use service_actor::ServiceActor;
 use start_stop::StartStop;
+use termion::raw::IntoRawMode;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
 use tokio::sync::Notify;
@@ -43,7 +45,7 @@ use crate::s9pk::S9pk;
 use crate::service::action::update_requested_actions;
 use crate::service::service_map::InstallProgressHandles;
 use crate::util::actor::concurrent::ConcurrentActor;
-use crate::util::io::{create_file, AsyncReadStream};
+use crate::util::io::{create_file, AsyncReadStream, TermSize};
 use crate::util::net::WebSocketExt;
 use crate::util::serde::{NoOutput, Pem};
 use crate::util::Never;
@@ -912,7 +914,7 @@ pub async fn attach(
 
         let pid = nix::unistd::Pid::from_raw(child.id().or_not_found("child pid")? as i32);
 
-        let mut stdin = child.stdin.take().or_not_found("child stdin")?;
+        let mut stdin = Some(child.stdin.take().or_not_found("child stdin")?);
 
         let mut current_in = "stdin".to_owned();
         let mut current_out = "stdout";
@@ -943,6 +945,10 @@ pub async fn attach(
                         ws.send(Message::Binary(out))
                             .await
                             .with_kind(ErrorKind::Network)?;
+                    } else {
+                        ws.send(Message::Text("close-stdout".into()))
+                                .await
+                                .with_kind(ErrorKind::Network)?;
                     }
                 }
                 err = stderr.try_next() => {
@@ -956,6 +962,10 @@ pub async fn attach(
                         ws.send(Message::Binary(err))
                             .await
                             .with_kind(ErrorKind::Network)?;
+                    } else {
+                        ws.send(Message::Text("close-stderr".into()))
+                                .await
+                                .with_kind(ErrorKind::Network)?;
                     }
                 }
                 msg = ws.try_next() => {
@@ -967,7 +977,12 @@ pub async fn attach(
                             Message::Binary(data) => {
                                 match &*current_in {
                                     "stdin" => {
-                                        stdin.write_all(&data).await?;
+                                        if let Some(stdin) = &mut stdin {
+                                            stdin.write_all(&data).await?;
+                                        }
+                                    }
+                                    "close-stdin" => {
+                                        stdin.take();
                                     }
                                     "signal" => {
                                         if data.len() != 4 {
@@ -1100,6 +1115,7 @@ pub struct CliAttachParams {
     #[arg(long, short)]
     image_id: Option<ImageId>,
 }
+#[instrument[skip_all]]
 pub async fn cli_attach(
     HandlerArgs {
         context,
@@ -1109,7 +1125,38 @@ pub async fn cli_attach(
         ..
     }: HandlerArgs<CliContext, CliAttachParams>,
 ) -> Result<(), Error> {
+    use std::io::Write;
+
     use tokio_tungstenite::tungstenite::Message;
+
+    let stdin = std::io::stdin();
+    let stdout = std::io::stdout();
+    let stderr = std::io::stderr();
+
+    let tty = params.force_tty || (stdin.is_terminal() && stdout.is_terminal());
+
+    let raw = if stdin.is_terminal() && stdout.is_terminal() {
+        Some(termion::get_tty()?.into_raw_mode()?)
+    } else {
+        None
+    };
+
+    let (kill, thread_kill) = tokio::sync::oneshot::channel();
+    let (thread_send, recv) = tokio::sync::mpsc::channel(4 * CAP_1_KiB);
+    let stdin_thread: NonDetachingJoinHandle<()> = tokio::task::spawn_blocking(move || {
+        use std::io::Read;
+        let mut stdin = stdin.lock().bytes();
+
+        while thread_kill.is_empty() {
+            if let Some(b) = stdin.next() {
+                thread_send.blocking_send(b).unwrap();
+            } else {
+                break;
+            }
+        }
+    })
+    .into();
+    let mut stdin = Some(recv);
 
     let guid: Guid = from_value(
         context
@@ -1118,10 +1165,8 @@ pub async fn cli_attach(
                 json!({
                     "id": params.id,
                     "command": params.command,
-                    "tty": (std::io::stdin().is_terminal()
-                        && std::io::stdout().is_terminal()
-                        && std::io::stderr().is_terminal())
-                        || params.force_tty,
+                    "tty": tty,
+                    "ptySize": if tty { TermSize::get_current() } else { None },
                     "subcontainer": params.subcontainer,
                     "imageId": params.image_id,
                     "name": params.name,
@@ -1136,9 +1181,8 @@ pub async fn cli_attach(
     ws.send(Message::Text(current_in.into()))
         .await
         .with_kind(ErrorKind::Network)?;
-    let mut stdin = AsyncReadStream::new(tokio::io::stdin(), 4 * CAP_1_KiB).fuse();
-    let mut stdout = tokio::io::stdout();
-    let mut stderr = tokio::io::stderr();
+    let mut stdout = Some(stdout);
+    let mut stderr = Some(stderr);
     loop {
         futures::select_biased! {
             // signal = tokio:: => {
@@ -1153,8 +1197,15 @@ pub async fn cli_attach(
             //         i32::to_be_bytes(exit.into_raw()).to_vec()
             //     )).await.with_kind(ErrorKind::Network)?;
             // }
-            input = stdin.try_next() => {
-                if let Some(input) = input? {
+            input = stdin.as_mut().map_or(
+                futures::future::Either::Left(futures::future::pending()),
+                |s| futures::future::Either::Right(s.recv())
+            ).fuse() => {
+                if let (Some(input), Some(stdin)) = (input.transpose()?, &mut stdin) {
+                    let mut input = vec![input];
+                    while let Ok(b) = stdin.try_recv() {
+                        input.push(b?);
+                    }
                     if current_in != "stdin" {
                         ws.send(Message::Text("stdin".into()))
                             .await
@@ -1164,6 +1215,11 @@ pub async fn cli_attach(
                     ws.send(Message::Binary(input))
                         .await
                         .with_kind(ErrorKind::Network)?;
+                } else {
+                    ws.send(Message::Text("close-stdin".into()))
+                        .await
+                        .with_kind(ErrorKind::Network)?;
+                    stdin.take();
                 }
             }
             msg = ws.try_next() => {
@@ -1175,12 +1231,22 @@ pub async fn cli_attach(
                         Message::Binary(data) => {
                             match &*current_out {
                                 "stdout" => {
-                                    stdout.write_all(&data).await?;
-                                    stdout.flush().await?;
+                                    if let Some(stdout) = &mut stdout {
+                                        stdout.write_all(&data)?;
+                                        stdout.flush()?;
+                                    }
                                 }
                                 "stderr" => {
-                                    stderr.write_all(&data).await?;
-                                    stderr.flush().await?;
+                                    if let Some(stderr) = &mut stderr {
+                                        stderr.write_all(&data)?;
+                                        stderr.flush()?;
+                                    }
+                                }
+                                "close-stdout" => {
+                                    stdout.take();
+                                }
+                                "close-stderr" => {
+                                    stderr.take();
                                 }
                                 "exit" => {
                                     if data.len() != 4 {
@@ -1192,6 +1258,7 @@ pub async fn cli_attach(
                                     let mut exit_buf = [0u8; 4];
                                     exit_buf.clone_from_slice(&data);
                                     let code = i32::from_be_bytes(exit_buf);
+                                    drop(raw);
                                     std::process::exit(code);
                                 }
                                 _ => (),
@@ -1208,6 +1275,8 @@ pub async fn cli_attach(
                         _ => ()
                     }
                 } else {
+                    kill.send(()).ok();
+                    stdin_thread.wait_for_abort().await.log_err();
                     return Ok(())
                 }
             }

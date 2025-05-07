@@ -95,17 +95,15 @@ export class DockerProcedureContainer {
             key,
           )
         } else if (volumeMount.type === "pointer") {
-          await effects
-            .mount({
-              location: path,
-              target: {
-                packageId: volumeMount["package-id"],
-                subpath: volumeMount.path,
-                readonly: volumeMount.readonly,
-                volumeId: volumeMount["volume-id"],
-              },
-            })
-            .catch(console.warn)
+          await effects.mount({
+            location: path,
+            target: {
+              packageId: volumeMount["package-id"],
+              subpath: volumeMount.path,
+              readonly: volumeMount.readonly,
+              volumeId: volumeMount["volume-id"],
+            },
+          })
         } else if (volumeMount.type === "backup") {
           await subcontainer.mount(Mounts.of().addBackups(null, mounts[mount]))
         }
