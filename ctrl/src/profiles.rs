@@ -225,7 +225,9 @@ pub fn delete<C: Context>(
         vlan_tag,
     }: ProfileId,
 ) -> Result<(), Error> {
-    todo!()
+    todo!();
+    reload_system()?;
+    Ok(())
 }
 
 pub fn list() -> Result<Vec<ProfileIdAndName>, Error> {
@@ -253,6 +255,18 @@ pub fn list() -> Result<Vec<ProfileIdAndName>, Error> {
 
 pub fn list_rpc<C: Context>(_ctx: C) -> Result<Vec<ProfileIdAndName>, Error> {
     list()
+}
+
+pub fn reload_system() -> Result<(), Error> {
+    let _ = Command::new("/etc/init.d/network")
+        .arg("reload")
+        .spawn()?
+        .wait();
+    let _ = Command::new("/etc/init.d/firewall")
+        .arg("reload")
+        .spawn()?
+        .wait();
+    Ok(())
 }
 
 pub fn update<C: Context>(
@@ -362,6 +376,7 @@ pub fn update<C: Context>(
         Ok::<_, Error>(vlan_tag)
     })?;
     rewrite_firewall(&interface, &all_interfaces, &[], &profile, false)?;
+    reload_system()?;
     Ok(ProfileId {
         interface,
         vlan_tag,
@@ -472,6 +487,7 @@ pub fn create<C: Context>(
         Ok::<_, Error>(())
     })?;
     rewrite_firewall(&interface, &all_interfaces, &wants_access, &profile, true)?;
+    reload_system()?;
     Ok(ProfileId {
         interface,
         vlan_tag,

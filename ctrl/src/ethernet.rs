@@ -251,7 +251,11 @@ pub fn update<C: Context>(
                 None,
             )?;
         }
-
-        Ok(())
-    })
+        Ok::<_, Error>(())
+    })?;
+    let _ = Command::new("/etc/init.d/network")
+        .arg("reload")
+        .spawn()?
+        .wait();
+    Ok(())
 }
