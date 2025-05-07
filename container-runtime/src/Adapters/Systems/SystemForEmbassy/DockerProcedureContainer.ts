@@ -64,10 +64,20 @@ export class DockerProcedureContainer extends Drop {
         const volumeMount = volumes[mount]
         if (volumeMount.type === "data") {
           await subcontainer.mount(
-            Mounts.of().addVolume(mount, null, mounts[mount], false),
+            Mounts.of().addVolume({
+              volumeId: mount,
+              subpath: null,
+              mountpoint: mounts[mount],
+              readonly: false,
+            }),
           )
         } else if (volumeMount.type === "assets") {
-          await subcontainer.mount(Mounts.of().addAssets(mount, mounts[mount]))
+          await subcontainer.mount(
+            Mounts.of().addAssets({
+              subpath: mount,
+              mountpoint: mounts[mount],
+            }),
+          )
         } else if (volumeMount.type === "certificate") {
           const hostnames = [
             `${packageId}.embassy`,
@@ -108,7 +118,12 @@ export class DockerProcedureContainer extends Drop {
             },
           })
         } else if (volumeMount.type === "backup") {
-          await subcontainer.mount(Mounts.of().addBackups(null, mounts[mount]))
+          await subcontainer.mount(
+            Mounts.of().addBackups({
+              subpath: null,
+              mountpoint: mounts[mount],
+            }),
+          )
         }
       }
     }
