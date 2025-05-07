@@ -5,6 +5,7 @@ use clap::Parser;
 use color_eyre::eyre::{eyre, OptionExt};
 use rpc_toolkit::{from_fn, Context, HandlerExt as _, ParentHandler};
 use serde::{Deserialize, Serialize};
+use std::cell::OnceCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::Read;
 use std::net::Ipv4Addr;
@@ -52,7 +53,7 @@ pub fn profiles<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("get", from_fn(get::<C>).with_display_serializable())
         .subcommand("delete", from_fn(delete::<C>).no_display())
-        .subcommand("list", from_fn(list::<C>).with_display_serializable())
+        .subcommand("list", from_fn(list_rpc::<C>).with_display_serializable())
         .subcommand("create", from_fn(create::<C>).with_display_serializable())
         .subcommand("update", from_fn(update::<C>).with_display_serializable())
 }
@@ -170,7 +171,7 @@ pub fn get<C: Context>(_ctx: C, query: ProfileIdAndName) -> Result<Profile, Erro
         } else {
             wip_profile.wan_access = WanAccess::None;
         }
-        cfg.reset();
+        cfg.restart();
         let mut other_profiles = BTreeSet::new();
         while cfg.step() {
             let Ok(FirewallZone { name, network, .. }) = cfg.get() else {
@@ -211,7 +212,7 @@ pub fn delete<C: Context>(
     todo!()
 }
 
-pub fn list<C: Context>(_ctx: C) -> Result<Vec<ProfileIdAndName>, Error> {
+pub fn list() -> Result<Vec<ProfileIdAndName>, Error> {
     parse_config("./etc/config/startwrt", |mut cfg| {
         let mut found = Vec::new();
         while cfg.step() {
@@ -232,6 +233,10 @@ pub fn list<C: Context>(_ctx: C) -> Result<Vec<ProfileIdAndName>, Error> {
         }
         Ok(found)
     })
+}
+
+pub fn list_rpc<C: Context>(_ctx: C) -> Result<Vec<ProfileIdAndName>, Error> {
+    list()
 }
 
 pub fn update<C: Context>(
@@ -492,7 +497,7 @@ fn rewrite_firewall(
                 }
             }
         }
-        cfg.reset();
+        cfg.restart();
         while cfg.step() {
             let Ok(fwd) = cfg.get::<FirewallForwarding>() else {
                 continue;
@@ -611,4 +616,96 @@ pub fn allocate_interface_name(hint: &str) -> Result<String, Error> {
         name = random();
     }
     Err(eyre!("gave up looking for a new interface name").into())
+}
+
+pub struct Lookup {
+    list: Vec<ProfileIdAndName>,
+    from_vlan: OnceCell<HashMap<u16, ProfileIdAndName>>,
+    from_interface: OnceCell<HashMap<String, ProfileIdAndName>>,
+    from_fullname: OnceCell<HashMap<String, ProfileIdAndName>>,
+}
+
+impl Lookup {
+    pub fn parse() -> Result<Self, Error> {
+        Ok(Self {
+            list: list()?,
+            from_vlan: OnceCell::new(),
+            from_interface: OnceCell::new(),
+            from_fullname: OnceCell::new(),
+        })
+    }
+
+    pub fn resolve(
+        &self,
+        q @ ProfileIdAndName {
+            fullname,
+            interface,
+            vlan_tag,
+        }: &ProfileIdAndName,
+    ) -> Result<&ProfileIdAndName, Error> {
+        if let Some(q) = interface {
+            if let Some(o) = self.from_interface(q) {
+                return Ok(o);
+            }
+        }
+        if let Some(q) = vlan_tag {
+            if let Some(o) = self.from_vlan(*q) {
+                return Ok(o);
+            }
+        }
+        if let Some(q) = fullname {
+            if let Some(o) = self.from_fullname(q) {
+                return Ok(o);
+            }
+        }
+        Err(ErrorKind::MissingProfile(q.clone()).into())
+    }
+
+    pub fn from_vlan(&self, vlan_tag: u16) -> Option<&ProfileIdAndName> {
+        self.from_vlan
+            .get_or_init(|| {
+                self.list
+                    .iter()
+                    .map(|id| {
+                        (
+                            id.vlan_tag.expect("list should provide vlan tags"),
+                            id.clone(),
+                        )
+                    })
+                    .collect()
+            })
+            .get(&vlan_tag)
+    }
+
+    pub fn from_interface(&self, interface: &str) -> Option<&ProfileIdAndName> {
+        self.from_interface
+            .get_or_init(|| {
+                self.list
+                    .iter()
+                    .map(|id| {
+                        (
+                            id.interface.clone().expect("list should provide interface"),
+                            id.clone(),
+                        )
+                    })
+                    .collect()
+            })
+            .get(interface)
+    }
+
+    pub fn from_fullname(&self, interface: &str) -> Option<&ProfileIdAndName> {
+        self.from_fullname
+            .get_or_init(|| {
+                self.list
+                    .iter()
+                    .map(|id| {
+                        (
+                            id.interface.clone().expect("list should provide fullname"),
+                            id.clone(),
+                        )
+                    })
+                    .collect()
+            })
+            .get(interface)
+    }
 }

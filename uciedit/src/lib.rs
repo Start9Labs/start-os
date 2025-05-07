@@ -45,7 +45,7 @@ pub enum Error {
     ValueMsg { line_number: usize, desc: String },
     #[error("error parsing a value on line {line_number}: {found:?} should be a boolean")]
     ValueBoolean { line_number: usize, found: String },
-    #[error("missing option {missing:?} in config")]
+    #[error("missing option {missing:?} on line {line_number}")]
     MissingOption { line_number: usize, missing: String },
 }
 
@@ -195,7 +195,49 @@ impl<'a> Sections<'a> {
         S::read(self.lines, self.arena, self.index)
     }
 
-    pub fn reset(&mut self) {
+    /// like [Sections::get] but returns None if the section is a different type
+    pub fn get_typed<S: UciSection<'a>>(&self) -> Result<Option<S>, Error> {
+        if !S::is_type(&self.ty()) {
+            return Ok(None);
+        }
+        match self.get() {
+            Ok(s) => Ok(Some(s)),
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn each<S: UciSection<'a>>(
+        &mut self,
+        mut with: impl FnMut(Option<&str>, S),
+    ) -> Result<(), Error> {
+        self.restart();
+        while self.step() {
+            if S::is_type(&self.ty()) {
+                let name = self.name();
+                with(name.as_deref(), self.get()?);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn try_each<S: UciSection<'a>, E>(
+        &mut self,
+        mut with: impl FnMut(Option<&str>, S) -> Result<(), E>,
+    ) -> Result<(), E>
+    where
+        E: From<Error>,
+    {
+        self.restart();
+        while self.step() {
+            if S::is_type(&self.ty()) {
+                let name = self.name();
+                with(name.as_deref(), self.get()?)?;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn restart(&mut self) {
         self.index = 0;
         self.started = false;
     }
@@ -233,6 +275,15 @@ pub struct SectionsMut<'l, 'a> {
 }
 
 impl<'a> SectionsMut<'_, 'a> {
+    pub fn readonly(&mut self) -> Sections<'_> {
+        Sections {
+            lines: self.lines,
+            arena: self.arena,
+            index: self.index,
+            started: self.section_start.is_some(),
+        }
+    }
+
     pub fn ty(&self) -> Cow<str> {
         if self.section_start.is_none() {
             panic!("call step at least once");
@@ -258,6 +309,17 @@ impl<'a> SectionsMut<'_, 'a> {
             panic!("call step at least once");
         }
         S::read(self.lines, self.arena, self.index)
+    }
+
+    /// like [SectionsMut::get] but returns None if the section is a different type
+    pub fn get_typed<S: UciSection<'a>>(&self) -> Result<Option<S>, Error> {
+        if !S::is_type(&self.ty()) {
+            return Ok(None);
+        }
+        match self.get() {
+            Ok(s) => Ok(Some(s)),
+            Err(e) => Err(e),
+        }
     }
 
     pub fn set<S: UciSection<'a>>(&mut self, section: &S) -> Result<(), Error> {
@@ -290,7 +352,7 @@ impl<'a> SectionsMut<'_, 'a> {
         self.retain = retain;
     }
 
-    pub fn reset(&mut self) {
+    pub fn restart(&mut self) {
         // make sure flagged sections are removed
         while self.step() {}
         self.index = 0;
@@ -357,6 +419,7 @@ impl Drop for SectionsMut<'_, '_> {
 }
 
 pub trait UciSection<'a>: Sized {
+    fn is_type(ty: &str) -> bool;
     fn read(lines: &Lines<'a>, arena: &'a Arena, index: usize) -> Result<Self, Error>;
     fn write(&self, lines: &mut Lines<'a>, arena: &'a Arena, index: usize) -> Result<(), Error>;
     fn append(
@@ -367,6 +430,7 @@ pub trait UciSection<'a>: Sized {
     ) -> Result<(), Error>;
 }
 
+#[derive(Debug, Copy, Clone)]
 pub enum Line<'a> {
     Empty,
     Comment {
@@ -464,7 +528,7 @@ impl<'a> Line<'a> {
         };
         Ok(match &*keyword.as_str() {
             "config" => {
-                match inpt(rest).map_err(|err| Error::BadOption {
+                match inpt(rest).map_err(|err| Error::BadSection {
                     line_number,
                     desc: err.to_string(),
                 })? {
@@ -579,7 +643,7 @@ impl<'a> Line<'a> {
     }
 }
 
-#[derive(Inpt, Clone, Copy)]
+#[derive(Inpt, Clone, Copy, Debug)]
 pub enum Token<'a> {
     Q(Quoted<&'a str>),
     Sq(SingleQuoted<&'a str>),

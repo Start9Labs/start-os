@@ -17,6 +17,10 @@ pub enum ErrorKind {
     CorruptedProfile(ProfileIdAndName),
     #[error("corrupted wifi devices and interfaces")]
     CorruptedWifi,
+    #[error("all wireless interfaces need to be named")]
+    UnnamedWirelessInterface,
+    #[error("all wireless devices need to be named")]
+    UnnamedWirelessDevice,
     #[error("multiple vlans with tag {0}")]
     DuplicateVlanTag(u16),
     #[error("no lan bridge device found")]

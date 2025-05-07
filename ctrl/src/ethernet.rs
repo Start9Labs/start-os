@@ -44,16 +44,14 @@ pub fn get<C: Context>(ctx: C) -> Result<Ethernet, Error> {
     parse_config("./etc/config/network", |mut cfg| {
         // TODO: avoid duplicating this "find the bridge" logic so much
         let mut found_bridge = None;
-        while cfg.step() {
-            if let Ok(dev) = cfg.get::<NetworkDevice>() {
-                if dev.ty == Some(DeviceType::BRIDGE)
-                    && (found_bridge.is_none() || dev.name == DEFAULT_LAN_BRIDGE)
-                {
-                    found_bridge = Some(dev);
-                }
+        cfg.each(|_, dev: NetworkDevice| {
+            if dev.ty == Some(DeviceType::BRIDGE)
+                && (found_bridge.is_none() || dev.name == DEFAULT_LAN_BRIDGE)
+            {
+                found_bridge = Some(dev);
             }
-        }
-        cfg.reset();
+        })?;
+        cfg.restart();
         let Some(found_bridge) = found_bridge else {
             return Err(ErrorKind::MissingLanBridge.into());
         };
@@ -61,37 +59,30 @@ pub fn get<C: Context>(ctx: C) -> Result<Ethernet, Error> {
         let mut wan_port = None;
         let mut all_ports: HashSet<String> = found_bridge.ports.into_iter().collect();
         let mut vlan_ports = HashMap::new();
+        cfg.restart();
         while cfg.step() {
-            match &*cfg.ty() {
-                NetworkBridgeVlan::TY => {
-                    if let Ok(vlan) = cfg.get::<NetworkBridgeVlan>() {
-                        for port in vlan.ports {
-                            match port.tagging {
-                                None | Some(NetworkVlanPortTagging::TAGGED) => (),
-                                Some(NetworkVlanPortTagging::UNTAGGED) => {
-                                    vlan_ports.entry(port.port).or_insert((vlan.vlan, false));
-                                }
-                                Some(NetworkVlanPortTagging::PRIMARY) => {
-                                    let entry =
-                                        vlan_ports.entry(port.port).or_insert((vlan.vlan, true));
-                                    if !entry.1 {
-                                        entry.0 = vlan.vlan; // primary overrides untagged
-                                    }
-                                }
+            if let Some(vlan) = cfg.get_typed::<NetworkBridgeVlan>()? {
+                for port in vlan.ports {
+                    match port.tagging {
+                        None | Some(NetworkVlanPortTagging::TAGGED) => (),
+                        Some(NetworkVlanPortTagging::UNTAGGED) => {
+                            vlan_ports.entry(port.port).or_insert((vlan.vlan, false));
+                        }
+                        Some(NetworkVlanPortTagging::PRIMARY) => {
+                            let entry = vlan_ports.entry(port.port).or_insert((vlan.vlan, true));
+                            if !entry.1 {
+                                entry.0 = vlan.vlan; // primary overrides untagged
                             }
                         }
                     }
                 }
-                NetworkInterface::TY => {
-                    if let Ok(iface) = cfg.get::<NetworkInterface>() {
-                        if iface.proto == InterfaceProto::DHCP {
-                            // TODO: better check to see if this is actually an ethernet port
-                            all_ports.insert(iface.device.clone());
-                            wan_port = Some(iface.device.clone());
-                        }
-                    }
+            }
+            if let Some(iface) = cfg.get_typed::<NetworkInterface>()? {
+                if iface.proto == InterfaceProto::DHCP {
+                    // TODO: better check to see if this is actually an ethernet port
+                    all_ports.insert(iface.device.clone());
+                    wan_port = Some(iface.device.clone());
                 }
-                _ => (),
             }
         }
         wan_port = wan_port.filter(|s| all_ports.contains(s));
@@ -129,7 +120,7 @@ pub fn update<C: Context>(
                 }
             }
         }
-        cfg.reset();
+        cfg.restart();
         Ok(())
     })
 }

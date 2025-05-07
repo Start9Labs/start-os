@@ -390,6 +390,10 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
         }
 
         impl #impl_generics #crat::UciSection<'a> for #struc #type_generics #where_clause {
+            fn is_type(ty: &str) -> bool {
+                ty == #ty
+            }
+
             fn read(
                 lines: &#crat::Lines<'a>,
                 arena: &'a #crat::Arena,

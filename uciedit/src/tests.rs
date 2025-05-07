@@ -241,11 +241,11 @@ config retain
 fn test_line_parse_errors() {
     assert!(matches!(
         Line::parse("config foo 'invalid name", 0),
-        Err(Error::BadSectionName { .. })
+        Err(Error::BadSection { .. })
     ));
     assert!(matches!(
         Line::parse("config ", 0),
-        Err(Error::BadSectionType { .. })
+        Err(Error::BadSection { .. })
     ));
     assert!(matches!(
         Line::parse("\toption name_only", 0),
@@ -614,7 +614,7 @@ config item three
         assert!(ctx.step()); // on 'two'
         ctx.remove(); // Should remove 'two'
 
-        ctx.reset(); // This should process pending removals (none here as step wasn't called after remove)
+        ctx.restart(); // This should process pending removals (none here as step wasn't called after remove)
 
         // After reset, iterate again to ensure 'two' is not there
         let mut names = Vec::new();
@@ -642,7 +642,7 @@ config item three
         assert!(ctx.step()); // on 'two', 'one' is now gone from lines
 
         // Now reset. 'one' is already removed. 'two' and 'three' should remain.
-        ctx.reset();
+        ctx.restart();
 
         let mut names = Vec::new();
         while ctx.step() {

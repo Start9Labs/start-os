@@ -129,7 +129,9 @@ pub struct NetworkBridgeVlan {
     pub ports: Vec<NetworkVlanPort>,
 }
 
-#[derive(strum::FromRepr, strum::EnumString, Debug, strum::Display, Default, PartialEq, Eq)]
+#[derive(
+    Clone, Copy, strum::FromRepr, strum::EnumString, Debug, strum::Display, Default, PartialEq, Eq,
+)]
 pub enum WifiDynamicVlan {
     #[strum(serialize = "0")]
     #[default]
@@ -140,7 +142,7 @@ pub enum WifiDynamicVlan {
     REQUIRED = 2,
 }
 
-#[derive(strum::EnumString, Debug, strum::Display, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, strum::EnumString, Debug, strum::Display, Default, PartialEq, Eq)]
 pub enum WifiMode {
     #[default]
     #[strum(serialize = "ap")]
@@ -155,7 +157,7 @@ pub enum WifiMode {
     MESH,
 }
 
-#[derive(Debug, UciSection)]
+#[derive(Clone, Debug, UciSection)]
 #[uci(ty = "wifi-device")]
 pub struct WifiDevice {
     #[uci(default_value = false)]
@@ -163,7 +165,7 @@ pub struct WifiDevice {
     pub band: String,
 }
 
-#[derive(Debug, UciSection)]
+#[derive(Clone, Debug, UciSection)]
 #[uci(ty = "wifi-iface")]
 pub struct WifiInterface {
     pub device: String,

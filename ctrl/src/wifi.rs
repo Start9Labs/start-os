@@ -8,14 +8,15 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::io::Read;
 use std::net::Ipv4Addr;
+use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 use uciedit::openwrt::{
     DeviceType, FirewallForwarding, FirewallTarget, FirewallZone, InterfaceProto,
     NetworkBridgeVlan, NetworkDevice, NetworkInterface, NetworkVlanPortTagging, WifiDevice,
-    WifiDynamicVlan, WifiInterface, WifiMode, WifiStation,
+    WifiDynamicVlan, WifiInterface, WifiMode, WifiStation, WifiVlan,
 };
-use uciedit::UciSection;
-use uciedit::{parse_config, rewrite_config};
+use uciedit::{parse_config, rewrite_config, Sections};
+use uciedit::{SectionsMut, UciSection};
 
 pub const DEFAULT_LAN_BRIDGE: &str = "br-lan";
 
@@ -28,7 +29,7 @@ pub struct Password {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Wifi {
     pub ssid: String,
-    pub bands: Vec<String>,
+    pub bands: BTreeSet<String>,
     pub enabled: bool,
     pub broadcast: bool,
     pub passwords: HashSet<Password>,
@@ -40,63 +41,59 @@ pub fn wifi<C: Context>() -> ParentHandler<C> {
         .subcommand("update", from_fn(update::<C>).with_display_serializable())
 }
 
-pub fn get<C: Context>(ctx: C) -> Result<Wifi, Error> {
-    let profile_list = profiles::list(ctx)?;
-    let lookup: HashMap<u16, ProfileIdAndName> = profile_list
-        .into_iter()
-        .map(|id| (id.vlan_tag.expect("list should provide vlan_tags"), id))
-        .collect();
+fn find_relevant(cfg: &mut Sections) -> Result<Vec<(String, WifiInterface, WifiDevice)>, Error> {
+    let mut devices = HashMap::new();
+    cfg.try_each(|name, device: WifiDevice| {
+        devices.insert(
+            name.ok_or(ErrorKind::UnnamedWirelessDevice)?.to_string(),
+            device,
+        );
+        Ok::<_, Error>(())
+    })?;
+    let mut relevant_interfaces: Vec<(String, WifiInterface, WifiDevice)> = Vec::new();
+    cfg.try_each(|name, iface: WifiInterface| {
+        if iface.mode != WifiMode::AP {
+            return Ok(());
+        }
+        let Some(device) = devices.get(&*iface.device) else {
+            return Ok(());
+        };
+        if let Some(first_interface) = relevant_interfaces.first() {
+            if first_interface.1.ssid != iface.ssid {
+                return Ok(());
+            }
+        }
+        relevant_interfaces.push((
+            name.ok_or(ErrorKind::UnnamedWirelessInterface)?.to_string(),
+            iface,
+            device.clone(),
+        ));
+        Ok::<_, Error>(())
+    })?;
+    return Ok(relevant_interfaces);
+}
+
+pub fn get<C: Context>(_ctx: C) -> Result<Wifi, Error> {
+    let lookup = profiles::Lookup::parse()?;
     parse_config("./etc/config/wireless", |mut ctx| {
-        let mut devices = HashMap::new();
-        while ctx.step() {
-            if ctx.ty() != WifiDevice::TY {
-                continue;
-            }
-            let dev = ctx.get::<WifiDevice>()?;
-            devices.insert(
-                ctx.name()
-                    .ok_or_eyre("wifi devices should all be named")?
-                    .into_owned(),
-                dev,
-            );
-        }
-        let mut relevant_interfaces: Vec<(WifiInterface, &WifiDevice)> = Vec::new();
-        ctx.reset();
-        while ctx.step() {
-            if ctx.ty() != WifiInterface::TY {
-                continue;
-            }
-            let iface = ctx.get::<WifiInterface>()?;
-            if iface.mode != WifiMode::AP {
-                continue;
-            }
-            let Some(device) = devices.get(&iface.device) else {
-                continue;
-            };
-            if let Some(first_interface) = relevant_interfaces.first() {
-                if first_interface.0.ssid != iface.ssid {
-                    continue;
-                }
-            }
-            relevant_interfaces.push((iface, device));
-        }
+        let relevant_interfaces = find_relevant(&mut ctx)?;
         let Some(first_interface) = relevant_interfaces.first() else {
             return Err(ErrorKind::CorruptedWifi.into());
         };
         let mut passwords = HashSet::new();
-        ctx.reset();
-        while ctx.step() {
-            if ctx.ty() != WifiStation::TY {
-                continue;
+        ctx.each(|_, station: WifiStation| {
+            if let Some(iface) = &station.iface {
+                if !relevant_interfaces.iter().any(|(n, _, _)| n == iface) {
+                    return;
+                }
             }
-            let station = ctx.get::<WifiStation>()?;
-            let profile = station.vid.and_then(|vid| lookup.get(&vid)).cloned();
+            let profile = station.vid.and_then(|vid| lookup.from_vlan(vid)).cloned();
             passwords.insert(Password {
                 profile,
                 password: station.key,
             });
-        }
-        for (iface, _) in &relevant_interfaces {
+        })?;
+        for (_, iface, _) in &relevant_interfaces {
             if iface.dynamic_vlan == WifiDynamicVlan::REQUIRED {
                 continue;
             }
@@ -107,18 +104,154 @@ pub fn get<C: Context>(ctx: C) -> Result<Wifi, Error> {
             });
         }
         Ok(Wifi {
-            ssid: first_interface.0.ssid.clone(),
+            ssid: first_interface.1.ssid.clone(),
             bands: relevant_interfaces
                 .iter()
-                .filter(|(_, d)| !d.disabled)
-                .map(|(_, dev)| dev.band.clone())
+                .filter(|(_, _, d)| !d.disabled)
+                .map(|(_, _, dev)| dev.band.clone())
                 .collect(),
-            enabled: relevant_interfaces.iter().any(|(_, d)| !d.disabled),
+            enabled: relevant_interfaces.iter().any(|(_, _, d)| !d.disabled),
             broadcast: relevant_interfaces
                 .iter()
-                .any(|(i, d)| !d.disabled && !i.hidden),
+                .any(|(_, i, d)| !d.disabled && !i.hidden),
             passwords,
         })
+    })
+}
+
+fn update_inner(wifi: &Wifi, lookup: &profiles::Lookup) -> Result<(), Error> {
+    let mut pending_bands = wifi.bands.clone();
+    let mut remaining_admin_passwords = wifi.passwords.iter().filter(|p| p.profile.is_none());
+    let first_admin_password = remaining_admin_passwords.next();
+    rewrite_config("./etc/config/wireless", |mut ctx| {
+        let mut relevant_interfaces = find_relevant(&mut ctx.readonly())?;
+        let Some((first_interface_name, first_interface, first_device)) =
+            relevant_interfaces.first().cloned()
+        else {
+            return Err(ErrorKind::CorruptedWifi.into());
+        };
+        ctx.restart();
+        while ctx.step() {
+            if let Some(mut device) = ctx.get_typed::<WifiDevice>()? {
+                let name = ctx.name().ok_or(ErrorKind::UnnamedWirelessDevice)?;
+                if !relevant_interfaces.iter().any(|(_, i, _)| i.device == name) {
+                    continue;
+                }
+                if pending_bands.remove(&device.band) {
+                    device.disabled = !wifi.enabled;
+                } else {
+                    device.disabled = true;
+                }
+                ctx.set(&device);
+            }
+            if let Some(mut iface) = ctx.get_typed::<WifiInterface>()? {
+                let name = ctx.name().ok_or(ErrorKind::UnnamedWirelessInterface)?;
+                if !relevant_interfaces.iter().any(|(n, _, _)| n == &name) {
+                    continue;
+                }
+                iface.encryption = "psk2".into();
+                iface.hidden = !wifi.broadcast;
+                iface.ssid = wifi.ssid.clone();
+                if let Some(key) = first_admin_password {
+                    iface.key = Some(key.password.clone());
+                    iface.dynamic_vlan = WifiDynamicVlan::ALLOWED;
+                } else {
+                    iface.key = None;
+                    iface.dynamic_vlan = WifiDynamicVlan::REQUIRED;
+                }
+                ctx.set(&iface);
+            }
+        }
+        for band in pending_bands {
+            let device_name = format!(
+                "{}{}",
+                first_interface
+                    .device
+                    .trim_end_matches(|c: char| c.is_numeric()),
+                band
+            );
+            let interface_name = format!(
+                "{}{}",
+                first_interface_name.trim_end_matches(|c: char| c.is_numeric()),
+                band
+            );
+            let device = WifiDevice {
+                band: band.into(),
+                ..first_device.clone()
+            };
+            ctx.push(&device, Some(&device_name))?;
+            let interface = WifiInterface {
+                device: device_name,
+                ..first_interface.clone()
+            };
+            ctx.push(&interface, Some(&interface_name))?;
+            relevant_interfaces.push((interface_name, interface, device));
+        }
+        ctx.restart();
+        while ctx.step() {
+            if let Some(station) = ctx.get_typed::<WifiStation>()? {
+                if let Some(iface) = &station.iface {
+                    if !relevant_interfaces.iter().any(|(n, _, _)| n == iface) {
+                        continue;
+                    }
+                }
+                ctx.remove();
+            }
+            if let Some(vlan) = ctx.get_typed::<WifiVlan>()? {
+                if let Some(iface) = &vlan.iface {
+                    if !relevant_interfaces.iter().any(|(n, _, _)| n == iface) {
+                        continue;
+                    }
+                }
+                ctx.remove();
+            }
+        }
+        for psswd in remaining_admin_passwords {
+            for (niface, _, _) in &relevant_interfaces {
+                ctx.push(
+                    &WifiStation {
+                        key: psswd.password.clone(),
+                        vid: None,
+                        iface: Some(niface.clone()),
+                    },
+                    None,
+                )?;
+            }
+        }
+        for psswd in &wifi.passwords {
+            let Some(profile) = &psswd.profile else {
+                // admin passwords are handeled above
+                continue;
+            };
+            let profile = lookup.resolve(profile)?;
+            let vid = profile
+                .vlan_tag
+                .expect("resolve should always get the vlan_tag");
+            let viface = profile
+                .interface
+                .as_ref()
+                .expect("resolve should always get the vlan_tag");
+            for (niface, _, _) in &relevant_interfaces {
+                ctx.push(
+                    &WifiVlan {
+                        name: viface.clone(),
+                        network: viface.clone(),
+                        vid,
+                        iface: Some(niface.clone()),
+                    },
+                    None,
+                )?;
+                ctx.push(
+                    &WifiStation {
+                        key: psswd.password.clone(),
+                        vid: Some(vid),
+                        iface: Some(niface.clone()),
+                    },
+                    None,
+                )?;
+            }
+        }
+        Ok(())
     })
 }
 
@@ -126,5 +259,21 @@ pub fn update<C: Context>(
     _ctx: C,
     DeserializeStdin(wifi): DeserializeStdin<Wifi>,
 ) -> Result<(), Error> {
-    todo!();
+    let lookup = profiles::Lookup::parse()?;
+    let res = update_inner(&wifi, &lookup);
+    match res {
+        Err(Error {
+            kind: ErrorKind::CorruptedWifi,
+            ..
+        }) => {
+            // try recreating the config from scratch
+            let _ = std::fs::remove_file("./etc/config/wireless");
+            Command::new("wifi").arg("config").spawn()?.wait();
+            update_inner(&wifi, &lookup)?
+        }
+        Err(err) => return Err(err),
+        Ok(()) => (),
+    }
+    Command::new("wifi").arg("reload").spawn()?.wait();
+    Ok(())
 }

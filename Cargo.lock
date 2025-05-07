@@ -1965,6 +1965,7 @@ dependencies = [
  "imbl-value",
  "macaddr",
  "nix 0.29.0",
+ "once_cell",
  "rand",
  "rpc-toolkit",
  "serde",
