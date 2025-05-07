@@ -24,6 +24,37 @@ export type ExecOptions = {
 
 const TIMES_TO_WAIT_FOR_PROC = 100
 
+async function prepBind(
+  from: string | null,
+  to: string,
+  type?: "file" | "directory",
+) {
+  const fromMeta = from ? await fs.stat(from).catch((_) => null) : null
+  const toMeta = await fs.stat(to).catch((_) => null)
+
+  if (type === "file" || (!type && from && fromMeta?.isFile())) {
+    if (toMeta && toMeta.isDirectory()) await fs.rm(to, { recursive: false })
+    if (from && !fromMeta) {
+      await fs.mkdir(from.replace(/\/[^\/]*\/?$/, ""), { recursive: true })
+      await fs.writeFile(from, "")
+    }
+    if (!toMeta) {
+      await fs.mkdir(to.replace(/\/[^\/]*\/?$/, ""), { recursive: true })
+      await fs.writeFile(to, "")
+    }
+  } else {
+    if (toMeta && toMeta.isFile() && !toMeta.size) await fs.rm(to)
+    if (from && !fromMeta) await fs.mkdir(from, { recursive: true })
+    if (!toMeta) await fs.mkdir(to, { recursive: true })
+  }
+}
+
+async function bind(from: string, to: string, type?: "file" | "directory") {
+  await prepBind(from, to, type)
+
+  await execFile("mount", ["--bind", from, to])
+}
+
 /**
  * This is the type that is going to describe what an subcontainer could do. The main point of the
  * subcontainer is to have commands that run in a chrooted environment. This is useful for running
@@ -211,11 +242,9 @@ export class SubContainer<
             ? options.subpath
             : `/${options.subpath}`
           : "/"
-        const from = `/media/startos/volumes/${options.id}${subpath}`
+        const from = `/media/startos/volumes/${options.volumeId}${subpath}`
 
-        await fs.mkdir(from, { recursive: true })
-        await fs.mkdir(path, { recursive: true })
-        await execFile("mount", ["--bind", from, path])
+        await bind(from, path, mount.options.filetype)
       } else if (options.type === "assets") {
         const subpath = options.subpath
           ? options.subpath.startsWith("/")
@@ -224,10 +253,9 @@ export class SubContainer<
           : "/"
         const from = `/media/startos/assets/${subpath}`
 
-        await fs.mkdir(from, { recursive: true })
-        await fs.mkdir(path, { recursive: true })
-        await execFile("mount", ["--bind", from, path])
+        await bind(from, path, mount.options.filetype)
       } else if (options.type === "pointer") {
+        await prepBind(null, path, options.filetype)
         await this.effects.mount({ location: path, target: options })
       } else if (options.type === "backup") {
         const subpath = options.subpath
@@ -237,9 +265,7 @@ export class SubContainer<
           : "/"
         const from = `/media/startos/backup${subpath}`
 
-        await fs.mkdir(from, { recursive: true })
-        await fs.mkdir(path, { recursive: true })
-        await execFile("mount", ["--bind", from, path])
+        await bind(from, path, mount.options.filetype)
       } else {
         throw new Error(`unknown type ${(options as any).type}`)
       }
@@ -560,14 +586,16 @@ export type MountOptions =
 
 export type MountOptionsVolume = {
   type: "volume"
-  id: string
+  volumeId: string
   subpath: string | null
   readonly: boolean
+  filetype?: "file" | "directory"
 }
 
 export type MountOptionsAssets = {
   type: "assets"
   subpath: string | null
+  filetype?: "file" | "directory"
 }
 
 export type MountOptionsPointer = {
@@ -576,11 +604,13 @@ export type MountOptionsPointer = {
   volumeId: string
   subpath: string | null
   readonly: boolean
+  filetype?: "file" | "directory"
 }
 
 export type MountOptionsBackup = {
   type: "backup"
   subpath: string | null
+  filetype?: "file" | "directory"
 }
 function wait(time: number) {
   return new Promise((resolve) => setTimeout(resolve, time))

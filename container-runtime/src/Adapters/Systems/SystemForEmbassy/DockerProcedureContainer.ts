@@ -12,11 +12,14 @@ import {
 import { Mounts } from "@start9labs/start-sdk/package/lib/mainFn/Mounts"
 import { Manifest } from "@start9labs/start-sdk/base/lib/osBindings"
 import { BackupEffects } from "@start9labs/start-sdk/package/lib/backup/Backups"
+import { Drop } from "@start9labs/start-sdk/package/lib/util"
 export const exec = promisify(cp.exec)
 export const execFile = promisify(cp.execFile)
 
-export class DockerProcedureContainer {
-  private constructor(private readonly subcontainer: ExecSpawnable) {}
+export class DockerProcedureContainer extends Drop {
+  private constructor(private readonly subcontainer: ExecSpawnable) {
+    super()
+  }
 
   static async of(
     effects: T.Effects,
@@ -146,7 +149,11 @@ export class DockerProcedureContainer {
     }
   }
 
-  async spawn(commands: string[]): Promise<cp.ChildProcess> {
-    return await this.subcontainer.spawn(commands)
+  // async spawn(commands: string[]): Promise<cp.ChildProcess> {
+  //   return await this.subcontainer.spawn(commands)
+  // }
+
+  onDrop(): void {
+    this.subcontainer.destroy?.()
   }
 }

@@ -3,31 +3,39 @@ import { MountOptions } from "../util/SubContainer"
 
 type MountArray = { mountpoint: string; options: MountOptions }[]
 
+type SharedOptions = {
+  /** The path within the resource to mount. Use `null` to mount the entire resource */
+  subpath: string | null
+  /** Where to mount the resource. e.g. /data */
+  mountpoint: string
+  /** Whether to mount this as a file or directory */
+  type?: "file" | "directory"
+}
+
+type VolumeOpts<Manifest extends T.SDKManifest> = {
+  /** The ID of the volume to mount. Must be one of the volume IDs defined in the manifest */
+  volumeId: Manifest["volumes"][number]
+  /** Whether or not the resource should be readonly for this subcontainer */
+  readonly: boolean
+} & SharedOptions
+
+type DependencyOpts<Manifest extends T.SDKManifest> = {
+  /** The ID of the dependency */
+  dependencyId: Manifest["id"]
+  /** The ID of the volume to mount. Must be one of the volume IDs defined in the manifest of the dependency */
+  volumeId: Manifest["volumes"][number]
+  /** Whether or not the resource should be readonly for this subcontainer */
+  readonly: boolean
+} & SharedOptions
+
 export class Mounts<
   Manifest extends T.SDKManifest,
-  Backups extends {
-    subpath: string | null
-    mountpoint: string
-  } = never,
+  Backups extends SharedOptions = never,
 > {
   private constructor(
-    readonly volumes: {
-      id: Manifest["volumes"][number]
-      subpath: string | null
-      mountpoint: string
-      readonly: boolean
-    }[],
-    readonly assets: {
-      subpath: string | null
-      mountpoint: string
-    }[],
-    readonly dependencies: {
-      dependencyId: string
-      volumeId: string
-      subpath: string | null
-      mountpoint: string
-      readonly: boolean
-    }[],
+    readonly volumes: VolumeOpts<Manifest>[],
+    readonly assets: SharedOptions[],
+    readonly dependencies: DependencyOpts<T.SDKManifest>[],
     readonly backups: Backups[],
   ) {}
 
@@ -35,82 +43,36 @@ export class Mounts<
     return new Mounts<Manifest>([], [], [], [])
   }
 
-  addVolume(
-    /** The ID of the volume to mount. Must be one of the volume IDs defined in the manifest */
-    id: Manifest["volumes"][number],
-    /** The path within the volume to mount. Use `null` to mount the entire volume */
-    subpath: string | null,
-    /** Where to mount the volume. e.g. /data */
-    mountpoint: string,
-    /** Whether or not the volume should be readonly for this daemon */
-    readonly: boolean,
-  ) {
+  addVolume(options: VolumeOpts<Manifest>) {
     return new Mounts<Manifest, Backups>(
-      [
-        ...this.volumes,
-        {
-          id,
-          subpath,
-          mountpoint,
-          readonly,
-        },
-      ],
+      [...this.volumes, options],
       [...this.assets],
       [...this.dependencies],
       [...this.backups],
     )
   }
 
-  addAssets(
-    /** The path within the asset directory to mount. Use `null` to mount the entire volume */
-    subpath: string | null,
-    /** Where to mount the asset. e.g. /asset */
-    mountpoint: string,
-  ) {
+  addAssets(options: SharedOptions) {
     return new Mounts<Manifest, Backups>(
       [...this.volumes],
-      [
-        ...this.assets,
-        {
-          subpath,
-          mountpoint,
-        },
-      ],
+      [...this.assets, options],
       [...this.dependencies],
       [...this.backups],
     )
   }
 
   addDependency<DependencyManifest extends T.SDKManifest>(
-    /** The ID of the dependency service */
-    dependencyId: keyof Manifest["dependencies"] & string,
-    /** The ID of the volume belonging to the dependency service to mount */
-    volumeId: DependencyManifest["volumes"][number],
-    /** The path within the dependency's volume to mount. Use `null` to mount the entire volume */
-    subpath: string | null,
-    /** Where to mount the dependency's volume. e.g. /service-id */
-    mountpoint: string,
-    /** Whether or not the volume should be readonly for this daemon */
-    readonly: boolean,
+    options: DependencyOpts<DependencyManifest>,
   ) {
     return new Mounts<Manifest, Backups>(
       [...this.volumes],
       [...this.assets],
-      [
-        ...this.dependencies,
-        {
-          dependencyId,
-          volumeId,
-          subpath,
-          mountpoint,
-          readonly,
-        },
-      ],
+      [...this.dependencies, options],
       [...this.backups],
     )
   }
 
-  addBackups(subpath: string | null, mountpoint: string) {
+  addBackups(options: SharedOptions) {
     return new Mounts<
       Manifest,
       {
@@ -121,7 +83,7 @@ export class Mounts<
       [...this.volumes],
       [...this.assets],
       [...this.dependencies],
-      [...this.backups, { subpath, mountpoint }],
+      [...this.backups, options],
     )
   }
 
@@ -144,9 +106,10 @@ export class Mounts<
           mountpoint: v.mountpoint,
           options: {
             type: "volume",
-            id: v.id,
+            volumeId: v.volumeId,
             subpath: v.subpath,
             readonly: v.readonly,
+            filetype: v.type,
           },
         })),
       )
@@ -156,6 +119,7 @@ export class Mounts<
           options: {
             type: "assets",
             subpath: a.subpath,
+            filetype: a.type,
           },
         })),
       )
@@ -168,12 +132,13 @@ export class Mounts<
             volumeId: d.volumeId,
             subpath: d.subpath,
             readonly: d.readonly,
+            filetype: d.type,
           },
         })),
       )
   }
 }
 
-const a = Mounts.of().addBackups(null, "")
+const a = Mounts.of().addBackups({ subpath: null, mountpoint: "" })
 // @ts-expect-error
 const m: Mounts<T.SDKManifest, never> = a
