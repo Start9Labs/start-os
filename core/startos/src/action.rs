@@ -83,6 +83,28 @@ pub enum ActionResult {
     #[serde(rename = "1")]
     V1(ActionResultV1),
 }
+impl ActionResult {
+    pub fn upcast(self) -> Self {
+        match self {
+            Self::V0(ActionResultV0 {
+                message,
+                value,
+                copyable,
+                qr,
+            }) => Self::V1(ActionResultV1 {
+                title: "Action Complete".into(),
+                message: Some(message),
+                result: value.map(|value| ActionResultValue::Single {
+                    value,
+                    copyable,
+                    qr,
+                    masked: false,
+                }),
+            }),
+            Self::V1(a) => Self::V1(a),
+        }
+    }
+}
 impl fmt::Display for ActionResult {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -308,4 +330,5 @@ pub async fn run_action(
         .or_not_found(lazy_format!("Manager for {}", package_id))?
         .run_action(Guid::new(), action_id, input.unwrap_or_default())
         .await
+        .map(|res| res.map(ActionResult::upcast))
 }
