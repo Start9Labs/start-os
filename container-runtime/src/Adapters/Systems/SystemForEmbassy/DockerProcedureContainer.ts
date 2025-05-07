@@ -12,11 +12,14 @@ import {
 import { Mounts } from "@start9labs/start-sdk/package/lib/mainFn/Mounts"
 import { Manifest } from "@start9labs/start-sdk/base/lib/osBindings"
 import { BackupEffects } from "@start9labs/start-sdk/package/lib/backup/Backups"
+import { Drop } from "@start9labs/start-sdk/package/lib/util"
 export const exec = promisify(cp.exec)
 export const execFile = promisify(cp.execFile)
 
-export class DockerProcedureContainer {
-  private constructor(private readonly subcontainer: ExecSpawnable) {}
+export class DockerProcedureContainer extends Drop {
+  private constructor(private readonly subcontainer: ExecSpawnable) {
+    super()
+  }
 
   static async of(
     effects: T.Effects,
@@ -61,10 +64,20 @@ export class DockerProcedureContainer {
         const volumeMount = volumes[mount]
         if (volumeMount.type === "data") {
           await subcontainer.mount(
-            Mounts.of().addVolume(mount, null, mounts[mount], false),
+            Mounts.of().addVolume({
+              volumeId: mount,
+              subpath: null,
+              mountpoint: mounts[mount],
+              readonly: false,
+            }),
           )
         } else if (volumeMount.type === "assets") {
-          await subcontainer.mount(Mounts.of().addAssets(mount, mounts[mount]))
+          await subcontainer.mount(
+            Mounts.of().addAssets({
+              subpath: mount,
+              mountpoint: mounts[mount],
+            }),
+          )
         } else if (volumeMount.type === "certificate") {
           const hostnames = [
             `${packageId}.embassy`,
@@ -105,7 +118,12 @@ export class DockerProcedureContainer {
             },
           })
         } else if (volumeMount.type === "backup") {
-          await subcontainer.mount(Mounts.of().addBackups(null, mounts[mount]))
+          await subcontainer.mount(
+            Mounts.of().addBackups({
+              subpath: null,
+              mountpoint: mounts[mount],
+            }),
+          )
         }
       }
     }
@@ -146,7 +164,11 @@ export class DockerProcedureContainer {
     }
   }
 
-  async spawn(commands: string[]): Promise<cp.ChildProcess> {
-    return await this.subcontainer.spawn(commands)
+  // async spawn(commands: string[]): Promise<cp.ChildProcess> {
+  //   return await this.subcontainer.spawn(commands)
+  // }
+
+  onDrop(): void {
+    this.subcontainer.destroy?.()
   }
 }

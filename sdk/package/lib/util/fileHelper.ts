@@ -330,6 +330,36 @@ export class FileHelper<A> {
   }
 
   /**
+   * Create a File Helper for a text file
+   */
+  static string(path: string): FileHelper<string>
+  static string<A extends string>(
+    path: string,
+    shape: Validator<string, A>,
+  ): FileHelper<A>
+  static string<A extends Transformed, Transformed = string>(
+    path: string,
+    shape: Validator<Transformed, A>,
+    transformers: Transformers<string, Transformed>,
+  ): FileHelper<A>
+  static string<A extends Transformed, Transformed = string>(
+    path: string,
+    shape?: Validator<Transformed, A>,
+    transformers?: Transformers<string, Transformed>,
+  ) {
+    return FileHelper.rawTransformed<A, string, Transformed>(
+      path,
+      (inData) => inData,
+      (inString) => inString,
+      (data) =>
+        (shape || (matches.string as Validator<Transformed, A>)).unsafeCast(
+          data,
+        ),
+      transformers,
+    )
+  }
+
+  /**
    * Create a File Helper for a .json file.
    */
   static json<A>(

@@ -26,11 +26,21 @@ use crate::DATA_DIR;
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
+pub enum FileType {
+    File,
+    Directory,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
 pub struct MountTarget {
     package_id: PackageId,
     volume_id: VolumeId,
     subpath: Option<PathBuf>,
     readonly: bool,
+    #[ts(optional)]
+    filetype: Option<FileType>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -49,6 +59,7 @@ pub async fn mount(
                 volume_id,
                 subpath,
                 readonly,
+                filetype,
             },
     }: MountParams,
 ) -> Result<(), Error> {
@@ -56,9 +67,7 @@ pub async fn mount(
     let subpath = subpath.unwrap_or_default();
     let subpath = subpath.strip_prefix("/").unwrap_or(&subpath);
     let source = data_dir(DATA_DIR, &package_id, &volume_id).join(subpath);
-    if tokio::fs::metadata(&source).await.is_err() {
-        tokio::fs::create_dir_all(&source).await?;
-    }
+    let from_meta = tokio::fs::metadata(&source).await.ok();
     let location = location.strip_prefix("/").unwrap_or(&location);
     let mountpoint = context
         .seed
@@ -68,6 +77,38 @@ pub async fn mount(
         .or_not_found("lxc container")?
         .rootfs_dir()
         .join(location);
+    let to_meta = tokio::fs::metadata(&mountpoint).await.ok();
+
+    if matches!(filetype, Some(FileType::File))
+        || (filetype.is_none() && from_meta.as_ref().map_or(false, |m| m.is_file()))
+    {
+        if to_meta.as_ref().map_or(false, |m| m.is_dir()) {
+            tokio::fs::remove_dir(&mountpoint).await?;
+        }
+        if from_meta.is_none() {
+            if let Some(parent) = source.parent() {
+                tokio::fs::create_dir_all(parent).await?;
+            }
+            tokio::fs::write(&source, "").await?;
+        }
+        if to_meta.is_none() {
+            if let Some(parent) = mountpoint.parent() {
+                tokio::fs::create_dir_all(parent).await?;
+            }
+            tokio::fs::write(&mountpoint, "").await?;
+        }
+    } else {
+        if to_meta.as_ref().map_or(false, |m| m.is_file()) {
+            tokio::fs::remove_file(&mountpoint).await?;
+        }
+        if from_meta.is_none() {
+            tokio::fs::create_dir_all(&source).await?;
+        }
+        if to_meta.is_none() {
+            tokio::fs::create_dir_all(&mountpoint).await?;
+        }
+    }
+
     tokio::fs::create_dir_all(&mountpoint).await?;
     Command::new("chown")
         .arg("100000:100000")
