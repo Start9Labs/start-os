@@ -15,6 +15,8 @@ pub enum ErrorKind {
     MissingProfile(ProfileIdAndName),
     #[error("corrupted profile with {0:?}")]
     CorruptedProfile(ProfileIdAndName),
+    #[error("corrupted wifi devices and interfaces")]
+    CorruptedWifi,
     #[error("multiple vlans with tag {0}")]
     DuplicateVlanTag(u16),
     #[error("no lan bridge device found")]

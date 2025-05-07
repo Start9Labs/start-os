@@ -20,7 +20,7 @@ pub const DEFAULT_LAN_BRIDGE: &str = "br-lan";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Port {
-    pub vlan: Option<ProfileIdAndName>,
+    pub profile: Option<ProfileIdAndName>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -36,8 +36,8 @@ pub fn ethernet<C: Context>() -> ParentHandler<C> {
 }
 
 pub fn get<C: Context>(ctx: C) -> Result<Ethernet, Error> {
-    let lookup = profiles::list(ctx)?;
-    let lookup: HashMap<u16, ProfileIdAndName> = lookup
+    let profile_list = profiles::list(ctx)?;
+    let lookup: HashMap<u16, ProfileIdAndName> = profile_list
         .into_iter()
         .map(|id| (id.vlan_tag.expect("list should provide vlan_tags"), id))
         .collect();
@@ -101,7 +101,7 @@ pub fn get<C: Context>(ctx: C) -> Result<Ethernet, Error> {
                 (
                     name.clone(),
                     Port {
-                        vlan: vlan_ports
+                        profile: vlan_ports
                             .get(name)
                             .and_then(|(tag, _)| lookup.get(tag))
                             .cloned(),
@@ -117,6 +117,7 @@ pub fn update<C: Context>(
     _ctx: C,
     DeserializeStdin(ethernet): DeserializeStdin<Ethernet>,
 ) -> Result<(), Error> {
+    todo!();
     rewrite_config("./etc/config/network", |mut cfg| {
         let mut found_bridge = None;
         while cfg.step() {

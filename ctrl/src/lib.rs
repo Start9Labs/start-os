@@ -2,6 +2,7 @@ pub mod error;
 pub mod ethernet;
 pub mod profiles;
 pub mod utils;
+pub mod wifi;
 
 use clap::Parser;
 pub use error::{Error, ErrorKind};
@@ -20,6 +21,7 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("profiles", profiles::profiles::<C>())
         .subcommand("ethernet", ethernet::ethernet::<C>())
+        .subcommand("wifi", wifi::wifi::<C>())
 }
 
 pub fn init_logging(name: &str) -> DefaultGuard {
