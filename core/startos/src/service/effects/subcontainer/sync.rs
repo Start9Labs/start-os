@@ -200,7 +200,6 @@ pub fn launch(
     use std::io::Write;
 
     kill_init(Path::new("/proc"), &chroot)?;
-    //TODO: PTY
     let mut sig = signal_hook::iterator::Signals::new(FWD_SIGNALS)?;
     let (send_pid, recv_pid) = oneshot::channel();
     std::thread::spawn(move || {
