@@ -16,6 +16,7 @@ use tokio::sync::oneshot;
 use crate::service::effects::prelude::*;
 use crate::service::effects::ContainerCliContext;
 use crate::util::io::TermSize;
+use crate::CAP_1_KiB;
 
 const FWD_SIGNALS: &[c_int] = &[
     SIGABRT, SIGALRM, SIGCONT, SIGHUP, SIGINT, SIGIO, SIGPIPE, SIGPROF, SIGQUIT, SIGTERM, SIGTRAP,
@@ -101,6 +102,8 @@ pub struct ExecParams {
     #[arg(long)]
     force_tty: bool,
     #[arg(long)]
+    force_stderr_tty: bool,
+    #[arg(long)]
     pty_size: Option<TermSize>,
     #[arg(short, long)]
     env: Option<PathBuf>,
@@ -185,6 +188,7 @@ pub fn launch(
     _: ContainerCliContext,
     ExecParams {
         force_tty,
+        force_stderr_tty,
         pty_size,
         env,
         workdir,
@@ -319,6 +323,7 @@ pub fn exec(
     _: ContainerCliContext,
     ExecParams {
         force_tty,
+        force_stderr_tty,
         pty_size,
         env,
         workdir,
@@ -343,10 +348,10 @@ pub fn exec(
         }
     });
 
-    let stdin = std::io::stdin();
+    let mut stdin = std::io::stdin();
     let stdout = std::io::stdout();
     let stderr = std::io::stderr();
-    let stderr_tty = stderr.is_terminal();
+    let stderr_tty = force_stderr_tty || stderr.is_terminal();
 
     let tty = force_tty || (stdin.is_terminal() && stdout.is_terminal());
 
@@ -362,23 +367,31 @@ pub fn exec(
     std::thread::spawn(move || {
         if let Ok(mut cstdin) = stdin_recv.blocking_recv() {
             if tty {
-                for byte in stdin.lock().bytes() {
-                    cstdin.write_all(&[byte.unwrap()]).unwrap();
-                    cstdin.flush().unwrap();
+                let mut buf = [0_u8; CAP_1_KiB];
+                while let Ok(n) = stdin.read(&mut buf) {
+                    if n == 0 {
+                        break;
+                    }
+                    cstdin.write_all(&buf[..n]).ok();
+                    cstdin.flush().ok();
                 }
             } else {
-                std::io::copy(&mut stdin.lock(), &mut cstdin).unwrap();
+                std::io::copy(&mut stdin, &mut cstdin).unwrap();
             }
         }
     });
     let (stdout_send, stdout_recv) = oneshot::channel::<Box<dyn std::io::Read + Send>>();
-    std::thread::spawn(move || {
+    let stdout_thread = std::thread::spawn(move || {
         if let Ok(mut cstdout) = stdout_recv.blocking_recv() {
             if tty {
                 let mut stdout = stdout.lock();
-                for byte in cstdout.bytes() {
-                    stdout.write_all(&[byte.unwrap()]).unwrap();
-                    stdout.flush().unwrap();
+                let mut buf = [0_u8; CAP_1_KiB];
+                while let Ok(n) = cstdout.read(&mut buf) {
+                    if n == 0 {
+                        break;
+                    }
+                    stdout.write_all(&buf[..n]).ok();
+                    stdout.flush().ok();
                 }
             } else {
                 std::io::copy(&mut cstdout, &mut stdout.lock()).unwrap();
@@ -386,13 +399,15 @@ pub fn exec(
         }
     });
     let (stderr_send, stderr_recv) = oneshot::channel::<Box<dyn std::io::Read + Send>>();
-    if !stderr_tty {
-        std::thread::spawn(move || {
+    let stderr_thread = if !stderr_tty {
+        Some(std::thread::spawn(move || {
             if let Ok(mut cstderr) = stderr_recv.blocking_recv() {
                 std::io::copy(&mut cstderr, &mut stderr.lock()).unwrap();
             }
-        });
-    }
+        }))
+    } else {
+        None
+    };
     nix::sched::setns(
         open_file_read(chroot.join("proc/1/ns/pid"))?,
         CloneFlags::CLONE_NEWPID,
@@ -453,6 +468,8 @@ pub fn exec(
         let exit = child
             .wait()
             .with_ctx(|_| (ErrorKind::Filesystem, "waiting on child process"))?;
+        stdout_thread.join().unwrap();
+        stderr_thread.map(|t| t.join().unwrap());
         if let Some(code) = exit.code() {
             drop(raw);
             std::process::exit(code);

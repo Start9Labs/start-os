@@ -741,6 +741,7 @@ pub struct AttachParams {
     #[ts(type = "string[]")]
     pub command: Vec<OsString>,
     pub tty: bool,
+    pub stderr_tty: bool,
     #[ts(skip)]
     #[serde(rename = "__auth_session")]
     session: Option<InternedString>,
@@ -757,6 +758,7 @@ pub async fn attach(
         id,
         command,
         tty,
+        stderr_tty,
         session,
         subcontainer,
         image_id,
@@ -866,6 +868,7 @@ pub async fn attach(
         subcontainer_id: Guid,
         command: Vec<OsString>,
         tty: bool,
+        stderr_tty: bool,
         image_id: ImageId,
         workdir: Option<String>,
         root_command: &RootCommand,
@@ -896,6 +899,10 @@ pub async fn attach(
 
         if tty {
             cmd.arg("--force-tty");
+        }
+
+        if stderr_tty {
+            cmd.arg("--force-stderr-tty");
         }
 
         cmd.arg(&root_path).arg("--");
@@ -1037,6 +1044,7 @@ pub async fn attach(
                         subcontainer_id,
                         command,
                         tty,
+                        stderr_tty,
                         image_id,
                         workdir,
                         &root_command,
@@ -1166,6 +1174,7 @@ pub async fn cli_attach(
                     "id": params.id,
                     "command": params.command,
                     "tty": tty,
+                    "stderrTty": stderr.is_terminal(),
                     "ptySize": if tty { TermSize::get_current() } else { None },
                     "subcontainer": params.subcontainer,
                     "imageId": params.image_id,
