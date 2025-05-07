@@ -79,6 +79,22 @@ impl ProfileIdAndName {
             vlan_tag: None,
         }
     }
+
+    pub fn matches(&self, other: &ProfileIdAndName) -> bool {
+        let i = match (&self.interface, &other.interface) {
+            (Some(a), Some(b)) => a == b,
+            _ => true,
+        };
+        let v = match (self.vlan_tag, other.vlan_tag) {
+            (Some(a), Some(b)) => a == b,
+            _ => true,
+        };
+        let n = match (&self.fullname, &other.fullname) {
+            (Some(a), Some(b)) => a == b,
+            _ => true,
+        };
+        i && v && n
+    }
 }
 
 #[derive(Debug, UciSection)]

@@ -278,7 +278,7 @@ fn append_body(fields: &[UciField], _struc: Ident, ty: String, crat: Path) -> To
     quote! {
         #(#decl)*
 
-        if !lines.is_empty() {
+        if !matches!(lines.last(), None | Some(#crat::Line::Empty)) {
             lines.push(#crat::Line::Empty);
         }
 

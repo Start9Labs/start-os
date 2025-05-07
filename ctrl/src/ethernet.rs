@@ -1,4 +1,4 @@
-use crate::profiles::{self, ProfileIdAndName};
+use crate::profiles::{self, ProfileIdAndName, DEFAULT_WAN_ZONE};
 use crate::utils::DeserializeStdin;
 use crate::{utils::HandlerExtSerde, Error, ErrorKind};
 use clap::Parser;
@@ -17,6 +17,8 @@ use uciedit::UciSection;
 use uciedit::{parse_config, rewrite_config};
 
 pub const DEFAULT_LAN_BRIDGE: &str = "br-lan";
+pub const DEFAULT_WAN_INTERFACE: &str = "wan";
+pub const DEFAULT_WAN6_INTERFACE: &str = "wan6";
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Port {
@@ -25,8 +27,9 @@ pub struct Port {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Ethernet {
+    pub wan_ipv6: bool,
     pub wan_port: Option<String>,
-    pub ports: HashMap<String, Port>,
+    pub ports: BTreeMap<String, Port>,
 }
 
 pub fn ethernet<C: Context>() -> ParentHandler<C> {
@@ -52,6 +55,7 @@ pub fn get<C: Context>(ctx: C) -> Result<Ethernet, Error> {
             return Err(ErrorKind::MissingLanBridge.into());
         };
 
+        let mut wan_ipv6 = false;
         let mut wan_port = None;
         let mut all_ports: HashSet<String> = found_bridge.ports.into_iter().collect();
         let mut vlan_ports = HashMap::new();
@@ -74,7 +78,9 @@ pub fn get<C: Context>(ctx: C) -> Result<Ethernet, Error> {
                 }
             }
             if let Some(iface) = cfg.get_typed::<NetworkInterface>()? {
-                if iface.proto == InterfaceProto::DHCP {
+                if iface.proto == InterfaceProto::DHCP
+                    && cfg.name().as_deref() == Some(DEFAULT_WAN_INTERFACE)
+                {
                     // TODO: better check to see if this is actually an ethernet port
                     all_ports.insert(iface.device.clone());
                     wan_port = Some(iface.device.clone());
@@ -96,7 +102,16 @@ pub fn get<C: Context>(ctx: C) -> Result<Ethernet, Error> {
                 )
             })
             .collect();
-        Ok(Ethernet { wan_port, ports })
+        cfg.each(|_, iface: NetworkInterface| {
+            if iface.proto == InterfaceProto::DHCPV6 && Some(&iface.device) == wan_port.as_ref() {
+                wan_ipv6 = true;
+            }
+        })?;
+        Ok(Ethernet {
+            wan_ipv6,
+            wan_port,
+            ports,
+        })
     })
 }
 
@@ -104,19 +119,139 @@ pub fn update<C: Context>(
     _ctx: C,
     DeserializeStdin(ethernet): DeserializeStdin<Ethernet>,
 ) -> Result<(), Error> {
-    todo!();
+    let lookup = profiles::list()?;
     rewrite_config("./etc/config/network", |mut cfg| {
+        // TODO: avoid duplicating this "find the bridge" logic so much
         let mut found_bridge = None;
+        cfg.readonly().each(|_, dev: NetworkDevice| {
+            if dev.ty == Some(DeviceType::BRIDGE)
+                && (found_bridge.is_none() || dev.name == DEFAULT_LAN_BRIDGE)
+            {
+                found_bridge = Some(dev);
+            }
+        })?;
+        let mut bridge = match found_bridge {
+            Some(br) => br,
+            None => NetworkDevice {
+                name: DEFAULT_LAN_BRIDGE.into(),
+                ty: Some(DeviceType::BRIDGE),
+                ports: Vec::new(),
+            },
+        };
+        bridge.ports.clear();
+        for (port_name, port) in &ethernet.ports {
+            if Some(port_name) == ethernet.wan_port.as_ref() {
+                if port.profile.is_some() {
+                    return Err(ErrorKind::WanPortWithProfile(port_name.clone()).into());
+                }
+            } else {
+                bridge.ports.push(port_name.clone());
+            }
+        }
+
+        let mut pending_bridge = true;
+        let mut pending_ipv4 = ethernet.wan_port.is_some();
+        let mut pending_ipv6 = ethernet.wan_ipv6 && ethernet.wan_port.is_some();
+        cfg.restart();
         while cfg.step() {
-            if let Ok(dev) = cfg.get::<NetworkDevice>() {
-                if dev.ty == Some(DeviceType::BRIDGE)
-                    && (found_bridge.is_none() || dev.name == DEFAULT_LAN_BRIDGE)
+            if let Some(vlan) = cfg.get_typed::<NetworkBridgeVlan>()? {
+                if vlan.device == bridge.name {
+                    // we'll re-add these later
+                    // TODO: is there any use-case for preserving non-primary untagged
+                    // or tagged ethernet ports?
+                    cfg.remove();
+                }
+            }
+            if let Some(dev) = cfg.get_typed::<NetworkDevice>()? {
+                if dev.ty == Some(DeviceType::BRIDGE) && dev.name == bridge.name {
+                    cfg.set(&bridge)?;
+                    pending_bridge = false;
+                }
+            }
+            if let Some(mut iface) = cfg.get_typed::<NetworkInterface>()? {
+                if iface.proto == InterfaceProto::DHCP
+                    && cfg.name().as_deref() == Some(DEFAULT_WAN_INTERFACE)
                 {
-                    found_bridge = Some(dev.name);
+                    pending_ipv4 = false;
+                    if let Some(wan_port) = &ethernet.wan_port {
+                        iface.device = wan_port.clone();
+                        cfg.set(&iface)?;
+                    } else {
+                        cfg.remove();
+                    }
+                }
+                if iface.proto == InterfaceProto::DHCPV6
+                    && cfg.name().as_deref() == Some(DEFAULT_WAN6_INTERFACE)
+                {
+                    pending_ipv6 = false;
+                    if let Some(wan_port) = &ethernet.wan_port {
+                        if ethernet.wan_ipv6 {
+                            iface.device = wan_port.clone();
+                            cfg.set(&iface)?;
+                        } else {
+                            cfg.remove();
+                        }
+                    } else {
+                        cfg.remove();
+                    }
                 }
             }
         }
-        cfg.restart();
+
+        if let Some(wan_port) = &ethernet.wan_port {
+            if pending_ipv4 {
+                cfg.push(
+                    &NetworkInterface {
+                        device: wan_port.clone(),
+                        proto: InterfaceProto::DHCP,
+                        ipaddr: None,
+                        netmask: None,
+                    },
+                    Some(DEFAULT_WAN6_INTERFACE),
+                )?;
+            }
+            if pending_ipv6 {
+                cfg.push(
+                    &NetworkInterface {
+                        device: wan_port.clone(),
+                        proto: InterfaceProto::DHCPV6,
+                        ipaddr: None,
+                        netmask: None,
+                    },
+                    Some(DEFAULT_WAN6_INTERFACE),
+                )?;
+            }
+        }
+        if pending_bridge {
+            cfg.push(&bridge, None)?;
+        }
+
+        for profile in &lookup {
+            let mut ports = Vec::new();
+            for (port_name, port) in &ethernet.ports {
+                let Some(port_profile) = &port.profile else {
+                    continue;
+                };
+                if !profile.matches(port_profile) {
+                    continue;
+                };
+                ports.push(uciedit::openwrt::NetworkVlanPort {
+                    port: port_name.clone(),
+                    tagging: Some(NetworkVlanPortTagging::PRIMARY),
+                });
+            }
+
+            let vlan = profile.vlan_tag.unwrap();
+            cfg.push(
+                &NetworkBridgeVlan {
+                    device: bridge.name.clone(),
+                    vlan,
+                    ports,
+                },
+                None,
+            )?;
+        }
+
         Ok(())
     })
 }

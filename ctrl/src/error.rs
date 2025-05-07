@@ -27,6 +27,8 @@ pub enum ErrorKind {
     MissingLanBridge,
     #[error("no lan wan interface found")]
     MissingWanInterface,
+    #[error("the wan port can not have a profile")]
+    WanPortWithProfile(String),
     #[error(transparent)]
     Other(#[from] color_eyre::eyre::Error),
 }
