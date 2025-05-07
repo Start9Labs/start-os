@@ -157,12 +157,34 @@ pub enum WifiMode {
     MESH,
 }
 
+#[derive(Clone, Copy, Inpt, Debug, Default)]
+pub enum WifiChannel {
+    #[default]
+    #[inpt(regex = "auto")]
+    Auto,
+    Int(u32),
+}
+
+impl fmt::Display for WifiChannel {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            WifiChannel::Auto => write!(f, "auto"),
+            WifiChannel::Int(i) => write!(f, "{}", i),
+        }
+    }
+}
+
 #[derive(Clone, Debug, UciSection)]
 #[uci(ty = "wifi-device")]
 pub struct WifiDevice {
+    #[uci(rename = "type")]
+    pub device_type: String,
+    pub path: Option<String>,
     #[uci(default_value = false)]
     pub disabled: bool,
     pub band: String,
+    #[uci(inpt)]
+    pub channel: WifiChannel,
 }
 
 #[derive(Clone, Debug, UciSection)]

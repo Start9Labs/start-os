@@ -693,19 +693,19 @@ impl Lookup {
             .get(interface)
     }
 
-    pub fn from_fullname(&self, interface: &str) -> Option<&ProfileIdAndName> {
+    pub fn from_fullname(&self, fullname: &str) -> Option<&ProfileIdAndName> {
         self.from_fullname
             .get_or_init(|| {
                 self.list
                     .iter()
                     .map(|id| {
                         (
-                            id.interface.clone().expect("list should provide fullname"),
+                            id.fullname.clone().expect("list should provide fullname"),
                             id.clone(),
                         )
                     })
                     .collect()
             })
-            .get(interface)
+            .get(fullname)
     }
 }

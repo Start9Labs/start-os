@@ -12,8 +12,8 @@ use std::os::unix::process::CommandExt;
 use std::process::{Command, Stdio};
 use uciedit::openwrt::{
     DeviceType, FirewallForwarding, FirewallTarget, FirewallZone, InterfaceProto,
-    NetworkBridgeVlan, NetworkDevice, NetworkInterface, NetworkVlanPortTagging, WifiDevice,
-    WifiDynamicVlan, WifiInterface, WifiMode, WifiStation, WifiVlan,
+    NetworkBridgeVlan, NetworkDevice, NetworkInterface, NetworkVlanPortTagging, WifiChannel,
+    WifiDevice, WifiDynamicVlan, WifiInterface, WifiMode, WifiStation, WifiVlan,
 };
 use uciedit::{parse_config, rewrite_config, Sections};
 use uciedit::{SectionsMut, UciSection};
@@ -142,7 +142,7 @@ fn update_inner(wifi: &Wifi, lookup: &profiles::Lookup) -> Result<(), Error> {
                 } else {
                     device.disabled = true;
                 }
-                ctx.set(&device);
+                ctx.set(&device)?;
             }
             if let Some(mut iface) = ctx.get_typed::<WifiInterface>()? {
                 let name = ctx.name().ok_or(ErrorKind::UnnamedWirelessInterface)?;
@@ -159,7 +159,7 @@ fn update_inner(wifi: &Wifi, lookup: &profiles::Lookup) -> Result<(), Error> {
                     iface.key = None;
                     iface.dynamic_vlan = WifiDynamicVlan::REQUIRED;
                 }
-                ctx.set(&iface);
+                ctx.set(&iface)?;
             }
         }
         for band in pending_bands {
@@ -176,7 +176,8 @@ fn update_inner(wifi: &Wifi, lookup: &profiles::Lookup) -> Result<(), Error> {
                 band
             );
             let device = WifiDevice {
-                band: band.into(),
+                band,
+                channel: WifiChannel::Auto,
                 ..first_device.clone()
             };
             ctx.push(&device, Some(&device_name))?;
@@ -268,12 +269,12 @@ pub fn update<C: Context>(
         }) => {
             // try recreating the config from scratch
             let _ = std::fs::remove_file("./etc/config/wireless");
-            Command::new("wifi").arg("config").spawn()?.wait();
+            let _ = Command::new("wifi").arg("config").spawn()?.wait();
             update_inner(&wifi, &lookup)?
         }
         Err(err) => return Err(err),
         Ok(()) => (),
     }
-    Command::new("wifi").arg("reload").spawn()?.wait();
+    let _ = Command::new("wifi").arg("reload").spawn()?.wait();
     Ok(())
 }

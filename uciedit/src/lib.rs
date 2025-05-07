@@ -430,6 +430,24 @@ pub trait UciSection<'a>: Sized {
     ) -> Result<(), Error>;
 }
 
+#[derive(Debug, Inpt, Clone, Copy)]
+#[inpt(trim = "")] // TODO: trim isn't working?
+pub enum LineComment<'a> {
+    #[inpt(regex = r"\s*")]
+    None,
+    #[inpt(regex = r"\s*#(.*)")]
+    Commented(&'a str),
+}
+
+impl fmt::Display for LineComment<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LineComment::None => Ok(()),
+            LineComment::Commented(text) => write!(f, " #{}", text),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone)]
 pub enum Line<'a> {
     Empty,
@@ -440,17 +458,17 @@ pub enum Line<'a> {
     Section {
         ty: Token<'a>,
         name: Option<Token<'a>>,
-        tail: &'a str,
+        comment: LineComment<'a>,
     },
     Option {
         option: Token<'a>,
         value: Token<'a>,
-        tail: &'a str,
+        comment: LineComment<'a>,
     },
     List {
         list: Token<'a>,
         item: Token<'a>,
-        tail: &'a str,
+        comment: LineComment<'a>,
     },
     Skip,
 }
@@ -467,19 +485,23 @@ impl fmt::Display for Line<'_> {
             Line::Section {
                 ty,
                 name: None,
-                tail,
+                comment: tail,
             } => writeln!(f, "config {}{}", ty, tail),
             Line::Section {
                 ty,
                 name: Some(name),
-                tail,
+                comment: tail,
             } => writeln!(f, "config {} {}{}", ty, name, tail),
             Line::Option {
                 option,
                 value,
-                tail,
+                comment: tail,
             } => writeln!(f, "\toption {} {}{}", option, value, tail),
-            Line::List { list, item, tail } => writeln!(f, "\tlist {} {}{}", list, item, tail),
+            Line::List {
+                list,
+                item,
+                comment: tail,
+            } => writeln!(f, "\tlist {} {}{}", list, item, tail),
             Line::Skip => Ok(()),
         }
     }
@@ -488,25 +510,9 @@ impl fmt::Display for Line<'_> {
 impl<'a> Line<'a> {
     pub fn parse(line: &'a str, line_number: usize) -> Result<Self, Error> {
         #[derive(Inpt, Clone, Copy)]
-        enum Comment<'a> {
-            #[inpt(regex = r"\s*")]
-            Empty,
-            #[inpt(regex = r"(\s*#.*)")]
-            Commented(&'a str),
-        }
-        impl<'a> From<Comment<'a>> for &'a str {
-            fn from(value: Comment<'a>) -> Self {
-                match value {
-                    Comment::Empty => "",
-                    Comment::Commented(x) => x,
-                }
-            }
-        }
-
-        #[derive(Inpt, Clone, Copy)]
         enum ConfigLine<'a> {
-            Named(Token<'a>, Token<'a>, Comment<'a>),
-            Unnamed(Token<'a>, Comment<'a>),
+            Named(Token<'a>, Token<'a>, LineComment<'a>),
+            Unnamed(Token<'a>, LineComment<'a>),
         }
 
         let rest = line.trim();
@@ -535,17 +541,17 @@ impl<'a> Line<'a> {
                     ConfigLine::Named(ty, name, comment) => Line::Section {
                         ty,
                         name: Some(name),
-                        tail: comment.into(),
+                        comment,
                     },
                     ConfigLine::Unnamed(ty, comment) => Line::Section {
                         ty,
                         name: None,
-                        tail: comment.into(),
+                        comment,
                     },
                 }
             }
             "option" => {
-                let (option, value, comment): (Token, Token, Comment) =
+                let (option, value, comment): (Token, Token, LineComment) =
                     inpt(rest).map_err(|err| Error::BadOption {
                         line_number,
                         desc: err.to_string(),
@@ -553,11 +559,11 @@ impl<'a> Line<'a> {
                 Line::Option {
                     option,
                     value,
-                    tail: comment.into(),
+                    comment,
                 }
             }
             "list" => {
-                let (list, item, comment): (Token, Token, Comment) =
+                let (list, item, comment): (Token, Token, LineComment) =
                     inpt(rest).map_err(|err| Error::BadList {
                         line_number,
                         desc: err.to_string(),
@@ -565,7 +571,7 @@ impl<'a> Line<'a> {
                 Line::List {
                     list,
                     item,
-                    tail: comment.into(),
+                    comment,
                 }
             }
             kw => {
@@ -589,7 +595,7 @@ impl<'a> Line<'a> {
         Line::Option {
             option,
             value: Token::from_display(value, arena),
-            tail: "",
+            comment: LineComment::None,
         }
     }
 
@@ -605,7 +611,7 @@ impl<'a> Line<'a> {
         items.iter().map(move |item| Line::List {
             list,
             item: Token::from_display(item, arena),
-            tail: "",
+            comment: LineComment::None,
         })
     }
 
@@ -614,7 +620,7 @@ impl<'a> Line<'a> {
         Line::Option {
             option,
             value: Token::from_bool(value),
-            tail: "",
+            comment: LineComment::None,
         }
     }
 
@@ -630,7 +636,7 @@ impl<'a> Line<'a> {
         items.iter().map(move |item| Line::List {
             list,
             item: Token::from_bool(*item),
-            tail: "",
+            comment: LineComment::None,
         })
     }
 
@@ -638,7 +644,7 @@ impl<'a> Line<'a> {
         Line::Section {
             ty: Token::from_str(ty, arena),
             name: name.map(|n| Token::from_str(n, arena)),
-            tail: "",
+            comment: LineComment::None,
         }
     }
 }

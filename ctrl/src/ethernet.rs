@@ -36,11 +36,7 @@ pub fn ethernet<C: Context>() -> ParentHandler<C> {
 }
 
 pub fn get<C: Context>(ctx: C) -> Result<Ethernet, Error> {
-    let profile_list = profiles::list(ctx)?;
-    let lookup: HashMap<u16, ProfileIdAndName> = profile_list
-        .into_iter()
-        .map(|id| (id.vlan_tag.expect("list should provide vlan_tags"), id))
-        .collect();
+    let lookup = profiles::Lookup::parse()?;
     parse_config("./etc/config/network", |mut cfg| {
         // TODO: avoid duplicating this "find the bridge" logic so much
         let mut found_bridge = None;
@@ -94,7 +90,7 @@ pub fn get<C: Context>(ctx: C) -> Result<Ethernet, Error> {
                     Port {
                         profile: vlan_ports
                             .get(name)
-                            .and_then(|(tag, _)| lookup.get(tag))
+                            .and_then(|(tag, _)| lookup.from_vlan(*tag))
                             .cloned(),
                     },
                 )
