@@ -46,7 +46,11 @@ where
     T::Ok: Serialize,
 {
     fn print(&self, _: HandlerArgsFor<C, Self>, result: Self::Ok) -> Result<(), Self::Err> {
-        let _ = serde_json::to_writer_pretty(stdout().lock(), &result);
+        use std::io::Write;
+        let stdout = stdout();
+        let mut stdout = stdout.lock();
+        let _ = serde_json::to_writer_pretty(&mut stdout, &result);
+        let _ = writeln!(stdout);
         Ok(())
     }
 }

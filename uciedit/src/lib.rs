@@ -65,7 +65,11 @@ pub fn parse_config<V, E: From<Error> + From<io::Error>>(
     path: impl AsRef<Path>,
     with: impl FnOnce(Sections) -> Result<V, E>,
 ) -> Result<V, E> {
-    let text = fs::read_to_string(path)?;
+    let text = match fs::read_to_string(path) {
+        Ok(text) => text,
+        Err(err) if err.kind() == io::ErrorKind::NotFound => String::new(),
+        Err(err) => return Err(err.into()),
+    };
     parse_config_string(&text, with)
 }
 

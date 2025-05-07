@@ -27,6 +27,8 @@ pub enum ErrorKind {
     MissingLanBridge,
     #[error("no lan wan interface found")]
     MissingWanInterface,
+    #[error("no firewall zone for interface {0}")]
+    MissingFirewallZone(String),
     #[error("the wan port can not have a profile")]
     WanPortWithProfile(String),
     #[error(transparent)]

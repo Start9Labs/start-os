@@ -27,7 +27,7 @@ pub enum LanAccess {
     #[serde(rename = "SAME_PROFILE")]
     SameProfile,
     #[serde(rename = "other_profiles")]
-    OtherProfiles(BTreeSet<ProfileId>),
+    OtherProfiles(BTreeSet<ProfileIdAndName>),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -66,8 +66,11 @@ pub struct ProfileId {
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Parser)]
 pub struct ProfileIdAndName {
+    #[clap(short, long)]
     pub fullname: Option<String>,
+    #[clap(short, long)]
     pub interface: Option<String>,
+    #[clap(short, long)]
     pub vlan_tag: Option<u16>,
 }
 
@@ -108,56 +111,44 @@ struct ProfileConfig {
 }
 
 pub fn get<C: Context>(_ctx: C, query: ProfileIdAndName) -> Result<Profile, Error> {
+    let lookup = Lookup::parse()?;
+    let ProfileIdAndName {
+        fullname: Some(fullname),
+        interface: Some(interface),
+        vlan_tag: Some(vlan_tag),
+    } = lookup.resolve(&query)?
+    else {
+        unreachable!("lookup gets everything")
+    };
+    let mut profile_cfg = None;
+    parse_config("./etc/config/startwrt", |mut cfg| {
+        cfg.each(|_, profile: ProfileConfig| {
+            if &profile.fullname == fullname
+                && &profile.interface == interface
+                && &profile.vlan_tag == vlan_tag
+            {
+                profile_cfg = Some(profile);
+            }
+        })?;
+        Ok::<_, Error>(())
+    })?;
     let mut wip_profile = Profile {
-        fullname: String::new(),
-        interface: None,
+        fullname: fullname.to_string(),
+        interface: Some(interface.to_string()),
         gateway_ip: Ipv4Addr::new(0, 0, 0, 0),
         lan_access: LanAccess::SameProfile,
         wan_access: WanAccess::None,
-        access_to_new_profiles: false,
-        vlan_tag: None,
-    };
-    let mut lookup_other_vlan_tag = HashMap::new();
-    let (interface, vlan_tag) = parse_config("./etc/config/startwrt", |mut cfg| {
-        let mut found = None;
-        while cfg.step() {
-            if cfg.ty() != ProfileConfig::TY {
-                continue;
-            };
-            let ProfileConfig {
-                fullname,
-                interface,
-                vlan_tag,
-                access_to_new_profiles,
-            } = cfg.get()?;
-            if match (&query.fullname, &query.interface, query.vlan_tag) {
-                (_, Some(i), Some(v)) => &interface == i && vlan_tag == v,
-                (_, None, Some(v)) => vlan_tag == v,
-                (_, Some(i), None) => &interface == i,
-                (Some(n), None, None) => &fullname == n,
-                _ => false,
-            } {
-                wip_profile.interface = Some(interface.clone());
-                wip_profile.vlan_tag = Some(vlan_tag);
-                wip_profile.fullname = fullname;
-                wip_profile.access_to_new_profiles = access_to_new_profiles;
-                found = Some((interface, vlan_tag));
-            } else {
-                lookup_other_vlan_tag.insert(interface.clone(), vlan_tag);
-            }
-        }
-        found.ok_or(ErrorKind::MissingProfile(query))
-    })?;
-    let query = ProfileIdAndName {
-        fullname: Some(wip_profile.fullname.clone()),
-        interface: Some(interface.clone()),
-        vlan_tag: Some(vlan_tag),
+        access_to_new_profiles: match profile_cfg {
+            Some(p) => p.access_to_new_profiles,
+            None => false,
+        },
+        vlan_tag: Some(*vlan_tag),
     };
     parse_config("./etc/config/network", |mut cfg| {
         while cfg.step() {
             if let Ok(iface) = cfg.get::<NetworkInterface>() {
                 let Some(name) = cfg.name() else { continue };
-                if name == interface {
+                if name == *interface {
                     if iface.proto != InterfaceProto::STATIC {
                         return Err(ErrorKind::CorruptedProfile(query.clone()).into());
                     }
@@ -173,40 +164,38 @@ pub fn get<C: Context>(_ctx: C, query: ProfileIdAndName) -> Result<Profile, Erro
         Err(ErrorKind::CorruptedProfile(query.clone()).into())
     })?;
     parse_config("./etc/config/firewall", |mut cfg| {
+        let mut this_zone_name = format!("vlan_{interface}");
+        cfg.each(|_, zone: FirewallZone| {
+            for zone_interface in zone.network {
+                if *interface == zone_interface {
+                    this_zone_name = zone.name.clone();
+                }
+            }
+        })?;
         let mut forwarding = BTreeSet::new();
-        while cfg.step() {
-            let Ok(FirewallForwarding { src, dest }) = cfg.get() else {
-                continue;
-            };
-            if src == interface {
+        cfg.each(|_, FirewallForwarding { src, dest }| {
+            if src == this_zone_name && src != dest {
                 forwarding.insert(dest);
             }
-        }
+        })?;
         if forwarding.contains(DEFAULT_WAN_ZONE) {
             wip_profile.wan_access = WanAccess::All;
         } else {
             wip_profile.wan_access = WanAccess::None;
         }
-        cfg.restart();
         let mut other_profiles = BTreeSet::new();
-        while cfg.step() {
-            let Ok(FirewallZone { name, network, .. }) = cfg.get() else {
-                continue;
-            };
+        cfg.each(|_, FirewallZone { name, network, .. }| {
             if forwarding.contains(&name) {
                 for other_interface in network {
-                    if let Some(other_vlan_tag) = lookup_other_vlan_tag.get(&other_interface) {
-                        other_profiles.insert(ProfileId {
-                            interface: other_interface,
-                            vlan_tag: *other_vlan_tag,
-                        });
+                    if let Some(other) = lookup.from_interface(&other_interface) {
+                        other_profiles.insert(other.clone());
                     }
                 }
             }
-        }
+        })?;
         if other_profiles.is_empty() {
             wip_profile.lan_access = LanAccess::SameProfile;
-        } else if other_profiles.len() == lookup_other_vlan_tag.len()
+        } else if (other_profiles.len() + 1) >= lookup.list().len()
             && wip_profile.access_to_new_profiles
         {
             wip_profile.lan_access = LanAccess::All;
@@ -385,7 +374,7 @@ pub fn update<C: Context>(
 
 pub fn create<C: Context>(
     _ctx: C,
-    DeserializeStdin(profile): DeserializeStdin<Profile>,
+    DeserializeStdin(mut profile): DeserializeStdin<Profile>,
 ) -> Result<ProfileId, Error> {
     let interface = allocate_interface_name(match &profile.interface {
         Some(name) => name,
@@ -486,6 +475,8 @@ pub fn create<C: Context>(
         )?;
         Ok::<_, Error>(())
     })?;
+    profile.interface = Some(interface.clone());
+    profile.vlan_tag = Some(vlan_tag);
     rewrite_firewall(&interface, &all_interfaces, &wants_access, &profile, true)?;
     reload_system()?;
     Ok(ProfileId {
@@ -570,7 +561,11 @@ fn rewrite_firewall(
             LanAccess::SameProfile => (),
             LanAccess::OtherProfiles(profile_ids) => {
                 for other_profile in profile_ids {
-                    match all_zones.get(&other_profile.interface) {
+                    let other_interface = other_profile
+                        .interface
+                        .as_ref()
+                        .expect("needs to supply interface");
+                    match all_zones.get(other_interface) {
                         Some(other_zone) => cfg.push(
                             &FirewallForwarding {
                                 src: this_zone_name.clone(),
@@ -579,10 +574,9 @@ fn rewrite_firewall(
                             None,
                         )?,
                         None => {
-                            return Err(ErrorKind::MissingProfile(ProfileIdAndName::interface(
-                                &other_profile.interface,
-                            ))
-                            .into())
+                            return Err(
+                                ErrorKind::MissingFirewallZone(other_interface.clone()).into()
+                            );
                         }
                     }
                 }
@@ -642,7 +636,7 @@ pub fn allocate_interface_name(hint: &str) -> Result<String, Error> {
         ip.stderr
             .ok_or_eyre("ip did not produce output")?
             .read_to_string(&mut ip_out)?;
-        if ip_out.contains("does not exist") {
+        if ip_out.contains("can't find device") {
             return Ok(name);
         }
         name = random();
@@ -665,6 +659,10 @@ impl Lookup {
             from_interface: OnceCell::new(),
             from_fullname: OnceCell::new(),
         })
+    }
+
+    pub fn list(&self) -> &[ProfileIdAndName] {
+        &self.list
     }
 
     pub fn resolve(
