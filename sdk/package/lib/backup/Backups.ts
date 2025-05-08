@@ -96,7 +96,7 @@ export class Backups<M extends T.SDKManifest> {
     return this
   }
 
-  addVolume(
+  mountVolume(
     volume: M["volumes"][number],
     options?: Partial<{
       options: T.SyncOptions

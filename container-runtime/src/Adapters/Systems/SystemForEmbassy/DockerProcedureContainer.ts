@@ -64,7 +64,7 @@ export class DockerProcedureContainer extends Drop {
         const volumeMount = volumes[mount]
         if (volumeMount.type === "data") {
           await subcontainer.mount(
-            Mounts.of().addVolume({
+            Mounts.of().mountVolume({
               volumeId: mount,
               subpath: null,
               mountpoint: mounts[mount],
@@ -73,7 +73,7 @@ export class DockerProcedureContainer extends Drop {
           )
         } else if (volumeMount.type === "assets") {
           await subcontainer.mount(
-            Mounts.of().addAssets({
+            Mounts.of().mountAssets({
               subpath: mount,
               mountpoint: mounts[mount],
             }),
@@ -119,7 +119,7 @@ export class DockerProcedureContainer extends Drop {
           })
         } else if (volumeMount.type === "backup") {
           await subcontainer.mount(
-            Mounts.of().addBackups({
+            Mounts.of().mountBackups({
               subpath: null,
               mountpoint: mounts[mount],
             }),

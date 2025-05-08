@@ -8,8 +8,12 @@ type SharedOptions = {
   subpath: string | null
   /** Where to mount the resource. e.g. /data */
   mountpoint: string
-  /** Whether to mount this as a file or directory */
-  type?: "file" | "directory"
+  /**
+   * Whether to mount this as a file or directory
+   *
+   * defaults to "directory"
+   * */
+  type?: "file" | "directory" | "infer"
 }
 
 type VolumeOpts<Manifest extends T.SDKManifest> = {
@@ -43,7 +47,7 @@ export class Mounts<
     return new Mounts<Manifest>([], [], [], [])
   }
 
-  addVolume(options: VolumeOpts<Manifest>) {
+  mountVolume(options: VolumeOpts<Manifest>) {
     return new Mounts<Manifest, Backups>(
       [...this.volumes, options],
       [...this.assets],
@@ -52,7 +56,7 @@ export class Mounts<
     )
   }
 
-  addAssets(options: SharedOptions) {
+  mountAssets(options: SharedOptions) {
     return new Mounts<Manifest, Backups>(
       [...this.volumes],
       [...this.assets, options],
@@ -61,7 +65,7 @@ export class Mounts<
     )
   }
 
-  addDependency<DependencyManifest extends T.SDKManifest>(
+  mountDependency<DependencyManifest extends T.SDKManifest>(
     options: DependencyOpts<DependencyManifest>,
   ) {
     return new Mounts<Manifest, Backups>(
@@ -72,7 +76,7 @@ export class Mounts<
     )
   }
 
-  addBackups(options: SharedOptions) {
+  mountBackups(options: SharedOptions) {
     return new Mounts<
       Manifest,
       {
@@ -109,7 +113,7 @@ export class Mounts<
             volumeId: v.volumeId,
             subpath: v.subpath,
             readonly: v.readonly,
-            filetype: v.type,
+            filetype: v.type ?? "directory",
           },
         })),
       )
@@ -119,7 +123,7 @@ export class Mounts<
           options: {
             type: "assets",
             subpath: a.subpath,
-            filetype: a.type,
+            filetype: a.type ?? "directory",
           },
         })),
       )
@@ -132,13 +136,13 @@ export class Mounts<
             volumeId: d.volumeId,
             subpath: d.subpath,
             readonly: d.readonly,
-            filetype: d.type,
+            filetype: d.type ?? "directory",
           },
         })),
       )
   }
 }
 
-const a = Mounts.of().addBackups({ subpath: null, mountpoint: "" })
+const a = Mounts.of().mountBackups({ subpath: null, mountpoint: "" })
 // @ts-expect-error
 const m: Mounts<T.SDKManifest, never> = a

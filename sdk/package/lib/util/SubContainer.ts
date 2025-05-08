@@ -27,12 +27,12 @@ const TIMES_TO_WAIT_FOR_PROC = 100
 async function prepBind(
   from: string | null,
   to: string,
-  type?: "file" | "directory",
+  type: "file" | "directory" | "infer",
 ) {
   const fromMeta = from ? await fs.stat(from).catch((_) => null) : null
   const toMeta = await fs.stat(to).catch((_) => null)
 
-  if (type === "file" || (!type && from && fromMeta?.isFile())) {
+  if (type === "file" || (type === "infer" && from && fromMeta?.isFile())) {
     if (toMeta && toMeta.isDirectory()) await fs.rmdir(to, { recursive: false })
     if (from && !fromMeta) {
       await fs.mkdir(from.replace(/\/[^\/]*\/?$/, ""), { recursive: true })
@@ -49,7 +49,11 @@ async function prepBind(
   }
 }
 
-async function bind(from: string, to: string, type?: "file" | "directory") {
+async function bind(
+  from: string,
+  to: string,
+  type: "file" | "directory" | "infer",
+) {
   await prepBind(from, to, type)
 
   await execFile("mount", ["--bind", from, to])
@@ -589,13 +593,13 @@ export type MountOptionsVolume = {
   volumeId: string
   subpath: string | null
   readonly: boolean
-  filetype?: "file" | "directory"
+  filetype: "file" | "directory" | "infer"
 }
 
 export type MountOptionsAssets = {
   type: "assets"
   subpath: string | null
-  filetype?: "file" | "directory"
+  filetype: "file" | "directory" | "infer"
 }
 
 export type MountOptionsPointer = {
@@ -604,13 +608,13 @@ export type MountOptionsPointer = {
   volumeId: string
   subpath: string | null
   readonly: boolean
-  filetype?: "file" | "directory"
+  filetype: "file" | "directory" | "infer"
 }
 
 export type MountOptionsBackup = {
   type: "backup"
   subpath: string | null
-  filetype?: "file" | "directory"
+  filetype: "file" | "directory" | "infer"
 }
 function wait(time: number) {
   return new Promise((resolve) => setTimeout(resolve, time))

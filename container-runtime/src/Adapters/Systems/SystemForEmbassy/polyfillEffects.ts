@@ -169,7 +169,7 @@ export const polyfillEffects = (
           { imageId: manifest.main.image },
           commands,
           {
-            mounts: Mounts.of().addVolume({
+            mounts: Mounts.of().mountVolume({
               volumeId: input.volumeId,
               subpath: null,
               mountpoint: "/drive",
@@ -206,7 +206,7 @@ export const polyfillEffects = (
           { imageId: manifest.main.image },
           commands,
           {
-            mounts: Mounts.of().addVolume({
+            mounts: Mounts.of().mountVolume({
               volumeId: input.volumeId,
               subpath: null,
               mountpoint: "/drive",

@@ -90,7 +90,7 @@ export class Backups<M extends T.Manifest> {
     return this
   }
 
-  addVolume(
+  mountVolume(
     volume: M["volumes"][number],
     options?: Partial<{
       options: T.SyncOptions
