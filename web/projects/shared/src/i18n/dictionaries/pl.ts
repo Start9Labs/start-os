@@ -441,7 +441,7 @@ export default {
   438: 'Brak Internetu',
   439: 'Łączenie',
   440: 'Wyłączanie',
-  441: 'Wersje',
+  441: 'Wszystkie wersje',
   442: 'Nowe powiadomienia',
   443: 'Zobacz',
   444: 'Przeładowywanie PWA',
@@ -498,4 +498,6 @@ export default {
   495: 'Weryfikowanie',
   496: 'w toku',
   497: 'zakończono',
+  498: 'Kliknij, aby zobaczyć wszystkie wersje',
+  499: 'Brak innych wersji',
 } satisfies i18n

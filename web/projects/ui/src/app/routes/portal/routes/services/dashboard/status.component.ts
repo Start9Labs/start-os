@@ -71,7 +71,7 @@ export class StatusComponent {
 
   get status(): i18nKey {
     if (this.pkg.stateInfo.installingInfo) {
-      return `${this.i18n.transform('Installing')}...${this.i18n.transform(getProgressText(this.pkg.stateInfo.installingInfo.progress.overall))}` as i18nKey
+      return `${this.i18n.transform('Installing')}... ${this.i18n.transform(getProgressText(this.pkg.stateInfo.installingInfo.progress.overall))}` as i18nKey
     }
 
     switch (this.getStatus(this.pkg).primary) {

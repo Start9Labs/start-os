@@ -4,12 +4,8 @@ import {
   inject,
   input,
 } from '@angular/core'
-import {
-  CopyService,
-  DialogService,
-  i18nKey,
-  i18nPipe,
-} from '@start9labs/shared'
+import { CopyService, DialogService, i18nPipe } from '@start9labs/shared'
+import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import {
   TuiButton,
   tuiButtonOptionsProvider,
@@ -114,6 +110,7 @@ import { InterfaceComponent } from './interface.component'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InterfaceActionsComponent {
+  readonly isMobile = inject(TUI_IS_MOBILE)
   readonly dialog = inject(DialogService)
   readonly copyService = inject(CopyService)
   readonly interface = inject(InterfaceComponent)
@@ -124,7 +121,7 @@ export class InterfaceActionsComponent {
     this.dialog
       .openComponent(new PolymorpheusComponent(QRModal), {
         size: 'auto',
-        label: this.actions() as i18nKey,
+        closeable: this.isMobile,
         data: this.actions(),
       })
       .subscribe()

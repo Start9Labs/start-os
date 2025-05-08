@@ -20,6 +20,7 @@ import {
 import {
   DialogService,
   Exver,
+  i18nKey,
   i18nPipe,
   MARKDOWN,
   SharedPipesModule,
@@ -57,21 +58,18 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
             @if (versions$ | async; as versions) {
               <marketplace-additional-item
                 (click)="versions.length ? selectVersion(pkg, version) : 0"
-                [data]="
-                  versions.length
-                    ? 'Click to view all versions'
-                    : 'No other versions'
-                "
+                [data]="(getVersionText(versions) | i18n) || ''"
+                [icon]="versions.length > 1 ? '@tui.chevron-right' : ''"
                 label="All versions"
-                icon="@tui.chevron-right"
                 class="versions"
+                [class.versions_empty]="versions.length < 2"
               />
               <ng-template
                 #version
                 let-data="data"
                 let-completeWith="completeWith"
               >
-                <tui-radio-list [items]="versions" [(ngModel)]="data.value" />
+                <tui-radio-list [items]="versions" [(ngModel)]="data.version" />
                 <footer class="buttons">
                   <button
                     tuiButton
@@ -137,8 +135,13 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
         border-color: rgb(113 113 122);
         border-style: solid;
         cursor: pointer;
+
         ::ng-deep label {
           cursor: pointer;
+        }
+
+        &_empty {
+          pointer-events: none;
         }
       }
 
@@ -209,11 +212,12 @@ export class MarketplacePreviewComponent {
     this.pkg$.pipe(filter(Boolean)),
     this.flavor$,
   ]).pipe(
-    map(([{ otherVersions }, flavor]) =>
-      Object.keys(otherVersions)
+    map(([{ otherVersions, version }, flavor]) => [
+      version,
+      ...Object.keys(otherVersions)
         .filter(v => this.exver.getFlavor(v) === flavor)
         .sort((a, b) => -1 * (this.exver.compareExver(a, b) || 0)),
-    ),
+    ]),
   )
 
   open(id: string) {
@@ -237,17 +241,19 @@ export class MarketplacePreviewComponent {
       .subscribe()
   }
 
+  getVersionText({ length }: string[]): i18nKey {
+    return length > 1 ? 'Click to view all versions' : 'No other versions'
+  }
+
   selectVersion(
     { version }: MarketplacePkg,
     template: TemplateRef<TuiDialogContext>,
   ) {
     this.dialog
       .openComponent<string>(template, {
-        label: 'Versions',
+        label: 'All versions',
         size: 's',
-        data: {
-          value: version,
-        },
+        data: { version },
       })
       .pipe(filter(Boolean))
       .subscribe(version => this.version$.next(version))

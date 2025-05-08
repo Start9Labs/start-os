@@ -441,7 +441,7 @@ export default {
   438: 'Sin Internet',
   439: 'Conectando',
   440: 'Apagando',
-  441: 'Versiones',
+  441: 'Todas las versiones',
   442: 'Nuevas notificaciones',
   443: 'Ver',
   444: 'Recargando PWA',
@@ -498,4 +498,6 @@ export default {
   495: 'Validando',
   496: 'en progreso',
   497: 'completo',
+  498: 'Haga clic para ver todas las versiones',
+  499: 'No hay otras versiones',
 } satisfies i18n

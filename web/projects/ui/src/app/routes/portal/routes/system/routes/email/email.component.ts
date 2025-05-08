@@ -187,25 +187,16 @@ export default class SystemEmailComponent {
 
   async sendTestEmail(value: typeof inputSpec.constants.customSmtp._TYPE) {
     const loader = this.loader.open('Sending email').subscribe()
+    const success =
+      `${this.i18n.transform('A test email has been sent to')} ${this.testAddress}.<br /><br /><b>${this.i18n.transform('Check your spam folder and mark as not spam.')}</b>` as i18nKey
 
     try {
-      await this.api.testSmtp({
-        to: this.testAddress,
-        ...value,
-      })
+      await this.api.testSmtp({ to: this.testAddress, ...value })
+      this.dialog.openAlert(success, { label: 'Success' }).subscribe()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }
-
-    this.dialog
-      .openAlert(
-        `${this.i18n.transform('A test email has been sent to')} ${this.testAddress}.<br /><br /><b>${this.i18n.transform('Check your spam folder and mark as not spam.')}</b>` as i18nKey,
-        {
-          label: 'Success',
-        },
-      )
-      .subscribe()
   }
 }

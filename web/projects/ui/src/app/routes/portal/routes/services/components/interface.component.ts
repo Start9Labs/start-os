@@ -138,7 +138,7 @@ export class ServiceInterfaceComponent {
 
   get href(): string | null {
     return this.disabled
-      ? 'null'
+      ? null
       : this.config.launchableAddress(this.info, this.pkg.hosts)
   }
 }
