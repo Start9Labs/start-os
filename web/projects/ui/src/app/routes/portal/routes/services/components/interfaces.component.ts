@@ -62,10 +62,12 @@ export class ServiceInterfacesComponent {
       .sort((a, b) => tuiDefaultSort(a[1], b[1]))
       .map(([id, value]) => {
         const host = hosts[value.addressInfo.hostId]
+        const port = value.addressInfo.internalPort
 
         return {
           ...value,
-          public: !!host?.bindings[value.addressInfo.internalPort]?.net.public,
+          addSsl: host?.bindings[port]?.options.addSsl,
+          public: !!host?.bindings[port]?.net.public,
           addresses: host ? getAddresses(value, host, this.config) : {},
           routerLink: `./interface/${id}`,
         }

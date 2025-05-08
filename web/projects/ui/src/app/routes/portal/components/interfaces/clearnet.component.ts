@@ -85,7 +85,13 @@ type ClearnetForm = {
       <table [appTable]="['ACME', 'URL', null]">
         @for (address of clearnet(); track $index) {
           <tr>
-            <td [style.width.rem]="12">{{ address.acme | acme }}</td>
+            <td [style.width.rem]="12">
+              {{
+                interface.serviceInterface().addSsl
+                  ? (address.acme | acme)
+                  : '-'
+              }}
+            </td>
             <td>{{ address.url | mask }}</td>
             <td [actions]="address.url">
               <button
@@ -213,33 +219,37 @@ export class InterfaceClearnetComponent {
   }
 
   async add() {
+    const domain = ISB.Value.text({
+      name: 'Domain',
+      description: 'The domain or subdomain you want to use',
+      placeholder: `e.g. 'mydomain.com' or 'sub.mydomain.com'`,
+      required: true,
+      default: null,
+      patterns: [utils.Patterns.domain],
+    })
+    const acme = ISB.Value.select({
+      name: 'ACME Provider',
+      description:
+        'Select which ACME provider to use for obtaining your SSL certificate. Add new ACME providers in the System tab. Optionally use your system Root CA. Note: only devices that have trusted your Root CA will be able to access the domain without security warnings.',
+      values: this.acme().reduce(
+        (obj, url) => ({
+          ...obj,
+          [url]: toAcmeName(url),
+        }),
+        { none: 'None (use system Root CA)' } as Record<string, string>,
+      ),
+      default: '',
+    })
+
     this.formDialog.open<FormContext<ClearnetForm>>(FormComponent, {
       label: 'Select Domain',
       data: {
         spec: await configBuilderToSpec(
-          ISB.InputSpec.of({
-            domain: ISB.Value.text({
-              name: 'Domain',
-              description: 'The domain or subdomain you want to use',
-              placeholder: `e.g. 'mydomain.com' or 'sub.mydomain.com'`,
-              required: true,
-              default: null,
-              patterns: [utils.Patterns.domain],
-            }),
-            acme: ISB.Value.select({
-              name: 'ACME Provider',
-              description:
-                'Select which ACME provider to use for obtaining your SSL certificate. Add new ACME providers in the System tab. Optionally use your system Root CA. Note: only devices that have trusted your Root CA will be able to access the domain without security warnings.',
-              values: this.acme().reduce(
-                (obj, url) => ({
-                  ...obj,
-                  [url]: toAcmeName(url),
-                }),
-                { none: 'None (use system Root CA)' } as Record<string, string>,
-              ),
-              default: '',
-            }),
-          }),
+          ISB.InputSpec.of(
+            this.interface.serviceInterface().addSsl
+              ? { domain, acme }
+              : { domain },
+          ),
         ),
         buttons: [
           {

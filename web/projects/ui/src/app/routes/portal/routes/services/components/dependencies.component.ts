@@ -18,6 +18,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
         tuiCell
         [routerLink]="services[d.key] ? ['..', d.key] : ['/portal/marketplace']"
         [queryParams]="services[d.key] ? {} : { id: d.key }"
+        [class.error]="getError(d.key)"
       >
         <tui-avatar><img alt="" [src]="d.value.icon" /></tui-avatar>
         <span tuiTitle>
@@ -41,6 +42,10 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
     :host {
       min-height: 12rem;
       grid-column: span 3;
+    }
+
+    .error {
+      box-shadow: inset 1.25rem 0 0 -1rem var(--tui-status-warning);
     }
   `,
   host: { class: 'g-card' },
@@ -82,7 +87,7 @@ export class ServiceDependenciesComponent {
       case 'notRunning':
         return 'Not running'
       case 'actionRequired':
-        return 'Action required'
+        return 'Task Required'
       case 'healthChecksFailed':
         return 'Required health check not passing'
       case 'transitive':

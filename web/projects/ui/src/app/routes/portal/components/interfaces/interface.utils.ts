@@ -103,6 +103,7 @@ export function getAddresses(
 }
 
 export type MappedServiceInterface = T.ServiceInterface & {
+  addSsl?: T.AddSslOptions | null
   public: boolean
   addresses: {
     clearnet: AddressDetails[]

@@ -16,6 +16,7 @@ import {
 import {
   TUI_DATE_FORMAT,
   TUI_DIALOGS_CLOSE,
+  tuiAlertOptionsProvider,
   tuiButtonOptionsProvider,
   tuiDropdownOptionsProvider,
   tuiNumberFormatProvider,
@@ -58,6 +59,9 @@ export const APP_PROVIDERS: Provider[] = [
   tuiButtonOptionsProvider({ size: 'm' }),
   tuiTextfieldOptionsProvider({ hintOnDisabled: true }),
   tuiDropdownOptionsProvider({ appearance: 'start-os' }),
+  tuiAlertOptionsProvider({
+    autoClose: appearance => (appearance === 'negative' ? 0 : 3000),
+  }),
   {
     provide: TUI_DATE_FORMAT,
     useValue: of({

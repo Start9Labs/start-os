@@ -3,7 +3,6 @@ import {
   TuiResponsiveDialogOptions,
   TuiResponsiveDialogService,
 } from '@taiga-ui/addon-mobile'
-import { TuiAlertOptions } from '@taiga-ui/core'
 import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PROMPT, PromptOptions } from '../components/prompt.component'
@@ -63,7 +62,7 @@ export class DialogService {
 
   openAlert<T = void>(
     message: i18nKey | undefined,
-    options: Partial<TuiAlertOptions<any>> & {
+    options: Partial<TuiResponsiveDialogOptions<any>> & {
       label?: i18nKey
     } = {},
   ) {

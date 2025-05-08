@@ -1,7 +1,8 @@
 import { inject, Injectable } from '@angular/core'
 import { CanActivateFn, IsActiveMatchOptions, Router } from '@angular/router'
-import { DialogService } from '@start9labs/shared'
+import { DialogService, i18nPipe } from '@start9labs/shared'
 import { TUI_TRUE_HANDLER } from '@taiga-ui/cdk'
+import { TuiAlertService } from '@taiga-ui/core'
 import {
   BehaviorSubject,
   combineLatest,
@@ -41,7 +42,8 @@ const OPTIONS: IsActiveMatchOptions = {
   providedIn: 'root',
 })
 export class StateService extends Observable<RR.ServerState | null> {
-  private readonly dialog = inject(DialogService)
+  private readonly alerts = inject(TuiAlertService)
+  private readonly i18n = inject(i18nPipe)
   private readonly api = inject(ApiService)
   private readonly router = inject(Router)
   private readonly network$ = inject(NetworkService)
@@ -91,10 +93,10 @@ export class StateService extends Observable<RR.ServerState | null> {
     .pipe(
       exhaustMap(() =>
         concat(
-          this.dialog
-            .openAlert('Trying to reach server', {
-              label: 'State unknown',
-              autoClose: 0,
+          this.alerts
+            .open(this.i18n.transform('Trying to reach server'), {
+              label: this.i18n.transform('State unknown'),
+              closeable: false,
               appearance: 'negative',
             })
             .pipe(
@@ -104,8 +106,8 @@ export class StateService extends Observable<RR.ServerState | null> {
                 ),
               ),
             ),
-          this.dialog.openAlert('Connection restored', {
-            label: 'Server connected',
+          this.alerts.open(this.i18n.transform('Connection restored'), {
+            label: this.i18n.transform('Server connected'),
             appearance: 'positive',
           }),
         ),

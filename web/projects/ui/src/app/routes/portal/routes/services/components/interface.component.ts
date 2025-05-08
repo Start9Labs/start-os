@@ -7,7 +7,7 @@ import {
 import { RouterLink } from '@angular/router'
 import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { TuiButton, TuiLink } from '@taiga-ui/core'
+import { TuiButton, TuiIcon, TuiLink } from '@taiga-ui/core'
 import { TuiBadge } from '@taiga-ui/kit'
 import { ConfigService } from 'src/app/services/config.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -26,23 +26,11 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
     <td class="g-secondary" [style.grid-area]="'2 / span 4'">
       {{ info.description }}
     </td>
-    <td>
+    <td [style.text-align]="'center'">
       @if (info.public) {
-        <a
-          class="hosting"
-          tuiLink
-          iconStart="@tui.globe"
-          appearance="positive"
-          [textContent]="'Public'"
-        ></a>
+        <tui-icon class="g-positive" icon="@tui.globe" />
       } @else {
-        <a
-          class="hosting"
-          tuiLink
-          iconStart="@tui.lock"
-          appearance="negative"
-          [textContent]="'Private'"
-        ></a>
+        <tui-icon class="g-negative" icon="@tui.lock" />
       }
     </td>
     <td [style.grid-area]="'span 2'">
@@ -90,6 +78,10 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
       text-transform: uppercase;
     }
 
+    tui-icon {
+      font-size: 1rem;
+    }
+
     :host-context(tui-root._mobile) {
       display: grid;
       grid-template-columns: repeat(3, min-content) 1fr 2rem;
@@ -100,15 +92,11 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
       td {
         padding: 0;
       }
-
-      .hosting {
-        font-size: 0;
-      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiButton, TuiBadge, TuiLink, RouterLink, i18nPipe],
+  imports: [TuiButton, TuiBadge, TuiLink, TuiIcon, RouterLink, i18nPipe],
 })
 export class ServiceInterfaceComponent {
   private readonly config = inject(ConfigService)

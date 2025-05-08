@@ -70,7 +70,7 @@ type OnionForm = {
       <table [appTable]="['Protocol', 'URL', null]">
         @for (address of tor(); track $index) {
           <tr>
-            <td [style.width.rem]="12">{{ address.label }}</td>
+            <td [style.width.rem]="12">{{ address.label || '-' }}</td>
             <td>
               <div [tuiFluidTypography]="[0.625, 0.8125]" tuiFade>
                 {{ address.url | mask }}

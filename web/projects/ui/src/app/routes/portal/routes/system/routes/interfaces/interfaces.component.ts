@@ -80,12 +80,16 @@ export default class StartOsUiComponent {
     inject<PatchDB<DataModel>>(PatchDB)
       .watch$('serverInfo', 'network', 'host')
       .pipe(
-        map(host => ({
-          ...this.iface,
-          public:
-            !!host.bindings[this.iface.addressInfo.internalPort]?.net.public,
-          addresses: getAddresses(this.iface, host, this.config),
-        })),
+        map(host => {
+          const port = this.iface.addressInfo.internalPort
+
+          return {
+            ...this.iface,
+            addSsl: host.bindings[port]?.options.addSsl,
+            public: !!host.bindings[port]?.net.public,
+            addresses: getAddresses(this.iface, host, this.config),
+          }
+        }),
       ),
   )
 
