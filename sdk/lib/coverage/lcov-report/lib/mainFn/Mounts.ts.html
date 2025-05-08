@@ -340,7 +340,7 @@ export class Mounts&lt;Manifest extends T.Manifest&gt; {
 <span class="cstat-no" title="statement not covered" >    return new Mounts&lt;Manifest&gt;([], [], [])</span>
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  addVolume(</span>
+<span class="fstat-no" title="function not covered" >  mountVolume(</span>
     id: Manifest["volumes"][number],
     subpath: string | null,
     mountpoint: string,
@@ -355,7 +355,7 @@ export class Mounts&lt;Manifest extends T.Manifest&gt; {
 <span class="cstat-no" title="statement not covered" >    return this</span>
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  addAssets(</span>
+<span class="fstat-no" title="function not covered" >  mountAssets(</span>
     id: Manifest["assets"][number],
     subpath: string | null,
     mountpoint: string,
@@ -368,7 +368,7 @@ export class Mounts&lt;Manifest extends T.Manifest&gt; {
 <span class="cstat-no" title="statement not covered" >    return this</span>
   }
 &nbsp;
-<span class="fstat-no" title="function not covered" >  addDependency&lt;</span>DependencyManifest extends T.Manifest&gt;(
+<span class="fstat-no" title="function not covered" >  mountDependency&lt;</span>DependencyManifest extends T.Manifest&gt;(
     dependencyId: keyof Manifest["dependencies"] &amp; string,
     volumeId: DependencyManifest["volumes"][number],
     subpath: string | null,
