@@ -1,18 +1,5 @@
 import { Value } from "../../base/lib/actions/input/builder/value"
-import {
-  InputSpec,
-  ExtractInputSpecType,
-  LazyBuild,
-} from "../../base/lib/actions/input/builder/inputSpec"
-import {
-  DefaultString,
-  ListValueSpecText,
-  Pattern,
-  RandomString,
-  UniqueBy,
-  ValueSpecDatetime,
-  ValueSpecText,
-} from "../../base/lib/actions/input/inputSpecTypes"
+import { InputSpec } from "../../base/lib/actions/input/builder/inputSpec"
 import { Variants } from "../../base/lib/actions/input/builder/variants"
 import { Action, Actions } from "../../base/lib/actions/setupActions"
 import {
@@ -25,7 +12,7 @@ import {
 import * as patterns from "../../base/lib/util/patterns"
 import { BackupSync, Backups } from "./backup/Backups"
 import { smtpInputSpec } from "../../base/lib/actions/input/inputSpecConstants"
-import { CommandController, Daemon, Daemons } from "./mainFn/Daemons"
+import { Daemon, Daemons } from "./mainFn/Daemons"
 import { HealthCheck } from "./health/HealthCheck"
 import { checkPortListening } from "./health/checkFns/checkPortListening"
 import { checkWebUrl, runHealthScript } from "./health/checkFns"
@@ -51,24 +38,12 @@ import { ServiceInterfaceBuilder } from "../../base/lib/interfaces/ServiceInterf
 import { GetSystemSmtp } from "./util"
 import { nullIfEmpty } from "./util"
 import { getServiceInterface, getServiceInterfaces } from "./util"
-import { getStore } from "./store/getStore"
-import {
-  CommandOptions,
-  ExitError,
-  MountOptions,
-  SubContainer,
-} from "./util/SubContainer"
+import { CommandOptions, ExitError, SubContainer } from "./util/SubContainer"
 import { splitCommand } from "./util"
 import { Mounts } from "./mainFn/Mounts"
 import { setupDependencies } from "../../base/lib/dependencies/setupDependencies"
 import * as T from "../../base/lib/types"
 import { testTypeVersion } from "../../base/lib/exver"
-import { ExposedStorePaths } from "./store/setupExposeStore"
-import {
-  PathBuilder,
-  extractJsonPath,
-  pathBuilder,
-} from "../../base/lib/util/PathBuilder"
 import {
   CheckDependencies,
   checkDependencies,
@@ -91,19 +66,16 @@ type AnyNeverCond<T extends any[], Then, Else> =
     T extends [any, ...infer U] ? AnyNeverCond<U,Then, Else> :
     never
 
-export class StartSdk<Manifest extends T.SDKManifest, Store> {
+export class StartSdk<Manifest extends T.SDKManifest> {
   private constructor(readonly manifest: Manifest) {}
   static of() {
-    return new StartSdk<never, never>(null as never)
+    return new StartSdk<never>(null as never)
   }
   withManifest<Manifest extends T.SDKManifest = never>(manifest: Manifest) {
-    return new StartSdk<Manifest, Store>(manifest)
-  }
-  withStore<Store extends Record<string, any>>() {
-    return new StartSdk<Manifest, Store>(this.manifest)
+    return new StartSdk<Manifest>(manifest)
   }
 
-  build(isReady: AnyNeverCond<[Manifest, Store], "Build not ready", true>) {
+  build(isReady: AnyNeverCond<[Manifest], "Build not ready", true>) {
     type NestedEffects = "subcontainer" | "store" | "action"
     type InterfaceEffects =
       | "getServiceInterface"
@@ -136,8 +108,6 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
       mount: (effects, ...args) => effects.mount(...args),
       getInstalledPackages: (effects, ...args) =>
         effects.getInstalledPackages(...args),
-      exposeForDependents: (effects, ...args) =>
-        effects.exposeForDependents(...args),
       getServicePortForward: (effects, ...args) =>
         effects.getServicePortForward(...args),
       clearBindings: (effects, ...args) => effects.clearBindings(...args),
@@ -155,7 +125,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
       ...startSdkEffectWrapper,
       action: {
         run: actions.runAction,
-        request: <T extends Action<T.ActionId, any, any>>(
+        request: <T extends Action<T.ActionId, any>>(
           effects: T.Effects,
           packageId: T.PackageId,
           action: T,
@@ -169,7 +139,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
             severity,
             options: options,
           }),
-        requestOwn: <T extends Action<T.ActionId, Store, any>>(
+        requestOwn: <T extends Action<T.ActionId, any>>(
           effects: T.Effects,
           action: T,
           severity: T.ActionSeverity,
@@ -268,29 +238,6 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           },
         }
       },
-      store: {
-        get: <E extends Effects, StoreValue = unknown>(
-          effects: E,
-          packageId: string,
-          path: PathBuilder<Store, StoreValue>,
-        ) =>
-          getStore<Store, StoreValue>(effects, path, {
-            packageId,
-          }),
-        getOwn: <E extends Effects, StoreValue = unknown>(
-          effects: E,
-          path: PathBuilder<Store, StoreValue>,
-        ) => getStore<Store, StoreValue>(effects, path),
-        setOwn: <E extends Effects, Path extends PathBuilder<Store, unknown>>(
-          effects: E,
-          path: Path,
-          value: Path extends PathBuilder<Store, infer Value> ? Value : never,
-        ) =>
-          effects.store.set<Store>({
-            value,
-            path: extractJsonPath(path),
-          }),
-      },
 
       MultiHost: {
         of: (effects: Effects, id: string) => new MultiHost({ id, effects }),
@@ -362,10 +309,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         */
         withInput: <
           Id extends T.ActionId,
-          InputSpecType extends
-            | Record<string, any>
-            | InputSpec<any, any>
-            | InputSpec<any, never>,
+          InputSpecType extends Record<string, any> | InputSpec<any>,
         >(
           id: Id,
           metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
@@ -499,7 +443,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         export const actions = sdk.Actions.of().addAction(config).addAction(nameToLogs)
        * ```
        */
-      Actions: Actions<Store, {}>,
+      Actions: Actions<{}>,
       /**
        * @description Use this function to determine which volumes are backed up when a user creates a backup, including advanced options.
        * @example
@@ -567,7 +511,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
        * ```
        */
       setupDependencies: setupDependencies<Manifest>,
-      setupInit: setupInit<Manifest, Store>,
+      setupInit: setupInit<Manifest>,
       /**
        * @description Use this function to execute arbitrary logic *once*, on initial install *before* interfaces, actions, and dependencies are updated.
        * @example
@@ -579,7 +523,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         })
        * ```
        */
-      setupPreInstall: (fn: InstallFn<Manifest, Store>) => PreInstall.of(fn),
+      setupPreInstall: (fn: InstallFn<Manifest>) => PreInstall.of(fn),
       /**
        * @description Use this function to execute arbitrary logic *once*, on initial install *after* interfaces, actions, and dependencies are updated.
        * @example
@@ -598,7 +542,7 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
         })
        * ```
        */
-      setupPostInstall: (fn: InstallFn<Manifest, Store>) => PostInstall.of(fn),
+      setupPostInstall: (fn: InstallFn<Manifest>) => PostInstall.of(fn),
       /**
        * @description Use this function to determine how this service will be hosted and served. The function executes on service install, service update, and inputSpec save.
        * @param inputSpec - The inputSpec spec of this service as exported from /inputSpec/spec.
@@ -673,12 +617,12 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           effects: Effects
           started(onTerm: () => PromiseLike<void>): PromiseLike<null>
         }) => Promise<Daemons<Manifest, any>>,
-      ) => setupMain<Manifest, Store>(fn),
+      ) => setupMain<Manifest>(fn),
       /**
        * Use this function to execute arbitrary logic *once*, on uninstall only. Most services will not use this.
        */
-      setupUninstall: (fn: UninstallFn<Manifest, Store>) =>
-        setupUninstall<Manifest, Store>(fn),
+      setupUninstall: (fn: UninstallFn<Manifest>) =>
+        setupUninstall<Manifest>(fn),
       trigger: {
         defaultTrigger,
         cooldownTrigger,
@@ -728,11 +672,8 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           })
          * ```
          */
-        of: <
-          Spec extends Record<string, Value<any, Store> | Value<any, never>>,
-        >(
-          spec: Spec,
-        ) => InputSpec.of<Spec, Store>(spec),
+        of: <Spec extends Record<string, Value<any>>>(spec: Spec) =>
+          InputSpec.of<Spec>(spec),
       },
       Daemon: {
         get of() {
@@ -787,372 +728,9 @@ export class StartSdk<Manifest extends T.SDKManifest, Store> {
           return SubContainer.withTemp(effects, image, mounts, name, fn)
         },
       },
-      List: {
-        /**
-         * @description Create a list of text inputs.
-         * @param a - attributes of the list itself.
-         * @param aSpec - attributes describing each member of the list.
-         */
-        text: List.text,
-        /**
-         * @description Create a list of objects.
-         * @param a - attributes of the list itself.
-         * @param aSpec - attributes describing each member of the list.
-         */
-        obj: <Type extends Record<string, any>>(
-          a: Parameters<typeof List.obj<Type, Store>>[0],
-          aSpec: Parameters<typeof List.obj<Type, Store>>[1],
-        ) => List.obj<Type, Store>(a, aSpec),
-        /**
-         * @description Create a list of dynamic text inputs.
-         * @param a - attributes of the list itself.
-         * @param aSpec - attributes describing each member of the list.
-         */
-        dynamicText: List.dynamicText<Store>,
-      },
-      StorePath: pathBuilder<Store>(),
-      Value: {
-        /**
-         * @description Displays a boolean toggle to enable/disable
-         * @example
-         * ```
-          toggleExample: Value.toggle({
-            // required
-            name: 'Toggle Example',
-            default: true,
-         
-            // optional
-            description: null,
-            warning: null,
-            immutable: false,
-          }),
-         * ```
-         */
-        toggle: Value.toggle,
-        /**
-         * @description Displays a text input field
-         * @example
-         * ```
-          textExample: Value.text({
-            // required
-            name: 'Text Example',
-            required: false,
-            default: null,
-         
-            // optional
-            description: null,
-            placeholder: null,
-            warning: null,
-            generate: null,
-            inputmode: 'text',
-            masked: false,
-            minLength: null,
-            maxLength: null,
-            patterns: [],
-            immutable: false,
-          }),
-         * ```
-         */
-        text: Value.text,
-        /**
-         * @description Displays a large textarea field for long form entry.
-         * @example
-         * ```
-          textareaExample: Value.textarea({
-            // required
-            name: 'Textarea Example',
-            required: false,
-            default: null,
-         
-            // optional
-            description: null,
-            placeholder: null,
-            warning: null,
-            minLength: null,
-            maxLength: null,
-            immutable: false,
-          }),
-         * ```
-         */
-        textarea: Value.textarea,
-        /**
-         * @description Displays a number input field
-         * @example
-         * ```
-          numberExample: Value.number({
-            // required
-            name: 'Number Example',
-            required: false,
-            default: null,
-            integer: true,
-         
-            // optional
-            description: null,
-            placeholder: null,
-            warning: null,
-            min: null,
-            max: null,
-            immutable: false,
-            step: null,
-            units: null,
-          }),
-         * ```
-         */
-        number: Value.number,
-        /**
-         * @description Displays a browser-native color selector.
-         * @example
-         * ```
-          colorExample: Value.color({
-            // required
-            name: 'Color Example',
-            required: false,
-            default: null,
-         
-            // optional
-            description: null,
-            warning: null,
-            immutable: false,
-          }),
-         * ```
-         */
-        color: Value.color,
-        /**
-         * @description Displays a browser-native date/time selector.
-         * @example
-         * ```
-          datetimeExample: Value.datetime({
-            // required
-            name: 'Datetime Example',
-            required: false,
-            default: null,
-         
-            // optional
-            description: null,
-            warning: null,
-            immutable: false,
-            inputmode: 'datetime-local',
-            min: null,
-            max: null,
-          }),
-         * ```
-         */
-        datetime: Value.datetime,
-        /**
-         * @description Displays a select modal with radio buttons, allowing for a single selection.
-         * @example
-         * ```
-          selectExample: Value.select({
-            // required
-            name: 'Select Example',
-            default: 'radio1',
-            values: {
-              radio1: 'Radio 1',
-              radio2: 'Radio 2',
-            },
-         
-            // optional
-            description: null,
-            warning: null,
-            immutable: false,
-            disabled: false,
-          }),
-         * ```
-         */
-        select: Value.select,
-        /**
-         * @description Displays a select modal with checkboxes, allowing for multiple selections.
-         * @example
-         * ```
-          multiselectExample: Value.multiselect({
-            // required
-            name: 'Multiselect Example',
-            values: {
-              option1: 'Option 1',
-              option2: 'Option 2',
-            },
-            default: [],
-         
-            // optional
-            description: null,
-            warning: null,
-            immutable: false,
-            disabled: false,
-            minlength: null,
-            maxLength: null,
-          }),
-         * ```
-         */
-        multiselect: Value.multiselect,
-        /**
-         * @description Display a collapsable grouping of additional fields, a "sub form". The second value is the inputSpec spec for the sub form.
-         * @example
-         * ```
-          objectExample: Value.object(
-            {
-              // required
-              name: 'Object Example',
-         
-              // optional
-              description: null,
-              warning: null,
-            },
-            InputSpec.of({}),
-          ),
-         * ```
-         */
-        object: Value.object,
-        /**
-         * @description Displays a dropdown, allowing for a single selection. Depending on the selection, a different object ("sub form") is presented.
-         * @example
-         * ```
-          unionExample: Value.union(
-            {
-              // required
-              name: 'Union Example',
-              default: 'option1',
-         
-              // optional
-              description: null,
-              warning: null,
-              disabled: false,
-              immutable: false,
-            },
-            Variants.of({
-              option1: {
-                name: 'Option 1',
-                spec: InputSpec.of({}),
-              },
-              option2: {
-                name: 'Option 2',
-                spec: InputSpec.of({}),
-              },
-            }),
-          ),
-         * ```
-         */
-        union: Value.union,
-        /**
-         * @description Presents an interface to add/remove/edit items in a list.
-         * @example
-         * In this example, we create a list of text inputs.
-         * 
-         * ```
-          listExampleText: Value.list(
-            List.text(
-              {
-                // required
-                name: 'Text List',
-
-                // optional
-                description: null,
-                warning: null,
-                default: [],
-                minLength: null,
-                maxLength: null,
-              },
-              {
-                // required
-                patterns: [],
-
-                // optional
-                placeholder: null,
-                generate: null,
-                inputmode: 'url',
-                masked: false,
-                minLength: null,
-                maxLength: null,
-              },
-            ),
-          ),
-         * ```
-         * @example
-         * In this example, we create a list of objects.
-         * 
-         * ```
-          listExampleObject: Value.list(
-            List.obj(
-              {
-                // required
-                name: 'Object List',
-
-                // optional
-                description: null,
-                warning: null,
-                default: [],
-                minLength: null,
-                maxLength: null,
-              },
-              {
-                // required
-                spec: InputSpec.of({}),
-
-                // optional
-                displayAs: null,
-                uniqueBy: null,
-              },
-            ),
-          ),
-         * ```
-         */
-        list: Value.list,
-        hidden: Value.hidden,
-        dynamicToggle: Value.dynamicToggle<Store>,
-        dynamicText: Value.dynamicText<Store>,
-        dynamicTextarea: Value.dynamicTextarea<Store>,
-        dynamicNumber: Value.dynamicNumber<Store>,
-        dynamicColor: Value.dynamicColor<Store>,
-        dynamicDatetime: Value.dynamicDatetime<Store>,
-        dynamicSelect: Value.dynamicSelect<Store>,
-        dynamicMultiselect: Value.dynamicMultiselect<Store>,
-        filteredUnion: <
-          VariantValues extends {
-            [K in string]: {
-              name: string
-              spec: InputSpec<any, Store> | InputSpec<any, never>
-            }
-          },
-        >(
-          getDisabledFn: Parameters<
-            typeof Value.filteredUnion<VariantValues, Store>
-          >[0],
-          a: Parameters<typeof Value.filteredUnion<VariantValues, Store>>[1],
-          aVariants: Parameters<
-            typeof Value.filteredUnion<VariantValues, Store>
-          >[2],
-        ) =>
-          Value.filteredUnion<VariantValues, Store>(
-            getDisabledFn,
-            a,
-            aVariants,
-          ),
-
-        dynamicUnion: <
-          VariantValues extends {
-            [K in string]: {
-              name: string
-              spec: InputSpec<any, Store> | InputSpec<any, never>
-            }
-          },
-        >(
-          getA: Parameters<typeof Value.dynamicUnion<VariantValues, Store>>[0],
-          aVariants: Parameters<
-            typeof Value.dynamicUnion<VariantValues, Store>
-          >[1],
-        ) => Value.dynamicUnion<VariantValues, Store>(getA, aVariants),
-      },
-      Variants: {
-        of: <
-          VariantValues extends {
-            [K in string]: {
-              name: string
-              spec: InputSpec<any, Store>
-            }
-          },
-        >(
-          a: VariantValues,
-        ) => Variants.of<VariantValues, Store>(a),
-      },
+      List,
+      Value,
+      Variants,
     }
   }
 }

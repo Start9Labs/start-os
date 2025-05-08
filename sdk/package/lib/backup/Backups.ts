@@ -1,7 +1,7 @@
 import * as T from "../../../base/lib/types"
 import * as child_process from "child_process"
 import * as fs from "fs/promises"
-import { Affine, asError, StorePath } from "../util"
+import { Affine, asError } from "../util"
 
 export const DEFAULT_OPTIONS: T.SyncOptions = {
   delete: true,
@@ -133,11 +133,7 @@ export class Backups<M extends T.SDKManifest> {
       })
       await rsyncResults.wait()
     }
-    await fs.writeFile(
-      "/media/startos/backup/store.json",
-      JSON.stringify(await effects.store.get({ path: "" as StorePath })),
-      { encoding: "utf-8" },
-    )
+
     const dataVersion = await effects.getDataVersion()
     if (dataVersion)
       await fs.writeFile("/media/startos/backup/dataVersion.txt", dataVersion, {
@@ -149,16 +145,7 @@ export class Backups<M extends T.SDKManifest> {
 
   async restoreBackup(effects: T.Effects) {
     this.preRestore(effects as BackupEffects)
-    const store = await fs
-      .readFile("/media/startos/backup/store.json", {
-        encoding: "utf-8",
-      })
-      .catch((_) => null)
-    if (store)
-      await effects.store.set({
-        path: "" as StorePath,
-        value: JSON.parse(store),
-      })
+
     for (const item of this.backupSet) {
       const rsyncResults = await runRsync({
         srcPath: item.backupPath,

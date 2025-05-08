@@ -19,8 +19,6 @@ export {
   CurrentDependenciesResult,
 } from "./dependencies/setupDependencies"
 
-export type ExposedStorePaths = string[] & Affine<"ExposedStorePaths">
-
 export type DaemonBuildable = {
   build(): Promise<{
     term(): Promise<void>
@@ -85,10 +83,7 @@ export namespace ExpectedExports {
 
   export type manifest = Manifest
 
-  export type actions = Actions<
-    any,
-    Record<ActionId, Action<ActionId, any, any>>
-  >
+  export type actions = Actions<Record<ActionId, Action<ActionId, any>>>
 }
 export type ABI = {
   createBackup: ExpectedExports.createBackup
@@ -141,10 +136,6 @@ export type Hostname = string & { [hostName]: never }
 export type ServiceInterfaceId = string
 
 export { ServiceInterface }
-export type ExposeServicePaths<Store = never> = {
-  /** The path to the value in the Store. [JsonPath](https://jsonpath.com/)  */
-  paths: ExposedStorePaths
-}
 
 export type EffectMethod<T extends StringObject = Effects> = {
   [K in keyof T]-?: K extends string

@@ -9,11 +9,10 @@ import {
 import { Parser, anyOf, literal, object } from "ts-matches"
 
 export type UnionRes<
-  Store,
   VariantValues extends {
     [K in string]: {
       name: string
-      spec: InputSpec<any, Store> | InputSpec<any, never>
+      spec: InputSpec<any>
     }
   },
   K extends keyof VariantValues & string = keyof VariantValues & string,
@@ -81,23 +80,21 @@ export class Variants<
   VariantValues extends {
     [K in string]: {
       name: string
-      spec: InputSpec<any, Store> | InputSpec<any, never>
+      spec: InputSpec<any>
     }
   },
-  Store,
 > {
   private constructor(
-    public build: LazyBuild<Store, ValueSpecUnion["variants"]>,
-    public validator: Parser<unknown, UnionRes<Store, VariantValues>>,
+    public build: LazyBuild<ValueSpecUnion["variants"]>,
+    public validator: Parser<unknown, UnionRes<VariantValues>>,
   ) {}
   static of<
     VariantValues extends {
       [K in string]: {
         name: string
-        spec: InputSpec<any, Store> | InputSpec<any, never>
+        spec: InputSpec<any>
       }
     },
-    Store = never,
   >(a: VariantValues) {
     const validator = anyOf(
       ...Object.entries(a).map(([id, { spec }]) =>
@@ -108,7 +105,7 @@ export class Variants<
       ),
     ) as Parser<unknown, any>
 
-    return new Variants<VariantValues, Store>(async (options) => {
+    return new Variants<VariantValues>(async (options) => {
       const variants = {} as {
         [K in keyof VariantValues]: {
           name: string
@@ -124,22 +121,5 @@ export class Variants<
       }
       return variants
     }, validator)
-  }
-  /**
-   * Use this during the times that the input needs a more specific type.
-   * Used in types that the value/ variant/ list/ inputSpec is constructed somewhere else.
-  ```ts
-  const a = InputSpec.text({
-    name: "a",
-    required: false,
-  })
-
-  return InputSpec.of<Store>()({
-    myValue: a.withStore(),
-  })
-  ```
-   */
-  withStore<NewStore extends Store extends never ? any : Store>() {
-    return this as any as Variants<VariantValues, NewStore>
   }
 }

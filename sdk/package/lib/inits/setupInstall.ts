@@ -1,22 +1,19 @@
 import * as T from "../../../base/lib/types"
 
-export type InstallFn<Manifest extends T.SDKManifest, Store> = (opts: {
+export type InstallFn<Manifest extends T.SDKManifest> = (opts: {
   effects: T.Effects
 }) => Promise<null | void | undefined>
-export class Install<Manifest extends T.SDKManifest, Store> {
-  protected constructor(readonly fn: InstallFn<Manifest, Store>) {}
+export class Install<Manifest extends T.SDKManifest> {
+  protected constructor(readonly fn: InstallFn<Manifest>) {}
 }
 
-export class PreInstall<Manifest extends T.SDKManifest, Store> extends Install<
-  Manifest,
-  Store
-> {
-  private constructor(fn: InstallFn<Manifest, Store>) {
+export class PreInstall<
+  Manifest extends T.SDKManifest,
+> extends Install<Manifest> {
+  private constructor(fn: InstallFn<Manifest>) {
     super(fn)
   }
-  static of<Manifest extends T.SDKManifest, Store>(
-    fn: InstallFn<Manifest, Store>,
-  ) {
+  static of<Manifest extends T.SDKManifest>(fn: InstallFn<Manifest>) {
     return new PreInstall(fn)
   }
 
@@ -27,22 +24,19 @@ export class PreInstall<Manifest extends T.SDKManifest, Store> extends Install<
   }
 }
 
-export function setupPreInstall<Manifest extends T.SDKManifest, Store>(
-  fn: InstallFn<Manifest, Store>,
+export function setupPreInstall<Manifest extends T.SDKManifest>(
+  fn: InstallFn<Manifest>,
 ) {
   return PreInstall.of(fn)
 }
 
-export class PostInstall<Manifest extends T.SDKManifest, Store> extends Install<
-  Manifest,
-  Store
-> {
-  private constructor(fn: InstallFn<Manifest, Store>) {
+export class PostInstall<
+  Manifest extends T.SDKManifest,
+> extends Install<Manifest> {
+  private constructor(fn: InstallFn<Manifest>) {
     super(fn)
   }
-  static of<Manifest extends T.SDKManifest, Store>(
-    fn: InstallFn<Manifest, Store>,
-  ) {
+  static of<Manifest extends T.SDKManifest>(fn: InstallFn<Manifest>) {
     return new PostInstall(fn)
   }
 
@@ -53,8 +47,8 @@ export class PostInstall<Manifest extends T.SDKManifest, Store> extends Install<
   }
 }
 
-export function setupPostInstall<Manifest extends T.SDKManifest, Store>(
-  fn: InstallFn<Manifest, Store>,
+export function setupPostInstall<Manifest extends T.SDKManifest>(
+  fn: InstallFn<Manifest>,
 ) {
   return PostInstall.of(fn)
 }

@@ -421,25 +421,16 @@ describe("values", () => {
             },
           }),
         )
-        .withStore<{ test: "a" }>()
         .build(true)
 
-      const value = Value.dynamicDatetime<{ test: "a" }>(
-        async ({ effects }) => {
-          ;async () => {
-            ;(await sdk.store
-              .getOwn(effects, sdk.StorePath.test)
-              .once()) satisfies "a"
-          }
-
-          return {
-            name: "Testing",
-            required: true,
-            default: null,
-            inputmode: "date",
-          }
-        },
-      )
+      const value = Value.dynamicDatetime(async ({ effects }) => {
+        return {
+          name: "Testing",
+          required: true,
+          default: null,
+          inputmode: "date",
+        }
+      })
       const validator = value.validator
       validator.unsafeCast("2021-01-01")
       validator.unsafeCast(null)

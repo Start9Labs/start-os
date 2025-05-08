@@ -1,4 +1,3 @@
-import { CurrentDependenciesResult } from "../../../base/lib/dependencies/setupDependencies"
 import { StartSdk } from "../StartSdk"
 import { setupManifest } from "../manifest/setupManifest"
 import { VersionGraph } from "../version/VersionGraph"
@@ -49,5 +48,4 @@ export const sdk = StartSdk.of()
       },
     }),
   )
-  .withStore<{ storeRoot: { storeLeaf: "value" } }>()
   .build(true)

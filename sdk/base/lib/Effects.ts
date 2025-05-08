@@ -15,7 +15,6 @@ import {
   RequestActionParams,
   MainStatus,
 } from "./osBindings"
-import { StorePath } from "./util/PathBuilder"
 import {
   PackageId,
   Dependencies,
@@ -93,8 +92,6 @@ export type Effects = {
   }): Promise<string>
   /** Returns a list of the ids of all installed packages */
   getInstalledPackages(): Promise<string[]>
-  /** grants access to certain paths in the store to dependents */
-  exposeForDependents(options: { paths: string[] }): Promise<null>
 
   // health
   /** sets the result of a health check */
@@ -170,23 +167,6 @@ export type Effects = {
     algorithm?: "ecdsa" | "ed25519"
   }) => Promise<string>
 
-  // store
-  store: {
-    /** Get a value in a json like data, can be observed and subscribed */
-    get<Store = never, ExtractStore = unknown>(options: {
-      /** If there is no packageId it is assumed the current package */
-      packageId?: string
-      /** The path defaults to root level, using the [JsonPath](https://jsonpath.com/) */
-      path: StorePath
-      callback?: () => void
-    }): Promise<ExtractStore>
-    /** Used to store values that can be accessed and subscribed to */
-    set<Store = never, ExtractStore = unknown>(options: {
-      /** Sets the value for the wrapper at the path, it will override, using the [JsonPath](https://jsonpath.com/)  */
-      path: StorePath
-      value: ExtractStore
-    }): Promise<null>
-  }
   /** sets the version that this service's data has been migrated to */
   setDataVersion(options: { version: string }): Promise<null>
   /** returns the version that this service's data has been migrated to */

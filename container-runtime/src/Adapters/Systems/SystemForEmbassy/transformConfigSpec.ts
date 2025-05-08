@@ -396,100 +396,71 @@ export const matchOldDefaultString = anyOf(
 )
 type OldDefaultString = typeof matchOldDefaultString._TYPE
 
-export const matchOldValueSpecString = object(
-  {
-    type: literals("string"),
-    name: string,
-    masked: boolean,
-    copyable: boolean,
-    nullable: boolean,
-    placeholder: string,
-    pattern: string,
-    "pattern-description": string,
-    default: matchOldDefaultString,
-    textarea: boolean,
-    description: string,
-    warning: string,
-  },
-  [
-    "masked",
-    "copyable",
-    "nullable",
-    "placeholder",
-    "pattern",
-    "pattern-description",
-    "default",
-    "textarea",
-    "description",
-    "warning",
-  ],
-)
+export const matchOldValueSpecString = object({
+  type: literals("string"),
+  name: string,
+  masked: boolean.nullable().optional(),
+  copyable: boolean.nullable().optional(),
+  nullable: boolean.nullable().optional(),
+  placeholder: string.nullable().optional(),
+  pattern: string.nullable().optional(),
+  "pattern-description": string.nullable().optional(),
+  default: matchOldDefaultString.nullable().optional(),
+  textarea: boolean.nullable().optional(),
+  description: string.nullable().optional(),
+  warning: string.nullable().optional(),
+})
 
-export const matchOldValueSpecNumber = object(
-  {
-    type: literals("number"),
-    nullable: boolean,
-    name: string,
-    range: string,
-    integral: boolean,
-    default: number,
-    description: string,
-    warning: string,
-    units: string,
-    placeholder: anyOf(number, string),
-  },
-  ["default", "description", "warning", "units", "placeholder"],
-)
+export const matchOldValueSpecNumber = object({
+  type: literals("number"),
+  nullable: boolean,
+  name: string,
+  range: string,
+  integral: boolean,
+  default: number.nullable().optional(),
+  description: string.nullable().optional(),
+  warning: string.nullable().optional(),
+  units: string.nullable().optional(),
+  placeholder: anyOf(number, string).nullable().optional(),
+})
 type OldValueSpecNumber = typeof matchOldValueSpecNumber._TYPE
 
-export const matchOldValueSpecBoolean = object(
-  {
-    type: literals("boolean"),
-    default: boolean,
-    name: string,
-    description: string,
-    warning: string,
-  },
-  ["description", "warning"],
-)
+export const matchOldValueSpecBoolean = object({
+  type: literals("boolean"),
+  default: boolean,
+  name: string,
+  description: string.nullable().optional(),
+  warning: string.nullable().optional(),
+})
 type OldValueSpecBoolean = typeof matchOldValueSpecBoolean._TYPE
 
-const matchOldValueSpecObject = object(
-  {
-    type: literals("object"),
-    spec: _matchOldConfigSpec,
-    name: string,
-    description: string,
-    warning: string,
-  },
-  ["description", "warning"],
-)
+const matchOldValueSpecObject = object({
+  type: literals("object"),
+  spec: _matchOldConfigSpec,
+  name: string,
+  description: string.nullable().optional(),
+  warning: string.nullable().optional(),
+})
 type OldValueSpecObject = typeof matchOldValueSpecObject._TYPE
 
-const matchOldValueSpecEnum = object(
-  {
-    values: array(string),
-    "value-names": dictionary([string, string]),
-    type: literals("enum"),
-    default: string,
-    name: string,
-    description: string,
-    warning: string,
-  },
-  ["description", "warning"],
-)
+const matchOldValueSpecEnum = object({
+  values: array(string),
+  "value-names": dictionary([string, string]),
+  type: literals("enum"),
+  default: string,
+  name: string,
+  description: string.nullable().optional(),
+  warning: string.nullable().optional(),
+})
 type OldValueSpecEnum = typeof matchOldValueSpecEnum._TYPE
 
-const matchOldUnionTagSpec = object(
-  {
-    id: string, // The name of the field containing one of the union variants
-    "variant-names": dictionary([string, string]), // The name of each variant
-    name: string,
-    description: string,
-    warning: string,
-  },
-  ["description", "warning"],
-)
+const matchOldUnionTagSpec = object({
+  id: string, // The name of the field containing one of the union variants
+  "variant-names": dictionary([string, string]), // The name of each variant
+  name: string,
+  description: string.nullable().optional(),
+  warning: string.nullable().optional(),
+})
 const matchOldValueSpecUnion = object({
   type: literals("union"),
   tag: matchOldUnionTagSpec,
@@ -514,57 +485,45 @@ setOldUniqueBy(
   ),
 )
 
-const matchOldListValueSpecObject = object(
-  {
-    spec: _matchOldConfigSpec, // this is a mapped type of the config object at this level, replacing the object's values with specs on those values
-    "unique-by": matchOldUniqueBy, // indicates whether duplicates can be permitted in the list
-    "display-as": string, // this should be a handlebars template which can make use of the entire config which corresponds to 'spec'
-  },
-  ["display-as", "unique-by"],
-)
-const matchOldListValueSpecString = object(
-  {
-    masked: boolean,
-    copyable: boolean,
-    pattern: string,
-    "pattern-description": string,
-    placeholder: string,
-  },
-  ["pattern", "pattern-description", "placeholder", "copyable", "masked"],
-)
+const matchOldListValueSpecObject = object({
+  spec: _matchOldConfigSpec, // this is a mapped type of the config object at this level, replacing the object's values with specs on those values
+  "unique-by": matchOldUniqueBy.nullable().optional(), // indicates whether duplicates can be permitted in the list
+  "display-as": string.nullable().optional(), // this should be a handlebars template which can make use of the entire config which corresponds to 'spec'
+})
+const matchOldListValueSpecString = object({
+  masked: boolean.nullable().optional(),
+  copyable: boolean.nullable().optional(),
+  pattern: string.nullable().optional(),
+  "pattern-description": string.nullable().optional(),
+  placeholder: string.nullable().optional(),
+})
 
 const matchOldListValueSpecEnum = object({
   values: array(string),
   "value-names": dictionary([string, string]),
 })
-const matchOldListValueSpecNumber = object(
-  {
-    range: string,
-    integral: boolean,
-    units: string,
-    placeholder: anyOf(number, string),
-  },
-  ["units", "placeholder"],
-)
+const matchOldListValueSpecNumber = object({
+  range: string,
+  integral: boolean,
+  units: string.nullable().optional(),
+  placeholder: anyOf(number, string).nullable().optional(),
+})
 
 // represents a spec for a list
 const matchOldValueSpecList = every(
-  object(
-    {
-      type: literals("list"),
-      range: string, // '[0,1]' (inclusive) OR '[0,*)' (right unbounded), normal math rules
-      default: anyOf(
-        array(string),
-        array(number),
-        array(matchOldDefaultString),
-        array(object),
-      ),
-      name: string,
-      description: string,
-      warning: string,
-    },
-    ["description", "warning"],
-  ),
+  object({
+    type: literals("list"),
+    range: string, // '[0,1]' (inclusive) OR '[0,*)' (right unbounded), normal math rules
+    default: anyOf(
+      array(string),
+      array(number),
+      array(matchOldDefaultString),
+      array(object),
+    ),
+    name: string,
+    description: string.nullable().optional(),
+    warning: string.nullable().optional(),
+  }),
   anyOf(
     object({
       subtype: literals("string"),

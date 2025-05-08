@@ -45,18 +45,18 @@ export const runAction = async <
     })
   }
 }
-type GetActionInputType<A extends Action<T.ActionId, any, any>> =
-  A extends Action<T.ActionId, any, infer I> ? ExtractInputSpecType<I> : never
+type GetActionInputType<A extends Action<T.ActionId, any>> =
+  A extends Action<T.ActionId, infer I> ? ExtractInputSpecType<I> : never
 
 type ActionRequestBase = {
   reason?: string
   replayId?: string
 }
-type ActionRequestInput<T extends Action<T.ActionId, any, any>> = {
+type ActionRequestInput<T extends Action<T.ActionId, any>> = {
   kind: "partial"
   value: T.DeepPartial<GetActionInputType<T>>
 }
-export type ActionRequestOptions<T extends Action<T.ActionId, any, any>> =
+export type ActionRequestOptions<T extends Action<T.ActionId, any>> =
   ActionRequestBase &
     (
       | {
@@ -78,7 +78,7 @@ const _validate: T.ActionRequest = {} as ActionRequestOptions<any> & {
   severity: T.ActionSeverity
 }
 
-export const requestAction = <T extends Action<T.ActionId, any, any>>(options: {
+export const requestAction = <T extends Action<T.ActionId, any>>(options: {
   effects: T.Effects
   packageId: T.PackageId
   action: T

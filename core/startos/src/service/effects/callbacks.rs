@@ -8,10 +8,7 @@ use futures::future::join_all;
 use helpers::NonDetachingJoinHandle;
 use imbl::{vector, Vector};
 use imbl_value::InternedString;
-use lazy_static::lazy_static;
 use models::{HostId, PackageId, ServiceInterfaceId};
-use patch_db::json_ptr::JsonPointer;
-use patch_db::Revision;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 use ts_rs::TS;
@@ -37,7 +34,6 @@ struct ServiceCallbackMap {
         (BTreeSet<InternedString>, FullchainCertData, Algorithm),
         (NonDetachingJoinHandle<()>, Vec<CallbackHandler>),
     >,
-    get_store: BTreeMap<PackageId, BTreeMap<JsonPointer, Vec<CallbackHandler>>>,
     get_status: BTreeMap<PackageId, Vec<CallbackHandler>>,
     get_container_ip: BTreeMap<PackageId, Vec<CallbackHandler>>,
 }
@@ -66,13 +62,6 @@ impl ServiceCallbacks {
             });
             this.get_ssl_certificate.retain(|_, (_, v)| {
                 v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-                !v.is_empty()
-            });
-            this.get_store.retain(|_, v| {
-                v.retain(|_, v| {
-                    v.retain(|h| h.handle.is_active() && h.seed.strong_count() > 0);
-                    !v.is_empty()
-                });
                 !v.is_empty()
             });
             this.get_status.retain(|_, v| {
@@ -236,53 +225,6 @@ impl ServiceCallbacks {
         self.mutate(|this| {
             if let Some(watched) = this.get_status.remove(package_id) {
                 Some(CallbackHandlers(watched))
-            } else {
-                None
-            }
-            .filter(|cb| !cb.0.is_empty())
-        })
-    }
-
-    pub(super) fn add_get_store(
-        &self,
-        package_id: PackageId,
-        path: JsonPointer,
-        handler: CallbackHandler,
-    ) {
-        self.mutate(|this| {
-            this.get_store
-                .entry(package_id)
-                .or_default()
-                .entry(path)
-                .or_default()
-                .push(handler)
-        })
-    }
-
-    #[must_use]
-    pub fn get_store(
-        &self,
-        package_id: &PackageId,
-        revision: &Revision,
-    ) -> Option<CallbackHandlers> {
-        lazy_static! {
-            static ref BASE: JsonPointer = "/private/packageStores".parse().unwrap();
-        }
-        let for_pkg = BASE.clone().join_end(&**package_id);
-        self.mutate(|this| {
-            if let Some(watched) = this.get_store.get_mut(package_id) {
-                let mut res = Vec::new();
-                watched.retain(|ptr, cbs| {
-                    let mut full_ptr = for_pkg.clone();
-                    full_ptr.append(ptr);
-                    if revision.patch.affects_path(&full_ptr) {
-                        res.append(cbs);
-                        false
-                    } else {
-                        true
-                    }
-                });
-                Some(CallbackHandlers(res))
             } else {
                 None
             }

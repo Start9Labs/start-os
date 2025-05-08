@@ -17,31 +17,23 @@ const Path = string
 
 export type VolumeId = string
 export type Path = string
-export const matchDockerProcedure = object(
-  {
-    type: literal("docker"),
-    image: string,
-    system: boolean,
-    entrypoint: string,
-    args: array(string),
-    mounts: dictionary([VolumeId, Path]),
-    "io-format": literals(
-      "json",
-      "json-pretty",
-      "yaml",
-      "cbor",
-      "toml",
-      "toml-pretty",
-    ),
-    "sigterm-timeout": some(number, matchDuration),
-    inject: boolean,
-  },
-  ["io-format", "sigterm-timeout", "system", "args", "inject", "mounts"],
-  {
-    "sigterm-timeout": 30,
-    inject: false,
-    args: [],
-  },
-)
+export const matchDockerProcedure = object({
+  type: literal("docker"),
+  image: string,
+  system: boolean.optional(),
+  entrypoint: string,
+  args: array(string).defaultTo([]),
+  mounts: dictionary([VolumeId, Path]).optional(),
+  "io-format": literals(
+    "json",
+    "json-pretty",
+    "yaml",
+    "cbor",
+    "toml",
+    "toml-pretty",
+  ).optional(),
+  "sigterm-timeout": some(number, matchDuration).defaultTo(30),
+  inject: boolean.defaultTo(false),
+})
 
 export type DockerProcedure = typeof matchDockerProcedure._TYPE

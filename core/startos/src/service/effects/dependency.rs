@@ -7,7 +7,6 @@ use exver::VersionRange;
 use imbl::OrdMap;
 use imbl_value::InternedString;
 use models::{FromStrParser, HealthCheckId, PackageId, ReplayId, VersionString, VolumeId};
-use patch_db::json_ptr::JsonPointer;
 use tokio::process::Command;
 
 use crate::db::model::package::{
@@ -140,21 +139,6 @@ pub async fn get_installed_packages(context: EffectContext) -> Result<BTreeSet<P
         .into_public()
         .into_package_data()
         .keys()
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct ExposeForDependentsParams {
-    #[ts(type = "string[]")]
-    paths: Vec<JsonPointer>,
-}
-pub async fn expose_for_dependents(
-    context: EffectContext,
-    ExposeForDependentsParams { paths }: ExposeForDependentsParams,
-) -> Result<(), Error> {
-    // TODO
-    Ok(())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]

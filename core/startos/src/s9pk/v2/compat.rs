@@ -4,7 +4,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use exver::{ExtendedVersion, VersionRange};
-use models::ImageId;
+use models::{Id, ImageId, VolumeId};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWriteExt};
 use tokio::process::Command;
 
@@ -213,6 +213,7 @@ impl TryFrom<ManifestV1> for Manifest {
                 .iter()
                 .filter(|(_, v)| v.get("type").and_then(|v| v.as_str()) == Some("data"))
                 .map(|(id, _)| id.clone())
+                .chain([VolumeId::from_str("embassy").unwrap()])
                 .collect(),
             alerts: value.alerts,
             dependencies: Dependencies(

@@ -15,9 +15,9 @@ mod dependency;
 mod health;
 mod net;
 mod prelude;
-mod store;
 mod subcontainer;
 mod system;
+mod version;
 
 pub fn handler<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -87,10 +87,6 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "get-installed-packages",
             from_fn_async(dependency::get_installed_packages).no_cli(),
-        )
-        .subcommand(
-            "expose-for-dependents",
-            from_fn_async(dependency::expose_for_dependents).no_cli(),
         )
         // health
         .subcommand("set-health", from_fn_async(health::set_health).no_cli())
@@ -167,22 +163,15 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
             from_fn_async(net::ssl::get_ssl_certificate).no_cli(),
         )
         .subcommand("get-ssl-key", from_fn_async(net::ssl::get_ssl_key).no_cli())
-        // store
-        .subcommand(
-            "store",
-            ParentHandler::<C>::new()
-                .subcommand("get", from_fn_async(store::get_store).no_cli())
-                .subcommand("set", from_fn_async(store::set_store).no_cli()),
-        )
         .subcommand(
             "set-data-version",
-            from_fn_async(store::set_data_version)
+            from_fn_async(version::set_data_version)
                 .no_display()
                 .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand(
             "get-data-version",
-            from_fn_async(store::get_data_version)
+            from_fn_async(version::get_data_version)
                 .with_custom_display_fn(|_, v| {
                     if let Some(v) = v {
                         println!("{v}")
