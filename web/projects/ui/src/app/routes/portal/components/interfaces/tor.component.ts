@@ -32,7 +32,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { InterfaceActionsComponent } from './actions.component'
-import { AddressDetails } from './interface.utils'
+import { TorAddress } from './interface.utils'
 import { MaskPipe } from './mask.pipe'
 
 type OnionForm = {
@@ -70,7 +70,7 @@ type OnionForm = {
       <table [appTable]="['Protocol', 'URL', null]">
         @for (address of tor(); track $index) {
           <tr>
-            <td [style.width.rem]="12">{{ address.label || '-' }}</td>
+            <td [style.width.rem]="12">{{ address.protocol || '-' }}</td>
             <td>
               <div [tuiFluidTypography]="[0.625, 0.8125]" tuiFade>
                 {{ address.url | mask }}
@@ -140,9 +140,9 @@ export class InterfaceTorComponent {
   private readonly interface = inject(InterfaceComponent)
   private readonly i18n = inject(i18nPipe)
 
-  readonly tor = input.required<readonly AddressDetails[]>()
+  readonly tor = input.required<readonly TorAddress[]>()
 
-  async remove({ url }: AddressDetails) {
+  async remove({ url }: TorAddress) {
     const confirm = await firstValueFrom(
       this.dialog
         .openConfirm({ label: 'Are you sure?', size: 's' })

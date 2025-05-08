@@ -12,9 +12,9 @@ export function getAddresses(
   host: T.Host,
   config: ConfigService,
 ): {
-  clearnet: (AddressDetails & { acme: string | null })[]
-  local: AddressDetails[]
-  tor: AddressDetails[]
+  clearnet: ClearnetAddress[]
+  local: LocalAddress[]
+  tor: TorAddress[]
 } {
   const addressInfo = serviceInterface.addressInfo
   const hostnames =
@@ -46,9 +46,9 @@ export function getAddresses(
     }
   }
 
-  const clearnet: (AddressDetails & { acme: string | null })[] = []
-  const local: AddressDetails[] = []
-  const tor: AddressDetails[] = []
+  const clearnet: ClearnetAddress[] = []
+  const local: LocalAddress[] = []
+  const tor: TorAddress[] = []
 
   hostnames.forEach(h => {
     const addresses = utils.addressHostToUrl(addressInfo, h)
@@ -56,26 +56,28 @@ export function getAddresses(
     addresses.forEach(url => {
       if (h.kind === 'onion') {
         tor.push({
-          label:
-            addresses.length > 1
-              ? new URL(url).protocol.replace(':', '').toUpperCase()
-              : '',
+          protocol: new URL(url).protocol.replace(':', '').toUpperCase(),
           url,
         })
       } else {
         const hostnameKind = h.hostname.kind
 
-        if (h.public) {
+        if (
+          h.public ||
+          (hostnameKind === 'domain' && host.domains[h.hostname.domain]?.public)
+        ) {
           clearnet.push({
             url,
+            disabled: !h.public,
+            isDomain: hostnameKind == 'domain',
             acme:
               hostnameKind == 'domain'
                 ? host.domains[h.hostname.domain]?.acme || null
-                : null, // @TODO Matt make sure this is handled correctly - looks like ACME settings aren't built yet anyway, but ACME settings aren't *available* for public IPs
+                : null,
           })
         } else {
           local.push({
-            label:
+            nid:
               hostnameKind === 'local'
                 ? 'Local'
                 : `${h.networkInterfaceId} (${hostnameKind})`,
@@ -106,14 +108,25 @@ export type MappedServiceInterface = T.ServiceInterface & {
   addSsl?: T.AddSslOptions | null
   public: boolean
   addresses: {
-    clearnet: AddressDetails[]
-    local: AddressDetails[]
-    tor: AddressDetails[]
+    clearnet: ClearnetAddress[]
+    local: LocalAddress[]
+    tor: TorAddress[]
   }
 }
 
-export type AddressDetails = {
-  label?: string
+export type ClearnetAddress = {
   url: string
-  acme?: string | null
+  acme: string | null
+  isDomain: boolean
+  disabled: boolean
+}
+
+export type LocalAddress = {
+  url: string
+  nid: string
+}
+
+export type TorAddress = {
+  url: string
+  protocol: string
 }

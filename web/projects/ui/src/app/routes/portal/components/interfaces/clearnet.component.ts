@@ -37,7 +37,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { toAcmeName } from 'src/app/utils/acme'
 import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { InterfaceActionsComponent } from './actions.component'
-import { AddressDetails } from './interface.utils'
+import { ClearnetAddress } from './interface.utils'
 import { MaskPipe } from './mask.pipe'
 
 type ClearnetForm = {
@@ -94,22 +94,25 @@ type ClearnetForm = {
             </td>
             <td>{{ address.url | mask }}</td>
             <td [actions]="address.url">
-              <button
-                tuiButton
-                appearance="primary-destructive"
-                [style.margin-inline-end.rem]="0.5"
-                (click)="remove(address)"
-              >
-                {{ 'Delete' | i18n }}
-              </button>
-              <button
-                tuiOption
-                tuiAppearance="action-destructive"
-                iconStart="@tui.trash"
-                (click)="remove(address)"
-              >
-                {{ 'Delete' | i18n }}
-              </button>
+              @if (address.isDomain) {
+                <button
+                  tuiButton
+                  appearance="primary-destructive"
+                  [style.margin-inline-end.rem]="0.5"
+                  (click)="remove(address)"
+                >
+                  {{ 'Delete' | i18n }}
+                </button>
+                <!-- @TODO Alex I can resolve the issue below by wrapping each button in its own @if block, but that seems silly -->
+                <button
+                  tuiOption
+                  tuiAppearance="action-destructive"
+                  iconStart="@tui.trash"
+                  (click)="remove(address)"
+                >
+                  {{ 'Delete' | i18n }}
+                </button>
+              }
             </td>
           </tr>
         }
@@ -150,7 +153,7 @@ export class InterfaceClearnetComponent {
   readonly interface = inject(InterfaceComponent)
   readonly isPublic = computed(() => this.interface.serviceInterface().public)
 
-  readonly clearnet = input.required<readonly AddressDetails[]>()
+  readonly clearnet = input.required<readonly ClearnetAddress[]>()
   readonly acme = toSignal(
     inject<PatchDB<DataModel>>(PatchDB)
       .watch$('serverInfo', 'network', 'acme')
@@ -158,7 +161,7 @@ export class InterfaceClearnetComponent {
     { initialValue: [] },
   )
 
-  async remove({ url }: AddressDetails) {
+  async remove({ url }: ClearnetAddress) {
     const confirm = await firstValueFrom(
       this.dialog
         .openConfirm({ label: 'Are you sure?', size: 's' })
