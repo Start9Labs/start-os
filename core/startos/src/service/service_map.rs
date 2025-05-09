@@ -332,22 +332,47 @@ impl ServiceMap {
     #[instrument(skip_all)]
     pub async fn uninstall(
         &self,
-        ctx: &RpcContext,
-        id: &PackageId,
+        ctx: RpcContext,
+        id: PackageId,
         soft: bool,
         force: bool,
-    ) -> Result<(), Error> {
-        let mut guard = self.get_mut(id).await;
-        if let Some(service) = guard.take() {
+    ) -> Result<impl Future<Output = Result<(), Error>> + Send, Error> {
+        let mut guard = self.get_mut(&id).await;
+        ctx.db
+            .mutate(|db| {
+                let entry = db
+                    .as_public_mut()
+                    .as_package_data_mut()
+                    .as_idx_mut(&id)
+                    .or_not_found(&id)?;
+                entry.as_state_info_mut().map_mutate(|s| match s {
+                    PackageState::Installed(s) => Ok(PackageState::Removing(s)),
+                    _ => Err(Error::new(
+                        eyre!("Package {id} is not installed."),
+                        crate::ErrorKind::NotFound,
+                    )),
+                })
+            })
+            .await
+            .result?;
+        Ok(async move {
             ServiceRefReloadCancelGuard::new(ctx.clone(), id.clone(), "Uninstall", None)
                 .handle_last(async move {
-                    let res = service.uninstall(None, soft, force).await;
-                    drop(guard);
-                    res
+                    if let Some(service) = guard.take() {
+                        let res = service.uninstall(None, soft, force).await;
+                        drop(guard);
+                        res
+                    } else {
+                        Err(Error::new(
+                            eyre!("service {id} failed to initialize - cannot remove gracefully"),
+                            ErrorKind::Uninitialized,
+                        ))
+                    }
                 })
                 .await?;
-        }
-        Ok(())
+
+            Ok(())
+        })
     }
 
     pub async fn shutdown_all(&self) -> Result<(), Error> {
