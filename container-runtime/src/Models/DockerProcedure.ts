@@ -31,8 +31,10 @@ export const matchDockerProcedure = object({
     "cbor",
     "toml",
     "toml-pretty",
-  ).optional(),
-  "sigterm-timeout": some(number, matchDuration).defaultTo(30),
+  )
+    .nullable()
+    .optional(),
+  "sigterm-timeout": some(number, matchDuration).onMismatch(30),
   inject: boolean.defaultTo(false),
 })
 
