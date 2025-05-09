@@ -29,8 +29,6 @@ export { SubContainer } from "./util/SubContainer"
 export { StartSdk } from "./StartSdk"
 export { setupManifest, buildManifest } from "./manifest/setupManifest"
 export { FileHelper } from "./util/fileHelper"
-export { setupExposeStore } from "./store/setupExposeStore"
-export { pathBuilder } from "../../base/lib/util/PathBuilder"
 
 export * as actions from "../../base/lib/actions"
 export * as backup from "./backup"

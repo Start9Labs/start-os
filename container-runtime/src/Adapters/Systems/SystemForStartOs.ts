@@ -1,7 +1,6 @@
 import { System } from "../../Interfaces/System"
 import { Effects } from "../../Models/Effects"
 import { T, utils } from "@start9labs/start-sdk"
-import { Optional } from "ts-matches/lib/parsers/interfaces"
 
 export const STARTOS_JS_LOCATION = "/usr/lib/startos/package/index.js"
 
@@ -30,7 +29,7 @@ export class SystemForStartOs implements System {
   }
   async packageUninit(
     effects: Effects,
-    nextVersion: Optional<string> = null,
+    nextVersion: string | null = null,
     timeoutMs: number | null = null,
   ): Promise<void> {
     return void (await this.abi.packageUninit({ effects, nextVersion }))

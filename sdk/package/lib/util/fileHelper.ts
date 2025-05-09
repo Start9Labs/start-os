@@ -48,6 +48,8 @@ function fileMerge(...args: any[]): any {
   for (const arg of args) {
     if (res === arg) continue
     else if (
+      res &&
+      arg &&
       typeof res === "object" &&
       typeof arg === "object" &&
       !Array.isArray(res) &&
@@ -81,7 +83,24 @@ export type Transformers<Raw = unknown, Transformed = unknown> = {
   onWrite: (value: Transformed) => Raw
 }
 
+type ToPath = string | { volumeId: T.VolumeId; subpath: string }
+function toPath(path: ToPath): string {
+  return typeof path === "string"
+    ? path
+    : `/media/startos/volumes/${path.volumeId}/${path.subpath}`
+}
+
 type Validator<T, U> = matches.Validator<T, U> | matches.Validator<unknown, U>
+
+type ReadType<A> = {
+  once: () => Promise<A | null>
+  const: (effects: T.Effects) => Promise<A | null>
+  watch: (effects: T.Effects) => AsyncGenerator<A | null, null, unknown>
+  onChange: (
+    effects: T.Effects,
+    callback: (value: A | null, error?: Error) => void | Promise<void>,
+  ) => void
+}
 
 /**
  * @description Use this class to read/write an underlying configuration file belonging to the upstream service.
@@ -174,8 +193,12 @@ export class FileHelper<A> {
     return this.validate(data)
   }
 
-  private async readConst(effects: T.Effects): Promise<A | null> {
-    const watch = this.readWatch(effects)
+  private async readConst<B>(
+    effects: T.Effects,
+    map: (value: A) => B,
+    eq: (left: B | null | undefined, right: B | null) => boolean,
+  ): Promise<B | null> {
+    const watch = this.readWatch(effects, map, eq)
     const res = await watch.next()
     if (effects.constRetry) {
       if (!this.consts.includes(effects.constRetry))
@@ -188,7 +211,11 @@ export class FileHelper<A> {
     return res.value
   }
 
-  private async *readWatch(effects: T.Effects) {
+  private async *readWatch<B>(
+    effects: T.Effects,
+    map: (value: A) => B,
+    eq: (left: B | null | undefined, right: B | null) => boolean,
+  ) {
     let res
     while (effects.isInContext) {
       if (await exists(this.path)) {
@@ -197,7 +224,8 @@ export class FileHelper<A> {
           persistent: false,
           signal: ctrl.signal,
         })
-        res = await this.readOnce()
+        const newResFull = await this.readOnce()
+        const newRes = newResFull ? map(newResFull) : null
         const listen = Promise.resolve()
           .then(async () => {
             for await (const _ of watch) {
@@ -206,7 +234,8 @@ export class FileHelper<A> {
             }
           })
           .catch((e) => console.error(asError(e)))
-        yield res
+        if (!eq(res, newRes)) yield newRes
+        res = newRes
         await listen
       } else {
         yield null
@@ -216,12 +245,14 @@ export class FileHelper<A> {
     return null
   }
 
-  private readOnChange(
+  private readOnChange<B>(
     effects: T.Effects,
-    callback: (value: A | null, error?: Error) => void | Promise<void>,
+    callback: (value: B | null, error?: Error) => void | Promise<void>,
+    map: (value: A) => B,
+    eq: (left: B | null | undefined, right: B | null) => boolean,
   ) {
     ;(async () => {
-      for await (const value of this.readWatch(effects)) {
+      for await (const value of this.readWatch(effects, map, eq)) {
         try {
           await callback(value)
         } catch (e) {
@@ -241,15 +272,25 @@ export class FileHelper<A> {
       )
   }
 
-  get read() {
+  read(): ReadType<A>
+  read<B>(
+    map: (value: A) => B,
+    eq?: (left: B | null | undefined, right: B | null) => boolean,
+  ): ReadType<B>
+  read(
+    map?: (value: A) => any,
+    eq?: (left: any, right: any) => boolean,
+  ): ReadType<any> {
+    map = map ?? ((a: A) => a)
+    eq = eq ?? ((left: any, right: any) => !partialDiff(left, right))
     return {
       once: () => this.readOnce(),
-      const: (effects: T.Effects) => this.readConst(effects),
-      watch: (effects: T.Effects) => this.readWatch(effects),
+      const: (effects: T.Effects) => this.readConst(effects, map, eq),
+      watch: (effects: T.Effects) => this.readWatch(effects, map, eq),
       onChange: (
         effects: T.Effects,
         callback: (value: A | null, error?: Error) => void | Promise<void>,
-      ) => this.readOnChange(effects, callback),
+      ) => this.readOnChange(effects, callback, map, eq),
     }
   }
 
@@ -291,8 +332,13 @@ export class FileHelper<A> {
    * We wanted to be able to have a fileHelper, and just modify the path later in time.
    * Like one behavior of another dependency or something similar.
    */
-  withPath(path: string) {
-    return new FileHelper<A>(path, this.writeData, this.readData, this.validate)
+  withPath(path: ToPath) {
+    return new FileHelper<A>(
+      toPath(path),
+      this.writeData,
+      this.readData,
+      this.validate,
+    )
   }
 
   /**
@@ -301,22 +347,22 @@ export class FileHelper<A> {
    * Provide custom functions for translating data to/from the file format.
    */
   static raw<A>(
-    path: string,
+    path: ToPath,
     toFile: (dataIn: A) => string,
     fromFile: (rawData: string) => unknown,
     validate: (data: unknown) => A,
   ) {
-    return new FileHelper<A>(path, toFile, fromFile, validate)
+    return new FileHelper<A>(toPath(path), toFile, fromFile, validate)
   }
 
   private static rawTransformed<A extends Transformed, Raw, Transformed>(
-    path: string,
+    path: ToPath,
     toFile: (dataIn: Raw) => string,
     fromFile: (rawData: string) => Raw,
     validate: (data: Transformed) => A,
     transformers: Transformers<Raw, Transformed> | undefined,
   ) {
-    return new FileHelper<A>(
+    return FileHelper.raw<A>(
       path,
       (inData) => {
         if (transformers) {
@@ -332,18 +378,18 @@ export class FileHelper<A> {
   /**
    * Create a File Helper for a text file
    */
-  static string(path: string): FileHelper<string>
+  static string(path: ToPath): FileHelper<string>
   static string<A extends string>(
-    path: string,
+    path: ToPath,
     shape: Validator<string, A>,
   ): FileHelper<A>
   static string<A extends Transformed, Transformed = string>(
-    path: string,
+    path: ToPath,
     shape: Validator<Transformed, A>,
     transformers: Transformers<string, Transformed>,
   ): FileHelper<A>
   static string<A extends Transformed, Transformed = string>(
-    path: string,
+    path: ToPath,
     shape?: Validator<Transformed, A>,
     transformers?: Transformers<string, Transformed>,
   ) {
@@ -363,7 +409,7 @@ export class FileHelper<A> {
    * Create a File Helper for a .json file.
    */
   static json<A>(
-    path: string,
+    path: ToPath,
     shape: Validator<unknown, A>,
     transformers?: Transformers,
   ) {
@@ -380,16 +426,16 @@ export class FileHelper<A> {
    * Create a File Helper for a .yaml file
    */
   static yaml<A extends Record<string, unknown>>(
-    path: string,
+    path: ToPath,
     shape: Validator<Record<string, unknown>, A>,
   ): FileHelper<A>
   static yaml<A extends Transformed, Transformed = Record<string, unknown>>(
-    path: string,
+    path: ToPath,
     shape: Validator<Transformed, A>,
     transformers: Transformers<Record<string, unknown>, Transformed>,
   ): FileHelper<A>
   static yaml<A extends Transformed, Transformed = Record<string, unknown>>(
-    path: string,
+    path: ToPath,
     shape: Validator<Transformed, A>,
     transformers?: Transformers<Record<string, unknown>, Transformed>,
   ) {
@@ -406,16 +452,16 @@ export class FileHelper<A> {
    * Create a File Helper for a .toml file
    */
   static toml<A extends TOML.JsonMap>(
-    path: string,
+    path: ToPath,
     shape: Validator<TOML.JsonMap, A>,
   ): FileHelper<A>
   static toml<A extends Transformed, Transformed = TOML.JsonMap>(
-    path: string,
+    path: ToPath,
     shape: Validator<Transformed, A>,
     transformers: Transformers<TOML.JsonMap, Transformed>,
   ): FileHelper<A>
   static toml<A extends Transformed, Transformed = TOML.JsonMap>(
-    path: string,
+    path: ToPath,
     shape: Validator<Transformed, A>,
     transformers?: Transformers<TOML.JsonMap, Transformed>,
   ) {
@@ -429,18 +475,18 @@ export class FileHelper<A> {
   }
 
   static ini<A extends Record<string, unknown>>(
-    path: string,
+    path: ToPath,
     shape: Validator<Record<string, unknown>, A>,
     options?: INI.EncodeOptions & INI.DecodeOptions,
   ): FileHelper<A>
   static ini<A extends Transformed, Transformed = Record<string, unknown>>(
-    path: string,
+    path: ToPath,
     shape: Validator<Transformed, A>,
     options: INI.EncodeOptions & INI.DecodeOptions,
     transformers: Transformers<Record<string, unknown>, Transformed>,
   ): FileHelper<A>
   static ini<A extends Transformed, Transformed = Record<string, unknown>>(
-    path: string,
+    path: ToPath,
     shape: Validator<Transformed, A>,
     options?: INI.EncodeOptions & INI.DecodeOptions,
     transformers?: Transformers<Record<string, unknown>, Transformed>,
@@ -455,16 +501,16 @@ export class FileHelper<A> {
   }
 
   static env<A extends Record<string, string>>(
-    path: string,
+    path: ToPath,
     shape: Validator<Record<string, string>, A>,
   ): FileHelper<A>
   static env<A extends Transformed, Transformed = Record<string, string>>(
-    path: string,
+    path: ToPath,
     shape: Validator<Transformed, A>,
     transformers: Transformers<Record<string, string>, Transformed>,
   ): FileHelper<A>
   static env<A extends Transformed, Transformed = Record<string, string>>(
-    path: string,
+    path: ToPath,
     shape: Validator<Transformed, A>,
     transformers?: Transformers<Record<string, string>, Transformed>,
   ) {

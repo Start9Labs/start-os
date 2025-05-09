@@ -56,6 +56,8 @@ type NewDaemonParams<Manifest extends T.SDKManifest> = {
   subcontainer: SubContainer<Manifest>
   runAsInit?: boolean
   env?: Record<string, string>
+  cwd?: string
+  user?: string
   sigtermTimeout?: number
   onStdout?: (chunk: Buffer | string | any) => void
   onStderr?: (chunk: Buffer | string | any) => void

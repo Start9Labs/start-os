@@ -19,7 +19,6 @@ import { DestroySubcontainerFsParams } from ".././osBindings"
 import { BindParams } from ".././osBindings"
 import { GetHostInfoParams } from ".././osBindings"
 import { SetHealth } from ".././osBindings"
-import { ExposeForDependentsParams } from ".././osBindings"
 import { GetSslCertificateParams } from ".././osBindings"
 import { GetSslKeyParams } from ".././osBindings"
 import { GetServiceInterfaceParams } from ".././osBindings"
@@ -71,15 +70,10 @@ describe("startosTypeValidation ", () => {
       setDataVersion: {} as SetDataVersionParams,
       getDataVersion: undefined,
       setHealth: {} as SetHealth,
-      exposeForDependents: {} as ExposeForDependentsParams,
       getSslCertificate: {} as WithCallback<GetSslCertificateParams>,
       getSslKey: {} as GetSslKeyParams,
       getServiceInterface: {} as WithCallback<GetServiceInterfaceParams>,
       setDependencies: {} as SetDependenciesParams,
-      store: {
-        get: {} as any, // as GetStoreParams,
-        set: {} as any, // as SetStoreParams,
-      },
       getSystemSmtp: {} as WithCallback<GetSystemSmtpParams>,
       getContainerIp: {} as WithCallback<GetContainerIpParams>,
       getOsIp: undefined,

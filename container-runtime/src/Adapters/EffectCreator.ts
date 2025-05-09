@@ -6,23 +6,19 @@ import { Effects } from "../Models/Effects"
 import { CallbackHolder } from "../Models/CallbackHolder"
 import { asError } from "@start9labs/start-sdk/base/lib/util"
 const matchRpcError = object({
-  error: object(
-    {
-      code: number,
-      message: string,
-      data: some(
-        string,
-        object(
-          {
-            details: string,
-            debug: string,
-          },
-          ["debug"],
-        ),
-      ),
-    },
-    ["data"],
-  ),
+  error: object({
+    code: number,
+    message: string,
+    data: some(
+      string,
+      object({
+        details: string,
+        debug: string.nullable().optional(),
+      }),
+    )
+      .nullable()
+      .optional(),
+  }),
 })
 const testRpcError = matchRpcError.test
 const testRpcResult = object({
@@ -197,13 +193,6 @@ export function makeEffects(context: EffectContext): Effects {
         T.Effects["exportServiceInterface"]
       >
     }) as Effects["exportServiceInterface"],
-    exposeForDependents(
-      ...[options]: Parameters<T.Effects["exposeForDependents"]>
-    ) {
-      return rpcRound("expose-for-dependents", options) as ReturnType<
-        T.Effects["exposeForDependents"]
-      >
-    },
     getContainerIp(...[options]: Parameters<T.Effects["getContainerIp"]>) {
       return rpcRound("get-container-ip", options) as ReturnType<
         T.Effects["getContainerIp"]
@@ -305,15 +294,6 @@ export function makeEffects(context: EffectContext): Effects {
     shutdown(...[]: Parameters<T.Effects["shutdown"]>) {
       return rpcRound("shutdown", {}) as ReturnType<T.Effects["shutdown"]>
     },
-    store: {
-      get: async (options: any) =>
-        rpcRound("store.get", {
-          ...options,
-          callback: context.callbacks?.addCallback(options.callback) || null,
-        }) as any,
-      set: async (options: any) =>
-        rpcRound("store.set", options) as ReturnType<T.Effects["store"]["set"]>,
-    } as T.Effects["store"],
     getDataVersion() {
       return rpcRound("get-data-version", {}) as ReturnType<
         T.Effects["getDataVersion"]

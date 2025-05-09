@@ -740,14 +740,13 @@ async fn get_proc_stat() -> Result<ProcStat, Error> {
         .collect::<Result<Vec<u64>, Error>>()?;
 
     if stats.len() < 10 {
-        Err(Error {
-            source: color_eyre::eyre::eyre!(
+        Err(Error::new(
+            eyre!(
                 "Columns missing from /proc/stat. Need 10, found {}",
                 stats.len()
             ),
-            kind: ErrorKind::ParseSysInfo,
-            revision: None,
-        })
+            ErrorKind::ParseSysInfo,
+        ))
     } else {
         Ok(ProcStat {
             user: stats[0],

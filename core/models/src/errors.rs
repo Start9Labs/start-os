@@ -10,6 +10,7 @@ use rpc_toolkit::yajrc::{
     RpcError, INVALID_PARAMS_ERROR, INVALID_REQUEST_ERROR, METHOD_NOT_FOUND_ERROR, PARSE_ERROR,
 };
 use serde::{Deserialize, Serialize};
+use tokio::task::JoinHandle;
 
 use crate::InvalidId;
 
@@ -189,6 +190,7 @@ pub struct Error {
     pub source: color_eyre::eyre::Error,
     pub kind: ErrorKind,
     pub revision: Option<Revision>,
+    pub task: Option<JoinHandle<()>>,
 }
 
 impl Display for Error {
@@ -202,6 +204,7 @@ impl Error {
             source: source.into(),
             kind,
             revision: None,
+            task: None,
         }
     }
     pub fn clone_output(&self) -> Self {
@@ -213,7 +216,19 @@ impl Error {
             .into(),
             kind: self.kind,
             revision: self.revision.clone(),
+            task: None,
         }
+    }
+    pub fn with_task(mut self, task: JoinHandle<()>) -> Self {
+        self.task = Some(task);
+        self
+    }
+    pub async fn wait(mut self) -> Self {
+        if let Some(task) = &mut self.task {
+            task.await.log_err();
+        }
+        self.task.take();
+        self
     }
 }
 impl axum::response::IntoResponse for Error {
@@ -530,6 +545,7 @@ where
             source: e.into(),
             kind,
             revision: None,
+            task: None,
         })
     }
 
@@ -543,6 +559,7 @@ where
                 kind,
                 source,
                 revision: None,
+                task: None,
             }
         })
     }
@@ -565,6 +582,7 @@ impl<T> ResultExt<T, Error> for Result<T, Error> {
             source: e.source,
             kind,
             revision: e.revision,
+            task: e.task,
         })
     }
 
@@ -578,6 +596,7 @@ impl<T> ResultExt<T, Error> for Result<T, Error> {
                 kind,
                 source,
                 revision: e.revision,
+                task: e.task,
             }
         })
     }

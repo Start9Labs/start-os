@@ -9,9 +9,9 @@ import {
 } from "../inputSpecTypes"
 import { Parser, arrayOf, string } from "ts-matches"
 
-export class List<Type, Store> {
+export class List<Type> {
   private constructor(
-    public build: LazyBuild<Store, ValueSpecList>,
+    public build: LazyBuild<ValueSpecList>,
     public validator: Parser<unknown, Type>,
   ) {}
 
@@ -58,7 +58,7 @@ export class List<Type, Store> {
       generate?: null | RandomString
     },
   ) {
-    return new List<string[], never>(() => {
+    return new List<string[]>(() => {
       const spec = {
         type: "text" as const,
         placeholder: null,
@@ -85,30 +85,27 @@ export class List<Type, Store> {
     }, arrayOf(string))
   }
 
-  static dynamicText<Store = never>(
-    getA: LazyBuild<
-      Store,
-      {
-        name: string
-        description?: string | null
-        warning?: string | null
-        default?: string[]
+  static dynamicText(
+    getA: LazyBuild<{
+      name: string
+      description?: string | null
+      warning?: string | null
+      default?: string[]
+      minLength?: number | null
+      maxLength?: number | null
+      disabled?: false | string
+      generate?: null | RandomString
+      spec: {
+        masked?: boolean
+        placeholder?: string | null
         minLength?: number | null
         maxLength?: number | null
-        disabled?: false | string
-        generate?: null | RandomString
-        spec: {
-          masked?: boolean
-          placeholder?: string | null
-          minLength?: number | null
-          maxLength?: number | null
-          patterns?: Pattern[]
-          inputmode?: ListValueSpecText["inputmode"]
-        }
+        patterns?: Pattern[]
+        inputmode?: ListValueSpecText["inputmode"]
       }
-    >,
+    }>,
   ) {
-    return new List<string[], Store>(async (options) => {
+    return new List<string[]>(async (options) => {
       const { spec: aSpec, ...a } = await getA(options)
       const spec = {
         type: "text" as const,
@@ -136,7 +133,7 @@ export class List<Type, Store> {
     }, arrayOf(string))
   }
 
-  static obj<Type extends Record<string, any>, Store>(
+  static obj<Type extends Record<string, any>>(
     a: {
       name: string
       description?: string | null
@@ -146,12 +143,12 @@ export class List<Type, Store> {
       maxLength?: number | null
     },
     aSpec: {
-      spec: InputSpec<Type, Store>
+      spec: InputSpec<Type>
       displayAs?: null | string
       uniqueBy?: null | UniqueBy
     },
   ) {
-    return new List<Type[], Store>(async (options) => {
+    return new List<Type[]>(async (options) => {
       const { spec: previousSpecSpec, ...restSpec } = aSpec
       const specSpec = await previousSpecSpec.build(options)
       const spec = {
@@ -176,23 +173,5 @@ export class List<Type, Store> {
         ...value,
       }
     }, arrayOf(aSpec.spec.validator))
-  }
-
-  /**
-   * Use this during the times that the input needs a more specific type.
-   * Used in types that the value/ variant/ list/ inputSpec is constructed somewhere else.
-  ```ts
-  const a = InputSpec.text({
-    name: "a",
-    required: false,
-  })
-
-  return InputSpec.of<Store>()({
-    myValue: a.withStore(),
-  })
-  ```
-   */
-  withStore<NewStore extends Store extends never ? any : Store>() {
-    return this as any as List<Type, NewStore>
   }
 }

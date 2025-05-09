@@ -7,19 +7,13 @@ import * as T from "../types"
 import { once } from "../util"
 
 export type Run<
-  A extends
-    | Record<string, any>
-    | InputSpec<Record<string, any>, any>
-    | InputSpec<Record<string, never>, never>,
+  A extends Record<string, any> | InputSpec<Record<string, any>>,
 > = (options: {
   effects: T.Effects
   input: ExtractInputSpecType<A>
 }) => Promise<(T.ActionResult & { version: "1" }) | null | void | undefined>
 export type GetInput<
-  A extends
-    | Record<string, any>
-    | InputSpec<Record<string, any>, any>
-    | InputSpec<Record<string, any>, never>,
+  A extends Record<string, any> | InputSpec<Record<string, any>>,
 > = (options: {
   effects: T.Effects
 }) => Promise<null | void | undefined | ExtractPartialInputSpecType<A>>
@@ -48,11 +42,7 @@ function mapMaybeFn<T, U>(
 
 export class Action<
   Id extends T.ActionId,
-  Store,
-  InputSpecType extends
-    | Record<string, any>
-    | InputSpec<any, Store>
-    | InputSpec<any, never>,
+  InputSpecType extends Record<string, any> | InputSpec<any>,
 > {
   private constructor(
     readonly id: Id,
@@ -63,18 +53,14 @@ export class Action<
   ) {}
   static withInput<
     Id extends T.ActionId,
-    Store,
-    InputSpecType extends
-      | Record<string, any>
-      | InputSpec<any, Store>
-      | InputSpec<any, never>,
+    InputSpecType extends Record<string, any> | InputSpec<any>,
   >(
     id: Id,
     metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
     inputSpec: InputSpecType,
     getInput: GetInput<InputSpecType>,
     run: Run<InputSpecType>,
-  ): Action<Id, Store, InputSpecType> {
+  ): Action<Id, InputSpecType> {
     return new Action(
       id,
       mapMaybeFn(metadata, (m) => ({ ...m, hasInput: true })),
@@ -83,11 +69,11 @@ export class Action<
       run,
     )
   }
-  static withoutInput<Id extends T.ActionId, Store>(
+  static withoutInput<Id extends T.ActionId>(
     id: Id,
     metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
     run: Run<{}>,
-  ): Action<Id, Store, {}> {
+  ): Action<Id, {}> {
     return new Action(
       id,
       mapMaybeFn(metadata, (m) => ({ ...m, hasInput: false })),
@@ -124,16 +110,15 @@ export class Action<
 }
 
 export class Actions<
-  Store,
-  AllActions extends Record<T.ActionId, Action<T.ActionId, Store, any>>,
+  AllActions extends Record<T.ActionId, Action<T.ActionId, any>>,
 > {
   private constructor(private readonly actions: AllActions) {}
-  static of<Store>(): Actions<Store, {}> {
+  static of(): Actions<{}> {
     return new Actions({})
   }
-  addAction<A extends Action<T.ActionId, Store, any>>(
-    action: A,
-  ): Actions<Store, AllActions & { [id in A["id"]]: A }> {
+  addAction<A extends Action<T.ActionId, any>>(
+    action: A, // TODO: prevent duplicates
+  ): Actions<AllActions & { [id in A["id"]]: A }> {
     return new Actions({ ...this.actions, [action.id]: action })
   }
   async update(options: { effects: T.Effects }): Promise<null> {

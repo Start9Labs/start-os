@@ -550,33 +550,18 @@ pub struct UninstallParams {
 pub async fn uninstall(
     ctx: RpcContext,
     UninstallParams { id, soft, force }: UninstallParams,
-) -> Result<PackageId, Error> {
-    ctx.db
-        .mutate(|db| {
-            let entry = db
-                .as_public_mut()
-                .as_package_data_mut()
-                .as_idx_mut(&id)
-                .or_not_found(&id)?;
-            entry.as_state_info_mut().map_mutate(|s| match s {
-                PackageState::Installed(s) => Ok(PackageState::Removing(s)),
-                _ => Err(Error::new(
-                    eyre!("Package {id} is not installed."),
-                    crate::ErrorKind::NotFound,
-                )),
-            })
-        })
-        .await
-        .result?;
-
-    let return_id = id.clone();
+) -> Result<(), Error> {
+    let fut = ctx
+        .services
+        .uninstall(ctx.clone(), id.clone(), soft, force)
+        .await?;
 
     tokio::spawn(async move {
-        if let Err(e) = ctx.services.uninstall(&ctx, &id, soft, force).await {
+        if let Err(e) = fut.await {
             tracing::error!("Error uninstalling service {id}: {e}");
             tracing::debug!("{e:?}");
         }
     });
 
-    Ok(return_id)
+    Ok(())
 }

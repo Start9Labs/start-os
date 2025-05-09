@@ -5,32 +5,27 @@ import { Effects } from "../../../Effects"
 import { Parser, object } from "ts-matches"
 import { DeepPartial } from "../../../types"
 
-export type LazyBuildOptions<Store> = {
+export type LazyBuildOptions = {
   effects: Effects
 }
-export type LazyBuild<Store, ExpectedOut> = (
-  options: LazyBuildOptions<Store>,
+export type LazyBuild<ExpectedOut> = (
+  options: LazyBuildOptions,
 ) => Promise<ExpectedOut> | ExpectedOut
 
 // prettier-ignore
-export type ExtractInputSpecType<A extends Record<string, any> | InputSpec<Record<string, any>, any> | InputSpec<Record<string, any>, never>> = 
-  A extends InputSpec<infer B, any> | InputSpec<infer B, never> ? B :
+export type ExtractInputSpecType<A extends Record<string, any> | InputSpec<Record<string, any>>> = 
+  A extends InputSpec<infer B> ? B :
   A
 
 export type ExtractPartialInputSpecType<
-  A extends
-    | Record<string, any>
-    | InputSpec<Record<string, any>, any>
-    | InputSpec<Record<string, any>, never>,
-> = A extends InputSpec<infer B, any> | InputSpec<infer B, never>
-  ? DeepPartial<B>
-  : DeepPartial<A>
+  A extends Record<string, any> | InputSpec<Record<string, any>>,
+> = A extends InputSpec<infer B> ? DeepPartial<B> : DeepPartial<A>
 
-export type InputSpecOf<A extends Record<string, any>, Store = never> = {
-  [K in keyof A]: Value<A[K], Store>
+export type InputSpecOf<A extends Record<string, any>> = {
+  [K in keyof A]: Value<A[K]>
 }
 
-export type MaybeLazyValues<A> = LazyBuild<any, A> | A
+export type MaybeLazyValues<A> = LazyBuild<A> | A
 /**
  * InputSpecs are the specs that are used by the os input specification form for this service.
  * Here is an example of a simple input specification
@@ -87,16 +82,16 @@ export const addNodesSpec = InputSpec.of({ hostname: hostname, port: port });
 
   ```
  */
-export class InputSpec<Type extends Record<string, any>, Store = never> {
+export class InputSpec<Type extends Record<string, any>> {
   private constructor(
     private readonly spec: {
-      [K in keyof Type]: Value<Type[K], Store> | Value<Type[K], never>
+      [K in keyof Type]: Value<Type[K]>
     },
     public validator: Parser<unknown, Type>,
   ) {}
   public _TYPE: Type = null as any as Type
   public _PARTIAL: DeepPartial<Type> = null as any as DeepPartial<Type>
-  async build(options: LazyBuildOptions<Store>) {
+  async build(options: LazyBuildOptions) {
     const answer = {} as {
       [K in keyof Type]: ValueSpec
     }
@@ -106,10 +101,7 @@ export class InputSpec<Type extends Record<string, any>, Store = never> {
     return answer
   }
 
-  static of<
-    Spec extends Record<string, Value<any, Store> | Value<any, never>>,
-    Store = never,
-  >(spec: Spec) {
+  static of<Spec extends Record<string, Value<any>>>(spec: Spec) {
     const validatorObj = {} as {
       [K in keyof Spec]: Parser<unknown, any>
     }
@@ -117,33 +109,8 @@ export class InputSpec<Type extends Record<string, any>, Store = never> {
       validatorObj[key] = spec[key].validator
     }
     const validator = object(validatorObj)
-    return new InputSpec<
-      {
-        [K in keyof Spec]: Spec[K] extends
-          | Value<infer T, Store>
-          | Value<infer T, never>
-          ? T
-          : never
-      },
-      Store
-    >(spec, validator as any)
-  }
-
-  /**
-   * Use this during the times that the input needs a more specific type.
-   * Used in types that the value/ variant/ list/ inputSpec is constructed somewhere else.
-  ```ts
-  const a = InputSpec.text({
-    name: "a",
-    required: false,
-  })
-
-  return InputSpec.of<Store>()({
-    myValue: a.withStore(),
-  })
-  ```
-   */
-  withStore<NewStore extends Store extends never ? any : Store>() {
-    return this as any as InputSpec<Type, NewStore>
+    return new InputSpec<{
+      [K in keyof Spec]: Spec[K] extends Value<infer T> ? T : never
+    }>(spec, validator as any)
   }
 }

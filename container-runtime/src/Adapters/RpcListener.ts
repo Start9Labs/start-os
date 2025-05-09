@@ -26,20 +26,16 @@ type MaybePromise<T> = T | Promise<T>
 export const matchRpcResult = anyOf(
   object({ result: any }),
   object({
-    error: object(
-      {
-        code: number,
-        message: string,
-        data: object(
-          {
-            details: string,
-            debug: any,
-          },
-          ["details", "debug"],
-        ),
-      },
-      ["data"],
-    ),
+    error: object({
+      code: number,
+      message: string,
+      data: object({
+        details: string.optional(),
+        debug: any.optional(),
+      })
+        .nullable()
+        .optional(),
+    }),
   }),
 )
 
@@ -54,38 +50,26 @@ const isResult = object({ result: any }).test
 
 const idType = some(string, number, literal(null))
 type IdType = null | string | number | undefined
-const runType = object(
-  {
-    id: idType,
-    method: literal("execute"),
-    params: object(
-      {
-        id: string,
-        procedure: string,
-        input: any,
-        timeout: number,
-      },
-      ["timeout"],
-    ),
-  },
-  ["id"],
-)
-const sandboxRunType = object(
-  {
-    id: idType,
-    method: literal("sandbox"),
-    params: object(
-      {
-        id: string,
-        procedure: string,
-        input: any,
-        timeout: number,
-      },
-      ["timeout"],
-    ),
-  },
-  ["id"],
-)
+const runType = object({
+  id: idType.optional(),
+  method: literal("execute"),
+  params: object({
+    id: string,
+    procedure: string,
+    input: any,
+    timeout: number.nullable().optional(),
+  }),
+})
+const sandboxRunType = object({
+  id: idType.optional(),
+  method: literal("sandbox"),
+  params: object({
+    id: string,
+    procedure: string,
+    input: any,
+    timeout: number.nullable().optional(),
+  }),
+})
 const callbackType = object({
   method: literal("callback"),
   params: object({
@@ -93,44 +77,29 @@ const callbackType = object({
     args: array,
   }),
 })
-const initType = object(
-  {
-    id: idType,
-    method: literal("init"),
-  },
-  ["id"],
-)
-const startType = object(
-  {
-    id: idType,
-    method: literal("start"),
-  },
-  ["id"],
-)
-const stopType = object(
-  {
-    id: idType,
-    method: literal("stop"),
-  },
-  ["id"],
-)
-const exitType = object(
-  {
-    id: idType,
-    method: literal("exit"),
-  },
-  ["id"],
-)
-const evalType = object(
-  {
-    id: idType,
-    method: literal("eval"),
-    params: object({
-      script: string,
-    }),
-  },
-  ["id"],
-)
+const initType = object({
+  id: idType.optional(),
+  method: literal("init"),
+})
+const startType = object({
+  id: idType.optional(),
+  method: literal("start"),
+})
+const stopType = object({
+  id: idType.optional(),
+  method: literal("stop"),
+})
+const exitType = object({
+  id: idType.optional(),
+  method: literal("exit"),
+})
+const evalType = object({
+  id: idType.optional(),
+  method: literal("eval"),
+  params: object({
+    script: string,
+  }),
+})
 
 const jsonParse = (x: string) => JSON.parse(x)
 
@@ -365,7 +334,7 @@ export class RpcListener {
         )
       })
       .when(
-        shape({ id: idType, method: string }, ["id"]),
+        shape({ id: idType.optional(), method: string }),
         ({ id, method }) => ({
           jsonrpc,
           id,
@@ -400,7 +369,7 @@ export class RpcListener {
     procedure: typeof jsonPath._TYPE,
     system: System,
     procedureId: string,
-    timeout: number | undefined,
+    timeout: number | null | undefined,
     input: any,
   ) {
     const ensureResultTypeShape = (
@@ -449,14 +418,10 @@ export class RpcListener {
     })().then(ensureResultTypeShape, (error) =>
       matches(error)
         .when(
-          object(
-            {
-              error: string,
-              code: number,
-            },
-            ["code"],
-            { code: 0 },
-          ),
+          object({
+            error: string,
+            code: number.defaultTo(0),
+          }),
           (error) => ({
             error: {
               code: error.code,

@@ -80,11 +80,9 @@ impl std::fmt::Display for SshKeyResponse {
 impl std::str::FromStr for SshPubKey {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.parse().map(|pk| SshPubKey(pk)).map_err(|e| Error {
-            source: e.into(),
-            kind: crate::ErrorKind::ParseSshKey,
-            revision: None,
-        })
+        s.parse()
+            .map(|pk| SshPubKey(pk))
+            .with_kind(ErrorKind::ParseSshKey)
     }
 }
 
@@ -171,11 +169,7 @@ pub async fn remove(
             if keys_ref.remove(&fingerprint)?.is_some() {
                 keys_ref.de()
             } else {
-                Err(Error {
-                    source: color_eyre::eyre::eyre!("SSH Key Not Found"),
-                    kind: crate::error::ErrorKind::NotFound,
-                    revision: None,
-                })
+                Err(Error::new(eyre!("SSH Key Not Found"), ErrorKind::NotFound))
             }
         })
         .await

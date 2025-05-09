@@ -30,7 +30,7 @@ export class HealthCheck extends Drop {
     super()
     this.promise = Promise.resolve().then(async () => {
       const getCurrentValue = () => this.currentValue
-      const gracePeriod = o.gracePeriod ?? 5000
+      const gracePeriod = o.gracePeriod ?? 10_000
       const trigger = (o.trigger ?? defaultTrigger)(getCurrentValue)
       const triggerFirstSuccess = once(() =>
         Promise.resolve(

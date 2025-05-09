@@ -1,12 +1,9 @@
 import { object, literal, string, boolean, some } from "ts-matches"
 
-const matchDataVolume = object(
-  {
-    type: literal("data"),
-    readonly: boolean,
-  },
-  ["readonly"],
-)
+const matchDataVolume = object({
+  type: literal("data"),
+  readonly: boolean.optional(),
+})
 const matchAssetVolume = object({
   type: literal("assets"),
 })

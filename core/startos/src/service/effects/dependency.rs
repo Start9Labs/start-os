@@ -7,7 +7,6 @@ use exver::VersionRange;
 use imbl::OrdMap;
 use imbl_value::InternedString;
 use models::{FromStrParser, HealthCheckId, PackageId, ReplayId, VersionString, VolumeId};
-use patch_db::json_ptr::JsonPointer;
 use tokio::process::Command;
 
 use crate::db::model::package::{
@@ -17,6 +16,7 @@ use crate::db::model::package::{
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::{FileSystem, MountType};
+use crate::disk::mount::util::{is_mountpoint, unmount};
 use crate::service::effects::prelude::*;
 use crate::status::health_check::NamedHealthCheckResult;
 use crate::util::Invoke;
@@ -110,6 +110,9 @@ pub async fn mount(
     }
 
     tokio::fs::create_dir_all(&mountpoint).await?;
+    if is_mountpoint(&mountpoint).await? {
+        unmount(&mountpoint, true).await?;
+    }
     Command::new("chown")
         .arg("100000:100000")
         .arg(&mountpoint)
@@ -140,21 +143,6 @@ pub async fn get_installed_packages(context: EffectContext) -> Result<BTreeSet<P
         .into_public()
         .into_package_data()
         .keys()
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub struct ExposeForDependentsParams {
-    #[ts(type = "string[]")]
-    paths: Vec<JsonPointer>,
-}
-pub async fn expose_for_dependents(
-    context: EffectContext,
-    ExposeForDependentsParams { paths }: ExposeForDependentsParams,
-) -> Result<(), Error> {
-    // TODO
-    Ok(())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]

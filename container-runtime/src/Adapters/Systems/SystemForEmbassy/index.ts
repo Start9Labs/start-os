@@ -1,5 +1,6 @@
 import {
   ExtendedVersion,
+  FileHelper,
   types as T,
   utils,
   VersionRange,
@@ -46,7 +47,7 @@ import {
   transformNewConfigToOld,
   transformOldConfigToNew,
 } from "./transformConfigSpec"
-import { partialDiff, StorePath } from "@start9labs/start-sdk/base/lib/util"
+import { partialDiff } from "@start9labs/start-sdk/base/lib/util"
 
 type Optional<A> = A | undefined | null
 function todo(): never {
@@ -55,8 +56,21 @@ function todo(): never {
 
 const MANIFEST_LOCATION = "/usr/lib/startos/package/embassyManifest.json"
 export const EMBASSY_JS_LOCATION = "/usr/lib/startos/package/embassy.js"
-const EMBASSY_POINTER_PATH_PREFIX = "/embassyConfig" as utils.StorePath
-const EMBASSY_DEPENDS_ON_PATH_PREFIX = "/embassyDependsOn" as utils.StorePath
+
+const configFile = FileHelper.json(
+  {
+    volumeId: "embassy",
+    subpath: "config.json",
+  },
+  matches.any,
+)
+const dependsOnFile = FileHelper.json(
+  {
+    volumeId: "embassy",
+    subpath: "dependsOn.json",
+  },
+  dictionary([string, array(string)]),
+)
 
 const matchResult = object({
   result: any,
@@ -94,47 +108,48 @@ const fromReturnType = <A>(a: U.ResultType<A>): A => {
   return assertNever(a)
 }
 
-const matchSetResult = object(
-  {
-    "depends-on": dictionary([string, array(string)]),
-    dependsOn: dictionary([string, array(string)]),
-    signal: literals(
-      "SIGTERM",
-      "SIGHUP",
-      "SIGINT",
-      "SIGQUIT",
-      "SIGILL",
-      "SIGTRAP",
-      "SIGABRT",
-      "SIGBUS",
-      "SIGFPE",
-      "SIGKILL",
-      "SIGUSR1",
-      "SIGSEGV",
-      "SIGUSR2",
-      "SIGPIPE",
-      "SIGALRM",
-      "SIGSTKFLT",
-      "SIGCHLD",
-      "SIGCONT",
-      "SIGSTOP",
-      "SIGTSTP",
-      "SIGTTIN",
-      "SIGTTOU",
-      "SIGURG",
-      "SIGXCPU",
-      "SIGXFSZ",
-      "SIGVTALRM",
-      "SIGPROF",
-      "SIGWINCH",
-      "SIGIO",
-      "SIGPWR",
-      "SIGSYS",
-      "SIGINFO",
-    ),
-  },
-  ["depends-on", "dependsOn"],
-)
+const matchSetResult = object({
+  "depends-on": dictionary([string, array(string)])
+    .nullable()
+    .optional(),
+  dependsOn: dictionary([string, array(string)])
+    .nullable()
+    .optional(),
+  signal: literals(
+    "SIGTERM",
+    "SIGHUP",
+    "SIGINT",
+    "SIGQUIT",
+    "SIGILL",
+    "SIGTRAP",
+    "SIGABRT",
+    "SIGBUS",
+    "SIGFPE",
+    "SIGKILL",
+    "SIGUSR1",
+    "SIGSEGV",
+    "SIGUSR2",
+    "SIGPIPE",
+    "SIGALRM",
+    "SIGSTKFLT",
+    "SIGCHLD",
+    "SIGCONT",
+    "SIGSTOP",
+    "SIGTSTP",
+    "SIGTTIN",
+    "SIGTTOU",
+    "SIGURG",
+    "SIGXCPU",
+    "SIGXFSZ",
+    "SIGVTALRM",
+    "SIGPROF",
+    "SIGWINCH",
+    "SIGIO",
+    "SIGPWR",
+    "SIGSYS",
+    "SIGINFO",
+  ),
+})
 
 type OldGetConfigRes = {
   config?: null | Record<string, unknown>
@@ -174,14 +189,14 @@ export type PackagePropertiesV2 = {
 }
 export type PackagePropertyString = {
   type: "string"
-  description?: string
+  description?: string | null
   value: string
   /** Let's the ui make this copyable button */
-  copyable?: boolean
+  copyable?: boolean | null
   /** Let the ui create a qr for this field */
-  qr?: boolean
+  qr?: boolean | null
   /** Hiding the value unless toggled off for field */
-  masked?: boolean
+  masked?: boolean | null
 }
 export type PackagePropertyObject = {
   value: PackagePropertiesV2
@@ -225,17 +240,14 @@ const matchPackagePropertyObject: Parser<unknown, PackagePropertyObject> =
   })
 
 const matchPackagePropertyString: Parser<unknown, PackagePropertyString> =
-  object(
-    {
-      type: literal("string"),
-      description: string,
-      value: string,
-      copyable: boolean,
-      qr: boolean,
-      masked: boolean,
-    },
-    ["copyable", "description", "qr", "masked"],
-  )
+  object({
+    type: literal("string"),
+    description: string.nullable().optional(),
+    value: string,
+    copyable: boolean.nullable().optional(),
+    qr: boolean.nullable().optional(),
+    masked: boolean.nullable().optional(),
+  })
 setMatchPackageProperties(
   dictionary([
     string,
@@ -300,7 +312,7 @@ export class SystemForEmbassy implements System {
 
   async containerInit(effects: Effects): Promise<void> {
     for (let depId in this.manifest.dependencies) {
-      if (this.manifest.dependencies[depId].config) {
+      if (this.manifest.dependencies[depId]?.config) {
         await this.dependenciesAutoconfig(effects, depId, null)
       }
     }
@@ -355,10 +367,7 @@ export class SystemForEmbassy implements System {
       ) {
         await effects.action.clearRequests({ only: ["needs-config"] })
       }
-      await effects.store.set({
-        path: EMBASSY_POINTER_PATH_PREFIX,
-        value: this.getConfig(effects, timeoutMs),
-      })
+      await configFile.write(effects, await this.getConfig(effects, timeoutMs))
     } else if (this.manifest.config) {
       await effects.action.request({
         packageId: this.manifest.id,
@@ -587,11 +596,6 @@ export class SystemForEmbassy implements System {
       const moduleCode = await this.moduleCode
       await moduleCode.createBackup?.(polyfillEffects(effects, this.manifest))
     }
-    await fs.writeFile(
-      "/media/startos/backup/store.json",
-      JSON.stringify(await effects.store.get({ path: "" as StorePath })),
-      { encoding: "utf-8" },
-    )
     const dataVersion = await effects.getDataVersion()
     if (dataVersion)
       await fs.writeFile("/media/startos/backup/dataVersion.txt", dataVersion, {
@@ -607,11 +611,6 @@ export class SystemForEmbassy implements System {
         encoding: "utf-8",
       })
       .catch((_) => null)
-    if (store)
-      await effects.store.set({
-        path: "" as StorePath,
-        value: JSON.parse(store),
-      })
     const restoreBackup = this.manifest.backup.restore
     if (restoreBackup.type === "docker") {
       const commands = [restoreBackup.entrypoint, ...restoreBackup.args]
@@ -686,10 +685,7 @@ export class SystemForEmbassy implements System {
       structuredClone(newConfigWithoutPointers as Record<string, unknown>),
     )
     await updateConfig(effects, this.manifest, spec, newConfig)
-    await effects.store.set({
-      path: EMBASSY_POINTER_PATH_PREFIX,
-      value: newConfig,
-    })
+    await configFile.write(effects, newConfig)
     const setConfigValue = this.manifest.config?.set
     if (!setConfigValue) return
     if (setConfigValue.type === "docker") {
@@ -743,15 +739,11 @@ export class SystemForEmbassy implements System {
     rawDepends: { [x: string]: readonly string[] },
     configuring: boolean,
   ) {
-    const storedDependsOn = (await effects.store.get({
-      packageId: this.manifest.id,
-      path: EMBASSY_DEPENDS_ON_PATH_PREFIX,
-    })) as Record<string, readonly string[]>
-
+    const storedDependsOn = await dependsOnFile.read().once()
     const requiredDeps = {
       ...Object.fromEntries(
-        Object.entries(this.manifest.dependencies || {})
-          ?.filter((x) => x[1].requirement.type === "required")
+        Object.entries(this.manifest.dependencies ?? {})
+          .filter(([k, v]) => v?.requirement.type === "required")
           .map((x) => [x[0], []]) || [],
       ),
     }
@@ -765,10 +757,7 @@ export class SystemForEmbassy implements System {
         ? storedDependsOn
         : requiredDeps
 
-    await effects.store.set({
-      path: EMBASSY_DEPENDS_ON_PATH_PREFIX,
-      value: dependsOn,
-    })
+    await dependsOnFile.write(effects, dependsOn)
 
     await effects.setDependencies({
       dependencies: Object.entries(dependsOn).flatMap(
@@ -1006,43 +995,50 @@ export class SystemForEmbassy implements System {
     timeoutMs: number | null,
   ): Promise<void> {
     // TODO: docker
-    const oldConfig = (await effects.store.get({
-      packageId: id,
-      path: EMBASSY_POINTER_PATH_PREFIX,
-      callback: () => {
-        this.dependenciesAutoconfig(effects, id, timeoutMs)
-      },
-    })) as U.Config
-    if (!oldConfig) return
-    const moduleCode = await this.moduleCode
-    const method = moduleCode?.dependencies?.[id]?.autoConfigure
-    if (!method) return
-    const newConfig = (await method(
-      polyfillEffects(effects, this.manifest),
-      JSON.parse(JSON.stringify(oldConfig)),
-    ).then((x) => {
-      if ("result" in x) return x.result
-      if ("error" in x) throw new Error("Error getting config: " + x.error)
-      throw new Error("Error getting config: " + x["error-code"][1])
-    })) as any
-    const diff = partialDiff(oldConfig, newConfig)
-    if (diff) {
-      await effects.action.request({
-        actionId: "config",
+    await effects.mount({
+      location: `/media/embassy/${id}`,
+      target: {
         packageId: id,
-        replayId: `${id}/config`,
-        severity: "important",
-        reason: `Configure this dependency for the needs of ${this.manifest.title}`,
-        input: {
-          kind: "partial",
-          value: diff.diff,
-        },
-        when: {
-          condition: "input-not-matches",
-          once: false,
-        },
+        volumeId: "embassy",
+        subpath: null,
+        readonly: true,
+      },
+    })
+    configFile
+      .withPath(`/media/embassy/${id}/config.json`)
+      .read()
+      .onChange(effects, async (oldConfig: U.Config) => {
+        if (!oldConfig) return
+        const moduleCode = await this.moduleCode
+        const method = moduleCode?.dependencies?.[id]?.autoConfigure
+        if (!method) return
+        const newConfig = (await method(
+          polyfillEffects(effects, this.manifest),
+          JSON.parse(JSON.stringify(oldConfig)),
+        ).then((x) => {
+          if ("result" in x) return x.result
+          if ("error" in x) throw new Error("Error getting config: " + x.error)
+          throw new Error("Error getting config: " + x["error-code"][1])
+        })) as any
+        const diff = partialDiff(oldConfig, newConfig)
+        if (diff) {
+          await effects.action.request({
+            actionId: "config",
+            packageId: id,
+            replayId: `${id}/config`,
+            severity: "important",
+            reason: `Configure this dependency for the needs of ${this.manifest.title}`,
+            input: {
+              kind: "partial",
+              value: diff.diff,
+            },
+            when: {
+              condition: "input-not-matches",
+              once: false,
+            },
+          })
+        }
       })
-    }
   }
 }
 
@@ -1144,11 +1140,20 @@ async function updateConfig(
     ) {
       if (specValue.target === "config") {
         const jp = require("jsonpath")
-        const remoteConfig = await effects.store.get({
-          packageId: specValue["package-id"],
-          callback: () => effects.restart(),
-          path: EMBASSY_POINTER_PATH_PREFIX,
+        const depId = specValue["package-id"]
+        await effects.mount({
+          location: `/media/embassy/${depId}`,
+          target: {
+            packageId: depId,
+            volumeId: "embassy",
+            subpath: null,
+            readonly: true,
+          },
         })
+        const remoteConfig = configFile
+          .withPath(`/media/embassy/${depId}/config.json`)
+          .read()
+          .once()
         console.debug(remoteConfig)
         const configValue = specValue.multi
           ? jp.query(remoteConfig, specValue.selector)

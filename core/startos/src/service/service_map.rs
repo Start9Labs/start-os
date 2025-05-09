@@ -5,7 +5,7 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use futures::future::{BoxFuture, Fuse};
 use futures::stream::FuturesUnordered;
-use futures::{Future, FutureExt, StreamExt};
+use futures::{Future, FutureExt, StreamExt, TryFutureExt};
 use helpers::NonDetachingJoinHandle;
 use imbl::OrdMap;
 use imbl_value::InternedString;
@@ -332,22 +332,48 @@ impl ServiceMap {
     #[instrument(skip_all)]
     pub async fn uninstall(
         &self,
-        ctx: &RpcContext,
-        id: &PackageId,
+        ctx: RpcContext,
+        id: PackageId,
         soft: bool,
         force: bool,
-    ) -> Result<(), Error> {
-        let mut guard = self.get_mut(id).await;
-        if let Some(service) = guard.take() {
+    ) -> Result<impl Future<Output = Result<(), Error>> + Send, Error> {
+        let mut guard = self.get_mut(&id).await;
+        ctx.db
+            .mutate(|db| {
+                let entry = db
+                    .as_public_mut()
+                    .as_package_data_mut()
+                    .as_idx_mut(&id)
+                    .or_not_found(&id)?;
+                entry.as_state_info_mut().map_mutate(|s| match s {
+                    PackageState::Installed(s) => Ok(PackageState::Removing(s)),
+                    _ => Err(Error::new(
+                        eyre!("Package {id} is not installed."),
+                        crate::ErrorKind::NotFound,
+                    )),
+                })
+            })
+            .await
+            .result?;
+        Ok(async move {
             ServiceRefReloadCancelGuard::new(ctx.clone(), id.clone(), "Uninstall", None)
                 .handle_last(async move {
-                    let res = service.uninstall(None, soft, force).await;
-                    drop(guard);
-                    res
+                    if let Some(service) = guard.take() {
+                        let res = service.uninstall(None, soft, force).await;
+                        drop(guard);
+                        res
+                    } else {
+                        Err(Error::new(
+                            eyre!("service {id} failed to initialize - cannot remove gracefully"),
+                            ErrorKind::Uninitialized,
+                        ))
+                    }
                 })
                 .await?;
+
+            Ok(())
         }
-        Ok(())
+        .or_else(|e: Error| e.wait().map(Err)))
     }
 
     pub async fn shutdown_all(&self) -> Result<(), Error> {
@@ -412,9 +438,13 @@ impl ServiceRefReloadCancelGuard {
             Ok(a) => Ok(a),
             Err(e) => {
                 if let Some(info) = self.0.take() {
-                    tokio::spawn(info.reload(Some(e.clone_output())));
+                    let task_e = e.clone_output();
+                    Err(e.with_task(tokio::spawn(async move {
+                        info.reload(Some(task_e)).await.log_err();
+                    })))
+                } else {
+                    Err(e)
                 }
-                Err(e)
             }
         }
     }
