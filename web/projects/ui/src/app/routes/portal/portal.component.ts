@@ -47,14 +47,9 @@ import { T } from '@start9labs/start-sdk'
           <tui-loader />
           Calculating download size
         }
-        <button
-          tuiButton
-          size="s"
-          [style.display]="update === true ? null : 'none'"
-          (click)="restart()"
-        >
-          Restart
-        </button>
+        @if (update === true) {
+          <button tuiButton size="s" (click)="restart()">Restart</button>
+        }
       </tui-action-bar>
     }
   `,

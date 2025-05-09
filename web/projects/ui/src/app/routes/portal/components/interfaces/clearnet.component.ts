@@ -103,7 +103,8 @@ type ClearnetForm = {
                 >
                   {{ 'Delete' | i18n }}
                 </button>
-                <!-- @TODO Alex I can resolve the issue below by wrapping each button in its own @if block, but that seems silly -->
+              }
+              @if (address.isDomain) {
                 <button
                   tuiOption
                   tuiAppearance="action-destructive"
