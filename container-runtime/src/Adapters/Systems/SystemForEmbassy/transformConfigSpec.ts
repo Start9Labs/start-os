@@ -203,6 +203,7 @@ export function transformNewConfigToOld(
   spec: OldConfigSpec,
   config: Record<string, any>,
 ): Record<string, any> {
+  if (!config) return config
   return Object.entries(spec).reduce((obj, [key, val]) => {
     let newVal = config[key]
 

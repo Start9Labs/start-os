@@ -5,7 +5,7 @@ use std::time::Duration;
 use color_eyre::eyre::eyre;
 use futures::future::{BoxFuture, Fuse};
 use futures::stream::FuturesUnordered;
-use futures::{Future, FutureExt, StreamExt};
+use futures::{Future, FutureExt, StreamExt, TryFutureExt};
 use helpers::NonDetachingJoinHandle;
 use imbl::OrdMap;
 use imbl_value::InternedString;
@@ -372,7 +372,8 @@ impl ServiceMap {
                 .await?;
 
             Ok(())
-        })
+        }
+        .or_else(|e: Error| e.wait().map(Err)))
     }
 
     pub async fn shutdown_all(&self) -> Result<(), Error> {
@@ -437,9 +438,13 @@ impl ServiceRefReloadCancelGuard {
             Ok(a) => Ok(a),
             Err(e) => {
                 if let Some(info) = self.0.take() {
-                    tokio::spawn(info.reload(Some(e.clone_output())));
+                    let task_e = e.clone_output();
+                    Err(e.with_task(tokio::spawn(async move {
+                        info.reload(Some(task_e)).await.log_err();
+                    })))
+                } else {
+                    Err(e)
                 }
-                Err(e)
             }
         }
     }

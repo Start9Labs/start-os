@@ -93,9 +93,9 @@ function toPath(path: ToPath): string {
 type Validator<T, U> = matches.Validator<T, U> | matches.Validator<unknown, U>
 
 type ReadType<A> = {
-  once: () => Promise<A>
-  const: (effects: T.Effects) => Promise<A>
-  watch: (effects: T.Effects) => AsyncGenerator<A, null, unknown>
+  once: () => Promise<A | null>
+  const: (effects: T.Effects) => Promise<A | null>
+  watch: (effects: T.Effects) => AsyncGenerator<A | null, null, unknown>
   onChange: (
     effects: T.Effects,
     callback: (value: A | null, error?: Error) => void | Promise<void>,

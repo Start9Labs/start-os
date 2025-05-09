@@ -16,6 +16,7 @@ use crate::db::model::package::{
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::{FileSystem, MountType};
+use crate::disk::mount::util::{is_mountpoint, unmount};
 use crate::service::effects::prelude::*;
 use crate::status::health_check::NamedHealthCheckResult;
 use crate::util::Invoke;
@@ -109,6 +110,9 @@ pub async fn mount(
     }
 
     tokio::fs::create_dir_all(&mountpoint).await?;
+    if is_mountpoint(&mountpoint).await? {
+        unmount(&mountpoint, true).await?;
+    }
     Command::new("chown")
         .arg("100000:100000")
         .arg(&mountpoint)
