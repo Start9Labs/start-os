@@ -143,7 +143,7 @@ export default {
   140: 'Diagnose-Logs des Tor-Daemons unter StartOS',
   141: 'Downgrade',
   142: 'Neu installieren',
-  143: 'Installierte anzeigen',
+  143: 'Installierte',
   144: 'Wechseln',
   145: 'Installieren',
   146: 'Installation wird gestartet',

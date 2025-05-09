@@ -143,7 +143,7 @@ export default {
   140: 'Registros de diagnóstico del servicio Tor en StartOS',
   141: 'Retroceder versión',
   142: 'Reinstalar',
-  143: 'Ver instalados',
+  143: 'Instalados',
   144: 'Cambiar',
   145: 'Instalar',
   146: 'Iniciando instalación',
