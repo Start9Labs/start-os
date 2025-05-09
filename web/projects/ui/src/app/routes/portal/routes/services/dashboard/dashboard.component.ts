@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
+import { RouterLink } from '@angular/router'
 import { TuiComparator, TuiTable } from '@taiga-ui/addon-table'
+import { TuiButton, TuiLoader } from '@taiga-ui/core'
 import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
 import { DepErrorService } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -15,47 +17,68 @@ import { i18nPipe } from '@start9labs/shared'
   standalone: true,
   template: `
     <ng-container *title>{{ 'Services' | i18n }}</ng-container>
-    <table tuiTable class="g-table" [(sorter)]="sorter">
-      <thead>
-        <tr>
-          <th [style.width.rem]="3"></th>
-          <th tuiTh [requiredSort]="true" [sorter]="name">
-            {{ 'Name' | i18n }}
-          </th>
-          <th tuiTh>{{ 'Version' | i18n }}</th>
-          <th tuiTh [requiredSort]="true" [sorter]="uptime">
-            {{ 'Uptime' | i18n }}
-          </th>
-          <th tuiTh [requiredSort]="true" [sorter]="status">
-            {{ 'Status' | i18n }}
-          </th>
-          <th [style.width.rem]="8" [style.text-indent.rem]="1.5">
-            {{ 'Controls' | i18n }}
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (pkg of services() | tuiTableSort; track $index) {
-          <tr
-            appService
-            [pkg]="pkg"
-            [depErrors]="errors()?.[(pkg | toManifest).id]"
-          ></tr>
-        } @empty {
-          <tr>
-            <td colspan="6">
-              {{
-                services()
-                  ? ('No services installed' | i18n)
-                  : ('Loading' | i18n)
-              }}
-            </td>
-          </tr>
-        }
-      </tbody>
-    </table>
+    @if (!services()) {
+      <tui-loader [style.height.%]="100" [textContent]="'Loading' | i18n" />
+    } @else {
+      @if (services()?.length) {
+        <table tuiTable class="g-table" [(sorter)]="sorter">
+          <thead>
+            <tr>
+              <th [style.width.rem]="3"></th>
+              <th tuiTh [requiredSort]="true" [sorter]="name">
+                {{ 'Name' | i18n }}
+              </th>
+              <th tuiTh>{{ 'Version' | i18n }}</th>
+              <th tuiTh [requiredSort]="true" [sorter]="uptime">
+                {{ 'Uptime' | i18n }}
+              </th>
+              <th tuiTh [requiredSort]="true" [sorter]="status">
+                {{ 'Status' | i18n }}
+              </th>
+              <th [style.width.rem]="8" [style.text-indent.rem]="1.5">
+                {{ 'Controls' | i18n }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (pkg of services() | tuiTableSort; track $index) {
+              <tr
+                appService
+                [pkg]="pkg"
+                [depErrors]="errors()?.[(pkg | toManifest).id]"
+              ></tr>
+            }
+          </tbody>
+        </table>
+      } @else {
+        <section>
+          <div>{{ 'Welcome to' | i18n }}</div>
+          <div>
+            <span class="g-negative">StartOS</span>
+            <span class="g-info">{{ 'sovereign computing' | i18n }}</span>
+          </div>
+          <a tuiButton routerLink="../marketplace">
+            {{ 'View Marketplace' | i18n }}
+          </a>
+        </section>
+      }
+    }
   `,
   styles: `
+    @keyframes slide {
+      50% {
+        margin-block-start: 0;
+      }
+
+      55% {
+        margin-block-start: -1em;
+      }
+
+      100% {
+        margin-block-start: -1em;
+      }
+    }
+
     :host {
       position: relative;
       font-size: 1rem;
@@ -65,6 +88,32 @@ import { i18nPipe } from '@start9labs/shared'
     :host-context(tui-root._mobile) {
       padding: 0;
     }
+
+    section {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: min(9vw, 3rem);
+      line-height: 1em;
+
+      div {
+        height: 1em;
+        display: flex;
+        flex-direction: column;
+        text-align: center;
+        overflow: hidden;
+      }
+
+      span:first-child {
+        animation: slide 9s 3s infinite alternate both linear;
+      }
+
+      a {
+        margin-block-start: 2rem;
+      }
+    }
   `,
   host: { class: 'g-page' },
   imports: [
@@ -73,6 +122,9 @@ import { i18nPipe } from '@start9labs/shared'
     TuiTable,
     TitleDirective,
     i18nPipe,
+    TuiLoader,
+    TuiButton,
+    RouterLink,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

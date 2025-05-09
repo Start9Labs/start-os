@@ -500,4 +500,7 @@ export default {
   497: 'abgeschlossen',
   498: 'Klicken Sie hier, um alle Versionen anzuzeigen',
   499: 'Keine anderen Versionen',
+  500: 'Marktplatz anzeigen',
+  501: 'Willkommen bei',
+  502: 'souveränes computing',
 } satisfies i18n

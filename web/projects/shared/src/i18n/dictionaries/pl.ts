@@ -500,4 +500,7 @@ export default {
   497: 'zakończono',
   498: 'Kliknij, aby zobaczyć wszystkie wersje',
   499: 'Brak innych wersji',
+  500: 'Zobacz Rynek',
+  501: 'Witamy w',
+  502: 'suwerenne przetwarzanie',
 } satisfies i18n

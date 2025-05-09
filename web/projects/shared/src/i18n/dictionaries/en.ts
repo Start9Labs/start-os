@@ -499,4 +499,7 @@ export const ENGLISH = {
   'complete': 497,
   'Click to view all versions': 498,
   'No other versions': 499,
+  'View Marketplace': 500,
+  'Welcome to': 501,
+  'sovereign computing': 502,
 } as const
