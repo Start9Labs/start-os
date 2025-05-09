@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core'
+import { inject, Injectable } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
 import {
   BehaviorSubject,
@@ -17,11 +17,14 @@ import { RR } from './api/api.types'
   providedIn: 'root',
 })
 export class OSService {
+  private readonly api = inject(ApiService)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
+
   osUpdate?: RR.CheckOsUpdateRes
-  updateAvailable$ = new BehaviorSubject<boolean>(false)
+  readonly updateAvailable$ = new BehaviorSubject<boolean>(false)
 
   readonly updating$ = this.patch.watch$('serverInfo', 'statusInfo').pipe(
-    map(status => !!status.updateProgress || status.updated),
+    map(status => status.updateProgress ?? status.updated),
     distinctUntilChanged(),
   )
 
@@ -35,21 +38,12 @@ export class OSService {
   readonly updatingOrBackingUp$ = combineLatest([
     this.updating$,
     this.backingUp$,
-  ]).pipe(map(([updating, backingUp]) => updating || backingUp))
+  ]).pipe(map(([updating, backingUp]) => !!updating || backingUp))
 
   readonly showUpdate$ = combineLatest([
     this.updateAvailable$,
     this.updating$,
-  ]).pipe(
-    map(([available, updating]) => {
-      return available && !updating
-    }),
-  )
-
-  constructor(
-    private readonly api: ApiService,
-    private readonly patch: PatchDB<DataModel>,
-  ) {}
+  ]).pipe(map(([available, updating]) => available && !updating))
 
   async loadOS(): Promise<void> {
     const { version, id } = await getServerInfo(this.patch)
@@ -59,9 +53,11 @@ export class OSService {
       registry: startosRegistry,
       serverId: id,
     })
-    const [latestVersion, _] = Object.entries(this.osUpdate).at(-1)!
-    const updateAvailable =
-      Version.parse(latestVersion).compare(Version.parse(version)) === 'greater'
-    this.updateAvailable$.next(updateAvailable)
+
+    const [latest, _] = Object.entries(this.osUpdate).at(-1)!
+
+    this.updateAvailable$.next(
+      Version.parse(latest).compare(Version.parse(version)) === 'greater',
+    )
   }
 }

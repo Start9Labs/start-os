@@ -108,7 +108,6 @@ export class StatusComponent {
       case 'backingUp':
       case 'restarting':
       case 'removing':
-      case 'restoring':
         return '...'
       default:
         return ''
