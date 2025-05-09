@@ -41,6 +41,7 @@ export class LiveApiService extends ApiService {
       method: Method.POST,
       body,
       url: `/rest/rpc/${guid}`,
+      timeout: 0,
     })
   }
 

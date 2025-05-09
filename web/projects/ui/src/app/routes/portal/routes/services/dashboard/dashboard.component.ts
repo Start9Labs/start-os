@@ -70,20 +70,6 @@ import { i18nPipe } from '@start9labs/shared'
     }
   `,
   styles: `
-    @keyframes slide {
-      50% {
-        margin-block-start: 0;
-      }
-
-      55% {
-        margin-block-start: -1em;
-      }
-
-      100% {
-        margin-block-start: -1em;
-      }
-    }
-
     :host {
       position: relative;
       font-size: 1rem;
@@ -100,6 +86,7 @@ import { i18nPipe } from '@start9labs/shared'
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      text-align: center;
 
       div {
         font-size: min(12vw, 4rem);
@@ -108,6 +95,8 @@ import { i18nPipe } from '@start9labs/shared'
 
       p {
         font-size: 1.5rem;
+        line-height: 1.25em;
+        padding: 0 1rem;
       }
 
       span {

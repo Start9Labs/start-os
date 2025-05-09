@@ -1,5 +1,5 @@
 import { TuiButton } from '@taiga-ui/core'
-import { CommonModule } from '@angular/common'
+import { CommonModule, TitleCasePipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -35,10 +35,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   selector: 'marketplace-controls',
   template: `
     @if (localPkg) {
-      @if (
-        localPkg.stateInfo.state === 'installed' && (localPkg | toManifest);
-        as localManifest
-      ) {
+      @if (localPkg | toManifest; as localManifest) {
         @switch (localManifest.version | compareExver: pkg.version) {
           @case (1) {
             <button
@@ -78,7 +75,11 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
         appearance="secondary-grayscale"
         (click)="showService()"
       >
-        {{ 'View Installed' | i18n }}
+        {{
+          ('View' | i18n) +
+            ' ' +
+            ($any(localPkg.stateInfo.state | titlecase) | i18n)
+        }}
       </button>
     } @else {
       <button
@@ -99,6 +100,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
     TuiButton,
     ToManifestPipe,
     i18nPipe,
+    TitleCasePipe,
   ],
 })
 export class MarketplaceControlsComponent {

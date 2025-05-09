@@ -143,7 +143,7 @@ export default {
   140: 'Logi diagnostyczne usługi Tor w StartOS',
   141: 'Przywróć starszą wersję',
   142: 'Zainstaluj ponownie',
-  143: 'Zobacz zainstalowane',
+  143: 'Zainstalowane',
   144: 'Przełącz',
   145: 'Zainstaluj',
   146: 'Rozpoczynanie instalacji',

@@ -34,8 +34,10 @@ import { i18nPipe } from '@start9labs/shared'
         <a tuiLink [routerLink]="getLink(manifest.id)">
           {{ manifest.title }}
         </a>
+      } @else if (notificationItem.packageId) {
+        {{ notificationItem.packageId }}
       } @else {
-        N/A
+        -
       }
     </td>
     <td class="content">

@@ -142,7 +142,7 @@ export const ENGLISH = {
   'Diagnostic logs for the Tor daemon on StartOS': 140,
   'Downgrade': 141,
   'Reinstall': 142,
-  'View Installed': 143,
+  'Installed': 143,
   'Switch': 144,
   'Install': 145,
   'Beginning install': 146,
