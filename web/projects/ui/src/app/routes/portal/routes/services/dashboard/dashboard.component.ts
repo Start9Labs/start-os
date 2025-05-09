@@ -20,7 +20,7 @@ import { i18nPipe } from '@start9labs/shared'
     @if (!services()) {
       <tui-loader [style.height.%]="100" [textContent]="'Loading' | i18n" />
     } @else {
-      @if (!services()?.length) {
+      @if (services()?.length) {
         <table tuiTable class="g-table" [(sorter)]="sorter">
           <thead>
             <tr>
