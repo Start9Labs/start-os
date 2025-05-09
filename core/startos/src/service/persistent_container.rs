@@ -142,9 +142,19 @@ impl PersistentContainer {
             ReadOnly,
         )
         .await?;
+        let is_compat = tokio::fs::metadata(js_mount.path().join("embassy.js"))
+            .await
+            .is_ok();
 
         let mut volumes = BTreeMap::new();
-        for volume in &s9pk.as_manifest().volumes {
+
+        // TODO: remove once packages are reconverted
+        let added = if is_compat {
+            ["embassy".parse().unwrap()].into_iter().collect()
+        } else {
+            BTreeSet::default()
+        };
+        for volume in s9pk.as_manifest().volumes.union(&added) {
             let mountpoint = lxc_container
                 .rootfs_dir()
                 .join("media/startos/volumes")
