@@ -24,7 +24,6 @@ import {
   number,
   object,
   string,
-  unknown,
 } from "ts-matches"
 import { DeepPartial } from "../../../types"
 
@@ -52,6 +51,22 @@ export class Value<Type> {
   public _TYPE: Type = null as any as Type
   public _PARTIAL: DeepPartial<Type> = null as any as DeepPartial<Type>
 
+  /**
+   * @description Displays a boolean toggle to enable/disable
+   * @example
+   * ```
+    toggleExample: Value.toggle({
+      // required
+      name: 'Toggle Example',
+      default: true,
+    
+      // optional
+      description: null,
+      warning: null,
+      immutable: false,
+    }),
+    * ```
+   */
   static toggle(a: {
     name: string
     description?: string | null
@@ -97,6 +112,30 @@ export class Value<Type> {
       boolean,
     )
   }
+  /**
+   * @description Displays a text input field
+   * @example
+   * ```
+    textExample: Value.text({
+      // required
+      name: 'Text Example',
+      required: false,
+      default: null,
+    
+      // optional
+      description: null,
+      placeholder: null,
+      warning: null,
+      generate: null,
+      inputmode: 'text',
+      masked: false,
+      minLength: null,
+      maxLength: null,
+      patterns: [],
+      immutable: false,
+    }),
+    * ```
+    */
   static text<Required extends boolean>(a: {
     name: string
     description?: string | null
@@ -203,6 +242,26 @@ export class Value<Type> {
       }
     }, string.nullable())
   }
+  /**
+   * @description Displays a large textarea field for long form entry.
+   * @example
+   * ```
+    textareaExample: Value.textarea({
+      // required
+      name: 'Textarea Example',
+      required: false,
+      default: null,
+    
+      // optional
+      description: null,
+      placeholder: null,
+      warning: null,
+      minLength: null,
+      maxLength: null,
+      immutable: false,
+    }),
+    * ```
+    */
   static textarea<Required extends boolean>(a: {
     name: string
     description?: string | null
@@ -265,6 +324,29 @@ export class Value<Type> {
       }
     }, string.nullable())
   }
+  /**
+   * @description Displays a number input field
+   * @example
+   * ```
+    numberExample: Value.number({
+      // required
+      name: 'Number Example',
+      required: false,
+      default: null,
+      integer: true,
+    
+      // optional
+      description: null,
+      placeholder: null,
+      warning: null,
+      min: null,
+      max: null,
+      immutable: false,
+      step: null,
+      units: null,
+    }),
+    * ```
+    */
   static number<Required extends boolean>(a: {
     name: string
     description?: string | null
@@ -350,6 +432,23 @@ export class Value<Type> {
       }
     }, number.nullable())
   }
+  /**
+   * @description Displays a browser-native color selector.
+   * @example
+   * ```
+    colorExample: Value.color({
+      // required
+      name: 'Color Example',
+      required: false,
+      default: null,
+    
+      // optional
+      description: null,
+      warning: null,
+      immutable: false,
+    }),
+    * ```
+    */
   static color<Required extends boolean>(a: {
     name: string
     description?: string | null
@@ -404,6 +503,26 @@ export class Value<Type> {
       }
     }, string.nullable())
   }
+  /**
+   * @description Displays a browser-native date/time selector.
+   * @example
+   * ```
+    datetimeExample: Value.datetime({
+      // required
+      name: 'Datetime Example',
+      required: false,
+      default: null,
+    
+      // optional
+      description: null,
+      warning: null,
+      immutable: false,
+      inputmode: 'datetime-local',
+      min: null,
+      max: null,
+    }),
+    * ```
+    */
   static datetime<Required extends boolean>(a: {
     name: string
     description?: string | null
@@ -474,6 +593,27 @@ export class Value<Type> {
       }
     }, string.nullable())
   }
+  /**
+   * @description Displays a select modal with radio buttons, allowing for a single selection.
+   * @example
+   * ```
+    selectExample: Value.select({
+      // required
+      name: 'Select Example',
+      default: 'radio1',
+      values: {
+        radio1: 'Radio 1',
+        radio2: 'Radio 2',
+      },
+    
+      // optional
+      description: null,
+      warning: null,
+      immutable: false,
+      disabled: false,
+    }),
+    * ```
+    */
   static select<Values extends Record<string, string>>(a: {
     name: string
     description?: string | null
@@ -540,6 +680,29 @@ export class Value<Type> {
       }
     }, string)
   }
+  /**
+   * @description Displays a select modal with checkboxes, allowing for multiple selections.
+   * @example
+   * ```
+    multiselectExample: Value.multiselect({
+      // required
+      name: 'Multiselect Example',
+      values: {
+        option1: 'Option 1',
+        option2: 'Option 2',
+      },
+      default: [],
+    
+      // optional
+      description: null,
+      warning: null,
+      immutable: false,
+      disabled: false,
+      minlength: null,
+      maxLength: null,
+    }),
+    * ```
+    */
   static multiselect<Values extends Record<string, string>>(a: {
     name: string
     description?: string | null
@@ -611,6 +774,23 @@ export class Value<Type> {
       }
     }, arrayOf(string))
   }
+  /**
+   * @description Display a collapsable grouping of additional fields, a "sub form". The second value is the inputSpec spec for the sub form.
+   * @example
+   * ```
+    objectExample: Value.object(
+      {
+        // required
+        name: 'Object Example',
+    
+        // optional
+        description: null,
+        warning: null,
+      },
+      InputSpec.of({}),
+    ),
+    * ```
+    */
   static object<Type extends Record<string, any>>(
     a: {
       name: string
@@ -670,6 +850,35 @@ export class Value<Type> {
   //     object({ filePath: string }).nullable(),
   //   )
   // }
+  /**
+   * @description Displays a dropdown, allowing for a single selection. Depending on the selection, a different object ("sub form") is presented.
+   * @example
+   * ```
+    unionExample: Value.union(
+      {
+        // required
+        name: 'Union Example',
+        default: 'option1',
+    
+        // optional
+        description: null,
+        warning: null,
+        disabled: false,
+        immutable: false,
+      },
+      Variants.of({
+        option1: {
+          name: 'Option 1',
+          spec: InputSpec.of({}),
+        },
+        option2: {
+          name: 'Option 2',
+          spec: InputSpec.of({}),
+        },
+      }),
+    ),
+    * ```
+    */
   static union<
     VariantValues extends {
       [K in string]: {
@@ -769,11 +978,80 @@ export class Value<Type> {
       }
     }, aVariants.validator)
   }
+  /**
+   * @description Presents an interface to add/remove/edit items in a list.
+   * @example
+   * In this example, we create a list of text inputs.
+   * 
+   * ```
+    listExampleText: Value.list(
+      List.text(
+        {
+          // required
+          name: 'Text List',
 
+          // optional
+          description: null,
+          warning: null,
+          default: [],
+          minLength: null,
+          maxLength: null,
+        },
+        {
+          // required
+          patterns: [],
+
+          // optional
+          placeholder: null,
+          generate: null,
+          inputmode: 'url',
+          masked: false,
+          minLength: null,
+          maxLength: null,
+        },
+      ),
+    ),
+   * ```
+   * @example
+   * In this example, we create a list of objects.
+   * 
+   * ```
+    listExampleObject: Value.list(
+      List.obj(
+        {
+          // required
+          name: 'Object List',
+
+          // optional
+          description: null,
+          warning: null,
+          default: [],
+          minLength: null,
+          maxLength: null,
+        },
+        {
+          // required
+          spec: InputSpec.of({}),
+
+          // optional
+          displayAs: null,
+          uniqueBy: null,
+        },
+      ),
+    ),
+   * ```
+   */
   static list<Type>(a: List<Type>) {
     return new Value<Type>((options) => a.build(options), a.validator)
   }
 
+  /**
+   * @description Provides a way to define a hidden field with a static value. Useful for tracking 
+   * @example
+   * ```
+    hiddenExample: Value.hidden(),
+   * ```
+   */
   static hidden<T>(parser: Parser<unknown, T> = any) {
     return new Value<T>(async () => {
       const built: ValueSpecHidden = {

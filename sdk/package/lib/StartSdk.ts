@@ -17,12 +17,7 @@ import { HealthCheck } from "./health/HealthCheck"
 import { checkPortListening } from "./health/checkFns/checkPortListening"
 import { checkWebUrl, runHealthScript } from "./health/checkFns"
 import { List } from "../../base/lib/actions/input/builder/list"
-import {
-  Install,
-  InstallFn,
-  PostInstall,
-  PreInstall,
-} from "./inits/setupInstall"
+import { InstallFn, PostInstall, PreInstall } from "./inits/setupInstall"
 import { SetupBackupsParams, setupBackups } from "./backup/setupBackups"
 import { UninstallFn, setupUninstall } from "./inits/setupUninstall"
 import { setupMain } from "./mainFn"
@@ -326,6 +321,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
          * In this example, we create an action that returns a secret phrase for the user to see.
          * 
          * ```
+          import { store } from '../file-models/store.json'
           import { sdk } from '../sdk'
 
           export const showSecretPhrase = sdk.Action.withoutInput(
@@ -350,9 +346,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
                 'Below is your secret phrase. Use it to gain access to extraordinary places',
               result: {
                 type: 'single',
-                value: await sdk.store
-                  .getOwn(effects, sdk.StorePath.secretPhrase)
-                  .const(),
+                value: (await store.read.once())?.secretPhrase,
                 copyable: true,
                 qr: true,
                 masked: true,
@@ -474,11 +468,11 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       /**
        * @description Use this function to set dependency information.
        * @example
-       * In this example, we create a perpetual dependency on Hello World >=1.0.0:0, where Hello World must be running and passing its "primary" health check.
+       * In this example, we create a dependency on Hello World >=1.0.0:0, where Hello World must be running and passing its "primary" health check.
        *
        * ```
         export const setDependencies = sdk.setupDependencies(
-          async ({ effects, input }) => {
+          async ({ effects }) => {
             return {
               'hello-world': {
                 kind: 'running',
@@ -486,26 +480,6 @@ export class StartSdk<Manifest extends T.SDKManifest> {
                 healthChecks: ['primary'],
               },
             }
-          },
-        )
-       * ```
-       * @example
-       * In this example, we create a conditional dependency on Hello World based on a hypothetical "needsWorld" boolean in our Store.
-       * Using .const() ensures that if the "needsWorld" boolean changes, setupDependencies will re-run.
-       *
-       * ```
-        export const setDependencies = sdk.setupDependencies(
-          async ({ effects }) => {
-            if (sdk.store.getOwn(sdk.StorePath.needsWorld).const()) {
-              return {
-                'hello-world': {
-                  kind: 'running',
-                  versionRange: '>=1.0.0',
-                  healthChecks: ['primary'],
-                },
-              }
-            }
-            return {}
           },
         )
        * ```
@@ -527,18 +501,13 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       /**
        * @description Use this function to execute arbitrary logic *once*, on initial install *after* interfaces, actions, and dependencies are updated.
        * @example
-       * In the this example, we bootstrap our Store with a random, 16-char admin password.
+       * In the this example, we create a task for the user to perform.
        *
        * ```
         const postInstall = sdk.setupPostInstall(async ({ effects }) => {
-          await sdk.store.setOwn(
-            effects,
-            sdk.StorePath.adminPassword,
-            utils.getDefaultString({
-              charset: 'a-z,A-Z,1-9,!,@,$,%,&,',
-              len: 16,
-            }),
-          )
+          await sdk.action.requestOwn(effects, showSecretPhrase, 'important', {
+            reason: 'Check out your secret phrase!',
+          })
         })
        * ```
        */
