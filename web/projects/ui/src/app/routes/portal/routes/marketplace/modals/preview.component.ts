@@ -57,8 +57,8 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
           <marketplace-additional [pkg]="pkg" (static)="onStatic($event)">
             @if (versions$ | async; as versions) {
               <marketplace-additional-item
-                (click)="versions.length ? selectVersion(pkg, version) : 0"
-                [data]="(getVersionText(versions) | i18n) || ''"
+                (click)="selectVersion(pkg, version)"
+                [data]="('Click to view all versions' | i18n) || ''"
                 [icon]="versions.length > 1 ? '@tui.chevron-right' : ''"
                 label="All versions"
                 class="versions"
@@ -212,12 +212,14 @@ export class MarketplacePreviewComponent {
     this.pkg$.pipe(filter(Boolean)),
     this.flavor$,
   ]).pipe(
-    map(([{ otherVersions, version }, flavor]) => [
-      version,
-      ...Object.keys(otherVersions)
-        .filter(v => this.exver.getFlavor(v) === flavor)
-        .sort((a, b) => -1 * (this.exver.compareExver(a, b) || 0)),
-    ]),
+    map(([{ otherVersions, version }, flavor]) =>
+      [
+        version,
+        ...Object.keys(otherVersions).filter(
+          v => this.exver.getFlavor(v) === flavor,
+        ),
+      ].sort((a, b) => -1 * (this.exver.compareExver(a, b) || 0)),
+    ),
   )
 
   open(id: string) {
@@ -239,10 +241,6 @@ export class MarketplacePreviewComponent {
     this.dialog
       .openComponent(MARKDOWN, { label, size: 'l', data: { content } })
       .subscribe()
-  }
-
-  getVersionText({ length }: string[]): i18nKey {
-    return length > 1 ? 'Click to view all versions' : 'No other versions'
   }
 
   selectVersion(

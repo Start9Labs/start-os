@@ -499,7 +499,6 @@ export default {
   496: 'in Bearbeitung',
   497: 'abgeschlossen',
   498: 'Klicken Sie hier, um alle Versionen anzuzeigen',
-  499: 'Keine anderen Versionen',
   500: 'Marktplatz anzeigen',
   501: 'Willkommen bei',
   502: 'souveränes computing',

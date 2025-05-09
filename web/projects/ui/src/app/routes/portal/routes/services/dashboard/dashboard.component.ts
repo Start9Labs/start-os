@@ -20,7 +20,7 @@ import { i18nPipe } from '@start9labs/shared'
     @if (!services()) {
       <tui-loader [style.height.%]="100" [textContent]="'Loading' | i18n" />
     } @else {
-      @if (services()?.length) {
+      @if (!services()?.length) {
         <table tuiTable class="g-table" [(sorter)]="sorter">
           <thead>
             <tr>
@@ -52,11 +52,14 @@ import { i18nPipe } from '@start9labs/shared'
         </table>
       } @else {
         <section>
-          <div>{{ 'Welcome to' | i18n }}</div>
           <div>
-            <span class="g-negative">StartOS</span>
-            <span class="g-info">{{ 'sovereign computing' | i18n }}</span>
+            {{ 'Welcome to' | i18n }}
+            <span>StartOS</span>
           </div>
+          <p>
+            To get started, visit the Marketplace and download your first
+            service
+          </p>
           <a tuiButton routerLink="../marketplace">
             {{ 'View Marketplace' | i18n }}
           </a>
@@ -95,23 +98,22 @@ import { i18nPipe } from '@start9labs/shared'
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      font-size: min(9vw, 3rem);
-      line-height: 1em;
 
       div {
-        height: 1em;
-        display: flex;
-        flex-direction: column;
-        text-align: center;
-        overflow: hidden;
+        font-size: min(12vw, 4rem);
+        line-height: normal;
       }
 
-      span:first-child {
-        animation: slide 9s 3s infinite alternate both linear;
+      p {
+        font-size: 1.5rem;
+      }
+
+      span {
+        color: #ff4961;
       }
 
       a {
-        margin-block-start: 2rem;
+        margin-block-start: 1rem;
       }
     }
   `,

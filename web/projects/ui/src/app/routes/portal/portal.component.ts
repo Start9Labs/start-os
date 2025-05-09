@@ -15,7 +15,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { OSService } from 'src/app/services/os.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { HeaderComponent } from './components/header/header.component'
-import { T } from '@start9labs/start-sdk'
 
 @Component({
   standalone: true,
@@ -31,7 +30,7 @@ import { T } from '@start9labs/start-sdk'
       <tui-action-bar *tuiActionBar="true">
         @if (update === true) {
           <tui-icon icon="@tui.check" class="g-positive" />
-          Updated successfully, restart to apply changes
+          Download complete, restart to apply changes
         } @else if (
           update.overall && update.overall !== true && update.overall.total
         ) {
