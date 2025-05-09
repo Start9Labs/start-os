@@ -143,6 +143,7 @@ export default {
   140: 'Diagnose-Logs des Tor-Daemons unter StartOS',
   141: 'Downgrade',
   142: 'Neu installieren',
+  143: 'Installierte',
   144: 'Wechseln',
   145: 'Installieren',
   146: 'Installation wird gestartet',
@@ -244,7 +245,7 @@ export default {
   242: 'Öffnen',
   243: 'Schnittstellen',
   244: 'Hosting',
-  245: 'Installation',
+  245: 'Installation läuft',
   246: 'Siehe unten',
   247: 'Steuerelemente',
   248: 'Keine Dienste installiert',
@@ -502,5 +503,4 @@ export default {
   500: 'Marktplatz anzeigen',
   501: 'Willkommen bei',
   502: 'souveränes computing',
-  503: 'Installierte',
 } satisfies i18n
