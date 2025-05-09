@@ -498,6 +498,7 @@ export const ENGLISH = {
   'in progress': 496,
   'complete': 497,
   'Click to view all versions': 498,
+  'To get started, visit the Marketplace and download your first service': 499,
   'View Marketplace': 500,
   'Welcome to': 501,
   'sovereign computing': 502,

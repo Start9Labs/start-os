@@ -499,6 +499,7 @@ export default {
   496: 'w toku',
   497: 'zakończono',
   498: 'Kliknij, aby zobaczyć wszystkie wersje',
+  499: 'Aby rozpocząć, odwiedź Marketplace i pobierz swoją pierwszą usługę',
   500: 'Zobacz Rynek',
   501: 'Witamy w',
   502: 'suwerenne przetwarzanie',

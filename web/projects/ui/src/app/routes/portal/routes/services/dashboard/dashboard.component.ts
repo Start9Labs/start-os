@@ -57,8 +57,10 @@ import { i18nPipe } from '@start9labs/shared'
             <span>StartOS</span>
           </div>
           <p>
-            To get started, visit the Marketplace and download your first
-            service
+            {{
+              'To get started, visit the Marketplace and download your first service'
+                | i18n
+            }}
           </p>
           <a tuiButton routerLink="../marketplace">
             {{ 'View Marketplace' | i18n }}

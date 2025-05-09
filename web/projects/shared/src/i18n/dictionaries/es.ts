@@ -499,6 +499,7 @@ export default {
   496: 'en progreso',
   497: 'completo',
   498: 'Haga clic para ver todas las versiones',
+  499: 'Para comenzar, visita el Mercado y descarga tu primer servicio',
   500: 'Ver Marketplace',
   501: 'Bienvenido a',
   502: 'computación soberana',
