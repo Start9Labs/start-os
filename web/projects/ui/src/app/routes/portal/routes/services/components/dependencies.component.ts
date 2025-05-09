@@ -20,7 +20,12 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
         [queryParams]="services[d.key] ? {} : { id: d.key }"
         [class.error]="getError(d.key)"
       >
-        <tui-avatar><img alt="" [src]="d.value.icon" /></tui-avatar>
+        <tui-avatar>
+          <img
+            alt=""
+            [src]="d.value.icon || 'assets/img/service-icons/fallback.png'"
+          />
+        </tui-avatar>
         <span tuiTitle>
           {{ d.value.title }}
           @if (getError(d.key); as error) {
