@@ -3,7 +3,7 @@ import { TuiIcon, TuiLink } from '@taiga-ui/core'
 import { TuiTooltip } from '@taiga-ui/kit'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { InterfaceActionsComponent } from './actions.component'
-import { AddressDetails } from './interface.utils'
+import { LocalAddress } from './interface.utils'
 import { MaskPipe } from './mask.pipe'
 import { DocsLinkDirective, i18nPipe } from '@start9labs/shared'
 
@@ -27,7 +27,7 @@ import { DocsLinkDirective, i18nPipe } from '@start9labs/shared'
     <table [appTable]="['Network Interface', 'URL', null]">
       @for (address of local(); track $index) {
         <tr>
-          <td [style.width.rem]="12">{{ address.label }}</td>
+          <td [style.width.rem]="12">{{ address.nid }}</td>
           <td>{{ address.url | mask }}</td>
           <td [actions]="address.url"></td>
         </tr>
@@ -48,5 +48,5 @@ import { DocsLinkDirective, i18nPipe } from '@start9labs/shared'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InterfaceLocalComponent {
-  readonly local = input.required<readonly AddressDetails[]>()
+  readonly local = input.required<readonly LocalAddress[]>()
 }

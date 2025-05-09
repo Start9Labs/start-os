@@ -132,9 +132,7 @@ export class BackupPhysicalComponent {
   select(target: MappedBackupTarget<DiskBackupTarget>) {
     if (this.type === 'restore' && !target.hasAnyBackup) {
       this.dialog
-        .openAlert('Drive partition does not contain a valid backup', {
-          appearance: 'negative',
-        })
+        .openAlert('Drive partition does not contain a valid backup')
         .subscribe()
     } else {
       this.physicalFolders.emit(target)

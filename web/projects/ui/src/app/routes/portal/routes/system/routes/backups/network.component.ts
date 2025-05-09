@@ -189,18 +189,10 @@ export class BackupNetworkComponent {
 
   select(target: MappedBackupTarget<CifsBackupTarget>) {
     if (!target.entry.mountable) {
-      this.dialog
-        .openAlert(ERROR, {
-          appearance: 'negative',
-          label: 'Unable to connect',
-          autoClose: 0,
-        })
-        .subscribe()
+      this.dialog.openAlert(ERROR, { label: 'Unable to connect' }).subscribe()
     } else if (this.type === 'restore' && !target.hasAnyBackup) {
       this.dialog
-        .openAlert('Network Folder does not contain a valid backup', {
-          appearance: 'negative',
-        })
+        .openAlert('Network Folder does not contain a valid backup')
         .subscribe()
     } else {
       this.networkFolders.emit(target)

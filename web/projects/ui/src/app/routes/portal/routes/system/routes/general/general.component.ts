@@ -337,7 +337,6 @@ export default class SystemGeneralComponent {
 
     try {
       await this.api.resetTor({ wipeState, reason: 'User triggered' })
-
       this.dialog.openAlert('Tor reset in progress').subscribe()
     } catch (e: any) {
       this.errorService.handleError(e)

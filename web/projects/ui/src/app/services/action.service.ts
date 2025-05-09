@@ -89,9 +89,7 @@ export class ActionService {
       this.dialog
         .openAlert(
           `${this.i18n.transform('Action can only be executed when service is')} ${statusesStr}` as i18nKey,
-          {
-            label: 'Forbidden',
-          },
+          { label: 'Forbidden' },
         )
         .pipe(filter(Boolean))
         .subscribe()

@@ -4,6 +4,7 @@ import { MarkdownComponent } from '@start9labs/shared'
 import { defer, map, Observable, of } from 'rxjs'
 import { share } from 'rxjs/operators'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { titleResolver } from 'src/app/utils/title-resolver'
 
 import { ServiceOutletComponent } from './routes/outlet.component'
 import { ServiceRoute } from './routes/service.component'
@@ -11,6 +12,7 @@ import { ServiceRoute } from './routes/service.component'
 export const ROUTES: Routes = [
   {
     path: ':pkgId',
+    title: titleResolver,
     component: ServiceOutletComponent,
     children: [
       {

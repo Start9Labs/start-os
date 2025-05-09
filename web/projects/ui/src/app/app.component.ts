@@ -1,6 +1,5 @@
 import { Component, inject } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
-import { Title } from '@angular/platform-browser'
 import { i18nService } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { merge } from 'rxjs'
@@ -29,7 +28,6 @@ import { PatchMonitorService } from './services/patch-monitor.service'
   `,
 })
 export class AppComponent {
-  private readonly title = inject(Title)
   private readonly i18n = inject(i18nService)
 
   readonly subscription = merge(
@@ -40,10 +38,9 @@ export class AppComponent {
     .subscribe()
 
   readonly ui = inject<PatchDB<DataModel>>(PatchDB)
-    .watch$('ui')
+    .watch$('ui', 'language')
     .pipe(takeUntilDestroyed())
-    .subscribe(({ name, language }) => {
-      this.title.setTitle(name || 'StartOS')
+    .subscribe(language => {
       this.i18n.setLanguage(language || 'english')
     })
 }

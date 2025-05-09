@@ -96,7 +96,7 @@ export default class ServiceActionsRoute {
   readonly rebuild = {
     name: this.i18n.transform('Rebuild Service')!,
     description: this.i18n.transform(
-      'Rebuilds the service container. Only necessary in there is a bug in StartOS',
+      'Rebuilds the service container. Only necessary if there is a bug in StartOS',
     )!,
   }
 
