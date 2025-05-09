@@ -32,7 +32,7 @@ import { i18nPipe } from '@start9labs/shared'
     <td class="service">
       @if (manifest$ | async; as manifest) {
         <a tuiLink [routerLink]="getLink(manifest.id)">
-          {{ manifest.title }}
+          {{ notificationItem.packageId }}
         </a>
       } @else {
         N/A
