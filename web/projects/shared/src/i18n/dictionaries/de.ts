@@ -441,7 +441,7 @@ export default {
   438: 'Kein Internet',
   439: 'Verbindung wird hergestellt',
   440: 'Fährt herunter',
-  441: 'Versionen',
+  441: 'Alle versionen',
   442: 'Neue Benachrichtigungen',
   443: 'Anzeigen',
   444: 'PWA wird neu geladen',
@@ -498,4 +498,9 @@ export default {
   495: 'Validierung',
   496: 'in Bearbeitung',
   497: 'abgeschlossen',
+  498: 'Klicken Sie hier, um alle Versionen anzuzeigen',
+  499: 'Um loszulegen, besuche den Marktplatz und lade deinen ersten Dienst herunter',
+  500: 'Marktplatz anzeigen',
+  501: 'Willkommen bei',
+  502: 'souveränes computing',
 } satisfies i18n

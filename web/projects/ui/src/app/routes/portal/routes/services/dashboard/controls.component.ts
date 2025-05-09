@@ -74,7 +74,7 @@ export class ControlsComponent {
     this.errors.getPkgDepErrors$(this.manifest().id).pipe(
       map(errors =>
         Object.keys(this.pkg().currentDependencies)
-          .map(id => errors[id])
+          .map(id => errors?.[id])
           .some(Boolean),
       ),
     ),

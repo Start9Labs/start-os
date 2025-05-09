@@ -20,6 +20,7 @@ import {
 import {
   DialogService,
   Exver,
+  i18nKey,
   i18nPipe,
   MARKDOWN,
   SharedPipesModule,
@@ -56,22 +57,19 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
           <marketplace-additional [pkg]="pkg" (static)="onStatic($event)">
             @if (versions$ | async; as versions) {
               <marketplace-additional-item
-                (click)="versions.length ? selectVersion(pkg, version) : 0"
-                [data]="
-                  versions.length
-                    ? 'Click to view all versions'
-                    : 'No other versions'
-                "
+                (click)="selectVersion(pkg, version)"
+                [data]="('Click to view all versions' | i18n) || ''"
+                [icon]="versions.length > 1 ? '@tui.chevron-right' : ''"
                 label="All versions"
-                icon="@tui.chevron-right"
                 class="versions"
+                [class.versions_empty]="versions.length < 2"
               />
               <ng-template
                 #version
                 let-data="data"
                 let-completeWith="completeWith"
               >
-                <tui-radio-list [items]="versions" [(ngModel)]="data.value" />
+                <tui-radio-list [items]="versions" [(ngModel)]="data.version" />
                 <footer class="buttons">
                   <button
                     tuiButton
@@ -137,8 +135,13 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
         border-color: rgb(113 113 122);
         border-style: solid;
         cursor: pointer;
+
         ::ng-deep label {
           cursor: pointer;
+        }
+
+        &_empty {
+          pointer-events: none;
         }
       }
 
@@ -209,10 +212,13 @@ export class MarketplacePreviewComponent {
     this.pkg$.pipe(filter(Boolean)),
     this.flavor$,
   ]).pipe(
-    map(([{ otherVersions }, flavor]) =>
-      Object.keys(otherVersions)
-        .filter(v => this.exver.getFlavor(v) === flavor)
-        .sort((a, b) => -1 * (this.exver.compareExver(a, b) || 0)),
+    map(([{ otherVersions, version }, flavor]) =>
+      [
+        version,
+        ...Object.keys(otherVersions).filter(
+          v => this.exver.getFlavor(v) === flavor,
+        ),
+      ].sort((a, b) => -1 * (this.exver.compareExver(a, b) || 0)),
     ),
   )
 
@@ -243,11 +249,9 @@ export class MarketplacePreviewComponent {
   ) {
     this.dialog
       .openComponent<string>(template, {
-        label: 'Versions',
+        label: 'All versions',
         size: 's',
-        data: {
-          value: version,
-        },
+        data: { version },
       })
       .pipe(filter(Boolean))
       .subscribe(version => this.version$.next(version))

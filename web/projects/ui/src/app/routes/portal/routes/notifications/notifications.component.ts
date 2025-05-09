@@ -4,7 +4,8 @@ import {
   inject,
   signal,
 } from '@angular/core'
-import { ErrorService, i18nPipe } from '@start9labs/shared'
+import { ActivatedRoute, Router } from '@angular/router'
+import { ErrorService, i18nPipe, isEmptyObject } from '@start9labs/shared'
 import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
 import { RR, ServerNotifications } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -66,17 +67,22 @@ import { NotificationsTableComponent } from './table.component'
   ],
 })
 export default class NotificationsComponent {
+  private readonly router = inject(Router)
+  private readonly route = inject(ActivatedRoute)
+
   readonly service = inject(NotificationService)
   readonly api = inject(ApiService)
   readonly errorService = inject(ErrorService)
-
   readonly notifications = signal<ServerNotifications | undefined>(undefined)
+  readonly toast = this.route.queryParams.subscribe(params => {
+    this.router.navigate([], { relativeTo: this.route, queryParams: {} })
+
+    if (isEmptyObject(params)) {
+      this.getMore({})
+    }
+  })
 
   open = false
-
-  ngOnInit() {
-    this.getMore({})
-  }
 
   async getMore(params: RR.GetNotificationsReq) {
     try {

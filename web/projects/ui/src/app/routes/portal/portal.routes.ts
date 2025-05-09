@@ -1,8 +1,7 @@
-import { ActivatedRouteSnapshot, Routes } from '@angular/router'
-import { PackageDataEntry } from '../../services/patch-db/data-model'
-import { getManifest } from '../../utils/get-package-data'
-import { SYSTEM_UTILITIES } from '../../utils/system-utilities'
-import { toRouterLink } from '../../utils/to-router-link'
+import { Routes } from '@angular/router'
+import { SYSTEM_UTILITIES } from 'src/app/utils/system-utilities'
+import { titleResolver } from 'src/app/utils/title-resolver'
+import { toRouterLink } from 'src/app/utils/to-router-link'
 import { PortalComponent } from './portal.component'
 
 const ROUTES: Routes = [
@@ -17,54 +16,56 @@ const ROUTES: Routes = [
       },
       {
         path: 'services',
+        data: { title: 'Services' },
+        title: titleResolver,
         loadChildren: () => import('./routes/services/services.routes'),
       },
       // @TODO 041
       // {
-      //   title: systemTabResolver,
+      //   title: titleResolver,
       //   path: 'backups',
       //   loadComponent: () => import('./routes/backups/backups.component'),
       //   data: toNavigationItem('/portal/backups'),
       // },
       {
-        title: systemTabResolver,
+        title: titleResolver,
         path: 'logs',
         loadComponent: () => import('./routes/logs/logs.component'),
         data: toNavigationItem('/portal/logs'),
       },
       {
-        title: systemTabResolver,
+        title: titleResolver,
         path: 'marketplace',
         loadChildren: () => import('./routes/marketplace/marketplace.routes'),
         data: toNavigationItem('/portal/marketplace'),
       },
       {
-        title: systemTabResolver,
+        title: titleResolver,
         path: 'system',
         loadChildren: () => import('./routes/system/system.routes'),
         data: toNavigationItem('/portal/system'),
       },
       {
-        title: systemTabResolver,
+        title: titleResolver,
         path: 'notifications',
         loadComponent: () =>
           import('./routes/notifications/notifications.component'),
         data: toNavigationItem('/portal/notifications'),
       },
       {
-        title: systemTabResolver,
+        title: titleResolver,
         path: 'sideload',
         loadComponent: () => import('./routes/sideload/sideload.component'),
         data: toNavigationItem('/portal/sideload'),
       },
       {
-        title: systemTabResolver,
+        title: titleResolver,
         path: 'updates',
         loadComponent: () => import('./routes/updates/updates.component'),
         data: toNavigationItem('/portal/updates'),
       },
       {
-        title: systemTabResolver,
+        title: titleResolver,
         path: 'metrics',
         loadComponent: () => import('./routes/metrics/metrics.component'),
         data: toNavigationItem('/portal/metrics'),
@@ -75,26 +76,12 @@ const ROUTES: Routes = [
 
 export default ROUTES
 
-function systemTabResolver({ data }: ActivatedRouteSnapshot): string {
-  return data['title']
-}
+function toNavigationItem(id: string) {
+  const { icon, title } = SYSTEM_UTILITIES[id] || {}
 
-function toNavigationItem(
-  id: string,
-  packages: Record<string, PackageDataEntry> = {},
-) {
-  const item = SYSTEM_UTILITIES[id]
-  const routerLink = toRouterLink(id)
-
-  return item
-    ? {
-        icon: item.icon,
-        title: item.title,
-        routerLink,
-      }
-    : {
-        icon: packages[id]?.icon,
-        title: getManifest(packages[id]!).title,
-        routerLink,
-      }
+  return {
+    icon,
+    title,
+    routerLink: toRouterLink(id),
+  }
 }

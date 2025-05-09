@@ -1,22 +1,56 @@
-import { CommonModule } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+} from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterOutlet } from '@angular/router'
-import { TuiScrollbar } from '@taiga-ui/core'
+import { ErrorService, LoadingService } from '@start9labs/shared'
+import { TuiButton, TuiIcon, TuiLoader, TuiScrollbar } from '@taiga-ui/core'
+import { TuiActionBar, TuiProgress } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
 import { TabsComponent } from 'src/app/routes/portal/components/tabs.component'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { OSService } from 'src/app/services/os.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { HeaderComponent } from './components/header/header.component'
 
 @Component({
   standalone: true,
   template: `
-    <header appHeader>{{ name$ | async }}</header>
+    <header appHeader>{{ name() }}</header>
     <main>
       <tui-scrollbar [style.max-height.%]="100">
         <router-outlet />
       </tui-scrollbar>
     </main>
     <app-tabs />
+    @if (update(); as update) {
+      <tui-action-bar *tuiActionBar="true">
+        @if (update === true) {
+          <tui-icon icon="@tui.check" class="g-positive" />
+          Download complete, restart to apply changes
+        } @else if (
+          update.overall && update.overall !== true && update.overall.total
+        ) {
+          <tui-progress-circle
+            size="xxs"
+            [style.display]="'flex'"
+            [max]="100"
+            [value]="getProgress(update.overall.total, update.overall.done)"
+          />
+          Downloading:
+          {{ getProgress(update.overall.total, update.overall.done) }}%
+        } @else {
+          <tui-loader />
+          Calculating download size
+        }
+        @if (update === true) {
+          <button tuiButton size="s" (click)="restart()">Restart</button>
+        }
+      </tui-action-bar>
+    }
   `,
   styles: [
     `
@@ -47,13 +81,39 @@ import { HeaderComponent } from './components/header/header.component'
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
     RouterOutlet,
     HeaderComponent,
     TabsComponent,
     TuiScrollbar,
+    TuiActionBar,
+    TuiProgress,
+    TuiLoader,
+    TuiIcon,
+    TuiButton,
   ],
 })
 export class PortalComponent {
-  readonly name$ = inject<PatchDB<DataModel>>(PatchDB).watch$('ui', 'name')
+  private readonly loader = inject(LoadingService)
+  private readonly errorService = inject(ErrorService)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
+  private readonly api = inject(ApiService)
+
+  readonly name = toSignal(this.patch.watch$('ui', 'name'))
+  readonly update = toSignal(inject(OSService).updating$)
+
+  getProgress(size: number, downloaded: number): number {
+    return Math.round((100 * downloaded) / (size || 1))
+  }
+
+  async restart() {
+    const loader = this.loader.open('Beginning restart').subscribe()
+
+    try {
+      await this.api.restartServer({})
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
+  }
 }

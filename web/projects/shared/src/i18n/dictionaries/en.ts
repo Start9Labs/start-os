@@ -282,7 +282,7 @@ export const ENGLISH = {
   'Donation Link': 280,
   'Standard Actions': 281,
   'Rebuild Service': 282, // as in, rebuild a software container
-  'Rebuilds the service container. Only necessary in there is a bug in StartOS': 283,
+  'Rebuilds the service container. Only necessary if there is a bug in StartOS': 283,
   'Uninstall': 284,
   'Uninstalls this service from StartOS and delete all data permanently.': 285,
   'Dashboard': 286,
@@ -440,7 +440,7 @@ export const ENGLISH = {
   'No Internet': 438,
   'Connecting': 439,
   'Shutting down': 440,
-  'Versions': 441,
+  'All versions': 441,
   'New notifications': 442,
   'View': 443,
   'Reloading PWA': 444,
@@ -497,4 +497,9 @@ export const ENGLISH = {
   'Validating': 495,
   'in progress': 496,
   'complete': 497,
+  'Click to view all versions': 498,
+  'To get started, visit the Marketplace and download your first service': 499,
+  'View Marketplace': 500,
+  'Welcome to': 501,
+  'sovereign computing': 502,
 } as const

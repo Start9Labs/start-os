@@ -86,14 +86,16 @@ export default class ServiceInterfaceRoute {
     const item = serviceInterfaces[this.interfaceId()]
     const key = item?.addressInfo.hostId || ''
     const host = hosts[key]
+    const port = item?.addressInfo.internalPort
 
-    if (!host || !item) {
+    if (!host || !item || !port) {
       return
     }
 
     return {
       ...item,
-      public: !!host?.bindings[item.addressInfo.internalPort]?.net.public,
+      addSsl: host?.bindings[port]?.options.addSsl,
+      public: !!host?.bindings[port]?.net.public,
       addresses: getAddresses(item, host, this.config),
     }
   })
