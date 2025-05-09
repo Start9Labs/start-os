@@ -31,6 +31,9 @@ import { ServiceStatusComponent } from '../components/status.component'
 @Component({
   template: `
     @if (pkg(); as pkg) {
+      @if (pkg.status.main === 'error') {
+        <service-error [pkg]="pkg" />
+      }
       @if (installing()) {
         <service-install-progress [pkg]="pkg" />
       } @else if (installed()) {
@@ -48,22 +51,25 @@ import { ServiceStatusComponent } from '../components/status.component'
           }
         </service-status>
 
-        @if (pkg.status.main === 'error') {
-          <service-error [pkg]="pkg" />
+        @if (status() !== 'backingUp') {
+          <service-interfaces [pkg]="pkg" [disabled]="status() !== 'running'" />
+
+          @if (errors() | async; as errors) {
+            <service-dependencies
+              [pkg]="pkg"
+              [services]="services()"
+              [errors]="errors"
+            />
+          }
+
+          <service-health-checks [checks]="health()" />
+          <service-action-requests [pkg]="pkg" [services]="services() || {}" />
         }
-
-        <service-interfaces [pkg]="pkg" [disabled]="status() !== 'running'" />
-
-        @if (errors() | async; as errors) {
-          <service-dependencies
-            [pkg]="pkg"
-            [services]="services()"
-            [errors]="errors"
-          />
-        }
-
-        <service-health-checks [checks]="health()" />
-        <service-action-requests [pkg]="pkg" [services]="services() || {}" />
+      } @else if (removing()) {
+        <service-status
+          [connected]="!!connected()"
+          [status]="status()"
+        ></service-status>
       }
     }
   `,
@@ -134,14 +140,16 @@ export class ServiceRoute {
   )
 
   protected readonly installed = computed(
-    () =>
-      this.pkg()?.stateInfo.state === 'installed' &&
-      this.status() !== 'backingUp',
+    () => this.pkg()?.stateInfo.state === 'installed',
   )
 
   protected readonly installing = computed(
     (state = this.status()) =>
       state === 'installing' || state === 'updating' || state === 'restoring',
+  )
+
+  protected readonly removing = computed(
+    () => this.pkg()?.stateInfo.state === 'removing',
   )
 }
 
