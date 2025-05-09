@@ -143,7 +143,6 @@ export default {
   140: 'Logi diagnostyczne usługi Tor w StartOS',
   141: 'Przywróć starszą wersję',
   142: 'Zainstaluj ponownie',
-  143: 'Zobacz zainstalowane',
   144: 'Przełącz',
   145: 'Zainstaluj',
   146: 'Rozpoczynanie instalacji',
@@ -503,8 +502,5 @@ export default {
   500: 'Zobacz Rynek',
   501: 'Witamy w',
   502: 'suwerenne przetwarzanie',
-  503: 'Zobacz instalację',
-  504: 'Zobacz przywracanie',
-  505: 'Zobacz usuwanie',
-  506: 'Zobacz aktualizację',
+  503: 'Zainstalowane',
 } satisfies i18n

@@ -143,7 +143,6 @@ export default {
   140: 'Registros de diagnóstico del servicio Tor en StartOS',
   141: 'Retroceder versión',
   142: 'Reinstalar',
-  143: 'Ver instalados',
   144: 'Cambiar',
   145: 'Instalar',
   146: 'Iniciando instalación',
@@ -503,8 +502,5 @@ export default {
   500: 'Ver Marketplace',
   501: 'Bienvenido a',
   502: 'computación soberana',
-  503: 'Ver instalación',
-  504: 'Ver restauración',
-  505: 'Ver eliminación',
-  506: 'Ver actualización',
+  503: 'Instalados',
 } satisfies i18n

@@ -142,7 +142,6 @@ export const ENGLISH = {
   'Diagnostic logs for the Tor daemon on StartOS': 140,
   'Downgrade': 141,
   'Reinstall': 142,
-  'View Installed': 143,
   'Switch': 144,
   'Install': 145,
   'Beginning install': 146,
@@ -502,8 +501,5 @@ export const ENGLISH = {
   'View Marketplace': 500,
   'Welcome to': 501,
   'sovereign computing': 502,
-  'View Installing': 503,
-  'View Restoring': 504,
-  'View Removing': 505,
-  'View Updating': 506,
+  'Installed': 503,
 } as const
