@@ -78,11 +78,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
         appearance="secondary-grayscale"
         (click)="showService()"
       >
-        {{
-          'View ' +
-            localPkg.stateInfo.state.charAt(0).toUpperCase() +
-            localPkg.stateInfo.state.slice(1) | i18n
-        }}
+        {{ 'View ' + localPkg.stateInfo.state | titlecase | i18n }}
       </button>
     } @else {
       <button
