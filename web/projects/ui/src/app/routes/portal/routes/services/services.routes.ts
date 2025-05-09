@@ -30,7 +30,7 @@ export const ROUTES: Routes = [
         canActivate: [
           ({ paramMap }: ActivatedRouteSnapshot) => {
             inject(ApiService)
-              .setDbValue(['ack-instructions', paramMap.get('pkgId')!], true)
+              .setDbValue(['ackInstructions', paramMap.get('pkgId')!], true)
               .catch(e => console.error('Failed to mark as seen', e))
 
             return true
