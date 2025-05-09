@@ -503,4 +503,8 @@ export default {
   500: 'Zobacz Rynek',
   501: 'Witamy w',
   502: 'suwerenne przetwarzanie',
+  503: 'Zobacz instalację',
+  504: 'Zobacz przywracanie',
+  505: 'Zobacz usuwanie',
+  506: 'Zobacz aktualizację',
 } satisfies i18n

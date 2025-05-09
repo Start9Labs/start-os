@@ -503,4 +503,8 @@ export default {
   500: 'Marktplatz anzeigen',
   501: 'Willkommen bei',
   502: 'souveränes computing',
+  503: 'Installation ansehen',
+  504: 'Wiederherstellung ansehen',
+  505: 'Entfernung ansehen',
+  506: 'Aktualisierung ansehen',
 } satisfies i18n

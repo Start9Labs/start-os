@@ -503,4 +503,8 @@ export default {
   500: 'Ver Marketplace',
   501: 'Bienvenido a',
   502: 'computación soberana',
+  503: 'Ver instalación',
+  504: 'Ver restauración',
+  505: 'Ver eliminación',
+  506: 'Ver actualización',
 } satisfies i18n

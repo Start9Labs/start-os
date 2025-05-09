@@ -36,7 +36,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   template: `
     @if (localPkg) {
       @if (
-        localPkg.stateInfo.state === 'installed' && (localPkg | toManifest);
+        localPkg.stateInfo.state && (localPkg | toManifest);
         as localManifest
       ) {
         @switch (localManifest.version | compareExver: pkg.version) {
@@ -78,7 +78,11 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
         appearance="secondary-grayscale"
         (click)="showService()"
       >
-        {{ 'View Installed' | i18n }}
+        {{
+          'View ' +
+            localPkg.stateInfo.state.charAt(0).toUpperCase() +
+            localPkg.stateInfo.state.slice(1) | i18n
+        }}
       </button>
     } @else {
       <button
