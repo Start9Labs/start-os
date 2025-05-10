@@ -56,7 +56,9 @@ export function getAddresses(
     addresses.forEach(url => {
       if (h.kind === 'onion') {
         tor.push({
-          protocol: new URL(url).protocol.replace(':', '').toUpperCase(),
+          protocol: /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(url)
+            ? new URL(url).protocol.replace(':', '').toUpperCase()
+            : null,
           url,
         })
       } else {
@@ -128,5 +130,5 @@ export type LocalAddress = {
 
 export type TorAddress = {
   url: string
-  protocol: string
+  protocol: string | null
 }
