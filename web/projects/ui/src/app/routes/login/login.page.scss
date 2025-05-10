@@ -1,0 +1,33 @@
+@import '@taiga-ui/core/styles/taiga-ui-local';
+
+.card {
+  @include center-all();
+  overflow: visible;
+  align-items: center;
+  text-align: center;
+  width: max(33%, 20rem);
+  background: var(--start9-base-1);
+  box-shadow: var(--tui-shadow-small);
+}
+
+.logo {
+  @include center-left();
+  top: -17%;
+  width: 6rem;
+}
+
+.header {
+  margin: 2rem 0 1rem;
+  text-align: center;
+  font-size: 2rem;
+}
+
+.error {
+  min-height: 2.5rem;
+}
+
+.button {
+  width: 10rem;
+  border-radius: 10rem;
+  margin-bottom: 1rem;
+}

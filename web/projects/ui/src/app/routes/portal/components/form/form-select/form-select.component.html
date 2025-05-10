@@ -1,0 +1,17 @@
+<tui-select
+  [tuiHintContent]="spec | hint"
+  [disabled]="disabled"
+  [readOnly]="readOnly"
+  [tuiTextfieldCleaner]="false"
+  [pseudoInvalid]="invalid"
+  [(ngModel)]="selected"
+  (focusedChange)="onFocus($event)"
+>
+  {{ spec.name }} *
+  <select
+    tuiSelect
+    [placeholder]="spec.name"
+    [items]="items"
+    [disabledItemHandler]="disabledItemHandler"
+  ></select>
+</tui-select>

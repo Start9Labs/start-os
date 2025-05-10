@@ -55,7 +55,7 @@ pub fn validate_configuration(
         Ok(_) => {
             // create temp config file
             serde_yaml::to_writer(
-                std::fs::File::create(config_path.with_extension("tmp"))?,
+                std::fs::create_file(config_path.with_extension("tmp"))?,
                 &config,
             )?;
             std::fs::rename(config_path.with_extension("tmp"), config_path)?;

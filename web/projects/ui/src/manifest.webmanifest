@@ -5,12 +5,18 @@
   "background_color": "#1e1e1e",
   "display": "standalone",
   "scope": ".",
-  "start_url": "/?version=0351",
-  "id": "/?version=0351",
+  "start_url": "/?version=036",
+  "id": "/?version=036",
   "icons": [
     {
-      "src": "assets/img/icon.png",
-      "sizes": "256x256",
+      "src": "/assets/icons/web-app-manifest-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/icons/web-app-manifest-512x512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     }
