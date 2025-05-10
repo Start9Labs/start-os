@@ -54,10 +54,12 @@ export class OSService {
       serverId: id,
     })
 
-    const [latest, _] = Object.entries(this.osUpdate).at(-1)!
+    const latest = Object.entries(this.osUpdate).at(-1)?.[0]
 
     this.updateAvailable$.next(
-      Version.parse(latest).compare(Version.parse(version)) === 'greater',
+      latest
+        ? Version.parse(latest).compare(Version.parse(version)) === 'greater'
+        : false,
     )
   }
 }
