@@ -58,10 +58,9 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
               <marketplace-additional-item
                 (click)="selectVersion(pkg, version)"
                 [data]="('Click to view all versions' | i18n) || ''"
-                [icon]="versions.length > 1 ? '@tui.chevron-right' : ''"
+                icon="@tui.chevron-right"
                 label="All versions"
                 class="versions"
-                [class.versions_empty]="versions.length < 2"
               />
               <ng-template
                 #version
@@ -137,10 +136,6 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
 
         ::ng-deep label {
           cursor: pointer;
-        }
-
-        &_empty {
-          pointer-events: none;
         }
       }
 
