@@ -150,8 +150,8 @@ enum Version {
     V0_3_6_alpha_18(Wrapper<v0_3_6_alpha_18::Version>),
     V0_4_0_alpha_0(Wrapper<v0_4_0_alpha_0::Version>),
     V0_4_0_alpha_1(Wrapper<v0_4_0_alpha_1::Version>),
-    V0_4_0_alpha_2(Wrapper<v0_4_0_alpha_1::Version>),
-    V0_4_0_alpha_3(Wrapper<v0_4_0_alpha_1::Version>), // VERSION_BUMP
+    V0_4_0_alpha_2(Wrapper<v0_4_0_alpha_2::Version>),
+    V0_4_0_alpha_3(Wrapper<v0_4_0_alpha_3::Version>), // VERSION_BUMP
     Other(exver::Version),
 }
 
