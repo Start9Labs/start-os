@@ -503,4 +503,5 @@ export default {
   500: 'Ver Marketplace',
   501: 'Bienvenido a',
   502: 'computación soberana',
+  503: 'Personaliza el nombre que aparece en la pestaña de tu navegador',
 } satisfies i18n

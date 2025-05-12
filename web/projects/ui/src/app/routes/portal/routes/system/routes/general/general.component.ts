@@ -92,7 +92,9 @@ import { SystemWipeComponent } from './wipe.component'
         <tui-icon icon="@tui.app-window" />
         <span tuiTitle>
           <strong>{{ 'Browser Tab Title' | i18n }}</strong>
-          <span tuiSubtitle>{{ name() }}</span>
+          <span tuiSubtitle>
+            {{ 'Customize the name appearing in your browser tab' | i18n }}
+          </span>
         </span>
         <button tuiButton (click)="onTitle()">{{ 'Change' | i18n }}</button>
       </div>

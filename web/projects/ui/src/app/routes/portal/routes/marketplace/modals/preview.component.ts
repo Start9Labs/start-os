@@ -20,7 +20,6 @@ import {
 import {
   DialogService,
   Exver,
-  i18nKey,
   i18nPipe,
   MARKDOWN,
   SharedPipesModule,
