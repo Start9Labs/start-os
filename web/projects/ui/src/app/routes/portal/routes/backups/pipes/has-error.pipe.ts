@@ -3,7 +3,6 @@ import { BackupReport } from 'src/app/services/api/api.types'
 
 @Pipe({
   name: 'hasError',
-  standalone: true,
 })
 export class HasErrorPipe implements PipeTransform {
   transform(report: BackupReport): boolean {

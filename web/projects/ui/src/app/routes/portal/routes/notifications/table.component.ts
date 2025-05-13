@@ -69,19 +69,18 @@ import { i18nPipe } from '@start9labs/shared'
     </tbody>
   `,
   styles: `
-    @import '@taiga-ui/core/styles/taiga-ui-local';
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
     :host-context(tui-root._mobile) {
       margin: 0 -1rem;
 
       input {
-        @include fullsize();
+        @include taiga.fullsize();
         opacity: 0;
       }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     FormsModule,
     TuiCheckbox,

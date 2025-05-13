@@ -6,7 +6,6 @@ import { ServiceHealthCheckComponent } from './health-check.component'
 import { i18nPipe } from '@start9labs/shared'
 
 @Component({
-  standalone: true,
   selector: 'service-health-checks',
   template: `
     <header>{{ 'Health Checks' | i18n }}</header>

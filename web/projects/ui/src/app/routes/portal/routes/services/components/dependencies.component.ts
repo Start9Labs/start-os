@@ -55,7 +55,6 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
   `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     KeyValuePipe,
     RouterLink,

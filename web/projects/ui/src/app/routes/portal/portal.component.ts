@@ -17,7 +17,6 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { HeaderComponent } from './components/header/header.component'
 
 @Component({
-  standalone: true,
   template: `
     <header appHeader>{{ name() }}</header>
     <main>
@@ -52,9 +51,8 @@ import { HeaderComponent } from './components/header/header.component'
       </tui-action-bar>
     }
   `,
-  styles: [
-    `
-      @import '@taiga-ui/core/styles/taiga-ui-local';
+  styles: `
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
       :host {
         height: 100%;
@@ -71,21 +69,20 @@ import { HeaderComponent } from './components/header/header.component'
         }
       }
 
-      main {
-        flex: 1;
-        overflow: hidden;
-        margin: 0 var(--bumper) var(--bumper);
-        filter: grayscale(1) brightness(0.75);
+    main {
+      flex: 1;
+      overflow: hidden;
+      margin: 0 var(--bumper) var(--bumper);
+      filter: grayscale(1) brightness(0.75);
 
-        @include transition(filter);
+      @include taiga.transition(filter);
 
-        header:has([data-status='success']) + &,
-        header:has([data-status='neutral']) + & {
-          filter: none;
-        }
+      header:has([data-status='success']) + &,
+      header:has([data-status='neutral']) + & {
+        filter: none;
       }
-    `,
-  ],
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterOutlet,

@@ -9,6 +9,7 @@ import { ConfigService } from 'src/app/services/config.service'
   selector: 'diagnostic-home',
   templateUrl: 'home.page.html',
   styleUrls: ['home.page.scss'],
+  standalone: false,
 })
 export class HomePage {
   restarted = false

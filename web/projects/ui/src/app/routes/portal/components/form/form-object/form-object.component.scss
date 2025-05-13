@@ -1,4 +1,4 @@
-@import '@taiga-ui/core/styles/taiga-ui-local';
+@use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
 :host {
   display: flex;
@@ -18,7 +18,7 @@
 }
 
 .button {
-  @include transition(transform);
+  @include taiga.transition(transform);
 
   margin-right: 1rem;
 

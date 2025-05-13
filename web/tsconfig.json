@@ -24,8 +24,7 @@
     "paths": {
       /* These paths are relative to each app base folder */
       "@start9labs/marketplace": ["../marketplace/index"],
-      "@start9labs/shared": ["../shared/src/public-api"],
-      "path": ["../../node_modules/path-browserify"]
+      "@start9labs/shared": ["../shared/src/public-api"]
     },
     "typeRoots": ["node_modules/@types"],
     "types": ["node"]

@@ -13,7 +13,6 @@ import { ConfigService } from 'src/app/services/config.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 
 @Component({
-  standalone: true,
   selector: 'app-ui-launch',
   template: `
     @if (interfaces.length > 1) {

@@ -9,7 +9,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 import { T, ISB, IST } from '@start9labs/start-sdk'
 import { GetPackagesRes } from '@start9labs/marketplace'
 
-import markdown from './md-sample.md?raw'
+import markdown from './md-sample.md'
 
 const mockMerkleArchiveCommitment: T.MerkleArchiveCommitment = {
   rootSighash: 'fakehash',

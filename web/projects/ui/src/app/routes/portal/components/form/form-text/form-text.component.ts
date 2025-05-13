@@ -6,6 +6,7 @@ import { Control } from '../control'
   selector: 'form-text',
   templateUrl: './form-text.component.html',
   styleUrls: ['./form-text.component.scss'],
+  standalone: false,
 })
 export class FormTextComponent extends Control<IST.ValueSpecText, string> {
   masked = true

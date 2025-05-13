@@ -1,16 +1,15 @@
-import { TuiScrollbar } from '@taiga-ui/core'
 import { AsyncPipe } from '@angular/common'
 import { Component, ElementRef, inject } from '@angular/core'
 import {
-  WaIntersectionObserver,
   INTERSECTION_ROOT,
+  WaIntersectionObserver,
 } from '@ng-web-apis/intersection-observer'
 import { WaMutationObserver } from '@ng-web-apis/mutation-observer'
-import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
+import { TuiScrollbar } from '@taiga-ui/core'
+import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import { SetupLogsService } from '../services/setup-logs.service'
 
 @Component({
-  standalone: true,
   selector: 'logs-window',
   template: `
     <tui-scrollbar childList subtree (waMutationObserver)="scrollTo(bottom)">
@@ -29,7 +28,7 @@ import { SetupLogsService } from '../services/setup-logs.service'
     AsyncPipe,
     WaMutationObserver,
     WaIntersectionObserver,
-    NgDompurifyModule,
+    NgDompurifyPipe,
     TuiScrollbar,
   ],
   providers: [

@@ -8,7 +8,6 @@ import { Version } from '@start9labs/start-sdk'
 
 @Pipe({
   name: 'toOptions',
-  standalone: true,
 })
 export class ToOptionsPipe implements PipeTransform {
   private readonly config = inject(ConfigService)

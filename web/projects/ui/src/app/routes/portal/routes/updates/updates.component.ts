@@ -206,7 +206,6 @@ interface UpdatesData {
     '[class._selected]': 'current()',
   },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     TuiCell,
     TuiAvatar,

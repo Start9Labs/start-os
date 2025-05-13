@@ -2,7 +2,6 @@ import { inject, Pipe, PipeTransform } from '@angular/core'
 import { InterfaceComponent } from './interface.component'
 
 @Pipe({
-  standalone: true,
   name: 'mask',
 })
 export class MaskPipe implements PipeTransform {

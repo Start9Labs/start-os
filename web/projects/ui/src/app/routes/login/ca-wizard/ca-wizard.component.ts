@@ -7,7 +7,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
-  standalone: true,
   selector: 'ca-wizard',
   templateUrl: './ca-wizard.component.html',
   styleUrls: ['./ca-wizard.component.scss'],

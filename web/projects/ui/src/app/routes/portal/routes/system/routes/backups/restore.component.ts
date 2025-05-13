@@ -16,10 +16,13 @@ import { BackupContext } from './backup.types'
 import { RECOVER } from './recover.component'
 
 @Component({
-  standalone: true,
   template: `
     @for (server of target.entry.startOs | keyvalue; track $index) {
-      <button tuiCell (click)="onClick(server.key, server.value)">
+      <button
+        tuiCell
+        class="g-stretch"
+        (click)="onClick(server.key, server.value)"
+      >
         <span tuiTitle>
           <span tuiSubtitle>
             <b>{{ 'Local Hostname' | i18n }}</b>
@@ -35,11 +38,6 @@ import { RECOVER } from './recover.component'
           </span>
         </span>
       </button>
-    }
-  `,
-  styles: `
-    [tuiCell] {
-      width: stretch;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

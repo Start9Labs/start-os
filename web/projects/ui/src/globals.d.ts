@@ -1,4 +1,4 @@
-declare module '*.md?raw' {
+declare module '*.md' {
   const content: string
   export default content
 }

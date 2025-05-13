@@ -20,7 +20,6 @@ import { i18nPipe } from '@start9labs/shared'
 const RUNNING = ['running', 'starting', 'restarting']
 
 @Component({
-  standalone: true,
   selector: 'fieldset[appControls]',
   template: `
     <app-ui-launch [pkg]="pkg()" />

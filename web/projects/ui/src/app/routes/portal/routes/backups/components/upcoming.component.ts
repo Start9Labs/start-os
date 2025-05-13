@@ -93,7 +93,6 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [GetBackupIconPipe, DatePipe, TuiIcon, TuiSkeleton],
 })
 export class BackupsUpcomingComponent {

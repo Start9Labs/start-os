@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { DocsLinkDirective } from '@start9labs/shared'
 
 @Component({
-  standalone: true,
   selector: 'app-documentation',
   template: `
     <!doctype html>

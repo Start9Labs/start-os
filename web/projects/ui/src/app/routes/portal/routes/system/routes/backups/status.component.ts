@@ -9,7 +9,6 @@ import { i18nPipe } from '@start9labs/shared'
 import { TuiIcon } from '@taiga-ui/core'
 
 @Component({
-  standalone: true,
   selector: '[backupStatus]',
   template: `
     @if (type === 'create') {

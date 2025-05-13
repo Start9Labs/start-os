@@ -70,22 +70,19 @@ import { i18nKey, i18nPipe } from '@start9labs/shared'
     }
   `,
   host: { class: 'g-page', '[style.padding-top.rem]': '2' },
-  styles: [
-    `
-      label {
-        height: 100%;
-        max-width: 42rem;
-        margin: 0 auto;
-      }
+  styles: `
+    label {
+      height: 100%;
+      max-width: 42rem;
+      margin: 0 auto;
+    }
 
-      button {
-        margin-bottom: 2rem;
-      }
-    `,
-  ],
+    button {
+      margin-bottom: 2rem;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [tuiInputFilesOptionsProvider({ maxFileSize: Infinity })],
-  standalone: true,
   imports: [
     FormsModule,
     TuiFiles,

@@ -125,7 +125,6 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     CommonModule,
     FormsModule,

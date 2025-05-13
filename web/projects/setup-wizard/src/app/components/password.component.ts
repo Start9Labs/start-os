@@ -7,7 +7,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
-import * as argon2 from '@start9labs/argon2'
+import { verify } from '@start9labs/argon2'
 import { ErrorService } from '@start9labs/shared'
 import { TuiAutoFocus, TuiMapperPipe, TuiValidator } from '@taiga-ui/cdk'
 import {
@@ -30,7 +30,6 @@ interface DialogData {
 }
 
 @Component({
-  standalone: true,
   template: `
     @if (storageDrive) {
       Choose a password for your server.
@@ -142,7 +141,7 @@ export class PasswordComponent {
     }
 
     try {
-      argon2.verify(this.context.data.passwordHash || '', password)
+      verify(this.context.data.passwordHash || '', password)
       this.context.completeWith(password)
     } catch (e) {
       this.errorService.handleError('Incorrect password provided')

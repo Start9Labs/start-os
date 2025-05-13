@@ -61,7 +61,6 @@ import { TARGETS } from './targets.component'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     TuiLoader,
     TuiButton,

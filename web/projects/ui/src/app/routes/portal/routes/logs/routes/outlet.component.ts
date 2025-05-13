@@ -19,7 +19,6 @@ import { TitleDirective } from 'src/app/services/title.service'
       </a>
     }
   `,
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'g-page' },
   styles: [

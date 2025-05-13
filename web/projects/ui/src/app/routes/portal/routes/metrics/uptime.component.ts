@@ -4,7 +4,6 @@ import { i18nPipe } from '@start9labs/shared'
 import { TimeService } from 'src/app/services/time.service'
 
 @Component({
-  standalone: true,
   selector: 'metrics-uptime',
   template: `
     @if (uptime(); as time) {

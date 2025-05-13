@@ -8,9 +8,14 @@ import { BackupType } from '../types/backup-type'
     <tui-icon [icon]="status.icon" [style.color]="status.color" />
     {{ status.text }}
   `,
-  styles: [':host { display: flex; gap: 0.5rem; align-items: center }'],
+  styles: `
+    :host {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [TuiIcon],
 })
 export class BackupsStatusComponent {

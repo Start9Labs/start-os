@@ -16,7 +16,6 @@ import { tuiInjectElement } from '@taiga-ui/cdk'
       subtree: true,
     }),
   ],
-  standalone: true,
 })
 export class SafeLinksDirective {
   private readonly doc = inject(DOCUMENT)

@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 
 @Component({
-  standalone: true,
   selector: 'metrics-temperature',
   template: `
     <svg viewBox="0 0 43 95" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -52,7 +51,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core'
     <b>{{ value() ? value() + ' C°' : 'N/A' }}</b>
   `,
   styles: `
-    @import '@taiga-ui/core/styles/taiga-ui-local';
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
     :host {
       height: 100%;
@@ -78,7 +77,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core'
     }
 
     .bar {
-      @include transition(clip-path);
+      @include taiga.transition(clip-path);
       clip-path: inset(var(--fill) 0 0 0);
     }
   `,

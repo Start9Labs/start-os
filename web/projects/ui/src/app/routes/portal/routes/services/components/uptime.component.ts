@@ -66,7 +66,6 @@ import { distinctUntilChanged } from 'rxjs/operators'
     `,
   ],
   host: { class: 'g-card' },
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [i18nPipe, AsyncPipe],
 })

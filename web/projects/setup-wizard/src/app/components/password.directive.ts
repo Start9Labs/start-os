@@ -5,7 +5,6 @@ import { filter, fromEvent, switchMap } from 'rxjs'
 import { PASSWORD } from 'src/app/components/password.component'
 
 @Directive({
-  standalone: true,
   selector: 'button[server][password]',
 })
 export class PasswordDirective {

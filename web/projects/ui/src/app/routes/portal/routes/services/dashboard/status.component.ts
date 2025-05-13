@@ -12,7 +12,6 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 
 @Component({
-  standalone: true,
   selector: 'td[appStatus]',
   template: `
     @if (loading) {

@@ -29,7 +29,6 @@ import { LogsComponent } from './logs.component'
 
 @Pipe({
   name: 'logs',
-  standalone: true,
 })
 export class LogsPipe implements PipeTransform {
   private readonly api = inject(ApiService)

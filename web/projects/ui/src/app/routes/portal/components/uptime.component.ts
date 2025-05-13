@@ -2,7 +2,6 @@ import { Component, Input, OnChanges, OnDestroy } from '@angular/core'
 import { tuiInjectElement } from '@taiga-ui/cdk'
 
 @Component({
-  standalone: true,
   selector: '[appUptime]',
   template: '',
   styles: `

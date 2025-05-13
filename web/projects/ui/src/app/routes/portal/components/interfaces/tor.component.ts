@@ -40,7 +40,6 @@ type OnionForm = {
 }
 
 @Component({
-  standalone: true,
   selector: 'section[tor]',
   template: `
     <header>

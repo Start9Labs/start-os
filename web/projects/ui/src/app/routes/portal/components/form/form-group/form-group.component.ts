@@ -25,6 +25,7 @@ export const ERRORS = [
   encapsulation: ViewEncapsulation.None,
   changeDetection: ChangeDetectionStrategy.OnPush,
   viewProviders: [FORM_GROUP_PROVIDERS],
+  standalone: false,
 })
 export class FormGroupComponent {
   @Input() spec: IST.InputSpec = {}

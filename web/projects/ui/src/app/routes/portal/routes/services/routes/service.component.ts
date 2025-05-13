@@ -143,7 +143,6 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
   `,
   host: { class: 'g-subpage' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     CommonModule,
     TuiElement,

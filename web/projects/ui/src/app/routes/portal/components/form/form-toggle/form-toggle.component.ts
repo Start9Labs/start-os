@@ -6,6 +6,7 @@ import { Control } from '../control'
   selector: 'form-toggle',
   templateUrl: './form-toggle.component.html',
   host: { class: 'g-toggle' },
+  standalone: false,
 })
 export class FormToggleComponent extends Control<
   IST.ValueSpecToggle,

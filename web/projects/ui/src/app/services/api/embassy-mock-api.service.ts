@@ -26,7 +26,7 @@ import { MarketplacePkg } from '@start9labs/marketplace'
 import { WebSocketSubject } from 'rxjs/webSocket'
 import { toAcmeUrl } from 'src/app/utils/acme'
 
-import markdown from './md-sample.md?raw'
+import markdown from './md-sample.md'
 
 const PROGRESS: T.FullProgress = {
   overall: {

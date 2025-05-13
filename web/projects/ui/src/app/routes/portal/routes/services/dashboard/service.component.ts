@@ -17,7 +17,6 @@ import { ControlsComponent } from './controls.component'
 import { StatusComponent } from './status.component'
 
 @Component({
-  standalone: true,
   selector: 'tr[appService]',
   template: `
     <td [style.grid-area]="'1 / 1 / 4'">
@@ -48,10 +47,10 @@ import { StatusComponent } from './status.component'
     </td>
   `,
   styles: `
-    @import '@taiga-ui/core/styles/taiga-ui-local';
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
     :host {
-      @include transition(background);
+      @include taiga.transition(background);
       clip-path: inset(0 round 0.5rem);
       cursor: pointer;
 

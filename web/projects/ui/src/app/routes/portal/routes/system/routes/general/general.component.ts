@@ -235,7 +235,6 @@ import { SystemWipeComponent } from './wipe.component'
   providers: [tuiCellOptionsProvider({ height: 'spacious' })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   animations: [tuiScaleIn, tuiFadeIn],
-  standalone: true,
   imports: [
     AsyncPipe,
     RouterLink,

@@ -35,7 +35,6 @@ export interface FormContext<T> {
 }
 
 @Component({
-  standalone: true,
   selector: 'app-form',
   template: `
     <form
@@ -71,22 +70,20 @@ export interface FormContext<T> {
       </footer>
     </form>
   `,
-  styles: [
-    `
-      footer {
-        position: sticky;
-        bottom: 0;
-        z-index: 10;
-        display: flex;
-        justify-content: flex-end;
-        padding: 1rem 0;
-        margin: 1rem -1px -1rem;
-        gap: 1rem;
-        background: var(--tui-background-elevation-1);
-        border-top: 1px solid var(--tui-background-base-alt);
-      }
-    `,
-  ],
+  styles: `
+    footer {
+      position: sticky;
+      bottom: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: flex-end;
+      padding: 1rem 0;
+      margin: 1rem -1px -1rem;
+      gap: 1rem;
+      background: var(--tui-background-elevation-1);
+      border-top: 1px solid var(--tui-background-base-alt);
+    }
+  `,
   imports: [
     CommonModule,
     ReactiveFormsModule,

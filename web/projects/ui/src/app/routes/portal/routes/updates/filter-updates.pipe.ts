@@ -9,7 +9,6 @@ import {
 
 @Pipe({
   name: 'filterUpdates',
-  standalone: true,
 })
 export class FilterUpdatesPipe implements PipeTransform {
   private readonly exver = inject(Exver)

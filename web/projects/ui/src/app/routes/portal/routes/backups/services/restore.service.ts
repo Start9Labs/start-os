@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core'
 import { Router } from '@angular/router'
-import * as argon2 from '@start9labs/argon2'
+import { verify } from '@start9labs/argon2'
 import {
   ErrorService,
   LoadingService,
@@ -79,7 +79,7 @@ export class BackupsRestoreService {
     hash: string | null,
   ): Observable<RecoverData> {
     return of(password).pipe(
-      tap(() => argon2.verify(hash || '', password)),
+      tap(() => verify(hash || '', password)),
       switchMap(() => {
         const loader = this.loader.open('Decrypting drive').subscribe()
 

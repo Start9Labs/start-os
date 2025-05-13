@@ -7,7 +7,6 @@ import SystemGeneralComponent from './general.component'
 import { i18nPipe } from '@start9labs/shared'
 
 @Component({
-  standalone: true,
   template: `
     <p>
       @if (isTor) {

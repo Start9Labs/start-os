@@ -14,7 +14,6 @@ import { ServicesService } from './services.service'
 import { i18nPipe } from '@start9labs/shared'
 
 @Component({
-  standalone: true,
   template: `
     <ng-container *title>{{ 'Services' | i18n }}</ng-container>
     @if (!services()) {
