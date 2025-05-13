@@ -11,12 +11,12 @@
       "prefix": "app",
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:browser",
+          "builder": "@angular-devkit/build-angular:application",
           "options": {
             "preserveSymlinks": true,
-            "outputPath": "dist/raw/ui",
+            "outputPath": { "base": "dist/raw/ui" },
             "index": "projects/ui/src/index.html",
-            "main": "projects/ui/src/main.ts",
+            "browser": "projects/ui/src/main.ts",
             "polyfills": ["zone.js", "projects/ui/src/polyfills.ts"],
             "tsConfig": "projects/ui/tsconfig.json",
             "inlineStyleLanguage": "scss",
@@ -50,7 +50,7 @@
               "projects/ui/src/styles.scss"
             ],
             "scripts": [],
-            "ngswConfigPath": "projects/ui/ngsw-config.json"
+            "serviceWorker": "projects/ui/ngsw-config.json"
           },
           "configurations": {
             "production": {
@@ -72,9 +72,7 @@
               "extractLicenses": false
             },
             "development": {
-              "buildOptimizer": false,
               "optimization": false,
-              "vendorChunk": true,
               "extractLicenses": false,
               "sourceMap": true,
               "namedChunks": true
@@ -125,11 +123,11 @@
       "prefix": "app",
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:browser",
+          "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/raw/install-wizard",
+            "outputPath": { "base": "dist/raw/install-wizard" },
             "index": "projects/install-wizard/src/index.html",
-            "main": "projects/install-wizard/src/main.ts",
+            "browser": "projects/install-wizard/src/main.ts",
             "polyfills": ["zone.js"],
             "tsConfig": "projects/install-wizard/tsconfig.json",
             "inlineStyleLanguage": "scss",
@@ -169,8 +167,6 @@
               "namedChunks": false,
               "aot": true,
               "extractLicenses": true,
-              "vendorChunk": false,
-              "buildOptimizer": true,
               "budgets": [
                 {
                   "type": "initial",
@@ -183,9 +179,7 @@
               "progress": false
             },
             "development": {
-              "buildOptimizer": false,
               "optimization": false,
-              "vendorChunk": true,
               "extractLicenses": false,
               "sourceMap": true,
               "namedChunks": true
@@ -234,11 +228,11 @@
       "prefix": "app",
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:browser",
+          "builder": "@angular-devkit/build-angular:application",
           "options": {
-            "outputPath": "dist/raw/setup-wizard",
+            "outputPath": { "base": "dist/raw/setup-wizard" },
             "index": "projects/setup-wizard/src/index.html",
-            "main": "projects/setup-wizard/src/main.ts",
+            "browser": "projects/setup-wizard/src/main.ts",
             "polyfills": ["zone.js"],
             "tsConfig": "projects/setup-wizard/tsconfig.json",
             "inlineStyleLanguage": "scss",
@@ -285,9 +279,7 @@
               "outputHashing": "all"
             },
             "development": {
-              "buildOptimizer": false,
               "optimization": false,
-              "vendorChunk": true,
               "extractLicenses": false,
               "sourceMap": true,
               "namedChunks": true
