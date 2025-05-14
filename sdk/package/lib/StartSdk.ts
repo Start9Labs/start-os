@@ -33,7 +33,12 @@ import { ServiceInterfaceBuilder } from "../../base/lib/interfaces/ServiceInterf
 import { GetSystemSmtp } from "./util"
 import { nullIfEmpty } from "./util"
 import { getServiceInterface, getServiceInterfaces } from "./util"
-import { CommandOptions, ExitError, SubContainer } from "./util/SubContainer"
+import {
+  CommandOptions,
+  ExitError,
+  SubContainer,
+  SubContainerOwned,
+} from "./util/SubContainer"
 import { splitCommand } from "./util"
 import { Mounts } from "./mainFn/Mounts"
 import { setupDependencies } from "../../base/lib/dependencies/setupDependencies"
@@ -675,7 +680,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           mounts: Mounts<Manifest> | null,
           name: string,
         ) {
-          return SubContainer.of(effects, image, mounts, name)
+          return SubContainerOwned.of(effects, image, mounts, name)
         },
         /**
          * @description Run a function with a temporary SubContainer
@@ -694,7 +699,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           name: string,
           fn: (subContainer: SubContainer<Manifest>) => Promise<T>,
         ): Promise<T> {
-          return SubContainer.withTemp(effects, image, mounts, name, fn)
+          return SubContainerOwned.withTemp(effects, image, mounts, name, fn)
         },
       },
       List,
@@ -724,7 +729,7 @@ export async function runCommand<Manifest extends T.SDKManifest>(
     commands = imageMeta.entrypoint ?? []
     commands = commands.concat(...(command.overridCmd ?? imageMeta.cmd ?? []))
   } else commands = splitCommand(command)
-  return SubContainer.withTemp(
+  return SubContainerOwned.withTemp(
     effects,
     image,
     options.mounts,

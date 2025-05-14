@@ -2,11 +2,7 @@ import { DEFAULT_SIGTERM_TIMEOUT } from "."
 import { NO_TIMEOUT, SIGTERM } from "../../../base/lib/types"
 
 import * as T from "../../../base/lib/types"
-import {
-  MountOptions,
-  SubContainerHandle,
-  SubContainer,
-} from "../util/SubContainer"
+import { MountOptions, SubContainer } from "../util/SubContainer"
 import { Drop, splitCommand } from "../util"
 import * as cp from "child_process"
 import * as fs from "node:fs/promises"
@@ -110,13 +106,10 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
       }
     }
   }
-  get subContainerHandle() {
-    return new SubContainerHandle(this.subcontainer)
-  }
-  async wait({ timeout = NO_TIMEOUT, keepSubcontainer = false } = {}) {
+  async wait({ timeout = NO_TIMEOUT } = {}) {
     if (timeout > 0)
       setTimeout(() => {
-        this.term({ keepSubcontainer })
+        this.term()
       }, timeout)
     try {
       return await this.runningAnswer
@@ -124,14 +117,10 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
       if (!this.state.exited) {
         this.process.kill("SIGKILL")
       }
-      if (!keepSubcontainer) await this.subcontainer.destroy()
+      await this.subcontainer.destroy()
     }
   }
-  async term({
-    signal = SIGTERM,
-    timeout = this.sigtermTimeout,
-    keepSubcontainer = false,
-  } = {}) {
+  async term({ signal = SIGTERM, timeout = this.sigtermTimeout } = {}) {
     try {
       if (!this.state.exited) {
         if (signal !== "SIGKILL") {
@@ -148,10 +137,10 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
 
       await this.runningAnswer
     } finally {
-      if (!keepSubcontainer) await this.subcontainer.destroy()
+      await this.subcontainer.destroy()
     }
   }
   onDrop(): void {
-    this.term({ keepSubcontainer: true }).catch(console.error)
+    this.term().catch(console.error)
   }
 }

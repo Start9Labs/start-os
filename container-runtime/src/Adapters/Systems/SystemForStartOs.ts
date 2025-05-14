@@ -10,6 +10,7 @@ type RunningMain = {
 
 export class SystemForStartOs implements System {
   private runningMain: RunningMain | undefined
+  private starting: boolean = false
 
   static of() {
     return new SystemForStartOs(require(STARTOS_JS_LOCATION))
@@ -73,25 +74,30 @@ export class SystemForStartOs implements System {
   async exit(): Promise<void> {}
 
   async start(effects: Effects): Promise<void> {
-    if (this.runningMain) return
-    effects.constRetry = utils.once(() => effects.restart())
-    let mainOnTerm: () => Promise<void> | undefined
-    const started = async (onTerm: () => Promise<void>) => {
-      await effects.setMainStatus({ status: "running" })
-      mainOnTerm = onTerm
-      return null
-    }
-    const daemons = await (
-      await this.abi.main({
-        effects,
-        started,
-      })
-    ).build()
-    this.runningMain = {
-      stop: async () => {
-        if (mainOnTerm) await mainOnTerm()
-        await daemons.term()
-      },
+    try {
+      if (this.runningMain || this.starting) return
+      this.starting = true
+      effects.constRetry = utils.once(() => effects.restart())
+      let mainOnTerm: () => Promise<void> | undefined
+      const started = async (onTerm: () => Promise<void>) => {
+        await effects.setMainStatus({ status: "running" })
+        mainOnTerm = onTerm
+        return null
+      }
+      const daemons = await (
+        await this.abi.main({
+          effects,
+          started,
+        })
+      ).build()
+      this.runningMain = {
+        stop: async () => {
+          if (mainOnTerm) await mainOnTerm()
+          await daemons.term()
+        },
+      }
+    } finally {
+      this.starting = false
     }
   }
 
