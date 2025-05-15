@@ -27,6 +27,8 @@ export const I18N_PROVIDERS = [
         return import('@taiga-ui/i18n/languages/polish')
       case 'german':
         return import('@taiga-ui/i18n/languages/german')
+      case 'french':
+        return import('@taiga-ui/i18n/languages/french')
       default:
         return import('@taiga-ui/i18n/languages/english')
     }
@@ -41,6 +43,8 @@ export const I18N_PROVIDERS = [
           return import('./dictionaries/pl').then(v => v.default)
         case 'german':
           return import('./dictionaries/de').then(v => v.default)
+        case 'french':
+          return import('./dictionaries/fr').then(v => v.default)
         default:
           return null
       }

@@ -99,6 +99,7 @@ npm run start:ui:proxy
 - Spanish
 - Polish
 - German
+- French
 <!-- - Korean
 - Russian
 - Japanese
@@ -107,7 +108,6 @@ npm run start:ui:proxy
 - Mandarin
 - Hindi
 - Portuguese
-- French
 - Italian
 - Thai -->
 
@@ -150,6 +150,7 @@ Languages:
 - Spanish
 - Polish
 - German
+- French
 
 #### Adding to StartOS
 
