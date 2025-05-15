@@ -162,7 +162,6 @@ export class MockApiService extends ApiService {
     pathArr: Array<string | number>,
     value: T,
   ): Promise<RR.SetDBValueRes> {
-    console.warn(pathArr, value)
     const pointer = pathFromArray(pathArr)
     const params: RR.SetDBValueReq<T> = { pointer, value }
     await pauseFor(2000)

@@ -237,7 +237,6 @@ export class MarketplaceService {
     oldName: string | null,
     newName: string,
   ): Promise<void> {
-    console.warn(oldName, newName)
     if (oldName !== newName) {
       this.api.setDbValue<string>(['registries', url], newName)
     }
