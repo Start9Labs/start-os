@@ -59,7 +59,6 @@ export const ENGLISH = {
   'Beginning shutdown': 57,
   'Add': 58,
   'Ok': 59,
-  'Are you sure you want to delete this entry?': 60,
   'This value cannot be changed once set': 61,
   'Continue': 62,
   'Click or drop file here': 63,

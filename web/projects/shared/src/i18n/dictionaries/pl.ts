@@ -60,7 +60,6 @@ export default {
   57: 'Rozpoczynanie wyłączania',
   58: 'Dodaj',
   59: 'OK',
-  60: 'Czy na pewno chcesz usunąć ten wpis?',
   61: 'Ta wartość nie może być zmieniona po jej ustawieniu',
   62: 'Kontynuuj',
   63: 'Kliknij lub upuść plik tutaj',

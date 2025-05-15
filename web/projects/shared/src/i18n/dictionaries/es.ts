@@ -60,7 +60,6 @@ export default {
   57: 'Iniciando apagado',
   58: 'Agregar',
   59: 'Ok',
-  60: '¿Estás seguro de que deseas eliminar esta entrada?',
   61: 'Este valor no se puede cambiar una vez establecido',
   62: 'Continuar',
   63: 'Haz clic o suelta el archivo aquí',

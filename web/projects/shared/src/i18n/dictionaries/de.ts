@@ -60,7 +60,6 @@ export default {
   57: 'Herunterfahren wird eingeleitet',
   58: 'Hinzufügen',
   59: 'Ok',
-  60: 'Möchten Sie diesen Eintrag wirklich löschen?',
   61: 'Dieser Wert kann nach dem Festlegen nicht geändert werden',
   62: 'Fortfahren',
   63: 'Klicken oder Datei hierher ziehen',

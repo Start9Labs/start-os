@@ -220,7 +220,7 @@ export const mockPatchData: DataModel = {
       actions: {
         config: {
           name: 'Set Config',
-          description: 'edit bitcoin.conf',
+          description: 'edit bitcoin.conf, <b>soo cool!</b>',
           warning: null,
           visibility: 'enabled',
           allowedStatuses: 'any',

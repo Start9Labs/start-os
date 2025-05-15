@@ -21,7 +21,9 @@ import { i18nPipe } from '@start9labs/shared'
   standalone: true,
   selector: 'app-action-success-single',
   template: `
-    <p class="qr"><ng-container *ngTemplateOutlet="qr" /></p>
+    @if (single.qr) {
+      <p class="qr"><ng-container *ngTemplateOutlet="qr" /></p>
+    }
     <tui-input
       [readOnly]="true"
       [ngModel]="single.value"

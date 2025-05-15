@@ -12,7 +12,7 @@
       Past Release Notes
     </button>
     <h2 class="additional-detail-title" [style.margin-top.rem]="2">About</h2>
-    <p>{{ pkg.description.long }}</p>
+    <p [innerHTML]="pkg.description.long"></p>
     <a
       *ngIf="pkg.marketingSite as url"
       tuiButton
