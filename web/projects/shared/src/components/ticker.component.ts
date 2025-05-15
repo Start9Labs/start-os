@@ -21,7 +21,6 @@ import {
       &:hover {
         text-indent: var(--indent, 0);
         text-overflow: clip;
-        cursor: default;
       }
     }
   `,

@@ -33,6 +33,7 @@ import {
   map,
   startWith,
   switchMap,
+  tap,
 } from 'rxjs'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 
@@ -79,7 +80,7 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
                   <button
                     tuiButton
                     appearance="secondary"
-                    (click)="completeWith(data.value)"
+                    (click)="completeWith(data.version)"
                   >
                     {{ 'Ok' | i18n }}
                   </button>
@@ -89,7 +90,7 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
           </marketplace-additional>
         </div>
       } @else {
-        <tui-loader class="loading" textContent="Loading" />
+        <tui-loader textContent="Loading" [style.height.%]="100" />
       }
     </div>
   `,
@@ -137,12 +138,6 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
         ::ng-deep label {
           cursor: pointer;
         }
-      }
-
-      .loading {
-        min-width: 30rem;
-        height: 100%;
-        place-self: center;
       }
 
       marketplace-additional {
@@ -248,6 +243,6 @@ export class MarketplacePreviewComponent {
         data: { version },
       })
       .pipe(filter(Boolean))
-      .subscribe(version => this.version$.next(version))
+      .subscribe(selected => this.version$.next(selected))
   }
 }

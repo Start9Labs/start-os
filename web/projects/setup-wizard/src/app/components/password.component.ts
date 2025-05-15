@@ -2,6 +2,7 @@ import { Component, inject } from '@angular/core'
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms'
 import * as argon2 from '@start9labs/argon2'
 import { ErrorService } from '@start9labs/shared'
+import { TuiAutoFocus } from '@taiga-ui/cdk'
 import { TuiButton, TuiDialogContext, TuiError } from '@taiga-ui/core'
 import { TuiInputPasswordModule } from '@taiga-ui/legacy'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -24,7 +25,7 @@ interface DialogData {
     <form [style.margin-top.rem]="1" (ngSubmit)="submit()">
       <tui-input-password [formControl]="password">
         Enter Password
-        <input tuiTextfieldLegacy maxlength="64" />
+        <input tuiTextfieldLegacy tuiAutoFocus maxlength="64" />
       </tui-input-password>
       <tui-error [error]="passwordError"></tui-error>
       @if (storageDrive) {
@@ -59,6 +60,7 @@ interface DialogData {
     TuiButton,
     TuiInputPasswordModule,
     TuiError,
+    TuiAutoFocus,
   ],
 })
 export class PasswordComponent {

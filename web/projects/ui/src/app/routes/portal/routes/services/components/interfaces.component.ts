@@ -25,7 +25,7 @@ import { i18nPipe } from '@start9labs/shared'
           <th tuiTh>{{ 'Name' | i18n }}</th>
           <th tuiTh>{{ 'Type' | i18n }}</th>
           <th tuiTh>{{ 'Description' | i18n }}</th>
-          <th tuiTh>{{ 'Hosting' | i18n }}</th>
+          <th tuiTh [style.text-align]="'center'">{{ 'Hosting' | i18n }}</th>
           <th tuiTh></th>
         </tr>
       </thead>

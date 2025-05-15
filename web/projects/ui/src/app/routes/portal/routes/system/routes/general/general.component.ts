@@ -7,6 +7,7 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
+import { Title } from '@angular/platform-browser'
 import { RouterLink } from '@angular/router'
 import {
   DialogService,
@@ -222,6 +223,7 @@ import { SystemWipeComponent } from './wipe.component'
   ],
 })
 export default class SystemGeneralComponent {
+  private readonly title = inject(Title)
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
@@ -278,9 +280,11 @@ export default class SystemGeneralComponent {
       })
       .subscribe(async name => {
         const loader = this.loader.open('Saving').subscribe()
+        const title = `${name || 'StartOS'} — ${this.i18n.transform('System')}`
 
         try {
           await this.api.setDbValue(['name'], name || null)
+          this.title.setTitle(title)
         } catch (e: any) {
           this.errorService.handleError(e)
         } finally {

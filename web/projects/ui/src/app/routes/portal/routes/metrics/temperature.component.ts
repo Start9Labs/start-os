@@ -49,7 +49,7 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core'
         </linearGradient>
       </defs>
     </svg>
-    <b>{{ value() || '-' }} C°</b>
+    <b>{{ value() ? value() + ' C°' : 'N/A' }}</b>
   `,
   styles: `
     @import '@taiga-ui/core/styles/taiga-ui-local';
