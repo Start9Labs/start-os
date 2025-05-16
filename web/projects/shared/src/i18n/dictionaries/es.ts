@@ -503,4 +503,5 @@ export default {
   501: 'Bienvenido a',
   502: 'computación soberana',
   503: 'Personaliza el nombre que aparece en la pestaña de tu navegador',
+  504: 'Administrar',
 } satisfies i18n

@@ -26,7 +26,7 @@ import { TitleDirective } from 'src/app/services/title.service'
         {{ 'Back' | i18n }}
       </a>
       StartOS UI
-      <interface-status [public]="public()" />
+      <interface-status [style.margin-left.rem]="0.5" [public]="public()" />
     </ng-container>
     <header tuiHeader>
       <hgroup tuiTitle>
@@ -34,13 +34,13 @@ import { TitleDirective } from 'src/app/services/title.service'
           {{ iface.name }}
           <interface-status [public]="public()" />
         </h3>
-        <p tuiSubtitle>{{ iface.description }}</p>
       </hgroup>
     </header>
     @if (ui(); as ui) {
-      <app-interface [serviceInterface]="ui" />
+      <app-interface [interface]="ui" />
     }
   `,
+  host: { '[style.gap]': '0' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [

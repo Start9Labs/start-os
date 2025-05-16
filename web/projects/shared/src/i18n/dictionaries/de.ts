@@ -503,4 +503,5 @@ export default {
   501: 'Willkommen bei',
   502: 'souveränes computing',
   503: 'Passen Sie den Namen an, der in Ihrem Browser-Tab erscheint',
+  504: 'Verwalten',
 } satisfies i18n

@@ -1,17 +1,36 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core'
-import { tuiButtonOptionsProvider } from '@taiga-ui/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  input,
+} from '@angular/core'
+import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
+import { TuiButton, tuiButtonOptionsProvider } from '@taiga-ui/core'
 import { InterfaceClearnetComponent } from 'src/app/routes/portal/components/interfaces/clearnet.component'
 import { InterfaceLocalComponent } from 'src/app/routes/portal/components/interfaces/local.component'
 import { InterfaceTorComponent } from 'src/app/routes/portal/components/interfaces/tor.component'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { MappedServiceInterface } from './interface.utils'
 
 @Component({
   standalone: true,
   selector: 'app-interface',
   template: `
-    <section [clearnet]="serviceInterface().addresses.clearnet"></section>
-    <section [tor]="serviceInterface().addresses.tor"></section>
-    <section [local]="serviceInterface().addresses.local"></section>
+    <div>{{ interface().description }}</div>
+    <button
+      tuiButton
+      size="s"
+      [appearance]="interface().public ? 'primary-destructive' : 'accent'"
+      [iconStart]="interface().public ? '@tui.globe-lock' : '@tui.globe'"
+      (click)="toggle()"
+    >
+      {{
+        interface().public ? ('Make private' | i18n) : ('Make public' | i18n)
+      }}
+    </button>
+    <section [clearnet]="interface().addresses.clearnet"></section>
+    <section [tor]="interface().addresses.tor"></section>
+    <section [local]="interface().addresses.local"></section>
   `,
   styles: `
     :host {
@@ -19,6 +38,12 @@ import { MappedServiceInterface } from './interface.utils'
       display: flex;
       flex-direction: column;
       gap: 1rem;
+      color: var(--tui-text-secondary);
+      font: var(--tui-font-text-l);
+    }
+
+    button {
+      margin: -0.5rem auto 0 0;
     }
   `,
   providers: [tuiButtonOptionsProvider({ size: 'xs' })],
@@ -27,9 +52,42 @@ import { MappedServiceInterface } from './interface.utils'
     InterfaceClearnetComponent,
     InterfaceTorComponent,
     InterfaceLocalComponent,
+    TuiButton,
+    i18nPipe,
   ],
 })
 export class InterfaceComponent {
+  private readonly loader = inject(LoadingService)
+  private readonly errorService = inject(ErrorService)
+  private readonly api = inject(ApiService)
+
   readonly packageId = input('')
-  readonly serviceInterface = input.required<MappedServiceInterface>()
+  readonly interface = input.required<MappedServiceInterface>()
+
+  async toggle() {
+    const loader = this.loader
+      .open(`Making ${this.interface().public ? 'private' : 'public'}`)
+      .subscribe()
+
+    const params = {
+      internalPort: this.interface().addressInfo.internalPort,
+      public: !this.interface().public,
+    }
+
+    try {
+      if (this.packageId()) {
+        await this.api.pkgBindingSetPubic({
+          ...params,
+          host: this.interface().addressInfo.hostId,
+          package: this.packageId(),
+        })
+      } else {
+        await this.api.serverBindingSetPubic(params)
+      }
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
+  }
 }

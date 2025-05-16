@@ -7,11 +7,13 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute } from '@angular/router'
-import { isEmptyObject } from '@start9labs/shared'
+import { WaIntersectionObserver } from '@ng-web-apis/intersection-observer'
+import { i18nPipe, isEmptyObject } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
+import { TuiElement } from '@taiga-ui/cdk'
+import { TuiButton } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { map, of } from 'rxjs'
-import { UptimeComponent } from 'src/app/routes/portal/components/uptime.component'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { DepErrorService } from 'src/app/services/dep-error.service'
 import {
@@ -27,6 +29,7 @@ import { ServiceHealthChecksComponent } from '../components/health-checks.compon
 import { ServiceInterfacesComponent } from '../components/interfaces.component'
 import { ServiceInstallProgressComponent } from '../components/progress.component'
 import { ServiceStatusComponent } from '../components/status.component'
+import { ServiceUptimeComponent } from '../components/uptime.component'
 
 @Component({
   template: `
@@ -42,16 +45,13 @@ import { ServiceStatusComponent } from '../components/status.component'
           [installingInfo]="pkg.stateInfo.installingInfo"
           [status]="status()"
         >
-          @if ($any(pkg.status)?.started; as started) {
-            <p class="g-secondary" [appUptime]="started"></p>
-          }
-
           @if (connected()) {
             <service-controls [pkg]="pkg" [status]="status()" />
           }
         </service-status>
 
         @if (status() !== 'backingUp') {
+          <service-uptime [started]="$any(pkg.status)?.started" />
           <service-interfaces [pkg]="pkg" [disabled]="status() !== 'running'" />
 
           @if (errors() | async; as errors) {
@@ -63,7 +63,29 @@ import { ServiceStatusComponent } from '../components/status.component'
           }
 
           <service-health-checks [checks]="health()" />
-          <service-action-requests [pkg]="pkg" [services]="services() || {}" />
+          <service-action-requests
+            #actions="elementRef"
+            tuiElement
+            waIntersectionObserver
+            waIntersectionThreshold="1"
+            (waIntersectionObservee)="scrolled = !!$event[0]?.isIntersecting"
+            [pkg]="pkg"
+            [services]="services() || {}"
+          />
+          <button
+            tuiIconButton
+            iconStart="@tui.arrow-down"
+            tabindex="-1"
+            [class._hidden]="scrolled"
+            (click)="
+              actions.nativeElement.scrollIntoView({
+                block: 'end',
+                behavior: 'smooth',
+              })
+            "
+          >
+            {{ 'Tasks' | i18n }}
+          </button>
         }
       } @else if (removing()) {
         <service-status
@@ -74,6 +96,14 @@ import { ServiceStatusComponent } from '../components/status.component'
     }
   `,
   styles: `
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+
+    @keyframes bounce {
+      to {
+        transform: translateY(-1rem);
+      }
+    }
+
     :host {
       display: grid;
       grid-template-columns: repeat(6, 1fr);
@@ -84,6 +114,23 @@ import { ServiceStatusComponent } from '../components/status.component'
     small {
       font-weight: normal;
       text-transform: uppercase;
+    }
+
+    button {
+      @include taiga.transition(opacity);
+      position: sticky;
+      bottom: 1rem;
+      border-radius: 100%;
+      place-self: center;
+      grid-area: auto / span 6;
+      box-shadow: inset 0 0 0 2rem var(--tui-status-warning);
+      animation: bounce 1s infinite alternate;
+
+      &._hidden,
+      :host:has(::ng-deep service-action-requests app-placeholder) & {
+        opacity: 0;
+        pointer-events: none;
+      }
     }
 
     :host-context(tui-root._mobile) {
@@ -99,6 +146,10 @@ import { ServiceStatusComponent } from '../components/status.component'
   standalone: true,
   imports: [
     CommonModule,
+    TuiElement,
+    TuiButton,
+    WaIntersectionObserver,
+    i18nPipe,
     ServiceInstallProgressComponent,
     ServiceStatusComponent,
     ServiceControlsComponent,
@@ -107,12 +158,14 @@ import { ServiceStatusComponent } from '../components/status.component'
     ServiceDependenciesComponent,
     ServiceErrorComponent,
     ServiceActionRequestsComponent,
-    UptimeComponent,
+    ServiceUptimeComponent,
   ],
 })
 export class ServiceRoute {
   private readonly errorService = inject(DepErrorService)
   protected readonly connected = toSignal(inject(ConnectionService))
+
+  protected scrolled = false
 
   protected readonly id = toSignal(
     inject(ActivatedRoute).paramMap.pipe(map(params => params.get('pkgId'))),
