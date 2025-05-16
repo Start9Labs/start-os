@@ -1,3 +1,4 @@
+import { ExtendedVersion, VersionRange } from "./exver"
 import {
   ActionId,
   ActionInput,
@@ -168,7 +169,7 @@ export type Effects = {
   }) => Promise<string>
 
   /** sets the version that this service's data has been migrated to */
-  setDataVersion(options: { version: string }): Promise<null>
+  setDataVersion(options: { version: string | null }): Promise<null>
   /** returns the version that this service's data has been migrated to */
   getDataVersion(): Promise<string | null>
 

@@ -4,8 +4,9 @@ use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use clap::builder::ValueParserFactory;
+use exver::{ExtendedVersion, VersionRange};
 use imbl::Vector;
-use imbl_value::Value;
+use imbl_value::{InternedString, Value};
 use models::{FromStrParser, ProcedureName};
 use rpc_toolkit::yajrc::RpcMethod;
 use rpc_toolkit::Empty;
@@ -16,10 +17,25 @@ use crate::rpc_continuations::Guid;
 use crate::service::persistent_container::PersistentContainer;
 use crate::util::Never;
 
+#[derive(Clone, serde::Deserialize, serde::Serialize, TS)]
+#[serde(rename_all = "kebab-case")]
+pub enum InitKind {
+    Install,
+    Update,
+    Restore,
+}
+
+#[derive(Clone, serde::Deserialize, serde::Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct InitParams {
+    pub id: Guid,
+    pub kind: Option<InitKind>,
+}
+
 #[derive(Clone)]
 pub struct Init;
 impl RpcMethod for Init {
-    type Params = Empty;
+    type Params = InitParams;
     type Response = ();
     fn as_str<'a>(&'a self) -> &'a str {
         "init"
@@ -70,10 +86,42 @@ impl serde::Serialize for Stop {
     }
 }
 
+#[derive(Clone, serde::Deserialize, serde::Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ExitParams {
+    id: Guid,
+    /// VersionRange or ExtendedVersion
+    #[ts(type = "string | null")]
+    target: Option<InternedString>,
+}
+impl ExitParams {
+    pub fn target_version(version: &ExtendedVersion) -> Self {
+        Self {
+            id: Guid::new(),
+            target: Some(InternedString::from_display(version)),
+        }
+    }
+    pub fn target_range(range: &VersionRange) -> Self {
+        Self {
+            id: Guid::new(),
+            target: Some(InternedString::from_display(range)),
+        }
+    }
+    pub fn uninstall() -> Self {
+        Self {
+            id: Guid::new(),
+            target: None,
+        }
+    }
+    pub fn is_uninstall(&self) -> bool {
+        self.target.is_none()
+    }
+}
+
 #[derive(Clone)]
 pub struct Exit;
 impl RpcMethod for Exit {
-    type Params = Empty;
+    type Params = ExitParams;
     type Response = ();
     fn as_str<'a>(&'a self) -> &'a str {
         "exit"

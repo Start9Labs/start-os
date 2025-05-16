@@ -1,66 +1,43 @@
-import { Actions } from "../../../base/lib/actions/setupActions"
-import { ExtendedVersion } from "../../../base/lib/exver"
-import { UpdateServiceInterfaces } from "../../../base/lib/interfaces/setupInterfaces"
+import { VersionRange } from "../../../base/lib/exver"
 import * as T from "../../../base/lib/types"
-import { VersionGraph } from "../version/VersionGraph"
-import { PostInstall, PreInstall } from "./setupInstall"
-import { Uninstall } from "./setupUninstall"
+import { once } from "../util"
 
-export function setupInit<Manifest extends T.SDKManifest>(
-  versions: VersionGraph<string>,
-  preInstall: PreInstall<Manifest>,
-  postInstall: PostInstall<Manifest>,
-  uninstall: Uninstall<Manifest>,
-  setServiceInterfaces: UpdateServiceInterfaces<any>,
-  setDependencies: (options: {
-    effects: T.Effects
-  }) => Promise<null | void | undefined>,
-  actions: Actions<any>,
-): {
-  packageInit: T.ExpectedExports.packageInit
-  packageUninit: T.ExpectedExports.packageUninit
-  containerInit: T.ExpectedExports.containerInit
-} {
-  return {
-    packageInit: async (opts) => {
-      const prev = await opts.effects.getDataVersion()
-      if (prev) {
-        await versions.migrate({
-          effects: opts.effects,
-          from: ExtendedVersion.parse(prev),
-          to: versions.currentVersion(),
+export type InitKind = "install" | "update" | "restore" | null
+
+export type InitFn<Kind extends InitKind = InitKind> = (
+  effects: T.Effects,
+  kind: Kind,
+) => Promise<void | null | undefined>
+
+export interface InitScript<Kind extends InitKind = InitKind> {
+  init(effects: T.Effects, kind: Kind): Promise<void>
+}
+
+export type InitScriptOrFn<Kind extends InitKind = InitKind> =
+  | InitScript<Kind>
+  | InitFn<Kind>
+
+export function setupInit(...inits: InitScriptOrFn[]): T.ExpectedExports.init {
+  return async (opts) => {
+    for (const idx in inits) {
+      const init = inits[idx]
+      const fn = async (effects: T.Effects, kind: InitKind) => {
+        let res: (value?: undefined) => void = () => {}
+        const complete = new Promise((resolve) => {
+          res = resolve
         })
-      } else {
-        await postInstall.postInstall(opts)
-        await opts.effects.setDataVersion({
-          version: versions.current.options.version,
-        })
-      }
-    },
-    packageUninit: async (opts) => {
-      if (opts.nextVersion) {
-        const prev = await opts.effects.getDataVersion()
-        if (prev) {
-          await versions.migrate({
-            effects: opts.effects,
-            from: ExtendedVersion.parse(prev),
-            to: ExtendedVersion.parse(opts.nextVersion),
-          })
+        const e: T.Effects = effects.child(`init_${idx}`)
+        e.constRetry = once(() =>
+          complete.then(() => fn(effects, null)).catch(console.error),
+        )
+        try {
+          if ("init" in init) await init.init(e, kind)
+          else await init(e, kind)
+        } finally {
+          res()
         }
-      } else {
-        await uninstall.uninstall(opts)
       }
-    },
-    containerInit: async (opts) => {
-      const prev = await opts.effects.getDataVersion()
-      if (!prev) {
-        await preInstall.preInstall(opts)
-      }
-      await setServiceInterfaces({
-        ...opts,
-      })
-      await actions.update({ effects: opts.effects })
-      await setDependencies({ effects: opts.effects })
-    },
+      await fn(opts.effects, opts.kind)
+    }
   }
 }

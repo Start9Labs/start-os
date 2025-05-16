@@ -10,6 +10,7 @@ import {
 import { Affine, StringObject, ToKebab } from "./util"
 import { Action, Actions } from "./actions/setupActions"
 import { Effects } from "./Effects"
+import { ExtendedVersion, VersionRange } from "./exver"
 export { Effects }
 export * from "./osBindings"
 export { SDKManifest } from "./types/ManifestTypes"
@@ -53,32 +54,19 @@ export namespace ExpectedExports {
   }) => Promise<DaemonBuildable>
 
   /**
-   * After a shutdown, if we wanted to do any operations to clean up things, like
-   * set the action as unavailable or something.
-   */
-  export type afterShutdown = (options: {
-    effects: Effects
-  }) => Promise<unknown>
-
-  /**
    * Every time a service launches (both on startup, and on install) this function is called before packageInit
    * Can be used to register callbacks
    */
-  export type containerInit = (options: {
+  export type init = (options: {
     effects: Effects
+    kind: "install" | "update" | "restore" | null
   }) => Promise<unknown>
-
-  /**
-   * Every time a package completes an install, this function is called before the main.
-   * Can be used to do migration like things.
-   */
-  export type packageInit = (options: { effects: Effects }) => Promise<unknown>
   /** This will be ran during any time a package is uninstalled, for example during a update
    * this will be called.
    */
-  export type packageUninit = (options: {
+  export type uninit = (options: {
     effects: Effects
-    nextVersion: null | string
+    target: ExtendedVersion | VersionRange | null
   }) => Promise<unknown>
 
   export type manifest = Manifest
@@ -89,10 +77,8 @@ export type ABI = {
   createBackup: ExpectedExports.createBackup
   restoreBackup: ExpectedExports.restoreBackup
   main: ExpectedExports.main
-  afterShutdown: ExpectedExports.afterShutdown
-  containerInit: ExpectedExports.containerInit
-  packageInit: ExpectedExports.packageInit
-  packageUninit: ExpectedExports.packageUninit
+  init: ExpectedExports.init
+  uninit: ExpectedExports.uninit
   manifest: ExpectedExports.manifest
   actions: ExpectedExports.actions
 }

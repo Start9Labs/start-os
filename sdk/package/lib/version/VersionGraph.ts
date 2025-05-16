@@ -1,9 +1,58 @@
 import { ExtendedVersion, VersionRange } from "../../../base/lib/exver"
 import * as T from "../../../base/lib/types"
+import {
+  InitFn,
+  InitKind,
+  InitScript,
+  InitScriptOrFn,
+  UninitFn,
+  UninitScript,
+} from "../inits"
 import { Graph, Vertex, once } from "../util"
 import { IMPOSSIBLE, VersionInfo } from "./VersionInfo"
 
-export class VersionGraph<CurrentVersion extends string> {
+export async function getDataVersion(effects: T.Effects) {
+  const versionStr = await effects.getDataVersion()
+  if (!versionStr) return null
+  try {
+    return ExtendedVersion.parse(versionStr)
+  } catch (_) {
+    return VersionRange.parse(versionStr)
+  }
+}
+
+export async function setDataVersion(
+  effects: T.Effects,
+  version: ExtendedVersion | VersionRange | null,
+) {
+  return effects.setDataVersion({ version: version?.toString() || null })
+}
+
+export function overlaps(
+  a: ExtendedVersion | VersionRange,
+  b: ExtendedVersion | VersionRange,
+) {
+  return (
+    (a instanceof VersionRange &&
+      b instanceof VersionRange &&
+      a.intersects(b)) ||
+    (a instanceof VersionRange &&
+      b instanceof ExtendedVersion &&
+      a.satisfiedBy(b)) ||
+    (a instanceof ExtendedVersion &&
+      b instanceof VersionRange &&
+      a.satisfies(b)) ||
+    (a instanceof ExtendedVersion &&
+      b instanceof ExtendedVersion &&
+      a.equals(b))
+  )
+}
+
+export class VersionGraph<CurrentVersion extends string>
+  implements InitScript, UninitScript
+{
+  protected initFn = this.init.bind(this)
+  protected uninitFn = this.uninit.bind(this)
   private readonly graph: () => Graph<
     ExtendedVersion | VersionRange,
     ((opts: { effects: T.Effects }) => Promise<void>) | undefined
@@ -11,6 +60,8 @@ export class VersionGraph<CurrentVersion extends string> {
   private constructor(
     readonly current: VersionInfo<CurrentVersion>,
     versions: Array<VersionInfo<any>>,
+    private readonly preInstall?: InitScriptOrFn<"install">,
+    private readonly uninstall?: UninitScript | UninitFn,
   ) {
     this.graph = once(() => {
       const graph = new Graph<
@@ -116,11 +167,18 @@ export class VersionGraph<CurrentVersion extends string> {
   static of<
     CurrentVersion extends string,
     OtherVersions extends Array<VersionInfo<any>>,
-  >(
-    currentVersion: VersionInfo<CurrentVersion>,
-    ...other: EnsureUniqueId<OtherVersions, OtherVersions, CurrentVersion>
-  ) {
-    return new VersionGraph(currentVersion, other as Array<VersionInfo<any>>)
+  >(options: {
+    current: VersionInfo<CurrentVersion>
+    other: OtherVersions
+    preInstall?: InitScript | InitFn
+    uninstall?: UninitScript | UninitFn
+  }) {
+    return new VersionGraph(
+      options.current,
+      options.other,
+      options.preInstall,
+      options.uninstall,
+    )
   }
   async migrate({
     effects,
@@ -128,40 +186,35 @@ export class VersionGraph<CurrentVersion extends string> {
     to,
   }: {
     effects: T.Effects
-    from: ExtendedVersion
-    to: ExtendedVersion
-  }) {
+    from: ExtendedVersion | VersionRange
+    to: ExtendedVersion | VersionRange
+  }): Promise<ExtendedVersion | VersionRange> {
     const graph = this.graph()
     if (from && to) {
       const path = graph.shortestPath(
-        (v) =>
-          (v.metadata instanceof VersionRange &&
-            v.metadata.satisfiedBy(from)) ||
-          (v.metadata instanceof ExtendedVersion && v.metadata.equals(from)),
-        (v) =>
-          (v.metadata instanceof VersionRange && v.metadata.satisfiedBy(to)) ||
-          (v.metadata instanceof ExtendedVersion && v.metadata.equals(to)),
+        (v) => overlaps(v.metadata, from),
+        (v) => overlaps(v.metadata, to),
       )
       if (path) {
+        let dataVersion = from
         for (let edge of path) {
           if (edge.metadata) {
             await edge.metadata({ effects })
           }
-          await effects.setDataVersion({ version: edge.to.metadata.toString() })
+          dataVersion = edge.to.metadata
+          await setDataVersion(effects, edge.to.metadata)
         }
-        return
+        return dataVersion
       }
     }
-    throw new Error()
+    throw new Error(
+      `cannot migrate from ${from.toString()} to ${to.toString()}`,
+    )
   }
   canMigrateFrom = once(() =>
     Array.from(
-      this.graph().reverseBreadthFirstSearch(
-        (v) =>
-          (v.metadata instanceof VersionRange &&
-            v.metadata.satisfiedBy(this.currentVersion())) ||
-          (v.metadata instanceof ExtendedVersion &&
-            v.metadata.equals(this.currentVersion())),
+      this.graph().reverseBreadthFirstSearch((v) =>
+        overlaps(v.metadata, this.currentVersion()),
       ),
     )
       .reduce(
@@ -177,12 +230,8 @@ export class VersionGraph<CurrentVersion extends string> {
   )
   canMigrateTo = once(() =>
     Array.from(
-      this.graph().breadthFirstSearch(
-        (v) =>
-          (v.metadata instanceof VersionRange &&
-            v.metadata.satisfiedBy(this.currentVersion())) ||
-          (v.metadata instanceof ExtendedVersion &&
-            v.metadata.equals(this.currentVersion())),
+      this.graph().breadthFirstSearch((v) =>
+        overlaps(v.metadata, this.currentVersion()),
       ),
     )
       .reduce(
@@ -196,6 +245,45 @@ export class VersionGraph<CurrentVersion extends string> {
       )
       .normalize(),
   )
+
+  async init(effects: T.Effects, kind: InitKind): Promise<void> {
+    const from = await getDataVersion(effects)
+    if (from) {
+      await this.migrate({
+        effects,
+        from,
+        to: this.currentVersion(),
+      })
+    } else {
+      kind = "install" // implied by !dataVersion
+      if (this.preInstall)
+        if ("init" in this.preInstall) await this.preInstall.init(effects, kind)
+        else await this.preInstall(effects, kind)
+      await effects.setDataVersion({ version: this.current.options.version })
+    }
+  }
+
+  async uninit(
+    effects: T.Effects,
+    target: VersionRange | ExtendedVersion | null,
+  ): Promise<void> {
+    if (target) {
+      const from = await getDataVersion(effects)
+      if (from && !overlaps(from, target)) {
+        target = await this.migrate({
+          effects,
+          from,
+          to: target,
+        })
+      }
+    } else {
+      if (this.uninstall)
+        if ("uninit" in this.uninstall)
+          await this.uninstall.uninit(effects, target)
+        else await this.uninstall(effects, target)
+    }
+    await setDataVersion(effects, target)
+  }
 }
 
 // prettier-ignore

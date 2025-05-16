@@ -9,11 +9,10 @@ import type { MainStatus } from "./MainStatus"
 import type { PackageState } from "./PackageState"
 import type { ServiceInterface } from "./ServiceInterface"
 import type { ServiceInterfaceId } from "./ServiceInterfaceId"
-import type { Version } from "./Version"
 
 export type PackageDataEntry = {
   stateInfo: PackageState
-  dataVersion: Version | null
+  dataVersion: string | null
   status: MainStatus
   registry: string | null
   developerKey: string

@@ -3,12 +3,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
+use exver::VersionRange;
 use futures::future::{BoxFuture, Fuse};
 use futures::stream::FuturesUnordered;
 use futures::{Future, FutureExt, StreamExt, TryFutureExt};
 use helpers::NonDetachingJoinHandle;
 use imbl::OrdMap;
-use imbl_value::InternedString;
 use models::ErrorData;
 use tokio::sync::{oneshot, Mutex, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::instrument;
@@ -25,6 +25,7 @@ use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle, ProgressT
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
+use crate::service::rpc::ExitParams;
 use crate::service::start_stop::StartStop;
 use crate::service::{LoadDisposition, Service, ServiceRef};
 use crate::status::MainStatus;
@@ -94,7 +95,7 @@ impl ServiceMap {
         let mut shutdown_err = Ok(());
         let mut service = self.get_mut(id).await;
         if let Some(service) = service.take() {
-            shutdown_err = service.shutdown().await;
+            shutdown_err = service.shutdown(None).await;
         }
         match Service::load(ctx, id, disposition).await {
             Ok(s) => *service = s.into(),
@@ -287,18 +288,34 @@ impl ServiceMap {
                             ErrorKind::InvalidRequest,
                             "cannot restore over existing package"
                         );
-                        let version = service
+                        let prev_version = service
                             .seed
                             .persistent_container
                             .s9pk
                             .as_manifest()
                             .version
                             .clone();
-                        service
-                            .uninstall(Some(s9pk.as_manifest().version.clone()), false, false)
-                            .await?;
+                        let prev_can_migrate_to = &service
+                            .seed
+                            .persistent_container
+                            .s9pk
+                            .as_manifest()
+                            .can_migrate_to;
+                        let next_version = &s9pk.as_manifest().version;
+                        let next_can_migrate_from = &s9pk.as_manifest().can_migrate_from;
+                        let uninit = if prev_version.satisfies(next_can_migrate_from) {
+                            ExitParams::target_version(&*prev_version)
+                        } else if next_version.satisfies(prev_can_migrate_to) {
+                            ExitParams::target_version(&s9pk.as_manifest().version)
+                        } else {
+                            ExitParams::target_range(&VersionRange::and(
+                                prev_can_migrate_to.clone(),
+                                next_can_migrate_from.clone(),
+                            ))
+                        };
+                        service.uninstall(uninit, false, false).await?;
                         progress.complete();
-                        Some(version)
+                        Some(prev_version)
                     } else {
                         None
                     };
@@ -359,7 +376,9 @@ impl ServiceMap {
             ServiceRefReloadCancelGuard::new(ctx.clone(), id.clone(), "Uninstall", None)
                 .handle_last(async move {
                     if let Some(service) = guard.take() {
-                        let res = service.uninstall(None, soft, force).await;
+                        let res = service
+                            .uninstall(ExitParams::uninstall(), soft, force)
+                            .await;
                         drop(guard);
                         res
                     } else {
@@ -382,7 +401,7 @@ impl ServiceMap {
         for service in lock.values().cloned() {
             futs.push(async move {
                 if let Some(service) = service.write_owned().await.take() {
-                    service.shutdown().await?
+                    service.shutdown(None).await?
                 }
                 Ok::<_, Error>(())
             });

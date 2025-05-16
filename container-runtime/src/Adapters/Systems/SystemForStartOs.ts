@@ -1,6 +1,6 @@
 import { System } from "../../Interfaces/System"
 import { Effects } from "../../Models/Effects"
-import { T, utils } from "@start9labs/start-sdk"
+import { ExtendedVersion, T, utils, VersionRange } from "@start9labs/start-sdk"
 
 export const STARTOS_JS_LOCATION = "/usr/lib/startos/package/index.js"
 
@@ -19,22 +19,23 @@ export class SystemForStartOs implements System {
   constructor(readonly abi: T.ABI) {
     this
   }
-  async containerInit(effects: Effects): Promise<void> {
-    return void (await this.abi.containerInit({ effects }))
-  }
-  async packageInit(
+
+  async init(
     effects: Effects,
+    kind: "install" | "update" | "restore" | null,
+  ): Promise<void> {
+    return void (await this.abi.init({ effects, kind }))
+  }
+
+  async exit(
+    effects: Effects,
+    target: ExtendedVersion | VersionRange | null,
     timeoutMs: number | null = null,
   ): Promise<void> {
-    return void (await this.abi.packageInit({ effects }))
+    // TODO: stop?
+    return void (await this.abi.uninit({ effects, target }))
   }
-  async packageUninit(
-    effects: Effects,
-    nextVersion: string | null = null,
-    timeoutMs: number | null = null,
-  ): Promise<void> {
-    return void (await this.abi.packageUninit({ effects, nextVersion }))
-  }
+
   async createBackup(
     effects: T.Effects,
     timeoutMs: number | null,
@@ -70,8 +71,6 @@ export class SystemForStartOs implements System {
     if (!action) throw new Error(`Action ${id} not found`)
     return action.run({ effects, input })
   }
-
-  async exit(): Promise<void> {}
 
   async start(effects: Effects): Promise<void> {
     try {

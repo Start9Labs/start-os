@@ -17,9 +17,7 @@ import { HealthCheck } from "./health/HealthCheck"
 import { checkPortListening } from "./health/checkFns/checkPortListening"
 import { checkWebUrl, runHealthScript } from "./health/checkFns"
 import { List } from "../../base/lib/actions/input/builder/list"
-import { InstallFn, PostInstall, PreInstall } from "./inits/setupInstall"
 import { SetupBackupsParams, setupBackups } from "./backup/setupBackups"
-import { UninstallFn, setupUninstall } from "./inits/setupUninstall"
 import { setupMain } from "./mainFn"
 import { defaultTrigger } from "./trigger/defaultTrigger"
 import { changeOnFirstSuccess, cooldownTrigger } from "./trigger"
@@ -43,19 +41,23 @@ import { splitCommand } from "./util"
 import { Mounts } from "./mainFn/Mounts"
 import { setupDependencies } from "../../base/lib/dependencies/setupDependencies"
 import * as T from "../../base/lib/types"
-import { testTypeVersion } from "../../base/lib/exver"
+import {
+  ExtendedVersion,
+  testTypeVersion,
+  VersionRange,
+} from "../../base/lib/exver"
 import {
   CheckDependencies,
   checkDependencies,
 } from "../../base/lib/dependencies/dependencies"
 import { GetSslCertificate } from "./util"
-import { VersionGraph } from "./version"
+import { getDataVersion, setDataVersion, VersionGraph } from "./version"
 import { MaybeFn } from "../../base/lib/actions/setupActions"
 import { GetInput } from "../../base/lib/actions/setupActions"
 import { Run } from "../../base/lib/actions/setupActions"
 import * as actions from "../../base/lib/actions"
-import { setupInit } from "./inits/setupInit"
 import * as fs from "node:fs/promises"
+import { setupInit, setupUninit } from "./inits"
 
 export const OSVersion = testTypeVersion("0.4.0-alpha.3")
 
@@ -95,6 +97,8 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       | "getSslCertificate"
       | "getSystemSmtp"
       | "getContainerIp"
+      | "getDataVersion"
+      | "setDataVersion"
 
     // prettier-ignore
     type StartSdkEffectWrapper = {
@@ -113,8 +117,6 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       clearBindings: (effects, ...args) => effects.clearBindings(...args),
       getOsIp: (effects, ...args) => effects.getOsIp(...args),
       getSslKey: (effects, ...args) => effects.getSslKey(...args),
-      setDataVersion: (effects, ...args) => effects.setDataVersion(...args),
-      getDataVersion: (effects, ...args) => effects.getDataVersion(...args),
       shutdown: (effects, ...args) => effects.shutdown(...args),
       getDependencies: (effects, ...args) => effects.getDependencies(...args),
       getStatus: (effects, ...args) => effects.getStatus(...args),
@@ -123,6 +125,8 @@ export class StartSdk<Manifest extends T.SDKManifest> {
     return {
       manifest: this.manifest,
       ...startSdkEffectWrapper,
+      setDataVersion,
+      getDataVersion,
       action: {
         run: actions.runAction,
         request: <T extends Action<T.ActionId, any>>(
@@ -490,33 +494,45 @@ export class StartSdk<Manifest extends T.SDKManifest> {
        * ```
        */
       setupDependencies: setupDependencies<Manifest>,
-      setupInit: setupInit<Manifest>,
       /**
-       * @description Use this function to execute arbitrary logic *once*, on initial install *before* interfaces, actions, and dependencies are updated.
+       * @description Use this function to setup what happens when the service initializes.
+       *  
+       *    This happens when the server boots, or a service is installed, updated, or restored
+       * 
+       *    Not every init script does something on every initialization. For example, versions only does something on install or update
+       * 
+       *    These scripts are run in the order they are supplied
        * @example
-       * In the this example, we initialize a config file
        *
        * ```
-        const preInstall = sdk.setupPreInstall(async ({ effects }) => {
-          await configFile.write(effects, { name: 'World' })
-        })
+        export const init = sdk.setupInit(
+          backups,
+          versions,
+          setDependencies,
+          setInterfaces,
+          actions,
+          postInstall,
+        )
        * ```
        */
-      setupPreInstall: (fn: InstallFn<Manifest>) => PreInstall.of(fn),
+      setupInit: setupInit,
       /**
-       * @description Use this function to execute arbitrary logic *once*, on initial install *after* interfaces, actions, and dependencies are updated.
+       * @description Use this function to setup what happens when the service uninitializes.
+       *  
+       *    This happens when the server shuts down, or a service is uninstalled or updated
+       * 
+       *    Not every uninit script does something on every uninitialization. For example, versions only does something on uninstall or update
+       * 
+       *    These scripts are run in the order they are supplied
        * @example
-       * In the this example, we create a task for the user to perform.
        *
        * ```
-        const postInstall = sdk.setupPostInstall(async ({ effects }) => {
-          await sdk.action.requestOwn(effects, showSecretPhrase, 'important', {
-            reason: 'Check out your secret phrase!',
-          })
-        })
+        export const uninit = sdk.setupUninit(
+          versions,
+        )
        * ```
        */
-      setupPostInstall: (fn: InstallFn<Manifest>) => PostInstall.of(fn),
+      setupUninit: setupUninit,
       /**
        * @description Use this function to determine how this service will be hosted and served. The function executes on service install, service update, and inputSpec save.
        * @param inputSpec - The inputSpec spec of this service as exported from /inputSpec/spec.
@@ -592,11 +608,6 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           started(onTerm: () => PromiseLike<void>): PromiseLike<null>
         }) => Promise<Daemons<Manifest, any>>,
       ) => setupMain<Manifest>(fn),
-      /**
-       * Use this function to execute arbitrary logic *once*, on uninstall only. Most services will not use this.
-       */
-      setupUninstall: (fn: UninstallFn<Manifest>) =>
-        setupUninstall<Manifest>(fn),
       trigger: {
         defaultTrigger,
         cooldownTrigger,

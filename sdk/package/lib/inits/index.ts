@@ -1,3 +1,2 @@
-import "./setupInit"
-import "./setupUninstall"
-import "./setupInstall"
+export * from "./setupInit"
+export * from "./setupUninit"

@@ -30,6 +30,7 @@ import { ListServiceInterfacesParams } from ".././osBindings"
 import { ExportActionParams } from ".././osBindings"
 import { MountParams } from ".././osBindings"
 import { StringObject } from "../util"
+import { ExtendedVersion, VersionRange } from "../exver"
 function typeEquality<ExpectedType>(_a: ExpectedType) {}
 
 type WithCallback<T> = Omit<T, "callback"> & { callback: () => void }

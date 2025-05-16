@@ -1,4 +1,9 @@
-import { types as T, utils } from "@start9labs/start-sdk"
+import {
+  ExtendedVersion,
+  types as T,
+  utils,
+  VersionRange,
+} from "@start9labs/start-sdk"
 import * as net from "net"
 import { object, string, number, literals, some, unknown } from "ts-matches"
 import { Effects } from "../Models/Effects"

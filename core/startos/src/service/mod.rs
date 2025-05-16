@@ -17,7 +17,7 @@ use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
-use models::{ActionId, HostId, ImageId, PackageId, ProcedureName};
+use models::{ActionId, HostId, ImageId, PackageId};
 use nix::sys::signal::Signal;
 use persistent_container::{PersistentContainer, Subcontainer};
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
@@ -35,7 +35,8 @@ use crate::context::{CliContext, RpcContext};
 use crate::db::model::package::{
     InstalledState, PackageDataEntry, PackageState, PackageStateMatchModelRef, UpdatingState,
 };
-use crate::disk::mount::guard::GenericMountGuard;
+use crate::disk::mount::filesystem::ReadOnly;
+use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::lxc::ContainerId;
 use crate::prelude::*;
@@ -43,11 +44,12 @@ use crate::progress::{NamedProgress, Progress};
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::S9pk;
 use crate::service::action::update_requested_actions;
+use crate::service::rpc::{ExitParams, InitKind};
 use crate::service::service_map::InstallProgressHandles;
 use crate::util::actor::concurrent::ConcurrentActor;
 use crate::util::io::{create_file, AsyncReadStream, TermSize};
 use crate::util::net::WebSocketExt;
-use crate::util::serde::{NoOutput, Pem};
+use crate::util::serde::Pem;
 use crate::util::Never;
 use crate::volume::data_dir;
 use crate::{CAP_1_KiB, DATA_DIR, PACKAGE_DATA};
@@ -116,32 +118,17 @@ impl ServiceRef {
     pub fn weak(&self) -> Weak<Service> {
         Arc::downgrade(&self.0)
     }
-    pub async fn uninstall(
-        self,
-        target_version: Option<models::VersionString>,
-        soft: bool,
-        force: bool,
-    ) -> Result<(), Error> {
-        let uninit_res = self
-            .seed
-            .persistent_container
-            .execute::<NoOutput>(
-                Guid::new(),
-                ProcedureName::PackageUninit,
-                to_value(&target_version)?,
-                None,
-            ) // TODO timeout
-            .await;
+    pub async fn uninstall(self, uninit: ExitParams, soft: bool, force: bool) -> Result<(), Error> {
+        let id = self.seed.persistent_container.s9pk.as_manifest().id.clone();
+        let ctx = self.seed.ctx.clone();
+        let uninit_res = self.shutdown(Some(uninit.clone())).await;
         if force {
             uninit_res.log_err();
         } else {
             uninit_res?;
         }
-        let id = self.seed.persistent_container.s9pk.as_manifest().id.clone();
-        let ctx = self.seed.ctx.clone();
-        self.shutdown().await?;
 
-        if target_version.is_none() {
+        if uninit.is_uninstall() {
             if let Some(pde) = ctx
                 .db
                 .mutate(|d| {
@@ -202,13 +189,20 @@ impl ServiceRef {
         }
         Ok(())
     }
-    pub async fn shutdown(self) -> Result<(), Error> {
+    pub async fn shutdown(self, uninit: Option<ExitParams>) -> Result<(), Error> {
         if let Some((hdl, shutdown)) = self.seed.persistent_container.rpc_server.send_replace(None)
         {
             self.seed
                 .persistent_container
                 .rpc_client
-                .request(rpc::Exit, Empty {})
+                .request(
+                    rpc::Exit,
+                    uninit.clone().unwrap_or_else(|| {
+                        ExitParams::target_version(
+                            &*self.seed.persistent_container.s9pk.as_manifest().version,
+                        )
+                    }),
+                )
                 .await?;
             shutdown.shutdown();
             tokio::time::timeout(Duration::from_secs(30), hdl)
@@ -234,7 +228,7 @@ impl ServiceRef {
                 )
             })?
             .persistent_container
-            .exit()
+            .exit(uninit)
             .await?;
         Ok(())
     }
@@ -257,7 +251,14 @@ pub struct Service {
 }
 impl Service {
     #[instrument(skip_all)]
-    async fn new(ctx: RpcContext, s9pk: S9pk, start: StartStop) -> Result<ServiceRef, Error> {
+    async fn new(
+        ctx: RpcContext,
+        s9pk: S9pk,
+        start: StartStop,
+        procedure_id: Guid,
+        init_kind: Option<InitKind>,
+        recovery_source: Option<impl GenericMountGuard>,
+    ) -> Result<ServiceRef, Error> {
         let id = s9pk.as_manifest().id.clone();
         let persistent_container = PersistentContainer::new(
             &ctx, s9pk,
@@ -277,11 +278,28 @@ impl Service {
             seed,
         }
         .into();
+        let recovery_guard = if let Some(recovery_source) = &recovery_source {
+            Some(
+                service
+                    .seed
+                    .persistent_container
+                    .mount_backup(recovery_source.path().join("data"), ReadOnly)
+                    .await?,
+            )
+        } else {
+            None
+        };
         service
             .seed
             .persistent_container
-            .init(service.weak())
+            .init(service.weak(), procedure_id, init_kind)
             .await?;
+        if let Some(recovery_guard) = recovery_guard {
+            recovery_guard.unmount(true).await?;
+        }
+        if let Some(recovery_source) = recovery_source {
+            recovery_source.unmount().await?;
+        }
         Ok(service)
     }
 
@@ -305,7 +323,9 @@ impl Service {
                 } else {
                     StartStop::Stop
                 };
-                Self::new(ctx, s9pk, start_stop).await.map(Some)
+                Self::new(ctx, s9pk, start_stop, Guid::new(), None, None::<MountGuard>)
+                    .await
+                    .map(Some)
             }
         };
         let s9pk_dir = Path::new(DATA_DIR).join(PKG_ARCHIVE_DIR).join("installed"); // TODO: make this based on hash
@@ -407,14 +427,23 @@ impl Service {
                     tracing::error!("Error opening s9pk for removal: {e}");
                     tracing::debug!("{e:?}")
                 }) {
-                    if let Ok(service) = Self::new(ctx.clone(), s9pk, StartStop::Stop)
-                        .await
-                        .map_err(|e| {
-                            tracing::error!("Error loading service for removal: {e}");
-                            tracing::debug!("{e:?}")
-                        })
-                    {
-                        match service.uninstall(None, false, false).await {
+                    if let Ok(service) = Self::new(
+                        ctx.clone(),
+                        s9pk,
+                        StartStop::Stop,
+                        Guid::new(),
+                        None,
+                        None::<MountGuard>,
+                    )
+                    .await
+                    .map_err(|e| {
+                        tracing::error!("Error loading service for removal: {e}");
+                        tracing::debug!("{e:?}")
+                    }) {
+                        match service
+                            .uninstall(ExitParams::uninstall(), false, false)
+                            .await
+                        {
                             Err(e) => {
                                 tracing::error!("Error uninstalling service: {e}");
                                 tracing::debug!("{e:?}")
@@ -445,53 +474,29 @@ impl Service {
     pub async fn install(
         ctx: RpcContext,
         s9pk: S9pk,
-        mut src_version: Option<models::VersionString>,
+        src_version: Option<models::VersionString>,
         recovery_source: Option<impl GenericMountGuard>,
         progress: Option<InstallProgressHandles>,
     ) -> Result<ServiceRef, Error> {
         let manifest = s9pk.as_manifest().clone();
         let developer_key = s9pk.as_archive().signer();
         let icon = s9pk.icon_data_url().await?;
-        let service = Self::new(ctx.clone(), s9pk, StartStop::Stop).await?;
-
-        if let Some(recovery_source) = recovery_source {
-            service
-                .actor
-                .send(
-                    Guid::new(),
-                    transition::restore::Restore {
-                        path: recovery_source.path().to_path_buf(),
-                    },
-                )
-                .await??;
-            recovery_source.unmount().await?;
-            src_version = Some(
-                service
-                    .seed
-                    .persistent_container
-                    .s9pk
-                    .as_manifest()
-                    .version
-                    .clone(),
-            );
-        }
-
         let procedure_id = Guid::new();
-        service
-            .seed
-            .persistent_container
-            .execute::<NoOutput>(
-                procedure_id.clone(),
-                ProcedureName::PackageInit,
-                to_value(&src_version)?,
-                None,
-            ) // TODO timeout
-            .await
-            .with_kind(if src_version.is_some() {
-                ErrorKind::UpdateFailed
+        let service = Self::new(
+            ctx.clone(),
+            s9pk,
+            StartStop::Stop,
+            procedure_id.clone(),
+            Some(if recovery_source.is_some() {
+                InitKind::Restore
+            } else if src_version.is_some() {
+                InitKind::Update
             } else {
-                ErrorKind::InstallFailed
-            })?; // TODO: handle cancellation
+                InitKind::Install
+            }),
+            recovery_source,
+        )
+        .await?;
 
         if let Some(mut progress) = progress {
             progress.finalization_progress.complete();
@@ -583,7 +588,7 @@ impl Service {
             .send(
                 Guid::new(),
                 transition::backup::Backup {
-                    path: guard.path().to_path_buf(),
+                    path: guard.path().join("data"),
                 },
             )
             .await??

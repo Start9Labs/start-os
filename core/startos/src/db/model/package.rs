@@ -3,10 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use chrono::{DateTime, Utc};
 use exver::VersionRange;
 use imbl_value::InternedString;
-use models::{
-    ActionId, DataUrl, HealthCheckId, HostId, PackageId, ReplayId, ServiceInterfaceId,
-    VersionString,
-};
+use models::{ActionId, DataUrl, HealthCheckId, HostId, PackageId, ReplayId, ServiceInterfaceId};
 use patch_db::json_ptr::JsonPointer;
 use patch_db::HasModel;
 use reqwest::Url;
@@ -365,7 +362,7 @@ impl Default for ActionVisibility {
 #[ts(export)]
 pub struct PackageDataEntry {
     pub state_info: PackageState,
-    pub data_version: Option<VersionString>,
+    pub data_version: Option<String>,
     pub status: MainStatus,
     #[ts(type = "string | null")]
     pub registry: Option<Url>,
