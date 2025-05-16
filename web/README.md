@@ -124,9 +124,8 @@ Translate the English dictionary below into `<language>`. Format the result as a
 - In the `shared` project:
 
   1. Create a new file (`language.ts`) in `src/i18n/dictionaries`
-  1. Export the dictionary in `src/public-api.ts`
-  1. Update the `I18N_PROVIDERS` array in `src/i18n/i18n.providers.ts` (2 places)
-  1. Update the `languages` array in `/src/i18n/i18n.service.ts`
+  2. Update the `I18N_PROVIDERS` array in `src/i18n/i18n.providers.ts` (2 places)
+  3. Update the `languages` array in `/src/i18n/i18n.service.ts`
 
 - Here in this README:
 
