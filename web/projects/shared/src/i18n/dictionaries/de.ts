@@ -84,7 +84,6 @@ export default {
   82: 'Metriken',
   83: 'Protokolle',
   84: 'Benachrichtigungen',
-  85: 'UI starten',
   86: 'QR-Code anzeigen',
   87: 'URL kopieren',
   88: 'Aktionen',
@@ -246,7 +245,6 @@ export default {
   244: 'Hosting',
   245: 'Installation läuft',
   246: 'Siehe unten',
-  247: 'Steuerelemente',
   248: 'Keine Dienste installiert',
   249: 'Läuft',
   250: 'Gestoppt',
@@ -504,4 +502,5 @@ export default {
   502: 'souveränes computing',
   503: 'Passen Sie den Namen an, der in Ihrem Browser-Tab erscheint',
   504: 'Verwalten',
+  505: 'Möchten Sie diese Adresse wirklich löschen?',
 } satisfies i18n

@@ -113,7 +113,7 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
       }
 
       .listing {
-        font-size: 0.9rem;
+        font-size: 0.8rem;
         // @TODO theme
         color: #8059e5;
         font-weight: 600;

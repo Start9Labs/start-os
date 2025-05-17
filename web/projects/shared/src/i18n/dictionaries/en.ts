@@ -83,7 +83,6 @@ export const ENGLISH = {
   'Metrics': 82, // system info such as CPU, RAM, and storage usage
   'Logs': 83, // as in, application logs
   'Notifications': 84,
-  'Launch UI': 85,
   'Show QR': 86,
   'Copy URL': 87,
   'Actions': 88, // as in, actions available to the user
@@ -245,7 +244,6 @@ export const ENGLISH = {
   'Hosting': 244,
   'Installing': 245,
   'See below': 246,
-  'Controls': 247,
   'No services installed': 248,
   'Running': 249,
   'Stopped': 250,
@@ -503,4 +501,5 @@ export const ENGLISH = {
   'sovereign computing': 502,
   'Customize the name appearing in your browser tab': 503,
   'Manage': 504,
+  'Are you sure you want to delete this address?': 505,
 } as const

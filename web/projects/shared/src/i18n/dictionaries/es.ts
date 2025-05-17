@@ -84,7 +84,6 @@ export default {
   82: 'Métricas',
   83: 'Registros',
   84: 'Notificaciones',
-  85: 'Abrir interfaz',
   86: 'Mostrar QR',
   87: 'Copiar URL',
   88: 'Acciones',
@@ -246,7 +245,6 @@ export default {
   244: 'Alojamiento',
   245: 'Instalando',
   246: 'Ver abajo',
-  247: 'Controles',
   248: 'No hay servicios instalados',
   249: 'En ejecución',
   250: 'Detenido',
@@ -504,4 +502,5 @@ export default {
   502: 'computación soberana',
   503: 'Personaliza el nombre que aparece en la pestaña de tu navegador',
   504: 'Administrar',
+  505: '¿Estás seguro de que deseas eliminar esta dirección?',
 } satisfies i18n

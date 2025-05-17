@@ -84,7 +84,6 @@ export default {
   82: 'Metryki',
   83: 'Logi',
   84: 'Powiadomienia',
-  85: 'Uruchom interfejs',
   86: 'Pokaż kod QR',
   87: 'Kopiuj URL',
   88: 'Akcje',
@@ -246,7 +245,6 @@ export default {
   244: 'Hosting',
   245: 'Instalowanie',
   246: 'Zobacz poniżej',
-  247: 'Sterowanie',
   248: 'Brak zainstalowanych serwisów',
   249: 'Uruchomiony',
   250: 'Zatrzymany',
@@ -504,4 +502,5 @@ export default {
   502: 'suwerenne przetwarzanie',
   503: 'Dostosuj nazwę wyświetlaną na karcie przeglądarki',
   504: 'Zarządzać',
+  505: 'Czy na pewno chcesz usunąć ten adres?',
 } satisfies i18n

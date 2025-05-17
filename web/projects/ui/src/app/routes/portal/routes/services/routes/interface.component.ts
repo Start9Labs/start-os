@@ -10,7 +10,7 @@ import { RouterLink } from '@angular/router'
 import { getPkgId, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiItem } from '@taiga-ui/cdk'
-import { TuiButton, TuiLink, TuiTitle } from '@taiga-ui/core'
+import { TuiButton, TuiLink } from '@taiga-ui/core'
 import { TuiBadge, TuiBreadcrumbs } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
@@ -41,7 +41,7 @@ import { TitleDirective } from 'src/app/services/title.service'
     </tui-breadcrumbs>
     @if (interface(); as value) {
       <header tuiHeader [style.margin-bottom.rem]="1">
-        <hgroup tuiTitle>
+        <hgroup>
           <h3>
             {{ value.name }}
             <tui-badge size="l" [appearance]="getAppearance(value.type)">
@@ -52,7 +52,11 @@ import { TitleDirective } from 'src/app/services/title.service'
           <p tuiSubtitle>{{ value.description }}</p>
         </hgroup>
       </header>
-      <app-interface [packageId]="pkgId" [value]="value" />
+      <app-interface
+        [packageId]="pkgId"
+        [value]="value"
+        [isRunning]="isRunning()"
+      />
     }
   `,
   styles: `
@@ -64,6 +68,8 @@ import { TitleDirective } from 'src/app/services/title.service'
       display: flex;
       align-items: center;
       gap: 0.5rem;
+      margin: 1rem 0 0.5rem 0;
+      font-size: 2.4rem;
 
       tui-badge {
         text-transform: uppercase;
@@ -86,7 +92,6 @@ import { TitleDirective } from 'src/app/services/title.service'
     i18nPipe,
     TuiBadge,
     TuiHeader,
-    TuiTitle,
   ],
 })
 export default class ServiceInterfaceRoute {
@@ -98,6 +103,10 @@ export default class ServiceInterfaceRoute {
   readonly pkg = toSignal(
     inject<PatchDB<DataModel>>(PatchDB).watch$('packageData', this.pkgId),
   )
+
+  readonly isRunning = computed(() => {
+    return this.pkg()?.status.main === 'running'
+  })
 
   readonly interface = computed(() => {
     const pkg = this.pkg()

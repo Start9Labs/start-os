@@ -35,9 +35,7 @@ import { i18nPipe } from '@start9labs/shared'
               <th tuiTh [requiredSort]="true" [sorter]="status">
                 {{ 'Status' | i18n }}
               </th>
-              <th [style.width.rem]="8" [style.text-indent.rem]="1.5">
-                {{ 'Controls' | i18n }}
-              </th>
+              <th [style.width.rem]="8" [style.text-indent.rem]="1.5"></th>
             </tr>
           </thead>
           <tbody>

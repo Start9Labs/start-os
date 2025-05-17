@@ -15,6 +15,7 @@ import {
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { QRModal } from 'src/app/routes/portal/modals/qr.component'
 import { InterfaceComponent } from './interface.component'
+import { DOCUMENT } from '@angular/common'
 
 @Component({
   standalone: true,
@@ -23,23 +24,29 @@ import { InterfaceComponent } from './interface.component'
     <div class="desktop">
       <ng-content />
       @if (interface.value().type === 'ui') {
-        <a
+        <button
           tuiIconButton
+          appearance="flat-grayscale"
           iconStart="@tui.external-link"
-          target="_blank"
-          rel="noreferrer"
-          [href]="actions()"
+          [disabled]="disabled()"
+          (click)="openUI()"
         >
-          {{ 'Launch UI' | i18n }}
-        </a>
+          {{ 'Open' | i18n }}
+        </button>
       }
-      <button tuiIconButton iconStart="@tui.qr-code" (click)="showQR()">
+      <button
+        tuiIconButton
+        appearance="flat-grayscale"
+        iconStart="@tui.qr-code"
+        (click)="showQR()"
+      >
         {{ 'Show QR' | i18n }}
       </button>
       <button
         tuiIconButton
+        appearance="flat-grayscale"
         iconStart="@tui.copy"
-        (click)="copyService.copy(actions())"
+        (click)="copyService.copy(href())"
       >
         {{ 'Copy URL' | i18n }}
       </button>
@@ -56,26 +63,25 @@ import { InterfaceComponent } from './interface.component'
           <tui-data-list>
             <tui-opt-group>
               @if (interface.value().type === 'ui') {
-                <a
-                  tuiOption
-                  iconStart="@tui.external-link"
-                  target="_blank"
-                  rel="noreferrer"
-                  [href]="actions()"
-                >
-                  {{ 'Launch UI' | i18n }}
-                </a>
-                <button tuiOption iconStart="@tui.qr-code" (click)="showQR()">
-                  {{ 'Show QR' | i18n }}
-                </button>
                 <button
                   tuiOption
-                  iconStart="@tui.copy"
-                  (click)="copyService.copy(actions()); close()"
+                  iconStart="@tui.external-link"
+                  [disabled]="disabled()"
+                  (click)="openUI()"
                 >
-                  {{ 'Copy URL' | i18n }}
+                  {{ 'Open' | i18n }}
                 </button>
               }
+              <button tuiOption iconStart="@tui.qr-code" (click)="showQR()">
+                {{ 'Show QR' | i18n }}
+              </button>
+              <button
+                tuiOption
+                iconStart="@tui.copy"
+                (click)="copyService.copy(href()); close()"
+              >
+                {{ 'Copy URL' | i18n }}
+              </button>
             </tui-opt-group>
             <tui-opt-group><ng-content select="[tuiOption]" /></tui-opt-group>
           </tui-data-list>
@@ -110,20 +116,27 @@ import { InterfaceComponent } from './interface.component'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InterfaceActionsComponent {
+  private readonly document = inject(DOCUMENT)
+
   readonly isMobile = inject(TUI_IS_MOBILE)
   readonly dialog = inject(DialogService)
   readonly copyService = inject(CopyService)
   readonly interface = inject(InterfaceComponent)
 
-  readonly actions = input.required<string>()
+  readonly href = input.required<string>()
+  readonly disabled = input.required<boolean>()
 
   showQR() {
     this.dialog
       .openComponent(new PolymorpheusComponent(QRModal), {
         size: 'auto',
         closeable: this.isMobile,
-        data: this.actions(),
+        data: this.href(),
       })
       .subscribe()
+  }
+
+  openUI() {
+    this.document.defaultView?.open(this.href(), '_blank', 'noreferrer')
   }
 }

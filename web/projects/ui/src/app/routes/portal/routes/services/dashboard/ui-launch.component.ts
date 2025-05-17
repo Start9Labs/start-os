@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -23,7 +24,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
         [disabled]="!isRunning"
         [tuiDropdown]="content"
       >
-        {{ 'Launch UI' | i18n }}
+        {{ 'Open' | i18n }}
       </button>
       <ng-template #content>
         <tui-data-list>
@@ -39,16 +40,15 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
           }
         </tui-data-list>
       </ng-template>
-    } @else {
-      <a
+    } @else if (interfaces[0]) {
+      <button
         tuiIconButton
         iconStart="@tui.external-link"
-        target="_blank"
-        rel="noreferrer"
-        [attr.href]="getHref(first)"
+        [disabled]="!isRunning"
+        (click)="openUI(interfaces[0])"
       >
-        {{ first?.name }}
-      </a>
+        {{ interfaces[0].name }}
+      </button>
     }
   `,
   styles: `
@@ -61,6 +61,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 })
 export class UILaunchComponent {
   private readonly config = inject(ConfigService)
+  private readonly document = inject(DOCUMENT)
 
   @Input()
   pkg!: PackageDataEntry
@@ -71,10 +72,6 @@ export class UILaunchComponent {
 
   get isRunning(): boolean {
     return this.pkg.status.main === 'running'
-  }
-
-  get first(): T.ServiceInterface | undefined {
-    return this.interfaces[0]
   }
 
   @tuiPure
@@ -89,9 +86,11 @@ export class UILaunchComponent {
       : []
   }
 
-  getHref(ui?: T.ServiceInterface): string | null {
-    return ui && this.isRunning
-      ? this.config.launchableAddress(ui, this.pkg.hosts)
-      : null
+  getHref(ui: T.ServiceInterface): string {
+    return this.config.launchableAddress(ui, this.pkg.hosts)
+  }
+
+  openUI(ui: T.ServiceInterface) {
+    this.document.defaultView?.open(this.getHref(ui), '_blank', 'noreferrer')
   }
 }

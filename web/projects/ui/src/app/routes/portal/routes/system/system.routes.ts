@@ -45,7 +45,7 @@ export default [
       {
         path: 'interfaces',
         title: titleResolver,
-        loadComponent: () => import('./routes/interfaces/interfaces.component'),
+        loadComponent: () => import('./routes/startos-ui/startos-ui.component'),
       },
       {
         path: 'acme',

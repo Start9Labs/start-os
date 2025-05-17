@@ -14,7 +14,7 @@ import { DepErrorService } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getManifest } from 'src/app/utils/get-package-data'
-import { UILaunchComponent } from './ui.component'
+import { UILaunchComponent } from './ui-launch.component'
 import { i18nPipe } from '@start9labs/shared'
 
 const RUNNING = ['running', 'starting', 'restarting']
@@ -23,6 +23,7 @@ const RUNNING = ['running', 'starting', 'restarting']
   standalone: true,
   selector: 'fieldset[appControls]',
   template: `
+    <app-ui-launch [pkg]="pkg()" />
     @if (running()) {
       <button
         tuiIconButton
@@ -42,8 +43,6 @@ const RUNNING = ['running', 'starting', 'restarting']
         {{ 'Start' | i18n }}
       </button>
     }
-
-    <app-ui-launch [pkg]="pkg()" />
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, UILaunchComponent, TuiLet, AsyncPipe, i18nPipe],
@@ -53,6 +52,7 @@ const RUNNING = ['running', 'starting', 'restarting']
       padding: 0;
       border: none;
       cursor: default;
+      text-align: right;
     }
 
     :host-context(tui-root._mobile) {

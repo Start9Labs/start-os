@@ -25,9 +25,15 @@ import { MappedServiceInterface } from './interface.utils'
     >
       {{ value().public ? ('Make private' | i18n) : ('Make public' | i18n) }}
     </button>
-    <section [clearnet]="value().addresses.clearnet"></section>
-    <section [tor]="value().addresses.tor"></section>
-    <section [local]="value().addresses.local"></section>
+    <section
+      [clearnet]="value().addresses.clearnet"
+      [isRunning]="isRunning()"
+    ></section>
+    <section [tor]="value().addresses.tor" [isRunning]="isRunning()"></section>
+    <section
+      [local]="value().addresses.local"
+      [isRunning]="isRunning()"
+    ></section>
   `,
   styles: `
     :host {
@@ -60,6 +66,7 @@ export class InterfaceComponent {
 
   readonly packageId = input('')
   readonly value = input.required<MappedServiceInterface>()
+  readonly isRunning = input.required<boolean>()
 
   async toggle() {
     const loader = this.loader

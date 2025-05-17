@@ -10,7 +10,7 @@ import { tuiDefaultSort } from '@taiga-ui/cdk'
 import { ConfigService } from 'src/app/services/config.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { getAddresses } from '../../../components/interfaces/interface.utils'
-import { ServiceInterfaceComponent } from './interface.component'
+import { ServiceInterfaceItemComponent } from './interface-item.component'
 import { i18nPipe } from '@start9labs/shared'
 
 @Component({
@@ -47,7 +47,7 @@ import { i18nPipe } from '@start9labs/shared'
   `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ServiceInterfaceComponent, TuiTable, i18nPipe],
+  imports: [ServiceInterfaceItemComponent, TuiTable, i18nPipe],
 })
 export class ServiceInterfacesComponent {
   private readonly config = inject(ConfigService)

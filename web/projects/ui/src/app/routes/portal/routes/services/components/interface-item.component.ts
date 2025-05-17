@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -5,9 +6,8 @@ import {
   Input,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
-import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { TuiButton, TuiIcon, TuiLink } from '@taiga-ui/core'
+import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import { TuiBadge } from '@taiga-ui/kit'
 import { ConfigService } from 'src/app/services/config.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -33,27 +33,23 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
     </td>
     <td>
       @if (info.type === 'ui') {
-        <a
-          tuiButton
-          appearance="primary-success"
-          iconEnd="@tui.external-link"
-          target="_blank"
-          rel="noreferrer"
-          size="xs"
-          [style.margin-right.rem]="0.5"
-          [attr.href]="href"
-        >
-          {{ 'Launch UI' | i18n }}
-        </a>
+        <button
+          tuiIconButton
+          iconStart="@tui.external-link"
+          appearance="flat-grayscale"
+          [disabled]="disabled"
+          (click)="openUI()"
+        ></button>
       }
-      <a tuiButton size="xs" [routerLink]="info.routerLink">
-        {{ 'Manage' | i18n }}
-      </a>
+      <a
+        tuiIconButton
+        iconStart="@tui.settings"
+        appearance="flat-grayscale"
+        [routerLink]="info.routerLink"
+      ></a>
     </td>
   `,
   styles: `
-    @import '@taiga-ui/core/styles/taiga-ui-local';
-
     strong {
       white-space: nowrap;
     }
@@ -91,10 +87,11 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiButton, TuiBadge, TuiLink, TuiIcon, RouterLink, i18nPipe],
+  imports: [TuiButton, TuiBadge, TuiIcon, RouterLink],
 })
-export class ServiceInterfaceComponent {
+export class ServiceInterfaceItemComponent {
   private readonly config = inject(ConfigService)
+  private readonly document = inject(DOCUMENT)
 
   @Input({ required: true })
   info!: T.ServiceInterface & {
@@ -119,9 +116,11 @@ export class ServiceInterfaceComponent {
     }
   }
 
-  get href(): string | null {
-    return this.disabled
-      ? null
-      : this.config.launchableAddress(this.info, this.pkg.hosts)
+  get href() {
+    return this.config.launchableAddress(this.info, this.pkg.hosts)
+  }
+
+  openUI() {
+    this.document.defaultView?.open(this.href, '_blank', 'noreferrer')
   }
 }

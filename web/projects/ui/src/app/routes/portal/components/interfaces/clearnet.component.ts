@@ -79,11 +79,12 @@ type ClearnetForm = {
               {{ interface.value().addSsl ? (address.acme | acme) : '-' }}
             </td>
             <td>{{ address.url | mask }}</td>
-            <td [actions]="address.url">
+            <td actions [href]="address.url" [disabled]="!isRunning()">
               @if (address.isDomain) {
                 <button
-                  tuiButton
-                  appearance="primary-destructive"
+                  tuiIconButton
+                  iconStart="@tui.trash"
+                  appearance="flat-grayscale"
                   [style.margin-inline-end.rem]="0.5"
                   (click)="remove(address)"
                 >
@@ -140,6 +141,8 @@ export class InterfaceClearnetComponent {
   readonly interface = inject(InterfaceComponent)
 
   readonly clearnet = input.required<readonly ClearnetAddress[]>()
+  readonly isRunning = input.required<boolean>()
+
   readonly acme = toSignal(
     inject<PatchDB<DataModel>>(PatchDB)
       .watch$('serverInfo', 'network', 'acme')
@@ -150,7 +153,15 @@ export class InterfaceClearnetComponent {
   async remove({ url }: ClearnetAddress) {
     const confirm = await firstValueFrom(
       this.dialog
-        .openConfirm({ label: 'Are you sure?', size: 's' })
+        .openConfirm({
+          label: 'Confirm',
+          size: 's',
+          data: {
+            yes: 'Delete',
+            no: 'Cancel',
+            content: 'Are you sure you want to delete this address?',
+          },
+        })
         .pipe(defaultIfEmpty(false)),
     )
 
