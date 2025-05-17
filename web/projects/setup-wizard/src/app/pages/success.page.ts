@@ -128,7 +128,7 @@ export default class SuccessPage implements AfterViewInit {
   disableLogin = this.stateService.setupType === 'fresh'
 
   ngAfterViewInit() {
-    // setTimeout(() => this.complete(), 1000)
+    setTimeout(() => this.complete(), 500)
   }
 
   download() {
