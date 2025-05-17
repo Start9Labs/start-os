@@ -503,4 +503,5 @@ export default {
   500: 'Zobacz Rynek',
   501: 'Witamy w',
   502: 'suwerenne przetwarzanie',
+  503: 'francuski',
 } satisfies i18n

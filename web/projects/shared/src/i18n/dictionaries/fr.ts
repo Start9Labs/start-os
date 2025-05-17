@@ -503,4 +503,5 @@ export default {
   500: 'Voir la bibliothèque de services',
   501: 'Bienvenue sur',
   502: 'informatique souveraine',
+  503: 'français',
 } satisfies i18n
