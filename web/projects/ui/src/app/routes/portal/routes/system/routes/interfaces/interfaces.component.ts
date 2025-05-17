@@ -26,7 +26,7 @@ import { TitleDirective } from 'src/app/services/title.service'
         {{ 'Back' | i18n }}
       </a>
       StartOS UI
-      <interface-status [public]="public()" />
+      <interface-status [style.margin-left.rem]="0.5" [public]="public()" />
     </ng-container>
     <header tuiHeader>
       <hgroup tuiTitle>
@@ -38,7 +38,7 @@ import { TitleDirective } from 'src/app/services/title.service'
       </hgroup>
     </header>
     @if (ui(); as ui) {
-      <app-interface [serviceInterface]="ui" />
+      <app-interface [value]="ui" />
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

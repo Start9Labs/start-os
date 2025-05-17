@@ -16,15 +16,10 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
   selector: 'tr[serviceInterface]',
   template: `
     <td>
-      <a tuiLink [routerLink]="info.routerLink">
-        <strong>{{ info.name }}</strong>
-      </a>
+      <strong>{{ info.name }}</strong>
     </td>
     <td>
       <tui-badge size="m" [appearance]="appearance">{{ info.type }}</tui-badge>
-    </td>
-    <td class="g-secondary" [style.grid-area]="'2 / span 4'">
-      {{ info.description }}
     </td>
     <td [style.text-align]="'center'">
       @if (info.public) {
@@ -33,42 +28,31 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
         <tui-icon class="g-negative" icon="@tui.lock" />
       }
     </td>
-    <td [style.grid-area]="'span 2'">
+    <td class="g-secondary" [style.grid-area]="'2 / span 4'">
+      {{ info.description }}
+    </td>
+    <td>
       @if (info.type === 'ui') {
         <a
-          tuiIconButton
-          appearance="action"
-          iconStart="@tui.external-link"
+          tuiButton
+          appearance="primary-success"
+          iconEnd="@tui.external-link"
           target="_blank"
           rel="noreferrer"
-          size="s"
-          [style.border-radius.%]="100"
+          size="xs"
+          [style.margin-right.rem]="0.5"
           [attr.href]="href"
-          (click.stop)="(0)"
         >
-          {{ 'Open' | i18n }}
+          {{ 'Launch UI' | i18n }}
         </a>
       }
+      <a tuiButton size="xs" [routerLink]="info.routerLink">
+        {{ 'Manage' | i18n }}
+      </a>
     </td>
   `,
   styles: `
     @import '@taiga-ui/core/styles/taiga-ui-local';
-
-    :host {
-      cursor: pointer;
-      clip-path: inset(0 round var(--tui-radius-m));
-      @include transition(background);
-    }
-
-    [tuiLink] {
-      background: transparent;
-    }
-
-    @media ($tui-mouse) {
-      :host:hover {
-        background: var(--tui-background-neutral-1);
-      }
-    }
 
     strong {
       white-space: nowrap;
@@ -76,20 +60,31 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 
     tui-badge {
       text-transform: uppercase;
+      font-weight: bold;
     }
 
     tui-icon {
       font-size: 1rem;
     }
 
+    td:last-child {
+      grid-area: 3 / span 4;
+      white-space: nowrap;
+      text-align: right;
+      flex-direction: row-reverse;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+
     :host-context(tui-root._mobile) {
       display: grid;
-      grid-template-columns: repeat(3, min-content) 1fr 2rem;
+      grid-template-columns: repeat(3, min-content) 1fr;
       align-items: center;
       padding: 1rem 0.5rem;
       gap: 0.5rem;
 
       td {
+        display: flex;
         padding: 0;
       }
     }
@@ -116,11 +111,11 @@ export class ServiceInterfaceComponent {
   get appearance(): string {
     switch (this.info.type) {
       case 'ui':
-        return 'primary'
+        return 'positive'
       case 'api':
-        return 'accent'
+        return 'info'
       case 'p2p':
-        return 'primary-grayscale'
+        return 'negative'
     }
   }
 

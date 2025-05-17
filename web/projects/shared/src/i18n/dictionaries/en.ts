@@ -502,4 +502,5 @@ export const ENGLISH = {
   'Welcome to': 501,
   'sovereign computing': 502,
   'Customize the name appearing in your browser tab': 503,
+  'Manage': 504,
 } as const

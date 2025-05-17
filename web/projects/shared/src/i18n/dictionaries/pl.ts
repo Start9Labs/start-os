@@ -503,4 +503,5 @@ export default {
   501: 'Witamy w',
   502: 'suwerenne przetwarzanie',
   503: 'Dostosuj nazwę wyświetlaną na karcie przeglądarki',
+  504: 'Zarządzać',
 } satisfies i18n

@@ -22,7 +22,7 @@ import { InterfaceComponent } from './interface.component'
   template: `
     <div class="desktop">
       <ng-content />
-      @if (interface.serviceInterface().type === 'ui') {
+      @if (interface.value().type === 'ui') {
         <a
           tuiIconButton
           iconStart="@tui.external-link"
@@ -55,7 +55,7 @@ import { InterfaceComponent } from './interface.component'
         <ng-template #dropdown let-close>
           <tui-data-list>
             <tui-opt-group>
-              @if (interface.serviceInterface().type === 'ui') {
+              @if (interface.value().type === 'ui') {
                 <a
                   tuiOption
                   iconStart="@tui.external-link"
