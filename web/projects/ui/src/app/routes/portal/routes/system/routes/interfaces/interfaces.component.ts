@@ -34,13 +34,13 @@ import { TitleDirective } from 'src/app/services/title.service'
           {{ iface.name }}
           <interface-status [public]="public()" />
         </h3>
+        <p tuiSubtitle>{{ iface.description }}</p>
       </hgroup>
     </header>
     @if (ui(); as ui) {
-      <app-interface [interface]="ui" />
+      <app-interface [value]="ui" />
     }
   `,
-  host: { '[style.gap]': '0' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
   imports: [

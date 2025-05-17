@@ -16,21 +16,18 @@ import { MappedServiceInterface } from './interface.utils'
   standalone: true,
   selector: 'app-interface',
   template: `
-    <div>{{ interface().description }}</div>
     <button
       tuiButton
       size="s"
-      [appearance]="interface().public ? 'primary-destructive' : 'accent'"
-      [iconStart]="interface().public ? '@tui.globe-lock' : '@tui.globe'"
+      [appearance]="value().public ? 'primary-destructive' : 'primary-success'"
+      [iconStart]="value().public ? '@tui.globe-lock' : '@tui.globe'"
       (click)="toggle()"
     >
-      {{
-        interface().public ? ('Make private' | i18n) : ('Make public' | i18n)
-      }}
+      {{ value().public ? ('Make private' | i18n) : ('Make public' | i18n) }}
     </button>
-    <section [clearnet]="interface().addresses.clearnet"></section>
-    <section [tor]="interface().addresses.tor"></section>
-    <section [local]="interface().addresses.local"></section>
+    <section [clearnet]="value().addresses.clearnet"></section>
+    <section [tor]="value().addresses.tor"></section>
+    <section [local]="value().addresses.local"></section>
   `,
   styles: `
     :host {
@@ -62,23 +59,23 @@ export class InterfaceComponent {
   private readonly api = inject(ApiService)
 
   readonly packageId = input('')
-  readonly interface = input.required<MappedServiceInterface>()
+  readonly value = input.required<MappedServiceInterface>()
 
   async toggle() {
     const loader = this.loader
-      .open(`Making ${this.interface().public ? 'private' : 'public'}`)
+      .open(`Making ${this.value().public ? 'private' : 'public'}`)
       .subscribe()
 
     const params = {
-      internalPort: this.interface().addressInfo.internalPort,
-      public: !this.interface().public,
+      internalPort: this.value().addressInfo.internalPort,
+      public: !this.value().public,
     }
 
     try {
       if (this.packageId()) {
         await this.api.pkgBindingSetPubic({
           ...params,
-          host: this.interface().addressInfo.hostId,
+          host: this.value().addressInfo.hostId,
           package: this.packageId(),
         })
       } else {

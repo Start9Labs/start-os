@@ -161,7 +161,7 @@ export class InterfaceTorComponent {
         await this.api.pkgRemoveOnion({
           ...params,
           package: this.interface.packageId(),
-          host: this.interface.interface().addressInfo.hostId,
+          host: this.interface.value().addressInfo.hostId,
         })
       } else {
         await this.api.serverRemoveOnion(params)
@@ -215,7 +215,7 @@ export class InterfaceTorComponent {
         await this.api.pkgAddOnion({
           onion,
           package: this.interface.packageId(),
-          host: this.interface.interface().addressInfo.hostId,
+          host: this.interface.value().addressInfo.hostId,
         })
       } else {
         await this.api.serverAddOnion({ onion })

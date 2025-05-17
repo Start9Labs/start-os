@@ -10,8 +10,9 @@ import { RouterLink } from '@angular/router'
 import { getPkgId, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiItem } from '@taiga-ui/cdk'
-import { TuiButton, TuiLink } from '@taiga-ui/core'
+import { TuiButton, TuiLink, TuiTitle } from '@taiga-ui/core'
 import { TuiBadge, TuiBreadcrumbs } from '@taiga-ui/kit'
+import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { InterfaceComponent } from 'src/app/routes/portal/components/interfaces/interface.component'
 import { getAddresses } from 'src/app/routes/portal/components/interfaces/interface.utils'
@@ -36,16 +37,22 @@ import { TitleDirective } from 'src/app/services/title.service'
       <a *tuiItem tuiLink appearance="action-grayscale" routerLink="../..">
         {{ 'Dashboard' | i18n }}
       </a>
-      <span *tuiItem class="name">
-        {{ interface()?.name }}
-        <tui-badge [appearance]="getAppearance(interface()?.type)">
-          {{ interface()?.type }}
-        </tui-badge>
-        <interface-status [public]="!!interface()?.public" />
-      </span>
+      <span *tuiItem class="g-primary">{{ interface()?.name }}</span>
     </tui-breadcrumbs>
     @if (interface(); as value) {
-      <app-interface [packageId]="pkgId" [interface]="value" />
+      <header tuiHeader [style.margin-bottom.rem]="1">
+        <hgroup tuiTitle>
+          <h3>
+            {{ value.name }}
+            <tui-badge size="l" [appearance]="getAppearance(value.type)">
+              {{ value.type }}
+            </tui-badge>
+            <interface-status [public]="value.public" />
+          </h3>
+          <p tuiSubtitle>{{ value.description }}</p>
+        </hgroup>
+      </header>
+      <app-interface [packageId]="pkgId" [value]="value" />
     }
   `,
   styles: `
@@ -53,11 +60,10 @@ import { TitleDirective } from 'src/app/services/title.service'
       display: none;
     }
 
-    .name {
+    h3 {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      color: var(--tui-text-primary);
 
       tui-badge {
         text-transform: uppercase;
@@ -79,6 +85,8 @@ import { TitleDirective } from 'src/app/services/title.service'
     InterfaceStatusComponent,
     i18nPipe,
     TuiBadge,
+    TuiHeader,
+    TuiTitle,
   ],
 })
 export default class ServiceInterfaceRoute {

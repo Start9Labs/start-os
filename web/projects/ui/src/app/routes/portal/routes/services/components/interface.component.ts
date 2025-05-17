@@ -35,7 +35,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
       @if (info.type === 'ui') {
         <a
           tuiButton
-          appearance="secondary"
+          appearance="primary-success"
           iconEnd="@tui.external-link"
           target="_blank"
           rel="noreferrer"

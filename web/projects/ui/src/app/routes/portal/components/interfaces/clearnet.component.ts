@@ -76,7 +76,7 @@ type ClearnetForm = {
         @for (address of clearnet(); track $index) {
           <tr>
             <td [style.width.rem]="12">
-              {{ interface.interface().addSsl ? (address.acme | acme) : '-' }}
+              {{ interface.value().addSsl ? (address.acme | acme) : '-' }}
             </td>
             <td>{{ address.url | mask }}</td>
             <td [actions]="address.url">
@@ -166,7 +166,7 @@ export class InterfaceClearnetComponent {
         await this.api.pkgRemoveDomain({
           ...params,
           package: this.interface.packageId(),
-          host: this.interface.interface().addressInfo.hostId,
+          host: this.interface.value().addressInfo.hostId,
         })
       } else {
         await this.api.serverRemoveDomain(params)
@@ -208,7 +208,7 @@ export class InterfaceClearnetComponent {
       data: {
         spec: await configBuilderToSpec(
           ISB.InputSpec.of(
-            this.interface.interface().addSsl ? { domain, acme } : { domain },
+            this.interface.value().addSsl ? { domain, acme } : { domain },
           ),
         ),
         buttons: [
@@ -237,7 +237,7 @@ export class InterfaceClearnetComponent {
         await this.api.pkgAddDomain({
           ...params,
           package: this.interface.packageId(),
-          host: this.interface.interface().addressInfo.hostId,
+          host: this.interface.value().addressInfo.hostId,
         })
       } else {
         await this.api.serverAddDomain(params)

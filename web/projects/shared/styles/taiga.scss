@@ -95,6 +95,24 @@
   }
 }
 
+[tuiAppearance][data-appearance='primary-success'] {
+  color: var(--tui-text-primary-on-accent-1);
+  background: var(--tui-status-positive);
+
+  @include appearance-hover {
+    filter: brightness(1.2);
+  }
+
+  @include appearance-active {
+    filter: brightness(0.9);
+  }
+
+  @include appearance-disabled {
+    background: var(--tui-status-neutral);
+    color: #333;
+  }
+}
+
 tui-hint[data-appearance='onDark'] {
   background: white !important;
   color: #222 !important;

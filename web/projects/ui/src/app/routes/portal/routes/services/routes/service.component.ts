@@ -67,8 +67,8 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
             #actions="elementRef"
             tuiElement
             waIntersectionObserver
-            waIntersectionThreshold="1"
-            (waIntersectionObservee)="scrolled = !!$event[0]?.isIntersecting"
+            waIntersectionThreshold="0.5"
+            (waIntersectionObservee)="scrolled = $event.at(-1)?.isIntersecting"
             [pkg]="pkg"
             [services]="services() || {}"
           />
@@ -165,7 +165,7 @@ export class ServiceRoute {
   private readonly errorService = inject(DepErrorService)
   protected readonly connected = toSignal(inject(ConnectionService))
 
-  protected scrolled = false
+  protected scrolled?: boolean
 
   protected readonly id = toSignal(
     inject(ActivatedRoute).paramMap.pipe(map(params => params.get('pkgId'))),
