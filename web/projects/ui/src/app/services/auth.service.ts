@@ -1,6 +1,5 @@
 import { Injectable, NgZone } from '@angular/core'
-import { ReplaySubject } from 'rxjs'
-import { distinctUntilChanged, map } from 'rxjs/operators'
+import { distinctUntilChanged, map, ReplaySubject } from 'rxjs'
 import { Router } from '@angular/router'
 import { StorageService } from './storage.service'
 
@@ -12,7 +11,7 @@ export enum AuthState {
   providedIn: 'root',
 })
 export class AuthService {
-  private readonly LOGGED_IN_KEY = 'loggedInKey'
+  private readonly LOGGED_IN_KEY = 'loggedIn'
   private readonly authState$ = new ReplaySubject<AuthState>(1)
 
   readonly isVerified$ = this.authState$.pipe(
@@ -27,11 +26,10 @@ export class AuthService {
   ) {}
 
   init(): void {
-    const loggedIn = this.storage.get(this.LOGGED_IN_KEY)
-    if (loggedIn) {
+    if (this.storage.get(this.LOGGED_IN_KEY)) {
       this.setVerified()
     } else {
-      this.setUnverified()
+      this.setUnverified(true)
     }
   }
 
@@ -40,11 +38,14 @@ export class AuthService {
     this.authState$.next(AuthState.VERIFIED)
   }
 
-  setUnverified(): void {
+  setUnverified(skipNavigation = false): void {
     this.authState$.next(AuthState.UNVERIFIED)
     this.storage.clear()
-    this.zone.run(() => {
-      this.router.navigate(['/login'], { replaceUrl: true })
-    })
+
+    if (!skipNavigation) {
+      this.zone.run(() => {
+        this.router.navigate(['/login'], { replaceUrl: true })
+      })
+    }
   }
 }

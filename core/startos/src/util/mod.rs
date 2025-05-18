@@ -1,38 +1,54 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
+use std::fmt;
 use std::future::Future;
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::process::Stdio;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
+use ::serde::{Deserialize, Serialize};
 use async_trait::async_trait;
-use clap::ArgMatches;
 use color_eyre::eyre::{self, eyre};
 use fd_lock_rs::FdLock;
+use futures::future::BoxFuture;
+use futures::FutureExt;
 use helpers::canonicalize;
 pub use helpers::NonDetachingJoinHandle;
+use imbl_value::InternedString;
 use lazy_static::lazy_static;
-pub use models::Version;
+pub use models::VersionString;
 use pin_project::pin_project;
 use sha2::Digest;
 use tokio::fs::File;
-use tokio::sync::{Mutex, OwnedMutexGuard, RwLock};
+use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
+use tokio::sync::{oneshot, Mutex, OwnedMutexGuard, RwLock};
 use tracing::instrument;
+use ts_rs::TS;
+use url::Url;
 
 use crate::shutdown::Shutdown;
+use crate::util::io::create_file;
+use crate::util::serde::{deserialize_from_str, serialize_display};
 use crate::{Error, ErrorKind, ResultExt as _};
-pub mod config;
+
+pub mod actor;
+pub mod collections;
 pub mod cpupower;
 pub mod crypto;
-pub mod docker;
+pub mod future;
 pub mod http_reader;
 pub mod io;
 pub mod logger;
 pub mod lshw;
+pub mod net;
+pub mod rpc;
+pub mod rpc_client;
 pub mod serde;
+pub mod sync;
 
 #[derive(Clone, Copy, Debug, ::serde::Deserialize, ::serde::Serialize)]
 pub enum Never {}
@@ -48,25 +64,50 @@ impl std::fmt::Display for Never {
     }
 }
 impl std::error::Error for Never {}
+impl<T: ?Sized> AsRef<T> for Never {
+    fn as_ref(&self) -> &T {
+        match *self {}
+    }
+}
 
-#[async_trait::async_trait]
 pub trait Invoke<'a> {
     type Extended<'ext>
     where
         Self: 'ext,
         'ext: 'a;
+    fn pipe<'ext: 'a>(
+        &'ext mut self,
+        next: &'ext mut tokio::process::Command,
+    ) -> Self::Extended<'ext>;
     fn timeout<'ext: 'a>(&'ext mut self, timeout: Option<Duration>) -> Self::Extended<'ext>;
     fn input<'ext: 'a, Input: tokio::io::AsyncRead + Unpin + Send>(
         &'ext mut self,
         input: Option<&'ext mut Input>,
     ) -> Self::Extended<'ext>;
-    async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error>;
+    fn capture<'ext: 'a>(&'ext mut self, capture: bool) -> Self::Extended<'ext>;
+    fn invoke(
+        &mut self,
+        error_kind: crate::ErrorKind,
+    ) -> impl Future<Output = Result<Vec<u8>, Error>> + Send;
 }
 
 pub struct ExtendedCommand<'a> {
     cmd: &'a mut tokio::process::Command,
     timeout: Option<Duration>,
-    input: Option<&'a mut (dyn tokio::io::AsyncRead + Unpin + Send)>,
+    input: Option<&'a mut (dyn AsyncRead + Unpin + Send)>,
+    pipe: VecDeque<&'a mut tokio::process::Command>,
+    capture: bool,
+}
+impl<'a> From<&'a mut tokio::process::Command> for ExtendedCommand<'a> {
+    fn from(value: &'a mut tokio::process::Command) -> Self {
+        ExtendedCommand {
+            cmd: value,
+            timeout: None,
+            input: None,
+            pipe: VecDeque::new(),
+            capture: true,
+        }
+    }
 }
 impl<'a> std::ops::Deref for ExtendedCommand<'a> {
     type Target = tokio::process::Command;
@@ -80,50 +121,60 @@ impl<'a> std::ops::DerefMut for ExtendedCommand<'a> {
     }
 }
 
-#[async_trait::async_trait]
 impl<'a> Invoke<'a> for tokio::process::Command {
-    type Extended<'ext> = ExtendedCommand<'ext>
+    type Extended<'ext>
+        = ExtendedCommand<'ext>
     where
         Self: 'ext,
         'ext: 'a;
-    fn timeout<'ext: 'a>(&'ext mut self, timeout: Option<Duration>) -> Self::Extended<'ext> {
-        ExtendedCommand {
-            cmd: self,
-            timeout,
-            input: None,
-        }
+    fn pipe<'ext: 'a>(
+        &'ext mut self,
+        next: &'ext mut tokio::process::Command,
+    ) -> Self::Extended<'ext> {
+        let mut cmd = ExtendedCommand::from(self);
+        cmd.pipe.push_back(next);
+        cmd
     }
-    fn input<'ext: 'a, Input: tokio::io::AsyncRead + Unpin + Send>(
+    fn timeout<'ext: 'a>(&'ext mut self, timeout: Option<Duration>) -> Self::Extended<'ext> {
+        let mut cmd = ExtendedCommand::from(self);
+        cmd.timeout = timeout;
+        cmd
+    }
+    fn input<'ext: 'a, Input: AsyncRead + Unpin + Send>(
         &'ext mut self,
         input: Option<&'ext mut Input>,
     ) -> Self::Extended<'ext> {
-        ExtendedCommand {
-            cmd: self,
-            timeout: None,
-            input: if let Some(input) = input {
-                Some(&mut *input)
-            } else {
-                None
-            },
-        }
+        let mut cmd = ExtendedCommand::from(self);
+        cmd.input = if let Some(input) = input {
+            Some(&mut *input)
+        } else {
+            None
+        };
+        cmd
+    }
+    fn capture<'ext: 'a>(&'ext mut self, capture: bool) -> Self::Extended<'ext> {
+        let mut cmd = ExtendedCommand::from(self);
+        cmd.capture = capture;
+        cmd
     }
     async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error> {
-        ExtendedCommand {
-            cmd: self,
-            timeout: None,
-            input: None,
-        }
-        .invoke(error_kind)
-        .await
+        ExtendedCommand::from(self).invoke(error_kind).await
     }
 }
 
-#[async_trait::async_trait]
 impl<'a> Invoke<'a> for ExtendedCommand<'a> {
-    type Extended<'ext> = &'ext mut ExtendedCommand<'ext>
+    type Extended<'ext>
+        = &'ext mut ExtendedCommand<'ext>
     where
         Self: 'ext,
         'ext: 'a;
+    fn pipe<'ext: 'a>(
+        &'ext mut self,
+        next: &'ext mut tokio::process::Command,
+    ) -> Self::Extended<'ext> {
+        self.pipe.push_back(next.kill_on_drop(true));
+        self
+    }
     fn timeout<'ext: 'a>(&'ext mut self, timeout: Option<Duration>) -> Self::Extended<'ext> {
         self.timeout = timeout;
         self
@@ -139,39 +190,146 @@ impl<'a> Invoke<'a> for ExtendedCommand<'a> {
         };
         self
     }
+    fn capture<'ext: 'a>(&'ext mut self, capture: bool) -> Self::Extended<'ext> {
+        self.capture = capture;
+        self
+    }
+    #[instrument(skip_all)]
     async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error> {
+        let cmd_str = self
+            .cmd
+            .as_std()
+            .get_program()
+            .to_string_lossy()
+            .into_owned();
         self.cmd.kill_on_drop(true);
         if self.input.is_some() {
             self.cmd.stdin(Stdio::piped());
         }
-        self.cmd.stdout(Stdio::piped());
-        self.cmd.stderr(Stdio::piped());
-        let mut child = self.cmd.spawn()?;
-        if let (Some(mut stdin), Some(input)) = (child.stdin.take(), self.input.take()) {
-            use tokio::io::AsyncWriteExt;
-            tokio::io::copy(input, &mut stdin).await?;
-            stdin.flush().await?;
-            stdin.shutdown().await?;
-            drop(stdin);
+        if self.pipe.is_empty() {
+            if self.capture {
+                self.cmd.stdout(Stdio::piped());
+                self.cmd.stderr(Stdio::piped());
+            }
+            let mut child = self.cmd.spawn().with_ctx(|_| (error_kind, &cmd_str))?;
+            if let (Some(mut stdin), Some(input)) = (child.stdin.take(), self.input.take()) {
+                use tokio::io::AsyncWriteExt;
+                tokio::io::copy(input, &mut stdin).await?;
+                stdin.flush().await?;
+                stdin.shutdown().await?;
+                drop(stdin);
+            }
+            let res = match self.timeout {
+                None => child
+                    .wait_with_output()
+                    .await
+                    .with_ctx(|_| (error_kind, &cmd_str))?,
+                Some(t) => tokio::time::timeout(t, child.wait_with_output())
+                    .await
+                    .with_kind(ErrorKind::Timeout)?
+                    .with_ctx(|_| (error_kind, &cmd_str))?,
+            };
+            crate::ensure_code!(
+                res.status.success(),
+                error_kind,
+                "{}",
+                Some(&res.stderr)
+                    .filter(|a| !a.is_empty())
+                    .or(Some(&res.stdout))
+                    .filter(|a| !a.is_empty())
+                    .and_then(|a| std::str::from_utf8(a).ok())
+                    .unwrap_or(&format!("{} exited with code {}", cmd_str, res.status))
+            );
+            Ok(res.stdout)
+        } else {
+            let mut futures = Vec::<BoxFuture<'_, Result<(), Error>>>::new(); // todo: predict capacity
+
+            let mut cmds = std::mem::take(&mut self.pipe);
+            cmds.push_front(&mut *self.cmd);
+            let len = cmds.len();
+
+            let timeout = self.timeout;
+
+            let mut prev = self
+                .input
+                .take()
+                .map(|i| Box::new(i) as Box<dyn AsyncRead + Unpin + Send>);
+            for (idx, cmd) in IntoIterator::into_iter(cmds).enumerate() {
+                let last = idx == len - 1;
+                if self.capture || !last {
+                    cmd.stdout(Stdio::piped());
+                }
+                if self.capture {
+                    cmd.stderr(Stdio::piped());
+                }
+                if prev.is_some() {
+                    cmd.stdin(Stdio::piped());
+                }
+                let mut child = cmd.spawn().with_ctx(|_| (error_kind, &cmd_str))?;
+                let input = std::mem::replace(
+                    &mut prev,
+                    child
+                        .stdout
+                        .take()
+                        .map(|i| Box::new(BufReader::new(i)) as Box<dyn AsyncRead + Unpin + Send>),
+                );
+                futures.push(
+                    async move {
+                        if let (Some(mut stdin), Some(mut input)) = (child.stdin.take(), input) {
+                            use tokio::io::AsyncWriteExt;
+                            tokio::io::copy(&mut input, &mut stdin).await?;
+                            stdin.flush().await?;
+                            stdin.shutdown().await?;
+                            drop(stdin);
+                        }
+                        let res = match timeout {
+                            None => child.wait_with_output().await?,
+                            Some(t) => tokio::time::timeout(t, child.wait_with_output())
+                                .await
+                                .with_kind(ErrorKind::Timeout)??,
+                        };
+                        crate::ensure_code!(
+                            res.status.success(),
+                            error_kind,
+                            "{}",
+                            Some(&res.stderr)
+                                .filter(|a| !a.is_empty())
+                                .or(Some(&res.stdout))
+                                .filter(|a| !a.is_empty())
+                                .and_then(|a| std::str::from_utf8(a).ok())
+                                .unwrap_or(&format!(
+                                    "{} exited with code {}",
+                                    cmd.as_std().get_program().to_string_lossy(),
+                                    res.status
+                                ))
+                        );
+
+                        Ok(())
+                    }
+                    .boxed(),
+                );
+            }
+
+            let (send, recv) = oneshot::channel();
+            futures.push(
+                async move {
+                    if let Some(mut prev) = prev {
+                        let mut res = Vec::new();
+                        prev.read_to_end(&mut res).await?;
+                        send.send(res).unwrap();
+                    } else {
+                        send.send(Vec::new()).unwrap();
+                    }
+
+                    Ok(())
+                }
+                .boxed(),
+            );
+
+            futures::future::try_join_all(futures).await?;
+
+            Ok(recv.await.unwrap())
         }
-        let res = match self.timeout {
-            None => child.wait_with_output().await?,
-            Some(t) => tokio::time::timeout(t, child.wait_with_output())
-                .await
-                .with_kind(ErrorKind::Timeout)??,
-        };
-        crate::ensure_code!(
-            res.status.success(),
-            error_kind,
-            "{}",
-            Some(&res.stderr)
-                .filter(|a| !a.is_empty())
-                .or(Some(&res.stdout))
-                .filter(|a| !a.is_empty())
-                .and_then(|a| std::str::from_utf8(a).ok())
-                .unwrap_or(&format!("Unknown Error ({})", res.status))
-        );
-        Ok(res.stdout)
     }
 }
 
@@ -234,16 +392,16 @@ impl<T> SOption<T> for SNone<T> {}
 
 #[async_trait]
 pub trait AsyncFileExt: Sized {
-    async fn maybe_open<P: AsRef<Path> + Send + Sync>(path: P) -> std::io::Result<Option<Self>>;
+    async fn maybe_open<P: AsRef<Path> + Send + Sync>(path: P) -> Result<Option<Self>, Error>;
     async fn delete<P: AsRef<Path> + Send + Sync>(path: P) -> std::io::Result<()>;
 }
 #[async_trait]
 impl AsyncFileExt for File {
-    async fn maybe_open<P: AsRef<Path> + Send + Sync>(path: P) -> std::io::Result<Option<Self>> {
-        match File::open(path).await {
+    async fn maybe_open<P: AsRef<Path> + Send + Sync>(path: P) -> Result<Option<Self>, Error> {
+        match File::open(path.as_ref()).await {
             Ok(f) => Ok(Some(f)),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(e) => Err(e),
+            Err(e) => Err(e).with_ctx(|_| (ErrorKind::Filesystem, path.as_ref().display())),
         }
     }
     async fn delete<P: AsRef<Path> + Send + Sync>(path: P) -> std::io::Result<()> {
@@ -274,8 +432,6 @@ impl<W: std::fmt::Write> std::io::Write for FmtWriter<W> {
         Ok(())
     }
 }
-
-pub fn display_none<T>(_: T, _: &ArgMatches) {}
 
 pub struct Container<T>(RwLock<Option<T>>);
 impl<T> Container<T> {
@@ -405,11 +561,11 @@ impl<F: FnOnce() -> T, T> Drop for GeneralGuard<F, T> {
     }
 }
 
-pub struct FileLock(OwnedMutexGuard<()>, Option<FdLock<File>>);
+pub struct FileLock(#[allow(unused)] OwnedMutexGuard<()>, Option<FdLock<File>>);
 impl Drop for FileLock {
     fn drop(&mut self) {
         if let Some(fd_lock) = self.1.take() {
-            tokio::task::spawn_blocking(|| fd_lock.unlock(true).map_err(|(_, e)| e).unwrap());
+            tokio::task::spawn_blocking(|| fd_lock.unlock(true).map_err(|(_, e)| e).log_err());
         }
     }
 }
@@ -441,9 +597,7 @@ impl FileLock {
                 .await
                 .with_ctx(|_| (crate::ErrorKind::Filesystem, parent.display().to_string()))?;
         }
-        let f = File::create(&path)
-            .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, path.display().to_string()))?;
+        let f = create_file(&path).await?;
         let file_guard = tokio::task::spawn_blocking(move || {
             fd_lock_rs::FdLock::lock(f, fd_lock_rs::LockType::Exclusive, blocking)
         })
@@ -465,4 +619,83 @@ impl FileLock {
 
 pub fn assure_send<T: Send>(x: T) -> T {
     x
+}
+
+pub enum MaybeOwned<'a, T> {
+    Borrowed(&'a T),
+    Owned(T),
+}
+impl<'a, T> std::ops::Deref for MaybeOwned<'a, T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Borrowed(a) => *a,
+            Self::Owned(a) => a,
+        }
+    }
+}
+impl<'a, T> From<T> for MaybeOwned<'a, T> {
+    fn from(value: T) -> Self {
+        MaybeOwned::Owned(value)
+    }
+}
+impl<'a, T> From<&'a T> for MaybeOwned<'a, T> {
+    fn from(value: &'a T) -> Self {
+        MaybeOwned::Borrowed(value)
+    }
+}
+
+pub fn new_guid() -> InternedString {
+    use rand::RngCore;
+    let mut buf = [0; 20];
+    rand::rng().fill_bytes(&mut buf);
+    InternedString::intern(base32::encode(
+        base32::Alphabet::Rfc4648 { padding: false },
+        &buf,
+    ))
+}
+
+#[derive(Debug, Clone, TS)]
+#[ts(type = "string")]
+pub enum PathOrUrl {
+    Path(PathBuf),
+    Url(Url),
+}
+impl FromStr for PathOrUrl {
+    type Err = <PathBuf as FromStr>::Err;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Ok(url) = s.parse::<Url>() {
+            if let Some(path) = s.strip_prefix("file://") {
+                Ok(Self::Path(path.parse()?))
+            } else {
+                Ok(Self::Url(url))
+            }
+        } else {
+            Ok(Self::Path(s.parse()?))
+        }
+    }
+}
+impl fmt::Display for PathOrUrl {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Path(p) => write!(f, "file://{}", p.display()),
+            Self::Url(u) => write!(f, "{u}"),
+        }
+    }
+}
+impl<'de> Deserialize<'de> for PathOrUrl {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        deserialize_from_str(deserializer)
+    }
+}
+impl Serialize for PathOrUrl {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ::serde::Serializer,
+    {
+        serialize_display(self, serializer)
+    }
 }

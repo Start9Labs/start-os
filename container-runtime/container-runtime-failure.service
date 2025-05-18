@@ -1,0 +1,6 @@
+[Unit]
+Description=StartOS Container Runtime Failure Handler
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/start-cli rebuild
