@@ -502,4 +502,5 @@ export const ENGLISH = {
   'View Marketplace': 500,
   'Welcome to': 501,
   'sovereign computing': 502,
+  'french': 503,
 } as const
