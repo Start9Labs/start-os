@@ -18,7 +18,7 @@ const mockMerkleArchiveCommitment: T.MerkleArchiveCommitment = {
 
 const mockDescription = {
   short: 'Lorem ipsum dolor sit amet',
-  long: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+  long: 'Lorem ipsum dolor sit amet, <p>consectetur adipiscing elit</p>, sed do eiusmod <i>tempor</i> incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
 }
 
 export namespace Mock {
@@ -632,55 +632,6 @@ export namespace Mock {
         },
       },
     },
-    'btc-rpc-proxy': {
-      '=0.3.2.6:0': {
-        best: {
-          '0.3.2.6:0': {
-            title: 'Bitcoin Proxy',
-            description: mockDescription,
-            hardwareRequirements: { arch: null, device: [], ram: null },
-            license: 'mit',
-            wrapperRepo: 'https://github.com/Start9Labs/btc-rpc-proxy-wrappers',
-            upstreamRepo: 'https://github.com/Kixunil/btc-rpc-proxy',
-            supportSite: 'https://github.com/Kixunil/btc-rpc-proxy/issues',
-            marketingSite: '',
-            releaseNotes: 'Upstream release and minor fixes.',
-            osVersion: '0.3.6',
-            gitHash: 'fakehash',
-            icon: PROXY_ICON,
-            sourceVersion: null,
-            dependencyMetadata: {
-              bitcoind: {
-                title: 'Bitcoin Core',
-                icon: BTC_ICON,
-                description: 'Used for RPC requests',
-                optional: false,
-              },
-            },
-            donationUrl: null,
-            alerts: {
-              install: 'test',
-              uninstall: 'test',
-              start: 'test',
-              stop: 'test',
-              restore: 'test',
-            },
-            s9pk: {
-              url: 'https://github.com/Start9Labs/btc-rpc-proxy-startos/releases/download/v0.3.2.7.1/btc-rpc-proxy.s9pk',
-              commitment: mockMerkleArchiveCommitment,
-              signatures: {},
-              publishedAt: Date.now().toString(),
-            },
-          },
-        },
-        categories: ['bitcoin'],
-        otherVersions: {
-          '0.3.2.7:0': {
-            releaseNotes: 'Upstream release and minor fixes.',
-          },
-        },
-      },
-    },
   }
 
   export const RegistryPackages: GetPackagesRes = {
@@ -857,11 +808,7 @@ export namespace Mock {
         },
       },
       categories: ['bitcoin'],
-      otherVersions: {
-        '0.3.2.6:0': {
-          releaseNotes: 'Upstream release and minor fixes.',
-        },
-      },
+      otherVersions: {},
     },
   }
 
@@ -1339,7 +1286,7 @@ export namespace Mock {
     result: {
       type: 'single',
       copyable: true,
-      qr: true,
+      qr: false,
       masked: true,
       value: 'iwejdoiewdhbew',
     },

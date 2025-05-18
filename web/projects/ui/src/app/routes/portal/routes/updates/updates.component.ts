@@ -224,7 +224,7 @@ export default class UpdatesComponent {
 
   readonly data = toSignal<UpdatesData>(
     combineLatest({
-      hosts: this.marketplaceService.filteredRegistries$.pipe(
+      hosts: this.marketplaceService.registries$.pipe(
         tap(
           ([registry]) =>
             !this.isMobile && registry && this.current.set(registry),

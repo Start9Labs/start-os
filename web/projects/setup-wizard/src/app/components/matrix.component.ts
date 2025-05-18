@@ -8,7 +8,7 @@ const FADE_FACTOR = 0.07
   standalone: true,
   selector: 'canvas[matrix]',
   template: 'Your browser does not support the canvas element.',
-  styles: ':host { position: fixed; }',
+  styles: ':host { position: fixed; top: 0 }',
 })
 export class MatrixComponent implements OnInit {
   private readonly ngZone = inject(NgZone)

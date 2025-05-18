@@ -51,8 +51,6 @@ export class LoginPage {
     } catch (e: any) {
       // code 7 is for incorrect password
       this.error = e.code === 7 ? 'Invalid password' : (e.message as i18nKey)
-    } finally {
-      loader.unsubscribe()
     }
   }
 

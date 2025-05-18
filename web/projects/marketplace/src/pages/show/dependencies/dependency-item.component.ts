@@ -20,8 +20,8 @@ import { MarketplacePkgBase } from '../../../types'
             </span>
             <p>
               <ng-container [ngSwitch]="dep.value.optional">
-                <span *ngSwitchCase="true">(required)</span>
-                <span *ngSwitchCase="false">(optional)</span>
+                <span *ngSwitchCase="true">(optional)</span>
+                <span *ngSwitchCase="false">(required)</span>
               </ng-container>
             </p>
           </div>

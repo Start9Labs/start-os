@@ -75,7 +75,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
           <button
             tuiButton
             size="l"
-            [disabled]="form.invalid"
+            [disabled]="form.invalid || form.pristine"
             (click)="save(form.value)"
           >
             {{ 'Save' | i18n }}
@@ -98,7 +98,6 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
         <footer>
           <button
             tuiButton
-            appearance="secondary"
             size="l"
             [disabled]="!testAddress || form.invalid"
             (click)="sendTestEmail(form.value)"
@@ -188,11 +187,14 @@ export default class SystemEmailComponent {
   async sendTestEmail(value: typeof inputSpec.constants.customSmtp._TYPE) {
     const loader = this.loader.open('Sending email').subscribe()
     const success =
-      `${this.i18n.transform('A test email has been sent to')} ${this.testAddress}.<br /><br /><b>${this.i18n.transform('Check your spam folder and mark as not spam.')}</b>` as i18nKey
+      `${this.i18n.transform('A test email has been sent to')} ${this.testAddress}. <i>${this.i18n.transform('Check your spam folder and mark as not spam.')}</i>` as i18nKey
 
     try {
       await this.api.testSmtp({ to: this.testAddress, ...value })
-      this.dialog.openAlert(success, { label: 'Success' }).subscribe()
+      this.dialog
+        .openAlert(success, { label: 'Success', size: 's' })
+        .subscribe()
+      this.testAddress = ''
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

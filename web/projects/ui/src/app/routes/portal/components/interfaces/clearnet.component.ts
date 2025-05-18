@@ -1,7 +1,6 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   inject,
   input,
 } from '@angular/core'
@@ -66,15 +65,6 @@ type ClearnetForm = {
           {{ 'Learn more' | i18n }}
         </a>
       </ng-template>
-      <button
-        tuiButton
-        [appearance]="isPublic() ? 'primary-destructive' : 'accent'"
-        [iconStart]="isPublic() ? '@tui.globe-lock' : '@tui.globe'"
-        [style.margin-inline-start]="'auto'"
-        (click)="toggle()"
-      >
-        {{ isPublic() ? ('Make private' | i18n) : ('Make public' | i18n) }}
-      </button>
       @if (clearnet().length) {
         <button tuiButton iconStart="@tui.plus" (click)="add()">
           {{ 'Add' | i18n }}
@@ -86,18 +76,15 @@ type ClearnetForm = {
         @for (address of clearnet(); track $index) {
           <tr>
             <td [style.width.rem]="12">
-              {{
-                interface.serviceInterface().addSsl
-                  ? (address.acme | acme)
-                  : '-'
-              }}
+              {{ interface.value().addSsl ? (address.acme | acme) : '-' }}
             </td>
             <td>{{ address.url | mask }}</td>
-            <td [actions]="address.url">
+            <td actions [href]="address.url" [disabled]="!isRunning()">
               @if (address.isDomain) {
                 <button
-                  tuiButton
-                  appearance="primary-destructive"
+                  tuiIconButton
+                  iconStart="@tui.trash"
+                  appearance="flat-grayscale"
                   [style.margin-inline-end.rem]="0.5"
                   (click)="remove(address)"
                 >
@@ -152,9 +139,10 @@ export class InterfaceClearnetComponent {
   private readonly api = inject(ApiService)
 
   readonly interface = inject(InterfaceComponent)
-  readonly isPublic = computed(() => this.interface.serviceInterface().public)
 
   readonly clearnet = input.required<readonly ClearnetAddress[]>()
+  readonly isRunning = input.required<boolean>()
+
   readonly acme = toSignal(
     inject<PatchDB<DataModel>>(PatchDB)
       .watch$('serverInfo', 'network', 'acme')
@@ -165,7 +153,15 @@ export class InterfaceClearnetComponent {
   async remove({ url }: ClearnetAddress) {
     const confirm = await firstValueFrom(
       this.dialog
-        .openConfirm({ label: 'Are you sure?', size: 's' })
+        .openConfirm({
+          label: 'Confirm',
+          size: 's',
+          data: {
+            yes: 'Delete',
+            no: 'Cancel',
+            content: 'Are you sure you want to delete this address?',
+          },
+        })
         .pipe(defaultIfEmpty(false)),
     )
 
@@ -181,7 +177,7 @@ export class InterfaceClearnetComponent {
         await this.api.pkgRemoveDomain({
           ...params,
           package: this.interface.packageId(),
-          host: this.interface.serviceInterface().addressInfo.hostId,
+          host: this.interface.value().addressInfo.hostId,
         })
       } else {
         await this.api.serverRemoveDomain(params)
@@ -190,33 +186,6 @@ export class InterfaceClearnetComponent {
     } catch (e: any) {
       this.errorService.handleError(e)
       return false
-    } finally {
-      loader.unsubscribe()
-    }
-  }
-
-  async toggle() {
-    const loader = this.loader
-      .open(`Making ${this.isPublic() ? 'private' : 'public'}`)
-      .subscribe()
-
-    const params = {
-      internalPort: this.interface.serviceInterface().addressInfo.internalPort,
-      public: !this.isPublic(),
-    }
-
-    try {
-      if (this.interface.packageId()) {
-        await this.api.pkgBindingSetPubic({
-          ...params,
-          host: this.interface.serviceInterface().addressInfo.hostId,
-          package: this.interface.packageId(),
-        })
-      } else {
-        await this.api.serverBindingSetPubic(params)
-      }
-    } catch (e: any) {
-      this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }
@@ -250,9 +219,7 @@ export class InterfaceClearnetComponent {
       data: {
         spec: await configBuilderToSpec(
           ISB.InputSpec.of(
-            this.interface.serviceInterface().addSsl
-              ? { domain, acme }
-              : { domain },
+            this.interface.value().addSsl ? { domain, acme } : { domain },
           ),
         ),
         buttons: [
@@ -281,7 +248,7 @@ export class InterfaceClearnetComponent {
         await this.api.pkgAddDomain({
           ...params,
           package: this.interface.packageId(),
-          host: this.interface.serviceInterface().addressInfo.hostId,
+          host: this.interface.value().addressInfo.hostId,
         })
       } else {
         await this.api.serverAddDomain(params)

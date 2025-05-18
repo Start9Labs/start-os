@@ -8,7 +8,7 @@ import {
 import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiButton } from '@taiga-ui/core'
-import { TuiAvatar } from '@taiga-ui/kit'
+import { TuiAvatar, TuiFade } from '@taiga-ui/kit'
 import { ActionService } from 'src/app/services/action.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
@@ -17,7 +17,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
   standalone: true,
   selector: 'tr[actionRequest]',
   template: `
-    <td>
+    <td tuiFade>
       <tui-avatar size="xs"><img [src]="pkg()?.icon" alt="" /></tui-avatar>
       <span>{{ title() }}</span>
     </td>
@@ -39,7 +39,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
       {{ actionRequest().reason || ('No reason provided' | i18n) }}
     </td>
     <td>
-      <button tuiButton (click)="handle()">
+      <button tuiButton size="xs" (click)="handle()">
         {{ pkg()?.actions?.[actionRequest().actionId]?.name }}
       </button>
     </td>
@@ -47,14 +47,13 @@ import { getManifest } from 'src/app/utils/get-package-data'
   styles: `
     td:first-child {
       white-space: nowrap;
-      max-width: 10rem;
+      max-width: 15rem;
       overflow: hidden;
-      text-overflow: ellipsis;
     }
 
     td:last-child {
       text-align: right;
-      grid-area: span 2;
+      grid-area: 3 / span 2;
     }
 
     span {
@@ -64,18 +63,20 @@ import { getManifest } from 'src/app/utils/get-package-data'
 
     :host-context(tui-root._mobile) {
       display: grid;
-      grid-template-columns: min-content 1fr min-content;
+      grid-template-columns: 1fr min-content;
       align-items: center;
       padding: 1rem 0.5rem;
       gap: 0.5rem;
 
       td {
+        display: flex;
+        align-items: center;
         padding: 0;
       }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, TuiAvatar, i18nPipe],
+  imports: [TuiButton, TuiAvatar, i18nPipe, TuiFade],
 })
 export class ServiceActionRequestComponent {
   private readonly actionService = inject(ActionService)

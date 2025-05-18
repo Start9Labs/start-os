@@ -9,12 +9,15 @@ import { TuiBadge } from '@taiga-ui/kit'
     <tui-badge
       size="l"
       [iconStart]="public() ? '@tui.globe' : '@tui.lock'"
-      [style.vertical-align.rem]="-0.125"
-      [style.margin]="'0 0.25rem -0.25rem'"
       [appearance]="public() ? 'positive' : 'negative'"
     >
       {{ public() ? ('Public' | i18n) : ('Private' | i18n) }}
     </tui-badge>
+  `,
+  styles: `
+    :host {
+      display: inline-flex;
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiBadge, i18nPipe],

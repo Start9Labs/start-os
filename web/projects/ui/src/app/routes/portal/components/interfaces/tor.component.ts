@@ -76,11 +76,11 @@ type OnionForm = {
                 {{ address.url | mask }}
               </div>
             </td>
-            <td [actions]="address.url">
+            <td actions [href]="address.url" [disabled]="!isRunning()">
               <button
-                tuiButton
-                appearance="primary-destructive"
-                [style.margin-inline-end.rem]="0.5"
+                tuiIconButton
+                iconStart="@tui.trash"
+                appearance="flat-grayscale"
                 (click)="remove(address)"
               >
                 {{ 'Delete' | i18n }}
@@ -141,11 +141,20 @@ export class InterfaceTorComponent {
   private readonly i18n = inject(i18nPipe)
 
   readonly tor = input.required<readonly TorAddress[]>()
+  readonly isRunning = input.required<boolean>()
 
   async remove({ url }: TorAddress) {
     const confirm = await firstValueFrom(
       this.dialog
-        .openConfirm({ label: 'Are you sure?', size: 's' })
+        .openConfirm({
+          label: 'Confirm',
+          size: 's',
+          data: {
+            yes: 'Delete',
+            no: 'Cancel',
+            content: 'Are you sure you want to delete this address?',
+          },
+        })
         .pipe(defaultIfEmpty(false)),
     )
 
@@ -161,7 +170,7 @@ export class InterfaceTorComponent {
         await this.api.pkgRemoveOnion({
           ...params,
           package: this.interface.packageId(),
-          host: this.interface.serviceInterface().addressInfo.hostId,
+          host: this.interface.value().addressInfo.hostId,
         })
       } else {
         await this.api.serverRemoveOnion(params)
@@ -215,7 +224,7 @@ export class InterfaceTorComponent {
         await this.api.pkgAddOnion({
           onion,
           package: this.interface.packageId(),
-          host: this.interface.serviceInterface().addressInfo.hostId,
+          host: this.interface.value().addressInfo.hostId,
         })
       } else {
         await this.api.serverAddOnion({ onion })

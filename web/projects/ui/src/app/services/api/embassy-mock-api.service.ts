@@ -22,11 +22,7 @@ import { from, interval, map, shareReplay, startWith, Subject, tap } from 'rxjs'
 import { mockPatchData } from './mock-patch'
 import { AuthService } from '../auth.service'
 import { T } from '@start9labs/start-sdk'
-import {
-  GetPackageRes,
-  GetPackagesRes,
-  MarketplacePkg,
-} from '@start9labs/marketplace'
+import { MarketplacePkg } from '@start9labs/marketplace'
 import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
 import { WebSocketSubject } from 'rxjs/webSocket'
 import { toAcmeUrl } from 'src/app/utils/acme'
@@ -166,7 +162,6 @@ export class MockApiService extends ApiService {
     pathArr: Array<string | number>,
     value: T,
   ): Promise<RR.SetDBValueRes> {
-    console.warn(pathArr, value)
     const pointer = pathFromArray(pathArr)
     const params: RR.SetDBValueReq<T> = { pointer, value }
     await pauseFor(2000)

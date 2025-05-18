@@ -5,13 +5,12 @@ import {
   inject,
   input,
 } from '@angular/core'
-import { RouterLink } from '@angular/router'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { tuiDefaultSort } from '@taiga-ui/cdk'
 import { ConfigService } from 'src/app/services/config.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { getAddresses } from '../../../components/interfaces/interface.utils'
-import { ServiceInterfaceComponent } from './interface.component'
+import { ServiceInterfaceItemComponent } from './interface-item.component'
 import { i18nPipe } from '@start9labs/shared'
 
 @Component({
@@ -24,8 +23,8 @@ import { i18nPipe } from '@start9labs/shared'
         <tr>
           <th tuiTh>{{ 'Name' | i18n }}</th>
           <th tuiTh>{{ 'Type' | i18n }}</th>
+          <th tuiTh [style.text-align]="'center'">{{ 'Hosting' | i18n }}</th>
           <th tuiTh>{{ 'Description' | i18n }}</th>
-          <th tuiTh>{{ 'Hosting' | i18n }}</th>
           <th tuiTh></th>
         </tr>
       </thead>
@@ -33,7 +32,6 @@ import { i18nPipe } from '@start9labs/shared'
         @for (info of interfaces(); track $index) {
           <tr
             serviceInterface
-            [routerLink]="info.routerLink"
             [info]="info"
             [pkg]="pkg()"
             [disabled]="disabled()"
@@ -44,12 +42,12 @@ import { i18nPipe } from '@start9labs/shared'
   `,
   styles: `
     :host {
-      grid-column: span 4;
+      grid-column: span 6;
     }
   `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ServiceInterfaceComponent, TuiTable, RouterLink, i18nPipe],
+  imports: [ServiceInterfaceItemComponent, TuiTable, i18nPipe],
 })
 export class ServiceInterfacesComponent {
   private readonly config = inject(ConfigService)

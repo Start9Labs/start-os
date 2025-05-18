@@ -73,20 +73,7 @@ export class FormArrayComponent {
   }
 
   removeAt(index: number) {
-    this.dialog
-      .openConfirm<boolean>({
-        label: 'Confirm',
-        size: 's',
-        data: {
-          content: 'Are you sure you want to delete this entry?',
-          yes: 'Delete',
-          no: 'Cancel',
-        },
-      })
-      .pipe(filter(Boolean), takeUntilDestroyed(this.destroyRef))
-      .subscribe(() => {
-        this.removeItem(index)
-      })
+    this.removeItem(index)
   }
 
   private removeItem(index: number) {

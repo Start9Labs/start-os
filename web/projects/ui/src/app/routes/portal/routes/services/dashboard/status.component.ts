@@ -66,7 +66,7 @@ export class StatusComponent {
 
   @tuiPure
   getStatus(pkg: PackageDataEntry) {
-    return renderPkgStatus(pkg, {})
+    return renderPkgStatus(pkg)
   }
 
   get status(): i18nKey {

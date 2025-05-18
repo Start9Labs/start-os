@@ -8,9 +8,11 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
 import { getPkgId, i18nPipe } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
 import { TuiItem } from '@taiga-ui/cdk'
 import { TuiButton, TuiLink } from '@taiga-ui/core'
-import { TuiBreadcrumbs } from '@taiga-ui/kit'
+import { TuiBadge, TuiBreadcrumbs } from '@taiga-ui/kit'
+import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { InterfaceComponent } from 'src/app/routes/portal/components/interfaces/interface.component'
 import { getAddresses } from 'src/app/routes/portal/components/interfaces/interface.utils'
@@ -26,27 +28,53 @@ import { TitleDirective } from 'src/app/services/title.service'
         {{ 'Back' | i18n }}
       </a>
       {{ interface()?.name }}
-      <interface-status [public]="!!interface()?.public" />
+      <interface-status
+        [style.margin-left.rem]="0.5"
+        [public]="!!interface()?.public"
+      />
     </ng-container>
-    <tui-breadcrumbs size="l" [style.margin-block-end.rem]="1">
+    <tui-breadcrumbs size="l">
       <a *tuiItem tuiLink appearance="action-grayscale" routerLink="../..">
         {{ 'Dashboard' | i18n }}
       </a>
-      <span *tuiItem class="g-primary">
-        {{ interface()?.name }}
-        <interface-status [public]="!!interface()?.public" />
-      </span>
+      <span *tuiItem class="g-primary">{{ interface()?.name }}</span>
     </tui-breadcrumbs>
-    @if (interface(); as serviceInterface) {
+    @if (interface(); as value) {
+      <header tuiHeader [style.margin-bottom.rem]="1">
+        <hgroup>
+          <h3>
+            {{ value.name }}
+            <tui-badge size="l" [appearance]="getAppearance(value.type)">
+              {{ value.type }}
+            </tui-badge>
+            <interface-status [public]="value.public" />
+          </h3>
+          <p tuiSubtitle>{{ value.description }}</p>
+        </hgroup>
+      </header>
       <app-interface
         [packageId]="pkgId"
-        [serviceInterface]="serviceInterface"
+        [value]="value"
+        [isRunning]="isRunning()"
       />
     }
   `,
   styles: `
     :host-context(tui-root._mobile) tui-breadcrumbs {
       display: none;
+    }
+
+    h3 {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 1rem 0 0.5rem 0;
+      font-size: 2.4rem;
+
+      tui-badge {
+        text-transform: uppercase;
+        font-weight: bold;
+      }
     }
   `,
   host: { class: 'g-subpage' },
@@ -62,6 +90,8 @@ import { TitleDirective } from 'src/app/services/title.service'
     TuiLink,
     InterfaceStatusComponent,
     i18nPipe,
+    TuiBadge,
+    TuiHeader,
   ],
 })
 export default class ServiceInterfaceRoute {
@@ -73,6 +103,10 @@ export default class ServiceInterfaceRoute {
   readonly pkg = toSignal(
     inject<PatchDB<DataModel>>(PatchDB).watch$('packageData', this.pkgId),
   )
+
+  readonly isRunning = computed(() => {
+    return this.pkg()?.status.main === 'running'
+  })
 
   readonly interface = computed(() => {
     const pkg = this.pkg()
@@ -99,4 +133,15 @@ export default class ServiceInterfaceRoute {
       addresses: getAddresses(item, host, this.config),
     }
   })
+
+  getAppearance(type: T.ServiceInterfaceType = 'ui'): string {
+    switch (type) {
+      case 'ui':
+        return 'positive'
+      case 'api':
+        return 'info'
+      case 'p2p':
+        return 'negative'
+    }
+  }
 }
