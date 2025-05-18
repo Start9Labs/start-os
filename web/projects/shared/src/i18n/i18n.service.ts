@@ -34,5 +34,11 @@ export class i18nService extends TuiLanguageSwitcherService {
   }
 }
 
-export const languages = ['english', 'spanish', 'polish', 'german'] as const
+export const languages = [
+  'english',
+  'spanish',
+  'polish',
+  'german',
+  'french',
+] as const
 export type Languages = (typeof languages)[number]

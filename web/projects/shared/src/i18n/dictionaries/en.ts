@@ -59,6 +59,7 @@ export const ENGLISH = {
   'Beginning shutdown': 57,
   'Add': 58,
   'Ok': 59,
+  'french': 60,
   'This value cannot be changed once set': 61,
   'Continue': 62,
   'Click or drop file here': 63,
@@ -500,6 +501,6 @@ export const ENGLISH = {
   'Welcome to': 501,
   'sovereign computing': 502,
   'Customize the name appearing in your browser tab': 503,
-  'Manage': 504,
-  'Are you sure you want to delete this address?': 505,
+  'Manage': 504, // as in, administer
+  'Are you sure you want to delete this address?': 505, // this address referes to a domain or URL
 } as const
