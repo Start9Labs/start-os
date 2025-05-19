@@ -48,9 +48,8 @@ interface DialogData {
           tuiButton
           [disabled]="
             !password.value ||
-            !confirm.value ||
-            !!confirmError ||
-            !!passwordError
+            !!passwordError ||
+            (storageDrive && (!confirm.value || !!confirmError))
           "
         >
           {{ storageDrive ? 'Finish' : 'Unlock' }}

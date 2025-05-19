@@ -24,9 +24,7 @@ import { StateService } from 'src/app/services/state.service'
           <tui-icon icon="@tui.check-square" class="g-positive" />
           Setup Complete!
         </h1>
-        <button tuiButton (click)="exitKiosk()" iconEnd="@tui.log-in">
-          Continue to Login
-        </button>
+        <button tuiButton (click)="exitKiosk()">Continue to Login</button>
       </section>
     } @else if (lanAddress) {
       <section tuiCardLarge>
