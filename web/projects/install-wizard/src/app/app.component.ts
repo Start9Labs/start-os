@@ -62,7 +62,12 @@ export class AppComponent {
             this.dialogs
               .open(
                 'Please wait for StartOS to restart, then refresh this page',
-                { label: 'Rebooting', size: 's' },
+                {
+                  label: 'Rebooting',
+                  size: 's',
+                  closeable: false,
+                  dismissible: false,
+                },
               )
               .subscribe()
           } catch (e: any) {

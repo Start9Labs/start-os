@@ -7,6 +7,7 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import {
   DialogService,
+  DocsLinkDirective,
   ErrorService,
   i18nPipe,
   LoadingService,
@@ -58,9 +59,8 @@ type ClearnetForm = {
         }}
         <a
           tuiLink
+          docsLink
           href="/user-manual/connecting-remotely/clearnet.html"
-          target="_blank"
-          rel="noreferrer"
         >
           {{ 'Learn more' | i18n }}
         </a>
@@ -128,6 +128,7 @@ type ClearnetForm = {
     AcmePipe,
     InterfaceActionsComponent,
     i18nPipe,
+    DocsLinkDirective,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
