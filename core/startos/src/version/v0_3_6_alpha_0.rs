@@ -211,26 +211,11 @@ impl VersionT for Version {
     }
     fn up(self, db: &mut Value, (account, ssh_keys, cifs): Self::PreUpRes) -> Result<(), Error> {
         let wifi = json!({
-            "infterface": db["server-info"]["wifi"]["interface"],
+            "interface": db["server-info"]["wifi"]["interface"],
             "ssids": db["server-info"]["wifi"]["ssids"],
             "selected": db["server-info"]["wifi"]["selected"],
-            "last_region": db["server-info"]["wifi"]["last-region"],
+            "lastRegion": db["server-info"]["wifi"]["last-region"],
         });
-
-        let ip_info = {
-            let mut ip_info = json!({});
-            let empty = Default::default();
-            for (k, v) in db["server-info"]["ip-info"].as_object().unwrap_or(&empty) {
-                let k: &str = k.as_ref();
-                ip_info[k] = json!({
-                    "ipv4Range": v["ipv4-range"],
-                    "ipv6Range": v["ipv6-range"],
-                    "ipv4": v["ipv4"],
-                    "ipv6": v["ipv6"],
-                });
-            }
-            ip_info
-        };
 
         let status_info = json!({
             "backupProgress": db["server-info"]["status-info"]["backup-progress"],
@@ -259,7 +244,7 @@ impl VersionT for Version {
                 .replace("https://", "")
                 .replace("http://", "")
                 .replace(".onion/", ""));
-            server_info["ipInfo"] = ip_info;
+            server_info["networkInterfaces"] = json!({});
             server_info["statusInfo"] = status_info;
             server_info["wifi"] = wifi;
             server_info["unreadNotificationCount"] =
