@@ -29,7 +29,7 @@ import { ABOUT } from './about.component'
       appearance=""
       tuiHintDirection="bottom"
       [tuiHint]="open ? '' : ('Start Menu' | i18n)"
-      [tuiHintShowDelay]="1000"
+      [tuiHintShowDelay]="750"
       [tuiDropdown]="content"
       [(tuiDropdownOpen)]="open"
       [tuiDropdownMaxHeight]="9999"
