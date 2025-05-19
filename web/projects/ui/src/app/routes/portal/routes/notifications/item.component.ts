@@ -55,7 +55,11 @@ import { i18nPipe } from '@start9labs/shared'
       }
       @if (notificationItem.code === 1 || notificationItem.code === 2) {
         <button tuiLink (click)="service.viewModal(notificationItem)">
-          {{ 'View report' | i18n }}
+          {{
+            notificationItem.code === 1
+              ? ('View report' | i18n)
+              : ('View details' | i18n)
+          }}
         </button>
       }
     </td>

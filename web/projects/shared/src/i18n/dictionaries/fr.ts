@@ -417,7 +417,7 @@ export default {
   416: 'Connexion en cours. Cela peut prendre un certain temps',
   417: 'Réessayer',
   418: 'Afficher plus',
-  419: 'Notes de version',
+  419: 'Voir les détails',
   420: 'Voir la fiche',
   421: 'Services dépendants de',
   422: 'ne fonctionneront plus correctement et pourraient planter.',

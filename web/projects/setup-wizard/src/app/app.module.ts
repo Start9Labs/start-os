@@ -5,6 +5,7 @@ import { PreloadAllModules, RouterModule } from '@angular/router'
 import {
   provideSetupLogsService,
   RELATIVE_URL,
+  VERSION,
   WorkspaceConfig,
 } from '@start9labs/shared'
 import { tuiButtonOptionsProvider, TuiRoot } from '@taiga-ui/core'
@@ -19,6 +20,8 @@ const {
   useMocks,
   ui: { api },
 } = require('../../../../config.json') as WorkspaceConfig
+
+const version = require('../../../../package.json').version
 
 @NgModule({
   declarations: [AppComponent],
@@ -42,6 +45,10 @@ const {
     {
       provide: RELATIVE_URL,
       useValue: `/${api.url}/${api.version}`,
+    },
+    {
+      provide: VERSION,
+      useValue: version,
     },
   ],
   bootstrap: [AppComponent],

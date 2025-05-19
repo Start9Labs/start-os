@@ -417,7 +417,7 @@ export default {
   416: 'Łączenie. To może chwilę potrwać',
   417: 'Ponów próbę',
   418: 'Pokaż więcej',
-  419: 'Informacje o wydaniu',
+  419: 'Zobacz szczegóły',
   420: 'Zobacz listę',
   421: 'Serwisy zależne od',
   422: 'przestaną działać poprawnie i mogą ulec awarii.',

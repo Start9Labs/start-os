@@ -417,7 +417,7 @@ export default {
   416: 'Verbindung wird hergestellt. Dies kann einen Moment dauern',
   417: 'Erneut versuchen',
   418: 'Mehr anzeigen',
-  419: 'Versionshinweise',
+  419: 'Details anzeigen',
   420: 'Eintrag anzeigen',
   421: 'Dienste, die von folgendem abhängen:',
   422: 'werden nicht mehr ordnungsgemäß funktionieren und könnten abstürzen.',

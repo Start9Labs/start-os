@@ -6,7 +6,6 @@ import {
   input,
 } from '@angular/core'
 
-const HOST = 'https://staging.docs.start9.com'
 export const VERSION = new InjectionToken<string>('VERSION')
 
 @Directive({
@@ -26,6 +25,6 @@ export class DocsLinkDirective {
   protected readonly url = computed(() => {
     const path = this.href()
     const relative = path.startsWith('/') ? path : `/${path}`
-    return `${HOST}${relative}?os=${this.version}`
+    return `https://docs.start9.com${relative}?os=${this.version}`
   })
 }

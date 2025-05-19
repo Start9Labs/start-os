@@ -416,7 +416,7 @@ export const ENGLISH = {
   'Connecting. This could take a while': 416,
   'Retry': 417,
   'Show more': 418,
-  'Release notes': 419,
+  'View details': 419,
   'View listing': 420,
   'Services that depend on': 421,
   'will no longer work properly and may crash.': 422,

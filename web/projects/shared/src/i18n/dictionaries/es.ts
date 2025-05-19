@@ -417,7 +417,7 @@ export default {
   416: 'Conectando. Esto podría tardar un poco',
   417: 'Reintentar',
   418: 'Mostrar más',
-  419: 'Notas de la versión',
+  419: 'Ver detalles',
   420: 'Ver listado',
   421: 'Servicios que dependen de',
   422: 'ya no funcionarán correctamente y podrían fallar.',
