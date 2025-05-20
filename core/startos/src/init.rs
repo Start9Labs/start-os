@@ -37,7 +37,7 @@ use crate::progress::{
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::v2::pack::{CONTAINER_DATADIR, CONTAINER_TOOL};
 use crate::ssh::SSH_DIR;
-use crate::system::get_mem_info;
+use crate::system::{get_mem_info, sync_kiosk};
 use crate::util::io::{create_file, IOHook};
 use crate::util::lshw::lshw;
 use crate::util::net::WebSocketExt;
@@ -510,6 +510,7 @@ pub async fn init(
     enable_zram.complete();
 
     update_server_info.start();
+    sync_kiosk(server_info.as_kiosk().de()?).await?;
     let ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
     let devices = lshw().await?;
     let status_info = ServerStatus {

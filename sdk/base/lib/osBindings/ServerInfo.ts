@@ -26,4 +26,5 @@ export type ServerInfo = {
   smtp: SmtpValue | null
   ram: number
   devices: Array<LshwDevice>
+  kiosk: boolean | null
 }

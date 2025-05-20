@@ -32,15 +32,15 @@ use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::util::{pvscan, recovery_info, DiskInfo, StartOsRecoveryInfo};
 use crate::disk::REPAIR_DISK_PATH;
 use crate::init::{init, InitPhases, InitResult};
-use crate::net::net_controller::NetController;
 use crate::net::ssl::root_ca_start_time;
 use crate::prelude::*;
 use crate::progress::{FullProgress, PhaseProgressTrackerHandle};
 use crate::rpc_continuations::Guid;
+use crate::system::sync_kiosk;
 use crate::util::crypto::EncryptedWire;
 use crate::util::io::{create_file, dir_copy, dir_size, Counter};
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt, DATA_DIR, MAIN_DATA, PACKAGE_DATA};
+use crate::{Error, ErrorKind, ResultExt, DATA_DIR, MAIN_DATA, PACKAGE_DATA, PLATFORM};
 
 pub fn setup<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -85,6 +85,7 @@ pub async fn list_disks(ctx: SetupContext) -> Result<Vec<DiskInfo>, Error> {
 async fn setup_init(
     ctx: &SetupContext,
     password: Option<String>,
+    kiosk: Option<bool>,
     init_phases: InitPhases,
 ) -> Result<(AccountInfo, InitResult), Error> {
     let init_result = init(&ctx.webserver, &ctx.config, init_phases).await?;
@@ -98,14 +99,18 @@ async fn setup_init(
                 account.set_password(password)?;
             }
             account.save(m)?;
-            m.as_public_mut()
-                .as_server_info_mut()
-                .as_password_hash_mut()
-                .ser(&account.password)?;
+            let info = m.as_public_mut().as_server_info_mut();
+            info.as_password_hash_mut().ser(&account.password)?;
+            if let Some(kiosk) = kiosk {
+                info.as_kiosk_mut().ser(&Some(kiosk))?;
+            }
+
             Ok(account)
         })
         .await
         .result?;
+
+    sync_kiosk(kiosk).await?;
 
     if let Some(password) = &password {
         write_shadow(&password).await?;
@@ -121,6 +126,8 @@ pub struct AttachParams {
     #[serde(rename = "startOsPassword")]
     password: Option<EncryptedWire>,
     guid: Arc<String>,
+    #[ts(optional)]
+    kiosk: Option<bool>,
 }
 
 pub async fn attach(
@@ -128,10 +135,11 @@ pub async fn attach(
     AttachParams {
         password,
         guid: disk_guid,
+        kiosk,
     }: AttachParams,
 ) -> Result<SetupProgress, Error> {
     let setup_ctx = ctx.clone();
-    ctx.run_setup(|| async move {
+    ctx.run_setup(move || async move {
             let progress = &setup_ctx.progress;
             let mut disk_phase = progress.add_phase("Opening data drive".into(), Some(10));
             let init_phases = InitPhases::new(&progress);
@@ -178,7 +186,7 @@ pub async fn attach(
             }
             disk_phase.complete();
 
-            let (account, net_ctrl) = setup_init(&setup_ctx, password, init_phases).await?;
+            let (account, net_ctrl) = setup_init(&setup_ctx, password, kiosk, init_phases).await?;
 
             let rpc_ctx = RpcContext::init(&setup_ctx.webserver, &setup_ctx.config, disk_guid, Some(net_ctrl), rpc_ctx_phases).await?;
 
@@ -298,6 +306,8 @@ pub struct SetupExecuteParams {
     start_os_logicalname: PathBuf,
     start_os_password: EncryptedWire,
     recovery_source: Option<RecoverySource<EncryptedWire>>,
+    #[ts(optional)]
+    kiosk: Option<bool>,
 }
 
 // #[command(rpc_only)]
@@ -307,6 +317,7 @@ pub async fn execute(
         start_os_logicalname,
         start_os_password,
         recovery_source,
+        kiosk,
     }: SetupExecuteParams,
 ) -> Result<SetupProgress, Error> {
     let start_os_password = match start_os_password.decrypt(&ctx) {
@@ -338,7 +349,15 @@ pub async fn execute(
     };
 
     let setup_ctx = ctx.clone();
-    ctx.run_setup(|| execute_inner(setup_ctx, start_os_logicalname, start_os_password, recovery))?;
+    ctx.run_setup(move || {
+        execute_inner(
+            setup_ctx,
+            start_os_logicalname,
+            start_os_password,
+            recovery,
+            kiosk,
+        )
+    })?;
 
     Ok(ctx.progress().await)
 }
@@ -381,6 +400,7 @@ pub async fn execute_inner(
     start_os_logicalname: PathBuf,
     start_os_password: String,
     recovery_source: Option<RecoverySource<String>>,
+    kiosk: Option<bool>,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let progress = &ctx.progress;
     let mut disk_phase = progress.add_phase("Formatting data drive".into(), Some(10));
@@ -434,14 +454,15 @@ pub async fn execute_inner(
                 target,
                 server_id,
                 password,
+                kiosk,
                 progress,
             )
             .await
         }
         Some(RecoverySource::Migrate { guid: old_guid }) => {
-            migrate(&ctx, guid, &old_guid, start_os_password, progress).await
+            migrate(&ctx, guid, &old_guid, start_os_password, kiosk, progress).await
         }
-        None => fresh_setup(&ctx, guid, &start_os_password, progress).await,
+        None => fresh_setup(&ctx, guid, &start_os_password, kiosk, progress).await,
     }
 }
 
@@ -455,6 +476,7 @@ async fn fresh_setup(
     ctx: &SetupContext,
     guid: Arc<String>,
     start_os_password: &str,
+    kiosk: Option<bool>,
     SetupExecuteProgress {
         init_phases,
         rpc_ctx_phases,
@@ -463,7 +485,9 @@ async fn fresh_setup(
 ) -> Result<(SetupResult, RpcContext), Error> {
     let account = AccountInfo::new(start_os_password, root_ca_start_time().await?)?;
     let db = ctx.db().await?;
-    db.put(&ROOT, &Database::init(&account)?).await?;
+    let kiosk = Some(kiosk.unwrap_or(true)).filter(|_| &*PLATFORM != "raspberrypi");
+    sync_kiosk(kiosk).await?;
+    db.put(&ROOT, &Database::init(&account, kiosk)?).await?;
     drop(db);
 
     let init_result = init(&ctx.webserver, &ctx.config, init_phases).await?;
@@ -490,6 +514,7 @@ async fn recover(
     recovery_source: BackupTargetFS,
     server_id: String,
     recovery_password: String,
+    kiosk: Option<bool>,
     progress: SetupExecuteProgress,
 ) -> Result<(SetupResult, RpcContext), Error> {
     let recovery_source = TmpMountGuard::mount(&recovery_source, ReadWrite).await?;
@@ -500,6 +525,7 @@ async fn recover(
         recovery_source,
         &server_id,
         &recovery_password,
+        kiosk,
         progress,
     )
     .await
@@ -511,6 +537,7 @@ async fn migrate(
     guid: Arc<String>,
     old_guid: &str,
     start_os_password: String,
+    kiosk: Option<bool>,
     SetupExecuteProgress {
         init_phases,
         restore_phase,
@@ -588,7 +615,7 @@ async fn migrate(
     crate::disk::main::export(&old_guid, "/media/startos/migrate").await?;
     restore_phase.complete();
 
-    let (account, net_ctrl) = setup_init(&ctx, Some(start_os_password), init_phases).await?;
+    let (account, net_ctrl) = setup_init(&ctx, Some(start_os_password), kiosk, init_phases).await?;
 
     let rpc_ctx = RpcContext::init(
         &ctx.webserver,

@@ -23,7 +23,9 @@ use crate::prelude::*;
 use crate::s9pk::S9pk;
 use crate::service::service_map::DownloadInstallFuture;
 use crate::setup::SetupExecuteProgress;
+use crate::system::sync_kiosk;
 use crate::util::serde::IoFormat;
+use crate::PLATFORM;
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
@@ -80,6 +82,7 @@ pub async fn recover_full_embassy(
     recovery_source: TmpMountGuard,
     server_id: &str,
     recovery_password: &str,
+    kiosk: Option<bool>,
     SetupExecuteProgress {
         init_phases,
         restore_phase,
@@ -105,8 +108,12 @@ pub async fn recover_full_embassy(
     )
     .with_kind(ErrorKind::PasswordHashGeneration)?;
 
+    let kiosk = Some(kiosk.unwrap_or(true)).filter(|_| &*PLATFORM != "raspberrypi");
+    sync_kiosk(kiosk).await?;
+
     let db = ctx.db().await?;
-    db.put(&ROOT, &Database::init(&os_backup.account)?).await?;
+    db.put(&ROOT, &Database::init(&os_backup.account, kiosk)?)
+        .await?;
     drop(db);
 
     let init_result = init(&ctx.webserver, &ctx.config, init_phases).await?;
