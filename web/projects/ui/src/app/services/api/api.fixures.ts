@@ -101,16 +101,16 @@ export namespace Mock {
       },
       img: {},
     },
-    '0.4.0-alpha.3': {
-      headline: 'v0.4.0-alpha.3',
+    '0.4.0-alpha.4': {
+      headline: 'v0.4.0-alpha.4',
       releaseNotes: '',
-      sourceVersion: '>=0.3.5:0 <=0.4.0-alpha.3:0',
+      sourceVersion: '>=0.3.5:0 <=0.4.0-alpha.4:0',
       authorized: ['G24CSA5HNYEPIXJNMK7ZM4KD5SX5N6X4'],
       iso: {},
       squashfs: {
         aarch64: {
           publishedAt: '2025-04-21T20:58:48.140749883Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.3/startos-0.4.0-alpha.3-33ae46f~dev_aarch64.squashfs',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.4/startos-0.4.0-alpha.4-33ae46f~dev_aarch64.squashfs',
           commitment: {
             hash: '4elBFVkd/r8hNadKmKtLIs42CoPltMvKe2z3LRqkphk=',
             size: 1343500288,
@@ -122,7 +122,7 @@ export namespace Mock {
         },
         'aarch64-nonfree': {
           publishedAt: '2025-04-21T21:07:00.249285116Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.3/startos-0.4.0-alpha.3-33ae46f~dev_aarch64-nonfree.squashfs',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.4/startos-0.4.0-alpha.4-33ae46f~dev_aarch64-nonfree.squashfs',
           commitment: {
             hash: 'MrCEi4jxbmPS7zAiGk/JSKlMsiuKqQy6RbYOxlGHOIQ=',
             size: 1653075968,
@@ -134,7 +134,7 @@ export namespace Mock {
         },
         raspberrypi: {
           publishedAt: '2025-04-21T21:16:12.933319237Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.3/startos-0.4.0-alpha.3-33ae46f~dev_raspberrypi.squashfs',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.4/startos-0.4.0-alpha.4-33ae46f~dev_raspberrypi.squashfs',
           commitment: {
             hash: '/XTVQRCqY3RK544PgitlKu7UplXjkmzWoXUh2E4HCw0=',
             size: 1490731008,
@@ -146,7 +146,7 @@ export namespace Mock {
         },
         x86_64: {
           publishedAt: '2025-04-21T21:14:20.246908903Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.3/startos-0.4.0-alpha.3-33ae46f~dev_x86_64.squashfs',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.4/startos-0.4.0-alpha.4-33ae46f~dev_x86_64.squashfs',
           commitment: {
             hash: '/6romKTVQGSaOU7FqSZdw0kFyd7P+NBSYNwM3q7Fe44=',
             size: 1411657728,
@@ -158,7 +158,7 @@ export namespace Mock {
         },
         'x86_64-nonfree': {
           publishedAt: '2025-04-21T21:15:17.955265284Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.3/startos-0.4.0-alpha.3-33ae46f~dev_x86_64-nonfree.squashfs',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.4/startos-0.4.0-alpha.4-33ae46f~dev_x86_64-nonfree.squashfs',
           commitment: {
             hash: 'HCRq9sr/0t85pMdrEgNBeM4x11zVKHszGnD1GDyZbSE=',
             size: 1731035136,

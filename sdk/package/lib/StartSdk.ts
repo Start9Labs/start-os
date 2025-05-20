@@ -70,7 +70,7 @@ import {
   setupOnInit,
 } from "../../base/lib/inits"
 
-export const OSVersion = testTypeVersion("0.4.0-alpha.3")
+export const OSVersion = testTypeVersion("0.4.0-alpha.4")
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
