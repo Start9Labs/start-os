@@ -427,7 +427,25 @@ impl Service {
                     tracing::error!("Error opening s9pk for removal: {e}");
                     tracing::debug!("{e:?}")
                 }) {
-                    if let Ok(service) = Self::new(
+                    let err_state = |e: Error| async move {
+                        let state = crate::status::MainStatus::Error {
+                            on_rebuild: StartStop::Stop,
+                            message: e.to_string(),
+                            debug: Some(format!("{e:?}")),
+                        };
+                        ctx.db
+                            .mutate(move |db| {
+                                if let Some(pde) =
+                                    db.as_public_mut().as_package_data_mut().as_idx_mut(&id)
+                                {
+                                    pde.as_status_mut().ser(&state)?;
+                                }
+                                Ok(())
+                            })
+                            .await
+                            .result
+                    };
+                    match Self::new(
                         ctx.clone(),
                         s9pk,
                         StartStop::Stop,
@@ -436,27 +454,32 @@ impl Service {
                         None::<MountGuard>,
                     )
                     .await
-                    .map_err(|e| {
-                        tracing::error!("Error loading service for removal: {e}");
-                        tracing::debug!("{e:?}")
-                    }) {
-                        match service
+                    {
+                        Ok(service) => match service
                             .uninstall(ExitParams::uninstall(), false, false)
                             .await
                         {
                             Err(e) => {
                                 tracing::error!("Error uninstalling service: {e}");
-                                tracing::debug!("{e:?}")
+                                tracing::debug!("{e:?}");
+                                err_state(e).await?;
                             }
                             Ok(()) => return Ok(None),
+                        },
+                        Err(e) => {
+                            tracing::error!("Error loading service for removal: {e}");
+                            tracing::debug!("{e:?}");
+                            err_state(e).await?;
                         }
                     }
                 }
 
-                ctx.db
-                    .mutate(|v| v.as_public_mut().as_package_data_mut().remove(id))
-                    .await
-                    .result?;
+                if disposition == LoadDisposition::Retry {
+                    ctx.db
+                        .mutate(|v| v.as_public_mut().as_package_data_mut().remove(id))
+                        .await
+                        .result?;
+                }
 
                 Ok(None)
             }

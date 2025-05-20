@@ -57,7 +57,13 @@ import { GetInput } from "../../base/lib/actions/setupActions"
 import { Run } from "../../base/lib/actions/setupActions"
 import * as actions from "../../base/lib/actions"
 import * as fs from "node:fs/promises"
-import { setupInit, setupUninit } from "./inits"
+import {
+  setupInit,
+  setupUninit,
+  setupPostInstall,
+  setupPostUpdate,
+  setupPostInstallOrUpdate,
+} from "../../base/lib/inits"
 
 export const OSVersion = testTypeVersion("0.4.0-alpha.3")
 
@@ -495,6 +501,18 @@ export class StartSdk<Manifest extends T.SDKManifest> {
        */
       setupDependencies: setupDependencies<Manifest>,
       /**
+       * @description Use this function to create an InitScript that runs only when the service is freshly installed
+       */
+      setupPostInstall,
+      /**
+       * @description Use this function to create an InitScript that runs only when the service is updated
+       */
+      setupPostUpdate,
+      /**
+       * @description Use this function to create an InitScript that runs only when the service is installed or updated
+       */
+      setupPostInstallOrUpdate,
+      /**
        * @description Use this function to setup what happens when the service initializes.
        *  
        *    This happens when the server boots, or a service is installed, updated, or restored
@@ -691,7 +709,12 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           mounts: Mounts<Manifest> | null,
           name: string,
         ) {
-          return SubContainerOwned.of(effects, image, mounts, name)
+          return SubContainerOwned.of<Manifest, Effects>(
+            effects,
+            image,
+            mounts,
+            name,
+          )
         },
         /**
          * @description Run a function with a temporary SubContainer

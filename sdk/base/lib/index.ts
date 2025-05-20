@@ -7,6 +7,7 @@ export * as IST from "./actions/input/inputSpecTypes"
 export * as types from "./types"
 export * as T from "./types"
 export * as yaml from "yaml"
+export * as inits from "./inits"
 export * as matches from "ts-matches"
 
 export * as utils from "./util"

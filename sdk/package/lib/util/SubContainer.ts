@@ -64,6 +64,8 @@ export interface SubContainer<
   Effects extends T.Effects = T.Effects,
 > extends Drop {
   readonly imageId: keyof Manifest["images"] & T.ImageId
+  readonly rootfs: string
+  readonly guid: T.Guid
   mount(
     mounts: Effects extends BackupEffects
       ? Mounts<
@@ -145,7 +147,7 @@ export class SubContainerOwned<
   private waitProc: () => Promise<null>
   private constructor(
     readonly effects: Effects,
-    readonly imageId: T.ImageId,
+    readonly imageId: keyof Manifest["images"] & T.ImageId,
     readonly rootfs: string,
     readonly guid: T.Guid,
   ) {
@@ -199,7 +201,7 @@ export class SubContainerOwned<
           : Mounts<Manifest, never>)
       | null,
     name: string,
-  ) {
+  ): Promise<SubContainerOwned<Manifest, Effects>> {
     const { imageId, sharedRun } = image
     const [rootfs, guid] = await effects.subcontainer.createFs({
       imageId,
@@ -589,6 +591,12 @@ export class SubContainerRc<
 {
   get imageId() {
     return this.subcontainer.imageId
+  }
+  get rootfs() {
+    return this.subcontainer.rootfs
+  }
+  get guid() {
+    return this.subcontainer.guid
   }
   private destroyed = false
   public constructor(

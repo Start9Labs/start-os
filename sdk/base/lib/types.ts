@@ -39,10 +39,6 @@ export namespace ExpectedExports {
 
   /** For backing up service data though the startOS UI */
   export type createBackup = (options: { effects: Effects }) => Promise<unknown>
-  /** For restoring service data that was previously backed up using the startOS UI create backup flow. Backup restores are also triggered via the startOS UI, or doing a system restore flow during setup. */
-  export type restoreBackup = (options: {
-    effects: Effects
-  }) => Promise<unknown>
 
   /**
    * This is the entrypoint for the main container. Used to start up something like the service that the
@@ -75,7 +71,6 @@ export namespace ExpectedExports {
 }
 export type ABI = {
   createBackup: ExpectedExports.createBackup
-  restoreBackup: ExpectedExports.restoreBackup
   main: ExpectedExports.main
   init: ExpectedExports.init
   uninit: ExpectedExports.uninit

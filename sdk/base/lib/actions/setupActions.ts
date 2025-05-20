@@ -5,6 +5,7 @@ import {
 } from "./input/builder/inputSpec"
 import * as T from "../types"
 import { once } from "../util"
+import { InitScript } from "../inits"
 
 export type Run<
   A extends Record<string, any> | InputSpec<Record<string, any>>,
@@ -111,7 +112,8 @@ export class Action<
 
 export class Actions<
   AllActions extends Record<T.ActionId, Action<T.ActionId, any>>,
-> {
+> implements InitScript
+{
   private constructor(private readonly actions: AllActions) {}
   static of(): Actions<{}> {
     return new Actions({})
@@ -121,13 +123,25 @@ export class Actions<
   ): Actions<AllActions & { [id in A["id"]]: A }> {
     return new Actions({ ...this.actions, [action.id]: action })
   }
-  async update(options: { effects: T.Effects }): Promise<null> {
+  async init(effects: T.Effects): Promise<void> {
     for (let action of Object.values(this.actions)) {
-      await action.exportMetadata(options)
+      const fn = async () => {
+        let res: (value?: undefined) => void = () => {}
+        const complete = new Promise((resolve) => {
+          res = resolve
+        })
+        const e: T.Effects = effects.child(action.id)
+        e.constRetry = once(() =>
+          complete.then(() => fn()).catch(console.error),
+        )
+        try {
+          await action.exportMetadata({ effects: e })
+        } finally {
+          res()
+        }
+      }
     }
-    await options.effects.action.clear({ except: Object.keys(this.actions) })
-
-    return null
+    await effects.action.clear({ except: Object.keys(this.actions) })
   }
   get<Id extends T.ActionId>(actionId: Id): AllActions[Id] {
     return this.actions[actionId]

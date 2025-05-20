@@ -7,7 +7,7 @@ import {
   InitScriptOrFn,
   UninitFn,
   UninitScript,
-} from "../inits"
+} from "../../../base/lib/inits"
 import { Graph, Vertex, once } from "../util"
 import { IMPOSSIBLE, VersionInfo } from "./VersionInfo"
 

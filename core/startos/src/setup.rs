@@ -8,7 +8,7 @@ use const_format::formatcp;
 use josekit::jwk::Jwk;
 use patch_db::json_ptr::ROOT;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
@@ -62,6 +62,11 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
                 .no_cli(),
         )
         .subcommand("exit", from_fn_async(exit).no_cli())
+        .subcommand("logs", crate::system::logs::<SetupContext>())
+        .subcommand(
+            "logs",
+            from_fn_async(crate::logs::cli_logs::<SetupContext, Empty>).no_display(),
+        )
 }
 
 pub fn disk<C: Context>() -> ParentHandler<C> {

@@ -3,7 +3,7 @@ import * as child_process from "child_process"
 import * as fs from "fs/promises"
 import { Affine, asError } from "../util"
 import { ExtendedVersion, VersionRange } from "../../../base/lib"
-import { InitKind, InitScript } from "../inits"
+import { InitKind, InitScript } from "../../../base/lib/inits"
 
 export const DEFAULT_OPTIONS: T.SyncOptions = {
   delete: true,

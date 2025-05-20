@@ -44,14 +44,6 @@ export class SystemForStartOs implements System {
       effects,
     }))
   }
-  async restoreBackup(
-    effects: T.Effects,
-    timeoutMs: number | null,
-  ): Promise<void> {
-    return void (await this.abi.restoreBackup({
-      effects,
-    }))
-  }
   getActionInput(
     effects: Effects,
     id: string,
