@@ -477,7 +477,7 @@ export class SystemForEmbassy implements System {
               masked: false,
               path: "",
               schemeOverride: null,
-              search: {},
+              query: {},
               username: null,
             }),
           ])

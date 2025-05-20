@@ -166,6 +166,7 @@ async fn restore_packages(
             .install(
                 ctx.clone(),
                 || S9pk::open(s9pk_path, Some(&id)),
+                None, // TODO: pull from metadata?
                 Some(backup_dir),
                 None,
             )

@@ -161,6 +161,7 @@ pub async fn install(
         .install(
             ctx.clone(),
             || asset.deserialize_s9pk_buffered(ctx.client.clone(), download_progress),
+            Some(registry),
             None::<Never>,
             Some(progress_tracker),
         )
@@ -257,6 +258,7 @@ pub async fn sideload(
                 .install(
                     ctx.clone(),
                     || crate::s9pk::load(file.clone(), || Ok(key.de()?.0), Some(&progress_tracker)),
+                    None,
                     None::<Never>,
                     Some(progress_tracker.clone()),
                 )

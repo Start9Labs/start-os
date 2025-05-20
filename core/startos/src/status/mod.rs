@@ -63,6 +63,13 @@ impl MainStatus {
             } => false,
         }
     }
+    pub fn run_state(&self) -> StartStop {
+        if self.running() {
+            StartStop::Start
+        } else {
+            StartStop::Stop
+        }
+    }
 
     pub fn major_changes(&self, other: &Self) -> bool {
         match (self, other) {

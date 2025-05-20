@@ -12,6 +12,7 @@ use imbl::OrdMap;
 use models::ErrorData;
 use tokio::sync::{oneshot, Mutex, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::instrument;
+use url::Url;
 
 use crate::context::RpcContext;
 use crate::db::model::package::{
@@ -22,6 +23,7 @@ use crate::install::PKG_ARCHIVE_DIR;
 use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle, ProgressTrackerWriter};
+use crate::rpc_continuations::Guid;
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
@@ -131,6 +133,7 @@ impl ServiceMap {
         &self,
         ctx: RpcContext,
         s9pk: F,
+        registry: Option<Url>,
         recovery_source: Option<impl GenericMountGuard>,
         progress: Option<FullProgressTracker>,
     ) -> Result<DownloadInstallFuture, Error>
@@ -182,6 +185,7 @@ impl ServiceMap {
                         let manifest = manifest.clone();
                         let id = id.clone();
                         let install_progress = progress.snapshot();
+                        let registry = registry.clone();
                         move |db| {
                             if let Some(pde) =
                                 db.as_public_mut().as_package_data_mut().as_idx_mut(&id)
@@ -213,7 +217,7 @@ impl ServiceMap {
                                         },
                                         data_version: None,
                                         status: MainStatus::Stopped,
-                                        registry: None,
+                                        registry,
                                         developer_key: Pem::new(developer_key),
                                         icon,
                                         last_backup: None,
@@ -313,26 +317,34 @@ impl ServiceMap {
                                 next_can_migrate_from.clone(),
                             ))
                         };
+                        let run_state = service
+                            .seed
+                            .persistent_container
+                            .state
+                            .borrow()
+                            .desired_state;
                         service.uninstall(uninit, false, false).await?;
                         progress.complete();
-                        Some(prev_version)
+                        Some(run_state)
                     } else {
                         None
                     };
-                    *service = Some(
-                        Service::install(
-                            ctx,
-                            s9pk,
-                            prev,
-                            recovery_source,
-                            Some(InstallProgressHandles {
-                                finalization_progress,
-                                progress,
-                            }),
-                        )
-                        .await?
-                        .into(),
-                    );
+                    let new_service = Service::install(
+                        ctx,
+                        s9pk,
+                        &registry,
+                        prev,
+                        recovery_source,
+                        Some(InstallProgressHandles {
+                            finalization_progress,
+                            progress,
+                        }),
+                    )
+                    .await?;
+                    if prev == Some(StartStop::Start) {
+                        new_service.start(Guid::new()).await?;
+                    }
+                    *service = Some(new_service.into());
                     drop(service);
 
                     sync_progress_task.await.map_err(|_| {

@@ -30,6 +30,7 @@ use tokio::process::Command;
 use tokio::sync::Notify;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use ts_rs::TS;
+use url::Url;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::package::{
@@ -295,7 +296,7 @@ impl Service {
                         tracing::debug!("{e:?}")
                     }) {
                         if let Ok(service) =
-                            Self::install(ctx.clone(), s9pk, None, None::<Never>, None)
+                            Self::install(ctx.clone(), s9pk, &None, None, None::<Never>, None)
                                 .await
                                 .map_err(|e| {
                                     tracing::error!("Error installing service: {e}");
@@ -332,7 +333,8 @@ impl Service {
                         if let Ok(service) = Self::install(
                             ctx.clone(),
                             s9pk,
-                            Some(s.as_manifest().as_version().de()?),
+                            &None,
+                            Some(entry.as_status().de()?.run_state()),
                             None::<Never>,
                             None,
                         )
@@ -451,7 +453,8 @@ impl Service {
     pub async fn install(
         ctx: RpcContext,
         s9pk: S9pk,
-        src_version: Option<models::VersionString>,
+        registry: &Option<Url>,
+        prev_state: Option<StartStop>,
         recovery_source: Option<impl GenericMountGuard>,
         progress: Option<InstallProgressHandles>,
     ) -> Result<ServiceRef, Error> {
@@ -466,7 +469,7 @@ impl Service {
             procedure_id.clone(),
             Some(if recovery_source.is_some() {
                 InitKind::Restore
-            } else if src_version.is_some() {
+            } else if prev_state.is_some() {
                 InitKind::Update
             } else {
                 InitKind::Install
@@ -539,8 +542,7 @@ impl Service {
                     .ser(&PackageState::Installed(InstalledState { manifest }))?;
                 entry.as_developer_key_mut().ser(&Pem::new(developer_key))?;
                 entry.as_icon_mut().ser(&icon)?;
-                // TODO: marketplace url
-                // TODO: dependency info
+                entry.as_registry_mut().ser(registry)?;
 
                 Ok(())
             })
