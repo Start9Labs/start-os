@@ -28,8 +28,7 @@ export class Oneshot<Manifest extends T.SDKManifest> extends Daemon<Manifest> {
         sigtermTimeout?: number
       },
     ) => {
-      if (subcontainer instanceof SubContainerOwned)
-        subcontainer = subcontainer.rc()
+      if (subcontainer.isOwned()) subcontainer = subcontainer.rc()
       const startCommand = () =>
         CommandController.of<Manifest>()(
           effects,

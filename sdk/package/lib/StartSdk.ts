@@ -1,7 +1,11 @@
 import { Value } from "../../base/lib/actions/input/builder/value"
 import { InputSpec } from "../../base/lib/actions/input/builder/inputSpec"
 import { Variants } from "../../base/lib/actions/input/builder/variants"
-import { Action, Actions } from "../../base/lib/actions/setupActions"
+import {
+  Action,
+  ActionInfo,
+  Actions,
+} from "../../base/lib/actions/setupActions"
 import {
   SyncOptions,
   ServiceInterfaceId,
@@ -135,7 +139,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       getDataVersion,
       action: {
         run: actions.runAction,
-        request: <T extends Action<T.ActionId, any>>(
+        request: <T extends ActionInfo<T.ActionId, any>>(
           effects: T.Effects,
           packageId: T.PackageId,
           action: T,
@@ -149,7 +153,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
             severity,
             options: options,
           }),
-        requestOwn: <T extends Action<T.ActionId, any>>(
+        requestOwn: <T extends ActionInfo<T.ActionId, any>>(
           effects: T.Effects,
           action: T,
           severity: T.ActionSeverity,
@@ -394,7 +398,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           schemeOverride: null,
           username: null,
           path: '',
-          search: {},
+          query: {},
         })
        * ```
        */
@@ -414,7 +418,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           /** (optional) appends the provided path to all URLs. */
           path: string
           /** (optional) appends the provided query params to all URLs. */
-          search: Record<string, string>
+          query: Record<string, string>
           /** (optional) overrides the protocol prefix provided by the bind function.
            *
            * @example `ftp://`
@@ -576,7 +580,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
               schemeOverride: null,
               username: null,
               path: '',
-              search: {},
+              query: {},
             })
             // Admin UI
             const adminUi = sdk.createInterface(effects, {
@@ -588,7 +592,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
               schemeOverride: null,
               username: null,
               path: '/admin',
-              search: {},
+              query: {},
             })
             // UI receipt
             const uiReceipt = await uiMultiOrigin.export([primaryUi, adminUi])
@@ -608,7 +612,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
               schemeOverride: null,
               username: null,
               path: '',
-              search: {},
+              query: {},
             })
             // API receipt
             const apiReceipt = await apiMultiOrigin.export([api])
@@ -753,7 +757,7 @@ export async function runCommand<Manifest extends T.SDKManifest>(
   name?: string,
 ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
   let commands: string[]
-  if (command instanceof T.UseEntrypoint) {
+  if (T.isUseEntrypoint(command)) {
     const imageMeta: T.ImageMetadata = await fs
       .readFile(`/media/startos/images/${image.imageId}.json`, {
         encoding: "utf8",

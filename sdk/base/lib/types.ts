@@ -100,7 +100,13 @@ export type SmtpValue = {
 }
 
 export class UseEntrypoint {
+  readonly USE_ENTRYPOINT = "USE_ENTRYPOINT"
   constructor(readonly overridCmd?: string[]) {}
+}
+export function isUseEntrypoint(
+  command: CommandType,
+): command is UseEntrypoint {
+  return typeof command === "object" && "ENTRYPOINT" in command
 }
 
 export type CommandType = string | [string, ...string[]] | UseEntrypoint

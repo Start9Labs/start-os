@@ -41,10 +41,20 @@ function mapMaybeFn<T, U>(
   }
 }
 
-export class Action<
+export interface ActionInfo<
   Id extends T.ActionId,
   InputSpecType extends Record<string, any> | InputSpec<any>,
 > {
+  readonly id: Id
+  readonly _INPUT: InputSpecType
+}
+
+export class Action<
+  Id extends T.ActionId,
+  InputSpecType extends Record<string, any> | InputSpec<any>,
+> implements ActionInfo<Id, InputSpecType>
+{
+  readonly _INPUT: InputSpecType = null as any as InputSpecType
   private constructor(
     readonly id: Id,
     private readonly metadataFn: MaybeFn<T.ActionMetadata>,

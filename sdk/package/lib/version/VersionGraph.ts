@@ -28,23 +28,23 @@ export async function setDataVersion(
   return effects.setDataVersion({ version: version?.toString() || null })
 }
 
+function isExver(v: ExtendedVersion | VersionRange): v is ExtendedVersion {
+  return "satisfies" in v
+}
+
+function isRange(v: ExtendedVersion | VersionRange): v is VersionRange {
+  return "satisfiedBy" in v
+}
+
 export function overlaps(
   a: ExtendedVersion | VersionRange,
   b: ExtendedVersion | VersionRange,
 ) {
   return (
-    (a instanceof VersionRange &&
-      b instanceof VersionRange &&
-      a.intersects(b)) ||
-    (a instanceof VersionRange &&
-      b instanceof ExtendedVersion &&
-      a.satisfiedBy(b)) ||
-    (a instanceof ExtendedVersion &&
-      b instanceof VersionRange &&
-      a.satisfies(b)) ||
-    (a instanceof ExtendedVersion &&
-      b instanceof ExtendedVersion &&
-      a.equals(b))
+    (isRange(a) && isRange(b) && a.intersects(b)) ||
+    (isRange(a) && isExver(b) && a.satisfiedBy(b)) ||
+    (isExver(a) && isRange(b) && a.satisfies(b)) ||
+    (isExver(a) && isExver(b) && a.equals(b))
   )
 }
 
@@ -139,9 +139,7 @@ export class VersionGraph<CurrentVersion extends string>
                 vertex,
               )
               for (let matching of graph.findVertex(
-                (v) =>
-                  v.metadata instanceof ExtendedVersion &&
-                  v.metadata.satisfies(range),
+                (v) => isExver(v.metadata) && v.metadata.satisfies(range),
               )) {
                 graph.addEdge(
                   version.options.migrations.other[rangeStr],
@@ -189,6 +187,7 @@ export class VersionGraph<CurrentVersion extends string>
     from: ExtendedVersion | VersionRange
     to: ExtendedVersion | VersionRange
   }): Promise<ExtendedVersion | VersionRange> {
+    if (overlaps(from, to)) return from
     const graph = this.graph()
     if (from && to) {
       const path = graph.shortestPath(
@@ -220,7 +219,7 @@ export class VersionGraph<CurrentVersion extends string>
       .reduce(
         (acc, x) =>
           acc.or(
-            x.metadata instanceof VersionRange
+            isRange(x.metadata)
               ? x.metadata
               : VersionRange.anchor("=", x.metadata),
           ),
@@ -237,7 +236,7 @@ export class VersionGraph<CurrentVersion extends string>
       .reduce(
         (acc, x) =>
           acc.or(
-            x.metadata instanceof VersionRange
+            isRange(x.metadata)
               ? x.metadata
               : VersionRange.anchor("=", x.metadata),
           ),
@@ -269,7 +268,7 @@ export class VersionGraph<CurrentVersion extends string>
   ): Promise<void> {
     if (target) {
       const from = await getDataVersion(effects)
-      if (from && !overlaps(from, target)) {
+      if (from) {
         target = await this.migrate({
           effects,
           from,

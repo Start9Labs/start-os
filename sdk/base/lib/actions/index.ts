@@ -1,6 +1,6 @@
 import * as T from "../types"
 import * as IST from "../actions/input/inputSpecTypes"
-import { Action } from "./setupActions"
+import { Action, ActionInfo } from "./setupActions"
 import { ExtractInputSpecType } from "./input/builder/inputSpec"
 
 export type RunActionInput<Input> =
@@ -45,18 +45,18 @@ export const runAction = async <
     })
   }
 }
-type GetActionInputType<A extends Action<T.ActionId, any>> =
+type GetActionInputType<A extends ActionInfo<T.ActionId, any>> =
   A extends Action<T.ActionId, infer I> ? ExtractInputSpecType<I> : never
 
 type ActionRequestBase = {
   reason?: string
   replayId?: string
 }
-type ActionRequestInput<T extends Action<T.ActionId, any>> = {
+type ActionRequestInput<T extends ActionInfo<T.ActionId, any>> = {
   kind: "partial"
   value: T.DeepPartial<GetActionInputType<T>>
 }
-export type ActionRequestOptions<T extends Action<T.ActionId, any>> =
+export type ActionRequestOptions<T extends ActionInfo<T.ActionId, any>> =
   ActionRequestBase &
     (
       | {
@@ -78,7 +78,7 @@ const _validate: T.ActionRequest = {} as ActionRequestOptions<any> & {
   severity: T.ActionSeverity
 }
 
-export const requestAction = <T extends Action<T.ActionId, any>>(options: {
+export const requestAction = <T extends ActionInfo<T.ActionId, any>>(options: {
   effects: T.Effects
   packageId: T.PackageId
   action: T

@@ -127,6 +127,8 @@ export interface SubContainer<
   ): Promise<cp.ChildProcess>
 
   rc(): SubContainerRc<Manifest, Effects>
+
+  isOwned(): this is SubContainerOwned<Manifest, Effects>
 }
 
 /**
@@ -580,6 +582,10 @@ export class SubContainerOwned<
   rc(): SubContainerRc<Manifest, Effects> {
     return new SubContainerRc(this)
   }
+
+  isOwned(): this is SubContainerOwned<Manifest, Effects> {
+    return true
+  }
 }
 
 export class SubContainerRc<
@@ -750,6 +756,10 @@ export class SubContainerRc<
 
   rc(): SubContainerRc<Manifest, Effects> {
     return this.subcontainer.rc()
+  }
+
+  isOwned(): this is SubContainerOwned<Manifest, Effects> {
+    return false
   }
 }
 

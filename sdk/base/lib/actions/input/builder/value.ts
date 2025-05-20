@@ -919,36 +919,6 @@ export class Value<Type> {
       aVariants.validator,
     )
   }
-  static filteredUnion<
-    VariantValues extends {
-      [K in string]: {
-        name: string
-        spec: InputSpec<any>
-      }
-    },
-  >(
-    getDisabledFn: LazyBuild<string[] | false | string>,
-    a: {
-      name: string
-      description?: string | null
-      warning?: string | null
-      default: keyof VariantValues & string
-    },
-    aVariants: Variants<VariantValues>,
-  ) {
-    return new Value<typeof aVariants.validator._TYPE>(
-      async (options) => ({
-        type: "union" as const,
-        description: null,
-        warning: null,
-        ...a,
-        variants: await aVariants.build(options as any),
-        disabled: (await getDisabledFn(options)) || false,
-        immutable: false,
-      }),
-      aVariants.validator,
-    )
-  }
   static dynamicUnion<
     VariantValues extends {
       [K in string]: {

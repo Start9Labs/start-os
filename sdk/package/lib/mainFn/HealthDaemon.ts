@@ -91,8 +91,9 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   }
   private async setupHealthCheck() {
     if (this.ready === "EXIT_SUCCESS") {
-      if (this.daemon instanceof Oneshot) {
-        this.daemon.onExitSuccess(() =>
+      const daemon = await this.daemon
+      if (daemon.isOneshot()) {
+        daemon.onExitSuccess(() =>
           this.setHealth({ result: "success", message: null }),
         )
       }

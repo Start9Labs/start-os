@@ -40,7 +40,7 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
     ) => {
       try {
         let commands: string[]
-        if (command instanceof T.UseEntrypoint) {
+        if (T.isUseEntrypoint(command)) {
           const imageMeta: T.ImageMetadata = await fs
             .readFile(`/media/startos/images/${subcontainer.imageId}.json`, {
               encoding: "utf8",

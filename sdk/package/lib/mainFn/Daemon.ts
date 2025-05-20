@@ -7,6 +7,7 @@ import {
   SubContainerRc,
 } from "../util/SubContainer"
 import { CommandController } from "./CommandController"
+import { Oneshot } from "./Oneshot"
 
 const TIMEOUT_INCREMENT_MS = 1000
 const MAX_TIMEOUT_MS = 30000
@@ -27,6 +28,9 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
   ) {
     super()
   }
+  isOneshot(): this is Oneshot<Manifest> {
+    return this.oneshot
+  }
   static of<Manifest extends T.SDKManifest>() {
     return async (
       effects: T.Effects,
@@ -46,8 +50,7 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
         sigtermTimeout?: number
       },
     ) => {
-      if (subcontainer instanceof SubContainerOwned)
-        subcontainer = subcontainer.rc()
+      if (subcontainer.isOwned()) subcontainer = subcontainer.rc()
       const startCommand = () =>
         CommandController.of<Manifest>()(
           effects,
