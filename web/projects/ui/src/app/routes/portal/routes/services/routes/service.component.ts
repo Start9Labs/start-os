@@ -36,8 +36,7 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
     @if (pkg(); as pkg) {
       @if (pkg.status.main === 'error') {
         <service-error [pkg]="pkg" />
-      }
-      @if (installing()) {
+      } @else if (installing()) {
         <service-install-progress [pkg]="pkg" />
       } @else if (installed()) {
         <service-status
