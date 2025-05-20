@@ -161,7 +161,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     if (
       result === "failure" &&
       this.started &&
-      performance.now() - this.started <= (this.ready.gracePeriod ?? 5000)
+      performance.now() - this.started <= (this.ready.gracePeriod ?? 10_000)
     )
       result = "starting"
     await this.effects.setHealth({

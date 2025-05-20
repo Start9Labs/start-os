@@ -33,7 +33,8 @@ use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::package::{
-    InstalledState, PackageDataEntry, PackageState, PackageStateMatchModelRef, UpdatingState,
+    InstalledState, ManifestPreference, PackageDataEntry, PackageState, PackageStateMatchModelRef,
+    UpdatingState,
 };
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
@@ -52,7 +53,7 @@ use crate::util::net::WebSocketExt;
 use crate::util::serde::Pem;
 use crate::util::Never;
 use crate::volume::data_dir;
-use crate::{CAP_1_KiB, DATA_DIR, PACKAGE_DATA};
+use crate::{CAP_1_KiB, DATA_DIR};
 
 pub mod action;
 pub mod cli;
@@ -64,6 +65,7 @@ mod service_actor;
 pub mod service_map;
 pub mod start_stop;
 mod transition;
+pub mod uninstall;
 mod util;
 
 pub use service_map::ServiceMap;
@@ -129,63 +131,7 @@ impl ServiceRef {
         }
 
         if uninit.is_uninstall() {
-            if let Some(pde) = ctx
-                .db
-                .mutate(|d| {
-                    if let Some(pde) = d
-                        .as_public_mut()
-                        .as_package_data_mut()
-                        .remove(&id)?
-                        .map(|d| d.de())
-                        .transpose()?
-                    {
-                        d.as_private_mut().as_available_ports_mut().mutate(|p| {
-                            p.free(
-                                pde.hosts
-                                    .0
-                                    .values()
-                                    .flat_map(|h| h.bindings.values())
-                                    .flat_map(|b| {
-                                        b.net
-                                            .assigned_port
-                                            .into_iter()
-                                            .chain(b.net.assigned_ssl_port)
-                                    }),
-                            );
-                            Ok(())
-                        })?;
-                        d.as_private_mut().as_package_stores_mut().remove(&id)?;
-                        Ok(Some(pde))
-                    } else {
-                        Ok(None)
-                    }
-                })
-                .await
-                .result?
-            {
-                let state = pde.state_info.expect_removing()?;
-                if !soft {
-                    for volume_id in &state.manifest.volumes {
-                        let path = data_dir(DATA_DIR, &state.manifest.id, volume_id);
-                        if tokio::fs::metadata(&path).await.is_ok() {
-                            tokio::fs::remove_dir_all(&path).await?;
-                        }
-                    }
-                    let logs_dir = Path::new(PACKAGE_DATA)
-                        .join("logs")
-                        .join(&state.manifest.id);
-                    if tokio::fs::metadata(&logs_dir).await.is_ok() {
-                        tokio::fs::remove_dir_all(&logs_dir).await?;
-                    }
-                    let archive_path = Path::new(PACKAGE_DATA)
-                        .join("archive")
-                        .join("installed")
-                        .join(&state.manifest.id);
-                    if tokio::fs::metadata(&archive_path).await.is_ok() {
-                        tokio::fs::remove_file(&archive_path).await?;
-                    }
-                }
-            }
+            uninstall::cleanup(&ctx, &id, soft).await?;
         }
         Ok(())
     }
@@ -233,6 +179,7 @@ impl ServiceRef {
         Ok(())
     }
 }
+
 impl Deref for ServiceRef {
     type Target = Service;
     fn deref(&self) -> &Self::Target {
@@ -438,6 +385,13 @@ impl Service {
                                 if let Some(pde) =
                                     db.as_public_mut().as_package_data_mut().as_idx_mut(&id)
                                 {
+                                    pde.as_state_info_mut().map_mutate(|s| {
+                                        Ok(PackageState::Installed(InstalledState {
+                                            manifest: s
+                                                .as_manifest(ManifestPreference::Old)
+                                                .clone(),
+                                        }))
+                                    })?;
                                     pde.as_status_mut().ser(&state)?;
                                 }
                                 Ok(())

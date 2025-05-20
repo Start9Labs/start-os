@@ -140,6 +140,7 @@ export class Actions<
           res()
         }
       }
+      await fn()
     }
     await effects.action.clear({ except: Object.keys(this.actions) })
   }

@@ -382,10 +382,17 @@ impl ServiceMap {
                         drop(guard);
                         res
                     } else {
-                        Err(Error::new(
-                            eyre!("service {id} failed to initialize - cannot remove gracefully"),
-                            ErrorKind::Uninitialized,
-                        ))
+                        if force {
+                            super::uninstall::cleanup(&ctx, &id, soft).await?;
+                            Ok(())
+                        } else {
+                            Err(Error::new(
+                                eyre!(
+                                    "service {id} failed to initialize - cannot remove gracefully"
+                                ),
+                                ErrorKind::Uninitialized,
+                            ))
+                        }
                     }
                 })
                 .await?;
