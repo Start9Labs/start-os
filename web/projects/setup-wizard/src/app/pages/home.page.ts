@@ -13,7 +13,7 @@ import { StateService } from 'src/app/services/state.service'
   template: `
     <img class="logo" src="assets/img/icon.png" alt="Start9" />
     @if (!loading) {
-      <section tuiCardLarge>
+      <section tuiCardLarge="compact">
         <header [style.padding-top.rem]="1.25">
           @if (recover) {
             <button
@@ -30,7 +30,7 @@ import { StateService } from 'src/app/services/state.service'
         </header>
         <div class="pages">
           <div class="options" [class.options_recover]="recover">
-            <a tuiCell [routerLink]="error || recover ? null : '/storage'">
+            <button tuiCell [routerLink]="error || recover ? null : '/storage'">
               <tui-icon icon="@tui.plus" />
               <span tuiTitle>
                 <span class="g-positive">Start Fresh</span>
@@ -38,7 +38,7 @@ import { StateService } from 'src/app/services/state.service'
                   Get started with a brand new Start9 server
                 </span>
               </span>
-            </a>
+            </button>
             <button
               tuiCell
               [disabled]="error || recover"

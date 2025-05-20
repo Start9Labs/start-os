@@ -67,3 +67,11 @@ h2 {
 .g-info {
   color: var(--tui-status-info);
 }
+
+[tuiCardLarge] footer button {
+  width: 100%;
+}
+
+[tuiCell]:not(:last-of-type) {
+  box-shadow: 0 calc(0.5rem + 1px) 0 -0.5rem var(--tui-border-normal);
+}
