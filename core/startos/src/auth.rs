@@ -50,8 +50,8 @@ pub async fn write_shadow(password: &str) -> Result<(), Error> {
     let mut shadow_file =
         create_file_mod("/media/startos/config/overlay/etc/shadow", 0o640).await?;
     for line in shadow_contents.lines() {
-        if let Some((user, rest)) = line.split_once(":") {
-            if user == "start9" || user == "kiosk" {
+        match line.split_once(":") {
+            Some((user, rest)) if user == "start9" || user == "kiosk" => {
                 let (_, rest) = rest.split_once(":").ok_or_else(|| {
                     Error::new(eyre!("malformed /etc/shadow"), ErrorKind::ParseSysInfo)
                 })?;
@@ -59,9 +59,10 @@ pub async fn write_shadow(password: &str) -> Result<(), Error> {
                     .write_all(format!("{user}:{hash}:{rest}\n").as_bytes())
                     .await?;
             }
-        } else {
-            shadow_file.write_all(line.as_bytes()).await?;
-            shadow_file.write_all(b"\n").await?;
+            _ => {
+                shadow_file.write_all(line.as_bytes()).await?;
+                shadow_file.write_all(b"\n").await?;
+            }
         }
     }
     shadow_file.sync_all().await?;
