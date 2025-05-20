@@ -168,7 +168,13 @@ export class VersionGraph<CurrentVersion extends string>
   >(options: {
     current: VersionInfo<CurrentVersion>
     other: OtherVersions
+    /**
+     * A script to run only on fresh install
+     */
     preInstall?: InitScript | InitFn
+    /**
+     * A script to run only on uninstall
+     */
     uninstall?: UninitScript | UninitFn
   }) {
     return new VersionGraph(

@@ -64,9 +64,10 @@ import * as fs from "node:fs/promises"
 import {
   setupInit,
   setupUninit,
-  setupPostInstall,
-  setupPostUpdate,
-  setupPostInstallOrUpdate,
+  setupOnInstall,
+  setupOnUpdate,
+  setupOnInstallOrUpdate,
+  setupOnInit,
 } from "../../base/lib/inits"
 
 export const OSVersion = testTypeVersion("0.4.0-alpha.3")
@@ -505,17 +506,21 @@ export class StartSdk<Manifest extends T.SDKManifest> {
        */
       setupDependencies: setupDependencies<Manifest>,
       /**
+       * @description Use this function to create an InitScript that runs every time the service initializes
+       */
+      setupOnInit,
+      /**
        * @description Use this function to create an InitScript that runs only when the service is freshly installed
        */
-      setupPostInstall,
+      setupOnInstall,
       /**
        * @description Use this function to create an InitScript that runs only when the service is updated
        */
-      setupPostUpdate,
+      setupOnUpdate,
       /**
        * @description Use this function to create an InitScript that runs only when the service is installed or updated
        */
-      setupPostInstallOrUpdate,
+      setupOnInstallOrUpdate,
       /**
        * @description Use this function to setup what happens when the service initializes.
        *  
@@ -528,7 +533,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
        *
        * ```
         export const init = sdk.setupInit(
-          backups,
+          restoreInit,
           versions,
           setDependencies,
           setInterfaces,

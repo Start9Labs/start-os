@@ -42,41 +42,49 @@ export function setupInit(...inits: InitScriptOrFn[]): T.ExpectedExports.init {
   }
 }
 
-export function setupPostInstall(
-  postInstall: InitScriptOrFn<"install">,
+export function setupOnInit(onInit: InitScriptOrFn): InitScript {
+  return "init" in onInit
+    ? onInit
+    : {
+        init: async (effects, kind) => {
+          await onInit(effects, kind)
+        },
+      }
+}
+
+export function setupOnInstall(
+  onInstall: InitScriptOrFn<"install">,
 ): InitScript {
   return {
     init: async (effects, kind) => {
       if (kind === "install") {
-        if ("init" in postInstall) await postInstall.init(effects, kind)
-        else await postInstall(effects, kind)
+        if ("init" in onInstall) await onInstall.init(effects, kind)
+        else await onInstall(effects, kind)
       }
     },
   }
 }
 
-export function setupPostUpdate(
-  postUpdate: InitScriptOrFn<"update">,
-): InitScript {
+export function setupOnUpdate(onUpdate: InitScriptOrFn<"update">): InitScript {
   return {
     init: async (effects, kind) => {
       if (kind === "update") {
-        if ("init" in postUpdate) await postUpdate.init(effects, kind)
-        else await postUpdate(effects, kind)
+        if ("init" in onUpdate) await onUpdate.init(effects, kind)
+        else await onUpdate(effects, kind)
       }
     },
   }
 }
 
-export function setupPostInstallOrUpdate(
-  postInstallOrUpdate: InitScriptOrFn<"install" | "update">,
+export function setupOnInstallOrUpdate(
+  onInstallOrUpdate: InitScriptOrFn<"install" | "update">,
 ): InitScript {
   return {
     init: async (effects, kind) => {
       if (kind === "install" || kind === "update") {
-        if ("init" in postInstallOrUpdate)
-          await postInstallOrUpdate.init(effects, kind)
-        else await postInstallOrUpdate(effects, kind)
+        if ("init" in onInstallOrUpdate)
+          await onInstallOrUpdate.init(effects, kind)
+        else await onInstallOrUpdate(effects, kind)
       }
     },
   }
