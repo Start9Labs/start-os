@@ -44,7 +44,7 @@ export const ENGLISH = {
   'Beginning restart': 42,
   'You are on the latest version of StartOS.': 43,
   'Up to date!': 44,
-  'Release Notes': 45,
+  'Release notes': 45,
   'Begin Update': 46,
   'Beginning update': 47,
   'You are currently connected over Tor. If you reset the Tor daemon, you will lose connectivity until it comes back online.': 48,
@@ -84,6 +84,7 @@ export const ENGLISH = {
   'Metrics': 82, // system info such as CPU, RAM, and storage usage
   'Logs': 83, // as in, application logs
   'Notifications': 84,
+  'Hard uninstall': 85, // as in, hard reset or hard reboot, except for uninstalling
   'Show QR': 86,
   'Copy URL': 87,
   'Actions': 88, // as in, actions available to the user
@@ -228,9 +229,9 @@ export const ENGLISH = {
   'Unknown error': 227,
   'Error': 228,
   '"Rebuild container" is a harmless action that and only takes a few seconds to complete. It will likely resolve this issue.': 229,
-  '"Uninstall service" is a dangerous action that will remove the service from StartOS and wipe all its data.': 230,
+  '"Hard uninstall" is a dangerous action that will remove the service from StartOS and wipe all its data.': 230,
   'Rebuild container': 231,
-  'Uninstall service': 232,
+  'Soft uninstall': 232, // as in, uninstall the service but preserve its data
   'View full message': 233,
   'Service error': 234,
   'Awaiting result': 235,
@@ -503,4 +504,5 @@ export const ENGLISH = {
   'Customize the name appearing in your browser tab': 503,
   'Manage': 504, // as in, administer
   'Are you sure you want to delete this address?': 505, // this address referes to a domain or URL
+  '"Soft uninstall" will remove the service from StartOS but preserve its data.': 506,
 } as const

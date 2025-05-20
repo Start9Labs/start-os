@@ -356,7 +356,11 @@ export namespace RR {
   export type RebuildPackageReq = { id: string } // package.rebuild
   export type RebuildPackageRes = null
 
-  export type UninstallPackageReq = { id: string } // package.uninstall
+  export type UninstallPackageReq = {
+    id: string
+    force: boolean
+    soft: boolean
+  } // package.uninstall
   export type UninstallPackageRes = null
 
   export type SideloadPackageReq = {

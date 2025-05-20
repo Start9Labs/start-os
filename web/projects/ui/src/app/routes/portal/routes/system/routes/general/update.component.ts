@@ -24,7 +24,7 @@ import { firstValueFrom } from 'rxjs'
   template: `
     <h2 style="margin-top: 0">StartOS {{ versions[0]?.version }}</h2>
     <h3 style="color: var(--tui-text-secondary); font-weight: normal">
-      {{ 'Release Notes' | i18n }}
+      {{ 'Release notes' | i18n }}
     </h3>
     <tui-scrollbar style="margin-bottom: 24px; max-height: 50vh;">
       @for (v of versions; track $index) {

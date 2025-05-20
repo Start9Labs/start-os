@@ -34,7 +34,13 @@ import { getManifest } from 'src/app/utils/get-package-data'
       </p>
       <p>
         {{
-          '"Uninstall service" is a dangerous action that will remove the service from StartOS and wipe all its data.'
+          '"Soft uninstall" will remove the service from StartOS but preserve its data.'
+            | i18n
+        }}
+      </p>
+      <p>
+        {{
+          '"Hard uninstall" is a dangerous action that will remove the service from StartOS and wipe all its data.'
             | i18n
         }}
       </p>
@@ -43,8 +49,11 @@ import { getManifest } from 'src/app/utils/get-package-data'
       <button tuiButton (click)="rebuild()">
         {{ 'Rebuild container' | i18n }}
       </button>
-      <button tuiButton appearance="negative" (click)="uninstall()">
-        {{ 'Uninstall service' | i18n }}
+      <button tuiButton appearance="warning" (click)="uninstall()">
+        {{ 'Soft uninstall' | i18n }}
+      </button>
+      <button tuiButton appearance="negative" (click)="uninstall(false)">
+        {{ 'Hard uninstall' | i18n }}
       </button>
       @if (overflow) {
         <button tuiButton appearance="secondary-grayscale" (click)="show()">
@@ -99,8 +108,8 @@ export class ServiceErrorComponent {
     this.service.rebuild(getManifest(this.pkg).id)
   }
 
-  uninstall() {
-    this.service.uninstall(getManifest(this.pkg))
+  uninstall(soft = true) {
+    this.service.uninstall(getManifest(this.pkg), { force: true, soft })
   }
 
   show() {
