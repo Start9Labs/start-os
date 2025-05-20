@@ -44,19 +44,21 @@ impl Map for Sessions {
 }
 
 pub async fn write_shadow(password: &str) -> Result<(), Error> {
+    let hash: String = sha_crypt::sha512_simple(password, &sha_crypt::Sha512Params::default())
+        .map_err(|e| Error::new(eyre!("{e:?}"), ErrorKind::Serialization))?;
     let shadow_contents = tokio::fs::read_to_string("/etc/shadow").await?;
     let mut shadow_file =
         create_file_mod("/media/startos/config/overlay/etc/shadow", 0o640).await?;
     for line in shadow_contents.lines() {
-        if line.starts_with("start9:") {
-            let rest = line.splitn(3, ":").nth(2).ok_or_else(|| {
-                Error::new(eyre!("malformed /etc/shadow"), ErrorKind::ParseSysInfo)
-            })?;
-            let pw = sha_crypt::sha512_simple(password, &sha_crypt::Sha512Params::default())
-                .map_err(|e| Error::new(eyre!("{e:?}"), ErrorKind::Serialization))?;
-            shadow_file
-                .write_all(format!("start9:{pw}:{rest}\n").as_bytes())
-                .await?;
+        if let Some((user, rest)) = line.split_once(":") {
+            if user == "start9" || user == "kiosk" {
+                let (_, rest) = rest.split_once(":").ok_or_else(|| {
+                    Error::new(eyre!("malformed /etc/shadow"), ErrorKind::ParseSysInfo)
+                })?;
+                shadow_file
+                    .write_all(format!("{user}:{hash}:{rest}\n").as_bytes())
+                    .await?;
+            }
         } else {
             shadow_file.write_all(line.as_bytes()).await?;
             shadow_file.write_all(b"\n").await?;

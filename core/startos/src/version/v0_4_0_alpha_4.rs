@@ -28,6 +28,10 @@ impl VersionT for Version {
         &V0_3_0_COMPAT
     }
     fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
+        db["public"]["serverInfo"]
+            .as_object_mut()
+            .or_not_found("public.serverInfo")?
+            .insert("kiosk".into(), Value::Bool(true));
         Ok(())
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {
