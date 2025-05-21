@@ -5,29 +5,43 @@ import {
   inject,
   input,
 } from '@angular/core'
-import { i18nPipe } from '@start9labs/shared'
+import {
+  DialogService,
+  ErrorService,
+  i18nPipe,
+  LoadingService,
+} from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiAvatar, TuiFade } from '@taiga-ui/kit'
+import { filter } from 'rxjs'
 import { ActionService } from 'src/app/services/action.service'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
 
 @Component({
   standalone: true,
-  selector: 'tr[actionRequest]',
+  selector: 'tr[task]',
   template: `
     <td tuiFade>
       <tui-avatar size="xs"><img [src]="pkg()?.icon" alt="" /></tui-avatar>
-      <span>{{ title() }}</span>
+      <span>{{ pkgTitle() }}</span>
     </td>
     <td>
-      @if (actionRequest().severity === 'critical') {
+      {{ pkg()?.actions?.[task().actionId]?.name }}
+    </td>
+    <td>
+      @if (task().severity === 'critical') {
         <strong [style.color]="'var(--tui-status-warning)'">
           {{ 'Required' | i18n }}
         </strong>
-      } @else {
+      } @else if (task().severity === 'important') {
         <strong [style.color]="'var(--tui-status-info)'">
+          {{ 'Recommended' | i18n }}
+        </strong>
+      } @else {
+        <strong>
           {{ 'Optional' | i18n }}
         </strong>
       }
@@ -36,12 +50,23 @@ import { getManifest } from 'src/app/utils/get-package-data'
       [style.color]="'var(--tui-text-secondary)'"
       [style.grid-area]="'2 / span 2'"
     >
-      {{ actionRequest().reason || ('No reason provided' | i18n) }}
+      {{ task().reason || ('No reason provided' | i18n) }}
     </td>
     <td>
-      <button tuiButton size="xs" (click)="handle()">
-        {{ pkg()?.actions?.[actionRequest().actionId]?.name }}
-      </button>
+      @if (task().severity !== 'critical') {
+        <button
+          tuiIconButton
+          iconStart="@tui.trash"
+          appearance="flat-grayscale"
+          (click)="dismiss()"
+        ></button>
+      }
+      <button
+        tuiIconButton
+        iconStart="@tui.play"
+        appearance="flat-grayscale"
+        (click)="handle()"
+      ></button>
     </td>
   `,
   styles: `
@@ -52,8 +77,12 @@ import { getManifest } from 'src/app/utils/get-package-data'
     }
 
     td:last-child {
+      grid-area: 3 / span 4;
+      white-space: nowrap;
       text-align: right;
-      grid-area: 3 / span 2;
+      flex-direction: row-reverse;
+      justify-content: flex-end;
+      gap: 0.5rem;
     }
 
     span {
@@ -63,7 +92,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
 
     :host-context(tui-root._mobile) {
       display: grid;
-      grid-template-columns: 1fr min-content;
+      grid-template-columns: min-content;
       align-items: center;
       padding: 1rem 0.5rem;
       gap: 0.5rem;
@@ -80,17 +109,50 @@ import { getManifest } from 'src/app/utils/get-package-data'
 })
 export class ServiceTaskComponent {
   private readonly actionService = inject(ActionService)
+  private readonly dialog = inject(DialogService)
+  private readonly api = inject(ApiService)
+  private readonly errorService = inject(ErrorService)
+  private readonly loader = inject(LoadingService)
 
-  readonly actionRequest = input.required<T.Task>()
+  readonly task = input.required<T.Task>()
   readonly services = input.required<Record<string, PackageDataEntry>>()
 
-  readonly pkg = computed(() => this.services()[this.actionRequest().packageId])
-  readonly title = computed((pkg = this.pkg()) => pkg && getManifest(pkg).title)
+  readonly pkg = computed(() => this.services()[this.task().packageId])
+  readonly pkgTitle = computed(
+    (pkg = this.pkg()) => pkg && getManifest(pkg).title,
+  )
+
+  async dismiss() {
+    this.dialog
+      .openConfirm<boolean>({
+        label: 'Confirm',
+        size: 's',
+        data: {
+          content: 'Are you sure you want to dismiss this task?',
+          yes: 'Dismiss',
+          no: 'Cancel',
+        },
+      })
+      .pipe(filter(Boolean))
+      .subscribe(async () => {
+        const loader = this.loader.open().subscribe()
+        try {
+          await this.api.clearTask({
+            packageId: this.task().packageId,
+            replayId: (this.task() as any).replayId,
+          })
+        } catch (e: any) {
+          this.errorService.handleError(e)
+        } finally {
+          loader.unsubscribe()
+        }
+      })
+  }
 
   async handle() {
-    const title = this.title()
+    const title = this.pkgTitle()
     const pkg = this.pkg()
-    const metadata = pkg?.actions[this.actionRequest().actionId]
+    const metadata = pkg?.actions[this.task().actionId]
 
     if (!title || !pkg || !metadata) {
       return
@@ -98,16 +160,16 @@ export class ServiceTaskComponent {
 
     this.actionService.present({
       pkgInfo: {
-        id: this.actionRequest().packageId,
+        id: this.task().packageId,
         title,
         mainStatus: pkg.status.main,
         icon: pkg.icon,
       },
       actionInfo: {
-        id: this.actionRequest().actionId,
+        id: this.task().actionId,
         metadata,
       },
-      requestInfo: this.actionRequest(),
+      requestInfo: this.task(),
     })
   }
 }

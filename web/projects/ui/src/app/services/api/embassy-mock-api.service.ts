@@ -1113,23 +1113,32 @@ export class MockApiService extends ApiService {
   async runAction(params: RR.ActionReq): Promise<RR.ActionRes> {
     await pauseFor(2000)
 
-    if (params.actionId === 'properties') {
-      // return Mock.ActionResGroup
-      return Mock.ActionResMessage
-      // return Mock.ActionResSingle
-    } else if (params.actionId === 'config') {
-      const patch: RemoveOperation[] = [
-        {
-          op: PatchOp.REMOVE,
-          path: `/packageData/${params.packageId}/requestedActions/${params.packageId}-config`,
-        },
-      ]
-      this.mockRevision(patch)
-      return null
-    } else {
-      return Mock.ActionResMessage
-      // return Mock.ActionResSingle
-    }
+    const patch: ReplaceOperation<{ [key: string]: T.TaskEntry }>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/packageData/${params.packageId}/tasks`,
+        value: {},
+      },
+    ]
+    this.mockRevision(patch)
+
+    // return Mock.ActionResGroup
+    return Mock.ActionResMessage
+    // return Mock.ActionResSingle
+  }
+
+  async clearTask(params: RR.ClearTaskReq): Promise<RR.ClearTaskRes> {
+    await pauseFor(2000)
+
+    const patch: RemoveOperation[] = [
+      {
+        op: PatchOp.REMOVE,
+        path: `/packageData/${params.packageId}/tasks/${params.replayId}`,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
   }
 
   async restorePackages(

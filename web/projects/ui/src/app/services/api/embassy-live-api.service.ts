@@ -584,6 +584,10 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'package.action.run', params })
   }
 
+  async clearTask(params: RR.ClearTaskReq): Promise<RR.ClearTaskRes> {
+    return this.rpcRequest({ method: 'package.action.clear-task', params })
+  }
+
   async restorePackages(
     params: RR.RestorePackagesReq,
   ): Promise<RR.RestorePackagesRes> {

@@ -515,4 +515,7 @@ export default {
   513: 'Włącz',
   514: 'Wyłącz',
   515: 'Obecnie używasz kiosku. Wyłączenie trybu kiosku spowoduje jego rozłączenie.',
+  516: 'Zalecane',
+  517: 'Czy na pewno chcesz odrzucić to zadanie?',
+  518: 'Odrzuć',
 } satisfies i18n

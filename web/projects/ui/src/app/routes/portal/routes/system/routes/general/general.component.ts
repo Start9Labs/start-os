@@ -145,7 +145,9 @@ import { SystemWipeComponent } from './wipe.component'
             {{ 'Kiosk Mode' | i18n }}
             <tui-badge
               size="m"
-              [appearance]="server.kiosk ? 'positive' : 'negative'"
+              [appearance]="
+                server.kiosk ? 'primary-success' : 'primary-destructive'
+              "
             >
               {{ server.kiosk ? ('Enabled' | i18n) : ('Disabled' | i18n) }}
             </tui-badge>
@@ -164,7 +166,9 @@ import { SystemWipeComponent } from './wipe.component'
         @if (server.kiosk !== null) {
           <button
             tuiButton
-            [appearance]="server.kiosk ? 'negative' : 'positive'"
+            [appearance]="
+              server.kiosk ? 'primary-destructive' : 'primary-success'
+            "
             (click)="tryToggleKiosk()"
           >
             {{ server.kiosk ? ('Disable' | i18n) : ('Enable' | i18n) }}
@@ -357,7 +361,7 @@ export default class SystemGeneralComponent {
           data: {
             content:
               'You are currently using a kiosk. Disabling Kiosk Mode will result in the kiosk disconnecting.',
-            yes: 'Disable' as any,
+            yes: 'Disable',
             no: 'Cancel',
           },
         })

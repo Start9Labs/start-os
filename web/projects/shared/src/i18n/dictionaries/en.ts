@@ -514,4 +514,7 @@ export const ENGLISH = {
   'Enable': 513,
   'Disable': 514,
   'You are currently using a kiosk. Disabling Kiosk Mode will result in the kiosk disconnecting.': 515,
+  'Recommended': 516, // as in, we recommend this
+  'Are you sure you want to dismiss this task?': 517,
+  'Dismiss': 518, // as in, dismiss or delete a task
 } as const

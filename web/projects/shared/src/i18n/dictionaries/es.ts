@@ -515,4 +515,7 @@ export default {
   513: 'Activar',
   514: 'Desactivar',
   515: 'Actualmente estás utilizando un quiosco. Desactivar el modo quiosco provocará su desconexión.',
+  516: 'Recomendado',
+  517: '¿Estás seguro de que deseas descartar esta tarea?',
+  518: 'Descartar',
 } satisfies i18n

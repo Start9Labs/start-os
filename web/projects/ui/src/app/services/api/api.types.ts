@@ -335,6 +335,12 @@ export namespace RR {
   } // package.action.run
   export type ActionRes = (T.ActionResult & { version: '1' }) | null
 
+  export type ClearTaskReq = {
+    packageId: string
+    replayId: string
+  } // package.action.clear-task
+  export type ClearTaskRes = null
+
   export type RestorePackagesReq = {
     // package.backup.restore
     ids: string[]

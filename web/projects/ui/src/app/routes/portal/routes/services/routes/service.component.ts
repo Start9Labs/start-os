@@ -63,7 +63,7 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
 
           <service-health-checks [checks]="health()" />
           <service-tasks
-            #actions="elementRef"
+            #tasks="elementRef"
             tuiElement
             waIntersectionObserver
             waIntersectionThreshold="0.5"
@@ -78,7 +78,7 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
             class="arrow"
             [class.arrow_hidden]="scrolled"
             (click)="
-              actions.nativeElement.scrollIntoView({
+              tasks.nativeElement.scrollIntoView({
                 block: 'end',
                 behavior: 'smooth',
               })
@@ -127,7 +127,7 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
       animation: bounce 1s infinite alternate;
 
       &_hidden,
-      :host:has(::ng-deep service-action-requests app-placeholder) & {
+      :host:has(::ng-deep service-tasks app-placeholder) & {
         opacity: 0;
         pointer-events: none;
       }

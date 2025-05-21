@@ -515,4 +515,7 @@ export default {
   513: 'Aktivieren',
   514: 'Deaktivieren',
   515: 'Du verwendest derzeit einen Kiosk. Wenn du den Kiosk-Modus deaktivierst, wird die Verbindung zum Kiosk getrennt.',
+  516: 'Empfohlen',
+  517: 'Möchten Sie diese Aufgabe wirklich verwerfen?',
+  518: 'Verwerfen',
 } satisfies i18n

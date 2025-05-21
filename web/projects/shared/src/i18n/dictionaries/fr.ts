@@ -515,4 +515,7 @@ export default {
   513: 'Activer',
   514: 'Désactiver',
   515: 'Vous utilisez actuellement un kiosque. Désactiver le mode kiosque entraînera sa déconnexion.',
+  516: 'Recommandé',
+  517: 'Êtes-vous sûr de vouloir ignorer cette tâche ?',
+  518: 'Ignorer',
 } satisfies i18n

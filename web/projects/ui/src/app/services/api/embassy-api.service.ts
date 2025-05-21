@@ -337,6 +337,8 @@ export abstract class ApiService {
 
   abstract runAction(params: RR.ActionReq): Promise<RR.ActionRes>
 
+  abstract clearTask(params: RR.ClearTaskReq): Promise<RR.ClearTaskRes>
+
   abstract restorePackages(
     params: RR.RestorePackagesReq,
   ): Promise<RR.RestorePackagesRes>
