@@ -7,6 +7,7 @@ use rpc_toolkit::{
 };
 
 use crate::context::{CliContext, DiagnosticContext, RpcContext};
+use crate::disk::repair;
 use crate::init::SYSTEM_REBUILD_PATH;
 use crate::prelude::*;
 use crate::shutdown::Shutdown;
@@ -94,6 +95,15 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
             )
             .no_display()
             .with_about("Remove disk from filesystem"),
+        )
+        .subcommand("repair", from_fn_async(|_: C| repair()).no_cli())
+        .subcommand(
+            "repair",
+            CallRemoteHandler::<CliContext, _, _>::new(
+                from_fn_async(|_: RpcContext| repair())
+                    .no_display()
+                    .with_about("Repair disk in the event of corruption"),
+            ),
         )
 }
 
