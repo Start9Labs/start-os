@@ -27,7 +27,7 @@ const routes: Routes = [
     loadChildren: () => import('./routes/portal/portal.routes'),
   },
   {
-    path: '',
+    path: '**',
     redirectTo: 'portal',
     pathMatch: 'full',
   },

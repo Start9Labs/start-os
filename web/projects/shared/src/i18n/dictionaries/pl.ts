@@ -506,4 +506,5 @@ export default {
   504: 'Zarządzać',
   505: 'Czy na pewno chcesz usunąć ten adres?',
   506: '„Miękkie odinstalowanie” usunie usługę z StartOS, ale zachowa jej dane.',
+  507: 'Brak zapisanych dostawców',
 } satisfies i18n

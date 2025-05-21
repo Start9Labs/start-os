@@ -19,7 +19,7 @@ import { StateService } from 'src/app/services/state.service'
 @Component({
   standalone: true,
   template: `
-    <section tuiCardLarge="compact" xmlns="http://www.w3.org/1999/html">
+    <section tuiCardLarge="compact">
       @if (loading || drives.length) {
         <header>Select storage drive</header>
         This is the drive where your StartOS data will be stored.

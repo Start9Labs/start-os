@@ -62,6 +62,13 @@ import { HeaderComponent } from './components/header/header.component'
         flex-direction: column;
         // @TODO Theme
         background: url(/assets/img/background_dark.jpeg) fixed center/cover;
+
+        &::before {
+          content: '';
+          position: fixed;
+          inset: 0;
+          backdrop-filter: blur(0.5rem);
+        }
       }
 
       main {

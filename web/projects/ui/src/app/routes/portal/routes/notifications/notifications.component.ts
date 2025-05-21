@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
+  OnInit,
   signal,
 } from '@angular/core'
 import { ActivatedRoute, Router } from '@angular/router'
@@ -66,7 +67,7 @@ import { NotificationsTableComponent } from './table.component'
     i18nPipe,
   ],
 })
-export default class NotificationsComponent {
+export default class NotificationsComponent implements OnInit {
   private readonly router = inject(Router)
   private readonly route = inject(ActivatedRoute)
 
@@ -74,15 +75,18 @@ export default class NotificationsComponent {
   readonly api = inject(ApiService)
   readonly errorService = inject(ErrorService)
   readonly notifications = signal<ServerNotifications | undefined>(undefined)
-  readonly toast = this.route.queryParams.subscribe(params => {
-    this.router.navigate([], { relativeTo: this.route, queryParams: {} })
-
-    if (isEmptyObject(params)) {
-      this.getMore({})
-    }
-  })
 
   open = false
+
+  ngOnInit() {
+    this.route.queryParams.subscribe(params => {
+      this.router.navigate([], { relativeTo: this.route, queryParams: {} })
+
+      if (isEmptyObject(params)) {
+        this.getMore({})
+      }
+    })
+  }
 
   async getMore(params: RR.GetNotificationsReq) {
     try {

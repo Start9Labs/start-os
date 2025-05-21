@@ -505,4 +505,5 @@ export const ENGLISH = {
   'Manage': 504, // as in, administer
   'Are you sure you want to delete this address?': 505, // this address referes to a domain or URL
   '"Soft uninstall" will remove the service from StartOS but preserve its data.': 506,
+  'No saved providers': 507,
 } as const

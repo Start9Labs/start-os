@@ -13,6 +13,7 @@ import { TuiCell, TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { map } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
+import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormDialogService } from 'src/app/services/form-dialog.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -89,6 +90,10 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
               {{ 'Edit' | i18n }}
             </button>
           </div>
+        } @empty {
+          <app-placeholder icon="@tui.shield-question">
+            {{ 'No saved providers' | i18n }}
+          </app-placeholder>
         }
       } @else {
         <tui-loader [style.height.rem]="5" />
@@ -113,6 +118,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
     TitleDirective,
     i18nPipe,
     DocsLinkDirective,
+    PlaceholderComponent,
   ],
 })
 export default class SystemAcmeComponent {

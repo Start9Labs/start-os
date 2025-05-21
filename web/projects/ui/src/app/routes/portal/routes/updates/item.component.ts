@@ -212,6 +212,11 @@ import UpdatesComponent from './updates.component'
 
       .mobile {
         display: flex;
+        gap: 0.25rem;
+
+        [tuiSubtitle] {
+          color: var(--tui-text-secondary);
+        }
       }
     }
   `,
