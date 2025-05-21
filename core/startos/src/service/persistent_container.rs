@@ -31,7 +31,9 @@ use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
 use crate::service::effects::context::EffectContext;
 use crate::service::effects::handler;
-use crate::service::rpc::{CallbackHandle, CallbackId, CallbackParams};
+use crate::service::rpc::{
+    CallbackHandle, CallbackId, CallbackParams, ExitParams, InitKind, InitParams,
+};
 use crate::service::start_stop::StartStop;
 use crate::service::transition::{TransitionKind, TransitionState};
 use crate::service::{rpc, RunningStatus, Service};
@@ -369,7 +371,12 @@ impl PersistentContainer {
     }
 
     #[instrument(skip_all)]
-    pub async fn init(&self, seed: Weak<Service>) -> Result<(), Error> {
+    pub async fn init(
+        &self,
+        seed: Weak<Service>,
+        procedure_id: Guid,
+        kind: Option<InitKind>,
+    ) -> Result<(), Error> {
         let socket_server_context = EffectContext::new(seed);
         let server = Server::new(move || ready(Ok(socket_server_context.clone())), handler());
         let path = self
@@ -424,7 +431,15 @@ impl PersistentContainer {
             ));
         }
 
-        self.rpc_client.request(rpc::Init, Empty {}).await?;
+        self.rpc_client
+            .request(
+                rpc::Init,
+                InitParams {
+                    id: procedure_id,
+                    kind,
+                },
+            )
+            .await?;
 
         self.state.send_modify(|s| s.rt_initialized = true);
 
@@ -435,10 +450,12 @@ impl PersistentContainer {
     fn destroy(
         &mut self,
         error: bool,
+        uninit: Option<ExitParams>,
     ) -> Option<impl Future<Output = Result<(), Error>> + 'static> {
         if self.destroyed {
             return None;
         }
+        let version = self.s9pk.as_manifest().version.clone();
         let rpc_client = self.rpc_client.clone();
         let rpc_server = self.rpc_server.send_replace(None);
         let js_mount = self.js_mount.take();
@@ -469,7 +486,14 @@ impl PersistentContainer {
                 }
             }
             if let Some((hdl, shutdown)) = rpc_server {
-                errs.handle(rpc_client.request(rpc::Exit, Empty {}).await);
+                errs.handle(
+                    rpc_client
+                        .request(
+                            rpc::Exit,
+                            uninit.unwrap_or_else(|| ExitParams::target_version(&*version)),
+                        )
+                        .await,
+                );
                 shutdown.shutdown();
                 errs.handle(hdl.await.with_kind(ErrorKind::Cancelled));
             }
@@ -494,8 +518,8 @@ impl PersistentContainer {
     }
 
     #[instrument(skip_all)]
-    pub async fn exit(mut self) -> Result<(), Error> {
-        if let Some(destroy) = self.destroy(false) {
+    pub async fn exit(mut self, uninit: Option<ExitParams>) -> Result<(), Error> {
+        if let Some(destroy) = self.destroy(false, uninit) {
             destroy.await?;
         }
         tracing::info!("Service for {} exited", self.s9pk.as_manifest().id);
@@ -613,7 +637,7 @@ impl PersistentContainer {
 
 impl Drop for PersistentContainer {
     fn drop(&mut self) {
-        if let Some(destroy) = self.destroy(true) {
+        if let Some(destroy) = self.destroy(true, None) {
             tokio::spawn(async move { destroy.await.log_err() });
         }
     }

@@ -1,8 +1,13 @@
 import * as T from "../../../base/lib/types"
 import { asError } from "../../../base/lib/util/asError"
 import { Drop } from "../util"
-import { ExecSpawnable, SubContainer } from "../util/SubContainer"
+import {
+  SubContainer,
+  SubContainerOwned,
+  SubContainerRc,
+} from "../util/SubContainer"
 import { CommandController } from "./CommandController"
+import { Oneshot } from "./Oneshot"
 
 const TIMEOUT_INCREMENT_MS = 1000
 const MAX_TIMEOUT_MS = 30000
@@ -16,14 +21,15 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
   private shouldBeRunning = false
   protected exitedSuccess = false
   protected constructor(
+    private subcontainer: SubContainer<Manifest>,
     private startCommand: () => Promise<CommandController<Manifest>>,
     readonly oneshot: boolean = false,
     protected onExitSuccessFns: (() => void)[] = [],
   ) {
     super()
   }
-  get subContainerHandle(): undefined | ExecSpawnable {
-    return this.commandController?.subContainerHandle
+  isOneshot(): this is Oneshot<Manifest> {
+    return this.oneshot
   }
   static of<Manifest extends T.SDKManifest>() {
     return async (
@@ -44,14 +50,15 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
         sigtermTimeout?: number
       },
     ) => {
+      if (subcontainer.isOwned()) subcontainer = subcontainer.rc()
       const startCommand = () =>
         CommandController.of<Manifest>()(
           effects,
-          subcontainer,
+          subcontainer.rc(),
           command,
           options,
         )
-      return new Daemon(startCommand)
+      return new Daemon(subcontainer, startCommand)
     }
   }
   async start() {
@@ -65,11 +72,11 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
       while (this.shouldBeRunning) {
         if (this.commandController)
           await this.commandController
-            .term({ keepSubcontainer: true })
+            .term({})
             .catch((err) => console.error(err))
         this.commandController = await this.startCommand()
         if (
-          (await this.commandController.wait({ keepSubcontainer: true }).then(
+          (await this.commandController.wait().then(
             (_) => true,
             (err) => {
               console.error(err)
@@ -112,6 +119,10 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
       ?.term({ ...termOptions })
       .catch((e) => console.error(asError(e)))
     this.commandController = null
+    await this.subcontainer.destroy()
+  }
+  subcontainerRc(): SubContainerRc<Manifest> {
+    return this.subcontainer.rc()
   }
   onDrop(): void {
     this.stop().catch((e) => console.error(asError(e)))

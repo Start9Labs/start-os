@@ -89,6 +89,7 @@ use crate::context::{
 use crate::disk::fsck::RequiresReboot;
 use crate::net::net;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
+use crate::system::kiosk;
 use crate::util::serde::{HandlerExtSerde, WithIoFormat};
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -118,7 +119,7 @@ impl std::fmt::Display for ApiState {
 }
 
 pub fn main_api<C: Context>() -> ParentHandler<C> {
-    let api = ParentHandler::new()
+    let mut api = ParentHandler::new()
         .subcommand(
             "git-info",
             from_fn(|_: C| version::git_info()).with_about("Display the githash of StartOS CLI"),
@@ -198,12 +199,18 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
             "util",
             util::rpc::util::<C>().with_about("Command for calculating the blake3 hash of a file"),
         );
+    if &*PLATFORM != "raspberrypi" {
+        api = api.subcommand("kiosk", kiosk::<C>());
+    }
     #[cfg(feature = "dev")]
-    let api = api.subcommand(
-        "lxc",
-        lxc::dev::lxc::<C>()
-            .with_about("Commands related to lxc containers i.e. create, list, remove, connect"),
-    );
+    {
+        api = api.subcommand(
+            "lxc",
+            lxc::dev::lxc::<C>().with_about(
+                "Commands related to lxc containers i.e. create, list, remove, connect",
+            ),
+        );
+    }
     api
 }
 

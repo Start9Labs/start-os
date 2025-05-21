@@ -6,7 +6,7 @@ export type CheckDependencies<DependencyId extends PackageId = PackageId> = {
   installedSatisfied: (packageId: DependencyId) => boolean
   installedVersionSatisfied: (packageId: DependencyId) => boolean
   runningSatisfied: (packageId: DependencyId) => boolean
-  actionsSatisfied: (packageId: DependencyId) => boolean
+  tasksSatisfied: (packageId: DependencyId) => boolean
   healthCheckSatisfied: (
     packageId: DependencyId,
     healthCheckId: HealthCheckId,
@@ -16,7 +16,7 @@ export type CheckDependencies<DependencyId extends PackageId = PackageId> = {
   throwIfInstalledNotSatisfied: (packageId: DependencyId) => null
   throwIfInstalledVersionNotSatisfied: (packageId: DependencyId) => null
   throwIfRunningNotSatisfied: (packageId: DependencyId) => null
-  throwIfActionsNotSatisfied: (packageId: DependencyId) => null
+  throwIfTasksNotSatisfied: (packageId: DependencyId) => null
   throwIfHealthNotSatisfied: (
     packageId: DependencyId,
     healthCheckId?: HealthCheckId,
@@ -65,9 +65,9 @@ export async function checkDependencies<
     const dep = find(packageId)
     return dep.requirement.kind !== "running" || dep.result.isRunning
   }
-  const actionsSatisfied = (packageId: DependencyId) =>
-    Object.entries(find(packageId).result.requestedActions).filter(
-      ([_, req]) => req.active && req.request.severity === "critical",
+  const tasksSatisfied = (packageId: DependencyId) =>
+    Object.entries(find(packageId).result.tasks).filter(
+      ([_, t]) => t.active && t.task.severity === "critical",
     ).length === 0
   const healthCheckSatisfied = (
     packageId: DependencyId,
@@ -90,7 +90,7 @@ export async function checkDependencies<
     installedSatisfied(packageId) &&
     installedVersionSatisfied(packageId) &&
     runningSatisfied(packageId) &&
-    actionsSatisfied(packageId) &&
+    tasksSatisfied(packageId) &&
     healthCheckSatisfied(packageId)
   const satisfied = (packageId?: DependencyId) =>
     packageId
@@ -129,10 +129,10 @@ export async function checkDependencies<
     }
     return null
   }
-  const throwIfActionsNotSatisfied = (packageId: DependencyId) => {
+  const throwIfTasksNotSatisfied = (packageId: DependencyId) => {
     const dep = find(packageId)
-    const reqs = Object.entries(dep.result.requestedActions)
-      .filter(([_, req]) => req.active && req.request.severity === "critical")
+    const reqs = Object.entries(dep.result.tasks)
+      .filter(([_, t]) => t.active && t.task.severity === "critical")
       .map(([id, _]) => id)
     if (reqs.length) {
       throw new Error(
@@ -172,7 +172,7 @@ export async function checkDependencies<
     throwIfInstalledNotSatisfied(packageId)
     throwIfInstalledVersionNotSatisfied(packageId)
     throwIfRunningNotSatisfied(packageId)
-    throwIfActionsNotSatisfied(packageId)
+    throwIfTasksNotSatisfied(packageId)
     throwIfHealthNotSatisfied(packageId)
     return null
   }
@@ -199,13 +199,13 @@ export async function checkDependencies<
     installedSatisfied,
     installedVersionSatisfied,
     runningSatisfied,
-    actionsSatisfied,
+    tasksSatisfied,
     healthCheckSatisfied,
     satisfied,
     throwIfInstalledNotSatisfied,
     throwIfInstalledVersionNotSatisfied,
     throwIfRunningNotSatisfied,
-    throwIfActionsNotSatisfied,
+    throwIfTasksNotSatisfied,
     throwIfHealthNotSatisfied,
     throwIfNotSatisfied,
   }

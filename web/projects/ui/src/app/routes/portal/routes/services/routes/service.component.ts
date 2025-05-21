@@ -19,7 +19,7 @@ import {
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
 import { getInstalledPrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
-import { ServiceActionRequestsComponent } from '../components/action-requests.component'
+import { ServiceTasksComponent } from '../components/tasks.component'
 import { ServiceControlsComponent } from '../components/controls.component'
 import { ServiceDependenciesComponent } from '../components/dependencies.component'
 import { ServiceErrorComponent } from '../components/error.component'
@@ -63,7 +63,7 @@ import { ServiceStatusComponent } from '../components/status.component'
           }
 
           <service-health-checks [checks]="health()" />
-          <service-action-requests [pkg]="pkg" [services]="services() || {}" />
+          <service-tasks [pkg]="pkg" [services]="services() || {}" />
         }
       } @else if (removing()) {
         <service-status
@@ -106,7 +106,7 @@ import { ServiceStatusComponent } from '../components/status.component'
     ServiceHealthChecksComponent,
     ServiceDependenciesComponent,
     ServiceErrorComponent,
-    ServiceActionRequestsComponent,
+    ServiceTasksComponent,
     UptimeComponent,
   ],
 })

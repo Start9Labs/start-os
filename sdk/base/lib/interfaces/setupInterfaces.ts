@@ -10,46 +10,34 @@ export type UpdateServiceInterfacesReceipt = {
 export type ServiceInterfacesReceipt = Array<T.AddressInfo[] & AddressReceipt>
 export type SetServiceInterfaces<Output extends ServiceInterfacesReceipt> =
   (opts: { effects: T.Effects }) => Promise<Output>
-export type UpdateServiceInterfaces<Output extends ServiceInterfacesReceipt> =
-  (opts: {
-    effects: T.Effects
-  }) => Promise<Output & UpdateServiceInterfacesReceipt>
+export type UpdateServiceInterfaces = (effects: T.Effects) => Promise<null>
 export type SetupServiceInterfaces = <Output extends ServiceInterfacesReceipt>(
   fn: SetServiceInterfaces<Output>,
-) => UpdateServiceInterfaces<Output>
+) => UpdateServiceInterfaces
 export const NO_INTERFACE_CHANGES = {} as UpdateServiceInterfacesReceipt
 export const setupServiceInterfaces: SetupServiceInterfaces = <
   Output extends ServiceInterfacesReceipt,
 >(
   fn: SetServiceInterfaces<Output>,
 ) => {
-  const cell = {
-    updater: (async (options: { effects: T.Effects }) =>
-      [] as any as Output) as UpdateServiceInterfaces<Output>,
-  }
-  cell.updater = (async (options: { effects: T.Effects }) => {
-    const childEffects = options.effects.child("setupInterfaces")
-    childEffects.constRetry = once(() => {
-      cell.updater({ effects: options.effects })
-    })
+  return (async (effects: T.Effects) => {
     const bindings: T.BindId[] = []
     const interfaces: T.ServiceInterfaceId[] = []
-    const res = await fn({
+    await fn({
       effects: {
-        ...childEffects,
+        ...effects,
         bind: (params: T.BindParams) => {
           bindings.push({ id: params.id, internalPort: params.internalPort })
-          return childEffects.bind(params)
+          return effects.bind(params)
         },
         exportServiceInterface: (params: T.ExportServiceInterfaceParams) => {
           interfaces.push(params.id)
-          return childEffects.exportServiceInterface(params)
+          return effects.exportServiceInterface(params)
         },
       },
     })
-    await options.effects.clearBindings({ except: bindings })
-    await options.effects.clearServiceInterfaces({ except: interfaces })
-    return res
-  }) as UpdateServiceInterfaces<Output>
-  return cell.updater
+    await effects.clearBindings({ except: bindings })
+    await effects.clearServiceInterfaces({ except: interfaces })
+    return null
+  }) as UpdateServiceInterfaces
 }

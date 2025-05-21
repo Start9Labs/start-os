@@ -4,4 +4,5 @@ import type { EncryptedWire } from "./EncryptedWire"
 export type AttachParams = {
   startOsPassword: EncryptedWire | null
   guid: string
+  kiosk?: boolean
 }

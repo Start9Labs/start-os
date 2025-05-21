@@ -11,7 +11,12 @@ export class Origin {
     readonly sslScheme: string | null,
   ) {}
 
-  build({ username, path, search, schemeOverride }: BuildOptions): AddressInfo {
+  build({
+    username,
+    path,
+    query: search,
+    schemeOverride,
+  }: BuildOptions): AddressInfo {
     const qpEntries = Object.entries(search)
       .map(
         ([key, val]) => `${encodeURIComponent(key)}=${encodeURIComponent(val)}`,
@@ -50,7 +55,7 @@ export class Origin {
         type,
         username,
         path,
-        search,
+        query: search,
         schemeOverride,
         masked,
       } = serviceInterface.options
@@ -58,7 +63,7 @@ export class Origin {
       const addressInfo = this.build({
         username,
         path,
-        search,
+        query: search,
         schemeOverride,
       })
 
@@ -82,5 +87,5 @@ type BuildOptions = {
   schemeOverride: { ssl: Scheme; noSsl: Scheme } | null
   username: string | null
   path: string
-  search: Record<string, string>
+  query: Record<string, string>
 }

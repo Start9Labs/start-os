@@ -1,6 +1,7 @@
 import { Backups } from "./Backups"
 import * as T from "../../../base/lib/types"
 import { _ } from "../util"
+import { InitScript } from "../../../base/lib/inits"
 
 export type SetupBackupsParams<M extends T.SDKManifest> =
   | M["volumes"][number][]
@@ -8,7 +9,7 @@ export type SetupBackupsParams<M extends T.SDKManifest> =
 
 type SetupBackupsRes = {
   createBackup: T.ExpectedExports.createBackup
-  restoreBackup: T.ExpectedExports.restoreBackup
+  restoreInit: InitScript
 }
 
 export function setupBackups<M extends T.SDKManifest>(
@@ -20,19 +21,18 @@ export function setupBackups<M extends T.SDKManifest>(
   } else {
     backupsFactory = async () => Backups.withVolumes(...options)
   }
-  const answer: {
-    createBackup: T.ExpectedExports.createBackup
-    restoreBackup: T.ExpectedExports.restoreBackup
-  } = {
+  const answer: SetupBackupsRes = {
     get createBackup() {
       return (async (options) => {
         return (await backupsFactory(options)).createBackup(options.effects)
       }) as T.ExpectedExports.createBackup
     },
-    get restoreBackup() {
-      return (async (options) => {
-        return (await backupsFactory(options)).restoreBackup(options.effects)
-      }) as T.ExpectedExports.restoreBackup
+    get restoreInit(): InitScript {
+      return {
+        init: async (effects, kind) => {
+          return (await backupsFactory({ effects })).init(effects, kind)
+        },
+      }
     },
   }
   return answer

@@ -1,3 +1,4 @@
+import { ExtendedVersion, VersionRange } from "./exver"
 import {
   ActionId,
   ActionInput,
@@ -12,7 +13,7 @@ import {
   Host,
   ExportServiceInterfaceParams,
   ServiceInterface,
-  RequestActionParams,
+  CreateTaskParams,
   MainStatus,
 } from "./osBindings"
 import {
@@ -50,10 +51,8 @@ export type Effects = {
       actionId: ActionId
       input?: Input
     }): Promise<ActionResult | null>
-    request<Input extends Record<string, unknown>>(
-      options: RequestActionParams,
-    ): Promise<null>
-    clearRequests(
+    createTask(options: CreateTaskParams): Promise<null>
+    clearTasks(
       options: { only: string[] } | { except: string[] },
     ): Promise<null>
   }
@@ -168,7 +167,7 @@ export type Effects = {
   }) => Promise<string>
 
   /** sets the version that this service's data has been migrated to */
-  setDataVersion(options: { version: string }): Promise<null>
+  setDataVersion(options: { version: string | null }): Promise<null>
   /** returns the version that this service's data has been migrated to */
   getDataVersion(): Promise<string | null>
 

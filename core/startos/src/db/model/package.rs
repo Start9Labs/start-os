@@ -3,10 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use chrono::{DateTime, Utc};
 use exver::VersionRange;
 use imbl_value::InternedString;
-use models::{
-    ActionId, DataUrl, HealthCheckId, HostId, PackageId, ReplayId, ServiceInterfaceId,
-    VersionString,
-};
+use models::{ActionId, DataUrl, HealthCheckId, HostId, PackageId, ReplayId, ServiceInterfaceId};
 use patch_db::json_ptr::JsonPointer;
 use patch_db::HasModel;
 use reqwest::Url;
@@ -365,7 +362,7 @@ impl Default for ActionVisibility {
 #[ts(export)]
 pub struct PackageDataEntry {
     pub state_info: PackageState,
-    pub data_version: Option<VersionString>,
+    pub data_version: Option<String>,
     pub status: MainStatus,
     #[ts(type = "string | null")]
     pub registry: Option<Url>,
@@ -376,8 +373,8 @@ pub struct PackageDataEntry {
     pub last_backup: Option<DateTime<Utc>>,
     pub current_dependencies: CurrentDependencies,
     pub actions: BTreeMap<ActionId, ActionMetadata>,
-    #[ts(as = "BTreeMap::<String, ActionRequestEntry>")]
-    pub requested_actions: BTreeMap<ReplayId, ActionRequestEntry>,
+    #[ts(as = "BTreeMap::<String, TaskEntry>")]
+    pub tasks: BTreeMap<ReplayId, TaskEntry>,
     pub service_interfaces: BTreeMap<ServiceInterfaceId, ServiceInterface>,
     pub hosts: Hosts,
     #[ts(type = "string[]")]
@@ -444,8 +441,8 @@ pub enum CurrentDependencyKind {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 #[model = "Model<Self>"]
-pub struct ActionRequestEntry {
-    pub request: ActionRequest,
+pub struct TaskEntry {
+    pub task: Task,
     pub active: bool,
 }
 
@@ -453,58 +450,59 @@ pub struct ActionRequestEntry {
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 #[model = "Model<Self>"]
-pub struct ActionRequest {
+pub struct Task {
     pub package_id: PackageId,
     pub action_id: ActionId,
     #[serde(default)]
-    pub severity: ActionSeverity,
+    pub severity: TaskSeverity,
     #[ts(optional)]
     pub reason: Option<String>,
     #[ts(optional)]
-    pub when: Option<ActionRequestTrigger>,
+    pub when: Option<TaskTrigger>,
     #[ts(optional)]
-    pub input: Option<ActionRequestInput>,
+    pub input: Option<TaskInput>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "kebab-case")]
 #[ts(export)]
-pub enum ActionSeverity {
-    Critical,
+pub enum TaskSeverity {
+    Optional,
     Important,
+    Critical,
 }
-impl Default for ActionSeverity {
+impl Default for TaskSeverity {
     fn default() -> Self {
-        ActionSeverity::Important
+        TaskSeverity::Important
     }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct ActionRequestTrigger {
+pub struct TaskTrigger {
     #[serde(default)]
     pub once: bool,
-    pub condition: ActionRequestCondition,
+    pub condition: TaskCondition,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "kebab-case")]
 #[ts(export)]
-pub enum ActionRequestCondition {
+pub enum TaskCondition {
     InputNotMatches,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "kebab-case")]
 #[serde(tag = "kind")]
-pub enum ActionRequestInput {
+pub enum TaskInput {
     Partial {
         #[ts(type = "Record<string, unknown>")]
         value: Value,
     },
 }
-impl ActionRequestInput {
+impl TaskInput {
     pub fn matches(&self, input: Option<&Value>) -> bool {
         match self {
             Self::Partial { value } => match input {

@@ -6,4 +6,5 @@ export type SetupExecuteParams = {
   startOsLogicalname: string
   startOsPassword: EncryptedWire
   recoverySource: RecoverySource<EncryptedWire> | null
+  kiosk?: boolean
 }

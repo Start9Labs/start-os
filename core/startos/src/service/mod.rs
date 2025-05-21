@@ -17,7 +17,7 @@ use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use imbl_value::{json, InternedString};
 use itertools::Itertools;
-use models::{ActionId, HostId, ImageId, PackageId, ProcedureName};
+use models::{ActionId, HostId, ImageId, PackageId};
 use nix::sys::signal::Signal;
 use persistent_container::{PersistentContainer, Subcontainer};
 use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
@@ -30,27 +30,31 @@ use tokio::process::Command;
 use tokio::sync::Notify;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use ts_rs::TS;
+use url::Url;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::package::{
-    InstalledState, PackageDataEntry, PackageState, PackageStateMatchModelRef, UpdatingState,
+    InstalledState, ManifestPreference, PackageDataEntry, PackageState, PackageStateMatchModelRef,
+    UpdatingState,
 };
-use crate::disk::mount::guard::GenericMountGuard;
+use crate::disk::mount::filesystem::ReadOnly;
+use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::lxc::ContainerId;
 use crate::prelude::*;
 use crate::progress::{NamedProgress, Progress};
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::S9pk;
-use crate::service::action::update_requested_actions;
+use crate::service::action::update_tasks;
+use crate::service::rpc::{ExitParams, InitKind};
 use crate::service::service_map::InstallProgressHandles;
 use crate::util::actor::concurrent::ConcurrentActor;
 use crate::util::io::{create_file, AsyncReadStream, TermSize};
 use crate::util::net::WebSocketExt;
-use crate::util::serde::{NoOutput, Pem};
+use crate::util::serde::Pem;
 use crate::util::Never;
 use crate::volume::data_dir;
-use crate::{CAP_1_KiB, DATA_DIR, PACKAGE_DATA};
+use crate::{CAP_1_KiB, DATA_DIR};
 
 pub mod action;
 pub mod cli;
@@ -62,6 +66,7 @@ mod service_actor;
 pub mod service_map;
 pub mod start_stop;
 mod transition;
+pub mod uninstall;
 mod util;
 
 pub use service_map::ServiceMap;
@@ -116,99 +121,35 @@ impl ServiceRef {
     pub fn weak(&self) -> Weak<Service> {
         Arc::downgrade(&self.0)
     }
-    pub async fn uninstall(
-        self,
-        target_version: Option<models::VersionString>,
-        soft: bool,
-        force: bool,
-    ) -> Result<(), Error> {
-        let uninit_res = self
-            .seed
-            .persistent_container
-            .execute::<NoOutput>(
-                Guid::new(),
-                ProcedureName::PackageUninit,
-                to_value(&target_version)?,
-                None,
-            ) // TODO timeout
-            .await;
+    pub async fn uninstall(self, uninit: ExitParams, soft: bool, force: bool) -> Result<(), Error> {
+        let id = self.seed.persistent_container.s9pk.as_manifest().id.clone();
+        let ctx = self.seed.ctx.clone();
+        let uninit_res = self.shutdown(Some(uninit.clone())).await;
         if force {
             uninit_res.log_err();
         } else {
             uninit_res?;
         }
-        let id = self.seed.persistent_container.s9pk.as_manifest().id.clone();
-        let ctx = self.seed.ctx.clone();
-        self.shutdown().await?;
 
-        if target_version.is_none() {
-            if let Some(pde) = ctx
-                .db
-                .mutate(|d| {
-                    if let Some(pde) = d
-                        .as_public_mut()
-                        .as_package_data_mut()
-                        .remove(&id)?
-                        .map(|d| d.de())
-                        .transpose()?
-                    {
-                        d.as_private_mut().as_available_ports_mut().mutate(|p| {
-                            p.free(
-                                pde.hosts
-                                    .0
-                                    .values()
-                                    .flat_map(|h| h.bindings.values())
-                                    .flat_map(|b| {
-                                        b.net
-                                            .assigned_port
-                                            .into_iter()
-                                            .chain(b.net.assigned_ssl_port)
-                                    }),
-                            );
-                            Ok(())
-                        })?;
-                        d.as_private_mut().as_package_stores_mut().remove(&id)?;
-                        Ok(Some(pde))
-                    } else {
-                        Ok(None)
-                    }
-                })
-                .await
-                .result?
-            {
-                let state = pde.state_info.expect_removing()?;
-                if !soft {
-                    for volume_id in &state.manifest.volumes {
-                        let path = data_dir(DATA_DIR, &state.manifest.id, volume_id);
-                        if tokio::fs::metadata(&path).await.is_ok() {
-                            tokio::fs::remove_dir_all(&path).await?;
-                        }
-                    }
-                    let logs_dir = Path::new(PACKAGE_DATA)
-                        .join("logs")
-                        .join(&state.manifest.id);
-                    if tokio::fs::metadata(&logs_dir).await.is_ok() {
-                        tokio::fs::remove_dir_all(&logs_dir).await?;
-                    }
-                    let archive_path = Path::new(PACKAGE_DATA)
-                        .join("archive")
-                        .join("installed")
-                        .join(&state.manifest.id);
-                    if tokio::fs::metadata(&archive_path).await.is_ok() {
-                        tokio::fs::remove_file(&archive_path).await?;
-                    }
-                }
-            }
+        if uninit.is_uninstall() {
+            uninstall::cleanup(&ctx, &id, soft).await?;
         }
         Ok(())
     }
-    pub async fn shutdown(self) -> Result<(), Error> {
+    pub async fn shutdown(self, uninit: Option<ExitParams>) -> Result<(), Error> {
         if let Some((hdl, shutdown)) = self.seed.persistent_container.rpc_server.send_replace(None)
         {
             self.seed
                 .persistent_container
                 .rpc_client
-                .request(rpc::Exit, Empty {})
+                .request(
+                    rpc::Exit,
+                    uninit.clone().unwrap_or_else(|| {
+                        ExitParams::target_version(
+                            &*self.seed.persistent_container.s9pk.as_manifest().version,
+                        )
+                    }),
+                )
                 .await?;
             shutdown.shutdown();
             tokio::time::timeout(Duration::from_secs(30), hdl)
@@ -234,11 +175,12 @@ impl ServiceRef {
                 )
             })?
             .persistent_container
-            .exit()
+            .exit(uninit)
             .await?;
         Ok(())
     }
 }
+
 impl Deref for ServiceRef {
     type Target = Service;
     fn deref(&self) -> &Self::Target {
@@ -257,7 +199,14 @@ pub struct Service {
 }
 impl Service {
     #[instrument(skip_all)]
-    async fn new(ctx: RpcContext, s9pk: S9pk, start: StartStop) -> Result<ServiceRef, Error> {
+    async fn new(
+        ctx: RpcContext,
+        s9pk: S9pk,
+        start: StartStop,
+        procedure_id: Guid,
+        init_kind: Option<InitKind>,
+        recovery_source: Option<impl GenericMountGuard>,
+    ) -> Result<ServiceRef, Error> {
         let id = s9pk.as_manifest().id.clone();
         let persistent_container = PersistentContainer::new(
             &ctx, s9pk,
@@ -277,11 +226,28 @@ impl Service {
             seed,
         }
         .into();
+        let recovery_guard = if let Some(recovery_source) = &recovery_source {
+            Some(
+                service
+                    .seed
+                    .persistent_container
+                    .mount_backup(recovery_source.path().join("data"), ReadOnly)
+                    .await?,
+            )
+        } else {
+            None
+        };
         service
             .seed
             .persistent_container
-            .init(service.weak())
+            .init(service.weak(), procedure_id, init_kind)
             .await?;
+        if let Some(recovery_guard) = recovery_guard {
+            recovery_guard.unmount(true).await?;
+        }
+        if let Some(recovery_source) = recovery_source {
+            recovery_source.unmount().await?;
+        }
         Ok(service)
     }
 
@@ -305,7 +271,9 @@ impl Service {
                 } else {
                     StartStop::Stop
                 };
-                Self::new(ctx, s9pk, start_stop).await.map(Some)
+                Self::new(ctx, s9pk, start_stop, Guid::new(), None, None::<MountGuard>)
+                    .await
+                    .map(Some)
             }
         };
         let s9pk_dir = Path::new(DATA_DIR).join(PKG_ARCHIVE_DIR).join("installed"); // TODO: make this based on hash
@@ -328,7 +296,7 @@ impl Service {
                         tracing::debug!("{e:?}")
                     }) {
                         if let Ok(service) =
-                            Self::install(ctx.clone(), s9pk, None, None::<Never>, None)
+                            Self::install(ctx.clone(), s9pk, &None, None, None::<Never>, None)
                                 .await
                                 .map_err(|e| {
                                     tracing::error!("Error installing service: {e}");
@@ -365,7 +333,8 @@ impl Service {
                         if let Ok(service) = Self::install(
                             ctx.clone(),
                             s9pk,
-                            Some(s.as_manifest().as_version().de()?),
+                            &None,
+                            Some(entry.as_status().de()?.run_state()),
                             None::<Never>,
                             None,
                         )
@@ -407,27 +376,66 @@ impl Service {
                     tracing::error!("Error opening s9pk for removal: {e}");
                     tracing::debug!("{e:?}")
                 }) {
-                    if let Ok(service) = Self::new(ctx.clone(), s9pk, StartStop::Stop)
-                        .await
-                        .map_err(|e| {
-                            tracing::error!("Error loading service for removal: {e}");
-                            tracing::debug!("{e:?}")
-                        })
+                    let err_state = |e: Error| async move {
+                        let state = crate::status::MainStatus::Error {
+                            on_rebuild: StartStop::Stop,
+                            message: e.to_string(),
+                            debug: Some(format!("{e:?}")),
+                        };
+                        ctx.db
+                            .mutate(move |db| {
+                                if let Some(pde) =
+                                    db.as_public_mut().as_package_data_mut().as_idx_mut(&id)
+                                {
+                                    pde.as_state_info_mut().map_mutate(|s| {
+                                        Ok(PackageState::Installed(InstalledState {
+                                            manifest: s
+                                                .as_manifest(ManifestPreference::Old)
+                                                .clone(),
+                                        }))
+                                    })?;
+                                    pde.as_status_mut().ser(&state)?;
+                                }
+                                Ok(())
+                            })
+                            .await
+                            .result
+                    };
+                    match Self::new(
+                        ctx.clone(),
+                        s9pk,
+                        StartStop::Stop,
+                        Guid::new(),
+                        None,
+                        None::<MountGuard>,
+                    )
+                    .await
                     {
-                        match service.uninstall(None, false, false).await {
+                        Ok(service) => match service
+                            .uninstall(ExitParams::uninstall(), false, false)
+                            .await
+                        {
                             Err(e) => {
                                 tracing::error!("Error uninstalling service: {e}");
-                                tracing::debug!("{e:?}")
+                                tracing::debug!("{e:?}");
+                                err_state(e).await?;
                             }
                             Ok(()) => return Ok(None),
+                        },
+                        Err(e) => {
+                            tracing::error!("Error loading service for removal: {e}");
+                            tracing::debug!("{e:?}");
+                            err_state(e).await?;
                         }
                     }
                 }
 
-                ctx.db
-                    .mutate(|v| v.as_public_mut().as_package_data_mut().remove(id))
-                    .await
-                    .result?;
+                if disposition == LoadDisposition::Retry {
+                    ctx.db
+                        .mutate(|v| v.as_public_mut().as_package_data_mut().remove(id))
+                        .await
+                        .result?;
+                }
 
                 Ok(None)
             }
@@ -445,53 +453,30 @@ impl Service {
     pub async fn install(
         ctx: RpcContext,
         s9pk: S9pk,
-        mut src_version: Option<models::VersionString>,
+        registry: &Option<Url>,
+        prev_state: Option<StartStop>,
         recovery_source: Option<impl GenericMountGuard>,
         progress: Option<InstallProgressHandles>,
     ) -> Result<ServiceRef, Error> {
         let manifest = s9pk.as_manifest().clone();
         let developer_key = s9pk.as_archive().signer();
         let icon = s9pk.icon_data_url().await?;
-        let service = Self::new(ctx.clone(), s9pk, StartStop::Stop).await?;
-
-        if let Some(recovery_source) = recovery_source {
-            service
-                .actor
-                .send(
-                    Guid::new(),
-                    transition::restore::Restore {
-                        path: recovery_source.path().to_path_buf(),
-                    },
-                )
-                .await??;
-            recovery_source.unmount().await?;
-            src_version = Some(
-                service
-                    .seed
-                    .persistent_container
-                    .s9pk
-                    .as_manifest()
-                    .version
-                    .clone(),
-            );
-        }
-
         let procedure_id = Guid::new();
-        service
-            .seed
-            .persistent_container
-            .execute::<NoOutput>(
-                procedure_id.clone(),
-                ProcedureName::PackageInit,
-                to_value(&src_version)?,
-                None,
-            ) // TODO timeout
-            .await
-            .with_kind(if src_version.is_some() {
-                ErrorKind::UpdateFailed
+        let service = Self::new(
+            ctx.clone(),
+            s9pk,
+            StartStop::Stop,
+            procedure_id.clone(),
+            Some(if recovery_source.is_some() {
+                InitKind::Restore
+            } else if prev_state.is_some() {
+                InitKind::Update
             } else {
-                ErrorKind::InstallFailed
-            })?; // TODO: handle cancellation
+                InitKind::Install
+            }),
+            recovery_source,
+        )
+        .await?;
 
         if let Some(mut progress) = progress {
             progress.finalization_progress.complete();
@@ -501,19 +486,19 @@ impl Service {
 
         let peek = ctx.db.peek().await;
         let mut action_input: BTreeMap<ActionId, Value> = BTreeMap::new();
-        let requested_actions: BTreeSet<_> = peek
+        let tasks: BTreeSet<_> = peek
             .as_public()
             .as_package_data()
             .as_entries()?
             .into_iter()
             .map(|(_, pde)| {
                 Ok(pde
-                    .as_requested_actions()
+                    .as_tasks()
                     .as_entries()?
                     .into_iter()
                     .map(|(_, r)| {
-                        Ok::<_, Error>(if r.as_request().as_package_id().de()? == manifest.id {
-                            Some(r.as_request().as_action_id().de()?)
+                        Ok::<_, Error>(if r.as_task().as_package_id().de()? == manifest.id {
+                            Some(r.as_task().as_action_id().de()?)
                         } else {
                             None
                         })
@@ -523,27 +508,30 @@ impl Service {
             .flatten_ok()
             .map(|a| a.and_then(|a| a))
             .try_collect()?;
-        for action_id in requested_actions {
-            if let Some(input) = service
-                .get_action_input(procedure_id.clone(), action_id.clone())
-                .await?
-                .and_then(|i| i.value)
+        for action_id in tasks {
+            if peek
+                .as_public()
+                .as_package_data()
+                .as_idx(&manifest.id)
+                .or_not_found(&manifest.id)?
+                .as_actions()
+                .contains_key(&action_id)?
             {
-                action_input.insert(action_id, input);
+                if let Some(input) = service
+                    .get_action_input(procedure_id.clone(), action_id.clone())
+                    .await?
+                    .and_then(|i| i.value)
+                {
+                    action_input.insert(action_id, input);
+                }
             }
         }
         ctx.db
             .mutate(|db| {
                 for (action_id, input) in &action_input {
                     for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
-                        pde.as_requested_actions_mut().mutate(|requested_actions| {
-                            Ok(update_requested_actions(
-                                requested_actions,
-                                &manifest.id,
-                                action_id,
-                                input,
-                                false,
-                            ))
+                        pde.as_tasks_mut().mutate(|tasks| {
+                            Ok(update_tasks(tasks, &manifest.id, action_id, input, false))
                         })?;
                     }
                 }
@@ -552,13 +540,18 @@ impl Service {
                     .as_package_data_mut()
                     .as_idx_mut(&manifest.id)
                     .or_not_found(&manifest.id)?;
+                let actions = entry.as_actions().keys()?;
+                entry.as_tasks_mut().mutate(|t| {
+                    Ok(t.retain(|_, v| {
+                        v.task.package_id != manifest.id || actions.contains(&v.task.action_id)
+                    }))
+                })?;
                 entry
                     .as_state_info_mut()
                     .ser(&PackageState::Installed(InstalledState { manifest }))?;
                 entry.as_developer_key_mut().ser(&Pem::new(developer_key))?;
                 entry.as_icon_mut().ser(&icon)?;
-                // TODO: marketplace url
-                // TODO: dependency info
+                entry.as_registry_mut().ser(registry)?;
 
                 Ok(())
             })
@@ -583,7 +576,7 @@ impl Service {
             .send(
                 Guid::new(),
                 transition::backup::Backup {
-                    path: guard.path().to_path_buf(),
+                    path: guard.path().join("data"),
                 },
             )
             .await??

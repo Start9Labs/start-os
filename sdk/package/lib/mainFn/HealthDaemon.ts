@@ -91,8 +91,9 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   }
   private async setupHealthCheck() {
     if (this.ready === "EXIT_SUCCESS") {
-      if (this.daemon instanceof Oneshot) {
-        this.daemon.onExitSuccess(() =>
+      const daemon = await this.daemon
+      if (daemon.isOneshot()) {
+        daemon.onExitSuccess(() =>
           this.setHealth({ result: "success", message: null }),
         )
       }
@@ -113,9 +114,9 @@ export class HealthDaemon<Manifest extends SDKManifest> {
         !res.done;
         res = await Promise.race([status, trigger.next()])
       ) {
-        const handle = (await this.daemon).subContainerHandle
+        const handle = (await this.daemon).subcontainerRc()
 
-        if (handle) {
+        try {
           const response: HealthCheckResult = await Promise.resolve(
             this.ready.fn(handle),
           ).catch((err) => {
@@ -132,11 +133,8 @@ export class HealthDaemon<Manifest extends SDKManifest> {
             this.resolveReady()
           }
           await this.setHealth(response)
-        } else {
-          await this.setHealth({
-            result: "failure",
-            message: "Daemon not running",
-          })
+        } finally {
+          await handle.destroy()
         }
       }
     }).catch((err) => console.error(`Daemon ${this.id} failed: ${err}`))
@@ -164,7 +162,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     if (
       result === "failure" &&
       this.started &&
-      performance.now() - this.started <= (this.ready.gracePeriod ?? 5000)
+      performance.now() - this.started <= (this.ready.gracePeriod ?? 10_000)
     )
       result = "starting"
     await this.effects.setHealth({

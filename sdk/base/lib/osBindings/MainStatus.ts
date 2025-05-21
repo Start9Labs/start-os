@@ -12,7 +12,6 @@ export type MainStatus =
     }
   | { main: "stopped" }
   | { main: "restarting" }
-  | { main: "restoring" }
   | { main: "stopping" }
   | {
       main: "starting"

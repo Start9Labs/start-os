@@ -222,8 +222,9 @@ impl LanPortForwardController {
     }
 }
 
-// iptables -I FORWARD -o br-start9 -p tcp -d 172.18.0.2 --dport 8333 -j ACCEPT
-// iptables -t nat -I PREROUTING -p tcp --dport 32768 -j DNAT --to 172.18.0.2:8333
+// iptables -t nat -A POSTROUTING -s 10.59.0.0/24 ! -d 10.59.0.0/24 -j SNAT --to $ip
+// iptables -I INPUT -p udp --dport $port -j ACCEPT
+// iptables -I FORWARD -s 10.59.0.0/24 -j ACCEPT
 async fn forward(external: u16, interface: &str, target: SocketAddr) -> Result<(), Error> {
     for proto in ["tcp", "udp"] {
         Command::new("iptables")

@@ -2,7 +2,7 @@ use std::fmt;
 
 use clap::{CommandFactory, FromArgMatches, Parser};
 pub use models::ActionId;
-use models::PackageId;
+use models::{PackageId, ReplayId};
 use qrcode::QrCode;
 use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
@@ -10,6 +10,7 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
+use crate::db::model::package::TaskSeverity;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
 use crate::util::serde::{
@@ -36,6 +37,13 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
                     Ok(())
                 })
                 .with_about("Run service action")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "clear-task",
+            from_fn_async(clear_task)
+                .no_display()
+                .with_about("Clear a service task")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -331,4 +339,46 @@ pub async fn run_action(
         .run_action(Guid::new(), action_id, input.unwrap_or_default())
         .await
         .map(|res| res.map(ActionResult::upcast))
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct ClearTaskParams {
+    pub package_id: PackageId,
+    pub replay_id: ReplayId,
+    #[arg(long)]
+    pub force: bool,
+}
+
+#[instrument(skip_all)]
+pub async fn clear_task(
+    ctx: RpcContext,
+    ClearTaskParams {
+        package_id,
+        replay_id,
+        force,
+    }: ClearTaskParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            if let Some(task) = db
+                .as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&package_id)
+                .or_not_found(&package_id)?
+                .as_tasks_mut()
+                .remove(&replay_id)?
+            {
+                if !force && task.as_task().as_severity().de()? == TaskSeverity::Critical {
+                    return Err(Error::new(
+                        eyre!("Cannot clear critical task"),
+                        ErrorKind::InvalidRequest,
+                    ));
+                }
+            }
+            Ok(())
+        })
+        .await
+        .result
 }

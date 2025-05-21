@@ -23,7 +23,7 @@ export class ServiceInterfaceBuilder {
       type: ServiceInterfaceType
       username: string | null
       path: string
-      search: Record<string, string>
+      query: Record<string, string>
       schemeOverride: { ssl: Scheme; noSsl: Scheme } | null
       masked: boolean
     },

@@ -18,7 +18,7 @@ describe("host", () => {
         type: "ui",
         username: "bar",
         path: "/baz",
-        search: { qux: "yes" },
+        query: { qux: "yes" },
         schemeOverride: null,
         masked: false,
       })

@@ -1,5 +1,5 @@
 import * as T from "../../../base/lib/types"
-import { SubContainer } from "../util/SubContainer"
+import { SubContainer, SubContainerOwned } from "../util/SubContainer"
 import { CommandController } from "./CommandController"
 import { Daemon } from "./Daemon"
 
@@ -28,14 +28,15 @@ export class Oneshot<Manifest extends T.SDKManifest> extends Daemon<Manifest> {
         sigtermTimeout?: number
       },
     ) => {
+      if (subcontainer.isOwned()) subcontainer = subcontainer.rc()
       const startCommand = () =>
         CommandController.of<Manifest>()(
           effects,
-          subcontainer,
+          subcontainer.rc(),
           command,
           options,
         )
-      return new Oneshot(startCommand, true, [])
+      return new Oneshot(subcontainer, startCommand, true, [])
     }
   }
 

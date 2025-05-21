@@ -6,8 +6,7 @@ use models::{ActionId, PackageId, ProcedureName, ReplayId};
 
 use crate::action::{ActionInput, ActionResult};
 use crate::db::model::package::{
-    ActionRequestCondition, ActionRequestEntry, ActionRequestInput, ActionVisibility,
-    AllowedStatuses,
+    ActionVisibility, AllowedStatuses, TaskCondition, TaskEntry, TaskInput,
 };
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
@@ -73,21 +72,21 @@ impl Service {
     }
 }
 
-pub fn update_requested_actions(
-    requested_actions: &mut BTreeMap<ReplayId, ActionRequestEntry>,
+pub fn update_tasks(
+    tasks: &mut BTreeMap<ReplayId, TaskEntry>,
     package_id: &PackageId,
     action_id: &ActionId,
     input: &Value,
     was_run: bool,
 ) {
-    requested_actions.retain(|_, v| {
-        if &v.request.package_id != package_id || &v.request.action_id != action_id {
+    tasks.retain(|_, v| {
+        if &v.task.package_id != package_id || &v.task.action_id != action_id {
             return true;
         }
-        if let Some(when) = &v.request.when {
+        if let Some(when) = &v.task.when {
             match &when.condition {
-                ActionRequestCondition::InputNotMatches => match &v.request.input {
-                    Some(ActionRequestInput::Partial { value }) => {
+                TaskCondition::InputNotMatches => match &v.task.input {
+                    Some(TaskInput::Partial { value }) => {
                         if is_partial_of(value, input) {
                             if when.once {
                                 return !was_run;
@@ -99,10 +98,7 @@ pub fn update_requested_actions(
                         }
                     }
                     None => {
-                        tracing::error!(
-                            "action request exists in an invalid state {:?}",
-                            v.request
-                        );
+                        tracing::error!("action request exists in an invalid state {:?}", v.task);
                     }
                 },
             }
@@ -180,14 +176,8 @@ impl Handler<RunAction> for ServiceActor {
             .db
             .mutate(|db| {
                 for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
-                    pde.as_requested_actions_mut().mutate(|requested_actions| {
-                        Ok(update_requested_actions(
-                            requested_actions,
-                            package_id,
-                            action_id,
-                            &input,
-                            true,
-                        ))
+                    pde.as_tasks_mut().mutate(|tasks| {
+                        Ok(update_tasks(tasks, package_id, action_id, &input, true))
                     })?;
                 }
                 Ok(())
