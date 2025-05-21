@@ -506,4 +506,5 @@ export default {
   504: 'Verwalten',
   505: 'Möchten Sie diese Adresse wirklich löschen?',
   506: '"Weiches Deinstallieren" entfernt den Dienst aus StartOS, behält jedoch die Daten bei.',
+  507: 'Keine gespeicherten Anbieter',
 } satisfies i18n

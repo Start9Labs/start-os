@@ -31,7 +31,7 @@ import { i18nPipe } from '@start9labs/shared'
           />
         </th>
         <th [style.min-width.rem]="12">{{ 'Date' | i18n }}</th>
-        <th [style.min-width.rem]="12">{{ 'Title' | i18n }}</th>
+        <th [style.min-width.rem]="14">{{ 'Title' | i18n }}</th>
         <th [style.min-width.rem]="8">{{ 'Service' | i18n }}</th>
         <th>{{ 'Message' | i18n }}</th>
       </tr>
@@ -71,9 +71,13 @@ import { i18nPipe } from '@start9labs/shared'
   styles: `
     @import '@taiga-ui/core/styles/taiga-ui-local';
 
-    :host-context(tui-root._mobile) input {
-      @include fullsize();
-      opacity: 0;
+    :host-context(tui-root._mobile) {
+      margin: 0 -1rem;
+
+      input {
+        @include fullsize();
+        opacity: 0;
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

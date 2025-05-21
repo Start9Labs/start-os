@@ -506,4 +506,5 @@ export default {
   504: 'Gérer',
   505: 'Êtes-vous sûr de vouloir supprimer cette adresse ?',
   506: '« Désinstallation douce » supprimera le service de StartOS tout en conservant ses données.',
+  507: 'Aucun fournisseur enregistré',
 } satisfies i18n

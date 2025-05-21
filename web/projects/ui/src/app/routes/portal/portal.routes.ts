@@ -30,7 +30,7 @@ const ROUTES: Routes = [
       {
         title: titleResolver,
         path: 'logs',
-        loadComponent: () => import('./routes/logs/logs.component'),
+        loadChildren: () => import('./routes/logs/logs.routes'),
         data: toNavigationItem('/portal/logs'),
       },
       {

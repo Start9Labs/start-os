@@ -1,7 +1,8 @@
 import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
-import { filter, map, startWith, timer } from 'rxjs'
+import { map, timer } from 'rxjs'
+import { distinctUntilChanged } from 'rxjs/operators'
 
 @Component({
   selector: 'service-uptime',
@@ -43,9 +44,9 @@ import { filter, map, startWith, timer } from 'rxjs'
 
       section {
         height: 100%;
-        width: fit-content;
+        max-width: 100%;
         display: grid;
-        grid-template-columns: 1fr 1fr 1fr 1fr;
+        grid-template-columns: repeat(4, 1fr);
         gap: 1rem;
         place-content: center;
         margin: auto;
@@ -58,8 +59,8 @@ import { filter, map, startWith, timer } from 'rxjs'
 
       label {
         display: block;
-        font-size: 2.5rem;
-        margin: 1rem;
+        font-size: min(6vw, 2.5rem);
+        margin: 1rem 0;
         color: var(--tui-text-primary);
       }
     `,
@@ -71,13 +72,16 @@ import { filter, map, startWith, timer } from 'rxjs'
 })
 export class ServiceUptimeComponent {
   protected readonly uptime$ = timer(0, 1000).pipe(
-    filter(() => !!this.started()),
-    map(() => Date.now() - new Date(this.started()).getTime()),
-    startWith(0),
+    map(() =>
+      this.started()
+        ? Math.max(Date.now() - new Date(this.started()).getTime(), 0)
+        : 0,
+    ),
+    distinctUntilChanged(),
     map(delta => ({
-      seconds: Math.floor(delta / 1000),
-      minutes: Math.floor((delta / (1000 * 60)) % 60),
-      hours: Math.floor((delta / (1000 * 60 * 60)) % 24),
+      seconds: Math.floor(delta / 1000) % 60,
+      minutes: Math.floor(delta / (1000 * 60)) % 60,
+      hours: Math.floor(delta / (1000 * 60 * 60)) % 24,
       days: Math.floor(delta / (1000 * 60 * 60 * 24)),
     })),
   )

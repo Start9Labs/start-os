@@ -75,7 +75,8 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
             tuiIconButton
             iconStart="@tui.arrow-down"
             tabindex="-1"
-            [class._hidden]="scrolled"
+            class="arrow"
+            [class.arrow_hidden]="scrolled"
             (click)="
               actions.nativeElement.scrollIntoView({
                 block: 'end',
@@ -115,7 +116,7 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
       text-transform: uppercase;
     }
 
-    button {
+    .arrow {
       @include taiga.transition(opacity);
       position: sticky;
       bottom: 1rem;
@@ -125,7 +126,7 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
       box-shadow: inset 0 0 0 2rem var(--tui-status-warning);
       animation: bounce 1s infinite alternate;
 
-      &._hidden,
+      &_hidden,
       :host:has(::ng-deep service-action-requests app-placeholder) & {
         opacity: 0;
         pointer-events: none;
