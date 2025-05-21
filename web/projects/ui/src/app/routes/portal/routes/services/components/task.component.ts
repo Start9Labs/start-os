@@ -48,7 +48,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
     </td>
     <td
       [style.color]="'var(--tui-text-secondary)'"
-      [style.grid-area]="'2 / span 2'"
+      [style.grid-area]="'2 / span 4'"
     >
       {{ task().reason || ('No reason provided' | i18n) }}
     </td>
@@ -92,9 +92,8 @@ import { getManifest } from 'src/app/utils/get-package-data'
 
     :host-context(tui-root._mobile) {
       display: grid;
-      grid-template-columns: min-content;
       align-items: center;
-      padding: 1rem 0.5rem;
+      padding: 1rem 0rem 1rem 0.5rem;
       gap: 0.5rem;
 
       td {
@@ -114,7 +113,7 @@ export class ServiceTaskComponent {
   private readonly errorService = inject(ErrorService)
   private readonly loader = inject(LoadingService)
 
-  readonly task = input.required<T.Task>()
+  readonly task = input.required<T.Task & { replayId: string }>()
   readonly services = input.required<Record<string, PackageDataEntry>>()
 
   readonly pkg = computed(() => this.services()[this.task().packageId])
@@ -139,7 +138,7 @@ export class ServiceTaskComponent {
         try {
           await this.api.clearTask({
             packageId: this.task().packageId,
-            replayId: (this.task() as any).replayId,
+            replayId: this.task().replayId,
           })
         } catch (e: any) {
           this.errorService.handleError(e)

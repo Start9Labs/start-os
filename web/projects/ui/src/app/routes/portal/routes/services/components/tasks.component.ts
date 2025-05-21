@@ -52,7 +52,11 @@ export class ServiceTasksComponent {
   readonly services = input.required<Record<string, PackageDataEntry>>()
 
   readonly tasks = computed(() =>
-    Object.values(this.pkg().tasks)
+    Object.entries(this.pkg().tasks)
+      .map(([replayId, entry]) => ({
+        ...entry,
+        task: { ...entry.task, replayId },
+      }))
       .filter(
         t =>
           this.services()[t.task.packageId]?.actions[t.task.actionId] &&
