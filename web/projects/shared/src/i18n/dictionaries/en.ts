@@ -412,8 +412,8 @@ export const ENGLISH = {
   'Other Networks': 411,
   'WiFi is disabled': 412,
   'No wireless interface detected': 413,
-  'Enabling WiFi': 414,
-  'Disabling WiFi': 415,
+  'Enabling': 414,
+  'Disabling': 415,
   'Connecting. This could take a while': 416,
   'Retry': 417,
   'Show more': 418,
@@ -506,4 +506,12 @@ export const ENGLISH = {
   'Are you sure you want to delete this address?': 505, // this address referes to a domain or URL
   '"Soft uninstall" will remove the service from StartOS but preserve its data.': 506,
   'No saved providers': 507,
+  'Kiosk Mode': 508, // an OS mode that permits attaching a monitor to the computer
+  'Enabled': 509,
+  'Disable Kiosk Mode unless you need to attach a monitor': 510,
+  'Enable Kiosk Mode if you need to attach a monitor': 511,
+  'Kiosk Mode is unavailable on this device': 512,
+  'Enable': 513,
+  'Disable': 514,
+  'You are currently using a kiosk. Disabling Kiosk Mode will result in the kiosk disconnecting.': 515,
 } as const

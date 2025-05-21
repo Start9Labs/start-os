@@ -444,6 +444,21 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async toggleKiosk(enable: boolean): Promise<null> {
+    await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/kiosk',
+        value: enable,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
   async resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes> {
     await pauseFor(2000)
     return null

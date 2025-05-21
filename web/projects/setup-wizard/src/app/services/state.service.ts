@@ -8,6 +8,7 @@ import { T } from '@start9labs/start-sdk'
 export class StateService {
   private readonly api = inject(ApiService)
 
+  kiosk?: boolean
   setupType?: 'fresh' | 'restore' | 'attach' | 'transfer'
   recoverySource?: T.RecoverySource<string>
 
@@ -15,6 +16,7 @@ export class StateService {
     await this.api.attach({
       guid,
       startOsPassword: await this.api.encrypt(password),
+      kiosk: this.kiosk,
     })
   }
 
@@ -33,6 +35,7 @@ export class StateService {
               password: await this.api.encrypt(this.recoverySource.password),
             }
         : null,
+      kiosk: this.kiosk,
     })
   }
 }

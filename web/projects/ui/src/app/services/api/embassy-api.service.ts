@@ -120,6 +120,8 @@ export abstract class ApiService {
 
   abstract repairDisk(params: RR.DiskRepairReq): Promise<RR.DiskRepairRes>
 
+  abstract toggleKiosk(enable: boolean): Promise<null>
+
   abstract resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes>
 
   // @TODO 041

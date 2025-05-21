@@ -31,6 +31,7 @@ import {
   TuiTitle,
 } from '@taiga-ui/core'
 import {
+  TuiBadge,
   TuiButtonLoading,
   TuiButtonSelect,
   TuiDataListWrapper,
@@ -138,6 +139,39 @@ import { SystemWipeComponent } from './wipe.component'
         </button>
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
+        <tui-icon icon="@tui.monitor" />
+        <span tuiTitle>
+          <strong>
+            {{ 'Kiosk Mode' | i18n }}
+            <tui-badge
+              size="m"
+              [appearance]="server.kiosk ? 'positive' : 'negative'"
+            >
+              {{ server.kiosk ? ('Enabled' | i18n) : ('Disabled' | i18n) }}
+            </tui-badge>
+          </strong>
+          <span tuiSubtitle>
+            {{
+              server.kiosk === true
+                ? ('Disable Kiosk Mode unless you need to attach a monitor'
+                  | i18n)
+                : server.kiosk === false
+                  ? ('Enable Kiosk Mode if you need to attach a monitor' | i18n)
+                  : ('Kiosk Mode is unavailable on this device' | i18n)
+            }}
+          </span>
+        </span>
+        @if (server.kiosk !== null) {
+          <button
+            tuiButton
+            [appearance]="server.kiosk ? 'negative' : 'positive'"
+            (click)="tryToggleKiosk()"
+          >
+            {{ server.kiosk ? ('Disable' | i18n) : ('Enable' | i18n) }}
+          </button>
+        }
+      </div>
+      <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.circle-power" (click)="count = count + 1" />
         <span tuiTitle>
           <strong>{{ 'Reset Tor' | i18n }}</strong>
@@ -193,11 +227,6 @@ import { SystemWipeComponent } from './wipe.component'
     [tuiCell] {
       background: var(--tui-background-neutral-1);
     }
-
-    [tuiSubtitle],
-    tui-data-list-wrapper ::ng-deep [tuiOption] {
-      text-transform: capitalize;
-    }
   `,
   providers: [tuiCellOptionsProvider({ height: 'spacious' })],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -220,6 +249,7 @@ import { SystemWipeComponent } from './wipe.component'
     TuiTextfield,
     FormsModule,
     SnekDirective,
+    TuiBadge,
   ],
 })
 export default class SystemGeneralComponent {
@@ -316,6 +346,28 @@ export default class SystemGeneralComponent {
     this.document.getElementById('download-ca')?.click()
   }
 
+  async tryToggleKiosk() {
+    if (
+      this.server()?.kiosk &&
+      ['localhost', '127.0.0.1'].includes(this.document.location.hostname)
+    ) {
+      return this.dialog
+        .openConfirm({
+          label: 'Warning',
+          data: {
+            content:
+              'You are currently using a kiosk. Disabling Kiosk Mode will result in the kiosk disconnecting.',
+            yes: 'Disable' as any,
+            no: 'Cancel',
+          },
+        })
+        .pipe(filter(Boolean))
+        .subscribe(async () => this.toggleKiosk())
+    }
+
+    this.toggleKiosk()
+  }
+
   async onRepair() {
     this.dialog
       .openConfirm({
@@ -336,6 +388,22 @@ export default class SystemGeneralComponent {
           this.errorService.handleError(e)
         }
       })
+  }
+
+  private async toggleKiosk() {
+    const kiosk = this.server()?.kiosk
+
+    const loader = this.loader
+      .open(kiosk ? 'Disabling' : 'Enabling')
+      .subscribe()
+
+    try {
+      await this.api.toggleKiosk(!kiosk)
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
   }
 
   private async resetTor(wipeState: boolean) {

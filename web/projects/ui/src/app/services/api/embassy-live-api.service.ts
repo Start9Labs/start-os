@@ -261,6 +261,13 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'disk.repair', params })
   }
 
+  async toggleKiosk(enable: boolean): Promise<null> {
+    return this.rpcRequest({
+      method: enable ? 'kiosk.enable' : 'kiosk.disable',
+      params: {},
+    })
+  }
+
   async resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes> {
     return this.rpcRequest({ method: 'net.tor.reset', params })
   }
