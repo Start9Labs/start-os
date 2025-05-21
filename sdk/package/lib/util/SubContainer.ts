@@ -59,50 +59,97 @@ async function bind(
   await execFile("mount", ["--bind", from, to])
 }
 
-/**
- * This is the type that is going to describe what an subcontainer could do. The main point of the
- * subcontainer is to have commands that run in a chrooted environment. This is useful for running
- * commands in a containerized environment. But, I wanted the destroy to sometimes be doable, for example the
- * case where the subcontainer isn't owned by the process, the subcontainer shouldn't be destroyed.
- */
-export interface ExecSpawnable {
-  get destroy(): undefined | (() => Promise<null>)
+export interface SubContainer<
+  Manifest extends T.SDKManifest,
+  Effects extends T.Effects = T.Effects,
+> extends Drop {
+  readonly imageId: keyof Manifest["images"] & T.ImageId
+  readonly rootfs: string
+  readonly guid: T.Guid
+  mount(
+    mounts: Effects extends BackupEffects
+      ? Mounts<
+          Manifest,
+          {
+            subpath: string | null
+            mountpoint: string
+          }
+        >
+      : Mounts<Manifest, never>,
+  ): Promise<this>
+
+  destroy: () => Promise<null>
+
+  /**
+   * @description run a command inside this subcontainer
+   * DOES NOT THROW ON NONZERO EXIT CODE (see execFail)
+   * @param commands an array representing the command and args to execute
+   * @param options
+   * @param timeoutMs how long to wait before killing the command in ms
+   * @returns
+   */
   exec(
     command: string[],
     options?: CommandOptions & ExecOptions,
     timeoutMs?: number | null,
-  ): Promise<ExecResults>
+  ): Promise<{
+    throw: () => { stdout: string | Buffer; stderr: string | Buffer }
+    exitCode: number | null
+    exitSignal: NodeJS.Signals | null
+    stdout: string | Buffer
+    stderr: string | Buffer
+  }>
+
+  /**
+   * @description run a command inside this subcontainer, throwing on non-zero exit status
+   * @param commands an array representing the command and args to execute
+   * @param options
+   * @param timeoutMs how long to wait before killing the command in ms
+   * @returns
+   */
   execFail(
     command: string[],
     options?: CommandOptions & ExecOptions,
     timeoutMs?: number | null,
-  ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }>
+  ): Promise<{
+    stdout: string | Buffer
+    stderr: string | Buffer
+  }>
+
+  launch(
+    command: string[],
+    options?: CommandOptions,
+  ): Promise<cp.ChildProcessWithoutNullStreams>
+
   spawn(
     command: string[],
     options?: CommandOptions & StdioOptions,
   ): Promise<cp.ChildProcess>
+
+  rc(): SubContainerRc<Manifest, Effects>
+
+  isOwned(): this is SubContainerOwned<Manifest, Effects>
 }
+
 /**
  * Want to limit what we can do in a container, so we want to launch a container with a specific image and the mounts.
- *
- * Implements:
- * @see {@link ExecSpawnable}
  */
-export class SubContainer<
+export class SubContainerOwned<
     Manifest extends T.SDKManifest,
     Effects extends T.Effects = T.Effects,
   >
   extends Drop
-  implements ExecSpawnable
+  implements SubContainer<Manifest, Effects>
 {
   private destroyed = false
+  public rcs = 0
 
   private leader: cp.ChildProcess
   private leaderExited: boolean = false
   private waitProc: () => Promise<null>
   private constructor(
     readonly effects: Effects,
-    readonly imageId: T.ImageId,
+    readonly imageId: keyof Manifest["images"] & T.ImageId,
     readonly rootfs: string,
     readonly guid: T.Guid,
   ) {
@@ -156,14 +203,14 @@ export class SubContainer<
           : Mounts<Manifest, never>)
       | null,
     name: string,
-  ) {
+  ): Promise<SubContainerOwned<Manifest, Effects>> {
     const { imageId, sharedRun } = image
     const [rootfs, guid] = await effects.subcontainer.createFs({
       imageId,
       name,
     })
 
-    const res = new SubContainer(effects, imageId, rootfs, guid)
+    const res = new SubContainerOwned(effects, imageId, rootfs, guid)
 
     try {
       if (mounts) {
@@ -216,7 +263,12 @@ export class SubContainer<
     name: string,
     fn: (subContainer: SubContainer<Manifest, Effects>) => Promise<T>,
   ): Promise<T> {
-    const subContainer = await SubContainer.of(effects, image, mounts, name)
+    const subContainer = await SubContainerOwned.of(
+      effects,
+      image,
+      mounts,
+      name,
+    )
     try {
       return await fn(subContainer)
     } finally {
@@ -234,7 +286,7 @@ export class SubContainer<
           }
         >
       : Mounts<Manifest, never>,
-  ): Promise<SubContainer<Manifest, Effects>> {
+  ): Promise<this> {
     for (let mount of mounts.build()) {
       let { options, mountpoint } = mount
       const path = mountpoint.startsWith("/")
@@ -526,40 +578,188 @@ export class SubContainer<
       options,
     )
   }
+
+  rc(): SubContainerRc<Manifest, Effects> {
+    return new SubContainerRc(this)
+  }
+
+  isOwned(): this is SubContainerOwned<Manifest, Effects> {
+    return true
+  }
 }
 
-/**
- * Take an subcontainer but remove the ability to add the mounts and the destroy function.
- * Lets other functions, like health checks, to not destroy the parents.
- *
- */
-export class SubContainerHandle implements ExecSpawnable {
-  constructor(private subContainer: ExecSpawnable) {}
+export class SubContainerRc<
+    Manifest extends T.SDKManifest,
+    Effects extends T.Effects = T.Effects,
+  >
+  extends Drop
+  implements SubContainer<Manifest, Effects>
+{
+  get imageId() {
+    return this.subcontainer.imageId
+  }
+  get rootfs() {
+    return this.subcontainer.rootfs
+  }
+  get guid() {
+    return this.subcontainer.guid
+  }
+  private destroyed = false
+  public constructor(
+    private readonly subcontainer: SubContainerOwned<Manifest, Effects>,
+  ) {
+    subcontainer.rcs++
+    super()
+  }
+  static async of<Manifest extends T.SDKManifest, Effects extends T.Effects>(
+    effects: Effects,
+    image: {
+      imageId: keyof Manifest["images"] & T.ImageId
+      sharedRun?: boolean
+    },
+    mounts:
+      | (Effects extends BackupEffects
+          ? Mounts<
+              Manifest,
+              {
+                subpath: string | null
+                mountpoint: string
+              }
+            >
+          : Mounts<Manifest, never>)
+      | null,
+    name: string,
+  ) {
+    return new SubContainerRc(
+      await SubContainerOwned.of(effects, image, mounts, name),
+    )
+  }
+
+  static async withTemp<
+    Manifest extends T.SDKManifest,
+    T,
+    Effects extends T.Effects,
+  >(
+    effects: Effects,
+    image: {
+      imageId: keyof Manifest["images"] & T.ImageId
+      sharedRun?: boolean
+    },
+    mounts:
+      | (Effects extends BackupEffects
+          ? Mounts<
+              Manifest,
+              {
+                subpath: string | null
+                mountpoint: string
+              }
+            >
+          : Mounts<Manifest, never>)
+      | null,
+    name: string,
+    fn: (subContainer: SubContainer<Manifest, Effects>) => Promise<T>,
+  ): Promise<T> {
+    const subContainer = await SubContainerRc.of(effects, image, mounts, name)
+    try {
+      return await fn(subContainer)
+    } finally {
+      await subContainer.destroy()
+    }
+  }
+
+  async mount(
+    mounts: Effects extends BackupEffects
+      ? Mounts<
+          Manifest,
+          {
+            subpath: string | null
+            mountpoint: string
+          }
+        >
+      : Mounts<Manifest, never>,
+  ): Promise<this> {
+    await this.subcontainer.mount(mounts)
+    return this
+  }
+
   get destroy() {
-    return undefined
+    return async () => {
+      if (!this.destroyed) {
+        const rcs = --this.subcontainer.rcs
+        if (rcs <= 0) {
+          await this.subcontainer.destroy()
+          if (rcs < 0) console.error(new Error("UNREACHABLE: rcs < 0").stack)
+        }
+        this.destroyed = true
+      }
+      return null
+    }
   }
 
-  exec(
-    command: string[],
-    options?: CommandOptions,
-    timeoutMs?: number | null,
-  ): Promise<ExecResults> {
-    return this.subContainer.exec(command, options, timeoutMs)
+  onDrop(): void {
+    this.destroy()
   }
 
-  execFail(
+  /**
+   * @description run a command inside this subcontainer
+   * DOES NOT THROW ON NONZERO EXIT CODE (see execFail)
+   * @param commands an array representing the command and args to execute
+   * @param options
+   * @param timeoutMs how long to wait before killing the command in ms
+   * @returns
+   */
+  async exec(
     command: string[],
     options?: CommandOptions & ExecOptions,
-    timeoutMs?: number | null,
-  ): Promise<{ stdout: string | Buffer; stderr: string | Buffer }> {
-    return this.subContainer.execFail(command, options, timeoutMs)
+    timeoutMs: number | null = 30000,
+  ): Promise<{
+    throw: () => { stdout: string | Buffer; stderr: string | Buffer }
+    exitCode: number | null
+    exitSignal: NodeJS.Signals | null
+    stdout: string | Buffer
+    stderr: string | Buffer
+  }> {
+    return this.subcontainer.exec(command, options, timeoutMs)
   }
 
-  spawn(
+  /**
+   * @description run a command inside this subcontainer, throwing on non-zero exit status
+   * @param commands an array representing the command and args to execute
+   * @param options
+   * @param timeoutMs how long to wait before killing the command in ms
+   * @returns
+   */
+  async execFail(
+    command: string[],
+    options?: CommandOptions & ExecOptions,
+    timeoutMs: number | null = 30000,
+  ): Promise<{
+    stdout: string | Buffer
+    stderr: string | Buffer
+  }> {
+    return this.subcontainer.execFail(command, options, timeoutMs)
+  }
+
+  async launch(
+    command: string[],
+    options?: CommandOptions,
+  ): Promise<cp.ChildProcessWithoutNullStreams> {
+    return this.subcontainer.launch(command, options)
+  }
+
+  async spawn(
     command: string[],
     options: CommandOptions & StdioOptions = { stdio: "inherit" },
   ): Promise<cp.ChildProcess> {
-    return this.subContainer.spawn(command, options)
+    return this.subcontainer.spawn(command, options)
+  }
+
+  rc(): SubContainerRc<Manifest, Effects> {
+    return this.subcontainer.rc()
+  }
+
+  isOwned(): this is SubContainerOwned<Manifest, Effects> {
+    return false
   }
 }
 

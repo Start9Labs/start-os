@@ -3,15 +3,16 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
+use exver::VersionRange;
 use futures::future::{BoxFuture, Fuse};
 use futures::stream::FuturesUnordered;
 use futures::{Future, FutureExt, StreamExt, TryFutureExt};
 use helpers::NonDetachingJoinHandle;
 use imbl::OrdMap;
-use imbl_value::InternedString;
 use models::ErrorData;
 use tokio::sync::{oneshot, Mutex, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
 use tracing::instrument;
+use url::Url;
 
 use crate::context::RpcContext;
 use crate::db::model::package::{
@@ -22,9 +23,11 @@ use crate::install::PKG_ARCHIVE_DIR;
 use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle, ProgressTrackerWriter};
+use crate::rpc_continuations::Guid;
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
+use crate::service::rpc::ExitParams;
 use crate::service::start_stop::StartStop;
 use crate::service::{LoadDisposition, Service, ServiceRef};
 use crate::status::MainStatus;
@@ -94,7 +97,7 @@ impl ServiceMap {
         let mut shutdown_err = Ok(());
         let mut service = self.get_mut(id).await;
         if let Some(service) = service.take() {
-            shutdown_err = service.shutdown().await;
+            shutdown_err = service.shutdown(None).await;
         }
         match Service::load(ctx, id, disposition).await {
             Ok(s) => *service = s.into(),
@@ -130,6 +133,7 @@ impl ServiceMap {
         &self,
         ctx: RpcContext,
         s9pk: F,
+        registry: Option<Url>,
         recovery_source: Option<impl GenericMountGuard>,
         progress: Option<FullProgressTracker>,
     ) -> Result<DownloadInstallFuture, Error>
@@ -181,6 +185,7 @@ impl ServiceMap {
                         let manifest = manifest.clone();
                         let id = id.clone();
                         let install_progress = progress.snapshot();
+                        let registry = registry.clone();
                         move |db| {
                             if let Some(pde) =
                                 db.as_public_mut().as_package_data_mut().as_idx_mut(&id)
@@ -212,13 +217,13 @@ impl ServiceMap {
                                         },
                                         data_version: None,
                                         status: MainStatus::Stopped,
-                                        registry: None,
+                                        registry,
                                         developer_key: Pem::new(developer_key),
                                         icon,
                                         last_backup: None,
                                         current_dependencies: Default::default(),
                                         actions: Default::default(),
-                                        requested_actions: Default::default(),
+                                        tasks: Default::default(),
                                         service_interfaces: Default::default(),
                                         hosts: Default::default(),
                                         store_exposed_dependents: Default::default(),
@@ -287,35 +292,59 @@ impl ServiceMap {
                             ErrorKind::InvalidRequest,
                             "cannot restore over existing package"
                         );
-                        let version = service
+                        let prev_version = service
                             .seed
                             .persistent_container
                             .s9pk
                             .as_manifest()
                             .version
                             .clone();
-                        service
-                            .uninstall(Some(s9pk.as_manifest().version.clone()), false, false)
-                            .await?;
+                        let prev_can_migrate_to = &service
+                            .seed
+                            .persistent_container
+                            .s9pk
+                            .as_manifest()
+                            .can_migrate_to;
+                        let next_version = &s9pk.as_manifest().version;
+                        let next_can_migrate_from = &s9pk.as_manifest().can_migrate_from;
+                        let uninit = if prev_version.satisfies(next_can_migrate_from) {
+                            ExitParams::target_version(&*prev_version)
+                        } else if next_version.satisfies(prev_can_migrate_to) {
+                            ExitParams::target_version(&s9pk.as_manifest().version)
+                        } else {
+                            ExitParams::target_range(&VersionRange::and(
+                                prev_can_migrate_to.clone(),
+                                next_can_migrate_from.clone(),
+                            ))
+                        };
+                        let run_state = service
+                            .seed
+                            .persistent_container
+                            .state
+                            .borrow()
+                            .desired_state;
+                        service.uninstall(uninit, false, false).await?;
                         progress.complete();
-                        Some(version)
+                        Some(run_state)
                     } else {
                         None
                     };
-                    *service = Some(
-                        Service::install(
-                            ctx,
-                            s9pk,
-                            prev,
-                            recovery_source,
-                            Some(InstallProgressHandles {
-                                finalization_progress,
-                                progress,
-                            }),
-                        )
-                        .await?
-                        .into(),
-                    );
+                    let new_service = Service::install(
+                        ctx,
+                        s9pk,
+                        &registry,
+                        prev,
+                        recovery_source,
+                        Some(InstallProgressHandles {
+                            finalization_progress,
+                            progress,
+                        }),
+                    )
+                    .await?;
+                    if prev == Some(StartStop::Start) {
+                        new_service.start(Guid::new()).await?;
+                    }
+                    *service = Some(new_service.into());
                     drop(service);
 
                     sync_progress_task.await.map_err(|_| {
@@ -359,14 +388,23 @@ impl ServiceMap {
             ServiceRefReloadCancelGuard::new(ctx.clone(), id.clone(), "Uninstall", None)
                 .handle_last(async move {
                     if let Some(service) = guard.take() {
-                        let res = service.uninstall(None, soft, force).await;
+                        let res = service
+                            .uninstall(ExitParams::uninstall(), soft, force)
+                            .await;
                         drop(guard);
                         res
                     } else {
-                        Err(Error::new(
-                            eyre!("service {id} failed to initialize - cannot remove gracefully"),
-                            ErrorKind::Uninitialized,
-                        ))
+                        if force {
+                            super::uninstall::cleanup(&ctx, &id, soft).await?;
+                            Ok(())
+                        } else {
+                            Err(Error::new(
+                                eyre!(
+                                    "service {id} failed to initialize - cannot remove gracefully"
+                                ),
+                                ErrorKind::Uninitialized,
+                            ))
+                        }
                     }
                 })
                 .await?;
@@ -382,7 +420,7 @@ impl ServiceMap {
         for service in lock.values().cloned() {
             futs.push(async move {
                 if let Some(service) = service.write_owned().await.take() {
-                    service.shutdown().await?
+                    service.shutdown(None).await?
                 }
                 Ok::<_, Error>(())
             });

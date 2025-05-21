@@ -7,17 +7,20 @@ import { Volume } from "./matchVolume"
 import {
   CommandOptions,
   ExecOptions,
-  ExecSpawnable,
+  SubContainerOwned,
 } from "@start9labs/start-sdk/package/lib/util/SubContainer"
 import { Mounts } from "@start9labs/start-sdk/package/lib/mainFn/Mounts"
 import { Manifest } from "@start9labs/start-sdk/base/lib/osBindings"
 import { BackupEffects } from "@start9labs/start-sdk/package/lib/backup/Backups"
 import { Drop } from "@start9labs/start-sdk/package/lib/util"
+import { SDKManifest } from "@start9labs/start-sdk/base/lib/types"
 export const exec = promisify(cp.exec)
 export const execFile = promisify(cp.execFile)
 
 export class DockerProcedureContainer extends Drop {
-  private constructor(private readonly subcontainer: ExecSpawnable) {
+  private constructor(
+    private readonly subcontainer: SubContainer<SDKManifest>,
+  ) {
     super()
   }
 
@@ -27,7 +30,7 @@ export class DockerProcedureContainer extends Drop {
     data: DockerProcedure,
     volumes: { [id: VolumeId]: Volume },
     name: string,
-    options: { subcontainer?: ExecSpawnable } = {},
+    options: { subcontainer?: SubContainer<SDKManifest> } = {},
   ) {
     const subcontainer =
       options?.subcontainer ??
@@ -47,7 +50,7 @@ export class DockerProcedureContainer extends Drop {
     volumes: { [id: VolumeId]: Volume },
     name: string,
   ) {
-    const subcontainer = await SubContainer.of(
+    const subcontainer = await SubContainerOwned.of(
       effects as BackupEffects,
       { imageId: data.image },
       null,

@@ -37,16 +37,10 @@ export function setupDependencies<Manifest extends T.SDKManifest>(
   fn: (options: {
     effects: T.Effects
   }) => Promise<CurrentDependenciesResult<Manifest>>,
-): (options: { effects: T.Effects }) => Promise<null> {
-  const cell = { updater: async (_: { effects: T.Effects }) => null }
-  cell.updater = async (options: { effects: T.Effects }) => {
-    const childEffects = options.effects.child("setupDependencies")
-    childEffects.constRetry = once(() => {
-      cell.updater({ effects: options.effects })
-    })
-
-    const dependencyType = await fn({ effects: childEffects })
-    return await options.effects.setDependencies({
+): (effects: T.Effects) => Promise<null> {
+  return async (effects: T.Effects) => {
+    const dependencyType = await fn({ effects })
+    return await effects.setDependencies({
       dependencies: Object.entries(dependencyType)
         .map(([k, v]) => [k, v as DependencyRequirement] as const)
         .map(
@@ -59,5 +53,4 @@ export function setupDependencies<Manifest extends T.SDKManifest>(
         ),
     })
   }
-  return cell.updater
 }

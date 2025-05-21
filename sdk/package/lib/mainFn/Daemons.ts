@@ -5,7 +5,7 @@ import { HealthCheckResult } from "../health/checkFns"
 import { Trigger } from "../trigger"
 import * as T from "../../../base/lib/types"
 import { Mounts } from "./Mounts"
-import { ExecSpawnable, MountOptions, SubContainer } from "../util/SubContainer"
+import { MountOptions, SubContainer } from "../util/SubContainer"
 
 import { promisify } from "node:util"
 import * as CP from "node:child_process"
@@ -17,6 +17,7 @@ import { Daemon } from "./Daemon"
 import { CommandController } from "./CommandController"
 import { HealthCheck } from "../health/HealthCheck"
 import { Oneshot } from "./Oneshot"
+import { Manifest } from "../test/output.sdk"
 
 export const cpExec = promisify(CP.exec)
 export const cpExecFile = promisify(CP.execFile)
@@ -38,7 +39,7 @@ export type Ready = {
   * ```
   */
   fn: (
-    spawnable: ExecSpawnable,
+    subcontainer: SubContainer<Manifest>,
   ) => Promise<HealthCheckResult> | HealthCheckResult
   /**
    * A duration in milliseconds to treat a failing health check as "starting"
@@ -168,9 +169,14 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     const daemon =
       "daemon" in options
         ? Promise.resolve(options.daemon)
-        : Daemon.of()(this.effects, options.subcontainer, options.command, {
-            ...options,
-          })
+        : Daemon.of<Manifest>()(
+            this.effects,
+            options.subcontainer,
+            options.command,
+            {
+              ...options,
+            },
+          )
     const healthDaemon = new HealthDaemon(
       daemon,
       options.requires
@@ -212,7 +218,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
           : Id,
     options: AddOneshotParams<Manifest, Ids, Id>,
   ) {
-    const daemon = Oneshot.of()(
+    const daemon = Oneshot.of<Manifest>()(
       this.effects,
       options.subcontainer,
       options.command,
@@ -220,7 +226,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
         ...options,
       },
     )
-    const healthDaemon = new HealthDaemon(
+    const healthDaemon = new HealthDaemon<Manifest>(
       daemon,
       options.requires
         .map((x) => this.ids.indexOf(x))

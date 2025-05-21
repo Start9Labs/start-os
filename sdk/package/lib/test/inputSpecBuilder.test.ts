@@ -536,14 +536,14 @@ describe("values", () => {
   })
   describe("filtering", () => {
     test("union", async () => {
-      const value = Value.filteredUnion(
-        () => ["a", "c"],
-        {
+      const value = Value.dynamicUnion(
+        () => ({
           name: "Testing",
           default: "a",
           description: null,
           warning: null,
-        },
+          disabled: ["a", "c"],
+        }),
         Variants.of({
           a: {
             name: "a",

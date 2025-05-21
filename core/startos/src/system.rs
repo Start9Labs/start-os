@@ -248,6 +248,75 @@ pub fn kernel_logs<C: Context + AsRef<RpcContinuations>>() -> ParentHandler<C, L
     crate::logs::logs(|_: &C, _| async { Ok(LogSource::Kernel) })
 }
 
+const DISABLE_KIOSK_PATH: &str =
+    "/media/startos/config/overlay/etc/systemd/system/getty@tty1.service.d/autologin.conf";
+
+pub async fn sync_kiosk(kiosk: Option<bool>) -> Result<(), Error> {
+    if let Some(kiosk) = kiosk {
+        if kiosk {
+            enable_kiosk().await?;
+        } else {
+            disable_kiosk().await?;
+        }
+    }
+    Ok(())
+}
+
+pub async fn enable_kiosk() -> Result<(), Error> {
+    if tokio::fs::metadata(DISABLE_KIOSK_PATH).await.is_ok() {
+        crate::util::io::delete_file(DISABLE_KIOSK_PATH).await?;
+    }
+    Ok(())
+}
+
+pub async fn disable_kiosk() -> Result<(), Error> {
+    crate::util::io::create_file(DISABLE_KIOSK_PATH)
+        .await?
+        .sync_all()
+        .await?;
+    Ok(())
+}
+
+pub fn kiosk<C: Context>() -> ParentHandler<C> {
+    ParentHandler::<C>::new()
+        .subcommand(
+            "enable",
+            from_fn_async(|ctx: RpcContext| async move {
+                ctx.db
+                    .mutate(|db| {
+                        db.as_public_mut()
+                            .as_server_info_mut()
+                            .as_kiosk_mut()
+                            .ser(&Some(true))
+                    })
+                    .await
+                    .result?;
+                enable_kiosk().await
+            })
+            .no_display()
+            .with_about("Enable kiosk mode")
+            .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "disable",
+            from_fn_async(|ctx: RpcContext| async move {
+                ctx.db
+                    .mutate(|db| {
+                        db.as_public_mut()
+                            .as_server_info_mut()
+                            .as_kiosk_mut()
+                            .ser(&Some(false))
+                    })
+                    .await
+                    .result?;
+                disable_kiosk().await
+            })
+            .no_display()
+            .with_about("Disable kiosk mode")
+            .with_call_remote::<CliContext>(),
+        )
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct MetricLeaf<T> {
     value: T,

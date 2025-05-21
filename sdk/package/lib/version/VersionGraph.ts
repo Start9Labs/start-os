@@ -1,9 +1,58 @@
 import { ExtendedVersion, VersionRange } from "../../../base/lib/exver"
 import * as T from "../../../base/lib/types"
+import {
+  InitFn,
+  InitKind,
+  InitScript,
+  InitScriptOrFn,
+  UninitFn,
+  UninitScript,
+} from "../../../base/lib/inits"
 import { Graph, Vertex, once } from "../util"
 import { IMPOSSIBLE, VersionInfo } from "./VersionInfo"
 
-export class VersionGraph<CurrentVersion extends string> {
+export async function getDataVersion(effects: T.Effects) {
+  const versionStr = await effects.getDataVersion()
+  if (!versionStr) return null
+  try {
+    return ExtendedVersion.parse(versionStr)
+  } catch (_) {
+    return VersionRange.parse(versionStr)
+  }
+}
+
+export async function setDataVersion(
+  effects: T.Effects,
+  version: ExtendedVersion | VersionRange | null,
+) {
+  return effects.setDataVersion({ version: version?.toString() || null })
+}
+
+function isExver(v: ExtendedVersion | VersionRange): v is ExtendedVersion {
+  return "satisfies" in v
+}
+
+function isRange(v: ExtendedVersion | VersionRange): v is VersionRange {
+  return "satisfiedBy" in v
+}
+
+export function overlaps(
+  a: ExtendedVersion | VersionRange,
+  b: ExtendedVersion | VersionRange,
+) {
+  return (
+    (isRange(a) && isRange(b) && a.intersects(b)) ||
+    (isRange(a) && isExver(b) && a.satisfiedBy(b)) ||
+    (isExver(a) && isRange(b) && a.satisfies(b)) ||
+    (isExver(a) && isExver(b) && a.equals(b))
+  )
+}
+
+export class VersionGraph<CurrentVersion extends string>
+  implements InitScript, UninitScript
+{
+  protected initFn = this.init.bind(this)
+  protected uninitFn = this.uninit.bind(this)
   private readonly graph: () => Graph<
     ExtendedVersion | VersionRange,
     ((opts: { effects: T.Effects }) => Promise<void>) | undefined
@@ -11,6 +60,8 @@ export class VersionGraph<CurrentVersion extends string> {
   private constructor(
     readonly current: VersionInfo<CurrentVersion>,
     versions: Array<VersionInfo<any>>,
+    private readonly preInstall?: InitScriptOrFn<"install">,
+    private readonly uninstall?: UninitScript | UninitFn,
   ) {
     this.graph = once(() => {
       const graph = new Graph<
@@ -88,9 +139,7 @@ export class VersionGraph<CurrentVersion extends string> {
                 vertex,
               )
               for (let matching of graph.findVertex(
-                (v) =>
-                  v.metadata instanceof ExtendedVersion &&
-                  v.metadata.satisfies(range),
+                (v) => isExver(v.metadata) && v.metadata.satisfies(range),
               )) {
                 graph.addEdge(
                   version.options.migrations.other[rangeStr],
@@ -116,11 +165,24 @@ export class VersionGraph<CurrentVersion extends string> {
   static of<
     CurrentVersion extends string,
     OtherVersions extends Array<VersionInfo<any>>,
-  >(
-    currentVersion: VersionInfo<CurrentVersion>,
-    ...other: EnsureUniqueId<OtherVersions, OtherVersions, CurrentVersion>
-  ) {
-    return new VersionGraph(currentVersion, other as Array<VersionInfo<any>>)
+  >(options: {
+    current: VersionInfo<CurrentVersion>
+    other: OtherVersions
+    /**
+     * A script to run only on fresh install
+     */
+    preInstall?: InitScript | InitFn
+    /**
+     * A script to run only on uninstall
+     */
+    uninstall?: UninitScript | UninitFn
+  }) {
+    return new VersionGraph(
+      options.current,
+      options.other,
+      options.preInstall,
+      options.uninstall,
+    )
   }
   async migrate({
     effects,
@@ -128,46 +190,42 @@ export class VersionGraph<CurrentVersion extends string> {
     to,
   }: {
     effects: T.Effects
-    from: ExtendedVersion
-    to: ExtendedVersion
-  }) {
+    from: ExtendedVersion | VersionRange
+    to: ExtendedVersion | VersionRange
+  }): Promise<ExtendedVersion | VersionRange> {
+    if (overlaps(from, to)) return from
     const graph = this.graph()
     if (from && to) {
       const path = graph.shortestPath(
-        (v) =>
-          (v.metadata instanceof VersionRange &&
-            v.metadata.satisfiedBy(from)) ||
-          (v.metadata instanceof ExtendedVersion && v.metadata.equals(from)),
-        (v) =>
-          (v.metadata instanceof VersionRange && v.metadata.satisfiedBy(to)) ||
-          (v.metadata instanceof ExtendedVersion && v.metadata.equals(to)),
+        (v) => overlaps(v.metadata, from),
+        (v) => overlaps(v.metadata, to),
       )
       if (path) {
+        let dataVersion = from
         for (let edge of path) {
           if (edge.metadata) {
             await edge.metadata({ effects })
           }
-          await effects.setDataVersion({ version: edge.to.metadata.toString() })
+          dataVersion = edge.to.metadata
+          await setDataVersion(effects, edge.to.metadata)
         }
-        return
+        return dataVersion
       }
     }
-    throw new Error()
+    throw new Error(
+      `cannot migrate from ${from.toString()} to ${to.toString()}`,
+    )
   }
   canMigrateFrom = once(() =>
     Array.from(
-      this.graph().reverseBreadthFirstSearch(
-        (v) =>
-          (v.metadata instanceof VersionRange &&
-            v.metadata.satisfiedBy(this.currentVersion())) ||
-          (v.metadata instanceof ExtendedVersion &&
-            v.metadata.equals(this.currentVersion())),
+      this.graph().reverseBreadthFirstSearch((v) =>
+        overlaps(v.metadata, this.currentVersion()),
       ),
     )
       .reduce(
         (acc, x) =>
           acc.or(
-            x.metadata instanceof VersionRange
+            isRange(x.metadata)
               ? x.metadata
               : VersionRange.anchor("=", x.metadata),
           ),
@@ -177,18 +235,14 @@ export class VersionGraph<CurrentVersion extends string> {
   )
   canMigrateTo = once(() =>
     Array.from(
-      this.graph().breadthFirstSearch(
-        (v) =>
-          (v.metadata instanceof VersionRange &&
-            v.metadata.satisfiedBy(this.currentVersion())) ||
-          (v.metadata instanceof ExtendedVersion &&
-            v.metadata.equals(this.currentVersion())),
+      this.graph().breadthFirstSearch((v) =>
+        overlaps(v.metadata, this.currentVersion()),
       ),
     )
       .reduce(
         (acc, x) =>
           acc.or(
-            x.metadata instanceof VersionRange
+            isRange(x.metadata)
               ? x.metadata
               : VersionRange.anchor("=", x.metadata),
           ),
@@ -196,6 +250,45 @@ export class VersionGraph<CurrentVersion extends string> {
       )
       .normalize(),
   )
+
+  async init(effects: T.Effects, kind: InitKind): Promise<void> {
+    const from = await getDataVersion(effects)
+    if (from) {
+      await this.migrate({
+        effects,
+        from,
+        to: this.currentVersion(),
+      })
+    } else {
+      kind = "install" // implied by !dataVersion
+      if (this.preInstall)
+        if ("init" in this.preInstall) await this.preInstall.init(effects, kind)
+        else await this.preInstall(effects, kind)
+      await effects.setDataVersion({ version: this.current.options.version })
+    }
+  }
+
+  async uninit(
+    effects: T.Effects,
+    target: VersionRange | ExtendedVersion | null,
+  ): Promise<void> {
+    if (target) {
+      const from = await getDataVersion(effects)
+      if (from) {
+        target = await this.migrate({
+          effects,
+          from,
+          to: target,
+        })
+      }
+    } else {
+      if (this.uninstall)
+        if ("uninit" in this.uninstall)
+          await this.uninstall.uninit(effects, target)
+        else await this.uninstall(effects, target)
+    }
+    await setDataVersion(effects, target)
+  }
 }
 
 // prettier-ignore

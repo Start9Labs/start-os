@@ -1,5 +1,4 @@
 use exver::{PreReleaseSegment, VersionRange};
-use imbl_value::json;
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_4_0_alpha_2, VersionT};
@@ -28,7 +27,7 @@ impl VersionT for Version {
     fn compat(self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
-    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
+    fn up(self, _db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
         Ok(())
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {

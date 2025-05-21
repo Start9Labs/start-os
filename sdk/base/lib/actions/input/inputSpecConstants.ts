@@ -45,15 +45,16 @@ export const customSmtp = InputSpec.of<InputSpecOf<SmtpValue>>({
 /**
  * For service inputSpec. Gives users 3 options for SMTP: (1) disabled, (2) use system SMTP settings, (3) use custom SMTP settings
  */
-export const smtpInputSpec = Value.filteredUnion(
+export const smtpInputSpec = Value.dynamicUnion(
   async ({ effects }) => {
     const smtp = await new GetSystemSmtp(effects).once()
-    return smtp ? [] : ["system"]
-  },
-  {
-    name: "SMTP",
-    description: "Optionally provide an SMTP server for sending emails",
-    default: "disabled",
+    const disabled = smtp ? [] : ["system"]
+    return {
+      name: "SMTP",
+      description: "Optionally provide an SMTP server for sending emails",
+      default: "disabled",
+      disabled,
+    }
   },
   Variants.of({
     disabled: { name: "Disabled", spec: InputSpec.of({}) },

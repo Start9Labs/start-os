@@ -2,6 +2,8 @@ import * as T from "../../../base/lib/types"
 import * as child_process from "child_process"
 import * as fs from "fs/promises"
 import { Affine, asError } from "../util"
+import { ExtendedVersion, VersionRange } from "../../../base/lib"
+import { InitKind, InitScript } from "../../../base/lib/inits"
 
 export const DEFAULT_OPTIONS: T.SyncOptions = {
   delete: true,
@@ -17,7 +19,7 @@ export type BackupSync<Volumes extends string> = {
 
 export type BackupEffects = T.Effects & Affine<"Backups">
 
-export class Backups<M extends T.SDKManifest> {
+export class Backups<M extends T.SDKManifest> implements InitScript {
   private constructor(
     private options = DEFAULT_OPTIONS,
     private restoreOptions: Partial<T.SyncOptions> = {},
@@ -35,7 +37,7 @@ export class Backups<M extends T.SDKManifest> {
     return Backups.withSyncs(
       ...volumeNames.map((srcVolume) => ({
         dataPath: `/media/startos/volumes/${srcVolume}/` as const,
-        backupPath: `/media/startos/backup/${srcVolume}/` as const,
+        backupPath: `/media/startos/backup/volumes/${srcVolume}/` as const,
       })),
     )
   }
@@ -96,7 +98,7 @@ export class Backups<M extends T.SDKManifest> {
     return this
   }
 
-  mountVolume(
+  addVolume(
     volume: M["volumes"][number],
     options?: Partial<{
       options: T.SyncOptions
@@ -106,7 +108,7 @@ export class Backups<M extends T.SDKManifest> {
   ) {
     return this.addSync({
       dataPath: `/media/startos/volumes/${volume}/` as const,
-      backupPath: `/media/startos/backup/${volume}/` as const,
+      backupPath: `/media/startos/backup/volumes/${volume}/` as const,
       ...options,
     })
   }
@@ -141,6 +143,12 @@ export class Backups<M extends T.SDKManifest> {
       })
     await this.postBackup(effects as BackupEffects)
     return
+  }
+
+  async init(effects: T.Effects, kind: InitKind): Promise<void> {
+    if (kind === "restore") {
+      await this.restoreBackup(effects)
+    }
   }
 
   async restoreBackup(effects: T.Effects) {

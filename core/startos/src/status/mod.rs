@@ -24,7 +24,6 @@ pub enum MainStatus {
     },
     Stopped,
     Restarting,
-    Restoring,
     Stopping,
     Starting {
         #[ts(as = "BTreeMap<HealthCheckId, NamedHealthCheckResult>")]
@@ -54,7 +53,6 @@ impl MainStatus {
                 ..
             } => true,
             MainStatus::Stopped
-            | MainStatus::Restoring
             | MainStatus::Stopping { .. }
             | MainStatus::BackingUp {
                 on_complete: StartStop::Stop,
@@ -65,6 +63,13 @@ impl MainStatus {
             } => false,
         }
     }
+    pub fn run_state(&self) -> StartStop {
+        if self.running() {
+            StartStop::Start
+        } else {
+            StartStop::Stop
+        }
+    }
 
     pub fn major_changes(&self, other: &Self) -> bool {
         match (self, other) {
@@ -73,7 +78,6 @@ impl MainStatus {
             (MainStatus::Stopping, MainStatus::Stopping) => false,
             (MainStatus::Stopped, MainStatus::Stopped) => false,
             (MainStatus::Restarting, MainStatus::Restarting) => false,
-            (MainStatus::Restoring, MainStatus::Restoring) => false,
             (MainStatus::BackingUp { .. }, MainStatus::BackingUp { .. }) => false,
             (MainStatus::Error { .. }, MainStatus::Error { .. }) => false,
             _ => true,
@@ -95,7 +99,6 @@ impl MainStatus {
             MainStatus::Running { health, .. } | MainStatus::Starting { health } => Some(health),
             MainStatus::BackingUp { .. }
             | MainStatus::Stopped
-            | MainStatus::Restoring
             | MainStatus::Stopping { .. }
             | MainStatus::Restarting
             | MainStatus::Error { .. } => None,

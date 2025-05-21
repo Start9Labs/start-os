@@ -59,10 +59,6 @@ async fn service_actor_loop(
                             ..
                         } => MainStatus::Restarting,
                         ServiceStateKinds {
-                            transition_state: Some(TransitionKind::Restoring),
-                            ..
-                        } => MainStatus::Restoring,
-                        ServiceStateKinds {
                             transition_state: Some(TransitionKind::BackingUp),
                             ..
                         } => previous.backing_up(),

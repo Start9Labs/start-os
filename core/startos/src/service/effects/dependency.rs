@@ -10,7 +10,7 @@ use models::{FromStrParser, HealthCheckId, PackageId, ReplayId, VersionString, V
 use tokio::process::Command;
 
 use crate::db::model::package::{
-    ActionRequestEntry, CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
+    TaskEntry, CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
     ManifestPreference,
 };
 use crate::disk::mount::filesystem::bind::Bind;
@@ -335,7 +335,7 @@ pub struct CheckDependenciesResult {
     installed_version: Option<VersionString>,
     satisfies: BTreeSet<VersionString>,
     is_running: bool,
-    requested_actions: BTreeMap<ReplayId, ActionRequestEntry>,
+    tasks: BTreeMap<ReplayId, TaskEntry>,
     #[ts(as = "BTreeMap::<HealthCheckId, NamedHealthCheckResult>")]
     health_checks: OrdMap<HealthCheckId, NamedHealthCheckResult>,
 }
@@ -351,7 +351,7 @@ pub async fn check_dependencies(
         .as_idx(&context.seed.id)
         .or_not_found(&context.seed.id)?;
     let current_dependencies = pde.as_current_dependencies().de()?;
-    let requested_actions = pde.as_requested_actions().de()?;
+    let tasks = pde.as_tasks().de()?;
     let package_dependency_info: Vec<_> = package_ids
         .unwrap_or_else(|| current_dependencies.0.keys().cloned().collect())
         .into_iter()
@@ -365,9 +365,9 @@ pub async fn check_dependencies(
     for (package_id, dependency_info) in package_dependency_info {
         let title = dependency_info.title.clone();
         let Some(package) = db.as_public().as_package_data().as_idx(&package_id) else {
-            let requested_actions = requested_actions
+            let tasks = tasks
                 .iter()
-                .filter(|(_, v)| v.request.package_id == package_id)
+                .filter(|(_, v)| v.task.package_id == package_id)
                 .map(|(k, v)| (k.clone(), v.clone()))
                 .collect();
             results.push(CheckDependenciesResult {
@@ -376,7 +376,7 @@ pub async fn check_dependencies(
                 installed_version: None,
                 satisfies: BTreeSet::new(),
                 is_running: false,
-                requested_actions,
+                tasks,
                 health_checks: Default::default(),
             });
             continue;
@@ -393,9 +393,9 @@ pub async fn check_dependencies(
             false
         };
         let health_checks = status.health().cloned().unwrap_or_default();
-        let requested_actions = requested_actions
+        let tasks = tasks
             .iter()
-            .filter(|(_, v)| v.request.package_id == package_id)
+            .filter(|(_, v)| v.task.package_id == package_id)
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
         results.push(CheckDependenciesResult {
@@ -404,7 +404,7 @@ pub async fn check_dependencies(
             installed_version,
             satisfies,
             is_running,
-            requested_actions,
+            tasks,
             health_checks,
         });
     }

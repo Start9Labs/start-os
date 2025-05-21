@@ -1,5 +1,3 @@
-use models::VersionString;
-
 use crate::service::effects::prelude::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
@@ -7,7 +5,7 @@ use crate::service::effects::prelude::*;
 #[ts(export)]
 pub struct SetDataVersionParams {
     #[ts(type = "string")]
-    version: VersionString,
+    version: Option<String>,
 }
 pub async fn set_data_version(
     context: EffectContext,
@@ -25,7 +23,7 @@ pub async fn set_data_version(
                 .as_idx_mut(package_id)
                 .or_not_found(package_id)?
                 .as_data_version_mut()
-                .ser(&Some(version))
+                .ser(&version)
         })
         .await
         .result?;
@@ -33,7 +31,7 @@ pub async fn set_data_version(
     Ok(())
 }
 
-pub async fn get_data_version(context: EffectContext) -> Result<Option<VersionString>, Error> {
+pub async fn get_data_version(context: EffectContext) -> Result<Option<String>, Error> {
     let context = context.deref()?;
     let package_id = &context.seed.id;
     context

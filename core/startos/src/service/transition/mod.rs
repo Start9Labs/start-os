@@ -10,13 +10,11 @@ use crate::util::future::{CancellationHandle, RemoteCancellable};
 
 pub mod backup;
 pub mod restart;
-pub mod restore;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TransitionKind {
     BackingUp,
     Restarting,
-    Restoring,
 }
 
 /// Used only in the manager/mod and is used to keep track of the state of the manager during the

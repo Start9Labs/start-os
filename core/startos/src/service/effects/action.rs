@@ -5,7 +5,7 @@ use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 
 use crate::action::{display_action_result, ActionInput, ActionResult};
 use crate::db::model::package::{
-    ActionMetadata, ActionRequest, ActionRequestCondition, ActionRequestEntry, ActionRequestTrigger,
+    ActionMetadata, Task, TaskCondition, TaskEntry, TaskSeverity, TaskTrigger,
 };
 use crate::rpc_continuations::Guid;
 use crate::service::cli::ContainerCliContext;
@@ -34,10 +34,10 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
                 .with_custom_display_fn(|args, res| Ok(display_action_result(args.params, res)))
                 .with_call_remote::<ContainerCliContext>(),
         )
-        .subcommand("request", from_fn_async(request_action).no_cli())
+        .subcommand("create-task", from_fn_async(create_task).no_cli())
         .subcommand(
-            "clear-requests",
-            from_fn_async(clear_action_requests)
+            "clear-tasks",
+            from_fn_async(clear_tasks)
                 .no_display()
                 .with_call_remote::<ContainerCliContext>(),
         )
@@ -196,29 +196,29 @@ async fn run_action(
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct RequestActionParams {
+pub struct CreateTaskParams {
     #[serde(default)]
     #[ts(skip)]
     procedure_id: Guid,
     replay_id: ReplayId,
     #[serde(flatten)]
-    request: ActionRequest,
+    task: Task,
 }
-async fn request_action(
+async fn create_task(
     context: EffectContext,
-    RequestActionParams {
+    CreateTaskParams {
         procedure_id,
         replay_id,
-        request,
-    }: RequestActionParams,
+        task,
+    }: CreateTaskParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
 
     let src_id = &context.seed.id;
-    let active = match &request.when {
-        Some(ActionRequestTrigger { once, condition }) => match condition {
-            ActionRequestCondition::InputNotMatches => {
-                let Some(input) = request.input.as_ref() else {
+    let active = match &task.when {
+        Some(TaskTrigger { once, condition }) => match condition {
+            TaskCondition::InputNotMatches => {
+                let Some(input) = task.input.as_ref() else {
                     return Err(Error::new(
                         eyre!("input-not-matches trigger requires input to be specified"),
                         ErrorKind::InvalidRequest,
@@ -228,19 +228,19 @@ async fn request_action(
                     .seed
                     .ctx
                     .services
-                    .get(&request.package_id)
+                    .get(&task.package_id)
                     .await
                     .as_ref()
                 {
                     let Some(prev) = service
-                        .get_action_input(procedure_id, request.action_id.clone())
+                        .get_action_input(procedure_id.clone(), task.action_id.clone())
                         .await?
                     else {
                         return Err(Error::new(
                             eyre!(
                                 "action {} of {} has no input",
-                                request.action_id,
-                                request.package_id
+                                task.action_id,
+                                task.package_id
                             ),
                             ErrorKind::InvalidRequest,
                         ));
@@ -261,6 +261,9 @@ async fn request_action(
         },
         None => true,
     };
+    if active && task.severity == TaskSeverity::Critical {
+        context.stop(procedure_id).await?;
+    }
     context
         .seed
         .ctx
@@ -270,8 +273,8 @@ async fn request_action(
                 .as_package_data_mut()
                 .as_idx_mut(src_id)
                 .or_not_found(src_id)?
-                .as_requested_actions_mut()
-                .insert(&replay_id, &ActionRequestEntry { active, request })
+                .as_tasks_mut()
+                .insert(&replay_id, &TaskEntry { active, task })
         })
         .await
         .result?;
@@ -281,16 +284,16 @@ async fn request_action(
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
 #[ts(type = "{ only: string[] } | { except: string[] }")]
 #[ts(export)]
-pub struct ClearActionRequestsParams {
+pub struct ClearTasksParams {
     #[arg(long, conflicts_with = "except")]
     pub only: Option<Vec<ReplayId>>,
     #[arg(long, conflicts_with = "only")]
     pub except: Option<Vec<ReplayId>>,
 }
 
-async fn clear_action_requests(
+async fn clear_tasks(
     context: EffectContext,
-    ClearActionRequestsParams { only, except }: ClearActionRequestsParams,
+    ClearTasksParams { only, except }: ClearTasksParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
     let package_id = context.seed.id.clone();
@@ -305,7 +308,7 @@ async fn clear_action_requests(
                 .as_package_data_mut()
                 .as_idx_mut(&package_id)
                 .or_not_found(&package_id)?
-                .as_requested_actions_mut()
+                .as_tasks_mut()
                 .mutate(|a| {
                     Ok(a.retain(|e, _| {
                         only.as_ref().map_or(true, |only| !only.contains(e))

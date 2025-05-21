@@ -1,7 +1,7 @@
 import { Effects } from "../types"
 import {
   CheckDependenciesParam,
-  ClearActionRequestsParams,
+  ClearTasksParams,
   ClearActionsParams,
   ClearBindingsParams,
   ClearCallbacksParams,
@@ -9,7 +9,7 @@ import {
   GetActionInputParams,
   GetContainerIpParams,
   GetStatusParams,
-  RequestActionParams,
+  CreateTaskParams,
   RunActionParams,
   SetDataVersionParams,
   SetMainStatus,
@@ -30,6 +30,7 @@ import { ListServiceInterfacesParams } from ".././osBindings"
 import { ExportActionParams } from ".././osBindings"
 import { MountParams } from ".././osBindings"
 import { StringObject } from "../util"
+import { ExtendedVersion, VersionRange } from "../exver"
 function typeEquality<ExpectedType>(_a: ExpectedType) {}
 
 type WithCallback<T> = Omit<T, "callback"> & { callback: () => void }
@@ -54,8 +55,8 @@ describe("startosTypeValidation ", () => {
         export: {} as ExportActionParams,
         getInput: {} as GetActionInputParams,
         run: {} as RunActionParams,
-        request: {} as RequestActionParams,
-        clearRequests: {} as ClearActionRequestsParams,
+        createTask: {} as CreateTaskParams,
+        clearTasks: {} as ClearTasksParams,
       },
       subcontainer: {
         createFs: {} as CreateSubcontainerFsParams,

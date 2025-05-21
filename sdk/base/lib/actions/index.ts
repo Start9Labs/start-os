@@ -1,6 +1,6 @@
 import * as T from "../types"
 import * as IST from "../actions/input/inputSpecTypes"
-import { Action } from "./setupActions"
+import { Action, ActionInfo } from "./setupActions"
 import { ExtractInputSpecType } from "./input/builder/inputSpec"
 
 export type RunActionInput<Input> =
@@ -45,45 +45,41 @@ export const runAction = async <
     })
   }
 }
-type GetActionInputType<A extends Action<T.ActionId, any>> =
+type GetActionInputType<A extends ActionInfo<T.ActionId, any>> =
   A extends Action<T.ActionId, infer I> ? ExtractInputSpecType<I> : never
 
-type ActionRequestBase = {
+type TaskBase = {
   reason?: string
   replayId?: string
 }
-type ActionRequestInput<T extends Action<T.ActionId, any>> = {
+type TaskInput<T extends ActionInfo<T.ActionId, any>> = {
   kind: "partial"
   value: T.DeepPartial<GetActionInputType<T>>
 }
-export type ActionRequestOptions<T extends Action<T.ActionId, any>> =
-  ActionRequestBase &
-    (
-      | {
-          when?: Exclude<
-            T.ActionRequestTrigger,
-            { condition: "input-not-matches" }
-          >
-          input?: ActionRequestInput<T>
-        }
-      | {
-          when: T.ActionRequestTrigger & { condition: "input-not-matches" }
-          input: ActionRequestInput<T>
-        }
-    )
+export type TaskOptions<T extends ActionInfo<T.ActionId, any>> = TaskBase &
+  (
+    | {
+        when?: Exclude<T.TaskTrigger, { condition: "input-not-matches" }>
+        input?: TaskInput<T>
+      }
+    | {
+        when: T.TaskTrigger & { condition: "input-not-matches" }
+        input: TaskInput<T>
+      }
+  )
 
-const _validate: T.ActionRequest = {} as ActionRequestOptions<any> & {
+const _validate: T.Task = {} as TaskOptions<any> & {
   actionId: string
   packageId: string
-  severity: T.ActionSeverity
+  severity: T.TaskSeverity
 }
 
-export const requestAction = <T extends Action<T.ActionId, any>>(options: {
+export const createTask = <T extends ActionInfo<T.ActionId, any>>(options: {
   effects: T.Effects
   packageId: T.PackageId
   action: T
-  severity: T.ActionSeverity
-  options?: ActionRequestOptions<T>
+  severity: T.TaskSeverity
+  options?: TaskOptions<T>
 }) => {
   const request = options.options || {}
   const actionId = options.action.id
@@ -96,5 +92,5 @@ export const requestAction = <T extends Action<T.ActionId, any>>(options: {
     replayId: request.replayId || `${options.packageId}:${actionId}`,
   }
   delete req.action
-  return options.effects.action.request(req)
+  return options.effects.action.createTask(req)
 }

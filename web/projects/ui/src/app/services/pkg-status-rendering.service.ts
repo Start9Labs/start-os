@@ -22,11 +22,11 @@ export function renderPkgStatus(pkg: PackageDataEntry): PackageStatus {
 }
 
 export function getInstalledPrimaryStatus({
-  requestedActions,
+  tasks,
   status,
 }: T.PackageDataEntry): PrimaryStatus {
-  return Object.values(requestedActions).some(
-    r => r.active && r.request.severity === 'critical',
+  return Object.values(tasks).some(
+    t => t.active && t.task.severity === 'critical',
   )
     ? 'actionRequired'
     : status.main

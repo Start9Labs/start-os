@@ -12,9 +12,15 @@ import {
   any,
   shape,
   anyOf,
+  literals,
 } from "ts-matches"
 
-import { types as T, utils } from "@start9labs/start-sdk"
+import {
+  ExtendedVersion,
+  types as T,
+  utils,
+  VersionRange,
+} from "@start9labs/start-sdk"
 import * as fs from "fs"
 
 import { CallbackHolder } from "../Models/CallbackHolder"
@@ -80,6 +86,10 @@ const callbackType = object({
 const initType = object({
   id: idType.optional(),
   method: literal("init"),
+  params: object({
+    id: string,
+    kind: literals("install", "update", "restore").nullable(),
+  }),
 })
 const startType = object({
   id: idType.optional(),
@@ -92,6 +102,10 @@ const stopType = object({
 const exitType = object({
   id: idType.optional(),
   method: literal("exit"),
+  params: object({
+    id: string,
+    target: string.nullable(),
+  }),
 })
 const evalType = object({
   id: idType.optional(),
@@ -276,15 +290,29 @@ export class RpcListener {
           this.system.stop().then((result) => ({ result })),
         )
       })
-      .when(exitType, async ({ id }) => {
+      .when(exitType, async ({ id, params }) => {
         return handleRpc(
           id,
           (async () => {
-            if (this._system) await this._system.exit()
+            if (this._system) {
+              let target = null
+              if (params.target)
+                try {
+                  target = ExtendedVersion.parse(params.target)
+                } catch (_) {
+                  target = VersionRange.parse(params.target).normalize()
+                }
+              await this._system.exit(
+                makeEffects({
+                  procedureId: params.id,
+                }),
+                target,
+              )
+            }
           })().then((result) => ({ result })),
         )
       })
-      .when(initType, async ({ id }) => {
+      .when(initType, async ({ id, params }) => {
         return handleRpc(
           id,
           (async () => {
@@ -292,15 +320,16 @@ export class RpcListener {
               const system = await this.getDependencies.system()
               this.callbacks = new CallbackHolder(
                 makeEffects({
-                  procedureId: null,
+                  procedureId: params.id,
                 }),
               )
-              const callbacks = this.callbacks.child("containerInit")
-              await system.containerInit(
+              const callbacks = this.callbacks.child("init")
+              await system.init(
                 makeEffects({
-                  procedureId: null,
+                  procedureId: params.id,
                   callbacks,
                 }),
+                params.kind,
               )
               this._system = system
             }
@@ -387,16 +416,6 @@ export class RpcListener {
       switch (procedure) {
         case "/backup/create":
           return system.createBackup(effects, timeout || null)
-        case "/backup/restore":
-          return system.restoreBackup(effects, timeout || null)
-        case "/packageInit":
-          return system.packageInit(effects, timeout || null)
-        case "/packageUninit":
-          return system.packageUninit(
-            effects,
-            string.optional().unsafeCast(input),
-            timeout || null,
-          )
         default:
           const procedures = unNestPath(procedure)
           switch (true) {

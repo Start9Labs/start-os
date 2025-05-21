@@ -40,7 +40,7 @@ pub struct Public {
     pub ui: Value,
 }
 impl Public {
-    pub fn init(account: &AccountInfo) -> Result<Self, Error> {
+    pub fn init(account: &AccountInfo, kiosk: Option<bool>) -> Result<Self, Error> {
         Ok(Self {
             server_info: ServerInfo {
                 arch: get_arch(),
@@ -117,6 +117,7 @@ impl Public {
                 smtp: None,
                 ram: 0,
                 devices: Vec::new(),
+                kiosk,
             },
             package_data: AllPackageData::default(),
             ui: serde_json::from_str(include_str!(concat!(
@@ -175,6 +176,7 @@ pub struct ServerInfo {
     #[ts(type = "number")]
     pub ram: u64,
     pub devices: Vec<LshwDevice>,
+    pub kiosk: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]

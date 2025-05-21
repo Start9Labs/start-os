@@ -340,6 +340,7 @@ impl VersionT for Version {
                         .install(
                             ctx.clone(),
                             || crate::s9pk::load(file.clone(), || Ok(key.de()?.0), None),
+                            None,
                             None::<crate::util::Never>,
                             None,
                         )

@@ -1,6 +1,8 @@
 import {
   ExtendedVersion,
   FileHelper,
+  getDataVersion,
+  overlaps,
   types as T,
   utils,
   VersionRange,
@@ -310,7 +312,13 @@ export class SystemForEmbassy implements System {
     readonly moduleCode: Partial<U.ExpectedExports>,
   ) {}
 
-  async containerInit(effects: Effects): Promise<void> {
+  async init(
+    effects: Effects,
+    kind: "install" | "update" | "restore" | null,
+  ): Promise<void> {
+    if (kind === "restore") {
+      await this.restoreBackup(effects, null)
+    }
     for (let depId in this.manifest.dependencies) {
       if (this.manifest.dependencies[depId]?.config) {
         await this.dependenciesAutoconfig(effects, depId, null)
@@ -320,6 +328,9 @@ export class SystemForEmbassy implements System {
     await this.exportActions(effects)
     await this.exportNetwork(effects)
     await this.containerSetDependencies(effects)
+    if (kind === "install" || kind === "update") {
+      await this.packageInit(effects, null)
+    }
   }
   async containerSetDependencies(effects: T.Effects) {
     const oldDeps: Record<string, string[]> = Object.fromEntries(
@@ -359,17 +370,23 @@ export class SystemForEmbassy implements System {
   }
 
   async packageInit(effects: Effects, timeoutMs: number | null): Promise<void> {
-    const previousVersion = await effects.getDataVersion()
+    const previousVersion = await getDataVersion(effects)
     if (previousVersion) {
-      if (
-        (await this.migration(effects, { from: previousVersion }, timeoutMs))
-          .configured
-      ) {
-        await effects.action.clearRequests({ only: ["needs-config"] })
+      const migrationRes = await this.migration(
+        effects,
+        { from: previousVersion },
+        timeoutMs,
+      )
+      if (migrationRes) {
+        if (migrationRes.configured)
+          await effects.action.clearTasks({ only: ["needs-config"] })
+        await configFile.write(
+          effects,
+          await this.getConfig(effects, timeoutMs),
+        )
       }
-      await configFile.write(effects, await this.getConfig(effects, timeoutMs))
     } else if (this.manifest.config) {
-      await effects.action.request({
+      await effects.action.createTask({
         packageId: this.manifest.id,
         actionId: "config",
         severity: "critical",
@@ -460,7 +477,7 @@ export class SystemForEmbassy implements System {
               masked: false,
               path: "",
               schemeOverride: null,
-              search: {},
+              query: {},
               username: null,
             }),
           ])
@@ -562,14 +579,17 @@ export class SystemForEmbassy implements System {
     }
     await effects.action.clear({ except: Object.keys(actions) })
   }
-  async packageUninit(
+  async uninit(
     effects: Effects,
-    nextVersion: Optional<string>,
-    timeoutMs: number | null,
+    target: ExtendedVersion | VersionRange | null,
+    timeoutMs?: number | null,
   ): Promise<void> {
     await this.currentRunning?.clean({ timeout: timeoutMs ?? undefined })
-    if (nextVersion) {
-      await this.migration(effects, { to: nextVersion }, timeoutMs)
+    if (
+      target &&
+      !overlaps(target, ExtendedVersion.parseEmver(this.manifest.version))
+    ) {
+      await this.migration(effects, { to: target }, timeoutMs ?? null)
     }
     await effects.setMainStatus({ status: "stopped" })
   }
@@ -781,31 +801,31 @@ export class SystemForEmbassy implements System {
 
   async migration(
     effects: Effects,
-    version: { from: string } | { to: string },
+    version:
+      | { from: VersionRange | ExtendedVersion }
+      | { to: VersionRange | ExtendedVersion },
     timeoutMs: number | null,
-  ): Promise<{ configured: boolean }> {
+  ): Promise<{ configured: boolean } | null> {
     let migration
     let args: [string, ...string[]]
     if ("from" in version) {
-      args = [version.from, "from"]
-      const fromExver = ExtendedVersion.parse(version.from)
+      args = [version.from.toString(), "from"]
       if (!this.manifest.migrations) return { configured: true }
       migration = Object.entries(this.manifest.migrations.from)
         .map(
           ([version, procedure]) =>
             [VersionRange.parseEmver(version), procedure] as const,
         )
-        .find(([versionEmver, _]) => versionEmver.satisfiedBy(fromExver))
+        .find(([versionEmver, _]) => overlaps(versionEmver, version.from))
     } else {
-      args = [version.to, "to"]
-      const toExver = ExtendedVersion.parse(version.to)
+      args = [version.to.toString(), "to"]
       if (!this.manifest.migrations) return { configured: true }
       migration = Object.entries(this.manifest.migrations.to)
         .map(
           ([version, procedure]) =>
             [VersionRange.parseEmver(version), procedure] as const,
         )
-        .find(([versionEmver, _]) => versionEmver.satisfiedBy(toExver))
+        .find(([versionEmver, _]) => overlaps(versionEmver, version.to))
     }
 
     if (migration) {
@@ -841,7 +861,7 @@ export class SystemForEmbassy implements System {
         })) as any
       }
     }
-    return { configured: true }
+    return null
   }
   async properties(
     effects: Effects,
@@ -1022,7 +1042,7 @@ export class SystemForEmbassy implements System {
         })) as any
         const diff = partialDiff(oldConfig, newConfig)
         if (diff) {
-          await effects.action.request({
+          await effects.action.createTask({
             actionId: "config",
             packageId: id,
             replayId: `${id}/config`,
