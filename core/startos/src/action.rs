@@ -348,6 +348,7 @@ pub struct ClearTaskParams {
     pub package_id: PackageId,
     pub replay_id: ReplayId,
     #[arg(long)]
+    #[serde(default)]
     pub force: bool,
 }
 

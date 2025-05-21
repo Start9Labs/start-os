@@ -187,10 +187,10 @@ export class FileHelper<A> {
   /**
    * Reads the file from disk and converts it to structured data.
    */
-  private async readOnce(): Promise<A | null> {
+  private async readOnce<B>(map: (value: A) => B): Promise<B | null> {
     const data = await this.readFile()
     if (!data) return null
-    return this.validate(data)
+    return map(this.validate(data))
   }
 
   private async readConst<B>(
@@ -224,8 +224,7 @@ export class FileHelper<A> {
           persistent: false,
           signal: ctrl.signal,
         })
-        const newResFull = await this.readOnce()
-        const newRes = newResFull ? map(newResFull) : null
+        const newRes = await this.readOnce(map)
         const listen = Promise.resolve()
           .then(async () => {
             for await (const _ of watch) {
@@ -284,7 +283,7 @@ export class FileHelper<A> {
     map = map ?? ((a: A) => a)
     eq = eq ?? ((left: any, right: any) => !partialDiff(left, right))
     return {
-      once: () => this.readOnce(),
+      once: () => this.readOnce(map),
       const: (effects: T.Effects) => this.readConst(effects, map, eq),
       watch: (effects: T.Effects) => this.readWatch(effects, map, eq),
       onChange: (
