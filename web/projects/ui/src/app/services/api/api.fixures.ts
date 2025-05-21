@@ -2232,9 +2232,9 @@ export namespace Mock {
     storeExposedDependents: [],
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
-    requestedActions: {
+    tasks: {
       'bitcoind-config': {
-        request: {
+        task: {
           packageId: 'bitcoind',
           actionId: 'config',
           severity: 'critical',
@@ -2244,7 +2244,7 @@ export namespace Mock {
         active: true,
       },
       'bitcoind-properties': {
-        request: {
+        task: {
           packageId: 'bitcoind',
           actionId: 'properties',
           severity: 'important',
@@ -2297,7 +2297,7 @@ export namespace Mock {
     storeExposedDependents: [],
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
-    requestedActions: {},
+    tasks: {},
   }
 
   export const lnd: PackageDataEntry<InstalledState> = {
@@ -2400,10 +2400,10 @@ export namespace Mock {
     storeExposedDependents: [],
     registry: 'https://registry.start9.com/',
     developerKey: 'developer-key',
-    requestedActions: {
+    tasks: {
       config: {
         active: true,
-        request: {
+        task: {
           packageId: 'lnd',
           actionId: 'config',
           severity: 'critical',
@@ -2412,7 +2412,7 @@ export namespace Mock {
       },
       connect: {
         active: true,
-        request: {
+        task: {
           packageId: 'lnd',
           actionId: 'connect',
           severity: 'important',
@@ -2421,7 +2421,7 @@ export namespace Mock {
       },
       'bitcoind/config': {
         active: true,
-        request: {
+        task: {
           packageId: 'bitcoind',
           actionId: 'config',
           severity: 'critical',
@@ -2437,7 +2437,7 @@ export namespace Mock {
       },
       'bitcoind/rpc': {
         active: true,
-        request: {
+        task: {
           packageId: 'bitcoind',
           actionId: 'rpc',
           severity: 'important',

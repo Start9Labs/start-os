@@ -138,22 +138,20 @@ export function makeEffects(context: EffectContext): Effects {
           ...options,
         }) as ReturnType<T.Effects["action"]["getInput"]>
       },
-      request(...[options]: Parameters<T.Effects["action"]["request"]>) {
-        return rpcRound("action.request", {
+      createTask(...[options]: Parameters<T.Effects["action"]["createTask"]>) {
+        return rpcRound("action.create-task", {
           ...options,
-        }) as ReturnType<T.Effects["action"]["request"]>
+        }) as ReturnType<T.Effects["action"]["createTask"]>
       },
       run(...[options]: Parameters<T.Effects["action"]["run"]>) {
         return rpcRound("action.run", {
           ...options,
         }) as ReturnType<T.Effects["action"]["run"]>
       },
-      clearRequests(
-        ...[options]: Parameters<T.Effects["action"]["clearRequests"]>
-      ) {
-        return rpcRound("action.clear-requests", {
+      clearTasks(...[options]: Parameters<T.Effects["action"]["clearTasks"]>) {
+        return rpcRound("action.clear-tasks", {
           ...options,
-        }) as ReturnType<T.Effects["action"]["clearRequests"]>
+        }) as ReturnType<T.Effects["action"]["clearTasks"]>
       },
     },
     bind(...[options]: Parameters<T.Effects["bind"]>) {

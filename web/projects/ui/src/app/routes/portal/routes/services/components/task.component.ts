@@ -77,10 +77,10 @@ import { getManifest } from 'src/app/utils/get-package-data'
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiButton, TuiAvatar, i18nPipe],
 })
-export class ServiceActionRequestComponent {
+export class ServiceTaskComponent {
   private readonly actionService = inject(ActionService)
 
-  readonly actionRequest = input.required<T.ActionRequest>()
+  readonly actionRequest = input.required<T.Task>()
   readonly services = input.required<Record<string, PackageDataEntry>>()
 
   readonly pkg = computed(() => this.services()[this.actionRequest().packageId])

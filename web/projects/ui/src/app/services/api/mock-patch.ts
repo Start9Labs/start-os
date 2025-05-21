@@ -456,9 +456,9 @@ export const mockPatchData: DataModel = {
       storeExposedDependents: [],
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
-      requestedActions: {
+      tasks: {
         // 'bitcoind-config': {
-        //   request: {
+        //   task: {
         //     packageId: 'bitcoind',
         //     actionId: 'config',
         //     severity: 'critical',
@@ -468,7 +468,7 @@ export const mockPatchData: DataModel = {
         //   active: true,
         // },
         'bitcoind-properties': {
-          request: {
+          task: {
             packageId: 'bitcoind',
             actionId: 'properties',
             severity: 'important',
@@ -582,10 +582,10 @@ export const mockPatchData: DataModel = {
       storeExposedDependents: [],
       registry: 'https://registry.start9.com/',
       developerKey: 'developer-key',
-      requestedActions: {
+      tasks: {
         config: {
           active: true,
-          request: {
+          task: {
             packageId: 'lnd',
             actionId: 'config',
             severity: 'critical',
@@ -594,7 +594,7 @@ export const mockPatchData: DataModel = {
         },
         connect: {
           active: true,
-          request: {
+          task: {
             packageId: 'lnd',
             actionId: 'connect',
             severity: 'important',
@@ -603,7 +603,7 @@ export const mockPatchData: DataModel = {
         },
         'bitcoind/config': {
           active: true,
-          request: {
+          task: {
             packageId: 'bitcoind',
             actionId: 'config',
             severity: 'critical',
@@ -619,7 +619,7 @@ export const mockPatchData: DataModel = {
         },
         'bitcoind/rpc': {
           active: true,
-          request: {
+          task: {
             packageId: 'bitcoind',
             actionId: 'rpc',
             severity: 'important',

@@ -223,7 +223,7 @@ impl ServiceMap {
                                         last_backup: None,
                                         current_dependencies: Default::default(),
                                         actions: Default::default(),
-                                        requested_actions: Default::default(),
+                                        tasks: Default::default(),
                                         service_interfaces: Default::default(),
                                         hosts: Default::default(),
                                         store_exposed_dependents: Default::default(),

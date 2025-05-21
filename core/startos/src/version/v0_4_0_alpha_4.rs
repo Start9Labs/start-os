@@ -29,11 +29,40 @@ impl VersionT for Version {
     fn compat(self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
+    #[instrument]
     fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
         db["public"]["serverInfo"]
             .as_object_mut()
             .or_not_found("public.serverInfo")?
-            .insert("kiosk".into(), Value::Bool(true));
+            .insert("kiosk".into(), Value::Bool(false));
+        for (_, pde) in db["public"]["packageData"]
+            .as_object_mut()
+            .into_iter()
+            .flat_map(|m| m.iter_mut())
+        {
+            let Some(pde) = pde.as_object_mut() else {
+                continue;
+            };
+            let Some(mut tasks) = pde.remove("requestedActions").and_then(|ar| {
+                if let Value::Object(ar) = ar {
+                    Some(ar)
+                } else {
+                    None
+                }
+            }) else {
+                continue;
+            };
+            for (_, task_entry) in tasks.iter_mut() {
+                let Some(task_entry) = task_entry.as_object_mut() else {
+                    continue;
+                };
+                let Some(task) = task_entry.remove("request") else {
+                    continue;
+                };
+                task_entry.insert("task".into(), task);
+            }
+            pde.insert("tasks".into(), Value::Object(tasks));
+        }
         Ok(())
     }
     async fn post_up(self, _ctx: &RpcContext) -> Result<(), Error> {

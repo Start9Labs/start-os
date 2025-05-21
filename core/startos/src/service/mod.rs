@@ -45,7 +45,7 @@ use crate::prelude::*;
 use crate::progress::{NamedProgress, Progress};
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::S9pk;
-use crate::service::action::update_requested_actions;
+use crate::service::action::update_tasks;
 use crate::service::rpc::{ExitParams, InitKind};
 use crate::service::service_map::InstallProgressHandles;
 use crate::util::actor::concurrent::ConcurrentActor;
@@ -486,19 +486,19 @@ impl Service {
 
         let peek = ctx.db.peek().await;
         let mut action_input: BTreeMap<ActionId, Value> = BTreeMap::new();
-        let requested_actions: BTreeSet<_> = peek
+        let tasks: BTreeSet<_> = peek
             .as_public()
             .as_package_data()
             .as_entries()?
             .into_iter()
             .map(|(_, pde)| {
                 Ok(pde
-                    .as_requested_actions()
+                    .as_tasks()
                     .as_entries()?
                     .into_iter()
                     .map(|(_, r)| {
-                        Ok::<_, Error>(if r.as_request().as_package_id().de()? == manifest.id {
-                            Some(r.as_request().as_action_id().de()?)
+                        Ok::<_, Error>(if r.as_task().as_package_id().de()? == manifest.id {
+                            Some(r.as_task().as_action_id().de()?)
                         } else {
                             None
                         })
@@ -508,27 +508,30 @@ impl Service {
             .flatten_ok()
             .map(|a| a.and_then(|a| a))
             .try_collect()?;
-        for action_id in requested_actions {
-            if let Some(input) = service
-                .get_action_input(procedure_id.clone(), action_id.clone())
-                .await?
-                .and_then(|i| i.value)
+        for action_id in tasks {
+            if peek
+                .as_public()
+                .as_package_data()
+                .as_idx(&manifest.id)
+                .or_not_found(&manifest.id)?
+                .as_actions()
+                .contains_key(&action_id)?
             {
-                action_input.insert(action_id, input);
+                if let Some(input) = service
+                    .get_action_input(procedure_id.clone(), action_id.clone())
+                    .await?
+                    .and_then(|i| i.value)
+                {
+                    action_input.insert(action_id, input);
+                }
             }
         }
         ctx.db
             .mutate(|db| {
                 for (action_id, input) in &action_input {
                     for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
-                        pde.as_requested_actions_mut().mutate(|requested_actions| {
-                            Ok(update_requested_actions(
-                                requested_actions,
-                                &manifest.id,
-                                action_id,
-                                input,
-                                false,
-                            ))
+                        pde.as_tasks_mut().mutate(|tasks| {
+                            Ok(update_tasks(tasks, &manifest.id, action_id, input, false))
                         })?;
                     }
                 }
@@ -537,6 +540,12 @@ impl Service {
                     .as_package_data_mut()
                     .as_idx_mut(&manifest.id)
                     .or_not_found(&manifest.id)?;
+                let actions = entry.as_actions().keys()?;
+                entry.as_tasks_mut().mutate(|t| {
+                    Ok(t.retain(|_, v| {
+                        v.task.package_id != manifest.id || actions.contains(&v.task.action_id)
+                    }))
+                })?;
                 entry
                     .as_state_info_mut()
                     .ser(&PackageState::Installed(InstalledState { manifest }))?;

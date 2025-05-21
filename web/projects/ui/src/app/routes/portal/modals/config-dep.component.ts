@@ -12,7 +12,7 @@ import { tuiIsNumber } from '@taiga-ui/cdk'
 import { CommonModule } from '@angular/common'
 
 @Component({
-  selector: 'action-request-info',
+  selector: 'task-info',
   template: `
     <tui-notification *ngIf="diff.length">
       {{ 'The following modifications were made' | i18n }}:
@@ -32,7 +32,7 @@ import { CommonModule } from '@angular/common'
     `,
   ],
 })
-export class ActionRequestInfoComponent implements OnInit {
+export class TaskInfoComponent implements OnInit {
   @Input()
   originalValue: object = {}
 

@@ -379,14 +379,14 @@ export class SystemForEmbassy implements System {
       )
       if (migrationRes) {
         if (migrationRes.configured)
-          await effects.action.clearRequests({ only: ["needs-config"] })
+          await effects.action.clearTasks({ only: ["needs-config"] })
         await configFile.write(
           effects,
           await this.getConfig(effects, timeoutMs),
         )
       }
     } else if (this.manifest.config) {
-      await effects.action.request({
+      await effects.action.createTask({
         packageId: this.manifest.id,
         actionId: "config",
         severity: "critical",
@@ -1042,7 +1042,7 @@ export class SystemForEmbassy implements System {
         })) as any
         const diff = partialDiff(oldConfig, newConfig)
         if (diff) {
-          await effects.action.request({
+          await effects.action.createTask({
             actionId: "config",
             packageId: id,
             replayId: `${id}/config`,

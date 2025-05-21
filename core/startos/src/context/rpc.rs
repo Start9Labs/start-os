@@ -35,7 +35,7 @@ use crate::net::wifi::WpaCli;
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};
 use crate::rpc_continuations::{Guid, OpenAuthedContinuations, RpcContinuations};
-use crate::service::action::update_requested_actions;
+use crate::service::action::update_tasks;
 use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
@@ -102,14 +102,14 @@ impl InitRpcContextPhases {
 pub struct CleanupInitPhases {
     cleanup_sessions: PhaseProgressTrackerHandle,
     init_services: PhaseProgressTrackerHandle,
-    check_requested_actions: PhaseProgressTrackerHandle,
+    check_tasks: PhaseProgressTrackerHandle,
 }
 impl CleanupInitPhases {
     pub fn new(handle: &FullProgressTracker) -> Self {
         Self {
             cleanup_sessions: handle.add_phase("Cleaning up sessions".into(), Some(1)),
             init_services: handle.add_phase("Initializing services".into(), Some(10)),
-            check_requested_actions: handle.add_phase("Checking action requests".into(), Some(1)),
+            check_tasks: handle.add_phase("Checking action requests".into(), Some(1)),
         }
     }
 }
@@ -307,7 +307,7 @@ impl RpcContext {
         CleanupInitPhases {
             mut cleanup_sessions,
             init_services,
-            mut check_requested_actions,
+            mut check_tasks,
         }: CleanupInitPhases,
     ) -> Result<(), Error> {
         cleanup_sessions.start();
@@ -369,31 +369,27 @@ impl RpcContext {
         tracing::info!("Initialized Services");
 
         // TODO
-        check_requested_actions.start();
+        check_tasks.start();
         let peek = self.db.peek().await;
         let mut action_input: OrdMap<PackageId, BTreeMap<ActionId, Value>> = OrdMap::new();
-        let requested_actions: BTreeSet<_> = peek
+        let tasks: BTreeSet<_> = peek
             .as_public()
             .as_package_data()
             .as_entries()?
             .into_iter()
             .map(|(_, pde)| {
-                Ok(pde
-                    .as_requested_actions()
-                    .as_entries()?
-                    .into_iter()
-                    .map(|(_, r)| {
-                        Ok::<_, Error>((
-                            r.as_request().as_package_id().de()?,
-                            r.as_request().as_action_id().de()?,
-                        ))
-                    }))
+                Ok(pde.as_tasks().as_entries()?.into_iter().map(|(_, r)| {
+                    Ok::<_, Error>((
+                        r.as_task().as_package_id().de()?,
+                        r.as_task().as_action_id().de()?,
+                    ))
+                }))
             })
             .flatten_ok()
             .map(|a| a.and_then(|a| a))
             .try_collect()?;
         let procedure_id = Guid::new();
-        for (package_id, action_id) in requested_actions {
+        for (package_id, action_id) in tasks {
             if let Some(service) = self.services.get(&package_id).await.as_ref() {
                 if let Some(input) = service
                     .get_action_input(procedure_id.clone(), action_id.clone())
@@ -412,14 +408,8 @@ impl RpcContext {
                 for (package_id, action_input) in &action_input {
                     for (action_id, input) in action_input {
                         for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
-                            pde.as_requested_actions_mut().mutate(|requested_actions| {
-                                Ok(update_requested_actions(
-                                    requested_actions,
-                                    package_id,
-                                    action_id,
-                                    input,
-                                    false,
-                                ))
+                            pde.as_tasks_mut().mutate(|tasks| {
+                                Ok(update_tasks(tasks, package_id, action_id, input, false))
                             })?;
                         }
                     }
@@ -428,7 +418,7 @@ impl RpcContext {
             })
             .await
             .result?;
-        check_requested_actions.complete();
+        check_tasks.complete();
 
         Ok(())
     }

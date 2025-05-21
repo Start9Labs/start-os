@@ -13,7 +13,7 @@ import {
   Host,
   ExportServiceInterfaceParams,
   ServiceInterface,
-  RequestActionParams,
+  CreateTaskParams,
   MainStatus,
 } from "./osBindings"
 import {
@@ -51,10 +51,8 @@ export type Effects = {
       actionId: ActionId
       input?: Input
     }): Promise<ActionResult | null>
-    request<Input extends Record<string, unknown>>(
-      options: RequestActionParams,
-    ): Promise<null>
-    clearRequests(
+    createTask(options: CreateTaskParams): Promise<null>
+    clearTasks(
       options: { only: string[] } | { except: string[] },
     ): Promise<null>
   }

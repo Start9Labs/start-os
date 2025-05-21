@@ -1,7 +1,7 @@
 import { Effects } from "../types"
 import {
   CheckDependenciesParam,
-  ClearActionRequestsParams,
+  ClearTasksParams,
   ClearActionsParams,
   ClearBindingsParams,
   ClearCallbacksParams,
@@ -9,7 +9,7 @@ import {
   GetActionInputParams,
   GetContainerIpParams,
   GetStatusParams,
-  RequestActionParams,
+  CreateTaskParams,
   RunActionParams,
   SetDataVersionParams,
   SetMainStatus,
@@ -55,8 +55,8 @@ describe("startosTypeValidation ", () => {
         export: {} as ExportActionParams,
         getInput: {} as GetActionInputParams,
         run: {} as RunActionParams,
-        request: {} as RequestActionParams,
-        clearRequests: {} as ClearActionRequestsParams,
+        createTask: {} as CreateTaskParams,
+        clearTasks: {} as ClearTasksParams,
       },
       subcontainer: {
         createFs: {} as CreateSubcontainerFsParams,

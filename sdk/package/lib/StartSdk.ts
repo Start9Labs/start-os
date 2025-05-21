@@ -140,35 +140,35 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       getDataVersion,
       action: {
         run: actions.runAction,
-        request: <T extends ActionInfo<T.ActionId, any>>(
+        createTask: <T extends ActionInfo<T.ActionId, any>>(
           effects: T.Effects,
           packageId: T.PackageId,
           action: T,
-          severity: T.ActionSeverity,
-          options?: actions.ActionRequestOptions<T>,
+          severity: T.TaskSeverity,
+          options?: actions.TaskOptions<T>,
         ) =>
-          actions.requestAction({
+          actions.createTask({
             effects,
             packageId,
             action,
             severity,
             options: options,
           }),
-        requestOwn: <T extends ActionInfo<T.ActionId, any>>(
+        createOwnTask: <T extends ActionInfo<T.ActionId, any>>(
           effects: T.Effects,
           action: T,
-          severity: T.ActionSeverity,
-          options?: actions.ActionRequestOptions<T>,
+          severity: T.TaskSeverity,
+          options?: actions.TaskOptions<T>,
         ) =>
-          actions.requestAction({
+          actions.createTask({
             effects,
             packageId: this.manifest.id,
             action,
             severity,
             options: options,
           }),
-        clearRequest: (effects: T.Effects, ...replayIds: string[]) =>
-          effects.action.clearRequests({ only: replayIds }),
+        clearTask: (effects: T.Effects, ...replayIds: string[]) =>
+          effects.action.clearTasks({ only: replayIds }),
       },
       checkDependencies: checkDependencies as <
         DependencyId extends keyof Manifest["dependencies"] &

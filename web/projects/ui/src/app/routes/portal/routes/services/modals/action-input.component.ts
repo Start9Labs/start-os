@@ -22,7 +22,7 @@ import {
   ActionButton,
   FormComponent,
 } from 'src/app/routes/portal/components/form.component'
-import { ActionRequestInfoComponent } from 'src/app/routes/portal/modals/config-dep.component'
+import { TaskInfoComponent } from 'src/app/routes/portal/modals/config-dep.component'
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -40,7 +40,7 @@ export type PackageActionData = {
     id: string
     metadata: T.ActionMetadata
   }
-  requestInfo?: T.ActionRequest
+  requestInfo?: T.Task
 }
 
 @Component({
@@ -63,7 +63,7 @@ export type PackageActionData = {
       }
 
       @if (requestInfo) {
-        <action-request-info
+        <task-info
           [originalValue]="res.originalValue || {}"
           [operations]="res.operations || []"
         />
@@ -114,7 +114,7 @@ export type PackageActionData = {
     TuiNotification,
     TuiLoader,
     TuiButton,
-    ActionRequestInfoComponent,
+    TaskInfoComponent,
     FormComponent,
     i18nPipe,
   ],
@@ -186,16 +186,16 @@ export class ActionInputModal {
       .filter(
         id =>
           id !== this.pkgInfo.id &&
-          Object.values(packages[id]!.requestedActions).some(
-            ({ request, active }) =>
+          Object.values(packages[id]!.tasks).some(
+            ({ task, active }) =>
               !active &&
-              request.severity === 'critical' &&
-              request.packageId === this.pkgInfo.id &&
-              request.actionId === this.actionId &&
-              request.when?.condition === 'input-not-matches' &&
-              request.input &&
+              task.severity === 'critical' &&
+              task.packageId === this.pkgInfo.id &&
+              task.actionId === this.actionId &&
+              task.when?.condition === 'input-not-matches' &&
+              task.input &&
               json
-                .compare(input, request.input)
+                .compare(input, task.input)
                 .some(op => op.op === 'add' || op.op === 'replace'),
           ),
       )
