@@ -10,10 +10,10 @@ use models::{FromStrParser, HealthCheckId, PackageId, ReplayId, VersionString, V
 use tokio::process::Command;
 
 use crate::db::model::package::{
-    TaskEntry, CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind,
-    ManifestPreference,
+    CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind, ManifestPreference,
+    TaskEntry,
 };
-use crate::disk::mount::filesystem::bind::Bind;
+use crate::disk::mount::filesystem::bind::{Bind, FileType};
 use crate::disk::mount::filesystem::idmapped::IdMapped;
 use crate::disk::mount::filesystem::{FileSystem, MountType};
 use crate::disk::mount::util::{is_mountpoint, unmount};
@@ -26,21 +26,12 @@ use crate::DATA_DIR;
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
-pub enum FileType {
-    File,
-    Directory,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
-#[serde(rename_all = "camelCase")]
 pub struct MountTarget {
     package_id: PackageId,
     volume_id: VolumeId,
     subpath: Option<PathBuf>,
     readonly: bool,
-    #[ts(optional)]
-    filetype: Option<FileType>,
+    filetype: FileType,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
@@ -67,7 +58,6 @@ pub async fn mount(
     let subpath = subpath.unwrap_or_default();
     let subpath = subpath.strip_prefix("/").unwrap_or(&subpath);
     let source = data_dir(DATA_DIR, &package_id, &volume_id).join(subpath);
-    let from_meta = tokio::fs::metadata(&source).await.ok();
     let location = location.strip_prefix("/").unwrap_or(&location);
     let mountpoint = context
         .seed
@@ -77,39 +67,7 @@ pub async fn mount(
         .or_not_found("lxc container")?
         .rootfs_dir()
         .join(location);
-    let to_meta = tokio::fs::metadata(&mountpoint).await.ok();
 
-    if matches!(filetype, Some(FileType::File))
-        || (filetype.is_none() && from_meta.as_ref().map_or(false, |m| m.is_file()))
-    {
-        if to_meta.as_ref().map_or(false, |m| m.is_dir()) {
-            tokio::fs::remove_dir(&mountpoint).await?;
-        }
-        if from_meta.is_none() {
-            if let Some(parent) = source.parent() {
-                tokio::fs::create_dir_all(parent).await?;
-            }
-            tokio::fs::write(&source, "").await?;
-        }
-        if to_meta.is_none() {
-            if let Some(parent) = mountpoint.parent() {
-                tokio::fs::create_dir_all(parent).await?;
-            }
-            tokio::fs::write(&mountpoint, "").await?;
-        }
-    } else {
-        if to_meta.as_ref().map_or(false, |m| m.is_file()) {
-            tokio::fs::remove_file(&mountpoint).await?;
-        }
-        if from_meta.is_none() {
-            tokio::fs::create_dir_all(&source).await?;
-        }
-        if to_meta.is_none() {
-            tokio::fs::create_dir_all(&mountpoint).await?;
-        }
-    }
-
-    tokio::fs::create_dir_all(&mountpoint).await?;
     if is_mountpoint(&mountpoint).await? {
         unmount(&mountpoint, true).await?;
     }
@@ -118,7 +76,7 @@ pub async fn mount(
         .arg(&mountpoint)
         .invoke(crate::ErrorKind::Filesystem)
         .await?;
-    IdMapped::new(Bind::new(source), 0, 100000, 65536)
+    IdMapped::new(Bind::new(source).with_type(filetype), 0, 100000, 65536)
         .mount(
             mountpoint,
             if readonly {

@@ -53,16 +53,15 @@ impl<Fs: FileSystem> FileSystem for IdMapped<Fs> {
     async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
         self.filesystem.source().await
     }
-    async fn pre_mount(&self) -> Result<(), Error> {
-        self.filesystem.pre_mount().await
+    async fn pre_mount(&self, mountpoint: &Path) -> Result<(), Error> {
+        self.filesystem.pre_mount(mountpoint).await
     }
     async fn mount<P: AsRef<Path> + Send>(
         &self,
         mountpoint: P,
         mount_type: MountType,
     ) -> Result<(), Error> {
-        self.pre_mount().await?;
-        tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
+        self.pre_mount(mountpoint.as_ref()).await?;
         Command::new("mount.next")
             .args(
                 default_mount_command(self, mountpoint, mount_type)

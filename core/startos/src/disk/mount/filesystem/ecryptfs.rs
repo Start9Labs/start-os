@@ -49,8 +49,7 @@ impl<EncryptedDir: AsRef<Path> + Send + Sync, Key: AsRef<str> + Send + Sync> Fil
         mountpoint: P,
         mount_type: super::MountType,
     ) -> Result<(), Error> {
-        self.pre_mount().await?;
-        tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
+        self.pre_mount(mountpoint.as_ref()).await?;
         Command::new("mount")
             .args(
                 default_mount_command(self, mountpoint, mount_type)

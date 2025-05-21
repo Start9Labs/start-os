@@ -69,8 +69,7 @@ pub(self) async fn default_mount_impl(
     mountpoint: impl AsRef<Path> + Send,
     mount_type: MountType,
 ) -> Result<(), Error> {
-    fs.pre_mount().await?;
-    tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
+    fs.pre_mount(mountpoint.as_ref()).await?;
     Command::from(default_mount_command(fs, mountpoint, mount_type).await?)
         .capture(false)
         .invoke(ErrorKind::Filesystem)
@@ -92,8 +91,11 @@ pub trait FileSystem: Send + Sync {
     fn source(&self) -> impl Future<Output = Result<Option<impl AsRef<Path>>, Error>> + Send {
         async { Ok(None::<&Path>) }
     }
-    fn pre_mount(&self) -> impl Future<Output = Result<(), Error>> + Send {
-        async { Ok(()) }
+    fn pre_mount(&self, mountpoint: &Path) -> impl Future<Output = Result<(), Error>> + Send {
+        async move {
+            tokio::fs::create_dir_all(mountpoint).await?;
+            Ok(())
+        }
     }
     fn mount<P: AsRef<Path> + Send>(
         &self,

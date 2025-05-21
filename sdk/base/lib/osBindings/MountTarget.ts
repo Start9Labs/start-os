@@ -8,5 +8,5 @@ export type MountTarget = {
   volumeId: VolumeId
   subpath: string | null
   readonly: boolean
-  filetype?: FileType
+  filetype: FileType
 }
