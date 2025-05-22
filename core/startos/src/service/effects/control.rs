@@ -35,7 +35,7 @@ pub async fn shutdown(
     ProcedureId { procedure_id }: ProcedureId,
 ) -> Result<(), Error> {
     let context = context.deref()?;
-    context.stop(procedure_id).await?;
+    context.stop(procedure_id, false).await?;
     Ok(())
 }
 

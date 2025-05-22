@@ -262,7 +262,7 @@ async fn create_task(
         None => true,
     };
     if active && task.severity == TaskSeverity::Critical {
-        context.stop(procedure_id).await?;
+        context.stop(procedure_id, false).await?;
     }
     context
         .seed

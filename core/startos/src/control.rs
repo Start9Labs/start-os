@@ -31,13 +31,12 @@ pub async fn start(ctx: RpcContext, ControlParams { id }: ControlParams) -> Resu
 }
 
 pub async fn stop(ctx: RpcContext, ControlParams { id }: ControlParams) -> Result<(), Error> {
-    // TODO: why did this return last_status before?
     ctx.services
         .get(&id)
         .await
         .as_ref()
         .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
-        .stop(Guid::new())
+        .stop(Guid::new(), true)
         .await?;
 
     Ok(())
