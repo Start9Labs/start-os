@@ -190,7 +190,7 @@ impl TryFrom<ManifestV1> for Manifest {
         let default_url = value.upstream_repo.clone();
         Ok(Self {
             id: value.id,
-            title: format!("{} (Compatibility Mode)", value.title).into(),
+            title: format!("{} (Legacy)", value.title).into(),
             version: ExtendedVersion::from(
                 exver::emver::Version::from_str(&value.version)
                     .with_kind(ErrorKind::Deserialization)?,
