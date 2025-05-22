@@ -412,7 +412,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           id: string
           /** The human readable description. */
           description: string
-          /** Affects how the interface appears to the user. One of: 'ui', 'api', 'p2p'. If 'ui', the user will see a "Launch UI" button */
+          /** Affects how the interface appears to the user. One of: 'ui', 'api', 'p2p'. If 'ui', the user will see an option to open the UI in a new tab */
           type: ServiceInterfaceType
           /** (optional) prepends the provided username to all URLs. */
           username: null | string

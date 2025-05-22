@@ -45,6 +45,7 @@ import {
     `
       :host {
         grid-column: span 2;
+        min-height: 12rem;
       }
 
       h3 {
@@ -77,6 +78,10 @@ import {
       }
 
       :host-context(tui-root._mobile) {
+        :host {
+          min-height: 0;
+        }
+
         div {
           display: grid;
           grid-template-columns: 1fr max-content;

@@ -48,6 +48,6 @@ export default class InitializingPage {
         return caught$
       }),
     ),
-    { initialValue: { total: 0, message: '' } },
+    { initialValue: { total: 0, message: 'waiting...' } },
   )
 }

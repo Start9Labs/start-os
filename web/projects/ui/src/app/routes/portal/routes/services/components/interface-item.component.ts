@@ -1,3 +1,4 @@
+import { DOCUMENT } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -5,9 +6,8 @@ import {
   Input,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
-import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { TuiButton, TuiIcon, TuiLink } from '@taiga-ui/core'
+import { TuiButton, TuiIcon } from '@taiga-ui/core'
 import { TuiBadge } from '@taiga-ui/kit'
 import { ConfigService } from 'src/app/services/config.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -16,15 +16,10 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
   selector: 'tr[serviceInterface]',
   template: `
     <td>
-      <a tuiLink [routerLink]="info.routerLink">
-        <strong>{{ info.name }}</strong>
-      </a>
+      <strong>{{ info.name }}</strong>
     </td>
     <td>
       <tui-badge size="m" [appearance]="appearance">{{ info.type }}</tui-badge>
-    </td>
-    <td class="g-secondary" [style.grid-area]="'2 / span 4'">
-      {{ info.description }}
     </td>
     <td [style.text-align]="'center'">
       @if (info.public) {
@@ -33,73 +28,70 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
         <tui-icon class="g-negative" icon="@tui.lock" />
       }
     </td>
-    <td [style.grid-area]="'span 2'">
+    <td class="g-secondary" [style.grid-area]="'2 / span 4'">
+      {{ info.description }}
+    </td>
+    <td>
       @if (info.type === 'ui') {
-        <a
+        <button
           tuiIconButton
-          appearance="action"
           iconStart="@tui.external-link"
-          target="_blank"
-          rel="noreferrer"
-          size="s"
-          [style.border-radius.%]="100"
-          [attr.href]="href"
-          (click.stop)="(0)"
-        >
-          {{ 'Open' | i18n }}
-        </a>
+          appearance="flat-grayscale"
+          [disabled]="disabled"
+          (click)="openUI()"
+        ></button>
       }
+      <a
+        tuiIconButton
+        iconStart="@tui.settings"
+        appearance="flat-grayscale"
+        [routerLink]="info.routerLink"
+      ></a>
     </td>
   `,
   styles: `
-    @import '@taiga-ui/core/styles/taiga-ui-local';
-
-    :host {
-      cursor: pointer;
-      clip-path: inset(0 round var(--tui-radius-m));
-      @include transition(background);
-    }
-
-    [tuiLink] {
-      background: transparent;
-    }
-
-    @media ($tui-mouse) {
-      :host:hover {
-        background: var(--tui-background-neutral-1);
-      }
-    }
-
     strong {
       white-space: nowrap;
     }
 
     tui-badge {
       text-transform: uppercase;
+      font-weight: bold;
     }
 
     tui-icon {
       font-size: 1rem;
     }
 
+    td:last-child {
+      grid-area: 3 / span 4;
+      white-space: nowrap;
+      text-align: right;
+      flex-direction: row-reverse;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+
     :host-context(tui-root._mobile) {
       display: grid;
-      grid-template-columns: repeat(3, min-content) 1fr 2rem;
+      grid-template-columns: repeat(3, min-content) 1fr;
       align-items: center;
       padding: 1rem 0.5rem;
       gap: 0.5rem;
 
       td {
+        display: flex;
         padding: 0;
       }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   standalone: true,
-  imports: [TuiButton, TuiBadge, TuiLink, TuiIcon, RouterLink, i18nPipe],
+  imports: [TuiButton, TuiBadge, TuiIcon, RouterLink],
 })
-export class ServiceInterfaceComponent {
+export class ServiceInterfaceItemComponent {
   private readonly config = inject(ConfigService)
+  private readonly document = inject(DOCUMENT)
 
   @Input({ required: true })
   info!: T.ServiceInterface & {
@@ -116,17 +108,19 @@ export class ServiceInterfaceComponent {
   get appearance(): string {
     switch (this.info.type) {
       case 'ui':
-        return 'primary'
+        return 'positive'
       case 'api':
-        return 'accent'
+        return 'info'
       case 'p2p':
-        return 'primary-grayscale'
+        return 'negative'
     }
   }
 
-  get href(): string | null {
-    return this.disabled
-      ? null
-      : this.config.launchableAddress(this.info, this.pkg.hosts)
+  get href() {
+    return this.config.launchableAddress(this.info, this.pkg.hosts)
+  }
+
+  openUI() {
+    this.document.defaultView?.open(this.href, '_blank', 'noreferrer')
   }
 }

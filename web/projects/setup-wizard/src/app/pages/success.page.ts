@@ -18,15 +18,13 @@ import { StateService } from 'src/app/services/state.service'
   standalone: true,
   template: `
     <canvas matrix></canvas>
-    @if (isKiosk) {
+    @if (stateService.kiosk) {
       <section tuiCardLarge>
         <h1 class="heading">
           <tui-icon icon="@tui.check-square" class="g-positive" />
           Setup Complete!
         </h1>
-        <button tuiButton (click)="exitKiosk()" iconEnd="@tui.log-in">
-          Continue to Login
-        </button>
+        <button tuiButton (click)="exitKiosk()">Continue to Login</button>
       </section>
     } @else if (lanAddress) {
       <section tuiCardLarge>
@@ -111,16 +109,12 @@ import { StateService } from 'src/app/services/state.service'
 export default class SuccessPage implements AfterViewInit {
   @ViewChild(DocumentationComponent, { read: ElementRef })
   private readonly documentation?: ElementRef<HTMLElement>
-
   private readonly document = inject(DOCUMENT)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
   private readonly downloadHtml = inject(DownloadHTMLService)
 
   readonly stateService = inject(StateService)
-  readonly isKiosk = ['localhost', '127.0.0.1'].includes(
-    this.document.location.hostname,
-  )
 
   torAddresses?: string[]
   lanAddress?: string
@@ -157,7 +151,7 @@ export default class SuccessPage implements AfterViewInit {
   private async complete() {
     try {
       const ret = await this.api.complete()
-      if (!this.isKiosk) {
+      if (!this.stateService.kiosk) {
         this.torAddresses = ret.torAddresses.map(a =>
           a.replace(/^https:/, 'http:'),
         )

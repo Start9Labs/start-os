@@ -261,6 +261,13 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'disk.repair', params })
   }
 
+  async toggleKiosk(enable: boolean): Promise<null> {
+    return this.rpcRequest({
+      method: enable ? 'kiosk.enable' : 'kiosk.disable',
+      params: {},
+    })
+  }
+
   async resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes> {
     return this.rpcRequest({ method: 'net.tor.reset', params })
   }
@@ -575,6 +582,10 @@ export class LiveApiService extends ApiService {
 
   async runAction(params: RR.ActionReq): Promise<RR.ActionRes> {
     return this.rpcRequest({ method: 'package.action.run', params })
+  }
+
+  async clearTask(params: RR.ClearTaskReq): Promise<RR.ClearTaskRes> {
+    return this.rpcRequest({ method: 'package.action.clear-task', params })
   }
 
   async restorePackages(

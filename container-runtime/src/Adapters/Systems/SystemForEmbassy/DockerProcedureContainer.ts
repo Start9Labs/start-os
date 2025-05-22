@@ -118,6 +118,7 @@ export class DockerProcedureContainer extends Drop {
               subpath: volumeMount.path,
               readonly: volumeMount.readonly,
               volumeId: volumeMount["volume-id"],
+              filetype: "directory",
             },
           })
         } else if (volumeMount.type === "backup") {

@@ -17,7 +17,7 @@ import { StateService } from 'src/app/services/state.service'
 @Component({
   standalone: true,
   template: `
-    <section tuiCardLarge>
+    <section tuiCardLarge="compact">
       <header>Use existing drive</header>
       <div>Select the physical drive containing your StartOS data</div>
 
@@ -31,9 +31,11 @@ import { StateService } from 'src/app/services/state.service'
           valid StartOS data drive (not a backup) and is firmly connected, then
           refresh the page.
         }
-        <button tuiButton iconStart="@tui.rotate-cw" (click)="refresh()">
-          Refresh
-        </button>
+        <footer>
+          <button tuiButton iconStart="@tui.rotate-cw" (click)="refresh()">
+            Refresh
+          </button>
+        </footer>
       }
     </section>
   `,

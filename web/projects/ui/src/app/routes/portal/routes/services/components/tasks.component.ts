@@ -19,18 +19,19 @@ import { i18nPipe } from '@start9labs/shared'
       <thead>
         <tr>
           <th tuiTh>{{ 'Service' | i18n }}</th>
-          <th tuiTh>{{ 'Type' | i18n }}</th>
+          <th tuiTh>{{ 'Action' }}</th>
+          <th tuiTh>{{ 'Severity' }}</th>
           <th tuiTh>{{ 'Description' | i18n }}</th>
           <th tuiTh></th>
         </tr>
       </thead>
       <tbody>
-        @for (item of requests(); track $index) {
-          <tr [actionRequest]="item.task" [services]="services()"></tr>
+        @for (item of tasks(); track $index) {
+          <tr [task]="item.task" [services]="services()"></tr>
         }
       </tbody>
     </table>
-    @if (!requests().length) {
+    @if (!tasks().length) {
       <app-placeholder icon="@tui.list-checks">
         {{ 'All tasks complete' | i18n }}
       </app-placeholder>
@@ -50,8 +51,12 @@ export class ServiceTasksComponent {
   readonly pkg = input.required<PackageDataEntry>()
   readonly services = input.required<Record<string, PackageDataEntry>>()
 
-  readonly requests = computed(() =>
-    Object.values(this.pkg().tasks)
+  readonly tasks = computed(() =>
+    Object.entries(this.pkg().tasks)
+      .map(([replayId, entry]) => ({
+        ...entry,
+        task: { ...entry.task, replayId },
+      }))
       .filter(
         t =>
           this.services()[t.task.packageId]?.actions[t.task.actionId] &&

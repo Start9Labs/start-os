@@ -31,7 +31,6 @@ import {
 import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { ClientStorageService } from './client-storage.service'
 
 const { start9, community } = defaultRegistries
 
@@ -54,20 +53,6 @@ export class MarketplaceService {
           .map(([url, name]) => toStoreIdentity(url, name)),
       ]),
     )
-
-  // option to filter out hosts containing 'alpha' or 'beta' substrings in registryURL
-  readonly filteredRegistries$: Observable<StoreIdentity[]> = combineLatest([
-    inject(ClientStorageService).showDevTools$,
-    this.registries$,
-  ]).pipe(
-    map(([devMode, registries]) =>
-      devMode
-        ? registries
-        : registries.filter(
-            ({ url }) => !url.includes('alpha') && !url.includes('beta'),
-          ),
-    ),
-  )
 
   readonly currentRegistryUrl$ = new ReplaySubject<string>(1)
 
@@ -252,7 +237,6 @@ export class MarketplaceService {
     oldName: string | null,
     newName: string,
   ): Promise<void> {
-    console.warn(oldName, newName)
     if (oldName !== newName) {
       this.api.setDbValue<string>(['registries', url], newName)
     }

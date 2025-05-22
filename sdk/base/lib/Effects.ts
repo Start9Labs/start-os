@@ -1,4 +1,3 @@
-import { ExtendedVersion, VersionRange } from "./exver"
 import {
   ActionId,
   ActionInput,
@@ -15,6 +14,7 @@ import {
   ServiceInterface,
   CreateTaskParams,
   MainStatus,
+  MountParams,
 } from "./osBindings"
 import {
   PackageId,
@@ -23,7 +23,6 @@ import {
   SmtpValue,
   ActionResult,
 } from "./types"
-import { UrlString } from "./util/getServiceInterface"
 
 /** Used to reach out from the pure js runtime */
 
@@ -80,15 +79,7 @@ export type Effects = {
     packageIds?: PackageId[]
   }): Promise<CheckDependenciesResult[]>
   /** mount a volume of a dependency */
-  mount(options: {
-    location: string
-    target: {
-      packageId: string
-      volumeId: string
-      subpath: string | null
-      readonly: boolean
-    }
-  }): Promise<string>
+  mount(options: MountParams): Promise<string>
   /** Returns a list of the ids of all installed packages */
   getInstalledPackages(): Promise<string[]>
 

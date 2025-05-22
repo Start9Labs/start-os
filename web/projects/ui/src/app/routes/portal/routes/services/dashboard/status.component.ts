@@ -57,7 +57,8 @@ export class StatusComponent {
   private readonly i18n = inject(i18nPipe)
 
   get healthy(): boolean {
-    return !this.hasDepErrors && this.getStatus(this.pkg).health !== 'failure'
+    const { primary, health } = this.getStatus(this.pkg)
+    return !this.hasDepErrors && primary !== 'error' && health !== 'failure'
   }
 
   get loading(): boolean {
@@ -66,7 +67,7 @@ export class StatusComponent {
 
   @tuiPure
   getStatus(pkg: PackageDataEntry) {
-    return renderPkgStatus(pkg, {})
+    return renderPkgStatus(pkg)
   }
 
   get status(): i18nKey {
@@ -95,6 +96,8 @@ export class StatusComponent {
         return 'Removing'
       case 'restoring':
         return 'Restoring'
+      case 'error':
+        return 'Error'
       default:
         return 'Unknown'
     }
@@ -120,6 +123,8 @@ export class StatusComponent {
         return 'var(--tui-status-positive)'
       case 'actionRequired':
         return 'var(--tui-status-warning)'
+      case 'error':
+        return 'var(--tui-status-negative)'
       case 'installing':
       case 'updating':
       case 'stopping':

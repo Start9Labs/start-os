@@ -149,7 +149,7 @@ export default class SystemWifiComponent {
 
   async onToggle(enable: boolean) {
     const loader = this.loader
-      .open(enable ? 'Enabling WiFi' : 'Disabling WiFi')
+      .open(enable ? 'Enabling' : 'Disabling')
       .subscribe()
 
     try {

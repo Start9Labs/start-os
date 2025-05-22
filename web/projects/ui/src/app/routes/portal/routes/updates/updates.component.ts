@@ -21,6 +21,7 @@ import {
 import { TuiCell } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { combineLatest, map, tap } from 'rxjs'
+import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
@@ -112,7 +113,9 @@ interface UpdatesData {
               } @empty {
                 <tr>
                   <td colspan="5">
-                    {{ 'All services are up to date!' | i18n }}
+                    <app-placeholder icon="@tui.circle-check">
+                      {{ 'All services are up to date!' | i18n }}
+                    </app-placeholder>
                   </td>
                 </tr>
               }
@@ -159,6 +162,11 @@ interface UpdatesData {
 
     td {
       clip-path: inset(0.5rem round var(--tui-radius-s));
+    }
+
+    .g-subpage,
+    .g-card {
+      overflow: auto;
     }
 
     :host-context(tui-root._mobile) {
@@ -214,6 +222,7 @@ interface UpdatesData {
     TitleDirective,
     TableComponent,
     i18nPipe,
+    PlaceholderComponent,
   ],
 })
 export default class UpdatesComponent {
@@ -224,7 +233,7 @@ export default class UpdatesComponent {
 
   readonly data = toSignal<UpdatesData>(
     combineLatest({
-      hosts: this.marketplaceService.filteredRegistries$.pipe(
+      hosts: this.marketplaceService.registries$.pipe(
         tap(
           ([registry]) =>
             !this.isMobile && registry && this.current.set(registry),

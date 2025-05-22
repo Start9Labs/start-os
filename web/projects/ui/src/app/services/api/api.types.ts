@@ -335,6 +335,12 @@ export namespace RR {
   } // package.action.run
   export type ActionRes = (T.ActionResult & { version: '1' }) | null
 
+  export type ClearTaskReq = {
+    packageId: string
+    replayId: string
+  } // package.action.clear-task
+  export type ClearTaskRes = null
+
   export type RestorePackagesReq = {
     // package.backup.restore
     ids: string[]
@@ -356,7 +362,11 @@ export namespace RR {
   export type RebuildPackageReq = { id: string } // package.rebuild
   export type RebuildPackageRes = null
 
-  export type UninstallPackageReq = { id: string } // package.uninstall
+  export type UninstallPackageReq = {
+    id: string
+    force: boolean
+    soft: boolean
+  } // package.uninstall
   export type UninstallPackageRes = null
 
   export type SideloadPackageReq = {

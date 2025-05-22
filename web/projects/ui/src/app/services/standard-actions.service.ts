@@ -14,6 +14,7 @@ import { getAllPackages } from '../utils/get-package-data'
 import { hasCurrentDeps } from '../utils/has-deps'
 import { ApiService } from './api/embassy-api.service'
 import { DataModel } from './patch-db/data-model'
+import { RR } from './api/api.types'
 
 @Injectable({
   providedIn: 'root',
@@ -40,13 +41,20 @@ export class StandardActionsService {
     }
   }
 
-  async uninstall({ id, title, alerts }: T.Manifest): Promise<void> {
-    let content =
-      alerts.uninstall ||
-      `${this.i18n.transform('Uninstalling')} ${title} ${this.i18n.transform('will permanently delete its data.')}`
+  async uninstall(
+    { id, title, alerts }: T.Manifest,
+    { force, soft }: { force: boolean; soft: boolean } = {
+      force: false,
+      soft: false,
+    },
+  ): Promise<void> {
+    let content = soft
+      ? ''
+      : alerts.uninstall ||
+        `${this.i18n.transform('Uninstalling')} ${title} ${this.i18n.transform('will permanently delete its data.')}`
 
     if (hasCurrentDeps(id, await getAllPackages(this.patch))) {
-      content = `${content}. ${this.i18n.transform('Services that depend on')} ${title} ${this.i18n.transform('will no longer work properly and may crash.')}`
+      content = `${content}${content ? ' ' : ''}${this.i18n.transform('Services that depend on')} ${title} ${this.i18n.transform('will no longer work properly and may crash.')}`
     }
 
     this.dialog
@@ -60,17 +68,15 @@ export class StandardActionsService {
         },
       })
       .pipe(filter(Boolean))
-      .subscribe(() => this.doUninstall(id))
+      .subscribe(() => this.doUninstall({ id, force, soft }))
   }
 
-  private async doUninstall(id: string) {
+  private async doUninstall(options: RR.UninstallPackageReq) {
     const loader = this.loader.open('Beginning uninstall').subscribe()
 
     try {
-      await this.api.uninstallPackage({ id })
-      await this.api
-        .setDbValue<boolean>(['ackInstructions', id], false)
-        .catch(e => console.error('Failed to mark instructions as unseen', e))
+      await this.api.uninstallPackage(options)
+      await this.api.setDbValue<boolean>(['ackInstructions', options.id], false)
       await this.router.navigate(['portal'])
     } catch (e: any) {
       this.errorService.handleError(e)

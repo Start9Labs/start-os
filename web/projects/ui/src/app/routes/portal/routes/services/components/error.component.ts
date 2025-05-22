@@ -6,7 +6,7 @@ import {
 } from '@angular/core'
 import { DialogService, i18nKey, i18nPipe } from '@start9labs/shared'
 import { TuiButton, TuiIcon } from '@taiga-ui/core'
-import { TuiLineClamp, TuiTooltip } from '@taiga-ui/kit'
+import { TuiTooltip } from '@taiga-ui/kit'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { StandardActionsService } from 'src/app/services/standard-actions.service'
 import { getManifest } from 'src/app/utils/get-package-data'
@@ -15,12 +15,9 @@ import { getManifest } from 'src/app/utils/get-package-data'
   standalone: true,
   selector: 'service-error',
   template: `
-    <header>{{ 'Error' | i18n }}</header>
-    <tui-line-clamp
-      [linesLimit]="2"
-      [content]="error?.message"
-      (overflownChange)="overflow = $event"
-    />
+    <header>{{ 'Service Launch Error' | i18n }}</header>
+    <p class="error-message">{{ error?.message }}</p>
+    <p>{{ error?.debug }}</p>
     <h4>
       {{ 'Actions' | i18n }}
       <tui-icon [tuiTooltip]="hint" />
@@ -34,7 +31,13 @@ import { getManifest } from 'src/app/utils/get-package-data'
       </p>
       <p>
         {{
-          '"Uninstall service" is a dangerous action that will remove the service from StartOS and wipe all its data.'
+          '"Soft uninstall" will remove the service from StartOS but preserve its data.'
+            | i18n
+        }}
+      </p>
+      <p>
+        {{
+          '"Hard uninstall" is a dangerous action that will remove the service from StartOS and wipe all its data.'
             | i18n
         }}
       </p>
@@ -43,8 +46,11 @@ import { getManifest } from 'src/app/utils/get-package-data'
       <button tuiButton (click)="rebuild()">
         {{ 'Rebuild container' | i18n }}
       </button>
-      <button tuiButton appearance="negative" (click)="uninstall()">
-        {{ 'Uninstall service' | i18n }}
+      <button tuiButton appearance="warning" (click)="uninstall()">
+        {{ 'Soft uninstall' | i18n }}
+      </button>
+      <button tuiButton appearance="negative" (click)="uninstall(false)">
+        {{ 'Hard uninstall' | i18n }}
       </button>
       @if (overflow) {
         <button tuiButton appearance="secondary-grayscale" (click)="show()">
@@ -55,23 +61,21 @@ import { getManifest } from 'src/app/utils/get-package-data'
   `,
   styles: `
     :host {
-      grid-column: span 4;
+      grid-column: span 5;
     }
 
     header {
       --tui-background-neutral-1: var(--tui-status-negative-pale);
     }
 
-    tui-line-clamp {
-      pointer-events: none;
-      margin: 1rem 0;
+    .error-message {
+      font-size: 1.5rem;
       color: var(--tui-status-negative);
+      margin-bottom: 0;
     }
 
     h4 {
       display: flex;
-      align-items: center;
-      gap: 0.5rem;
       font: var(--tui-font-text-m);
       font-weight: bold;
       color: var(--tui-text-secondary);
@@ -80,7 +84,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
   `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, TuiIcon, TuiTooltip, TuiLineClamp, i18nPipe],
+  imports: [TuiButton, TuiIcon, TuiTooltip, i18nPipe],
 })
 export class ServiceErrorComponent {
   private readonly dialog = inject(DialogService)
@@ -99,8 +103,8 @@ export class ServiceErrorComponent {
     this.service.rebuild(getManifest(this.pkg).id)
   }
 
-  uninstall() {
-    this.service.uninstall(getManifest(this.pkg))
+  uninstall(soft = true) {
+    this.service.uninstall(getManifest(this.pkg), { force: true, soft })
   }
 
   show() {

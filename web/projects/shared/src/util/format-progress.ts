@@ -12,13 +12,15 @@ export function formatProgress({ phases, overall }: T.FullProgress): {
           p,
         ): p is {
           name: string
-          progress: {
-            done: number
-            total: number | null
-          }
+          progress:
+            | false
+            | {
+                done: number
+                total: number | null
+              }
         } => p.progress !== true && p.progress !== null,
       )
-      .map(p => `<b>${p.name}</b>${getPhaseBytes(p.progress)}`)
+      .map(p => `<b>${p.name}</b>: (${getPhaseBytes(p.progress)})`)
       .join(', '),
   }
 }
@@ -33,8 +35,13 @@ function getDecimal(progress: T.Progress): number {
   }
 }
 
-function getPhaseBytes(progress: T.Progress): string {
-  return progress === true || !progress
-    ? ''
-    : `: (${progress.done}/${progress.total})`
+function getPhaseBytes(
+  progress:
+    | false
+    | {
+        done: number
+        total: number | null
+      },
+): string {
+  return !progress ? 'unknown' : `${progress.done}/${progress.total}`
 }

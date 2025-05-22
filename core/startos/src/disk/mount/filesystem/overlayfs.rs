@@ -41,9 +41,10 @@ impl<
             Box::new(lazy_format!("workdir={}", self.work.as_ref().display())),
         ]
     }
-    async fn pre_mount(&self) -> Result<(), Error> {
+    async fn pre_mount(&self, mountpoint: &Path) -> Result<(), Error> {
         tokio::fs::create_dir_all(self.upper.as_ref()).await?;
         tokio::fs::create_dir_all(self.work.as_ref()).await?;
+        tokio::fs::create_dir_all(mountpoint).await?;
         Ok(())
     }
     async fn source_hash(

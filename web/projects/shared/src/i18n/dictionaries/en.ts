@@ -44,7 +44,7 @@ export const ENGLISH = {
   'Beginning restart': 42,
   'You are on the latest version of StartOS.': 43,
   'Up to date!': 44,
-  'Release Notes': 45,
+  'Release notes': 45,
   'Begin Update': 46,
   'Beginning update': 47,
   'You are currently connected over Tor. If you reset the Tor daemon, you will lose connectivity until it comes back online.': 48,
@@ -59,7 +59,7 @@ export const ENGLISH = {
   'Beginning shutdown': 57,
   'Add': 58,
   'Ok': 59,
-  'Are you sure you want to delete this entry?': 60,
+  'french': 60,
   'This value cannot be changed once set': 61,
   'Continue': 62,
   'Click or drop file here': 63,
@@ -84,7 +84,7 @@ export const ENGLISH = {
   'Metrics': 82, // system info such as CPU, RAM, and storage usage
   'Logs': 83, // as in, application logs
   'Notifications': 84,
-  'Launch UI': 85,
+  'Hard uninstall': 85, // as in, hard reset or hard reboot, except for uninstalling
   'Show QR': 86,
   'Copy URL': 87,
   'Actions': 88, // as in, actions available to the user
@@ -229,9 +229,9 @@ export const ENGLISH = {
   'Unknown error': 227,
   'Error': 228,
   '"Rebuild container" is a harmless action that and only takes a few seconds to complete. It will likely resolve this issue.': 229,
-  '"Uninstall service" is a dangerous action that will remove the service from StartOS and wipe all its data.': 230,
+  '"Hard uninstall" is a dangerous action that will remove the service from StartOS and wipe all its data.': 230,
   'Rebuild container': 231,
-  'Uninstall service': 232,
+  'Soft uninstall': 232, // as in, uninstall the service but preserve its data
   'View full message': 233,
   'Service error': 234,
   'Awaiting result': 235,
@@ -246,7 +246,6 @@ export const ENGLISH = {
   'Hosting': 244,
   'Installing': 245,
   'See below': 246,
-  'Controls': 247,
   'No services installed': 248,
   'Running': 249,
   'Stopped': 250,
@@ -413,12 +412,12 @@ export const ENGLISH = {
   'Other Networks': 411,
   'WiFi is disabled': 412,
   'No wireless interface detected': 413,
-  'Enabling WiFi': 414,
-  'Disabling WiFi': 415,
+  'Enabling': 414,
+  'Disabling': 415,
   'Connecting. This could take a while': 416,
   'Retry': 417,
   'Show more': 418,
-  'Release notes': 419,
+  'View details': 419,
   'View listing': 420,
   'Services that depend on': 421,
   'will no longer work properly and may crash.': 422,
@@ -502,5 +501,20 @@ export const ENGLISH = {
   'View Marketplace': 500,
   'Welcome to': 501,
   'sovereign computing': 502,
-  'french': 503,
+  'Customize the name appearing in your browser tab': 503,
+  'Manage': 504, // as in, administer
+  'Are you sure you want to delete this address?': 505, // this address referes to a domain or URL
+  '"Soft uninstall" will remove the service from StartOS but preserve its data.': 506,
+  'No saved providers': 507,
+  'Kiosk Mode': 508, // an OS mode that permits attaching a monitor to the computer
+  'Enabled': 509,
+  'Disable Kiosk Mode unless you need to attach a monitor': 510,
+  'Enable Kiosk Mode if you need to attach a monitor': 511,
+  'Kiosk Mode is unavailable on this device': 512,
+  'Enable': 513,
+  'Disable': 514,
+  'You are currently using a kiosk. Disabling Kiosk Mode will result in the kiosk disconnecting.': 515,
+  'Recommended': 516, // as in, we recommend this
+  'Are you sure you want to dismiss this task?': 517,
+  'Dismiss': 518, // as in, dismiss or delete a task
 } as const

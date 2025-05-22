@@ -27,7 +27,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
           />
         </tui-avatar>
         <span tuiTitle>
-          {{ d.value.title }}
+          {{ d.value.title || d.key }}
           @if (getError(d.key); as error) {
             <span tuiSubtitle class="g-warning">{{ error | i18n }}</span>
           } @else {

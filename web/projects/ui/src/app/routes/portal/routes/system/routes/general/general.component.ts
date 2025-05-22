@@ -7,6 +7,7 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
+import { Title } from '@angular/platform-browser'
 import { RouterLink } from '@angular/router'
 import {
   DialogService,
@@ -30,6 +31,7 @@ import {
   TuiTitle,
 } from '@taiga-ui/core'
 import {
+  TuiBadge,
   TuiButtonLoading,
   TuiButtonSelect,
   TuiDataListWrapper,
@@ -92,7 +94,9 @@ import { SystemWipeComponent } from './wipe.component'
         <tui-icon icon="@tui.app-window" />
         <span tuiTitle>
           <strong>{{ 'Browser Tab Title' | i18n }}</strong>
-          <span tuiSubtitle>{{ name() }}</span>
+          <span tuiSubtitle>
+            {{ 'Customize the name appearing in your browser tab' | i18n }}
+          </span>
         </span>
         <button tuiButton (click)="onTitle()">{{ 'Change' | i18n }}</button>
       </div>
@@ -133,6 +137,43 @@ import { SystemWipeComponent } from './wipe.component'
         <button tuiButton iconStart="@tui.download" (click)="downloadCA()">
           {{ 'Download' | i18n }}
         </button>
+      </div>
+      <div tuiCell tuiAppearance="outline-grayscale">
+        <tui-icon icon="@tui.monitor" />
+        <span tuiTitle>
+          <strong>
+            {{ 'Kiosk Mode' | i18n }}
+            <tui-badge
+              size="m"
+              [appearance]="
+                server.kiosk ? 'primary-success' : 'primary-destructive'
+              "
+            >
+              {{ server.kiosk ? ('Enabled' | i18n) : ('Disabled' | i18n) }}
+            </tui-badge>
+          </strong>
+          <span tuiSubtitle>
+            {{
+              server.kiosk === true
+                ? ('Disable Kiosk Mode unless you need to attach a monitor'
+                  | i18n)
+                : server.kiosk === false
+                  ? ('Enable Kiosk Mode if you need to attach a monitor' | i18n)
+                  : ('Kiosk Mode is unavailable on this device' | i18n)
+            }}
+          </span>
+        </span>
+        @if (server.kiosk !== null) {
+          <button
+            tuiButton
+            [appearance]="
+              server.kiosk ? 'primary-destructive' : 'primary-success'
+            "
+            (click)="tryToggleKiosk()"
+          >
+            {{ server.kiosk ? ('Disable' | i18n) : ('Enable' | i18n) }}
+          </button>
+        }
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.circle-power" (click)="count = count + 1" />
@@ -190,11 +231,6 @@ import { SystemWipeComponent } from './wipe.component'
     [tuiCell] {
       background: var(--tui-background-neutral-1);
     }
-
-    [tuiSubtitle],
-    tui-data-list-wrapper ::ng-deep [tuiOption] {
-      text-transform: capitalize;
-    }
   `,
   providers: [tuiCellOptionsProvider({ height: 'spacious' })],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -217,9 +253,11 @@ import { SystemWipeComponent } from './wipe.component'
     TuiTextfield,
     FormsModule,
     SnekDirective,
+    TuiBadge,
   ],
 })
 export default class SystemGeneralComponent {
+  private readonly title = inject(Title)
   private readonly dialogs = inject(TuiResponsiveDialogService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
@@ -276,9 +314,11 @@ export default class SystemGeneralComponent {
       })
       .subscribe(async name => {
         const loader = this.loader.open('Saving').subscribe()
+        const title = `${name || 'StartOS'} — ${this.i18n.transform('System')}`
 
         try {
           await this.api.setDbValue(['name'], name || null)
+          this.title.setTitle(title)
         } catch (e: any) {
           this.errorService.handleError(e)
         } finally {
@@ -310,6 +350,28 @@ export default class SystemGeneralComponent {
     this.document.getElementById('download-ca')?.click()
   }
 
+  async tryToggleKiosk() {
+    if (
+      this.server()?.kiosk &&
+      ['localhost', '127.0.0.1'].includes(this.document.location.hostname)
+    ) {
+      return this.dialog
+        .openConfirm({
+          label: 'Warning',
+          data: {
+            content:
+              'You are currently using a kiosk. Disabling Kiosk Mode will result in the kiosk disconnecting.',
+            yes: 'Disable',
+            no: 'Cancel',
+          },
+        })
+        .pipe(filter(Boolean))
+        .subscribe(async () => this.toggleKiosk())
+    }
+
+    this.toggleKiosk()
+  }
+
   async onRepair() {
     this.dialog
       .openConfirm({
@@ -330,6 +392,22 @@ export default class SystemGeneralComponent {
           this.errorService.handleError(e)
         }
       })
+  }
+
+  private async toggleKiosk() {
+    const kiosk = this.server()?.kiosk
+
+    const loader = this.loader
+      .open(kiosk ? 'Disabling' : 'Enabling')
+      .subscribe()
+
+    try {
+      await this.api.toggleKiosk(!kiosk)
+    } catch (e: any) {
+      this.errorService.handleError(e)
+    } finally {
+      loader.unsubscribe()
+    }
   }
 
   private async resetTor(wipeState: boolean) {

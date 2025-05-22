@@ -93,7 +93,7 @@ export class NotificationService {
     { data, createdAt, code, title, message }: ServerNotification<number>,
     full = false,
   ) {
-    const label = full || code === 2 ? title : 'Backup Report'
+    const label = code === 1 ? 'Backup Report' : title
     const component = code === 1 ? REPORT : MARKDOWN
     const content = code === 1 ? data : of(data)
 
@@ -104,6 +104,7 @@ export class NotificationService {
           content,
           timestamp: createdAt,
         },
+        size: code === 1 ? 'm' : 'l',
       })
       .subscribe()
   }

@@ -22,11 +22,7 @@ import { from, interval, map, shareReplay, startWith, Subject, tap } from 'rxjs'
 import { mockPatchData } from './mock-patch'
 import { AuthService } from '../auth.service'
 import { T } from '@start9labs/start-sdk'
-import {
-  GetPackageRes,
-  GetPackagesRes,
-  MarketplacePkg,
-} from '@start9labs/marketplace'
+import { MarketplacePkg } from '@start9labs/marketplace'
 import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
 import { WebSocketSubject } from 'rxjs/webSocket'
 import { toAcmeUrl } from 'src/app/utils/acme'
@@ -166,7 +162,6 @@ export class MockApiService extends ApiService {
     pathArr: Array<string | number>,
     value: T,
   ): Promise<RR.SetDBValueRes> {
-    console.warn(pathArr, value)
     const pointer = pathFromArray(pathArr)
     const params: RR.SetDBValueReq<T> = { pointer, value }
     await pauseFor(2000)
@@ -446,6 +441,21 @@ export class MockApiService extends ApiService {
 
   async repairDisk(params: RR.RestartServerReq): Promise<RR.RestartServerRes> {
     await pauseFor(2000)
+    return null
+  }
+
+  async toggleKiosk(enable: boolean): Promise<null> {
+    await pauseFor(2000)
+
+    const patch = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/kiosk',
+        value: enable,
+      },
+    ]
+    this.mockRevision(patch)
+
     return null
   }
 
@@ -1103,23 +1113,32 @@ export class MockApiService extends ApiService {
   async runAction(params: RR.ActionReq): Promise<RR.ActionRes> {
     await pauseFor(2000)
 
-    if (params.actionId === 'properties') {
-      // return Mock.ActionResGroup
-      return Mock.ActionResMessage
-      // return Mock.ActionResSingle
-    } else if (params.actionId === 'config') {
-      const patch: RemoveOperation[] = [
-        {
-          op: PatchOp.REMOVE,
-          path: `/packageData/${params.packageId}/requestedActions/${params.packageId}-config`,
-        },
-      ]
-      this.mockRevision(patch)
-      return null
-    } else {
-      return Mock.ActionResMessage
-      // return Mock.ActionResSingle
-    }
+    const patch: ReplaceOperation<{ [key: string]: T.TaskEntry }>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/packageData/${params.packageId}/tasks`,
+        value: {},
+      },
+    ]
+    this.mockRevision(patch)
+
+    // return Mock.ActionResGroup
+    return Mock.ActionResMessage
+    // return Mock.ActionResSingle
+  }
+
+  async clearTask(params: RR.ClearTaskReq): Promise<RR.ClearTaskRes> {
+    await pauseFor(2000)
+
+    const patch: RemoveOperation[] = [
+      {
+        op: PatchOp.REMOVE,
+        path: `/packageData/${params.packageId}/tasks/${params.replayId}`,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
   }
 
   async restorePackages(

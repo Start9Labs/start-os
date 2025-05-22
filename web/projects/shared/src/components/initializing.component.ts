@@ -12,7 +12,7 @@ import { i18nPipe } from '../i18n/i18n.pipe'
       <h1 [style.font-size.rem]="2" [style.margin-bottom.rem]="2">
         {{ 'Setting up your server' | i18n }}
       </h1>
-      <div *ngIf="progress.total">
+      <div>
         {{ 'Progress' | i18n }}: {{ (progress.total * 100).toFixed(0) }}%
       </div>
       <progress
@@ -21,7 +21,7 @@ import { i18nPipe } from '../i18n/i18n.pipe'
         [style.margin]="'1rem auto'"
         [attr.value]="progress.total"
       ></progress>
-      <p [innerHTML]="progress.message"></p>
+      <p [innerHTML]="progress.message || 'Finished'"></p>
     </section>
     <logs-window />
   `,

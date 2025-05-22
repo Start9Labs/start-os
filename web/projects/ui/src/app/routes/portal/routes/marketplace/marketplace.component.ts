@@ -64,8 +64,15 @@ import { StorageService } from 'src/app/services/storage.service'
         overflow: hidden;
         padding: 0;
         background: rgb(55 58 63 / 90%)
-          url('/assets/img/background_marketplace.png') no-repeat top right;
+          url('/assets/img/background_marketplace.jpg') no-repeat top right;
         background-size: cover;
+
+        &::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          backdrop-filter: blur(2rem);
+        }
       }
 
       .marketplace-content {

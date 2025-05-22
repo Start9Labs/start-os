@@ -11,6 +11,7 @@ import { BadgeService } from 'src/app/services/badge.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
 import { SYSTEM_MENU } from './system.const'
+import { map } from 'rxjs'
 
 @Component({
   template: `
@@ -128,10 +129,7 @@ import { SYSTEM_MENU } from './system.const'
 export class SystemComponent {
   readonly menu = SYSTEM_MENU
   readonly badge = toSignal(inject(BadgeService).getCount('/portal/system'))
-  readonly wifiEnabled$ = inject<PatchDB<DataModel>>(PatchDB).watch$(
-    'serverInfo',
-    'network',
-    'wifi',
-    'enabled',
-  )
+  readonly wifiEnabled$ = inject<PatchDB<DataModel>>(PatchDB)
+    .watch$('serverInfo', 'network', 'wifi')
+    .pipe(map(wifi => !!wifi.interface && wifi.enabled))
 }

@@ -17,7 +17,7 @@ import { StateService } from 'src/app/services/state.service'
 @Component({
   standalone: true,
   template: `
-    <section tuiCardLarge>
+    <section tuiCardLarge="compact">
       <header>Restore from Backup</header>
       @if (loading) {
         <tui-loader />
@@ -26,7 +26,7 @@ import { StateService } from 'src/app/services/state.service'
         Restore StartOS data from a folder on another computer that is connected
         to the same network as your server.
 
-        <button tuiCell (click)="onCifs()">
+        <button tuiCell [style.box-shadow]="'none'" (click)="onCifs()">
           <tui-icon icon="@tui.folder" />
           <span tuiTitle>Open</span>
         </button>
@@ -49,10 +49,11 @@ import { StateService } from 'src/app/services/state.service'
             (password)="select($event, server)"
           ></button>
         }
-
-        <button tuiButton iconStart="@tui.rotate-cw" (click)="refresh()">
-          Refresh
-        </button>
+        <footer>
+          <button tuiButton iconStart="@tui.rotate-cw" (click)="refresh()">
+            Refresh
+          </button>
+        </footer>
       }
     </section>
   `,

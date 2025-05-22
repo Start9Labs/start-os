@@ -55,7 +55,11 @@ import { i18nPipe } from '@start9labs/shared'
       }
       @if (notificationItem.code === 1 || notificationItem.code === 2) {
         <button tuiLink (click)="service.viewModal(notificationItem)">
-          {{ 'View report' | i18n }}
+          {{
+            notificationItem.code === 1
+              ? ('View report' | i18n)
+              : ('View details' | i18n)
+          }}
         </button>
       }
     </td>
@@ -66,7 +70,7 @@ import { i18nPipe } from '@start9labs/shared'
     '[class._new]': '!notificationItem.read',
   },
   styles: `
-    @import '@taiga-ui/core/styles/taiga-ui-local';
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
     :host {
       grid-template-columns: 1fr;
@@ -90,8 +94,16 @@ import { i18nPipe } from '@start9labs/shared'
     }
 
     :host-context(tui-root._mobile) {
+      gap: 0.5rem;
+      padding: 0.75rem 1rem !important;
+
       .checkbox {
-        @include fullsize();
+        @include taiga.fullsize();
+        @include taiga.transition(box-shadow);
+
+        &:has(:checked) {
+          box-shadow: inset 0.25rem 0 var(--tui-background-accent-1);
+        }
       }
 
       .date {
@@ -103,8 +115,7 @@ import { i18nPipe } from '@start9labs/shared'
         font-weight: bold;
         font-size: 1.2em;
         display: flex;
-        align-items: center;
-        gap: 0.75rem;
+        gap: 0.5rem;
       }
 
       .service:not(:has(a)) {

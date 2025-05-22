@@ -183,13 +183,7 @@ export const mockPatchData: DataModel = {
     pubkey: 'npub1sg6plzptd64u62a878hep2kev88swjh3tw00gjsfl8f237lmu63q0uf63m',
     caFingerprint: '63:2B:11:99:44:40:17:DF:37:FC:C3:DF:0F:3D:15',
     ntpSynced: false,
-    smtp: {
-      server: '',
-      port: 587,
-      from: '',
-      login: '',
-      password: '',
-    },
+    smtp: null,
     platform: 'x86_64-nonfree',
     zram: true,
     governor: 'performance',
@@ -221,7 +215,7 @@ export const mockPatchData: DataModel = {
       actions: {
         config: {
           name: 'Set Config',
-          description: 'edit bitcoin.conf',
+          description: 'edit bitcoin.conf, <b>soo cool!</b>',
           warning: null,
           visibility: 'enabled',
           allowedStatuses: 'any',

@@ -1,31 +1,24 @@
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { PkgDependencyErrors } from './dep-error.service'
-import { T } from '@start9labs/start-sdk'
 import { i18nKey } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 
 export interface PackageStatus {
   primary: PrimaryStatus
-  dependency: DependencyStatus | null
   health: T.HealthStatus | null
 }
 
-export function renderPkgStatus(
-  pkg: PackageDataEntry,
-  depErrors: PkgDependencyErrors = {},
-): PackageStatus {
+export function renderPkgStatus(pkg: PackageDataEntry): PackageStatus {
   let primary: PrimaryStatus
-  let dependency: DependencyStatus | null = null
   let health: T.HealthStatus | null = null
 
   if (pkg.stateInfo.state === 'installed') {
     primary = getInstalledPrimaryStatus(pkg)
-    dependency = getDependencyStatus(depErrors)
     health = getHealthStatus(pkg.status)
   } else {
     primary = pkg.stateInfo.state
   }
 
-  return { primary, dependency, health }
+  return { primary, health }
 }
 
 export function getInstalledPrimaryStatus({
@@ -37,10 +30,6 @@ export function getInstalledPrimaryStatus({
   )
     ? 'actionRequired'
     : status.main
-}
-
-function getDependencyStatus(depErrors: PkgDependencyErrors): DependencyStatus {
-  return Object.values(depErrors).some(err => !!err) ? 'warning' : 'satisfied'
 }
 
 function getHealthStatus(status: T.MainStatus): T.HealthStatus | null {

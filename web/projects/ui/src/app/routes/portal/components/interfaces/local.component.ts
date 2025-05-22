@@ -29,7 +29,7 @@ import { DocsLinkDirective, i18nPipe } from '@start9labs/shared'
         <tr>
           <td [style.width.rem]="12">{{ address.nid }}</td>
           <td>{{ address.url | mask }}</td>
-          <td [actions]="address.url"></td>
+          <td actions [href]="address.url" [disabled]="!isRunning()"></td>
         </tr>
       }
     </table>
@@ -49,4 +49,5 @@ import { DocsLinkDirective, i18nPipe } from '@start9labs/shared'
 })
 export class InterfaceLocalComponent {
   readonly local = input.required<readonly LocalAddress[]>()
+  readonly isRunning = input.required<boolean>()
 }

@@ -7,11 +7,6 @@ export const SYSTEM_MENU = [
       item: 'General',
       link: 'general',
     },
-    {
-      icon: '@tui.mail',
-      item: 'Email',
-      link: 'email',
-    },
   ],
   [
     {
@@ -35,6 +30,11 @@ export const SYSTEM_MENU = [
       icon: '@tui.award',
       item: 'ACME',
       link: 'acme',
+    },
+    {
+      icon: '@tui.mail',
+      item: 'Email',
+      link: 'email',
     },
     {
       icon: '@tui.wifi',

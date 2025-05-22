@@ -19,7 +19,7 @@ import { StateService } from 'src/app/services/state.service'
 @Component({
   standalone: true,
   template: `
-    <section tuiCardLarge>
+    <section tuiCardLarge="compact">
       @if (loading || drives.length) {
         <header>Select storage drive</header>
         This is the drive where your StartOS data will be stored.
@@ -39,10 +39,11 @@ import { StateService } from 'src/app/services/state.service'
           }
         </button>
       }
-
-      <button tuiButton iconStart="@tui.rotate-cw" (click)="refresh()">
-        Refresh
-      </button>
+      <footer>
+        <button tuiButton iconStart="@tui.rotate-cw" (click)="refresh()">
+          Refresh
+        </button>
+      </footer>
     </section>
   `,
   imports: [TuiCardLarge, TuiLoader, TuiCell, TuiButton, DriveComponent],

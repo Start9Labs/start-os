@@ -21,7 +21,7 @@ import { StateService } from 'src/app/services/state.service'
 @Component({
   standalone: true,
   template: `
-    <section tuiCardLarge>
+    <section tuiCardLarge="compact">
       <header>Transfer</header>
       Select the physical drive containing your StartOS data
       @if (loading) {
@@ -30,9 +30,11 @@ import { StateService } from 'src/app/services/state.service'
       @for (drive of drives; track drive) {
         <button tuiCell [drive]="drive" (click)="select(drive)"></button>
       }
-      <button tuiButton iconStart="@tui.rotate-cw" (click)="refresh()">
-        Refresh
-      </button>
+      <footer>
+        <button tuiButton iconStart="@tui.rotate-cw" (click)="refresh()">
+          Refresh
+        </button>
+      </footer>
     </section>
   `,
   imports: [TuiCardLarge, TuiCell, TuiButton, TuiLoader, DriveComponent],
