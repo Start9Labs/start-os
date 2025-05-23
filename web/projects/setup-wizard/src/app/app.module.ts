@@ -1,49 +1,43 @@
+import { HttpClientModule } from '@angular/common/http'
 import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
-import { RouteReuseStrategy } from '@angular/router'
-import { HttpClientModule } from '@angular/common/http'
-import { TuiRootModule } from '@taiga-ui/core'
-import { ApiService } from './services/api/api.service'
-import { MockApiService } from './services/api/mock-api.service'
-import { LiveApiService } from './services/api/live-api.service'
+import { PreloadAllModules, RouterModule } from '@angular/router'
 import {
-  IonicModule,
-  IonicRouteStrategy,
-  iosTransitionAnimation,
-} from '@ionic/angular'
+  provideSetupLogsService,
+  RELATIVE_URL,
+  VERSION,
+  WorkspaceConfig,
+} from '@start9labs/shared'
+import { tuiButtonOptionsProvider, TuiRoot } from '@taiga-ui/core'
+import { NG_EVENT_PLUGINS } from '@taiga-ui/event-plugins'
+import { ApiService } from 'src/app/services/api.service'
+import { LiveApiService } from 'src/app/services/live-api.service'
+import { MockApiService } from 'src/app/services/mock-api.service'
 import { AppComponent } from './app.component'
-import { AppRoutingModule } from './app-routing.module'
-import { SuccessPageModule } from './pages/success/success.module'
-import { HomePageModule } from './pages/home/home.module'
-import { LoadingPageModule } from './pages/loading/loading.module'
-import { RecoverPageModule } from './pages/recover/recover.module'
-import { TransferPageModule } from './pages/transfer/transfer.module'
-import { RELATIVE_URL, WorkspaceConfig } from '@start9labs/shared'
+import { ROUTES } from './app.routes'
 
 const {
   useMocks,
   ui: { api },
 } = require('../../../../config.json') as WorkspaceConfig
 
+const version = require('../../../../package.json').version
+
 @NgModule({
   declarations: [AppComponent],
   imports: [
     BrowserAnimationsModule,
-    IonicModule.forRoot({
-      mode: 'md',
-      navAnimation: iosTransitionAnimation,
-    }),
-    AppRoutingModule,
     HttpClientModule,
-    SuccessPageModule,
-    HomePageModule,
-    LoadingPageModule,
-    RecoverPageModule,
-    TransferPageModule,
-    TuiRootModule,
+    RouterModule.forRoot(ROUTES, {
+      preloadingStrategy: PreloadAllModules,
+      initialNavigation: 'disabled',
+    }),
+    TuiRoot,
   ],
   providers: [
-    { provide: RouteReuseStrategy, useClass: IonicRouteStrategy },
+    NG_EVENT_PLUGINS,
+    provideSetupLogsService(ApiService),
+    tuiButtonOptionsProvider({ size: 'm' }),
     {
       provide: ApiService,
       useClass: useMocks ? MockApiService : LiveApiService,
@@ -51,6 +45,10 @@ const {
     {
       provide: RELATIVE_URL,
       useValue: `/${api.url}/${api.version}`,
+    },
+    {
+      provide: VERSION,
+      useValue: version,
     },
   ],
   bootstrap: [AppComponent],

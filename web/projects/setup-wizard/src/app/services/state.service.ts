@@ -1,21 +1,22 @@
-import { Injectable } from '@angular/core'
-import { ApiService, RecoverySource } from './api/api.service'
+import { inject, Injectable } from '@angular/core'
+import { ApiService } from './api.service'
+import { T } from '@start9labs/start-sdk'
 
 @Injectable({
   providedIn: 'root',
 })
 export class StateService {
+  private readonly api = inject(ApiService)
+
+  kiosk?: boolean
   setupType?: 'fresh' | 'restore' | 'attach' | 'transfer'
-
-  recoverySource?: RecoverySource
-  recoveryPassword?: string
-
-  constructor(private readonly api: ApiService) {}
+  recoverySource?: T.RecoverySource<string>
 
   async importDrive(guid: string, password: string): Promise<void> {
     await this.api.attach({
       guid,
-      'embassy-password': await this.api.encrypt(password),
+      startOsPassword: await this.api.encrypt(password),
+      kiosk: this.kiosk,
     })
   }
 
@@ -24,12 +25,17 @@ export class StateService {
     password: string,
   ): Promise<void> {
     await this.api.execute({
-      'embassy-logicalname': storageLogicalname,
-      'embassy-password': await this.api.encrypt(password),
-      'recovery-source': this.recoverySource || null,
-      'recovery-password': this.recoveryPassword
-        ? await this.api.encrypt(this.recoveryPassword)
+      startOsLogicalname: storageLogicalname,
+      startOsPassword: await this.api.encrypt(password),
+      recoverySource: this.recoverySource
+        ? this.recoverySource.type === 'migrate'
+          ? this.recoverySource
+          : {
+              ...this.recoverySource,
+              password: await this.api.encrypt(this.recoverySource.password),
+            }
         : null,
+      kiosk: this.kiosk,
     })
   }
 }

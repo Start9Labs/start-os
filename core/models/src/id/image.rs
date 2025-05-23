@@ -1,19 +1,27 @@
 use std::fmt::Debug;
+use std::path::Path;
 use std::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize};
+use ts_rs::TS;
 
-use crate::{Id, InvalidId, PackageId, Version};
+use crate::{Id, InvalidId, PackageId, VersionString};
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TS)]
+#[ts(type = "string")]
 pub struct ImageId(Id);
+impl AsRef<Path> for ImageId {
+    fn as_ref(&self) -> &Path {
+        self.0.as_ref().as_ref()
+    }
+}
 impl std::fmt::Display for ImageId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", &self.0)
     }
 }
 impl ImageId {
-    pub fn for_package(&self, pkg_id: &PackageId, pkg_version: Option<&Version>) -> String {
+    pub fn for_package(&self, pkg_id: &PackageId, pkg_version: Option<&VersionString>) -> String {
         format!(
             "start9/{}/{}:{}",
             pkg_id,

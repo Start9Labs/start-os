@@ -1,0 +1,22 @@
+<!-- Local HTTP -->
+<ca-wizard *ngIf="config.isLanHttp(); else notLanHttp"></ca-wizard>
+
+<!-- not Local HTTP -->
+<ng-template #notLanHttp>
+  <div tuiCardLarge class="card">
+    <img alt="StartOS Icon" class="logo" src="assets/img/icon.png" />
+    <h1 class="header">{{'Login to StartOS' | i18n}}</h1>
+    <form (submit)="submit()">
+      <tui-input-password
+        tuiTextfieldIconLeft="@tui.key"
+        [ngModelOptions]="{ standalone: true }"
+        [(ngModel)]="password"
+        (ngModelChange)="error = null"
+      >
+        {{'Password' | i18n}}
+      </tui-input-password>
+      <tui-error class="error" [error]="error || null" />
+      <button tuiButton class="button">{{'Login' | i18n}}</button>
+    </form>
+  </div>
+</ng-template>
