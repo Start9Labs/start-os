@@ -518,4 +518,5 @@ export default {
   516: 'Zalecane',
   517: 'Czy na pewno chcesz odrzucić to zadanie?',
   518: 'Odrzuć',
+  519: 'Aby opublikować domeny w clearnet, kliknij „Upublicznij” powyżej.',
 } satisfies i18n

@@ -19,6 +19,7 @@ import {
   TuiDataList,
   TuiIcon,
   TuiLink,
+  TuiNotification,
 } from '@taiga-ui/core'
 import { TuiTooltip } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
@@ -65,12 +66,25 @@ type ClearnetForm = {
         </a>
       </ng-template>
       @if (clearnet().length) {
-        <button tuiButton iconStart="@tui.plus" (click)="add()">
+        <button
+          tuiButton
+          iconStart="@tui.plus"
+          [style.margin-inline-start]="'auto'"
+          (click)="add()"
+        >
           {{ 'Add' | i18n }}
         </button>
       }
     </header>
     @if (clearnet().length) {
+      @if (!isPublic()) {
+        <tui-notification appearance="negative" [style.margin-bottom]="'1rem'">
+          {{
+            'To publish clearnet domains, you must click "Make Public", above.'
+              | i18n
+          }}
+        </tui-notification>
+      }
       <table [appTable]="['ACME', 'URL', null]">
         @for (address of clearnet(); track $index) {
           <tr>
@@ -78,7 +92,11 @@ type ClearnetForm = {
               {{ interface.value().addSsl ? (address.acme | acme) : '-' }}
             </td>
             <td>{{ address.url | mask }}</td>
-            <td actions [href]="address.url" [disabled]="!isRunning()">
+            <td
+              actions
+              [href]="address.url"
+              [disabled]="!isRunning() || !isPublic()"
+            >
               @if (address.isDomain) {
                 <button
                   tuiIconButton
@@ -128,6 +146,7 @@ type ClearnetForm = {
     InterfaceActionsComponent,
     i18nPipe,
     DocsLinkDirective,
+    TuiNotification,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -142,6 +161,7 @@ export class InterfaceClearnetComponent {
 
   readonly clearnet = input.required<readonly ClearnetAddress[]>()
   readonly isRunning = input.required<boolean>()
+  readonly isPublic = input.required<boolean>()
 
   readonly acme = toSignal(
     inject<PatchDB<DataModel>>(PatchDB)

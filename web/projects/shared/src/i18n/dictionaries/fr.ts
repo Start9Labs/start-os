@@ -518,4 +518,5 @@ export default {
   516: 'Recommandé',
   517: 'Êtes-vous sûr de vouloir ignorer cette tâche ?',
   518: 'Ignorer',
+  519: 'Pour publier des domaines clearnet, vous devez cliquer sur « Rendre public » ci-dessus.',
 } satisfies i18n

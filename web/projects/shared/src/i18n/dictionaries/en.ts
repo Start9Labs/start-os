@@ -517,4 +517,5 @@ export const ENGLISH = {
   'Recommended': 516, // as in, we recommend this
   'Are you sure you want to dismiss this task?': 517,
   'Dismiss': 518, // as in, dismiss or delete a task
+  'To publish clearnet domains, you must click "Make Public", above.': 519,
 } as const
