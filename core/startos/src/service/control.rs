@@ -1,3 +1,5 @@
+use futures::future::OptionFuture;
+
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
 use crate::service::action::RunAction;
@@ -26,13 +28,20 @@ impl Service {
     }
 }
 
-struct Stop;
+struct Stop {
+    wait: bool,
+}
 impl Handler<Stop> for ServiceActor {
     type Response = ();
     fn conflicts_with(_: &Stop) -> ConflictBuilder<Self> {
         ConflictBuilder::everything().except::<RunAction>()
     }
-    async fn handle(&mut self, _: Guid, _: Stop, _: &BackgroundJobQueue) -> Self::Response {
+    async fn handle(
+        &mut self,
+        _: Guid,
+        Stop { wait }: Stop,
+        _: &BackgroundJobQueue,
+    ) -> Self::Response {
         let mut transition_state = None;
         self.0.persistent_container.state.send_modify(|x| {
             x.desired_state = StartStop::Stop;
@@ -40,14 +49,19 @@ impl Handler<Stop> for ServiceActor {
                 transition_state = std::mem::take(&mut x.transition_state);
             }
         });
+        let notif = if wait {
+            Some(self.0.synchronized.notified())
+        } else {
+            None
+        };
         if let Some(restart) = transition_state {
             restart.abort().await;
         }
-        self.0.synchronized.notified().await
+        OptionFuture::from(notif).await;
     }
 }
 impl Service {
-    pub async fn stop(&self, id: Guid) -> Result<(), Error> {
-        self.actor.send(id, Stop).await
+    pub async fn stop(&self, id: Guid, wait: bool) -> Result<(), Error> {
+        self.actor.send(id, Stop { wait }).await
     }
 }

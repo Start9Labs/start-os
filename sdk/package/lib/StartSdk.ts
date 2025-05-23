@@ -64,13 +64,11 @@ import * as fs from "node:fs/promises"
 import {
   setupInit,
   setupUninit,
-  setupOnInstall,
-  setupOnUpdate,
-  setupOnInstallOrUpdate,
   setupOnInit,
+  setupOnUninit,
 } from "../../base/lib/inits"
 
-export const OSVersion = testTypeVersion("0.4.0-alpha.4")
+export const OSVersion = testTypeVersion("0.4.0-alpha.5")
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
@@ -506,21 +504,13 @@ export class StartSdk<Manifest extends T.SDKManifest> {
        */
       setupDependencies: setupDependencies<Manifest>,
       /**
-       * @description Use this function to create an InitScript that runs every time the service initializes
+       * @description Use this function to create an InitScript that runs every time the service initializes (install, update, restore, rebuild, and server bootup)
        */
       setupOnInit,
       /**
-       * @description Use this function to create an InitScript that runs only when the service is freshly installed
+       * @description Use this function to create an UninitScript that runs every time the service uninitializes (update, uninstall, and server shutdown)
        */
-      setupOnInstall,
-      /**
-       * @description Use this function to create an InitScript that runs only when the service is updated
-       */
-      setupOnUpdate,
-      /**
-       * @description Use this function to create an InitScript that runs only when the service is installed or updated
-       */
-      setupOnInstallOrUpdate,
+      setupOnUninit,
       /**
        * @description Use this function to setup what happens when the service initializes.
        *  

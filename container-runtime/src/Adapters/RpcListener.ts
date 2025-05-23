@@ -324,6 +324,7 @@ export class RpcListener {
                 }),
               )
               const callbacks = this.callbacks.child("init")
+              console.error("Initializing...")
               await system.init(
                 makeEffects({
                   procedureId: params.id,
@@ -331,6 +332,7 @@ export class RpcListener {
                 }),
                 params.kind,
               )
+              console.error("Initialization complete.")
               this._system = system
             }
           })().then((result) => ({ result })),
