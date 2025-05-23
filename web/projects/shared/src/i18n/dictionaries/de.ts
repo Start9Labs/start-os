@@ -518,4 +518,5 @@ export default {
   516: 'Empfohlen',
   517: 'Möchten Sie diese Aufgabe wirklich verwerfen?',
   518: 'Verwerfen',
+  519: 'Um Clearnet-Domains zu veröffentlichen, musst du oben auf „Öffentlich machen“ klicken.',
 } satisfies i18n
