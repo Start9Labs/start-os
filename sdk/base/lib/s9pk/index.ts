@@ -6,7 +6,7 @@ import {
   PackageId,
 } from "../osBindings"
 import { ArrayBufferReader, MerkleArchive } from "./merkleArchive"
-import mime from "mime-types"
+import mime from "mime"
 import { DirectoryContents } from "./merkleArchive/directoryContents"
 import { FileContents } from "./merkleArchive/fileContents"
 
@@ -60,14 +60,13 @@ export class S9pk {
   async icon(): Promise<DataUrl> {
     const iconName = Object.keys(this.archive.contents.contents).find(
       (name) =>
-        name.startsWith("icon.") &&
-        (mime.contentType(name) || null)?.startsWith("image/"),
+        name.startsWith("icon.") && mime.getType(name)?.startsWith("image/"),
     )
     if (!iconName) {
       throw new Error("no icon found in archive")
     }
     return (
-      `data:${mime.contentType(iconName)};base64,` +
+      `data:${mime.getType(iconName)};base64,` +
       Buffer.from(
         await this.archive.contents.getPath([iconName])!.verifiedFileContents(),
       ).toString("base64")
@@ -91,12 +90,11 @@ export class S9pk {
     if (!dir || !(dir.contents instanceof DirectoryContents)) return null
     const iconName = Object.keys(dir.contents.contents).find(
       (name) =>
-        name.startsWith("icon.") &&
-        (mime.contentType(name) || null)?.startsWith("image/"),
+        name.startsWith("icon.") && mime.getType(name)?.startsWith("image/"),
     )
     if (!iconName) return null
     return (
-      `data:${mime.contentType(iconName)};base64,` +
+      `data:${mime.getType(iconName)};base64,` +
       Buffer.from(
         await dir.contents.getPath([iconName])!.verifiedFileContents(),
       ).toString("base64")

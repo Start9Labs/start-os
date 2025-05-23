@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { ActivatedRoute, Data } from '@angular/router'
+import { ActivatedRoute } from '@angular/router'
 import { TuiDialogContext, TuiLoader, TuiNotification } from '@taiga-ui/core'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { NgDompurifyModule } from '@tinkoff/ng-dompurify'

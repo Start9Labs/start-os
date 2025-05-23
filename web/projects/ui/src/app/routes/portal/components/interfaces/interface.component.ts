@@ -27,6 +27,7 @@ import { MappedServiceInterface } from './interface.utils'
     </button>
     <section
       [clearnet]="value().addresses.clearnet"
+      [isPublic]="value().public"
       [isRunning]="isRunning()"
     ></section>
     <section [tor]="value().addresses.tor" [isRunning]="isRunning()"></section>

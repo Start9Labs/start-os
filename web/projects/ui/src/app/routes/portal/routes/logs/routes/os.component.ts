@@ -30,10 +30,4 @@ export default class SystemOSComponent {
 
   protected readonly fetch = (params: RR.GetServerLogsReq) =>
     this.api.getServerLogs(params)
-
-  log = {
-    title: 'Kernel Logs',
-    subtitle: 'Diagnostics for drivers and other kernel processes',
-    icon: '@tui.square-chevron-right',
-  }
 }
