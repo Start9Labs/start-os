@@ -6,7 +6,6 @@ import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
-  standalone: true,
   template: `
     <logs-header [title]="'OS Logs' | i18n">
       {{ 'Raw, unfiltered operating system logs' | i18n }}

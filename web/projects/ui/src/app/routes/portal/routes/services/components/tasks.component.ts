@@ -11,7 +11,6 @@ import { ServiceTaskComponent } from './task.component'
 import { i18nPipe } from '@start9labs/shared'
 
 @Component({
-  standalone: true,
   selector: 'service-tasks',
   template: `
     <header>{{ 'Tasks' | i18n }}</header>

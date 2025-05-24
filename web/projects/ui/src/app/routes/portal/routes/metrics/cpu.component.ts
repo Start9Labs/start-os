@@ -17,7 +17,6 @@ const LABELS: Record<string, i18nKey> = {
 }
 
 @Component({
-  standalone: true,
   selector: 'metrics-cpu',
   template: `
     <div class="cpu">
@@ -28,7 +27,7 @@ const LABELS: Record<string, i18nKey> = {
     <metrics-data [labels]="labels" [value]="value()" />
   `,
   styles: `
-    @import '@taiga-ui/core/styles/taiga-ui-local';
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
     .cpu {
       position: relative;
@@ -58,7 +57,7 @@ const LABELS: Record<string, i18nKey> = {
     }
 
     .arrow {
-      @include transition(transform);
+      @include taiga.transition(transform);
       position: absolute;
       top: 50%;
       left: 50%;

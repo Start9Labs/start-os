@@ -12,7 +12,6 @@ import { StandardActionsService } from 'src/app/services/standard-actions.servic
 import { getManifest } from 'src/app/utils/get-package-data'
 
 @Component({
-  standalone: true,
   selector: 'service-error',
   template: `
     <header>{{ 'Service Launch Error' | i18n }}</header>

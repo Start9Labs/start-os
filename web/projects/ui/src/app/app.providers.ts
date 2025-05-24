@@ -1,6 +1,8 @@
-import { APP_INITIALIZER, inject, Provider } from '@angular/core'
+import { inject, provideAppInitializer } from '@angular/core'
 import { UntypedFormBuilder } from '@angular/forms'
 import { Router } from '@angular/router'
+import { WA_LOCATION } from '@ng-web-apis/common'
+import initArgon from '@start9labs/argon2'
 import {
   AbstractCategoryService,
   FilterPackagesPipe,
@@ -50,7 +52,7 @@ const {
   ui: { api },
 } = require('../../../../config.json') as WorkspaceConfig
 
-export const APP_PROVIDERS: Provider[] = [
+export const APP_PROVIDERS = [
   provideEventPlugins(),
   I18N_PROVIDERS,
   FilterPackagesPipe,
@@ -86,11 +88,18 @@ export const APP_PROVIDERS: Provider[] = [
     deps: [PatchDbSource, PATCH_CACHE],
     useClass: PatchDB,
   },
-  {
-    provide: APP_INITIALIZER,
-    useFactory: appInitializer,
-    multi: true,
-  },
+  provideAppInitializer(() => {
+    const i18n = inject(i18nService)
+    const origin = inject(WA_LOCATION).origin
+    const module_or_path = new URL('/assets/argon2_bg.wasm', origin)
+
+    initArgon({ module_or_path })
+    inject(StorageService).migrate036()
+    inject(AuthService).init()
+    inject(ClientStorageService).init()
+    inject(Router).initialNavigation()
+    i18n.setLanguage(i18n.language || 'english')
+  }),
   {
     provide: RELATIVE_URL,
     useValue: `/${api.url}/${api.version}`,
@@ -123,19 +132,3 @@ export const APP_PROVIDERS: Provider[] = [
     useFactory: () => inject(ConfigService).version,
   },
 ]
-
-export function appInitializer(): () => void {
-  const storage = inject(StorageService)
-  const auth = inject(AuthService)
-  const localStorage = inject(ClientStorageService)
-  const router = inject(Router)
-  const i18n = inject(i18nService)
-
-  return () => {
-    storage.migrate036()
-    auth.init()
-    localStorage.init()
-    router.initialNavigation()
-    i18n.setLanguage(i18n.language || 'english')
-  }
-}

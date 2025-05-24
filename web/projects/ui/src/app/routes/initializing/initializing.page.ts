@@ -11,7 +11,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
-  standalone: true,
   template: `
     <app-initializing [progress]="progress()" />
   `,

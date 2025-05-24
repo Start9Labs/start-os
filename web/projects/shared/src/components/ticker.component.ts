@@ -7,7 +7,6 @@ import {
 } from '@angular/core'
 
 @Component({
-  standalone: true,
   selector: '[ticker]',
   template: '<ng-content />',
   styles: `

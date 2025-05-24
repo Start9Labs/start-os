@@ -59,7 +59,6 @@ import { RecoverOption } from '../types/recover-option'
     </ng-container>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     CommonModule,
     FormsModule,

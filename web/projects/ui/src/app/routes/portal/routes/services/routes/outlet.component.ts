@@ -148,7 +148,6 @@ const INACTIVE: PrimaryStatus[] = [
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     RouterModule,
     TuiCell,

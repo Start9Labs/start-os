@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute } from '@angular/router'
 import { TuiDialogContext, TuiLoader, TuiNotification } from '@taiga-ui/core'
+import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
-import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 import { catchError, ignoreElements, Observable, of } from 'rxjs'
 import { SafeLinksDirective } from '../directives/safe-links.directive'
 import { MarkdownPipe } from '../pipes/markdown.pipe'
@@ -24,12 +24,11 @@ import { getErrorMessage } from '../services/error.service'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   host: { class: 'g-subpage' },
   imports: [
     TuiNotification,
     TuiLoader,
-    NgDompurifyModule,
+    NgDompurifyPipe,
     MarkdownPipe,
     SafeLinksDirective,
   ],

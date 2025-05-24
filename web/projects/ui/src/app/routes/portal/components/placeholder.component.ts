@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 import { TuiIcon } from '@taiga-ui/core'
 
 @Component({
-  standalone: true,
   selector: 'app-placeholder',
   template: '<tui-icon [icon]="icon()" /><ng-content/>',
   styles: `

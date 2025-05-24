@@ -6,6 +6,7 @@ import { Control } from '../control'
 @Component({
   selector: 'form-select',
   templateUrl: './form-select.component.html',
+  standalone: false,
 })
 export class FormSelectComponent extends Control<IST.ValueSpecSelect, string> {
   private readonly inverted = invert(this.spec.values)

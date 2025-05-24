@@ -26,6 +26,7 @@ import { PatchMonitorService } from './services/patch-monitor.service'
       font-family: 'Proxima Nova', sans-serif;
     }
   `,
+  standalone: false,
 })
 export class AppComponent {
   private readonly i18n = inject(i18nService)

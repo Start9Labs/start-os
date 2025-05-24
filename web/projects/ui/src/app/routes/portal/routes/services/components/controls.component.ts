@@ -51,41 +51,38 @@ import { getManifest } from 'src/app/utils/get-package-data'
       </button>
     }
   `,
-  styles: [
-    `
-      :host {
-        width: 100%;
-        max-width: 18rem;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 1rem;
-        justify-content: center;
-        margin-block-start: 1rem;
+  styles: `
+    :host {
+      width: 100%;
+      max-width: 18rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+      margin-block-start: 1rem;
 
-        &:nth-child(3) {
-          grid-row: span 2;
-        }
+      &:nth-child(3) {
+        grid-row: span 2;
       }
+    }
+
+    [tuiButton] {
+      flex: 1;
+      min-width: fit-content;
+    }
+
+    :host-context(tui-root._mobile) {
+      display: flex;
+      margin: 0;
 
       [tuiButton] {
-        flex: 1;
-        min-width: fit-content;
+        font-size: 0;
+        gap: 0;
+        border-radius: 100%;
       }
-
-      :host-context(tui-root._mobile) {
-        display: flex;
-        margin: 0;
-
-        [tuiButton] {
-          font-size: 0;
-          gap: 0;
-          border-radius: 100%;
-        }
-      }
-    `,
-  ],
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [TuiButton, i18nPipe, TuiLet, AsyncPipe],
 })
 export class ServiceControlsComponent {

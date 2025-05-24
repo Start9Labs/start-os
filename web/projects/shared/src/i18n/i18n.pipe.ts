@@ -3,7 +3,6 @@ import { ENGLISH } from './dictionaries/en'
 import { I18N, i18nKey } from './i18n.providers'
 
 @Pipe({
-  standalone: true,
   name: 'i18n',
   pure: false,
 })

@@ -40,22 +40,19 @@ import { RouterPortComponent } from './table.component'
     </ng-container>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: [
-    `
-      table {
-        width: 100%;
-        min-width: 30rem;
-        max-width: 40rem;
-        table-layout: fixed;
-        background: var(--tui-background-base-alt);
-        border-radius: 0.75rem;
-        font-size: 1rem;
-        margin: 2rem 0;
-        box-shadow: 0 1rem var(--tui-background-base-alt);
-      }
-    `,
-  ],
-  standalone: true,
+  styles: `
+    table {
+      width: 100%;
+      min-width: 30rem;
+      max-width: 40rem;
+      table-layout: fixed;
+      background: var(--tui-background-base-alt);
+      border-radius: 0.75rem;
+      font-size: 1rem;
+      margin: 2rem 0;
+      box-shadow: 0 1rem var(--tui-background-base-alt);
+    }
+  `,
   imports: [
     CommonModule,
     RouterInfoComponent,

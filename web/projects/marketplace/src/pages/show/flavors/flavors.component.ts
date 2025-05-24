@@ -7,7 +7,6 @@ import { TuiCell } from '@taiga-ui/layout'
 import { MarketplacePkg } from '../../../types'
 
 @Component({
-  standalone: true,
   selector: 'marketplace-flavors',
   template: `
     <div class="background-border box-shadow-lg shadow-color-light">

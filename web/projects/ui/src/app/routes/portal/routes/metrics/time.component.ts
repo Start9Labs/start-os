@@ -13,7 +13,6 @@ import { TuiCell } from '@taiga-ui/layout'
 import { TimeService } from 'src/app/services/time.service'
 
 @Component({
-  standalone: true,
   selector: 'metrics-time',
   template: `
     @if (now(); as time) {

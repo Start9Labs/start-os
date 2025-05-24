@@ -21,6 +21,7 @@ import { tuiPure } from '@taiga-ui/cdk'
       useExisting: FormGroupName,
     },
   ],
+  standalone: false,
 })
 export class FormUnionComponent implements OnChanges {
   @Input({ required: true })

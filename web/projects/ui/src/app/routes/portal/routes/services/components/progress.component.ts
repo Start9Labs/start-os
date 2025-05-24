@@ -76,7 +76,6 @@ import { getManifest } from 'src/app/utils/get-package-data'
   `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [TuiProgress, TuiLet, InstallingProgressPipe, i18nPipe, TuiButton],
 })
 export class ServiceInstallProgressComponent {

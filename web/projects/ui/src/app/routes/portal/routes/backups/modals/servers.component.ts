@@ -8,7 +8,6 @@ interface Data {
 }
 
 @Component({
-  standalone: true,
   template: `
     @for (server of context.data.servers; track $index) {
       <button

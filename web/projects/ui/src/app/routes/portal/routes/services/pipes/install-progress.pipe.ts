@@ -3,7 +3,6 @@ import { i18nKey } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 
 @Pipe({
-  standalone: true,
   name: 'installingProgress',
 })
 export class InstallingProgressPipe implements PipeTransform {

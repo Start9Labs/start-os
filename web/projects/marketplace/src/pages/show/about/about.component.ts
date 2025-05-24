@@ -13,6 +13,7 @@ import { MarketplacePkgBase } from '../../../types'
   templateUrl: 'about.component.html',
   styleUrls: ['about.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  standalone: false,
 })
 export class AboutComponent {
   private readonly dialogs = inject(TuiDialogService)

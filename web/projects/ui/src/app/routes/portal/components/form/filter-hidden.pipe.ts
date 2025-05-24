@@ -4,6 +4,7 @@ import { KeyValue } from '@angular/common'
 
 @Pipe({
   name: 'filterHidden',
+  standalone: false,
 })
 export class FilterHiddenPipe implements PipeTransform {
   transform(value: KeyValue<string, IST.ValueSpec>[]) {

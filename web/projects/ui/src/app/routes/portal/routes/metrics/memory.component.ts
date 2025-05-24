@@ -21,7 +21,6 @@ const LABELS: Record<string, i18nKey> = {
 }
 
 @Component({
-  standalone: true,
   selector: 'metrics-memory',
   template: `
     <label tuiProgressLabel>

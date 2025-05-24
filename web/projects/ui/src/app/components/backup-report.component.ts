@@ -45,7 +45,6 @@ import { BackupReport } from 'src/app/services/api/api.types'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [CommonModule, TuiIcon, TuiCell, TuiTitle, i18nPipe],
 })
 export class BackupsReportModal {

@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import * as argon2 from '@start9labs/argon2'
+import { verify } from '@start9labs/argon2'
 import {
   DialogService,
   ErrorService,
@@ -60,24 +60,21 @@ interface Package {
       </button>
     </footer>
   `,
-  styles: [
-    `
-      [tuiGroup] {
-        width: 100%;
-        margin: 1.5rem 0 0;
-      }
+  styles: `
+    [tuiGroup] {
+      width: 100%;
+      margin: 1.5rem 0 0;
+    }
 
-      [tuiBlock] {
-        align-items: center;
-      }
+    [tuiBlock] {
+      align-items: center;
+    }
 
-      img {
-        width: 2.5rem;
-        border-radius: 100%;
-      }
-    `,
-  ],
-  standalone: true,
+    img {
+      width: 2.5rem;
+      border-radius: 100%;
+    }
+  `,
   imports: [
     FormsModule,
     TuiButton,
@@ -148,7 +145,7 @@ export class BackupsBackupComponent {
           // existing backup
         } else {
           try {
-            argon2.verify(entry.startOs[id]?.passwordHash!, password)
+            verify(entry.startOs[id]?.passwordHash!, password)
             await this.createBackup(password)
           } catch {
             this.oldPassword(password)

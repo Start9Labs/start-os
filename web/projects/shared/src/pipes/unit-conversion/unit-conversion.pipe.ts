@@ -3,6 +3,7 @@ import { Pipe, PipeTransform } from '@angular/core'
 // converts bytes to gigabytes
 @Pipe({
   name: 'convertBytes',
+  standalone: false,
 })
 export class ConvertBytesPipe implements PipeTransform {
   transform(bytes: number): string {
@@ -21,6 +22,7 @@ export function convertBytes(bytes: number): string {
 
 @Pipe({
   name: 'durationToSeconds',
+  standalone: false,
 })
 export class DurationToSecondsPipe implements PipeTransform {
   transform(duration?: string | null): number {

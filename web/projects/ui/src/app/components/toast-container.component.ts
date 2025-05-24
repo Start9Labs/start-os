@@ -3,7 +3,6 @@ import { NotificationsToastComponent } from './notifications-toast.component'
 import { RefreshAlertComponent } from './refresh-alert.component'
 
 @Component({
-  standalone: true,
   selector: 'toast-container',
   template: `
     <notifications-toast />

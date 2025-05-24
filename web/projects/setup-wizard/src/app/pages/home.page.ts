@@ -9,7 +9,6 @@ import { ApiService } from 'src/app/services/api.service'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
-  standalone: true,
   template: `
     <img class="logo" src="assets/img/icon.png" alt="Start9" />
     @if (!loading) {
@@ -59,7 +58,7 @@ import { StateService } from 'src/app/services/state.service'
     }
   `,
   styles: `
-    @import '@taiga-ui/core/styles/taiga-ui-local';
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
     .logo {
       width: 6rem;
@@ -88,7 +87,7 @@ import { StateService } from 'src/app/services/state.service'
     }
 
     .options {
-      @include transition(margin);
+      @include taiga.transition(margin);
 
       min-width: 100%;
       display: flex;

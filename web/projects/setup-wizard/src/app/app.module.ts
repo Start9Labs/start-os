@@ -1,7 +1,9 @@
-import { HttpClientModule } from '@angular/common/http'
-import { NgModule } from '@angular/core'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
+import { inject, NgModule, provideAppInitializer } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { PreloadAllModules, RouterModule } from '@angular/router'
+import { WA_LOCATION } from '@ng-web-apis/common'
+import initArgon from '@start9labs/argon2'
 import {
   provideSetupLogsService,
   RELATIVE_URL,
@@ -27,7 +29,6 @@ const version = require('../../../../package.json').version
   declarations: [AppComponent],
   imports: [
     BrowserAnimationsModule,
-    HttpClientModule,
     RouterModule.forRoot(ROUTES, {
       preloadingStrategy: PreloadAllModules,
       initialNavigation: 'disabled',
@@ -50,6 +51,13 @@ const version = require('../../../../package.json').version
       provide: VERSION,
       useValue: version,
     },
+    provideHttpClient(withInterceptorsFromDi()),
+    provideAppInitializer(() => {
+      const origin = inject(WA_LOCATION).origin
+      const module_or_path = new URL('/assets/argon2_bg.wasm', origin)
+
+      initArgon({ module_or_path })
+    }),
   ],
   bootstrap: [AppComponent],
 })

@@ -52,7 +52,6 @@ import { DomainsTableComponent } from './table.component'
     </ng-container>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     CommonModule,
     TuiButton,

@@ -10,7 +10,6 @@ import {
 import { LogsComponent } from './logs.component'
 
 @Directive({
-  standalone: true,
   selector: 'button[logsDownload]',
 })
 export class LogsDownloadDirective {

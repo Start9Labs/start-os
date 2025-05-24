@@ -16,7 +16,6 @@ import { UptimeComponent } from './uptime.component'
 import { i18nPipe } from '@start9labs/shared'
 
 @Component({
-  standalone: true,
   selector: 'app-metrics',
   template: `
     <ng-container *title>{{ 'Metrics' | i18n }}</ng-container>

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
-import * as argon2 from '@start9labs/argon2'
+import { verify } from '@start9labs/argon2'
 import {
   DialogService,
   ErrorService,
@@ -60,7 +60,6 @@ import { getServerInfo } from 'src/app/utils/get-server-info'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     RouterLink,
     TuiHeader,
@@ -107,7 +106,7 @@ export default class SystemPasswordComponent {
     const { passwordHash } = await getServerInfo(this.patch)
 
     try {
-      argon2.verify(passwordHash, oldPassword)
+      verify(passwordHash, oldPassword)
     } catch (e) {
       error = 'Current password is invalid'
     }

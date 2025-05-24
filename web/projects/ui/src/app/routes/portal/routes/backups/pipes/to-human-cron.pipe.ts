@@ -3,7 +3,6 @@ import cronstrue from 'cronstrue'
 
 @Pipe({
   name: 'toHumanCron',
-  standalone: true,
 })
 export class ToHumanCronPipe implements PipeTransform {
   transform(cron: string): { message: string; color: string } {

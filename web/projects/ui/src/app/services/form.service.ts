@@ -8,7 +8,7 @@ import {
   Validators,
 } from '@angular/forms'
 import { IST, utils } from '@start9labs/start-sdk'
-const Mustache = require('mustache')
+import Mustache from 'mustache'
 
 @Injectable({
   providedIn: 'root',
@@ -365,14 +365,8 @@ export function listUnique(spec: IST.ValueSpecList): ValidatorFn {
             : ''
 
           if (isListObject(objSpec) && objSpec.displayAs) {
-            display1 = `"${(Mustache as any).render(
-              objSpec.displayAs,
-              list[idx],
-            )}"`
-            display2 = `"${(Mustache as any).render(
-              objSpec.displayAs,
-              list[idx2],
-            )}"`
+            display1 = `"${Mustache.render(objSpec.displayAs, list[idx])}"`
+            display2 = `"${Mustache.render(objSpec.displayAs, list[idx2])}"`
           } else {
             display1 = `Entry ${idx + 1}`
             display2 = `Entry ${idx2 + 1}`

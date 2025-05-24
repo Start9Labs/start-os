@@ -19,7 +19,6 @@ import {
 import { QrCodeModule } from 'ng-qrcode'
 
 @Component({
-  standalone: true,
   selector: 'app-action-success-member',
   template: `
     <tui-input
@@ -103,20 +102,18 @@ import { QrCodeModule } from 'ng-qrcode'
     </ng-template>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: [
-    `
-      @import '@taiga-ui/core/styles/taiga-ui-local';
+  styles: `
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
-      .reveal {
-        @include center-all();
-      }
+    .reveal {
+      @include taiga.center-all();
+    }
 
-      .qr {
-        position: relative;
-        text-align: center;
-      }
-    `,
-  ],
+    .qr {
+      position: relative;
+      text-align: center;
+    }
+  `,
   imports: [
     FormsModule,
     TuiInputModule,

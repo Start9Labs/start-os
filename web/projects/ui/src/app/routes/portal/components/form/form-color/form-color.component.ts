@@ -7,6 +7,7 @@ import { MaskitoOptions } from '@maskito/core'
   selector: 'form-color',
   templateUrl: './form-color.component.html',
   styleUrls: ['./form-color.component.scss'],
+  standalone: false,
 })
 export class FormColorComponent extends Control<IST.ValueSpecColor, string> {
   readonly mask: MaskitoOptions = {

@@ -11,7 +11,6 @@ import { ValuePipe } from './value.pipe'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
 
 @Component({
-  standalone: true,
   selector: 'metrics-data',
   template: `
     @for (key of keys(); track $index) {

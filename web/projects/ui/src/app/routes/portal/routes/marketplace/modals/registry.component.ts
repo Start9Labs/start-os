@@ -28,20 +28,20 @@ import { IST, utils } from '@start9labs/start-sdk'
 import { StorageService } from 'src/app/services/storage.service'
 
 @Component({
-  standalone: true,
   template: `
     @if (registries$ | async; as registries) {
       <h3 class="g-title">{{ 'Default Registries' | i18n }}</h3>
       @for (registry of registries.standard; track $index) {
         <button
           tuiCell
+          class="g-stretch"
           [disabled]="registry.selected"
           [registry]="registry"
           (click)="connect(registry.url)"
         ></button>
       }
       <h3 class="g-title">{{ 'Custom Registries' | i18n }}</h3>
-      <button tuiCell (click)="add()">
+      <button tuiCell class="g-stretch" (click)="add()">
         <tui-icon icon="@tui.plus" [style.margin-inline.rem]="'0.5'" />
         <div tuiTitle>{{ 'Add custom registry' | i18n }}</div>
       </button>
@@ -49,6 +49,7 @@ import { StorageService } from 'src/app/services/storage.service'
         <div class="connect-container">
           <button
             tuiCell
+            class="g-stretch"
             [registry]="registry"
             (click)="connect(registry.url)"
           ></button>
@@ -64,19 +65,13 @@ import { StorageService } from 'src/app/services/storage.service'
       }
     }
   `,
-  styles: [
-    `
-      .connect-container {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-      }
-
-      [tuiCell] {
-        width: stretch;
-      }
-    `,
-  ],
+  styles: `
+    .connect-container {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,

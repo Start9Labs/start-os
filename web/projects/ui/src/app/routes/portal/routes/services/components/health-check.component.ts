@@ -9,7 +9,6 @@ import { T } from '@start9labs/start-sdk'
 import { TuiIcon, TuiLoader } from '@taiga-ui/core'
 
 @Component({
-  standalone: true,
   selector: 'tr[healthCheck]',
   template: `
     <td>{{ healthCheck.name }}</td>
@@ -24,29 +23,27 @@ import { TuiIcon, TuiLoader } from '@taiga-ui/core'
       </span>
     </td>
   `,
-  styles: [
-    `
-      span {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+  styles: `
+    span {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    :host-context(tui-root._mobile) {
+      display: flex;
+      flex-direction: column;
+
+      td:first-child {
+        font-weight: bold;
+        padding-bottom: 0;
       }
 
-      :host-context(tui-root._mobile) {
-        display: flex;
-        flex-direction: column;
-
-        td:first-child {
-          font-weight: bold;
-          padding-bottom: 0;
-        }
-
-        td:last-child {
-          color: var(--tui-text-secondary);
-        }
+      td:last-child {
+        color: var(--tui-text-secondary);
       }
-    `,
-  ],
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiLoader, TuiIcon],
 })

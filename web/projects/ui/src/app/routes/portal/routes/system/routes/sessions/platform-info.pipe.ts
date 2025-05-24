@@ -2,7 +2,6 @@ import { Pipe, PipeTransform } from '@angular/core'
 
 @Pipe({
   name: 'platformInfo',
-  standalone: true,
 })
 export class PlatformInfoPipe implements PipeTransform {
   transform(userAgent: string | null): {

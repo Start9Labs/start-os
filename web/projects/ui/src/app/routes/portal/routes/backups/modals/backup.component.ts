@@ -57,21 +57,18 @@ interface Package {
       </button>
     </footer>
   `,
-  styles: [
-    `
-      :host {
-        display: flex;
-        flex-direction: column;
-        margin-top: 1.5rem;
-      }
+  styles: `
+    :host {
+      display: flex;
+      flex-direction: column;
+      margin-top: 1.5rem;
+    }
 
-      .icon {
-        width: 2.5rem;
-        border-radius: 100%;
-      }
-    `,
-  ],
-  standalone: true,
+    .icon {
+      width: 2.5rem;
+      border-radius: 100%;
+    }
+  `,
   imports: [FormsModule, TuiButton, TuiGroup, TuiLoader, TuiBlock, TuiCheckbox],
 })
 export class BackupsBackupModal {

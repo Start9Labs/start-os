@@ -11,7 +11,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { SnekComponent } from './snek.component'
 
 @Directive({
-  standalone: true,
   selector: 'img[snek]',
 })
 export class SnekDirective {

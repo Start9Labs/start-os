@@ -6,7 +6,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { LogsHeaderComponent } from '../components/header.component'
 
 @Component({
-  standalone: true,
   template: `
     <logs-header [title]="'Kernel Logs' | i18n">
       {{ 'Diagnostics for drivers and other kernel processes' | i18n }}

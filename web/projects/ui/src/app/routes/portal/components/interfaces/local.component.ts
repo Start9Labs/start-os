@@ -8,7 +8,6 @@ import { MaskPipe } from './mask.pipe'
 import { DocsLinkDirective, i18nPipe } from '@start9labs/shared'
 
 @Component({
-  standalone: true,
   selector: 'section[local]',
   template: `
     <header>

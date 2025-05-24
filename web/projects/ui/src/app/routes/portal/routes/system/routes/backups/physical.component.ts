@@ -19,7 +19,6 @@ import { BackupService, MappedBackupTarget } from './backup.service'
 import { BackupStatusComponent } from './status.component'
 
 @Component({
-  standalone: true,
   selector: '[physicalFolders]',
   template: `
     <header>
@@ -64,13 +63,13 @@ import { BackupStatusComponent } from './status.component'
     </table>
   `,
   styles: `
-    @import '@taiga-ui/core/styles/taiga-ui-local';
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
     tr {
       cursor: pointer;
-      @include transition(background);
+      @include taiga.transition(background);
 
-      @media ($tui-mouse) {
+      @media (taiga.$tui-mouse) {
         &:hover {
           background: var(--tui-background-neutral-1-hover);
         }

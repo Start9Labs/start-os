@@ -1,4 +1,3 @@
-import { TuiAutoFocus } from '@taiga-ui/cdk'
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import {
@@ -8,17 +7,18 @@ import {
   MarkdownPipe,
   SafeLinksDirective,
 } from '@start9labs/shared'
+import { TuiAutoFocus } from '@taiga-ui/cdk'
+import { TuiButton, TuiDialogContext, TuiScrollbar } from '@taiga-ui/core'
+import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import {
   POLYMORPHEUS_CONTEXT,
   PolymorpheusComponent,
 } from '@taiga-ui/polymorpheus'
-import { TuiDialogContext, TuiScrollbar, TuiButton } from '@taiga-ui/core'
-import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
+import { PatchDB } from 'patch-db-client'
+import { firstValueFrom } from 'rxjs'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { OSService } from 'src/app/services/os.service'
-import { PatchDB } from 'patch-db-client'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { firstValueFrom } from 'rxjs'
 
 @Component({
   template: `
@@ -37,11 +37,10 @@ import { firstValueFrom } from 'rxjs'
     </button>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     CommonModule,
     MarkdownPipe,
-    NgDompurifyModule,
+    NgDompurifyPipe,
     SafeLinksDirective,
     TuiAutoFocus,
     TuiButton,

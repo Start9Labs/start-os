@@ -1,4 +1,4 @@
-@import '@taiga-ui/core/styles/taiga-ui-local';
+@use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
 :host {
   margin: 0;
@@ -12,7 +12,7 @@ tui-drawer {
 }
 
 header {
-  @include scrollbar-hidden();
+  @include taiga.scrollbar-hidden();
 
   // @TODO Theme
   background: #2b2b2f;

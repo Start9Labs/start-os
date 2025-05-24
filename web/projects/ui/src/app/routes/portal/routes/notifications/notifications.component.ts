@@ -57,7 +57,6 @@ import { NotificationsTableComponent } from './table.component'
   `,
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     TuiDropdown,
     TuiButton,

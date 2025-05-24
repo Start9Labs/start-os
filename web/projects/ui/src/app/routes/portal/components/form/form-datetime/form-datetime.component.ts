@@ -12,6 +12,7 @@ import { Control } from '../control'
 @Component({
   selector: 'form-datetime',
   templateUrl: './form-datetime.component.html',
+  standalone: false,
 })
 export class FormDatetimeComponent extends Control<
   IST.ValueSpecDatetime,

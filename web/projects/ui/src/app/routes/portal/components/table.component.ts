@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
 
 @Component({
-  standalone: true,
   selector: 'table[appTable]',
   template: `
     <thead>

@@ -6,7 +6,6 @@ import { RR } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
-  standalone: true,
   template: `
     <logs-header [title]="'Tor Logs' | i18n">
       {{ 'Diagnostic logs for the Tor daemon on StartOS' | i18n }}

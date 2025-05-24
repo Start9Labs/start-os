@@ -50,7 +50,10 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
         </service-status>
 
         @if (status() !== 'backingUp') {
-          <service-uptime [started]="$any(pkg.status)?.started" />
+          <service-uptime
+            class="g-card"
+            [started]="$any(pkg.status)?.started"
+          />
           <service-interfaces [pkg]="pkg" [disabled]="status() !== 'running'" />
 
           @if (errors() | async; as errors) {
@@ -143,7 +146,6 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
   `,
   host: { class: 'g-subpage' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     CommonModule,
     TuiElement,

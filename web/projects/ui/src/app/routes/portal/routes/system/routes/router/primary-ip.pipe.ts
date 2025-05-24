@@ -2,7 +2,6 @@ import { Pipe, PipeTransform } from '@angular/core'
 import { T } from '@start9labs/start-sdk'
 
 @Pipe({
-  standalone: true,
   name: 'primaryIp',
 })
 export class PrimaryIpPipe implements PipeTransform {

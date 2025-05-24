@@ -11,7 +11,6 @@ import { TuiHeader } from '@taiga-ui/layout'
 import { TitleDirective } from 'src/app/services/title.service'
 
 @Component({
-  standalone: true,
   selector: 'logs-header',
   template: `
     <ng-container *title>

@@ -45,76 +45,73 @@ import { map } from 'rxjs'
     </aside>
     <router-outlet />
   `,
-  styles: [
-    `
-      :host {
-        display: flex;
+  styles: `
+    :host {
+      display: flex;
+      padding: 0;
+    }
+
+    tui-badge-notification {
+      vertical-align: baseline;
+    }
+
+    [tuiCell] {
+      color: var(--tui-text-secondary);
+
+      &.active {
+        color: var(--tui-text-primary);
+
+        [tuiTitle] {
+          font-weight: bold;
+        }
+      }
+    }
+
+    span:not(:last-child) {
+      display: none;
+    }
+
+    router-outlet + ::ng-deep * {
+      height: fit-content;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      padding: 1rem;
+    }
+
+    :host-context(tui-root._mobile) {
+      aside {
         padding: 0;
-      }
+        width: 100%;
+        background: none;
+        box-shadow: none;
 
-      tui-badge-notification {
-        vertical-align: baseline;
-      }
-
-      [tuiCell] {
-        color: var(--tui-text-secondary);
-
-        &.active {
-          color: var(--tui-text-primary);
-
-          [tuiTitle] {
-            font-weight: bold;
-          }
-        }
-      }
-
-      span:not(:last-child) {
-        display: none;
-      }
-
-      router-outlet + ::ng-deep * {
-        height: fit-content;
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-        padding: 1rem;
-      }
-
-      :host-context(tui-root._mobile) {
-        aside {
-          padding: 0;
-          width: 100%;
-          background: none;
-          box-shadow: none;
-
-          &:not(:nth-last-child(2)) {
-            display: none;
-          }
-        }
-
-        [tuiCell] {
-          color: var(--tui-text-primary);
-          margin: 0.5rem 0;
-
-          [tuiTitle] {
-            font: var(--tui-font-text-l);
-          }
-        }
-
-        hr {
-          background: var(--tui-border-normal);
-        }
-
-        ::ng-deep hgroup h3 {
+        &:not(:nth-last-child(2)) {
           display: none;
         }
       }
-    `,
-  ],
+
+      [tuiCell] {
+        color: var(--tui-text-primary);
+        margin: 0.5rem 0;
+
+        [tuiTitle] {
+          font: var(--tui-font-text-l);
+        }
+      }
+
+      hr {
+        background: var(--tui-border-normal);
+      }
+
+      ::ng-deep hgroup h3 {
+        display: none;
+      }
+    }
+  `,
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     RouterModule,
     TuiCell,

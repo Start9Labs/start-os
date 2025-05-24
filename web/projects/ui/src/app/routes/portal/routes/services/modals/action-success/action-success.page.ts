@@ -6,7 +6,6 @@ import { ActionSuccessSingleComponent } from './action-success-single.component'
 import { ActionResponseWithResult } from './types'
 
 @Component({
-  standalone: true,
   template: `
     @if (data.message) {
       <p>{{ data.message }}</p>

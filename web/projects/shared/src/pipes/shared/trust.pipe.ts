@@ -3,6 +3,7 @@ import { DomSanitizer, SafeResourceUrl } from '@angular/platform-browser'
 
 @Pipe({
   name: 'trustUrl',
+  standalone: false,
 })
 export class TrustUrlPipe implements PipeTransform {
   constructor(private readonly sanitizer: DomSanitizer) {}

@@ -70,7 +70,6 @@ import { RecoverData, RecoverOption } from './backup.types'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     CommonModule,
     FormsModule,

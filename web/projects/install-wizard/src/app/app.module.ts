@@ -1,4 +1,4 @@
-import { HttpClientModule } from '@angular/common/http'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import {
@@ -29,7 +29,6 @@ const {
 @NgModule({
   declarations: [AppComponent],
   imports: [
-    HttpClientModule,
     BrowserAnimationsModule,
     TuiRoot,
     DriveComponent,
@@ -51,6 +50,7 @@ const {
       provide: RELATIVE_URL,
       useValue: `/${api.url}/${api.version}`,
     },
+    provideHttpClient(withInterceptorsFromDi()),
   ],
   bootstrap: [AppComponent],
 })

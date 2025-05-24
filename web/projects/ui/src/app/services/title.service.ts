@@ -26,7 +26,6 @@ export class TitleService {
 }
 
 @Directive({
-  standalone: true,
   selector: 'ng-template[title]',
   providers: [tuiButtonOptionsProvider({ appearance: '' })],
 })

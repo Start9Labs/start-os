@@ -41,44 +41,43 @@ import {
       <ng-content />
     </div>
   `,
-  styles: [
-    `
+  styles: `
+    :host {
+      grid-column: span 2;
+      min-height: 12rem;
+    }
+
+    h3 {
+      font: var(--tui-font-heading-4);
+      font-weight: normal;
+      margin: 0;
+      text-align: center;
+    }
+
+    div {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      padding: 1rem 0;
+    }
+
+    small {
+      display: block;
+      font: var(--tui-font-text-l);
+      color: var(--tui-text-secondary);
+      text-align: center;
+    }
+
+    tui-loader {
+      display: inline-flex;
+      vertical-align: bottom;
+      margin: 0 0.25rem -0.125rem 0;
+    }
+
+    :host-context(tui-root._mobile) {
       :host {
-        grid-column: span 2;
-        min-height: 12rem;
-      }
-
-      h3 {
-        font: var(--tui-font-heading-4);
-        font-weight: normal;
-        margin: 0;
-        text-align: center;
-      }
-
-      div {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        flex: 1;
-        padding: 1rem 0;
-      }
-
-      small {
-        display: block;
-        font: var(--tui-font-text-l);
-        color: var(--tui-text-secondary);
-        text-align: center;
-      }
-
-      tui-loader {
-        display: inline-flex;
-        vertical-align: bottom;
-        margin: 0 0.25rem -0.125rem 0;
-      }
-
-      :host-context(tui-root._mobile) {
-        :host {
           min-height: 0;
         }
 
@@ -88,18 +87,16 @@ import {
           padding: 0.5rem 0;
         }
 
-        h3 {
-          text-align: left;
-        }
-
-        small {
-          text-align: left;
-        }
+      h3 {
+        text-align: left;
       }
-    `,
-  ],
+
+      small {
+        text-align: left;
+      }
+    }
+  `,
   host: { class: 'g-card' },
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiLoader, i18nPipe],
 })

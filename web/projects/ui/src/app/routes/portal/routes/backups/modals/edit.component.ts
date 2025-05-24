@@ -81,23 +81,20 @@ import { TARGET, TARGET_CREATE } from './target.component'
       </button>
     </form>
   `,
-  styles: [
-    `
-      .form {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-      }
+  styles: `
+    .form {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
 
-      .button[data-size] {
-        width: unset;
-        padding: 1rem;
-        text-indent: 0;
-        justify-content: space-between;
-      }
-    `,
-  ],
-  standalone: true,
+    .button[data-size] {
+      width: unset;
+      padding: 1rem;
+      text-indent: 0;
+      justify-content: space-between;
+    }
+  `,
   imports: [
     CommonModule,
     FormsModule,

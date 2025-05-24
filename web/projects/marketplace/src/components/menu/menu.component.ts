@@ -15,6 +15,7 @@ import { StoreDataWithUrl } from '../../types'
   templateUrl: './menu.component.html',
   styleUrls: ['./menu.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  standalone: false,
 })
 export class MenuComponent implements OnDestroy {
   @Input({ required: true })

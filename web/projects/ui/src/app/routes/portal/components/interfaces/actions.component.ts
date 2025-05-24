@@ -18,7 +18,6 @@ import { InterfaceComponent } from './interface.component'
 import { DOCUMENT } from '@angular/common'
 
 @Component({
-  standalone: true,
   selector: 'td[actions]',
   template: `
     <div class="desktop">

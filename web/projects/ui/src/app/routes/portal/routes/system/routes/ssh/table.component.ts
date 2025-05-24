@@ -100,7 +100,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
       }
     }
   `,
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, TuiButton, TuiFade, TuiSkeleton, TableComponent],
 })

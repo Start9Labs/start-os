@@ -64,59 +64,56 @@ import { MarketplaceControlsComponent } from './controls.component'
       </tui-drawer>
     </marketplace-item>
   `,
-  styles: [
-    `
-      :host {
-        cursor: pointer;
-        animation: animateIn 400ms calc(var(--animation-order) * 200ms) both;
+  styles: `
+    :host {
+      cursor: pointer;
+      animation: animateIn 400ms calc(var(--animation-order) * 200ms) both;
+    }
+
+    tui-drawer {
+      top: 0;
+      width: 28rem;
+      border-radius: 0;
+    }
+
+    @keyframes animateIn {
+      from {
+        opacity: 0;
+        transform: scale(0.6) translateY(-20px);
       }
 
-      tui-drawer {
-        top: 0;
-        width: 28rem;
-        border-radius: 0;
+      to {
+        opacity: 1;
       }
+    }
 
-      @keyframes animateIn {
-        from {
-          opacity: 0;
-          transform: scale(0.6) translateY(-20px);
-        }
+    .preview-wrapper {
+      overflow-y: auto;
+      height: 100%;
+      max-width: 100%;
 
-        to {
-          opacity: 1;
-        }
+      @media (min-width: 768px) {
+        max-width: 30rem;
       }
+    }
 
-      .preview-wrapper {
-        overflow-y: auto;
-        height: 100%;
-        max-width: 100%;
+    .close-button {
+      place-self: end;
+      margin-bottom: 0;
 
-        @media (min-width: 768px) {
-          max-width: 30rem;
-        }
+      @media (min-width: 768px) {
+        margin-bottom: 2rem;
       }
+    }
 
-      .close-button {
-        place-self: end;
-        margin-bottom: 0;
-
-        @media (min-width: 768px) {
-          margin-bottom: 2rem;
-        }
-      }
-
-      .controls-wrapper {
-        display: flex;
-        justify-content: flex-start;
-        gap: 0.5rem;
-        height: 4.5rem;
-      }
-    `,
-  ],
+    .controls-wrapper {
+      display: flex;
+      justify-content: flex-start;
+      gap: 0.5rem;
+      height: 4.5rem;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   providers: [
     {
       provide: TuiDropdownService,

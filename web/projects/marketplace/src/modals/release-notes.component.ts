@@ -1,27 +1,27 @@
 import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { Exver, MarkdownPipe } from '@start9labs/shared'
-import { TuiButton, TuiDialogContext, TuiLoader } from '@taiga-ui/core'
+import { TuiDialogContext } from '@taiga-ui/core'
+import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import { TuiAccordion } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { MarketplacePkg } from '../../src/types'
 
 @Component({
-  standalone: true,
   template: `
     <tui-accordion>
       @for (note of notes | keyvalue: asIsOrder; track $index) {
         <tui-accordion-item>
           {{ note.key }}
           <ng-template tuiAccordionItemContent>
-            <div [innerHTML]="note.value | markdown"></div>
+            <div [innerHTML]="note.value | markdown | dompurify"></div>
           </ng-template>
         </tui-accordion-item>
       }
     </tui-accordion>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, TuiButton, TuiLoader, TuiAccordion, MarkdownPipe],
+  imports: [CommonModule, TuiAccordion, MarkdownPipe, NgDompurifyPipe],
 })
 export class ReleaseNotesComponent {
   private readonly exver = inject(Exver)

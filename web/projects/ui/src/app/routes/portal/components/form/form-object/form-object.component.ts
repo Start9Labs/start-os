@@ -14,6 +14,7 @@ import { IST } from '@start9labs/start-sdk'
   templateUrl: './form-object.component.html',
   styleUrls: ['./form-object.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  standalone: false,
 })
 export class FormObjectComponent {
   @Input({ required: true })

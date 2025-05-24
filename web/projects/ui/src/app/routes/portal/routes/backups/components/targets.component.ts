@@ -132,7 +132,6 @@ import { GetBackupIconPipe } from '../pipes/get-backup-icon.pipe'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [TuiButton, GetBackupIconPipe, TuiIcon, KeyValuePipe, TuiSkeleton],
 })
 export class BackupsTargetsComponent {

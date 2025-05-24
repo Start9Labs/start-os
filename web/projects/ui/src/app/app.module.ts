@@ -1,4 +1,4 @@
-import { HttpClientModule } from '@angular/common/http'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { ServiceWorkerModule } from '@angular/service-worker'
@@ -12,7 +12,6 @@ import { RoutingModule } from './routing.module'
 @NgModule({
   declarations: [AppComponent],
   imports: [
-    HttpClientModule,
     BrowserAnimationsModule,
     RoutingModule,
     ToastContainerComponent,
@@ -24,7 +23,7 @@ import { RoutingModule } from './routing.module'
       registrationStrategy: 'registerWhenStable:30000',
     }),
   ],
-  providers: APP_PROVIDERS,
+  providers: [APP_PROVIDERS, provideHttpClient(withInterceptorsFromDi())],
   bootstrap: [AppComponent],
 })
 export class AppModule {}

@@ -6,6 +6,7 @@
     "outDir": "./dist/out-tsc",
     "forceConsistentCasingInFileNames": true,
     "noImplicitOverride": true,
+    "esModuleInterop": true,
     "noPropertyAccessFromIndexSignature": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
@@ -13,19 +14,17 @@
     "strict": true,
     "sourceMap": true,
     "declaration": false,
-    "downlevelIteration": true,
     "experimentalDecorators": true,
     "moduleResolution": "node",
     "importHelpers": true,
-    "target": "es2020",
+    "target": "es2022",
     "module": "es2020",
     "lib": ["es2020", "dom"],
-    "allowSyntheticDefaultImports": true,
+    "useDefineForClassFields": false,
     "paths": {
       /* These paths are relative to each app base folder */
       "@start9labs/marketplace": ["../marketplace/index"],
-      "@start9labs/shared": ["../shared/src/public-api"],
-      "path": ["../../node_modules/path-browserify"]
+      "@start9labs/shared": ["../shared/src/public-api"]
     },
     "typeRoots": ["node_modules/@types"],
     "types": ["node"]

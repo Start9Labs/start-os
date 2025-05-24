@@ -90,9 +90,12 @@ import { PortForward } from 'src/app/services/patch-db/data-model'
       </button>
     </td>
   `,
-  styles: ['button { pointer-events: auto }'],
+  styles: `
+    button {
+      pointer-events: auto;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     CommonModule,
     FormsModule,

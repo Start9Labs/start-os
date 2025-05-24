@@ -89,7 +89,6 @@ import { wifiSpec } from './wifi.const'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     CommonModule,
     TuiCell,

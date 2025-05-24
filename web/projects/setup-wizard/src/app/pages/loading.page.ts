@@ -23,9 +23,13 @@ import { ApiService } from 'src/app/services/api.service'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
-  standalone: true,
   template: '<app-initializing [setupType]="type" [progress]="progress()" />',
-  styles: ':host { max-width: unset; align-items: stretch; }',
+  styles: `
+    :host {
+      max-width: unset;
+      align-items: stretch;
+    }
+  `,
   imports: [InitializingComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

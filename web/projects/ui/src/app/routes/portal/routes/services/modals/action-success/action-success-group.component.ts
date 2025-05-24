@@ -4,7 +4,6 @@ import { ActionSuccessMemberComponent } from './action-success-member.component'
 import { GroupResult } from './types'
 
 @Component({
-  standalone: true,
   selector: 'app-action-success-group',
   template: `
     @for (member of group.value; track $index) {
@@ -23,17 +22,15 @@ import { GroupResult } from './types'
       </p>
     }
   `,
-  styles: [
-    `
-      p:first-child {
-        margin-top: 0;
-      }
+  styles: `
+    p:first-child {
+      margin-top: 0;
+    }
 
-      p:last-child {
-        margin-bottom: 0;
-      }
-    `,
-  ],
+    p:last-child {
+      margin-bottom: 0;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ActionSuccessMemberComponent, TuiAccordion, TuiFade],
 })

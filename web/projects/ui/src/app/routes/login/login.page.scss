@@ -1,7 +1,7 @@
-@import '@taiga-ui/core/styles/taiga-ui-local';
+@use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
 .card {
-  @include center-all();
+  @include taiga.center-all();
   overflow: visible;
   align-items: center;
   text-align: center;
@@ -11,7 +11,7 @@
 }
 
 .logo {
-  @include center-left();
+  @include taiga.center-left();
   top: -17%;
   width: 6rem;
 }

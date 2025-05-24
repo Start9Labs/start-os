@@ -28,7 +28,6 @@ export interface CifsResponse {
 }
 
 @Component({
-  standalone: true,
   template: `
     <form [formGroup]="form" (ngSubmit)="submit()">
       <tui-input formControlName="hostname">
@@ -78,10 +77,17 @@ export interface CifsResponse {
       </footer>
     </form>
   `,
-  styles: [
-    '.input { margin-top: 1rem }',
-    'footer { display: flex; gap: 1rem; margin-top: 1rem }',
-  ],
+  styles: `
+    .input {
+      margin-top: 1rem;
+    }
+
+    footer {
+      display: flex;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+  `,
   imports: [
     CommonModule,
     FormsModule,

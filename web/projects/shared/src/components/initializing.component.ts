@@ -5,7 +5,6 @@ import { LogsWindowComponent } from './logs-window.component'
 import { i18nPipe } from '../i18n/i18n.pipe'
 
 @Component({
-  standalone: true,
   selector: 'app-initializing',
   template: `
     <section>

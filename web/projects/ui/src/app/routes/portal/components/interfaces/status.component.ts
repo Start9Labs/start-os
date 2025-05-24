@@ -3,7 +3,6 @@ import { i18nPipe } from '@start9labs/shared'
 import { TuiBadge } from '@taiga-ui/kit'
 
 @Component({
-  standalone: true,
   selector: 'interface-status',
   template: `
     <tui-badge

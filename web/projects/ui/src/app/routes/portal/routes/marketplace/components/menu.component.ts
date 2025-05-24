@@ -7,7 +7,6 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { DialogService, i18nPipe } from '@start9labs/shared'
 
 @Component({
-  standalone: true,
   selector: 'marketplace-menu',
   template: `
     <menu [registry]="registry$ | async">
@@ -27,20 +26,18 @@ import { DialogService, i18nPipe } from '@start9labs/shared'
       </button>
     </menu>
   `,
-  styles: [
-    `
-      .mobile-button {
-        display: flex;
-        gap: 0.5rem;
-        padding: 1.25rem;
-        font-size: 1rem;
-        line-height: 1.5rem;
-        background-color: transparent;
-        background-image: none;
-        border: none;
-      }
-    `,
-  ],
+  styles: `
+    .mobile-button {
+      display: flex;
+      gap: 0.5rem;
+      padding: 1.25rem;
+      font-size: 1rem;
+      line-height: 1.5rem;
+      background-color: transparent;
+      background-image: none;
+      border: none;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,

@@ -27,30 +27,27 @@ import { MarketplaceDepItemComponent } from './dependency-item.component'
       </div>
     </div>
   `,
-  styles: [
-    `
-      .dependencies-container {
-        background-color: rgb(39 39 42);
-        border-radius: 0.75rem;
-        padding: 1.75rem;
+  styles: `
+    .dependencies-container {
+      background-color: rgb(39 39 42);
+      border-radius: 0.75rem;
+      padding: 1.75rem;
 
-        @media (min-width: 1024px) {
-          grid-column: span 5 / span 5;
-        }
-        @media (min-width: 1280px) {
-          grid-column: span 4 / span 4;
-        }
+      @media (min-width: 1024px) {
+        grid-column: span 5 / span 5;
       }
+      @media (min-width: 1280px) {
+        grid-column: span 4 / span 4;
+      }
+    }
 
-      .dependencies-list {
-        display: grid;
-        grid-auto-rows: auto;
-        gap: 0.75rem;
-      }
-    `,
-  ],
+    .dependencies-list {
+      display: grid;
+      grid-auto-rows: auto;
+      gap: 0.75rem;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [CommonModule, MarketplaceDepItemComponent],
 })
 export class MarketplaceDependenciesComponent {

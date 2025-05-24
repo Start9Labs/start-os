@@ -23,9 +23,10 @@ import { mockPatchData } from './mock-patch'
 import { AuthService } from '../auth.service'
 import { T } from '@start9labs/start-sdk'
 import { MarketplacePkg } from '@start9labs/marketplace'
-import markdown from 'raw-loader!../../../../../shared/assets/markdown/md-sample.md'
 import { WebSocketSubject } from 'rxjs/webSocket'
 import { toAcmeUrl } from 'src/app/utils/acme'
+
+import markdown from './md-sample.md'
 
 const PROGRESS: T.FullProgress = {
   overall: {

@@ -104,7 +104,6 @@ import { Domain } from 'src/app/services/patch-db/data-model'
       }
     }
   `,
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommonModule, TuiButton, TuiLink],
 })

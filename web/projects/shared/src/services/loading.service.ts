@@ -6,7 +6,6 @@ import { i18nPipe } from '../i18n/i18n.pipe'
 import { i18nKey } from '../i18n/i18n.providers'
 
 @Component({
-  standalone: true,
   template: '<tui-loader [textContent]="content | i18n" />',
   styles: `
     :host {

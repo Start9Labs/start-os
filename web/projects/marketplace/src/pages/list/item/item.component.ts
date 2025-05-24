@@ -6,6 +6,7 @@ import { MarketplacePkg } from '../../../types'
   templateUrl: 'item.component.html',
   styleUrls: ['item.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  standalone: false,
 })
 export class ItemComponent {
   @Input({ required: true })

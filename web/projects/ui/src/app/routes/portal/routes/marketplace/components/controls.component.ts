@@ -92,7 +92,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
       </button>
     }
   `,
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,

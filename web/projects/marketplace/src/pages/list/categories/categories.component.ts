@@ -27,6 +27,7 @@ const ICONS: Record<string, string> = {
   templateUrl: 'categories.component.html',
   styleUrls: ['categories.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  standalone: false,
 })
 export class CategoriesComponent {
   @Input()

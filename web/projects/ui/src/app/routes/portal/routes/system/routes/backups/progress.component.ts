@@ -12,7 +12,6 @@ import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
-  standalone: true,
   selector: '[backupProgress]',
   template: `
     <header>{{ 'Backup Progress' | i18n }}</header>

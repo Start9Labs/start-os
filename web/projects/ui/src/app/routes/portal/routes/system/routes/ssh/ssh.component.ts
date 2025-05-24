@@ -51,7 +51,6 @@ import { DocsLinkDirective } from 'projects/shared/src/public-api'
     </section>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     CommonModule,
     TuiButton,

@@ -33,7 +33,6 @@ import {
   map,
   startWith,
   switchMap,
-  tap,
 } from 'rxjs'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 
@@ -94,58 +93,55 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
       }
     </div>
   `,
-  styles: [
-    `
-      :host {
-        pointer-events: auto;
+  styles: `
+    :host {
+      pointer-events: auto;
+    }
+
+    .outer-container {
+      display: flex;
+      flex-direction: column;
+      height: calc(100vh - var(--portal-header-height) - var(--bumper));
+    }
+
+    .inner-container {
+      display: grid;
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+      column-gap: 2rem;
+    }
+
+    .listing {
+      font-size: 0.8rem;
+      // @TODO theme
+      color: #8059e5;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+
+      tui-icon {
+        width: 0.8em;
+        height: 0.8em;
       }
+    }
 
-      .outer-container {
-        display: flex;
-        flex-direction: column;
-        height: calc(100vh - var(--portal-header-height) - var(--bumper));
-      }
+    .versions {
+      border: 0;
+      border-top-width: 1px;
+      border-bottom-width: 1px;
+      border-color: rgb(113 113 122);
+      border-style: solid;
+      cursor: pointer;
 
-      .inner-container {
-        display: grid;
-        grid-template-columns: repeat(1, minmax(0, 1fr));
-        column-gap: 2rem;
-      }
-
-      .listing {
-        font-size: 0.8rem;
-        // @TODO theme
-        color: #8059e5;
-        font-weight: 600;
-        display: flex;
-        align-items: center;
-        gap: 0.3rem;
-
-        tui-icon {
-          width: 0.8em;
-          height: 0.8em;
-        }
-      }
-
-      .versions {
-        border: 0;
-        border-top-width: 1px;
-        border-bottom-width: 1px;
-        border-color: rgb(113 113 122);
-        border-style: solid;
+      ::ng-deep label {
         cursor: pointer;
-
-        ::ng-deep label {
-          cursor: pointer;
-        }
       }
+    }
 
-      marketplace-additional {
-        padding-bottom: 2rem;
-      }
-    `,
-  ],
-  standalone: true,
+    marketplace-additional {
+      padding-bottom: 2rem;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,

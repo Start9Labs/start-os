@@ -21,7 +21,6 @@ interface ActionItem {
     </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [TuiTitle],
   host: {
     '[disabled]': '!!disabled',

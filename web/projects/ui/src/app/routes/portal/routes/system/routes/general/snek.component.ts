@@ -11,7 +11,6 @@ import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
 import { injectContext } from '@taiga-ui/polymorpheus'
 
 @Component({
-  standalone: true,
   template: `
     <div class="canvas-center">
       <canvas id="game"></canvas>
@@ -24,24 +23,22 @@ import { injectContext } from '@taiga-ui/polymorpheus'
       </button>
     </footer>
   `,
-  styles: [
-    `
-      .canvas-center {
-        min-height: 50vh;
-        padding-top: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
+  styles: `
+    .canvas-center {
+      min-height: 50vh;
+      padding-top: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
 
-      .footer {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding-top: 32px;
-      }
-    `,
-  ],
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 32px;
+    }
+  `,
   imports: [TuiButton, i18nPipe],
 })
 export class SnekComponent implements AfterViewInit, OnDestroy {

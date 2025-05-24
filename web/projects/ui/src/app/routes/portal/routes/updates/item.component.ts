@@ -16,6 +16,7 @@ import {
   SafeLinksDirective,
 } from '@start9labs/shared'
 import { TuiButton, TuiIcon, TuiLink, TuiTitle } from '@taiga-ui/core'
+import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import { TuiExpand } from '@taiga-ui/experimental'
 import {
   TuiAvatar,
@@ -24,7 +25,6 @@ import {
   TuiFade,
   TuiProgressCircle,
 } from '@taiga-ui/kit'
-import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
 import { PatchDB } from 'patch-db-client'
 import { defaultIfEmpty, firstValueFrom } from 'rxjs'
 import { InstallingProgressPipe } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
@@ -40,7 +40,6 @@ import { hasCurrentDeps } from 'src/app/utils/has-deps'
 import UpdatesComponent from './updates.component'
 
 @Component({
-  standalone: true,
   selector: 'updates-item',
   template: `
     <tr (click)="expanded.set(!expanded())">
@@ -234,7 +233,7 @@ import UpdatesComponent from './updates.component'
     TuiTitle,
     TuiFade,
     MarkdownPipe,
-    NgDompurifyModule,
+    NgDompurifyPipe,
     SafeLinksDirective,
     DatePipe,
     InstallingProgressPipe,

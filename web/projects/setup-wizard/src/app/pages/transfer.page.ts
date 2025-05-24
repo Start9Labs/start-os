@@ -19,7 +19,6 @@ import { ApiService } from 'src/app/services/api.service'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
-  standalone: true,
   template: `
     <section tuiCardLarge="compact">
       <header>Transfer</header>

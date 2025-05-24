@@ -10,6 +10,7 @@ import { ApiService } from 'src/app/services/api.service'
   selector: 'app-root',
   templateUrl: 'app.component.html',
   styleUrls: ['app.component.scss'],
+  standalone: false,
 })
 export class AppComponent {
   private readonly loader = inject(LoadingService)
