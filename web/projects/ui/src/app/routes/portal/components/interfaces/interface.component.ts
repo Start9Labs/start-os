@@ -43,6 +43,10 @@ import { MappedServiceInterface } from './interface.utils'
       gap: 1rem;
       color: var(--tui-text-secondary);
       font: var(--tui-font-text-l);
+
+      ::ng-deep td {
+        overflow-wrap: anywhere;
+      }
     }
 
     button {

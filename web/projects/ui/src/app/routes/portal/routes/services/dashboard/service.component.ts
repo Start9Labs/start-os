@@ -7,8 +7,9 @@ import {
   OnChanges,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
+import { i18nPipe } from '@start9labs/shared'
 import { tuiPure } from '@taiga-ui/cdk'
-import { UptimeComponent } from 'src/app/routes/portal/components/uptime.component'
+import { ServiceUptimeComponent } from 'src/app/routes/portal/routes/services/components/uptime.component'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { PkgDependencyErrors } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -26,11 +27,14 @@ import { StatusComponent } from './status.component'
       <a [routerLink]="routerLink">{{ manifest.title }}</a>
     </td>
     <td [style.grid-area]="'2 / 2'">{{ manifest.version }}</td>
-    <td
-      [appUptime]="$any(pkg.status).started"
-      [style.grid-column]="2"
-      [style.grid-row]="4"
-    ></td>
+    <td class="uptime">
+      @if ($any(pkg.status)?.started; as started) {
+        <span>{{ 'Uptime' | i18n }}:</span>
+        <service-uptime [started]="started" />
+      } @else {
+        -
+      }
+    </td>
     <td
       appStatus
       [pkg]="pkg"
@@ -75,6 +79,10 @@ import { StatusComponent } from './status.component'
       font-weight: bold;
     }
 
+    span {
+      display: none;
+    }
+
     .text {
       display: contents;
     }
@@ -82,7 +90,7 @@ import { StatusComponent } from './status.component'
     :host-context(tui-root._mobile) {
       position: relative;
       display: grid;
-      grid-template: 1.25rem 1.75rem 1.5rem 1.25rem/6rem 1fr 2rem;
+      grid-template: 1.25rem 1.75rem 1.5rem/6rem 1fr 2rem;
       align-items: center;
       padding: 1rem;
 
@@ -107,6 +115,21 @@ import { StatusComponent } from './status.component'
           display: none;
         }
       }
+
+      .uptime {
+        grid-area: 4 / 2;
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+
+        &:not(:has(service-uptime)) {
+          display: none;
+        }
+
+        span {
+          display: inline-block;
+        }
+      }
     }
   `,
   hostDirectives: [RouterLink],
@@ -116,7 +139,8 @@ import { StatusComponent } from './status.component'
     AsyncPipe,
     StatusComponent,
     ControlsComponent,
-    UptimeComponent,
+    ServiceUptimeComponent,
+    i18nPipe,
   ],
 })
 export class ServiceComponent implements OnChanges {

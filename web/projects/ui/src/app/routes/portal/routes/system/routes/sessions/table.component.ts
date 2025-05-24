@@ -31,7 +31,7 @@ import { i18nPipe } from '@start9labs/shared'
                   (ngModelChange)="onToggle(session)"
                 />
               }
-              <span tuiFade class="agent">{{ session.userAgent || '-' }}</span>
+              <div tuiFade class="agent">{{ session.userAgent || '-' }}</div>
             </label>
           </td>
           @if (session.userAgent | platformInfo; as platform) {

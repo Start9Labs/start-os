@@ -34,13 +34,6 @@ import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 
     :host-context(tui-root._mobile) {
       height: auto;
-
-      tui-loader,
-      tui-icon {
-        position: absolute;
-        top: 1rem;
-        left: 1rem;
-      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

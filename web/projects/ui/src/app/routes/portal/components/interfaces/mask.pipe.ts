@@ -9,7 +9,7 @@ export class MaskPipe implements PipeTransform {
 
   transform(value: string): string {
     return this.interface.value().masked
-      ? '●'.repeat(Math.min(64, value.length))
+      ? '•'.repeat(Math.min(32, value.length))
       : value
   }
 }
