@@ -37,7 +37,13 @@ import { StateService } from 'src/app/services/state.service'
           <h3>You can now safely unplug your old StartOS data drive</h3>
         }
 
-        <button tuiCardLarge tuiSurface="floating" (click)="download()">
+        <!-- @TODO Alex: remove [class.tui-appearance-initializing]="null" after bug is figured out -->
+        <button
+          tuiCardLarge
+          tuiSurface="floating"
+          [class.tui-appearance-initializing]="null"
+          (click)="download()"
+        >
           <strong class="caps">Download address info</strong>
           <span>
             start.local was for setup purposes only. It will no longer work.
@@ -52,6 +58,7 @@ import { StateService } from 'src/app/services/state.service'
           tuiCardLarge
           tuiSurface="floating"
           target="_blank"
+          [class.tui-appearance-initializing]="null"
           [attr.href]="disableLogin ? null : lanAddress"
         >
           <strong class="caps">Trust your Root CA</strong>
@@ -89,6 +96,14 @@ import { StateService } from 'src/app/services/state.service'
       color: var(--tui-text-primary);
       text-decoration: none;
       text-align: center;
+
+      &[data-appearance='floating'] {
+        background: var(--tui-background-neutral-1);
+
+        &:hover {
+          background: var(--tui-background-neutral-1-hover) !important;
+        }
+      }
     }
 
     a[tuiCardLarge]:not([href]) {
