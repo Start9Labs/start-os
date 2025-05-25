@@ -151,6 +151,11 @@ const ERROR =
           align-self: center;
           justify-self: end;
         }
+
+        &:only-child {
+          grid-column: 1 / -1;
+          justify-self: center;
+        }
       }
 
       .name {

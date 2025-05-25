@@ -100,7 +100,7 @@ import { distinctUntilChanged } from 'rxjs/operators'
 
       :host-context(tui-root._mobile table) {
         section {
-          min-height: 1.5rem;
+          min-height: 1.25rem;
           align-items: flex-end;
         }
       }

@@ -47,6 +47,10 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
       gap: 1rem;
       background: var(--tui-background-base);
     }
+
+    pre {
+      white-space: normal;
+    }
   `,
   imports: [
     RouterLink,

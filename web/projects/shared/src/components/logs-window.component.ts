@@ -24,6 +24,11 @@ import { SetupLogsService } from '../services/setup-logs.service'
       ></section>
     </tui-scrollbar>
   `,
+  styles: `
+    pre {
+      white-space: normal;
+    }
+  `,
   imports: [
     AsyncPipe,
     WaMutationObserver,

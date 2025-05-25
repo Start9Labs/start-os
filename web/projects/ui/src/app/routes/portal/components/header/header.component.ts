@@ -24,6 +24,13 @@ import { HeaderStatusComponent } from './status.component'
   styles: `
     @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
+    @keyframes connecting {
+      25%,
+      100% {
+        background-position: 175%;
+      }
+    }
+
     :host {
       display: flex;
       height: 2.75rem;
@@ -65,6 +72,16 @@ import { HeaderStatusComponent } from './status.component'
           box-shadow:
             inset 0 1px rgba(255, 255, 255, 0.25),
             inset 0 -0.75rem 0 -0.5rem var(--status);
+          background-image: linear-gradient(
+            90deg,
+            transparent 35%,
+            rgba(255, 255, 255, 0.25),
+            transparent 65%
+          );
+          background-size: 50% 100%;
+          background-position: -75%;
+          background-repeat: no-repeat;
+          animation: connecting 2s 2s ease-in-out infinite;
         }
 
         &_corner {

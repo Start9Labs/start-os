@@ -518,4 +518,5 @@ export const ENGLISH = {
   'Are you sure you want to dismiss this task?': 517,
   'Dismiss': 518, // as in, dismiss or delete a task
   'To publish clearnet domains, you must click "Make Public", above.': 519,
+  'Update available': 520,
 } as const

@@ -90,14 +90,13 @@ import { StatusComponent } from './status.component'
     :host-context(tui-root._mobile) {
       position: relative;
       display: grid;
-      grid-template: 1.25rem 1.75rem 1.5rem/6rem 1fr 2rem;
+      grid-template: 1.25rem 1.5rem 1.5rem/4rem 1fr 2rem;
       align-items: center;
       padding: 1rem;
 
       img {
-        height: 4rem;
-        width: 4rem;
-        margin: 1rem;
+        height: 3rem;
+        width: 3rem;
       }
 
       td {

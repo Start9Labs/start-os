@@ -32,6 +32,7 @@ import {
 } from '@taiga-ui/core'
 import {
   TuiBadge,
+  TuiBadgeNotification,
   TuiButtonLoading,
   TuiButtonSelect,
   TuiDataListWrapper,
@@ -70,7 +71,14 @@ import { SystemWipeComponent } from './wipe.component'
         <tui-icon icon="@tui.zap" />
         <span tuiTitle>
           <strong>{{ 'Software Update' | i18n }}</strong>
-          <span tuiSubtitle>{{ server.version }}</span>
+          <span tuiSubtitle [style.flex-wrap]="'wrap'">
+            {{ server.version }}
+            @if (os.showUpdate$ | async) {
+              <tui-badge-notification>
+                {{ 'Update available' | i18n }}
+              </tui-badge-notification>
+            }
+          </span>
         </span>
         <button
           tuiButton
@@ -145,9 +153,7 @@ import { SystemWipeComponent } from './wipe.component'
             {{ 'Kiosk Mode' | i18n }}
             <tui-badge
               size="m"
-              [appearance]="
-                server.kiosk ? 'primary-success' : 'primary-destructive'
-              "
+              [appearance]="server.kiosk ? 'primary-success' : ''"
             >
               {{ server.kiosk ? ('Enabled' | i18n) : ('Disabled' | i18n) }}
             </tui-badge>
@@ -166,9 +172,7 @@ import { SystemWipeComponent } from './wipe.component'
         @if (server.kiosk !== null) {
           <button
             tuiButton
-            [appearance]="
-              server.kiosk ? 'primary-destructive' : 'primary-success'
-            "
+            [appearance]="server.kiosk ? 'primary-destructive' : 'primary'"
             (click)="tryToggleKiosk()"
           >
             {{ server.kiosk ? ('Disable' | i18n) : ('Enable' | i18n) }}
@@ -253,6 +257,7 @@ import { SystemWipeComponent } from './wipe.component'
     FormsModule,
     SnekDirective,
     TuiBadge,
+    TuiBadgeNotification,
   ],
 })
 export default class SystemGeneralComponent {
