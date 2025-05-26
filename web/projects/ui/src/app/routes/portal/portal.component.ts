@@ -26,7 +26,7 @@ import { HeaderComponent } from './components/header/header.component'
     </main>
     <app-tabs />
     @if (update(); as update) {
-      <tui-action-bar *tuiActionBar="true">
+      <tui-action-bar *tuiActionBar="bar">
         @if (update === true) {
           <tui-icon icon="@tui.check" class="g-positive" />
           Download complete, restart to apply changes
@@ -54,20 +54,20 @@ import { HeaderComponent } from './components/header/header.component'
   styles: `
     @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
-      :host {
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        // @TODO Theme
-        background: url(/assets/img/background_dark.jpeg) fixed center/cover;
+    :host {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      // @TODO Theme
+      background: url(/assets/img/background_dark.jpeg) fixed center/cover;
 
-        &::before {
-          content: '';
-          position: fixed;
-          inset: 0;
-          backdrop-filter: blur(0.5rem);
-        }
+      &::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        backdrop-filter: blur(0.5rem);
       }
+    }
 
     main {
       flex: 1;
@@ -104,6 +104,7 @@ export class PortalComponent {
 
   readonly name = toSignal(this.patch.watch$('ui', 'name'))
   readonly update = toSignal(inject(OSService).updating$)
+  bar = true
 
   getProgress(size: number, downloaded: number): number {
     return Math.round((100 * downloaded) / (size || 1))
@@ -113,6 +114,7 @@ export class PortalComponent {
     const loader = this.loader.open('Beginning restart').subscribe()
 
     try {
+      this.bar = false
       await this.api.restartServer({})
     } catch (e: any) {
       this.errorService.handleError(e)
