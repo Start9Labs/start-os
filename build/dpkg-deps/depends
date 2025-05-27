@@ -36,6 +36,7 @@ man-db
 ncdu
 net-tools
 network-manager
+nfs-common
 nvme-cli
 nyx
 openssh-server
