@@ -167,8 +167,9 @@ pub struct RemovePackageParams {
     pub id: PackageId,
     pub version: VersionString,
     #[ts(skip)]
+    #[arg(skip)]
     #[serde(rename = "__auth_signer")]
-    pub signer: AnyVerifyingKey,
+    pub signer: Option<AnyVerifyingKey>,
 }
 
 pub async fn remove_package(
@@ -180,6 +181,8 @@ pub async fn remove_package(
     }: RemovePackageParams,
 ) -> Result<(), Error> {
     let peek = ctx.db.peek().await;
+    let signer =
+        signer.ok_or_else(|| Error::new(eyre!("missing signer"), ErrorKind::InvalidRequest))?;
     let signer_guid = peek.as_index().as_signers().get_signer(&signer)?;
 
     ctx.db
