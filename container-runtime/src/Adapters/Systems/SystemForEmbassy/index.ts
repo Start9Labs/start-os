@@ -403,6 +403,7 @@ export class SystemForEmbassy implements System {
     await effects.setDataVersion({
       version: version.toString(),
     })
+    // @FullMetal: package hacks go here
   }
   async exportNetwork(effects: Effects) {
     for (const [id, interfaceValue] of Object.entries(

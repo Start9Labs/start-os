@@ -134,14 +134,21 @@ export class MultiHost {
     const preferredExternalPort =
       options.preferredExternalPort ||
       knownProtocols[options.protocol].defaultPort
-    const sslProto = this.getSslProto(options, protoInfo)
-    const addSsl =
-      sslProto && "alpn" in protoInfo
+    const sslProto = this.getSslProto(options)
+    const addSsl = sslProto
+      ? {
+          // addXForwardedHeaders: null,
+          preferredExternalPort: knownProtocols[sslProto].defaultPort,
+          scheme: sslProto,
+          alpn: "alpn" in protoInfo ? protoInfo.alpn : null,
+          ...("addSsl" in options ? options.addSsl : null),
+        }
+      : options.addSsl
         ? {
             // addXForwardedHeaders: null,
-            preferredExternalPort: knownProtocols[sslProto].defaultPort,
+            preferredExternalPort: 443,
             scheme: sslProto,
-            alpn: protoInfo.alpn,
+            alpn: null,
             ...("addSsl" in options ? options.addSsl : null),
           }
         : null
@@ -159,12 +166,12 @@ export class MultiHost {
     return new Origin(this, internalPort, options.protocol, sslProto)
   }
 
-  private getSslProto(
-    options: BindOptionsByKnownProtocol,
-    protoInfo: KnownProtocols[keyof KnownProtocols],
-  ) {
+  private getSslProto(options: BindOptionsByKnownProtocol) {
+    const proto = options.protocol
+    const protoInfo = knownProtocols[proto]
     if (inObject("noAddSsl", options) && options.noAddSsl) return null
     if ("withSsl" in protoInfo && protoInfo.withSsl) return protoInfo.withSsl
+    if (protoInfo.secure?.ssl) return proto
     return null
   }
 }
