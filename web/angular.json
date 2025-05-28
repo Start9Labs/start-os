@@ -14,7 +14,10 @@
           "builder": "@angular/build:application",
           "options": {
             "preserveSymlinks": true,
-            "outputPath": { "base": "dist/raw/ui" },
+            "outputPath": {
+              "base": "dist/raw/ui",
+              "browser": ""
+            },
             "index": "projects/ui/src/index.html",
             "browser": "projects/ui/src/main.ts",
             "polyfills": ["zone.js", "projects/ui/src/polyfills.ts"],
@@ -41,12 +44,7 @@
                 "input": "node_modules/@taiga-ui/icons/src",
                 "output": "assets/taiga-ui/icons"
               },
-              "projects/ui/src/manifest.webmanifest",
-              {
-                "glob": "ngsw.json",
-                "input": "dist/raw/ui",
-                "output": "projects/ui/src"
-              }
+              "projects/ui/src/manifest.webmanifest"
             ],
             "styles": [
               "node_modules/@taiga-ui/core/styles/taiga-ui-theme.less",
@@ -133,7 +131,10 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "outputPath": { "base": "dist/raw/install-wizard" },
+            "outputPath": {
+              "base": "dist/raw/install-wizard",
+              "browser": ""
+            },
             "index": "projects/install-wizard/src/index.html",
             "browser": "projects/install-wizard/src/main.ts",
             "polyfills": ["zone.js"],
@@ -238,7 +239,10 @@
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "outputPath": { "base": "dist/raw/setup-wizard" },
+            "outputPath": {
+              "base": "dist/raw/setup-wizard",
+              "browser": ""
+            },
             "index": "projects/setup-wizard/src/index.html",
             "browser": "projects/setup-wizard/src/main.ts",
             "polyfills": ["zone.js"],
