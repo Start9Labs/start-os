@@ -34,6 +34,7 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "remove",
             from_fn_async(add::remove_package)
+                .with_metadata("get_signer", Value::Bool(true))
                 .no_display()
                 .with_about("Remove package from registry index")
                 .with_call_remote::<CliContext>(),
