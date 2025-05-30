@@ -48,52 +48,49 @@ import { MarketplacePkgSideload } from './sideload.utils'
       </div>
     </div>
   `,
-  styles: [
-    `
-      .outer-container {
-        display: grid;
-        justify-content: center;
-        width: 100%;
+  styles: `
+    .outer-container {
+      display: grid;
+      justify-content: center;
+      width: 100%;
 
-        @media (min-width: 1024px) {
-          margin: auto;
-          padding: 2.5rem 4rem 2rem 4rem;
-        }
+      @media (min-width: 1024px) {
+        margin: auto;
+        padding: 2.5rem 4rem 2rem 4rem;
+      }
+    }
+
+    .package-details {
+      -moz-column-gap: 2rem;
+      column-gap: 2rem;
+
+      &-main {
+        grid-column: span 12 / span 12;
       }
 
-      .package-details {
-        -moz-column-gap: 2rem;
-        column-gap: 2rem;
+      &-additional {
+        grid-column: span 12 / span 12;
+      }
 
+      @media (min-width: 1536px) {
+        grid-template-columns: repeat(12, minmax(0, 1fr));
         &-main {
-          grid-column: span 12 / span 12;
+          grid-column: span 8 / span 8;
         }
-
         &-additional {
-          grid-column: span 12 / span 12;
-        }
-
-        @media (min-width: 1536px) {
-          grid-template-columns: repeat(12, minmax(0, 1fr));
-          &-main {
-            grid-column: span 8 / span 8;
-          }
-          &-additional {
-            grid-column: span 4 / span 4;
-            margin-top: 0px;
-          }
+          grid-column: span 4 / span 4;
+          margin-top: 0px;
         }
       }
+    }
 
-      .controls-wrapper {
-        display: flex;
-        justify-content: flex-start;
-        gap: 0.5rem;
-        height: 4.5rem;
-      }
-    `,
-  ],
-  standalone: true,
+    .controls-wrapper {
+      display: flex;
+      justify-content: flex-start;
+      gap: 0.5rem;
+      height: 4.5rem;
+    }
+  `,
   imports: [
     CommonModule,
     SharedPipesModule,

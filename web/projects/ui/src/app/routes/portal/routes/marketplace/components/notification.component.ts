@@ -3,7 +3,6 @@ import { i18nPipe, knownRegistries, sameUrl } from '@start9labs/shared'
 import { TuiNotification } from '@taiga-ui/core'
 
 @Component({
-  standalone: true,
   selector: 'marketplace-notification',
   template: `
     <tui-notification
@@ -45,14 +44,12 @@ import { TuiNotification } from '@taiga-ui/core'
       }
     </tui-notification>
   `,
-  styles: [
-    `
-      .notification-wrapper {
-        margin: 1rem;
-        pointer-events: none;
-      }
-    `,
-  ],
+  styles: `
+    .notification-wrapper {
+      margin: 1rem;
+      pointer-events: none;
+    }
+  `,
   imports: [TuiNotification, i18nPipe],
 })
 export class MarketplaceNotificationComponent {

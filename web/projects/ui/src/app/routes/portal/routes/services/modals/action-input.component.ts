@@ -88,27 +88,24 @@ export type PackageActionData = {
       <tui-loader size="l" textContent="loading" />
     }
   `,
-  styles: [
-    `
-      tui-notification {
-        font-size: 1rem;
-        margin-bottom: 1.4rem;
+  styles: `
+    tui-notification {
+      font-size: 1rem;
+      margin-bottom: 1.4rem;
+    }
+    .service-title {
+      display: inline-flex;
+      align-items: center;
+      margin-bottom: 1.4rem;
+      img {
+        height: 20px;
+        margin-right: 4px;
       }
-      .service-title {
-        display: inline-flex;
-        align-items: center;
-        margin-bottom: 1.4rem;
-        img {
-          height: 20px;
-          margin-right: 4px;
-        }
-        h4 {
-          margin: 0;
-        }
+      h4 {
+        margin: 0;
       }
-    `,
-  ],
-  standalone: true,
+    }
+  `,
   imports: [
     AsyncPipe,
     TuiNotification,

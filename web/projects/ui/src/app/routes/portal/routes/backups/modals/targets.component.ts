@@ -63,7 +63,6 @@ import { DocsLinkDirective } from 'projects/shared/src/public-api'
       (update)="onUpdate($event)"
     ></table>
   `,
-  standalone: true,
   imports: [
     CommonModule,
     TuiNotification,

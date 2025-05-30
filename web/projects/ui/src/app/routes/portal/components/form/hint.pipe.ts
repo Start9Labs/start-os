@@ -4,6 +4,7 @@ import { IST } from '@start9labs/start-sdk'
 
 @Pipe({
   name: 'hint',
+  standalone: false,
 })
 export class HintPipe implements PipeTransform {
   private readonly i18n = inject(i18nPipe)

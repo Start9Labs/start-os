@@ -8,7 +8,6 @@ import { endWith, map, merge, Observable, pairwise, Subject } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
 @Component({
-  standalone: true,
   selector: 'notifications-toast',
   template: `
     <ng-template

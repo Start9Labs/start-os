@@ -4,7 +4,6 @@ import { getManifest } from 'src/app/utils/get-package-data'
 
 @Pipe({
   name: 'toManifest',
-  standalone: true,
 })
 export class ToManifestPipe implements PipeTransform {
   transform(pkg: PackageDataEntry) {

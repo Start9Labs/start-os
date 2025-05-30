@@ -13,7 +13,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { MappedServiceInterface } from './interface.utils'
 
 @Component({
-  standalone: true,
   selector: 'app-interface',
   template: `
     <button
@@ -44,6 +43,10 @@ import { MappedServiceInterface } from './interface.utils'
       gap: 1rem;
       color: var(--tui-text-secondary);
       font: var(--tui-font-text-l);
+
+      ::ng-deep td {
+        overflow-wrap: anywhere;
+      }
     }
 
     button {

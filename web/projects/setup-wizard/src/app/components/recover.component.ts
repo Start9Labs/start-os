@@ -4,7 +4,6 @@ import { Component, Input } from '@angular/core'
 import { RouterModule } from '@angular/router'
 
 @Component({
-  standalone: true,
   selector: 'app-recover',
   template: `
     <a tuiCell [routerLink]="disabled ? null : '/attach'">

@@ -47,7 +47,6 @@ type ClearnetForm = {
 }
 
 @Component({
-  standalone: true,
   selector: 'section[clearnet]',
   template: `
     <header>

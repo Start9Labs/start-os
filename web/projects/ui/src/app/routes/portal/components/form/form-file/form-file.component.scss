@@ -1,7 +1,7 @@
-@import '@taiga-ui/core/styles/taiga-ui-local';
+@use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
 .template {
-  @include transition(opacity);
+  @include taiga.transition(opacity);
 
   width: 100%;
   display: flex;
@@ -16,8 +16,8 @@
 }
 
 .drop {
-  @include fullsize();
-  @include transition(opacity);
+  @include taiga.fullsize();
+  @include taiga.transition(opacity);
   display: flex;
   align-items: center;
   justify-content: space-around;

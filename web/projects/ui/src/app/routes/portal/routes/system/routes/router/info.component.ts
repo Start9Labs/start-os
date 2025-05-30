@@ -29,9 +29,12 @@ import { DocsLinkDirective } from 'projects/shared/src/public-api'
       }
     </tui-notification>
   `,
-  styles: ['strong { font-size: 1rem }'],
+  styles: `
+    strong {
+      font-size: 1rem;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [TuiNotification, TuiLink, DocsLinkDirective],
 })
 export class RouterInfoComponent {

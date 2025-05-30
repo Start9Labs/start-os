@@ -20,7 +20,6 @@ import { MarketplaceTileComponent } from './components/tile.component'
 import { StorageService } from 'src/app/services/storage.service'
 
 @Component({
-  standalone: true,
   template: `
     <ng-container *title>{{ 'Marketplace' | i18n }}</ng-container>
     <marketplace-menu />
@@ -56,18 +55,16 @@ import { StorageService } from 'src/app/services/storage.service'
     </tui-scrollbar>
   `,
   host: { class: 'g-page' },
-  styles: [
-    `
-      :host {
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        padding: 0;
-        background: rgb(55 58 63 / 90%)
-          url('/assets/img/background_marketplace.jpg') no-repeat top right;
-        background-size: cover;
-
-        &::before {
+  styles: `
+    :host {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding: 0;
+      background: rgb(55 58 63 / 90%)
+        url('/assets/img/background_marketplace.jpg') no-repeat top right;
+      background-size: cover;
+&::before {
           content: '';
           position: absolute;
           inset: 0;
@@ -75,81 +72,80 @@ import { StorageService } from 'src/app/services/storage.service'
         }
       }
 
-      .marketplace-content {
-        &-wrapper {
-          @media (min-width: 768px) {
-            padding-left: 17rem;
-          }
-
-          @media (min-width: 1536px) {
-            padding-left: 18rem;
-          }
+    .marketplace-content {
+      &-wrapper {
+        @media (min-width: 768px) {
+          padding-left: 17rem;
         }
 
-        &-inner {
-          padding-top: 6rem;
+        @media (min-width: 1536px) {
+          padding-left: 18rem;
+        }
+      }
 
-          @media (min-width: 768px) {
-            padding: 0 2rem 2.5rem 2rem;
-          }
+      &-inner {
+        padding-top: 6rem;
 
-          .title-wrapper {
-            margin: 2rem 0 2.5rem 0;
-            padding: 0 1.5rem;
+        @media (min-width: 768px) {
+          padding: 0 2rem 2.5rem 2rem;
+        }
 
-            h1 {
-              font-size: 2.25rem;
-              line-height: 2.5rem;
-              font-weight: 700;
-              color: rgb(250 250 250 / 0.8);
-              pointer-events: none;
+        .title-wrapper {
+          margin: 2rem 0 2.5rem 0;
+          padding: 0 1.5rem;
 
-              @media (min-width: 640px) {
-                font-size: 3rem;
-                line-height: 1;
-              }
+          h1 {
+            font-size: 2.25rem;
+            line-height: 2.5rem;
+            font-weight: 700;
+            color: rgb(250 250 250 / 0.8);
+            pointer-events: none;
+
+            @media (min-width: 640px) {
+              font-size: 3rem;
+              line-height: 1;
             }
           }
         }
+      }
 
-        &-list {
-          display: grid;
-          grid-template-columns: repeat(1, minmax(0, 1fr));
-          gap: 4rem 3rem;
-          padding: 1.5rem;
+      &-list {
+        display: grid;
+        grid-template-columns: repeat(1, minmax(0, 1fr));
+        gap: 4rem 3rem;
+        padding: 1.5rem;
 
-          @media (min-width: 768px) {
-            padding: 2rem;
-          }
-          @media (min-width: 1024px) {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-          @media (min-width: 1280px) {
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-          }
-          @media (min-width: 1536px) {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-          }
+        @media (min-width: 768px) {
+          padding: 2rem;
+        }
+        @media (min-width: 1024px) {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        @media (min-width: 1280px) {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+        @media (min-width: 1536px) {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
 
-          .tile-wrapper {
-            display: block;
-            height: 100%;
-          }
+        .tile-wrapper {
+          display: block;
+          height: 100%;
         }
       }
+    }
 
-      .loading-text {
-        font-size: 1.25rem;
-        line-height: 1.75rem;
-        padding-left: 1.5rem;
-        font-weight: normal;
-      }
+    .loading-text {
+      font-size: 1.25rem;
+      line-height: 1.75rem;
+      padding-left: 1.5rem;
+      font-weight: normal;
+    }
 
-      :host-context(tui-root._mobile) {
-        padding: 0;
-      }
-    `,
-  ],
+    :host-context(tui-root._mobile) {
+      padding: 0;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [FilterPackagesPipe],
   imports: [

@@ -14,7 +14,6 @@ import { ServiceInterfaceItemComponent } from './interface-item.component'
 import { i18nPipe } from '@start9labs/shared'
 
 @Component({
-  standalone: true,
   selector: 'service-interfaces',
   template: `
     <header>{{ 'Interfaces' | i18n }}</header>

@@ -3,7 +3,6 @@ import { BackupTargetType } from 'src/app/services/api/api.types'
 
 @Pipe({
   name: 'getBackupIcon',
-  standalone: true,
 })
 export class GetBackupIconPipe implements PipeTransform {
   transform(type: BackupTargetType = 'disk') {

@@ -56,7 +56,6 @@ import { SessionsTableComponent } from './table.component'
     </section>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     CommonModule,
     TuiButton,

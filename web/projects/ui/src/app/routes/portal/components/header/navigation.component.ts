@@ -14,7 +14,6 @@ import { TuiBadgedContent, TuiBadgeNotification } from '@taiga-ui/kit'
 import { getMenu } from 'src/app/utils/system-utilities'
 
 @Component({
-  standalone: true,
   selector: 'header-navigation',
   template: `
     @for (item of utils; track $index) {
@@ -45,139 +44,137 @@ import { getMenu } from 'src/app/utils/system-utilities'
       </a>
     }
   `,
-  styles: [
-    `
-      @import '@taiga-ui/core/styles/taiga-ui-local';
+  styles: `
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
-      :host {
+    :host {
+      position: relative;
+      display: flex;
+      border-radius: inherit;
+      margin-inline-end: 0.875rem;
+      isolation: isolate;
+
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -1rem;
+        right: -0.5rem;
+        bottom: 0;
+        transform: skewX(30deg);
+        border-radius: var(--bumper);
+        z-index: -1;
+        backdrop-filter: blur(1rem);
+      }
+    }
+
+    .link {
+      @include taiga.transition(all);
+      position: relative;
+      display: grid;
+      grid-template-columns: 1.5rem 0fr;
+      align-items: center;
+      padding: 0 0.5rem;
+      margin: 0;
+      border-radius: inherit;
+      color: var(--tui-text-secondary);
+
+      &:not(.link_active):hover tui-icon {
+        transform: scale(1.1);
+      }
+
+      &:not(.link_active):active tui-icon {
+        transform: scale(0.8);
+      }
+
+      &::before {
+        @include taiga.transition(all);
+        content: '';
+        position: absolute;
+        inset: 0;
+        transform: skewX(30deg);
+        background: color-mix(in hsl, var(--start9-base-2) 75%, transparent);
+        box-shadow: inset 0 1px rgb(255 255 255 / 25%);
+        z-index: -1;
+      }
+
+      span {
+        @include taiga.transition(opacity);
         position: relative;
-        display: flex;
-        border-radius: inherit;
-        margin-inline-end: 0.875rem;
-        isolation: isolate;
+        overflow: hidden;
+        text-indent: 0.5rem;
+        opacity: 0;
+      }
 
-        &::before {
-          content: '';
-          position: absolute;
-          top: 0;
-          left: -1rem;
-          right: -0.5rem;
-          bottom: 0;
-          transform: skewX(30deg);
-          border-radius: var(--bumper);
-          z-index: -1;
-          backdrop-filter: blur(1rem);
+      &:hover,
+      &_active {
+        color: var(--tui-text-primary);
+
+        tui-icon {
+          color: var(--tui-text-primary);
         }
       }
 
-      .link {
-        @include transition(all);
-        position: relative;
-        display: grid;
-        grid-template-columns: 1.5rem 0fr;
-        align-items: center;
-        padding: 0 0.5rem;
-        margin: 0;
-        border-radius: inherit;
-        color: var(--tui-text-secondary);
+      &_active {
+        grid-template-columns: 1.5rem 1fr;
+        padding: 0 1rem;
+        margin: 0 calc(var(--bumper) + 0.5rem);
 
-        &:not(.link_active):hover tui-icon {
-          transform: scale(1.1);
+        &.link_system {
+          pointer-events: none;
         }
 
-        &:not(.link_active):active tui-icon {
-          transform: scale(0.8);
+        + .link::before {
+          left: -0.5rem;
+          border-top-left-radius: var(--bumper);
+          border-bottom-left-radius: var(--bumper);
         }
 
         &::before {
-          @include transition(all);
-          content: '';
-          position: absolute;
-          inset: 0;
-          transform: skewX(30deg);
-          background: color-mix(in hsl, var(--start9-base-2) 75%, transparent);
-          box-shadow: inset 0 1px rgb(255 255 255 / 25%);
-          z-index: -1;
+          border-radius: var(--bumper);
+          filter: brightness(0.5);
         }
 
         span {
-          @include transition(opacity);
-          position: relative;
-          overflow: hidden;
-          text-indent: 0.5rem;
-          opacity: 0;
+          opacity: 1;
         }
+      }
 
-        &:hover,
-        &_active {
-          color: var(--tui-text-primary);
+      &:has(+ .link_active)::before {
+        right: -0.5rem;
+        border-top-right-radius: var(--bumper);
+        border-bottom-right-radius: var(--bumper);
+      }
 
-          tui-icon {
-            color: var(--tui-text-primary);
-          }
+      &:first-child {
+        padding: 0 0.5rem 0 1rem !important;
+        margin-inline-start: 0;
+
+        &::before {
+          left: -2rem;
         }
+      }
 
-        &_active {
-          grid-template-columns: 1.5rem 1fr;
-          padding: 0 1rem;
-          margin: 0 calc(var(--bumper) + 0.5rem);
+      &:last-child {
+        margin-inline-end: 0;
 
-          &.link_system {
-            pointer-events: none;
-          }
-
-          + .link::before {
-            left: -0.5rem;
-            border-top-left-radius: var(--bumper);
-            border-bottom-left-radius: var(--bumper);
-          }
-
-          &::before {
-            border-radius: var(--bumper);
-            filter: brightness(0.5);
-          }
-
-          span {
-            opacity: 1;
-          }
-        }
-
-        &:has(+ .link_active)::before {
+        &::before {
           right: -0.5rem;
-          border-top-right-radius: var(--bumper);
-          border-bottom-right-radius: var(--bumper);
-        }
-
-        &:first-child {
-          padding: 0 0.5rem 0 1rem !important;
-          margin-inline-start: 0;
-
-          &::before {
-            left: -2rem;
-          }
-        }
-
-        &:last-child {
-          margin-inline-end: 0;
-
-          &::before {
-            right: -0.5rem;
-            border-top-right-radius: inherit;
-            border-bottom-right-radius: inherit;
-          }
+          border-top-right-radius: inherit;
+          border-bottom-right-radius: inherit;
         }
       }
+    }
 
-      tui-icon {
-        @include transition(transform);
-        color: var(--tui-text-secondary);
-      }
+    tui-icon {
+      @include taiga.transition(transform);
+      color: var(--tui-text-secondary);
+    }
 
-      :host-context(tui-root._mobile) {
-        display: none;
-      }
-    `,
-  ],
+    :host-context(tui-root._mobile) {
+      display: none;
+    }
+  `,
   animations: [tuiFadeIn, tuiWidthCollapse, tuiScaleIn],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [

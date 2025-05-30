@@ -5,6 +5,7 @@ import { Control } from '../control'
 @Component({
   selector: 'form-number',
   templateUrl: './form-number.component.html',
+  standalone: false,
 })
 export class FormNumberComponent extends Control<IST.ValueSpecNumber, number> {
   protected readonly Infinity = Infinity

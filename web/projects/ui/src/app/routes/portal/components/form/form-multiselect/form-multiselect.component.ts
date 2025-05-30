@@ -7,6 +7,7 @@ import { invert } from '@start9labs/shared'
 @Component({
   selector: 'form-multiselect',
   templateUrl: './form-multiselect.component.html',
+  standalone: false,
 })
 export class FormMultiselectComponent extends Control<
   IST.ValueSpecMultiselect,

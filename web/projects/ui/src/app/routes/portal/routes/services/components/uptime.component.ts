@@ -12,19 +12,19 @@ import { distinctUntilChanged } from 'rxjs/operators'
       @if (uptime$ | async; as time) {
         <div>
           <label>{{ time.days }}</label>
-          {{ 'Days' | i18n }}
+          <span>{{ 'Days' | i18n }}</span>
         </div>
         <div>
           <label>{{ time.hours }}</label>
-          {{ 'Hours' | i18n }}
+          <span>{{ 'Hours' | i18n }}</span>
         </div>
         <div>
           <label>{{ time.minutes }}</label>
-          {{ 'Minutes' | i18n }}
+          <span>{{ 'Minutes' | i18n }}</span>
         </div>
         <div>
           <label>{{ time.seconds }}</label>
-          {{ 'Seconds' | i18n }}
+          <span>{{ 'Seconds' | i18n }}</span>
         </div>
       }
     </section>
@@ -63,10 +63,49 @@ import { distinctUntilChanged } from 'rxjs/operators'
         margin: 1rem 0;
         color: var(--tui-text-primary);
       }
+
+      :host-context(table) {
+        padding: 0;
+
+        header {
+          display: none;
+        }
+
+        section {
+          display: flex;
+          justify-content: flex-start;
+          gap: 0.5rem;
+          padding: 0;
+          line-height: 1;
+        }
+
+        label {
+          margin: 0;
+          font-size: 1rem;
+        }
+
+        div {
+          display: flex;
+          align-items: baseline;
+        }
+
+        span {
+          font-size: 0;
+
+          &:first-letter {
+            font-size: 0.75rem;
+          }
+        }
+      }
+
+      :host-context(tui-root._mobile table) {
+        section {
+          min-height: 1.25rem;
+          align-items: flex-end;
+        }
+      }
     `,
   ],
-  host: { class: 'g-card' },
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [i18nPipe, AsyncPipe],
 })

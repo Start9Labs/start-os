@@ -18,7 +18,6 @@ import { SingleResult } from './types'
 import { i18nPipe } from '@start9labs/shared'
 
 @Component({
-  standalone: true,
   selector: 'app-action-success-single',
   template: `
     @if (single.qr) {
@@ -86,20 +85,18 @@ import { i18nPipe } from '@start9labs/shared'
     </ng-template>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: [
-    `
-      @import '@taiga-ui/core/styles/taiga-ui-local';
+  styles: `
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
-      .reveal {
-        @include center-all();
-      }
+    .reveal {
+      @include taiga.center-all();
+    }
 
-      .qr {
-        position: relative;
-        text-align: center;
-      }
-    `,
-  ],
+    .qr {
+      position: relative;
+      text-align: center;
+    }
+  `,
   imports: [
     CommonModule,
     FormsModule,

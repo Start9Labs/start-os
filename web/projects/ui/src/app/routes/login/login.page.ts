@@ -12,6 +12,7 @@ import { DOCUMENT } from '@angular/common'
   templateUrl: './login.page.html',
   styleUrls: ['./login.page.scss'],
   providers: [],
+  standalone: false,
 })
 export class LoginPage {
   password = ''

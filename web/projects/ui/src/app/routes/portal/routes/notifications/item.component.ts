@@ -65,7 +65,6 @@ import { i18nPipe } from '@start9labs/shared'
     </td>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   host: {
     '[class._new]': '!notificationItem.read',
   },

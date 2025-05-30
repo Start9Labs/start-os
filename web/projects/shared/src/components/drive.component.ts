@@ -3,7 +3,6 @@ import { Component, Input } from '@angular/core'
 import { UnitConversionPipesModule } from '../pipes/unit-conversion/unit-conversion.module'
 
 @Component({
-  standalone: true,
   selector: 'button[drive]',
   template: `
     <tui-icon icon="@tui.save" />

@@ -1,4 +1,4 @@
-import * as argon2 from '@start9labs/argon2'
+import { verify } from '@start9labs/argon2'
 import {
   EMPTY,
   filter,
@@ -17,7 +17,7 @@ export function verifyPassword(
     filter(Boolean),
     switchMap(password => {
       try {
-        argon2.verify(passwordHash || '', password)
+        verify(passwordHash || '', password)
 
         return of(password)
       } catch (e: any) {

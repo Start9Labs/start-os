@@ -6,16 +6,15 @@ import {
 } from '@ng-web-apis/intersection-observer'
 import { WaMutationObserver } from '@ng-web-apis/mutation-observer'
 import { FetchLogsReq, FetchLogsRes, i18nPipe } from '@start9labs/shared'
-import { TuiLoader, TuiScrollbar, TuiButton } from '@taiga-ui/core'
-import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
+import { TuiButton, TuiLoader, TuiScrollbar } from '@taiga-ui/core'
+import { NgDompurifyPipe } from '@taiga-ui/dompurify'
+import { BehaviorSubject } from 'rxjs'
 import { RR } from 'src/app/services/api/api.types'
 import { LogsDownloadDirective } from './logs-download.directive'
 import { LogsFetchDirective } from './logs-fetch.directive'
 import { LogsPipe } from './logs.pipe'
-import { BehaviorSubject } from 'rxjs'
 
 @Component({
-  standalone: true,
   selector: 'logs',
   templateUrl: './logs.component.html',
   styleUrls: ['./logs.component.scss'],
@@ -23,7 +22,7 @@ import { BehaviorSubject } from 'rxjs'
     CommonModule,
     WaIntersectionObserver,
     WaMutationObserver,
-    NgDompurifyModule,
+    NgDompurifyPipe,
     TuiButton,
     TuiLoader,
     TuiScrollbar,

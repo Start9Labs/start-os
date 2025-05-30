@@ -27,7 +27,6 @@ import { wireguardSpec, WireguardSpec } from './constants'
     <table class="g-table" [proxies]="proxies$ | async"></table>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     CommonModule,
     TuiButton,

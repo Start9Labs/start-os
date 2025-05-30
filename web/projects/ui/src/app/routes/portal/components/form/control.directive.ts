@@ -4,6 +4,7 @@ import { InvalidService } from './invalid.service'
 
 @Directive({
   selector: 'form-control, form-array, form-object',
+  standalone: false,
 })
 export class ControlDirective implements OnInit, OnDestroy {
   private readonly invalidService = inject(InvalidService, { optional: true })

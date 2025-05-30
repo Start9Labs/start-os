@@ -100,33 +100,30 @@ import { ABOUT } from './about.component'
       </tui-data-list>
     </ng-template>
   `,
-  styles: [
-    `
-      :host {
-        padding-inline-start: 0.5rem;
+  styles: `
+    :host {
+      padding-inline-start: 0.5rem;
 
-        &._open::before {
-          filter: brightness(1.2);
-        }
+      &._open::before {
+        filter: brightness(1.2);
       }
+    }
 
-      .status {
-        display: flex;
-        gap: 1rem;
-        align-items: center;
-        padding: 1rem 1rem 0.5rem;
-        opacity: 0.5;
-      }
+    .status {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+      padding: 1rem 1rem 0.5rem;
+      opacity: 0.5;
+    }
 
-      :host-context(tui-root._mobile) {
-        [tuiIconButton] {
-          box-shadow: inset -1.25rem 0 0 -1rem var(--status);
-        }
+    :host-context(tui-root._mobile) {
+      [tuiIconButton] {
+        box-shadow: inset -1.25rem 0 0 -1rem var(--status);
       }
-    `,
-  ],
+    }
+  `,
   host: { '[class._open]': 'open' },
-  standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     TuiDropdown,

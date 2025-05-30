@@ -59,7 +59,13 @@ interface UpdatesData {
       }
     </ng-container>
     <aside class="g-aside">
+      @if ((data()?.hosts || []).length > 2) {
+        <h4 tuiTitle>{{ 'Default Registries' | i18n }}</h4>
+      }
       @for (registry of data()?.hosts; track $index) {
+        @if ($index === 2 && (data()?.hosts || []).length > 2) {
+          <h4 tuiTitle>{{ 'Custom Registries' | i18n }}</h4>
+        }
         <button
           tuiCell
           [class.g-secondary]="current()?.url !== registry.url"
@@ -146,6 +152,17 @@ interface UpdatesData {
       color: var(--tui-text-secondary);
     }
 
+    h4 {
+      color: var(--tui-text-primary);
+      padding: 0.25rem 1rem;
+      margin-top: 1rem;
+      font-weight: bold;
+
+      &:first-child {
+        margin-top: 0;
+      }
+    }
+
     label:not(:last-child) {
       display: none;
     }
@@ -206,7 +223,6 @@ interface UpdatesData {
     '[class._selected]': 'current()',
   },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     TuiCell,
     TuiAvatar,

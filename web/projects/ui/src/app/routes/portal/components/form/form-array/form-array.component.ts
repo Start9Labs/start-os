@@ -25,6 +25,7 @@ import { DialogService, i18nKey } from '@start9labs/shared'
   templateUrl: './form-array.component.html',
   styleUrls: ['./form-array.component.scss'],
   animations: [tuiFadeIn, tuiHeightCollapse, tuiParentStop],
+  standalone: false,
 })
 export class FormArrayComponent {
   @Input({ required: true })

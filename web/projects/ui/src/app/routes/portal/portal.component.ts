@@ -17,7 +17,6 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { HeaderComponent } from './components/header/header.component'
 
 @Component({
-  standalone: true,
   template: `
     <header appHeader>{{ name() }}</header>
     <main>
@@ -27,7 +26,7 @@ import { HeaderComponent } from './components/header/header.component'
     </main>
     <app-tabs />
     @if (update(); as update) {
-      <tui-action-bar *tuiActionBar="true">
+      <tui-action-bar *tuiActionBar="bar">
         @if (update === true) {
           <tui-icon icon="@tui.check" class="g-positive" />
           Download complete, restart to apply changes
@@ -52,40 +51,38 @@ import { HeaderComponent } from './components/header/header.component'
       </tui-action-bar>
     }
   `,
-  styles: [
-    `
-      @import '@taiga-ui/core/styles/taiga-ui-local';
+  styles: `
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
-      :host {
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        // @TODO Theme
-        background: url(/assets/img/background_dark.jpeg) fixed center/cover;
+    :host {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      // @TODO Theme
+      background: url(/assets/img/background_dark.jpeg) fixed center/cover;
 
-        &::before {
-          content: '';
-          position: fixed;
-          inset: 0;
-          backdrop-filter: blur(0.5rem);
-        }
+      &::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        backdrop-filter: blur(0.5rem);
       }
+    }
 
-      main {
-        flex: 1;
-        overflow: hidden;
-        margin: 0 var(--bumper) var(--bumper);
-        filter: grayscale(1) brightness(0.75);
+    main {
+      flex: 1;
+      overflow: hidden;
+      margin: 0 var(--bumper) var(--bumper);
+      filter: grayscale(1) brightness(0.75);
 
-        @include transition(filter);
+      @include taiga.transition(filter);
 
-        header:has([data-status='success']) + &,
-        header:has([data-status='neutral']) + & {
-          filter: none;
-        }
+      header:has([data-status='success']) + &,
+      header:has([data-status='neutral']) + & {
+        filter: none;
       }
-    `,
-  ],
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     RouterOutlet,
@@ -107,6 +104,7 @@ export class PortalComponent {
 
   readonly name = toSignal(this.patch.watch$('ui', 'name'))
   readonly update = toSignal(inject(OSService).updating$)
+  bar = true
 
   getProgress(size: number, downloaded: number): number {
     return Math.round((100 * downloaded) / (size || 1))
@@ -116,6 +114,7 @@ export class PortalComponent {
     const loader = this.loader.open('Beginning restart').subscribe()
 
     try {
+      this.bar = false
       await this.api.restartServer({})
     } catch (e: any) {
       this.errorService.handleError(e)

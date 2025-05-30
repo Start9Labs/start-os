@@ -7,7 +7,7 @@ import {
   InstalledState,
   PackageDataEntry,
 } from './patch-db/data-model'
-import * as deepEqual from 'fast-deep-equal'
+import deepEqual from 'fast-deep-equal'
 import { Observable } from 'rxjs'
 import { isInstalled } from 'src/app/utils/get-package-data'
 import { DependencyError } from './api/api.types'

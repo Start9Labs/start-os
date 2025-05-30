@@ -8,6 +8,7 @@ import { DOCUMENT } from '@angular/common'
 @Component({
   selector: 'app-root',
   template: '<tui-root tuiTheme="dark"><router-outlet /></tui-root>',
+  standalone: false,
 })
 export class AppComponent {
   private readonly api = inject(ApiService)

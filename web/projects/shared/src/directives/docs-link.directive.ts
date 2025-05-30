@@ -10,7 +10,6 @@ export const VERSION = new InjectionToken<string>('VERSION')
 
 @Directive({
   selector: '[docsLink]',
-  standalone: true,
   host: {
     target: '_blank',
     rel: 'noreferrer',

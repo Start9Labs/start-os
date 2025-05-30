@@ -21,7 +21,6 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
 
 @Component({
-  standalone: true,
   selector: 'tr[task]',
   template: `
     <td tuiFade>

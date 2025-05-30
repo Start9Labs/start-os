@@ -21,14 +21,12 @@ export interface AdditionalItem {
       <tui-icon [icon]="icon" />
     }
   `,
-  styles: [
-    `
-      :host._disabled {
-        pointer-events: none;
-        opacity: var(--tui-disabled-opacity);
-      }
-    `,
-  ],
+  styles: `
+    :host._disabled {
+      pointer-events: none;
+      opacity: var(--tui-disabled-opacity);
+    }
+  `,
   host: {
     rel: 'noreferrer',
     target: '_blank',
@@ -37,7 +35,6 @@ export interface AdditionalItem {
       'additionalItem.value.startsWith("http") ? additionalItem.value : null',
   },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [TuiIcon, TuiTitle, i18nPipe],
 })
 export class ServiceAdditionalItemComponent {

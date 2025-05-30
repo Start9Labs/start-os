@@ -57,7 +57,6 @@ import { TitleDirective } from 'src/app/services/title.service'
   `,
   host: { class: 'g-subpage' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     InterfaceComponent,
     RouterLink,

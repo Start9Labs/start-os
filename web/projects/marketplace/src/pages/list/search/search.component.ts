@@ -11,6 +11,7 @@ import {
   templateUrl: 'search.component.html',
   styleUrls: ['search.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  standalone: false,
 })
 export class SearchComponent {
   @Input()
