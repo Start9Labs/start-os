@@ -1,151 +1,304 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::fmt;
 use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
+use clap::builder::ValueParserFactory;
+use clap::Parser;
 use color_eyre::eyre::eyre;
-use rpc_toolkit::command;
-use sqlx::PgPool;
-use tokio::sync::Mutex;
+use helpers::const_true;
+use imbl_value::InternedString;
+use models::{FromStrParser, PackageId};
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::backup::BackupReport;
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
+use crate::db::model::DatabaseModel;
 use crate::prelude::*;
-use crate::s9pk::manifest::PackageId;
-use crate::util::display_none;
-use crate::util::serde::display_serializable;
-use crate::{Error, ErrorKind, ResultExt};
+use crate::util::serde::HandlerExtSerde;
 
-#[command(subcommands(list, delete, delete_before, create))]
-pub async fn notification() -> Result<(), Error> {
-    Ok(())
+// #[command(subcommands(list, delete, delete_before, create))]
+pub fn notification<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand(
+            "list",
+            from_fn_async(list)
+                .with_display_serializable()
+                .with_about("List notifications")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "remove",
+            from_fn_async(remove)
+                .no_display()
+                .with_about("Remove notification for given ids")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "remove-before",
+            from_fn_async(remove_before)
+                .no_display()
+                .with_about("Remove notifications preceding a given id")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "mark-seen",
+            from_fn_async(mark_seen)
+                .no_display()
+                .with_about("Mark given notifications as seen")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "mark-seen-before",
+            from_fn_async(mark_seen_before)
+                .no_display()
+                .with_about("Mark notifications preceding a given id as seen")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "mark-unseen",
+            from_fn_async(mark_unseen)
+                .no_display()
+                .with_about("Mark given notifications as unseen")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "create",
+            from_fn_async(create)
+                .no_display()
+                .with_about("Persist a newly created notification")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
-#[command(display(display_serializable))]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct ListNotificationParams {
+    #[ts(type = "number | null")]
+    before: Option<u32>,
+    #[ts(type = "number | null")]
+    limit: Option<usize>,
+}
+// #[command(display(display_serializable))]
 #[instrument(skip_all)]
 pub async fn list(
-    #[context] ctx: RpcContext,
-    #[arg] before: Option<i32>,
-    #[arg] limit: Option<u32>,
-) -> Result<Vec<Notification>, Error> {
-    let limit = limit.unwrap_or(40);
-    match before {
-        None => {
-            let records = sqlx::query!(
-                "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications ORDER BY id DESC LIMIT $1",
-                limit as i64
-            ).fetch_all(&ctx.secret_store).await?;
-            let notifs = records
-                .into_iter()
-                .map(|r| {
-                    Ok(Notification {
-                        id: r.id as u32,
-                        package_id: r.package_id.and_then(|p| p.parse().ok()),
-                        created_at: DateTime::from_utc(r.created_at, Utc),
-                        code: r.code as u32,
-                        level: match r.level.parse::<NotificationLevel>() {
-                            Ok(a) => a,
-                            Err(e) => return Err(e.into()),
-                        },
-                        title: r.title,
-                        message: r.message,
-                        data: match r.data {
-                            None => serde_json::Value::Null,
-                            Some(v) => match v.parse::<serde_json::Value>() {
-                                Ok(a) => a,
-                                Err(e) => {
-                                    return Err(Error::new(
-                                        eyre!("Invalid Notification Data: {}", e),
-                                        ErrorKind::ParseDbField,
-                                    ))
-                                }
-                            },
-                        },
-                    })
-                })
-                .collect::<Result<Vec<Notification>, Error>>()?;
-
-            ctx.db
-                .mutate(|d| {
-                    d.as_server_info_mut()
+    ctx: RpcContext,
+    ListNotificationParams { before, limit }: ListNotificationParams,
+) -> Result<Vec<NotificationWithId>, Error> {
+    ctx.db
+        .mutate(|db| {
+            let limit = limit.unwrap_or(40);
+            match before {
+                None => {
+                    let records = db
+                        .as_private()
+                        .as_notifications()
+                        .as_entries()?
+                        .into_iter()
+                        .rev()
+                        .take(limit);
+                    let notifs = records
+                        .into_iter()
+                        .map(|(id, notification)| {
+                            Ok(NotificationWithId {
+                                id,
+                                notification: notification.de()?,
+                            })
+                        })
+                        .collect::<Result<Vec<NotificationWithId>, Error>>()?;
+                    db.as_public_mut()
+                        .as_server_info_mut()
                         .as_unread_notification_count_mut()
-                        .ser(&0)
-                })
-                .await?;
-            Ok(notifs)
-        }
-        Some(before) => {
-            let records = sqlx::query!(
-                "SELECT id, package_id, created_at, code, level, title, message, data FROM notifications WHERE id < $1 ORDER BY id DESC LIMIT $2",
-                before,
-                limit as i64
-            ).fetch_all(&ctx.secret_store).await?;
-            let res = records
-                .into_iter()
-                .map(|r| {
-                    Ok(Notification {
-                        id: r.id as u32,
-                        package_id: r.package_id.and_then(|p| p.parse().ok()),
-                        created_at: DateTime::from_utc(r.created_at, Utc),
-                        code: r.code as u32,
-                        level: match r.level.parse::<NotificationLevel>() {
-                            Ok(a) => a,
-                            Err(e) => return Err(e.into()),
-                        },
-                        title: r.title,
-                        message: r.message,
-                        data: match r.data {
-                            None => serde_json::Value::Null,
-                            Some(v) => match v.parse::<serde_json::Value>() {
-                                Ok(a) => a,
-                                Err(e) => {
-                                    return Err(Error::new(
-                                        eyre!("Invalid Notification Data: {}", e),
-                                        ErrorKind::ParseDbField,
-                                    ))
-                                }
-                            },
-                        },
-                    })
-                })
-                .collect::<Result<Vec<Notification>, Error>>()?;
-            Ok(res)
-        }
-    }
-}
-
-#[command(display(display_none))]
-pub async fn delete(#[context] ctx: RpcContext, #[arg] id: i32) -> Result<(), Error> {
-    sqlx::query!("DELETE FROM notifications WHERE id = $1", id)
-        .execute(&ctx.secret_store)
-        .await?;
-    Ok(())
-}
-
-#[command(rename = "delete-before", display(display_none))]
-pub async fn delete_before(#[context] ctx: RpcContext, #[arg] before: i32) -> Result<(), Error> {
-    sqlx::query!("DELETE FROM notifications WHERE id < $1", before)
-        .execute(&ctx.secret_store)
-        .await?;
-    Ok(())
-}
-
-#[command(display(display_none))]
-pub async fn create(
-    #[context] ctx: RpcContext,
-    #[arg] package: Option<PackageId>,
-    #[arg] level: NotificationLevel,
-    #[arg] title: String,
-    #[arg] message: String,
-) -> Result<(), Error> {
-    ctx.notification_manager
-        .notify(ctx.db.clone(), package, level, title, message, (), None)
+                        .ser(&0)?;
+                    Ok(notifs)
+                }
+                Some(before) => {
+                    let records = db
+                        .as_private()
+                        .as_notifications()
+                        .as_entries()?
+                        .into_iter()
+                        .filter(|(id, _)| *id < before)
+                        .rev()
+                        .take(limit);
+                    records
+                        .into_iter()
+                        .map(|(id, notification)| {
+                            Ok(NotificationWithId {
+                                id,
+                                notification: notification.de()?,
+                            })
+                        })
+                        .collect()
+                }
+            }
+        })
         .await
+        .result
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct ModifyNotificationParams {
+    #[ts(type = "number[]")]
+    ids: Vec<u32>,
+}
+
+pub async fn remove(
+    ctx: RpcContext,
+    ModifyNotificationParams { ids }: ModifyNotificationParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            let n = db.as_private_mut().as_notifications_mut();
+            for id in ids {
+                n.remove(&id)?;
+            }
+            Ok(())
+        })
+        .await
+        .result
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct ModifyNotificationBeforeParams {
+    #[ts(type = "number")]
+    before: u32,
+}
+
+pub async fn remove_before(
+    ctx: RpcContext,
+    ModifyNotificationBeforeParams { before }: ModifyNotificationBeforeParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            let n = db.as_private_mut().as_notifications_mut();
+            for id in n.keys()?.range(..before) {
+                n.remove(&id)?;
+            }
+            Ok(())
+        })
+        .await
+        .result
+}
+
+pub async fn mark_seen(
+    ctx: RpcContext,
+    ModifyNotificationParams { ids }: ModifyNotificationParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            let mut diff = 0;
+            let n = db.as_private_mut().as_notifications_mut();
+            for id in ids {
+                if !n
+                    .as_idx_mut(&id)
+                    .or_not_found(lazy_format!("Notification #{id}"))?
+                    .as_seen_mut()
+                    .replace(&true)?
+                {
+                    diff += 1;
+                }
+            }
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_unread_notification_count_mut()
+                .mutate(|n| Ok(*n -= diff))?;
+            Ok(())
+        })
+        .await
+        .result
+}
+
+pub async fn mark_seen_before(
+    ctx: RpcContext,
+    ModifyNotificationBeforeParams { before }: ModifyNotificationBeforeParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            let mut diff = 0;
+            let n = db.as_private_mut().as_notifications_mut();
+            for id in n.keys()?.range(..before) {
+                if !n
+                    .as_idx_mut(&id)
+                    .or_not_found(lazy_format!("Notification #{id}"))?
+                    .as_seen_mut()
+                    .replace(&true)?
+                {
+                    diff += 1;
+                }
+            }
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_unread_notification_count_mut()
+                .mutate(|n| Ok(*n -= diff))?;
+            Ok(())
+        })
+        .await
+        .result
+}
+
+pub async fn mark_unseen(
+    ctx: RpcContext,
+    ModifyNotificationParams { ids }: ModifyNotificationParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            let mut diff = 0;
+            let n = db.as_private_mut().as_notifications_mut();
+            for id in ids {
+                if n.as_idx_mut(&id)
+                    .or_not_found(lazy_format!("Notification #{id}"))?
+                    .as_seen_mut()
+                    .replace(&false)?
+                {
+                    diff += 1;
+                }
+            }
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_unread_notification_count_mut()
+                .mutate(|n| Ok(*n += diff))?;
+            Ok(())
+        })
+        .await
+        .result
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct CreateParams {
+    package: Option<PackageId>,
+    level: NotificationLevel,
+    title: String,
+    message: String,
+}
+
+pub async fn create(
+    ctx: RpcContext,
+    CreateParams {
+        package,
+        level,
+        title,
+        message,
+    }: CreateParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| notify(db, package, level, title, message, ()))
+        .await
+        .result
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
 pub enum NotificationLevel {
     Success,
     Info,
@@ -162,6 +315,13 @@ impl fmt::Display for NotificationLevel {
         }
     }
 }
+impl ValueParserFactory for NotificationLevel {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
+
 pub struct InvalidNotificationLevel(String);
 impl From<InvalidNotificationLevel> for crate::Error {
     fn from(val: InvalidNotificationLevel) -> Self {
@@ -188,115 +348,102 @@ impl fmt::Display for InvalidNotificationLevel {
         write!(f, "Invalid Notification Level: {}", self.0)
     }
 }
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "kebab-case")]
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Notifications(pub BTreeMap<u32, Notification>);
+impl Notifications {
+    pub fn new() -> Self {
+        Self(BTreeMap::new())
+    }
+}
+impl Map for Notifications {
+    type Key = u32;
+    type Value = Notification;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Self::key_string(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        Ok(InternedString::from_display(key))
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, HasModel)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
 pub struct Notification {
+    pub package_id: Option<PackageId>,
+    pub created_at: DateTime<Utc>,
+    pub code: u32,
+    pub level: NotificationLevel,
+    pub title: String,
+    pub message: String,
+    pub data: Value,
+    #[serde(default = "const_true")]
+    pub seen: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NotificationWithId {
     id: u32,
-    package_id: Option<PackageId>, // TODO change for package id newtype
-    created_at: DateTime<Utc>,
-    code: u32,
-    level: NotificationLevel,
-    title: String,
-    message: String,
-    data: serde_json::Value,
+    #[serde(flatten)]
+    notification: Notification,
 }
 
 pub trait NotificationType:
     serde::Serialize + for<'de> serde::Deserialize<'de> + std::fmt::Debug
 {
-    const CODE: i32;
+    const CODE: u32;
 }
 
 impl NotificationType for () {
-    const CODE: i32 = 0;
+    const CODE: u32 = 0;
 }
 impl NotificationType for BackupReport {
-    const CODE: i32 = 1;
+    const CODE: u32 = 1;
+}
+impl NotificationType for String {
+    const CODE: u32 = 2;
 }
 
-pub struct NotificationManager {
-    sqlite: PgPool,
-    cache: Mutex<HashMap<(Option<PackageId>, NotificationLevel, String), i64>>,
-}
-impl NotificationManager {
-    pub fn new(sqlite: PgPool) -> Self {
-        NotificationManager {
-            sqlite,
-            cache: Mutex::new(HashMap::new()),
-        }
-    }
-    #[instrument(skip(db, subtype, self))]
-    pub async fn notify<T: NotificationType>(
-        &self,
-        db: PatchDb,
-        package_id: Option<PackageId>,
-        level: NotificationLevel,
-        title: String,
-        message: String,
-        subtype: T,
-        debounce_interval: Option<u32>,
-    ) -> Result<(), Error> {
-        let peek = db.peek().await;
-        if !self
-            .should_notify(&package_id, &level, &title, debounce_interval)
-            .await
-        {
-            return Ok(());
-        }
-        let mut count = peek.as_server_info().as_unread_notification_count().de()?;
-        let sql_package_id = package_id.as_ref().map(|p| &**p);
-        let sql_code = T::CODE;
-        let sql_level = format!("{}", level);
-        let sql_data =
-            serde_json::to_string(&subtype).with_kind(crate::ErrorKind::Serialization)?;
-        sqlx::query!(
-        "INSERT INTO notifications (package_id, code, level, title, message, data) VALUES ($1, $2, $3, $4, $5, $6)",
-        sql_package_id,
-        sql_code as i32,
-        sql_level,
-        title,
-        message,
-        sql_data
-    ).execute(&self.sqlite).await?;
-        count += 1;
-        db.mutate(|db| {
-            db.as_server_info_mut()
-                .as_unread_notification_count_mut()
-                .ser(&count)
-        })
-        .await
-    }
-    async fn should_notify(
-        &self,
-        package_id: &Option<PackageId>,
-        level: &NotificationLevel,
-        title: &String,
-        debounce_interval: Option<u32>,
-    ) -> bool {
-        let mut guard = self.cache.lock().await;
-        let k = (package_id.clone(), level.clone(), title.clone());
-        let v = (*guard).get(&k);
-        match v {
-            None => {
-                (*guard).insert(k, Utc::now().timestamp());
-                true
-            }
-            Some(last_issued) => match debounce_interval {
-                None => {
-                    (*guard).insert(k, Utc::now().timestamp());
-                    true
-                }
-                Some(interval) => {
-                    if last_issued + interval as i64 > Utc::now().timestamp() {
-                        false
-                    } else {
-                        (*guard).insert(k, Utc::now().timestamp());
-                        true
-                    }
-                }
-            },
-        }
-    }
+#[instrument(skip(subtype, db))]
+pub fn notify<T: NotificationType>(
+    db: &mut DatabaseModel,
+    package_id: Option<PackageId>,
+    level: NotificationLevel,
+    title: String,
+    message: String,
+    subtype: T,
+) -> Result<(), Error> {
+    let data = to_value(&subtype)?;
+    db.as_public_mut()
+        .as_server_info_mut()
+        .as_unread_notification_count_mut()
+        .mutate(|c| {
+            *c += 1;
+            Ok(())
+        })?;
+    let id = db
+        .as_private()
+        .as_notifications()
+        .keys()?
+        .into_iter()
+        .max()
+        .map_or(0, |id| id + 1);
+    db.as_private_mut().as_notifications_mut().insert(
+        &id,
+        &Notification {
+            package_id,
+            created_at: Utc::now(),
+            code: T::CODE,
+            level,
+            title,
+            message,
+            data,
+            seen: false,
+        },
+    )
 }
 
 #[test]

@@ -1,0 +1,44 @@
+<tui-input
+  [tuiTextfieldCustomContent]="spec.masked || spec.generate ? toggle : ''"
+  [tuiHintContent]="spec | hint"
+  [disabled]="!!spec.disabled"
+  [readOnly]="readOnly"
+  [pseudoInvalid]="invalid"
+  [(ngModel)]="value"
+  (focusedChange)="onFocus($event)"
+>
+  {{ spec.name }}
+  <span *ngIf="spec.required">*</span>
+  <input
+    tuiTextfieldLegacy
+    [class.masked]="spec.masked && masked"
+    [placeholder]="spec.placeholder || ''"
+    [attr.minLength]="spec.minLength"
+    [attr.maxLength]="spec.maxLength"
+    [attr.inputmode]="spec.inputmode"
+  />
+</tui-input>
+<ng-template #toggle>
+  <button
+    *ngIf="spec.generate"
+    tuiIconButton
+    type="button"
+    appearance="icon"
+    title="Generate"
+    size="xs"
+    class="button"
+    iconStart="@tui.refresh-ccw"
+    (click)="generate()"
+  ></button>
+  <button
+    *ngIf="spec.masked"
+    tuiIconButton
+    type="button"
+    appearance="icon"
+    title="Toggle masking"
+    size="xs"
+    class="button"
+    [iconStart]="masked ? '@tui.eye' : '@tui.eye-off'"
+    (click)="masked = !masked"
+  ></button>
+</ng-template>
