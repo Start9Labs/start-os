@@ -366,6 +366,36 @@ export class GetServiceInterface {
         ),
       )
   }
+
+  /**
+   * Watches the requested service interface. Returns when the predicate is true
+   */
+  async waitFor(pred: (value: ServiceInterfaceFilled | null) => boolean) {
+    const { id, packageId } = this.opts
+    const resolveCell = { resolve: () => {} }
+    this.effects.onLeaveContext(() => {
+      resolveCell.resolve()
+    })
+    while (this.effects.isInContext) {
+      let callback: () => void = () => {}
+      const waitForNext = new Promise<void>((resolve) => {
+        callback = resolve
+        resolveCell.resolve = resolve
+      })
+      const res = await makeInterfaceFilled({
+        effects: this.effects,
+        id,
+        packageId,
+        callback,
+      })
+      if (pred(res)) {
+        resolveCell.resolve()
+        return res
+      }
+      await waitForNext
+    }
+    return null
+  }
 }
 export function getServiceInterface(
   effects: Effects,

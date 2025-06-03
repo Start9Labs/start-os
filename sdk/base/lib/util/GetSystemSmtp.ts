@@ -71,4 +71,30 @@ export class GetSystemSmtp {
         ),
       )
   }
+
+  /**
+   * Watches the system SMTP credentials. Returns when the predicate is true
+   */
+  async waitFor(pred: (value: T.SmtpValue | null) => boolean) {
+    const resolveCell = { resolve: () => {} }
+    this.effects.onLeaveContext(() => {
+      resolveCell.resolve()
+    })
+    while (this.effects.isInContext) {
+      let callback: () => void = () => {}
+      const waitForNext = new Promise<void>((resolve) => {
+        callback = resolve
+        resolveCell.resolve = resolve
+      })
+      const res = await this.effects.getSystemSmtp({
+        callback: () => callback(),
+      })
+      if (pred(res)) {
+        resolveCell.resolve()
+        return res
+      }
+      await waitForNext
+    }
+    return null
+  }
 }
