@@ -236,9 +236,10 @@ impl NetworkInterfaceInfo {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS, HasModel)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
 pub struct IpInfo {
     #[ts(type = "string")]
     pub name: InternedString,

@@ -1,6 +1,7 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use imbl_value::InternedString;
+use lazy_format::lazy_format;
 use models::{HostId, ServiceInterfaceId};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -21,14 +22,28 @@ pub enum HostnameInfo {
         hostname: OnionHostname,
     },
 }
+impl HostnameInfo {
+    pub fn to_san_hostname(&self) -> InternedString {
+        match self {
+            Self::Ip { hostname, .. } => hostname.to_san_hostname(),
+            Self::Onion { hostname } => hostname.to_san_hostname(),
+        }
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct OnionHostname {
-    pub value: String,
+    #[ts(type = "string")]
+    pub value: InternedString,
     pub port: Option<u16>,
     pub ssl_port: Option<u16>,
+}
+impl OnionHostname {
+    pub fn to_san_hostname(&self) -> InternedString {
+        self.value.clone()
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
@@ -63,6 +78,24 @@ pub enum IpHostname {
         port: Option<u16>,
         ssl_port: Option<u16>,
     },
+}
+impl IpHostname {
+    pub fn to_san_hostname(&self) -> InternedString {
+        match self {
+            Self::Ipv4 { value, .. } => InternedString::from_display(value),
+            Self::Ipv6 { value, .. } => InternedString::from_display(value),
+            Self::Local { value, .. } => value.clone(),
+            Self::Domain {
+                domain, subdomain, ..
+            } => {
+                if let Some(subdomain) = subdomain {
+                    InternedString::from_display(&lazy_format!("{subdomain}.{domain}"))
+                } else {
+                    domain.clone()
+                }
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]

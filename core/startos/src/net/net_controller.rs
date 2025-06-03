@@ -492,7 +492,7 @@ impl NetServiceData {
                 let mut bind_hostname_info = hostname_info.remove(internal).unwrap_or_default();
                 bind_hostname_info.push(HostnameInfo::Onion {
                     hostname: OnionHostname {
-                        value: tor_addr.to_string(),
+                        value: InternedString::from_display(tor_addr),
                         port: ports.non_ssl,
                         ssl_port: ports.ssl,
                     },

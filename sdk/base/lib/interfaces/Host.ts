@@ -153,7 +153,7 @@ export class MultiHost {
           }
         : null
 
-    const secure: Security | null = !protoInfo.secure ? null : { ssl: false }
+    const secure: Security | null = protoInfo.secure ?? null
 
     await this.options.effects.bind({
       id: this.options.id,
