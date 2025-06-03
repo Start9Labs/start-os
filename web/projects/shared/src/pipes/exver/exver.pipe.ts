@@ -3,6 +3,7 @@ import { Exver } from '../../services/exver.service'
 
 @Pipe({
   name: 'satisfiesExver',
+  standalone: false,
 })
 export class ExverSatisfiesPipe implements PipeTransform {
   constructor(private readonly exver: Exver) {}
@@ -18,6 +19,7 @@ export class ExverSatisfiesPipe implements PipeTransform {
 
 @Pipe({
   name: 'compareExver',
+  standalone: false,
 })
 export class ExverComparesPipe implements PipeTransform {
   constructor(private readonly exver: Exver) {}

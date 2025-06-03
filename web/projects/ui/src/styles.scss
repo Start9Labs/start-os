@@ -1,4 +1,4 @@
-@import '@taiga-ui/core/styles/taiga-ui-local';
+@use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
 :root {
   color-scheme: light dark;
@@ -31,7 +31,7 @@ hr {
 }
 
 .g-page {
-  @include scrollbar-hidden();
+  @include taiga.scrollbar-hidden();
 
   display: block;
   height: calc(100vh - 3.875rem);
@@ -341,6 +341,14 @@ hr {
 
 .g-secondary {
   color: var(--tui-text-secondary) !important;
+}
+
+.g-stretch,
+.g-table {
+  // @TODO drop after fixed and merged: https://github.com/evanw/esbuild/issues/4184
+  width: -webkit-fill-available;
+  width: -moz-available;
+  width: stretch;
 }
 
 ng-component {

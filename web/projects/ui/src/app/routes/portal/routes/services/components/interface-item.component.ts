@@ -86,7 +86,6 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [TuiButton, TuiBadge, TuiIcon, RouterLink],
 })
 export class ServiceInterfaceItemComponent {

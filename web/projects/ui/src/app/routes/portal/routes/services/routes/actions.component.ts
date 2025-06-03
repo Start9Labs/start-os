@@ -58,7 +58,6 @@ const OTHER = 'Custom Actions'
   `,
   host: { class: 'g-subpage' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [ServiceActionComponent, TuiCell, KeyValuePipe, i18nPipe],
 })
 export default class ServiceActionsRoute {

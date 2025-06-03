@@ -19,7 +19,7 @@ import {
   TuiLink,
   TuiOption,
 } from '@taiga-ui/core'
-import { TuiFade, TuiFluidTypography, TuiTooltip } from '@taiga-ui/kit'
+import { TuiTooltip } from '@taiga-ui/kit'
 import { defaultIfEmpty, firstValueFrom } from 'rxjs'
 import {
   FormComponent,
@@ -40,7 +40,6 @@ type OnionForm = {
 }
 
 @Component({
-  standalone: true,
   selector: 'section[tor]',
   template: `
     <header>
@@ -71,11 +70,7 @@ type OnionForm = {
         @for (address of tor(); track $index) {
           <tr>
             <td [style.width.rem]="12">{{ address.protocol || '-' }}</td>
-            <td>
-              <div [tuiFluidTypography]="[0.625, 0.8125]" tuiFade>
-                {{ address.url | mask }}
-              </div>
-            </td>
+            <td>{{ address.url | mask }}</td>
             <td actions [href]="address.url" [disabled]="!isRunning()">
               <button
                 tuiIconButton
@@ -124,8 +119,6 @@ type OnionForm = {
     PlaceholderComponent,
     MaskPipe,
     InterfaceActionsComponent,
-    TuiFade,
-    TuiFluidTypography,
     i18nPipe,
     DocsLinkDirective,
   ],

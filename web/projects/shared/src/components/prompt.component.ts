@@ -12,7 +12,6 @@ import { i18nPipe } from '../i18n/i18n.pipe'
 import { i18nKey } from '../i18n/i18n.providers'
 
 @Component({
-  standalone: true,
   template: `
     <p>{{ options.message }}</p>
     <p *ngIf="options.warning" class="warning">{{ options.warning }}</p>
@@ -60,22 +59,20 @@ import { i18nKey } from '../i18n/i18n.providers'
       ></button>
     </ng-template>
   `,
-  styles: [
-    `
-      .warning {
-        color: var(--tui-status-warning);
-      }
+  styles: `
+    .warning {
+      color: var(--tui-status-warning);
+    }
 
-      .button {
-        pointer-events: auto;
-        margin-left: 0.25rem;
-      }
+    .button {
+      pointer-events: auto;
+      margin-left: 0.25rem;
+    }
 
-      .masked {
-        -webkit-text-security: disc;
-      }
-    `,
-  ],
+    .masked {
+      -webkit-text-security: disc;
+    }
+  `,
   imports: [
     CommonModule,
     FormsModule,

@@ -17,7 +17,6 @@ import { getMenu } from 'src/app/utils/system-utilities'
 const FILTER = ['/portal/services', '/portal/system', '/portal/marketplace']
 
 @Component({
-  standalone: true,
   selector: 'app-tabs',
   template: `
     <nav tuiTabBar [(activeItemIndex)]="index">
@@ -76,7 +75,7 @@ const FILTER = ['/portal/services', '/portal/system', '/portal/marketplace']
     </nav>
   `,
   styles: `
-    @import '@taiga-ui/core/styles/taiga-ui-local';
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
     :host {
       display: none;
@@ -93,7 +92,7 @@ const FILTER = ['/portal/services', '/portal/system', '/portal/marketplace']
     }
 
     .item {
-      @include button-clear();
+      @include taiga.button-clear();
 
       display: flex;
       padding: 0.75rem 0.25rem;

@@ -55,7 +55,6 @@ import {
   `,
   host: { class: 'g-subpage' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [ServiceAdditionalItemComponent, TuiCell, i18nPipe],
 })
 export default class ServiceAboutRoute {

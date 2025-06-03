@@ -109,7 +109,6 @@ import { UnknownDisk } from 'src/app/services/api/api.types'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [TuiButton, UnitConversionPipesModule, TuiSkeleton],
 })
 export class BackupsPhysicalComponent {

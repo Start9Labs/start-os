@@ -137,7 +137,6 @@ import { BACKUP_RESTORE } from './restore.component'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     AsyncPipe,
     DatePipe,

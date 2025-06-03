@@ -11,12 +11,15 @@
       "prefix": "app",
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:browser",
+          "builder": "@angular/build:application",
           "options": {
             "preserveSymlinks": true,
-            "outputPath": "dist/raw/ui",
+            "outputPath": {
+              "base": "dist/raw/ui",
+              "browser": ""
+            },
             "index": "projects/ui/src/index.html",
-            "main": "projects/ui/src/main.ts",
+            "browser": "projects/ui/src/main.ts",
             "polyfills": ["zone.js", "projects/ui/src/polyfills.ts"],
             "tsConfig": "projects/ui/tsconfig.json",
             "inlineStyleLanguage": "scss",
@@ -24,6 +27,11 @@
               {
                 "glob": "**/*",
                 "input": "projects/shared/assets",
+                "output": "assets"
+              },
+              {
+                "glob": "**/*.wasm",
+                "input": "node_modules/@start9labs/argon2",
                 "output": "assets"
               },
               {
@@ -36,12 +44,7 @@
                 "input": "node_modules/@taiga-ui/icons/src",
                 "output": "assets/taiga-ui/icons"
               },
-              "projects/ui/src/manifest.webmanifest",
-              {
-                "glob": "ngsw.json",
-                "input": "dist/raw/ui",
-                "output": "projects/ui/src"
-              }
+              "projects/ui/src/manifest.webmanifest"
             ],
             "styles": [
               "node_modules/@taiga-ui/core/styles/taiga-ui-theme.less",
@@ -50,11 +53,14 @@
               "projects/ui/src/styles.scss"
             ],
             "scripts": [],
-            "ngswConfigPath": "projects/ui/ngsw-config.json"
+            "loader": {
+              ".md": "text"
+            },
+            "serviceWorker": "projects/ui/ngsw-config.json"
           },
           "configurations": {
             "production": {
-              "serviceWorker": true,
+              "serviceWorker": "projects/ui/ngsw-config.json",
               "budgets": [
                 {
                   "type": "initial",
@@ -72,9 +78,7 @@
               "extractLicenses": false
             },
             "development": {
-              "buildOptimizer": false,
               "optimization": false,
-              "vendorChunk": true,
               "extractLicenses": false,
               "sourceMap": true,
               "namedChunks": true
@@ -86,7 +90,7 @@
           "defaultConfiguration": "production"
         },
         "serve": {
-          "builder": "@angular-devkit/build-angular:dev-server",
+          "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
               "buildTarget": "ui:build:production"
@@ -101,7 +105,7 @@
           }
         },
         "extract-i18n": {
-          "builder": "@angular-devkit/build-angular:extract-i18n",
+          "builder": "@angular/build:extract-i18n",
           "options": {
             "buildTarget": "ui:build"
           }
@@ -125,11 +129,14 @@
       "prefix": "app",
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:browser",
+          "builder": "@angular/build:application",
           "options": {
-            "outputPath": "dist/raw/install-wizard",
+            "outputPath": {
+              "base": "dist/raw/install-wizard",
+              "browser": ""
+            },
             "index": "projects/install-wizard/src/index.html",
-            "main": "projects/install-wizard/src/main.ts",
+            "browser": "projects/install-wizard/src/main.ts",
             "polyfills": ["zone.js"],
             "tsConfig": "projects/install-wizard/tsconfig.json",
             "inlineStyleLanguage": "scss",
@@ -169,8 +176,6 @@
               "namedChunks": false,
               "aot": true,
               "extractLicenses": true,
-              "vendorChunk": false,
-              "buildOptimizer": true,
               "budgets": [
                 {
                   "type": "initial",
@@ -183,9 +188,7 @@
               "progress": false
             },
             "development": {
-              "buildOptimizer": false,
               "optimization": false,
-              "vendorChunk": true,
               "extractLicenses": false,
               "sourceMap": true,
               "namedChunks": true
@@ -194,7 +197,7 @@
           "defaultConfiguration": "production"
         },
         "serve": {
-          "builder": "@angular-devkit/build-angular:dev-server",
+          "builder": "@angular/build:dev-server",
           "options": {
             "buildTarget": "install-wizard:build",
             "port": 8100
@@ -210,7 +213,7 @@
           "defaultConfiguration": "development"
         },
         "extract-i18n": {
-          "builder": "@angular-devkit/build-angular:extract-i18n",
+          "builder": "@angular/build:extract-i18n",
           "options": {
             "buildTarget": "install-wizard:build"
           }
@@ -234,11 +237,14 @@
       "prefix": "app",
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:browser",
+          "builder": "@angular/build:application",
           "options": {
-            "outputPath": "dist/raw/setup-wizard",
+            "outputPath": {
+              "base": "dist/raw/setup-wizard",
+              "browser": ""
+            },
             "index": "projects/setup-wizard/src/index.html",
-            "main": "projects/setup-wizard/src/main.ts",
+            "browser": "projects/setup-wizard/src/main.ts",
             "polyfills": ["zone.js"],
             "tsConfig": "projects/setup-wizard/tsconfig.json",
             "inlineStyleLanguage": "scss",
@@ -249,9 +255,9 @@
                 "output": "assets"
               },
               {
-                "glob": "**/*.svg",
-                "input": "node_modules/ionicons/dist/ionicons/svg",
-                "output": "./svg"
+                "glob": "**/*.wasm",
+                "input": "node_modules/@start9labs/argon2",
+                "output": "assets"
               },
               {
                 "glob": "**/*",
@@ -285,9 +291,7 @@
               "outputHashing": "all"
             },
             "development": {
-              "buildOptimizer": false,
               "optimization": false,
-              "vendorChunk": true,
               "extractLicenses": false,
               "sourceMap": true,
               "namedChunks": true
@@ -299,7 +303,7 @@
           "defaultConfiguration": "production"
         },
         "serve": {
-          "builder": "@angular-devkit/build-angular:dev-server",
+          "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
               "buildTarget": "setup-wizard:build:production"
@@ -314,7 +318,7 @@
           }
         },
         "extract-i18n": {
-          "builder": "@angular-devkit/build-angular:extract-i18n",
+          "builder": "@angular/build:extract-i18n",
           "options": {
             "buildTarget": "setup-wizard:build"
           }
@@ -337,7 +341,7 @@
       "prefix": "lib",
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:ng-packagr",
+          "builder": "@angular/build:ng-packagr",
           "options": {
             "project": "projects/marketplace/ng-package.json"
           },
@@ -357,7 +361,7 @@
       "prefix": "lib",
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:ng-packagr",
+          "builder": "@angular/build:ng-packagr",
           "options": {
             "project": "projects/shared/ng-package.json"
           },

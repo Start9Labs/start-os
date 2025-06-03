@@ -15,7 +15,6 @@ export interface ServersResponse {
 }
 
 @Component({
-  standalone: true,
   template: `
     @for (server of context.data.servers; track $index) {
       <button [server]="server" (password)="select($event, server.id)"></button>

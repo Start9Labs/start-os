@@ -4,7 +4,6 @@ import { TuiIcon } from '@taiga-ui/core'
 import { STATUS } from 'src/app/services/status.service'
 
 @Component({
-  standalone: true,
   selector: 'header-status',
   template: `
     <span>
@@ -18,34 +17,32 @@ import { STATUS } from 'src/app/services/status.service'
     </span>
     <span>{{ status().message | i18n }}</span>
   `,
-  styles: [
-    `
-      @import '@taiga-ui/core/styles/taiga-ui-local';
+  styles: `
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
-      :host {
-        @include transition(all);
-        display: grid;
-        grid-template-columns: 1.75rem 1fr;
-        align-items: center;
-        padding: 0 1rem;
-        margin-inline-start: var(--bumper);
+    :host {
+      @include taiga.transition(all);
+      display: grid;
+      grid-template-columns: 1.75rem 1fr;
+      align-items: center;
+      padding: 0 1rem;
+      margin-inline-start: var(--bumper);
 
-        &._connected {
-          grid-template-columns: 0fr 0fr;
-          padding: 0;
-          margin: 0;
-        }
-
-        > * {
-          overflow: hidden;
-        }
+      &._connected {
+        grid-template-columns: 0fr 0fr;
+        padding: 0;
+        margin: 0;
       }
 
-      :host-context(tui-root._mobile) {
-        display: none;
+      > * {
+        overflow: hidden;
       }
-    `,
-  ],
+    }
+
+    :host-context(tui-root._mobile) {
+      display: none;
+    }
+  `,
   host: { '[class._connected]': 'status().status === "success"' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiIcon, i18nPipe],

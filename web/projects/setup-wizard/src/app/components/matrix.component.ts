@@ -5,7 +5,6 @@ import { WA_WINDOW } from '@ng-web-apis/common'
 const FADE_FACTOR = 0.07
 
 @Component({
-  standalone: true,
   selector: 'canvas[matrix]',
   template: 'Your browser does not support the canvas element.',
   styles: ':host { position: fixed; top: 0 }',

@@ -5,6 +5,7 @@ import { Control } from '../control'
 @Component({
   selector: 'form-textarea',
   templateUrl: './form-textarea.component.html',
+  standalone: false,
 })
 export class FormTextareaComponent extends Control<
   IST.ValueSpecTextarea,

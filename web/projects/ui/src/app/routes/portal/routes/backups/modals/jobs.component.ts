@@ -132,7 +132,6 @@ import { DocsLinkDirective } from 'projects/shared/src/public-api'
       }
     }
   `,
-  standalone: true,
   imports: [
     TuiNotification,
     TuiButton,

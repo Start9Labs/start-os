@@ -14,6 +14,7 @@ import { MarketplacePkgBase } from '../../../types'
   templateUrl: 'additional.component.html',
   styleUrls: ['additional.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  standalone: false,
 })
 export class AdditionalComponent {
   @Input({ required: true })

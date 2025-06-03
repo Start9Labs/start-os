@@ -11,7 +11,6 @@ import { DocsLinkDirective } from 'projects/shared/src/public-api'
     </tui-notification>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [TuiNotification, TuiLink, DocsLinkDirective],
 })
 export class DomainsInfoComponent {}

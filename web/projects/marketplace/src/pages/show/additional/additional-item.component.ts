@@ -12,32 +12,29 @@ import { TuiFade } from '@taiga-ui/kit'
     </label>
     <tui-icon [icon]="icon" />
   `,
-  styles: [
-    `
-      :host {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 0.25rem;
-        white-space: nowrap;
+  styles: `
+    :host {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 0.25rem;
+      white-space: nowrap;
 
-        &:hover {
-          background-color: var(--tui-background-neutral-1);
-        }
-
-        [tuiSubtitle] {
-          color: var(--tui-text-secondary);
-        }
-
-        tui-icon {
-          opacity: 0.7;
-        }
+      &:hover {
+        background-color: var(--tui-background-neutral-1);
       }
-    `,
-  ],
+
+      [tuiSubtitle] {
+        color: var(--tui-text-secondary);
+      }
+
+      tui-icon {
+        opacity: 0.7;
+      }
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [CommonModule, TuiIcon, TuiTitle, TuiFade],
 })
 export class MarketplaceAdditionalItemComponent {

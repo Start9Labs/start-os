@@ -1,4 +1,4 @@
-@import '@taiga-ui/core/styles/taiga-ui-local';
+@use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
 ::ng-deep html,
 ::ng-deep body,
@@ -48,7 +48,7 @@ main {
 }
 
 .options {
-  @include transition(margin);
+  @include taiga.transition(margin);
 
   min-width: 100%;
   display: flex;

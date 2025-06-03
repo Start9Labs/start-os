@@ -1,4 +1,4 @@
-@import '@taiga-ui/core/styles/taiga-ui-local';
+@use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
 .wrapper {
   position: relative;
@@ -19,12 +19,12 @@
 }
 
 .color {
-  @include fullsize();
+  @include taiga.fullsize();
   opacity: 0;
 }
 
 .icon {
-  @include fullsize();
+  @include taiga.fullsize();
   pointer-events: none;
 
   input:hover + & {

@@ -14,7 +14,6 @@ import { MarketplaceAdditionalItemComponent } from './additional-item.component'
     </a>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [CommonModule, MarketplaceAdditionalItemComponent],
 })
 export class MarketplaceAdditionalLinkComponent {

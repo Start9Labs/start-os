@@ -1,4 +1,4 @@
-@import '@taiga-ui/core/styles/taiga-ui-local';
+@use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
 [tuiTheme='dark'] {
   --tui-background-base: rgba(23, 23, 23, 1);
@@ -89,7 +89,7 @@
 }
 
 [tuiAppearance][data-appearance^='primary'] {
-  @include appearance-disabled {
+  @include taiga.appearance-disabled {
     background: var(--tui-status-neutral);
     color: #333;
   }
@@ -99,15 +99,15 @@
   color: var(--tui-text-primary-on-accent-1);
   background: var(--tui-status-positive);
 
-  @include appearance-hover {
+  @include taiga.appearance-hover {
     filter: brightness(1.2);
   }
 
-  @include appearance-active {
+  @include taiga.appearance-active {
     filter: brightness(0.9);
   }
 
-  @include appearance-disabled {
+  @include taiga.appearance-disabled {
     background: var(--tui-status-neutral);
     color: #333;
   }

@@ -3,7 +3,6 @@ import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { StoreIconComponentModule } from './store-icon/store-icon.component.module'
 
 @Component({
-  standalone: true,
   selector: '[registry]',
   template: `
     <store-icon [url]="registry.url" size="40px" />

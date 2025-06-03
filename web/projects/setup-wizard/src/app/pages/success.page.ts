@@ -15,7 +15,6 @@ import { ApiService } from 'src/app/services/api.service'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
-  standalone: true,
   template: `
     <canvas matrix></canvas>
     @if (stateService.kiosk) {
@@ -90,6 +89,14 @@ import { StateService } from 'src/app/services/state.service'
       color: var(--tui-text-primary);
       text-decoration: none;
       text-align: center;
+
+      &[data-appearance='floating'] {
+        background: var(--tui-background-neutral-1);
+
+        &:hover {
+          background: var(--tui-background-neutral-1-hover) !important;
+        }
+      }
     }
 
     a[tuiCardLarge]:not([href]) {

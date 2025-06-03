@@ -5,7 +5,6 @@ import { catchError, defer, filter, from, map, of, switchMap, tap } from 'rxjs'
 import { LogsComponent } from './logs.component'
 
 @Directive({
-  standalone: true,
   selector: '[logsFetch]',
 })
 export class LogsFetchDirective {

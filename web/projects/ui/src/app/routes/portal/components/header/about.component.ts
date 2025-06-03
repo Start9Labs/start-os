@@ -50,7 +50,6 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
   `,
   styles: '[tuiCell] { padding-inline: 0; white-space: nowrap }',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [TuiTitle, TuiButton, TuiCell, i18nPipe, TuiFade],
 })
 export class AboutComponent {

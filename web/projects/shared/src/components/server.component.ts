@@ -5,7 +5,6 @@ import { TuiCell } from '@taiga-ui/layout'
 import { StartOSDiskInfo } from '../types/api'
 
 @Component({
-  standalone: true,
   selector: 'button[server]',
   template: `
     <tui-icon icon="@tui.save" />
@@ -21,7 +20,12 @@ import { StartOSDiskInfo } from '../types/api'
       </span>
     </span>
   `,
-  styles: ':host { width: stretch; border-radius: var(--tui-radius-l); }',
+  styles: `
+    :host {
+      border-radius: var(--tui-radius-l);
+    }
+  `,
+  host: { class: 'g-stretch' },
   hostDirectives: [TuiCell],
   imports: [DatePipe, TuiIcon, TuiTitle],
 })

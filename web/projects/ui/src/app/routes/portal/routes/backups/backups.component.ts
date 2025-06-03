@@ -27,7 +27,6 @@ import { BackupsRestoreService } from './services/restore.service'
   `,
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [BackupsUpcomingComponent, TuiIcon, TuiCell, TuiTitle],
 })
 export default class BackupsComponent {

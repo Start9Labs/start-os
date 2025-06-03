@@ -21,107 +21,117 @@ import { HeaderStatusComponent } from './status.component'
     <header-status class="item item_connection" />
     <header-menu class="item item_corner" />
   `,
-  styles: [
-    `
-      @import '@taiga-ui/core/styles/taiga-ui-local';
+  styles: `
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
-      :host {
-        display: flex;
-        height: 2.75rem;
-        border-radius: var(--bumper);
-        margin: var(--bumper);
-        overflow: hidden;
-        filter: grayscale(1) brightness(0.75);
+    @keyframes connecting {
+      25%,
+      100% {
+        background-position: 175%;
+      }
+    }
 
-        @include transition(filter);
+    :host {
+      display: flex;
+      height: 2.75rem;
+      border-radius: var(--bumper);
+      margin: var(--bumper);
+      overflow: hidden;
+      filter: grayscale(1) brightness(0.75);
 
-        .mobile {
-          display: none;
+      @include taiga.transition(filter);
+
+      .mobile {
+        display: none;
+      }
+
+      .item {
+        position: relative;
+        border-radius: inherit;
+        isolation: isolate;
+
+        &::before {
+          @include taiga.transition(all);
+          content: '';
+          position: absolute;
+          inset: 0;
+          border-radius: inherit;
+          backdrop-filter: blur(1rem);
+          transform: skewX(30deg);
+          background: color-mix(in hsl, var(--start9-base-2) 75%, transparent);
+          box-shadow: inset 0 1px rgb(255 255 255 / 25%);
+          z-index: -1;
         }
 
-        .item {
-          position: relative;
-          border-radius: inherit;
-          isolation: isolate;
+        &_center {
+          flex: 1;
+          min-width: 0;
+        }
+
+        &_connection::before {
+          box-shadow:
+            inset 0 1px rgba(255, 255, 255, 0.25),
+            inset 0 -0.75rem 0 -0.5rem var(--status);
+          background-image: linear-gradient(
+            90deg,
+            transparent 35%,
+            rgba(255, 255, 255, 0.25),
+            transparent 65%
+          );
+          background-size: 50% 100%;
+          background-position: -75%;
+          background-repeat: no-repeat;
+          animation: connecting 2s 2s ease-in-out infinite;
+        }
+
+        &_corner {
+          margin-inline-start: var(--bumper);
 
           &::before {
-            @include transition(all);
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: inherit;
-            backdrop-filter: blur(1rem);
-            transform: skewX(30deg);
-            background: color-mix(
-              in hsl,
-              var(--start9-base-2) 75%,
-              transparent
-            );
-            box-shadow: inset 0 1px rgb(255 255 255 / 25%);
-            z-index: -1;
-          }
-
-          &_center {
-            flex: 1;
-            min-width: 0;
-          }
-
-          &_connection::before {
-            box-shadow:
-              inset 0 1px rgba(255, 255, 255, 0.25),
-              inset 0 -0.75rem 0 -0.5rem var(--status);
-          }
-
-          &_corner {
-            margin-inline-start: var(--bumper);
-
-            &::before {
-              right: -2rem;
-            }
-          }
-        }
-
-        &:has([data-status='error']) {
-          --status: var(--tui-status-negative);
-        }
-
-        &:has([data-status='warning']) {
-          --status: var(--tui-status-warning);
-        }
-
-        &:has([data-status='neutral']) {
-          --status: var(--tui-status-neutral);
-          filter: none;
-        }
-
-        &:has([data-status='success']) {
-          --status: transparent;
-          filter: none;
-        }
-      }
-
-      :host-context(tui-root._mobile) {
-        .item_center::before {
-          left: -2rem;
-        }
-
-        .mobile {
-          display: flex;
-          height: 100%;
-          align-items: center;
-          font: var(--tui-font-text-l);
-          padding: 1rem;
-          white-space: nowrap;
-          overflow: hidden;
-
-          ::ng-deep > [tuiIconButton] {
-            margin-inline-start: -1rem;
+            right: -2rem;
           }
         }
       }
-    `,
-  ],
-  standalone: true,
+
+      &:has([data-status='error']) {
+        --status: var(--tui-status-negative);
+      }
+
+      &:has([data-status='warning']) {
+        --status: var(--tui-status-warning);
+      }
+
+      &:has([data-status='neutral']) {
+        --status: var(--tui-status-neutral);
+        filter: none;
+      }
+
+      &:has([data-status='success']) {
+        --status: transparent;
+        filter: none;
+      }
+    }
+
+    :host-context(tui-root._mobile) {
+      .item_center::before {
+        left: -2rem;
+      }
+
+      .mobile {
+        display: flex;
+        height: 100%;
+        align-items: center;
+        font: var(--tui-font-text-l);
+        padding: 1rem;
+        white-space: nowrap;
+        overflow: hidden;
+
+        ::ng-deep > [tuiIconButton] {
+          margin-inline-start: -1rem;
+        }
+      }
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     HeaderStatusComponent,

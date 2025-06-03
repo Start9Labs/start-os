@@ -5,7 +5,6 @@ import { GetBackupIconPipe } from './get-backup-icon.pipe'
 
 @Pipe({
   name: 'getDisplayInfo',
-  standalone: true,
 })
 export class GetDisplayInfoPipe implements PipeTransform {
   readonly icon = new GetBackupIconPipe()

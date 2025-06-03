@@ -29,7 +29,6 @@ const ERROR =
   'Ensure (1) target computer is connected to the same LAN as your Start9 Server, (2) target folder is being shared, and (3) hostname, path, and credentials are accurate.'
 
 @Component({
-  standalone: true,
   selector: '[networkFolders]',
   template: `
     <header>
@@ -98,13 +97,13 @@ const ERROR =
     </table>
   `,
   styles: `
-    @import '@taiga-ui/core/styles/taiga-ui-local';
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
     tr {
       cursor: pointer;
-      @include transition(background);
+      @include taiga.transition(background);
 
-      @media ($tui-mouse) {
+      @media (taiga.$tui-mouse) {
         &:hover {
           background: var(--tui-background-neutral-1-hover);
         }
@@ -151,6 +150,11 @@ const ERROR =
           grid-area: 1 / 3 / 4 / 3;
           align-self: center;
           justify-self: end;
+        }
+
+        &:only-child {
+          grid-column: 1 / -1;
+          justify-self: center;
         }
       }
 

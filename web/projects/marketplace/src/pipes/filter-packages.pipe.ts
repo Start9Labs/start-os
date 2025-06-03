@@ -4,6 +4,7 @@ import Fuse from 'fuse.js'
 
 @Pipe({
   name: 'filterPackages',
+  standalone: false,
 })
 export class FilterPackagesPipe implements PipeTransform {
   transform(

@@ -21,6 +21,7 @@ import { DialogService, i18nKey, i18nPipe } from '@start9labs/shared'
   styleUrls: ['./form-control.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: FORM_CONTROL_PROVIDERS,
+  standalone: false,
 })
 export class FormControlComponent<
   T extends Exclude<IST.ValueSpec, IST.ValueSpecHidden>,

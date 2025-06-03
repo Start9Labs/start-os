@@ -14,7 +14,6 @@ import { ServicesService } from './services.service'
 import { i18nPipe } from '@start9labs/shared'
 
 @Component({
-  standalone: true,
   template: `
     <ng-container *title>{{ 'Services' | i18n }}</ng-container>
     @if (!services()) {
@@ -29,7 +28,12 @@ import { i18nPipe } from '@start9labs/shared'
                 {{ 'Name' | i18n }}
               </th>
               <th tuiTh>{{ 'Version' | i18n }}</th>
-              <th tuiTh [requiredSort]="true" [sorter]="uptime">
+              <th
+                tuiTh
+                [requiredSort]="true"
+                [sorter]="uptime"
+                [style.width.rem]="10"
+              >
                 {{ 'Uptime' | i18n }}
               </th>
               <th tuiTh [requiredSort]="true" [sorter]="status">

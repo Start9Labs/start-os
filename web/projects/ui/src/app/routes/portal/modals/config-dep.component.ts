@@ -21,16 +21,13 @@ import { CommonModule } from '@angular/common'
       </ul>
     </tui-notification>
   `,
-  standalone: true,
   imports: [CommonModule, TuiNotification, i18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  styles: [
-    `
-      tui-notification {
-        margin-bottom: 1.5rem;
-      }
-    `,
-  ],
+  styles: `
+    tui-notification {
+      margin-bottom: 1.5rem;
+    }
+  `,
 })
 export class TaskInfoComponent implements OnInit {
   @Input()

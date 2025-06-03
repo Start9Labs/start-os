@@ -101,7 +101,7 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
     </table>
   `,
   styles: `
-    @import '@taiga-ui/core/styles/taiga-ui-local';
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
     tui-icon {
       font-size: 1rem;
@@ -127,10 +127,10 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
       }
 
       .checkbox {
-        @include fullsize();
+        @include taiga.fullsize();
 
         [tuiCheckbox] {
-          @include fullsize();
+          @include taiga.fullsize();
           opacity: 0;
         }
       }
@@ -153,7 +153,6 @@ import { HasErrorPipe } from '../pipes/has-error.pipe'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [
     CommonModule,
     FormsModule,

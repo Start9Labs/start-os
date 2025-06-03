@@ -8,11 +8,10 @@ import { WaMutationObserver } from '@ng-web-apis/mutation-observer'
 import { convertAnsi, ErrorService } from '@start9labs/shared'
 import { tuiProvide } from '@taiga-ui/cdk'
 import { TuiButton, TuiLoader, TuiScrollbar } from '@taiga-ui/core'
-import { NgDompurifyModule } from '@tinkoff/ng-dompurify'
+import { NgDompurifyPipe } from '@taiga-ui/dompurify'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
-  standalone: true,
   template: `
     <a
       routerLink="../"
@@ -48,12 +47,16 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
       gap: 1rem;
       background: var(--tui-background-base);
     }
+
+    pre {
+      white-space: normal;
+    }
   `,
   imports: [
     RouterLink,
     WaIntersectionObserver,
     WaMutationObserver,
-    NgDompurifyModule,
+    NgDompurifyPipe,
     TuiButton,
     TuiLoader,
     TuiScrollbar,

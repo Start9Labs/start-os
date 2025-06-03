@@ -7,7 +7,6 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
 @Component({
   template: '<logs [fetchLogs]="fetch" [followLogs]="follow" [context]="id" />',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   styles: `
     :host {
       overflow: hidden;

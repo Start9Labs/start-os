@@ -519,4 +519,5 @@ export default {
   517: '¿Estás seguro de que deseas descartar esta tarea?',
   518: 'Descartar',
   519: 'Para publicar dominios en clearnet, debes hacer clic en "Hacer público" arriba.',
+  520: 'Actualización disponible',
 } satisfies i18n

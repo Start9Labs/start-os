@@ -68,64 +68,61 @@ import { PolymorpheusContent } from '@taiga-ui/polymorpheus'
       ></button>
     </div>
   `,
-  styles: [
-    `
-      .outer-container {
-        display: flex;
-        align-items: center;
-        align-content: center;
-        margin: 0px;
+  styles: `
+    .outer-container {
+      display: flex;
+      align-items: center;
+      align-content: center;
+      margin: 0px;
 
-        @media (min-width: 1024px) {
-          margin-left: -3.5rem;
-          margin-right: -3.5rem;
-          min-height: 20rem;
-          height: 20rem;
-        }
-        @media (min-width: 1536px) {
-          height: 100%;
-        }
+      @media (min-width: 1024px) {
+        margin-left: -3.5rem;
+        margin-right: -3.5rem;
+        min-height: 20rem;
+        height: 20rem;
+      }
+      @media (min-width: 1536px) {
+        height: 100%;
+      }
+    }
+
+    .carousel {
+      overflow-y: hidden;
+      overflow-x: scroll;
+      overflow: hidden;
+    }
+
+    .screenshot-item {
+      object-fit: cover;
+      overflow: hidden;
+      border-radius: 0.5rem;
+      border-width: 1px;
+      border-color: rgb(161 161 170 / 0.3);
+
+      &:hover {
+        cursor: pointer;
       }
 
-      .carousel {
-        overflow-y: hidden;
-        overflow-x: scroll;
-        overflow: hidden;
+      @media (min-width: 768px) {
+        border-radius: 0.75rem;
       }
 
-      .screenshot-item {
-        object-fit: cover;
-        overflow: hidden;
+      .screenshot-item-img {
+        width: 100%;
+        height: 100%;
         border-radius: 0.5rem;
-        border-width: 1px;
-        border-color: rgb(161 161 170 / 0.3);
-
-        &:hover {
-          cursor: pointer;
-        }
 
         @media (min-width: 768px) {
           border-radius: 0.75rem;
         }
 
-        .screenshot-item-img {
-          width: 100%;
-          height: 100%;
-          border-radius: 0.5rem;
-
-          @media (min-width: 768px) {
-            border-radius: 0.75rem;
-          }
-
-          .screenshot-item-img-enlarged {
-            border-radius: 0px;
-          }
+        .screenshot-item-img-enlarged {
+          border-radius: 0;
         }
       }
-    `,
-  ],
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  standalone: true,
   imports: [CommonModule, TuiCarousel, TuiButton],
 })
 export class MarketplacePackageScreenshotComponent {
