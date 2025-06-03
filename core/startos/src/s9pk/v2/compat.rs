@@ -194,8 +194,12 @@ impl TryFrom<ManifestV1> for Manifest {
         );
         if &*value.id == "bitcoind" && value.title.to_ascii_lowercase().contains("knots") {
             version = version.with_flavor("knots");
+        } else if &*value.id == "lnd" || &*value.id == "ride-the-lightning" || &*value.id == "datum"
+        {
+            version = version.map_upstream(|mut v| v.with_prerelease(["beta".into()]));
+        } else if &*value.id == "lightning-terminal" || &*value.id == "robosats" {
+            version = version.map_upstream(|mut v| v.with_prerelease(["alpha".into()]));
         }
-        // @FullMetal: package hacks go here
         Ok(Self {
             id: value.id,
             title: format!("{} (Legacy)", value.title).into(),

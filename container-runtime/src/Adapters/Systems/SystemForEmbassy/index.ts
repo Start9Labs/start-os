@@ -400,6 +400,19 @@ export class SystemForEmbassy implements System {
       this.manifest.title.toLowerCase().includes("knots")
     )
       version.flavor = "knots"
+
+    if (
+      this.manifest.id === "lnd" ||
+      this.manifest.id === "ride-the-lightning" ||
+      this.manifest.id === "datum"
+    ) {
+      version.upstream.prerelease = ["beta"]
+    } else if (
+      this.manifest.id === "lightning-terminal" ||
+      this.manifest.id === "robosats"
+    ) {
+      version.upstream.prerelease = ["alpha"]
+    }
     await effects.setDataVersion({
       version: version.toString(),
     })
