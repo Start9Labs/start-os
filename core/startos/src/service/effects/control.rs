@@ -26,7 +26,7 @@ pub async fn restart(
     ProcedureId { procedure_id }: ProcedureId,
 ) -> Result<(), Error> {
     let context = context.deref()?;
-    context.restart(procedure_id).await?;
+    context.restart(procedure_id, false).await?;
     Ok(())
 }
 

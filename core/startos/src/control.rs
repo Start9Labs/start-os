@@ -48,7 +48,7 @@ pub async fn restart(ctx: RpcContext, ControlParams { id }: ControlParams) -> Re
         .await
         .as_ref()
         .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
-        .restart(Guid::new())
+        .restart(Guid::new(), false)
         .await?;
 
     Ok(())

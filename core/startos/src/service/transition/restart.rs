@@ -1,3 +1,4 @@
+use futures::future::BoxFuture;
 use futures::FutureExt;
 
 use super::TempDesiredRestore;
@@ -12,7 +13,7 @@ use crate::util::future::RemoteCancellable;
 
 pub(super) struct Restart;
 impl Handler<Restart> for ServiceActor {
-    type Response = ();
+    type Response = BoxFuture<'static, Option<()>>;
     fn conflicts_with(_: &Restart) -> ConflictBuilder<Self> {
         ConflictBuilder::everything().except::<GetActionInput>()
     }
@@ -65,14 +66,18 @@ impl Handler<Restart> for ServiceActor {
         if let Some(t) = old {
             t.abort().await;
         }
-        if transition.await.is_none() {
-            tracing::warn!("Service {} has been cancelled", &self.0.id);
-        }
+        transition.boxed()
     }
 }
 impl Service {
     #[instrument(skip_all)]
-    pub async fn restart(&self, id: Guid) -> Result<(), Error> {
-        self.actor.send(id, Restart).await
+    pub async fn restart(&self, id: Guid, wait: bool) -> Result<(), Error> {
+        let fut = self.actor.send(id, Restart).await?;
+        if wait {
+            if fut.await.is_none() {
+                tracing::warn!("Restart has been cancelled");
+            }
+        }
+        Ok(())
     }
 }
