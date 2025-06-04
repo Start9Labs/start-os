@@ -81,9 +81,13 @@ export async function checkDependencies<
     ) {
       throw new Error(`Unknown HealthCheckId ${healthCheckId}`)
     }
-    const errors = Object.entries(dep.result.healthChecks)
-      .filter(([id, _]) => (healthCheckId ? id === healthCheckId : true))
-      .filter(([_, res]) => res.result !== "success")
+    const errors =
+      dep.requirement.kind === "running"
+        ? dep.requirement.healthChecks
+            .map((id) => [id, dep.result.healthChecks[id]] as const)
+            .filter(([id, _]) => (healthCheckId ? id === healthCheckId : true))
+            .filter(([_, res]) => res.result !== "success")
+        : []
     return errors.length === 0
   }
   const pkgSatisfied = (packageId: DependencyId) =>
@@ -153,9 +157,13 @@ export async function checkDependencies<
     ) {
       throw new Error(`Unknown HealthCheckId ${healthCheckId}`)
     }
-    const errors = Object.entries(dep.result.healthChecks)
-      .filter(([id, _]) => (healthCheckId ? id === healthCheckId : true))
-      .filter(([_, res]) => res.result !== "success")
+    const errors =
+      dep.requirement.kind === "running"
+        ? dep.requirement.healthChecks
+            .map((id) => [id, dep.result.healthChecks[id]] as const)
+            .filter(([id, _]) => (healthCheckId ? id === healthCheckId : true))
+            .filter(([_, res]) => res.result !== "success")
+        : []
     if (errors.length) {
       throw new Error(
         errors
