@@ -84,9 +84,9 @@ export async function checkDependencies<
     const errors =
       dep.requirement.kind === "running"
         ? dep.requirement.healthChecks
-            .map((id) => [id, dep.result.healthChecks[id]] as const)
+            .map((id) => [id, dep.result.healthChecks[id] ?? null] as const)
             .filter(([id, _]) => (healthCheckId ? id === healthCheckId : true))
-            .filter(([_, res]) => res.result !== "success")
+            .filter(([_, res]) => res?.result !== "success")
         : []
     return errors.length === 0
   }
@@ -160,16 +160,17 @@ export async function checkDependencies<
     const errors =
       dep.requirement.kind === "running"
         ? dep.requirement.healthChecks
-            .map((id) => [id, dep.result.healthChecks[id]] as const)
+            .map((id) => [id, dep.result.healthChecks[id] ?? null] as const)
             .filter(([id, _]) => (healthCheckId ? id === healthCheckId : true))
-            .filter(([_, res]) => res.result !== "success")
+            .filter(([_, res]) => res?.result !== "success")
         : []
     if (errors.length) {
       throw new Error(
         errors
-          .map(
-            ([_, e]) =>
-              `Health Check ${e.name} of ${dep.result.title || packageId} failed with status ${e.result}${e.message ? `: ${e.message}` : ""}`,
+          .map(([id, e]) =>
+            e
+              ? `Health Check ${e.name} of ${dep.result.title || packageId} failed with status ${e.result}${e.message ? `: ${e.message}` : ""}`
+              : `Health Check ${id} of ${dep.result.title} does not exist`,
           )
           .join("; "),
       )
