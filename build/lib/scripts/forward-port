@@ -1,18 +1,26 @@
 #!/bin/bash
 
-iptables -F
-iptables -t nat -F
+if [ -z "$iiface" ] || [ -z "$oiface" ] || [ -z "$sip" ] || [ -z "$dip" ] || [ -z "$sport" ] || [ -z "$dport" ]; then
+    >&2 echo 'missing required env var'
+    exit 1
+fi
 
-iptables -t nat -A POSTROUTING -o $iiface -j MASQUERADE
-iptables -t nat -A PREROUTING -i $iiface -p tcp --dport $sport -j DNAT --to-destination $dip:$dport
-iptables -t nat -A PREROUTING -i $iiface -p udp --dport $sport -j DNAT --to-destination $dip:$dport
-iptables -t nat -A PREROUTING -i $oiface -s 10.0.3.0/24 -d $sip -p tcp --dport $sport -j DNAT --to-destination $dip:$dport
-iptables -t nat -A PREROUTING -i $oiface -s 10.0.3.0/24 -d $sip -p udp --dport $sport -j DNAT --to-destination $dip:$dport
-iptables -t nat -A POSTROUTING -o $oiface -s 10.0.3.0/24 -d $dip/32 -p tcp --dport $dport -j SNAT --to-source $sip:$sport
-iptables -t nat -A POSTROUTING -o $oiface -s 10.0.3.0/24 -d $dip/32 -p udp --dport $dport -j SNAT --to-source $sip:$sport
+kind="-A"
+
+if [ "$UNDO" = 1 ]; then
+    kind="-D"
+fi
+
+iptables -t nat "$kind" POSTROUTING -o $iiface -j MASQUERADE
+iptables -t nat "$kind" PREROUTING -i $iiface -p tcp --dport $sport -j DNAT --to-destination $dip:$dport
+iptables -t nat "$kind" PREROUTING -i $iiface -p udp --dport $sport -j DNAT --to-destination $dip:$dport
+iptables -t nat "$kind" PREROUTING -i $oiface -s $dip/24 -d $sip -p tcp --dport $sport -j DNAT --to-destination $dip:$dport
+iptables -t nat "$kind" PREROUTING -i $oiface -s $dip/24 -d $sip -p udp --dport $sport -j DNAT --to-destination $dip:$dport
+iptables -t nat "$kind" POSTROUTING -o $oiface -s $dip/24 -d $dip/32 -p tcp --dport $dport -j SNAT --to-source $sip:$sport
+iptables -t nat "$kind" POSTROUTING -o $oiface -s $dip/24 -d $dip/32 -p udp --dport $dport -j SNAT --to-source $sip:$sport
 
 
-iptables -t nat -A PREROUTING -i $iiface -s $sip/32 -d $sip -p tcp --dport $sport -j DNAT --to-destination $dip:$dport
-iptables -t nat -A PREROUTING -i $iiface -s $sip/32 -d $sip -p udp --dport $sport -j DNAT --to-destination $dip:$dport
-iptables -t nat -A POSTROUTING -o $oiface -s $sip/32 -d $dip/32 -p tcp --dport $dport -j SNAT --to-source $sip:$sport
-iptables -t nat -A POSTROUTING -o $oiface -s $sip/32 -d $dip/32 -p udp --dport $dport -j SNAT --to-source $sip:$sport
+iptables -t nat "$kind" PREROUTING -i $iiface -s $sip/32 -d $sip -p tcp --dport $sport -j DNAT --to-destination $dip:$dport
+iptables -t nat "$kind" PREROUTING -i $iiface -s $sip/32 -d $sip -p udp --dport $sport -j DNAT --to-destination $dip:$dport
+iptables -t nat "$kind" POSTROUTING -o $oiface -s $sip/32 -d $dip/32 -p tcp --dport $dport -j SNAT --to-source $sip:$sport
+iptables -t nat "$kind" POSTROUTING -o $oiface -s $sip/32 -d $dip/32 -p udp --dport $dport -j SNAT --to-source $sip:$sport

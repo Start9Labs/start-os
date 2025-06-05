@@ -29,12 +29,11 @@ pub struct BackupMountGuard<G: GenericMountGuard> {
 }
 impl<G: GenericMountGuard> BackupMountGuard<G> {
     #[instrument(skip_all)]
-    pub async fn mount(
-        backup_disk_mount_guard: G,
+    pub async fn load_metadata(
+        backup_disk_path: &Path,
         server_id: &str,
         password: &str,
-    ) -> Result<Self, Error> {
-        let backup_disk_path = backup_disk_mount_guard.path();
+    ) -> Result<(StartOsRecoveryInfo, String), Error> {
         let backup_dir = backup_disk_path.join("StartOSBackups").join(server_id);
         let unencrypted_metadata_path = backup_dir.join("unencrypted-metadata.json");
         let crypt_path = backup_dir.join("crypt");
@@ -79,7 +78,6 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
                 &rand::random::<[u8; 32]>()[..],
             )
         };
-
         if unencrypted_metadata.password_hash.is_none() {
             unencrypted_metadata.password_hash = Some(
                 argon2::hash_encoded(
@@ -96,6 +94,20 @@ impl<G: GenericMountGuard> BackupMountGuard<G> {
                 &encrypt_slice(&enc_key, password),
             ));
         }
+        Ok((unencrypted_metadata, enc_key))
+    }
+    #[instrument(skip_all)]
+    pub async fn mount(
+        backup_disk_mount_guard: G,
+        server_id: &str,
+        password: &str,
+    ) -> Result<Self, Error> {
+        let backup_disk_path = backup_disk_mount_guard.path();
+        let (unencrypted_metadata, enc_key) =
+            Self::load_metadata(backup_disk_path, server_id, password).await?;
+        let backup_dir = backup_disk_path.join("StartOSBackups").join(server_id);
+        let unencrypted_metadata_path = backup_dir.join("unencrypted-metadata.json");
+        let crypt_path = backup_dir.join("crypt");
 
         if tokio::fs::metadata(&crypt_path).await.is_err() {
             tokio::fs::create_dir_all(&crypt_path).await.with_ctx(|_| {

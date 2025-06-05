@@ -222,7 +222,7 @@ upload-ota: results/$(BASENAME).squashfs
 container-runtime/debian.$(ARCH).squashfs: ./container-runtime/download-base-image.sh
 	ARCH=$(ARCH) ./container-runtime/download-base-image.sh
 
-container-runtime/package-lock.json: container-runtime/package-lock.json sdk/dist/package.json
+container-runtime/package-lock.json: sdk/dist/package.json
 	npm --prefix container-runtime i
 	touch container-runtime/package-lock.json
 

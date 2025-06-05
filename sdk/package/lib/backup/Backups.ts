@@ -189,6 +189,8 @@ async function runRsync(rsyncOptions: {
 }> {
   const { srcPath, dstPath, options } = rsyncOptions
 
+  await fs.mkdir(dstPath, { recursive: true })
+
   const command = "rsync"
   const args: string[] = []
   if (options.delete) {

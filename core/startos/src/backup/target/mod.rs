@@ -296,7 +296,7 @@ pub async fn info(
 }
 
 lazy_static::lazy_static! {
-    static ref USER_MOUNTS: Mutex<BTreeMap<BackupTargetId, BackupMountGuard<TmpMountGuard>>> =
+    static ref USER_MOUNTS: Mutex<BTreeMap<BackupTargetId, Result<BackupMountGuard<TmpMountGuard>, TmpMountGuard>>> =
         Mutex::new(BTreeMap::new());
 }
 
@@ -305,8 +305,11 @@ lazy_static::lazy_static! {
 #[command(rename_all = "kebab-case")]
 pub struct MountParams {
     target_id: BackupTargetId,
-    server_id: String,
+    #[arg(long)]
+    server_id: Option<String>,
     password: String,
+    #[arg(long)]
+    allow_partial: bool,
 }
 
 #[instrument(skip_all)]
@@ -316,24 +319,63 @@ pub async fn mount(
         target_id,
         server_id,
         password,
+        allow_partial,
     }: MountParams,
 ) -> Result<String, Error> {
+    let server_id = if let Some(server_id) = server_id {
+        server_id
+    } else {
+        ctx.db
+            .peek()
+            .await
+            .into_public()
+            .into_server_info()
+            .into_id()
+            .de()?
+    };
+
     let mut mounts = USER_MOUNTS.lock().await;
 
-    if let Some(existing) = mounts.get(&target_id) {
-        return Ok(existing.path().display().to_string());
-    }
+    let existing = mounts.get(&target_id);
 
-    let guard = BackupMountGuard::mount(
-        TmpMountGuard::mount(&target_id.clone().load(&ctx.db.peek().await)?, ReadWrite).await?,
-        &server_id,
-        &password,
-    )
-    .await?;
+    let base = match existing {
+        Some(Ok(a)) => return Ok(a.path().display().to_string()),
+        Some(Err(e)) => e.clone(),
+        None => {
+            TmpMountGuard::mount(&target_id.clone().load(&ctx.db.peek().await)?, ReadWrite).await?
+        }
+    };
+
+    let guard = match BackupMountGuard::mount(base.clone(), &server_id, &password).await {
+        Ok(a) => a,
+        Err(e) => {
+            if allow_partial {
+                mounts.insert(target_id, Err(base.clone()));
+                let enc_key = BackupMountGuard::<TmpMountGuard>::load_metadata(
+                    base.path(),
+                    &server_id,
+                    &password,
+                )
+                .await
+                .map(|(_, k)| k);
+                return Err(e)
+                    .with_ctx(|e| (
+                        e.kind,
+                        format!(
+                            "\nThe base filesystem did successfully mount at {:?}\nWrapped Key: {:?}",
+                            base.path(),
+                            enc_key
+                        )
+                    ));
+            } else {
+                return Err(e);
+            }
+        }
+    };
 
     let res = guard.path().display().to_string();
 
-    mounts.insert(target_id, guard);
+    mounts.insert(target_id, Ok(guard));
 
     Ok(res)
 }
@@ -350,11 +392,17 @@ pub async fn umount(_: RpcContext, UmountParams { target_id }: UmountParams) -> 
     let mut mounts = USER_MOUNTS.lock().await; // TODO: move to context
     if let Some(target_id) = target_id {
         if let Some(existing) = mounts.remove(&target_id) {
-            existing.unmount().await?;
+            match existing {
+                Ok(e) => e.unmount().await?,
+                Err(e) => e.unmount().await?,
+            }
         }
     } else {
         for (_, existing) in std::mem::take(&mut *mounts) {
-            existing.unmount().await?;
+            match existing {
+                Ok(e) => e.unmount().await?,
+                Err(e) => e.unmount().await?,
+            }
         }
     }
 
