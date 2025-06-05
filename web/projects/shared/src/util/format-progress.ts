@@ -43,5 +43,5 @@ function getPhaseBytes(
         total: number | null
       },
 ) {
-  return progress ? `${progress.done}/${progress.total}` : ''
+  return progress ? `: ${progress.done}/${progress.total}` : ''
 }
