@@ -29,7 +29,12 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
         <span tuiTitle>
           {{ d.value.title || d.key }}
           @if (getError(d.key); as error) {
-            <span tuiSubtitle class="g-warning">{{ error | i18n }}</span>
+            <span tuiSubtitle class="g-warning">
+              {{ error | i18n }}
+              @if (getHealthCheckName(d.key); as healthCheckName) {
+                : {{ getHealthCheckName }}
+              }
+            </span>
           } @else {
             <span tuiSubtitle class="g-positive">{{ 'Satisfied' | i18n }}</span>
           }
@@ -99,5 +104,12 @@ export class ServiceDependenciesComponent {
       default:
         return 'Unknown error'
     }
+  }
+
+  getHealthCheckName(id: string) {
+    const depError = this.errors[id]
+    return depError?.type === 'healthChecksFailed'
+      ? depError.check.name
+      : undefined
   }
 }

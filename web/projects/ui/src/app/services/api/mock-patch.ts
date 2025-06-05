@@ -197,7 +197,7 @@ export const mockPatchData: DataModel = {
         state: 'installed',
         manifest: {
           ...Mock.MockManifestBitcoind,
-          version: '0.20.0:0',
+          version: '0.20.0:0-alpha.1',
         },
       },
       dataVersion: '0.20.0:0',
