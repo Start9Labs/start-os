@@ -15,12 +15,14 @@ export class Oneshot<Manifest extends T.SDKManifest> extends Daemon<Manifest> {
     return async (
       effects: T.Effects,
       subcontainer: SubContainer<Manifest>,
-      exec: DaemonCommandType,
+      exec: DaemonCommandType | null,
     ) => {
       if (subcontainer.isOwned()) subcontainer = subcontainer.rc()
-      const startCommand = () =>
-        CommandController.of<Manifest>()(effects, subcontainer.rc(), exec)
-      return new Oneshot(subcontainer, startCommand, true, [])
+      const startCommand = exec
+        ? () =>
+            CommandController.of<Manifest>()(effects, subcontainer.rc(), exec)
+        : null
+      return new Oneshot(subcontainer, startCommand, true)
     }
   }
 

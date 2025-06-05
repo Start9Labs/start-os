@@ -21,11 +21,12 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
   private commandController: CommandController<Manifest> | null = null
   private shouldBeRunning = false
   protected exitedSuccess = false
+  private onExitFailureFns: (() => void)[] = []
+  protected onExitSuccessFns: (() => void)[] = []
   protected constructor(
     private subcontainer: SubContainer<Manifest>,
-    private startCommand: () => Promise<CommandController<Manifest>>,
+    private startCommand: (() => Promise<CommandController<Manifest>>) | null,
     readonly oneshot: boolean = false,
-    protected onExitSuccessFns: (() => void)[] = [],
   ) {
     super()
   }
@@ -36,11 +37,13 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
     return async (
       effects: T.Effects,
       subcontainer: SubContainer<Manifest>,
-      exec: DaemonCommandType,
+      exec: DaemonCommandType | null,
     ) => {
       if (subcontainer.isOwned()) subcontainer = subcontainer.rc()
-      const startCommand = () =>
-        CommandController.of<Manifest>()(effects, subcontainer.rc(), exec)
+      const startCommand = exec
+        ? () =>
+            CommandController.of<Manifest>()(effects, subcontainer.rc(), exec)
+        : null
       return new Daemon(subcontainer, startCommand)
     }
   }
@@ -49,26 +52,32 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
       return
     }
     this.shouldBeRunning = true
-    this.exitedSuccess = false
     let timeoutCounter = 0
     ;(async () => {
-      while (this.shouldBeRunning) {
+      while (this.startCommand && this.shouldBeRunning) {
         if (this.commandController)
           await this.commandController
             .term({})
             .catch((err) => console.error(err))
         try {
           this.commandController = await this.startCommand()
-          if (
-            (await this.commandController.wait().then(
-              (_) => true,
-              (err) => {
-                console.error(err)
-                return false
-              },
-            )) &&
-            this.oneshot
-          ) {
+          const success = await this.commandController.wait().then(
+            (_) => true,
+            (err) => {
+              console.error(err)
+              return false
+            },
+          )
+          if (!success) {
+            for (const fn of this.onExitFailureFns) {
+              try {
+                fn()
+              } catch (e) {
+                console.error("EXIT_FAILURE handler", e)
+              }
+            }
+          }
+          if (success && this.oneshot) {
             for (const fn of this.onExitSuccessFns) {
               try {
                 fn()
@@ -76,7 +85,6 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
                 console.error("EXIT_SUCCESS handler", e)
               }
             }
-            this.onExitSuccessFns = []
             this.exitedSuccess = true
             break
           }
@@ -102,14 +110,20 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
     timeout?: number | undefined
   }) {
     this.shouldBeRunning = false
+    this.exitedSuccess = false
     await this.commandController
       ?.term({ ...termOptions })
       .catch((e) => console.error(asError(e)))
     this.commandController = null
+    this.onExitFailureFns = []
+    this.onExitSuccessFns = []
     await this.subcontainer.destroy()
   }
   subcontainerRc(): SubContainerRc<Manifest> {
     return this.subcontainer.rc()
+  }
+  onExitFailure(fn: () => void) {
+    this.onExitFailureFns.push(fn)
   }
   onDrop(): void {
     this.stop().catch((e) => console.error(asError(e)))

@@ -4,8 +4,7 @@ import { HealthCheckResult } from "../health/checkFns"
 
 import { Trigger } from "../trigger"
 import * as T from "../../../base/lib/types"
-import { Mounts } from "./Mounts"
-import { MountOptions, SubContainer } from "../util/SubContainer"
+import { SubContainer } from "../util/SubContainer"
 
 import { promisify } from "node:util"
 import * as CP from "node:child_process"
@@ -79,7 +78,7 @@ export type DaemonCommandType = ExecCommandOptions | ExecFnOptions
 
 type NewDaemonParams<Manifest extends T.SDKManifest> = {
   /** What to run as the daemon: either an async fn or a commandline command to run in the subcontainer */
-  exec: DaemonCommandType
+  exec: DaemonCommandType | null
   /** Information about the subcontainer in which the daemon runs */
   subcontainer: SubContainer<Manifest>
 }
@@ -104,6 +103,7 @@ type AddOneshotParams<
   Ids extends string,
   Id extends string,
 > = NewDaemonParams<Manifest> & {
+  exec: DaemonCommandType
   /** An array of IDs of prior daemons whose successful initializations are required before this daemon will initialize */
   requires: Exclude<Ids, Id>[]
 }
