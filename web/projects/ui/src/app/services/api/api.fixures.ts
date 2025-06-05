@@ -31,9 +31,9 @@ export namespace Mock {
   }
 
   export const RegistryOSUpdate: RR.CheckOsUpdateRes = {
-    '0.3.6-alpha.17': {
-      headline: 'v0.3.6-alpha.17',
-      releaseNotes: '',
+    '0.4.1': {
+      headline: 'v0.4.1',
+      releaseNotes: 'Testing some release notes',
       sourceVersion: '>=0.3.5:0 <=0.3.6-alpha.17:0',
       authorized: ['G24CSA5HNYEPIXJNMK7ZM4KD5SX5N6X4'],
       iso: {},
@@ -101,9 +101,9 @@ export namespace Mock {
       },
       img: {},
     },
-    '0.4.0-alpha.5': {
-      headline: 'v0.4.0-alpha.5',
-      releaseNotes: '',
+    '0.4.1-alpha.5': {
+      headline: 'v0.4.1-alpha.5',
+      releaseNotes: 'Some more release notes',
       sourceVersion: '>=0.3.5:0 <=0.4.0-alpha.5:0',
       authorized: ['G24CSA5HNYEPIXJNMK7ZM4KD5SX5N6X4'],
       iso: {},

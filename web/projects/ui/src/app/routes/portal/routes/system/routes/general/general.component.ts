@@ -421,7 +421,11 @@ export default class SystemGeneralComponent {
   }
 
   private update() {
-    this.dialogs.open(UPDATE).subscribe()
+    this.dialogs
+      .open(UPDATE, {
+        data: { currentVersion: this.server()?.version },
+      })
+      .subscribe()
   }
 
   private async check(): Promise<void> {
