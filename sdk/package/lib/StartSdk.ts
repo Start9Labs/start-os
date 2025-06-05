@@ -249,6 +249,26 @@ export class StartSdk<Manifest extends T.SDKManifest> {
                 ),
               )
           },
+          waitFor: async (pred: (value: string | null) => boolean) => {
+            const resolveCell = { resolve: () => {} }
+            effects.onLeaveContext(() => {
+              resolveCell.resolve()
+            })
+            while (effects.isInContext) {
+              let callback: () => void = () => {}
+              const waitForNext = new Promise<void>((resolve) => {
+                callback = resolve
+                resolveCell.resolve = resolve
+              })
+              const res = await effects.getContainerIp({ ...options, callback })
+              if (pred(res)) {
+                resolveCell.resolve()
+                return res
+              }
+              await waitForNext
+            }
+            return null
+          },
         }
       },
 

@@ -188,14 +188,22 @@ impl TryFrom<ManifestV1> for Manifest {
     type Error = Error;
     fn try_from(value: ManifestV1) -> Result<Self, Self::Error> {
         let default_url = value.upstream_repo.clone();
+        let mut version = ExtendedVersion::from(
+            exver::emver::Version::from_str(&value.version)
+                .with_kind(ErrorKind::Deserialization)?,
+        );
+        if &*value.id == "bitcoind" && value.title.to_ascii_lowercase().contains("knots") {
+            version = version.with_flavor("knots");
+        } else if &*value.id == "lnd" || &*value.id == "ride-the-lightning" || &*value.id == "datum"
+        {
+            version = version.map_upstream(|mut v| v.with_prerelease(["beta".into()]));
+        } else if &*value.id == "lightning-terminal" || &*value.id == "robosats" {
+            version = version.map_upstream(|mut v| v.with_prerelease(["alpha".into()]));
+        }
         Ok(Self {
             id: value.id,
             title: format!("{} (Legacy)", value.title).into(),
-            version: ExtendedVersion::from(
-                exver::emver::Version::from_str(&value.version)
-                    .with_kind(ErrorKind::Deserialization)?,
-            )
-            .into(),
+            version: version.into(),
             satisfies: BTreeSet::new(),
             release_notes: value.release_notes,
             can_migrate_from: VersionRange::any(),

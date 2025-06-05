@@ -26,6 +26,7 @@
     "isomorphic-fetch": "^3.0.0",
     "jsonpath": "^1.1.1",
     "lodash.merge": "^4.6.2",
+    "mime": "^4.0.7",
     "node-fetch": "^3.1.0",
     "ts-matches": "^6.3.2",
     "tslib": "^2.5.3",

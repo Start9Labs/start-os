@@ -26,13 +26,17 @@ async function onCreated(path: string) {
   await onCreated(parent)
   const ctrl = new AbortController()
   const watch = fs.watch(parent, { persistent: false, signal: ctrl.signal })
+  if (await exists(path)) {
+    ctrl.abort()
+    return
+  }
   if (
     await fs.access(path).then(
       () => true,
       () => false,
     )
   ) {
-    ctrl.abort("finished")
+    ctrl.abort()
     return
   }
   for await (let event of watch) {
@@ -100,6 +104,10 @@ type ReadType<A> = {
     effects: T.Effects,
     callback: (value: A | null, error?: Error) => void | Promise<void>,
   ) => void
+  waitFor: (
+    effects: T.Effects,
+    pred: (value: A | null) => boolean,
+  ) => Promise<A | null>
 }
 
 /**
@@ -228,7 +236,7 @@ export class FileHelper<A> {
         const listen = Promise.resolve()
           .then(async () => {
             for await (const _ of watch) {
-              ctrl.abort("finished")
+              ctrl.abort()
               return null
             }
           })
@@ -271,6 +279,40 @@ export class FileHelper<A> {
       )
   }
 
+  private async readWaitFor<B>(
+    effects: T.Effects,
+    pred: (value: B | null, error?: Error) => boolean,
+    map: (value: A) => B,
+  ): Promise<B | null> {
+    while (effects.isInContext) {
+      if (await exists(this.path)) {
+        const ctrl = new AbortController()
+        const watch = fs.watch(this.path, {
+          persistent: false,
+          signal: ctrl.signal,
+        })
+        const newRes = await this.readOnce(map)
+        const listen = Promise.resolve()
+          .then(async () => {
+            for await (const _ of watch) {
+              ctrl.abort()
+              return null
+            }
+          })
+          .catch((e) => console.error(asError(e)))
+        if (pred(newRes)) {
+          ctrl.abort()
+          return newRes
+        }
+        await listen
+      } else {
+        if (pred(null)) return null
+        await onCreated(this.path).catch((e) => console.error(asError(e)))
+      }
+    }
+    return null
+  }
+
   read(): ReadType<A>
   read<B>(
     map: (value: A) => B,
@@ -290,6 +332,8 @@ export class FileHelper<A> {
         effects: T.Effects,
         callback: (value: A | null, error?: Error) => void | Promise<void>,
       ) => this.readOnChange(effects, callback, map, eq),
+      waitFor: (effects: T.Effects, pred: (value: A | null) => boolean) =>
+        this.readWaitFor(effects, pred, map),
     }
   }
 

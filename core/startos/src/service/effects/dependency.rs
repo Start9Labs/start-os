@@ -71,11 +71,6 @@ pub async fn mount(
     if is_mountpoint(&mountpoint).await? {
         unmount(&mountpoint, true).await?;
     }
-    Command::new("chown")
-        .arg("100000:100000")
-        .arg(&mountpoint)
-        .invoke(crate::ErrorKind::Filesystem)
-        .await?;
     IdMapped::new(Bind::new(source).with_type(filetype), 0, 100000, 65536)
         .mount(
             mountpoint,

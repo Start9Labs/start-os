@@ -378,6 +378,7 @@ fn rollback_to_unchecked<VFrom: DynVersionT + ?Sized, VTo: DynVersionT + ?Sized>
     Ok(())
 }
 
+#[allow(unused_variables)]
 pub trait VersionT
 where
     Self: Default + Copy + Sized + RefUnwindSafe + Send + Sync + 'static,

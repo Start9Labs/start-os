@@ -45,6 +45,9 @@ trait Message<A>: Send + Any {
         actor: &'a mut A,
         jobs: &'a BackgroundJobQueue,
     ) -> BoxFuture<'a, Box<dyn Any + Send>>;
+    fn type_name(&self) -> &'static str {
+        std::any::type_name_of_val(self)
+    }
 }
 impl<M: Send + Any, A: Actor> Message<A> for M
 where

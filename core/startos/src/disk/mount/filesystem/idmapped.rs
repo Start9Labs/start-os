@@ -1,5 +1,6 @@
 use std::ffi::OsStr;
 use std::fmt::Display;
+use std::os::unix::fs::MetadataExt;
 use std::path::Path;
 
 use digest::generic_array::GenericArray;
@@ -54,7 +55,30 @@ impl<Fs: FileSystem> FileSystem for IdMapped<Fs> {
         self.filesystem.source().await
     }
     async fn pre_mount(&self, mountpoint: &Path) -> Result<(), Error> {
-        self.filesystem.pre_mount(mountpoint).await
+        self.filesystem.pre_mount(mountpoint).await?;
+        let info = tokio::fs::metadata(mountpoint).await?;
+        let uid_in_range = self.from_id <= info.uid() && self.from_id + self.range > info.uid();
+        let gid_in_range = self.from_id <= info.gid() && self.from_id + self.range > info.gid();
+        if uid_in_range || gid_in_range {
+            Command::new("chown")
+                .arg(format!(
+                    "{uid}:{gid}",
+                    uid = if uid_in_range {
+                        self.to_id + info.uid() - self.from_id
+                    } else {
+                        info.uid()
+                    },
+                    gid = if gid_in_range {
+                        self.to_id + info.gid() - self.from_id
+                    } else {
+                        info.gid()
+                    },
+                ))
+                .arg(&mountpoint)
+                .invoke(crate::ErrorKind::Filesystem)
+                .await?;
+        }
+        Ok(())
     }
     async fn mount<P: AsRef<Path> + Send>(
         &self,

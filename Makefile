@@ -222,7 +222,11 @@ upload-ota: results/$(BASENAME).squashfs
 container-runtime/debian.$(ARCH).squashfs: ./container-runtime/download-base-image.sh
 	ARCH=$(ARCH) ./container-runtime/download-base-image.sh
 
-container-runtime/node_modules/.package-lock.json: container-runtime/package.json container-runtime/package-lock.json sdk/dist/package.json
+container-runtime/package-lock.json: sdk/dist/package.json
+	npm --prefix container-runtime i
+	touch container-runtime/package-lock.json
+
+container-runtime/node_modules/.package-lock.json: container-runtime/package-lock.json
 	npm --prefix container-runtime ci
 	touch container-runtime/node_modules/.package-lock.json
 
@@ -277,7 +281,11 @@ core/target/$(ARCH)-unknown-linux-musl/release/containerbox: $(CORE_SRC) $(ENVIR
 	ARCH=$(ARCH) ./core/build-containerbox.sh
 	touch core/target/$(ARCH)-unknown-linux-musl/release/containerbox
 
-web/node_modules/.package-lock.json: web/package.json sdk/baseDist/package.json
+web/package-lock.json: web/package.json sdk/baseDist/package.json
+	npm --prefix web i
+	touch web/package-lock.json
+
+web/node_modules/.package-lock.json: web/package-lock.json
 	npm --prefix web ci
 	touch web/node_modules/.package-lock.json
 

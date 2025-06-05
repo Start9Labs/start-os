@@ -161,12 +161,6 @@ impl PersistentContainer {
                 .rootfs_dir()
                 .join("media/startos/volumes")
                 .join(volume);
-            tokio::fs::create_dir_all(&mountpoint).await?;
-            Command::new("chown")
-                .arg("100000:100000")
-                .arg(&mountpoint)
-                .invoke(crate::ErrorKind::Filesystem)
-                .await?;
             let mount = MountGuard::mount(
                 &IdMapped::new(
                     Bind::new(data_dir(DATA_DIR, &s9pk.as_manifest().id, volume)),
@@ -182,12 +176,6 @@ impl PersistentContainer {
         }
 
         let mountpoint = lxc_container.rootfs_dir().join("media/startos/assets");
-        tokio::fs::create_dir_all(&mountpoint).await?;
-        Command::new("chown")
-            .arg("100000:100000")
-            .arg(&mountpoint)
-            .invoke(crate::ErrorKind::Filesystem)
-            .await?;
         let assets = if let Some(sqfs) = s9pk
             .as_archive()
             .contents()
@@ -215,12 +203,6 @@ impl PersistentContainer {
                     .rootfs_dir()
                     .join("media/startos/assets")
                     .join(Path::new(asset).with_extension(""));
-                tokio::fs::create_dir_all(&mountpoint).await?;
-                Command::new("chown")
-                    .arg("100000:100000")
-                    .arg(&mountpoint)
-                    .invoke(crate::ErrorKind::Filesystem)
-                    .await?;
                 let Some(sqfs) = entry.as_file() else {
                     continue;
                 };
@@ -271,12 +253,6 @@ impl PersistentContainer {
                 .and_then(|e| e.as_file())
                 .or_not_found(sqfs_path.display())?;
             let mountpoint = image_path.join(image);
-            tokio::fs::create_dir_all(&mountpoint).await?;
-            Command::new("chown")
-                .arg("100000:100000")
-                .arg(&mountpoint)
-                .invoke(ErrorKind::Filesystem)
-                .await?;
             images.insert(
                 image.clone(),
                 Arc::new(

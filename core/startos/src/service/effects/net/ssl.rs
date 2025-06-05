@@ -1,6 +1,8 @@
 use std::collections::BTreeSet;
+use std::net::IpAddr;
 
 use imbl_value::InternedString;
+use ipnet::IpNet;
 use itertools::Itertools;
 use openssl::pkey::{PKey, Private};
 
@@ -8,6 +10,7 @@ use crate::service::effects::callbacks::CallbackHandler;
 use crate::service::effects::prelude::*;
 use crate::service::rpc::CallbackId;
 use crate::util::serde::Pem;
+use crate::HOST_IP;
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -57,6 +60,13 @@ pub async fn get_ssl_certificate(
                         .iter()
                         .map(InternedString::from_display)
                         .chain(m.as_domains().keys()?)
+                        .chain(
+                            m.as_hostname_info()
+                                .de()?
+                                .values()
+                                .flatten()
+                                .map(|h| h.to_san_hostname()),
+                        )
                         .collect::<Vec<_>>())
                 })
                 .map(|a| a.and_then(|a| a))
@@ -70,6 +80,28 @@ pub async fn get_ssl_certificate(
                     if !packages.contains(internal) {
                         return Err(errfn(&*hostname));
                     }
+                } else if let Ok(ip) = hostname.parse::<IpAddr>() {
+                    if IpNet::new(HOST_IP.into(), 24)
+                        .with_kind(ErrorKind::ParseNetAddress)?
+                        .contains(&ip)
+                    {
+                        Ok(())
+                    } else if db
+                        .as_public()
+                        .as_server_info()
+                        .as_network()
+                        .as_network_interfaces()
+                        .as_entries()?
+                        .into_iter()
+                        .flat_map(|(_, net)| net.as_ip_info().transpose_ref())
+                        .flat_map(|net| net.as_subnets().de().log_err())
+                        .flatten()
+                        .any(|s| s.addr() == ip)
+                    {
+                        Ok(())
+                    } else {
+                        Err(errfn(&*hostname))
+                    }?;
                 } else {
                     if !allowed_hostnames.contains(hostname) {
                         return Err(errfn(&*hostname));
@@ -128,6 +160,11 @@ pub async fn get_ssl_key(
     let context = context.deref()?;
     let package_id = &context.seed.id;
     let algorithm = algorithm.unwrap_or(Algorithm::Ecdsa);
+    let container_ip = if let Some(lxc) = context.seed.persistent_container.lxc_container.get() {
+        Some(lxc.ip().await?)
+    } else {
+        None
+    };
 
     let cert = context
         .seed
@@ -135,7 +172,7 @@ pub async fn get_ssl_key(
         .db
         .mutate(|db| {
             let errfn = |h: &str| Error::new(eyre!("unknown hostname: {h}"), ErrorKind::NotFound);
-            let allowed_hostnames = db
+            let mut allowed_hostnames = db
                 .as_public()
                 .as_package_data()
                 .as_idx(package_id)
@@ -148,11 +185,19 @@ pub async fn get_ssl_key(
                         .iter()
                         .map(InternedString::from_display)
                         .chain(m.as_domains().keys()?)
+                        .chain(
+                            m.as_hostname_info()
+                                .de()?
+                                .values()
+                                .flatten()
+                                .map(|h| h.to_san_hostname()),
+                        )
                         .collect::<Vec<_>>())
                 })
                 .map(|a| a.and_then(|a| a))
                 .flatten_ok()
                 .try_collect::<_, BTreeSet<_>, _>()?;
+            allowed_hostnames.extend(container_ip.as_ref().map(InternedString::from_display));
             for hostname in &hostnames {
                 if let Some(internal) = hostname
                     .strip_suffix(".embassy")

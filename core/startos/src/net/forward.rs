@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::{Arc, Weak};
 
 use futures::channel::oneshot;
@@ -52,10 +52,13 @@ struct ForwardState {
     current: BTreeMap<u16, BTreeMap<InternedString, SocketAddr>>,
 }
 impl ForwardState {
-    async fn sync(&mut self, interfaces: &BTreeMap<InternedString, bool>) -> Result<(), Error> {
+    async fn sync(
+        &mut self,
+        interfaces: &BTreeMap<InternedString, (bool, Vec<Ipv4Addr>)>,
+    ) -> Result<(), Error> {
         let private_interfaces = interfaces
             .iter()
-            .filter(|(_, public)| !*public)
+            .filter(|(_, (public, _))| !*public)
             .map(|(i, _)| i)
             .collect::<BTreeSet<_>>();
         let all_interfaces = interfaces.keys().collect::<BTreeSet<_>>();
@@ -81,26 +84,30 @@ impl ForwardState {
                     let mut to_rm = actual
                         .difference(expected)
                         .copied()
-                        .cloned()
-                        .collect::<BTreeSet<_>>();
+                        .map(|i| (i.clone(), &interfaces[i].1))
+                        .collect::<BTreeMap<_, _>>();
                     let mut to_add = expected
                         .difference(&actual)
                         .copied()
-                        .cloned()
-                        .collect::<BTreeSet<_>>();
+                        .map(|i| (i.clone(), &interfaces[i].1))
+                        .collect::<BTreeMap<_, _>>();
                     for interface in actual.intersection(expected).copied() {
                         if cur[interface] != req.target {
-                            to_rm.insert(interface.clone());
-                            to_add.insert(interface.clone());
+                            to_rm.insert(interface.clone(), &interfaces[interface].1);
+                            to_add.insert(interface.clone(), &interfaces[interface].1);
                         }
                     }
-                    for interface in to_rm {
-                        unforward(external, &*interface, cur[&interface]).await?;
+                    for (interface, ips) in to_rm {
+                        for ip in ips {
+                            unforward(&*interface, (*ip, external).into(), cur[&interface]).await?;
+                        }
                         cur.remove(&interface);
                     }
-                    for interface in to_add {
-                        forward(external, &*interface, req.target).await?;
-                        cur.insert(interface, req.target);
+                    for (interface, ips) in to_add {
+                        cur.insert(interface.clone(), req.target);
+                        for ip in ips {
+                            forward(&*interface, (*ip, external).into(), cur[&interface]).await?;
+                        }
                     }
                 }
                 (Some(req), None) => {
@@ -112,16 +119,19 @@ impl ForwardState {
                     }
                     .into_iter()
                     .copied()
-                    .cloned()
                     {
-                        forward(external, &*interface, req.target).await?;
-                        cur.insert(interface, req.target);
+                        cur.insert(interface.clone(), req.target);
+                        for ip in &interfaces[interface].1 {
+                            forward(&**interface, (*ip, external).into(), req.target).await?;
+                        }
                     }
                 }
                 (None, Some(cur)) => {
                     let to_rm = cur.keys().cloned().collect::<BTreeSet<_>>();
                     for interface in to_rm {
-                        unforward(external, &*interface, cur[&interface]).await?;
+                        for ip in &interfaces[&interface].1 {
+                            unforward(&*interface, (*ip, external).into(), cur[&interface]).await?;
+                        }
                         cur.remove(&interface);
                     }
                     self.current.remove(&external);
@@ -155,7 +165,26 @@ impl LanPortForwardController {
             let mut interfaces = ip_info.peek_and_mark_seen(|ip_info| {
                 ip_info
                     .iter()
-                    .map(|(iface, info)| (iface.clone(), info.inbound()))
+                    .map(|(iface, info)| {
+                        (
+                            iface.clone(),
+                            (
+                                info.inbound(),
+                                info.ip_info.as_ref().map_or(Vec::new(), |i| {
+                                    i.subnets
+                                        .iter()
+                                        .filter_map(|s| {
+                                            if let IpAddr::V4(ip) = s.addr() {
+                                                Some(ip)
+                                            } else {
+                                                None
+                                            }
+                                        })
+                                        .collect()
+                                }),
+                            ),
+                        )
+                    })
                     .collect()
             });
             let mut reply: Option<oneshot::Sender<Result<(), Error>>> = None;
@@ -175,7 +204,21 @@ impl LanPortForwardController {
                         interfaces = ip_info.peek(|ip_info| {
                             ip_info
                                 .iter()
-                                .map(|(iface, info)| (iface.clone(), info.inbound()))
+                                .map(|(iface, info)| (iface.clone(), (
+                                    info.inbound(),
+                                    info.ip_info.as_ref().map_or(Vec::new(), |i| {
+                                        i.subnets
+                                            .iter()
+                                            .filter_map(|s| {
+                                                if let IpAddr::V4(ip) = s.addr() {
+                                                    Some(ip)
+                                                } else {
+                                                    None
+                                                }
+                                            })
+                                            .collect()
+                                    }),
+                                )))
                                 .collect()
                         });
                     }
@@ -222,87 +265,29 @@ impl LanPortForwardController {
     }
 }
 
-// iptables -t nat -A POSTROUTING -s 10.59.0.0/24 ! -d 10.59.0.0/24 -j SNAT --to $ip
-// iptables -I INPUT -p udp --dport $port -j ACCEPT
-// iptables -I FORWARD -s 10.59.0.0/24 -j ACCEPT
-async fn forward(external: u16, interface: &str, target: SocketAddr) -> Result<(), Error> {
-    for proto in ["tcp", "udp"] {
-        Command::new("iptables")
-            .arg("-I")
-            .arg("FORWARD")
-            .arg("-i")
-            .arg(interface)
-            .arg("-o")
-            .arg(START9_BRIDGE_IFACE)
-            .arg("-p")
-            .arg(proto)
-            .arg("-d")
-            .arg(target.ip().to_string())
-            .arg("--dport")
-            .arg(target.port().to_string())
-            .arg("-j")
-            .arg("ACCEPT")
-            .invoke(crate::ErrorKind::Network)
-            .await?;
-        Command::new("iptables")
-            .arg("-t")
-            .arg("nat")
-            .arg("-I")
-            .arg("PREROUTING")
-            .arg("-i")
-            .arg(interface)
-            .arg("-p")
-            .arg(proto)
-            .arg("--dport")
-            .arg(external.to_string())
-            .arg("-j")
-            .arg("DNAT")
-            .arg("--to")
-            .arg(target.to_string())
-            .invoke(crate::ErrorKind::Network)
-            .await?;
-    }
+async fn forward(interface: &str, source: SocketAddr, target: SocketAddr) -> Result<(), Error> {
+    Command::new("/usr/lib/startos/scripts/forward-port")
+        .env("iiface", interface)
+        .env("oiface", START9_BRIDGE_IFACE)
+        .env("sip", source.ip().to_string())
+        .env("dip", target.ip().to_string())
+        .env("sport", source.port().to_string())
+        .env("dport", target.port().to_string())
+        .invoke(ErrorKind::Network)
+        .await?;
     Ok(())
 }
 
-// iptables -D FORWARD -o br-start9 -p tcp -d 172.18.0.2 --dport 8333 -j ACCEPT
-// iptables -t nat -D PREROUTING -p tcp --dport 32768 -j DNAT --to 172.18.0.2:8333
-async fn unforward(external: u16, interface: &str, target: SocketAddr) -> Result<(), Error> {
-    for proto in ["tcp", "udp"] {
-        Command::new("iptables")
-            .arg("-D")
-            .arg("FORWARD")
-            .arg("-i")
-            .arg(interface)
-            .arg("-o")
-            .arg(START9_BRIDGE_IFACE)
-            .arg("-p")
-            .arg(proto)
-            .arg("-d")
-            .arg(target.ip().to_string())
-            .arg("--dport")
-            .arg(target.port().to_string())
-            .arg("-j")
-            .arg("ACCEPT")
-            .invoke(crate::ErrorKind::Network)
-            .await?;
-        Command::new("iptables")
-            .arg("-t")
-            .arg("nat")
-            .arg("-D")
-            .arg("PREROUTING")
-            .arg("-i")
-            .arg(interface)
-            .arg("-p")
-            .arg(proto)
-            .arg("--dport")
-            .arg(external.to_string())
-            .arg("-j")
-            .arg("DNAT")
-            .arg("--to")
-            .arg(target.to_string())
-            .invoke(crate::ErrorKind::Network)
-            .await?;
-    }
+async fn unforward(interface: &str, source: SocketAddr, target: SocketAddr) -> Result<(), Error> {
+    Command::new("/usr/lib/startos/scripts/forward-port")
+        .env("UNDO", "1")
+        .env("iiface", interface)
+        .env("oiface", START9_BRIDGE_IFACE)
+        .env("sip", source.ip().to_string())
+        .env("dip", target.ip().to_string())
+        .env("sport", source.port().to_string())
+        .env("dport", target.port().to_string())
+        .invoke(ErrorKind::Network)
+        .await?;
     Ok(())
 }

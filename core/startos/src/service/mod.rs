@@ -1142,23 +1142,6 @@ pub async fn cli_attach(
         None
     };
 
-    let (kill, thread_kill) = tokio::sync::oneshot::channel();
-    let (thread_send, recv) = tokio::sync::mpsc::channel(4 * CAP_1_KiB);
-    let stdin_thread: NonDetachingJoinHandle<()> = tokio::task::spawn_blocking(move || {
-        use std::io::Read;
-        let mut stdin = stdin.lock().bytes();
-
-        while thread_kill.is_empty() {
-            if let Some(b) = stdin.next() {
-                thread_send.blocking_send(b).unwrap();
-            } else {
-                break;
-            }
-        }
-    })
-    .into();
-    let mut stdin = Some(recv);
-
     let guid: Guid = from_value(
         context
             .call_remote::<RpcContext>(
@@ -1177,6 +1160,25 @@ pub async fn cli_attach(
             .await?,
     )?;
     let mut ws = context.ws_continuation(guid).await?;
+
+    let (kill, thread_kill) = tokio::sync::oneshot::channel();
+    let (thread_send, recv) = tokio::sync::mpsc::channel(4 * CAP_1_KiB);
+    let stdin_thread: NonDetachingJoinHandle<()> = tokio::task::spawn_blocking(move || {
+        use std::io::Read;
+        let mut stdin = stdin.lock().bytes();
+
+        while thread_kill.is_empty() {
+            if let Some(b) = stdin.next() {
+                if let Err(_) = thread_send.blocking_send(b) {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+    })
+    .into();
+    let mut stdin = Some(recv);
 
     let mut current_in = "stdin";
     let mut current_out = "stdout".to_owned();

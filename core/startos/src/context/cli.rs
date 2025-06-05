@@ -37,6 +37,11 @@ pub struct CliContextSeed {
 }
 impl Drop for CliContextSeed {
     fn drop(&mut self) {
+        if let Some(rt) = self.runtime.take() {
+            if let Ok(rt) = Arc::try_unwrap(rt) {
+                rt.shutdown_background();
+            }
+        }
         let tmp = format!("{}.tmp", self.cookie_path.display());
         let parent_dir = self.cookie_path.parent().unwrap_or(Path::new("/"));
         if !parent_dir.exists() {
