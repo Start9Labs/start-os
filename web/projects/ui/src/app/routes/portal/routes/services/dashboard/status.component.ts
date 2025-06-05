@@ -50,7 +50,12 @@ export class StatusComponent {
 
   get healthy(): boolean {
     const { primary, health } = this.getStatus(this.pkg)
-    return !this.hasDepErrors && primary !== 'error' && health !== 'failure'
+    return (
+      !this.hasDepErrors &&
+      primary !== 'actionRequired' &&
+      primary !== 'error' &&
+      health !== 'failure'
+    )
   }
 
   get loading(): boolean {

@@ -43,7 +43,9 @@ const INACTIVE: PrimaryStatus[] = [
           <tui-avatar><img alt="" [src]="service()?.icon" /></tui-avatar>
           <span tuiTitle>
             <strong tuiFade>{{ manifest()?.title }}</strong>
-            <span tuiSubtitle>{{ manifest()?.version }}</span>
+            <span tuiSubtitle [style.textTransform]="'none'">
+              {{ manifest()?.version }}
+            </span>
           </span>
         </header>
         <nav [attr.inert]="isInactive() ? '' : null">

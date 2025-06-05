@@ -20,7 +20,7 @@ export function formatProgress({ phases, overall }: T.FullProgress): {
               }
         } => p.progress !== true && p.progress !== null,
       )
-      .map(p => `<b>${p.name}</b>: (${getPhaseBytes(p.progress)})`)
+      .map(p => `<b>${p.name}</b>${getPhaseBytes(p.progress)}`)
       .join(', '),
   }
 }
@@ -42,6 +42,6 @@ function getPhaseBytes(
         done: number
         total: number | null
       },
-): string {
-  return !progress ? 'unknown' : `${progress.done}/${progress.total}`
+) {
+  return progress ? `${progress.done}/${progress.total}` : ''
 }

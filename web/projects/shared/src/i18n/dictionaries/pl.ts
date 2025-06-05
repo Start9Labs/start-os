@@ -520,4 +520,5 @@ export default {
   518: 'Odrzuć',
   519: 'Aby opublikować domeny w clearnet, kliknij „Upublicznij” powyżej.',
   520: 'Aktualizacja dostępna',
+  521: 'Aby rozwiązać problem, zapoznaj się z',
 } satisfies i18n

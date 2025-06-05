@@ -92,7 +92,10 @@ import { BACKUP_RESTORE } from './restore.component'
     </header>
 
     @if (type === 'create' && server(); as s) {
-      <tui-notification [appearance]="s.lastBackup | tuiMapper: toAppearance">
+      <tui-notification
+        [appearance]="s.lastBackup | tuiMapper: toAppearance"
+        icon=""
+      >
         <div tuiTitle>
           {{ 'Last Backup' | i18n }}
           <div tuiSubtitle>
