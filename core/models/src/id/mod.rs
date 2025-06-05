@@ -119,8 +119,8 @@ impl Serialize for Id {
 impl<'q> sqlx::Encode<'q, sqlx::Postgres> for Id {
     fn encode_by_ref(
         &self,
-        buf: &mut <sqlx::Postgres as sqlx::database::HasArguments<'q>>::ArgumentBuffer,
-    ) -> sqlx::encode::IsNull {
+        buf: &mut <sqlx::Postgres as sqlx::Database>::ArgumentBuffer<'q>,
+    ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
         <&str as sqlx::Encode<'q, sqlx::Postgres>>::encode_by_ref(&&**self, buf)
     }
 }

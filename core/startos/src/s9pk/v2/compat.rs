@@ -196,9 +196,9 @@ impl TryFrom<ManifestV1> for Manifest {
             version = version.with_flavor("knots");
         } else if &*value.id == "lnd" || &*value.id == "ride-the-lightning" || &*value.id == "datum"
         {
-            version = version.map_upstream(|mut v| v.with_prerelease(["beta".into()]));
+            version = version.map_upstream(|v| v.with_prerelease(["beta".into()]));
         } else if &*value.id == "lightning-terminal" || &*value.id == "robosats" {
-            version = version.map_upstream(|mut v| v.with_prerelease(["alpha".into()]));
+            version = version.map_upstream(|v| v.with_prerelease(["alpha".into()]));
         }
         Ok(Self {
             id: value.id,

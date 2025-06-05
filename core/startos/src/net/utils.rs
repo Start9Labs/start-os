@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6};
 use std::path::Path;
 
@@ -6,18 +5,13 @@ use async_stream::try_stream;
 use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
 use futures::{StreamExt, TryStreamExt};
-use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use ipnet::{IpNet, Ipv4Net, Ipv6Net};
 use nix::net::if_::if_nametoindex;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::process::Command;
 
-use crate::db::model::public::NetworkInterfaceInfo;
-use crate::net::network_interface::NetworkInterfaceListener;
-use crate::net::web_server::Accept;
 use crate::prelude::*;
-use crate::util::sync::Watch;
 use crate::util::Invoke;
 
 pub fn ipv6_is_link_local(addr: Ipv6Addr) -> bool {

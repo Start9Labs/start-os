@@ -1,7 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, Weak};
-use std::time::Duration;
 
 use async_acme::acme::{Identifier, ACME_TLS_ALPN_NAME};
 use axum::body::Body;

@@ -223,18 +223,7 @@ fn assure_backing_up<'a>(
         .as_server_info_mut()
         .as_status_info_mut()
         .as_backup_progress_mut();
-    if backing_up
-        .clone()
-        .de()?
-        .iter()
-        .flat_map(|x| x.values())
-        .fold(false, |acc, x| {
-            if !x.complete {
-                return true;
-            }
-            acc
-        })
-    {
+    if backing_up.transpose_ref().is_some() {
         return Err(Error::new(
             eyre!("Server is already backing up!"),
             ErrorKind::InvalidRequest,
@@ -287,6 +276,22 @@ async fn perform_backup(
                         timestamp: Utc::now(),
                     },
                 );
+
+                ctx.db
+                    .mutate(|db| {
+                        if let Some(progress) = db
+                            .as_public_mut()
+                            .as_server_info_mut()
+                            .as_status_info_mut()
+                            .as_backup_progress_mut()
+                            .transpose_mut()
+                        {
+                            progress.insert(&id, &BackupProgress { complete: true })?;
+                        }
+                        Ok(())
+                    })
+                    .await
+                    .result?;
             }
             backup_report.insert(
                 id.clone(),

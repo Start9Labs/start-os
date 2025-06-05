@@ -8,7 +8,7 @@ use std::process::Stdio;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use axum::extract::ws::WebSocket;
+use axum::extract::ws::{Utf8Bytes, WebSocket};
 use chrono::{DateTime, Utc};
 use clap::Parser;
 use futures::future::BoxFuture;
@@ -916,7 +916,7 @@ pub async fn attach(
 
         let mut stdin = Some(child.stdin.take().or_not_found("child stdin")?);
 
-        let mut current_in = "stdin".to_owned();
+        let mut current_in: Utf8Bytes = "stdin".into();
         let mut current_out = "stdout";
         ws.send(Message::Text(current_out.into()))
             .await
@@ -942,7 +942,7 @@ pub async fn attach(
                                 .with_kind(ErrorKind::Network)?;
                             current_out = "stdout";
                         }
-                        ws.send(Message::Binary(out))
+                        ws.send(Message::Binary(out.into()))
                             .await
                             .with_kind(ErrorKind::Network)?;
                     } else {
@@ -959,7 +959,7 @@ pub async fn attach(
                                 .with_kind(ErrorKind::Network)?;
                             current_out = "stderr";
                         }
-                        ws.send(Message::Binary(err))
+                        ws.send(Message::Binary(err.into()))
                             .await
                             .with_kind(ErrorKind::Network)?;
                     } else {
@@ -1018,9 +1018,11 @@ pub async fn attach(
         ws.send(Message::Text("exit".into()))
             .await
             .with_kind(ErrorKind::Network)?;
-        ws.send(Message::Binary(i32::to_be_bytes(exit.into_raw()).to_vec()))
-            .await
-            .with_kind(ErrorKind::Network)?;
+        ws.send(Message::Binary(
+            i32::to_be_bytes(exit.into_raw()).to_vec().into(),
+        ))
+        .await
+        .with_kind(ErrorKind::Network)?;
 
         Ok(())
     }
@@ -1181,7 +1183,7 @@ pub async fn cli_attach(
     let mut stdin = Some(recv);
 
     let mut current_in = "stdin";
-    let mut current_out = "stdout".to_owned();
+    let mut current_out: tokio_tungstenite::tungstenite::Utf8Bytes = "stdout".into();
     ws.send(Message::Text(current_in.into()))
         .await
         .with_kind(ErrorKind::Network)?;
@@ -1216,7 +1218,7 @@ pub async fn cli_attach(
                             .with_kind(ErrorKind::Network)?;
                         current_in = "stdin";
                     }
-                    ws.send(Message::Binary(input))
+                    ws.send(Message::Binary(input.into()))
                         .await
                         .with_kind(ErrorKind::Network)?;
                 } else {

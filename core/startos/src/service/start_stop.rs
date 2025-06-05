@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::status::MainStatus;
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum StartStop {

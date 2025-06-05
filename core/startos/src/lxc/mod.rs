@@ -429,7 +429,8 @@ pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Guid,
                                     .await;
                                     ws.send(Message::Text(
                                         serde_json::to_string(&RpcResponse { id, result })
-                                            .with_kind(ErrorKind::Serialization)?,
+                                            .with_kind(ErrorKind::Serialization)?
+                                            .into(),
                                     ))
                                     .await
                                     .with_kind(ErrorKind::Network)?;
@@ -503,7 +504,7 @@ pub async fn connect_cli(ctx: &CliContext, guid: Guid) -> Result<(), Error> {
                 if let ReadlineEvent::Line(line) = line {
                     input.add_history_entry(line.clone());
                     if serde_json::from_str::<RpcRequest>(&line).is_ok() {
-                        ws.send(Message::Text(line))
+                        ws.send(Message::Text(line.into()))
                             .await
                             .with_kind(ErrorKind::Network)?;
                     } else {
@@ -531,7 +532,7 @@ pub async fn connect_cli(ctx: &CliContext, guid: Guid) -> Result<(), Error> {
                                         method: GenericRpcMethod::new(method.into()),
                                         params: Value::Object(params),
                                     }) {
-                                        Ok(a) => a,
+                                        Ok(a) => a.into(),
                                         Err(e) => {
                                             tracing::error!("Error Serializing Request: {e}");
                                             tracing::debug!("{e:?}");

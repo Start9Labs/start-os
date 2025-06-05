@@ -172,7 +172,8 @@ impl SetupContext {
                                         if let Some(progress) = progress {
                                             ws.send(ws::Message::Text(
                                                 serde_json::to_string(&progress)
-                                                    .with_kind(ErrorKind::Serialization)?,
+                                                    .with_kind(ErrorKind::Serialization)?
+                                                    .into(),
                                             ))
                                             .await
                                             .with_kind(ErrorKind::Network)?;

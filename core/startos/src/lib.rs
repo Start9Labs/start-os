@@ -87,7 +87,6 @@ use crate::context::{
     CliContext, DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext,
 };
 use crate::disk::fsck::RequiresReboot;
-use crate::net::net;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
 use crate::system::kiosk;
 use crate::util::serde::{HandlerExtSerde, WithIoFormat};

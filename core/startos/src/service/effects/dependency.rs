@@ -7,7 +7,6 @@ use exver::VersionRange;
 use imbl::OrdMap;
 use imbl_value::InternedString;
 use models::{FromStrParser, HealthCheckId, PackageId, ReplayId, VersionString, VolumeId};
-use tokio::process::Command;
 
 use crate::db::model::package::{
     CurrentDependencies, CurrentDependencyInfo, CurrentDependencyKind, ManifestPreference,
@@ -19,7 +18,6 @@ use crate::disk::mount::filesystem::{FileSystem, MountType};
 use crate::disk::mount::util::{is_mountpoint, unmount};
 use crate::service::effects::prelude::*;
 use crate::status::health_check::NamedHealthCheckResult;
-use crate::util::Invoke;
 use crate::volume::data_dir;
 use crate::DATA_DIR;
 

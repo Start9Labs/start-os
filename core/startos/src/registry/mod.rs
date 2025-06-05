@@ -90,7 +90,7 @@ pub fn registry_router(ctx: RegistryContext) -> Router {
     use axum::extract as x;
     use axum::routing::{any, get};
     Router::new()
-        .route("/rpc/*path", {
+        .route("/rpc/{*path}", {
             let ctx = ctx.clone();
             any(
                 Server::new(move || ready(Ok(ctx.clone())), registry_api())
@@ -100,7 +100,7 @@ pub fn registry_router(ctx: RegistryContext) -> Router {
             )
         })
         .route(
-            "/ws/rpc/*path",
+            "/ws/rpc/{*path}",
             get({
                 let ctx = ctx.clone();
                 move |x::Path(path): x::Path<String>,
@@ -119,7 +119,7 @@ pub fn registry_router(ctx: RegistryContext) -> Router {
             }),
         )
         .route(
-            "/rest/rpc/*path",
+            "/rest/rpc/{*path}",
             any({
                 let ctx = ctx.clone();
                 move |request: x::Request| async move {
