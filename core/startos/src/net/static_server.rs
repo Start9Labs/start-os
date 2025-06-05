@@ -83,9 +83,9 @@ pub fn rpc_router<C: Context + Clone + AsRef<RpcContinuations>>(
     server: HttpServer<C>,
 ) -> Router {
     Router::new()
-        .route("/rpc/*path", any(server))
+        .route("/rpc/{*path}", any(server))
         .route(
-            "/ws/rpc/:guid",
+            "/ws/rpc/{guid}",
             get({
                 let ctx = ctx.clone();
                 move |x::Path(guid): x::Path<Guid>,
@@ -98,7 +98,7 @@ pub fn rpc_router<C: Context + Clone + AsRef<RpcContinuations>>(
             }),
         )
         .route(
-            "/rest/rpc/:guid",
+            "/rest/rpc/{guid}",
             any({
                 let ctx = ctx.clone();
                 move |x::Path(guid): x::Path<Guid>, request: x::Request| async move {
@@ -185,7 +185,7 @@ pub fn main_ui_router(ctx: RpcContext) -> Router {
             .middleware(Auth::new())
             .middleware(SyncDb::new())
     })
-    .route("/proxy/:url", {
+    .route("/proxy/{url}", {
         let ctx = ctx.clone();
         any(move |x::Path(url): x::Path<String>, request: Request| {
             let ctx = ctx.clone();
@@ -258,7 +258,7 @@ async fn proxy_request(ctx: RpcContext, request: Request, url: String) -> Result
 
 fn s9pk_router(ctx: RpcContext) -> Router {
     Router::new()
-        .route("/installed/:s9pk", {
+        .route("/installed/{s9pk}", {
             let ctx = ctx.clone();
             any(
                 |x::Path(s9pk): x::Path<String>, request: Request| async move {
@@ -282,7 +282,7 @@ fn s9pk_router(ctx: RpcContext) -> Router {
                 },
             )
         })
-        .route("/installed/:s9pk/*path", {
+        .route("/installed/{s9pk}/{*path}", {
             let ctx = ctx.clone();
             any(
                 |x::Path((s9pk, path)): x::Path<(String, PathBuf)>,
@@ -319,7 +319,7 @@ fn s9pk_router(ctx: RpcContext) -> Router {
             )
         })
         .route(
-            "/proxy/:url/*path",
+            "/proxy/{url}/{*path}",
             any(
                 |x::Path((url, path)): x::Path<(Url, PathBuf)>,
                  x::RawQuery(query): x::RawQuery,

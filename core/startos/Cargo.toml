@@ -14,7 +14,7 @@ keywords = [
 name = "start-os"
 readme = "README.md"
 repository = "https://github.com/Start9Labs/start-os"
-version = "0.4.0-alpha.5" # VERSION_BUMP
+version = "0.4.0-alpha.6" # VERSION_BUMP
 license = "MIT"
 
 [lib]
@@ -61,9 +61,9 @@ async-compression = { version = "0.4.4", features = [
 ] }
 async-stream = "0.3.5"
 async-trait = "0.1.74"
-axum = { version = "0.7.3", features = ["ws"] }
+axum = { version = "0.8.4", features = ["ws"] }
 barrage = "0.2.3"
-backhand = "0.18.0"
+backhand = "0.21.0"
 base32 = "0.5.0"
 base64 = "0.22.1"
 base64ct = "1.6.0"
@@ -74,7 +74,7 @@ chrono = { version = "0.4.31", features = ["serde"] }
 clap = { version = "4.4.12", features = ["string"] }
 color-eyre = "0.6.2"
 console = "0.15.7"
-console-subscriber = { version = "0.3.0", optional = true }
+console-subscriber = { version = "0.4.1", optional = true }
 const_format = "0.2.34"
 cookie = "0.18.0"
 cookie_store = "0.21.0"
@@ -96,7 +96,7 @@ exver = { version = "0.2.0", git = "https://github.com/Start9Labs/exver-rs.git",
 fd-lock-rs = "0.1.4"
 form_urlencoded = "1.2.1"
 futures = "0.3.28"
-gpt = "3.1.0"
+gpt = "4.1.0"
 helpers = { path = "../helpers" }
 hex = "0.4.3"
 hmac = "0.12.1"
@@ -116,8 +116,8 @@ id-pool = { version = "0.2.2", default-features = false, features = [
   "serde",
   "u16",
 ] }
-imbl = "2.0.3"
-imbl-value = "0.1.2"
+imbl = "4.0.1"
+imbl-value = "0.2.0"
 include_dir = { version = "0.7.3", features = ["metadata"] }
 indexmap = { version = "2.0.2", features = ["serde"] }
 indicatif = { version = "0.17.7", features = ["tokio"] }
@@ -125,10 +125,10 @@ integer-encoding = { version = "4.0.0", features = ["tokio_async"] }
 ipnet = { version = "2.8.0", features = ["serde"] }
 iprange = { version = "0.6.7", features = ["serde"] }
 isocountry = "0.3.2"
-itertools = "0.13.0"
+itertools = "0.14.0"
 jaq-core = "0.10.1"
 jaq-std = "0.10.0"
-josekit = "0.8.4"
+josekit = "0.10.3"
 jsonpath_lib = { git = "https://github.com/Start9Labs/jsonpath.git" }
 lazy_async_pool = "0.3.3"
 lazy_format = "2.0"
@@ -136,10 +136,10 @@ lazy_static = "1.4.0"
 libc = "0.2.149"
 log = "0.4.20"
 mio = "1"
-mbrman = "0.5.2"
+mbrman = "0.6.0"
 models = { version = "*", path = "../models" }
 new_mime_guess = "4"
-nix = { version = "0.29.0", features = [
+nix = { version = "0.30.1", features = [
   "fs",
   "mount",
   "net",
@@ -148,7 +148,7 @@ nix = { version = "0.29.0", features = [
   "signal",
   "user",
 ] }
-nom = "7.1.3"
+nom = "8.0.0"
 num = "0.4.1"
 num_enum = "0.7.0"
 num_cpus = "1.16.0"
@@ -163,7 +163,7 @@ pbkdf2 = "0.12.2"
 pin-project = "1.1.3"
 pkcs8 = { version = "0.10.2", features = ["std"] }
 prettytable-rs = "0.10.0"
-procfs = { version = "0.16.0", optional = true }
+procfs = { version = "0.17.0", optional = true }
 proptest = "1.3.1"
 proptest-derive = "0.5.0"
 pty-process = { version = "0.5.1", optional = true }
@@ -183,14 +183,14 @@ serde_json = "1.0"
 serde_toml = { package = "toml", version = "0.8.2" }
 serde_urlencoded = "0.7"
 serde_with = { version = "3.4.0", features = ["macros", "json"] }
-serde_yaml = { package = "serde_yml", version = "0.0.10" }
+serde_yaml = { package = "serde_yml", version = "0.0.12" }
 sha-crypt = "0.5.0"
 sha2 = "0.10.2"
 shell-words = "1"
 signal-hook = "0.3.17"
 simple-logging = "2.0.2"
 socket2 = "0.5.7"
-sqlx = { version = "0.7.2", features = [
+sqlx = { version = "0.8.6", features = [
   "chrono",
   "runtime-tokio-rustls",
   "postgres",
@@ -199,14 +199,14 @@ sscanf = "0.4.1"
 ssh-key = { version = "0.6.2", features = ["ed25519"] }
 tar = "0.4.40"
 termion = "4.0.5"
-thiserror = "1.0.49"
+thiserror = "2.0.12"
 textwrap = "0.16.1"
 tokio = { version = "1.38.1", features = ["full"] }
 tokio-rustls = "0.26.0"
 tokio-socks = "0.5.1"
 tokio-stream = { version = "0.1.14", features = ["io-util", "sync", "net"] }
 tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git" }
-tokio-tungstenite = { version = "0.23.1", features = ["native-tls", "url"] }
+tokio-tungstenite = { version = "0.26.2", features = ["native-tls", "url"] }
 tokio-util = { version = "0.7.9", features = ["io"] }
 torut = { git = "https://github.com/Start9Labs/torut.git", branch = "update/dependencies", features = [
   "serialize",
@@ -219,7 +219,7 @@ tracing-journald = "0.3.0"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 trust-dns-server = "0.23.1"
 ts-rs = { git = "https://github.com/dr-bonez/ts-rs.git", branch = "feature/top-level-as" } # "8.1.0"
-typed-builder = "0.18.0"
+typed-builder = "0.21.0"
 unix-named-pipe = "0.2.0"
 url = { version = "2.4.1", features = ["serde"] }
 urlencoding = "2.1.3"

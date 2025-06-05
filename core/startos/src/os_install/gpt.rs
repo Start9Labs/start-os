@@ -1,13 +1,12 @@
 use std::path::Path;
 
-use color_eyre::eyre::eyre;
 use gpt::disk::LogicalBlockSize;
 use gpt::GptConfig;
 
 use crate::disk::util::DiskInfo;
 use crate::disk::OsPartitionInfo;
 use crate::os_install::partition_for;
-use crate::Error;
+use crate::prelude::*;
 
 pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionInfo, Error> {
     let efi = {
@@ -28,7 +27,6 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
                 (
                     GptConfig::new()
                         .writable(true)
-                        .initialized(false)
                         .logical_block_size(LogicalBlockSize::Lb512)
                         .create_from_device(device, None)?,
                     None,
@@ -36,7 +34,6 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
             } else {
                 let gpt = GptConfig::new()
                     .writable(true)
-                    .initialized(true)
                     .logical_block_size(LogicalBlockSize::Lb512)
                     .open_from_device(device)?;
                 let mut guid_part = None;
@@ -115,7 +112,12 @@ pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionIn
                 )?;
             } else if let Some(guid_part) = guid_part {
                 let mut parts = gpt.partitions().clone();
-                parts.insert(gpt.find_next_partition_id(), guid_part);
+                parts.insert(
+                    gpt.find_next_partition_id().ok_or_else(|| {
+                        Error::new(eyre!("Partition table is full"), ErrorKind::DiskManagement)
+                    })?,
+                    guid_part,
+                );
                 gpt.update_partitions(parts)?;
             }
 

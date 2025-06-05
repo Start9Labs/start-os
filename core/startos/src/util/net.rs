@@ -1,8 +1,7 @@
 use core::fmt;
-use std::borrow::Cow;
 use std::sync::Mutex;
 
-use axum::extract::ws::{self, CloseFrame};
+use axum::extract::ws::{self, CloseFrame, Utf8Bytes};
 use futures::{Future, Stream, StreamExt};
 
 use crate::prelude::*;
@@ -10,21 +9,21 @@ use crate::prelude::*;
 pub trait WebSocketExt {
     fn normal_close(
         self,
-        msg: impl Into<Cow<'static, str>> + Send,
+        msg: impl Into<Utf8Bytes> + Send,
     ) -> impl Future<Output = Result<(), Error>> + Send;
     fn close_result(
         self,
-        result: Result<impl Into<Cow<'static, str>> + Send, impl fmt::Display + Send>,
+        result: Result<impl Into<Utf8Bytes> + Send, impl fmt::Display + Send>,
     ) -> impl Future<Output = Result<(), Error>> + Send;
 }
 
 impl WebSocketExt for ws::WebSocket {
-    async fn normal_close(self, msg: impl Into<Cow<'static, str>> + Send) -> Result<(), Error> {
+    async fn normal_close(self, msg: impl Into<Utf8Bytes> + Send) -> Result<(), Error> {
         self.close_result(Ok::<_, Error>(msg)).await
     }
     async fn close_result(
         mut self,
-        result: Result<impl Into<Cow<'static, str>> + Send, impl fmt::Display + Send>,
+        result: Result<impl Into<Utf8Bytes> + Send, impl fmt::Display + Send>,
     ) -> Result<(), Error> {
         match result {
             Ok(msg) => self

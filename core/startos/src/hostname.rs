@@ -1,6 +1,6 @@
 use imbl_value::InternedString;
 use lazy_format::lazy_format;
-use rand::{thread_rng, Rng};
+use rand::{rng, Rng};
 use tokio::process::Command;
 use tracing::instrument;
 
@@ -34,7 +34,7 @@ impl Hostname {
 }
 
 pub fn generate_hostname() -> Hostname {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let adjective = &ADJECTIVES[rng.gen_range(0..ADJECTIVES.len())];
     let noun = &NOUNS[rng.gen_range(0..NOUNS.len())];
     Hostname(InternedString::from_display(&lazy_format!(

@@ -5,7 +5,6 @@ use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
-use futures::TryFutureExt;
 use helpers::NonDetachingJoinHandle;
 use models::PackageId;
 use tokio::net::{TcpListener, UdpSocket};

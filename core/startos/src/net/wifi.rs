@@ -18,7 +18,6 @@ use ts_rs::TS;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::WifiInfo;
 use crate::db::model::Database;
-use crate::net::utils::find_wifi_iface;
 use crate::prelude::*;
 use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;

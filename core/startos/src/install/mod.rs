@@ -23,7 +23,7 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::package::{ManifestPreference, PackageState, PackageStateMatchModelRef};
+use crate::db::model::package::{ManifestPreference, PackageStateMatchModelRef};
 use crate::prelude::*;
 use crate::progress::{FullProgress, FullProgressTracker, PhasedProgressBar};
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
@@ -215,7 +215,8 @@ pub async fn sideload(
                                     if let Some(progress) = progress {
                                         ws.send(ws::Message::Text(
                                             serde_json::to_string(&progress)
-                                                .with_kind(ErrorKind::Serialization)?,
+                                                .with_kind(ErrorKind::Serialization)?
+                                                .into(),
                                         ))
                                         .await
                                         .with_kind(ErrorKind::Network)?;

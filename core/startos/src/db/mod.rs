@@ -203,7 +203,9 @@ pub async fn subscribe(
                                 rev = sub.recv() => {
                                     if let Some(rev) = rev {
                                         ws.send(ws::Message::Text(
-                                            serde_json::to_string(&rev).with_kind(ErrorKind::Serialization)?,
+                                            serde_json::to_string(&rev)
+                                                .with_kind(ErrorKind::Serialization)?
+                                                .into(),
                                         ))
                                         .await
                                         .with_kind(ErrorKind::Network)?;
