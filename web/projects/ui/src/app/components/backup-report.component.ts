@@ -5,11 +5,16 @@ import {
   computed,
   inject,
 } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { TuiDialogContext, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiCell } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import { PatchDB } from 'patch-db-client'
+import { scan } from 'rxjs'
 import { BackupReport } from 'src/app/services/api/api.types'
+import { getManifest } from '../utils/get-package-data'
+import { T } from '@start9labs/start-sdk'
 
 @Component({
   template: `
@@ -25,23 +30,25 @@ import { BackupReport } from 'src/app/services/api/api.types'
       </div>
       <tui-icon [icon]="system().icon" [style.color]="system().color" />
     </div>
-    @for (pkg of data.content.packages | keyvalue; track $index) {
-      <div tuiCell>
-        <div tuiTitle>
-          <strong>{{ pkg.key }}</strong>
-          <div tuiSubtitle [style.color]="getColor(pkg.value.error)">
-            {{
-              pkg.value.error
-                ? ('Failed' | i18n) + ': ' + pkg.value.error
-                : ('Succeeded' | i18n)
-            }}
+    @if (pkgTitles(); as titles) {
+      @for (pkg of data.content.packages | keyvalue; track $index) {
+        <div tuiCell>
+          <div tuiTitle>
+            <strong>{{ titles[pkg.key] || pkg.key }}</strong>
+            <div tuiSubtitle [style.color]="getColor(pkg.value.error)">
+              {{
+                pkg.value.error
+                  ? ('Failed' | i18n) + ': ' + pkg.value.error
+                  : ('Succeeded' | i18n)
+              }}
+            </div>
           </div>
+          <tui-icon
+            [icon]="getIcon(pkg.value.error)"
+            [style.color]="getColor(pkg.value.error)"
+          />
         </div>
-        <tui-icon
-          [icon]="getIcon(pkg.value.error)"
-          [style.color]="getColor(pkg.value.error)"
-        />
-      </div>
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -49,11 +56,24 @@ import { BackupReport } from 'src/app/services/api/api.types'
 })
 export class BackupsReportModal {
   private readonly i18n = inject(i18nPipe)
+  private readonly patch = inject(PatchDB)
 
   readonly data =
     injectContext<
       TuiDialogContext<void, { content: BackupReport; createdAt: string }>
     >().data
+
+  readonly pkgTitles = toSignal(
+    this.patch.watch$('packageData').pipe(
+      scan<T.PackageDataEntry, Record<string, string>>((acc, pkg) => {
+        const { id, title } = getManifest(pkg)
+        return {
+          ...acc,
+          [id]: title,
+        }
+      }, {}),
+    ),
+  )
 
   readonly system = computed(
     (): { result: i18nKey; icon: string; color: string } => {

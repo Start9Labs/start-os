@@ -91,7 +91,7 @@ import { BACKUP_RESTORE } from './restore.component'
       </hgroup>
     </header>
 
-    @if (type === 'create' && server(); as s) {
+    @if (type === 'create' && !(os.backingUp$ | async) && server(); as s) {
       <tui-notification
         [appearance]="s.lastBackup | tuiMapper: toAppearance"
         icon=""
