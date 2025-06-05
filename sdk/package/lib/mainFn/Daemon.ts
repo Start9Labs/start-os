@@ -7,6 +7,7 @@ import {
   SubContainerRc,
 } from "../util/SubContainer"
 import { CommandController } from "./CommandController"
+import { DaemonCommandType } from "./Daemons"
 import { Oneshot } from "./Oneshot"
 
 const TIMEOUT_INCREMENT_MS = 1000
@@ -35,31 +36,11 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
     return async (
       effects: T.Effects,
       subcontainer: SubContainer<Manifest>,
-      command:
-        | T.CommandType
-        | ((subcontainer: SubContainer<Manifest>) => Promise<T.CommandType>),
-      options: {
-        runAsInit?: boolean
-        env?:
-          | {
-              [variable: string]: string
-            }
-          | undefined
-        cwd?: string | undefined
-        user?: string | undefined
-        onStdout?: (chunk: Buffer | string | any) => void
-        onStderr?: (chunk: Buffer | string | any) => void
-        sigtermTimeout?: number
-      },
+      exec: DaemonCommandType,
     ) => {
       if (subcontainer.isOwned()) subcontainer = subcontainer.rc()
       const startCommand = () =>
-        CommandController.of<Manifest>()(
-          effects,
-          subcontainer.rc(),
-          command,
-          options,
-        )
+        CommandController.of<Manifest>()(effects, subcontainer.rc(), exec)
       return new Daemon(subcontainer, startCommand)
     }
   }
