@@ -35,7 +35,9 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
     return async (
       effects: T.Effects,
       subcontainer: SubContainer<Manifest>,
-      command: T.CommandType,
+      command:
+        | T.CommandType
+        | ((subcontainer: SubContainer<Manifest>) => Promise<T.CommandType>),
       options: {
         runAsInit?: boolean
         env?:
@@ -74,27 +76,31 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
           await this.commandController
             .term({})
             .catch((err) => console.error(err))
-        this.commandController = await this.startCommand()
-        if (
-          (await this.commandController.wait().then(
-            (_) => true,
-            (err) => {
-              console.error(err)
-              return false
-            },
-          )) &&
-          this.oneshot
-        ) {
-          for (const fn of this.onExitSuccessFns) {
-            try {
-              fn()
-            } catch (e) {
-              console.error("EXIT_SUCCESS handler", e)
+        try {
+          this.commandController = await this.startCommand()
+          if (
+            (await this.commandController.wait().then(
+              (_) => true,
+              (err) => {
+                console.error(err)
+                return false
+              },
+            )) &&
+            this.oneshot
+          ) {
+            for (const fn of this.onExitSuccessFns) {
+              try {
+                fn()
+              } catch (e) {
+                console.error("EXIT_SUCCESS handler", e)
+              }
             }
+            this.onExitSuccessFns = []
+            this.exitedSuccess = true
+            break
           }
-          this.onExitSuccessFns = []
-          this.exitedSuccess = true
-          break
+        } catch (e) {
+          console.error(e)
         }
         await new Promise((resolve) => setTimeout(resolve, timeoutCounter))
         timeoutCounter += TIMEOUT_INCREMENT_MS

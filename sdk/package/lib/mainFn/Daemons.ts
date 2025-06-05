@@ -52,7 +52,9 @@ export type Ready = {
 
 type NewDaemonParams<Manifest extends T.SDKManifest> = {
   /** The command line command to start the daemon */
-  command: T.CommandType
+  command:
+    | T.CommandType
+    | ((subcontainer: SubContainer<Manifest>) => Promise<T.CommandType>)
   /** Information about the subcontainer in which the daemon runs */
   subcontainer: SubContainer<Manifest>
   runAsInit?: boolean

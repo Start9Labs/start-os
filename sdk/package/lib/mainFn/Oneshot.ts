@@ -14,7 +14,9 @@ export class Oneshot<Manifest extends T.SDKManifest> extends Daemon<Manifest> {
     return async (
       effects: T.Effects,
       subcontainer: SubContainer<Manifest>,
-      command: T.CommandType,
+      command:
+        | T.CommandType
+        | ((subcontainer: SubContainer<Manifest>) => Promise<T.CommandType>),
       options: {
         env?:
           | {

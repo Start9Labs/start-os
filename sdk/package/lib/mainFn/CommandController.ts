@@ -22,7 +22,9 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
     return async (
       effects: T.Effects,
       subcontainer: SubContainer<Manifest>,
-      command: T.CommandType,
+      command:
+        | T.CommandType
+        | ((subcontainer: SubContainer<Manifest>) => Promise<T.CommandType>),
       options: {
         // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
         sigtermTimeout?: number
@@ -39,6 +41,9 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
       },
     ) => {
       try {
+        if (command instanceof Function) {
+          command = await command(subcontainer)
+        }
         let commands: string[]
         if (T.isUseEntrypoint(command)) {
           const imageMeta: T.ImageMetadata = await fs
