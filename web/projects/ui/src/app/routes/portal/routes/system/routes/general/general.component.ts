@@ -151,10 +151,7 @@ import { SystemWipeComponent } from './wipe.component'
         <span tuiTitle>
           <strong>
             {{ 'Kiosk Mode' | i18n }}
-            <tui-badge
-              size="m"
-              [appearance]="server.kiosk ? 'primary-success' : ''"
-            >
+            <tui-badge size="m" appearance="primary-grayscale">
               {{ server.kiosk ? ('Enabled' | i18n) : ('Disabled' | i18n) }}
             </tui-badge>
           </strong>
@@ -170,11 +167,7 @@ import { SystemWipeComponent } from './wipe.component'
           </span>
         </span>
         @if (server.kiosk !== null) {
-          <button
-            tuiButton
-            [appearance]="server.kiosk ? 'primary-destructive' : 'primary'"
-            (click)="tryToggleKiosk()"
-          >
+          <button tuiButton appearance="primary" (click)="tryToggleKiosk()">
             {{ server.kiosk ? ('Disable' | i18n) : ('Enable' | i18n) }}
           </button>
         }
@@ -428,7 +421,11 @@ export default class SystemGeneralComponent {
   }
 
   private update() {
-    this.dialogs.open(UPDATE).subscribe()
+    this.dialogs
+      .open(UPDATE, {
+        data: { currentVersion: this.server()?.version },
+      })
+      .subscribe()
   }
 
   private async check(): Promise<void> {

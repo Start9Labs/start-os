@@ -43,7 +43,7 @@ import { TimeService } from 'src/app/services/time.service'
       <div tuiTitle>
         {{ 'Clock sync failure' | i18n }}
         <div tuiSubtitle>
-          To resolve it, refer to
+          {{ 'To resolve the issue, refer to' | i18n }}
           <a
             tuiLink
             docsLink
