@@ -140,8 +140,6 @@ pub struct GetOsVersionParams {
     #[ts(type = "string | null")]
     #[arg(long)]
     pub target_version: Option<VersionRange>,
-    #[arg(long)]
-    pub include_prerelease: Option<bool>,
     #[arg(long = "id")]
     server_id: Option<String>,
     #[ts(type = "string | null")]
@@ -158,7 +156,6 @@ pub async fn get_version(
     GetOsVersionParams {
         source_version: source,
         target_version: target,
-        include_prerelease,
         server_id,
         platform,
         device_info,
@@ -166,9 +163,6 @@ pub async fn get_version(
 ) -> Result<BTreeMap<Version, OsVersionInfo>, Error> {
     let source = source.or_else(|| device_info.as_ref().map(|d| d.os.version.clone()));
     let platform = platform.or_else(|| device_info.as_ref().map(|d| d.os.platform.clone()));
-    let include_prerelease = include_prerelease
-        .or_else(|| source.as_ref().map(|s| !s.prerelease().is_empty()))
-        .unwrap_or(cfg!(feature = "dev"));
     if let (Some(pool), Some(server_id), Some(arch)) = (&ctx.pool, server_id, &platform) {
         let created_at = Utc::now();
 
@@ -192,10 +186,9 @@ pub async fn get_version(
         .into_iter()
         .map(|(v, i)| i.de().map(|i| (v, i)))
         .filter_ok(|(version, info)| {
-            (version.prerelease().is_empty() || include_prerelease)
-                && platform
-                    .as_ref()
-                    .map_or(true, |p| info.squashfs.contains_key(p))
+            platform
+                .as_ref()
+                .map_or(true, |p| info.squashfs.contains_key(p))
                 && version.satisfies(&target)
                 && source
                     .as_ref()

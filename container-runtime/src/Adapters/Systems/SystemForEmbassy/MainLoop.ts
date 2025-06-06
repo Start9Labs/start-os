@@ -67,20 +67,14 @@ export class MainLoop {
       this.system.manifest.volumes,
       `Main - ${currentCommand.join(" ")}`,
     )
-    const daemon = await Daemon.of()(
-      this.effects,
-      subcontainer,
-      currentCommand,
-      {
-        runAsInit: true,
-        env: {
-          TINI_SUBREAPER: "true",
-        },
-        sigtermTimeout: utils.inMs(
-          this.system.manifest.main["sigterm-timeout"],
-        ),
+    const daemon = await Daemon.of()(this.effects, subcontainer, {
+      command: currentCommand,
+      runAsInit: true,
+      env: {
+        TINI_SUBREAPER: "true",
       },
-    )
+      sigtermTimeout: utils.inMs(this.system.manifest.main["sigterm-timeout"]),
+    })
 
     daemon.start()
     return {

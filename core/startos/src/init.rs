@@ -265,6 +265,7 @@ pub async fn run_script<P: AsRef<Path>>(path: P, mut progress: PhaseProgressTrac
             .input(Some(&mut reader))
             .invoke(ErrorKind::Unknown)
             .await?;
+        // TODO: inherit?
 
         Ok::<_, Error>(())
     }

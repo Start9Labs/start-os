@@ -7,6 +7,7 @@ import {
   SubContainerRc,
 } from "../util/SubContainer"
 import { CommandController } from "./CommandController"
+import { DaemonCommandType } from "./Daemons"
 import { Oneshot } from "./Oneshot"
 
 const TIMEOUT_INCREMENT_MS = 1000
@@ -20,11 +21,11 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
   private commandController: CommandController<Manifest> | null = null
   private shouldBeRunning = false
   protected exitedSuccess = false
+  private onExitFns: ((success: boolean) => void)[] = []
   protected constructor(
     private subcontainer: SubContainer<Manifest>,
-    private startCommand: () => Promise<CommandController<Manifest>>,
+    private startCommand: (() => Promise<CommandController<Manifest>>) | null,
     readonly oneshot: boolean = false,
-    protected onExitSuccessFns: (() => void)[] = [],
   ) {
     super()
   }
@@ -35,29 +36,13 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
     return async (
       effects: T.Effects,
       subcontainer: SubContainer<Manifest>,
-      command: T.CommandType,
-      options: {
-        runAsInit?: boolean
-        env?:
-          | {
-              [variable: string]: string
-            }
-          | undefined
-        cwd?: string | undefined
-        user?: string | undefined
-        onStdout?: (chunk: Buffer | string | any) => void
-        onStderr?: (chunk: Buffer | string | any) => void
-        sigtermTimeout?: number
-      },
+      exec: DaemonCommandType | null,
     ) => {
       if (subcontainer.isOwned()) subcontainer = subcontainer.rc()
-      const startCommand = () =>
-        CommandController.of<Manifest>()(
-          effects,
-          subcontainer.rc(),
-          command,
-          options,
-        )
+      const startCommand = exec
+        ? () =>
+            CommandController.of<Manifest>()(effects, subcontainer.rc(), exec)
+        : null
       return new Daemon(subcontainer, startCommand)
     }
   }
@@ -66,35 +51,35 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
       return
     }
     this.shouldBeRunning = true
-    this.exitedSuccess = false
     let timeoutCounter = 0
     ;(async () => {
-      while (this.shouldBeRunning) {
+      while (this.startCommand && this.shouldBeRunning) {
         if (this.commandController)
           await this.commandController
             .term({})
             .catch((err) => console.error(err))
-        this.commandController = await this.startCommand()
-        if (
-          (await this.commandController.wait().then(
+        try {
+          this.commandController = await this.startCommand()
+          const success = await this.commandController.wait().then(
             (_) => true,
             (err) => {
               console.error(err)
               return false
             },
-          )) &&
-          this.oneshot
-        ) {
-          for (const fn of this.onExitSuccessFns) {
+          )
+          for (const fn of this.onExitFns) {
             try {
-              fn()
+              fn(success)
             } catch (e) {
-              console.error("EXIT_SUCCESS handler", e)
+              console.error("EXIT handler", e)
             }
           }
-          this.onExitSuccessFns = []
-          this.exitedSuccess = true
-          break
+          if (success && this.oneshot) {
+            this.exitedSuccess = true
+            break
+          }
+        } catch (e) {
+          console.error(e)
         }
         await new Promise((resolve) => setTimeout(resolve, timeoutCounter))
         timeoutCounter += TIMEOUT_INCREMENT_MS
@@ -115,14 +100,19 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
     timeout?: number | undefined
   }) {
     this.shouldBeRunning = false
+    this.exitedSuccess = false
     await this.commandController
       ?.term({ ...termOptions })
       .catch((e) => console.error(asError(e)))
     this.commandController = null
+    this.onExitFns = []
     await this.subcontainer.destroy()
   }
   subcontainerRc(): SubContainerRc<Manifest> {
     return this.subcontainer.rc()
+  }
+  onExit(fn: (success: boolean) => void) {
+    this.onExitFns.push(fn)
   }
   onDrop(): void {
     this.stop().catch((e) => console.error(asError(e)))

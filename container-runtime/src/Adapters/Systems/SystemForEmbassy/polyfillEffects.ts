@@ -135,12 +135,9 @@ export const polyfillEffects = (
         [input.command, ...(input.args || [])].join(" "),
       )
       const daemon = promiseSubcontainer.then((subcontainer) =>
-        daemons.runCommand()(
-          effects,
-          subcontainer,
-          [input.command, ...(input.args || [])],
-          {},
-        ),
+        daemons.runCommand()(effects, subcontainer, {
+          command: [input.command, ...(input.args || [])],
+        }),
       )
       return {
         wait: () =>

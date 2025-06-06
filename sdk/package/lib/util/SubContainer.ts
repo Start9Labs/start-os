@@ -92,6 +92,7 @@ export interface SubContainer<
     command: string[],
     options?: CommandOptions & ExecOptions,
     timeoutMs?: number | null,
+    abort?: AbortController,
   ): Promise<{
     throw: () => { stdout: string | Buffer; stderr: string | Buffer }
     exitCode: number | null
@@ -111,6 +112,7 @@ export interface SubContainer<
     command: string[],
     options?: CommandOptions & ExecOptions,
     timeoutMs?: number | null,
+    abort?: AbortController,
   ): Promise<{
     stdout: string | Buffer
     stderr: string | Buffer
@@ -378,6 +380,7 @@ export class SubContainerOwned<
     command: string[],
     options?: CommandOptions & ExecOptions,
     timeoutMs: number | null = 30000,
+    abort?: AbortController,
   ): Promise<{
     throw: () => { stdout: string | Buffer; stderr: string | Buffer }
     exitCode: number | null
@@ -417,6 +420,7 @@ export class SubContainerOwned<
       ],
       options || {},
     )
+    abort?.signal.addEventListener("abort", () => child.kill("SIGKILL"))
     if (options?.input) {
       await new Promise<null>((resolve, reject) => {
         try {
@@ -489,12 +493,15 @@ export class SubContainerOwned<
   async execFail(
     command: string[],
     options?: CommandOptions & ExecOptions,
-    timeoutMs: number | null = 30000,
+    timeoutMs?: number | null,
+    abort?: AbortController,
   ): Promise<{
     stdout: string | Buffer
     stderr: string | Buffer
   }> {
-    return this.exec(command, options, timeoutMs).then((res) => res.throw())
+    return this.exec(command, options, timeoutMs, abort).then((res) =>
+      res.throw(),
+    )
   }
 
   async launch(
@@ -711,7 +718,8 @@ export class SubContainerRc<
   async exec(
     command: string[],
     options?: CommandOptions & ExecOptions,
-    timeoutMs: number | null = 30000,
+    timeoutMs?: number | null,
+    abort?: AbortController,
   ): Promise<{
     throw: () => { stdout: string | Buffer; stderr: string | Buffer }
     exitCode: number | null
@@ -719,7 +727,7 @@ export class SubContainerRc<
     stdout: string | Buffer
     stderr: string | Buffer
   }> {
-    return this.subcontainer.exec(command, options, timeoutMs)
+    return this.subcontainer.exec(command, options, timeoutMs, abort)
   }
 
   /**
@@ -732,12 +740,13 @@ export class SubContainerRc<
   async execFail(
     command: string[],
     options?: CommandOptions & ExecOptions,
-    timeoutMs: number | null = 30000,
+    timeoutMs?: number | null,
+    abort?: AbortController,
   ): Promise<{
     stdout: string | Buffer
     stderr: string | Buffer
   }> {
-    return this.subcontainer.execFail(command, options, timeoutMs)
+    return this.subcontainer.execFail(command, options, timeoutMs, abort)
   }
 
   async launch(

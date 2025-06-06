@@ -4,8 +4,7 @@ import { HealthCheckResult } from "../health/checkFns"
 
 import { Trigger } from "../trigger"
 import * as T from "../../../base/lib/types"
-import { Mounts } from "./Mounts"
-import { MountOptions, SubContainer } from "../util/SubContainer"
+import { SubContainer } from "../util/SubContainer"
 
 import { promisify } from "node:util"
 import * as CP from "node:child_process"
@@ -50,18 +49,38 @@ export type Ready = {
   trigger?: Trigger
 }
 
-type NewDaemonParams<Manifest extends T.SDKManifest> = {
-  /** The command line command to start the daemon */
+export type ExecCommandOptions = {
   command: T.CommandType
-  /** Information about the subcontainer in which the daemon runs */
-  subcontainer: SubContainer<Manifest>
-  runAsInit?: boolean
-  env?: Record<string, string>
-  cwd?: string
-  user?: string
+  // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
   sigtermTimeout?: number
+  runAsInit?: boolean
+  env?:
+    | {
+        [variable: string]: string
+      }
+    | undefined
+  cwd?: string | undefined
+  user?: string | undefined
   onStdout?: (chunk: Buffer | string | any) => void
   onStderr?: (chunk: Buffer | string | any) => void
+}
+
+export type ExecFnOptions = {
+  fn: (
+    subcontainer: SubContainer<Manifest>,
+    abort: AbortController,
+  ) => Promise<ExecCommandOptions | null>
+  // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
+  sigtermTimeout?: number
+}
+
+export type DaemonCommandType = ExecCommandOptions | ExecFnOptions
+
+type NewDaemonParams<Manifest extends T.SDKManifest> = {
+  /** What to run as the daemon: either an async fn or a commandline command to run in the subcontainer */
+  exec: DaemonCommandType | null
+  /** Information about the subcontainer in which the daemon runs */
+  subcontainer: SubContainer<Manifest>
 }
 
 type AddDaemonParams<
@@ -84,6 +103,7 @@ type AddOneshotParams<
   Ids extends string,
   Id extends string,
 > = NewDaemonParams<Manifest> & {
+  exec: DaemonCommandType
   /** An array of IDs of prior daemons whose successful initializations are required before this daemon will initialize */
   requires: Exclude<Ids, Id>[]
 }
@@ -172,10 +192,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
         : Daemon.of<Manifest>()(
             this.effects,
             options.subcontainer,
-            options.command,
-            {
-              ...options,
-            },
+            options.exec,
           )
     const healthDaemon = new HealthDaemon(
       daemon,
@@ -221,10 +238,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     const daemon = Oneshot.of<Manifest>()(
       this.effects,
       options.subcontainer,
-      options.command,
-      {
-        ...options,
-      },
+      options.exec,
     )
     const healthDaemon = new HealthDaemon<Manifest>(
       daemon,
