@@ -1,0 +1,104 @@
+import { System } from "../../Interfaces/System"
+import { Effects } from "../../Models/Effects"
+import { ExtendedVersion, T, utils, VersionRange } from "@start9labs/start-sdk"
+
+export const STARTOS_JS_LOCATION = "/usr/lib/startos/package/index.js"
+
+type RunningMain = {
+  stop: () => Promise<void>
+}
+
+export class SystemForStartOs implements System {
+  private runningMain: RunningMain | undefined
+  private starting: boolean = false
+
+  static of() {
+    return new SystemForStartOs(require(STARTOS_JS_LOCATION))
+  }
+
+  constructor(readonly abi: T.ABI) {
+    this
+  }
+
+  async init(
+    effects: Effects,
+    kind: "install" | "update" | "restore" | null,
+  ): Promise<void> {
+    return void (await this.abi.init({ effects, kind }))
+  }
+
+  async exit(
+    effects: Effects,
+    target: ExtendedVersion | VersionRange | null,
+    timeoutMs: number | null = null,
+  ): Promise<void> {
+    // TODO: stop?
+    return void (await this.abi.uninit({ effects, target }))
+  }
+
+  async createBackup(
+    effects: T.Effects,
+    timeoutMs: number | null,
+  ): Promise<void> {
+    return void (await this.abi.createBackup({
+      effects,
+    }))
+  }
+  getActionInput(
+    effects: Effects,
+    id: string,
+    timeoutMs: number | null,
+  ): Promise<T.ActionInput | null> {
+    const action = this.abi.actions.get(id)
+    if (!action) throw new Error(`Action ${id} not found`)
+    return action.getInput({ effects })
+  }
+  runAction(
+    effects: Effects,
+    id: string,
+    input: unknown,
+    timeoutMs: number | null,
+  ): Promise<T.ActionResult | null> {
+    const action = this.abi.actions.get(id)
+    if (!action) throw new Error(`Action ${id} not found`)
+    return action.run({ effects, input })
+  }
+
+  async start(effects: Effects): Promise<void> {
+    try {
+      if (this.runningMain || this.starting) return
+      this.starting = true
+      effects.constRetry = utils.once(() => effects.restart())
+      let mainOnTerm: () => Promise<void> | undefined
+      const started = async (onTerm: () => Promise<void>) => {
+        await effects.setMainStatus({ status: "running" })
+        mainOnTerm = onTerm
+        return null
+      }
+      const daemons = await (
+        await this.abi.main({
+          effects,
+          started,
+        })
+      ).build()
+      this.runningMain = {
+        stop: async () => {
+          if (mainOnTerm) await mainOnTerm()
+          await daemons.term()
+        },
+      }
+    } finally {
+      this.starting = false
+    }
+  }
+
+  async stop(): Promise<void> {
+    if (this.runningMain) {
+      try {
+        await this.runningMain.stop()
+      } finally {
+        this.runningMain = undefined
+      }
+    }
+  }
+}

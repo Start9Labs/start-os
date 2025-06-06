@@ -21,4 +21,18 @@ apt-get install -yq \
 	dosfstools \
 	e2fsprogs \
 	squashfs-tools \
-	rsync
+	rsync \
+	b3sum
+# TODO: remove when util-linux is released at v2.39.3
+apt-get install -yq \
+	git \
+	build-essential \
+	crossbuild-essential-arm64 \
+	crossbuild-essential-amd64 \
+	automake \
+	autoconf \
+	gettext \
+	libtool \
+	pkg-config \
+	autopoint \
+	bison

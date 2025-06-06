@@ -3,6 +3,7 @@ import { isEmptyObject } from '../../util/misc.util'
 
 @Pipe({
   name: 'empty',
+  standalone: false,
 })
 export class EmptyPipe implements PipeTransform {
   transform(val: object | [] = {}): boolean {

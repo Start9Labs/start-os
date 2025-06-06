@@ -3,13 +3,16 @@ use std::path::Path;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize, Serializer};
+use ts_rs::TS;
+use yasi::InternedString;
 
 use crate::{Id, InvalidId, SYSTEM_ID};
 
 lazy_static::lazy_static! {
     pub static ref SYSTEM_PACKAGE_ID: PackageId = PackageId(SYSTEM_ID.clone());
 }
-#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, TS)]
+#[ts(type = "string")]
 pub struct PackageId(Id);
 impl FromStr for PackageId {
     type Err = InvalidId;
@@ -22,10 +25,20 @@ impl From<Id> for PackageId {
         PackageId(id)
     }
 }
+impl From<PackageId> for Id {
+    fn from(value: PackageId) -> Self {
+        value.0
+    }
+}
+impl From<PackageId> for InternedString {
+    fn from(value: PackageId) -> Self {
+        value.0.into()
+    }
+}
 impl std::ops::Deref for PackageId {
     type Target = str;
     fn deref(&self) -> &Self::Target {
-        &*self.0
+        &self.0
     }
 }
 impl AsRef<PackageId> for PackageId {
@@ -44,6 +57,11 @@ impl AsRef<str> for PackageId {
     }
 }
 impl Borrow<str> for PackageId {
+    fn borrow(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+impl<'a> Borrow<str> for &'a PackageId {
     fn borrow(&self) -> &str {
         self.0.as_ref()
     }
@@ -72,8 +90,8 @@ impl Serialize for PackageId {
 impl<'q> sqlx::Encode<'q, sqlx::Postgres> for PackageId {
     fn encode_by_ref(
         &self,
-        buf: &mut <sqlx::Postgres as sqlx::database::HasArguments<'q>>::ArgumentBuffer,
-    ) -> sqlx::encode::IsNull {
+        buf: &mut <sqlx::Postgres as sqlx::Database>::ArgumentBuffer<'q>,
+    ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
         <&str as sqlx::Encode<'q, sqlx::Postgres>>::encode_by_ref(&&**self, buf)
     }
 }

@@ -1,20 +1,34 @@
-import { Dump, Revision } from 'patch-db-client'
-import { MarketplacePkg, StoreInfo } from '@start9labs/marketplace'
-import { PackagePropertiesVersioned } from 'src/app/util/properties.util'
-import { ConfigSpec } from 'src/app/pkg-config/config-types'
+import { Dump } from 'patch-db-client'
+import { DataModel } from 'src/app/services/patch-db/data-model'
+import { StartOSDiskInfo, FetchLogsReq, FetchLogsRes } from '@start9labs/shared'
+import { IST, T } from '@start9labs/start-sdk'
+import { WebSocketSubjectConfig } from 'rxjs/webSocket'
 import {
-  DataModel,
-  HealthCheckResult,
-  Manifest,
-} from 'src/app/services/patch-db/data-model'
-import { StartOSDiskInfo, LogsRes, ServerLogsReq } from '@start9labs/shared'
+  GetPackageReq,
+  GetPackageRes,
+  GetPackagesReq,
+  GetPackagesRes,
+} from '@start9labs/marketplace'
 
-export module RR {
+export namespace RR {
+  // websocket
+
+  export type WebsocketConfig<T> = Omit<WebSocketSubjectConfig<T>, 'url'>
+
+  // state
+
+  export type EchoReq = { message: string } // server.echo
+  export type EchoRes = string
+
+  export type ServerState = 'initializing' | 'error' | 'running'
+
   // DB
 
-  export type GetRevisionsRes = Revision[] | Dump<DataModel>
-
-  export type GetDumpRes = Dump<DataModel>
+  export type SubscribePatchReq = {}
+  export type SubscribePatchRes = {
+    dump: Dump<DataModel>
+    guid: string
+  }
 
   export type SetDBValueReq<T> = { pointer: string; value: T } // db.put.ui
   export type SetDBValueRes = null
@@ -23,7 +37,7 @@ export module RR {
 
   export type LoginReq = {
     password: string
-    metadata: SessionMetadata
+    ephemeral?: boolean
   } // auth.login - unauthed
   export type loginRes = null
 
@@ -31,15 +45,27 @@ export module RR {
   export type LogoutRes = null
 
   export type ResetPasswordReq = {
-    'old-password': string
-    'new-password': string
+    oldPassword: string
+    newPassword: string
   } // auth.reset-password
   export type ResetPasswordRes = null
 
-  // server
+  // diagnostic
 
-  export type EchoReq = { message: string; timeout?: number } // server.echo
-  export type EchoRes = string
+  export type DiagnosticErrorRes = {
+    code: number
+    message: string
+    data: { details: string }
+  }
+
+  // init
+
+  export type InitFollowProgressRes = {
+    progress: T.FullProgress
+    guid: string
+  }
+
+  // server
 
   export type GetSystemTimeReq = {} // server.time
   export type GetSystemTimeRes = {
@@ -47,19 +73,26 @@ export module RR {
     uptime: number // seconds
   }
 
-  export type GetServerLogsReq = ServerLogsReq // server.logs & server.kernel-logs
-  export type GetServerLogsRes = LogsRes
+  export type GetServerLogsReq = FetchLogsReq // server.logs & server.kernel-logs
+  export type GetServerLogsRes = FetchLogsRes
 
-  export type FollowServerLogsReq = { limit?: number } // server.logs.follow & server.kernel-logs.follow
+  export type FollowServerLogsReq = {
+    limit?: number // (optional) default is 50. Ignored if cursor provided
+    boot?: number | string | null // (optional) number is offset (0: current, -1 prev, +1 first), string is a specific boot id, null is all. Default is undefined
+    cursor?: string // the last known log. Websocket will return all logs since this log
+  } // server.logs.follow & server.kernel-logs.follow
   export type FollowServerLogsRes = {
-    'start-cursor': string
+    startCursor: string
     guid: string
   }
 
-  export type GetServerMetricsReq = {} // server.metrics
-  export type GetServerMetricsRes = Metrics
+  export type FollowServerMetricsReq = {} // server.metrics.follow
+  export type FollowServerMetricsRes = {
+    guid: string
+    metrics: ServerMetrics
+  }
 
-  export type UpdateServerReq = { 'marketplace-url': string } // server.update
+  export type UpdateServerReq = { registry: string; targetVersion: string } // server.update
   export type UpdateServerRes = 'updating' | 'no-updates'
 
   export type RestartServerReq = {} // server.restart
@@ -68,19 +101,25 @@ export module RR {
   export type ShutdownServerReq = {} // server.shutdown
   export type ShutdownServerRes = null
 
-  export type SystemRebuildReq = {} // server.rebuild
-  export type SystemRebuildRes = null
+  export type DiskRepairReq = {} // server.disk.repair
+  export type DiskRepairRes = null
 
   export type ResetTorReq = {
-    'wipe-state': boolean
+    wipeState: boolean
     reason: string
   } // net.tor.reset
   export type ResetTorRes = null
 
-  export type ToggleZramReq = {
-    enable: boolean
-  } // server.experimental.zram
-  export type ToggleZramRes = null
+  // smtp
+
+  export type SetSMTPReq = T.SmtpValue // server.set-smtp
+  export type SetSMTPRes = null
+
+  export type ClearSMTPReq = {} // server.clear-smtp
+  export type ClearSMTPRes = null
+
+  export type TestSMTPReq = SetSMTPReq & { to: string } // server.test-smtp
+  export type TestSMTPRes = null
 
   // sessions
 
@@ -101,16 +140,19 @@ export module RR {
   } // notification.list
   export type GetNotificationsRes = ServerNotification<number>[]
 
-  export type DeleteNotificationReq = { id: number } // notification.delete
-  export type DeleteNotificationRes = null
+  export type DeleteNotificationsReq = { ids: number[] } // notification.remove
+  export type DeleteNotificationsRes = null
 
-  export type DeleteAllNotificationsReq = { before: number } // notification.delete-before
-  export type DeleteAllNotificationsRes = null
+  export type MarkSeenNotificationReq = DeleteNotificationsReq // notification.mark-seen
+  export type MarkSeenNotificationRes = null
+
+  export type MarkSeenAllNotificationsReq = { before: number } // notification.mark-seen-before
+  export type MarkSeenAllNotificationsRes = null
+
+  export type MarkUnseenNotificationReq = DeleteNotificationsReq // notification.mark-unseen
+  export type MarkUnseenNotificationRes = null
 
   // wifi
-
-  export type SetWifiCountryReq = { country: string }
-  export type SetWifiCountryRes = null
 
   export type GetWifiReq = {}
   export type GetWifiRes = {
@@ -120,7 +162,7 @@ export module RR {
     connected: string | null
     country: string | null
     ethernet: boolean
-    'available-wifi': AvailableWifi[]
+    availableWifi: AvailableWifi[]
   }
 
   export type AddWifiReq = {
@@ -132,10 +174,16 @@ export module RR {
   }
   export type AddWifiRes = null
 
+  export type EnabledWifiReq = { enable: boolean } // wifi.set-enabled
+  export type EnabledWifiRes = null
+
+  export type SetWifiCountryReq = { country: string } // wifi.country.set
+  export type SetWifiCountryRes = null
+
   export type ConnectWifiReq = { ssid: string } // wifi.connect
   export type ConnectWifiRes = null
 
-  export type DeleteWifiReq = { ssid: string } // wifi.delete
+  export type DeleteWifiReq = { ssid: string } // wifi.remove
   export type DeleteWifiRes = null
 
   // ssh
@@ -146,7 +194,7 @@ export module RR {
   export type AddSSHKeyReq = { key: string } // ssh.add
   export type AddSSHKeyRes = SSHKey
 
-  export type DeleteSSHKeyReq = { fingerprint: string } // ssh.delete
+  export type DeleteSSHKeyReq = { fingerprint: string } // ssh.remove
   export type DeleteSSHKeyRes = null
 
   // backup
@@ -169,65 +217,138 @@ export module RR {
   export type RemoveBackupTargetReq = { id: string } // backup.target.cifs.remove
   export type RemoveBackupTargetRes = null
 
-  export type GetBackupInfoReq = { 'target-id': string; password: string } // backup.target.info
+  export type GetBackupInfoReq = {
+    // backup.target.info
+    targetId: string
+    serverId: string
+    password: string
+  }
   export type GetBackupInfoRes = BackupInfo
 
   export type CreateBackupReq = {
     // backup.create
-    'target-id': string
-    'package-ids': string[]
-    'old-password': string | null
+    targetId: string
+    packageIds: string[]
+    oldPassword: string | null
     password: string
   }
   export type CreateBackupRes = null
 
   // package
 
-  export type GetPackagePropertiesReq = { id: string } // package.properties
-  export type GetPackagePropertiesRes<T extends number> =
-    PackagePropertiesVersioned<T>
+  export type InitAcmeReq = {
+    provider: 'letsencrypt' | 'letsencrypt-staging' | string
+    contact: string[]
+  }
+  export type InitAcmeRes = null
 
-  export type GetPackageLogsReq = ServerLogsReq & { id: string } // package.logs
-  export type GetPackageLogsRes = LogsRes
+  export type RemoveAcmeReq = {
+    provider: string
+  }
+  export type RemoveAcmeRes = null
+
+  export type AddTorKeyReq = {
+    // net.tor.key.add
+    key: string
+  }
+  export type GenerateTorKeyReq = {} // net.tor.key.generate
+  export type AddTorKeyRes = string // onion address without .onion suffix
+
+  export type ServerBindingSetPublicReq = {
+    // server.host.binding.set-public
+    internalPort: number
+    public: boolean | null // default true
+  }
+  export type BindingSetPublicRes = null
+
+  export type ServerAddOnionReq = {
+    // server.host.address.onion.add
+    onion: string // address *with* .onion suffix
+  }
+  export type AddOnionRes = null
+
+  export type ServerRemoveOnionReq = ServerAddOnionReq // server.host.address.onion.remove
+  export type RemoveOnionRes = null
+
+  export type ServerAddDomainReq = {
+    // server.host.address.domain.add
+    domain: string // FQDN
+    private: boolean
+    acme: string | null // "letsencrypt" | "letsencrypt-staging" | Url | null
+  }
+  export type AddDomainRes = null
+
+  export type ServerRemoveDomainReq = {
+    // server.host.address.domain.remove
+    domain: string // FQDN
+  }
+  export type RemoveDomainRes = null
+
+  export type PkgBindingSetPublicReq = ServerBindingSetPublicReq & {
+    // package.host.binding.set-public
+    package: T.PackageId // string
+    host: T.HostId // string
+  }
+
+  export type PkgAddOnionReq = ServerAddOnionReq & {
+    // package.host.address.onion.add
+    package: T.PackageId // string
+    host: T.HostId // string
+  }
+
+  export type PkgRemoveOnionReq = PkgAddOnionReq // package.host.address.onion.remove
+
+  export type PkgAddDomainReq = ServerAddDomainReq & {
+    // package.host.address.domain.add
+    package: T.PackageId // string
+    host: T.HostId // string
+  }
+
+  export type PkgRemoveDomainReq = ServerRemoveDomainReq & {
+    // package.host.address.domain.remove
+    package: T.PackageId // string
+    host: T.HostId // string
+  }
+
+  export type GetPackageLogsReq = FetchLogsReq & { id: string } // package.logs
+  export type GetPackageLogsRes = FetchLogsRes
 
   export type FollowPackageLogsReq = FollowServerLogsReq & { id: string } // package.logs.follow
   export type FollowPackageLogsRes = FollowServerLogsRes
 
-  export type GetPackageMetricsReq = { id: string } // package.metrics
-  export type GetPackageMetricsRes = Metric
-
-  export type InstallPackageReq = {
-    id: string
-    'version-spec'?: string
-    'version-priority'?: 'min' | 'max'
-    'marketplace-url': string
-  } // package.install
+  export type InstallPackageReq = T.InstallParams
   export type InstallPackageRes = null
 
-  export type GetPackageConfigReq = { id: string } // package.config.get
-  export type GetPackageConfigRes = { spec: ConfigSpec; config: object }
+  export type CancelInstallPackageReq = { id: string }
+  export type CancelInstallPackageRes = null
 
-  export type DrySetPackageConfigReq = { id: string; config: object } // package.config.set.dry
-  export type DrySetPackageConfigRes = Breakages
+  export type GetActionInputReq = { packageId: string; actionId: string } // package.action.get-input
+  export type GetActionInputRes = {
+    spec: IST.InputSpec
+    value: object | null
+  }
 
-  export type SetPackageConfigReq = DrySetPackageConfigReq // package.config.set
-  export type SetPackageConfigRes = null
+  export type ActionReq = {
+    packageId: string
+    actionId: string
+    input: object | null
+  } // package.action.run
+  export type ActionRes = (T.ActionResult & { version: '1' }) | null
+
+  export type ClearTaskReq = {
+    packageId: string
+    replayId: string
+  } // package.action.clear-task
+  export type ClearTaskRes = null
 
   export type RestorePackagesReq = {
     // package.backup.restore
     ids: string[]
-    'target-id': string
-    'old-password': string | null
+    targetId: string
+    serverId: string
     password: string
   }
   export type RestorePackagesRes = null
-
-  export type ExecutePackageActionReq = {
-    id: string
-    'action-id': string
-    input?: object
-  } // package.action
-  export type ExecutePackageActionRes = ActionResponse
 
   export type StartPackageReq = { id: string } // package.start
   export type StartPackageRes = null
@@ -238,67 +359,48 @@ export module RR {
   export type StopPackageReq = { id: string } // package.stop
   export type StopPackageRes = null
 
-  export type UninstallPackageReq = { id: string } // package.uninstall
+  export type RebuildPackageReq = { id: string } // package.rebuild
+  export type RebuildPackageRes = null
+
+  export type UninstallPackageReq = {
+    id: string
+    force: boolean
+    soft: boolean
+  } // package.uninstall
   export type UninstallPackageRes = null
 
-  export type DryConfigureDependencyReq = {
-    'dependency-id': string
-    'dependent-id': string
-  } // package.dependency.configure.dry
-  export type DryConfigureDependencyRes = {
-    'old-config': object
-    'new-config': object
-    spec: ConfigSpec
-  }
-
   export type SideloadPackageReq = {
-    manifest: Manifest
+    manifest: T.Manifest
     icon: string // base64
   }
-  export type SideloadPacakgeRes = string //guid
-
-  // marketplace
-
-  export type GetMarketplaceInfoReq = { 'server-id': string }
-  export type GetMarketplaceInfoRes = StoreInfo
-
-  export type GetMarketplaceEosReq = { 'server-id': string }
-  export type GetMarketplaceEosRes = MarketplaceEOS
-
-  export type GetMarketplacePackagesReq = {
-    ids?: { id: string; version: string }[]
-    // iff !ids
-    category?: string
-    query?: string
-    page?: number
-    'per-page'?: number
+  export type SideloadPackageRes = {
+    upload: string // guid
+    progress: string // guid
   }
-  export type GetMarketplacePackagesRes = MarketplacePkg[]
 
-  export type GetReleaseNotesReq = { id: string }
-  export type GetReleaseNotesRes = { [version: string]: string }
+  // registry
+
+  /** these are returned in ASCENDING order. the newest available version will be the LAST in the object */
+  export type CheckOsUpdateReq = { registry: string; serverId: string }
+  export type CheckOsUpdateRes = { [version: string]: T.OsVersionInfo }
+
+  export type GetRegistryInfoReq = { registry: string }
+  export type GetRegistryInfoRes = T.RegistryInfo
+
+  export type GetRegistryPackageReq = GetPackageReq & { registry: string }
+  export type GetRegistryPackageRes = GetPackageRes
+
+  export type GetRegistryPackagesReq = GetPackagesReq & { registry: string }
+  export type GetRegistryPackagesRes = GetPackagesRes
 }
 
-export interface MarketplaceEOS {
-  version: string
-  headline: string
-  'release-notes': { [version: string]: string }
-}
-
-export interface Breakages {
+export type Breakages = {
   [id: string]: TaggedDependencyError
 }
 
-export interface TaggedDependencyError {
+export type TaggedDependencyError = {
   dependency: string
   error: DependencyError
-}
-
-export interface ActionResponse {
-  message: string
-  value: string | null
-  copyable: boolean
-  qr: boolean
 }
 
 interface MetricData {
@@ -306,67 +408,39 @@ interface MetricData {
   unit: string
 }
 
-export interface Metrics {
+export type ServerMetrics = {
   general: {
     temperature: MetricData | null
   }
   memory: {
     total: MetricData
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     used: MetricData
     available: MetricData
-    'zram-total': MetricData
-    'zram-used': MetricData
-    'zram-available': MetricData
+    zramTotal: MetricData
+    zramUsed: MetricData
+    zramAvailable: MetricData
   }
   cpu: {
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     idle: MetricData
-    'user-space': MetricData
-    'kernel-space': MetricData
+    userSpace: MetricData
+    kernelSpace: MetricData
     wait: MetricData
   }
   disk: {
     capacity: MetricData
-    'percentage-used': MetricData
+    percentageUsed: MetricData
     used: MetricData
     available: MetricData
   }
 }
 
-export interface Metric {
-  [key: string]: {
-    value: string | number | null
-    unit?: string
-  }
+export type Session = {
+  loggedIn: string
+  lastActive: string
+  userAgent: string
 }
-
-export interface Session {
-  'last-active': string
-  'user-agent': string
-  metadata: SessionMetadata
-}
-
-export interface SessionMetadata {
-  platforms: PlatformType[]
-}
-
-export type PlatformType =
-  | 'cli'
-  | 'ios'
-  | 'ipad'
-  | 'iphone'
-  | 'android'
-  | 'phablet'
-  | 'tablet'
-  | 'cordova'
-  | 'capacitor'
-  | 'electron'
-  | 'pwa'
-  | 'mobile'
-  | 'mobileweb'
-  | 'desktop'
-  | 'hybrid'
 
 export type BackupTarget = DiskBackupTarget | CifsBackupTarget
 
@@ -378,7 +452,7 @@ export interface DiskBackupTarget {
   label: string | null
   capacity: number
   used: number | null
-  'embassy-os': StartOSDiskInfo | null
+  startOs: Record<string, StartOSDiskInfo>
 }
 
 export interface CifsBackupTarget {
@@ -387,7 +461,7 @@ export interface CifsBackupTarget {
   path: string
   username: string
   mountable: boolean
-  'embassy-os': StartOSDiskInfo | null
+  startOs: Record<string, StartOSDiskInfo>
 }
 
 export type RecoverySource = DiskRecoverySource | CifsRecoverySource
@@ -405,59 +479,57 @@ export interface CifsRecoverySource {
   password: string
 }
 
-export interface BackupInfo {
+export type BackupInfo = {
   version: string
   timestamp: string
-  'package-backups': {
+  packageBackups: {
     [id: string]: PackageBackupInfo
   }
 }
 
-export interface PackageBackupInfo {
+export type PackageBackupInfo = {
   title: string
   version: string
-  'os-version': string
+  osVersion: string
   timestamp: string
 }
 
-export interface ServerSpecs {
+export type ServerSpecs = {
   [key: string]: string | number
 }
 
-export interface SSHKey {
-  'created-at': string
+export type SSHKey = {
+  createdAt: string
   alg: string
   hostname: string
   fingerprint: string
 }
 
-export type ServerNotifications = ServerNotification<any>[]
+export type ServerNotifications = ServerNotification<number>[]
 
-export interface ServerNotification<T extends number> {
+export type ServerNotification<T extends number> = {
   id: number
-  'package-id': string | null
-  'created-at': string
+  packageId: string | null
+  createdAt: string
   code: T
   level: NotificationLevel
   title: string
   message: string
   data: NotificationData<T>
+  seen: boolean
 }
 
-export enum NotificationLevel {
-  Success = 'success',
-  Info = 'info',
-  Warning = 'warning',
-  Error = 'error',
-}
+export type NotificationLevel = 'success' | 'info' | 'warning' | 'error'
 
 export type NotificationData<T> = T extends 0
   ? null
   : T extends 1
-  ? BackupReport
-  : any
+    ? BackupReport
+    : T extends 2
+      ? string
+      : any
 
-export interface BackupReport {
+export type BackupReport = {
   server: {
     attempted: boolean
     error: string | null
@@ -469,7 +541,7 @@ export interface BackupReport {
   }
 }
 
-export interface AvailableWifi {
+export type AvailableWifi = {
   ssid: string
   strength: number
   security: string[]
@@ -498,44 +570,243 @@ export type DependencyError =
   | DependencyErrorNotInstalled
   | DependencyErrorNotRunning
   | DependencyErrorIncorrectVersion
-  | DependencyErrorConfigUnsatisfied
+  | DependencyErrorActionRequired
   | DependencyErrorHealthChecksFailed
   | DependencyErrorTransitive
 
-export enum DependencyErrorType {
-  NotInstalled = 'not-installed',
-  NotRunning = 'not-running',
-  IncorrectVersion = 'incorrect-version',
-  ConfigUnsatisfied = 'config-unsatisfied',
-  HealthChecksFailed = 'health-checks-failed',
-  InterfaceHealthChecksFailed = 'interface-health-checks-failed',
-  Transitive = 'transitive',
+export type DependencyErrorNotInstalled = {
+  type: 'notInstalled'
 }
 
-export interface DependencyErrorNotInstalled {
-  type: DependencyErrorType.NotInstalled
+export type DependencyErrorNotRunning = {
+  type: 'notRunning'
 }
 
-export interface DependencyErrorNotRunning {
-  type: DependencyErrorType.NotRunning
-}
-
-export interface DependencyErrorIncorrectVersion {
-  type: DependencyErrorType.IncorrectVersion
+export type DependencyErrorIncorrectVersion = {
+  type: 'incorrectVersion'
   expected: string // version range
   received: string // version
 }
 
-export interface DependencyErrorConfigUnsatisfied {
-  type: DependencyErrorType.ConfigUnsatisfied
-  error: string
+export interface DependencyErrorActionRequired {
+  type: 'actionRequired'
 }
 
-export interface DependencyErrorHealthChecksFailed {
-  type: DependencyErrorType.HealthChecksFailed
-  check: HealthCheckResult
+export type DependencyErrorHealthChecksFailed = {
+  type: 'healthChecksFailed'
+  check: T.NamedHealthCheckResult
 }
 
-export interface DependencyErrorTransitive {
-  type: DependencyErrorType.Transitive
+export type DependencyErrorTransitive = {
+  type: 'transitive'
 }
+
+// @TODO 041
+
+// export namespace RR041 {
+//   // ** domains **
+
+//   export type ClaimStart9ToReq = { networkInterfaceId: string } // net.domain.me.claim
+//   export type ClaimStart9ToRes = null
+
+//   export type DeleteStart9ToReq = {} // net.domain.me.delete
+//   export type DeleteStart9ToRes = null
+
+//   export type AddDomainReq = {
+//     hostname: string
+//     provider: {
+//       name: string
+//       username: string | null
+//       password: string | null
+//     }
+//     networkInterfaceId: string
+//   } // net.domain.add
+//   export type AddDomainRes = null
+
+//   export type DeleteDomainReq = { hostname: string } // net.domain.delete
+//   export type DeleteDomainRes = null
+
+//   // port forwards
+
+//   export type OverridePortReq = { target: number; port: number } // net.port-forwards.override
+//   export type OverridePortRes = null
+
+//   // ** proxies **
+
+//   export type AddProxyReq = {
+//     name: string
+//     config: string
+//   } // net.proxy.add
+//   export type AddProxyRes = null
+
+//   export type UpdateProxyReq = {
+//     name: string
+//   } // net.proxy.update
+//   export type UpdateProxyRes = null
+
+//   export type DeleteProxyReq = { id: string } // net.proxy.delete
+//   export type DeleteProxyRes = null
+
+//   // ** set outbound proxies **
+
+//   export type SetOsOutboundProxyReq = {
+//     proxy: string | null
+//   } // server.proxy.set-outbound
+//   export type SetOsOutboundProxyRes = null
+
+//   export type SetServiceOutboundProxyReq = {
+//     packageId: string
+//     proxy: string | null
+//   } // package.proxy.set-outbound
+//   export type SetServiceOutboundProxyRes = null
+
+//   // ** automated backups **
+
+//   export type GetBackupTargetsReq = {} // backup.target.list
+//   export type GetBackupTargetsRes = {
+//     unknownDisks: UnknownDisk[]
+//     saved: Record<string, BackupTarget>
+//   }
+
+//   export type AddCifsBackupTargetReq = {
+//     name: string
+//     path: string
+//     hostname: string
+//     username: string
+//     password?: string
+//   } // backup.target.cifs.add
+//   export type AddCloudBackupTargetReq = {
+//     name: string
+//     path: string
+//     provider: CloudProvider
+//     [params: string]: any
+//   } // backup.target.cloud.add
+//   export type AddDiskBackupTargetReq = {
+//     logicalname: string
+//     name: string
+//     path: string
+//   } // backup.target.disk.add
+//   export type AddBackupTargetRes = Record<string, BackupTarget>
+
+//   export type UpdateCifsBackupTargetReq = AddCifsBackupTargetReq & {
+//     id: string
+//   } // backup.target.cifs.update
+//   export type UpdateCloudBackupTargetReq = AddCloudBackupTargetReq & {
+//     id: string
+//   } // backup.target.cloud.update
+//   export type UpdateDiskBackupTargetReq = Omit<
+//     AddDiskBackupTargetReq,
+//     'logicalname'
+//   > & {
+//     id: string
+//   } // backup.target.disk.update
+//   export type UpdateBackupTargetRes = AddBackupTargetRes
+
+//   export type RemoveBackupTargetReq = { id: string } // backup.target.remove
+//   export type RemoveBackupTargetRes = null
+
+//   export type GetBackupJobsReq = {} // backup.job.list
+//   export type GetBackupJobsRes = BackupJob[]
+
+//   export type CreateBackupJobReq = {
+//     name: string
+//     targetId: string
+//     cron: string
+//     packageIds: string[]
+//     now: boolean
+//   } // backup.job.create
+//   export type CreateBackupJobRes = BackupJob
+
+//   export type UpdateBackupJobReq = Omit<CreateBackupJobReq, 'now'> & {
+//     id: string
+//   } // backup.job.update
+//   export type UpdateBackupJobRes = CreateBackupJobRes
+
+//   export type DeleteBackupJobReq = { id: string } // backup.job.delete
+//   export type DeleteBackupJobRes = null
+
+//   export type GetBackupRunsReq = {} // backup.runs
+//   export type GetBackupRunsRes = BackupRun[]
+
+//   export type DeleteBackupRunsReq = { ids: string[] } // backup.runs.delete
+//   export type DeleteBackupRunsRes = null
+
+//   export type GetBackupInfoReq = { targetId: string; password: string } // backup.target.info
+//   export type GetBackupInfoRes = BackupInfo
+
+//   export type CreateBackupReq = { targetId: string; packageIds: string[] } // backup.create
+//   export type CreateBackupRes = null
+// }
+
+// @TODO 041 types
+
+// export type AppMetrics = {
+//   memory: {
+//     percentageUsed: MetricData
+//     used: MetricData
+//   }
+//   cpu: {
+//     percentageUsed: MetricData
+//   }
+//   disk: {
+//     percentageUsed: MetricData
+//     used: MetricData
+//   }
+// }
+
+// export type RemoteBackupTarget = CifsBackupTarget | CloudBackupTarget
+// export type BackupTarget = RemoteBackupTarget | DiskBackupTarget
+
+// export type BackupTargetType = 'disk' | 'cifs' | 'cloud'
+
+// export interface UnknownDisk {
+//   logicalname: string
+//   vendor: string | null
+//   model: string | null
+//   label: string | null
+//   capacity: number
+//   used: number | null
+//   startOs: Record<string, StartOSDiskInfo>
+// }
+
+// export interface BaseBackupTarget {
+//   type: BackupTargetType
+//   name: string
+//   mountable: boolean
+//   path: string
+//   startOs: Record<string, StartOSDiskInfo>
+// }
+
+// export interface DiskBackupTarget extends UnknownDisk, BaseBackupTarget {
+//   type: 'disk'
+// }
+
+// export interface CifsBackupTarget extends BaseBackupTarget {
+//   type: 'cifs'
+//   hostname: string
+//   username: string
+// }
+
+// export interface CloudBackupTarget extends BaseBackupTarget {
+//   type: 'cloud'
+//   provider: 'dropbox' | 'google-drive'
+// }
+
+// export type BackupRun = {
+//   id: string
+//   startedAt: string
+//   completedAt: string
+//   packageIds: string[]
+//   job: BackupJob
+//   report: BackupReport
+// }
+
+// export type BackupJob = {
+//   id: string
+//   name: string
+//   targetId: string
+//   cron: string // '* * * * * *' https://cloud.google.com/scheduler/docs/configuring/cron-job-schedules
+//   packageIds: string[]
+// }
+
+// export type CloudProvider = 'dropbox' | 'google-drive'
