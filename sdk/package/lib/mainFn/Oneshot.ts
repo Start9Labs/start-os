@@ -25,12 +25,4 @@ export class Oneshot<Manifest extends T.SDKManifest> extends Daemon<Manifest> {
       return new Oneshot(subcontainer, startCommand, true)
     }
   }
-
-  onExitSuccess(fn: () => void) {
-    if (this.exitedSuccess) {
-      fn()
-    } else {
-      this.onExitSuccessFns.push(fn)
-    }
-  }
 }

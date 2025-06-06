@@ -91,17 +91,22 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   }
   private async setupHealthCheck() {
     const daemon = await this.daemon
-    daemon.onExitFailure(() =>
-      this.setHealth({ result: "failure", message: null }),
-    )
-    if (this.ready === "EXIT_SUCCESS") {
-      if (daemon.isOneshot()) {
-        daemon.onExitSuccess(() =>
-          this.setHealth({ result: "success", message: null }),
-        )
+    daemon.onExit((success) => {
+      if (success && this.ready === "EXIT_SUCCESS") {
+        this.setHealth({ result: "success", message: null })
+      } else if (!success) {
+        this.setHealth({
+          result: "failure",
+          message: `${this.id} daemon crashed`,
+        })
+      } else if (!daemon.isOneshot()) {
+        this.setHealth({
+          result: "failure",
+          message: `${this.id} daemon exited`,
+        })
       }
-      return
-    }
+    })
+    if (this.ready === "EXIT_SUCCESS") return
     if (this.healthCheckCleanup) return
     const trigger = (this.ready.trigger ?? defaultTrigger)(() => ({
       lastResult: this._health.result,

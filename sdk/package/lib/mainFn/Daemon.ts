@@ -21,8 +21,7 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
   private commandController: CommandController<Manifest> | null = null
   private shouldBeRunning = false
   protected exitedSuccess = false
-  private onExitFailureFns: (() => void)[] = []
-  protected onExitSuccessFns: (() => void)[] = []
+  private onExitFns: ((success: boolean) => void)[] = []
   protected constructor(
     private subcontainer: SubContainer<Manifest>,
     private startCommand: (() => Promise<CommandController<Manifest>>) | null,
@@ -68,23 +67,14 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
               return false
             },
           )
-          if (!success) {
-            for (const fn of this.onExitFailureFns) {
-              try {
-                fn()
-              } catch (e) {
-                console.error("EXIT_FAILURE handler", e)
-              }
+          for (const fn of this.onExitFns) {
+            try {
+              fn(success)
+            } catch (e) {
+              console.error("EXIT handler", e)
             }
           }
           if (success && this.oneshot) {
-            for (const fn of this.onExitSuccessFns) {
-              try {
-                fn()
-              } catch (e) {
-                console.error("EXIT_SUCCESS handler", e)
-              }
-            }
             this.exitedSuccess = true
             break
           }
@@ -115,15 +105,14 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
       ?.term({ ...termOptions })
       .catch((e) => console.error(asError(e)))
     this.commandController = null
-    this.onExitFailureFns = []
-    this.onExitSuccessFns = []
+    this.onExitFns = []
     await this.subcontainer.destroy()
   }
   subcontainerRc(): SubContainerRc<Manifest> {
     return this.subcontainer.rc()
   }
-  onExitFailure(fn: () => void) {
-    this.onExitFailureFns.push(fn)
+  onExit(fn: (success: boolean) => void) {
+    this.onExitFns.push(fn)
   }
   onDrop(): void {
     this.stop().catch((e) => console.error(asError(e)))
