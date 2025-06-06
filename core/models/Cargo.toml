@@ -6,12 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = "0.7.5"
-base64 = "0.21.4"
+axum = "0.8.4"
+base64 = "0.22.1"
 color-eyre = "0.6.2"
 ed25519-dalek = { version = "2.0.0", features = ["serde"] }
+gpt = "4.1.0"
 lazy_static = "1.4"
-mbrman = "0.5.2"
+mbrman = "0.6.0"
 exver = { version = "0.2.0", git = "https://github.com/Start9Labs/exver-rs.git", features = [
   "serde",
 ] }
@@ -21,21 +22,21 @@ openssl = { version = "0.10.57", features = ["vendored"] }
 patch-db = { version = "*", path = "../../patch-db/patch-db", features = [
   "trace",
 ] }
-rand = "0.8.5"
+rand = "0.9.1"
 regex = "1.10.2"
 reqwest = "0.12"
 rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "master" }
 rustls = "0.23"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
-sqlx = { version = "0.7.2", features = [
+sqlx = { version = "0.8.6", features = [
   "chrono",
   "runtime-tokio-rustls",
   "postgres",
 ] }
 ssh-key = "0.6.2"
 ts-rs = { git = "https://github.com/dr-bonez/ts-rs.git", branch = "feature/top-level-as" } # "8"
-thiserror = "1.0"
+thiserror = "2.0"
 tokio = { version = "1", features = ["full"] }
 torut = { git = "https://github.com/Start9Labs/torut.git", branch = "update/dependencies" }
 tracing = "0.1.39"

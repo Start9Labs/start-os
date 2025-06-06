@@ -323,6 +323,16 @@ impl From<mbrman::Error> for Error {
         Error::new(e, ErrorKind::DiskManagement)
     }
 }
+impl From<gpt::GptError> for Error {
+    fn from(e: gpt::GptError) -> Self {
+        Error::new(e, ErrorKind::DiskManagement)
+    }
+}
+impl From<gpt::mbr::MBRError> for Error {
+    fn from(e: gpt::mbr::MBRError) -> Self {
+        Error::new(e, ErrorKind::DiskManagement)
+    }
+}
 impl From<InvalidUri> for Error {
     fn from(e: InvalidUri) -> Self {
         Error::new(eyre!("{}", e), ErrorKind::ParseUrl)

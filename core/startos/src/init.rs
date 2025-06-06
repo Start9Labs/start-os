@@ -621,7 +621,8 @@ pub async fn init_progress(ctx: InitContext) -> Result<InitProgressRes, Error> {
                             while let Some(progress) = stream.next().await {
                                 ws.send(ws::Message::Text(
                                     serde_json::to_string(&progress)
-                                        .with_kind(ErrorKind::Serialization)?,
+                                        .with_kind(ErrorKind::Serialization)?
+                                        .into(),
                                 ))
                                 .await
                                 .with_kind(ErrorKind::Network)?;

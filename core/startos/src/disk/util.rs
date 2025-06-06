@@ -6,10 +6,9 @@ use color_eyre::eyre::{self, eyre};
 use futures::TryStreamExt;
 use nom::bytes::complete::{tag, take_till1};
 use nom::character::complete::multispace1;
-use nom::character::is_space;
 use nom::combinator::{opt, rest};
 use nom::sequence::{pair, preceded, terminated};
-use nom::IResult;
+use nom::{AsChar, IResult, Parser};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
@@ -450,17 +449,17 @@ fn parse_pvscan_output(pvscan_output: &str) -> BTreeMap<PathBuf, Option<String>>
     fn parse_line(line: &str) -> IResult<&str, (&str, Option<&str>)> {
         let pv_parse = preceded(
             tag("  PV "),
-            terminated(take_till1(|c| is_space(c as u8)), multispace1),
+            terminated(take_till1(|c: char| c.is_space()), multispace1),
         );
         let vg_parse = preceded(
             opt(tag("is in exported ")),
             preceded(
                 tag("VG "),
-                terminated(take_till1(|c| is_space(c as u8)), multispace1),
+                terminated(take_till1(|c: char| c.is_space()), multispace1),
             ),
         );
         let mut parser = terminated(pair(pv_parse, opt(vg_parse)), rest);
-        parser(line)
+        parser.parse(line)
     }
     let lines = pvscan_output.lines();
     let n = lines.clone().count();

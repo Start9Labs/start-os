@@ -118,7 +118,8 @@ pub async fn update_system(
                                     .de()?;
                                 ws.send(axum::extract::ws::Message::Text(
                                     serde_json::to_string(&progress)
-                                        .with_kind(ErrorKind::Serialization)?,
+                                        .with_kind(ErrorKind::Serialization)?
+                                        .into(),
                                 ))
                                 .await
                                 .with_kind(ErrorKind::Network)?;

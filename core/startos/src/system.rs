@@ -522,6 +522,7 @@ pub async fn metrics_follow(
                                         local_cache
                                             .peek(|m| serde_json::to_string(&m))
                                             .with_kind(ErrorKind::Serialization)?
+                                            .into(),
                                     )).await.with_kind(ErrorKind::Network)?;
                                 }
                                 msg = ws.try_next() => {

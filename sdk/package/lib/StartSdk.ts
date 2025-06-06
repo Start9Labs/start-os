@@ -68,7 +68,7 @@ import {
   setupOnUninit,
 } from "../../base/lib/inits"
 
-export const OSVersion = testTypeVersion("0.4.0-alpha.5")
+export const OSVersion = testTypeVersion("0.4.0-alpha.6")
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 

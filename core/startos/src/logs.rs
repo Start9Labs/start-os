@@ -75,7 +75,9 @@ async fn ws_handler(
     if let Some(first_entry) = first_entry {
         stream
             .send(ws::Message::Text(
-                serde_json::to_string(&first_entry).with_kind(ErrorKind::Serialization)?,
+                serde_json::to_string(&first_entry)
+                    .with_kind(ErrorKind::Serialization)?
+                    .into(),
             ))
             .await
             .with_kind(ErrorKind::Network)?;
@@ -88,7 +90,9 @@ async fn ws_handler(
                     let (_, log_entry) = entry.log_entry()?;
                     stream
                         .send(ws::Message::Text(
-                            serde_json::to_string(&log_entry).with_kind(ErrorKind::Serialization)?,
+                            serde_json::to_string(&log_entry)
+                                .with_kind(ErrorKind::Serialization)?
+                                .into(),
                         ))
                         .await
                         .with_kind(ErrorKind::Network)?;
