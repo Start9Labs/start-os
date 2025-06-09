@@ -6,6 +6,7 @@ import { SetHealth, Effects, SDKManifest } from "../../../base/lib/types"
 import { DEFAULT_SIGTERM_TIMEOUT } from "."
 import { asError } from "../../../base/lib/util/asError"
 import { Oneshot } from "./Oneshot"
+import { SubContainer } from "../util/SubContainer"
 
 const oncePromise = <T>() => {
   let resolve: (value: T) => void
@@ -32,7 +33,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   private resolveReady: (() => void) | undefined
   private readyPromise: Promise<void>
   constructor(
-    private readonly daemon: Promise<Daemon<Manifest>>,
+    private readonly daemon: Promise<Daemon<Manifest>> | null,
     private readonly dependencies: HealthDaemon<Manifest>[],
     readonly id: string,
     readonly ids: string[],
@@ -52,7 +53,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     this.running = false
     this.healthCheckCleanup?.()
 
-    await this.daemon.then((d) =>
+    await this.daemon?.then((d) =>
       d.term({
         ...termOptions,
       }),
@@ -74,11 +75,11 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     this.running = newStatus
 
     if (newStatus) {
-      ;(await this.daemon).start()
+      ;(await this.daemon)?.start()
       this.started = performance.now()
       this.setupHealthCheck()
     } else {
-      ;(await this.daemon).stop()
+      ;(await this.daemon)?.stop()
       this.turnOffHealthCheck()
 
       this.setHealth({ result: "starting", message: null })
@@ -91,7 +92,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   }
   private async setupHealthCheck() {
     const daemon = await this.daemon
-    daemon.onExit((success) => {
+    daemon?.onExit((success) => {
       if (success && this.ready === "EXIT_SUCCESS") {
         this.setHealth({ result: "success", message: null })
       } else if (!success) {
@@ -122,28 +123,22 @@ export class HealthDaemon<Manifest extends SDKManifest> {
         !res.done;
         res = await Promise.race([status, trigger.next()])
       ) {
-        const handle = (await this.daemon).subcontainerRc()
-
-        try {
-          const response: HealthCheckResult = await Promise.resolve(
-            this.ready.fn(handle),
-          ).catch((err) => {
-            console.error(asError(err))
-            return {
-              result: "failure",
-              message: "message" in err ? err.message : String(err),
-            }
-          })
-          if (
-            this.resolveReady &&
-            (response.result === "success" || response.result === "disabled")
-          ) {
-            this.resolveReady()
+        const response: HealthCheckResult = await Promise.resolve(
+          this.ready.fn(),
+        ).catch((err) => {
+          console.error(asError(err))
+          return {
+            result: "failure",
+            message: "message" in err ? err.message : String(err),
           }
-          await this.setHealth(response)
-        } finally {
-          await handle.destroy()
+        })
+        if (
+          this.resolveReady &&
+          (response.result === "success" || response.result === "disabled")
+        ) {
+          this.resolveReady()
         }
+        await this.setHealth(response)
       }
     }).catch((err) => console.error(`Daemon ${this.id} failed: ${err}`))
 

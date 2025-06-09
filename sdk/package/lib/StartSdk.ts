@@ -706,9 +706,8 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         of(
           effects: Effects,
           started: (onTerm: () => PromiseLike<void>) => PromiseLike<null>,
-          healthChecks: HealthCheck[],
         ) {
-          return Daemons.of<Manifest>({ effects, started, healthChecks })
+          return Daemons.of<Manifest>({ effects, started })
         },
       },
       SubContainer: {

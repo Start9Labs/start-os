@@ -37,9 +37,7 @@ export type Ready = {
       })
   * ```
   */
-  fn: (
-    subcontainer: SubContainer<Manifest>,
-  ) => Promise<HealthCheckResult> | HealthCheckResult
+  fn: () => Promise<HealthCheckResult> | HealthCheckResult
   /**
    * A duration in milliseconds to treat a failing health check as "starting"
    *
@@ -79,7 +77,7 @@ export type DaemonCommandType = ExecCommandOptions | ExecFnOptions
 type NewDaemonParams<Manifest extends T.SDKManifest> = {
   /** What to run as the daemon: either an async fn or a commandline command to run in the subcontainer */
   exec: DaemonCommandType | null
-  /** Information about the subcontainer in which the daemon runs */
+  /** The subcontainer in which the daemon runs */
   subcontainer: SubContainer<Manifest>
 }
 
@@ -104,6 +102,12 @@ type AddOneshotParams<
   Id extends string,
 > = NewDaemonParams<Manifest> & {
   exec: DaemonCommandType
+  /** An array of IDs of prior daemons whose successful initializations are required before this daemon will initialize */
+  requires: Exclude<Ids, Id>[]
+}
+
+type AddHealthCheckParams<Ids extends string, Id extends string> = {
+  ready: Ready
   /** An array of IDs of prior daemons whose successful initializations are required before this daemon will initialize */
   requires: Exclude<Ids, Id>[]
 }
@@ -145,7 +149,6 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     readonly daemons: Promise<Daemon<Manifest>>[],
     readonly ids: Ids[],
     readonly healthDaemons: HealthDaemon<Manifest>[],
-    readonly healthChecks: HealthCheck[],
   ) {}
   /**
    * Returns an empty new Daemons class with the provided inputSpec.
@@ -160,7 +163,6 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   static of<Manifest extends T.SDKManifest>(options: {
     effects: T.Effects
     started: (onTerm: () => PromiseLike<void>) => PromiseLike<null>
-    healthChecks: HealthCheck[]
   }) {
     return new Daemons<Manifest, never>(
       options.effects,
@@ -168,7 +170,6 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       [],
       [],
       [],
-      options.healthChecks,
     )
   }
   /**
@@ -205,7 +206,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       options.ready,
       this.effects,
     )
-    const daemons = this.daemons.concat(daemon)
+    const daemons = [...this.daemons, daemon]
     const ids = [...this.ids, id] as (Ids | Id)[]
     const healthDaemons = [...this.healthDaemons, healthDaemon]
     return new Daemons<Manifest, Ids | Id>(
@@ -214,7 +215,6 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       daemons,
       ids,
       healthDaemons,
-      this.healthChecks,
     )
   }
 
@@ -251,7 +251,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       "EXIT_SUCCESS",
       this.effects,
     )
-    const daemons = this.daemons.concat(daemon)
+    const daemons = [...this.daemons, daemon]
     const ids = [...this.ids, id] as (Ids | Id)[]
     const healthDaemons = [...this.healthDaemons, healthDaemon]
     return new Daemons<Manifest, Ids | Id>(
@@ -260,13 +260,80 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       daemons,
       ids,
       healthDaemons,
-      this.healthChecks,
     )
+  }
+
+  /**
+   * Returns the complete list of daemons, including a new HealthCheck defined here
+   * @param id
+   * @param options
+   * @returns a new Daemons object
+   */
+  addHealthCheck<Id extends string>(
+    id: "" extends Id
+      ? never
+      : ErrorDuplicateId<Id> extends Id
+        ? never
+        : Id extends Ids
+          ? ErrorDuplicateId<Id>
+          : Id,
+    options: AddHealthCheckParams<Ids, Id>,
+  ) {
+    const healthDaemon = new HealthDaemon<Manifest>(
+      null,
+      options.requires
+        .map((x) => this.ids.indexOf(x))
+        .filter((x) => x >= 0)
+        .map((id) => this.healthDaemons[id]),
+      id,
+      this.ids,
+      options.ready,
+      this.effects,
+    )
+    const daemons = [...this.daemons]
+    const ids = [...this.ids, id] as (Ids | Id)[]
+    const healthDaemons = [...this.healthDaemons, healthDaemon]
+    return new Daemons<Manifest, Ids | Id>(
+      this.effects,
+      this.started,
+      daemons,
+      ids,
+      healthDaemons,
+    )
+  }
+
+  async runUntilSuccess(timeout: number | null) {
+    let resolve = (_: void) => {}
+    const res = new Promise<void>((res, rej) => {
+      resolve = res
+      if (timeout) setTimeout(rej, timeout)
+    })
+    const daemon = Oneshot.of()(this.effects, null as any, {
+      fn: async () => {
+        resolve()
+        return null
+      },
+    })
+    const healthDaemon = new HealthDaemon<Manifest>(
+      daemon,
+      [...this.healthDaemons],
+      "__RUN_UNTIL_SUCCESS",
+      this.ids,
+      "EXIT_SUCCESS",
+      this.effects,
+    )
+    await new Daemons(
+      this.effects,
+      this.started,
+      [...this.daemons, daemon],
+      this.ids,
+      [...this.healthDaemons, healthDaemon],
+    ).build()
+    return res
   }
 
   async term() {
     try {
-      this.healthChecks.forEach((health) => health.stop())
       for (let result of await Promise.allSettled(
         this.healthDaemons.map((x) => x.term()),
       )) {
@@ -282,9 +349,6 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   async build() {
     for (const daemon of this.healthDaemons) {
       await daemon.init()
-    }
-    for (const health of this.healthChecks) {
-      health.start()
     }
     this.started(() => this.term())
     return this
