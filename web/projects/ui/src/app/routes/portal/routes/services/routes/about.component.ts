@@ -82,8 +82,16 @@ export default class ServiceAboutRoute {
                   action: () => this.copyService.copy(manifest.version),
                 },
                 {
+                  name: 'SDK Version',
+                  value: manifest.sdkVersion || '-',
+                  icon: manifest.sdkVersion ? '@tui.copy' : '',
+                  action: () =>
+                    manifest.sdkVersion &&
+                    this.copyService.copy(manifest.sdkVersion),
+                },
+                {
                   name: 'Git Hash',
-                  value: manifest.gitHash || 'Unknown',
+                  value: manifest.gitHash || '-',
                   icon: manifest.gitHash ? '@tui.copy' : '',
                   action: () =>
                     manifest.gitHash && this.copyService.copy(manifest.gitHash),
