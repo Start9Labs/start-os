@@ -705,7 +705,9 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       Daemons: {
         of(
           effects: Effects,
-          started: (onTerm: () => PromiseLike<void>) => PromiseLike<null>,
+          started:
+            | ((onTerm: () => PromiseLike<void>) => PromiseLike<null>)
+            | null,
         ) {
           return Daemons.of<Manifest>({ effects, started })
         },

@@ -36,7 +36,6 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     private readonly daemon: Promise<Daemon<Manifest>> | null,
     private readonly dependencies: HealthDaemon<Manifest>[],
     readonly id: string,
-    readonly ids: string[],
     readonly ready: Ready | typeof EXIT_SUCCESS,
     readonly effects: Effects,
   ) {
@@ -75,10 +74,12 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     this.running = newStatus
 
     if (newStatus) {
+      console.debug(`Launching ${this.id}...`)
+      this.setupHealthCheck()
       ;(await this.daemon)?.start()
       this.started = performance.now()
-      this.setupHealthCheck()
     } else {
+      console.debug(`Stopping ${this.id}...`)
       ;(await this.daemon)?.stop()
       this.turnOffHealthCheck()
 
@@ -154,9 +155,10 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   }
 
   private async setHealth(health: HealthCheckResult) {
+    const changed = this._health.result !== health.result
     this._health = health
+    if (changed) this.healthWatchers.forEach((watcher) => watcher())
     if (this.ready === "EXIT_SUCCESS") return
-    this.healthWatchers.forEach((watcher) => watcher())
     const display = this.ready.display
     if (!display) {
       return
@@ -177,8 +179,18 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   }
 
   async updateStatus() {
-    const healths = this.dependencies.map((d) => d.running && d._health)
-    this.changeRunning(healths.every((x) => x && x.result === "success"))
+    const healths = this.dependencies.map((d) => ({
+      health: d.running && d._health,
+      id: d.id,
+    }))
+    const waitingOn = healths.filter(
+      (h) => !h.health || h.health.result !== "success",
+    )
+    if (waitingOn.length)
+      console.debug(
+        `daemon ${this.id} waiting on ${waitingOn.map((w) => w.id)}`,
+      )
+    this.changeRunning(!waitingOn.length)
   }
 
   async init() {

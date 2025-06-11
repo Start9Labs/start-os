@@ -3,7 +3,6 @@
 export type GetOsVersionParams = {
   sourceVersion: string | null
   targetVersion: string | null
-  includePrerelease: boolean | null
   serverId: string | null
   platform: string | null
 }

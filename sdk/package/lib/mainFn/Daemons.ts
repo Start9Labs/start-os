@@ -63,30 +63,40 @@ export type ExecCommandOptions = {
   onStderr?: (chunk: Buffer | string | any) => void
 }
 
-export type ExecFnOptions = {
+export type ExecFnOptions<
+  Manifest extends T.SDKManifest,
+  C extends SubContainer<Manifest> | null,
+> = {
   fn: (
-    subcontainer: SubContainer<Manifest>,
+    subcontainer: C,
     abort: AbortController,
-  ) => Promise<ExecCommandOptions | null>
+  ) => Promise<C extends null ? null : ExecCommandOptions | null>
   // Defaults to the DEFAULT_SIGTERM_TIMEOUT = 30_000ms
   sigtermTimeout?: number
 }
 
-export type DaemonCommandType = ExecCommandOptions | ExecFnOptions
+export type DaemonCommandType<
+  Manifest extends T.SDKManifest,
+  C extends SubContainer<Manifest> | null,
+> = ExecFnOptions<Manifest, C> | (C extends null ? never : ExecCommandOptions)
 
-type NewDaemonParams<Manifest extends T.SDKManifest> = {
+type NewDaemonParams<
+  Manifest extends T.SDKManifest,
+  C extends SubContainer<Manifest> | null,
+> = {
   /** What to run as the daemon: either an async fn or a commandline command to run in the subcontainer */
-  exec: DaemonCommandType | null
+  exec: DaemonCommandType<Manifest, C>
   /** The subcontainer in which the daemon runs */
-  subcontainer: SubContainer<Manifest>
+  subcontainer: C
 }
 
 type AddDaemonParams<
   Manifest extends T.SDKManifest,
   Ids extends string,
   Id extends string,
+  C extends SubContainer<Manifest> | null,
 > = (
-  | NewDaemonParams<Manifest>
+  | NewDaemonParams<Manifest, C>
   | {
       daemon: Daemon<Manifest>
     }
@@ -100,8 +110,9 @@ type AddOneshotParams<
   Manifest extends T.SDKManifest,
   Ids extends string,
   Id extends string,
-> = NewDaemonParams<Manifest> & {
-  exec: DaemonCommandType
+  C extends SubContainer<Manifest> | null,
+> = NewDaemonParams<Manifest, C> & {
+  exec: DaemonCommandType<Manifest, C>
   /** An array of IDs of prior daemons whose successful initializations are required before this daemon will initialize */
   requires: Exclude<Ids, Id>[]
 }
@@ -115,7 +126,7 @@ type AddHealthCheckParams<Ids extends string, Id extends string> = {
 type ErrorDuplicateId<Id extends string> = `The id '${Id}' is already used`
 
 export const runCommand = <Manifest extends T.SDKManifest>() =>
-  CommandController.of<Manifest>()
+  CommandController.of<Manifest, SubContainer<Manifest>>()
 
 /**
  * A class for defining and controlling the service daemons
@@ -145,7 +156,9 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
 {
   private constructor(
     readonly effects: T.Effects,
-    readonly started: (onTerm: () => PromiseLike<void>) => PromiseLike<null>,
+    readonly started:
+      | ((onTerm: () => PromiseLike<void>) => PromiseLike<null>)
+      | null,
     readonly daemons: Promise<Daemon<Manifest>>[],
     readonly ids: Ids[],
     readonly healthDaemons: HealthDaemon<Manifest>[],
@@ -162,7 +175,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
    */
   static of<Manifest extends T.SDKManifest>(options: {
     effects: T.Effects
-    started: (onTerm: () => PromiseLike<void>) => PromiseLike<null>
+    started: ((onTerm: () => PromiseLike<void>) => PromiseLike<null>) | null
   }) {
     return new Daemons<Manifest, never>(
       options.effects,
@@ -178,19 +191,19 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
    * @param options
    * @returns a new Daemons object
    */
-  addDaemon<Id extends string>(
+  addDaemon<Id extends string, C extends SubContainer<Manifest> | null>(
     // prettier-ignore
     id: 
       "" extends Id ? never :
       ErrorDuplicateId<Id> extends Id ? never :
       Id extends Ids ? ErrorDuplicateId<Id> :
       Id,
-    options: AddDaemonParams<Manifest, Ids, Id>,
+    options: AddDaemonParams<Manifest, Ids, Id, C>,
   ) {
     const daemon =
       "daemon" in options
         ? Promise.resolve(options.daemon)
-        : Daemon.of<Manifest>()(
+        : Daemon.of<Manifest>()<C>(
             this.effects,
             options.subcontainer,
             options.exec,
@@ -202,7 +215,6 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
         .filter((x) => x >= 0)
         .map((id) => this.healthDaemons[id]),
       id,
-      this.ids,
       options.ready,
       this.effects,
     )
@@ -225,7 +237,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
    * @param options
    * @returns a new Daemons object
    */
-  addOneshot<Id extends string>(
+  addOneshot<Id extends string, C extends SubContainer<Manifest> | null>(
     id: "" extends Id
       ? never
       : ErrorDuplicateId<Id> extends Id
@@ -233,9 +245,9 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
         : Id extends Ids
           ? ErrorDuplicateId<Id>
           : Id,
-    options: AddOneshotParams<Manifest, Ids, Id>,
+    options: AddOneshotParams<Manifest, Ids, Id, C>,
   ) {
-    const daemon = Oneshot.of<Manifest>()(
+    const daemon = Oneshot.of<Manifest>()<C>(
       this.effects,
       options.subcontainer,
       options.exec,
@@ -247,7 +259,6 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
         .filter((x) => x >= 0)
         .map((id) => this.healthDaemons[id]),
       id,
-      this.ids,
       "EXIT_SUCCESS",
       this.effects,
     )
@@ -286,7 +297,6 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
         .filter((x) => x >= 0)
         .map((id) => this.healthDaemons[id]),
       id,
-      this.ids,
       options.ready,
       this.effects,
     )
@@ -308,7 +318,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       resolve = res
       if (timeout) setTimeout(rej, timeout)
     })
-    const daemon = Oneshot.of()(this.effects, null as any, {
+    const daemon = Oneshot.of()(this.effects, null, {
       fn: async () => {
         resolve()
         return null
@@ -318,18 +328,19 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       daemon,
       [...this.healthDaemons],
       "__RUN_UNTIL_SUCCESS",
-      this.ids,
       "EXIT_SUCCESS",
       this.effects,
     )
-    await new Daemons(
+    const daemons = await new Daemons<Manifest, Ids>(
       this.effects,
       this.started,
       [...this.daemons, daemon],
       this.ids,
       [...this.healthDaemons, healthDaemon],
     ).build()
-    return res
+    await res
+    await daemons.term()
+    return null
   }
 
   async term() {
@@ -350,7 +361,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     for (const daemon of this.healthDaemons) {
       await daemon.init()
     }
-    this.started(() => this.term())
+    this.started?.(() => this.term())
     return this
   }
 }

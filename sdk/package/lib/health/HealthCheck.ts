@@ -78,9 +78,10 @@ export class HealthCheck extends Drop {
                 message: message || "",
               })
               this.currentValue.lastResult = result
-              await triggerFirstSuccess().catch((err) => {
-                console.error(asError(err))
-              })
+              if (result === "success")
+                await triggerFirstSuccess().catch((err) => {
+                  console.error(asError(err))
+                })
             } catch (e) {
               await effects.setHealth({
                 name: o.name,

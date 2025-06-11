@@ -226,6 +226,7 @@ export namespace Mock {
       stop: null,
     },
     osVersion: '0.2.12',
+    sdkVersion: '0.4.0',
     dependencies: {},
     images: {
       main: {
@@ -270,6 +271,7 @@ export namespace Mock {
       stop: null,
     },
     osVersion: '0.2.12',
+    sdkVersion: '0.4.0',
     dependencies: {
       bitcoind: {
         description: 'LND needs bitcoin to live.',
@@ -325,6 +327,7 @@ export namespace Mock {
       stop: null,
     },
     osVersion: '0.2.12',
+    sdkVersion: '0.4.0',
     dependencies: {
       bitcoind: {
         description: 'Bitcoin Proxy requires a Bitcoin node.',

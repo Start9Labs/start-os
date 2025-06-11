@@ -26,10 +26,10 @@ use tokio::io::{
 use tokio::net::TcpStream;
 use tokio::sync::{Notify, OwnedMutexGuard};
 use tokio::time::{Instant, Sleep};
+use ts_rs::TS;
 
 use crate::prelude::*;
 use crate::util::sync::SyncMutex;
-use crate::{CAP_1_KiB, CAP_1_MiB};
 
 pub trait AsyncReadSeek: AsyncRead + AsyncSeek {}
 impl<T: AsyncRead + AsyncSeek> AsyncReadSeek for T {}
@@ -1426,7 +1426,7 @@ impl<T: std::io::Read> std::io::Read for SharedIO<T> {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct TermSize {
     pub size: (u16, u16),
     pub pixels: Option<(u16, u16)>,
@@ -1462,6 +1462,15 @@ impl FromStr for TermSize {
             Some(Self { size, pixels }).filter(|_| split.next().is_none())
         })()
         .ok_or_else(|| Error::new(eyre!("invalid pty size"), ErrorKind::ParseNumber))
+    }
+}
+impl std::fmt::Display for TermSize {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.size.0, self.size.1)?;
+        if let Some(pixels) = self.pixels {
+            write!(f, ":{}:{}", pixels.0, pixels.1)?;
+        }
+        Ok(())
     }
 }
 impl ValueParserFactory for TermSize {
