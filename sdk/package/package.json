@@ -1,6 +1,6 @@
 {
   "name": "@start9labs/start-sdk",
-  "version": "0.4.0-beta.27",
+  "version": "0.4.0-beta.28",
   "description": "Software development kit to facilitate packaging services for StartOS",
   "main": "./package/lib/index.js",
   "types": "./package/lib/index.d.ts",
@@ -22,14 +22,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Start9Labs/start-sdk.git"
+    "url": "git+https://github.com/Start9Labs/start-os.git"
   },
   "author": "Start9 Labs",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/Start9Labs/start-sdk/issues"
+    "url": "https://github.com/Start9Labs/start-os/issues"
   },
-  "homepage": "https://github.com/Start9Labs/start-sdk#readme",
+  "homepage": "https://github.com/Start9Labs/start-os#readme",
   "dependencies": {
     "isomorphic-fetch": "^3.0.0",
     "mime": "^4.0.7",
