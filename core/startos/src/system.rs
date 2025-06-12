@@ -46,7 +46,7 @@ pub fn experimental<C: Context>() -> ParentHandler<C> {
             from_fn_async(governor)
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| {
-                    Ok(display_governor_info(handle.params, result))
+                    display_governor_info(handle.params, result)
                 })
                 .with_about("Show current and available CPU governors")
                 .with_call_remote::<CliContext>(),
@@ -125,7 +125,10 @@ pub struct GovernorInfo {
     available: BTreeSet<Governor>,
 }
 
-fn display_governor_info(params: WithIoFormat<GovernorParams>, result: GovernorInfo) {
+fn display_governor_info(
+    params: WithIoFormat<GovernorParams>,
+    result: GovernorInfo,
+) -> Result<(), Error> {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -141,7 +144,8 @@ fn display_governor_info(params: WithIoFormat<GovernorParams>, result: GovernorI
             table.add_row(row![entry]);
         }
     }
-    table.print_tty(false).unwrap();
+    table.print_tty(false)?;
+    Ok(())
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
@@ -191,7 +195,7 @@ pub struct TimeInfo {
     uptime: u64,
 }
 
-pub fn display_time(params: WithIoFormat<Empty>, arg: TimeInfo) {
+pub fn display_time(params: WithIoFormat<Empty>, arg: TimeInfo) -> Result<(), Error> {
     use std::fmt::Write;
 
     use prettytable::*;
@@ -230,7 +234,8 @@ pub fn display_time(params: WithIoFormat<Empty>, arg: TimeInfo) {
     let mut table = Table::new();
     table.add_row(row![bc -> "NOW", &arg.now]);
     table.add_row(row![bc -> "UPTIME", &uptime_string]);
-    table.print_tty(false).unwrap();
+    table.print_tty(false)?;
+    Ok(())
 }
 
 pub async fn time(ctx: RpcContext, _: Empty) -> Result<TimeInfo, Error> {

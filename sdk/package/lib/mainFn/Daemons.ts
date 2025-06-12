@@ -170,11 +170,17 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
    *
    * Daemons run in the order they are defined, with latter daemons being capable of
    * depending on prior daemons
-   * @param options
+   *
+   * @param effects
+   *
+   * @param started
    * @returns
    */
   static of<Manifest extends T.SDKManifest>(options: {
     effects: T.Effects
+    /**
+     * A closure to run once the system is launched. If you are in main, provide the `started` argument you receive from the function arguments
+     */
     started: ((onTerm: () => PromiseLike<void>) => PromiseLike<null>) | null
   }) {
     return new Daemons<Manifest, never>(
@@ -312,11 +318,23 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     )
   }
 
+  /**
+   * Runs the entire system until all daemons have returned `ready`.
+   * @param id
+   * @param options
+   * @returns a new Daemons object
+   */
   async runUntilSuccess(timeout: number | null) {
     let resolve = (_: void) => {}
     const res = new Promise<void>((res, rej) => {
       resolve = res
-      if (timeout) setTimeout(rej, timeout)
+      if (timeout)
+        setTimeout(() => {
+          const notReady = this.healthDaemons
+            .filter((d) => !d.isReady)
+            .map((d) => d.id)
+          rej(new Error(`Timed out waiting for ${notReady}`))
+        }, timeout)
     })
     const daemon = Oneshot.of()(this.effects, null, {
       fn: async () => {
@@ -338,8 +356,11 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       this.ids,
       [...this.healthDaemons, healthDaemon],
     ).build()
-    await res
-    await daemons.term()
+    try {
+      await res
+    } finally {
+      await daemons.term()
+    }
     return null
   }
 

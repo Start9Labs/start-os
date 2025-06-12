@@ -108,7 +108,7 @@ pub fn ssh<C: Context>() -> ParentHandler<C> {
             from_fn_async(list)
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| {
-                    Ok(display_all_ssh_keys(handle.params, result))
+                    display_all_ssh_keys(handle.params, result)
                 })
                 .with_about("List ssh keys")
                 .with_call_remote::<CliContext>(),
@@ -177,7 +177,10 @@ pub async fn remove(
     sync_pubkeys(&keys, SSH_DIR).await
 }
 
-fn display_all_ssh_keys(params: WithIoFormat<Empty>, result: Vec<SshKeyResponse>) {
+fn display_all_ssh_keys(
+    params: WithIoFormat<Empty>,
+    result: Vec<SshKeyResponse>,
+) -> Result<(), Error> {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -200,7 +203,9 @@ fn display_all_ssh_keys(params: WithIoFormat<Empty>, result: Vec<SshKeyResponse>
         ];
         table.add_row(row);
     }
-    table.print_tty(false).unwrap();
+    table.print_tty(false)?;
+
+    Ok(())
 }
 
 #[instrument(skip_all)]

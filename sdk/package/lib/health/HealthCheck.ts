@@ -12,7 +12,6 @@ export type HealthCheckParams = {
   trigger?: Trigger
   gracePeriod?: number
   fn(): Promise<HealthCheckResult> | HealthCheckResult
-  onFirstSuccess?: () => unknown | Promise<unknown>
 }
 
 export class HealthCheck extends Drop {
@@ -32,13 +31,6 @@ export class HealthCheck extends Drop {
       const getCurrentValue = () => this.currentValue
       const gracePeriod = o.gracePeriod ?? 10_000
       const trigger = (o.trigger ?? defaultTrigger)(getCurrentValue)
-      const triggerFirstSuccess = once(() =>
-        Promise.resolve(
-          "onFirstSuccess" in o && o.onFirstSuccess
-            ? o.onFirstSuccess()
-            : undefined,
-        ),
-      )
       const checkStarted = () =>
         [
           this.started,
@@ -78,10 +70,6 @@ export class HealthCheck extends Drop {
                 message: message || "",
               })
               this.currentValue.lastResult = result
-              if (result === "success")
-                await triggerFirstSuccess().catch((err) => {
-                  console.error(asError(err))
-                })
             } catch (e) {
               await effects.setHealth({
                 name: o.name,

@@ -48,6 +48,7 @@ use crate::s9pk::S9pk;
 use crate::service::action::update_tasks;
 use crate::service::rpc::{ExitParams, InitKind};
 use crate::service::service_map::InstallProgressHandles;
+use crate::service::uninstall::cleanup;
 use crate::util::actor::concurrent::ConcurrentActor;
 use crate::util::io::{create_file, AsyncReadStream, TermSize};
 use crate::util::net::WebSocketExt;
@@ -111,7 +112,6 @@ impl std::fmt::Display for MiB {
 #[derive(Clone, Debug, Serialize, Deserialize, Default, TS)]
 pub struct ServiceStats {
     pub container_id: Arc<ContainerId>,
-    pub package_id: PackageId,
     pub memory_usage: MiB,
     pub memory_limit: MiB,
 }
@@ -307,7 +307,7 @@ impl Service {
                         }
                     }
                 }
-                // TODO: delete s9pk?
+                cleanup(ctx, id, false).await.log_err();
                 ctx.db
                     .mutate(|v| v.as_public_mut().as_package_data_mut().remove(id))
                     .await
@@ -615,7 +615,6 @@ impl Service {
             .fold((0, 0), |acc, (total, used)| (acc.0 + total, acc.1 + used));
         Ok(ServiceStats {
             container_id: lxc_container.guid.clone(),
-            package_id: self.seed.id.clone(),
             memory_limit: MiB::from_MiB(total),
             memory_usage: MiB::from_MiB(used),
         })

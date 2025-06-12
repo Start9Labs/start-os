@@ -31,6 +31,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   private running = false
   private started?: number
   private resolveReady: (() => void) | undefined
+  private resolvedReady: boolean = false
   private readyPromise: Promise<void>
   constructor(
     private readonly daemon: Promise<Daemon<Manifest>> | null,
@@ -39,7 +40,13 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     readonly ready: Ready | typeof EXIT_SUCCESS,
     readonly effects: Effects,
   ) {
-    this.readyPromise = new Promise((resolve) => (this.resolveReady = resolve))
+    this.readyPromise = new Promise(
+      (resolve) =>
+        (this.resolveReady = () => {
+          resolve()
+          this.resolvedReady = true
+        }),
+    )
     this.dependencies.forEach((d) => d.addWatcher(() => this.updateStatus()))
   }
 
@@ -90,6 +97,15 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   private healthCheckCleanup: (() => null) | null = null
   private turnOffHealthCheck() {
     this.healthCheckCleanup?.()
+
+    this.resolvedReady = false
+    this.readyPromise = new Promise(
+      (resolve) =>
+        (this.resolveReady = () => {
+          resolve()
+          this.resolvedReady = true
+        }),
+    )
   }
   private async setupHealthCheck() {
     const daemon = await this.daemon
@@ -133,12 +149,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
             message: "message" in err ? err.message : String(err),
           }
         })
-        if (
-          this.resolveReady &&
-          (response.result === "success" || response.result === "disabled")
-        ) {
-          this.resolveReady()
-        }
+
         await this.setHealth(response)
       }
     }).catch((err) => console.error(`Daemon ${this.id} failed: ${err}`))
@@ -154,9 +165,16 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     return this.readyPromise
   }
 
+  get isReady() {
+    return this.resolvedReady
+  }
+
   private async setHealth(health: HealthCheckResult) {
     const changed = this._health.result !== health.result
     this._health = health
+    if (this.resolveReady && health.result === "success") {
+      this.resolveReady()
+    }
     if (changed) this.healthWatchers.forEach((watcher) => watcher())
     if (this.ready === "EXIT_SUCCESS") return
     const display = this.ready.display
