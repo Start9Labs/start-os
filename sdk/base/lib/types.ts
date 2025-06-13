@@ -106,7 +106,7 @@ export class UseEntrypoint {
 export function isUseEntrypoint(
   command: CommandType,
 ): command is UseEntrypoint {
-  return typeof command === "object" && "ENTRYPOINT" in command
+  return typeof command === "object" && "USE_ENTRYPOINT" in command
 }
 
 export type CommandType = string | [string, ...string[]] | UseEntrypoint

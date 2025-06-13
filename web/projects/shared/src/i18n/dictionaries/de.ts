@@ -521,4 +521,5 @@ export default {
   519: 'Um Clearnet-Domains zu veröffentlichen, musst du oben auf „Öffentlich machen“ klicken.',
   520: 'Update verfügbar',
   521: 'Um das Problem zu beheben, siehe',
+  522: 'SDK Version',
 } satisfies i18n

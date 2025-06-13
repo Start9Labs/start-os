@@ -157,7 +157,7 @@ pub fn target<C: Context>() -> ParentHandler<C> {
             from_fn_async(info)
                 .with_display_serializable()
                 .with_custom_display_fn::<CliContext, _>(|params, info| {
-                    Ok(display_backup_info(params.params, info))
+                    display_backup_info(params.params, info)
                 })
                 .with_about("Display package backup information")
                 .with_call_remote::<CliContext>(),
@@ -227,7 +227,7 @@ pub struct PackageBackupInfo {
     pub timestamp: DateTime<Utc>,
 }
 
-fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) {
+fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) -> Result<(), Error> {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -260,7 +260,8 @@ fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) {
         ];
         table.add_row(row);
     }
-    table.print_tty(false).unwrap();
+    table.print_tty(false)?;
+    Ok(())
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]

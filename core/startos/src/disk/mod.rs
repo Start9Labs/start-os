@@ -48,9 +48,7 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
             "list",
             from_fn_async(list)
                 .with_display_serializable()
-                .with_custom_display_fn(|handle, result| {
-                    Ok(display_disk_info(handle.params, result))
-                })
+                .with_custom_display_fn(|handle, result| display_disk_info(handle.params, result))
                 .with_about("List disk info")
                 .with_call_remote::<CliContext>(),
         )
@@ -65,7 +63,7 @@ pub fn disk<C: Context>() -> ParentHandler<C> {
         )
 }
 
-fn display_disk_info(params: WithIoFormat<Empty>, args: Vec<DiskInfo>) {
+fn display_disk_info(params: WithIoFormat<Empty>, args: Vec<DiskInfo>) -> Result<(), Error> {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -124,7 +122,8 @@ fn display_disk_info(params: WithIoFormat<Empty>, args: Vec<DiskInfo>) {
             table.add_row(row);
         }
     }
-    table.print_tty(false).unwrap();
+    table.print_tty(false)?;
+    Ok(())
 }
 
 // #[command(display(display_disk_info))]

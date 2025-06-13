@@ -49,7 +49,7 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
                 .with_metadata("get_device_info", Value::Bool(true))
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| {
-                    Ok(display_version_info(handle.params, result))
+                    display_version_info(handle.params, result)
                 })
                 .with_about("Get OS versions and related version info")
                 .with_call_remote::<CliContext>(),
@@ -197,7 +197,10 @@ pub async fn get_version(
         .collect()
 }
 
-pub fn display_version_info<T>(params: WithIoFormat<T>, info: BTreeMap<Version, OsVersionInfo>) {
+pub fn display_version_info<T>(
+    params: WithIoFormat<T>,
+    info: BTreeMap<Version, OsVersionInfo>,
+) -> Result<(), Error> {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -223,5 +226,6 @@ pub fn display_version_info<T>(params: WithIoFormat<T>, info: BTreeMap<Version, 
             &info.squashfs.keys().into_iter().join(", "),
         ]);
     }
-    table.print_tty(false).unwrap();
+    table.print_tty(false)?;
+    Ok(())
 }

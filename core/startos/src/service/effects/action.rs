@@ -31,7 +31,7 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
             "run",
             from_fn_async(run_action)
                 .with_display_serializable()
-                .with_custom_display_fn(|args, res| Ok(display_action_result(args.params, res)))
+                .with_custom_display_fn(|args, res| display_action_result(args.params, res))
                 .with_call_remote::<ContainerCliContext>(),
         )
         .subcommand("create-task", from_fn_async(create_task).no_cli())

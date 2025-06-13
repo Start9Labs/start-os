@@ -90,9 +90,7 @@ pub fn tor<C: Context>() -> ParentHandler<C> {
             "list-services",
             from_fn_async(list_services)
                 .with_display_serializable()
-                .with_custom_display_fn(|handle, result| {
-                    Ok(display_services(handle.params, result))
-                })
+                .with_custom_display_fn(|handle, result| display_services(handle.params, result))
                 .with_about("Display Tor V3 Onion Addresses")
                 .with_call_remote::<CliContext>(),
         )
@@ -210,7 +208,10 @@ pub async fn reset(
         .await
 }
 
-pub fn display_services(params: WithIoFormat<Empty>, services: Vec<OnionAddressV3>) {
+pub fn display_services(
+    params: WithIoFormat<Empty>,
+    services: Vec<OnionAddressV3>,
+) -> Result<(), Error> {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -222,7 +223,8 @@ pub fn display_services(params: WithIoFormat<Empty>, services: Vec<OnionAddressV
         let row = row![&service.to_string()];
         table.add_row(row);
     }
-    table.print_tty(false).unwrap();
+    table.print_tty(false)?;
+    Ok(())
 }
 
 pub async fn list_services(ctx: RpcContext, _: Empty) -> Result<Vec<OnionAddressV3>, Error> {

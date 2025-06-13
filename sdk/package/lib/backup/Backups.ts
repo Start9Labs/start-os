@@ -31,10 +31,10 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
     private postRestore = async (effects: BackupEffects) => {},
   ) {}
 
-  static withVolumes<M extends T.SDKManifest = never>(
+  static ofVolumes<M extends T.SDKManifest = never>(
     ...volumeNames: Array<M["volumes"][number]>
   ): Backups<M> {
-    return Backups.withSyncs(
+    return Backups.ofSyncs(
       ...volumeNames.map((srcVolume) => ({
         dataPath: `/media/startos/volumes/${srcVolume}/` as const,
         backupPath: `/media/startos/backup/volumes/${srcVolume}/` as const,
@@ -42,7 +42,7 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
     )
   }
 
-  static withSyncs<M extends T.SDKManifest = never>(
+  static ofSyncs<M extends T.SDKManifest = never>(
     ...syncs: BackupSync<M["volumes"][number]>[]
   ) {
     return syncs.reduce((acc, x) => acc.addSync(x), new Backups<M>())
@@ -112,11 +112,9 @@ export class Backups<M extends T.SDKManifest> implements InitScript {
       ...options,
     })
   }
+
   addSync(sync: BackupSync<M["volumes"][0]>) {
-    this.backupSet.push({
-      ...sync,
-      options: { ...this.options, ...sync.options },
-    })
+    this.backupSet.push(sync)
     return this
   }
 

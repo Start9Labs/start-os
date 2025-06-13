@@ -17,14 +17,17 @@ const MAX_TIMEOUT_MS = 30000
  * and the others state of running, where it will keep a living running command
  */
 
-export class Daemon<Manifest extends T.SDKManifest> extends Drop {
-  private commandController: CommandController<Manifest> | null = null
+export class Daemon<
+  Manifest extends T.SDKManifest,
+  C extends SubContainer<Manifest> | null = SubContainer<Manifest> | null,
+> extends Drop {
+  private commandController: CommandController<Manifest, C> | null = null
   private shouldBeRunning = false
   protected exitedSuccess = false
   private onExitFns: ((success: boolean) => void)[] = []
   protected constructor(
-    private subcontainer: SubContainer<Manifest>,
-    private startCommand: (() => Promise<CommandController<Manifest>>) | null,
+    private subcontainer: C,
+    private startCommand: () => Promise<CommandController<Manifest, C>>,
     readonly oneshot: boolean = false,
   ) {
     super()
@@ -33,17 +36,20 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
     return this.oneshot
   }
   static of<Manifest extends T.SDKManifest>() {
-    return async (
+    return async <C extends SubContainer<Manifest> | null>(
       effects: T.Effects,
-      subcontainer: SubContainer<Manifest>,
-      exec: DaemonCommandType | null,
+      subcontainer: C,
+      exec: DaemonCommandType<Manifest, C>,
     ) => {
-      if (subcontainer.isOwned()) subcontainer = subcontainer.rc()
-      const startCommand = exec
-        ? () =>
-            CommandController.of<Manifest>()(effects, subcontainer.rc(), exec)
-        : null
-      return new Daemon(subcontainer, startCommand)
+      let subc: SubContainer<Manifest> | null = subcontainer
+      if (subcontainer && subcontainer.isOwned()) subc = subcontainer.rc()
+      const startCommand = () =>
+        CommandController.of<Manifest, C>()(
+          effects,
+          (subc?.rc() ?? null) as C,
+          exec,
+        )
+      return new Daemon(subc, startCommand)
     }
   }
   async start() {
@@ -53,7 +59,7 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
     this.shouldBeRunning = true
     let timeoutCounter = 0
     ;(async () => {
-      while (this.startCommand && this.shouldBeRunning) {
+      while (this.shouldBeRunning) {
         if (this.commandController)
           await this.commandController
             .term({})
@@ -106,10 +112,10 @@ export class Daemon<Manifest extends T.SDKManifest> extends Drop {
       .catch((e) => console.error(asError(e)))
     this.commandController = null
     this.onExitFns = []
-    await this.subcontainer.destroy()
+    await this.subcontainer?.destroy()
   }
-  subcontainerRc(): SubContainerRc<Manifest> {
-    return this.subcontainer.rc()
+  subcontainerRc(): SubContainerRc<Manifest> | null {
+    return this.subcontainer?.rc() ?? null
   }
   onExit(fn: (success: boolean) => void) {
     this.onExitFns.push(fn)

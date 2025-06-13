@@ -6,7 +6,7 @@ import {
 } from "../../../base/lib/types/ManifestTypes"
 import { OSVersion } from "../StartSdk"
 import { VersionGraph } from "../version/VersionGraph"
-import { execSync } from "child_process"
+import { version as sdkVersion } from "../../package.json"
 
 /**
  * @description Use this function to define critical information about your package
@@ -55,6 +55,7 @@ export function buildManifest<
   return {
     ...manifest,
     osVersion: manifest.osVersion ?? OSVersion,
+    sdkVersion,
     version: versions.current.options.version,
     releaseNotes: versions.current.options.releaseNotes,
     satisfies: versions.current.options.satisfies || [],

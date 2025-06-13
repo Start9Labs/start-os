@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::ffi::{c_int, OsStr, OsString};
 use std::fs::File;
 use std::io::{IsTerminal, Read};
-use std::os::unix::process::CommandExt;
+use std::os::unix::process::{CommandExt, ExitStatusExt};
 use std::path::{Path, PathBuf};
 use std::process::{Command as StdCommand, Stdio};
 use std::sync::Arc;
@@ -330,7 +330,7 @@ pub fn launch(
         if let Some(code) = exit.code() {
             drop(raw);
             std::process::exit(code);
-        } else if exit.success() {
+        } else if exit.success() || exit.signal() == Some(15) {
             Ok(())
         } else {
             Err(Error::new(
@@ -380,7 +380,7 @@ pub fn launch(
             nix::mount::umount(&chroot.join("proc"))
                 .with_ctx(|_| (ErrorKind::Filesystem, "umount procfs"))?;
             std::process::exit(code);
-        } else if exit.success() {
+        } else if exit.success() || exit.signal() == Some(15) {
             Ok(())
         } else {
             Err(Error::new(

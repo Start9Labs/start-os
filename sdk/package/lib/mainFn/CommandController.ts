@@ -2,44 +2,49 @@ import { DEFAULT_SIGTERM_TIMEOUT } from "."
 import { NO_TIMEOUT, SIGTERM } from "../../../base/lib/types"
 
 import * as T from "../../../base/lib/types"
-import { MountOptions, SubContainer } from "../util/SubContainer"
+import { SubContainer } from "../util/SubContainer"
 import { Drop, splitCommand } from "../util"
 import * as cp from "child_process"
 import * as fs from "node:fs/promises"
-import { Mounts } from "./Mounts"
-import { DaemonCommandType } from "./Daemons"
+import { DaemonCommandType, ExecCommandOptions, ExecFnOptions } from "./Daemons"
 
-export class CommandController<Manifest extends T.SDKManifest> extends Drop {
+export class CommandController<
+  Manifest extends T.SDKManifest,
+  C extends SubContainer<Manifest> | null,
+> extends Drop {
   private constructor(
     readonly runningAnswer: Promise<null>,
     private state: { exited: boolean },
-    private readonly subcontainer: SubContainer<Manifest>,
+    private readonly subcontainer: C,
     private process: cp.ChildProcess | AbortController,
     readonly sigtermTimeout: number = DEFAULT_SIGTERM_TIMEOUT,
   ) {
     super()
   }
-  static of<Manifest extends T.SDKManifest>() {
+  static of<
+    Manifest extends T.SDKManifest,
+    C extends SubContainer<Manifest> | null,
+  >() {
     return async (
       effects: T.Effects,
-      subcontainer: SubContainer<Manifest>,
-      exec: DaemonCommandType,
+      subcontainer: C,
+      exec: DaemonCommandType<Manifest, C>,
     ) => {
       try {
         if ("fn" in exec) {
           const abort = new AbortController()
-          const cell: { ctrl: CommandController<Manifest> } = {
-            ctrl: new CommandController(
+          const cell: { ctrl: CommandController<Manifest, C> } = {
+            ctrl: new CommandController<Manifest, C>(
               exec.fn(subcontainer, abort).then(async (command) => {
-                if (command && !abort.signal.aborted) {
-                  Object.assign(
-                    cell.ctrl,
-                    await CommandController.of<Manifest>()(
-                      effects,
-                      subcontainer,
-                      command,
-                    ),
-                  )
+                if (subcontainer && command && !abort.signal.aborted) {
+                  const newCtrl = (
+                    await CommandController.of<
+                      Manifest,
+                      SubContainer<Manifest>
+                    >()(effects, subcontainer, command as ExecCommandOptions)
+                  ).leak()
+
+                  Object.assign(cell.ctrl, newCtrl)
                   return await cell.ctrl.runningAnswer
                 } else {
                   cell.ctrl.state.exited = true
@@ -57,7 +62,7 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
         let commands: string[]
         if (T.isUseEntrypoint(exec.command)) {
           const imageMeta: T.ImageMetadata = await fs
-            .readFile(`/media/startos/images/${subcontainer.imageId}.json`, {
+            .readFile(`/media/startos/images/${subcontainer!.imageId}.json`, {
               encoding: "utf8",
             })
             .catch(() => "{}")
@@ -70,11 +75,11 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
 
         let childProcess: cp.ChildProcess
         if (exec.runAsInit) {
-          childProcess = await subcontainer.launch(commands, {
+          childProcess = await subcontainer!.launch(commands, {
             env: exec.env,
           })
         } else {
-          childProcess = await subcontainer.spawn(commands, {
+          childProcess = await subcontainer!.spawn(commands, {
             env: exec.env,
             stdio: exec.onStdout || exec.onStderr ? "pipe" : "inherit",
           })
@@ -108,7 +113,7 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
           })
         })
 
-        return new CommandController(
+        return new CommandController<Manifest, C>(
           answer,
           state,
           subcontainer,
@@ -116,7 +121,7 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
           exec.sigtermTimeout,
         )
       } catch (e) {
-        await subcontainer.destroy()
+        await subcontainer?.destroy()
         throw e
       }
     }
@@ -144,7 +149,7 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
         if (this.process instanceof AbortController) this.process.abort()
         else this.process.kill("SIGKILL")
       }
-      await this.subcontainer.destroy()
+      await this.subcontainer?.destroy()
     }
   }
   async term({ signal = SIGTERM, timeout = this.sigtermTimeout } = {}) {
@@ -178,7 +183,7 @@ export class CommandController<Manifest extends T.SDKManifest> extends Drop {
         ])
       else await this.runningAnswer
     } finally {
-      await this.subcontainer.destroy()
+      await this.subcontainer?.destroy()
     }
   }
   onDrop(): void {

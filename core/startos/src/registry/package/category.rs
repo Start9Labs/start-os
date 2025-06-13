@@ -52,7 +52,7 @@ pub fn category_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(list_categories)
                 .with_display_serializable()
                 .with_custom_display_fn(|params, categories| {
-                    Ok(display_categories(params.params, categories))
+                    display_categories(params.params, categories)
                 })
                 .with_call_remote::<CliContext>(),
         )
@@ -182,7 +182,7 @@ pub async fn list_categories(
 pub fn display_categories<T>(
     params: WithIoFormat<T>,
     categories: BTreeMap<InternedString, Category>,
-) {
+) -> Result<(), Error> {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -197,5 +197,6 @@ pub fn display_categories<T>(
     for (id, info) in categories {
         table.add_row(row![&*id, &info.name]);
     }
-    table.print_tty(false).unwrap();
+    table.print_tty(false)?;
+    Ok(())
 }

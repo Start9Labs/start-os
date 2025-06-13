@@ -10,19 +10,25 @@ import { DaemonCommandType } from "./Daemons"
  * unlike Daemon, does not restart on success
  */
 
-export class Oneshot<Manifest extends T.SDKManifest> extends Daemon<Manifest> {
+export class Oneshot<
+  Manifest extends T.SDKManifest,
+  C extends SubContainer<Manifest> | null = SubContainer<Manifest> | null,
+> extends Daemon<Manifest, C> {
   static of<Manifest extends T.SDKManifest>() {
-    return async (
+    return async <C extends SubContainer<Manifest> | null>(
       effects: T.Effects,
-      subcontainer: SubContainer<Manifest>,
-      exec: DaemonCommandType | null,
+      subcontainer: C,
+      exec: DaemonCommandType<Manifest, C>,
     ) => {
-      if (subcontainer.isOwned()) subcontainer = subcontainer.rc()
-      const startCommand = exec
-        ? () =>
-            CommandController.of<Manifest>()(effects, subcontainer.rc(), exec)
-        : null
-      return new Oneshot(subcontainer, startCommand, true)
+      let subc: SubContainer<Manifest> | null = subcontainer
+      if (subcontainer && subcontainer.isOwned()) subc = subcontainer.rc()
+      const startCommand = () =>
+        CommandController.of<Manifest, C>()(
+          effects,
+          (subc?.rc() ?? null) as C,
+          exec,
+        )
+      return new Oneshot<Manifest, C>(subcontainer, startCommand, true)
     }
   }
 }

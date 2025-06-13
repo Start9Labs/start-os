@@ -70,9 +70,7 @@ pub fn wifi<C: Context>() -> ParentHandler<C> {
             "get",
             from_fn_async(get)
                 .with_display_serializable()
-                .with_custom_display_fn(|handle, result| {
-                    Ok(display_wifi_info(handle.params, result))
-                })
+                .with_custom_display_fn(|handle, result| display_wifi_info(handle.params, result))
                 .with_about("List wifi info")
                 .with_call_remote::<CliContext>(),
         )
@@ -134,7 +132,7 @@ pub fn available<C: Context>() -> ParentHandler<C> {
         "get",
         from_fn_async(get_available)
             .with_display_serializable()
-            .with_custom_display_fn(|handle, result| Ok(display_wifi_list(handle.params, result)))
+            .with_custom_display_fn(|handle, result| display_wifi_list(handle.params, result))
             .with_about("List available wifi networks")
             .with_call_remote::<CliContext>(),
     )
@@ -363,7 +361,7 @@ pub struct WifiListOut {
     security: Vec<String>,
 }
 pub type WifiList = HashMap<Ssid, WifiListInfoLow>;
-fn display_wifi_info(params: WithIoFormat<Empty>, info: WifiListInfo) {
+fn display_wifi_info(params: WithIoFormat<Empty>, info: WifiListInfo) -> Result<(), Error> {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -424,10 +422,11 @@ fn display_wifi_info(params: WithIoFormat<Empty>, info: WifiListInfo) {
         ]);
     }
 
-    table_global.print_tty(false).unwrap();
+    table_global.print_tty(false)?;
+    Ok(())
 }
 
-fn display_wifi_list(params: WithIoFormat<Empty>, info: Vec<WifiListOut>) {
+fn display_wifi_list(params: WithIoFormat<Empty>, info: Vec<WifiListOut>) -> Result<(), Error> {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -448,7 +447,8 @@ fn display_wifi_list(params: WithIoFormat<Empty>, info: Vec<WifiListOut>) {
         ]);
     }
 
-    table_global.print_tty(false).unwrap();
+    table_global.print_tty(false)?;
+    Ok(())
 }
 
 // #[command(display(display_wifi_info))]

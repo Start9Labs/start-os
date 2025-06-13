@@ -47,7 +47,7 @@ pub fn admin_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(list_admins)
                 .with_metadata("admin", Value::Bool(true))
                 .with_display_serializable()
-                .with_custom_display_fn(|handle, result| Ok(display_signers(handle.params, result)))
+                .with_custom_display_fn(|handle, result| display_signers(handle.params, result))
                 .with_about("List admin signers")
                 .with_call_remote::<CliContext>(),
         )
@@ -60,7 +60,7 @@ fn signers_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(list_signers)
                 .with_metadata("admin", Value::Bool(true))
                 .with_display_serializable()
-                .with_custom_display_fn(|handle, result| Ok(display_signers(handle.params, result)))
+                .with_custom_display_fn(|handle, result| display_signers(handle.params, result))
                 .with_about("List signers")
                 .with_call_remote::<CliContext>(),
         )
@@ -133,7 +133,10 @@ pub async fn list_signers(ctx: RegistryContext) -> Result<BTreeMap<Guid, SignerI
     ctx.db.peek().await.into_index().into_signers().de()
 }
 
-pub fn display_signers<T>(params: WithIoFormat<T>, signers: BTreeMap<Guid, SignerInfo>) {
+pub fn display_signers<T>(
+    params: WithIoFormat<T>,
+    signers: BTreeMap<Guid, SignerInfo>,
+) -> Result<(), Error> {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -155,7 +158,8 @@ pub fn display_signers<T>(params: WithIoFormat<T>, signers: BTreeMap<Guid, Signe
             &info.keys.into_iter().join("\n"),
         ]);
     }
-    table.print_tty(false).unwrap();
+    table.print_tty(false)?;
+    Ok(())
 }
 
 pub async fn add_signer(ctx: RegistryContext, signer: SignerInfo) -> Result<Guid, Error> {

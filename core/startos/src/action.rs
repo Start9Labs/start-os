@@ -252,14 +252,18 @@ impl fmt::Display for ActionResultV1 {
     }
 }
 
-pub fn display_action_result<T: Serialize>(params: WithIoFormat<T>, result: Option<ActionResult>) {
+pub fn display_action_result<T: Serialize>(
+    params: WithIoFormat<T>,
+    result: Option<ActionResult>,
+) -> Result<(), Error> {
     let Some(result) = result else {
-        return;
+        return Ok(());
     };
     if let Some(format) = params.format {
         return display_serializable(format, result);
     }
-    println!("{result}")
+    println!("{result}");
+    Ok(())
 }
 
 #[derive(Deserialize, Serialize, TS)]

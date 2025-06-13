@@ -20,7 +20,9 @@ export class MainLoop {
   private subcontainerRc?: SubContainerRc<SDKManifest>
   get mainSubContainerHandle() {
     this.subcontainerRc =
-      this.subcontainerRc ?? this.mainEvent?.daemon?.subcontainerRc()
+      this.subcontainerRc ??
+      this.mainEvent?.daemon?.subcontainerRc() ??
+      undefined
     return this.subcontainerRc
   }
   private healthLoops?: {
