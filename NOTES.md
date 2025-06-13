@@ -70,6 +70,9 @@ The Raspberry Pi 4B shows the same "hostapd: Failed to create interface: -95
 (Not supported)" error, but does not have a patch that I'm aware of. Probably
 the hardware does not support VLAN tagging.
 
+The notes/dynamic_vlan_in_drivers.md file has more information on why different
+drivers do/don't support dynamic VLAN.
+
 # Compiling OpenWRT
 
 The best way I've found to compile OpenWRT is https://github.com/mwarning/docker-openwrt-build-env
