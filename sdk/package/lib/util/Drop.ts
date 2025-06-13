@@ -5,18 +5,18 @@ export abstract class Drop {
     if (weak) weak.drop()
   })
   private static idCtr: number = 0
-  private id: number
-  private ref: { id: number } | WeakRef<{ id: number }>
+  private dropId?: number
+  private dropRef?: { id: number } | WeakRef<{ id: number }>
   protected constructor() {
-    this.id = Drop.idCtr++
-    this.ref = { id: this.id }
+    this.dropId = Drop.idCtr++
+    this.dropRef = { id: this.dropId }
     const weak = this.weak()
-    Drop.weak[this.id] = weak
-    Drop.registry.register(this.ref, this.id, this.ref)
+    Drop.weak[this.dropId] = weak
+    Drop.registry.register(this.dropRef, this.dropId, this.dropRef)
 
     return new Proxy(this, {
       set(target: any, prop, value) {
-        if (prop === "ref") return false
+        if (prop === "dropRef" || prop == "dropId") return false
         target[prop] = value
         ;(weak as any)[prop] = value
         return true
@@ -26,13 +26,21 @@ export abstract class Drop {
   protected register() {}
   protected weak(): this {
     const weak = Object.assign(Object.create(Object.getPrototypeOf(this)), this)
-    weak.ref = new WeakRef(this.ref)
+    if (this.dropRef) weak.ref = new WeakRef(this.dropRef)
     return weak
   }
   abstract onDrop(): void
   drop(): void {
+    if (!this.dropRef || !this.dropId) return
     this.onDrop()
-    Drop.registry.unregister(this.ref)
-    delete Drop.weak[this.id]
+    this.leak()
+  }
+  leak(): this {
+    if (!this.dropRef || !this.dropId) return this
+    Drop.registry.unregister(this.dropRef)
+    delete Drop.weak[this.dropId]
+    delete this.dropRef
+    delete this.dropId
+    return this
   }
 }

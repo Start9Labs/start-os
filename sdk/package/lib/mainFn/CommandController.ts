@@ -37,13 +37,14 @@ export class CommandController<
             ctrl: new CommandController<Manifest, C>(
               exec.fn(subcontainer, abort).then(async (command) => {
                 if (subcontainer && command && !abort.signal.aborted) {
-                  Object.assign(
-                    cell.ctrl,
+                  const newCtrl = (
                     await CommandController.of<
                       Manifest,
                       SubContainer<Manifest>
-                    >()(effects, subcontainer, command as ExecCommandOptions),
-                  )
+                    >()(effects, subcontainer, command as ExecCommandOptions)
+                  ).leak()
+
+                  Object.assign(cell.ctrl, newCtrl)
                   return await cell.ctrl.runningAnswer
                 } else {
                   cell.ctrl.state.exited = true

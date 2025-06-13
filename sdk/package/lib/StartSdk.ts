@@ -87,7 +87,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       | "clearServiceInterfaces"
       | "bind"
       | "getHostInfo"
-    type MainUsedEffects = "setMainStatus" | "setHealth"
+    type MainUsedEffects = "setMainStatus"
     type CallbackEffects =
       | "child"
       | "constRetry"
@@ -121,6 +121,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       shutdown: (effects, ...args) => effects.shutdown(...args),
       getDependencies: (effects, ...args) => effects.getDependencies(...args),
       getStatus: (effects, ...args) => effects.getStatus(...args),
+      setHealth: (effects, ...args) => effects.setHealth(...args),
     }
 
     return {
@@ -643,19 +644,12 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         successFailure,
       },
       Mounts: {
-        of() {
-          return Mounts.of<Manifest>()
-        },
+        of: Mounts.of<Manifest>,
       },
       Backups: {
-        volumes: (
-          ...volumeNames: Array<Manifest["volumes"][number] & string>
-        ) => Backups.withVolumes<Manifest>(...volumeNames),
-        addSets: (
-          ...options: BackupSync<Manifest["volumes"][number] & string>[]
-        ) => Backups.withSyncs<Manifest>(...options),
-        withOptions: (options?: Partial<SyncOptions>) =>
-          Backups.withOptions<Manifest>(options),
+        ofVolumes: Backups.ofVolumes<Manifest>,
+        ofSyncs: Backups.ofSyncs<Manifest>,
+        withOptions: Backups.withOptions<Manifest>,
       },
       InputSpec: {
         /**
