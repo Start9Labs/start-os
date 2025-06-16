@@ -201,15 +201,6 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
     if &*PLATFORM != "raspberrypi" {
         api = api.subcommand("kiosk", kiosk::<C>());
     }
-    #[cfg(feature = "dev")]
-    {
-        api = api.subcommand(
-            "lxc",
-            lxc::dev::lxc::<C>().with_about(
-                "Commands related to lxc containers i.e. create, list, remove, connect",
-            ),
-        );
-    }
     api
 }
 
