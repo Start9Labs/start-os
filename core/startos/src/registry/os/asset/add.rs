@@ -14,7 +14,7 @@ use url::Url;
 
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::progress::FullProgressTracker;
+use crate::progress::{FullProgressTracker, ProgressUnits};
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfo;
@@ -246,6 +246,7 @@ pub async fn cli_add_asset(
     if let Some(size) = src.size().await {
         verify_phase.set_total(size);
     }
+    verify_phase.set_units(Some(ProgressUnits::Bytes));
     let mut writer = verify_phase.writer(VerifyingWriter::new(
         tokio::io::sink(),
         Some((blake3::Hash::from_bytes(*commitment.hash), commitment.size)),

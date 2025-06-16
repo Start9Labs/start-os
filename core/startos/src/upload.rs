@@ -18,7 +18,7 @@ use tokio::sync::watch;
 
 use crate::context::RpcContext;
 use crate::prelude::*;
-use crate::progress::PhaseProgressTrackerHandle;
+use crate::progress::{PhaseProgressTrackerHandle, ProgressUnits};
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::merkle_archive::source::multi_cursor_file::{FileCursor, MultiCursorFile};
 use crate::s9pk::merkle_archive::source::ArchiveSource;
@@ -176,7 +176,10 @@ pub struct UploadingFile {
     progress: watch::Receiver<Progress>,
 }
 impl UploadingFile {
-    pub async fn new(progress: PhaseProgressTrackerHandle) -> Result<(UploadHandle, Self), Error> {
+    pub async fn new(
+        mut progress: PhaseProgressTrackerHandle,
+    ) -> Result<(UploadHandle, Self), Error> {
+        progress.set_units(Some(ProgressUnits::Bytes));
         let progress = watch::channel(Progress {
             tracker: progress,
             expected_size: None,
