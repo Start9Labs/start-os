@@ -26,9 +26,10 @@ ln -rsf /media/startos/images/${B3SUM}.rootfs /media/startos/config/current.root
 
 unsquashfs -n -f -d / /media/startos/images/${B3SUM}.rootfs boot
 
-umount -R /media/startos/next 2> /dev/null
-umount -R /media/startos/lower 2> /dev/null
-umount -R /media/startos/upper 2> /dev/null
+umount -R /media/startos/next 2> /dev/null || true
+umount -R /media/startos/lower 2> /dev/null || true
+umount -R /media/startos/upper 2> /dev/null || true
+
 rm -rf /media/startos/lower /media/startos/upper /media/startos/next
 mkdir /media/startos/upper
 mount -t tmpfs tmpfs /media/startos/upper
