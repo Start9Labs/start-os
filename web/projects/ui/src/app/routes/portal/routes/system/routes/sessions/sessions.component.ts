@@ -46,7 +46,7 @@ import { SessionsTableComponent } from './table.component'
           size="xs"
           appearance="primary-destructive"
           [style.margin-inline-start]="'auto'"
-          [disabled]="!(sessions()?.selected$ | async)?.length"
+          [disabled]="!sessions()?.selected()?.length"
           (click)="terminate(others || [])"
         >
           {{ 'Terminate selected' | i18n }}
@@ -104,13 +104,16 @@ export default class SystemSessionsComponent {
   )
 
   async terminate(all: readonly SessionWithId[]) {
-    const ids = this.sessions()?.selected$.value.map(s => s.id) || []
+    const ids =
+      this.sessions()
+        ?.selected()
+        .map(s => s.id) || []
     const loader = this.loader.open('Terminating sessions').subscribe()
 
     try {
       await this.api.killSessions({ ids })
       this.local$.next(all.filter(s => !ids.includes(s.id)))
-      this.sessions()?.selected$.next([])
+      this.sessions()?.selected.set([])
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

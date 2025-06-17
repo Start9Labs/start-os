@@ -1,3 +1,4 @@
+import { NgTemplateOutlet } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -16,44 +17,71 @@ import { NotificationsTableComponent } from './table.component'
 
 @Component({
   template: `
-    <ng-container *title>{{ 'Notifications' | i18n }}</ng-container>
-    <h3 class="g-title">
-      <button
-        appearance="primary"
-        iconEnd="@tui.chevron-down"
-        tuiButton
-        size="xs"
-        type="button"
-        tuiDropdownAlign="right"
-        tuiDropdownSided
-        [disabled]="!table.selected().length"
-        [tuiDropdown]="dropdown"
-        [tuiDropdownEnabled]="!!table.selected().length"
-        [(tuiDropdownOpen)]="open"
-      >
-        {{ 'Batch action' | i18n }}
-      </button>
-      <ng-template #dropdown>
-        <tui-data-list>
-          <button
-            tuiOption
-            (click)="markSeen(notifications(), table.selected())"
-          >
-            {{ 'Mark seen' | i18n }}
-          </button>
-          <button
-            tuiOption
-            (click)="markUnseen(notifications(), table.selected())"
-          >
-            {{ 'Mark unseen' | i18n }}
-          </button>
-          <button tuiOption (click)="remove(notifications(), table.selected())">
-            {{ 'Delete' | i18n }}
-          </button>
-        </tui-data-list>
+    <ng-container *title>
+      {{ 'Notifications' | i18n }}
+      <ng-container *ngTemplateOutlet="button" />
+    </ng-container>
+    <section class="g-card">
+      <header>
+        {{ 'Notifications' | i18n }}
+        <ng-container *ngTemplateOutlet="button" />
+      </header>
+      <table #table class="g-table" [notifications]="notifications()"></table>
+      <ng-template #button>
+        <button
+          appearance="primary"
+          iconEnd="@tui.chevron-down"
+          tuiButton
+          size="xs"
+          type="button"
+          tuiDropdownOpen
+          tuiDropdownAlign="right"
+          [tuiDropdown]="dropdown"
+          [tuiDropdownEnabled]="!!table.selected().length"
+          [style.margin-inline-start]="'auto'"
+          [disabled]="!table.selected().length"
+        >
+          {{ 'Batch action' | i18n }}
+          <ng-template #dropdown let-close>
+            <tui-data-list (click)="close()">
+              <button
+                tuiOption
+                (click)="markSeen(notifications(), table.selected())"
+              >
+                {{ 'Mark seen' | i18n }}
+              </button>
+              <button
+                tuiOption
+                (click)="markUnseen(notifications(), table.selected())"
+              >
+                {{ 'Mark unseen' | i18n }}
+              </button>
+              <button
+                tuiOption
+                (click)="remove(notifications(), table.selected())"
+              >
+                {{ 'Delete' | i18n }}
+              </button>
+            </tui-data-list>
+          </ng-template>
+        </button>
       </ng-template>
-    </h3>
-    <table #table class="g-table" [notifications]="notifications()"></table>
+    </section>
+  `,
+  styles: `
+    :host {
+      padding: 1rem;
+    }
+
+    :host-context(tui-root._mobile) {
+      header {
+        display: none;
+      }
+
+      section {
+        padding-block: 0;
+      }
+    }
   `,
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -64,6 +92,7 @@ import { NotificationsTableComponent } from './table.component'
     NotificationsTableComponent,
     TitleDirective,
     i18nPipe,
+    NgTemplateOutlet,
   ],
 })
 export default class NotificationsComponent implements OnInit {
@@ -74,8 +103,6 @@ export default class NotificationsComponent implements OnInit {
   readonly api = inject(ApiService)
   readonly errorService = inject(ErrorService)
   readonly notifications = signal<ServerNotifications | undefined>(undefined)
-
-  open = false
 
   ngOnInit() {
     this.route.queryParams.subscribe(params => {
@@ -100,8 +127,6 @@ export default class NotificationsComponent implements OnInit {
     current: ServerNotifications = [],
     toUpdate: ServerNotifications = [],
   ) {
-    this.open = false
-
     this.notifications.set(
       current.map(c => ({
         ...c,
@@ -116,8 +141,6 @@ export default class NotificationsComponent implements OnInit {
     current: ServerNotifications = [],
     toUpdate: ServerNotifications = [],
   ) {
-    this.open = false
-
     this.notifications.set(
       current.map(c => ({
         ...c,
@@ -132,8 +155,6 @@ export default class NotificationsComponent implements OnInit {
     current: ServerNotifications = [],
     toDelete: ServerNotifications = [],
   ) {
-    this.open = false
-
     this.notifications.set(
       current.filter(c => !toDelete.some(n => n.id === c.id)),
     )

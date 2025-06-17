@@ -17,20 +17,14 @@ import { StateService } from 'src/app/services/state.service'
 @Component({
   template: `
     <canvas matrix></canvas>
-    @if (stateService.kiosk) {
-      <section tuiCardLarge>
-        <h1 class="heading">
-          <tui-icon icon="@tui.check-square" class="g-positive" />
-          Setup Complete!
-        </h1>
+    <section tuiCardLarge>
+      <h1 class="heading">
+        <tui-icon icon="@tui.circle-check-big" class="g-positive" />
+        Setup Complete!
+      </h1>
+      @if (stateService.kiosk) {
         <button tuiButton (click)="exitKiosk()">Continue to Login</button>
-      </section>
-    } @else if (lanAddress) {
-      <section tuiCardLarge>
-        <h1 class="heading">
-          <tui-icon icon="@tui.check-square" class="g-positive" />
-          Setup Complete!
-        </h1>
+      } @else if (lanAddress) {
         @if (stateService.setupType === 'restore') {
           <h3>You can now safely unplug your backup drive</h3>
         } @else if (stateService.setupType === 'transfer') {
@@ -65,8 +59,8 @@ import { StateService } from 'src/app/services/state.service'
           </strong>
         </a>
         <app-documentation hidden [lanAddress]="lanAddress" />
-      </section>
-    }
+      }
+    </section>
   `,
   styles: `
     .heading {

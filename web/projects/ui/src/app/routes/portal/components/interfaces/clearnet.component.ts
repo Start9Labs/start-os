@@ -91,7 +91,7 @@ type ClearnetForm = {
             <td [style.width.rem]="12">
               {{ interface.value().addSsl ? (address.acme | acme) : '-' }}
             </td>
-            <td>{{ address.url | mask }}</td>
+            <td [style.order]="-1">{{ address.url | mask }}</td>
             <td
               actions
               [href]="address.url"
@@ -102,7 +102,6 @@ type ClearnetForm = {
                   tuiIconButton
                   iconStart="@tui.trash"
                   appearance="flat-grayscale"
-                  [style.margin-inline-end.rem]="0.5"
                   (click)="remove(address)"
                 >
                   {{ 'Delete' | i18n }}
@@ -129,6 +128,19 @@ type ClearnetForm = {
           {{ 'Add domain' | i18n }}
         </button>
       </app-placeholder>
+    }
+  `,
+  styles: `
+    :host-context(tui-root._mobile) {
+      td {
+        font-weight: bold;
+        color: var(--tui-text-primary);
+
+        &:first-child {
+          font-weight: normal;
+          color: var(--tui-text-secondary);
+        }
+      }
     }
   `,
   host: { class: 'g-card' },

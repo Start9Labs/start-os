@@ -6,6 +6,7 @@ import { i18nKey, i18nPipe } from '@start9labs/shared'
   template: `
     <thead>
       <tr>
+        <ng-content select="th" />
         @for (header of appTable(); track $index) {
           <th>{{ header | i18n }}</th>
         }
