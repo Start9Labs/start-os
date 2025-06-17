@@ -35,7 +35,7 @@ const ERROR =
       {{ 'Network Folders' | i18n }}
       <tui-icon [tuiTooltip]="cifs" />
       <ng-template #cifs><ng-content /></ng-template>
-      <button tuiButton size="s" iconStart="@tui.plus" (click)="add()">
+      <button tuiButton size="xs" iconStart="@tui.plus" (click)="add()">
         {{ 'Open New' | i18n }}
       </button>
     </header>
@@ -100,11 +100,11 @@ const ERROR =
     @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
     tr {
-      cursor: pointer;
       @include taiga.transition(background);
 
       @media (taiga.$tui-mouse) {
-        &:hover {
+        &:not(:has(app-placeholder)):hover {
+          cursor: pointer;
           background: var(--tui-background-neutral-1-hover);
         }
       }
