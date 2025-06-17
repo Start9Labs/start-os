@@ -66,11 +66,11 @@ import { BackupStatusComponent } from './status.component'
     @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
     tr {
-      cursor: pointer;
       @include taiga.transition(background);
 
       @media (taiga.$tui-mouse) {
-        &:hover {
+        &:not(:has(app-placeholder)):hover {
+          cursor: pointer;
           background: var(--tui-background-neutral-1-hover);
         }
       }

@@ -87,12 +87,7 @@ hr {
   padding: 0.5rem;
   text-transform: capitalize;
   box-shadow: 1px 0 var(--tui-border-normal);
-  backdrop-filter: blur(1rem);
-  background-color: color-mix(
-    in hsl,
-    var(--tui-background-base) 90%,
-    transparent
-  );
+  background: var(--tui-background-base);
 }
 
 .g-card {

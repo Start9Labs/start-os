@@ -29,7 +29,7 @@ import { TitleDirective } from 'src/app/services/title.service'
       <interface-status [style.margin-left.rem]="0.5" [public]="public()" />
     </ng-container>
     <header tuiHeader>
-      <hgroup>
+      <hgroup tuiTitle>
         <h3>
           {{ iface.name }}
           <interface-status [public]="public()" />
@@ -41,20 +41,6 @@ import { TitleDirective } from 'src/app/services/title.service'
       <app-interface [value]="ui" [isRunning]="true" />
     }
   `,
-  styles: `
-    h3 {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      margin: 1rem 0 0.5rem 0;
-      font-size: 2.4rem;
-
-      tui-badge {
-        text-transform: uppercase;
-        font-weight: bold;
-      }
-    }
-  `,
   host: { class: 'g-subpage' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
@@ -63,6 +49,7 @@ import { TitleDirective } from 'src/app/services/title.service'
     TuiButton,
     TitleDirective,
     TuiHeader,
+    TuiTitle,
     InterfaceStatusComponent,
     i18nPipe,
   ],

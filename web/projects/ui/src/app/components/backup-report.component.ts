@@ -11,10 +11,10 @@ import { TuiDialogContext, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiCell } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
-import { scan } from 'rxjs'
+import { map } from 'rxjs'
 import { BackupReport } from 'src/app/services/api/api.types'
 import { getManifest } from '../utils/get-package-data'
-import { T } from '@start9labs/start-sdk'
+import { DataModel } from '../services/patch-db/data-model'
 
 @Component({
   template: `
@@ -56,7 +56,7 @@ import { T } from '@start9labs/start-sdk'
 })
 export class BackupsReportModal {
   private readonly i18n = inject(i18nPipe)
-  private readonly patch = inject(PatchDB)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
   readonly data =
     injectContext<
@@ -65,13 +65,15 @@ export class BackupsReportModal {
 
   readonly pkgTitles = toSignal(
     this.patch.watch$('packageData').pipe(
-      scan<T.PackageDataEntry, Record<string, string>>((acc, pkg) => {
-        const { id, title } = getManifest(pkg)
-        return {
-          ...acc,
-          [id]: title,
-        }
-      }, {}),
+      map(allPkgs =>
+        Object.values(allPkgs).reduce<Record<string, string>>((acc, pkg) => {
+          const { id, title } = getManifest(pkg)
+          return {
+            ...acc,
+            [id]: title,
+          }
+        }, {}),
+      ),
     ),
   )
 

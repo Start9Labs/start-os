@@ -2,8 +2,11 @@ import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
+  input,
   Input,
   OnChanges,
+  signal,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TuiIcon } from '@taiga-ui/core'
@@ -17,17 +20,36 @@ import { i18nPipe } from '@start9labs/shared'
 @Component({
   selector: '[sessions]',
   template: `
-    <table [appTable]="['User Agent', 'Platform', 'Last Active']">
-      @for (session of sessions; track $index) {
+    <table
+      [appTable]="
+        single()
+          ? ['User Agent', 'Platform', 'Last Active']
+          : ['Platform', 'Last Active']
+      "
+    >
+      @if (!single()) {
+        <th [style.text-indent.rem]="1.75">
+          <input
+            tuiCheckbox
+            size="s"
+            type="checkbox"
+            [disabled]="!sessions()"
+            [ngModel]="all()"
+            (ngModelChange)="selected.set(($event && sessions()) || [])"
+          />
+          {{ 'User Agent' | i18n }}
+        </th>
+      }
+      @for (session of sessions(); track $index) {
         <tr>
-          <td [style.padding-left.rem]="single ? null : 2.5">
+          <td [style.padding-left.rem]="single() ? null : 2.5">
             <label>
-              @if (!single) {
+              @if (!single()) {
                 <input
                   tuiCheckbox
                   size="s"
                   type="checkbox"
-                  [ngModel]="selected$.value.includes(session)"
+                  [ngModel]="selected().includes(session)"
                   (ngModelChange)="onToggle(session)"
                 />
               }
@@ -43,12 +65,12 @@ import { i18nPipe } from '@start9labs/shared'
           <td class="date">{{ session.lastActive | date: 'medium' }}</td>
         </tr>
       } @empty {
-        @if (sessions) {
+        @if (sessions()) {
           <tr>
             <td colspan="3">{{ 'No sessions' | i18n }}</td>
           </tr>
         } @else {
-          @for (item of single ? [''] : ['', '']; track $index) {
+          @for (item of single() ? [''] : ['', '']; track $index) {
             <tr>
               <td colspan="3">
                 <div [tuiSkeleton]="true">{{ 'Loading' | i18n }}</div>
@@ -144,25 +166,25 @@ import { i18nPipe } from '@start9labs/shared'
   ],
 })
 export class SessionsTableComponent<T extends Session> implements OnChanges {
-  readonly selected$ = new BehaviorSubject<readonly T[]>([])
+  readonly sessions = input<readonly T[] | null>(null)
+  readonly single = input(false)
 
-  @Input()
-  sessions: readonly T[] | null = null
-
-  @Input()
-  single = false
+  readonly selected = signal<readonly T[]>([])
+  readonly all = computed(
+    () =>
+      !!this.selected()?.length &&
+      (this.selected().length === this.sessions()?.length || null),
+  )
 
   ngOnChanges() {
-    this.selected$.next([])
+    this.selected.set([])
   }
 
   onToggle(session: T) {
-    const selected = this.selected$.value
-
-    if (selected.includes(session)) {
-      this.selected$.next(selected.filter(s => s !== session))
+    if (this.selected().includes(session)) {
+      this.selected.update(selected => selected.filter(s => s !== session))
     } else {
-      this.selected$.next([...selected, session])
+      this.selected.update(selected => [...selected, session])
     }
   }
 }
