@@ -6,6 +6,7 @@ import { SetHealth, Effects, SDKManifest } from "../../../base/lib/types"
 import { DEFAULT_SIGTERM_TIMEOUT } from "."
 import { asError } from "../../../base/lib/util/asError"
 import { Oneshot } from "./Oneshot"
+import { SubContainer } from "../util/SubContainer"
 
 const oncePromise = <T>() => {
   let resolve: (value: T) => void
@@ -30,16 +31,22 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   private running = false
   private started?: number
   private resolveReady: (() => void) | undefined
+  private resolvedReady: boolean = false
   private readyPromise: Promise<void>
   constructor(
-    private readonly daemon: Promise<Daemon<Manifest>>,
+    private readonly daemon: Promise<Daemon<Manifest>> | null,
     private readonly dependencies: HealthDaemon<Manifest>[],
     readonly id: string,
-    readonly ids: string[],
     readonly ready: Ready | typeof EXIT_SUCCESS,
     readonly effects: Effects,
   ) {
-    this.readyPromise = new Promise((resolve) => (this.resolveReady = resolve))
+    this.readyPromise = new Promise(
+      (resolve) =>
+        (this.resolveReady = () => {
+          resolve()
+          this.resolvedReady = true
+        }),
+    )
     this.dependencies.forEach((d) => d.addWatcher(() => this.updateStatus()))
   }
 
@@ -52,7 +59,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     this.running = false
     this.healthCheckCleanup?.()
 
-    await this.daemon.then((d) =>
+    await this.daemon?.then((d) =>
       d.term({
         ...termOptions,
       }),
@@ -74,11 +81,13 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     this.running = newStatus
 
     if (newStatus) {
-      ;(await this.daemon).start()
-      this.started = performance.now()
+      console.debug(`Launching ${this.id}...`)
       this.setupHealthCheck()
+      ;(await this.daemon)?.start()
+      this.started = performance.now()
     } else {
-      ;(await this.daemon).stop()
+      console.debug(`Stopping ${this.id}...`)
+      ;(await this.daemon)?.stop()
       this.turnOffHealthCheck()
 
       this.setHealth({ result: "starting", message: null })
@@ -88,10 +97,19 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   private healthCheckCleanup: (() => null) | null = null
   private turnOffHealthCheck() {
     this.healthCheckCleanup?.()
+
+    this.resolvedReady = false
+    this.readyPromise = new Promise(
+      (resolve) =>
+        (this.resolveReady = () => {
+          resolve()
+          this.resolvedReady = true
+        }),
+    )
   }
   private async setupHealthCheck() {
     const daemon = await this.daemon
-    daemon.onExit((success) => {
+    daemon?.onExit((success) => {
       if (success && this.ready === "EXIT_SUCCESS") {
         this.setHealth({ result: "success", message: null })
       } else if (!success) {
@@ -122,28 +140,17 @@ export class HealthDaemon<Manifest extends SDKManifest> {
         !res.done;
         res = await Promise.race([status, trigger.next()])
       ) {
-        const handle = (await this.daemon).subcontainerRc()
-
-        try {
-          const response: HealthCheckResult = await Promise.resolve(
-            this.ready.fn(handle),
-          ).catch((err) => {
-            console.error(asError(err))
-            return {
-              result: "failure",
-              message: "message" in err ? err.message : String(err),
-            }
-          })
-          if (
-            this.resolveReady &&
-            (response.result === "success" || response.result === "disabled")
-          ) {
-            this.resolveReady()
+        const response: HealthCheckResult = await Promise.resolve(
+          this.ready.fn(),
+        ).catch((err) => {
+          console.error(asError(err))
+          return {
+            result: "failure",
+            message: "message" in err ? err.message : String(err),
           }
-          await this.setHealth(response)
-        } finally {
-          await handle.destroy()
-        }
+        })
+
+        await this.setHealth(response)
       }
     }).catch((err) => console.error(`Daemon ${this.id} failed: ${err}`))
 
@@ -158,10 +165,18 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     return this.readyPromise
   }
 
+  get isReady() {
+    return this.resolvedReady
+  }
+
   private async setHealth(health: HealthCheckResult) {
+    const changed = this._health.result !== health.result
     this._health = health
+    if (this.resolveReady && health.result === "success") {
+      this.resolveReady()
+    }
+    if (changed) this.healthWatchers.forEach((watcher) => watcher())
     if (this.ready === "EXIT_SUCCESS") return
-    this.healthWatchers.forEach((watcher) => watcher())
     const display = this.ready.display
     if (!display) {
       return
@@ -182,8 +197,18 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   }
 
   async updateStatus() {
-    const healths = this.dependencies.map((d) => d.running && d._health)
-    this.changeRunning(healths.every((x) => x && x.result === "success"))
+    const healths = this.dependencies.map((d) => ({
+      health: d.running && d._health,
+      id: d.id,
+    }))
+    const waitingOn = healths.filter(
+      (h) => !h.health || h.health.result !== "success",
+    )
+    if (waitingOn.length)
+      console.debug(
+        `daemon ${this.id} waiting on ${waitingOn.map((w) => w.id)}`,
+      )
+    this.changeRunning(!waitingOn.length)
   }
 
   async init() {

@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::Ipv4Addr;
 use std::path::Path;
 use std::sync::{Arc, Weak};
@@ -7,7 +7,7 @@ use std::time::Duration;
 use clap::builder::ValueParserFactory;
 use futures::{AsyncWriteExt, StreamExt};
 use imbl_value::{InOMap, InternedString};
-use models::{FromStrParser, InvalidId};
+use models::{FromStrParser, InvalidId, PackageId};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{GenericRpcMethod, RpcRequest, RpcResponse};
 use rustyline_async::{ReadlineEvent, SharedWriter};
@@ -28,12 +28,10 @@ use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::disk::mount::util::unmount;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation};
+use crate::service::ServiceStats;
 use crate::util::io::open_file;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::util::{new_guid, Invoke};
-
-// #[cfg(feature = "dev")]
-pub mod dev;
 
 const LXC_CONTAINER_DIR: &str = "/var/lib/lxc";
 const RPC_DIR: &str = "media/startos/rpc"; // must not be absolute path
@@ -563,4 +561,22 @@ pub async fn connect_cli(ctx: &CliContext, guid: Guid) -> Result<(), Error> {
     }
 
     Ok(())
+}
+
+pub async fn stats(ctx: RpcContext) -> Result<BTreeMap<PackageId, Option<ServiceStats>>, Error> {
+    let ids = ctx.db.peek().await.as_public().as_package_data().keys()?;
+
+    let mut stats = BTreeMap::new();
+    for id in ids {
+        let service: tokio::sync::OwnedRwLockReadGuard<Option<crate::service::ServiceRef>> =
+            ctx.services.get(&id).await;
+
+        let Some(service_ref) = service.as_ref() else {
+            stats.insert(id, None);
+            continue;
+        };
+
+        stats.insert(id, Some(service_ref.stats().await?));
+    }
+    Ok(stats)
 }

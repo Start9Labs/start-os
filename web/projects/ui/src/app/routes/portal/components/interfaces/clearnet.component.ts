@@ -202,6 +202,11 @@ export class InterfaceClearnetComponent {
     }
 
     const loader = this.loader.open('Removing').subscribe()
+
+    if (!/^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(url)) {
+      url = 'http://' + url
+    }
+
     const params = { domain: new URL(url).hostname }
 
     try {

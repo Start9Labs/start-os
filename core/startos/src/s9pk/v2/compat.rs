@@ -4,7 +4,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use exver::{ExtendedVersion, VersionRange};
-use models::{Id, ImageId, VolumeId};
+use models::{ImageId, VolumeId};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWriteExt};
 use tokio::process::Command;
 
@@ -259,6 +259,7 @@ impl TryFrom<ManifestV1> for Manifest {
             },
             git_hash: value.git_hash,
             os_version: value.eos_version,
+            sdk_version: None,
         })
     }
 }

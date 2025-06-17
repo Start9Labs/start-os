@@ -89,7 +89,7 @@ use crate::context::{
 use crate::disk::fsck::RequiresReboot;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
 use crate::system::kiosk;
-use crate::util::serde::{HandlerExtSerde, WithIoFormat};
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
@@ -201,15 +201,6 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
     if &*PLATFORM != "raspberrypi" {
         api = api.subcommand("kiosk", kiosk::<C>());
     }
-    #[cfg(feature = "dev")]
-    {
-        api = api.subcommand(
-            "lxc",
-            lxc::dev::lxc::<C>().with_about(
-                "Commands related to lxc containers i.e. create, list, remove, connect",
-            ),
-        );
-    }
     api
 }
 
@@ -220,7 +211,7 @@ pub fn server<C: Context>() -> ParentHandler<C> {
             from_fn_async(system::time)
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| {
-                    Ok(system::display_time(handle.params, result))
+                    system::display_time(handle.params, result)
                 })
                 .with_about("Display current time and server uptime")
                 .with_call_remote::<CliContext>()
@@ -414,6 +405,46 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                 .with_metadata("sync_db", Value::Bool(true))
                 .no_display()
                 .with_about("Rebuild service container")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "stats",
+            from_fn_async(lxc::stats)
+                .with_display_serializable()
+                .with_custom_display_fn(|args, res| {
+                    if let Some(format) = args.params.format {
+                        return display_serializable(format, res);
+                    }
+
+                    use prettytable::*;
+                    let mut table = table!([
+                        "Name",
+                        "Container ID",
+                        "Memory Usage",
+                        "Memory Limit",
+                        "Memory %"
+                    ]);
+                    for (id, stats) in res {
+                        if let Some(stats) = stats {
+                            table.add_row(row![
+                                &*id,
+                                &*stats.container_id,
+                                stats.memory_usage,
+                                stats.memory_limit,
+                                format!(
+                                    "{:.2}",
+                                    stats.memory_usage.0 as f64 / stats.memory_limit.0 as f64
+                                        * 100.0
+                                )
+                            ]);
+                        } else {
+                            table.add_row(row![&*id, "N/A", "0 MiB", "0 MiB", "0"]);
+                        }
+                    }
+                    table.print_tty(false)?;
+                    Ok(())
+                })
+                .with_about("List information related to the lxc containers i.e. CPU, Memory, Disk")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand("logs", logs::package_logs())

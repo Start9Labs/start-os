@@ -34,7 +34,7 @@ use crate::disk::REPAIR_DISK_PATH;
 use crate::init::{init, InitPhases, InitResult};
 use crate::net::ssl::root_ca_start_time;
 use crate::prelude::*;
-use crate::progress::{FullProgress, PhaseProgressTrackerHandle};
+use crate::progress::{FullProgress, PhaseProgressTrackerHandle, ProgressUnits};
 use crate::rpc_continuations::Guid;
 use crate::system::sync_kiosk;
 use crate::util::crypto::EncryptedWire;
@@ -547,6 +547,7 @@ async fn migrate(
     let mut restore_phase = restore_phase.or_not_found("restore progress")?;
 
     restore_phase.start();
+    restore_phase.set_units(Some(ProgressUnits::Bytes));
     let _ = crate::disk::main::import(
         &old_guid,
         "/media/startos/migrate",

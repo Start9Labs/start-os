@@ -32,7 +32,7 @@ use crate::net::utils::find_wifi_iface;
 use crate::net::web_server::{UpgradableListener, WebServerAcceptorSetter};
 use crate::prelude::*;
 use crate::progress::{
-    FullProgress, FullProgressTracker, PhaseProgressTrackerHandle, PhasedProgressBar,
+    FullProgress, FullProgressTracker, PhaseProgressTrackerHandle, PhasedProgressBar, ProgressUnits,
 };
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::v2::pack::{CONTAINER_DATADIR, CONTAINER_TOOL};
@@ -259,6 +259,7 @@ pub async fn run_script<P: AsRef<Path>>(path: P, mut progress: PhaseProgressTrac
     if let Err(e) = async {
         let script = tokio::fs::read_to_string(script).await?;
         progress.set_total(script.as_bytes().iter().filter(|b| **b == b'\n').count() as u64);
+        progress.set_units(Some(ProgressUnits::Bytes));
         let mut reader = IOHook::new(Cursor::new(script.as_bytes()));
         reader.post_read(|buf| progress += buf.iter().filter(|b| **b == b'\n').count() as u64);
         Command::new("/bin/bash")

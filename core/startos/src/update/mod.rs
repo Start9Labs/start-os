@@ -26,7 +26,9 @@ use crate::disk::mount::filesystem::MountType;
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
-use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle, PhasedProgressBar};
+use crate::progress::{
+    FullProgressTracker, PhaseProgressTrackerHandle, PhasedProgressBar, ProgressUnits,
+};
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
 use crate::registry::os::index::OsVersionInfo;
@@ -195,9 +197,9 @@ pub async fn cli_update_system(
                 }
                 if let Some(mut prev) = prev {
                     for phase in &mut prev.phases {
-                        phase.progress.complete();
+                        phase.progress.set_complete();
                     }
-                    prev.overall.complete();
+                    prev.overall.set_complete();
                     progress.update(&prev);
                 }
             } else {
@@ -265,6 +267,7 @@ async fn maybe_do_update(
     let prune_phase = progress.add_phase("Pruning Old OS Images".into(), Some(2));
     let mut download_phase = progress.add_phase("Downloading File".into(), Some(100));
     download_phase.set_total(asset.commitment.size);
+    download_phase.set_units(Some(ProgressUnits::Bytes));
     let reverify_phase = progress.add_phase("Reverifying File".into(), Some(10));
     let sync_boot_phase = progress.add_phase("Syncing Boot Files".into(), Some(1));
     let finalize_phase = progress.add_phase("Finalizing Update".into(), Some(1));
@@ -397,6 +400,9 @@ async fn do_update(
     prune_phase.start();
     Command::new("/usr/lib/startos/scripts/prune-images")
         .arg(asset.commitment.size.to_string())
+        .invoke(ErrorKind::Filesystem)
+        .await?;
+    Command::new("/usr/lib/startos/scripts/prune-boot")
         .invoke(ErrorKind::Filesystem)
         .await?;
     prune_phase.complete();

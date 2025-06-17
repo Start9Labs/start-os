@@ -36,7 +36,7 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
             "list",
             from_fn_async(list_package_signers)
                 .with_display_serializable()
-                .with_custom_display_fn(|handle, result| Ok(display_signers(handle.params, result)))
+                .with_custom_display_fn(|handle, result| display_signers(handle.params, result))
                 .with_about("List package signers and related signer info")
                 .with_call_remote::<CliContext>(),
         )

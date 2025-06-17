@@ -159,7 +159,7 @@ pub fn binding<C: Context, Kind: HostApiKind>(
                     use prettytable::*;
 
                     if let Some(format) = params.format {
-                        return Ok(display_serializable(format, res));
+                        return display_serializable(format, res);
                     }
 
                     let mut table = Table::new();
@@ -182,7 +182,7 @@ pub fn binding<C: Context, Kind: HostApiKind>(
                         ]);
                     }
 
-                    table.print_tty(false).unwrap();
+                    table.print_tty(false)?;
 
                     Ok(())
                 })

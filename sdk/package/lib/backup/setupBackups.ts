@@ -19,7 +19,7 @@ export function setupBackups<M extends T.SDKManifest>(
   if (options instanceof Function) {
     backupsFactory = options
   } else {
-    backupsFactory = async () => Backups.withVolumes(...options)
+    backupsFactory = async () => Backups.ofVolumes(...options)
   }
   const answer: SetupBackupsRes = {
     get createBackup() {

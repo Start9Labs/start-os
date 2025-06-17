@@ -12,7 +12,8 @@
     "skipLibCheck": true,
     "module": "commonjs",
     "outDir": "../dist",
-    "target": "es2021"
+    "target": "es2021",
+    "resolveJsonModule": true
   },
   "include": ["lib/**/*", "../base/lib/util/Hostname.ts"],
   "exclude": ["lib/**/*.spec.ts", "lib/**/*.gen.ts", "list", "node_modules"]

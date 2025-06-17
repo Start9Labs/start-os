@@ -25,6 +25,13 @@ lazy_static::lazy_static! {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, TS)]
+#[serde(rename_all = "kebab-case")]
+pub enum ProgressUnits {
+    Bytes,
+    Steps,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord, TS)]
 #[serde(untagged)]
 pub enum Progress {
     NotStarted(()),
@@ -34,13 +41,14 @@ pub enum Progress {
         done: u64,
         #[ts(type = "number | null")]
         total: Option<u64>,
+        units: Option<ProgressUnits>,
     },
 }
 impl Progress {
     pub fn new() -> Self {
         Progress::NotStarted(())
     }
-    pub fn update_bar(self, bar: &ProgressBar, bytes: bool) {
+    pub fn update_bar(self, bar: &ProgressBar) {
         match self {
             Self::NotStarted(()) => {
                 bar.set_style(SPINNER.clone());
@@ -52,8 +60,12 @@ impl Progress {
             Self::Complete(true) => {
                 bar.finish();
             }
-            Self::Progress { done, total: None } => {
-                if bytes {
+            Self::Progress {
+                done,
+                total: None,
+                units,
+            } => {
+                if units == Some(ProgressUnits::Bytes) {
                     bar.set_style(BYTES.clone());
                 } else {
                     bar.set_style(STEPS.clone());
@@ -64,8 +76,9 @@ impl Progress {
             Self::Progress {
                 done,
                 total: Some(total),
+                units,
             } => {
-                if bytes {
+                if units == Some(ProgressUnits::Bytes) {
                     bar.set_style(PERCENTAGE_BYTES.clone());
                 } else {
                     bar.set_style(PERCENTAGE.clone());
@@ -84,14 +97,22 @@ impl Progress {
     }
     pub fn set_done(&mut self, done: u64) {
         *self = match *self {
-            Self::Complete(false) | Self::NotStarted(()) => Self::Progress { done, total: None },
-            Self::Progress { mut done, total } => {
+            Self::Complete(false) | Self::NotStarted(()) => Self::Progress {
+                done,
+                total: None,
+                units: None,
+            },
+            Self::Progress {
+                mut done,
+                total,
+                units,
+            } => {
                 if let Some(total) = total {
                     if done > total {
                         done = total;
                     }
                 }
-                Self::Progress { done, total }
+                Self::Progress { done, total, units }
             }
             Self::Complete(true) => Self::Complete(true),
         };
@@ -101,10 +122,12 @@ impl Progress {
             Self::Complete(false) | Self::NotStarted(()) => Self::Progress {
                 done: 0,
                 total: Some(total),
+                units: None,
             },
-            Self::Progress { done, .. } => Self::Progress {
+            Self::Progress { done, units, .. } => Self::Progress {
                 done,
                 total: Some(total),
+                units,
             },
             Self::Complete(true) => Self::Complete(true),
         }
@@ -113,17 +136,30 @@ impl Progress {
         if let Self::Progress {
             done,
             total: Some(old),
+            units,
         } = *self
         {
             *self = Self::Progress {
                 done,
                 total: Some(old + total),
+                units,
             };
         } else {
             self.set_total(total)
         }
     }
-    pub fn complete(&mut self) {
+    pub fn set_units(&mut self, units: Option<ProgressUnits>) {
+        *self = match *self {
+            Self::Complete(false) | Self::NotStarted(()) => Self::Progress {
+                done: 0,
+                total: None,
+                units,
+            },
+            Self::Progress { done, total, .. } => Self::Progress { done, total, units },
+            Self::Complete(true) => Self::Complete(true),
+        };
+    }
+    pub fn set_complete(&mut self) {
         *self = Self::Complete(true);
     }
     pub fn is_complete(&self) -> bool {
@@ -137,15 +173,16 @@ impl std::ops::Add<u64> for Progress {
             Self::Complete(false) | Self::NotStarted(()) => Self::Progress {
                 done: rhs,
                 total: None,
+                units: None,
             },
-            Self::Progress { done, total } => {
+            Self::Progress { done, total, units } => {
                 let mut done = done + rhs;
                 if let Some(total) = total {
                     if done > total {
                         done = total;
                     }
                 }
-                Self::Progress { done, total }
+                Self::Progress { done, total, units }
             }
             Self::Complete(true) => Self::Complete(true),
         }
@@ -337,7 +374,7 @@ impl FullProgressTracker {
         }
     }
     pub fn complete(&self) {
-        self.overall.send_modify(|o| o.complete());
+        self.overall.send_modify(|o| o.set_complete());
     }
 }
 
@@ -355,6 +392,7 @@ impl PhaseProgressTrackerHandle {
                 Progress::Progress {
                     done,
                     total: Some(total),
+                    ..
                 } => ((done as f64 / total as f64) * overall_contribution as f64) as u64,
                 _ => 0,
             };
@@ -380,8 +418,11 @@ impl PhaseProgressTrackerHandle {
         self.progress.send_modify(|p| p.add_total(total));
         self.update_overall();
     }
+    pub fn set_units(&mut self, units: Option<ProgressUnits>) {
+        self.progress.send_modify(|p| p.set_units(units));
+    }
     pub fn complete(&mut self) {
-        self.progress.send_modify(|p| p.complete());
+        self.progress.send_modify(|p| p.set_complete());
         self.update_overall();
     }
     pub fn writer<W>(self, writer: W) -> ProgressTrackerWriter<W> {
@@ -501,7 +542,7 @@ impl PhasedProgressBar {
                 );
             }
         }
-        progress.overall.update_bar(&self.overall, false);
+        progress.overall.update_bar(&self.overall);
         for (name, bar) in self.phases.iter() {
             if let Some(progress) = progress.phases.iter().find_map(|p| {
                 if &p.name == name {
@@ -510,7 +551,7 @@ impl PhasedProgressBar {
                     None
                 }
             }) {
-                progress.update_bar(bar, true);
+                progress.update_bar(bar);
             }
         }
     }

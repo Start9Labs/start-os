@@ -32,7 +32,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
             <span tuiSubtitle class="g-warning">
               {{ error | i18n }}
               @if (getHealthCheckName(d.key); as healthCheckName) {
-                : {{ getHealthCheckName }}
+                : {{ healthCheckName }}
               }
             </span>
           } @else {

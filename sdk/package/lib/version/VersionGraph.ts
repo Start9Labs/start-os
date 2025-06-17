@@ -7,6 +7,7 @@ import {
   InitScriptOrFn,
   UninitFn,
   UninitScript,
+  UninitScriptOrFn,
 } from "../../../base/lib/inits"
 import { Graph, Vertex, once } from "../util"
 import { IMPOSSIBLE, VersionInfo } from "./VersionInfo"
@@ -171,11 +172,11 @@ export class VersionGraph<CurrentVersion extends string>
     /**
      * A script to run only on fresh install
      */
-    preInstall?: InitScript | InitFn
+    preInstall?: InitScriptOrFn<"install">
     /**
      * A script to run only on uninstall
      */
-    uninstall?: UninitScript | UninitFn
+    uninstall?: UninitScriptOrFn
   }) {
     return new VersionGraph(
       options.current,
