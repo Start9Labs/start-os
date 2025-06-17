@@ -1,0 +1,60 @@
+#!/bin/sh
+
+set -e
+
+if [ "$UID" -ne 0 ]; then
+    >&2 echo 'Must be run as root'
+    exit 1
+fi
+
+if [ -z "$1" ]; then
+    >&2 echo "usage: $0 <SQUASHFS>"
+    exit 1
+fi
+
+VERSION=$(unsquashfs -cat $1 /usr/lib/startos/VERSION.txt)
+GIT_HASH=$(unsquashfs -cat $1 /usr/lib/startos/GIT_HASH.txt)
+B3SUM=$(b3sum $1 | head -c 32)
+
+if [ -n "$CHECKSUM" ] && [ "$CHECKSUM" != "$B3SUM" ]; then
+    >&2 echo "CHECKSUM MISMATCH"
+    exit 2
+fi
+
+mv $1 /media/startos/images/${B3SUM}.rootfs
+ln -rsf /media/startos/images/${B3SUM}.rootfs /media/startos/config/current.rootfs
+
+unsquashfs -n -f -d / /media/startos/images/${B3SUM}.rootfs boot
+
+umount -R /media/startos/next 2> /dev/null
+umount -R /media/startos/lower 2> /dev/null
+umount -R /media/startos/upper 2> /dev/null
+rm -rf /media/startos/lower /media/startos/upper /media/startos/next
+mkdir /media/startos/upper
+mount -t tmpfs tmpfs /media/startos/upper
+mkdir -p /media/startos/lower /media/startos/upper/data /media/startos/upper/work /media/startos/next
+mount /media/startos/images/${B3SUM}.rootfs /media/startos/lower
+mount -t overlay \
+  -olowerdir=/media/startos/lower,upperdir=/media/startos/upper/data,workdir=/media/startos/upper/work \
+  overlay /media/startos/next
+mkdir -p /media/startos/next/media/startos/root
+mount --bind /media/startos/root /media/startos/next/media/startos/root
+mkdir -p /media/startos/next/dev
+mkdir -p /media/startos/next/sys
+mkdir -p /media/startos/next/proc
+mkdir -p /media/startos/next/boot
+mount --bind /dev /media/startos/next/dev
+mount --bind /sys /media/startos/next/sys
+mount --bind /proc /media/startos/next/proc
+mount --bind /boot /media/startos/next/boot
+
+chroot /media/startos/next update-grub2
+
+umount -R /media/startos/next
+umount -R /media/startos/upper
+umount -R /media/startos/lower
+rm -rf /media/startos/lower /media/startos/upper /media/startos/next
+
+sync
+
+reboot

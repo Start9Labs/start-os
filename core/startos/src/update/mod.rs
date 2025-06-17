@@ -402,6 +402,9 @@ async fn do_update(
         .arg(asset.commitment.size.to_string())
         .invoke(ErrorKind::Filesystem)
         .await?;
+    Command::new("/usr/lib/startos/scripts/prune-boot")
+        .invoke(ErrorKind::Filesystem)
+        .await?;
     prune_phase.complete();
 
     download_phase.start();
