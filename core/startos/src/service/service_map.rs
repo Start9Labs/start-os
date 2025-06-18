@@ -25,7 +25,6 @@ use crate::prelude::*;
 use crate::progress::{
     FullProgressTracker, PhaseProgressTrackerHandle, ProgressTrackerWriter, ProgressUnits,
 };
-use crate::rpc_continuations::Guid;
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
@@ -344,9 +343,6 @@ impl ServiceMap {
                         }),
                     )
                     .await?;
-                    if prev == Some(StartStop::Start) {
-                        new_service.start(Guid::new()).await?;
-                    }
                     *service = Some(new_service.into());
                     drop(service);
 

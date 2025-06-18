@@ -1,5 +1,30 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`transformConfigSpec transformConfigSpec(RTL) 1`] = `
+{
+  "password": {
+    "default": {
+      "charset": "a-z,A-Z,0-9",
+      "len": 22,
+    },
+    "description": "The password for your Ride the Lightning dashboard",
+    "disabled": false,
+    "generate": null,
+    "immutable": false,
+    "inputmode": "text",
+    "masked": true,
+    "maxLength": null,
+    "minLength": null,
+    "name": "Password",
+    "patterns": [],
+    "placeholder": null,
+    "required": true,
+    "type": "text",
+    "warning": null,
+  },
+}
+`;
+
 exports[`transformConfigSpec transformConfigSpec(bitcoind) 1`] = `
 {
   "advanced": {
