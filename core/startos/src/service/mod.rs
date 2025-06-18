@@ -35,7 +35,7 @@ use url::Url;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::package::{
     InstalledState, ManifestPreference, PackageDataEntry, PackageState, PackageStateMatchModelRef,
-    UpdatingState,
+    TaskSeverity, UpdatingState,
 };
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
@@ -526,7 +526,8 @@ impl Service {
                 }
             }
         }
-        ctx.db
+        let has_critical = ctx
+            .db
             .mutate(|db| {
                 for (action_id, input) in &action_input {
                     for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
@@ -541,10 +542,12 @@ impl Service {
                     .as_idx_mut(&manifest.id)
                     .or_not_found(&manifest.id)?;
                 let actions = entry.as_actions().keys()?;
-                entry.as_tasks_mut().mutate(|t| {
-                    Ok(t.retain(|_, v| {
+                let has_critical = entry.as_tasks_mut().mutate(|t| {
+                    t.retain(|_, v| {
                         v.task.package_id != manifest.id || actions.contains(&v.task.action_id)
-                    }))
+                    });
+                    Ok(t.iter()
+                        .any(|(_, t)| t.active && t.task.severity == TaskSeverity::Critical))
                 })?;
                 entry
                     .as_state_info_mut()
@@ -553,10 +556,14 @@ impl Service {
                 entry.as_icon_mut().ser(&icon)?;
                 entry.as_registry_mut().ser(registry)?;
 
-                Ok(())
+                Ok(has_critical)
             })
             .await
             .result?;
+
+        if prev_state == Some(StartStop::Start) && !has_critical {
+            service.start(procedure_id).await?;
+        }
 
         Ok(service)
     }

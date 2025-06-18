@@ -6,7 +6,7 @@ use models::{ActionId, PackageId, ProcedureName, ReplayId};
 
 use crate::action::{ActionInput, ActionResult};
 use crate::db::model::package::{
-    ActionVisibility, AllowedStatuses, TaskCondition, TaskEntry, TaskInput,
+    ActionVisibility, AllowedStatuses, TaskCondition, TaskEntry, TaskInput, TaskSeverity,
 };
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
@@ -78,7 +78,8 @@ pub fn update_tasks(
     action_id: &ActionId,
     input: &Value,
     was_run: bool,
-) {
+) -> bool {
+    let mut critical_activated = false;
     tasks.retain(|_, v| {
         if &v.task.package_id != package_id || &v.task.action_id != action_id {
             return true;
@@ -95,6 +96,9 @@ pub fn update_tasks(
                             }
                         } else {
                             v.active = true;
+                            if v.task.severity == TaskSeverity::Critical {
+                                critical_activated = true;
+                            }
                         }
                     }
                     None => {
@@ -106,7 +110,8 @@ pub fn update_tasks(
         } else {
             !was_run
         }
-    })
+    });
+    critical_activated
 }
 
 pub(super) struct RunAction {
@@ -125,7 +130,7 @@ impl Handler<RunAction> for ServiceActor {
             id: ref action_id,
             input,
         }: RunAction,
-        _: &BackgroundJobQueue,
+        jobs: &BackgroundJobQueue,
     ) -> Self::Response {
         let container = &self.0.persistent_container;
         let package_id = &self.0.id;
@@ -162,7 +167,7 @@ impl Handler<RunAction> for ServiceActor {
         }
         let result = container
             .execute::<Option<ActionResult>>(
-                id,
+                id.clone(),
                 ProcedureName::RunAction(action_id.clone()),
                 json!({
                     "input": input,
@@ -171,19 +176,30 @@ impl Handler<RunAction> for ServiceActor {
             )
             .await
             .with_kind(ErrorKind::Action)?;
-        self.0
+        if self
+            .0
             .ctx
             .db
             .mutate(|db| {
+                let mut critical_activated = false;
                 for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
-                    pde.as_tasks_mut().mutate(|tasks| {
+                    critical_activated |= pde.as_tasks_mut().mutate(|tasks| {
                         Ok(update_tasks(tasks, package_id, action_id, &input, true))
                     })?;
                 }
-                Ok(())
+                Ok(critical_activated)
             })
             .await
-            .result?;
+            .result?
+        {
+            <Self as Handler<super::control::Stop>>::handle(
+                self,
+                id,
+                super::control::Stop { wait: false },
+                jobs,
+            )
+            .await;
+        }
         Ok(result)
     }
 }

@@ -24,6 +24,7 @@ use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
 use crate::auth::Sessions;
 use crate::context::config::ServerConfig;
+use crate::db::model::package::TaskSeverity;
 use crate::db::model::Database;
 use crate::disk::OsPartitionInfo;
 use crate::init::{check_time_is_synchronized, InitResult};
@@ -403,21 +404,46 @@ impl RpcContext {
                 }
             }
         }
-        self.db
-            .mutate(|db| {
-                for (package_id, action_input) in &action_input {
-                    for (action_id, input) in action_input {
-                        for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
-                            pde.as_tasks_mut().mutate(|tasks| {
-                                Ok(update_tasks(tasks, package_id, action_id, input, false))
-                            })?;
+        for id in
+            self.db
+                .mutate::<Vec<PackageId>>(|db| {
+                    for (package_id, action_input) in &action_input {
+                        for (action_id, input) in action_input {
+                            for (_, pde) in
+                                db.as_public_mut().as_package_data_mut().as_entries_mut()?
+                            {
+                                pde.as_tasks_mut().mutate(|tasks| {
+                                    Ok(update_tasks(tasks, package_id, action_id, input, false))
+                                })?;
+                            }
                         }
                     }
-                }
-                Ok(())
-            })
-            .await
-            .result?;
+                    db.as_public()
+                        .as_package_data()
+                        .as_entries()?
+                        .into_iter()
+                        .filter_map(|(id, pkg)| {
+                            (|| {
+                                if pkg.as_tasks().de()?.into_iter().any(|(_, t)| {
+                                    t.active && t.task.severity == TaskSeverity::Critical
+                                }) {
+                                    Ok(Some(id))
+                                } else {
+                                    Ok(None)
+                                }
+                            })()
+                            .transpose()
+                        })
+                        .collect()
+                })
+                .await
+                .result?
+        {
+            let svc = self.services.get(&id).await;
+            if let Some(svc) = &*svc {
+                svc.stop(procedure_id.clone(), false).await?;
+            }
+        }
         check_tasks.complete();
 
         Ok(())

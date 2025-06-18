@@ -47,6 +47,7 @@ export function transformConfigSpec(oldSpec: OldConfigSpec): IST.InputSpec {
         immutable: false,
       }
     } else if (oldVal.type === "list") {
+      if (isUnionList(oldVal)) return inputSpec
       newVal = getListSpec(oldVal)
     } else if (oldVal.type === "number") {
       const range = Range.from(oldVal.range)
@@ -177,15 +178,17 @@ export function transformOldConfigToNew(
       }
     }
 
-    if (isList(val) && isObjectList(val)) {
+    if (isList(val)) {
       if (!config[key]) return obj
 
-      newVal = (config[key] as object[]).map((obj) =>
-        transformOldConfigToNew(
-          matchOldConfigSpec.unsafeCast(val.spec.spec),
-          obj,
-        ),
-      )
+      if (isObjectList(val)) {
+        newVal = (config[key] as object[]).map((obj) =>
+          transformOldConfigToNew(
+            matchOldConfigSpec.unsafeCast(val.spec.spec),
+            obj,
+          ),
+        )
+      } else if (isUnionList(val)) return obj
     }
 
     if (isPointer(val)) {
@@ -224,13 +227,15 @@ export function transformNewConfigToOld(
       }
     }
 
-    if (isList(val) && isObjectList(val)) {
-      newVal = (config[key] as object[]).map((obj) =>
-        transformNewConfigToOld(
-          matchOldConfigSpec.unsafeCast(val.spec.spec),
-          obj,
-        ),
-      )
+    if (isList(val)) {
+      if (isObjectList(val)) {
+        newVal = (config[key] as object[]).map((obj) =>
+          transformNewConfigToOld(
+            matchOldConfigSpec.unsafeCast(val.spec.spec),
+            obj,
+          ),
+        )
+      } else if (isUnionList(val)) return obj
     }
 
     return {
@@ -376,15 +381,17 @@ function isNumberList(
 ): val is OldValueSpecList & { subtype: "number" } {
   return val.subtype === "number"
 }
-
 function isObjectList(
   val: OldValueSpecList,
 ): val is OldValueSpecList & { subtype: "object" } {
-  if (["union"].includes(val.subtype)) {
-    throw new Error("Invalid list subtype. enum, string, and object permitted.")
-  }
   return val.subtype === "object"
 }
+function isUnionList(
+  val: OldValueSpecList,
+): val is OldValueSpecList & { subtype: "union" } {
+  return val.subtype === "union"
+}
+
 export type OldConfigSpec = Record<string, OldValueSpec>
 const [_matchOldConfigSpec, setMatchOldConfigSpec] = deferred<unknown>()
 export const matchOldConfigSpec = _matchOldConfigSpec as Parser<
@@ -491,6 +498,12 @@ const matchOldListValueSpecObject = object({
   "unique-by": matchOldUniqueBy.nullable().optional(), // indicates whether duplicates can be permitted in the list
   "display-as": string.nullable().optional(), // this should be a handlebars template which can make use of the entire config which corresponds to 'spec'
 })
+const matchOldListValueSpecUnion = object({
+  "unique-by": matchOldUniqueBy.nullable().optional(),
+  "display-as": string.nullable().optional(),
+  tag: matchOldUnionTagSpec,
+  variants: dictionary([string, _matchOldConfigSpec]),
+})
 const matchOldListValueSpecString = object({
   masked: boolean.nullable().optional(),
   copyable: boolean.nullable().optional(),
@@ -511,7 +524,7 @@ const matchOldListValueSpecNumber = object({
 })
 
 // represents a spec for a list
-const matchOldValueSpecList = every(
+export const matchOldValueSpecList = every(
   object({
     type: literals("list"),
     range: string, // '[0,1]' (inclusive) OR '[0,*)' (right unbounded), normal math rules
@@ -541,6 +554,10 @@ const matchOldValueSpecList = every(
     object({
       subtype: literals("number"),
       spec: matchOldListValueSpecNumber,
+    }),
+    object({
+      subtype: literals("union"),
+      spec: matchOldListValueSpecUnion,
     }),
   ),
 )

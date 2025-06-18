@@ -28,8 +28,8 @@ impl Service {
     }
 }
 
-struct Stop {
-    wait: bool,
+pub(super) struct Stop {
+    pub wait: bool,
 }
 impl Handler<Stop> for ServiceActor {
     type Response = ();

@@ -1,5 +1,10 @@
-import { matchOldConfigSpec, transformConfigSpec } from "./transformConfigSpec"
-import fixtureEmbasyPagesConfig from "./__fixtures__/embasyPagesConfig"
+import {
+  matchOldConfigSpec,
+  matchOldValueSpecList,
+  transformConfigSpec,
+} from "./transformConfigSpec"
+import fixtureEmbassyPagesConfig from "./__fixtures__/embassyPagesConfig"
+import fixtureRTLConfig from "./__fixtures__/rtlConfig"
 import searNXG from "./__fixtures__/searNXG"
 import bitcoind from "./__fixtures__/bitcoind"
 import nostr from "./__fixtures__/nostr"
@@ -8,14 +13,25 @@ import nostrConfig2 from "./__fixtures__/nostrConfig2"
 describe("transformConfigSpec", () => {
   test("matchOldConfigSpec(embassyPages.homepage.variants[web-page])", () => {
     matchOldConfigSpec.unsafeCast(
-      fixtureEmbasyPagesConfig.homepage.variants["web-page"],
+      fixtureEmbassyPagesConfig.homepage.variants["web-page"],
     )
   })
   test("matchOldConfigSpec(embassyPages)", () => {
-    matchOldConfigSpec.unsafeCast(fixtureEmbasyPagesConfig)
+    matchOldConfigSpec.unsafeCast(fixtureEmbassyPagesConfig)
   })
   test("transformConfigSpec(embassyPages)", () => {
-    const spec = matchOldConfigSpec.unsafeCast(fixtureEmbasyPagesConfig)
+    const spec = matchOldConfigSpec.unsafeCast(fixtureEmbassyPagesConfig)
+    expect(transformConfigSpec(spec)).toMatchSnapshot()
+  })
+
+  test("matchOldConfigSpec(RTL.nodes)", () => {
+    matchOldValueSpecList.unsafeCast(fixtureRTLConfig.nodes)
+  })
+  test("matchOldConfigSpec(RTL)", () => {
+    matchOldConfigSpec.unsafeCast(fixtureRTLConfig)
+  })
+  test("transformConfigSpec(RTL)", () => {
+    const spec = matchOldConfigSpec.unsafeCast(fixtureRTLConfig)
     expect(transformConfigSpec(spec)).toMatchSnapshot()
   })
 
