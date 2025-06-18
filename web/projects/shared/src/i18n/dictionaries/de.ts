@@ -147,7 +147,6 @@ export default {
   144: 'Wechseln',
   145: 'Installieren',
   146: 'Installation wird gestartet',
-  147: 'Register wechseln',
   148: 'Dienste in diesem Register werden vom Start9-Team gepackt und gepflegt. Bei Problemen oder Fragen hilft Ihnen unser Support-Team gerne weiter.',
   149: 'Dienste in diesem Register werden von der Start9-Community gepflegt. Die Installation erfolgt auf eigenes Risiko. Bei Problemen wenden Sie sich bitte an den Paketentwickler.',
   150: 'Dienste in diesem Register befinden sich in der Betaphase und können Fehler enthalten. Die Installation erfolgt auf eigenes Risiko.',

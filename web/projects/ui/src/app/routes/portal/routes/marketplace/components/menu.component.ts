@@ -12,17 +12,17 @@ import { DialogService, i18nPipe } from '@start9labs/shared'
     <menu [registry]="registry$ | async">
       <button
         slot="desktop"
-        tuiIconButton
+        tuiButton
         type="button"
         appearance="icon"
         iconStart="@tui.repeat"
         (click)="changeRegistry()"
       >
-        {{ 'Change Registry' | i18n }}
+        {{ 'Switch' | i18n }}
       </button>
       <button slot="mobile" class="mobile-button" (click)="changeRegistry()">
         <tui-icon tuiAppearance="icon" icon="@tui.repeat" />
-        {{ 'Change Registry' | i18n }}
+        {{ 'Switch' | i18n }}
       </button>
     </menu>
   `,
@@ -30,7 +30,7 @@ import { DialogService, i18nPipe } from '@start9labs/shared'
     .mobile-button {
       display: flex;
       gap: 0.5rem;
-      padding: 1.25rem;
+      padding: 1.25rem 0 1.25rem 1.45rem;
       font-size: 1rem;
       line-height: 1.5rem;
       background-color: transparent;
@@ -53,10 +53,6 @@ export class MarketplaceMenuComponent {
   readonly registry$ = inject(MarketplaceService).currentRegistry$
 
   changeRegistry() {
-    this.dialog
-      .openComponent(MARKETPLACE_REGISTRY, {
-        label: 'Change Registry',
-      })
-      .subscribe()
+    this.dialog.openComponent(MARKETPLACE_REGISTRY).subscribe()
   }
 }

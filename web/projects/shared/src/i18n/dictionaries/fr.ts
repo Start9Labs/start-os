@@ -147,7 +147,6 @@ export default {
   144: 'Changer',
   145: 'Installer',
   146: 'Installation initiée',
-  147: 'Changer de bibliothèque',
   148: 'Les services de cette bibliothèque sont maintenus par l’équipe de Start9. Si vous rencontrez un problème ou avez des questions, notre équipe de support dédiée sera ravie de vous aider.',
   149: 'Les services de cette bibliothèque sont maintenus par la communauté Start9. Installez-les à vos risques et périls. En cas de problème ou de question, veuillez contacter le développeur en charge du paquet.',
   150: 'Les services de cette bibliothèque sont en phase de test bêta et peuvent contenir des bugs. Installez-les à vos risques et périls.',

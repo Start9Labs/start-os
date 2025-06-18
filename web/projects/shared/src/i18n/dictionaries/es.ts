@@ -147,7 +147,6 @@ export default {
   144: 'Cambiar',
   145: 'Instalar',
   146: 'Iniciando instalación',
-  147: 'Cambiar registro',
   148: 'Los servicios de este registro están empaquetados y mantenidos por el equipo de Start9. Si experimentas un problema o tienes preguntas relacionadas con un servicio de este registro, nuestro equipo de soporte estará encantado de ayudarte.',
   149: 'Los servicios de este registro están empaquetados y mantenidos por miembros de la comunidad Start9. Instálalos bajo tu propio riesgo. Si experimentas un problema o tienes una pregunta sobre un servicio en este mercado, comunícate con el desarrollador del paquete.',
   150: 'Los servicios de este registro están en fase de prueba beta y pueden contener errores. Instálalos bajo tu propio riesgo.',

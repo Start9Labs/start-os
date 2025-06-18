@@ -158,6 +158,12 @@ header {
         button {
           place-self: end;
         }
+
+        store-icon {
+          border-radius: 100%;
+          display: flex;
+          margin-right: 12px;
+        }
       }
 
       &-bottom {
