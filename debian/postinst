@@ -25,12 +25,33 @@ if [ -f /etc/default/grub ]; then
     sed -i '/\(^\|#\)GRUB_TERMINAL=/c\GRUB_TERMINAL="serial"\nGRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --word=8 --parity=no --stop=1"' /etc/default/grub
 fi
 
+VERSION="$(cat /usr/lib/startos/VERSION.txt)"
+ENVIRONMENT=$(cat /usr/lib/startos/ENVIRONMENT.txt)
+VERSION_ENV="${VERSION}"
+if [ -n "${ENVIRONMENT}" ]; then
+    VERSION_ENV="${VERSION} (${ENVIRONMENT})"
+fi
+
+# set /etc/os-release
+cat << EOF > /etc/os-release
+NAME=StartOS
+VERSION="${VERSION_ENV}"
+ID=start-os
+VERSION_ID="${VERSION}"
+PRETTY_NAME="StartOS v${VERSION_ENV}"
+HOME_URL="https://start9.com/"
+SUPPORT_URL="https://docs.start9.com/0.3.5.x/support"
+BUG_REPORT_URL="https://github.com/Start9Labs/start-os/issues"
+VARIANT="${ENVIRONMENT}"
+VARIANT_ID="${ENVIRONMENT}"
+EOF
+
 # set local and remote login prompt
 cat << EOF > /etc/issue
-StartOS v$(cat /usr/lib/startos/VERSION.txt) [\\m] on \\n.local (\\l)
+StartOS v${VERSION} [\\m] on \\n.local (\\l)
 EOF
 cat << EOF > /etc/issue.net
-StartOS v$(cat /usr/lib/startos/VERSION.txt)
+StartOS v${VERSION}
 EOF
 
 # change timezone

@@ -328,9 +328,7 @@ pub fn session<C: Context>() -> ParentHandler<C> {
             from_fn_async(list)
                 .with_metadata("get_session", Value::Bool(true))
                 .with_display_serializable()
-                .with_custom_display_fn(|handle, result| {
-                    Ok(display_sessions(handle.params, result))
-                })
+                .with_custom_display_fn(|handle, result| display_sessions(handle.params, result))
                 .with_about("Display all server sessions")
                 .with_call_remote::<CliContext>(),
         )
@@ -343,7 +341,7 @@ pub fn session<C: Context>() -> ParentHandler<C> {
         )
 }
 
-fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) {
+fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) -> Result<(), Error> {
     use prettytable::*;
 
     if let Some(format) = params.format {
@@ -371,7 +369,8 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) {
         }
         table.add_row(row);
     }
-    table.print_tty(false).unwrap();
+    table.print_tty(false)?;
+    Ok(())
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]

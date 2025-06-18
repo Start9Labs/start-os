@@ -47,7 +47,7 @@ pub fn network_interface_api<C: Context>() -> ParentHandler<C> {
                     use prettytable::*;
 
                     if let Some(format) = params.format {
-                        return Ok(display_serializable(format, res));
+                        return display_serializable(format, res);
                     }
 
                     let mut table = Table::new();
@@ -78,7 +78,7 @@ pub fn network_interface_api<C: Context>() -> ParentHandler<C> {
                         ]);
                     }
 
-                    table.print_tty(false).unwrap();
+                    table.print_tty(false)?;
 
                     Ok(())
                 })

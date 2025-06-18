@@ -32,4 +32,5 @@ export type Manifest = {
   hardwareRequirements: HardwareRequirements
   gitHash?: GitHash
   osVersion: string
+  sdkVersion: string | null
 }

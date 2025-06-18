@@ -520,4 +520,5 @@ export const ENGLISH = {
   'To publish clearnet domains, you must click "Make Public", above.': 519,
   'Update available': 520,
   'To resolve the issue, refer to': 521,
+  'SDK Version': 522,
 } as const

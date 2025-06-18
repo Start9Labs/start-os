@@ -66,6 +66,8 @@ pub struct Manifest {
     #[serde(default = "current_version")]
     #[ts(type = "string")]
     pub os_version: Version,
+    #[ts(type = "string | null")]
+    pub sdk_version: Option<Version>,
 }
 impl Manifest {
     pub fn validate_for<'a, T: Clone>(

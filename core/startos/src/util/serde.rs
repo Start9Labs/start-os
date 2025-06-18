@@ -398,13 +398,12 @@ impl IoFormat {
     }
 }
 
-pub fn display_serializable<T: Serialize>(format: IoFormat, result: T) {
-    format
-        .to_writer(std::io::stdout(), &result)
-        .expect("Error serializing result to stdout");
+pub fn display_serializable<T: Serialize>(format: IoFormat, result: T) -> Result<(), Error> {
+    format.to_writer(std::io::stdout(), &result)?;
     if format == IoFormat::JsonPretty {
         println!()
     }
+    Ok(())
 }
 
 #[derive(Deserialize, Serialize)]
@@ -523,13 +522,14 @@ impl<T: HandlerFor<C>, C: Context> HandlerFor<C> for DisplaySerializable<T> {
 impl<T: HandlerTypes, C: Context> PrintCliResult<C> for DisplaySerializable<T>
 where
     T::Ok: Serialize,
+    Self::Err: From<Error>,
 {
     fn print(
         &self,
         HandlerArgs { params, .. }: HandlerArgsFor<C, Self>,
         result: Self::Ok,
     ) -> Result<(), Self::Err> {
-        display_serializable(params.format.unwrap_or_default(), result);
+        display_serializable(params.format.unwrap_or_default(), result)?;
         Ok(())
     }
 }

@@ -1,8 +1,0 @@
-#!/bin/sh
-
-
-if cat /sys/class/drm/*/status | grep -qw connected; then
-    exit 0
-else
-    exit 1
-fi

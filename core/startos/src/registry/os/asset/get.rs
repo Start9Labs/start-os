@@ -13,7 +13,7 @@ use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::progress::FullProgressTracker;
+use crate::progress::{FullProgressTracker, ProgressUnits};
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
 use crate::registry::os::index::OsVersionInfo;
@@ -167,6 +167,7 @@ async fn cli_get_os_asset(
         let mut download_phase =
             progress.add_phase(InternedString::intern("Downloading File"), Some(100));
         download_phase.set_total(res.commitment.size);
+        download_phase.set_units(Some(ProgressUnits::Bytes));
         let reverify_phase = if reverify {
             Some(progress.add_phase(InternedString::intern("Reverifying File"), Some(10)))
         } else {

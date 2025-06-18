@@ -17,7 +17,6 @@ import * as patterns from "../../base/lib/util/patterns"
 import { BackupSync, Backups } from "./backup/Backups"
 import { smtpInputSpec } from "../../base/lib/actions/input/inputSpecConstants"
 import { Daemon, Daemons } from "./mainFn/Daemons"
-import { HealthCheck } from "./health/HealthCheck"
 import { checkPortListening } from "./health/checkFns/checkPortListening"
 import { checkWebUrl, runHealthScript } from "./health/checkFns"
 import { List } from "../../base/lib/actions/input/builder/list"
@@ -25,10 +24,7 @@ import { SetupBackupsParams, setupBackups } from "./backup/setupBackups"
 import { setupMain } from "./mainFn"
 import { defaultTrigger } from "./trigger/defaultTrigger"
 import { changeOnFirstSuccess, cooldownTrigger } from "./trigger"
-import {
-  UpdateServiceInterfaces,
-  setupServiceInterfaces,
-} from "../../base/lib/interfaces/setupInterfaces"
+import { setupServiceInterfaces } from "../../base/lib/interfaces/setupInterfaces"
 import { successFailure } from "./trigger/successFailure"
 import { MultiHost, Scheme } from "../../base/lib/interfaces/Host"
 import { ServiceInterfaceBuilder } from "../../base/lib/interfaces/ServiceInterfaceBuilder"
@@ -45,17 +41,13 @@ import { splitCommand } from "./util"
 import { Mounts } from "./mainFn/Mounts"
 import { setupDependencies } from "../../base/lib/dependencies/setupDependencies"
 import * as T from "../../base/lib/types"
-import {
-  ExtendedVersion,
-  testTypeVersion,
-  VersionRange,
-} from "../../base/lib/exver"
+import { testTypeVersion } from "../../base/lib/exver"
 import {
   CheckDependencies,
   checkDependencies,
 } from "../../base/lib/dependencies/dependencies"
 import { GetSslCertificate } from "./util"
-import { getDataVersion, setDataVersion, VersionGraph } from "./version"
+import { getDataVersion, setDataVersion } from "./version"
 import { MaybeFn } from "../../base/lib/actions/setupActions"
 import { GetInput } from "../../base/lib/actions/setupActions"
 import { Run } from "../../base/lib/actions/setupActions"
@@ -68,7 +60,7 @@ import {
   setupOnUninit,
 } from "../../base/lib/inits"
 
-export const OSVersion = testTypeVersion("0.4.0-alpha.6")
+export const OSVersion = testTypeVersion("0.4.0-alpha.7")
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
@@ -95,7 +87,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       | "clearServiceInterfaces"
       | "bind"
       | "getHostInfo"
-    type MainUsedEffects = "setMainStatus" | "setHealth"
+    type MainUsedEffects = "setMainStatus"
     type CallbackEffects =
       | "child"
       | "constRetry"
@@ -129,6 +121,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       shutdown: (effects, ...args) => effects.shutdown(...args),
       getDependencies: (effects, ...args) => effects.getDependencies(...args),
       getStatus: (effects, ...args) => effects.getStatus(...args),
+      setHealth: (effects, ...args) => effects.setHealth(...args),
     }
 
     return {
@@ -454,7 +447,6 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         hostnames: string[],
         algorithm?: T.Algorithm,
       ) => new GetSslCertificate(effects, hostnames, algorithm),
-      HealthCheck,
       healthCheck: {
         checkPortListening,
         checkWebUrl,
@@ -652,19 +644,12 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         successFailure,
       },
       Mounts: {
-        of() {
-          return Mounts.of<Manifest>()
-        },
+        of: Mounts.of<Manifest>,
       },
       Backups: {
-        volumes: (
-          ...volumeNames: Array<Manifest["volumes"][number] & string>
-        ) => Backups.withVolumes<Manifest>(...volumeNames),
-        addSets: (
-          ...options: BackupSync<Manifest["volumes"][number] & string>[]
-        ) => Backups.withSyncs<Manifest>(...options),
-        withOptions: (options?: Partial<SyncOptions>) =>
-          Backups.withOptions<Manifest>(options),
+        ofVolumes: Backups.ofVolumes<Manifest>,
+        ofSyncs: Backups.ofSyncs<Manifest>,
+        withOptions: Backups.withOptions<Manifest>,
       },
       InputSpec: {
         /**
@@ -705,10 +690,11 @@ export class StartSdk<Manifest extends T.SDKManifest> {
       Daemons: {
         of(
           effects: Effects,
-          started: (onTerm: () => PromiseLike<void>) => PromiseLike<null>,
-          healthChecks: HealthCheck[],
+          started:
+            | ((onTerm: () => PromiseLike<void>) => PromiseLike<null>)
+            | null,
         ) {
-          return Daemons.of<Manifest>({ effects, started, healthChecks })
+          return Daemons.of<Manifest>({ effects, started })
         },
       },
       SubContainer: {

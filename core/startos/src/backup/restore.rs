@@ -20,6 +20,7 @@ use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::init::init;
 use crate::prelude::*;
+use crate::progress::ProgressUnits;
 use crate::s9pk::S9pk;
 use crate::service::service_map::DownloadInstallFuture;
 use crate::setup::SetupExecuteProgress;
@@ -136,6 +137,7 @@ pub async fn recover_full_embassy(
         .collect();
     let tasks = restore_packages(&rpc_ctx, backup_guard, ids).await?;
     restore_phase.set_total(tasks.len() as u64);
+    restore_phase.set_units(Some(ProgressUnits::Steps));
     let restore_phase = Arc::new(Mutex::new(restore_phase));
     stream::iter(tasks)
         .for_each_concurrent(5, |(id, res)| {

@@ -22,7 +22,9 @@ use crate::disk::mount::guard::GenericMountGuard;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
-use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle, ProgressTrackerWriter};
+use crate::progress::{
+    FullProgressTracker, PhaseProgressTrackerHandle, ProgressTrackerWriter, ProgressUnits,
+};
 use crate::rpc_continuations::Guid;
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
@@ -72,6 +74,7 @@ impl ServiceMap {
         progress.start();
         let ids = ctx.db.peek().await.as_public().as_package_data().keys()?;
         progress.set_total(ids.len() as u64);
+        progress.set_units(Some(ProgressUnits::Steps));
         let mut jobs = FuturesUnordered::new();
         for id in &ids {
             jobs.push(self.load(ctx, id, LoadDisposition::Retry));

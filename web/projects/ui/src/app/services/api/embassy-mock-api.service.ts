@@ -32,6 +32,7 @@ const PROGRESS: T.FullProgress = {
   overall: {
     done: 0,
     total: 120,
+    units: 'bytes',
   },
   phases: [
     {
@@ -39,6 +40,7 @@ const PROGRESS: T.FullProgress = {
       progress: {
         done: 0,
         total: 40,
+        units: 'bytes',
       },
     },
     {

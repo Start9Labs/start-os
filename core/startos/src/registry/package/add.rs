@@ -12,7 +12,7 @@ use url::Url;
 
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::progress::{FullProgressTracker, ProgressTrackerWriter};
+use crate::progress::{FullProgressTracker, ProgressTrackerWriter, ProgressUnits};
 use crate::registry::context::RegistryContext;
 use crate::registry::package::index::PackageVersionInfo;
 use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
@@ -135,6 +135,7 @@ pub async fn cli_add_package(
     if let Some(len) = len {
         verify_phase.set_total(len);
     }
+    verify_phase.set_units(Some(ProgressUnits::Bytes));
     let mut verify_writer = ProgressTrackerWriter::new(tokio::io::sink(), verify_phase);
     src.serialize(&mut TrackingIO::new(0, &mut verify_writer), true)
         .await?;
