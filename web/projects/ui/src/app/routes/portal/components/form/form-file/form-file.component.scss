@@ -1,0 +1,46 @@
+@use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+
+.template {
+  @include taiga.transition(opacity);
+
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0 0.5rem;
+  font: var(--tui-font-text-m);
+  font-weight: bold;
+
+  &_hidden {
+    opacity: 0;
+  }
+}
+
+.drop {
+  @include taiga.fullsize();
+  @include taiga.transition(opacity);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+
+  &_hidden {
+    opacity: 0;
+  }
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  max-width: 50%;
+}
+
+small {
+  max-width: 50%;
+  font-weight: normal;
+  color: var(--tui-text-secondary);
+  margin-left: auto;
+}
+
+tui-tag {
+  z-index: 1;
+  margin: -0.25rem -0.25rem -0.25rem auto;
+}

@@ -1,0 +1,104 @@
+<header>
+  <div class="title">
+    <store-icon
+      [tuiSkeleton]="!registry"
+      [style.border-radius.%]="!registry ? 100 : null"
+      size="60px"
+      [url]="registry?.url || ''"
+    />
+    <h1 [tuiSkeleton]="!registry">
+      {{ registry?.info?.name || 'Unnamed Registry' }}
+    </h1>
+    <!-- change registry modal -->
+    <ng-content select="[slot=desktop]"></ng-content>
+  </div>
+  <!-- mobile nav -->
+  <div class="nav-mobile">
+    <div class="nav-mobile-bar">
+      <!-- mobile search -->
+      <marketplace-search
+        [(query)]="query"
+        (queryChange)="onQueryChange($event)"
+      />
+      <button tuiButton type="button" appearance="" (click)="open.set(true)">
+        <store-icon
+          size="42px"
+          [style.height.px]="42"
+          [style.border-radius.%]="100"
+          [url]="registry?.url || ''"
+          [tuiSkeleton]="!registry"
+        />
+        <tui-drawer
+          *tuiPopup="open()"
+          [overlay]="true"
+          (click.self)="open.set(false)"
+        >
+          <nav class="nav-mobile-sidebar divide-bar">
+            <div class="nav-mobile-sidebar-top">
+              <store-icon
+                [tuiSkeleton]="!registry"
+                size="32px"
+                [url]="registry?.url || ''"
+              />
+              <h1 [style.margin]="0" [tuiSkeleton]="!registry">
+                {{ registry?.info?.name }}
+              </h1>
+              <button
+                tuiButton
+                type="button"
+                appearance="icon"
+                iconStart="@tui.x"
+                (click)="open.set(false)"
+              ></button>
+            </div>
+            <!-- change registry modal -->
+            <ng-content select="[slot=mobile]"></ng-content>
+            <div class="nav-mobile-sidebar-bottom divide-bar">
+              <marketplace-categories
+                [categories]="registry?.info?.categories"
+                [category]="query ? '' : category"
+                (categoryChange)="onCategoryChange($event); open.set(false)"
+              />
+              <div>
+                <!-- link to store for brochure -->
+                <ng-content select="[slot=store-mobile]" />
+                <a
+                  target="_blank"
+                  rel="noreferrer"
+                  href="https://docs.start9.com/latest/packaging-guide/"
+                >
+                  <span>Package a service</span>
+                  <tui-icon tuiAppearance="icon" icon="@tui.external-link" />
+                </a>
+              </div>
+            </div>
+          </nav>
+        </tui-drawer>
+      </button>
+    </div>
+  </div>
+  <!-- desktop nav -->
+  <nav class="nav-desktop">
+    <!-- desktop search -->
+    <marketplace-search [query]="query" (queryChange)="onQueryChange($event)" />
+    <div class="nav-desktop-container">
+      <marketplace-categories
+        [categories]="registry?.info?.categories"
+        [category]="query ? '' : category"
+        (categoryChange)="onCategoryChange($event)"
+      />
+      <div>
+        <!-- link to store for brochure -->
+        <ng-content select="[slot=store]" />
+        <a
+          target="_blank"
+          rel="noreferrer"
+          href="https://docs.start9.com/latest/packaging-guide/"
+        >
+          <span>Package a service</span>
+          <tui-icon tuiAppearance="icon" icon="@tui.external-link" />
+        </a>
+      </div>
+    </div>
+  </nav>
+</header>

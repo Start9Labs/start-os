@@ -2,6 +2,7 @@ import { Pipe, PipeTransform } from '@angular/core'
 
 @Pipe({
   name: 'includes',
+  standalone: false,
 })
 export class IncludesPipe implements PipeTransform {
   transform<T>(list: T[], val: T): boolean {

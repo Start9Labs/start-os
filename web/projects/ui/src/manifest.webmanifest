@@ -1,18 +1,16 @@
 {
   "name": "StartOS",
-  "short_name": "StartOS",
-  "theme_color": "#ff5b71",
-  "background_color": "#1e1e1e",
+  "background_color": "#f0f0f0",
   "display": "standalone",
-  "scope": ".",
-  "start_url": "/?version=0351",
-  "id": "/?version=0351",
+  "start_url": "./",
   "icons": [
     {
-      "src": "assets/img/icon.png",
-      "sizes": "256x256",
-      "type": "image/png",
-      "purpose": "any"
+      "src": "/assets/icons/startos-192x192.png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/assets/icons/startos-512x512.png",
+      "sizes": "512x512"
     }
   ]
 }

@@ -1,34 +1,56 @@
 use std::collections::BTreeSet;
 use std::fmt;
+use std::sync::Arc;
+use std::time::Duration;
 
 use chrono::Utc;
-use clap::ArgMatches;
+use clap::Parser;
 use color_eyre::eyre::eyre;
-use futures::FutureExt;
-use rpc_toolkit::command;
-use rpc_toolkit::yajrc::RpcError;
+use futures::{FutureExt, TryStreamExt};
+use imbl::vector;
+use imbl_value::InternedString;
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
+use rustls::RootCertStore;
+use rustls_pki_types::CertificateDer;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::process::Command;
 use tokio::sync::broadcast::Receiver;
-use tokio::sync::RwLock;
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::disk::util::{get_available, get_used};
-use crate::logs::{
-    cli_logs_generic_follow, cli_logs_generic_nofollow, fetch_logs, follow_logs, LogFollowResponse,
-    LogResponse, LogSource,
-};
+use crate::logs::{LogSource, LogsParams, SYSTEM_UNIT};
 use crate::prelude::*;
+use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::shutdown::Shutdown;
 use crate::util::cpupower::{get_available_governors, set_governor, Governor};
-use crate::util::serde::{display_serializable, IoFormat};
-use crate::util::{display_none, Invoke};
-use crate::{Error, ErrorKind, ResultExt};
+use crate::util::io::open_file;
+use crate::util::net::WebSocketExt;
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
+use crate::util::sync::Watch;
+use crate::util::Invoke;
+use crate::{MAIN_DATA, PACKAGE_DATA};
 
-#[command(subcommands(zram, governor))]
-pub async fn experimental() -> Result<(), Error> {
-    Ok(())
+pub fn experimental<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand(
+            "zram",
+            from_fn_async(zram)
+                .no_display()
+                .with_about("Enable zram")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "governor",
+            from_fn_async(governor)
+                .with_display_serializable()
+                .with_custom_display_fn(|handle, result| {
+                    display_governor_info(handle.params, result)
+                })
+                .with_about("Show current and available CPU governors")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 pub async fn enable_zram() -> Result<(), Error> {
@@ -59,11 +81,17 @@ pub async fn enable_zram() -> Result<(), Error> {
     Ok(())
 }
 
-#[command(display(display_none))]
-pub async fn zram(#[context] ctx: RpcContext, #[arg] enable: bool) -> Result<(), Error> {
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct ZramParams {
+    enable: bool,
+}
+
+pub async fn zram(ctx: RpcContext, ZramParams { enable }: ZramParams) -> Result<(), Error> {
     let db = ctx.db.peek().await;
 
-    let zram = db.as_server_info().as_zram().de()?;
+    let zram = db.as_public().as_server_info().as_zram().de()?;
     if enable == zram {
         return Ok(());
     }
@@ -80,10 +108,14 @@ pub async fn zram(#[context] ctx: RpcContext, #[arg] enable: bool) -> Result<(),
     }
     ctx.db
         .mutate(|v| {
-            v.as_server_info_mut().as_zram_mut().ser(&enable)?;
+            v.as_public_mut()
+                .as_server_info_mut()
+                .as_zram_mut()
+                .ser(&enable)?;
             Ok(())
         })
-        .await?;
+        .await
+        .result?;
     Ok(())
 }
 
@@ -93,32 +125,39 @@ pub struct GovernorInfo {
     available: BTreeSet<Governor>,
 }
 
-fn display_governor_info(arg: GovernorInfo, matches: &ArgMatches) {
+fn display_governor_info(
+    params: WithIoFormat<GovernorParams>,
+    result: GovernorInfo,
+) -> Result<(), Error> {
     use prettytable::*;
 
-    if matches.is_present("format") {
-        return display_serializable(arg, matches);
+    if let Some(format) = params.format {
+        return display_serializable(format, params);
     }
 
     let mut table = Table::new();
     table.add_row(row![bc -> "GOVERNORS"]);
-    for entry in arg.available {
-        if Some(&entry) == arg.current.as_ref() {
+    for entry in result.available {
+        if Some(&entry) == result.current.as_ref() {
             table.add_row(row![g -> format!("* {entry} (current)")]);
         } else {
             table.add_row(row![entry]);
         }
     }
-    table.print_tty(false).unwrap();
+    table.print_tty(false)?;
+    Ok(())
 }
 
-#[command(display(display_governor_info))]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct GovernorParams {
+    set: Option<Governor>,
+}
+
 pub async fn governor(
-    #[context] ctx: RpcContext,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-    #[arg] set: Option<Governor>,
+    ctx: RpcContext,
+    GovernorParams { set, .. }: GovernorParams,
 ) -> Result<GovernorInfo, Error> {
     let available = get_available_governors().await?;
     if let Some(set) = set {
@@ -130,10 +169,23 @@ pub async fn governor(
         }
         set_governor(&set).await?;
         ctx.db
-            .mutate(|d| d.as_server_info_mut().as_governor_mut().ser(&Some(set)))
-            .await?;
+            .mutate(|d| {
+                d.as_public_mut()
+                    .as_server_info_mut()
+                    .as_governor_mut()
+                    .ser(&Some(set))
+            })
+            .await
+            .result?;
     }
-    let current = ctx.db.peek().await.as_server_info().as_governor().de()?;
+    let current = ctx
+        .db
+        .peek()
+        .await
+        .as_public()
+        .as_server_info()
+        .as_governor()
+        .de()?;
     Ok(GovernorInfo { current, available })
 }
 
@@ -143,13 +195,13 @@ pub struct TimeInfo {
     uptime: u64,
 }
 
-fn display_time(arg: TimeInfo, matches: &ArgMatches) {
+pub fn display_time(params: WithIoFormat<Empty>, arg: TimeInfo) -> Result<(), Error> {
     use std::fmt::Write;
 
     use prettytable::*;
 
-    if matches.is_present("format") {
-        return display_serializable(arg, matches);
+    if let Some(format) = params.format {
+        return display_serializable(format, arg);
     }
 
     let days = arg.uptime / (24 * 60 * 60);
@@ -182,121 +234,92 @@ fn display_time(arg: TimeInfo, matches: &ArgMatches) {
     let mut table = Table::new();
     table.add_row(row![bc -> "NOW", &arg.now]);
     table.add_row(row![bc -> "UPTIME", &uptime_string]);
-    table.print_tty(false).unwrap();
+    table.print_tty(false)?;
+    Ok(())
 }
 
-#[command(display(display_time))]
-pub async fn time(
-    #[context] ctx: RpcContext,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-) -> Result<TimeInfo, Error> {
+pub async fn time(ctx: RpcContext, _: Empty) -> Result<TimeInfo, Error> {
     Ok(TimeInfo {
         now: Utc::now().to_rfc3339(),
         uptime: ctx.start_time.elapsed().as_secs(),
     })
 }
 
-#[command(
-    custom_cli(cli_logs(async, context(CliContext))),
-    subcommands(self(logs_nofollow(async)), logs_follow),
-    display(display_none)
-)]
-pub async fn logs(
-    #[arg(short = 'l', long = "limit")] limit: Option<usize>,
-    #[arg(short = 'c', long = "cursor")] cursor: Option<String>,
-    #[arg(short = 'B', long = "before", default)] before: bool,
-    #[arg(short = 'f', long = "follow", default)] follow: bool,
-) -> Result<(Option<usize>, Option<String>, bool, bool), Error> {
-    Ok((limit, cursor, before, follow))
+pub fn logs<C: Context + AsRef<RpcContinuations>>() -> ParentHandler<C, LogsParams> {
+    crate::logs::logs(|_: &C, _| async { Ok(LogSource::Unit(SYSTEM_UNIT)) })
 }
-pub async fn cli_logs(
-    ctx: CliContext,
-    (limit, cursor, before, follow): (Option<usize>, Option<String>, bool, bool),
-) -> Result<(), RpcError> {
-    if follow {
-        if cursor.is_some() {
-            return Err(RpcError::from(Error::new(
-                eyre!("The argument '--cursor <cursor>' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
-            )));
+
+pub fn kernel_logs<C: Context + AsRef<RpcContinuations>>() -> ParentHandler<C, LogsParams> {
+    crate::logs::logs(|_: &C, _| async { Ok(LogSource::Kernel) })
+}
+
+const DISABLE_KIOSK_PATH: &str =
+    "/media/startos/config/overlay/etc/systemd/system/getty@tty1.service.d/autologin.conf";
+
+pub async fn sync_kiosk(kiosk: Option<bool>) -> Result<(), Error> {
+    if let Some(kiosk) = kiosk {
+        if kiosk {
+            enable_kiosk().await?;
+        } else {
+            disable_kiosk().await?;
         }
-        if before {
-            return Err(RpcError::from(Error::new(
-                eyre!("The argument '--before' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
-            )));
-        }
-        cli_logs_generic_follow(ctx, "server.logs.follow", None, limit).await
-    } else {
-        cli_logs_generic_nofollow(ctx, "server.logs", None, limit, cursor, before).await
     }
-}
-pub async fn logs_nofollow(
-    _ctx: (),
-    (limit, cursor, before, _): (Option<usize>, Option<String>, bool, bool),
-) -> Result<LogResponse, Error> {
-    fetch_logs(LogSource::System, limit, cursor, before).await
+    Ok(())
 }
 
-#[command(rpc_only, rename = "follow", display(display_none))]
-pub async fn logs_follow(
-    #[context] ctx: RpcContext,
-    #[parent_data] (limit, _, _, _): (Option<usize>, Option<String>, bool, bool),
-) -> Result<LogFollowResponse, Error> {
-    follow_logs(ctx, LogSource::System, limit).await
-}
-
-#[command(
-    rename = "kernel-logs",
-    custom_cli(cli_kernel_logs(async, context(CliContext))),
-    subcommands(self(kernel_logs_nofollow(async)), kernel_logs_follow),
-    display(display_none)
-)]
-pub async fn kernel_logs(
-    #[arg(short = 'l', long = "limit")] limit: Option<usize>,
-    #[arg(short = 'c', long = "cursor")] cursor: Option<String>,
-    #[arg(short = 'B', long = "before", default)] before: bool,
-    #[arg(short = 'f', long = "follow", default)] follow: bool,
-) -> Result<(Option<usize>, Option<String>, bool, bool), Error> {
-    Ok((limit, cursor, before, follow))
-}
-pub async fn cli_kernel_logs(
-    ctx: CliContext,
-    (limit, cursor, before, follow): (Option<usize>, Option<String>, bool, bool),
-) -> Result<(), RpcError> {
-    if follow {
-        if cursor.is_some() {
-            return Err(RpcError::from(Error::new(
-                eyre!("The argument '--cursor <cursor>' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
-            )));
-        }
-        if before {
-            return Err(RpcError::from(Error::new(
-                eyre!("The argument '--before' cannot be used with '--follow'"),
-                crate::ErrorKind::InvalidRequest,
-            )));
-        }
-        cli_logs_generic_follow(ctx, "server.kernel-logs.follow", None, limit).await
-    } else {
-        cli_logs_generic_nofollow(ctx, "server.kernel-logs", None, limit, cursor, before).await
+pub async fn enable_kiosk() -> Result<(), Error> {
+    if tokio::fs::metadata(DISABLE_KIOSK_PATH).await.is_ok() {
+        crate::util::io::delete_file(DISABLE_KIOSK_PATH).await?;
     }
-}
-pub async fn kernel_logs_nofollow(
-    _ctx: (),
-    (limit, cursor, before, _): (Option<usize>, Option<String>, bool, bool),
-) -> Result<LogResponse, Error> {
-    fetch_logs(LogSource::Kernel, limit, cursor, before).await
+    Ok(())
 }
 
-#[command(rpc_only, rename = "follow", display(display_none))]
-pub async fn kernel_logs_follow(
-    #[context] ctx: RpcContext,
-    #[parent_data] (limit, _, _, _): (Option<usize>, Option<String>, bool, bool),
-) -> Result<LogFollowResponse, Error> {
-    follow_logs(ctx, LogSource::Kernel, limit).await
+pub async fn disable_kiosk() -> Result<(), Error> {
+    crate::util::io::create_file(DISABLE_KIOSK_PATH)
+        .await?
+        .sync_all()
+        .await?;
+    Ok(())
+}
+
+pub fn kiosk<C: Context>() -> ParentHandler<C> {
+    ParentHandler::<C>::new()
+        .subcommand(
+            "enable",
+            from_fn_async(|ctx: RpcContext| async move {
+                ctx.db
+                    .mutate(|db| {
+                        db.as_public_mut()
+                            .as_server_info_mut()
+                            .as_kiosk_mut()
+                            .ser(&Some(true))
+                    })
+                    .await
+                    .result?;
+                enable_kiosk().await
+            })
+            .no_display()
+            .with_about("Enable kiosk mode")
+            .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "disable",
+            from_fn_async(|ctx: RpcContext| async move {
+                ctx.db
+                    .mutate(|db| {
+                        db.as_public_mut()
+                            .as_server_info_mut()
+                            .as_kiosk_mut()
+                            .ser(&Some(false))
+                    })
+                    .await
+                    .result?;
+                disable_kiosk().await
+            })
+            .no_display()
+            .with_about("Disable kiosk mode")
+            .with_call_remote::<CliContext>(),
+        )
 }
 
 #[derive(Serialize, Deserialize)]
@@ -305,7 +328,7 @@ pub struct MetricLeaf<T> {
     unit: Option<String>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, TS)]
 pub struct Celsius(f64);
 impl fmt::Display for Celsius {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -333,7 +356,7 @@ impl<'de> Deserialize<'de> for Celsius {
         Ok(Celsius(s.value.parse().map_err(serde::de::Error::custom)?))
     }
 }
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, TS)]
 pub struct Percentage(f64);
 impl Serialize for Percentage {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -359,7 +382,7 @@ impl<'de> Deserialize<'de> for Percentage {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, TS)]
 pub struct MebiBytes(pub f64);
 impl Serialize for MebiBytes {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -385,7 +408,7 @@ impl<'de> Deserialize<'de> for MebiBytes {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, PartialOrd, TS)]
 pub struct GigaBytes(f64);
 impl Serialize for GigaBytes {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -411,13 +434,14 @@ impl<'de> Deserialize<'de> for GigaBytes {
     }
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Deserialize, Serialize, Clone, Debug, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct MetricsGeneral {
     pub temperature: Option<Celsius>,
 }
-#[derive(Deserialize, Serialize, Clone, Debug)]
-#[serde(rename_all = "kebab-case")]
+
+#[derive(Deserialize, Serialize, Clone, Debug, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct MetricsMemory {
     pub percentage_used: Percentage,
     pub total: MebiBytes,
@@ -427,8 +451,9 @@ pub struct MetricsMemory {
     pub zram_available: MebiBytes,
     pub zram_used: MebiBytes,
 }
-#[derive(Deserialize, Serialize, Clone, Debug)]
-#[serde(rename_all = "kebab-case")]
+
+#[derive(Deserialize, Serialize, Clone, Debug, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct MetricsCpu {
     percentage_used: Percentage,
     idle: Percentage,
@@ -436,16 +461,19 @@ pub struct MetricsCpu {
     kernel_space: Percentage,
     wait: Percentage,
 }
-#[derive(Deserialize, Serialize, Clone, Debug)]
-#[serde(rename_all = "kebab-case")]
+
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, TS)]
+#[serde(rename_all = "camelCase")]
 pub struct MetricsDisk {
     percentage_used: Percentage,
     used: GigaBytes,
     available: GigaBytes,
     capacity: GigaBytes,
 }
-#[derive(Deserialize, Serialize, Clone, Debug)]
-#[serde(rename_all = "kebab-case")]
+
+#[derive(Deserialize, Serialize, Clone, Debug, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct Metrics {
     general: MetricsGeneral,
     memory: MetricsMemory,
@@ -453,25 +481,76 @@ pub struct Metrics {
     disk: MetricsDisk,
 }
 
-#[command(display(display_serializable))]
-pub async fn metrics(
-    #[context] ctx: RpcContext,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
-) -> Result<Metrics, Error> {
-    match ctx.metrics_cache.read().await.clone() {
-        None => Err(Error {
-            source: color_eyre::eyre::eyre!("No Metrics Found"),
-            kind: ErrorKind::NotFound,
-            revision: None,
-        }),
-        Some(metrics_val) => Ok(metrics_val),
-    }
+// #[command(display(display_serializable))]
+pub async fn metrics(ctx: RpcContext) -> Result<Metrics, Error> {
+    ctx.metrics_cache.read().or_not_found("No Metrics Found")
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct MetricsFollowResponse {
+    pub guid: Guid,
+    pub metrics: Metrics,
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct MetricsFollowParams {
+    #[ts(skip)]
+    #[serde(rename = "__auth_session")] // from Auth middleware
+    session: Option<InternedString>,
+}
+
+pub async fn metrics_follow(
+    ctx: RpcContext,
+    MetricsFollowParams { session }: MetricsFollowParams,
+) -> Result<MetricsFollowResponse, Error> {
+    let mut local_cache = ctx.metrics_cache.clone();
+    let metrics = local_cache
+        .peek_and_mark_seen(|m| m.clone())
+        .or_not_found("No Metrics Found")?;
+    let guid = Guid::new();
+    ctx.rpc_continuations
+        .add(
+            guid.clone(),
+            RpcContinuation::ws_authed(
+                ctx.clone(),
+                session,
+                |mut ws| async move {
+                    let res = async {
+                        loop {
+                            use axum::extract::ws::Message;
+                            tokio::select! {
+                                _ = local_cache.changed() => {
+                                    ws.send(Message::Text(
+                                        local_cache
+                                            .peek(|m| serde_json::to_string(&m))
+                                            .with_kind(ErrorKind::Serialization)?
+                                            .into(),
+                                    )).await.with_kind(ErrorKind::Network)?;
+                                }
+                                msg = ws.try_next() => {
+                                    if msg.with_kind(crate::ErrorKind::Network)?.is_none() {
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        Ok::<_, Error>("complete")
+                    }
+                    .await;
+                    ws.close_result(res).await.log_err();
+                },
+                Duration::from_secs(30),
+            ),
+        )
+        .await;
+    Ok(MetricsFollowResponse { guid, metrics })
 }
 
 pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
-    cache: &RwLock<Option<Metrics>>,
+    cache: &Watch<Option<Metrics>>,
     mut mk_shutdown: F,
 ) {
     // fetch init temp
@@ -536,31 +615,21 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
         }
         tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
     }
-    {
-        // lock for writing
-        let mut guard = cache.write().await;
-        // write
-        *guard = Some(Metrics {
-            general: MetricsGeneral {
-                temperature: init_temp,
-            },
-            memory: init_mem,
-            cpu: init_cpu,
-            disk: init_disk,
-        })
-    }
+
+    let should_launch_temp_task = init_temp.is_some();
+
+    cache.send(Some(Metrics {
+        general: MetricsGeneral {
+            temperature: init_temp,
+        },
+        memory: init_mem,
+        cpu: init_cpu,
+        disk: init_disk,
+    }));
 
     let mut task_vec = Vec::new();
     // launch persistent temp task
-    if cache
-        .read()
-        .await
-        .as_ref()
-        .unwrap()
-        .general
-        .temperature
-        .is_some()
-    {
+    if should_launch_temp_task {
         task_vec.push(launch_temp_task(cache, mk_shutdown()).boxed());
     }
     // launch persistent cpu task
@@ -574,14 +643,15 @@ pub async fn launch_metrics_task<F: FnMut() -> Receiver<Option<Shutdown>>>(
 }
 
 async fn launch_temp_task(
-    cache: &RwLock<Option<Metrics>>,
+    cache: &Watch<Option<Metrics>>,
     mut shutdown: Receiver<Option<Shutdown>>,
 ) {
     loop {
         match get_temp().await {
             Ok(a) => {
-                let mut lock = cache.write().await;
-                (*lock).as_mut().unwrap().general.temperature = Some(a)
+                cache.send_if_modified(|c| {
+                    c.as_mut().unwrap().general.temperature.replace(a) != Some(a)
+                });
             }
             Err(e) => {
                 tracing::error!("Could not get new temperature: {}", e);
@@ -596,7 +666,7 @@ async fn launch_temp_task(
 }
 
 async fn launch_cpu_task(
-    cache: &RwLock<Option<Metrics>>,
+    cache: &Watch<Option<Metrics>>,
     mut init: ProcStat,
     mut shutdown: Receiver<Option<Shutdown>>,
 ) {
@@ -604,8 +674,7 @@ async fn launch_cpu_task(
         // read /proc/stat, diff against previous metrics, compute cpu load
         match get_cpu_info(&mut init).await {
             Ok(info) => {
-                let mut lock = cache.write().await;
-                (*lock).as_mut().unwrap().cpu = info;
+                cache.send_modify(|c| c.as_mut().unwrap().cpu = info);
             }
             Err(e) => {
                 tracing::error!("Could not get new CPU Metrics: {}", e);
@@ -619,16 +688,12 @@ async fn launch_cpu_task(
     }
 }
 
-async fn launch_mem_task(
-    cache: &RwLock<Option<Metrics>>,
-    mut shutdown: Receiver<Option<Shutdown>>,
-) {
+async fn launch_mem_task(cache: &Watch<Option<Metrics>>, mut shutdown: Receiver<Option<Shutdown>>) {
     loop {
         // read /proc/meminfo
         match get_mem_info().await {
             Ok(a) => {
-                let mut lock = cache.write().await;
-                (*lock).as_mut().unwrap().memory = a;
+                cache.send_modify(|c| c.as_mut().unwrap().memory = a);
             }
             Err(e) => {
                 tracing::error!("Could not get new Memory Metrics: {}", e);
@@ -642,15 +707,22 @@ async fn launch_mem_task(
     }
 }
 async fn launch_disk_task(
-    cache: &RwLock<Option<Metrics>>,
+    cache: &Watch<Option<Metrics>>,
     mut shutdown: Receiver<Option<Shutdown>>,
 ) {
     loop {
         // run df and capture output
         match get_disk_info().await {
             Ok(a) => {
-                let mut lock = cache.write().await;
-                (*lock).as_mut().unwrap().disk = a;
+                cache.send_if_modified(|c| {
+                    let c = c.as_mut().unwrap();
+                    if c.disk != a {
+                        c.disk = a;
+                        true
+                    } else {
+                        false
+                    }
+                });
             }
             Err(e) => {
                 tracing::error!("Could not get new Disk Metrics: {}", e);
@@ -726,7 +798,7 @@ impl ProcStat {
 async fn get_proc_stat() -> Result<ProcStat, Error> {
     use tokio::io::AsyncBufReadExt;
     let mut cpu_line = String::new();
-    let _n = tokio::io::BufReader::new(tokio::fs::File::open("/proc/stat").await?)
+    let _n = tokio::io::BufReader::new(open_file("/proc/stat").await?)
         .read_line(&mut cpu_line)
         .await?;
     let stats: Vec<u64> = cpu_line
@@ -743,14 +815,13 @@ async fn get_proc_stat() -> Result<ProcStat, Error> {
         .collect::<Result<Vec<u64>, Error>>()?;
 
     if stats.len() < 10 {
-        Err(Error {
-            source: color_eyre::eyre::eyre!(
+        Err(Error::new(
+            eyre!(
                 "Columns missing from /proc/stat. Need 10, found {}",
                 stats.len()
             ),
-            kind: ErrorKind::ParseSysInfo,
-            revision: None,
-        })
+            ErrorKind::ParseSysInfo,
+        ))
     } else {
         Ok(ProcStat {
             user: stats[0],
@@ -867,10 +938,10 @@ pub async fn get_mem_info() -> Result<MetricsMemory, Error> {
 
 #[instrument(skip_all)]
 async fn get_disk_info() -> Result<MetricsDisk, Error> {
-    let package_used_task = get_used("/embassy-data/package-data");
-    let package_available_task = get_available("/embassy-data/package-data");
-    let os_used_task = get_used("/embassy-data/main");
-    let os_available_task = get_available("/embassy-data/main");
+    let package_used_task = get_used(PACKAGE_DATA);
+    let package_available_task = get_available(PACKAGE_DATA);
+    let os_used_task = get_used(MAIN_DATA);
+    let os_available_task = get_available(MAIN_DATA);
 
     let (package_used, package_available, os_used, os_available) = futures::try_join!(
         package_used_task,
@@ -890,6 +961,150 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
         available: GigaBytes(total_available as f64 / 1_000_000_000.0),
         percentage_used: Percentage(total_percentage as f64),
     })
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct SmtpValue {
+    #[arg(long)]
+    pub server: String,
+    #[arg(long)]
+    pub port: u16,
+    #[arg(long)]
+    pub from: String,
+    #[arg(long)]
+    pub login: String,
+    #[arg(long)]
+    pub password: Option<String>,
+}
+pub async fn set_system_smtp(ctx: RpcContext, smtp: SmtpValue) -> Result<(), Error> {
+    let smtp = Some(smtp);
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_smtp_mut()
+                .ser(&smtp)
+        })
+        .await
+        .result?;
+    if let Some(callbacks) = ctx.callbacks.get_system_smtp() {
+        callbacks.call(vector![to_value(&smtp)?]).await?;
+    }
+    Ok(())
+}
+pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_smtp_mut()
+                .ser(&None)
+        })
+        .await
+        .result?;
+    if let Some(callbacks) = ctx.callbacks.get_system_smtp() {
+        callbacks.call(vector![Value::Null]).await?;
+    }
+    Ok(())
+}
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct TestSmtpParams {
+    #[arg(long)]
+    pub server: String,
+    #[arg(long)]
+    pub port: u16,
+    #[arg(long)]
+    pub from: String,
+    #[arg(long)]
+    pub to: String,
+    #[arg(long)]
+    pub login: String,
+    #[arg(long)]
+    pub password: Option<String>,
+}
+pub async fn test_smtp(
+    _: RpcContext,
+    TestSmtpParams {
+        server,
+        port,
+        from,
+        to,
+        login,
+        password,
+    }: TestSmtpParams,
+) -> Result<(), Error> {
+    #[cfg(feature = "mail-send")]
+    {
+        use mail_send::mail_builder::{self, MessageBuilder};
+        use mail_send::SmtpClientBuilder;
+        use rustls_pki_types::pem::PemObject;
+
+        let Some(pass_val) = password else {
+            return Err(Error::new(
+                eyre!("mail-send requires a password"),
+                ErrorKind::InvalidRequest,
+            ));
+        };
+
+        let mut root_cert_store = RootCertStore::empty();
+        let pem = tokio::fs::read("/etc/ssl/certs/ca-certificates.crt").await?;
+        for cert in CertificateDer::pem_slice_iter(&pem) {
+            root_cert_store.add_parsable_certificates([cert.with_kind(ErrorKind::OpenSsl)?]);
+        }
+
+        let cfg = Arc::new(
+            rustls::ClientConfig::builder_with_provider(Arc::new(
+                rustls::crypto::ring::default_provider(),
+            ))
+            .with_safe_default_protocol_versions()?
+            .with_root_certificates(root_cert_store)
+            .with_no_client_auth(),
+        );
+        let client = SmtpClientBuilder::new_with_tls_config(server, port, cfg)
+            .implicit_tls(false)
+            .credentials((login.split("@").next().unwrap().to_owned(), pass_val));
+
+        fn parse_address<'a>(addr: &'a str) -> mail_builder::headers::address::Address<'a> {
+            if addr.find("<").map_or(false, |start| {
+                addr.find(">").map_or(false, |end| start < end)
+            }) {
+                addr.split_once("<")
+                    .map(|(name, addr)| (name.trim(), addr.strip_suffix(">").unwrap_or(addr)))
+                    .unwrap()
+                    .into()
+            } else {
+                addr.into()
+            }
+        }
+
+        let message = MessageBuilder::new()
+            .from(parse_address(&from))
+            .to(parse_address(&to))
+            .subject("StartOS Test Email")
+            .text_body("This is a test email sent from your StartOS Server");
+        client
+            .connect()
+            .await
+            .map_err(|e| {
+                Error::new(
+                    eyre!("mail-send connection error: {:?}", e),
+                    ErrorKind::Unknown,
+                )
+            })?
+            .send(message)
+            .await
+            .map_err(|e| Error::new(eyre!("mail-send send error: {:?}", e), ErrorKind::Unknown))?;
+        Ok(())
+    }
+    #[cfg(not(feature = "mail-send"))]
+    Err(Error::new(
+        eyre!("test-smtp requires mail-send feature to be enabled"),
+        ErrorKind::InvalidRequest,
+    ))
 }
 
 #[tokio::test]

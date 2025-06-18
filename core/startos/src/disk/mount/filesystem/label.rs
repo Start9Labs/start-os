@@ -1,28 +1,11 @@
 use std::path::Path;
 
-use async_trait::async_trait;
 use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
 use sha2::Sha256;
 
-use super::{FileSystem, MountType, ReadOnly};
-use crate::util::Invoke;
-use crate::Error;
-
-pub async fn mount_label(
-    label: &str,
-    mountpoint: impl AsRef<Path>,
-    mount_type: MountType,
-) -> Result<(), Error> {
-    tokio::fs::create_dir_all(mountpoint.as_ref()).await?;
-    let mut cmd = tokio::process::Command::new("mount");
-    cmd.arg("-L").arg(label).arg(mountpoint.as_ref());
-    if mount_type == ReadOnly {
-        cmd.arg("-o").arg("ro");
-    }
-    cmd.invoke(crate::ErrorKind::Filesystem).await?;
-    Ok(())
-}
+use super::FileSystem;
+use crate::prelude::*;
 
 pub struct Label<S: AsRef<str>> {
     label: S,
@@ -32,14 +15,12 @@ impl<S: AsRef<str>> Label<S> {
         Label { label }
     }
 }
-#[async_trait]
 impl<S: AsRef<str> + Send + Sync> FileSystem for Label<S> {
-    async fn mount<P: AsRef<Path> + Send + Sync>(
-        &self,
-        mountpoint: P,
-        mount_type: MountType,
-    ) -> Result<(), Error> {
-        mount_label(self.label.as_ref(), mountpoint, mount_type).await
+    fn extra_args(&self) -> impl IntoIterator<Item = impl AsRef<std::ffi::OsStr>> {
+        ["-L", self.label.as_ref()]
+    }
+    async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
+        Ok(None::<&Path>)
     }
     async fn source_hash(
         &self,
