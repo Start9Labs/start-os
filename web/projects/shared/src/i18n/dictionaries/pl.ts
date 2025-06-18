@@ -147,7 +147,6 @@ export default {
   144: 'Przełącz',
   145: 'Zainstaluj',
   146: 'Rozpoczynanie instalacji',
-  147: 'Zmień katalog',
   148: 'Serwisy z tego katalogu są pakowane i utrzymywane przez zespół Start9. Jeśli napotkasz problem lub masz pytania dotyczące serwisu z tego katalogu, nasz zespół wsparcia z przyjemnością Ci pomoże.',
   149: 'Serwisy z tego katalogu są tworzone i utrzymywane przez członków społeczności Start9. Instalujesz je na własne ryzyko. W przypadku problemów lub pytań skontaktuj się z twórcą pakietu.',
   150: 'Serwisy z tego katalogu są w fazie testów beta i mogą zawierać błędy. Instalujesz je na własne ryzyko.',

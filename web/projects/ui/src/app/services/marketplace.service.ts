@@ -49,38 +49,49 @@ export class MarketplaceService {
         toStoreIdentity(start9, registries[start9]),
         toStoreIdentity(community, registries[community]),
         ...Object.entries(registries)
-          .filter(([url, _]) => ![start9, community].includes(url as any))
+          .filter(([u, _]) => !sameUrl(start9, u) && !sameUrl(community, u))
           .map(([url, name]) => toStoreIdentity(url, name)),
       ]),
     )
+
+  readonly newRegistry$ = this.registries$.pipe(
+    startWith<StoreIdentity[]>([]),
+    pairwise(),
+    mergeMap(([p, c]) => c.filter(a => !p.find(b => sameUrl(a.url, b.url)))),
+  )
 
   readonly currentRegistryUrl$ = new ReplaySubject<string>(1)
 
   readonly requestErrors$ = new BehaviorSubject<string[]>([])
 
-  readonly marketplace$: Observable<Marketplace> = this.registries$.pipe(
-    startWith<StoreIdentity[]>([]),
-    pairwise(),
-    mergeMap(([prev, curr]) =>
-      curr.filter(c => !prev.find(p => sameUrl(c.url, p.url))),
-    ),
-    mergeMap(({ url, name }) =>
-      this.fetchRegistry$(url).pipe(
-        tap(data => {
-          if (data?.info.name)
-            this.updateRegistryName(url, name, data.info.name)
+  readonly marketplace$: Observable<Marketplace> = combineLatest([
+    this.newRegistry$.pipe(
+      mergeMap(({ url, name }) =>
+        this.fetchRegistry$(url).pipe(
+          tap(data => {
+            if (data?.info.name)
+              this.updateRegistryName(url, name, data.info.name)
+          }),
+          map(data => [url, data] satisfies [string, StoreDataWithUrl | null]),
+          startWith<[string, StoreDataWithUrl | null]>([url, null]),
+        ),
+      ),
+      scan<[string, StoreDataWithUrl | null], Marketplace>(
+        (requests, [url, store]) => ({
+          ...requests,
+          [url]: store,
         }),
-        map(data => [url, data] satisfies [string, StoreDataWithUrl | null]),
-        startWith<[string, StoreDataWithUrl | null]>([url, null]),
+        {},
       ),
     ),
-    scan<[string, StoreDataWithUrl | null], Marketplace>(
-      (requests, [url, store]) => {
-        requests[url] = store
-
-        return requests
-      },
-      {},
+    this.registries$,
+  ]).pipe(
+    map(([marketplace, registries]) =>
+      Object.fromEntries(
+        Object.entries(marketplace).filter(([url]) =>
+          registries.find(store => sameUrl(store.url, url)),
+        ),
+      ),
     ),
     shareReplay(1),
   )

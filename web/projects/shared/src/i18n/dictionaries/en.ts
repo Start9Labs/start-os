@@ -146,7 +146,6 @@ export const ENGLISH = {
   'Switch': 144,
   'Install': 145,
   'Beginning install': 146,
-  'Change Registry': 147,
   'Services from this registry are packaged and maintained by the Start9 team. If you experience an issue or have questions related to a service from this registry, one of our dedicated support staff will be happy to assist you.': 148,
   'Services from this registry are packaged and maintained by members of the Start9 community. Install at your own risk. If you experience an issue or have a question related to a service in this marketplace, please reach out to the package developer for assistance.': 149,
   'Services from this registry are undergoing beta testing and may contain bugs. Install at your own risk.': 150,

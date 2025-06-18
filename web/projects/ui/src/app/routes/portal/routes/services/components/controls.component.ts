@@ -4,7 +4,7 @@ import {
   Component,
   computed,
   inject,
-  Input,
+  input,
 } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { TuiLet } from '@taiga-ui/cdk'
@@ -19,7 +19,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
 @Component({
   selector: 'service-controls',
   template: `
-    @if (status && ['running', 'starting', 'restarting'].includes(status)) {
+    @if (['running', 'starting', 'restarting'].includes(status()!)) {
       <button
         tuiButton
         appearance="primary-destructive"
@@ -30,7 +30,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
       </button>
     }
 
-    @if (status === 'running') {
+    @if (status() === 'running') {
       <button
         tuiButton
         iconStart="@tui.rotate-cw"
@@ -40,7 +40,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
       </button>
     }
 
-    @if (status === 'stopped') {
+    @if (status() === 'stopped') {
       <button
         *tuiLet="hasUnmet() | async as hasUnmet"
         tuiButton
@@ -88,20 +88,15 @@ import { getManifest } from 'src/app/utils/get-package-data'
 export class ServiceControlsComponent {
   private readonly errors = inject(DepErrorService)
 
-  @Input({ required: true })
-  pkg!: PackageDataEntry
-
-  @Input({ required: true })
-  status?: PrimaryStatus
-
-  readonly manifest = computed(() => getManifest(this.pkg))
-
+  readonly pkg = input.required<PackageDataEntry>()
+  readonly status = input<PrimaryStatus>()
+  readonly manifest = computed(() => getManifest(this.pkg()))
   readonly controls = inject(ControlsService)
 
   readonly hasUnmet = computed(() =>
     this.errors.getPkgDepErrors$(this.manifest().id).pipe(
       map(errors =>
-        Object.keys(this.pkg.currentDependencies)
+        Object.keys(this.pkg().currentDependencies)
           .map(id => errors[id])
           .some(Boolean),
       ),

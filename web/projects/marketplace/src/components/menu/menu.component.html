@@ -35,6 +35,11 @@
         >
           <nav class="nav-mobile-sidebar divide-bar">
             <div class="nav-mobile-sidebar-top">
+              <store-icon
+                [tuiSkeleton]="!registry"
+                size="32px"
+                [url]="registry?.url || ''"
+              />
               <h1 [style.margin]="0" [tuiSkeleton]="!registry">
                 {{ registry?.info?.name }}
               </h1>
