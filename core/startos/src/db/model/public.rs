@@ -18,6 +18,7 @@ use crate::db::model::package::AllPackageData;
 use crate::net::acme::AcmeProvider;
 use crate::net::host::binding::{AddSslOptions, BindInfo, BindOptions, NetInfo};
 use crate::net::host::Host;
+use crate::net::proxy::ProxyInfo;
 use crate::net::utils::ipv6_is_local;
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
@@ -91,6 +92,7 @@ impl Public {
                     },
                     network_interfaces: BTreeMap::new(),
                     acme: BTreeMap::new(),
+                    proxy: Proxies::default(),
                 },
                 status_info: ServerStatus {
                     backup_progress: None,
@@ -191,6 +193,21 @@ pub struct NetworkInfo {
     pub network_interfaces: BTreeMap<InternedString, NetworkInterfaceInfo>,
     #[serde(default)]
     pub acme: BTreeMap<AcmeProvider, AcmeSettings>,
+    #[serde(default)]
+    pub proxy: Proxies,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, TS)]
+pub struct Proxies(pub BTreeMap<u8, ProxyInfo>);
+impl Map for Proxies {
+    type Key = u8;
+    type Value = ProxyInfo;
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        Ok(InternedString::from_display(key))
+    }
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Self::key_string(key)
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, TS)]

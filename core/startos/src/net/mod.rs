@@ -8,6 +8,7 @@ pub mod keys;
 pub mod mdns;
 pub mod net_controller;
 pub mod network_interface;
+pub mod proxy;
 pub mod service_interface;
 pub mod ssl;
 pub mod static_server;
@@ -35,5 +36,9 @@ pub fn net<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "vhost",
             vhost::vhost_api::<C>().with_about("Manage ssl virtual host proxy"),
+        )
+        .subcommand(
+            "proxy",
+            proxy::proxy_api::<C>().with_about("Manage wireguard proxies"),
         )
 }
