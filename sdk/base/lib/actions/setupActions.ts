@@ -6,6 +6,7 @@ import {
 import * as T from "../types"
 import { once } from "../util"
 import { InitScript } from "../inits"
+import { Parser } from "ts-matches"
 
 export type Run<
   A extends Record<string, any> | InputSpec<Record<string, any>>,
@@ -116,7 +117,17 @@ export class Action<
     effects: T.Effects
     input: ExtractInputSpecType<InputSpecType>
   }): Promise<T.ActionResult | null> {
-    return (await this.runFn(options)) || null
+    return (
+      (await this.runFn({
+        effects: options.effects,
+        input: (
+          this.inputSpec.validator as Parser<
+            unknown,
+            ExtractInputSpecType<InputSpecType>
+          >
+        ).unsafeCast(options.input),
+      })) || null
+    )
   }
 }
 

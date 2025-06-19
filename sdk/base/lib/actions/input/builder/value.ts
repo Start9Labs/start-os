@@ -1,6 +1,6 @@
-import { InputSpec, LazyBuild } from "./inputSpec"
+import { ExtractInputSpecType, InputSpec, LazyBuild } from "./inputSpec"
 import { List } from "./list"
-import { Variants } from "./variants"
+import { UnionRes, Variants } from "./variants"
 import {
   FilePath,
   Pattern,
@@ -886,37 +886,35 @@ export class Value<Type> {
         spec: InputSpec<any>
       }
     },
-  >(
-    a: {
-      name: string
-      description?: string | null
-      /** Presents a warning prompt before permitting the value to change. */
-      warning?: string | null
-      /**
-       * @description Provide a default value from the list of variants.
-       * @type { string }
-       * @example default: 'variant1'
-       */
-      default: keyof VariantValues & string
-      /**
-       * @description Once set, the value can never be changed.
-       * @default false
-       */
-      immutable?: boolean
-    },
-    aVariants: Variants<VariantValues>,
-  ) {
-    return new Value<typeof aVariants.validator._TYPE>(
+  >(a: {
+    name: string
+    description?: string | null
+    /** Presents a warning prompt before permitting the value to change. */
+    warning?: string | null
+    variants: Variants<VariantValues>
+    /**
+     * @description Provide a default value from the list of variants.
+     * @type { string }
+     * @example default: 'variant1'
+     */
+    default: keyof VariantValues & string
+    /**
+     * @description Once set, the value can never be changed.
+     * @default false
+     */
+    immutable?: boolean
+  }) {
+    return new Value<typeof a.variants.validator._TYPE>(
       async (options) => ({
         type: "union" as const,
         description: null,
         warning: null,
         disabled: false,
         ...a,
-        variants: await aVariants.build(options as any),
+        variants: await a.variants.build(options as any),
         immutable: a.immutable ?? false,
       }),
-      aVariants.validator,
+      a.variants.validator,
     )
   }
   static dynamicUnion<
@@ -931,19 +929,19 @@ export class Value<Type> {
       name: string
       description?: string | null
       warning?: string | null
+      variants: Variants<VariantValues>
       default: keyof VariantValues & string
       disabled: string[] | false | string
     }>,
-    aVariants: Variants<VariantValues>,
   ) {
-    return new Value<typeof aVariants.validator._TYPE>(async (options) => {
+    return new Value<UnionRes<VariantValues>>(async (options) => {
       const newValues = await getA(options)
       return {
         type: "union" as const,
         description: null,
         warning: null,
         ...newValues,
-        variants: await aVariants.build(options as any),
+        variants: await newValues.variants.build(options as any),
         immutable: false,
       }
     }, aVariants.validator)
