@@ -6,7 +6,7 @@ import {
   ExtractInputSpecType,
   ExtractPartialInputSpecType,
 } from "./inputSpec"
-import { Parser, anyOf, literal, object } from "ts-matches"
+import { Parser, any, anyOf, literal, object } from "ts-matches"
 
 export type UnionRes<
   VariantValues extends {
@@ -85,9 +85,12 @@ export class Variants<
   },
 > {
   private constructor(
-    public build: LazyBuild<ValueSpecUnion["variants"]>,
-    public validator: Parser<unknown, UnionRes<VariantValues>>,
+    public build: LazyBuild<{
+      spec: ValueSpecUnion["variants"]
+      validator: Parser<unknown, UnionRes<VariantValues>>
+    }>,
   ) {}
+  readonly _TYPE: UnionRes<VariantValues> = null as any
   static of<
     VariantValues extends {
       [K in string]: {
@@ -96,16 +99,13 @@ export class Variants<
       }
     },
   >(a: VariantValues) {
-    const validator = anyOf(
-      ...Object.entries(a).map(([id, { spec }]) =>
-        object({
-          selection: literal(id),
-          value: spec.validator,
-        }),
-      ),
-    ) as Parser<unknown, any>
-
     return new Variants<VariantValues>(async (options) => {
+      const validators = {} as {
+        [K in keyof VariantValues]: Parser<
+          unknown,
+          ExtractInputSpecType<VariantValues[K]["spec"]>
+        >
+      }
       const variants = {} as {
         [K in keyof VariantValues]: {
           name: string
@@ -114,12 +114,30 @@ export class Variants<
       }
       for (const key in a) {
         const value = a[key]
+        const built = await value.spec.build(options as any)
         variants[key] = {
           name: value.name,
-          spec: await value.spec.build(options as any),
+          spec: built.spec,
         }
+        validators[key] = built.validator
       }
-      return variants
-    }, validator)
+      const other = object(
+        Object.fromEntries(
+          Object.entries(validators).map(([k, v]) => [k, any.optional()]),
+        ),
+      ).optional()
+      return {
+        spec: variants,
+        validator: anyOf(
+          ...Object.entries(validators).map(([k, v]) =>
+            object({
+              selection: literal(k),
+              value: v,
+              other,
+            }),
+          ),
+        ) as any,
+      }
+    })
   }
 }

@@ -1,4 +1,4 @@
-import { InputSpecSpec, matchInputSpecSpec } from "./output"
+import { inputSpecSpec, InputSpecSpec } from "./output"
 import * as _I from "../index"
 import { camelCase } from "../../scripts/oldSpecToBuilder"
 import { deepMerge } from "../../../base/lib/util"
@@ -97,25 +97,27 @@ describe("Inputs", () => {
     },
   }
 
-  test("test valid input", () => {
-    const output = matchInputSpecSpec.unsafeCast(validInput)
+  test("test valid input", async () => {
+    const { validator } = await inputSpecSpec.build({} as any)
+    const output = validator.unsafeCast(validInput)
     expect(output).toEqual(validInput)
   })
-  test("test no longer care about the conversion of min/max and validating", () => {
-    matchInputSpecSpec.unsafeCast(
+  test("test no longer care about the conversion of min/max and validating", async () => {
+    const { validator } = await inputSpecSpec.build({} as any)
+    validator.unsafeCast(
       deepMerge({}, validInput, { rpc: { advanced: { threads: 0 } } }),
     )
   })
-  test("test errors should throw for number in string", () => {
+  test("test errors should throw for number in string", async () => {
+    const { validator } = await inputSpecSpec.build({} as any)
     expect(() =>
-      matchInputSpecSpec.unsafeCast(
-        deepMerge({}, validInput, { rpc: { enable: 2 } }),
-      ),
+      validator.unsafeCast(deepMerge({}, validInput, { rpc: { enable: 2 } })),
     ).toThrowError()
   })
-  test("Test that we set serialversion to something not segwit or non-segwit", () => {
+  test("Test that we set serialversion to something not segwit or non-segwit", async () => {
+    const { validator } = await inputSpecSpec.build({} as any)
     expect(() =>
-      matchInputSpecSpec.unsafeCast(
+      validator.unsafeCast(
         deepMerge({}, validInput, {
           rpc: { advanced: { serialversion: "testing" } },
         }),

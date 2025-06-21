@@ -1370,14 +1370,12 @@ export namespace Mock {
               'RPC and P2P interface configuration options for Bitcoin Core',
           },
           ISB.InputSpec.of({
-            'bitcoind-p2p': ISB.Value.union(
-              {
-                name: 'P2P Settings',
-                description:
-                  '<p>The Bitcoin Core node to connect to over the peer-to-peer (P2P) interface:</p><ul><li><strong>Bitcoin Core</strong>: The Bitcoin Core service installed on this device</li><li><strong>External Node</strong>: A Bitcoin node running on a different device</li></ul>',
-                default: 'internal',
-              },
-              ISB.Variants.of({
+            'bitcoind-p2p': ISB.Value.union({
+              name: 'P2P Settings',
+              description:
+                '<p>The Bitcoin Core node to connect to over the peer-to-peer (P2P) interface:</p><ul><li><strong>Bitcoin Core</strong>: The Bitcoin Core service installed on this device</li><li><strong>External Node</strong>: A Bitcoin node running on a different device</li></ul>',
+              default: 'internal',
+              variants: ISB.Variants.of({
                 internal: { name: 'Bitcoin Core', spec: ISB.InputSpec.of({}) },
                 external: {
                   name: 'External Node',
@@ -1402,7 +1400,7 @@ export namespace Mock {
                   }),
                 },
               }),
-            ),
+            }),
           }),
         ),
         color: ISB.Value.color({
@@ -1558,14 +1556,12 @@ export namespace Mock {
             },
             {
               spec: ISB.InputSpec.of({
-                union: ISB.Value.union(
-                  {
-                    name: 'Preference',
-                    description: null,
-                    warning: null,
-                    default: 'summer',
-                  },
-                  ISB.Variants.of({
+                union: ISB.Value.union({
+                  name: 'Preference',
+                  description: null,
+                  warning: null,
+                  default: 'summer',
+                  variants: ISB.Variants.of({
                     summer: {
                       name: 'summer',
                       spec: ISB.InputSpec.of({
@@ -1599,7 +1595,7 @@ export namespace Mock {
                       }),
                     },
                   }),
-                ),
+                }),
               }),
               uniqueBy: 'preference',
             },
@@ -1715,14 +1711,12 @@ export namespace Mock {
             }),
           }),
         ),
-        'bitcoin-node': ISB.Value.union(
-          {
-            name: 'Bitcoin Node',
-            description: 'Options<ul><li>Item 1</li><li>Item 2</li></ul>',
-            warning: 'Careful changing this',
-            default: 'internal',
-          },
-          ISB.Variants.of({
+        'bitcoin-node': ISB.Value.union({
+          name: 'Bitcoin Node',
+          description: 'Options<ul><li>Item 1</li><li>Item 2</li></ul>',
+          warning: 'Careful changing this',
+          default: 'internal',
+          variants: ISB.Variants.of({
             fake: {
               name: 'Fake',
               spec: ISB.InputSpec.of({}),
@@ -1818,7 +1812,7 @@ export namespace Mock {
               }),
             },
           }),
-        ),
+        }),
         port: ISB.Value.number({
           name: 'Port',
           description:

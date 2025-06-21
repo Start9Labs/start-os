@@ -11,9 +11,12 @@ import { Parser, arrayOf, string } from "ts-matches"
 
 export class List<Type> {
   private constructor(
-    public build: LazyBuild<ValueSpecList>,
-    public validator: Parser<unknown, Type>,
+    public build: LazyBuild<{
+      spec: ValueSpecList
+      validator: Parser<unknown, Type>
+    }>,
   ) {}
+  readonly _TYPE: Type = null as any
 
   static text(
     a: {
@@ -81,8 +84,8 @@ export class List<Type> {
         ...a,
         spec,
       }
-      return built
-    }, arrayOf(string))
+      return { spec: built, validator: arrayOf(string) }
+    })
   }
 
   static dynamicText(
@@ -129,8 +132,9 @@ export class List<Type> {
         ...a,
         spec,
       }
-      return built
-    }, arrayOf(string))
+
+      return { spec: built, validator: arrayOf(string) }
+    })
   }
 
   static obj<Type extends Record<string, any>>(
@@ -150,13 +154,13 @@ export class List<Type> {
   ) {
     return new List<Type[]>(async (options) => {
       const { spec: previousSpecSpec, ...restSpec } = aSpec
-      const specSpec = await previousSpecSpec.build(options)
+      const built = await previousSpecSpec.build(options)
       const spec = {
         type: "object" as const,
         displayAs: null,
         uniqueBy: null,
         ...restSpec,
-        spec: specSpec,
+        spec: built.spec,
       }
       const value = {
         spec,
@@ -164,14 +168,17 @@ export class List<Type> {
         ...a,
       }
       return {
-        description: null,
-        warning: null,
-        minLength: null,
-        maxLength: null,
-        type: "list" as const,
-        disabled: false,
-        ...value,
+        spec: {
+          description: null,
+          warning: null,
+          minLength: null,
+          maxLength: null,
+          type: "list" as const,
+          disabled: false,
+          ...value,
+        },
+        validator: arrayOf(built.validator),
       }
-    }, arrayOf(aSpec.spec.validator))
+    })
   }
 }

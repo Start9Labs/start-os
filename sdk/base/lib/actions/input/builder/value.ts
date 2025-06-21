@@ -36,7 +36,7 @@ const testForAsRequiredParser = once(
 )
 function asRequiredParser<
   Type,
-  Input,
+  Input extends { required: boolean },
   Return extends Parser<unknown, Type> | Parser<unknown, Type | null>,
 >(parser: Parser<unknown, Type>, input: Input): Return {
   if (testForAsRequiredParser()(input)) return parser as any
@@ -45,8 +45,10 @@ function asRequiredParser<
 
 export class Value<Type> {
   protected constructor(
-    public build: LazyBuild<ValueSpec>,
-    public validator: Parser<unknown, Type>,
+    public build: LazyBuild<{
+      spec: ValueSpec
+      validator: Parser<unknown, Type>
+    }>,
   ) {}
   public _TYPE: Type = null as any as Type
   public _PARTIAL: DeepPartial<Type> = null as any as DeepPartial<Type>
@@ -79,17 +81,17 @@ export class Value<Type> {
      */
     immutable?: boolean
   }) {
-    return new Value<boolean>(
-      async () => ({
+    return new Value<boolean>(async () => ({
+      spec: {
         description: null,
         warning: null,
         type: "toggle" as const,
         disabled: false,
         immutable: a.immutable ?? false,
         ...a,
-      }),
-      boolean,
-    )
+      },
+      validator: boolean,
+    }))
   }
   static dynamicToggle(
     a: LazyBuild<{
@@ -100,17 +102,17 @@ export class Value<Type> {
       disabled?: false | string
     }>,
   ) {
-    return new Value<boolean>(
-      async (options) => ({
+    return new Value<boolean>(async (options) => ({
+      spec: {
         description: null,
         warning: null,
         type: "toggle" as const,
         disabled: false,
         immutable: false,
         ...(await a(options)),
-      }),
-      boolean,
-    )
+      },
+      validator: boolean,
+    }))
   }
   /**
    * @description Displays a text input field
@@ -187,8 +189,8 @@ export class Value<Type> {
      */
     generate?: RandomString | null
   }) {
-    return new Value<AsRequired<string, Required>>(
-      async () => ({
+    return new Value<AsRequired<string, Required>>(async () => ({
+      spec: {
         type: "text" as const,
         description: null,
         warning: null,
@@ -202,17 +204,17 @@ export class Value<Type> {
         immutable: a.immutable ?? false,
         generate: a.generate ?? null,
         ...a,
-      }),
-      asRequiredParser(string, a),
-    )
+      },
+      validator: asRequiredParser(string, a),
+    }))
   }
-  static dynamicText(
+  static dynamicText<Required extends boolean>(
     getA: LazyBuild<{
       name: string
       description?: string | null
       warning?: string | null
       default: DefaultString | null
-      required: boolean
+      required: Required
       masked?: boolean
       placeholder?: string | null
       minLength?: number | null
@@ -223,24 +225,27 @@ export class Value<Type> {
       generate?: null | RandomString
     }>,
   ) {
-    return new Value<string | null>(async (options) => {
+    return new Value<AsRequired<string, Required>>(async (options) => {
       const a = await getA(options)
       return {
-        type: "text" as const,
-        description: null,
-        warning: null,
-        masked: false,
-        placeholder: null,
-        minLength: null,
-        maxLength: null,
-        patterns: [],
-        inputmode: "text",
-        disabled: false,
-        immutable: false,
-        generate: a.generate ?? null,
-        ...a,
+        spec: {
+          type: "text" as const,
+          description: null,
+          warning: null,
+          masked: false,
+          placeholder: null,
+          minLength: null,
+          maxLength: null,
+          patterns: [],
+          inputmode: "text",
+          disabled: false,
+          immutable: false,
+          generate: a.generate ?? null,
+          ...a,
+        },
+        validator: asRequiredParser(string, a),
       }
-    }, string.nullable())
+    })
   }
   /**
    * @description Displays a large textarea field for long form entry.
@@ -278,40 +283,8 @@ export class Value<Type> {
      */
     immutable?: boolean
   }) {
-    return new Value<AsRequired<string, Required>>(
-      async () => {
-        const built: ValueSpecTextarea = {
-          description: null,
-          warning: null,
-          minLength: null,
-          maxLength: null,
-          placeholder: null,
-          type: "textarea" as const,
-          disabled: false,
-          immutable: a.immutable ?? false,
-          ...a,
-        }
-        return built
-      },
-      asRequiredParser(string, a),
-    )
-  }
-  static dynamicTextarea(
-    getA: LazyBuild<{
-      name: string
-      description?: string | null
-      warning?: string | null
-      default: string | null
-      required: boolean
-      minLength?: number | null
-      maxLength?: number | null
-      placeholder?: string | null
-      disabled?: false | string
-    }>,
-  ) {
-    return new Value<string | null>(async (options) => {
-      const a = await getA(options)
-      return {
+    return new Value<AsRequired<string, Required>>(async () => {
+      const built: ValueSpecTextarea = {
         description: null,
         warning: null,
         minLength: null,
@@ -319,10 +292,42 @@ export class Value<Type> {
         placeholder: null,
         type: "textarea" as const,
         disabled: false,
-        immutable: false,
+        immutable: a.immutable ?? false,
         ...a,
       }
-    }, string.nullable())
+      return { spec: built, validator: asRequiredParser(string, a) }
+    })
+  }
+  static dynamicTextarea<Required extends boolean>(
+    getA: LazyBuild<{
+      name: string
+      description?: string | null
+      warning?: string | null
+      default: string | null
+      required: Required
+      minLength?: number | null
+      maxLength?: number | null
+      placeholder?: string | null
+      disabled?: false | string
+    }>,
+  ) {
+    return new Value<AsRequired<string, Required>>(async (options) => {
+      const a = await getA(options)
+      return {
+        spec: {
+          description: null,
+          warning: null,
+          minLength: null,
+          maxLength: null,
+          placeholder: null,
+          type: "textarea" as const,
+          disabled: false,
+          immutable: false,
+          ...a,
+        },
+        validator: asRequiredParser(string, a),
+      }
+    })
   }
   /**
    * @description Displays a number input field
@@ -382,8 +387,8 @@ export class Value<Type> {
      */
     immutable?: boolean
   }) {
-    return new Value<AsRequired<number, Required>>(
-      () => ({
+    return new Value<AsRequired<number, Required>>(() => ({
+      spec: {
         type: "number" as const,
         description: null,
         warning: null,
@@ -395,17 +400,17 @@ export class Value<Type> {
         disabled: false,
         immutable: a.immutable ?? false,
         ...a,
-      }),
-      asRequiredParser(number, a),
-    )
+      },
+      validator: asRequiredParser(number, a),
+    }))
   }
-  static dynamicNumber(
+  static dynamicNumber<Required extends boolean>(
     getA: LazyBuild<{
       name: string
       description?: string | null
       warning?: string | null
       default: number | null
-      required: boolean
+      required: Required
       min?: number | null
       max?: number | null
       step?: number | null
@@ -415,22 +420,25 @@ export class Value<Type> {
       disabled?: false | string
     }>,
   ) {
-    return new Value<number | null>(async (options) => {
+    return new Value<AsRequired<number, Required>>(async (options) => {
       const a = await getA(options)
       return {
-        type: "number" as const,
-        description: null,
-        warning: null,
-        min: null,
-        max: null,
-        step: null,
-        units: null,
-        placeholder: null,
-        disabled: false,
-        immutable: false,
-        ...a,
+        spec: {
+          type: "number" as const,
+          description: null,
+          warning: null,
+          min: null,
+          max: null,
+          step: null,
+          units: null,
+          placeholder: null,
+          disabled: false as const,
+          immutable: false,
+          ...a,
+        },
+        validator: asRequiredParser(number, a),
       }
-    }, number.nullable())
+    })
   }
   /**
    * @description Displays a browser-native color selector.
@@ -468,40 +476,43 @@ export class Value<Type> {
      */
     immutable?: boolean
   }) {
-    return new Value<AsRequired<string, Required>>(
-      () => ({
+    return new Value<AsRequired<string, Required>>(() => ({
+      spec: {
         type: "color" as const,
         description: null,
         warning: null,
         disabled: false,
         immutable: a.immutable ?? false,
         ...a,
-      }),
-      asRequiredParser(string, a),
-    )
+      },
+      validator: asRequiredParser(string, a),
+    }))
   }
 
-  static dynamicColor(
+  static dynamicColor<Required extends boolean>(
     getA: LazyBuild<{
       name: string
       description?: string | null
       warning?: string | null
       default: string | null
-      required: boolean
+      required: Required
       disabled?: false | string
     }>,
   ) {
-    return new Value<string | null>(async (options) => {
+    return new Value<AsRequired<string, Required>>(async (options) => {
       const a = await getA(options)
       return {
-        type: "color" as const,
-        description: null,
-        warning: null,
-        disabled: false,
-        immutable: false,
-        ...a,
+        spec: {
+          type: "color" as const,
+          description: null,
+          warning: null,
+          disabled: false,
+          immutable: false,
+          ...a,
+        },
+        validator: asRequiredParser(string, a),
       }
-    }, string.nullable())
+    })
   }
   /**
    * @description Displays a browser-native date/time selector.
@@ -549,8 +560,8 @@ export class Value<Type> {
      */
     immutable?: boolean
   }) {
-    return new Value<AsRequired<string, Required>>(
-      () => ({
+    return new Value<AsRequired<string, Required>>(() => ({
+      spec: {
         type: "datetime" as const,
         description: null,
         warning: null,
@@ -561,37 +572,40 @@ export class Value<Type> {
         disabled: false,
         immutable: a.immutable ?? false,
         ...a,
-      }),
-      asRequiredParser(string, a),
-    )
+      },
+      validator: asRequiredParser(string, a),
+    }))
   }
-  static dynamicDatetime(
+  static dynamicDatetime<Required extends boolean>(
     getA: LazyBuild<{
       name: string
       description?: string | null
       warning?: string | null
       default: string | null
-      required: boolean
+      required: Required
       inputmode?: ValueSpecDatetime["inputmode"]
       min?: string | null
       max?: string | null
       disabled?: false | string
     }>,
   ) {
-    return new Value<string | null>(async (options) => {
+    return new Value<AsRequired<string, Required>>(async (options) => {
       const a = await getA(options)
       return {
-        type: "datetime" as const,
-        description: null,
-        warning: null,
-        inputmode: "datetime-local",
-        min: null,
-        max: null,
-        disabled: false,
-        immutable: false,
-        ...a,
+        spec: {
+          type: "datetime" as const,
+          description: null,
+          warning: null,
+          inputmode: "datetime-local",
+          min: null,
+          max: null,
+          disabled: false,
+          immutable: false,
+          ...a,
+        },
+        validator: asRequiredParser(string, a),
       }
-    }, string.nullable())
+    })
   }
   /**
    * @description Displays a select modal with radio buttons, allowing for a single selection.
@@ -644,41 +658,48 @@ export class Value<Type> {
      */
     immutable?: boolean
   }) {
-    return new Value<keyof Values & string>(
-      () => ({
+    return new Value<keyof Values & string>(() => ({
+      spec: {
         description: null,
         warning: null,
         type: "select" as const,
         disabled: false,
         immutable: a.immutable ?? false,
         ...a,
-      }),
-      anyOf(
+      },
+      validator: anyOf(
         ...Object.keys(a.values).map((x: keyof Values & string) => literal(x)),
       ),
-    )
+    }))
   }
-  static dynamicSelect(
+  static dynamicSelect<Values extends Record<string, string>>(
     getA: LazyBuild<{
       name: string
       description?: string | null
       warning?: string | null
       default: string
-      values: Record<string, string>
+      values: Values
       disabled?: false | string | string[]
     }>,
   ) {
-    return new Value<string>(async (options) => {
+    return new Value<keyof Values & string>(async (options) => {
       const a = await getA(options)
       return {
-        description: null,
-        warning: null,
-        type: "select" as const,
-        disabled: false,
-        immutable: false,
-        ...a,
+        spec: {
+          description: null,
+          warning: null,
+          type: "select" as const,
+          disabled: false,
+          immutable: false,
+          ...a,
+        },
+        validator: anyOf(
+          ...Object.keys(a.values).map((x: keyof Values & string) =>
+            literal(x),
+          ),
+        ),
       }
-    }, string)
+    })
   }
   /**
    * @description Displays a select modal with checkboxes, allowing for multiple selections.
@@ -732,8 +753,8 @@ export class Value<Type> {
      */
     immutable?: boolean
   }) {
-    return new Value<(keyof Values)[]>(
-      () => ({
+    return new Value<(keyof Values & string)[]>(() => ({
+      spec: {
         type: "multiselect" as const,
         minLength: null,
         maxLength: null,
@@ -742,37 +763,44 @@ export class Value<Type> {
         disabled: false,
         immutable: a.immutable ?? false,
         ...a,
-      }),
-      arrayOf(
+      },
+      validator: arrayOf(
         literals(...(Object.keys(a.values) as any as [keyof Values & string])),
       ),
-    )
+    }))
   }
-  static dynamicMultiselect(
+  static dynamicMultiselect<Values extends Record<string, string>>(
     getA: LazyBuild<{
       name: string
       description?: string | null
       warning?: string | null
       default: string[]
-      values: Record<string, string>
+      values: Values
       minLength?: number | null
       maxLength?: number | null
       disabled?: false | string | string[]
     }>,
   ) {
-    return new Value<string[]>(async (options) => {
+    return new Value<(keyof Values & string)[]>(async (options) => {
       const a = await getA(options)
       return {
-        type: "multiselect" as const,
-        minLength: null,
-        maxLength: null,
-        warning: null,
-        description: null,
-        disabled: false,
-        immutable: false,
-        ...a,
+        spec: {
+          type: "multiselect" as const,
+          minLength: null,
+          maxLength: null,
+          warning: null,
+          description: null,
+          disabled: false,
+          immutable: false,
+          ...a,
+        },
+        validator: arrayOf(
+          literals(
+            ...(Object.keys(a.values) as any as [keyof Values & string]),
+          ),
+        ),
       }
-    }, arrayOf(string))
+    })
   }
   /**
    * @description Display a collapsable grouping of additional fields, a "sub form". The second value is the inputSpec spec for the sub form.
@@ -801,13 +829,16 @@ export class Value<Type> {
     return new Value<Type>(async (options) => {
       const built = await spec.build(options as any)
       return {
-        type: "object" as const,
-        description: null,
-        warning: null,
-        ...a,
-        spec: built,
+        spec: {
+          type: "object" as const,
+          description: null,
+          warning: null,
+          ...a,
+          spec: built.spec,
+        },
+        validator: built.validator,
       }
-    }, spec.validator)
+    })
   }
   // static file<Store, Required extends boolean>(a: {
   //   name: string
@@ -904,18 +935,21 @@ export class Value<Type> {
      */
     immutable?: boolean
   }) {
-    return new Value<typeof a.variants.validator._TYPE>(
-      async (options) => ({
-        type: "union" as const,
-        description: null,
-        warning: null,
-        disabled: false,
-        ...a,
-        variants: await a.variants.build(options as any),
-        immutable: a.immutable ?? false,
-      }),
-      a.variants.validator,
-    )
+    return new Value<typeof a.variants._TYPE>(async (options) => {
+      const built = await a.variants.build(options as any)
+      return {
+        spec: {
+          type: "union" as const,
+          description: null,
+          warning: null,
+          disabled: false,
+          ...a,
+          variants: built.spec,
+          immutable: a.immutable ?? false,
+        },
+        validator: built.validator,
+      }
+    })
   }
   static dynamicUnion<
     VariantValues extends {
@@ -936,15 +970,19 @@ export class Value<Type> {
   ) {
     return new Value<UnionRes<VariantValues>>(async (options) => {
       const newValues = await getA(options)
+      const built = await newValues.variants.build(options as any)
       return {
-        type: "union" as const,
-        description: null,
-        warning: null,
-        ...newValues,
-        variants: await newValues.variants.build(options as any),
-        immutable: false,
+        spec: {
+          type: "union" as const,
+          description: null,
+          warning: null,
+          ...newValues,
+          variants: built.spec,
+          immutable: false,
+        },
+        validator: built.validator,
       }
-    }, aVariants.validator)
+    })
   }
   /**
    * @description Presents an interface to add/remove/edit items in a list.
@@ -1010,7 +1048,7 @@ export class Value<Type> {
    * ```
    */
   static list<Type>(a: List<Type>) {
-    return new Value<Type>((options) => a.build(options), a.validator)
+    return new Value<Type>((options) => a.build(options))
   }
 
   /**
@@ -1022,14 +1060,22 @@ export class Value<Type> {
    */
   static hidden<T>(parser: Parser<unknown, T> = any) {
     return new Value<T>(async () => {
-      const built: ValueSpecHidden = {
-        type: "hidden" as const,
+      return {
+        spec: {
+          type: "hidden" as const,
+        } as ValueSpecHidden,
+        validator: parser,
       }
-      return built
-    }, parser)
+    })
   }
 
   map<U>(fn: (value: Type) => U): Value<U> {
-    return new Value(this.build, this.validator.map(fn))
+    return new Value(async (effects) => {
+      const built = await this.build(effects)
+      return {
+        spec: built.spec,
+        validator: built.validator.map(fn),
+      }
+    })
   }
 }

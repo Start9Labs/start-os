@@ -8,17 +8,13 @@ import { once } from "../util"
 import { InitScript } from "../inits"
 import { Parser } from "ts-matches"
 
-export type Run<
-  A extends Record<string, any> | InputSpec<Record<string, any>>,
-> = (options: {
+export type Run<A extends Record<string, any>> = (options: {
   effects: T.Effects
-  input: ExtractInputSpecType<A>
+  input: A
 }) => Promise<(T.ActionResult & { version: "1" }) | null | void | undefined>
-export type GetInput<
-  A extends Record<string, any> | InputSpec<Record<string, any>>,
-> = (options: {
+export type GetInput<A extends Record<string, any>> = (options: {
   effects: T.Effects
-}) => Promise<null | void | undefined | ExtractPartialInputSpecType<A>>
+}) => Promise<null | void | undefined | T.DeepPartial<A>>
 
 export type MaybeFn<T> = T | ((options: { effects: T.Effects }) => Promise<T>)
 function callMaybeFn<T>(
@@ -44,35 +40,31 @@ function mapMaybeFn<T, U>(
 
 export interface ActionInfo<
   Id extends T.ActionId,
-  InputSpecType extends Record<string, any> | InputSpec<any>,
+  Type extends Record<string, any>,
 > {
   readonly id: Id
-  readonly _INPUT: InputSpecType
+  readonly _INPUT: Type
 }
 
-export class Action<
-  Id extends T.ActionId,
-  InputSpecType extends Record<string, any> | InputSpec<any>,
-> implements ActionInfo<Id, InputSpecType>
+export class Action<Id extends T.ActionId, Type extends Record<string, any>>
+  implements ActionInfo<Id, Type>
 {
-  readonly _INPUT: InputSpecType = null as any as InputSpecType
+  readonly _INPUT: Type = null as any as Type
+  private cachedParser?: Parser<unknown, Type>
   private constructor(
     readonly id: Id,
     private readonly metadataFn: MaybeFn<T.ActionMetadata>,
-    private readonly inputSpec: InputSpecType,
-    private readonly getInputFn: GetInput<InputSpecType>,
-    private readonly runFn: Run<InputSpecType>,
+    private readonly inputSpec: InputSpec<Type>,
+    private readonly getInputFn: GetInput<Type>,
+    private readonly runFn: Run<Type>,
   ) {}
-  static withInput<
-    Id extends T.ActionId,
-    InputSpecType extends Record<string, any> | InputSpec<any>,
-  >(
+  static withInput<Id extends T.ActionId, Type extends Record<string, any>>(
     id: Id,
     metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
-    inputSpec: InputSpecType,
-    getInput: GetInput<InputSpecType>,
-    run: Run<InputSpecType>,
-  ): Action<Id, InputSpecType> {
+    inputSpec: InputSpec<Type>,
+    getInput: GetInput<Type>,
+    run: Run<Type>,
+  ): Action<Id, Type> {
     return new Action(
       id,
       mapMaybeFn(metadata, (m) => ({ ...m, hasInput: true })),
@@ -89,7 +81,7 @@ export class Action<
     return new Action(
       id,
       mapMaybeFn(metadata, (m) => ({ ...m, hasInput: false })),
-      {},
+      InputSpec.of({}),
       async () => null,
       run,
     )
@@ -108,24 +100,25 @@ export class Action<
     return metadata
   }
   async getInput(options: { effects: T.Effects }): Promise<T.ActionInput> {
+    const built = await this.inputSpec.build(options)
+    this.cachedParser = built.validator
     return {
-      spec: await this.inputSpec.build(options),
+      spec: built.spec,
       value: (await this.getInputFn(options)) || null,
     }
   }
   async run(options: {
     effects: T.Effects
-    input: ExtractInputSpecType<InputSpecType>
+    input: Type
   }): Promise<T.ActionResult | null> {
+    const parser =
+      this.cachedParser ?? (await this.inputSpec.build(options)).validator
     return (
       (await this.runFn({
         effects: options.effects,
-        input: (
-          this.inputSpec.validator as Parser<
-            unknown,
-            ExtractInputSpecType<InputSpecType>
-          >
-        ).unsafeCast(options.input),
+        input: this.cachedParser
+          ? this.cachedParser.unsafeCast(options.input)
+          : options.input,
       })) || null
     )
   }
