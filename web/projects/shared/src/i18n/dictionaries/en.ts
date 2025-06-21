@@ -520,4 +520,5 @@ export const ENGLISH = {
   'Update available': 520,
   'To resolve the issue, refer to': 521,
   'SDK Version': 522,
+  'Backup Report': 523,
 } as const

@@ -9,18 +9,6 @@ export class FormDialogService {
   private readonly dialog = inject(DialogService)
   private readonly i18n = inject(i18nPipe)
   private readonly formService = new TuiConfirmService()
-  private readonly PROMPT: Partial<TuiDialogOptions<TuiConfirmData>> = {
-    label: this.i18n.transform('Unsaved changes'),
-    data: {
-      content: this.i18n.transform(
-        'You have unsaved changes. Are you sure you want to leave?',
-      ),
-      yes: this.i18n.transform('Leave'),
-      no: this.i18n.transform('Cancel'),
-    },
-  }
-
-  private readonly prompt = this.formService.withConfirm(this.PROMPT)
   private readonly injector = Injector.create({
     parent: inject(Injector),
     providers: [
@@ -37,10 +25,23 @@ export class FormDialogService {
       label?: i18nKey
     } = {},
   ) {
+    const PROMPT: Partial<TuiDialogOptions<TuiConfirmData>> = {
+      label: this.i18n.transform('Unsaved changes'),
+      data: {
+        content: this.i18n.transform(
+          'You have unsaved changes. Are you sure you want to leave?',
+        ),
+        yes: this.i18n.transform('Leave'),
+        no: this.i18n.transform('Cancel'),
+      },
+    }
+
+    const closeable = this.formService.withConfirm(PROMPT)
+
     this.dialog
       .openComponent(new PolymorpheusComponent(component, this.injector), {
-        closeable: this.prompt,
-        dismissible: this.prompt,
+        dismissible: closeable,
+        closeable,
         ...options,
       })
       .subscribe({

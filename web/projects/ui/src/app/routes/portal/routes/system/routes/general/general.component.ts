@@ -112,7 +112,7 @@ import { SystemWipeComponent } from './wipe.component'
         <tui-icon icon="@tui.languages" />
         <span tuiTitle>
           <strong>{{ 'Language' | i18n }}</strong>
-          <span tuiSubtitle>
+          <span tuiSubtitle [style.text-transform]="'capitalize'">
             @if (language; as lang) {
               {{ lang | i18n }}
             } @else {
@@ -197,7 +197,7 @@ import { SystemWipeComponent } from './wipe.component'
         </div>
       }
       <img
-        [snek]="score()"
+        [snek]="score() || 0"
         class="snek"
         alt="Play Snake"
         src="assets/img/icons/snek.png"
@@ -271,15 +271,17 @@ export default class SystemGeneralComponent {
 
   readonly server = toSignal(this.patch.watch$('serverInfo'))
   readonly name = toSignal(this.patch.watch$('ui', 'name'))
+  readonly score = toSignal(this.patch.watch$('ui', 'snakeHighScore'))
   readonly os = inject(OSService)
   readonly i18nService = inject(i18nService)
   readonly languages = languages
   readonly translation: TuiStringHandler<TuiContext<Languages>> = ({
     $implicit,
-  }) => this.i18n.transform($implicit)!
-  readonly score = toSignal(this.patch.watch$('ui', 'snakeHighScore'), {
-    initialValue: 0,
-  })
+  }) => {
+    const [head = '', ...result] = this.i18n.transform($implicit) || ''
+
+    return [head.toUpperCase(), ...result].join('')
+  }
 
   get language(): Languages | undefined {
     return this.languages.find(lang => lang === this.i18nService.language)

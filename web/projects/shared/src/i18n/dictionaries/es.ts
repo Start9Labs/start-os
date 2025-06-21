@@ -521,4 +521,5 @@ export default {
   520: 'Actualización disponible',
   521: 'Para resolver el problema, consulta',
   522: 'Versión de SDK',
+  523: 'Informe de respaldo',
 } satisfies i18n
