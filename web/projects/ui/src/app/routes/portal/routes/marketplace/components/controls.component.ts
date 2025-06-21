@@ -1,4 +1,3 @@
-import { TuiButton } from '@taiga-ui/core'
 import { CommonModule, TitleCasePipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
@@ -6,37 +5,41 @@ import {
   inject,
   Input,
 } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { Router } from '@angular/router'
 import { MarketplacePkgBase } from '@start9labs/marketplace'
 import {
-  Exver,
   ErrorService,
+  Exver,
+  ExverPipesModule,
+  i18nPipe,
   isEmptyObject,
   LoadingService,
   sameUrl,
-  ExverPipesModule,
-  i18nPipe,
 } from '@start9labs/shared'
+import { TuiButton } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom } from 'rxjs'
+import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
   DataModel,
   PackageDataEntry,
 } from 'src/app/services/patch-db/data-model'
-import { MarketplaceService } from 'src/app/services/marketplace.service'
-import { hasCurrentDeps } from 'src/app/utils/has-deps'
-import { getAllPackages, getManifest } from 'src/app/utils/get-package-data'
 import { dryUpdate } from 'src/app/utils/dry-update'
+import { getAllPackages, getManifest } from 'src/app/utils/get-package-data'
+import { hasCurrentDeps } from 'src/app/utils/has-deps'
+
+import { MarketplacePreviewComponent } from '../modals/preview.component'
 import { MarketplaceAlertsService } from '../services/alerts.service'
-import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
   selector: 'marketplace-controls',
   template: `
     @if (localPkg) {
       @if (localPkg | toManifest; as localManifest) {
-        @switch (localManifest.version | compareExver: pkg.version) {
+        @switch (localManifest.version | compareExver: version() || '') {
           @case (1) {
             <button
               tuiButton
@@ -111,6 +114,9 @@ export class MarketplaceControlsComponent {
   private readonly router = inject(Router)
   private readonly marketplaceService = inject(MarketplaceService)
   private readonly api = inject(ApiService)
+  private readonly preview = inject(MarketplacePreviewComponent)
+
+  protected readonly version = toSignal(this.preview.version$)
 
   @Input({ required: true })
   pkg!: MarketplacePkgBase
@@ -147,10 +153,11 @@ export class MarketplaceControlsComponent {
     }
 
     const localManifest = getManifest(this.localPkg)
+    const version = this.version() || ''
 
     if (
       hasCurrentDeps(localManifest.id, await getAllPackages(this.patch)) &&
-      this.exver.compareExver(localManifest.version, this.pkg.version) !== 0
+      this.exver.compareExver(localManifest.version, version) !== 0
     ) {
       this.dryInstall(currentUrl)
     } else {
@@ -159,12 +166,14 @@ export class MarketplaceControlsComponent {
   }
 
   async showService() {
-    this.router.navigate(['/portal/services', this.pkg.id])
+    this.router.navigate(['/portal/services', this.preview.pkgId])
   }
 
   private async dryInstall(url: string | null) {
+    const id = this.preview.pkgId
+    const version = this.version() || ''
     const breakages = dryUpdate(
-      this.pkg,
+      { id, version },
       await getAllPackages(this.patch),
       this.exver,
     )
@@ -188,7 +197,8 @@ export class MarketplaceControlsComponent {
 
   private async install(url: string) {
     const loader = this.loader.open('Beginning install').subscribe()
-    const { id, version } = this.pkg
+    const version = this.version() || ''
+    const id = this.preview.pkgId
 
     try {
       await this.marketplaceService.installPackage(id, version, url)

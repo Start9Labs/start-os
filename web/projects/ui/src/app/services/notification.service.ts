@@ -1,6 +1,10 @@
 import { inject, Injectable } from '@angular/core'
-import { ErrorService, MARKDOWN } from '@start9labs/shared'
-import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
+import {
+  DialogService,
+  ErrorService,
+  i18nKey,
+  MARKDOWN,
+} from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import { firstValueFrom, merge, of, shareReplay, Subject } from 'rxjs'
 import { REPORT } from 'src/app/components/backup-report.component'
@@ -16,7 +20,7 @@ export class NotificationService {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly errorService = inject(ErrorService)
   private readonly api = inject(ApiService)
-  private readonly dialogs = inject(TuiResponsiveDialogService)
+  private readonly dialogs = inject(DialogService)
   private readonly localUnreadCount$ = new Subject<number>()
 
   readonly unreadCount$ = merge(
@@ -93,12 +97,12 @@ export class NotificationService {
     { data, createdAt, code, title, message }: ServerNotification<number>,
     full = false,
   ) {
-    const label = code === 1 ? 'Backup Report' : title
+    const label = code === 1 ? 'Backup Report' : (title as i18nKey)
     const component = code === 1 ? REPORT : MARKDOWN
     const content = code === 1 ? data : of(data)
 
     this.dialogs
-      .open(full ? message : component, {
+      .openComponent(full ? message : component, {
         label,
         data: {
           content,

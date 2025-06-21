@@ -167,11 +167,11 @@ export class MarketplacePreviewComponent {
   private readonly exver = inject(Exver)
   private readonly router = inject(Router)
   private readonly marketplaceService = inject(MarketplaceService)
-  private readonly version$ = new BehaviorSubject<string | null>(null)
   private readonly flavor$ = this.router.routerState.root.queryParamMap.pipe(
     map(paramMap => paramMap.get('flavor')),
   )
 
+  readonly version$ = new BehaviorSubject<string | null>(null)
   readonly pkg$ = combineLatest([this.version$, this.flavor$]).pipe(
     switchMap(([version, flavor]) =>
       this.marketplaceService

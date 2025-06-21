@@ -18,8 +18,16 @@ export abstract class Control<
   }
 
   get readOnly(): boolean {
+    const def =
+      'default' in this.spec &&
+      this.spec.default != null &&
+      this.spec.default !== this.value
+
     return (
-      !!this.value && !!this.control.control?.pristine && this.control.immutable
+      !!this.value &&
+      !def &&
+      !!this.control.control?.pristine &&
+      this.control.immutable
     )
   }
 

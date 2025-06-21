@@ -1,10 +1,13 @@
-import { inject, Injectable, TemplateRef } from '@angular/core'
+import { inject, Injectable } from '@angular/core'
 import {
   TuiResponsiveDialogOptions,
   TuiResponsiveDialogService,
 } from '@taiga-ui/addon-mobile'
 import { TUI_CONFIRM, TuiConfirmData } from '@taiga-ui/kit'
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
+import {
+  PolymorpheusComponent,
+  PolymorpheusContent,
+} from '@taiga-ui/polymorpheus'
 import { PROMPT, PromptOptions } from '../components/prompt.component'
 import { i18nPipe } from '../i18n/i18n.pipe'
 import { i18nKey } from '../i18n/i18n.providers'
@@ -73,7 +76,7 @@ export class DialogService {
   }
 
   openComponent<T = void>(
-    component: PolymorpheusComponent<any> | TemplateRef<any>,
+    component: PolymorpheusContent,
     options: Partial<TuiResponsiveDialogOptions<any>> & {
       label?: i18nKey
     } = {},
