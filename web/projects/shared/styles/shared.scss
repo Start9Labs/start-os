@@ -1,163 +1,4 @@
 @font-face {
-  font-family: 'text-security-disc';
-  src: url('/assets/fonts/text-security-disc.woff2') format('woff2');
-}
-
-@font-face {
-  font-family: 'Montserrat';
-  font-style: normal;
-  font-weight: normal;
-  src: url('/assets/fonts/Montserrat/Montserrat-Regular.ttf');
-}
-
-@font-face {
-  font-family: 'Montserrat';
-  font-style: normal;
-  font-weight: bold;
-  src: url('/assets/fonts/Montserrat/Montserrat-Bold.ttf');
-}
-
-@font-face {
-  font-family: 'Montserrat';
-  font-style: normal;
-  font-weight: thin;
-  src: url('/assets/fonts/Montserrat/Montserrat-Light.ttf');
-}
-
-@font-face {
-  font-family: 'Montserrat';
-  font-style: normal;
-  font-weight: 900;
-  src: url('/assets/fonts/Montserrat/Montserrat-Black.ttf');
-}
-
-@font-face {
-  font-family: 'Montserrat';
-  font-style: normal;
-  font-weight: 800;
-  src: url('/assets/fonts/Montserrat/Montserrat-ExtraBold.ttf');
-}
-
-@font-face {
-  font-family: 'Montserrat';
-  font-style: normal;
-  font-weight: 700;
-  src: url('/assets/fonts/Montserrat/Montserrat-Bold.ttf');
-}
-
-@font-face {
-  font-family: 'Montserrat';
-  font-style: normal;
-  font-weight: 600;
-  src: url('/assets/fonts/Montserrat/Montserrat-SemiBold.ttf');
-}
-
-@font-face {
-  font-family: 'Montserrat';
-  font-style: normal;
-  font-weight: 500;
-  src: url('/assets/fonts/Montserrat/Montserrat-Medium.ttf');
-}
-
-@font-face {
-  font-family: 'Montserrat';
-  font-style: normal;
-  font-weight: 400;
-  src: url('/assets/fonts/Montserrat/Montserrat-Regular.ttf');
-}
-
-@font-face {
-  font-family: 'Montserrat';
-  font-style: normal;
-  font-weight: 300;
-  src: url('/assets/fonts/Montserrat/Montserrat-Light.ttf');
-}
-
-@font-face {
-  font-family: 'Montserrat';
-  font-style: normal;
-  font-weight: 200;
-  src: url('/assets/fonts/Montserrat/Montserrat-ExtraLight.ttf');
-}
-
-@font-face {
-  font-family: 'Montserrat';
-  font-style: normal;
-  font-weight: 100;
-  src: url('/assets/fonts/Montserrat/Montserrat-Thin.ttf');
-}
-
-@font-face {
-  font-family: 'Open Sans';
-  font-style: normal;
-  font-weight: normal;
-  src: url('/assets/fonts/Open_Sans/OpenSans-Regular.ttf');
-}
-
-@font-face {
-  font-family: 'Open Sans';
-  font-style: normal;
-  font-weight: bold;
-  src: url('/assets/fonts/Open_Sans/OpenSans-Bold.ttf');
-}
-
-@font-face {
-  font-family: 'Open Sans';
-  font-style: normal;
-  font-weight: thin;
-  src: url('/assets/fonts/Open_Sans/OpenSans-Light.ttf');
-}
-
-@font-face {
-  font-family: 'Open Sans';
-  font-style: normal;
-  font-weight: 800;
-  src: url('/assets/fonts/Open_Sans/OpenSans-ExtraBold.ttf');
-}
-
-@font-face {
-  font-family: 'Open Sans';
-  font-style: normal;
-  font-weight: 700;
-  src: url('/assets/fonts/Open_Sans/OpenSans-Bold.ttf');
-}
-
-@font-face {
-  font-family: 'Open Sans';
-  font-style: normal;
-  font-weight: 600;
-  src: url('/assets/fonts/Open_Sans/OpenSans-SemiBold.ttf');
-}
-
-@font-face {
-  font-family: 'Open Sans';
-  font-style: normal;
-  font-weight: 400;
-  src: url('/assets/fonts/Open_Sans/OpenSans-Regular.ttf');
-}
-
-@font-face {
-  font-family: 'Open Sans';
-  font-style: normal;
-  font-weight: 300;
-  src: url('/assets/fonts/Open_Sans/OpenSans-Light.ttf');
-}
-
-@font-face {
-  font-family: 'Courier New';
-  font-style: normal;
-  font-weight: normal;
-  src: url('/assets/fonts/Courier_New/CourierNew-Regular.ttf');
-}
-
-@font-face {
-  font-family: 'Courier New';
-  font-style: normal;
-  font-weight: bold;
-  src: url('/assets/fonts/Courier_New/CourierNew-Bold.ttf');
-}
-
-@font-face {
   font-family: 'Proxima Nova';
   font-style: normal;
   font-weight: 100; // thin
@@ -176,13 +17,6 @@
   font-style: normal;
   font-weight: 400; // normal
   src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Regular.woff');
-}
-
-@font-face {
-  font-family: 'Proxima Nova';
-  font-style: normal;
-  font-weight: 500; // medium
-  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Medium.woff');
 }
 
 @font-face {
@@ -318,9 +152,10 @@ a {
 }
 
 .box-shadow-lg {
-  --tw-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1),
-    0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --tw-shadow-colored: 0 10px 15px -3px var(--tw-shadow-color),
+  --tw-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --tw-shadow-colored:
+    0 10px 15px -3px var(--tw-shadow-color),
     0 4px 6px -4px var(--tw-shadow-color);
   box-shadow:
     0 0 #0000,
@@ -334,12 +169,11 @@ a {
 }
 
 .additional-detail-title {
-  font-family: 'Montserrat';
   font-size: 0.85rem;
   line-height: 1.75rem;
   font-weight: 300;
   text-transform: uppercase;
-  letter-spacing: .06rem;
+  letter-spacing: 0.06rem;
   margin-bottom: 1rem;
   pointer-events: none;
 }

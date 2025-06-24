@@ -70,7 +70,7 @@ import { MarketplacePkgBase } from '../../../types'
       span {
         font-size: 1rem;
         line-height: 1.5rem;
-        font-weight: 500;
+        font-weight: 600;
         color: rgb(250 250 250 / 0.9);
       }
     }

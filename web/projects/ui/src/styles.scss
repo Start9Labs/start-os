@@ -25,9 +25,7 @@ hr {
 
 :root {
   --bumper: 0.375rem;
-  --tui-font-text: 'Proxima Nova', 'Manrope', -apple-system,
-    'BlinkMacSystemFont', system-ui, 'Roboto', 'Segoe UI', 'Helvetica Neue',
-    sans-serif;
+  --tui-font-text: 'Proxima Nova', system-ui;
 }
 
 .g-page {

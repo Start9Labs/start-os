@@ -79,14 +79,14 @@ import { SharedPipesModule, TickerComponent } from '@start9labs/shared'
         h2 {
           font-size: 2rem;
           line-height: 3rem;
-          font-weight: 400;
+          font-weight: normal;
           display: inline-block;
           margin-left: -1px;
         }
 
         h3 {
           font-size: 1.1rem;
-          font-weight: 400;
+          font-weight: normal;
           margin-bottom: 1rem;
           pointer-events: none;
         }
