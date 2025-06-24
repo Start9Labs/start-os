@@ -37,6 +37,7 @@ cat << EOF > /etc/os-release
 NAME=StartOS
 VERSION="${VERSION_ENV}"
 ID=start-os
+ID_LIKE=debian
 VERSION_ID="${VERSION}"
 PRETTY_NAME="StartOS v${VERSION_ENV}"
 HOME_URL="https://start9.com/"
