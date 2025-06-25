@@ -1,0 +1,44 @@
+:host {
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+[tuiButton] {
+  text-transform: uppercase;
+  font-weight: bold;
+  border-radius: 10rem;
+  margin-top: 1rem;
+}
+
+.card {
+  max-width: max(70%, 40rem);
+  text-align: center;
+  align-items: center !important;
+  gap: 0 !important;
+}
+
+h1 {
+  margin: 1rem;
+  font-weight: bold;
+  font-size: 1.5rem;
+}
+
+p {
+  font-size: 1.3rem;
+  line-height: 1.5rem;
+  margin: 0 0 2rem;
+}
+
+ol {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  text-align: left;
+}
+
+li {
+  padding-bottom: 1.5rem;
+}

@@ -1,338 +1,15 @@
-@font-face {
-  font-family: 'Montserrat';
-  font-style: normal;
-  font-weight: normal;
-  src: url('/assets/fonts/Montserrat/Montserrat-Regular.ttf');
-}
+@use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
-@font-face {
-  font-family: 'Montserrat';
-  font-style: normal;
-  font-weight: bold;
-  src: url('/assets/fonts/Montserrat/Montserrat-Bold.ttf');
-}
-
-@font-face {
-  font-family: 'Montserrat';
-  font-style: normal;
-  font-weight: thin;
-  src: url('/assets/fonts/Montserrat/Montserrat-Light.ttf');
-}
-
-@font-face {
-  font-family: 'Open Sans';
-  font-style: normal;
-  font-weight: normal;
-  src: url('/assets/fonts/Open_Sans/OpenSans-Regular.ttf');
-}
-
-@font-face {
-  font-family: 'Open Sans';
-  font-style: normal;
-  font-weight: 600;
-  src: url('/assets/fonts/Open_Sans/OpenSans-SemiBold.ttf');
-}
-
-@font-face {
-  font-family: 'Open Sans';
-  font-style: normal;
-  font-weight: bold;
-  src: url('/assets/fonts/Open_Sans/OpenSans-Bold.ttf');
-}
-
-@font-face {
-  font-family: 'Open Sans';
-  font-style: normal;
-  font-weight: thin;
-  src: url('/assets/fonts/Open_Sans/OpenSans-Light.ttf');
-}
-
-@font-face {
-  font-family: 'Redacted';
-  font-style: normal;
-  font-weight: normal;
-  src: url('/assets/fonts/Redacted/redacted.regular.ttf');
-}
-
-@font-face {
-  font-family: 'Courier New';
-  font-style: normal;
-  font-weight: normal;
-  src: url('/assets/fonts/Courier_New/CourierNew-Regular.ttf');
-}
-
-@font-face {
-  font-family: 'Courier New';
-  font-style: normal;
-  font-weight: bold;
-  src: url('/assets/fonts/Courier_New/CourierNew-Bold.ttf');
-}
-
-/** Ionic CSS Variables overrides **/
 :root {
-  --ion-font-family: 'Open Sans';
-  --ion-background-color: var(--ion-color-medium);
-  --ion-background-color-rgb: var(--ion-color-medium-rgb);
-  --ion-text-color: var(--ion-color-dark);
-  --ion-text-color-rgb: var(--ion-color-dark-rgb);
+  color-scheme: light dark;
 }
 
-$subheader-height: 48px;
-
-.btn-128 {
-  min-width: 128px;
-}
-
-.subheader-padding {
-  --padding-top: #{$subheader-height}+ 10px;
-}
-
-.subheader {
-  --min-height: #{$subheader-height};
-}
-
-.select-warning .alert-sub-title {
-  color: var(--ion-color-warning);
-}
-
-.break-all {
-  word-break: break-all;
-}
-
-.input-label {
-  margin-bottom: 6px;
-  font-size: medium;
-  font-weight: bold;
-
-  * {
-    display: inline-block;
-    vertical-align: middle;
-  }
-}
-
-.center {
-  display: block;
-  margin: auto;
-  height: 100%;
-}
-
-ion-action-sheet {
-  --button-color: var(--ion-color-dark) !important;
-}
-
-ion-toast {
-  --background: var(--ion-color-light);
-  --button-color: var(--ion-color-dark);
-  --border-style: solid;
-  --border-width: 1px;
-  --color: white;
-}
-
-.warning-toast {
-  --border-color: var(--ion-color-warning);
-}
-
-.success-toast {
-  --border-color: var(--ion-color-success);
-}
-
-.alert-message {
-  user-select: text !important;
-}
-
-.error-toast {
-  --border-color: var(--ion-color-danger);
-  width: 40%;
-  min-width: 400px;
-  --end: 8px;
-  right: 8px;
-  left: unset;
-  top: 64px;
-}
-
-.alert-radio-label.sc-ion-alert-md {
-  white-space: normal !important;
-}
-
-.alert-radio-label.sc-ion-alert-ios {
-  white-space: normal !important;
-}
-
-.inline {
-  * {
-    display: inline-block;
-    vertical-align: middle;
-  }
-}
-
-img {
-  border-radius: 100%;
-}
-
-ion-back-button {
-  margin-left: 16px;
-  height: 36px;
-  width: 36px;
-  --min-height: 0;
-  --min-width: 0;
-  min-width: 0;
-  --icon-font-size: 36px;
-  &::part(native) {
-    border: 1px solid gray;
-  }
-  &::part(icon) {
-    min-width: 20px;
-  }
-}
-
-ion-card-title {
-  font-family: 'Montserrat';
-}
-
-ion-title {
-  font-family: 'Montserrat';
-}
-
-ion-badge {
-  font-weight: bold;
-}
-
-ion-icon {
-  pointer-events: none;
-}
-
-ion-toolbar {
-  line-height: 1.1;
-  --min-height: 72px;
-  --background: var(--ion-color-light);
-}
-
-ion-infinite-scroll ion-infinite-scroll-content {
-  --color: var(--ion-color-warning) !important;
-}
-
-ion-alert {
-  .alert-button {
-    color: var(--ion-color-dark) !important;
-  }
-}
-
-ion-button {
-  --color: var(--ion-color-dark) !important;
-}
-
-.text-ellipses {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.qr-modal {
-  &::part(content) {
-    width: 400px !important;
-    height: 400px !important;
-    top: unset !important;
-    left: unset !important;
-  }
-}
-
-.notification-detail-alert {
-  .alert-wrapper {
-    --max-height: 80% !important;
-    --width: 90% !important;
-    --max-width: 900px !important;
-  }
-
-  .alert-message {
-    max-height: unset;
-  }
-}
-
-ion-back-button {
-  --background: var(--ion-color-light);
-  --color: var(--ion-color-dark);
-}
-
-ion-item-divider {
-  text-transform: uppercase;
-  --padding-top: 24px;
-  font-weight: 600;
-  --background: transparent;
-  --color: var(--ion-color-dark);
-  font-size: medium;
-  border-bottom: none;
-}
-
-ion-item {
-  --border-radius: 6px;
-  --ripple-color: transparent;
-}
-
-ion-label {
-  white-space: normal !important;
-}
-
-ion-loading {
-  --spinner-color: var(--ion-color-warning) !important;
-  z-index: 40000 !important;
-}
-
-.rec-item {
-  margin: 20px;
-  border-style: solid;
-  border-width: 1px;
-  border-style: groove;
-  border-color: dimgrey;
-  border-radius: 6px;
-  box-shadow: 4px 4px 16px var(--ion-color-primary);
-  --padding-start: 10px;
+* {
+  box-sizing: border-box;
 }
 
 h2 {
   line-height: unset;
-}
-
-@keyframes flickerAnimation {
-  0% {
-    opacity: 1;
-  }
-
-  20% {
-    opacity: 0;
-  }
-
-  60% {
-    opacity: 0;
-  }
-
-  100% {
-    opacity: 1;
-  }
-}
-
-.fader {
-  animation: flickerAnimation 4s infinite;
-}
-
-// TODO: Refactor so header is outside router-outlet
-ion-content.with-widgets,
-ion-footer.with-widgets {
-  width: calc(100% - var(--widgets-width));
-}
-
-body[data-theme='Light'] {
-  .service-card {
-    --background: #f4f4f5;
-    --inner-border-width: 0;
-  }
-
-  ion-header {
-    box-shadow: 0 1px #e0e0e0;
-
-    &::after {
-      display: none;
-    }
-  }
 }
 
 ul {
@@ -340,11 +17,341 @@ ul {
   list-style-type: disc;
 }
 
-// override for taiga styles
-p {
+hr {
+  height: 1px;
+  background: var(--tui-background-neutral-1);
+  border: none;
+}
+
+:root {
+  --bumper: 0.375rem;
+  --tui-font-text: 'Proxima Nova', system-ui;
+}
+
+.g-page {
+  @include taiga.scrollbar-hidden();
+
+  display: block;
+  height: calc(100vh - 3.875rem);
+  padding: 1px 2rem 1rem;
+  box-sizing: border-box;
+  overflow: auto;
+  isolation: isolate;
+  backdrop-filter: blur(2rem);
+  border-radius: 0.375rem;
+  background-size: 1px 100%;
+  background-repeat: no-repeat;
+  background-position:
+    top left,
+    top right;
+
+  // @TODO Theme
+  background-color: color-mix(
+    in hsl,
+    var(--tui-background-base) 90%,
+    transparent
+  );
+  background-image: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.1),
+      transparent
+    ),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.1), transparent);
+  box-shadow:
+    0 0.25rem 0.125rem rgba(0, 0, 0, 0.25),
+    0 0 0.5rem rgba(0, 0, 0, 0.3),
+    inset 0 -1px rgba(0, 0, 0, 0.5),
+    inset 0 1px rgba(255, 255, 255, 0.1);
+
+  tui-root._mobile & {
+    // For tui-tab-bar
+    height: calc(100vh - 3.875rem - var(--tui-height-l));
+  }
+}
+
+.g-subpage {
+  height: 100%;
+  min-height: fit-content;
+  flex: 1;
+  padding: 1rem;
+}
+
+.g-aside {
+  position: sticky;
+  top: 1px;
+  left: 1px;
+  margin: 1px;
+  width: 18rem;
+  padding: 0.5rem;
+  text-transform: capitalize;
+  box-shadow: 1px 0 var(--tui-border-normal);
+  background: var(--tui-background-base);
+}
+
+.g-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 3.25rem 1rem 0.375rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  color: var(--tui-text-primary);
+  background-color: color-mix(in hsl, var(--start9-base-1) 50%, transparent);
+  background-image: linear-gradient(
+      to bottom,
+      var(--tui-background-neutral-2),
+      transparent
+    ),
+    linear-gradient(to bottom, var(--tui-background-neutral-2), transparent);
+  background-size: 1px 100%;
+  background-repeat: no-repeat;
+  background-position:
+    top left,
+    top right;
+  box-sizing: border-box;
+  box-shadow:
+    0 0.25rem 0.125rem rgba(0, 0, 0, 0.25),
+    0 -0.125rem 0.25rem rgba(55, 155, 255, 0.08),
+    0 0 0.5rem rgba(0, 0, 0, 0.3),
+    inset 0 -0.125rem rgba(255, 255, 255, 0.03),
+    inset 0 2px rgba(255, 255, 255, 0.1),
+    inset 0 1px rgba(255, 255, 255, 0.15),
+    inset 0 0 1rem rgba(0, 0, 0, 0.25);
+
+  &:is(form) {
+    padding-top: 4rem;
+  }
+
+  tui-root:not(._mobile) &:has(.g-table:not([tuiTable])) {
+    padding-block-end: 1rem;
+
+    > header {
+      background: none;
+    }
+  }
+
+  [tuiCell] {
+    margin: 0 -0.625rem;
+    border-radius: var(--tui-radius-s);
+
+    &:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 1rem;
+      right: 1rem;
+      height: 1px;
+      background: var(--tui-background-neutral-1);
+    }
+  }
+
+  > table[tuiTable] {
+    margin: 0 -0.5rem;
+  }
+
+  > header {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0 1rem;
+    font: var(--tui-font-text-l);
+    font-weight: bold;
+    background: var(--tui-background-neutral-1);
+  }
+
+  > footer {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    padding: 1rem 0 0.5rem;
+  }
+}
+
+.g-table:not([tuiTable]) {
+  width: stretch;
+  border: 1px solid var(--tui-background-neutral-1);
+  border-spacing: 0;
+  border-collapse: collapse;
+  border-radius: var(--tui-radius-s);
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px var(--tui-background-neutral-1);
+  clip-path: inset(0 round var(--tui-radius-s));
+
+  td,
+  th {
+    position: relative;
+    font: var(--tui-font-text-s);
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--tui-background-neutral-1);
+    border-left: 0;
+    border-right: 0;
+    text-overflow: ellipsis;
+  }
+
+  th {
+    background: var(--tui-background-neutral-1);
+    font-weight: bold;
+    text-align: left;
+  }
+
+  tr:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 0.125rem var(--tui-border-focus);
+  }
+
+  tui-root._mobile & {
+    min-width: 0;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    color: var(--tui-text-secondary);
+
+    thead {
+      display: none;
+    }
+
+    tr {
+      position: relative;
+      display: grid;
+      padding: 0.5rem 0;
+      box-shadow: inset 0 -1px var(--tui-background-neutral-1);
+
+      &:last-child {
+        box-shadow: none;
+      }
+    }
+
+    td,
+    th {
+      position: static;
+      border: none;
+      padding: 0;
+
+      &:first-child {
+        font-weight: bold;
+        color: var(--tui-text-primary);
+      }
+
+      &:not([tuiFade]) {
+        overflow: hidden;
+      }
+    }
+  }
+}
+
+.g-table[tuiTable] {
+  width: stretch;
+
+  &:not(:has(tbody tr)) {
+    display: none;
+  }
+
+  tr:not(:last-child) {
+    box-shadow: inset 0 -1px var(--tui-background-neutral-1);
+  }
+
+  th {
+    text-transform: uppercase;
+    color: var(--tui-text-secondary);
+    background: none;
+    border: none;
+    font: var(--tui-font-text-s);
+    font-weight: bold;
+    text-align: left;
+    padding: 0 0.5rem;
+  }
+
+  td {
+    padding: 0.5rem;
+  }
+
+  td:only-child {
+    text-align: center;
+    padding: 1rem;
+  }
+
+  tui-root._mobile & thead {
+    display: none;
+  }
+}
+
+.g-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  text-transform: uppercase;
+  font-weight: bold;
   font-size: 1rem;
+  line-height: 1.5rem;
+  margin: 2rem 0 1rem;
+  color: var(--tui-text-secondary);
+}
+
+.g-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.g-toggle {
+  height: var(--tui-height-l);
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  box-shadow: inset 0 0 0 1px var(--tui-background-neutral-1-hover);
+  font: var(--tui-font-text-l);
+  font-weight: bold;
+  border-radius: var(--tui-radius-m);
+
+  input {
+    margin-left: auto;
+  }
+}
+
+.g-positive {
+  color: var(--tui-status-positive) !important;
+}
+
+.g-warning {
+  color: var(--tui-status-warning) !important;
+}
+
+.g-negative.g-negative {
+  color: var(--tui-status-negative) !important;
+}
+
+.g-info {
+  color: var(--tui-status-info) !important;
+}
+
+.g-primary {
+  color: var(--tui-text-primary) !important;
+}
+
+.g-secondary {
+  color: var(--tui-text-secondary) !important;
+}
+
+.g-stretch,
+.g-table {
+  // @TODO drop after fixed and merged: https://github.com/evanw/esbuild/issues/4184
+  width: -webkit-fill-available;
+  width: -moz-available;
+  width: stretch;
+}
+
+ng-component {
+  display: block;
 }
 
 svg:not(:root) {
   overflow: auto;
+}
+
+.g-external-link {
+  color: #50c8ff;
 }

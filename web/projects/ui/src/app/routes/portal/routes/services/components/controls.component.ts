@@ -1,0 +1,105 @@
+import { AsyncPipe } from '@angular/common'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+} from '@angular/core'
+import { i18nPipe } from '@start9labs/shared'
+import { TuiLet } from '@taiga-ui/cdk'
+import { TuiButton } from '@taiga-ui/core'
+import { map } from 'rxjs'
+import { ControlsService } from 'src/app/services/controls.service'
+import { DepErrorService } from 'src/app/services/dep-error.service'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { PrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
+import { getManifest } from 'src/app/utils/get-package-data'
+
+@Component({
+  selector: 'service-controls',
+  template: `
+    @if (['running', 'starting', 'restarting'].includes(status()!)) {
+      <button
+        tuiButton
+        appearance="primary-destructive"
+        iconStart="@tui.square"
+        (click)="controls.stop(manifest())"
+      >
+        {{ 'Stop' | i18n }}
+      </button>
+    }
+
+    @if (status() === 'running') {
+      <button
+        tuiButton
+        iconStart="@tui.rotate-cw"
+        (click)="controls.restart(manifest())"
+      >
+        {{ 'Restart' | i18n }}
+      </button>
+    }
+
+    @if (status() === 'stopped') {
+      <button
+        *tuiLet="hasUnmet() | async as hasUnmet"
+        tuiButton
+        iconStart="@tui.play"
+        (click)="controls.start(manifest(), !!hasUnmet)"
+      >
+        {{ 'Start' | i18n }}
+      </button>
+    }
+  `,
+  styles: `
+    :host {
+      width: 100%;
+      max-width: 18rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: center;
+      margin-block-start: 1rem;
+
+      &:nth-child(3) {
+        grid-row: span 2;
+      }
+    }
+
+    [tuiButton] {
+      flex: 1;
+      min-width: fit-content;
+    }
+
+    :host-context(tui-root._mobile) {
+      display: flex;
+      margin: 0;
+
+      [tuiButton] {
+        font-size: 0;
+        gap: 0;
+        border-radius: 100%;
+      }
+    }
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [TuiButton, i18nPipe, TuiLet, AsyncPipe],
+})
+export class ServiceControlsComponent {
+  private readonly errors = inject(DepErrorService)
+
+  readonly pkg = input.required<PackageDataEntry>()
+  readonly status = input<PrimaryStatus>()
+  readonly manifest = computed(() => getManifest(this.pkg()))
+  readonly controls = inject(ControlsService)
+
+  readonly hasUnmet = computed(() =>
+    this.errors.getPkgDepErrors$(this.manifest().id).pipe(
+      map(errors =>
+        Object.keys(this.pkg().currentDependencies)
+          .map(id => errors[id])
+          .some(Boolean),
+      ),
+    ),
+  )
+}
