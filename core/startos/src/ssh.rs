@@ -21,7 +21,7 @@ use crate::util::Invoke;
 
 pub const SSH_DIR: &str = "/home/start9/.ssh";
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct SshKeys(BTreeMap<InternedString, WithTimeData<SshPubKey>>);
 impl SshKeys {
     pub fn new() -> Self {
