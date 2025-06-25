@@ -64,13 +64,13 @@ import { StorageService } from 'src/app/services/storage.service'
       background: rgb(55 58 63 / 90%)
         url('/assets/img/background_marketplace.jpg') no-repeat top right;
       background-size: cover;
-&::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          backdrop-filter: blur(2rem);
-        }
+      &::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        backdrop-filter: blur(2rem);
       }
+    }
 
     .marketplace-content {
       &-wrapper {
@@ -97,7 +97,7 @@ import { StorageService } from 'src/app/services/storage.service'
           h1 {
             font-size: 2.25rem;
             line-height: 2.5rem;
-            font-weight: 700;
+            font-weight: bold;
             color: rgb(250 250 250 / 0.8);
             pointer-events: none;
 

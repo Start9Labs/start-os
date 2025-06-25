@@ -12,7 +12,7 @@ import { DocsLinkDirective } from '@start9labs/shared'
       <body>
         <div
           style="
-        font-family: Montserrat, sans-serif;
+        font-family: system-ui;
         color: #333333;
         display: flex;
         flex-direction: column;
