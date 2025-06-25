@@ -521,4 +521,5 @@ export default {
   520: 'Aktualizacja dostępna',
   521: 'Aby rozwiązać problem, zapoznaj się z',
   522: 'Wersja SDK',
+  523: 'Raport kopii zapasowej',
 } satisfies i18n
