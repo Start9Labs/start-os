@@ -1021,26 +1021,65 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       default: keyof VariantValues & string
       disabled: string[] | false | string
     }>,
-    staticVariants: Variants<VariantValues>,
-  ) {
-    return new Value<
-      UnionRes<VariantValues>,
-      typeof staticVariants.validator._TYPE
-    >(async (options) => {
-      const newValues = await getA(options)
-      const built = await newValues.variants.build(options as any)
-      return {
-        spec: {
-          type: "union" as const,
-          description: null,
-          warning: null,
-          ...newValues,
-          variants: built.spec,
-          immutable: false,
-        },
-        validator: built.validator,
+  ): Value<UnionRes<VariantValues>, unknown>
+  static dynamicUnion<
+    VariantValues extends StaticVariantValues,
+    StaticVariantValues extends {
+      [K in string]: {
+        name: string
+        spec: InputSpec<any, any>
       }
-    }, staticVariants.validator)
+    },
+  >(
+    getA: LazyBuild<{
+      name: string
+      description?: string | null
+      warning?: string | null
+      variants: Variants<VariantValues>
+      default: keyof VariantValues & string
+      disabled: string[] | false | string
+    }>,
+    validator: Parser<unknown, UnionResStaticValidatedAs<StaticVariantValues>>,
+  ): Value<
+    UnionRes<VariantValues>,
+    UnionResStaticValidatedAs<StaticVariantValues>
+  >
+  static dynamicUnion<
+    VariantValues extends {
+      [K in string]: {
+        name: string
+        spec: InputSpec<any>
+      }
+    },
+  >(
+    getA: LazyBuild<{
+      name: string
+      description?: string | null
+      warning?: string | null
+      variants: Variants<VariantValues>
+      default: keyof VariantValues & string
+      disabled: string[] | false | string
+    }>,
+    validator: Parser<unknown, unknown> = any,
+  ) {
+    return new Value<UnionRes<VariantValues>, typeof validator._TYPE>(
+      async (options) => {
+        const newValues = await getA(options)
+        const built = await newValues.variants.build(options as any)
+        return {
+          spec: {
+            type: "union" as const,
+            description: null,
+            warning: null,
+            ...newValues,
+            variants: built.spec,
+            immutable: false,
+          },
+          validator: built.validator,
+        }
+      },
+      validator,
+    )
   }
   /**
    * @description Presents an interface to add/remove/edit items in a list.

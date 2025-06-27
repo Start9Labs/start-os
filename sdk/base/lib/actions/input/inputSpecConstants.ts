@@ -79,4 +79,4 @@ export const smtpInputSpec = Value.dynamicUnion(async ({ effects }) => {
     disabled,
     variants: smtpVariants,
   }
-}, smtpVariants)
+}, smtpVariants.validator)
