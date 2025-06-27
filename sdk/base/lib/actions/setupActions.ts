@@ -1,8 +1,5 @@
 import { InputSpec } from "./input/builder"
-import {
-  ExtractInputSpecType,
-  ExtractPartialInputSpecType,
-} from "./input/builder/inputSpec"
+import { ExtractInputSpecType } from "./input/builder/inputSpec"
 import * as T from "../types"
 import { once } from "../util"
 import { InitScript } from "../inits"
@@ -58,17 +55,20 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
     private readonly getInputFn: GetInput<Type>,
     private readonly runFn: Run<Type>,
   ) {}
-  static withInput<Id extends T.ActionId, Type extends Record<string, any>>(
+  static withInput<
+    Id extends T.ActionId,
+    InputSpecType extends InputSpec<Record<string, any>>,
+  >(
     id: Id,
     metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
-    inputSpec: InputSpec<Type>,
-    getInput: GetInput<Type>,
-    run: Run<Type>,
-  ): Action<Id, Type> {
-    return new Action(
+    inputSpec: InputSpecType,
+    getInput: GetInput<ExtractInputSpecType<InputSpecType>>,
+    run: Run<ExtractInputSpecType<InputSpecType>>,
+  ): Action<Id, ExtractInputSpecType<InputSpecType>> {
+    return new Action<Id, ExtractInputSpecType<InputSpecType>>(
       id,
       mapMaybeFn(metadata, (m) => ({ ...m, hasInput: true })),
-      inputSpec,
+      inputSpec as any,
       getInput,
       run,
     )

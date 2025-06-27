@@ -23,7 +23,13 @@ export type VersionOptions<Version extends string> = {
     /**
      * Additional migrations, such as fast-forward migrations, or migrations from other flavors.
      */
-    other?: Record<string, (opts: { effects: T.Effects }) => Promise<void>>
+    other?: Record<
+      string,
+      {
+        up?: (opts: { effects: T.Effects }) => Promise<void>
+        down?: (opts: { effects: T.Effects }) => Promise<void>
+      }
+    >
   }
 }
 

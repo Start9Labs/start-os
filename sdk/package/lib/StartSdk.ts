@@ -333,13 +333,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           )
          * ```
         */
-        withInput: <Id extends T.ActionId, Type extends Record<string, any>>(
-          id: Id,
-          metadata: MaybeFn<Omit<T.ActionMetadata, "hasInput">>,
-          inputSpec: InputSpec<Type>,
-          getInput: GetInput<Type>,
-          run: Run<Type>,
-        ) => Action.withInput(id, metadata, inputSpec, getInput, run),
+        withInput: Action.withInput,
         /**
          * @description Use this function to create an action that does not accept form input
          * @param id - a unique ID for this action

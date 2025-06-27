@@ -13,13 +13,17 @@ export type LazyBuild<ExpectedOut> = (
 ) => Promise<ExpectedOut> | ExpectedOut
 
 // prettier-ignore
-export type ExtractInputSpecType<A extends InputSpec<Record<string, any>>> = 
-  A extends InputSpec<infer B> ? B :
+export type ExtractInputSpecType<A extends InputSpec<Record<string, any>, any>> = 
+  A extends InputSpec<infer B, any> ? B :
   never
 
-export type ExtractPartialInputSpecType<
-  A extends Record<string, any> | InputSpec<Record<string, any>>,
-> = A extends InputSpec<infer B> ? DeepPartial<B> : DeepPartial<A>
+export type ExtractInputSpecStaticValidatedAs<
+  A extends InputSpec<any, Record<string, any>>,
+> = A extends InputSpec<any, infer B> ? B : never
+
+// export type ExtractPartialInputSpecType<
+//   A extends Record<string, any> | InputSpec<Record<string, any>>,
+// > = A extends InputSpec<infer B> ? DeepPartial<B> : DeepPartial<A>
 
 export type InputSpecOf<A extends Record<string, any>> = {
   [K in keyof A]: Value<A[K]>
@@ -82,11 +86,15 @@ export const addNodesSpec = InputSpec.of({ hostname: hostname, port: port });
 
   ```
  */
-export class InputSpec<Type extends Record<string, any>> {
+export class InputSpec<
+  Type extends StaticValidatedAs,
+  StaticValidatedAs extends Record<string, any> = Type,
+> {
   private constructor(
     private readonly spec: {
       [K in keyof Type]: Value<Type[K]>
     },
+    public readonly validator: Parser<unknown, StaticValidatedAs>,
   ) {}
   public _TYPE: Type = null as any as Type
   public _PARTIAL: DeepPartial<Type> = null as any as DeepPartial<Type>
@@ -113,9 +121,19 @@ export class InputSpec<Type extends Record<string, any>> {
     }
   }
 
-  static of<Spec extends Record<string, Value<any>>>(spec: Spec) {
-    return new InputSpec<{
-      [K in keyof Spec]: Spec[K] extends Value<infer T> ? T : never
-    }>(spec)
+  static of<Spec extends Record<string, Value<any, any>>>(spec: Spec) {
+    const validator = object(
+      Object.fromEntries(
+        Object.entries(spec).map(([k, v]) => [k, v.validator]),
+      ),
+    )
+    return new InputSpec<
+      {
+        [K in keyof Spec]: Spec[K] extends Value<infer T, any> ? T : never
+      },
+      {
+        [K in keyof Spec]: Spec[K] extends Value<any, infer T> ? T : never
+      }
+    >(spec, validator as any)
   }
 }
