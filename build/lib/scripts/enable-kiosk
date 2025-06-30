@@ -55,6 +55,7 @@ user_pref("extensions.activeThemeID", "firefox-compact-dark@mozilla.org");
 user_pref("extensions.blocklist.enabled", false);
 user_pref("extensions.htmlaboutaddons.recommendations.enabled", false);
 user_pref("extensions.pocket.enabled", false);
+user_pref("extensions.update.enabled", false);
 user_pref("extensions.shield-recipe-client.enabled", false);
 user_pref("extensions.shield-recipe-client.user_id", "");
 user_pref("extensions.shield-recipe-client.api_url", "");
