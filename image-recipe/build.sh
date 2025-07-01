@@ -150,6 +150,10 @@ cat > config/archives/backports.pref <<- EOF
 Package: linux-image-*
 Pin: release n=${IB_SUITE}-backports
 Pin-Priority: 500
+
+Package: linux-base
+Pin: release n=${IB_SUITE}-backports
+Pin-Priority: 500
 EOF
 
 if [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
