@@ -1,0 +1,81 @@
+import { AsyncPipe } from '@angular/common'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+} from '@angular/core'
+import { TuiLet } from '@taiga-ui/cdk'
+import { TuiButton, tuiButtonOptionsProvider } from '@taiga-ui/core'
+import { map } from 'rxjs'
+import { ControlsService } from 'src/app/services/controls.service'
+import { DepErrorService } from 'src/app/services/dep-error.service'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
+import { getManifest } from 'src/app/utils/get-package-data'
+import { UILaunchComponent } from './ui-launch.component'
+import { i18nPipe } from '@start9labs/shared'
+
+const RUNNING = ['running', 'starting', 'restarting']
+
+@Component({
+  selector: 'fieldset[appControls]',
+  template: `
+    <app-ui-launch [pkg]="pkg()" />
+    @if (running()) {
+      <button
+        tuiIconButton
+        iconStart="@tui.square"
+        (click)="controls.stop(manifest())"
+      >
+        {{ 'Stop' | i18n }}
+      </button>
+    } @else {
+      <button
+        *tuiLet="hasUnmet() | async as hasUnmet"
+        tuiIconButton
+        iconStart="@tui.play"
+        [disabled]="status().primary !== 'stopped'"
+        (click)="controls.start(manifest(), !!hasUnmet)"
+      >
+        {{ 'Start' | i18n }}
+      </button>
+    }
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [TuiButton, UILaunchComponent, TuiLet, AsyncPipe, i18nPipe],
+  providers: [tuiButtonOptionsProvider({ size: 's', appearance: 'none' })],
+  styles: `
+    :host {
+      padding: 0;
+      border: none;
+      cursor: default;
+      text-align: right;
+    }
+
+    :host-context(tui-root._mobile) {
+      button {
+        display: none;
+      }
+    }
+  `,
+})
+export class ControlsComponent {
+  private readonly errors = inject(DepErrorService)
+
+  readonly controls = inject(ControlsService)
+  readonly pkg = input.required<PackageDataEntry>()
+  readonly status = computed(() => renderPkgStatus(this.pkg()))
+  readonly running = computed(() => RUNNING.includes(this.status().primary))
+  readonly manifest = computed(() => getManifest(this.pkg()))
+  readonly hasUnmet = computed(() =>
+    this.errors.getPkgDepErrors$(this.manifest().id).pipe(
+      map(errors =>
+        Object.keys(this.pkg().currentDependencies)
+          .map(id => errors?.[id])
+          .some(Boolean),
+      ),
+    ),
+  )
+}

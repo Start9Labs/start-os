@@ -5,16 +5,14 @@ use std::path::Path;
 use ed25519::pkcs8::EncodePrivateKey;
 use ed25519::PublicKeyBytes;
 use ed25519_dalek::{SigningKey, VerifyingKey};
-use rpc_toolkit::command;
 use tracing::instrument;
 
-use crate::context::SdkContext;
-use crate::util::display_none;
-use crate::{Error, ResultExt};
+use crate::context::CliContext;
+use crate::prelude::*;
+use crate::util::serde::Pem;
 
-#[command(cli_only, blocking, display(display_none))]
 #[instrument(skip_all)]
-pub fn init(#[context] ctx: SdkContext) -> Result<(), Error> {
+pub fn init(ctx: CliContext) -> Result<(), Error> {
     if !ctx.developer_key_path.exists() {
         let parent = ctx.developer_key_path.parent().unwrap_or(Path::new("/"));
         if !parent.exists() {
@@ -22,13 +20,14 @@ pub fn init(#[context] ctx: SdkContext) -> Result<(), Error> {
                 .with_ctx(|_| (crate::ErrorKind::Filesystem, parent.display().to_string()))?;
         }
         tracing::info!("Generating new developer key...");
-        let secret = SigningKey::generate(&mut rand::thread_rng());
+        let secret = SigningKey::generate(&mut ssh_key::rand_core::OsRng::default());
         tracing::info!("Writing key to {}", ctx.developer_key_path.display());
         let keypair_bytes = ed25519::KeypairBytes {
             secret_key: secret.to_bytes(),
             public_key: Some(PublicKeyBytes(VerifyingKey::from(&secret).to_bytes())),
         };
-        let mut dev_key_file = File::create(&ctx.developer_key_path)?;
+        let mut dev_key_file = File::create(&ctx.developer_key_path)
+            .with_ctx(|_| (ErrorKind::Filesystem, ctx.developer_key_path.display()))?;
         dev_key_file.write_all(
             keypair_bytes
                 .to_pkcs8_pem(base64ct::LineEnding::default())
@@ -49,7 +48,6 @@ pub fn init(#[context] ctx: SdkContext) -> Result<(), Error> {
     Ok(())
 }
 
-#[command(subcommands(crate::s9pk::verify, crate::config::verify_spec))]
-pub fn verify() -> Result<(), Error> {
-    Ok(())
+pub fn pubkey(ctx: CliContext) -> Result<Pem<ed25519_dalek::VerifyingKey>, Error> {
+    Ok(Pem(ctx.developer_key()?.verifying_key()))
 }

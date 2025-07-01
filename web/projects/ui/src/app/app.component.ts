@@ -1,74 +1,47 @@
-import { Component, inject, OnDestroy } from '@angular/core'
-import { combineLatest, map, merge, startWith } from 'rxjs'
-import { AuthService } from './services/auth.service'
-import { SplitPaneTracker } from './services/split-pane.service'
-import { PatchDataService } from './services/patch-data.service'
-import { PatchMonitorService } from './services/patch-monitor.service'
-import { ConnectionService } from './services/connection.service'
-import { Title } from '@angular/platform-browser'
-import {
-  ClientStorageService,
-  WidgetDrawer,
-} from './services/client-storage.service'
-import { ThemeSwitcherService } from './services/theme-switcher.service'
-import { THEME } from '@start9labs/shared'
+import { Component, inject } from '@angular/core'
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
+import { i18nService } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
+import { merge } from 'rxjs'
+import { PatchDataService } from './services/patch-data.service'
 import { DataModel } from './services/patch-db/data-model'
+import { PatchMonitorService } from './services/patch-monitor.service'
 
 @Component({
   selector: 'app-root',
-  templateUrl: 'app.component.html',
-  styleUrls: ['app.component.scss'],
+  template: `
+    <tui-root tuiTheme="dark">
+      <router-outlet />
+      <toast-container />
+    </tui-root>
+  `,
+  styles: `
+    :host {
+      display: block;
+      height: 100%;
+    }
+
+    tui-root {
+      height: 100%;
+      font-family: 'Proxima Nova', system-ui;
+    }
+  `,
+  standalone: false,
 })
-export class AppComponent implements OnDestroy {
-  readonly subscription = merge(this.patchData, this.patchMonitor).subscribe()
-  readonly sidebarOpen$ = this.splitPane.sidebarOpen$
-  readonly widgetDrawer$ = this.clientStorageService.widgetDrawer$
-  readonly theme$ = inject(THEME)
-  readonly offline$ = combineLatest([
-    this.authService.isVerified$,
-    this.connection.connected$,
-    this.patch
-      .watch$('server-info', 'status-info')
-      .pipe(startWith({ restarting: false, 'shutting-down': false })),
-  ]).pipe(
-    map(
-      ([verified, connected, status]) =>
-        verified &&
-        (!connected || status.restarting || status['shutting-down']),
-    ),
+export class AppComponent {
+  private readonly i18n = inject(i18nService)
+
+  readonly subscription = merge(
+    inject(PatchDataService),
+    inject(PatchMonitorService),
   )
+    .pipe(takeUntilDestroyed())
+    .subscribe()
 
-  constructor(
-    private readonly titleService: Title,
-    private readonly patchData: PatchDataService,
-    private readonly patchMonitor: PatchMonitorService,
-    private readonly splitPane: SplitPaneTracker,
-    private readonly patch: PatchDB<DataModel>,
-    readonly authService: AuthService,
-    readonly connection: ConnectionService,
-    readonly clientStorageService: ClientStorageService,
-    readonly themeSwitcher: ThemeSwitcherService,
-  ) {}
-
-  async ngOnInit() {
-    this.patch
-      .watch$('ui', 'name')
-      .subscribe(name => this.titleService.setTitle(name || 'StartOS'))
-  }
-
-  splitPaneVisible({ detail }: any) {
-    this.splitPane.sidebarOpen$.next(detail.visible)
-  }
-
-  onResize(drawer: WidgetDrawer) {
-    this.clientStorageService.updateWidgetDrawer({
-      ...drawer,
-      width: drawer.width === 400 ? 600 : 400,
+  readonly ui = inject<PatchDB<DataModel>>(PatchDB)
+    .watch$('ui', 'language')
+    .pipe(takeUntilDestroyed())
+    .subscribe(language => {
+      this.i18n.setLanguage(language || 'english')
     })
-  }
-
-  ngOnDestroy() {
-    this.subscription.unsubscribe()
-  }
 }

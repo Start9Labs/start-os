@@ -1,0 +1,15 @@
+import { inject, Pipe, PipeTransform } from '@angular/core'
+import { InterfaceComponent } from './interface.component'
+
+@Pipe({
+  name: 'mask',
+})
+export class MaskPipe implements PipeTransform {
+  private readonly interface = inject(InterfaceComponent)
+
+  transform(value: string): string {
+    return this.interface.value().masked
+      ? '•'.repeat(Math.min(32, value.length))
+      : value
+  }
+}

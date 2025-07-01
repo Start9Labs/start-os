@@ -1,4 +1,101 @@
+@font-face {
+  font-family: 'Proxima Nova';
+  font-style: normal;
+  font-weight: 100; // thin
+  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Thin.woff');
+}
+
+@font-face {
+  font-family: 'Proxima Nova';
+  font-style: normal;
+  font-weight: 300; // light
+  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Light.woff');
+}
+
+@font-face {
+  font-family: 'Proxima Nova';
+  font-style: normal;
+  font-weight: 400; // normal
+  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Regular.woff');
+}
+
+@font-face {
+  font-family: 'Proxima Nova';
+  font-style: normal;
+  font-weight: 600; // semibold
+  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Semibold.woff');
+}
+
+@font-face {
+  font-family: 'Proxima Nova';
+  font-style: normal;
+  font-weight: 700; // bold
+  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Bold.woff');
+}
+
+@font-face {
+  font-family: 'Proxima Nova';
+  font-style: normal;
+  font-weight: 800; // extrabold
+  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Extrabold.woff');
+}
+
+@font-face {
+  font-family: 'Proxima Nova';
+  font-style: normal;
+  font-weight: 900; // black
+  src: url('/assets/fonts/Proxima_Nova/Proxima-Nova-Black.woff');
+}
+
 $wide-modal: 900px;
+
+:root {
+  --alt-red: #ff4961;
+  --alt-orange: #f89248;
+  --alt-yellow: #e5d53e;
+  --alt-green: #3dcf6f;
+  --alt-blue: #00a8a8;
+  --alt-purple: #9747ff;
+
+  --portal-header-height: 56px;
+
+  // @TODO Alex rename when make style lib
+  --tw-color-black: 0 0 0;
+  --tw-color-white: 255 255 255;
+  --tw-color-slate-50: 248 250 252;
+  --tw-color-slate-100: 241 245 249;
+  --tw-color-slate-200: 226 232 240;
+  --tw-color-slate-300: 203 213 225;
+  --tw-color-slate-400: 148 163 184;
+  --tw-color-slate-500: 100 116 139;
+  --tw-color-slate-600: 71 85 105;
+  --tw-color-slate-700: 51 65 85;
+  --tw-color-slate-800: 30 41 59;
+  --tw-color-slate-900: 15 23 42;
+  --tw-color-slate-950: 2 6 23;
+  --tw-color-gray-50: 249 250 251;
+  --tw-color-gray-100: 243 244 246;
+  --tw-color-gray-200: 229 231 235;
+  --tw-color-gray-300: 209 213 219;
+  --tw-color-gray-400: 156 163 175;
+  --tw-color-gray-500: 107 114 128;
+  --tw-color-gray-600: 75 85 99;
+  --tw-color-gray-700: 55 65 81;
+  --tw-color-gray-800: 31 41 55;
+  --tw-color-gray-900: 17 24 39;
+  --tw-color-gray-950: 3 7 18;
+  --tw-color-zinc-50: 250 250 250;
+  --tw-color-zinc-100: 244 244 245;
+  --tw-color-zinc-200: 228 228 231;
+  --tw-color-zinc-300: 212 212 216;
+  --tw-color-zinc-400: 161 161 170;
+  --tw-color-zinc-500: 113 113 122;
+  --tw-color-zinc-600: 82 82 91;
+  --tw-color-zinc-700: 63 63 70;
+  --tw-color-zinc-800: 39 39 42;
+  --tw-color-zinc-900: 24 24 27;
+  --tw-color-zinc-950: 9 9 11;
+}
 
 body {
   -webkit-user-select: text;
@@ -7,119 +104,15 @@ body {
   user-select: text;
 }
 
-ion-input {
-  caret-color: gray;
-}
-
-ion-alert {
-  .alert-wrapper {
-    --min-width: 320px;
-  }
-}
-
-.swiper {
-  .swiper-slide {
-    display: unset;
-  }
-}
-
-ion-modal {
-  --max-height: 600px;
-  &::part(content) {
-    width: 90% !important;
-    left: 5%;
-  
-    border-radius: 6px;
-    border: 2px solid rgba(255, 255, 255, 0.03);
-    box-shadow: 0 32px 64px rgba(0, 0, 0, 0.2);
-  }
-}
-
-.alertlike-modal {
-  &::part(content) {
-    max-height: 380px !important;
-    top: 25% !important;
-    width: 90% !important;
-    left: 5% !important;
-    --box-shadow: none !important;
-  }
-}
-
-@media (min-width: 1000px) {
-  ion-modal::part(content) {
-    width: $wide-modal !important;
-    left: calc((100vw - $wide-modal) / 2) !important;
-  }
-
-  .alertlike-modal {
-    &::part(content) {
-      width: $wide-modal !important;
-      left: calc((100vw - $wide-modal) / 2) !important;
-    }
-  }
-
-  ion-alert {
-    .alert-wrapper {
-      --width: 50%;
-      --max-width: 500px;
-    }
-  }
-}
-
-.item-interactive {
-  --highlight-background: var(--ion-color-light) !important;
-}
-
-.hidden-scrollbar {
-  overflow: auto;
-  white-space: nowrap;
-  height: 60px;
-
-  /* Hide scrollbar for Chrome, Safari and Opera */
-  &::-webkit-scrollbar {
-    width: 0;
-    height: 0;
-  }
-
-  /* Hide scrollbar for IE, Edge and Firefox */
-  /* IE and Edge */
-  -ms-overflow-style: none;
-  /* Firefox */
-  scrollbar-width: none;
-}
-
-.divider {
-  background: linear-gradient(90deg,
-      var(--ion-color-light) 0,
-      var(--ion-color-dark) 50%,
-      var(--ion-color-light) 100%);
-  height: 1px;
-}
-
-.loading-dots:after {
+.loading-dots::after {
   content: '...';
   overflow: hidden;
   display: inline-block;
   vertical-align: bottom;
   animation: ellipsis-dot 1s infinite 0.3s;
   animation-fill-mode: forwards;
+  text-align: left;
   width: 1em;
-}
-
-.courier-new {
-  font-family: 'Courier New';
-}
-
-.montserrat {
-  font-family: 'Montserrat', sans-serif !important;
-}
-
-.color-success-shade {
-  color: var(--ion-color-success-shade)
-}
-
-.color-primary-shade {
-  color: var(--ion-color-primary-shade)
 }
 
 @keyframes ellipsis-dot {
@@ -140,20 +133,55 @@ ion-modal {
   }
 }
 
-.alert-error-message {
-  .alert-title {
-    color: var(--ion-color-danger);
-  }
+a {
+  cursor: pointer;
+  color: inherit;
+  text-decoration: none;
 }
 
-.alert-warning-message {
-  .alert-title {
-    color: var(--ion-color-warning);
-  }
+/* marketplace */
+.background-border {
+  border-radius: 0.75rem;
+  background-image: linear-gradient(
+    to top left,
+    rgb(161 161 170 / 0.75),
+    #52525b
+  );
+  padding: 1px;
+  margin-top: 1.5rem;
 }
 
-.alert-success-message {
-  .alert-title {
-    color: var(--ion-color-success);
+.box-shadow-lg {
+  --tw-shadow:
+    0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --tw-shadow-colored:
+    0 10px 15px -3px var(--tw-shadow-color),
+    0 4px 6px -4px var(--tw-shadow-color);
+  box-shadow:
+    0 0 #0000,
+    0 0 #0000,
+    var(--tw-shadow);
+}
+
+.shadow-color-light {
+  --tw-shadow-color: rgb(161 161 170 / 0.1);
+  --tw-shadow: var(--tw-shadow-colored);
+}
+
+.additional-detail-title {
+  font-size: 0.85rem;
+  line-height: 1.75rem;
+  font-weight: 300;
+  text-transform: uppercase;
+  letter-spacing: 0.06rem;
+  margin-bottom: 1rem;
+  pointer-events: none;
+}
+
+.buttons {
+  margin-top: 1rem;
+
+  :first-child {
+    margin-right: 0.5rem;
   }
 }

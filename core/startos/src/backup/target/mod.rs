@@ -1,39 +1,44 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use clap::ArgMatches;
+use clap::builder::ValueParserFactory;
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
-use rpc_toolkit::command;
+use exver::Version;
+use imbl_value::InternedString;
+use models::{FromStrParser, PackageId};
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-use sqlx::{Executor, Postgres};
 use tokio::sync::Mutex;
 use tracing::instrument;
+use ts_rs::TS;
 
 use self::cifs::CifsBackupTarget;
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
+use crate::db::model::DatabaseModel;
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::filesystem::{FileSystem, MountType, ReadWrite};
-use crate::disk::mount::guard::TmpMountGuard;
+use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::disk::util::PartitionInfo;
 use crate::prelude::*;
-use crate::s9pk::manifest::PackageId;
-use crate::util::serde::{deserialize_from_str, display_serializable, serialize_display};
-use crate::util::{display_none, Version};
+use crate::util::serde::{
+    deserialize_from_str, display_serializable, serialize_display, HandlerExtSerde, WithIoFormat,
+};
+use crate::util::VersionString;
 
 pub mod cifs;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type")]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum BackupTarget {
-    #[serde(rename_all = "kebab-case")]
+    #[serde(rename_all = "camelCase")]
     Disk {
         vendor: Option<String>,
         model: Option<String>,
@@ -43,21 +48,19 @@ pub enum BackupTarget {
     Cifs(CifsBackupTarget),
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Clone, TS)]
+#[ts(type = "string")]
 pub enum BackupTargetId {
     Disk { logicalname: PathBuf },
-    Cifs { id: i32 },
+    Cifs { id: u32 },
 }
 impl BackupTargetId {
-    pub async fn load<Ex>(self, secrets: &mut Ex) -> Result<BackupTargetFS, Error>
-    where
-        for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-    {
+    pub fn load(self, db: &DatabaseModel) -> Result<BackupTargetFS, Error> {
         Ok(match self {
             BackupTargetId::Disk { logicalname } => {
                 BackupTargetFS::Disk(BlockDev::new(logicalname))
             }
-            BackupTargetId::Cifs { id } => BackupTargetFS::Cifs(cifs::load(secrets, id).await?),
+            BackupTargetId::Cifs { id } => BackupTargetFS::Cifs(cifs::load(db, id)?),
         })
     }
 }
@@ -84,6 +87,12 @@ impl std::str::FromStr for BackupTargetId {
         }
     }
 }
+impl ValueParserFactory for BackupTargetId {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
 impl<'de> Deserialize<'de> for BackupTargetId {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -101,16 +110,15 @@ impl Serialize for BackupTargetId {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(tag = "type")]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub enum BackupTargetFS {
     Disk(BlockDev<PathBuf>),
     Cifs(Cifs),
 }
-#[async_trait]
 impl FileSystem for BackupTargetFS {
-    async fn mount<P: AsRef<Path> + Send + Sync>(
+    async fn mount<P: AsRef<Path> + Send>(
         &self,
         mountpoint: P,
         mount_type: MountType,
@@ -130,19 +138,51 @@ impl FileSystem for BackupTargetFS {
     }
 }
 
-#[command(subcommands(cifs::cifs, list, info, mount, umount))]
-pub fn target() -> Result<(), Error> {
-    Ok(())
+// #[command(subcommands(cifs::cifs, list, info, mount, umount))]
+pub fn target<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand(
+            "cifs",
+            cifs::cifs::<C>().with_about("Add, remove, or update a backup target"),
+        )
+        .subcommand(
+            "list",
+            from_fn_async(list)
+                .with_display_serializable()
+                .with_about("List existing backup targets")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "info",
+            from_fn_async(info)
+                .with_display_serializable()
+                .with_custom_display_fn::<CliContext, _>(|params, info| {
+                    display_backup_info(params.params, info)
+                })
+                .with_about("Display package backup information")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "mount",
+            from_fn_async(mount)
+                .with_about("Mount backup target")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "umount",
+            from_fn_async(umount)
+                .no_display()
+                .with_about("Unmount backup target")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
-#[command(display(display_serializable))]
-pub async fn list(
-    #[context] ctx: RpcContext,
-) -> Result<BTreeMap<BackupTargetId, BackupTarget>, Error> {
-    let mut sql_handle = ctx.secret_store.acquire().await?;
+// #[command(display(display_serializable))]
+pub async fn list(ctx: RpcContext) -> Result<BTreeMap<BackupTargetId, BackupTarget>, Error> {
+    let peek = ctx.db.peek().await;
     let (disks_res, cifs) = tokio::try_join!(
         crate::disk::util::list(&ctx.os_partitions),
-        cifs::list(sql_handle.as_mut()),
+        cifs::list(&peek),
     )?;
     Ok(disks_res
         .into_iter()
@@ -171,7 +211,7 @@ pub async fn list(
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct BackupInfo {
     pub version: Version,
     pub timestamp: Option<DateTime<Utc>>,
@@ -179,19 +219,19 @@ pub struct BackupInfo {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
 pub struct PackageBackupInfo {
-    pub title: String,
-    pub version: Version,
+    pub title: InternedString,
+    pub version: VersionString,
     pub os_version: Version,
     pub timestamp: DateTime<Utc>,
 }
 
-fn display_backup_info(info: BackupInfo, matches: &ArgMatches) {
+fn display_backup_info(params: WithIoFormat<InfoParams>, info: BackupInfo) -> Result<(), Error> {
     use prettytable::*;
 
-    if matches.is_present("format") {
-        return display_serializable(info, matches);
+    if let Some(format) = params.format {
+        return display_serializable(format, info);
     }
 
     let mut table = Table::new();
@@ -202,9 +242,9 @@ fn display_backup_info(info: BackupInfo, matches: &ArgMatches) {
         "TIMESTAMP",
     ]);
     table.add_row(row![
-        "EMBASSY OS",
-        info.version.as_str(),
-        info.version.as_str(),
+        "StartOS",
+        &info.version.to_string(),
+        &info.version.to_string(),
         &if let Some(ts) = &info.timestamp {
             ts.to_string()
         } else {
@@ -215,29 +255,36 @@ fn display_backup_info(info: BackupInfo, matches: &ArgMatches) {
         let row = row![
             &*id,
             info.version.as_str(),
-            info.os_version.as_str(),
+            &info.os_version.to_string(),
             &info.timestamp.to_string(),
         ];
         table.add_row(row);
     }
-    table.print_tty(false).unwrap();
+    table.print_tty(false)?;
+    Ok(())
 }
 
-#[command(display(display_backup_info))]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct InfoParams {
+    target_id: BackupTargetId,
+    server_id: String,
+    password: String,
+}
+
 #[instrument(skip(ctx, password))]
 pub async fn info(
-    #[context] ctx: RpcContext,
-    #[arg(rename = "target-id")] target_id: BackupTargetId,
-    #[arg] password: String,
+    ctx: RpcContext,
+    InfoParams {
+        target_id,
+        server_id,
+        password,
+    }: InfoParams,
 ) -> Result<BackupInfo, Error> {
     let guard = BackupMountGuard::mount(
-        TmpMountGuard::mount(
-            &target_id
-                .load(ctx.secret_store.acquire().await?.as_mut())
-                .await?,
-            ReadWrite,
-        )
-        .await?,
+        TmpMountGuard::mount(&target_id.load(&ctx.db.peek().await)?, ReadWrite).await?,
+        &server_id,
         &password,
     )
     .await?;
@@ -250,56 +297,113 @@ pub async fn info(
 }
 
 lazy_static::lazy_static! {
-    static ref USER_MOUNTS: Mutex<BTreeMap<BackupTargetId, BackupMountGuard<TmpMountGuard>>> =
+    static ref USER_MOUNTS: Mutex<BTreeMap<BackupTargetId, Result<BackupMountGuard<TmpMountGuard>, TmpMountGuard>>> =
         Mutex::new(BTreeMap::new());
 }
 
-#[command]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct MountParams {
+    target_id: BackupTargetId,
+    #[arg(long)]
+    server_id: Option<String>,
+    password: String,
+    #[arg(long)]
+    allow_partial: bool,
+}
+
 #[instrument(skip_all)]
 pub async fn mount(
-    #[context] ctx: RpcContext,
-    #[arg(rename = "target-id")] target_id: BackupTargetId,
-    #[arg] password: String,
+    ctx: RpcContext,
+    MountParams {
+        target_id,
+        server_id,
+        password,
+        allow_partial,
+    }: MountParams,
 ) -> Result<String, Error> {
+    let server_id = if let Some(server_id) = server_id {
+        server_id
+    } else {
+        ctx.db
+            .peek()
+            .await
+            .into_public()
+            .into_server_info()
+            .into_id()
+            .de()?
+    };
+
     let mut mounts = USER_MOUNTS.lock().await;
 
-    if let Some(existing) = mounts.get(&target_id) {
-        return Ok(existing.as_ref().display().to_string());
-    }
+    let existing = mounts.get(&target_id);
 
-    let guard = BackupMountGuard::mount(
-        TmpMountGuard::mount(
-            &target_id
-                .clone()
-                .load(ctx.secret_store.acquire().await?.as_mut())
-                .await?,
-            ReadWrite,
-        )
-        .await?,
-        &password,
-    )
-    .await?;
+    let base = match existing {
+        Some(Ok(a)) => return Ok(a.path().display().to_string()),
+        Some(Err(e)) => e.clone(),
+        None => {
+            TmpMountGuard::mount(&target_id.clone().load(&ctx.db.peek().await)?, ReadWrite).await?
+        }
+    };
 
-    let res = guard.as_ref().display().to_string();
+    let guard = match BackupMountGuard::mount(base.clone(), &server_id, &password).await {
+        Ok(a) => a,
+        Err(e) => {
+            if allow_partial {
+                mounts.insert(target_id, Err(base.clone()));
+                let enc_key = BackupMountGuard::<TmpMountGuard>::load_metadata(
+                    base.path(),
+                    &server_id,
+                    &password,
+                )
+                .await
+                .map(|(_, k)| k);
+                return Err(e)
+                    .with_ctx(|e| (
+                        e.kind,
+                        format!(
+                            "\nThe base filesystem did successfully mount at {:?}\nWrapped Key: {:?}",
+                            base.path(),
+                            enc_key
+                        )
+                    ));
+            } else {
+                return Err(e);
+            }
+        }
+    };
 
-    mounts.insert(target_id, guard);
+    let res = guard.path().display().to_string();
+
+    mounts.insert(target_id, Ok(guard));
 
     Ok(res)
 }
-#[command(display(display_none))]
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct UmountParams {
+    target_id: Option<BackupTargetId>,
+}
+
 #[instrument(skip_all)]
-pub async fn umount(
-    #[context] _ctx: RpcContext,
-    #[arg(rename = "target-id")] target_id: Option<BackupTargetId>,
-) -> Result<(), Error> {
-    let mut mounts = USER_MOUNTS.lock().await;
+pub async fn umount(_: RpcContext, UmountParams { target_id }: UmountParams) -> Result<(), Error> {
+    let mut mounts = USER_MOUNTS.lock().await; // TODO: move to context
     if let Some(target_id) = target_id {
         if let Some(existing) = mounts.remove(&target_id) {
-            existing.unmount().await?;
+            match existing {
+                Ok(e) => e.unmount().await?,
+                Err(e) => e.unmount().await?,
+            }
         }
     } else {
         for (_, existing) in std::mem::take(&mut *mounts) {
-            existing.unmount().await?;
+            match existing {
+                Ok(e) => e.unmount().await?,
+                Err(e) => e.unmount().await?,
+            }
         }
     }
 

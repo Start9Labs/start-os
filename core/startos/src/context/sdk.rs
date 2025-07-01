@@ -8,13 +8,6 @@ use serde::Deserialize;
 use tracing::instrument;
 
 use crate::prelude::*;
-use crate::util::config::{load_config_from_paths, local_config_path};
-
-#[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct SdkContextConfig {
-    pub developer_key_path: Option<PathBuf>,
-}
 
 #[derive(Debug)]
 pub struct SdkContextSeed {
@@ -26,7 +19,7 @@ pub struct SdkContext(Arc<SdkContextSeed>);
 impl SdkContext {
     /// BLOCKING
     #[instrument(skip_all)]
-    pub fn init(matches: &ArgMatches) -> Result<Self, crate::Error> {
+    pub fn init(config: ) -> Result<Self, crate::Error> {
         let local_config_path = local_config_path();
         let base: SdkContextConfig = load_config_from_paths(
             matches
@@ -48,24 +41,7 @@ impl SdkContext {
             }),
         })))
     }
-    /// BLOCKING
-    #[instrument(skip_all)]
-    pub fn developer_key(&self) -> Result<ed25519_dalek::SigningKey, Error> {
-        if !self.developer_key_path.exists() {
-            return Err(Error::new(eyre!("Developer Key does not exist! Please run `start-sdk init` before running this command."), crate::ErrorKind::Uninitialized));
-        }
-        let pair = <ed25519::KeypairBytes as ed25519::pkcs8::DecodePrivateKey>::from_pkcs8_pem(
-            &std::fs::read_to_string(&self.developer_key_path)?,
-        )
-        .with_kind(crate::ErrorKind::Pem)?;
-        let secret = ed25519_dalek::SecretKey::try_from(&pair.secret_key[..]).map_err(|_| {
-            Error::new(
-                eyre!("pkcs8 key is of incorrect length"),
-                ErrorKind::OpenSsl,
-            )
-        })?;
-        Ok(secret.into())
-    }
+    
 }
 impl std::ops::Deref for SdkContext {
     type Target = SdkContextSeed;

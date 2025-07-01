@@ -1,11 +1,13 @@
-use rand::{thread_rng, Rng};
+use imbl_value::InternedString;
+use lazy_format::lazy_format;
+use rand::{rng, Rng};
 use tokio::process::Command;
 use tracing::instrument;
 
 use crate::util::Invoke;
 use crate::{Error, ErrorKind};
-#[derive(Clone, serde::Deserialize, serde::Serialize, Debug)]
-pub struct Hostname(pub String);
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
+pub struct Hostname(pub InternedString);
 
 lazy_static::lazy_static! {
     static ref ADJECTIVES: Vec<String> = include_str!("./assets/adjectives.txt").lines().map(|x| x.to_string()).collect();
@@ -18,23 +20,26 @@ impl AsRef<str> for Hostname {
 }
 
 impl Hostname {
-    pub fn lan_address(&self) -> String {
-        format!("https://{}.local", self.0)
+    pub fn lan_address(&self) -> InternedString {
+        InternedString::from_display(&lazy_format!("https://{}.local", self.0))
     }
 
-    pub fn local_domain_name(&self) -> String {
-        format!("{}.local", self.0)
+    pub fn local_domain_name(&self) -> InternedString {
+        InternedString::from_display(&lazy_format!("{}.local", self.0))
     }
-    pub fn no_dot_host_name(&self) -> String {
-        self.0.to_owned()
+
+    pub fn no_dot_host_name(&self) -> InternedString {
+        self.0.clone()
     }
 }
 
 pub fn generate_hostname() -> Hostname {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let adjective = &ADJECTIVES[rng.gen_range(0..ADJECTIVES.len())];
     let noun = &NOUNS[rng.gen_range(0..NOUNS.len())];
-    Hostname(format!("{adjective}-{noun}"))
+    Hostname(InternedString::from_display(&lazy_format!(
+        "{adjective}-{noun}"
+    )))
 }
 
 pub fn generate_id() -> String {
@@ -48,12 +53,12 @@ pub async fn get_current_hostname() -> Result<Hostname, Error> {
         .invoke(ErrorKind::ParseSysInfo)
         .await?;
     let out_string = String::from_utf8(out)?;
-    Ok(Hostname(out_string.trim().to_owned()))
+    Ok(Hostname(out_string.trim().into()))
 }
 
 #[instrument(skip_all)]
 pub async fn set_hostname(hostname: &Hostname) -> Result<(), Error> {
-    let hostname: &String = &hostname.0;
+    let hostname = &*hostname.0;
     Command::new("hostnamectl")
         .arg("--static")
         .arg("set-hostname")

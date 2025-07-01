@@ -1,46 +1,107 @@
 #!/bin/bash
 
+SOURCE_DIR="$(dirname "${BASH_SOURCE[0]}")"
+
 if [ "$UID" -ne 0 ]; then
     >&2 echo 'Must be run as root'
     exit 1
 fi
 
+POSITIONAL_ARGS=()
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --no-sync)
+      NO_SYNC=1
+      shift
+      ;;
+    --create)
+      ONLY_CREATE=1
+      shift
+      ;;
+    -*|--*)
+      echo "Unknown option $1"
+      exit 1
+      ;;
+    *)
+      POSITIONAL_ARGS+=("$1") # save positional arg
+      shift # past argument
+      ;;
+  esac
+done
+
+set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
+
 if [ -z "$NO_SYNC" ]; then
     echo 'Syncing...'
-    rsync -a --delete --force --info=progress2 /media/embassy/embassyfs/current/ /media/embassy/next
+    umount -R /media/startos/next 2> /dev/null
+    umount -R /media/startos/upper 2> /dev/null
+    rm -rf /media/startos/upper /media/startos/next
+    mkdir /media/startos/upper
+    mount -t tmpfs tmpfs /media/startos/upper
+    mkdir -p /media/startos/upper/data /media/startos/upper/work /media/startos/next
+    mount -t overlay \
+		  -olowerdir=/media/startos/current,upperdir=/media/startos/upper/data,workdir=/media/startos/upper/work \
+		  overlay /media/startos/next
+    mkdir -p /media/startos/next/media/startos/root
+    mount --bind /media/startos/root /media/startos/next/media/startos/root
 fi
 
-mkdir -p /media/embassy/next/run
-mkdir -p /media/embassy/next/dev
-mkdir -p /media/embassy/next/sys
-mkdir -p /media/embassy/next/proc
-mkdir -p /media/embassy/next/boot
-mount --bind /run /media/embassy/next/run
-mount --bind /dev /media/embassy/next/dev
-mount --bind /sys /media/embassy/next/sys
-mount --bind /proc /media/embassy/next/proc
-mount --bind /boot /media/embassy/next/boot
+if [ -n "$ONLY_CREATE" ]; then
+    exit 0
+fi
+
+mkdir -p /media/startos/next/run
+mkdir -p /media/startos/next/dev
+mkdir -p /media/startos/next/sys
+mkdir -p /media/startos/next/proc
+mkdir -p /media/startos/next/boot
+mount --bind /run /media/startos/next/run
+mount --bind /tmp /media/startos/next/tmp
+mount --bind /dev /media/startos/next/dev
+mount --bind /sys /media/startos/next/sys
+mount --bind /proc /media/startos/next/proc
+mount --bind /boot /media/startos/next/boot
 
 if [ -z "$*" ]; then
-    chroot /media/embassy/next
+    chroot /media/startos/next
     CHROOT_RES=$?
 else
-    chroot /media/embassy/next "$SHELL" -c "$*"
+    chroot /media/startos/next "$SHELL" -c "$*"
     CHROOT_RES=$?
 fi
 
-umount /media/embassy/next/run
-umount /media/embassy/next/dev
-umount /media/embassy/next/sys
-umount /media/embassy/next/proc
-umount /media/embassy/next/boot
+umount /media/startos/next/run
+umount /media/startos/next/tmp
+umount /media/startos/next/dev
+umount /media/startos/next/sys
+umount /media/startos/next/proc
+umount /media/startos/next/boot
+umount /media/startos/next/media/startos/root
 
 if [ "$CHROOT_RES" -eq 0 ]; then
+
+    if [ -h /media/startos/config/current.rootfs ] && [ -e /media/startos/config/current.rootfs ]; then
+        ${SOURCE_DIR}/prune-images $(du -s --bytes /media/startos/next | awk '{print $1}')
+    fi
+
     echo 'Upgrading...'
 
-    touch /media/embassy/config/upgrade
+    if ! time mksquashfs /media/startos/next /media/startos/images/next.squashfs -b 4096 -comp gzip; then
+      umount -R /media/startos/next
+      umount -R /media/startos/upper
+      rm -rf /media/startos/upper /media/startos/next
+      exit 1
+    fi
+    hash=$(b3sum /media/startos/images/next.squashfs | head -c 32)
+    mv /media/startos/images/next.squashfs /media/startos/images/${hash}.rootfs
+    ln -rsf /media/startos/images/${hash}.rootfs /media/startos/config/current.rootfs
 
     sync
 
     reboot
 fi
+
+umount -R /media/startos/next
+umount -R /media/startos/upper
+rm -rf /media/startos/upper /media/startos/next
