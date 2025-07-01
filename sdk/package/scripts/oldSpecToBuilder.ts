@@ -39,13 +39,7 @@ const {InputSpec, List, Value, Variants} = sdk
 
   const namedConsts = new Set(["InputSpec", "Value", "List"])
   const inputSpecName = newConst("inputSpecSpec", convertInputSpec(data))
-  const inputSpecMatcherName = newConst(
-    "matchInputSpecSpec",
-    `${inputSpecName}.validator`,
-  )
-  outputLines.push(
-    `export type InputSpecSpec = typeof ${inputSpecMatcherName}._TYPE;`,
-  )
+  outputLines.push(`export type InputSpecSpec = typeof ${inputSpecName}._TYPE;`)
 
   return outputLines.join("\n")
 
@@ -195,7 +189,8 @@ const {InputSpec, List, Value, Variants} = sdk
         description: ${JSON.stringify(value.tag.description || null)},
         warning: ${JSON.stringify(value.tag.warning || null)},
         default: ${JSON.stringify(value.default)},
-      }, ${variants})`
+        variants: ${variants},
+      })`
       }
       case "list": {
         if (value.subtype === "enum") {
@@ -322,7 +317,8 @@ const {InputSpec, List, Value, Variants} = sdk
             )},
             warning: ${JSON.stringify(value?.spec?.tag?.warning || null)},
             default: ${JSON.stringify(value?.spec?.default || null)},
-          }, ${variants})
+            variants: ${variants},
+          })
         `,
         )
         const listInputSpec = maybeNewConst(

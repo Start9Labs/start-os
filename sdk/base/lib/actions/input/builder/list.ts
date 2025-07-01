@@ -9,11 +9,15 @@ import {
 } from "../inputSpecTypes"
 import { Parser, arrayOf, string } from "ts-matches"
 
-export class List<Type> {
+export class List<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
   private constructor(
-    public build: LazyBuild<ValueSpecList>,
-    public validator: Parser<unknown, Type>,
+    public build: LazyBuild<{
+      spec: ValueSpecList
+      validator: Parser<unknown, Type>
+    }>,
+    public readonly validator: Parser<unknown, StaticValidatedAs>,
   ) {}
+  readonly _TYPE: Type = null as any
 
   static text(
     a: {
@@ -58,6 +62,7 @@ export class List<Type> {
       generate?: null | RandomString
     },
   ) {
+    const validator = arrayOf(string)
     return new List<string[]>(() => {
       const spec = {
         type: "text" as const,
@@ -81,8 +86,8 @@ export class List<Type> {
         ...a,
         spec,
       }
-      return built
-    }, arrayOf(string))
+      return { spec: built, validator }
+    }, validator)
   }
 
   static dynamicText(
@@ -105,6 +110,7 @@ export class List<Type> {
       }
     }>,
   ) {
+    const validator = arrayOf(string)
     return new List<string[]>(async (options) => {
       const { spec: aSpec, ...a } = await getA(options)
       const spec = {
@@ -129,11 +135,15 @@ export class List<Type> {
         ...a,
         spec,
       }
-      return built
-    }, arrayOf(string))
+
+      return { spec: built, validator }
+    }, validator)
   }
 
-  static obj<Type extends Record<string, any>>(
+  static obj<
+    Type extends StaticValidatedAs,
+    StaticValidatedAs extends Record<string, any>,
+  >(
     a: {
       name: string
       description?: string | null
@@ -143,20 +153,20 @@ export class List<Type> {
       maxLength?: number | null
     },
     aSpec: {
-      spec: InputSpec<Type>
+      spec: InputSpec<Type, StaticValidatedAs>
       displayAs?: null | string
       uniqueBy?: null | UniqueBy
     },
   ) {
-    return new List<Type[]>(async (options) => {
+    return new List<Type[], StaticValidatedAs[]>(async (options) => {
       const { spec: previousSpecSpec, ...restSpec } = aSpec
-      const specSpec = await previousSpecSpec.build(options)
+      const built = await previousSpecSpec.build(options)
       const spec = {
         type: "object" as const,
         displayAs: null,
         uniqueBy: null,
         ...restSpec,
-        spec: specSpec,
+        spec: built.spec,
       }
       const value = {
         spec,
@@ -164,13 +174,16 @@ export class List<Type> {
         ...a,
       }
       return {
-        description: null,
-        warning: null,
-        minLength: null,
-        maxLength: null,
-        type: "list" as const,
-        disabled: false,
-        ...value,
+        spec: {
+          description: null,
+          warning: null,
+          minLength: null,
+          maxLength: null,
+          type: "list" as const,
+          disabled: false,
+          ...value,
+        },
+        validator: arrayOf(built.validator),
       }
     }, arrayOf(aSpec.spec.validator))
   }

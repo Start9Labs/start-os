@@ -134,19 +134,15 @@ export class VersionGraph<CurrentVersion extends string>
             for (let rangeStr in version.options.migrations.other) {
               const range = VersionRange.parse(rangeStr)
               const vRange = graph.addVertex(range, [], [])
-              graph.addEdge(
-                version.options.migrations.other[rangeStr],
-                vRange,
-                vertex,
-              )
+              const migration = version.options.migrations.other[rangeStr]
+              if (migration.up) graph.addEdge(migration.up, vRange, vertex)
+              if (migration.down) graph.addEdge(migration.down, vertex, vRange)
               for (let matching of graph.findVertex(
                 (v) => isExver(v.metadata) && v.metadata.satisfies(range),
               )) {
-                graph.addEdge(
-                  version.options.migrations.other[rangeStr],
-                  matching,
-                  vertex,
-                )
+                if (migration.up) graph.addEdge(migration.up, matching, vertex)
+                if (migration.down)
+                  graph.addEdge(migration.down, vertex, matching)
               }
             }
           }

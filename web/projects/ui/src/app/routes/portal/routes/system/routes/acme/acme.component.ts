@@ -232,12 +232,10 @@ export default class SystemAcmeComponent {
     )
 
     return ISB.InputSpec.of({
-      provider: ISB.Value.union(
-        {
-          name: 'Provider',
-          default: (availableAcme[0]?.url as any) || 'other',
-        },
-        ISB.Variants.of({
+      provider: ISB.Value.union({
+        name: 'Provider',
+        default: (availableAcme[0]?.url as any) || 'other',
+        variants: ISB.Variants.of({
           ...availableAcme.reduce(
             (obj, curr) => ({
               ...obj,
@@ -261,7 +259,7 @@ export default class SystemAcmeComponent {
             }),
           },
         }),
-      ),
+      }),
       contact: this.emailListSpec(),
     })
   }

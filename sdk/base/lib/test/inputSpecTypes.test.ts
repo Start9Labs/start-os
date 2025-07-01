@@ -15,10 +15,10 @@ describe("InputSpec Types", () => {
         { spec: InputSpec.of({}) } as any,
       ) as any
       const someList = await Value.list(test).build({} as any)
-      if (isValueSpecListOf(someList, "text")) {
-        someList.spec satisfies ListValueSpecOf<"text">
-      } else if (isValueSpecListOf(someList, "object")) {
-        someList.spec satisfies ListValueSpecOf<"object">
+      if (isValueSpecListOf(someList.spec, "text")) {
+        someList.spec.spec satisfies ListValueSpecOf<"text">
+      } else if (isValueSpecListOf(someList.spec, "object")) {
+        someList.spec.spec satisfies ListValueSpecOf<"object">
       } else {
         throw new Error(
           "Failed to figure out the type: " + JSON.stringify(someList),
