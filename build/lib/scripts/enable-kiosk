@@ -68,7 +68,8 @@ user_pref("network.proxy.autoconfig_url", "file:///usr/lib/startos/proxy.pac");
 user_pref("network.proxy.socks_remote_dns", true);
 user_pref("network.proxy.type", 2);
 user_pref("privacy.resistFingerprinting", true);
-user_pref("privacy.resistFingerprinting.letterboxing", true);
+//Enable letterboxing if we want the window size sent to the server to snap to common resolutions:
+//user_pref("privacy.resistFingerprinting.letterboxing", true);
 user_pref("privacy.trackingprotection.enabled", true);
 user_pref("signon.rememberSignons", false);
 user_pref("toolkit.telemetry.archive.enabled", false);
