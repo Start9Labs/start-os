@@ -103,7 +103,6 @@ import { HeaderStatusComponent } from './status.component'
 
       &:has([data-status='neutral']) {
         --status: var(--tui-status-neutral);
-        filter: none;
       }
 
       &:has([data-status='success']) {
