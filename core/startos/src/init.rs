@@ -346,6 +346,13 @@ pub async fn init(
         SSH_DIR,
     )
     .await?;
+    crate::ssh::sync_keys(
+        &Hostname(peek.as_public().as_server_info().as_hostname().de()?),
+        &peek.as_private().as_ssh_privkey().de()?,
+        &Default::default(),
+        "/root/.ssh",
+    )
+    .await?;
     load_ssh_keys.complete();
     tracing::info!("Synced SSH Keys");
 
