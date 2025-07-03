@@ -90,17 +90,20 @@ export type PackageActionData = {
   `,
   styles: `
     tui-notification {
-      font-size: 1rem;
-      margin-bottom: 1.4rem;
+      margin-bottom: 1.5rem;
     }
+
     .service-title {
       display: inline-flex;
       align-items: center;
-      margin-bottom: 1.4rem;
+      margin-bottom: 1.5rem;
+
       img {
-        height: 20px;
-        margin-right: 4px;
+        height: 1.25rem;
+        margin-right: 0.25rem;
+        border-radius: 100%;
       }
+
       h4 {
         margin: 0;
       }
