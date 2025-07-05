@@ -1,22 +1,16 @@
 {
   "/rpc/v1": {
-    "target": "http://<CHANGE_ME>/rpc/v1"
+    "target": "http://<CHANGE_ME>"
   },
-  "/ws/*": {
-    "target": "http://<CHANGE_ME>",
+  "/ws/**": {
+    "target": "wss://159.223.45.210",
     "secure": false,
     "ws": true
   },
-  "/public/*": {
-    "target": "http://<CHANGE_ME>/public",
-    "pathRewrite": {
-      "^/public": ""
-    }
+  "/public/**": {
+    "target": "http://<CHANGE_ME>"
   },
-  "/rest/rpc/*": {
-    "target": "http://<CHANGE_ME>/rest/rpc",
-    "pathRewrite": {
-      "^/rest/rpc": ""
-    }
+  "/rest/rpc/**": {
+    "target": "http://<CHANGE_ME>"
   }
 }

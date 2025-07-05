@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core'
 import { CanActivateFn, IsActiveMatchOptions, Router } from '@angular/router'
-import { DialogService, i18nPipe } from '@start9labs/shared'
+import { i18nPipe } from '@start9labs/shared'
 import { TUI_TRUE_HANDLER } from '@taiga-ui/cdk'
 import { TuiAlertService } from '@taiga-ui/core'
 import {
@@ -47,9 +47,7 @@ export class StateService extends Observable<RR.ServerState | null> {
   private readonly api = inject(ApiService)
   private readonly router = inject(Router)
   private readonly network$ = inject(NetworkService)
-
   private readonly single$ = new Subject<RR.ServerState>()
-
   private readonly trigger$ = new BehaviorSubject<void>(undefined)
   private readonly poll$ = this.trigger$.pipe(
     switchMap(() =>
@@ -101,7 +99,7 @@ export class StateService extends Observable<RR.ServerState | null> {
             })
             .pipe(
               takeUntil(
-                combineLatest([this.stream$, this.network$]).pipe(
+                combineLatest([this.stream$.pipe(skip(1)), this.network$]).pipe(
                   filter(state => state.every(Boolean)),
                 ),
               ),
