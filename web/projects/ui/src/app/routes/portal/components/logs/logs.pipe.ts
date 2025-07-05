@@ -8,16 +8,19 @@ import {
 import {
   bufferTime,
   catchError,
+  concat,
   defer,
+  delay,
+  EMPTY,
   filter,
   ignoreElements,
   map,
   merge,
   Observable,
+  of,
   repeat,
   scan,
   skipWhile,
-  startWith,
   switchMap,
   take,
   tap,
@@ -62,12 +65,19 @@ export class LogsPipe implements PipeTransform {
       ),
     ).pipe(
       catchError(() =>
-        this.connection.pipe(
-          tap(v => this.logs.status$.next(v ? 'reconnecting' : 'disconnected')),
-          filter(Boolean),
-          take(1),
-          ignoreElements(),
-          startWith(this.getMessage(false)),
+        concat(
+          this.logs.status$.value === 'connected'
+            ? of(this.getMessage(false))
+            : EMPTY,
+          this.connection.pipe(
+            tap(v =>
+              this.logs.status$.next(v ? 'reconnecting' : 'disconnected'),
+            ),
+            filter(Boolean),
+            delay(1000),
+            take(1),
+            ignoreElements(),
+          ),
         ),
       ),
       repeat(),
@@ -76,11 +86,11 @@ export class LogsPipe implements PipeTransform {
   }
 
   private getMessage(success: boolean): string {
-    return `<p style="color: ${
+    return `<div style="color: ${
       success ? 'var(--tui-status-positive)' : 'var(--tui-status-negative)'
     }; text-align: center;">${this.i18n.transform(
       success ? 'Reconnected' : 'Disconnected',
-    )} at ${toLocalIsoString(new Date())}</p>`
+    )} at ${toLocalIsoString(new Date())}</div>`
   }
 
   private get options() {

@@ -62,9 +62,7 @@ export class MarketplaceAlertsService {
     })
   }
 
-  async alertInstall({ alerts }: MarketplacePkgBase): Promise<boolean> {
-    const content = alerts.install
-
+  async alertInstall(content: string): Promise<boolean> {
     return (
       !content ||
       (!!content &&

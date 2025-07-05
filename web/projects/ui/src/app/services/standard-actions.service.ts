@@ -57,6 +57,10 @@ export class StandardActionsService {
       content = `${content}${content ? ' ' : ''}${this.i18n.transform('Services that depend on')} ${title} ${this.i18n.transform('will no longer work properly and may crash.')}`
     }
 
+    if (!content) {
+      return this.doUninstall({ id, force, soft })
+    }
+
     this.dialog
       .openConfirm({
         label: 'Warning',

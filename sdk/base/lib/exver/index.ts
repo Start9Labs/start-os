@@ -753,7 +753,10 @@ export class Version {
       return "less"
     }
 
-    const prereleaseLen = Math.max(this.number.length, other.number.length)
+    const prereleaseLen = Math.max(
+      this.prerelease.length,
+      other.prerelease.length,
+    )
     for (let i = 0; i < prereleaseLen; i++) {
       if (typeof this.prerelease[i] === typeof other.prerelease[i]) {
         if (this.prerelease[i] > other.prerelease[i]) {

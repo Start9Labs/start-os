@@ -17,9 +17,6 @@ fi
 STARTOS_ENV="$(dpkg-deb --fsys-tarfile $DEB_PATH | tar --to-stdout -xvf - ./usr/lib/startos/ENVIRONMENT.txt)"
 PLATFORM="$(dpkg-deb --fsys-tarfile $DEB_PATH | tar --to-stdout -xvf - ./usr/lib/startos/PLATFORM.txt)"
 
-if [ -z "$1" ]; then
-    PLATFORM="$(uname -m)"
-fi
 if [ "$PLATFORM" = "x86_64" ] || [ "$PLATFORM" = "x86_64-nonfree" ]; then
 	ARCH=amd64
 	QEMU_ARCH=x86_64

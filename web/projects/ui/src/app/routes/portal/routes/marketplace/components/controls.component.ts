@@ -3,11 +3,10 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
-  Input,
+  input,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { Router } from '@angular/router'
-import { MarketplacePkgBase } from '@start9labs/marketplace'
 import {
   ErrorService,
   Exver,
@@ -30,16 +29,15 @@ import {
 import { dryUpdate } from 'src/app/utils/dry-update'
 import { getAllPackages, getManifest } from 'src/app/utils/get-package-data'
 import { hasCurrentDeps } from 'src/app/utils/has-deps'
-
 import { MarketplacePreviewComponent } from '../modals/preview.component'
 import { MarketplaceAlertsService } from '../services/alerts.service'
 
 @Component({
   selector: 'marketplace-controls',
   template: `
-    @if (localPkg) {
-      @if (localPkg | toManifest; as localManifest) {
-        @switch (localManifest.version | compareExver: version() || '') {
+    @if (localPkg(); as local) {
+      @if (local.stateInfo.state === 'installed') {
+        @switch ((local | toManifest).version | compareExver: version() || '') {
           @case (1) {
             <button
               tuiButton
@@ -81,17 +79,17 @@ import { MarketplaceAlertsService } from '../services/alerts.service'
         {{
           ('View' | i18n) +
             ' ' +
-            ($any(localPkg.stateInfo.state | titlecase) | i18n)
+            ($any(local.stateInfo.state | titlecase) | i18n)
         }}
       </button>
     } @else {
       <button
         tuiButton
         type="button"
-        [appearance]="localFlavor ? 'warning' : 'primary'"
+        [appearance]="localFlavor() ? 'warning' : 'primary'"
         (click)="tryInstall()"
       >
-        {{ localFlavor ? ('Switch' | i18n) : ('Install' | i18n) }}
+        {{ localFlavor() ? ('Switch' | i18n) : ('Install' | i18n) }}
       </button>
     }
   `,
@@ -118,27 +116,22 @@ export class MarketplaceControlsComponent {
 
   protected readonly version = toSignal(this.preview.version$)
 
-  @Input({ required: true })
-  pkg!: MarketplacePkgBase
-
-  @Input()
-  localPkg!: PackageDataEntry | null
-
-  @Input()
-  localFlavor!: boolean
-
+  installAlert = input.required<string | null>()
+  localPkg = input.required<PackageDataEntry | null>()
+  localFlavor = input.required<boolean>()
   // only present if side loading
-  @Input()
-  file?: File
+  file = input<File>()
 
   async tryInstall() {
-    const currentUrl = this.file
+    const localPkg = this.localPkg()
+
+    const currentUrl = this.file()
       ? null
       : await firstValueFrom(this.marketplaceService.currentRegistryUrl$)
-    const originalUrl = this.localPkg?.registry || null
+    const originalUrl = localPkg?.registry || null
 
-    if (!this.localPkg) {
-      if (await this.alerts.alertInstall(this.pkg)) {
+    if (!localPkg) {
+      if (await this.alerts.alertInstall(this.installAlert() || '')) {
         this.installOrUpload(currentUrl)
       }
       return
@@ -152,7 +145,7 @@ export class MarketplaceControlsComponent {
       return
     }
 
-    const localManifest = getManifest(this.localPkg)
+    const localManifest = getManifest(localPkg)
     const version = this.version() || ''
 
     if (
@@ -187,7 +180,7 @@ export class MarketplaceControlsComponent {
   }
 
   private async installOrUpload(url: string | null) {
-    if (this.file) {
+    if (this.file()) {
       await this.upload()
       this.router.navigate(['/portal', 'services'])
     } else if (url) {
@@ -210,11 +203,14 @@ export class MarketplaceControlsComponent {
   }
 
   private async upload() {
+    const file = this.file()
+    if (!file) throw new Error('no file detected')
+
     const loader = this.loader.open('Starting upload').subscribe()
 
     try {
       const { upload } = await this.api.sideloadPackage()
-      this.api.uploadPackage(upload, this.file!).catch(console.error)
+      this.api.uploadPackage(upload, file).catch(console.error)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
