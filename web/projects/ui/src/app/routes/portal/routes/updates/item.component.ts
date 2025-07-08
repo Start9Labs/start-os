@@ -71,6 +71,14 @@ import UpdatesComponent from './updates.component'
       <td class="desktop">{{ item().s9pk.publishedAt | date }}</td>
       <td>
         <div>
+          <button
+            tuiIconButton
+            size="m"
+            appearance="icon"
+            [tuiChevron]="expanded()"
+          >
+            {{ 'Show more' | i18n }}
+          </button>
           @if (local().stateInfo.state === 'updating') {
             <tui-progress-circle
               size="xs"
@@ -91,14 +99,6 @@ import UpdatesComponent from './updates.component'
               {{ error() ? ('Retry' | i18n) : ('Update' | i18n) }}
             </button>
           }
-          <button
-            tuiIconButton
-            size="m"
-            appearance="icon"
-            [tuiChevron]="expanded()"
-          >
-            {{ 'Show more' | i18n }}
-          </button>
         </div>
       </td>
     </tr>
@@ -174,7 +174,7 @@ import UpdatesComponent from './updates.component'
         white-space: nowrap;
 
         div {
-          justify-content: flex-end;
+          justify-content: flex-start;
         }
       }
 
