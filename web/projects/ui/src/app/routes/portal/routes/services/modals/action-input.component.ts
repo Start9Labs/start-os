@@ -90,17 +90,20 @@ export type PackageActionData = {
   `,
   styles: `
     tui-notification {
-      font-size: 1rem;
-      margin-bottom: 1.4rem;
+      margin-bottom: 1.5rem;
     }
+
     .service-title {
       display: inline-flex;
       align-items: center;
-      margin-bottom: 1.4rem;
+      margin-bottom: 1.5rem;
+
       img {
-        height: 20px;
-        margin-right: 4px;
+        height: 1.25rem;
+        margin-right: 0.25rem;
+        border-radius: 100%;
       }
+
       h4 {
         margin: 0;
       }
@@ -192,7 +195,7 @@ export class ActionInputModal {
               task.when?.condition === 'input-not-matches' &&
               task.input &&
               json
-                .compare(input, task.input)
+                .compare(input, task.input.value)
                 .some(op => op.op === 'add' || op.op === 'replace'),
           ),
       )
@@ -201,9 +204,8 @@ export class ActionInputModal {
     if (!breakages.length) return true
 
     const message = `${this.i18n.transform('As a result of this change, the following services will no longer work properly and may crash')}:<ul>`
-    const content = `${message}${breakages.map(
-      id => `<li><b>${getManifest(packages[id]!).title}</b></li>`,
-    )}</ul>` as i18nKey
+    const content =
+      `${message}${breakages.map(id => `<li><b>${getManifest(packages[id]!).title}</b></li>`)}</ul>` as i18nKey
 
     return firstValueFrom(
       this.dialog

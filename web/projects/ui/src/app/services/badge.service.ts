@@ -1,5 +1,4 @@
 import { inject, Injectable } from '@angular/core'
-import { Exver } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
 import {
   combineLatest,
@@ -19,13 +18,13 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { NotificationService } from 'src/app/services/notification.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
+import { FilterUpdatesPipe } from '../routes/portal/routes/updates/filter-updates.pipe'
 
 @Injectable({
   providedIn: 'root',
 })
 export class BadgeService {
   private readonly notifications = inject(NotificationService)
-  private readonly exver = inject(Exver)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly system$ = inject(OSService).updateAvailable$.pipe(
     map(Number),
@@ -34,6 +33,7 @@ export class BadgeService {
     .watch$('serverInfo', 'ntpSynced')
     .pipe(map(synced => Number(!synced)))
   private readonly marketplaceService = inject(MarketplaceService)
+  private readonly filterUpdatesPipe = inject(FilterUpdatesPipe)
 
   private readonly local$ = inject(ConnectionService).pipe(
     filter(Boolean),
@@ -66,17 +66,9 @@ export class BadgeService {
       ([marketplace, local]) =>
         Object.entries(marketplace).reduce(
           (list, [_, store]) =>
-            store?.packages.reduce(
-              (result, { id, version }) =>
-                local[id] &&
-                this.exver.compareExver(
-                  version,
-                  getManifest(local[id]!).version,
-                ) === 1
-                  ? result.add(id)
-                  : result,
-              list,
-            ) || list,
+            this.filterUpdatesPipe
+              .transform(store?.packages || [], local)
+              .reduce((result, { id }) => result.add(id), list),
           new Set<string>(),
         ).size,
     ),

@@ -44,7 +44,7 @@ import UpdatesComponent from './updates.component'
   template: `
     <tr (click)="expanded.set(!expanded())">
       <td>
-        <div [style.gap.rem]="0.75">
+        <div [style.gap.rem]="0.75" [style.padding-inline-end.rem]="1">
           <tui-avatar size="s"><img alt="" [src]="item().icon" /></tui-avatar>
           <span tuiTitle [style.margin]="'-0.125rem 0 0'">
             <b tuiFade>{{ item().title }}</b>
@@ -81,7 +81,6 @@ import UpdatesComponent from './updates.component'
           </button>
           @if (local().stateInfo.state === 'updating') {
             <tui-progress-circle
-              class="g-positive"
               size="xs"
               [max]="100"
               [value]="
@@ -175,7 +174,7 @@ import UpdatesComponent from './updates.component'
         white-space: nowrap;
 
         div {
-          justify-content: flex-end;
+          justify-content: flex-start;
         }
       }
 

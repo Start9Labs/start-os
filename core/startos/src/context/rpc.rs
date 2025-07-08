@@ -394,7 +394,9 @@ impl RpcContext {
             if let Some(service) = self.services.get(&package_id).await.as_ref() {
                 if let Some(input) = service
                     .get_action_input(procedure_id.clone(), action_id.clone())
-                    .await?
+                    .await
+                    .log_err()
+                    .flatten()
                     .and_then(|i| i.value)
                 {
                     action_input

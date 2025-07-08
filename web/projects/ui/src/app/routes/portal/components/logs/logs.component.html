@@ -18,18 +18,18 @@
 
   @if (followLogs | logs | async; as logs) {
     <section childList (waMutationObserver)="scrollToBottom()">
-      @for (log of logs; track log) {
+      @for (log of logs; track $index) {
         <pre [innerHTML]="log | dompurify"></pre>
       }
 
       @if ((status$ | async) !== 'connected') {
-        <p class="loading-dots" [attr.data-status]="status$.value">
+        <div class="loading-dots" [attr.data-status]="status$.value">
           {{
             status$.value === 'reconnecting'
               ? ('Reconnecting' | i18n)
               : ('Waiting for network connectivity' | i18n)
           }}
-        </p>
+        </div>
       }
     </section>
   } @else {

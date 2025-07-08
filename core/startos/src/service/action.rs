@@ -176,29 +176,44 @@ impl Handler<RunAction> for ServiceActor {
             )
             .await
             .with_kind(ErrorKind::Action)?;
-        if self
+        let package_id = package_id.clone();
+        for to_stop in self
             .0
             .ctx
             .db
             .mutate(|db| {
-                let mut critical_activated = false;
-                for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
-                    critical_activated |= pde.as_tasks_mut().mutate(|tasks| {
-                        Ok(update_tasks(tasks, package_id, action_id, &input, true))
-                    })?;
+                let mut to_stop = Vec::new();
+                for (id, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
+                    if pde.as_tasks_mut().mutate(|tasks| {
+                        Ok(update_tasks(tasks, &package_id, action_id, &input, true))
+                    })? {
+                        to_stop.push(id)
+                    }
                 }
-                Ok(critical_activated)
+                Ok(to_stop)
             })
             .await
             .result?
         {
-            <Self as Handler<super::control::Stop>>::handle(
-                self,
-                id,
-                super::control::Stop { wait: false },
-                jobs,
-            )
-            .await;
+            if to_stop == package_id {
+                <Self as Handler<super::control::Stop>>::handle(
+                    self,
+                    id.clone(),
+                    super::control::Stop { wait: false },
+                    jobs,
+                )
+                .await;
+            } else {
+                self.0
+                    .ctx
+                    .services
+                    .get(&to_stop)
+                    .await
+                    .as_ref()
+                    .or_not_found(&to_stop)?
+                    .stop(id.clone(), false)
+                    .await?;
+            }
         }
         Ok(result)
     }

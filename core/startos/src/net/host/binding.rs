@@ -62,11 +62,13 @@ impl BindInfo {
     pub fn new(available_ports: &mut AvailablePorts, options: BindOptions) -> Result<Self, Error> {
         let mut assigned_port = None;
         let mut assigned_ssl_port = None;
-        if options.secure.is_some() {
-            assigned_port = Some(available_ports.alloc()?);
-        }
         if options.add_ssl.is_some() {
             assigned_ssl_port = Some(available_ports.alloc()?);
+        }
+        if let Some(secure) = options.secure {
+            if !secure.ssl || !options.add_ssl.is_some() {
+                assigned_port = Some(available_ports.alloc()?);
+            }
         }
         Ok(Self {
             enabled: true,

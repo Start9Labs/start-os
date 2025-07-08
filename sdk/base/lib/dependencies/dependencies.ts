@@ -1,8 +1,18 @@
 import { ExtendedVersion, VersionRange } from "../exver"
-import { PackageId, HealthCheckId } from "../types"
+import {
+  PackageId,
+  HealthCheckId,
+  DependencyRequirement,
+  CheckDependenciesResult,
+} from "../types"
 import { Effects } from "../Effects"
 
 export type CheckDependencies<DependencyId extends PackageId = PackageId> = {
+  infoFor: (packageId: DependencyId) => {
+    requirement: DependencyRequirement
+    result: CheckDependenciesResult
+  }
+
   installedSatisfied: (packageId: DependencyId) => boolean
   installedVersionSatisfied: (packageId: DependencyId) => boolean
   runningSatisfied: (packageId: DependencyId) => boolean
@@ -41,7 +51,7 @@ export async function checkDependencies<
     )
   }
 
-  const find = (packageId: DependencyId) => {
+  const infoFor = (packageId: DependencyId) => {
     const dependencyRequirement = dependencies.find((d) => d.id === packageId)
     const dependencyResult = results.find((d) => d.packageId === packageId)
     if (!dependencyRequirement || !dependencyResult) {
@@ -51,9 +61,9 @@ export async function checkDependencies<
   }
 
   const installedSatisfied = (packageId: DependencyId) =>
-    !!find(packageId).result.installedVersion
+    !!infoFor(packageId).result.installedVersion
   const installedVersionSatisfied = (packageId: DependencyId) => {
-    const dep = find(packageId)
+    const dep = infoFor(packageId)
     return (
       !!dep.result.installedVersion &&
       ExtendedVersion.parse(dep.result.installedVersion).satisfies(
@@ -62,18 +72,18 @@ export async function checkDependencies<
     )
   }
   const runningSatisfied = (packageId: DependencyId) => {
-    const dep = find(packageId)
+    const dep = infoFor(packageId)
     return dep.requirement.kind !== "running" || dep.result.isRunning
   }
   const tasksSatisfied = (packageId: DependencyId) =>
-    Object.entries(find(packageId).result.tasks).filter(
+    Object.entries(infoFor(packageId).result.tasks).filter(
       ([_, t]) => t.active && t.task.severity === "critical",
     ).length === 0
   const healthCheckSatisfied = (
     packageId: DependencyId,
     healthCheckId?: HealthCheckId,
   ) => {
-    const dep = find(packageId)
+    const dep = infoFor(packageId)
     if (
       healthCheckId &&
       (dep.requirement.kind !== "running" ||
@@ -102,14 +112,14 @@ export async function checkDependencies<
       : dependencies.every((d) => pkgSatisfied(d.id as DependencyId))
 
   const throwIfInstalledNotSatisfied = (packageId: DependencyId) => {
-    const dep = find(packageId)
+    const dep = infoFor(packageId)
     if (!dep.result.installedVersion) {
       throw new Error(`${dep.result.title || packageId} is not installed`)
     }
     return null
   }
   const throwIfInstalledVersionNotSatisfied = (packageId: DependencyId) => {
-    const dep = find(packageId)
+    const dep = infoFor(packageId)
     if (!dep.result.installedVersion) {
       throw new Error(`${dep.result.title || packageId} is not installed`)
     }
@@ -127,14 +137,14 @@ export async function checkDependencies<
     return null
   }
   const throwIfRunningNotSatisfied = (packageId: DependencyId) => {
-    const dep = find(packageId)
+    const dep = infoFor(packageId)
     if (dep.requirement.kind === "running" && !dep.result.isRunning) {
       throw new Error(`${dep.result.title || packageId} is not running`)
     }
     return null
   }
   const throwIfTasksNotSatisfied = (packageId: DependencyId) => {
-    const dep = find(packageId)
+    const dep = infoFor(packageId)
     const reqs = Object.entries(dep.result.tasks)
       .filter(([_, t]) => t.active && t.task.severity === "critical")
       .map(([id, _]) => id)
@@ -149,7 +159,7 @@ export async function checkDependencies<
     packageId: DependencyId,
     healthCheckId?: HealthCheckId,
   ) => {
-    const dep = find(packageId)
+    const dep = infoFor(packageId)
     if (
       healthCheckId &&
       (dep.requirement.kind !== "running" ||
@@ -205,6 +215,7 @@ export async function checkDependencies<
         })()
 
   return {
+    infoFor,
     installedSatisfied,
     installedVersionSatisfied,
     runningSatisfied,

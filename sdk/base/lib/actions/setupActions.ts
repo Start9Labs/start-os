@@ -104,7 +104,11 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
     this.cachedParser = built.validator
     return {
       spec: built.spec,
-      value: (await this.getInputFn(options)) || null,
+      value:
+        ((await this.getInputFn(options)) as
+          | Record<string, unknown>
+          | null
+          | undefined) || null,
     }
   }
   async run(options: {

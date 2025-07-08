@@ -89,8 +89,13 @@ impl LxcManager {
         log_mount: Option<&Path>,
         config: LxcConfig,
     ) -> Result<LxcContainer, Error> {
-        let container = LxcContainer::new(self, log_mount, config).await?;
         let mut guard = self.containers.lock().await;
+        let container = tokio::time::timeout(
+            Duration::from_secs(30),
+            LxcContainer::new(self, log_mount, config),
+        )
+        .await
+        .with_kind(ErrorKind::Timeout)??;
         *guard = std::mem::take(&mut *guard)
             .into_iter()
             .filter(|g| g.strong_count() > 0)
@@ -223,6 +228,17 @@ impl LxcContainer {
                 .arg(&log_mount_point)
                 .invoke(crate::ErrorKind::Filesystem)
                 .await?;
+            match Command::new("chattr")
+                .arg("-R")
+                .arg("+C")
+                .arg(&log_mount_point)
+                .invoke(ErrorKind::Filesystem)
+                .await
+            {
+                Ok(_) => Ok(()),
+                Err(e) if e.source.to_string().contains("Operation not supported") => Ok(()),
+                Err(e) => Err(e),
+            }?;
             Some(log_mount)
         } else {
             None
