@@ -1,12 +1,18 @@
-<ion-item class="service-card" [routerLink]="['/marketplace', pkg.manifest.id]">
-  <ion-thumbnail slot="start">
-    <img alt="" [src]="pkg | mimeType | trustUrl" />
-  </ion-thumbnail>
-  <ion-label>
-    <h2 class="montserrat">
-      <strong>{{ pkg.manifest.title }}</strong>
-    </h2>
-    <h3>{{ pkg.manifest.description.short }}</h3>
-    <ng-content></ng-content>
-  </ion-label>
-</ion-item>
+<div class="item-container box-shadow-lg">
+  <!-- color background -->
+  <div class="background">
+    <img [src]="determineIcon()" alt="{{ pkg.title }} Icon" />
+  </div>
+  <!-- darkening overlay -->
+  <div class="overlay"></div>
+  <!-- icon -->
+  <img [src]="determineIcon()" class="icon" alt="{{ pkg.title }} Icon" />
+  <div class="detail">
+    <span class="detail-title" ticker>
+      {{ pkg.title }}
+    </span>
+    <span class="detail-description">
+      {{ pkg.description.short }}
+    </span>
+  </div>
+</div>

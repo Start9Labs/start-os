@@ -1,50 +1,53 @@
-use futures::future::BoxFuture;
-use futures::FutureExt;
+use axum::response::Response;
+use http::header::InvalidHeaderValue;
 use http::HeaderValue;
-use rpc_toolkit::hyper::http::Error as HttpError;
-use rpc_toolkit::hyper::{Body, Request, Response};
-use rpc_toolkit::rpc_server_helpers::{
-    noop4, DynMiddleware, DynMiddlewareStage2, DynMiddlewareStage3,
-};
-use rpc_toolkit::yajrc::RpcMethod;
-use rpc_toolkit::Metadata;
+use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};
+use serde::Deserialize;
 
 use crate::context::RpcContext;
 
-pub fn db<M: Metadata>(ctx: RpcContext) -> DynMiddleware<M> {
-    Box::new(
-        move |_: &mut Request<Body>,
-              metadata: M|
-              -> BoxFuture<Result<Result<DynMiddlewareStage2, Response<Body>>, HttpError>> {
-            let ctx = ctx.clone();
-            async move {
-                let m2: DynMiddlewareStage2 = Box::new(move |_req, rpc_req| {
-                    async move {
-                        let sync_db = metadata
-                            .get(rpc_req.method.as_str(), "sync_db")
-                            .unwrap_or(false);
+#[derive(Deserialize)]
+pub struct Metadata {
+    #[serde(default)]
+    sync_db: bool,
+}
 
-                        let m3: DynMiddlewareStage3 = Box::new(move |res, _| {
-                            async move {
-                                if sync_db {
-                                    res.headers.append(
-                                        "X-Patch-Sequence",
-                                        HeaderValue::from_str(
-                                            &ctx.db.sequence().await.to_string(),
-                                        )?,
-                                    );
-                                }
-                                Ok(Ok(noop4()))
-                            }
-                            .boxed()
-                        });
-                        Ok(Ok(m3))
-                    }
-                    .boxed()
-                });
-                Ok(Ok(m2))
+#[derive(Clone)]
+pub struct SyncDb {
+    sync_db: bool,
+}
+impl SyncDb {
+    pub fn new() -> Self {
+        SyncDb { sync_db: false }
+    }
+}
+
+impl Middleware<RpcContext> for SyncDb {
+    type Metadata = Metadata;
+    async fn process_rpc_request(
+        &mut self,
+        _: &RpcContext,
+        metadata: Self::Metadata,
+        _: &mut RpcRequest,
+    ) -> Result<(), RpcResponse> {
+        self.sync_db = metadata.sync_db;
+        Ok(())
+    }
+    async fn process_http_response(&mut self, context: &RpcContext, response: &mut Response) {
+        if let Err(e) = async {
+            if self.sync_db {
+                let id = context.db.sequence().await;
+                response
+                    .headers_mut()
+                    .append("X-Patch-Sequence", HeaderValue::from_str(&id.to_string())?);
+                context.sync_db.send_replace(id);
             }
-            .boxed()
-        },
-    )
+            Ok::<_, InvalidHeaderValue>(())
+        }
+        .await
+        {
+            tracing::error!("error writing X-Patch-Sequence header: {e}");
+            tracing::debug!("{e:?}");
+        }
+    }
 }

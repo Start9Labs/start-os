@@ -1,41 +1,49 @@
 use std::borrow::Borrow;
+use std::str::FromStr;
 
 use regex::Regex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use yasi::InternedString;
 
 mod action;
-mod address;
 mod health_check;
+mod host;
 mod image;
-mod interface;
 mod invalid_id;
 mod package;
+mod replay;
+mod service_interface;
 mod volume;
 
 pub use action::ActionId;
-pub use address::AddressId;
 pub use health_check::HealthCheckId;
+pub use host::HostId;
 pub use image::ImageId;
-pub use interface::InterfaceId;
 pub use invalid_id::InvalidId;
 pub use package::{PackageId, SYSTEM_PACKAGE_ID};
+pub use replay::ReplayId;
+pub use service_interface::ServiceInterfaceId;
 pub use volume::VolumeId;
 
 lazy_static::lazy_static! {
-    static ref ID_REGEX: Regex = Regex::new("^[a-z]+(-[a-z]+)*$").unwrap();
+    static ref ID_REGEX: Regex = Regex::new("^[a-z0-9]+(-[a-z0-9]+)*$").unwrap();
     pub static ref SYSTEM_ID: Id = Id(InternedString::intern("x_system"));
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 pub struct Id(InternedString);
+impl std::fmt::Debug for Id {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
 impl TryFrom<InternedString> for Id {
     type Error = InvalidId;
     fn try_from(value: InternedString) -> Result<Self, Self::Error> {
-        if ID_REGEX.is_match(&*value) {
+        if ID_REGEX.is_match(&value) {
             Ok(Id(value))
         } else {
-            Err(InvalidId)
+            Err(InvalidId(value))
         }
     }
 }
@@ -45,24 +53,35 @@ impl TryFrom<String> for Id {
         if ID_REGEX.is_match(&value) {
             Ok(Id(InternedString::intern(value)))
         } else {
-            Err(InvalidId)
+            Err(InvalidId(InternedString::intern(value)))
         }
     }
 }
 impl TryFrom<&str> for Id {
     type Error = InvalidId;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
-        if ID_REGEX.is_match(&value) {
+        if ID_REGEX.is_match(value) {
             Ok(Id(InternedString::intern(value)))
         } else {
-            Err(InvalidId)
+            Err(InvalidId(InternedString::intern(value)))
         }
+    }
+}
+impl FromStr for Id {
+    type Err = InvalidId;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s)
+    }
+}
+impl From<Id> for InternedString {
+    fn from(value: Id) -> Self {
+        value.0
     }
 }
 impl std::ops::Deref for Id {
     type Target = str;
     fn deref(&self) -> &Self::Target {
-        &*self.0
+        &self.0
     }
 }
 impl std::fmt::Display for Id {
@@ -72,7 +91,7 @@ impl std::fmt::Display for Id {
 }
 impl AsRef<str> for Id {
     fn as_ref(&self) -> &str {
-        &*self.0
+        &self.0
     }
 }
 impl Borrow<str> for Id {
@@ -94,14 +113,14 @@ impl Serialize for Id {
     where
         Ser: Serializer,
     {
-        serializer.serialize_str(&*self)
+        serializer.serialize_str(self)
     }
 }
 impl<'q> sqlx::Encode<'q, sqlx::Postgres> for Id {
     fn encode_by_ref(
         &self,
-        buf: &mut <sqlx::Postgres as sqlx::database::HasArguments<'q>>::ArgumentBuffer,
-    ) -> sqlx::encode::IsNull {
+        buf: &mut <sqlx::Postgres as sqlx::Database>::ArgumentBuffer<'q>,
+    ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
         <&str as sqlx::Encode<'q, sqlx::Postgres>>::encode_by_ref(&&**self, buf)
     }
 }

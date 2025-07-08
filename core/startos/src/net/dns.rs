@@ -1,11 +1,10 @@
 use std::borrow::Borrow;
 use std::collections::BTreeMap;
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::Ipv4Addr;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use color_eyre::eyre::eyre;
-use futures::TryFutureExt;
 use helpers::NonDetachingJoinHandle;
 use models::PackageId;
 use tokio::net::{TcpListener, UdpSocket};
@@ -18,6 +17,8 @@ use trust_dns_server::proto::rr::{Name, Record, RecordType};
 use trust_dns_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 use trust_dns_server::ServerFuture;
 
+use crate::net::forward::START9_BRIDGE_IFACE;
+use crate::util::sync::Watch;
 use crate::util::Invoke;
 use crate::{Error, ErrorKind, ResultExt};
 
@@ -33,7 +34,7 @@ struct Resolver {
 impl Resolver {
     async fn resolve(&self, name: &Name) -> Option<Vec<Ipv4Addr>> {
         match name.iter().next_back() {
-            Some(b"embassy") => {
+            Some(b"embassy") | Some(b"startos") => {
                 if let Some(pkg) = name.iter().rev().skip(1).next() {
                     if let Some(ip) = self.services.read().await.get(&Some(
                         std::str::from_utf8(pkg)
@@ -97,16 +98,8 @@ impl RequestHandler for Resolver {
                         )
                         .await
                 }
-                a => {
-                    if a != RecordType::AAAA {
-                        tracing::warn!(
-                            "Non A-Record requested for {}: {:?}",
-                            query.name(),
-                            query.query_type()
-                        );
-                    }
-                    let mut res = Header::response_from_request(request.header());
-                    res.set_response_code(ResponseCode::NXDomain);
+                _ => {
+                    let res = Header::response_from_request(request.header());
                     response_handle
                         .send_response(
                             MessageResponseBuilder::from_message_request(&*request).build(
@@ -147,38 +140,46 @@ impl RequestHandler for Resolver {
 
 impl DnsController {
     #[instrument(skip_all)]
-    pub async fn init(bind: &[SocketAddr]) -> Result<Self, Error> {
+    pub async fn init(mut lxcbr_status: Watch<bool>) -> Result<Self, Error> {
         let services = Arc::new(RwLock::new(BTreeMap::new()));
 
         let mut server = ServerFuture::new(Resolver {
             services: services.clone(),
         });
-        server.register_listener(
-            TcpListener::bind(bind)
-                .await
-                .with_kind(ErrorKind::Network)?,
-            Duration::from_secs(30),
-        );
-        server.register_socket(UdpSocket::bind(bind).await.with_kind(ErrorKind::Network)?);
 
-        Command::new("resolvectl")
-            .arg("dns")
-            .arg("br-start9")
-            .arg("127.0.0.1")
-            .invoke(ErrorKind::Network)
-            .await?;
-        Command::new("resolvectl")
-            .arg("domain")
-            .arg("br-start9")
-            .arg("embassy")
-            .invoke(ErrorKind::Network)
-            .await?;
+        let dns_server = tokio::spawn(async move {
+            server.register_listener(
+                TcpListener::bind((Ipv4Addr::LOCALHOST, 53))
+                    .await
+                    .with_kind(ErrorKind::Network)?,
+                Duration::from_secs(30),
+            );
+            server.register_socket(
+                UdpSocket::bind((Ipv4Addr::LOCALHOST, 53))
+                    .await
+                    .with_kind(ErrorKind::Network)?,
+            );
 
-        let dns_server = tokio::spawn(
+            lxcbr_status.wait_for(|a| *a).await;
+
+            Command::new("resolvectl")
+                .arg("dns")
+                .arg(START9_BRIDGE_IFACE)
+                .arg("127.0.0.1")
+                .invoke(ErrorKind::Network)
+                .await?;
+            Command::new("resolvectl")
+                .arg("domain")
+                .arg(START9_BRIDGE_IFACE)
+                .arg("embassy")
+                .invoke(ErrorKind::Network)
+                .await?;
+
             server
                 .block_until_done()
-                .map_err(|e| Error::new(e, ErrorKind::Network)),
-        )
+                .await
+                .map_err(|e| Error::new(e, ErrorKind::Network))
+        })
         .into();
 
         Ok(Self {

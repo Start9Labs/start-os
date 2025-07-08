@@ -1,0 +1,29 @@
+import { ServiceInterfaceBuilder } from "../../../base/lib/interfaces/ServiceInterfaceBuilder"
+import { Effects } from "../../../base/lib/Effects"
+import { sdk } from "../test/output.sdk"
+
+describe("host", () => {
+  test("Testing that the types work", () => {
+    async function test(effects: Effects) {
+      const foo = sdk.MultiHost.of(effects, "foo")
+      const fooOrigin = await foo.bindPort(80, {
+        protocol: "http" as const,
+        preferredExternalPort: 80,
+      })
+      const fooInterface = new ServiceInterfaceBuilder({
+        effects,
+        name: "Foo",
+        id: "foo",
+        description: "A Foo",
+        type: "ui",
+        username: "bar",
+        path: "/baz",
+        query: { qux: "yes" },
+        schemeOverride: null,
+        masked: false,
+      })
+
+      await fooOrigin.export([fooInterface])
+    }
+  })
+})

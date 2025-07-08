@@ -1,27 +1,78 @@
 use std::collections::BTreeMap;
-use std::marker::PhantomData;
 
 use chrono::{DateTime, Utc};
-use clap::ArgMatches;
+use clap::Parser;
 use color_eyre::eyre::eyre;
+use imbl_value::{json, InternedString};
+use itertools::Itertools;
 use josekit::jwk::Jwk;
-use rpc_toolkit::command;
-use rpc_toolkit::command_helpers::prelude::{RequestParts, ResponseParts};
 use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use sqlx::{Executor, Postgres};
+use tokio::io::AsyncWriteExt;
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::middleware::auth::{AsLogoutSessionId, HasLoggedOutSessions, HashSessionToken};
-use crate::middleware::encrypt::EncryptedWire;
+use crate::db::model::DatabaseModel;
+use crate::middleware::auth::{
+    AsLogoutSessionId, HasLoggedOutSessions, HashSessionToken, LoginRes,
+};
 use crate::prelude::*;
-use crate::util::display_none;
-use crate::util::serde::{display_serializable, IoFormat};
+use crate::util::crypto::EncryptedWire;
+use crate::util::io::create_file_mod;
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::{ensure_code, Error, ResultExt};
-#[derive(Clone, Serialize, Deserialize)]
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize, TS)]
+#[ts(as = "BTreeMap::<String, Session>")]
+pub struct Sessions(pub BTreeMap<InternedString, Session>);
+impl Sessions {
+    pub fn new() -> Self {
+        Self(BTreeMap::new())
+    }
+}
+impl Map for Sessions {
+    type Key = InternedString;
+    type Value = Session;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        Ok(key.clone())
+    }
+}
+
+pub async fn write_shadow(password: &str) -> Result<(), Error> {
+    let hash: String = sha_crypt::sha512_simple(password, &sha_crypt::Sha512Params::default())
+        .map_err(|e| Error::new(eyre!("{e:?}"), ErrorKind::Serialization))?;
+    let shadow_contents = tokio::fs::read_to_string("/etc/shadow").await?;
+    let mut shadow_file =
+        create_file_mod("/media/startos/config/overlay/etc/shadow", 0o640).await?;
+    for line in shadow_contents.lines() {
+        match line.split_once(":") {
+            Some((user, rest)) if user == "start9" || user == "kiosk" => {
+                let (_, rest) = rest.split_once(":").ok_or_else(|| {
+                    Error::new(eyre!("malformed /etc/shadow"), ErrorKind::ParseSysInfo)
+                })?;
+                shadow_file
+                    .write_all(format!("{user}:{hash}:{rest}\n").as_bytes())
+                    .await?;
+            }
+            _ => {
+                shadow_file.write_all(line.as_bytes()).await?;
+                shadow_file.write_all(b"\n").await?;
+            }
+        }
+    }
+    shadow_file.sync_all().await?;
+    tokio::fs::copy("/media/startos/config/overlay/etc/shadow", "/etc/shadow").await?;
+    Ok(())
+}
+
+#[derive(Clone, Serialize, Deserialize, TS)]
 #[serde(untagged)]
+#[ts(export)]
 pub enum PasswordType {
     EncryptedWire(EncryptedWire),
     String(String),
@@ -61,20 +112,50 @@ impl std::str::FromStr for PasswordType {
         })
     }
 }
-
-#[command(subcommands(login, logout, session, reset_password, get_pubkey))]
-pub fn auth() -> Result<(), Error> {
-    Ok(())
-}
-
-pub fn cli_metadata() -> Value {
-    serde_json::json!({
-        "platforms": ["cli"],
-    })
-}
-
-pub fn parse_metadata(_: &str, _: &ArgMatches) -> Result<Value, Error> {
-    Ok(cli_metadata())
+pub fn auth<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand(
+            "login",
+            from_fn_async(login_impl)
+                .with_metadata("login", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand(
+            "login",
+            from_fn_async(cli_login)
+                .no_display()
+                .with_about("Log in to StartOS server"),
+        )
+        .subcommand(
+            "logout",
+            from_fn_async(logout)
+                .with_metadata("get_session", Value::Bool(true))
+                .no_display()
+                .with_about("Log out of StartOS server")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "session",
+            session::<C>().with_about("List or kill StartOS sessions"),
+        )
+        .subcommand(
+            "reset-password",
+            from_fn_async(reset_password_impl).no_cli(),
+        )
+        .subcommand(
+            "reset-password",
+            from_fn_async(cli_reset_password)
+                .no_display()
+                .with_about("Reset StartOS password"),
+        )
+        .subcommand(
+            "get-pubkey",
+            from_fn_async(get_pubkey)
+                .with_metadata("authenticated", Value::Bool(false))
+                .no_display()
+                .with_about("Get public key derived from server private key")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
 #[test]
@@ -92,24 +173,25 @@ fn gen_pwd() {
 
 #[instrument(skip_all)]
 async fn cli_login(
-    ctx: CliContext,
-    password: Option<PasswordType>,
-    metadata: Value,
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        ..
+    }: HandlerArgs<CliContext>,
 ) -> Result<(), RpcError> {
-    let password = if let Some(password) = password {
-        password.decrypt(&ctx)?
-    } else {
-        rpassword::prompt_password("Password: ")?
-    };
+    let password = rpassword::prompt_password("Password: ")?;
 
-    rpc_toolkit::command_helpers::call_remote(
-        ctx,
-        "auth.login",
-        serde_json::json!({ "password": password, "metadata": metadata }),
-        PhantomData::<()>,
+    ctx.call_remote::<RpcContext>(
+        &parent_method.into_iter().chain(method).join("."),
+        json!({
+            "password": password,
+            "metadata": {
+                "platforms": ["cli"],
+            },
+        }),
     )
-    .await?
-    .result?;
+    .await?;
 
     Ok(())
 }
@@ -128,99 +210,142 @@ pub fn check_password(hash: &str, password: &str) -> Result<(), Error> {
     Ok(())
 }
 
-pub async fn check_password_against_db<Ex>(secrets: &mut Ex, password: &str) -> Result<(), Error>
-where
-    for<'a> &'a mut Ex: Executor<'a, Database = Postgres>,
-{
-    let pw_hash = sqlx::query!("SELECT password FROM account")
-        .fetch_one(secrets)
-        .await?
-        .password;
+pub fn check_password_against_db(db: &DatabaseModel, password: &str) -> Result<(), Error> {
+    let pw_hash = db.as_private().as_password().de()?;
     check_password(&pw_hash, password)?;
     Ok(())
 }
 
-#[command(
-    custom_cli(cli_login(async, context(CliContext))),
-    display(display_none),
-    metadata(authenticated = false)
-)]
-#[instrument(skip_all)]
-pub async fn login(
-    #[context] ctx: RpcContext,
-    #[request] req: &RequestParts,
-    #[response] res: &mut ResponseParts,
-    #[arg] password: Option<PasswordType>,
-    #[arg(
-        parse(parse_metadata),
-        default = "cli_metadata",
-        help = "RPC Only: This value cannot be overidden from the cli"
-    )]
-    metadata: Value,
-) -> Result<(), Error> {
-    let password = password.unwrap_or_default().decrypt(&ctx)?;
-    let mut handle = ctx.secret_store.acquire().await?;
-    check_password_against_db(handle.as_mut(), &password).await?;
-
-    let hash_token = HashSessionToken::new();
-    let user_agent = req.headers.get("user-agent").and_then(|h| h.to_str().ok());
-    let metadata = serde_json::to_string(&metadata).with_kind(crate::ErrorKind::Database)?;
-    let hash_token_hashed = hash_token.hashed();
-    sqlx::query!(
-        "INSERT INTO session (id, user_agent, metadata) VALUES ($1, $2, $3)",
-        hash_token_hashed,
-        user_agent,
-        metadata,
-    )
-    .execute(handle.as_mut())
-    .await?;
-    res.headers.insert(
-        "set-cookie",
-        hash_token.header_value()?, // Should be impossible, but don't want to panic
-    );
-
-    Ok(())
-}
-
-#[command(display(display_none), metadata(authenticated = false))]
-#[instrument(skip_all)]
-pub async fn logout(
-    #[context] ctx: RpcContext,
-    #[request] req: &RequestParts,
-) -> Result<Option<HasLoggedOutSessions>, Error> {
-    let auth = match HashSessionToken::from_request_parts(req) {
-        Err(_) => return Ok(None),
-        Ok(a) => a,
-    };
-    Ok(Some(HasLoggedOutSessions::new(vec![auth], &ctx).await?))
-}
-
-#[derive(Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct Session {
-    logged_in: DateTime<Utc>,
-    last_active: DateTime<Utc>,
+#[derive(Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct LoginParams {
+    password: Option<PasswordType>,
+    #[ts(skip)]
+    #[serde(rename = "__auth_userAgent")] // from Auth middleware
     user_agent: Option<String>,
-    metadata: Value,
+    #[serde(default)]
+    ephemeral: bool,
 }
 
-#[derive(Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[instrument(skip_all)]
+pub async fn login_impl(
+    ctx: RpcContext,
+    LoginParams {
+        password,
+        user_agent,
+        ephemeral,
+    }: LoginParams,
+) -> Result<LoginRes, Error> {
+    let password = password.unwrap_or_default().decrypt(&ctx)?;
+
+    let tok = if ephemeral {
+        check_password_against_db(&ctx.db.peek().await, &password)?;
+        let hash_token = HashSessionToken::new();
+        ctx.ephemeral_sessions.mutate(|s| {
+            s.0.insert(
+                hash_token.hashed().clone(),
+                Session {
+                    logged_in: Utc::now(),
+                    last_active: Utc::now(),
+                    user_agent,
+                },
+            )
+        });
+        Ok(hash_token.to_login_res())
+    } else {
+        ctx.db
+            .mutate(|db| {
+                check_password_against_db(db, &password)?;
+                let hash_token = HashSessionToken::new();
+                db.as_private_mut().as_sessions_mut().insert(
+                    hash_token.hashed(),
+                    &Session {
+                        logged_in: Utc::now(),
+                        last_active: Utc::now(),
+                        user_agent,
+                    },
+                )?;
+
+                Ok(hash_token.to_login_res())
+            })
+            .await
+            .result
+    }?;
+
+    if tokio::fs::metadata("/media/startos/config/overlay/etc/shadow")
+        .await
+        .is_err()
+    {
+        write_shadow(&password).await?;
+    }
+
+    Ok(tok)
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct LogoutParams {
+    #[ts(skip)]
+    #[serde(rename = "__auth_session")] // from Auth middleware
+    session: InternedString,
+}
+
+pub async fn logout(
+    ctx: RpcContext,
+    LogoutParams { session }: LogoutParams,
+) -> Result<Option<HasLoggedOutSessions>, Error> {
+    Ok(Some(
+        HasLoggedOutSessions::new(vec![HashSessionToken::from_token(session)], &ctx).await?,
+    ))
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Session {
+    #[ts(type = "string")]
+    pub logged_in: DateTime<Utc>,
+    #[ts(type = "string")]
+    pub last_active: DateTime<Utc>,
+    pub user_agent: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
 pub struct SessionList {
-    current: String,
-    sessions: BTreeMap<String, Session>,
+    #[ts(type = "string | null")]
+    current: Option<InternedString>,
+    sessions: Sessions,
 }
 
-#[command(subcommands(list, kill))]
-pub async fn session() -> Result<(), Error> {
-    Ok(())
+pub fn session<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand(
+            "list",
+            from_fn_async(list)
+                .with_metadata("get_session", Value::Bool(true))
+                .with_display_serializable()
+                .with_custom_display_fn(|handle, result| display_sessions(handle.params, result))
+                .with_about("Display all server sessions")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "kill",
+            from_fn_async(kill)
+                .no_display()
+                .with_about("Terminate existing server session(s)")
+                .with_call_remote::<CliContext>(),
+        )
 }
 
-fn display_sessions(arg: SessionList, matches: &ArgMatches) {
+fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) -> Result<(), Error> {
     use prettytable::*;
 
-    if matches.is_present("format") {
-        return display_serializable(arg, matches);
+    if let Some(format) = params.format {
+        return display_serializable(format, arg);
     }
 
     let mut table = Table::new();
@@ -229,97 +354,101 @@ fn display_sessions(arg: SessionList, matches: &ArgMatches) {
         "LOGGED IN",
         "LAST ACTIVE",
         "USER AGENT",
-        "METADATA",
     ]);
-    for (id, session) in arg.sessions {
+    for (id, session) in arg.sessions.0 {
         let mut row = row![
             &id,
             &format!("{}", session.logged_in),
             &format!("{}", session.last_active),
             session.user_agent.as_deref().unwrap_or("N/A"),
-            &format!("{}", session.metadata),
         ];
-        if id == arg.current {
+        if Some(id) == arg.current {
             row.iter_mut()
                 .map(|c| c.style(Attr::ForegroundColor(color::GREEN)))
                 .collect::<()>()
         }
         table.add_row(row);
     }
-    table.print_tty(false).unwrap();
+    table.print_tty(false)?;
+    Ok(())
 }
 
-#[command(display(display_sessions))]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct ListParams {
+    #[arg(skip)]
+    #[ts(skip)]
+    #[serde(rename = "__auth_session")] // from Auth middleware
+    session: Option<InternedString>,
+}
+
+// #[command(display(display_sessions))]
 #[instrument(skip_all)]
 pub async fn list(
-    #[context] ctx: RpcContext,
-    #[request] req: &RequestParts,
-    #[allow(unused_variables)]
-    #[arg(long = "format")]
-    format: Option<IoFormat>,
+    ctx: RpcContext,
+    ListParams { session, .. }: ListParams,
 ) -> Result<SessionList, Error> {
+    let mut sessions = ctx.db.peek().await.into_private().into_sessions().de()?;
+    ctx.ephemeral_sessions.peek(|s| {
+        sessions
+            .0
+            .extend(s.0.iter().map(|(k, v)| (k.clone(), v.clone())))
+    });
     Ok(SessionList {
-        current: HashSessionToken::from_request_parts(req)?.as_hash(),
-        sessions: sqlx::query!(
-            "SELECT * FROM session WHERE logged_out IS NULL OR logged_out > CURRENT_TIMESTAMP"
-        )
-        .fetch_all(ctx.secret_store.acquire().await?.as_mut())
-        .await?
-        .into_iter()
-        .map(|row| {
-            Ok((
-                row.id,
-                Session {
-                    logged_in: DateTime::from_utc(row.logged_in, Utc),
-                    last_active: DateTime::from_utc(row.last_active, Utc),
-                    user_agent: row.user_agent,
-                    metadata: serde_json::from_str(&row.metadata)
-                        .with_kind(crate::ErrorKind::Database)?,
-                },
-            ))
-        })
-        .collect::<Result<_, Error>>()?,
+        current: session,
+        sessions,
     })
 }
 
-fn parse_comma_separated(arg: &str, _: &ArgMatches) -> Result<Vec<String>, RpcError> {
-    Ok(arg.split(",").map(|s| s.trim().to_owned()).collect())
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct KillSessionId(InternedString);
+
+impl KillSessionId {
+    fn new(id: String) -> Self {
+        Self(InternedString::from(id))
+    }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct KillSessionId(String);
-
 impl AsLogoutSessionId for KillSessionId {
-    fn as_logout_session_id(self) -> String {
+    fn as_logout_session_id(self) -> InternedString {
         self.0
     }
 }
 
-#[command(display(display_none))]
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct KillParams {
+    ids: Vec<String>,
+}
+
 #[instrument(skip_all)]
-pub async fn kill(
-    #[context] ctx: RpcContext,
-    #[arg(parse(parse_comma_separated))] ids: Vec<String>,
-) -> Result<(), Error> {
-    HasLoggedOutSessions::new(ids.into_iter().map(KillSessionId), &ctx).await?;
+pub async fn kill(ctx: RpcContext, KillParams { ids }: KillParams) -> Result<(), Error> {
+    HasLoggedOutSessions::new(ids.into_iter().map(KillSessionId::new), &ctx).await?;
     Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+pub struct ResetPasswordParams {
+    old_password: Option<PasswordType>,
+    new_password: Option<PasswordType>,
 }
 
 #[instrument(skip_all)]
 async fn cli_reset_password(
-    ctx: CliContext,
-    old_password: Option<PasswordType>,
-    new_password: Option<PasswordType>,
+    HandlerArgs {
+        context: ctx,
+        parent_method,
+        method,
+        ..
+    }: HandlerArgs<CliContext>,
 ) -> Result<(), RpcError> {
-    let old_password = if let Some(old_password) = old_password {
-        old_password.decrypt(&ctx)?
-    } else {
-        rpassword::prompt_password("Current Password: ")?
-    };
+    let old_password = rpassword::prompt_password("Current Password: ")?;
 
-    let new_password = if let Some(new_password) = new_password {
-        new_password.decrypt(&ctx)?
-    } else {
+    let new_password = {
         let new_password = rpassword::prompt_password("New Password: ")?;
         if new_password != rpassword::prompt_password("Confirm: ")? {
             return Err(Error::new(
@@ -331,28 +460,22 @@ async fn cli_reset_password(
         new_password
     };
 
-    rpc_toolkit::command_helpers::call_remote(
-        ctx,
-        "auth.reset-password",
-        serde_json::json!({ "old-password": old_password, "new-password": new_password }),
-        PhantomData::<()>,
+    ctx.call_remote::<RpcContext>(
+        &parent_method.into_iter().chain(method).join("."),
+        imbl_value::json!({ "old-password": old_password, "new-password": new_password }),
     )
-    .await?
-    .result?;
+    .await?;
 
     Ok(())
 }
 
-#[command(
-    rename = "reset-password",
-    custom_cli(cli_reset_password(async, context(CliContext))),
-    display(display_none)
-)]
 #[instrument(skip_all)]
-pub async fn reset_password(
-    #[context] ctx: RpcContext,
-    #[arg(rename = "old-password")] old_password: Option<PasswordType>,
-    #[arg(rename = "new-password")] new_password: Option<PasswordType>,
+pub async fn reset_password_impl(
+    ctx: RpcContext,
+    ResetPasswordParams {
+        old_password,
+        new_password,
+    }: ResetPasswordParams,
 ) -> Result<(), Error> {
     let old_password = old_password.unwrap_or_default().decrypt(&ctx)?;
     let new_password = new_password.unwrap_or_default().decrypt(&ctx)?;
@@ -367,25 +490,25 @@ pub async fn reset_password(
         ));
     }
     account.set_password(&new_password)?;
-    account.save(&ctx.secret_store).await?;
     let account_password = &account.password;
+    let account = account.clone();
     ctx.db
         .mutate(|d| {
-            d.as_server_info_mut()
+            d.as_public_mut()
+                .as_server_info_mut()
                 .as_password_hash_mut()
-                .ser(account_password)
+                .ser(account_password)?;
+            account.save(d)?;
+
+            Ok(())
         })
         .await
+        .result
 }
 
-#[command(
-    rename = "get-pubkey",
-    display(display_none),
-    metadata(authenticated = false)
-)]
 #[instrument(skip_all)]
-pub async fn get_pubkey(#[context] ctx: RpcContext) -> Result<Jwk, RpcError> {
-    let secret = ctx.as_ref().clone();
+pub async fn get_pubkey(ctx: RpcContext) -> Result<Jwk, RpcError> {
+    let secret = <RpcContext as AsRef<Jwk>>::as_ref(&ctx).clone();
     let pub_key = secret.to_public_key()?;
     Ok(pub_key)
 }

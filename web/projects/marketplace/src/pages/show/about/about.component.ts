@@ -1,13 +1,29 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
-import { MarketplacePkg } from '../../../types'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  Input,
+} from '@angular/core'
+import { TuiDialogService } from '@taiga-ui/core'
+import { RELEASE_NOTES } from '../../../modals/release-notes.component'
+import { MarketplacePkgBase } from '../../../types'
 
 @Component({
   selector: 'marketplace-about',
   templateUrl: 'about.component.html',
   styleUrls: ['about.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  standalone: false,
 })
 export class AboutComponent {
-  @Input()
-  pkg!: MarketplacePkg
+  private readonly dialogs = inject(TuiDialogService)
+
+  @Input({ required: true })
+  pkg!: MarketplacePkgBase
+
+  async onPast() {
+    this.dialogs
+      .open(RELEASE_NOTES, { label: 'Past Release Notes', data: this.pkg })
+      .subscribe()
+  }
 }

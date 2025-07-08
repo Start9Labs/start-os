@@ -1,10 +1,10 @@
 import { RPCErrorDetails } from '../types/rpc.types'
 
 export class RpcError {
+  constructor(private readonly error: RPCErrorDetails) {}
+
   readonly code = this.error.code
   readonly message = this.getMessage()
-
-  constructor(private readonly error: RPCErrorDetails) {}
 
   private getMessage(): string {
     let message: string

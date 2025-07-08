@@ -1,14 +1,26 @@
 use std::borrow::Borrow;
 use std::path::Path;
+use std::str::FromStr;
 
 use serde::{Deserialize, Deserializer, Serialize};
+use ts_rs::TS;
 
-use crate::Id;
+use crate::{Id, InvalidId};
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TS)]
+#[ts(type = "string")]
 pub enum VolumeId {
     Backup,
     Custom(Id),
+}
+impl FromStr for VolumeId {
+    type Err = InvalidId;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "BACKUP" => VolumeId::Backup,
+            s => VolumeId::Custom(Id::try_from(s.to_owned())?),
+        })
+    }
 }
 impl std::fmt::Display for VolumeId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

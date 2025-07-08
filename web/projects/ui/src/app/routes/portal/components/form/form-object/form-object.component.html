@@ -1,0 +1,23 @@
+<h3 class="title" (click)="toggle()">
+  <button
+    tuiIconButton
+    size="s"
+    iconStart="@tui.chevron-down"
+    type="button"
+    class="button"
+    [class.button_open]="open"
+    [style.border-radius.%]="100"
+    [appearance]="invalid ? 'primary-destructive' : 'secondary'"
+  ></button>
+  <ng-content />
+  {{ spec.name }}
+  @if (spec.description) {
+    <tui-icon [tuiTooltip]="spec.description" (click.stop)="(0)" />
+  }
+</h3>
+
+<tui-expand class="expand" [expanded]="open">
+  <div class="g-form-group" [class.g-form-group_invalid]="invalid">
+    <form-group [spec]="spec.spec" />
+  </div>
+</tui-expand>

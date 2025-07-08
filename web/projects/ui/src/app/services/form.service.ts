@@ -7,25 +7,8 @@ import {
   ValidatorFn,
   Validators,
 } from '@angular/forms'
-import {
-  ConfigSpec,
-  isValueSpecListOf,
-  ListValueSpecNumber,
-  ListValueSpecObject,
-  ListValueSpecOf,
-  ListValueSpecString,
-  ListValueSpecUnion,
-  UniqueBy,
-  ValueSpec,
-  ValueSpecEnum,
-  ValueSpecList,
-  ValueSpecNumber,
-  ValueSpecObject,
-  ValueSpecString,
-  ValueSpecUnion,
-} from 'src/app/pkg-config/config-types'
-import { getDefaultString, Range } from '../pkg-config/config-utilities'
-const Mustache = require('mustache')
+import { IST, utils } from '@start9labs/start-sdk'
+import Mustache from 'mustache'
 
 @Injectable({
   providedIn: 'root',
@@ -34,212 +17,325 @@ export class FormService {
   constructor(private readonly formBuilder: UntypedFormBuilder) {}
 
   createForm(
-    spec: ConfigSpec,
-    current: { [key: string]: any } = {},
+    spec: IST.InputSpec,
+    current: Record<string, any> = {},
   ): UntypedFormGroup {
     return this.getFormGroup(spec, [], current)
   }
 
-  getUnionObject(
-    spec: ValueSpecUnion | ListValueSpecUnion,
-    selection: string,
-    current?: { [key: string]: any } | null,
-  ): UntypedFormGroup {
-    const { variants, tag } = spec
-    const { name, description, warning, 'variant-names': variantNames } = tag
-
-    const enumSpec: ValueSpecEnum = {
-      type: 'enum',
-      name,
-      description,
-      warning,
+  getUnionSelectSpec(
+    spec: IST.ValueSpecUnion,
+    selection: string | null,
+  ): IST.ValueSpecSelect {
+    return {
+      ...spec,
+      type: 'select',
       default: selection,
-      values: Object.keys(variants),
-      'value-names': variantNames,
+      values: Object.fromEntries(
+        Object.entries(spec.variants).map(([key, { name }]) => [key, name]),
+      ),
     }
-    return this.getFormGroup(
-      { [spec.tag.id]: enumSpec, ...spec.variants[selection] },
-      [],
-      current,
+  }
+
+  getUnionObject(spec: IST.ValueSpecUnion, value: any): UntypedFormGroup {
+    const valid = spec.variants[value?.selection]
+    const selected = valid ? value?.selection : spec.default
+    const selection = this.getUnionSelectSpec(spec, selected)
+    const group = this.getFormGroup({ selection })
+    const control = selected ? spec.variants[selected]?.spec : {}
+
+    group.setControl(
+      'value',
+      this.getFormGroup(control || {}, [], value?.value),
     )
+
+    return group
   }
 
-  getListItem(spec: ValueSpecList, entry: any) {
-    const listItemValidators = getListItemValidators(spec)
-    if (isValueSpecListOf(spec, 'string')) {
-      return this.formBuilder.control(entry, listItemValidators)
-    } else if (isValueSpecListOf(spec, 'number')) {
-      return this.formBuilder.control(entry, listItemValidators)
-    } else if (isValueSpecListOf(spec, 'enum')) {
-      return this.formBuilder.control(entry)
-    } else if (isValueSpecListOf(spec, 'object')) {
-      return this.getFormGroup(spec.spec.spec, listItemValidators, entry)
-    } else if (isValueSpecListOf(spec, 'union')) {
-      return this.getUnionObject(spec.spec, spec.spec.default, entry)
+  getListItem(spec: IST.ValueSpecList, entry?: any) {
+    if (IST.isValueSpecListOf(spec, 'text')) {
+      return this.formBuilder.control(entry, [
+        ...stringValidators(spec.spec),
+        Validators.required,
+      ])
+    } else if (IST.isValueSpecListOf(spec, 'object')) {
+      return this.getFormGroup(spec.spec.spec, [], entry)
     }
   }
 
-  private getFormGroup(
-    config: ConfigSpec,
+  getFormGroup(
+    config: IST.InputSpec,
     validators: ValidatorFn[] = [],
-    current?: { [key: string]: any } | null,
+    current?: Record<string, any> | null,
   ): UntypedFormGroup {
     let group: Record<
       string,
       UntypedFormGroup | UntypedFormArray | UntypedFormControl
     > = {}
     Object.entries(config).map(([key, spec]) => {
-      if (spec.type === 'pointer') return
-      group[key] = this.getFormEntry(spec, current ? current[key] : undefined)
+      group[key] = this.getFormEntry(spec, current?.[key])
     })
     return this.formBuilder.group(group, { validators })
   }
 
   private getFormEntry(
-    spec: ValueSpec,
+    spec: IST.ValueSpec,
     currentValue?: any,
   ): UntypedFormGroup | UntypedFormArray | UntypedFormControl {
-    let validators: ValidatorFn[]
     let value: any
     switch (spec.type) {
-      case 'string':
-        validators = stringValidators(spec)
+      case 'text':
         if (currentValue !== undefined) {
           value = currentValue
         } else {
-          value = spec.default ? getDefaultString(spec.default) : null
+          value = spec.default ? utils.getDefaultString(spec.default) : null
         }
-        return this.formBuilder.control(value, validators)
+        return this.formBuilder.control(value, stringValidators(spec))
+      case 'textarea':
+        value = currentValue || null
+        return this.formBuilder.control(value, textareaValidators(spec))
       case 'number':
-        validators = numberValidators(spec)
         if (currentValue !== undefined) {
           value = currentValue
         } else {
           value = spec.default || null
         }
-        return this.formBuilder.control(value, validators)
+        return this.formBuilder.control(value, numberValidators(spec))
+      case 'color':
+        if (currentValue !== undefined) {
+          value = currentValue
+        } else {
+          value = spec.default || null
+        }
+        return this.formBuilder.control(value, colorValidators(spec))
+      case 'datetime':
+        if (currentValue !== undefined) {
+          value = currentValue
+        } else {
+          value = spec.default || null
+        }
+        return this.formBuilder.control(value, datetimeValidators(spec))
       case 'object':
         return this.getFormGroup(spec.spec, [], currentValue)
       case 'list':
-        validators = listValidators(spec)
-        const mapped = (
-          Array.isArray(currentValue) ? currentValue : (spec.default as any[])
-        ).map(entry => {
-          return this.getListItem(spec, entry)
-        })
-        return this.formBuilder.array(mapped, validators)
-      case 'union':
-        const currentSelection = currentValue?.[spec.tag.id]
-        const isValid = !!spec.variants[currentSelection]
+        const array = Array.isArray(currentValue) ? currentValue : spec.default
+        const length = Math.max(array.length, spec.minLength || 0)
 
-        return this.getUnionObject(
-          spec,
-          isValid ? currentSelection : spec.default,
-          isValid ? currentValue : undefined,
+        return this.formBuilder.array(
+          Array.from({ length }).map((_, index) =>
+            this.getListItem(spec, array[index]),
+          ),
+          listValidators(spec),
         )
-      case 'boolean':
-      case 'enum':
+      case 'union':
+        return this.getUnionObject(spec, currentValue)
+      case 'toggle':
         value = currentValue === undefined ? spec.default : currentValue
         return this.formBuilder.control(value)
+      case 'select':
+        value = currentValue === undefined ? spec.default : currentValue
+        return this.formBuilder.control(value, [Validators.required])
+      case 'multiselect':
+        value = currentValue === undefined ? spec.default : currentValue
+        return this.formBuilder.control(value, multiselectValidators(spec))
       default:
         return this.formBuilder.control(null)
     }
   }
 }
 
-function getListItemValidators(spec: ValueSpecList) {
-  if (isValueSpecListOf(spec, 'string')) {
-    return stringValidators(spec.spec)
-  } else if (isValueSpecListOf(spec, 'number')) {
-    return numberValidators(spec.spec)
-  }
-}
+// function getListItemValidators(spec: IST.ValueSpecList) {
+//   if (IST.isValueSpecListOf(spec, 'text')) {
+//     return stringValidators(spec.spec)
+//   }
+// }
 
 function stringValidators(
-  spec: ValueSpecString | ListValueSpecString,
+  spec: IST.ValueSpecText | IST.ListValueSpecText,
 ): ValidatorFn[] {
   const validators: ValidatorFn[] = []
 
-  if (!(spec as ValueSpecString).nullable) {
+  if ((spec as IST.ValueSpecText).required) {
     validators.push(Validators.required)
   }
 
-  if (spec.pattern) {
-    validators.push(Validators.pattern(spec.pattern))
+  validators.push(textLengthInRange(spec.minLength, spec.maxLength))
+
+  if (spec.patterns.length) {
+    spec.patterns.forEach(p => validators.push(Validators.pattern(p.regex)))
   }
 
   return validators
 }
 
-function numberValidators(
-  spec: ValueSpecNumber | ListValueSpecNumber,
-): ValidatorFn[] {
+function textareaValidators(spec: IST.ValueSpecTextarea): ValidatorFn[] {
+  const validators: ValidatorFn[] = []
+
+  if (spec.required) {
+    validators.push(Validators.required)
+  }
+
+  validators.push(textLengthInRange(spec.minLength, spec.maxLength))
+
+  return validators
+}
+
+function colorValidators({ required }: IST.ValueSpecColor): ValidatorFn[] {
+  const validators: ValidatorFn[] = [Validators.pattern(/^#[0-9a-f]{6}$/i)]
+
+  if (required) {
+    validators.push(Validators.required)
+  }
+
+  return validators
+}
+
+function datetimeValidators({
+  required,
+  min,
+  max,
+}: IST.ValueSpecDatetime): ValidatorFn[] {
+  const validators: ValidatorFn[] = []
+
+  if (required) {
+    validators.push(Validators.required)
+  }
+
+  if (min) {
+    validators.push(datetimeMin(min))
+  }
+
+  if (max) {
+    validators.push(datetimeMax(max))
+  }
+
+  return validators
+}
+
+function numberValidators(spec: IST.ValueSpecNumber): ValidatorFn[] {
   const validators: ValidatorFn[] = []
 
   validators.push(isNumber())
 
-  if (!(spec as ValueSpecNumber).nullable) {
+  if ((spec as IST.ValueSpecNumber).required) {
     validators.push(Validators.required)
   }
 
-  if (spec.integral) {
+  if (spec.integer) {
     validators.push(isInteger())
   }
 
-  validators.push(numberInRange(spec.range))
+  validators.push(numberInRange(spec.min, spec.max))
 
   return validators
 }
 
-function listValidators(spec: ValueSpecList): ValidatorFn[] {
+function multiselectValidators(spec: IST.ValueSpecMultiselect): ValidatorFn[] {
   const validators: ValidatorFn[] = []
-
-  validators.push(listInRange(spec.range))
-
-  validators.push(listItemIssue())
-
-  if (!isValueSpecListOf(spec, 'enum')) {
-    validators.push(listUnique(spec))
-  }
-
+  validators.push(listInRange(spec.minLength, spec.maxLength))
   return validators
 }
 
-export function numberInRange(stringRange: string): ValidatorFn {
+function listValidators(spec: IST.ValueSpecList): ValidatorFn[] {
+  const validators: ValidatorFn[] = []
+  validators.push(listInRange(spec.minLength, spec.maxLength))
+  validators.push(listItemIssue())
+  return validators
+}
+
+// function fileValidators(spec: IST.ValueSpecFile): ValidatorFn[] {
+//   const validators: ValidatorFn[] = []
+
+//   if (spec.required) {
+//     validators.push(Validators.required)
+//   }
+
+//   return validators
+// }
+
+export function numberInRange(
+  min: number | null,
+  max: number | null,
+): ValidatorFn {
   return control => {
     const value = control.value
-    if (!value) return null
-    try {
-      Range.from(stringRange).checkIncludes(value)
-      return null
-    } catch (e: any) {
-      return { numberNotInRange: { value: `Number must be ${e.message}` } }
-    }
+    if (typeof value !== 'number') return null
+    if (min && value < min)
+      return {
+        numberNotInRange: `Number must be greater than or equal to ${min}`,
+      }
+    if (max && value > max)
+      return { numberNotInRange: `Number must be less than or equal to ${max}` }
+    return null
   }
 }
 
 export function isNumber(): ValidatorFn {
-  return control =>
-    !control.value || control.value == Number(control.value)
-      ? null
-      : { notNumber: { value: control.value } }
+  return ({ value }) =>
+    !value || value == Number(value) ? null : { notNumber: 'Must be a number' }
 }
 
 export function isInteger(): ValidatorFn {
-  return control =>
-    !control.value || control.value == Math.trunc(control.value)
+  return ({ value }) =>
+    !value || value == Math.trunc(value)
       ? null
-      : { numberNotInteger: { value: control.value } }
+      : { numberNotInteger: 'Must be an integer' }
 }
 
-export function listInRange(stringRange: string): ValidatorFn {
+export function listInRange(
+  minLength: number | null,
+  maxLength: number | null,
+): ValidatorFn {
   return control => {
-    try {
-      Range.from(stringRange).checkIncludes(control.value.length)
-      return null
-    } catch (e: any) {
-      return { listNotInRange: { value: `List must be ${e.message}` } }
-    }
+    const length = control.value.length
+    if (minLength && length < minLength)
+      return {
+        listNotInRange: `List must contain at least ${minLength} entries`,
+      }
+    if (maxLength && length > maxLength)
+      return {
+        listNotInRange: `List cannot contain more than ${maxLength} entries`,
+      }
+    return null
+  }
+}
+
+export function datetimeMin(min: string): ValidatorFn {
+  return ({ value }) => {
+    if (!value) return null
+
+    const date = new Date(value.length === 5 ? `2000-01-01T${value}` : value)
+    const minDate = new Date(min.length === 5 ? `2000-01-01T${min}` : min)
+
+    return date < minDate ? { datetimeMin: `Minimum is ${min}` } : null
+  }
+}
+
+export function datetimeMax(max: string): ValidatorFn {
+  return ({ value }) => {
+    if (!value) return null
+
+    const date = new Date(value.length === 5 ? `2000-01-01T${value}` : value)
+    const maxDate = new Date(max.length === 5 ? `2000-01-01T${max}` : max)
+
+    return date > maxDate ? { datetimeMin: `Maximum is ${max}` } : null
+  }
+}
+
+export function textLengthInRange(
+  minLength: number | null,
+  maxLength: number | null,
+): ValidatorFn {
+  return control => {
+    const value = control.value
+    if (value === null || value === undefined) return null
+
+    const length = value.length
+    if (minLength && length < minLength)
+      return { listNotInRange: `Must be at least ${minLength} characters` }
+    if (maxLength && length > maxLength)
+      return { listNotInRange: `Cannot be great than ${maxLength} characters` }
+    return null
   }
 }
 
@@ -248,47 +344,36 @@ export function listItemIssue(): ValidatorFn {
     const { controls } = parentControl as UntypedFormArray
     const problemChild = controls.find(c => c.invalid)
     if (problemChild) {
-      return { listItemIssue: { value: 'Invalid entries' } }
+      return { listItemIssue: 'Invalid entries' }
     } else {
       return null
     }
   }
 }
 
-export function listUnique(spec: ValueSpecList): ValidatorFn {
+export function listUnique(spec: IST.ValueSpecList): ValidatorFn {
   return control => {
     const list = control.value
     for (let idx = 0; idx < list.length; idx++) {
       for (let idx2 = idx + 1; idx2 < list.length; idx2++) {
         if (listItemEquals(spec, list[idx], list[idx2])) {
+          const objSpec = spec.spec
           let display1: string
           let display2: string
-          let uniqueMessage = isObjectOrUnion(spec.spec)
-            ? uniqueByMessageWrapper(
-                spec.spec['unique-by'],
-                spec.spec,
-                list[idx],
-              )
+          let uniqueMessage = isListObject(objSpec)
+            ? uniqueByMessageWrapper(objSpec.uniqueBy, objSpec)
             : ''
 
-          if (isObjectOrUnion(spec.spec) && spec.spec['display-as']) {
-            display1 = `"${(Mustache as any).render(
-              spec.spec['display-as'],
-              list[idx],
-            )}"`
-            display2 = `"${(Mustache as any).render(
-              spec.spec['display-as'],
-              list[idx2],
-            )}"`
+          if (isListObject(objSpec) && objSpec.displayAs) {
+            display1 = `"${Mustache.render(objSpec.displayAs, list[idx])}"`
+            display2 = `"${Mustache.render(objSpec.displayAs, list[idx2])}"`
           } else {
             display1 = `Entry ${idx + 1}`
             display2 = `Entry ${idx2 + 1}`
           }
 
           return {
-            listNotUnique: {
-              value: `${display1} and ${display2} are not unique.${uniqueMessage}`,
-            },
+            listNotUnique: `${display1} and ${display2} are not unique.${uniqueMessage}`,
           }
         }
       }
@@ -297,49 +382,65 @@ export function listUnique(spec: ValueSpecList): ValidatorFn {
   }
 }
 
-function listItemEquals(spec: ValueSpecList, val1: any, val2: any): boolean {
-  // TODO: fix types
-  switch (spec.subtype) {
-    case 'string':
-    case 'number':
-    case 'enum':
+function listItemEquals(
+  spec: IST.ValueSpecList,
+  val1: any,
+  val2: any,
+): boolean {
+  switch (spec.spec.type) {
+    case 'text':
       return val1 == val2
     case 'object':
-      const obj: ListValueSpecObject = spec.spec as any
-
-      return listObjEquals(obj['unique-by'], obj, val1, val2)
-    case 'union':
-      const union: ListValueSpecUnion = spec.spec as any
-
-      return unionEquals(union['unique-by'], union, val1, val2)
+      const obj = spec.spec
+      return listObjEquals(obj.uniqueBy, obj, val1, val2)
     default:
       return false
   }
 }
 
-function itemEquals(spec: ValueSpec, val1: any, val2: any): boolean {
+function listObjEquals(
+  uniqueBy: IST.UniqueBy,
+  spec: IST.ListValueSpecObject,
+  val1: any,
+  val2: any,
+): boolean {
+  if (!uniqueBy) {
+    return false
+  } else if (typeof uniqueBy === 'string') {
+    const uniqueBySpec = spec.spec[uniqueBy]
+
+    return (
+      !!uniqueBySpec &&
+      uniqueByEquals(uniqueBySpec, val1[uniqueBy], val2[uniqueBy])
+    )
+  } else if ('any' in uniqueBy) {
+    for (let unique of uniqueBy.any) {
+      if (listObjEquals(unique, spec, val1, val2)) {
+        return true
+      }
+    }
+    return false
+  } else if ('all' in uniqueBy) {
+    for (let unique of uniqueBy.all) {
+      if (!listObjEquals(unique, spec, val1, val2)) {
+        return false
+      }
+    }
+    return true
+  }
+  return false
+}
+
+function uniqueByEquals(spec: IST.ValueSpec, val1: any, val2: any): boolean {
   switch (spec.type) {
-    case 'string':
+    case 'text':
+    case 'textarea':
     case 'number':
-    case 'boolean':
-    case 'enum':
+    case 'toggle':
+    case 'select':
+    case 'color':
+    case 'datetime':
       return val1 == val2
-    case 'object':
-      // TODO: 'unique-by' does not exist on ValueSpecObject, fix types
-      return objEquals(
-        (spec as any)['unique-by'],
-        spec as ValueSpecObject,
-        val1,
-        val2,
-      )
-    case 'union':
-      // TODO: 'unique-by' does not exist on ValueSpecUnion, fix types
-      return unionEquals(
-        (spec as any)['unique-by'],
-        spec as ValueSpecUnion,
-        val1,
-        val2,
-      )
     case 'list':
       if (val1.length !== val2.length) {
         return false
@@ -355,112 +456,11 @@ function itemEquals(spec: ValueSpec, val1: any, val2: any): boolean {
   }
 }
 
-function listObjEquals(
-  uniqueBy: UniqueBy,
-  spec: ListValueSpecObject,
-  val1: any,
-  val2: any,
-): boolean {
-  if (uniqueBy === null) {
-    return false
-  } else if (typeof uniqueBy === 'string') {
-    return itemEquals(spec.spec[uniqueBy], val1[uniqueBy], val2[uniqueBy])
-  } else if ('any' in uniqueBy) {
-    for (let subSpec of uniqueBy.any) {
-      if (listObjEquals(subSpec, spec, val1, val2)) {
-        return true
-      }
-    }
-    return false
-  } else if ('all' in uniqueBy) {
-    for (let subSpec of uniqueBy.all) {
-      if (!listObjEquals(subSpec, spec, val1, val2)) {
-        return false
-      }
-    }
-    return true
-  }
-  return false
-}
-
-function objEquals(
-  uniqueBy: UniqueBy,
-  spec: ValueSpecObject,
-  val1: any,
-  val2: any,
-): boolean {
-  if (uniqueBy === null) {
-    return false
-  } else if (typeof uniqueBy === 'string') {
-    // TODO: fix types
-    return itemEquals((spec as any)[uniqueBy], val1[uniqueBy], val2[uniqueBy])
-  } else if ('any' in uniqueBy) {
-    for (let subSpec of uniqueBy.any) {
-      if (objEquals(subSpec, spec, val1, val2)) {
-        return true
-      }
-    }
-    return false
-  } else if ('all' in uniqueBy) {
-    for (let subSpec of uniqueBy.all) {
-      if (!objEquals(subSpec, spec, val1, val2)) {
-        return false
-      }
-    }
-    return true
-  }
-  return false
-}
-
-function unionEquals(
-  uniqueBy: UniqueBy,
-  spec: ValueSpecUnion | ListValueSpecUnion,
-  val1: any,
-  val2: any,
-): boolean {
-  const tagId = spec.tag.id
-  const variant = spec.variants[val1[tagId]]
-  if (uniqueBy === null) {
-    return false
-  } else if (typeof uniqueBy === 'string') {
-    if (uniqueBy === tagId) {
-      return val1[tagId] === val2[tagId]
-    } else {
-      return itemEquals(variant[uniqueBy], val1[uniqueBy], val2[uniqueBy])
-    }
-  } else if ('any' in uniqueBy) {
-    for (let subSpec of uniqueBy.any) {
-      if (unionEquals(subSpec, spec, val1, val2)) {
-        return true
-      }
-    }
-    return false
-  } else if ('all' in uniqueBy) {
-    for (let subSpec of uniqueBy.all) {
-      if (!unionEquals(subSpec, spec, val1, val2)) {
-        return false
-      }
-    }
-    return true
-  }
-  return false
-}
-
 function uniqueByMessageWrapper(
-  uniqueBy: UniqueBy,
-  spec: ListValueSpecObject | ListValueSpecUnion,
-  obj: Record<string, string>,
+  uniqueBy: IST.UniqueBy,
+  spec: IST.ListValueSpecObject,
 ) {
-  let configSpec: ConfigSpec
-  if (isUnion(spec)) {
-    const tagId = spec.tag.id
-    configSpec = {
-      [tagId]: { name: spec.tag.name } as ValueSpec,
-      ...spec.variants[obj[tagId]],
-    }
-  } else {
-    configSpec = spec.spec
-  }
+  let configSpec = spec.spec
 
   const message = uniqueByMessage(uniqueBy, configSpec)
   if (message) {
@@ -469,17 +469,17 @@ function uniqueByMessageWrapper(
 }
 
 function uniqueByMessage(
-  uniqueBy: UniqueBy,
-  configSpec: ConfigSpec,
+  uniqueBy: IST.UniqueBy,
+  configSpec: IST.InputSpec,
   outermost = true,
 ): string {
   let joinFunc
   const subSpecs: string[] = []
-  if (uniqueBy === null) {
+  if (!uniqueBy) {
     return ''
   } else if (typeof uniqueBy === 'string') {
     return configSpec[uniqueBy]
-      ? (configSpec[uniqueBy] as ValueSpecObject).name
+      ? (configSpec[uniqueBy] as IST.ValueSpecObject).name
       : uniqueBy
   } else if ('any' in uniqueBy) {
     joinFunc = ' OR '
@@ -498,20 +498,15 @@ function uniqueByMessage(
     : '(' + ret + ')'
 }
 
-function isObjectOrUnion(
-  spec: ListValueSpecOf<any>,
-): spec is ListValueSpecObject | ListValueSpecUnion {
-  // only lists of objects and unions have unique-by
-  return 'unique-by' in spec
-}
-
-function isUnion(spec: any): spec is ListValueSpecUnion {
-  // only unions have tag
-  return !!spec.tag
+function isListObject(
+  spec: IST.ListValueSpecOf<any>,
+): spec is IST.ListValueSpecObject {
+  // only lists of objects have uniqueBy
+  return 'uniqueBy' in spec
 }
 
 export function convertValuesRecursive(
-  configSpec: ConfigSpec,
+  configSpec: IST.InputSpec,
   group: UntypedFormGroup,
 ) {
   Object.entries(configSpec).forEach(([key, valueSpec]) => {
@@ -523,39 +518,30 @@ export function convertValuesRecursive(
       control.setValue(
         control.value || control.value === 0 ? Number(control.value) : null,
       )
-    } else if (valueSpec.type === 'string') {
+    } else if (valueSpec.type === 'text' || valueSpec.type === 'textarea') {
       if (!control.value) control.setValue(null)
     } else if (valueSpec.type === 'object') {
       convertValuesRecursive(valueSpec.spec, group.get(key) as UntypedFormGroup)
     } else if (valueSpec.type === 'union') {
       const formGr = group.get(key) as UntypedFormGroup
-      const spec = valueSpec.variants[formGr.controls[valueSpec.tag.id].value]
-      convertValuesRecursive(spec, formGr)
+      const value = formGr.controls['selection']?.value
+      const spec = !!value && valueSpec.variants[value]?.spec
+
+      if (spec) {
+        convertValuesRecursive(spec, formGr)
+      }
     } else if (valueSpec.type === 'list') {
       const formArr = group.get(key) as UntypedFormArray
       const { controls } = formArr
 
-      if (valueSpec.subtype === 'number') {
-        controls.forEach(control => {
-          control.setValue(control.value ? Number(control.value) : null)
-        })
-      } else if (valueSpec.subtype === 'string') {
+      if (valueSpec.spec.type === 'text') {
         controls.forEach(control => {
           if (!control.value) control.setValue(null)
         })
-      } else if (valueSpec.subtype === 'object') {
+      } else if (valueSpec.spec.type === 'object') {
         controls.forEach(formGroup => {
-          const objectSpec = valueSpec.spec as ListValueSpecObject
+          const objectSpec = valueSpec.spec as IST.ListValueSpecObject
           convertValuesRecursive(objectSpec.spec, formGroup as UntypedFormGroup)
-        })
-      } else if (valueSpec.subtype === 'union') {
-        controls.forEach(formGroup => {
-          const unionSpec = valueSpec.spec as ListValueSpecUnion
-          const spec =
-            unionSpec.variants[
-              (formGroup as UntypedFormGroup).controls[unionSpec.tag.id].value
-            ]
-          convertValuesRecursive(spec, formGroup as UntypedFormGroup)
         })
       }
     }

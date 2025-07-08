@@ -1,131 +1,81 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::future::Future;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
-use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use helpers::to_tmp_path;
+use chrono::{TimeDelta, Utc};
+use helpers::NonDetachingJoinHandle;
+use imbl::OrdMap;
+use imbl_value::InternedString;
+use itertools::Itertools;
 use josekit::jwk::Jwk;
-use patch_db::json_ptr::JsonPointer;
-use patch_db::PatchDb;
-use reqwest::{Client, Proxy, Url};
-use rpc_toolkit::Context;
-use serde::Deserialize;
-use sqlx::postgres::PgConnectOptions;
-use sqlx::PgPool;
-use tokio::sync::{broadcast, oneshot, Mutex, RwLock};
+use models::{ActionId, PackageId};
+use reqwest::{Client, Proxy};
+use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{CallRemote, Context, Empty};
+use tokio::sync::{broadcast, oneshot, watch, Mutex, RwLock};
 use tokio::time::Instant;
 use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
 use crate::account::AccountInfo;
-use crate::core::rpc_continuations::{RequestGuid, RestHandler, RpcContinuation};
-use crate::db::model::{CurrentDependents, Database, PackageDataEntryMatchModelRef};
-use crate::db::prelude::PatchDbExt;
-use crate::dependencies::compute_dependency_config_errs;
+use crate::auth::Sessions;
+use crate::context::config::ServerConfig;
+use crate::db::model::package::TaskSeverity;
+use crate::db::model::Database;
 use crate::disk::OsPartitionInfo;
-use crate::init::{check_time_is_synchronized, init_postgres};
-use crate::install::cleanup::{cleanup_failed, uninstall};
-use crate::manager::ManagerMap;
-use crate::middleware::auth::HashSessionToken;
-use crate::net::net_controller::NetController;
-use crate::net::ssl::{root_ca_start_time, SslManager};
+use crate::init::{check_time_is_synchronized, InitResult};
+use crate::lxc::{ContainerId, LxcContainer, LxcManager};
+use crate::net::net_controller::{NetController, NetService};
+use crate::net::utils::{find_eth_iface, find_wifi_iface};
+use crate::net::web_server::{UpgradableListener, WebServerAcceptorSetter};
 use crate::net::wifi::WpaCli;
-use crate::notifications::NotificationManager;
+use crate::prelude::*;
+use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};
+use crate::rpc_continuations::{Guid, OpenAuthedContinuations, RpcContinuations};
+use crate::service::action::update_tasks;
+use crate::service::effects::callbacks::ServiceCallbacks;
+use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
-use crate::status::MainStatus;
-use crate::system::get_mem_info;
-use crate::util::config::load_config_from_paths;
-use crate::util::lshw::{lshw, LshwDevice};
-use crate::{Error, ErrorKind, ResultExt};
-
-#[derive(Debug, Default, Deserialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct RpcContextConfig {
-    pub wifi_interface: Option<String>,
-    pub ethernet_interface: String,
-    pub os_partitions: OsPartitionInfo,
-    pub migration_batch_rows: Option<usize>,
-    pub migration_prefetch_rows: Option<usize>,
-    pub bind_rpc: Option<SocketAddr>,
-    pub tor_control: Option<SocketAddr>,
-    pub tor_socks: Option<SocketAddr>,
-    pub dns_bind: Option<Vec<SocketAddr>>,
-    pub revision_cache_size: Option<usize>,
-    pub datadir: Option<PathBuf>,
-    pub log_server: Option<Url>,
-}
-impl RpcContextConfig {
-    pub async fn load<P: AsRef<Path> + Send + 'static>(path: Option<P>) -> Result<Self, Error> {
-        tokio::task::spawn_blocking(move || {
-            load_config_from_paths(
-                path.as_ref()
-                    .into_iter()
-                    .map(|p| p.as_ref())
-                    .chain(std::iter::once(Path::new(
-                        crate::util::config::DEVICE_CONFIG_PATH,
-                    )))
-                    .chain(std::iter::once(Path::new(crate::util::config::CONFIG_PATH))),
-            )
-        })
-        .await
-        .unwrap()
-    }
-    pub fn datadir(&self) -> &Path {
-        self.datadir
-            .as_deref()
-            .unwrap_or_else(|| Path::new("/embassy-data"))
-    }
-    pub async fn db(&self, account: &AccountInfo) -> Result<PatchDb, Error> {
-        let db_path = self.datadir().join("main").join("embassy.db");
-        let db = PatchDb::open(&db_path)
-            .await
-            .with_ctx(|_| (crate::ErrorKind::Filesystem, db_path.display().to_string()))?;
-        if !db.exists(&<JsonPointer>::default()).await {
-            db.put(&<JsonPointer>::default(), &Database::init(account))
-                .await?;
-        }
-        Ok(db)
-    }
-    #[instrument(skip_all)]
-    pub async fn secret_store(&self) -> Result<PgPool, Error> {
-        init_postgres(self.datadir()).await?;
-        let secret_store =
-            PgPool::connect_with(PgConnectOptions::new().database("secrets").username("root"))
-                .await?;
-        sqlx::migrate!()
-            .run(&secret_store)
-            .await
-            .with_kind(crate::ErrorKind::Database)?;
-        Ok(secret_store)
-    }
-}
+use crate::util::lshw::LshwDevice;
+use crate::util::sync::{SyncMutex, Watch};
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
     pub os_partitions: OsPartitionInfo,
     pub wifi_interface: Option<String>,
     pub ethernet_interface: String,
-    pub datadir: PathBuf,
     pub disk_guid: Arc<String>,
-    pub db: PatchDb,
-    pub secret_store: PgPool,
+    pub ephemeral_sessions: SyncMutex<Sessions>,
+    pub db: TypedPatchDb<Database>,
+    pub sync_db: watch::Sender<u64>,
     pub account: RwLock<AccountInfo>,
     pub net_controller: Arc<NetController>,
-    pub managers: ManagerMap,
-    pub metrics_cache: RwLock<Option<crate::system::Metrics>>,
+    pub os_net_service: NetService,
+    pub s9pk_arch: Option<&'static str>,
+    pub services: ServiceMap,
+    pub cancellable_installs: SyncMutex<BTreeMap<PackageId, oneshot::Sender<()>>>,
+    pub metrics_cache: Watch<Option<crate::system::Metrics>>,
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
     pub tor_socks: SocketAddr,
-    pub notification_manager: NotificationManager,
-    pub open_authed_websockets: Mutex<BTreeMap<HashSessionToken, Vec<oneshot::Sender<()>>>>,
-    pub rpc_stream_continuations: Mutex<BTreeMap<RequestGuid, RpcContinuation>>,
-    pub wifi_manager: Option<Arc<RwLock<WpaCli>>>,
+    pub lxc_manager: Arc<LxcManager>,
+    pub open_authed_continuations: OpenAuthedContinuations<Option<InternedString>>,
+    pub rpc_continuations: RpcContinuations,
+    pub callbacks: Arc<ServiceCallbacks>,
+    pub wifi_manager: Arc<RwLock<Option<WpaCli>>>,
     pub current_secret: Arc<Jwk>,
     pub client: Client,
-    pub hardware: Hardware,
     pub start_time: Instant,
+    pub crons: SyncMutex<BTreeMap<Guid, NonDetachingJoinHandle<()>>>,
+    // #[cfg(feature = "dev")]
+    pub dev: Dev,
+}
+
+pub struct Dev {
+    pub lxc: Mutex<BTreeMap<ContainerId, LxcContainer>>,
 }
 
 pub struct Hardware {
@@ -133,82 +83,172 @@ pub struct Hardware {
     pub ram: u64,
 }
 
+pub struct InitRpcContextPhases {
+    load_db: PhaseProgressTrackerHandle,
+    init_net_ctrl: PhaseProgressTrackerHandle,
+    cleanup_init: CleanupInitPhases,
+    run_migrations: PhaseProgressTrackerHandle,
+}
+impl InitRpcContextPhases {
+    pub fn new(handle: &FullProgressTracker) -> Self {
+        Self {
+            load_db: handle.add_phase("Loading database".into(), Some(5)),
+            init_net_ctrl: handle.add_phase("Initializing network".into(), Some(1)),
+            cleanup_init: CleanupInitPhases::new(handle),
+            run_migrations: handle.add_phase("Running migrations".into(), Some(10)),
+        }
+    }
+}
+
+pub struct CleanupInitPhases {
+    cleanup_sessions: PhaseProgressTrackerHandle,
+    init_services: PhaseProgressTrackerHandle,
+    check_tasks: PhaseProgressTrackerHandle,
+}
+impl CleanupInitPhases {
+    pub fn new(handle: &FullProgressTracker) -> Self {
+        Self {
+            cleanup_sessions: handle.add_phase("Cleaning up sessions".into(), Some(1)),
+            init_services: handle.add_phase("Initializing services".into(), Some(10)),
+            check_tasks: handle.add_phase("Checking action requests".into(), Some(1)),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct RpcContext(Arc<RpcContextSeed>);
 impl RpcContext {
     #[instrument(skip_all)]
-    pub async fn init<P: AsRef<Path> + Send + Sync + 'static>(
-        cfg_path: Option<P>,
+    pub async fn init(
+        webserver: &WebServerAcceptorSetter<UpgradableListener>,
+        config: &ServerConfig,
         disk_guid: Arc<String>,
+        init_result: Option<InitResult>,
+        InitRpcContextPhases {
+            mut load_db,
+            mut init_net_ctrl,
+            cleanup_init,
+            run_migrations,
+        }: InitRpcContextPhases,
     ) -> Result<Self, Error> {
-        let base = RpcContextConfig::load(cfg_path).await?;
-        tracing::info!("Loaded Config");
-        let tor_proxy = base.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
+        let tor_proxy = config.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
             Ipv4Addr::new(127, 0, 0, 1),
             9050,
         )));
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
-        let secret_store = base.secret_store().await?;
-        tracing::info!("Opened Pg DB");
-        let account = AccountInfo::load(&secret_store).await?;
-        let db = base.db(&account).await?;
-        tracing::info!("Opened PatchDB");
-        let net_controller = Arc::new(
-            NetController::init(
-                base.tor_control
-                    .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
-                tor_proxy,
-                base.dns_bind
-                    .as_deref()
-                    .unwrap_or(&[SocketAddr::from(([127, 0, 0, 1], 53))]),
-                SslManager::new(&account, root_ca_start_time().await?)?,
-                &account.hostname,
-                &account.key,
-            )
-            .await?,
-        );
-        tracing::info!("Initialized Net Controller");
-        let managers = ManagerMap::default();
-        let metrics_cache = RwLock::<Option<crate::system::Metrics>>::new(None);
-        let notification_manager = NotificationManager::new(secret_store.clone());
-        tracing::info!("Initialized Notification Manager");
-        let tor_proxy_url = format!("socks5h://{tor_proxy}");
-        let devices = lshw().await?;
-        let ram = get_mem_info().await?.total.0 as u64 * 1024 * 1024;
 
-        if !db.peek().await.as_server_info().as_ntp_synced().de()? {
+        load_db.start();
+        let db = if let Some(InitResult { net_ctrl, .. }) = &init_result {
+            net_ctrl.db.clone()
+        } else {
+            TypedPatchDb::<Database>::load(config.db().await?).await?
+        };
+        let peek = db.peek().await;
+        let account = AccountInfo::load(&peek)?;
+        load_db.complete();
+        tracing::info!("Opened PatchDB");
+
+        init_net_ctrl.start();
+        let (net_controller, os_net_service) = if let Some(InitResult {
+            net_ctrl,
+            os_net_service,
+        }) = init_result
+        {
+            (net_ctrl, os_net_service)
+        } else {
+            let net_ctrl = Arc::new(
+                NetController::init(
+                    db.clone(),
+                    config
+                        .tor_control
+                        .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
+                    tor_proxy,
+                    &account.hostname,
+                )
+                .await?,
+            );
+            webserver.try_upgrade(|a| net_ctrl.net_iface.upgrade_listener(a))?;
+            let os_net_service = net_ctrl.os_bindings().await?;
+            (net_ctrl, os_net_service)
+        };
+        init_net_ctrl.complete();
+        tracing::info!("Initialized Net Controller");
+
+        let services = ServiceMap::default();
+        let metrics_cache = Watch::<Option<crate::system::Metrics>>::new(None);
+        let tor_proxy_url = format!("socks5h://{tor_proxy}");
+
+        let crons = SyncMutex::new(BTreeMap::new());
+
+        if !db
+            .peek()
+            .await
+            .as_public()
+            .as_server_info()
+            .as_ntp_synced()
+            .de()?
+        {
             let db = db.clone();
-            tokio::spawn(async move {
-                while !check_time_is_synchronized().await.unwrap() {
-                    tokio::time::sleep(Duration::from_secs(30)).await;
-                }
-                db.mutate(|v| v.as_server_info_mut().as_ntp_synced_mut().ser(&true))
-                    .await
-                    .unwrap()
+            crons.mutate(|c| {
+                c.insert(
+                    Guid::new(),
+                    tokio::spawn(async move {
+                        while !check_time_is_synchronized().await.unwrap() {
+                            tokio::time::sleep(Duration::from_secs(30)).await;
+                        }
+                        db.mutate(|v| {
+                            v.as_public_mut()
+                                .as_server_info_mut()
+                                .as_ntp_synced_mut()
+                                .ser(&true)
+                        })
+                        .await
+                        .result
+                        .log_err();
+                    })
+                    .into(),
+                )
             });
         }
 
+        let wifi_interface = find_wifi_iface().await?;
+
         let seed = Arc::new(RpcContextSeed {
             is_closed: AtomicBool::new(false),
-            datadir: base.datadir().to_path_buf(),
-            os_partitions: base.os_partitions,
-            wifi_interface: base.wifi_interface.clone(),
-            ethernet_interface: base.ethernet_interface,
+            os_partitions: config.os_partitions.clone().ok_or_else(|| {
+                Error::new(
+                    eyre!("OS Partition Information Missing"),
+                    ErrorKind::Filesystem,
+                )
+            })?,
+            wifi_interface: wifi_interface.clone(),
+            ethernet_interface: if let Some(eth) = config.ethernet_interface.clone() {
+                eth
+            } else {
+                find_eth_iface().await?
+            },
             disk_guid,
+            ephemeral_sessions: SyncMutex::new(Sessions::new()),
+            sync_db: watch::Sender::new(db.sequence().await),
             db,
-            secret_store,
             account: RwLock::new(account),
+            callbacks: net_controller.callbacks.clone(),
             net_controller,
-            managers,
+            os_net_service,
+            s9pk_arch: if config.multi_arch_s9pks.unwrap_or(false) {
+                None
+            } else {
+                Some(crate::ARCH)
+            },
+            services,
+            cancellable_installs: SyncMutex::new(BTreeMap::new()),
             metrics_cache,
             shutdown,
             tor_socks: tor_proxy,
-            notification_manager,
-            open_authed_websockets: Mutex::new(BTreeMap::new()),
-            rpc_stream_continuations: Mutex::new(BTreeMap::new()),
-            wifi_manager: base
-                .wifi_interface
-                .map(|i| Arc::new(RwLock::new(WpaCli::init(i)))),
+            lxc_manager: Arc::new(LxcManager::new()),
+            open_authed_continuations: OpenAuthedContinuations::new(),
+            rpc_continuations: RpcContinuations::new(),
+            wifi_manager: Arc::new(RwLock::new(wifi_interface.clone().map(|i| WpaCli::init(i)))),
             current_secret: Arc::new(
                 Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).map_err(|e| {
                     tracing::debug!("{:?}", e);
@@ -229,228 +269,223 @@ impl RpcContext {
                 }))
                 .build()
                 .with_kind(crate::ErrorKind::ParseUrl)?,
-            hardware: Hardware { devices, ram },
             start_time: Instant::now(),
+            crons,
+            // #[cfg(feature = "dev")]
+            dev: Dev {
+                lxc: Mutex::new(BTreeMap::new()),
+            },
         });
 
         let res = Self(seed.clone());
-        res.cleanup_and_initialize().await?;
+        res.cleanup_and_initialize(cleanup_init).await?;
         tracing::info!("Cleaned up transient states");
+
+        crate::version::post_init(&res, run_migrations).await?;
+        tracing::info!("Completed migrations");
         Ok(res)
     }
 
     #[instrument(skip_all)]
     pub async fn shutdown(self) -> Result<(), Error> {
-        self.managers.empty().await?;
-        self.secret_store.close().await;
+        self.crons.mutate(|c| std::mem::take(c));
+        self.services.shutdown_all().await?;
         self.is_closed.store(true, Ordering::SeqCst);
         tracing::info!("RPC Context is shutdown");
-        // TODO: shutdown http servers
         Ok(())
     }
 
-    #[instrument(skip(self))]
-    pub async fn cleanup_and_initialize(&self) -> Result<(), Error> {
+    pub fn add_cron<F: Future<Output = ()> + Send + 'static>(&self, fut: F) -> Guid {
+        let guid = Guid::new();
+        self.crons
+            .mutate(|c| c.insert(guid.clone(), tokio::spawn(fut).into()));
+        guid
+    }
+
+    #[instrument(skip_all)]
+    pub async fn cleanup_and_initialize(
+        &self,
+        CleanupInitPhases {
+            mut cleanup_sessions,
+            init_services,
+            mut check_tasks,
+        }: CleanupInitPhases,
+    ) -> Result<(), Error> {
+        cleanup_sessions.start();
         self.db
-            .mutate(|f| {
-                let mut current_dependents = f
-                    .as_package_data()
-                    .keys()?
-                    .into_iter()
-                    .map(|k| (k.clone(), BTreeMap::new()))
-                    .collect::<BTreeMap<_, _>>();
-                for (package_id, package) in f.as_package_data_mut().as_entries_mut()? {
-                    for (k, v) in package
-                        .as_installed_mut()
-                        .into_iter()
-                        .flat_map(|i| i.clone().into_current_dependencies().into_entries())
-                        .flatten()
-                    {
-                        let mut entry: BTreeMap<_, _> =
-                            current_dependents.remove(&k).unwrap_or_default();
-                        entry.insert(package_id.clone(), v.de()?);
-                        current_dependents.insert(k, entry);
-                    }
-                }
-                for (package_id, current_dependents) in current_dependents {
-                    if let Some(deps) = f
-                        .as_package_data_mut()
-                        .as_idx_mut(&package_id)
-                        .and_then(|pde| pde.expect_as_installed_mut().ok())
-                        .map(|i| i.as_installed_mut().as_current_dependents_mut())
-                    {
-                        deps.ser(&CurrentDependents(current_dependents))?;
-                    } else if let Some(deps) = f
-                        .as_package_data_mut()
-                        .as_idx_mut(&package_id)
-                        .and_then(|pde| pde.expect_as_removing_mut().ok())
-                        .map(|i| i.as_removing_mut().as_current_dependents_mut())
-                    {
-                        deps.ser(&CurrentDependents(current_dependents))?;
-                    }
-                }
-                Ok(())
-            })
-            .await?;
-
-        let peek = self.db.peek().await;
-
-        for (package_id, package) in peek.as_package_data().as_entries()?.into_iter() {
-            let action = match package.as_match() {
-                PackageDataEntryMatchModelRef::Installing(_)
-                | PackageDataEntryMatchModelRef::Restoring(_)
-                | PackageDataEntryMatchModelRef::Updating(_) => {
-                    cleanup_failed(self, &package_id).await
-                }
-                PackageDataEntryMatchModelRef::Removing(_) => {
-                    uninstall(
-                        self,
-                        self.secret_store.acquire().await?.as_mut(),
-                        &package_id,
-                    )
-                    .await
-                }
-                PackageDataEntryMatchModelRef::Installed(m) => {
-                    let version = m.as_manifest().as_version().clone().de()?;
-                    let volumes = m.as_manifest().as_volumes().de()?;
-                    for (volume_id, volume_info) in &*volumes {
-                        let tmp_path = to_tmp_path(volume_info.path_for(
-                            &self.datadir,
-                            &package_id,
-                            &version,
-                            volume_id,
-                        ))
-                        .with_kind(ErrorKind::Filesystem)?;
-                        if tokio::fs::metadata(&tmp_path).await.is_ok() {
-                            tokio::fs::remove_dir_all(&tmp_path).await?;
+            .mutate(|db| {
+                if db.as_public().as_server_info().as_ntp_synced().de()? {
+                    for id in db.as_private().as_sessions().keys()? {
+                        if Utc::now()
+                            - db.as_private()
+                                .as_sessions()
+                                .as_idx(&id)
+                                .unwrap()
+                                .de()?
+                                .last_active
+                            > TimeDelta::days(30)
+                        {
+                            db.as_private_mut().as_sessions_mut().remove(&id)?;
                         }
                     }
-                    Ok(())
-                }
-                _ => continue,
-            };
-            if let Err(e) = action {
-                tracing::error!("Failed to clean up package {}: {}", package_id, e);
-                tracing::debug!("{:?}", e);
-            }
-        }
-        let peek = self
-            .db
-            .mutate(|v| {
-                for (_, pde) in v.as_package_data_mut().as_entries_mut()? {
-                    let status = pde
-                        .expect_as_installed_mut()?
-                        .as_installed_mut()
-                        .as_status_mut()
-                        .as_main_mut();
-                    let running = status.clone().de()?.running();
-                    status.ser(&if running {
-                        MainStatus::Starting
-                    } else {
-                        MainStatus::Stopped
-                    })?;
-                }
-                Ok(v.clone())
-            })
-            .await?;
-        self.managers.init(self.clone(), peek.clone()).await?;
-        tracing::info!("Initialized Package Managers");
-
-        let mut all_dependency_config_errs = BTreeMap::new();
-        for (package_id, package) in peek.as_package_data().as_entries()?.into_iter() {
-            let package = package.clone();
-            if let Some(current_dependencies) = package
-                .as_installed()
-                .and_then(|x| x.as_current_dependencies().de().ok())
-            {
-                let manifest = package.as_manifest().de()?;
-                all_dependency_config_errs.insert(
-                    package_id.clone(),
-                    compute_dependency_config_errs(
-                        self,
-                        &peek,
-                        &manifest,
-                        &current_dependencies,
-                        &Default::default(),
-                    )
-                    .await?,
-                );
-            }
-        }
-        self.db
-            .mutate(|v| {
-                for (package_id, errs) in all_dependency_config_errs {
-                    if let Some(config_errors) = v
-                        .as_package_data_mut()
-                        .as_idx_mut(&package_id)
-                        .and_then(|pde| pde.as_installed_mut())
-                        .map(|i| i.as_status_mut().as_dependency_config_errors_mut())
-                    {
-                        config_errors.ser(&errs)?;
-                    }
                 }
                 Ok(())
             })
-            .await?;
+            .await
+            .result?;
+        let db = self.db.clone();
+        self.add_cron(async move {
+            loop {
+                tokio::time::sleep(Duration::from_secs(86400)).await;
+                if let Err(e) = db
+                    .mutate(|db| {
+                        if db.as_public().as_server_info().as_ntp_synced().de()? {
+                            for id in db.as_private().as_sessions().keys()? {
+                                if Utc::now()
+                                    - db.as_private()
+                                        .as_sessions()
+                                        .as_idx(&id)
+                                        .unwrap()
+                                        .de()?
+                                        .last_active
+                                    > TimeDelta::days(30)
+                                {
+                                    db.as_private_mut().as_sessions_mut().remove(&id)?;
+                                }
+                            }
+                        }
+                        Ok(())
+                    })
+                    .await
+                    .result
+                {
+                    tracing::error!("Error in session cleanup cron: {e}");
+                    tracing::debug!("{e:?}");
+                }
+            }
+        });
+        cleanup_sessions.complete();
+
+        self.services.init(&self, init_services).await?;
+        tracing::info!("Initialized Services");
+
+        // TODO
+        check_tasks.start();
+        let peek = self.db.peek().await;
+        let mut action_input: OrdMap<PackageId, BTreeMap<ActionId, Value>> = OrdMap::new();
+        let tasks: BTreeSet<_> = peek
+            .as_public()
+            .as_package_data()
+            .as_entries()?
+            .into_iter()
+            .map(|(_, pde)| {
+                Ok(pde.as_tasks().as_entries()?.into_iter().map(|(_, r)| {
+                    Ok::<_, Error>((
+                        r.as_task().as_package_id().de()?,
+                        r.as_task().as_action_id().de()?,
+                    ))
+                }))
+            })
+            .flatten_ok()
+            .map(|a| a.and_then(|a| a))
+            .try_collect()?;
+        let procedure_id = Guid::new();
+        for (package_id, action_id) in tasks {
+            if let Some(service) = self.services.get(&package_id).await.as_ref() {
+                if let Some(input) = service
+                    .get_action_input(procedure_id.clone(), action_id.clone())
+                    .await
+                    .log_err()
+                    .flatten()
+                    .and_then(|i| i.value)
+                {
+                    action_input
+                        .entry(package_id)
+                        .or_default()
+                        .insert(action_id, input);
+                }
+            }
+        }
+        for id in
+            self.db
+                .mutate::<Vec<PackageId>>(|db| {
+                    for (package_id, action_input) in &action_input {
+                        for (action_id, input) in action_input {
+                            for (_, pde) in
+                                db.as_public_mut().as_package_data_mut().as_entries_mut()?
+                            {
+                                pde.as_tasks_mut().mutate(|tasks| {
+                                    Ok(update_tasks(tasks, package_id, action_id, input, false))
+                                })?;
+                            }
+                        }
+                    }
+                    db.as_public()
+                        .as_package_data()
+                        .as_entries()?
+                        .into_iter()
+                        .filter_map(|(id, pkg)| {
+                            (|| {
+                                if pkg.as_tasks().de()?.into_iter().any(|(_, t)| {
+                                    t.active && t.task.severity == TaskSeverity::Critical
+                                }) {
+                                    Ok(Some(id))
+                                } else {
+                                    Ok(None)
+                                }
+                            })()
+                            .transpose()
+                        })
+                        .collect()
+                })
+                .await
+                .result?
+        {
+            let svc = self.services.get(&id).await;
+            if let Some(svc) = &*svc {
+                svc.stop(procedure_id.clone(), false).await?;
+            }
+        }
+        check_tasks.complete();
 
         Ok(())
     }
-
-    #[instrument(skip_all)]
-    pub async fn clean_continuations(&self) {
-        let mut continuations = self.rpc_stream_continuations.lock().await;
-        let mut to_remove = Vec::new();
-        for (guid, cont) in &*continuations {
-            if cont.is_timed_out() {
-                to_remove.push(guid.clone());
-            }
-        }
-        for guid in to_remove {
-            continuations.remove(&guid);
-        }
-    }
-
-    #[instrument(skip_all)]
-    pub async fn add_continuation(&self, guid: RequestGuid, handler: RpcContinuation) {
-        self.clean_continuations().await;
-        self.rpc_stream_continuations
-            .lock()
+    pub async fn call_remote<RemoteContext>(
+        &self,
+        method: &str,
+        params: Value,
+    ) -> Result<Value, RpcError>
+    where
+        Self: CallRemote<RemoteContext>,
+    {
+        <Self as CallRemote<RemoteContext, Empty>>::call_remote(&self, method, params, Empty {})
             .await
-            .insert(guid, handler);
     }
-
-    pub async fn get_continuation_handler(&self, guid: &RequestGuid) -> Option<RestHandler> {
-        let mut continuations = self.rpc_stream_continuations.lock().await;
-        if let Some(cont) = continuations.remove(guid) {
-            cont.into_handler().await
-        } else {
-            None
-        }
-    }
-
-    pub async fn get_ws_continuation_handler(&self, guid: &RequestGuid) -> Option<RestHandler> {
-        let continuations = self.rpc_stream_continuations.lock().await;
-        if matches!(continuations.get(guid), Some(RpcContinuation::WebSocket(_))) {
-            drop(continuations);
-            self.get_continuation_handler(guid).await
-        } else {
-            None
-        }
-    }
-
-    pub async fn get_rest_continuation_handler(&self, guid: &RequestGuid) -> Option<RestHandler> {
-        let continuations = self.rpc_stream_continuations.lock().await;
-        if matches!(continuations.get(guid), Some(RpcContinuation::Rest(_))) {
-            drop(continuations);
-            self.get_continuation_handler(guid).await
-        } else {
-            None
-        }
+    pub async fn call_remote_with<RemoteContext, T>(
+        &self,
+        method: &str,
+        params: Value,
+        extra: T,
+    ) -> Result<Value, RpcError>
+    where
+        Self: CallRemote<RemoteContext, T>,
+    {
+        <Self as CallRemote<RemoteContext, T>>::call_remote(&self, method, params, extra).await
     }
 }
 impl AsRef<Jwk> for RpcContext {
     fn as_ref(&self) -> &Jwk {
         &CURRENT_SECRET
+    }
+}
+impl AsRef<RpcContinuations> for RpcContext {
+    fn as_ref(&self) -> &RpcContinuations {
+        &self.rpc_continuations
+    }
+}
+impl AsRef<OpenAuthedContinuations<Option<InternedString>>> for RpcContext {
+    fn as_ref(&self) -> &OpenAuthedContinuations<Option<InternedString>> {
+        &self.open_authed_continuations
     }
 }
 impl Context for RpcContext {}
@@ -471,10 +506,12 @@ impl Drop for RpcContext {
     fn drop(&mut self) {
         #[cfg(feature = "unstable")]
         if self.0.is_closed.load(Ordering::SeqCst) {
-            tracing::info!(
-                "RpcContext dropped. {} left.",
-                Arc::strong_count(&self.0) - 1
-            );
+            let count = Arc::strong_count(&self.0) - 1;
+            tracing::info!("RpcContext dropped. {} left.", count);
+            if count > 0 {
+                tracing::debug!("{}", std::backtrace::Backtrace::force_capture());
+                tracing::debug!("{:?}", eyre!(""))
+            }
         }
     }
 }

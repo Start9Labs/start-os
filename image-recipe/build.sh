@@ -18,10 +18,6 @@ echo "Saving results in: $RESULTS_DIR"
 
 IMAGE_BASENAME=startos-${VERSION_FULL}_${IB_TARGET_PLATFORM}
 
-mkdir -p $prep_results_dir
-
-cd $prep_results_dir
-
 QEMU_ARCH=${IB_TARGET_ARCH}
 BOOTLOADERS=grub-efi,syslinux
 if [ "$QEMU_ARCH" = 'amd64' ]; then
@@ -30,6 +26,19 @@ elif [ "$QEMU_ARCH" = 'arm64' ]; then
 	QEMU_ARCH=aarch64
 	BOOTLOADERS=grub-efi
 fi
+
+# TODO: remove when util-linux is released at v2.39
+cd $base_dir
+git clone --depth=1 --branch=v2.39.3 https://github.com/util-linux/util-linux.git
+cd util-linux
+./autogen.sh
+CC=$QEMU_ARCH-linux-gnu-gcc ./configure --host=$QEMU_ARCH-linux-gnu --disable-all-programs --enable-mount --enable-libmount --enable-libblkid --enable-libuuid --enable-static-programs
+CC=$QEMU_ARCH-linux-gnu-gcc make -j mount.static
+
+mkdir -p $prep_results_dir
+
+cd $prep_results_dir
+
 NON_FREE=
 if [[ "${IB_TARGET_PLATFORM}" =~ -nonfree$ ]] || [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	NON_FREE=1
@@ -48,21 +57,16 @@ if [ "$NON_FREE" = 1 ]; then
 	fi
 fi
 
-PLATFORM_CONFIG_EXTRAS=
+PLATFORM_CONFIG_EXTRAS=()
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-binary false"
-	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --firmware-chroot false"
-	# BEGIN stupid ugly hack
-	# The actual name of the package is `raspberrypi-kernel`
-	# live-build determines thte name of the package for the kernel by combining the `linux-packages` flag, with the `linux-flavours` flag
-	# the `linux-flavours` flag defaults to the architecture, so there's no way to remove the suffix.
-	# So we're doing this, cause thank the gods our package name contains a hypen. Cause if it didn't we'd be SOL
-	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-packages raspberrypi"
-	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours kernel"
-	# END stupid ugly hack
+	PLATFORM_CONFIG_EXTRAS+=( --firmware-binary false )
+	PLATFORM_CONFIG_EXTRAS+=( --firmware-chroot false )
+	PLATFORM_CONFIG_EXTRAS+=( --linux-packages linux-image-6.12.20+rpt )
+	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours "rpi-v8 rpi-2712" )
 elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
-	PLATFORM_CONFIG_EXTRAS="$PLATFORM_CONFIG_EXTRAS --linux-flavours rockchip64"
+	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours rockchip64 )
 fi
+
 
 cat > /etc/wgetrc << EOF
 retry_connrefused = on
@@ -84,12 +88,15 @@ lb config \
 	--bootstrap-qemu-arch ${IB_TARGET_ARCH} \
 	--bootstrap-qemu-static /usr/bin/qemu-${QEMU_ARCH}-static \
 	--archive-areas "${ARCHIVE_AREAS}" \
-	$PLATFORM_CONFIG_EXTRAS
+	${PLATFORM_CONFIG_EXTRAS[@]}
 
 # Overlays
 
 mkdir -p config/includes.chroot/deb
 cp $base_dir/deb/${IMAGE_BASENAME}.deb config/includes.chroot/deb/
+
+mkdir -p config/includes.chroot/usr/local/bin
+cp $base_dir/util-linux/mount.static config/includes.chroot/usr/local/bin/mount.next
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	cp -r $base_dir/raspberrypi/squashfs/* config/includes.chroot/
@@ -135,17 +142,19 @@ sed -i -e '2i set timeout=5' config/bootloaders/grub-pc/config.cfg
 mkdir -p config/archives
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	curl -fsSL https://archive.raspberrypi.org/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
-	echo "deb https://archive.raspberrypi.org/debian/ bullseye main" > config/archives/raspi.list
+	curl -fsSL https://archive.raspberrypi.com/debian/raspberrypi.gpg.key | gpg --dearmor -o config/archives/raspi.key
+	echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/raspi.key.gpg] https://archive.raspberrypi.com/debian/ ${IB_SUITE} main" > config/archives/raspi.list
 fi
 
-if [ "${IB_SUITE}" = "bullseye" ]; then
-	cat > config/archives/backports.pref <<- EOF
-	Package: *
-	Pin: release a=bullseye-backports
-	Pin-Priority: 500
-	EOF
-fi
+cat > config/archives/backports.pref <<- EOF
+Package: linux-image-*
+Pin: release n=${IB_SUITE}-backports
+Pin-Priority: 500
+
+Package: linux-base
+Pin: release n=${IB_SUITE}-backports
+Pin-Priority: 500
+EOF
 
 if [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	curl -fsSL https://apt.armbian.com/armbian.key | gpg --dearmor -o config/archives/armbian.key
@@ -158,21 +167,10 @@ echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/tor.key.gpg] 
 curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o config/archives/docker.key
 echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/docker.key.gpg] https://download.docker.com/linux/debian ${IB_SUITE} stable" > config/archives/docker.list
 
-echo "deb http://deb.debian.org/debian/ trixie main contrib" > config/archives/trixie.list
-cat > config/archives/trixie.pref <<- EOF
-Package: *
-Pin: release n=trixie
-Pin-Priority: 100
-
-Package: podman
-Pin: release n=trixie
-Pin-Priority: 600
-EOF
-
 # Dependencies
 
 ## Base dependencies
-dpkg-deb --fsys-tarfile $base_dir/deb/${IMAGE_BASENAME}.deb | tar --to-stdout -xvf - ./usr/lib/startos/depends > config/package-lists/embassy-depends.list.chroot
+dpkg-deb --fsys-tarfile $base_dir/deb/${IMAGE_BASENAME}.deb | tar --to-stdout -xvf - ./usr/lib/startos/depends > config/package-lists/startos-depends.list.chroot
 
 ## Firmware
 if [ "$NON_FREE" = 1 ]; then
@@ -180,7 +178,7 @@ if [ "$NON_FREE" = 1 ]; then
 fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	echo 'raspberrypi-bootloader rpi-update parted' > config/package-lists/bootloader.list.chroot
+	echo 'raspberrypi-net-mods raspberrypi-sys-mods raspi-config raspi-firmware raspi-gpio raspi-utils rpi-eeprom rpi-update rpi.gpio-common parted' > config/package-lists/bootloader.list.chroot
 else
 	echo 'grub-efi grub2-common' > config/package-lists/bootloader.list.chroot
 fi
@@ -205,16 +203,18 @@ if [ "${IB_SUITE}" = bookworm ]; then
 fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+	ln -sf /usr/bin/pi-beep /usr/local/bin/beep
+	SKIP_WARNING=1 SKIP_BOOTLOADER=1 SKIP_CHECK_PARTITION=1 WANT_64BIT=1 WANT_PI4=1 WANT_PI5=1 BOOT_PART=/boot rpi-update stable
 	for f in /usr/lib/modules/*; do
     	v=\${f#/usr/lib/modules/}
 		echo "Configuring raspi kernel '\$v'"
     	extract-ikconfig "/usr/lib/modules/\$v/kernel/kernel/configs.ko.xz" > /boot/config-\$v
-		update-initramfs -c -k \$v
 	done
-	ln -sf /usr/bin/pi-beep /usr/local/bin/beep
+	mkinitramfs -c gzip -o /boot/initramfs8 6.12.25-v8+
+	mkinitramfs -c gzip -o /boot/initramfs_2712 6.12.25-v8-16k+
 fi
 
-useradd --shell /bin/bash -G embassy -m start9
+useradd --shell /bin/bash -G startos -m start9
 echo start9:embassy | chpasswd
 usermod -aG sudo start9
 
@@ -313,18 +313,31 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 
 	TMPDIR=$(mktemp -d)
 
-	mount `partition_for ${OUTPUT_DEVICE} 2` $TMPDIR
-	mkdir $TMPDIR/boot
+	mkdir -p $TMPDIR/boot $TMPDIR/root 
+	mount `partition_for ${OUTPUT_DEVICE} 2` $TMPDIR/root
 	mount `partition_for ${OUTPUT_DEVICE} 1` $TMPDIR/boot
-	unsquashfs -f -d $TMPDIR $prep_results_dir/binary/live/filesystem.squashfs
+	unsquashfs -n -f -d $TMPDIR $prep_results_dir/binary/live/filesystem.squashfs boot
+
+	mkdir $TMPDIR/root/images $TMPDIR/root/config
+	B3SUM=$(b3sum $prep_results_dir/binary/live/filesystem.squashfs | head -c 16)
+	cp $prep_results_dir/binary/live/filesystem.squashfs $TMPDIR/root/images/$B3SUM.rootfs
+	ln -rsf $TMPDIR/root/images/$B3SUM.rootfs $TMPDIR/root/config/current.rootfs
+
+	mkdir -p $TMPDIR/next $TMPDIR/lower $TMPDIR/root/config/work $TMPDIR/root/config/overlay
+	mount $TMPDIR/root/config/current.rootfs $TMPDIR/lower
+
+	mount -t overlay -o lowerdir=$TMPDIR/lower,workdir=$TMPDIR/root/config/work,upperdir=$TMPDIR/root/config/overlay overlay $TMPDIR/next
 
 	if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-		sed -i 's| boot=embassy| init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
-		rsync -a $base_dir/raspberrypi/img/ $TMPDIR/
+		sed -i 's| boot=startos| boot=startos init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
+		rsync -a $base_dir/raspberrypi/img/ $TMPDIR/next/
 	fi
 
+	umount $TMPDIR/next
+	umount $TMPDIR/lower
+
 	umount $TMPDIR/boot
-	umount $TMPDIR
+	umount $TMPDIR/root
 
 	e2fsck -fy `partition_for ${OUTPUT_DEVICE} 2`
 	resize2fs -M `partition_for ${OUTPUT_DEVICE} 2`

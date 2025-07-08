@@ -11,13 +11,16 @@
       "prefix": "app",
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:browser",
+          "builder": "@angular/build:application",
           "options": {
             "preserveSymlinks": true,
-            "outputPath": "dist/raw/ui",
+            "outputPath": {
+              "base": "dist/raw/ui",
+              "browser": ""
+            },
             "index": "projects/ui/src/index.html",
-            "main": "projects/ui/src/main.ts",
-            "polyfills": "projects/ui/src/polyfills.ts",
+            "browser": "projects/ui/src/main.ts",
+            "polyfills": ["zone.js", "projects/ui/src/polyfills.ts"],
             "tsConfig": "projects/ui/tsconfig.json",
             "inlineStyleLanguage": "scss",
             "assets": [
@@ -27,9 +30,9 @@
                 "output": "assets"
               },
               {
-                "glob": "**/*.svg",
-                "input": "node_modules/ionicons/dist/ionicons/svg",
-                "output": "./svg"
+                "glob": "**/*.wasm",
+                "input": "node_modules/@start9labs/argon2",
+                "output": "assets"
               },
               {
                 "glob": "**/*",
@@ -41,26 +44,23 @@
                 "input": "node_modules/@taiga-ui/icons/src",
                 "output": "assets/taiga-ui/icons"
               },
-              "projects/ui/src/manifest.webmanifest",
-              {
-                "glob": "ngsw.json",
-                "input": "dist/raw/ui",
-                "output": "projects/ui/src"
-              }
+              "projects/ui/src/manifest.webmanifest"
             ],
             "styles": [
               "node_modules/@taiga-ui/core/styles/taiga-ui-theme.less",
-              "projects/shared/styles/variables.scss",
-              "projects/shared/styles/global.scss",
+              "projects/shared/styles/taiga.scss",
               "projects/shared/styles/shared.scss",
               "projects/ui/src/styles.scss"
             ],
             "scripts": [],
-            "ngswConfigPath": "projects/ui/ngsw-config.json"
+            "loader": {
+              ".md": "text"
+            },
+            "serviceWorker": "projects/ui/ngsw-config.json"
           },
           "configurations": {
             "production": {
-              "serviceWorker": true,
+              "serviceWorker": "projects/ui/ngsw-config.json",
               "budgets": [
                 {
                   "type": "initial",
@@ -74,12 +74,11 @@
                   "with": "projects/ui/src/environments/environment.prod.ts"
                 }
               ],
-              "outputHashing": "all"
+              "outputHashing": "all",
+              "extractLicenses": false
             },
             "development": {
-              "buildOptimizer": false,
               "optimization": false,
-              "vendorChunk": true,
               "extractLicenses": false,
               "sourceMap": true,
               "namedChunks": true
@@ -91,21 +90,24 @@
           "defaultConfiguration": "production"
         },
         "serve": {
-          "builder": "@angular-devkit/build-angular:dev-server",
+          "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "browserTarget": "ui:build:production"
+              "buildTarget": "ui:build:production"
             },
             "development": {
-              "browserTarget": "ui:build:development"
+              "buildTarget": "ui:build:development"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "development",
+          "options": {
+            "port": 8100
+          }
         },
         "extract-i18n": {
-          "builder": "@angular-devkit/build-angular:extract-i18n",
+          "builder": "@angular/build:extract-i18n",
           "options": {
-            "browserTarget": "ui:build"
+            "buildTarget": "ui:build"
           }
         },
         "lint": {
@@ -115,30 +117,6 @@
               "projects/ui/src/**/*.ts",
               "projects/ui/src/**/*.html"
             ]
-          }
-        },
-        "ionic-cordova-build": {
-          "builder": "@ionic/angular-toolkit:cordova-build",
-          "options": {
-            "browserTarget": "ui:build"
-          },
-          "configurations": {
-            "production": {
-              "browserTarget": "ui:build:production"
-            }
-          }
-        },
-        "ionic-cordova-serve": {
-          "builder": "@ionic/angular-toolkit:cordova-serve",
-          "options": {
-            "cordovaBuildTarget": "ui:ionic-cordova-build",
-            "devServerTarget": "ui:serve"
-          },
-          "configurations": {
-            "production": {
-              "cordovaBuildTarget": "ui:ionic-cordova-build:production",
-              "devServerTarget": "ui:serve:production"
-            }
           }
         }
       }
@@ -151,12 +129,15 @@
       "prefix": "app",
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:browser",
+          "builder": "@angular/build:application",
           "options": {
-            "outputPath": "dist/raw/install-wizard",
+            "outputPath": {
+              "base": "dist/raw/install-wizard",
+              "browser": ""
+            },
             "index": "projects/install-wizard/src/index.html",
-            "main": "projects/install-wizard/src/main.ts",
-            "polyfills": "projects/install-wizard/src/polyfills.ts",
+            "browser": "projects/install-wizard/src/main.ts",
+            "polyfills": ["zone.js"],
             "tsConfig": "projects/install-wizard/tsconfig.json",
             "inlineStyleLanguage": "scss",
             "assets": [
@@ -169,13 +150,15 @@
                 "glob": "**/*.svg",
                 "input": "node_modules/ionicons/dist/ionicons/svg",
                 "output": "./svg"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/@taiga-ui/icons/src",
+                "output": "assets/taiga-ui/icons"
               }
             ],
             "styles": [
-              "projects/shared/styles/variables.scss",
-              "projects/shared/styles/global.scss",
-              "projects/shared/styles/shared.scss",
-              "projects/install-wizard/src/styles.scss"
+              "node_modules/@taiga-ui/core/styles/taiga-ui-theme.less"
             ],
             "scripts": []
           },
@@ -193,8 +176,6 @@
               "namedChunks": false,
               "aot": true,
               "extractLicenses": true,
-              "vendorChunk": false,
-              "buildOptimizer": true,
               "budgets": [
                 {
                   "type": "initial",
@@ -207,9 +188,7 @@
               "progress": false
             },
             "development": {
-              "buildOptimizer": false,
               "optimization": false,
-              "vendorChunk": true,
               "extractLicenses": false,
               "sourceMap": true,
               "namedChunks": true
@@ -218,24 +197,25 @@
           "defaultConfiguration": "production"
         },
         "serve": {
-          "builder": "@angular-devkit/build-angular:dev-server",
+          "builder": "@angular/build:dev-server",
           "options": {
-            "browserTarget": "install-wizard:build"
+            "buildTarget": "install-wizard:build",
+            "port": 8100
           },
           "configurations": {
             "production": {
-              "browserTarget": "install-wizard:build:production"
+              "buildTarget": "install-wizard:build:production"
             },
             "development": {
-              "browserTarget": "install-wizard:build:development"
+              "buildTarget": "install-wizard:build:development"
             }
           },
           "defaultConfiguration": "development"
         },
         "extract-i18n": {
-          "builder": "@angular-devkit/build-angular:extract-i18n",
+          "builder": "@angular/build:extract-i18n",
           "options": {
-            "browserTarget": "install-wizard:build"
+            "buildTarget": "install-wizard:build"
           }
         },
         "lint": {
@@ -245,30 +225,6 @@
               "projects/install-wizard/src/**/*.ts",
               "projects/install-wizard/src/**/*.html"
             ]
-          }
-        },
-        "ionic-cordova-build": {
-          "builder": "@ionic/angular-toolkit:cordova-build",
-          "options": {
-            "browserTarget": "install-wizard:build"
-          },
-          "configurations": {
-            "production": {
-              "browserTarget": "install-wizard:build:production"
-            }
-          }
-        },
-        "ionic-cordova-serve": {
-          "builder": "@ionic/angular-toolkit:cordova-serve",
-          "options": {
-            "cordovaBuildTarget": "install-wizard:ionic-cordova-build",
-            "devServerTarget": "install-wizard:serve"
-          },
-          "configurations": {
-            "production": {
-              "cordovaBuildTarget": "install-wizard:ionic-cordova-build:production",
-              "devServerTarget": "install-wizard:serve:production"
-            }
           }
         }
       }
@@ -281,12 +237,15 @@
       "prefix": "app",
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:browser",
+          "builder": "@angular/build:application",
           "options": {
-            "outputPath": "dist/raw/setup-wizard",
+            "outputPath": {
+              "base": "dist/raw/setup-wizard",
+              "browser": ""
+            },
             "index": "projects/setup-wizard/src/index.html",
-            "main": "projects/setup-wizard/src/main.ts",
-            "polyfills": "projects/setup-wizard/src/polyfills.ts",
+            "browser": "projects/setup-wizard/src/main.ts",
+            "polyfills": ["zone.js"],
             "tsConfig": "projects/setup-wizard/tsconfig.json",
             "inlineStyleLanguage": "scss",
             "assets": [
@@ -296,14 +255,19 @@
                 "output": "assets"
               },
               {
-                "glob": "**/*.svg",
-                "input": "node_modules/ionicons/dist/ionicons/svg",
-                "output": "./svg"
+                "glob": "**/*.wasm",
+                "input": "node_modules/@start9labs/argon2",
+                "output": "assets"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/@taiga-ui/icons/src",
+                "output": "assets/taiga-ui/icons"
               }
             ],
             "styles": [
-              "projects/shared/styles/variables.scss",
-              "projects/shared/styles/global.scss",
+              "node_modules/@taiga-ui/core/styles/taiga-ui-theme.less",
+              "projects/shared/styles/taiga.scss",
               "projects/shared/styles/shared.scss",
               "projects/setup-wizard/src/styles.scss"
             ],
@@ -327,9 +291,7 @@
               "outputHashing": "all"
             },
             "development": {
-              "buildOptimizer": false,
               "optimization": false,
-              "vendorChunk": true,
               "extractLicenses": false,
               "sourceMap": true,
               "namedChunks": true
@@ -341,21 +303,24 @@
           "defaultConfiguration": "production"
         },
         "serve": {
-          "builder": "@angular-devkit/build-angular:dev-server",
+          "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "browserTarget": "setup-wizard:build:production"
+              "buildTarget": "setup-wizard:build:production"
             },
             "development": {
-              "browserTarget": "setup-wizard:build:development"
+              "buildTarget": "setup-wizard:build:development"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "development",
+          "options": {
+            "port": 8100
+          }
         },
         "extract-i18n": {
-          "builder": "@angular-devkit/build-angular:extract-i18n",
+          "builder": "@angular/build:extract-i18n",
           "options": {
-            "browserTarget": "setup-wizard:build"
+            "buildTarget": "setup-wizard:build"
           }
         },
         "lint": {
@@ -365,160 +330,6 @@
               "projects/setup-wizard/src/**/*.ts",
               "projects/setup-wizard/src/**/*.html"
             ]
-          }
-        },
-        "ionic-cordova-build": {
-          "builder": "@ionic/angular-toolkit:cordova-build",
-          "options": {
-            "browserTarget": "setup-wizard:build"
-          },
-          "configurations": {
-            "production": {
-              "browserTarget": "setup-wizard:build:production"
-            }
-          }
-        },
-        "ionic-cordova-serve": {
-          "builder": "@ionic/angular-toolkit:cordova-serve",
-          "options": {
-            "cordovaBuildTarget": "setup-wizard:ionic-cordova-build",
-            "devServerTarget": "setup-wizard:serve"
-          },
-          "configurations": {
-            "production": {
-              "cordovaBuildTarget": "setup-wizard:ionic-cordova-build:production",
-              "devServerTarget": "setup-wizard:serve:production"
-            }
-          }
-        }
-      }
-    },
-    "diagnostic-ui": {
-      "projectType": "application",
-      "schematics": {},
-      "root": "projects/diagnostic-ui",
-      "sourceRoot": "projects/diagnostic-ui/src",
-      "prefix": "app",
-      "architect": {
-        "build": {
-          "builder": "@angular-devkit/build-angular:browser",
-          "options": {
-            "outputPath": "dist/raw/diagnostic-ui",
-            "index": "projects/diagnostic-ui/src/index.html",
-            "main": "projects/diagnostic-ui/src/main.ts",
-            "polyfills": "projects/diagnostic-ui/src/polyfills.ts",
-            "tsConfig": "projects/diagnostic-ui/tsconfig.json",
-            "inlineStyleLanguage": "scss",
-            "assets": [
-              {
-                "glob": "**/*",
-                "input": "projects/shared/assets",
-                "output": "assets"
-              },
-              {
-                "glob": "**/*.svg",
-                "input": "node_modules/ionicons/dist/ionicons/svg",
-                "output": "./svg"
-              }
-            ],
-            "styles": [
-              "projects/shared/styles/variables.scss",
-              "projects/shared/styles/global.scss",
-              "projects/shared/styles/shared.scss",
-              "projects/diagnostic-ui/src/styles.scss"
-            ],
-            "scripts": []
-          },
-          "configurations": {
-            "production": {
-              "fileReplacements": [
-                {
-                  "replace": "projects/diagnostic-ui/src/environments/environment.ts",
-                  "with": "projects/diagnostic-ui/src/environments/environment.prod.ts"
-                }
-              ],
-              "optimization": true,
-              "outputHashing": "all",
-              "sourceMap": false,
-              "namedChunks": false,
-              "aot": true,
-              "extractLicenses": true,
-              "vendorChunk": false,
-              "buildOptimizer": true,
-              "budgets": [
-                {
-                  "type": "initial",
-                  "maximumWarning": "2mb",
-                  "maximumError": "5mb"
-                }
-              ]
-            },
-            "ci": {
-              "progress": false
-            },
-            "development": {
-              "buildOptimizer": false,
-              "optimization": false,
-              "vendorChunk": true,
-              "extractLicenses": false,
-              "sourceMap": true,
-              "namedChunks": true
-            }
-          },
-          "defaultConfiguration": "production"
-        },
-        "serve": {
-          "builder": "@angular-devkit/build-angular:dev-server",
-          "options": {
-            "browserTarget": "diagnostic-ui:build"
-          },
-          "configurations": {
-            "production": {
-              "browserTarget": "diagnostic-ui:build:production"
-            },
-            "development": {
-              "browserTarget": "diagnostic-ui:build:development"
-            }
-          },
-          "defaultConfiguration": "development"
-        },
-        "extract-i18n": {
-          "builder": "@angular-devkit/build-angular:extract-i18n",
-          "options": {
-            "browserTarget": "diagnostic-ui:build"
-          }
-        },
-        "lint": {
-          "builder": "@angular-eslint/builder:lint",
-          "options": {
-            "lintFilePatterns": [
-              "projects/diagnostic-ui/src/**/*.ts",
-              "projects/diagnostic-ui/src/**/*.html"
-            ]
-          }
-        },
-        "ionic-cordova-build": {
-          "builder": "@ionic/angular-toolkit:cordova-build",
-          "options": {
-            "browserTarget": "diagnostic-ui:build"
-          },
-          "configurations": {
-            "production": {
-              "browserTarget": "diagnostic-ui:build:production"
-            }
-          }
-        },
-        "ionic-cordova-serve": {
-          "builder": "@ionic/angular-toolkit:cordova-serve",
-          "options": {
-            "cordovaBuildTarget": "diagnostic-ui:ionic-cordova-build",
-            "devServerTarget": "diagnostic-ui:serve"
-          },
-          "configurations": {
-            "production": {
-              "cordovaBuildTarget": "diagnostic-ui:ionic-cordova-build:production",
-              "devServerTarget": "diagnostic-ui:serve:production"
-            }
           }
         }
       }
@@ -530,7 +341,7 @@
       "prefix": "lib",
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:ng-packagr",
+          "builder": "@angular/build:ng-packagr",
           "options": {
             "project": "projects/marketplace/ng-package.json"
           },
@@ -550,7 +361,7 @@
       "prefix": "lib",
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:ng-packagr",
+          "builder": "@angular/build:ng-packagr",
           "options": {
             "project": "projects/shared/ng-package.json"
           },
@@ -565,15 +376,16 @@
     }
   },
   "cli": {
-    "schematicCollections": ["@ionic/angular-toolkit"],
+    "schematicCollections": [],
     "analytics": false
   },
   "schematics": {
-    "@ionic/angular-toolkit:component": {
-      "styleext": "scss"
-    },
-    "@ionic/angular-toolkit:page": {
-      "styleext": "scss"
+    "@schematics/angular:component": {
+      "displayBlock": true,
+      "changeDetection": "OnPush",
+      "style": "scss",
+      "skipTests": true,
+      "skipImport": true
     }
   }
 }

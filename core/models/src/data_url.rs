@@ -6,11 +6,13 @@ use color_eyre::eyre::eyre;
 use reqwest::header::CONTENT_TYPE;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncRead, AsyncReadExt};
+use ts_rs::TS;
 use yasi::InternedString;
 
 use crate::{mime, Error, ErrorKind, ResultExt};
 
-#[derive(Clone)]
+#[derive(Clone, TS)]
+#[ts(type = "string")]
 pub struct DataUrl<'a> {
     mime: InternedString,
     data: Cow<'a, [u8]>,
@@ -166,6 +168,6 @@ fn doesnt_reallocate() {
             mime: InternedString::intern("png"),
             data: Cow::Borrowed(&random[..i]),
         };
-        assert_eq!(dbg!(icon.to_string()).capacity(), icon.data_url_len());
+        assert_eq!(icon.to_string().capacity(), icon.data_url_len());
     }
 }

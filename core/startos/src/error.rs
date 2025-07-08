@@ -1,4 +1,3 @@
-use color_eyre::eyre::eyre;
 pub use models::{Error, ErrorKind, OptionExt, ResultExt};
 
 #[derive(Debug, Default)]
@@ -18,11 +17,15 @@ impl ErrorCollection {
         }
     }
 
-    pub fn into_result(self) -> Result<(), Error> {
-        if self.0.is_empty() {
-            Ok(())
+    pub fn into_result(mut self) -> Result<(), Error> {
+        if self.0.len() <= 1 {
+            if let Some(err) = self.0.pop() {
+                Err(err)
+            } else {
+                Ok(())
+            }
         } else {
-            Err(Error::new(eyre!("{}", self), ErrorKind::MultipleErrors))
+            Err(Error::new(self, ErrorKind::MultipleErrors))
         }
     }
 }
@@ -49,12 +52,13 @@ impl std::fmt::Display for ErrorCollection {
         Ok(())
     }
 }
+impl std::error::Error for ErrorCollection {}
 
 #[macro_export]
 macro_rules! ensure_code {
     ($x:expr, $c:expr, $fmt:expr $(, $arg:expr)*) => {
         if !($x) {
-            return Err(crate::error::Error::new(color_eyre::eyre::eyre!($fmt, $($arg, )*), $c));
+            Err::<(), _>(crate::error::Error::new(color_eyre::eyre::eyre!($fmt, $($arg, )*), $c))?;
         }
     };
 }

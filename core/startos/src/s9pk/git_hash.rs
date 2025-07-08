@@ -1,30 +1,76 @@
+use std::ops::Deref;
 use std::path::Path;
 
-use crate::Error;
+use tokio::process::Command;
+use ts_rs::TS;
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+use crate::prelude::*;
+use crate::util::Invoke;
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, TS)]
+#[ts(type = "string")]
 pub struct GitHash(String);
 
 impl GitHash {
     pub async fn from_path(path: impl AsRef<Path>) -> Result<GitHash, Error> {
-        let hash = tokio::process::Command::new("git")
-            .args(["describe", "--always", "--abbrev=40", "--dirty=-modified"])
-            .current_dir(path)
-            .output()
-            .await?;
-        if !hash.status.success() {
-            return Err(Error::new(
-                color_eyre::eyre::eyre!("Could not get hash: {}", String::from_utf8(hash.stderr)?),
-                crate::ErrorKind::Filesystem,
-            ));
+        let mut hash = String::from_utf8(
+            Command::new("git")
+                .arg("rev-parse")
+                .arg("HEAD")
+                .current_dir(&path)
+                .invoke(ErrorKind::Git)
+                .await?,
+        )?;
+        if Command::new("git")
+            .arg("diff-index")
+            .arg("--quiet")
+            .arg("HEAD")
+            .arg("--")
+            .invoke(ErrorKind::Git)
+            .await
+            .is_err()
+        {
+            hash += "-modified";
         }
-        Ok(GitHash(String::from_utf8(hash.stdout)?))
+        Ok(GitHash(hash))
+    }
+    pub fn load_sync() -> Option<GitHash> {
+        let mut hash = String::from_utf8(
+            std::process::Command::new("git")
+                .arg("rev-parse")
+                .arg("HEAD")
+                .output()
+                .ok()?
+                .stdout,
+        )
+        .ok()?;
+        if !std::process::Command::new("git")
+            .arg("diff-index")
+            .arg("--quiet")
+            .arg("HEAD")
+            .arg("--")
+            .output()
+            .ok()?
+            .status
+            .success()
+        {
+            hash += "-modified";
+        }
+
+        Some(GitHash(hash))
     }
 }
 
 impl AsRef<str> for GitHash {
     fn as_ref(&self) -> &str {
         &self.0
+    }
+}
+
+impl Deref for GitHash {
+    type Target = str;
+    fn deref(&self) -> &Self::Target {
+        self.as_ref()
     }
 }
 

@@ -1,188 +1,153 @@
-import { isEmptyObject } from '@start9labs/shared'
-import {
-  MainStatusStarting,
-  PackageDataEntry,
-  PackageMainStatus,
-  PackageState,
-  Status,
-} from 'src/app/services/patch-db/data-model'
-import { PkgDependencyErrors } from './dep-error.service'
+import { i18nKey } from '@start9labs/shared'
+import { T } from '@start9labs/start-sdk'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 
 export interface PackageStatus {
   primary: PrimaryStatus
-  dependency: DependencyStatus | null
-  health: HealthStatus | null
+  health: T.HealthStatus | null
 }
 
-export function renderPkgStatus(
-  pkg: PackageDataEntry,
-  depErrors: PkgDependencyErrors,
-): PackageStatus {
+export function renderPkgStatus(pkg: PackageDataEntry): PackageStatus {
   let primary: PrimaryStatus
-  let dependency: DependencyStatus | null = null
-  let health: HealthStatus | null = null
+  let health: T.HealthStatus | null = null
 
-  if (pkg.state === PackageState.Installed && pkg.installed) {
-    primary = getPrimaryStatus(pkg.installed.status)
-    dependency = getDependencyStatus(depErrors)
-    health = getHealthStatus(
-      pkg.installed.status,
-      !isEmptyObject(pkg.manifest['health-checks']),
-    )
+  if (pkg.stateInfo.state === 'installed') {
+    primary = getInstalledPrimaryStatus(pkg)
+    health = getHealthStatus(pkg.status)
   } else {
-    primary = pkg.state as string as PrimaryStatus
+    primary = pkg.stateInfo.state
   }
 
-  return { primary, dependency, health }
+  return { primary, health }
 }
 
-function getPrimaryStatus(status: Status): PrimaryStatus {
-  if (!status.configured) {
-    return PrimaryStatus.NeedsConfig
-  } else if ((status.main as MainStatusStarting).restarting) {
-    return PrimaryStatus.Restarting
-  } else {
-    return status.main.status as any as PrimaryStatus
-  }
+export function getInstalledPrimaryStatus({
+  tasks,
+  status,
+}: T.PackageDataEntry): PrimaryStatus {
+  return Object.values(tasks).some(
+    t => t.active && t.task.severity === 'critical',
+  )
+    ? 'actionRequired'
+    : status.main
 }
 
-function getDependencyStatus(depErrors: PkgDependencyErrors): DependencyStatus {
-  return Object.values(depErrors).some(err => !!err)
-    ? DependencyStatus.Warning
-    : DependencyStatus.Satisfied
-}
-
-function getHealthStatus(
-  status: Status,
-  hasHealthChecks: boolean,
-): HealthStatus | null {
-  if (status.main.status !== PackageMainStatus.Running || !status.main.health) {
+function getHealthStatus(status: T.MainStatus): T.HealthStatus | null {
+  if (status.main !== 'running' || !status.main) {
     return null
   }
 
-  const values = Object.values(status.main.health)
+  const values = Object.values(status.health)
 
   if (values.some(h => h.result === 'failure')) {
-    return HealthStatus.Failure
-  }
-
-  if (!values.length && hasHealthChecks) {
-    return HealthStatus.Waiting
+    return 'failure'
   }
 
   if (values.some(h => h.result === 'loading')) {
-    return HealthStatus.Loading
+    return 'loading'
   }
 
-  if (values.some(h => !h.result || h.result === 'starting')) {
-    return HealthStatus.Starting
+  if (values.some(h => h.result === 'starting')) {
+    return 'starting'
   }
 
-  return HealthStatus.Healthy
+  return 'success'
 }
 
 export interface StatusRendering {
-  display: string
+  display: i18nKey
   color: string
   showDots?: boolean
 }
 
-export enum PrimaryStatus {
-  // state
-  Installing = 'installing',
-  Updating = 'updating',
-  Removing = 'removing',
-  Restoring = 'restoring',
-  // status
-  Starting = 'starting',
-  Running = 'running',
-  Stopping = 'stopping',
-  Restarting = 'restarting',
-  Stopped = 'stopped',
-  BackingUp = 'backing-up',
-  // config
-  NeedsConfig = 'needs-config',
-}
+export type PrimaryStatus =
+  | 'installing'
+  | 'updating'
+  | 'removing'
+  | 'restoring'
+  | 'starting'
+  | 'running'
+  | 'stopping'
+  | 'restarting'
+  | 'stopped'
+  | 'backingUp'
+  | 'actionRequired'
+  | 'error'
 
-export enum DependencyStatus {
-  Warning = 'warning',
-  Satisfied = 'satisfied',
-}
+export type DependencyStatus = 'warning' | 'satisfied'
 
-export enum HealthStatus {
-  Failure = 'failure',
-  Waiting = 'waiting',
-  Starting = 'starting',
-  Loading = 'loading',
-  Healthy = 'healthy',
-}
-
-export const PrimaryRendering: Record<string, StatusRendering> = {
-  [PrimaryStatus.Installing]: {
+export const PrimaryRendering: Record<PrimaryStatus, StatusRendering> = {
+  installing: {
     display: 'Installing',
     color: 'primary',
     showDots: true,
   },
-  [PrimaryStatus.Updating]: {
+  updating: {
     display: 'Updating',
     color: 'primary',
     showDots: true,
   },
-  [PrimaryStatus.Removing]: {
+  removing: {
     display: 'Removing',
     color: 'danger',
     showDots: true,
   },
-  [PrimaryStatus.Restoring]: {
+  restoring: {
     display: 'Restoring',
     color: 'primary',
     showDots: true,
   },
-  [PrimaryStatus.Stopping]: {
+  stopping: {
     display: 'Stopping',
     color: 'dark-shade',
     showDots: true,
   },
-  [PrimaryStatus.Restarting]: {
+  restarting: {
     display: 'Restarting',
     color: 'tertiary',
     showDots: true,
   },
-  [PrimaryStatus.Stopped]: {
+  stopped: {
     display: 'Stopped',
     color: 'dark-shade',
     showDots: false,
   },
-  [PrimaryStatus.BackingUp]: {
+  backingUp: {
     display: 'Backing Up',
     color: 'primary',
     showDots: true,
   },
-  [PrimaryStatus.Starting]: {
+  starting: {
     display: 'Starting',
     color: 'primary',
     showDots: true,
   },
-  [PrimaryStatus.Running]: {
+  running: {
     display: 'Running',
     color: 'success',
     showDots: false,
   },
-  [PrimaryStatus.NeedsConfig]: {
-    display: 'Needs Config',
+  actionRequired: {
+    display: 'Task Required',
     color: 'warning',
+    showDots: false,
+  },
+  error: {
+    display: 'Service Launch Error',
+    color: 'danger',
     showDots: false,
   },
 }
 
-export const DependencyRendering: Record<string, StatusRendering> = {
-  [DependencyStatus.Warning]: { display: 'Issue', color: 'warning' },
-  [DependencyStatus.Satisfied]: { display: 'Satisfied', color: 'success' },
+export const DependencyRendering: Record<DependencyStatus, StatusRendering> = {
+  warning: { display: 'Issue', color: 'warning' },
+  satisfied: { display: 'Satisfied', color: 'success' },
 }
 
-export const HealthRendering: Record<string, StatusRendering> = {
-  [HealthStatus.Failure]: { display: 'Failure', color: 'danger' },
-  [HealthStatus.Starting]: { display: 'Starting', color: 'primary' },
-  [HealthStatus.Loading]: { display: 'Loading', color: 'primary' },
-  [HealthStatus.Healthy]: { display: 'Healthy', color: 'success' },
+export const HealthRendering: Record<T.HealthStatus, StatusRendering> = {
+  failure: { display: 'Failure', color: 'danger' },
+  starting: { display: 'Starting', color: 'primary' },
+  loading: { display: 'Loading', color: 'primary' },
+  success: { display: 'Healthy', color: 'success' },
+  disabled: { display: 'Disabled', color: 'dark' },
 }

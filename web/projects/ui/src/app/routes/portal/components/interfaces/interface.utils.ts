@@ -1,0 +1,134 @@
+import { T, utils } from '@start9labs/start-sdk'
+import { ConfigService } from 'src/app/services/config.service'
+
+export abstract class AddressesService {
+  abstract static: boolean
+  abstract add(): Promise<void>
+  abstract remove(): Promise<void>
+}
+
+export function getAddresses(
+  serviceInterface: T.ServiceInterface,
+  host: T.Host,
+  config: ConfigService,
+): {
+  clearnet: ClearnetAddress[]
+  local: LocalAddress[]
+  tor: TorAddress[]
+} {
+  const addressInfo = serviceInterface.addressInfo
+  const hostnames =
+    host.hostnameInfo[addressInfo.internalPort]?.filter(
+      h =>
+        config.isLocalhost() ||
+        h.kind !== 'ip' ||
+        h.hostname.kind !== 'ipv6' ||
+        !h.hostname.value.startsWith('fe80::'),
+    ) || []
+
+  if (config.isLocalhost()) {
+    const local = hostnames.find(
+      h => h.kind === 'ip' && h.hostname.kind === 'local',
+    )
+
+    if (local) {
+      hostnames.unshift({
+        kind: 'ip',
+        networkInterfaceId: 'lo',
+        public: false,
+        hostname: {
+          kind: 'local',
+          port: local.hostname.port,
+          sslPort: local.hostname.sslPort,
+          value: 'localhost',
+        },
+      })
+    }
+  }
+
+  const clearnet: ClearnetAddress[] = []
+  const local: LocalAddress[] = []
+  const tor: TorAddress[] = []
+
+  hostnames.forEach(h => {
+    const addresses = utils.addressHostToUrl(addressInfo, h)
+
+    addresses.forEach(url => {
+      if (h.kind === 'onion') {
+        tor.push({
+          protocol: /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\//.test(url)
+            ? new URL(url).protocol.replace(':', '').toUpperCase()
+            : null,
+          url,
+        })
+      } else {
+        const hostnameKind = h.hostname.kind
+
+        if (
+          h.public ||
+          (hostnameKind === 'domain' && host.domains[h.hostname.domain]?.public)
+        ) {
+          clearnet.push({
+            url,
+            disabled: !h.public,
+            isDomain: hostnameKind == 'domain',
+            acme:
+              hostnameKind == 'domain'
+                ? host.domains[h.hostname.domain]?.acme || null
+                : null,
+          })
+        } else {
+          local.push({
+            nid:
+              hostnameKind === 'local'
+                ? 'Local'
+                : `${h.networkInterfaceId} (${hostnameKind})`,
+            url,
+          })
+        }
+      }
+    })
+  })
+
+  return {
+    clearnet: clearnet.filter(
+      (value, index, self) =>
+        index === self.findIndex(t => t.url === value.url),
+    ),
+    local: local.filter(
+      (value, index, self) =>
+        index === self.findIndex(t => t.url === value.url),
+    ),
+    tor: tor.filter(
+      (value, index, self) =>
+        index === self.findIndex(t => t.url === value.url),
+    ),
+  }
+}
+
+export type MappedServiceInterface = T.ServiceInterface & {
+  addSsl?: T.AddSslOptions | null
+  public: boolean
+  addresses: {
+    clearnet: ClearnetAddress[]
+    local: LocalAddress[]
+    tor: TorAddress[]
+  }
+}
+
+export type ClearnetAddress = {
+  url: string
+  acme: string | null
+  isDomain: boolean
+  disabled: boolean
+}
+
+export type LocalAddress = {
+  url: string
+  nid: string
+}
+
+export type TorAddress = {
+  url: string
+  protocol: string | null
+}

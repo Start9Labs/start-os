@@ -6,16 +6,15 @@ use std::time::Duration;
 use color_eyre::eyre::{eyre, Context, Error};
 use futures::future::BoxFuture;
 use futures::FutureExt;
+use models::ResultExt;
 use tokio::fs::File;
 use tokio::sync::oneshot;
 use tokio::task::{JoinError, JoinHandle, LocalSet};
 
 mod byte_replacement_reader;
-mod rpc_client;
 mod rsync;
 mod script_dir;
 pub use byte_replacement_reader::*;
-pub use rpc_client::{RpcClient, UnixRpcClient};
 pub use rsync::*;
 pub use script_dir::*;
 
@@ -52,7 +51,8 @@ pub async fn canonicalize(
     }
     let path = path.as_ref();
     if tokio::fs::metadata(path).await.is_err() {
-        if let (Some(parent), Some(file_name)) = (path.parent(), path.file_name()) {
+        let parent = path.parent().unwrap_or(Path::new("."));
+        if let Some(file_name) = path.file_name() {
             if create_parent && tokio::fs::metadata(parent).await.is_err() {
                 return Ok(create_canonical_folder(parent).await?.join(file_name));
             } else {
@@ -177,7 +177,7 @@ impl Drop for AtomicFile {
         if let Some(file) = self.file.take() {
             drop(file);
             let path = std::mem::take(&mut self.tmp_path);
-            tokio::spawn(async move { tokio::fs::remove_file(path).await.unwrap() });
+            tokio::spawn(async move { tokio::fs::remove_file(path).await.log_err() });
         }
     }
 }

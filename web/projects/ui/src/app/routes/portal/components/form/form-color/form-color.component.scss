@@ -1,0 +1,33 @@
+@use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+
+.wrapper {
+  position: relative;
+  width: 1.5rem;
+  height: 1.5rem;
+  pointer-events: auto;
+
+  &::after {
+    content: '';
+    position: absolute;
+    height: 0.3rem;
+    width: 1.4rem;
+    bottom: -0.25rem;
+    background: currentColor;
+    border-radius: 0.125rem;
+    pointer-events: none;
+  }
+}
+
+.color {
+  @include taiga.fullsize();
+  opacity: 0;
+}
+
+.icon {
+  @include taiga.fullsize();
+  pointer-events: none;
+
+  input:hover + & {
+    opacity: 1;
+  }
+}

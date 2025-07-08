@@ -1,0 +1,26 @@
+{
+  "include": ["./**/*.ts"],
+  "exclude": ["dist"],
+  "inputs": ["./src/index.ts"],
+  "compilerOptions": {
+    "module": "Node16",
+    "strict": true,
+    "outDir": "dist",
+    "preserveConstEnums": true,
+    "sourceMap": true,
+    "target": "ES2022",
+    "pretty": true,
+    "declaration": true,
+    "noImplicitAny": true,
+    "esModuleInterop": true,
+    "types": ["node", "jest"],
+    "moduleResolution": "Node16",
+    "skipLibCheck": true,
+    "resolveJsonModule": true
+  },
+  "ts-node": {
+    "compilerOptions": {
+      "module": "commonjs"
+    }
+  }
+}

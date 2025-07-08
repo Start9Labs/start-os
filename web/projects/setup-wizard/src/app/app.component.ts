@@ -1,32 +1,39 @@
-import { Component } from '@angular/core'
-import { NavController } from '@ionic/angular'
-import { ApiService } from './services/api/api.service'
-import { ErrorToastService } from '@start9labs/shared'
+import { Component, inject } from '@angular/core'
+import { Router } from '@angular/router'
+import { ErrorService } from '@start9labs/shared'
+import { ApiService } from 'src/app/services/api.service'
+import { StateService } from './services/state.service'
+import { DOCUMENT } from '@angular/common'
 
 @Component({
   selector: 'app-root',
-  templateUrl: 'app.component.html',
-  styleUrls: ['app.component.scss'],
+  template: '<tui-root tuiTheme="dark"><router-outlet /></tui-root>',
+  standalone: false,
 })
 export class AppComponent {
-  constructor(
-    private readonly apiService: ApiService,
-    private readonly errorToastService: ErrorToastService,
-    private readonly navCtrl: NavController,
-  ) {}
+  private readonly api = inject(ApiService)
+  private readonly errorService = inject(ErrorService)
+  private readonly router = inject(Router)
+  private readonly stateService = inject(StateService)
+  private readonly document = inject(DOCUMENT)
 
   async ngOnInit() {
     try {
-      const inProgress = await this.apiService.getStatus()
+      this.stateService.kiosk = ['localhost', '127.0.0.1'].includes(
+        this.document.location.hostname,
+      )
 
-      let route = '/home'
+      const inProgress = await this.api.getStatus()
+
+      let route = 'home'
+
       if (inProgress) {
-        route = inProgress.complete ? '/success' : '/loading'
+        route = inProgress.status === 'complete' ? '/success' : '/loading'
       }
 
-      await this.navCtrl.navigateForward(route)
+      await this.router.navigate([route])
     } catch (e: any) {
-      this.errorToastService.present(e)
+      this.errorService.handleError(e)
     }
   }
 }

@@ -1,29 +1,29 @@
-<!-- release notes -->
-<ion-item-divider>
-  New in {{ pkg.manifest.version | displayEmver }}
-</ion-item-divider>
-<ion-item lines="none" color="transparent">
-  <ion-label>
-    <div [innerHTML]="pkg.manifest['release-notes'] | markdown"></div>
-  </ion-label>
-</ion-item>
-<ion-button routerLink="notes" fill="clear" strong>
-  Past Release Notes
-  <ion-icon slot="end" name="arrow-forward"></ion-icon>
-</ion-button>
-<!-- description -->
-<ion-item-divider>Description</ion-item-divider>
-<ion-item lines="none" color="transparent">
-  <ion-label>
-    <h2>{{ pkg.manifest.description.long }}</h2>
-  </ion-label>
-</ion-item>
-<div
-  *ngIf="pkg.manifest['marketing-site'] as url"
-  style="padding: 4px 0 10px 14px"
->
-  <ion-button [href]="url" target="_blank" rel="noreferrer" color="tertiary">
-    View website
-    <ion-icon slot="end" name="open-outline"></ion-icon>
-  </ion-button>
+<div class="background-border box-shadow-lg shadow-color-light">
+  <div class="box-container">
+    <h2 class="additional-detail-title">New in {{ pkg.version }}</h2>
+    <p [innerHTML]="pkg.releaseNotes | markdown | dompurify"></p>
+    <button
+      tuiButton
+      size="s"
+      appearance="whiteblock"
+      iconEnd="@tui.chevron-right"
+      (click)="onPast()"
+    >
+      Past Release Notes
+    </button>
+    <h2 class="additional-detail-title" [style.margin-top.rem]="2">About</h2>
+    <p [innerHTML]="pkg.description.long"></p>
+    <a
+      *ngIf="pkg.marketingSite as url"
+      tuiButton
+      iconEnd="@tui.external-link"
+      size="s"
+      appearance="secondary-grayscale"
+      target="_blank"
+      rel="noreferrer"
+      [href]="url"
+    >
+      View website
+    </a>
+  </div>
 </div>

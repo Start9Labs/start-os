@@ -1,20 +1,43 @@
-import { Observable } from 'rxjs'
-import { Update } from 'patch-db-client'
+import { MarketplacePkg } from '@start9labs/marketplace'
+import { T } from '@start9labs/start-sdk'
 import { RR } from './api.types'
-import { DataModel } from 'src/app/services/patch-db/data-model'
-import { Log } from '@start9labs/shared'
-import { WebSocketSubjectConfig } from 'rxjs/webSocket'
+import { WebSocketSubject } from 'rxjs/webSocket'
 
 export abstract class ApiService {
   // http
 
-  // for getting static files: ex icons, instructions, licenses
-  abstract getStatic(url: string): Promise<string>
-
   // for sideloading packages
-  abstract uploadPackage(guid: string, body: Blob): Promise<string>
+  abstract uploadPackage(guid: string, body: Blob): Promise<void>
+
+  // for getting static files: ex icons, instructions, licenses
+  abstract getStaticProxy(
+    pkg: MarketplacePkg,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string>
+
+  abstract getStaticInstalled(
+    id: T.PackageId,
+    path: 'LICENSE.md' | 'instructions.md',
+  ): Promise<string>
+
+  // websocket
+
+  abstract openWebsocket$<T>(
+    guid: string,
+    config?: RR.WebsocketConfig<T>,
+  ): WebSocketSubject<T>
+
+  // state
+
+  abstract echo(params: RR.EchoReq, url: string): Promise<RR.EchoRes>
+
+  abstract getState(): Promise<RR.ServerState>
 
   // db
+
+  abstract subscribeToPatchDB(
+    params: RR.SubscribePatchReq,
+  ): Promise<RR.SubscribePatchRes>
 
   abstract setDbValue<T>(
     pathArr: Array<string | number>,
@@ -35,15 +58,25 @@ export abstract class ApiService {
     params: RR.ResetPasswordReq,
   ): Promise<RR.ResetPasswordRes>
 
+  // diagnostic
+
+  abstract diagnosticGetError(): Promise<RR.DiagnosticErrorRes>
+  abstract diagnosticRestart(): Promise<void>
+  abstract diagnosticForgetDrive(): Promise<void>
+  abstract diagnosticRepairDisk(): Promise<void>
+  abstract diagnosticGetLogs(
+    params: RR.GetServerLogsReq,
+  ): Promise<RR.GetServerLogsRes>
+
+  // init
+
+  abstract initFollowProgress(): Promise<RR.InitFollowProgressRes>
+
+  abstract initFollowLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes>
+
   // server
-
-  abstract echo(params: RR.EchoReq, urlOverride?: string): Promise<RR.EchoRes>
-
-  abstract openPatchWebsocket$(): Observable<Update<DataModel>>
-
-  abstract openLogsWebsocket$(
-    config: WebSocketSubjectConfig<Log>,
-  ): Observable<Log>
 
   abstract getSystemTime(
     params: RR.GetSystemTimeReq,
@@ -71,15 +104,11 @@ export abstract class ApiService {
     params: RR.FollowServerLogsReq,
   ): Promise<RR.FollowServerLogsRes>
 
-  abstract getServerMetrics(
-    params: RR.GetServerMetricsReq,
-  ): Promise<RR.GetServerMetricsRes>
+  abstract followServerMetrics(
+    params: RR.FollowServerMetricsReq,
+  ): Promise<RR.FollowServerMetricsRes>
 
-  abstract getPkgMetrics(
-    params: RR.GetPackageMetricsReq,
-  ): Promise<RR.GetPackageMetricsRes>
-
-  abstract updateServer(url?: string): Promise<RR.UpdateServerRes>
+  abstract updateServer(params: RR.UpdateServerReq): Promise<RR.UpdateServerRes>
 
   abstract restartServer(
     params: RR.RestartServerReq,
@@ -89,25 +118,45 @@ export abstract class ApiService {
     params: RR.ShutdownServerReq,
   ): Promise<RR.ShutdownServerRes>
 
-  abstract systemRebuild(
-    params: RR.SystemRebuildReq,
-  ): Promise<RR.SystemRebuildRes>
+  abstract repairDisk(params: RR.DiskRepairReq): Promise<RR.DiskRepairRes>
 
-  abstract repairDisk(params: RR.SystemRebuildReq): Promise<RR.SystemRebuildRes>
+  abstract toggleKiosk(enable: boolean): Promise<null>
 
   abstract resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes>
 
-  abstract toggleZram(params: RR.ToggleZramReq): Promise<RR.ToggleZramRes>
+  // @TODO 041
+
+  // ** server outbound proxy **
+
+  // abstract setOsOutboundProxy(
+  //   params: RR.SetOsOutboundProxyReq,
+  // ): Promise<RR.SetOsOutboundProxyRes>
+
+  // smtp
+
+  abstract setSmtp(params: RR.SetSMTPReq): Promise<RR.SetSMTPRes>
+
+  abstract clearSmtp(params: RR.ClearSMTPReq): Promise<RR.ClearSMTPRes>
+
+  abstract testSmtp(params: RR.TestSMTPReq): Promise<RR.TestSMTPRes>
 
   // marketplace URLs
 
-  abstract marketplaceProxy<T>(
-    path: string,
-    params: Record<string, unknown>,
-    url: string,
-  ): Promise<T>
+  abstract checkOSUpdate(
+    params: RR.CheckOsUpdateReq,
+  ): Promise<RR.CheckOsUpdateRes>
 
-  abstract getEos(): Promise<RR.GetMarketplaceEosRes>
+  abstract getRegistryInfo(
+    params: RR.GetRegistryInfoReq,
+  ): Promise<RR.GetRegistryInfoRes>
+
+  abstract getRegistryPackage(
+    params: RR.GetRegistryPackageReq,
+  ): Promise<RR.GetRegistryPackageRes>
+
+  abstract getRegistryPackages(
+    params: RR.GetRegistryPackagesReq,
+  ): Promise<RR.GetRegistryPackagesRes>
 
   // notification
 
@@ -115,30 +164,74 @@ export abstract class ApiService {
     params: RR.GetNotificationsReq,
   ): Promise<RR.GetNotificationsRes>
 
-  abstract deleteNotification(
-    params: RR.DeleteNotificationReq,
-  ): Promise<RR.DeleteNotificationRes>
+  abstract markSeenNotifications(
+    params: RR.MarkSeenNotificationReq,
+  ): Promise<RR.MarkSeenNotificationRes>
 
-  abstract deleteAllNotifications(
-    params: RR.DeleteAllNotificationsReq,
-  ): Promise<RR.DeleteAllNotificationsRes>
+  abstract markSeenAllNotifications(
+    params: RR.MarkSeenAllNotificationsReq,
+  ): Promise<RR.MarkSeenAllNotificationsRes>
+
+  abstract markUnseenNotifications(
+    params: RR.DeleteNotificationsReq,
+  ): Promise<RR.DeleteNotificationsRes>
+
+  abstract deleteNotifications(
+    params: RR.DeleteNotificationsReq,
+  ): Promise<RR.DeleteNotificationsRes>
+
+  // ** proxies **
+
+  // @TODO 041
+
+  // abstract addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes>
+
+  // abstract updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes>
+
+  // abstract deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes>
+
+  // ** domains **
+
+  // @TODO 041
+
+  // abstract claimStart9ToDomain(
+  //   params: RR.ClaimStart9ToReq,
+  // ): Promise<RR.ClaimStart9ToRes>
+
+  // abstract deleteStart9ToDomain(
+  //   params: RR.DeleteStart9ToReq,
+  // ): Promise<RR.DeleteStart9ToRes>
+
+  // abstract addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes>
+
+  // abstract deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes>
+
+  // ** port forwards **
+
+  // @TODO 041
+
+  // abstract overridePortForward(
+  //   params: RR.OverridePortReq,
+  // ): Promise<RR.OverridePortRes>
 
   // wifi
+
+  abstract enableWifi(params: RR.EnabledWifiReq): Promise<RR.EnabledWifiRes>
+
+  abstract setWifiCountry(
+    params: RR.SetWifiCountryReq,
+  ): Promise<RR.SetWifiCountryRes>
 
   abstract getWifi(
     params: RR.GetWifiReq,
     timeout: number,
   ): Promise<RR.GetWifiRes>
 
-  abstract setWifiCountry(
-    params: RR.SetWifiCountryReq,
-  ): Promise<RR.SetWifiCountryRes>
-
   abstract addWifi(params: RR.AddWifiReq): Promise<RR.AddWifiRes>
 
   abstract connectWifi(params: RR.ConnectWifiReq): Promise<RR.ConnectWifiRes>
 
-  abstract deleteWifi(params: RR.DeleteWifiReq): Promise<RR.ConnectWifiRes>
+  abstract deleteWifi(params: RR.DeleteWifiReq): Promise<RR.DeleteWifiRes>
 
   // ssh
 
@@ -172,11 +265,55 @@ export abstract class ApiService {
 
   abstract createBackup(params: RR.CreateBackupReq): Promise<RR.CreateBackupRes>
 
-  // package
+  // @TODO 041
 
-  abstract getPackageProperties(
-    params: RR.GetPackagePropertiesReq,
-  ): Promise<RR.GetPackagePropertiesRes<2>['data']>
+  // ** automated backups **
+
+  // abstract addBackupTarget(
+  //   type: BackupTargetType,
+  //   params:
+  //     | RR.AddCifsBackupTargetReq
+  //     | RR.AddCloudBackupTargetReq
+  //     | RR.AddDiskBackupTargetReq,
+  // ): Promise<RR.AddBackupTargetRes>
+
+  // abstract updateBackupTarget(
+  //   type: BackupTargetType,
+  //   params:
+  //     | RR.UpdateCifsBackupTargetReq
+  //     | RR.UpdateCloudBackupTargetReq
+  //     | RR.UpdateDiskBackupTargetReq,
+  // ): Promise<RR.UpdateBackupTargetRes>
+
+  // abstract removeBackupTarget(
+  //   params: RR.RemoveBackupTargetReq,
+  // ): Promise<RR.RemoveBackupTargetRes>
+
+  // abstract getBackupJobs(
+  //   params: RR.GetBackupJobsReq,
+  // ): Promise<RR.GetBackupJobsRes>
+
+  // abstract createBackupJob(
+  //   params: RR.CreateBackupJobReq,
+  // ): Promise<RR.CreateBackupJobRes>
+
+  // abstract updateBackupJob(
+  //   params: RR.UpdateBackupJobReq,
+  // ): Promise<RR.UpdateBackupJobRes>
+
+  // abstract deleteBackupJob(
+  //   params: RR.DeleteBackupJobReq,
+  // ): Promise<RR.DeleteBackupJobRes>
+
+  // abstract getBackupRuns(
+  //   params: RR.GetBackupRunsReq,
+  // ): Promise<RR.GetBackupRunsRes>
+
+  // abstract deleteBackupRuns(
+  //   params: RR.DeleteBackupRunsReq,
+  // ): Promise<RR.DeleteBackupRunsRes>
+
+  // package
 
   abstract getPackageLogs(
     params: RR.GetPackageLogsReq,
@@ -190,25 +327,21 @@ export abstract class ApiService {
     params: RR.InstallPackageReq,
   ): Promise<RR.InstallPackageRes>
 
-  abstract getPackageConfig(
-    params: RR.GetPackageConfigReq,
-  ): Promise<RR.GetPackageConfigRes>
+  abstract cancelInstallPackage(
+    params: RR.CancelInstallPackageReq,
+  ): Promise<RR.CancelInstallPackageRes>
 
-  abstract drySetPackageConfig(
-    params: RR.DrySetPackageConfigReq,
-  ): Promise<RR.DrySetPackageConfigRes>
+  abstract getActionInput(
+    params: RR.GetActionInputReq,
+  ): Promise<RR.GetActionInputRes>
 
-  abstract setPackageConfig(
-    params: RR.SetPackageConfigReq,
-  ): Promise<RR.SetPackageConfigRes>
+  abstract runAction(params: RR.ActionReq): Promise<RR.ActionRes>
+
+  abstract clearTask(params: RR.ClearTaskReq): Promise<RR.ClearTaskRes>
 
   abstract restorePackages(
     params: RR.RestorePackagesReq,
   ): Promise<RR.RestorePackagesRes>
-
-  abstract executePackageAction(
-    params: RR.ExecutePackageActionReq,
-  ): Promise<RR.ExecutePackageActionRes>
 
   abstract startPackage(params: RR.StartPackageReq): Promise<RR.StartPackageRes>
 
@@ -218,15 +351,65 @@ export abstract class ApiService {
 
   abstract stopPackage(params: RR.StopPackageReq): Promise<RR.StopPackageRes>
 
+  abstract rebuildPackage(
+    params: RR.RebuildPackageReq,
+  ): Promise<RR.RebuildPackageRes>
+
   abstract uninstallPackage(
     params: RR.UninstallPackageReq,
   ): Promise<RR.UninstallPackageRes>
 
-  abstract dryConfigureDependency(
-    params: RR.DryConfigureDependencyReq,
-  ): Promise<RR.DryConfigureDependencyRes>
+  abstract sideloadPackage(): Promise<RR.SideloadPackageRes>
 
-  abstract sideloadPackage(
-    params: RR.SideloadPackageReq,
-  ): Promise<RR.SideloadPacakgeRes>
+  // @TODO 041
+
+  // ** service outbound proxy **
+
+  // abstract setServiceOutboundProxy(
+  //   params: RR.SetServiceOutboundProxyReq,
+  // ): Promise<RR.SetServiceOutboundProxyRes>
+
+  abstract initAcme(params: RR.InitAcmeReq): Promise<RR.InitAcmeRes>
+
+  abstract removeAcme(params: RR.RemoveAcmeReq): Promise<RR.RemoveAcmeRes>
+
+  abstract addTorKey(params: RR.AddTorKeyReq): Promise<RR.AddTorKeyRes>
+
+  abstract generateTorKey(
+    params: RR.GenerateTorKeyReq,
+  ): Promise<RR.AddTorKeyRes>
+
+  abstract serverBindingSetPubic(
+    params: RR.ServerBindingSetPublicReq,
+  ): Promise<RR.BindingSetPublicRes>
+
+  abstract serverAddOnion(params: RR.ServerAddOnionReq): Promise<RR.AddOnionRes>
+
+  abstract serverRemoveOnion(
+    params: RR.ServerRemoveOnionReq,
+  ): Promise<RR.RemoveOnionRes>
+
+  abstract serverAddDomain(
+    params: RR.ServerAddDomainReq,
+  ): Promise<RR.AddDomainRes>
+
+  abstract serverRemoveDomain(
+    params: RR.ServerRemoveDomainReq,
+  ): Promise<RR.RemoveDomainRes>
+
+  abstract pkgBindingSetPubic(
+    params: RR.PkgBindingSetPublicReq,
+  ): Promise<RR.BindingSetPublicRes>
+
+  abstract pkgAddOnion(params: RR.PkgAddOnionReq): Promise<RR.AddOnionRes>
+
+  abstract pkgRemoveOnion(
+    params: RR.PkgRemoveOnionReq,
+  ): Promise<RR.RemoveOnionRes>
+
+  abstract pkgAddDomain(params: RR.PkgAddDomainReq): Promise<RR.AddDomainRes>
+
+  abstract pkgRemoveDomain(
+    params: RR.PkgRemoveDomainReq,
+  ): Promise<RR.RemoveDomainRes>
 }

@@ -1,0 +1,177 @@
+@use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
+
+[tuiTheme='dark'] {
+  --tui-background-base: rgba(23, 23, 23, 1);
+  --tui-background-base-alt: rgba(23, 24, 29, 1);
+  --tui-background-neutral-1: rgba(255, 255, 255, 0.06);
+  --tui-background-neutral-1-hover: rgba(255, 255, 255, 0.12);
+  --tui-background-neutral-1-pressed: rgba(255, 255, 255, 0.18);
+  --tui-background-neutral-2: rgba(255, 255, 255, 0.16);
+  --tui-background-neutral-2-hover: rgba(255, 255, 255, 0.2);
+  --tui-background-neutral-2-pressed: rgba(255, 255, 255, 0.24);
+
+  --tui-background-accent-1: rgba(53, 96, 240, 1);
+  --tui-background-accent-1-hover: rgba(50, 92, 227, 1);
+  --tui-background-accent-1-pressed: rgba(50, 92, 227, 1); /* update */
+  --tui-background-accent-2: rgba(180, 59, 201, 1);
+  --tui-background-accent-2-hover: rgba(166, 0, 191, 1);
+  --tui-background-accent-2-pressed: rgba(166, 0, 191, 1); /* update */
+
+  --tui-background-elevation-1: rgba(23, 24, 29, 1);
+  --tui-background-elevation-2: rgba(33, 33, 33, 1);
+  --tui-background-elevation-3: rgba(34, 34, 34, 1);
+
+  --tui-border-normal: rgba(255, 255, 255, 0.14);
+  --tui-border-hover: rgba(255, 255, 255, 0.4);
+
+  --tui-status-negative: rgba(236, 46, 52, 1);
+  --tui-status-negative-pale: color-mix(
+    in hsl,
+    var(--tui-status-negative) 12%,
+    transparent
+  );
+  --tui-status-negative-pale-hover: color-mix(
+    in hsl,
+    var(--tui-status-negative) 24%,
+    transparent
+  );
+  --tui-status-positive: rgba(0, 151, 0, 1); /* update */
+  --tui-status-positive-pale: color-mix(
+    in hsl,
+    var(--tui-status-positive) 12%,
+    transparent
+  );
+  --tui-status-positive-pale-hover: color-mix(
+    in hsl,
+    var(--tui-status-positive) 24%,
+    transparent
+  );
+  --tui-status-warning: rgba(255, 179, 0, 1);
+  --tui-status-warning-pale: color-mix(
+    in hsl,
+    var(--tui-status-warning) 12%,
+    transparent
+  );
+  --tui-status-warning-pale-hover: color-mix(
+    in hsl,
+    var(--tui-status-warning) 24%,
+    transparent
+  );
+  --tui-status-info: rgba(128, 89, 229, 1);
+  --tui-status-info-pale: color-mix(
+    in hsl,
+    var(--tui-status-info) 12%,
+    transparent
+  );
+  --tui-status-info-pale-hover: color-mix(
+    in hsl,
+    var(--tui-status-info) 24%,
+    transparent
+  );
+  --tui-status-neutral: rgba(137, 137, 137, 1);
+
+  --tui-text-primary: rgba(255, 255, 255, 1);
+  --tui-text-secondary: rgba(255, 255, 255, 0.7);
+  --tui-text-tertiary: rgba(255, 255, 255, 0.5);
+
+  --tui-text-action: rgba(53, 96, 240, 1);
+  --tui-text-action-hover: rgba(50, 92, 227, 1);
+  --tui-text-positive: rgba(0, 151, 0, 1); /* update */
+  --tui-text-positive-hover: rgba(0, 151, 0, 1); /* update */
+  --tui-text-negative: rgba(236, 46, 52, 1);
+  --tui-text-negative-hover: rgba(236, 46, 52, 1);
+
+  --start9-base-1: rgba(34, 36, 40, 1);
+  --start9-base-2: rgba(46, 47, 52, 1);
+  --start9-base-3: rgba(50, 51, 53, 1);
+  --start9-base-4: rgba(52, 54, 58, 1);
+  --start9-base-5: rgba(60, 62, 64, 1);
+}
+
+[tuiAppearance][data-appearance^='primary'] {
+  @include taiga.appearance-disabled {
+    background: var(--tui-status-neutral);
+    color: #333;
+  }
+}
+
+[tuiAppearance][data-appearance='primary-success'] {
+  color: var(--tui-text-primary-on-accent-1);
+  background: var(--tui-status-positive);
+
+  @include taiga.appearance-hover {
+    filter: brightness(1.2);
+  }
+
+  @include taiga.appearance-active {
+    filter: brightness(0.9);
+  }
+
+  @include taiga.appearance-disabled {
+    background: var(--tui-status-neutral);
+    color: #333;
+  }
+}
+
+tui-hint[data-appearance='onDark'] {
+  background: white !important;
+  color: #222 !important;
+}
+
+tui-dropdown[data-appearance='start-os'][data-appearance='start-os'] {
+  border: 0;
+  backdrop-filter: blur(0.25rem);
+  background-color: color-mix(
+    in hsl,
+    var(--tui-background-elevation-3) 75%,
+    transparent
+  );
+  background-image: linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.15),
+      transparent
+    ),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.15), transparent);
+  background-size: 1px 100%;
+  background-repeat: no-repeat;
+  background-position:
+    top left,
+    top right;
+  box-shadow:
+    0 0.25rem 0.125rem rgba(0, 0, 0, 0.25),
+    0 -0.125rem 0.25rem rgba(55, 155, 255, 0.08),
+    0 0 0.5rem rgba(0, 0, 0, 0.3),
+    inset 0 -0.125rem rgba(255, 255, 255, 0.03),
+    inset 0 1px rgba(255, 255, 255, 0.15),
+    inset 0 0 1rem rgba(0, 0, 0, 0.25),
+    var(--tui-shadow-medium);
+
+  [tuiOption] {
+    justify-content: flex-start;
+    gap: 0.5rem;
+  }
+}
+
+// @TODO Alex: Move to Taiga UI
+a[tuiIconButton]:not([href]) {
+  pointer-events: none;
+  opacity: var(--tui-disabled-opacity);
+}
+
+tui-badge-notification {
+  background: var(--tui-status-negative);
+}
+
+[tuiCell] {
+  &[data-height='spacious'] {
+    padding-block: 0.75rem;
+
+    [tuiTitle] {
+      font: var(--tui-font-text-l);
+    }
+  }
+
+  tui-avatar {
+    align-self: center !important;
+  }
+}

@@ -1,69 +1,21 @@
-import {
-  TuiDialogModule,
-  TuiModeModule,
-  TuiRootModule,
-  TuiThemeNightModule,
-} from '@taiga-ui/core'
-import { HttpClientModule } from '@angular/common/http'
+import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { NgModule } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
-import { IonicModule } from '@ionic/angular'
-import { MonacoEditorModule } from '@materia-ui/ngx-monaco-editor'
-import {
-  DarkThemeModule,
-  EnterModule,
-  LightThemeModule,
-  MarkdownModule,
-  ResponsiveColModule,
-  SharedPipesModule,
-} from '@start9labs/shared'
-
-import { AppComponent } from './app.component'
-import { AppRoutingModule } from './app-routing.module'
-import { OSWelcomePageModule } from './modals/os-welcome/os-welcome.module'
-import { GenericInputComponentModule } from './modals/generic-input/generic-input.component.module'
-import { MarketplaceModule } from './marketplace.module'
-import { PreloaderModule } from './app/preloader/preloader.module'
-import { FooterModule } from './app/footer/footer.module'
-import { MenuModule } from './app/menu/menu.module'
-import { APP_PROVIDERS } from './app.providers'
-import { PatchDbModule } from './services/patch-db/patch-db.module'
-import { ToastContainerModule } from './components/toast-container/toast-container.module'
-import { ConnectionBarComponentModule } from './components/connection-bar/connection-bar.component.module'
-import { WidgetsPageModule } from './pages/widgets/widgets.module'
 import { ServiceWorkerModule } from '@angular/service-worker'
+import { TuiRoot } from '@taiga-ui/core'
+import { ToastContainerComponent } from 'src/app/components/toast-container.component'
 import { environment } from '../environments/environment'
+import { AppComponent } from './app.component'
+import { APP_PROVIDERS } from './app.providers'
+import { RoutingModule } from './routing.module'
 
 @NgModule({
   declarations: [AppComponent],
   imports: [
-    HttpClientModule,
     BrowserAnimationsModule,
-    IonicModule.forRoot({
-      mode: 'md',
-    }),
-    AppRoutingModule,
-    MenuModule,
-    PreloaderModule,
-    FooterModule,
-    EnterModule,
-    OSWelcomePageModule,
-    MarkdownModule,
-    GenericInputComponentModule,
-    MonacoEditorModule,
-    SharedPipesModule,
-    MarketplaceModule,
-    PatchDbModule,
-    ToastContainerModule,
-    ConnectionBarComponentModule,
-    TuiRootModule,
-    TuiDialogModule,
-    TuiModeModule,
-    TuiThemeNightModule,
-    WidgetsPageModule,
-    ResponsiveColModule,
-    DarkThemeModule,
-    LightThemeModule,
+    RoutingModule,
+    ToastContainerComponent,
+    TuiRoot,
     ServiceWorkerModule.register('ngsw-worker.js', {
       enabled: environment.useServiceWorker,
       // Register the ServiceWorker as soon as the application is stable
@@ -71,7 +23,7 @@ import { environment } from '../environments/environment'
       registrationStrategy: 'registerWhenStable:30000',
     }),
   ],
-  providers: APP_PROVIDERS,
+  providers: [APP_PROVIDERS, provideHttpClient(withInterceptorsFromDi())],
   bootstrap: [AppComponent],
 })
 export class AppModule {}

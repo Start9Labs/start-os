@@ -17,9 +17,18 @@ if [ -z "$ARCH" ]; then
 	ARCH=$(uname -m)
 fi
 
-mkdir -p cargo-deps
-alias 'rust-arm64-builder'='docker run $USE_TTY --rm -v "$HOME/.cargo/registry":/usr/local/cargo/registry -v "$(pwd)"/cargo-deps:/home/rust/src -P start9/rust-arm-cross:aarch64'
+DOCKER_PLATFORM="linux/${ARCH}"
+if [ "$ARCH" = aarch64 ] || [ "$ARCH" = arm64 ]; then
+	DOCKER_PLATFORM="linux/arm64"
+elif [ "$ARCH" = x86_64 ]; then
+	DOCKER_PLATFORM="linux/amd64"
+fi
 
-rust-arm64-builder cargo install "$1" --target-dir /home/rust/src --target=$ARCH-unknown-linux-gnu
+mkdir -p cargo-deps
+alias 'rust-musl-builder'='docker run $USE_TTY --platform=${DOCKER_PLATFORM} --rm -e "RUSTFLAGS=$RUSTFLAGS" -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$(pwd)"/cargo-deps:/home/rust/src -w /home/rust/src -P rust:alpine'
+
+PREINSTALL=${PREINSTALL:-true}
+
+rust-musl-builder sh -c "$PREINSTALL && cargo install $* --target-dir /home/rust/src --target=$ARCH-unknown-linux-musl"
 sudo chown -R $USER cargo-deps
 sudo chown -R $USER ~/.cargo

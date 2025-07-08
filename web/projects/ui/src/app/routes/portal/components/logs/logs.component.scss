@@ -1,0 +1,52 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.scrollbar {
+  flex: 1;
+  background: var(--tui-background-neutral-1);
+  border-radius: var(--tui-radius-m);
+  border: 1rem solid transparent;
+}
+
+.loading-dots {
+  text-align: center;
+}
+
+.top {
+  height: 10rem;
+  margin-bottom: -5rem;
+}
+
+.loader {
+  position: absolute;
+  inset: 0;
+}
+
+.bottom {
+  height: 3rem;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 1rem;
+}
+
+[data-status='reconnecting'] {
+  color: var(--tui-status-positive);
+}
+
+[data-status='disconnected'] {
+  color: var(--tui-status-warning);
+}
+
+pre {
+  overflow: visible;
+  white-space: normal;
+  margin: 0;
+}

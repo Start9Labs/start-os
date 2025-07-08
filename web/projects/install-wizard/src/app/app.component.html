@@ -1,5 +1,60 @@
 <tui-root>
-  <ion-app>
-    <ion-router-outlet></ion-router-outlet>
-  </ion-app>
+  <main>
+    <img class="logo" src="assets/img/icon.png" alt="Start9" />
+    <section tuiCardLarge tuiSurface="floating" class="card">
+      <header class="header">
+        @if (selected) {
+          <button
+            tuiIconButton
+            appearance="flat-grayscale"
+            size="m"
+            class="back"
+            iconStart="@tui.chevron-left"
+            [style.border-radius.rem]="10"
+            (click)="selected = null"
+          >
+            Back
+          </button>
+        }
+        <h1>{{ selected ? 'Install Type' : 'Select Disk' }}</h1>
+        <div [style.color]="'var(--tui-text-negative)'">{{ error }}</div>
+      </header>
+      <div class="pages">
+        <div class="options" [class.options_selected]="selected">
+          @for (drive of disks$ | async; track $index) {
+            <button tuiCell [drive]="drive" (click)="selected = drive"></button>
+          }
+        </div>
+        <div class="options">
+          @if (guid) {
+            <button tuiCell (click)="install()">
+              <tui-icon icon="@tui.life-buoy" />
+              <span tuiTitle>
+                <strong [style.color]="'var(--tui-text-positive)'">
+                  Re-Install StartOS
+                </strong>
+                <span tuiSubtitle>Will preserve existing StartOS data</span>
+              </span>
+            </button>
+          }
+
+          <button tuiCell [disabled]="!selected" (click)="warn()">
+            <tui-icon icon="@tui.download" />
+            <span tuiTitle>
+              @if (guid) {
+                <span [style.color]="'var(--tui-text-negative)'">
+                  Factory Reset
+                </span>
+              } @else {
+                <span [style.color]="'var(--tui-text-positive)'">
+                  Install StartOS
+                </span>
+              }
+              <span tuiSubtitle>Will delete existing data on disk</span>
+            </span>
+          </button>
+        </div>
+      </div>
+    </section>
+  </main>
 </tui-root>

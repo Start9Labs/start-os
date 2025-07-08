@@ -1,18 +1,21 @@
 import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { RouterModule } from '@angular/router'
-import { IonicModule } from '@ionic/angular'
-import { EmverPipesModule, MarkdownPipeModule } from '@start9labs/shared'
-
+import { MarkdownPipe, SafeLinksDirective } from '@start9labs/shared'
+import { TuiButton } from '@taiga-ui/core'
+import { NgDompurifyPipe } from '@taiga-ui/dompurify'
+import { TuiTagModule } from '@taiga-ui/legacy'
 import { AboutComponent } from './about.component'
 
 @NgModule({
   imports: [
     CommonModule,
     RouterModule,
-    IonicModule,
-    MarkdownPipeModule,
-    EmverPipesModule,
+    TuiTagModule,
+    NgDompurifyPipe,
+    SafeLinksDirective,
+    MarkdownPipe,
+    TuiButton,
   ],
   declarations: [AboutComponent],
   exports: [AboutComponent],

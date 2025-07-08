@@ -1,0 +1,20 @@
+<tui-input-number
+  [tuiHintContent]="spec | hint"
+  [disabled]="!!spec.disabled"
+  [readOnly]="readOnly"
+  [tuiTextfieldPostfix]="spec.units || ''"
+  [pseudoInvalid]="invalid"
+  [tuiNumberFormat]="{
+    precision: spec.integer ? 0 : Infinity,
+    decimalMode: 'not-zero'
+  }"
+  [min]="spec.min ?? -Infinity"
+  [max]="spec.max ?? Infinity"
+  [step]="spec.step || 0"
+  [(ngModel)]="value"
+  (focusedChange)="onFocus($event)"
+>
+  {{ spec.name }}
+  <span *ngIf="spec.required">*</span>
+  <input tuiTextfieldLegacy [placeholder]="spec.placeholder || ''" />
+</tui-input-number>

@@ -1,17 +1,14 @@
-use std::sync::Arc;
+use rpc_toolkit::{Context, HandlerExt, ParentHandler};
 
-use futures::future::BoxFuture;
-use hyper::{Body, Error as HyperError, Request, Response};
-use rpc_toolkit::command;
-
-use crate::Error;
-
-pub mod dhcp;
+pub mod acme;
 pub mod dns;
-pub mod interface;
+pub mod forward;
+pub mod host;
 pub mod keys;
 pub mod mdns;
 pub mod net_controller;
+pub mod network_interface;
+pub mod service_interface;
 pub mod ssl;
 pub mod static_server;
 pub mod tor;
@@ -20,13 +17,23 @@ pub mod vhost;
 pub mod web_server;
 pub mod wifi;
 
-pub const PACKAGE_CERT_PATH: &str = "/var/lib/embassy/ssl";
-
-#[command(subcommands(tor::tor, dhcp::dhcp, ssl::ssl, keys::rotate_key))]
-pub fn net() -> Result<(), Error> {
-    Ok(())
+pub fn net<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand(
+            "tor",
+            tor::tor::<C>().with_about("Tor commands such as list-services, logs, and reset"),
+        )
+        .subcommand(
+            "acme",
+            acme::acme::<C>().with_about("Setup automatic clearnet certificate acquisition"),
+        )
+        .subcommand(
+            "network-interface",
+            network_interface::network_interface_api::<C>()
+                .with_about("View and edit network interface configurations"),
+        )
+        .subcommand(
+            "vhost",
+            vhost::vhost_api::<C>().with_about("Manage ssl virtual host proxy"),
+        )
 }
-
-pub type HttpHandler = Arc<
-    dyn Fn(Request<Body>) -> BoxFuture<'static, Result<Response<Body>, HyperError>> + Send + Sync,
->;

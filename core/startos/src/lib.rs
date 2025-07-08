@@ -1,13 +1,13 @@
-pub const DEFAULT_MARKETPLACE: &str = "https://registry.start9.com";
+use const_format::formatcp;
+
+pub const DATA_DIR: &str = "/media/startos/data";
+pub const MAIN_DATA: &str = formatcp!("{DATA_DIR}/main");
+pub const PACKAGE_DATA: &str = formatcp!("{DATA_DIR}/package-data");
+pub const DEFAULT_REGISTRY: &str = "https://registry.start9.com";
 // pub const COMMUNITY_MARKETPLACE: &str = "https://community-registry.start9.com";
-pub const BUFFER_SIZE: usize = 1024;
-pub const HOST_IP: [u8; 4] = [172, 18, 0, 1];
-pub const TARGET: &str = current_platform::CURRENT_PLATFORM;
+pub const HOST_IP: [u8; 4] = [10, 0, 3, 1];
+pub use std::env::consts::ARCH;
 lazy_static::lazy_static! {
-    pub static ref ARCH: &'static str = {
-        let (arch, _) = TARGET.split_once("-").unwrap();
-        arch
-    };
     pub static ref PLATFORM: String = {
         if let Ok(platform) = std::fs::read_to_string("/usr/lib/startos/PLATFORM.txt") {
             platform
@@ -20,15 +20,22 @@ lazy_static::lazy_static! {
     };
 }
 
+mod cap {
+    #![allow(non_upper_case_globals)]
+
+    pub const CAP_1_KiB: usize = 1024;
+    pub const CAP_1_MiB: usize = CAP_1_KiB * CAP_1_KiB;
+    pub const CAP_10_MiB: usize = 10 * CAP_1_MiB;
+}
+pub use cap::*;
+
 pub mod account;
 pub mod action;
 pub mod auth;
 pub mod backup;
 pub mod bins;
-pub mod config;
 pub mod context;
 pub mod control;
-pub mod core;
 pub mod db;
 pub mod dependencies;
 pub mod developer;
@@ -38,20 +45,19 @@ pub mod error;
 pub mod firmware;
 pub mod hostname;
 pub mod init;
-pub mod inspect;
 pub mod install;
 pub mod logs;
-pub mod manager;
+pub mod lxc;
 pub mod middleware;
-pub mod migration;
 pub mod net;
 pub mod notifications;
 pub mod os_install;
 pub mod prelude;
-pub mod procedure;
-pub mod properties;
+pub mod progress;
 pub mod registry;
+pub mod rpc_continuations;
 pub mod s9pk;
+pub mod service;
 pub mod setup;
 pub mod shutdown;
 pub mod sound;
@@ -59,100 +65,545 @@ pub mod ssh;
 pub mod status;
 pub mod system;
 pub mod update;
+pub mod upload;
 pub mod util;
 pub mod version;
 pub mod volume;
 
 use std::time::SystemTime;
 
-pub use config::Config;
+use clap::Parser;
 pub use error::{Error, ErrorKind, ResultExt};
-use rpc_toolkit::command;
+use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
+use rpc_toolkit::{
+    from_fn, from_fn_async, from_fn_blocking, CallRemoteHandler, Context, Empty, HandlerExt,
+    ParentHandler,
+};
+use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[command(metadata(authenticated = false))]
-pub fn echo(#[arg] message: String) -> Result<String, RpcError> {
+use crate::context::{
+    CliContext, DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext,
+};
+use crate::disk::fsck::RequiresReboot;
+use crate::registry::context::{RegistryContext, RegistryUrlParams};
+use crate::system::kiosk;
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
+
+#[derive(Deserialize, Serialize, Parser, TS)]
+#[serde(rename_all = "camelCase")]
+#[command(rename_all = "kebab-case")]
+#[ts(export)]
+pub struct EchoParams {
+    message: String,
+}
+
+pub fn echo<C: Context>(_: C, EchoParams { message }: EchoParams) -> Result<String, RpcError> {
     Ok(message)
 }
 
-#[command(subcommands(
-    version::git_info,
-    echo,
-    inspect::inspect,
-    server,
-    package,
-    net::net,
-    auth::auth,
-    db::db,
-    ssh::ssh,
-    net::wifi::wifi,
-    disk::disk,
-    notifications::notification,
-    backup::backup,
-    registry::marketplace::marketplace,
-))]
-pub fn main_api() -> Result<(), RpcError> {
-    Ok(())
+#[derive(Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum ApiState {
+    Error,
+    Initializing,
+    Running,
+}
+impl std::fmt::Display for ApiState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(&self, f)
+    }
 }
 
-#[command(subcommands(
-    system::time,
-    system::experimental,
-    system::logs,
-    system::kernel_logs,
-    system::metrics,
-    shutdown::shutdown,
-    shutdown::restart,
-    shutdown::rebuild,
-    update::update_system,
-    firmware::update_firmware,
-))]
-pub fn server() -> Result<(), RpcError> {
-    Ok(())
+pub fn main_api<C: Context>() -> ParentHandler<C> {
+    let mut api = ParentHandler::new()
+        .subcommand(
+            "git-info",
+            from_fn(|_: C| version::git_info()).with_about("Display the githash of StartOS CLI"),
+        )
+        .subcommand(
+            "echo",
+            from_fn(echo::<RpcContext>)
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_about("Echo a message")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "state",
+            from_fn(|_: RpcContext| Ok::<_, Error>(ApiState::Running))
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_about("Display the API that is currently serving")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "server",
+            server::<C>()
+                .with_about("Commands related to the server i.e. restart, update, and shutdown"),
+        )
+        .subcommand(
+            "package",
+            package::<C>().with_about("Commands related to packages"),
+        )
+        .subcommand(
+            "net",
+            net::net::<C>().with_about("Network commands related to tor and dhcp"),
+        )
+        .subcommand(
+            "auth",
+            auth::auth::<C>().with_about(
+                "Commands related to Authentication i.e. login, logout, reset-password",
+            ),
+        )
+        .subcommand(
+            "db",
+            db::db::<C>().with_about("Commands to interact with the db i.e. dump, put, apply"),
+        )
+        .subcommand(
+            "ssh",
+            ssh::ssh::<C>()
+                .with_about("Commands for interacting with ssh keys i.e. add, delete, list"),
+        )
+        .subcommand(
+            "wifi",
+            net::wifi::wifi::<C>()
+                .with_about("Commands related to wifi networks i.e. add, connect, delete"),
+        )
+        .subcommand(
+            "disk",
+            disk::disk::<C>().with_about("Commands for listing disk info and repairing"),
+        )
+        .subcommand(
+            "notification",
+            notifications::notification::<C>().with_about("Create, delete, or list notifications"),
+        )
+        .subcommand(
+            "backup",
+            backup::backup::<C>()
+                .with_about("Commands related to backup creation and backup targets"),
+        )
+        .subcommand(
+            "registry",
+            CallRemoteHandler::<RpcContext, _, _, RegistryUrlParams>::new(
+                registry::registry_api::<RegistryContext>(),
+            )
+            .no_cli(),
+        )
+        .subcommand(
+            "s9pk",
+            s9pk::rpc::s9pk().with_about("Commands for interacting with s9pk files"),
+        )
+        .subcommand(
+            "util",
+            util::rpc::util::<C>().with_about("Command for calculating the blake3 hash of a file"),
+        );
+    if &*PLATFORM != "raspberrypi" {
+        api = api.subcommand("kiosk", kiosk::<C>());
+    }
+    api
 }
 
-#[command(subcommands(
-    action::action,
-    install::install,
-    install::sideload,
-    install::uninstall,
-    install::list,
-    config::config,
-    control::start,
-    control::stop,
-    control::restart,
-    logs::logs,
-    properties::properties,
-    dependencies::dependency,
-    backup::package_backup,
-))]
-pub fn package() -> Result<(), RpcError> {
-    Ok(())
+pub fn server<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand(
+            "time",
+            from_fn_async(system::time)
+                .with_display_serializable()
+                .with_custom_display_fn(|handle, result| {
+                    system::display_time(handle.params, result)
+                })
+                .with_about("Display current time and server uptime")
+                .with_call_remote::<CliContext>()
+        )
+        .subcommand(
+            "experimental",
+            system::experimental::<C>()
+                .with_about("Commands related to configuring experimental options such as zram and cpu governor"),
+        )
+        .subcommand(
+            "logs",
+            system::logs::<RpcContext>().with_about("Display OS logs"),
+        )
+        .subcommand(
+            "logs",
+            from_fn_async(logs::cli_logs::<RpcContext, Empty>).no_display().with_about("Display OS logs"),
+        )
+        .subcommand(
+            "kernel-logs",
+            system::kernel_logs::<RpcContext>().with_about("Display Kernel logs"),
+        )
+        .subcommand(
+            "kernel-logs",
+            from_fn_async(logs::cli_logs::<RpcContext, Empty>).no_display().with_about("Display Kernel logs"),
+        )
+        .subcommand(
+            "metrics",
+            ParentHandler::<C, WithIoFormat<Empty>>::new()
+                .root_handler(
+                    from_fn_async(system::metrics)
+                        .with_display_serializable()
+                        .with_about("Display information about the server i.e. temperature, RAM, CPU, and disk usage")
+                        .with_call_remote::<CliContext>()
+                )
+                .subcommand(
+                    "follow", 
+                    from_fn_async(system::metrics_follow)
+                        .no_cli()
+                )
+        )
+        .subcommand(
+            "shutdown",
+            from_fn_async(shutdown::shutdown)
+                .no_display()
+                .with_about("Shutdown the server")
+                .with_call_remote::<CliContext>()
+        )
+        .subcommand(
+            "restart",
+            from_fn_async(shutdown::restart)
+                .no_display()
+                .with_about("Restart the server")
+                .with_call_remote::<CliContext>()
+        )
+        .subcommand(
+            "rebuild",
+            from_fn_async(shutdown::rebuild)
+                .no_display()
+                .with_about("Teardown and rebuild service containers")
+                .with_call_remote::<CliContext>()
+        )
+        .subcommand(
+            "update",
+            from_fn_async(update::update_system)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand(
+            "update",
+            from_fn_async(update::cli_update_system).no_display().with_about("Check a given registry for StartOS updates and update if available"),
+        )
+        .subcommand(
+            "update-firmware",
+            from_fn_async(|_: RpcContext| async {
+                if let Some(firmware) = firmware::check_for_firmware_update().await? {
+                    firmware::update_firmware(firmware).await?;
+                    Ok::<_, Error>(RequiresReboot(true))
+                } else {
+                    Ok(RequiresReboot(false))
+                }
+            })
+            .with_custom_display_fn(|_handle, result| {
+                Ok(firmware::display_firmware_update_result(result))
+            })
+            .with_about("Update the mainboard's firmware to the latest firmware available in this version of StartOS if available. Note: This command does not reach out to the Internet")
+            .with_call_remote::<CliContext>()
+        )
+        .subcommand(
+            "set-smtp",
+            from_fn_async(system::set_system_smtp)
+                .no_display()
+                .with_about("Set system smtp server and credentials")
+                .with_call_remote::<CliContext>()
+        )
+        .subcommand(
+            "test-smtp", 
+            from_fn_async(system::test_smtp)
+                .no_display()
+                .with_about("Send test email using provided smtp server and credentials")
+                .with_call_remote::<CliContext>()
+        )
+        .subcommand(
+            "clear-smtp",
+            from_fn_async(system::clear_system_smtp)
+                .no_display()
+                .with_about("Remove system smtp server and credentials")
+                .with_call_remote::<CliContext>()
+        ).subcommand("host", net::host::server_host_api::<C>().with_about("Commands for modifying the host for the system ui"))
 }
 
-#[command(subcommands(
-    version::git_info,
-    s9pk::pack,
-    developer::verify,
-    developer::init,
-    inspect::inspect,
-    registry::admin::publish,
-))]
-pub fn portable_api() -> Result<(), RpcError> {
-    Ok(())
+pub fn package<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
+        .subcommand(
+            "action",
+            action::action_api::<C>().with_about("Commands to get action input or run an action"),
+        )
+        .subcommand(
+            "install",
+            from_fn_async(install::install)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand(
+            "sideload",
+            from_fn_async(install::sideload)
+                .with_metadata("get_session", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand(
+            "install",
+            from_fn_async(install::cli_install)
+                .no_display()
+                .with_about("Install a package from a marketplace or via sideloading"),
+        )
+        .subcommand(
+            "cancel-install",
+            from_fn(install::cancel_install)
+                .no_display()
+                .with_about("Cancel an install of a package")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "uninstall",
+            from_fn_async(install::uninstall)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("Remove a package")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "list",
+            from_fn_async(install::list)
+                .with_display_serializable()
+                .with_about("List installed packages")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "installed-version",
+            from_fn_async(install::installed_version)
+                .with_display_serializable()
+                .with_about("Display installed version for a PackageId")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "start",
+            from_fn_async(control::start)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("Start a service")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "stop",
+            from_fn_async(control::stop)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("Stop a service")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "restart",
+            from_fn_async(control::restart)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("Restart a service")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "rebuild",
+            from_fn_async(service::rebuild)
+                .with_metadata("sync_db", Value::Bool(true))
+                .no_display()
+                .with_about("Rebuild service container")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "stats",
+            from_fn_async(lxc::stats)
+                .with_display_serializable()
+                .with_custom_display_fn(|args, res| {
+                    if let Some(format) = args.params.format {
+                        return display_serializable(format, res);
+                    }
+
+                    use prettytable::*;
+                    let mut table = table!([
+                        "Name",
+                        "Container ID",
+                        "Memory Usage",
+                        "Memory Limit",
+                        "Memory %"
+                    ]);
+                    for (id, stats) in res {
+                        if let Some(stats) = stats {
+                            table.add_row(row![
+                                &*id,
+                                &*stats.container_id,
+                                stats.memory_usage,
+                                stats.memory_limit,
+                                format!(
+                                    "{:.2}",
+                                    stats.memory_usage.0 as f64 / stats.memory_limit.0 as f64
+                                        * 100.0
+                                )
+                            ]);
+                        } else {
+                            table.add_row(row![&*id, "N/A", "0 MiB", "0 MiB", "0"]);
+                        }
+                    }
+                    table.print_tty(false)?;
+                    Ok(())
+                })
+                .with_about("List information related to the lxc containers i.e. CPU, Memory, Disk")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand("logs", logs::package_logs())
+        .subcommand(
+            "logs",
+            logs::package_logs().with_about("Display package logs"),
+        )
+        .subcommand(
+            "logs",
+            from_fn_async(logs::cli_logs::<RpcContext, logs::PackageIdParams>)
+                .no_display()
+                .with_about("Display package logs"),
+        )
+        .subcommand(
+            "backup",
+            backup::package_backup::<C>()
+                .with_about("Commands for restoring package(s) from backup"),
+        )
+        .subcommand("connect", from_fn_async(service::connect_rpc).no_cli())
+        .subcommand(
+            "connect",
+            from_fn_async(service::connect_rpc_cli)
+                .no_display()
+                .with_about("Connect to a LXC container"),
+        )
+        .subcommand(
+            "attach",
+            from_fn_async(service::attach)
+                .with_metadata("get_session", Value::Bool(true))
+                .with_about("Execute commands within a service container")
+                .no_cli(),
+        )
+        .subcommand("attach", from_fn_async(service::cli_attach).no_display())
+        .subcommand(
+            "host",
+            net::host::host_api::<C>().with_about("Manage network hosts for a package"),
+        )
 }
 
-#[command(subcommands(version::git_info, echo, diagnostic::diagnostic))]
-pub fn diagnostic_api() -> Result<(), RpcError> {
-    Ok(())
+pub fn diagnostic_api() -> ParentHandler<DiagnosticContext> {
+    ParentHandler::new()
+        .subcommand(
+            "git-info",
+            from_fn(|_: DiagnosticContext| version::git_info())
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_about("Display the githash of StartOS CLI"),
+        )
+        .subcommand(
+            "echo",
+            from_fn(echo::<DiagnosticContext>)
+                .with_about("Echo a message")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "state",
+            from_fn(|_: DiagnosticContext| Ok::<_, Error>(ApiState::Error))
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_about("Display the API that is currently serving")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "diagnostic",
+            diagnostic::diagnostic::<DiagnosticContext>()
+                .with_about("Diagnostic commands i.e. logs, restart, rebuild"),
+        )
 }
 
-#[command(subcommands(version::git_info, echo, setup::setup))]
-pub fn setup_api() -> Result<(), RpcError> {
-    Ok(())
+pub fn init_api() -> ParentHandler<InitContext> {
+    ParentHandler::new()
+        .subcommand(
+            "git-info",
+            from_fn(|_: InitContext| version::git_info())
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_about("Display the githash of StartOS CLI"),
+        )
+        .subcommand(
+            "echo",
+            from_fn(echo::<InitContext>)
+                .with_about("Echo a message")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "state",
+            from_fn(|_: InitContext| Ok::<_, Error>(ApiState::Initializing))
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_about("Display the API that is currently serving")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "init",
+            init::init_api::<InitContext>()
+                .with_about("Commands to get logs or initialization progress"),
+        )
 }
 
-#[command(subcommands(version::git_info, echo, os_install::install))]
-pub fn install_api() -> Result<(), RpcError> {
-    Ok(())
+pub fn setup_api() -> ParentHandler<SetupContext> {
+    ParentHandler::new()
+        .subcommand(
+            "git-info",
+            from_fn(|_: SetupContext| version::git_info())
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_about("Display the githash of StartOS CLI"),
+        )
+        .subcommand(
+            "echo",
+            from_fn(echo::<SetupContext>)
+                .with_about("Echo a message")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand("setup", setup::setup::<SetupContext>())
+}
+
+pub fn install_api() -> ParentHandler<InstallContext> {
+    ParentHandler::new()
+        .subcommand(
+            "git-info",
+            from_fn(|_: InstallContext| version::git_info())
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_about("Display the githash of StartOS CLI"),
+        )
+        .subcommand(
+            "echo",
+            from_fn(echo::<InstallContext>)
+                .with_about("Echo a message")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "install",
+            os_install::install::<InstallContext>()
+                .with_about("Commands to list disk info, install StartOS, and reboot"),
+        )
+}
+
+pub fn expanded_api() -> ParentHandler<CliContext> {
+    main_api()
+        .subcommand(
+            "init",
+            from_fn_blocking(developer::init)
+                .no_display()
+                .with_about("Create developer key if it doesn't exist"),
+        )
+        .subcommand(
+            "pubkey",
+            from_fn_blocking(developer::pubkey)
+                .with_about("Get public key for developer private key"),
+        )
+        .subcommand(
+            "diagnostic",
+            diagnostic::diagnostic::<CliContext>()
+                .with_about("Commands to display logs, restart the server, etc"),
+        )
+        .subcommand("setup", setup::setup::<CliContext>())
+        .subcommand(
+            "install",
+            os_install::install::<CliContext>()
+                .with_about("Commands to list disk info, install StartOS, and reboot"),
+        )
+        .subcommand(
+            "registry",
+            registry::registry_api::<CliContext>().with_about("Commands related to the registry"),
+        )
 }

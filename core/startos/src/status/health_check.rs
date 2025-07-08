@@ -1,126 +1,99 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::str::FromStr;
 
-use chrono::{DateTime, Utc};
+use clap::builder::ValueParserFactory;
+use models::FromStrParser;
 pub use models::HealthCheckId;
-use models::ImageId;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
+use ts_rs::TS;
 
-use crate::context::RpcContext;
-use crate::procedure::{NoOutput, PackageProcedure, ProcedureName};
-use crate::s9pk::manifest::PackageId;
-use crate::util::serde::Duration;
-use crate::util::Version;
-use crate::volume::Volumes;
-use crate::{Error, ResultExt};
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct HealthChecks(pub BTreeMap<HealthCheckId, HealthCheck>);
-impl HealthChecks {
-    #[instrument(skip_all)]
-    pub fn validate(
-        &self,
-        eos_version: &Version,
-        volumes: &Volumes,
-        image_ids: &BTreeSet<ImageId>,
-    ) -> Result<(), Error> {
-        for check in self.0.values() {
-            check
-                .implementation
-                .validate(eos_version, volumes, image_ids, false)
-                .with_ctx(|_| {
-                    (
-                        crate::ErrorKind::ValidateS9pk,
-                        format!("Health Check {}", check.name),
-                    )
-                })?;
-        }
-        Ok(())
-    }
-    pub async fn check_all(
-        &self,
-        ctx: &RpcContext,
-        started: DateTime<Utc>,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
-        volumes: &Volumes,
-    ) -> Result<BTreeMap<HealthCheckId, HealthCheckResult>, Error> {
-        let res = futures::future::try_join_all(self.0.iter().map(|(id, check)| async move {
-            Ok::<_, Error>((
-                id.clone(),
-                check
-                    .check(ctx, id, started, pkg_id, pkg_version, volumes)
-                    .await?,
-            ))
-        }))
-        .await?;
-        Ok(res.into_iter().collect())
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub struct HealthCheck {
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct NamedHealthCheckResult {
     pub name: String,
-    pub success_message: Option<String>,
     #[serde(flatten)]
-    implementation: PackageProcedure,
-    pub timeout: Option<Duration>,
+    pub kind: NamedHealthCheckResultKind,
 }
-impl HealthCheck {
-    #[instrument(skip_all)]
-    pub async fn check(
-        &self,
-        ctx: &RpcContext,
-        id: &HealthCheckId,
-        started: DateTime<Utc>,
-        pkg_id: &PackageId,
-        pkg_version: &Version,
-        volumes: &Volumes,
-    ) -> Result<HealthCheckResult, Error> {
-        let res = self
-            .implementation
-            .execute(
-                ctx,
-                pkg_id,
-                pkg_version,
-                ProcedureName::Health(id.clone()),
-                volumes,
-                Some(Utc::now().signed_duration_since(started).num_milliseconds()),
-                Some(
-                    self.timeout
-                        .map_or(std::time::Duration::from_secs(30), |d| *d),
-                ),
-            )
-            .await?;
-        Ok(match res {
-            Ok(NoOutput) => HealthCheckResult::Success,
-            Err((59, _)) => HealthCheckResult::Disabled,
-            Err((60, _)) => HealthCheckResult::Starting,
-            Err((61, message)) => HealthCheckResult::Loading { message },
-            Err((_, error)) => HealthCheckResult::Failure { error },
-        })
+// healthCheckName:kind:message OR healthCheckName:kind
+impl FromStr for NamedHealthCheckResult {
+    type Err = color_eyre::eyre::Report;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let from_parts = |name: &str, kind: &str, message: Option<&str>| {
+            let message = message.map(|x| x.to_string());
+            let kind = match kind {
+                "success" => NamedHealthCheckResultKind::Success { message },
+                "disabled" => NamedHealthCheckResultKind::Disabled { message },
+                "starting" => NamedHealthCheckResultKind::Starting { message },
+                "loading" => NamedHealthCheckResultKind::Loading {
+                    message: message.unwrap_or_default(),
+                },
+                "failure" => NamedHealthCheckResultKind::Failure {
+                    message: message.unwrap_or_default(),
+                },
+                _ => return Err(color_eyre::eyre::eyre!("Invalid health check kind")),
+            };
+            Ok(Self {
+                name: name.to_string(),
+                kind,
+            })
+        };
+        let parts = s.split(':').collect::<Vec<_>>();
+        match &*parts {
+            [name, kind, message] => from_parts(name, kind, Some(message)),
+            [name, kind] => from_parts(name, kind, None),
+            _ => Err(color_eyre::eyre::eyre!(
+                "Could not match the shape of the result ${parts:?}"
+            )),
+        }
+    }
+}
+impl ValueParserFactory for NamedHealthCheckResult {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, TS)]
+#[serde(rename_all = "camelCase")]
 #[serde(tag = "result")]
-pub enum HealthCheckResult {
-    Success,
-    Disabled,
-    Starting,
+pub enum NamedHealthCheckResultKind {
+    Success { message: Option<String> },
+    Disabled { message: Option<String> },
+    Starting { message: Option<String> },
     Loading { message: String },
-    Failure { error: String },
+    Failure { message: String },
 }
-impl std::fmt::Display for HealthCheckResult {
+impl std::fmt::Display for NamedHealthCheckResult {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            HealthCheckResult::Success => write!(f, "Succeeded"),
-            HealthCheckResult::Disabled => write!(f, "Disabled"),
-            HealthCheckResult::Starting => write!(f, "Starting"),
-            HealthCheckResult::Loading { message } => write!(f, "Loading ({})", message),
-            HealthCheckResult::Failure { error } => write!(f, "Failed ({})", error),
+        let name = &self.name;
+        match &self.kind {
+            NamedHealthCheckResultKind::Success { message } => {
+                if let Some(message) = message {
+                    write!(f, "{name}: Succeeded ({message})")
+                } else {
+                    write!(f, "{name}: Succeeded")
+                }
+            }
+            NamedHealthCheckResultKind::Disabled { message } => {
+                if let Some(message) = message {
+                    write!(f, "{name}: Disabled ({message})")
+                } else {
+                    write!(f, "{name}: Disabled")
+                }
+            }
+            NamedHealthCheckResultKind::Starting { message } => {
+                if let Some(message) = message {
+                    write!(f, "{name}: Starting ({message})")
+                } else {
+                    write!(f, "{name}: Starting")
+                }
+            }
+            NamedHealthCheckResultKind::Loading { message } => {
+                write!(f, "{name}: Loading ({message})")
+            }
+            NamedHealthCheckResultKind::Failure { message } => {
+                write!(f, "{name}: Failed ({message})")
+            }
         }
     }
 }
