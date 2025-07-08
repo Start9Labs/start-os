@@ -44,7 +44,7 @@ import UpdatesComponent from './updates.component'
   template: `
     <tr (click)="expanded.set(!expanded())">
       <td>
-        <div [style.gap.rem]="0.75">
+        <div [style.gap.rem]="0.75" [style.padding-inline-end.rem]="1">
           <tui-avatar size="s"><img alt="" [src]="item().icon" /></tui-avatar>
           <span tuiTitle [style.margin]="'-0.125rem 0 0'">
             <b tuiFade>{{ item().title }}</b>
@@ -71,17 +71,8 @@ import UpdatesComponent from './updates.component'
       <td class="desktop">{{ item().s9pk.publishedAt | date }}</td>
       <td>
         <div>
-          <button
-            tuiIconButton
-            size="m"
-            appearance="icon"
-            [tuiChevron]="expanded()"
-          >
-            {{ 'Show more' | i18n }}
-          </button>
           @if (local().stateInfo.state === 'updating') {
             <tui-progress-circle
-              class="g-positive"
               size="xs"
               [max]="100"
               [value]="
@@ -100,6 +91,14 @@ import UpdatesComponent from './updates.component'
               {{ error() ? ('Retry' | i18n) : ('Update' | i18n) }}
             </button>
           }
+          <button
+            tuiIconButton
+            size="m"
+            appearance="icon"
+            [tuiChevron]="expanded()"
+          >
+            {{ 'Show more' | i18n }}
+          </button>
         </div>
       </td>
     </tr>
