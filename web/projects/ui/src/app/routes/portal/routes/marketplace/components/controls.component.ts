@@ -5,7 +5,6 @@ import {
   inject,
   input,
 } from '@angular/core'
-import { toSignal } from '@angular/core/rxjs-interop'
 import { Router } from '@angular/router'
 import {
   ErrorService,
@@ -37,12 +36,12 @@ import { MarketplaceAlertsService } from '../services/alerts.service'
   template: `
     @if (localPkg(); as local) {
       @if (local.stateInfo.state === 'installed') {
-        @switch ((local | toManifest).version | compareExver: version() || '') {
+        @switch ((local | toManifest).version | compareExver: version()) {
           @case (1) {
             <button
               tuiButton
               type="button"
-              appearance="secondary-destructive"
+              appearance="warning"
               (click)="tryInstall()"
             >
               {{ 'Downgrade' | i18n }}
@@ -86,7 +85,7 @@ import { MarketplaceAlertsService } from '../services/alerts.service'
       <button
         tuiButton
         type="button"
-        [appearance]="localFlavor() ? 'warning' : 'primary'"
+        appearance="primary"
         (click)="tryInstall()"
       >
         {{ localFlavor() ? ('Switch' | i18n) : ('Install' | i18n) }}
@@ -114,8 +113,7 @@ export class MarketplaceControlsComponent {
   private readonly api = inject(ApiService)
   private readonly preview = inject(MarketplacePreviewComponent)
 
-  protected readonly version = toSignal(this.preview.version$)
-
+  version = input.required<string>()
   installAlert = input.required<string | null>()
   localPkg = input.required<PackageDataEntry | null>()
   localFlavor = input.required<boolean>()
@@ -146,11 +144,10 @@ export class MarketplaceControlsComponent {
     }
 
     const localManifest = getManifest(localPkg)
-    const version = this.version() || ''
 
     if (
       hasCurrentDeps(localManifest.id, await getAllPackages(this.patch)) &&
-      this.exver.compareExver(localManifest.version, version) !== 0
+      this.exver.compareExver(localManifest.version, this.version()) !== 0
     ) {
       this.dryInstall(currentUrl)
     } else {
@@ -164,9 +161,8 @@ export class MarketplaceControlsComponent {
 
   private async dryInstall(url: string | null) {
     const id = this.preview.pkgId
-    const version = this.version() || ''
     const breakages = dryUpdate(
-      { id, version },
+      { id, version: this.version() },
       await getAllPackages(this.patch),
       this.exver,
     )
@@ -190,11 +186,10 @@ export class MarketplaceControlsComponent {
 
   private async install(url: string) {
     const loader = this.loader.open('Beginning install').subscribe()
-    const version = this.version() || ''
     const id = this.preview.pkgId
 
     try {
-      await this.marketplaceService.installPackage(id, version, url)
+      await this.marketplaceService.installPackage(id, this.version(), url)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

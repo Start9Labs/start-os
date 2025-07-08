@@ -46,6 +46,7 @@ import { ClientStorageService } from './services/client-storage.service'
 import { DateTransformerService } from './services/date-transformer.service'
 import { DatetimeTransformerService } from './services/datetime-transformer.service'
 import { StorageService } from './services/storage.service'
+import { FilterUpdatesPipe } from './routes/portal/routes/updates/filter-updates.pipe'
 
 const {
   useMocks,
@@ -56,6 +57,7 @@ export const APP_PROVIDERS = [
   provideEventPlugins(),
   I18N_PROVIDERS,
   FilterPackagesPipe,
+  FilterUpdatesPipe,
   UntypedFormBuilder,
   tuiNumberFormatProvider({ decimalSeparator: '.', thousandSeparator: '' }),
   tuiButtonOptionsProvider({ size: 'm' }),

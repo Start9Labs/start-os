@@ -56,6 +56,7 @@ import { MarketplaceControlsComponent } from './controls.component'
           <marketplace-controls
             slot="controls"
             class="controls-wrapper"
+            [version]="pkg().version"
             [installAlert]="pkg().alerts.install"
             [localPkg]="local$ | async"
             [localFlavor]="!!(flavor$ | async)"
