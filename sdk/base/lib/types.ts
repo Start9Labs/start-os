@@ -180,8 +180,8 @@ export type KnownError =
 
 export type Dependencies = Array<DependencyRequirement>
 
-export type DeepPartial<T> = T extends unknown[]
-  ? T
+export type DeepPartial<T> = T extends [infer A, ...infer Rest]
+  ? [DeepPartial<A>, ...DeepPartial<Rest>]
   : T extends {}
     ? { [P in keyof T]?: DeepPartial<T[P]> }
     : T

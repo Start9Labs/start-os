@@ -89,8 +89,13 @@ impl LxcManager {
         log_mount: Option<&Path>,
         config: LxcConfig,
     ) -> Result<LxcContainer, Error> {
-        let container = LxcContainer::new(self, log_mount, config).await?;
         let mut guard = self.containers.lock().await;
+        let container = tokio::time::timeout(
+            Duration::from_secs(30),
+            LxcContainer::new(self, log_mount, config),
+        )
+        .await
+        .with_kind(ErrorKind::Timeout)??;
         *guard = std::mem::take(&mut *guard)
             .into_iter()
             .filter(|g| g.strong_count() > 0)

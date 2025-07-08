@@ -710,7 +710,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
             image,
             mounts,
             name,
-          )
+          ).then((subc) => subc.rc())
         },
         /**
          * @description Run a function with a temporary SubContainer

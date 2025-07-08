@@ -38,7 +38,7 @@ use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::v2::pack::{CONTAINER_DATADIR, CONTAINER_TOOL};
 use crate::ssh::SSH_DIR;
 use crate::system::{get_mem_info, sync_kiosk};
-use crate::util::io::{create_file, IOHook};
+use crate::util::io::{create_file, open_file, IOHook};
 use crate::util::lshw::lshw;
 use crate::util::net::WebSocketExt;
 use crate::util::{cpupower, Invoke};
@@ -399,6 +399,11 @@ pub async fn init(
         .invoke(crate::ErrorKind::Journald)
         .await?;
     mount_logs.complete();
+    tokio::io::copy(
+        &mut open_file("/run/startos/init.log").await?,
+        &mut tokio::io::stderr(),
+    )
+    .await?;
     tracing::info!("Mounted Logs");
 
     load_ca_cert.start();
