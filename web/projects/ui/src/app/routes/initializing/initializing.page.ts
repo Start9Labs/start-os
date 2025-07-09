@@ -29,7 +29,7 @@ export default class InitializingPage {
           .openWebsocket$<T.FullProgress>(guid, {
             closeObserver: {
               next: () => {
-                this.state.syncState()
+                this.state.retrigger(true)
               },
             },
           })
@@ -38,12 +38,12 @@ export default class InitializingPage {
       map(formatProgress),
       tap(({ total }) => {
         if (total === 1) {
-          this.state.syncState()
+          this.state.retrigger(true)
         }
       }),
       catchError((e, caught$) => {
         console.error(e)
-        this.state.syncState()
+        this.state.retrigger(true)
         return caught$
       }),
     ),
