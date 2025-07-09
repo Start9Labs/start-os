@@ -1008,6 +1008,18 @@ pub async fn rename(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), 
         .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mv {src:?} -> {dst:?}")))
 }
 
+pub async fn write_file(path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> Result<(), Error> {
+    let path = path.as_ref();
+    let mut file = create_file(path).await?;
+    file.write_all(contents.as_ref())
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("w {path:?}")))?;
+    file.sync_all()
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("fsync {path:?}")))?;
+    Ok(())
+}
+
 fn poll_flush_prefix<W: AsyncWrite>(
     mut writer: Pin<&mut W>,
     cx: &mut std::task::Context<'_>,

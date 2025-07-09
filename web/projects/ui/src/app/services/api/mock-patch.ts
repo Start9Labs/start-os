@@ -33,6 +33,7 @@ export const mockPatchData: DataModel = {
           contact: ['mailto:support@start9.com'],
         },
       },
+      proxy: {},
       host: {
         bindings: {
           80: {

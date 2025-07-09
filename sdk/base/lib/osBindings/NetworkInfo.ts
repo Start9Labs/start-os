@@ -3,6 +3,7 @@ import type { AcmeProvider } from "./AcmeProvider"
 import type { AcmeSettings } from "./AcmeSettings"
 import type { Host } from "./Host"
 import type { NetworkInterfaceInfo } from "./NetworkInterfaceInfo"
+import type { Proxies } from "./Proxies"
 import type { WifiInfo } from "./WifiInfo"
 
 export type NetworkInfo = {
@@ -10,4 +11,5 @@ export type NetworkInfo = {
   host: Host
   networkInterfaces: { [key: string]: NetworkInterfaceInfo }
   acme: { [key: AcmeProvider]: AcmeSettings }
+  proxy: Proxies
 }
