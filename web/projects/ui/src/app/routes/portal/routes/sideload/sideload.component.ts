@@ -17,6 +17,7 @@ import { TitleDirective } from 'src/app/services/title.service'
 import { SideloadPackageComponent } from './package.component'
 import { MarketplacePkgSideload, validateS9pk } from './sideload.utils'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
+import { MarketplacePreviewComponent } from '../marketplace/modals/preview.component'
 
 @Component({
   template: `
@@ -82,7 +83,10 @@ import { i18nKey, i18nPipe } from '@start9labs/shared'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [tuiInputFilesOptionsProvider({ maxFileSize: Infinity })],
+  providers: [
+    tuiInputFilesOptionsProvider({ maxFileSize: Infinity }),
+    MarketplacePreviewComponent,
+  ],
   imports: [
     FormsModule,
     TuiFiles,
