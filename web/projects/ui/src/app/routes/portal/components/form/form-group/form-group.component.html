@@ -6,27 +6,24 @@
           class="g-form-control"
           [formGroupName]="entry.key"
           [spec]="$any(entry.value)"
-        ></form-object>
+        />
       }
       @case ('union') {
         <form-union
           class="g-form-control"
           [formGroupName]="entry.key"
           [spec]="$any(entry.value)"
-        ></form-union>
+        />
       }
       @case ('list') {
-        <form-array
-          [formArrayName]="entry.key"
-          [spec]="$any(entry.value)"
-        ></form-array>
+        <form-array [formArrayName]="entry.key" [spec]="$any(entry.value)" />
       }
       @default {
         <form-control
           class="g-form-control"
           [formControlName]="entry.key"
           [spec]="entry.value"
-        ></form-control>
+        />
       }
     }
   </ng-container>

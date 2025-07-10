@@ -45,12 +45,12 @@ export interface FormContext<T> {
       <form-group [spec]="spec" />
       <footer>
         <ng-content />
-        @for (button of buttons; track button; let last = $last) {
+        @for (button of buttons; track $index) {
           @if (button.handler) {
             <button
               tuiButton
-              [appearance]="last ? 'primary' : 'flat-grayscale'"
-              [type]="last ? 'submit' : 'button'"
+              [appearance]="$last ? 'primary' : 'flat-grayscale'"
+              [type]="$last ? 'submit' : 'button'"
               (click)="onClick(button.handler)"
             >
               {{ button.text }}

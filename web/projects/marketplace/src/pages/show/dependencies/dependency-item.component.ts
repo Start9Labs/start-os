@@ -19,13 +19,10 @@ import { MarketplacePkgBase } from '../../../types'
               {{ getTitle(dep.key) }}
             </span>
             <p>
-              @switch (dep.value.optional) {
-                @case (true) {
-                  <span>(optional)</span>
-                }
-                @case (false) {
-                  <span>(required)</span>
-                }
+              @if (dep.value.optional) {
+                <span>(optional)</span>
+              } @else {
+                <span>(required)</span>
               }
             </p>
           </div>

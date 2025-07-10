@@ -1,7 +1,8 @@
-<!-- Local HTTP -->
 @if (config.isLanHttp()) {
-  <ca-wizard></ca-wizard>
+  <!-- Local HTTP -->
+  <ca-wizard />
 } @else {
+  <!-- not Local HTTP -->
   <div tuiCardLarge class="card">
     <img alt="StartOS Icon" class="logo" src="assets/img/icon.png" />
     <h1 class="header">{{ 'Login to StartOS' | i18n }}</h1>
@@ -19,5 +20,3 @@
     </form>
   </div>
 }
-
-<!-- not Local HTTP -->

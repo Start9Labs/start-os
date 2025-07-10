@@ -13,9 +13,9 @@
     + {{ 'Add' | i18n }}
   </button>
 </div>
-<tui-error [error]="order | tuiFieldError | async"></tui-error>
+<tui-error [error]="order | tuiFieldError | async" />
 
-@for (item of array.control.controls; track item; let index = $index) {
+@for (item of array.control.controls; track item) {
   @if (spec.spec.type === 'object') {
     <form-object
       class="object"
@@ -28,7 +28,7 @@
       (openChange)="open.set(item, $event)"
     >
       {{ item.value | mustache: $any(spec.spec).displayAs }}
-      <ng-container *ngTemplateOutlet="remove"></ng-container>
+      <ng-container *ngTemplateOutlet="remove" />
     </form-object>
   } @else {
     <form-control
@@ -40,7 +40,7 @@
       [spec]="$any(spec.spec)"
       [@tuiHeightCollapse]="animation"
       [@tuiFadeIn]="animation"
-    ></form-control>
+    />
   }
   <ng-template #remove>
     <button
@@ -51,7 +51,7 @@
       appearance="icon"
       size="m"
       title="Remove"
-      (click.stop)="removeAt(index)"
+      (click.stop)="removeAt($index)"
     ></button>
   </ng-template>
 }

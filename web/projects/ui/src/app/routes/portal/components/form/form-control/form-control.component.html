@@ -1,33 +1,33 @@
 @switch (spec.type) {
   @case ('color') {
-    <form-color></form-color>
+    <form-color />
   }
   @case ('datetime') {
-    <form-datetime></form-datetime>
+    <form-datetime />
   }
   @case ('file') {
-    <form-file></form-file>
+    <form-file />
   }
   @case ('multiselect') {
-    <form-multiselect></form-multiselect>
+    <form-multiselect />
   }
   @case ('number') {
-    <form-number></form-number>
+    <form-number />
   }
   @case ('select') {
-    <form-select></form-select>
+    <form-select />
   }
   @case ('text') {
-    <form-text></form-text>
+    <form-text />
   }
   @case ('textarea') {
-    <form-textarea></form-textarea>
+    <form-textarea />
   }
   @case ('toggle') {
-    <form-toggle></form-toggle>
+    <form-toggle />
   }
 }
-<tui-error [error]="order | tuiFieldError | async"></tui-error>
+<tui-error [error]="order | tuiFieldError | async" />
 @if (spec.warning || immutable) {
   <ng-template #warning let-completeWith="completeWith">
     {{ spec.warning }}
