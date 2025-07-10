@@ -34,7 +34,10 @@ import {
   startWith,
   switchMap,
 } from 'rxjs'
+import { take } from 'rxjs/operators'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
+
+import { MarketplaceControlsComponent } from '../components/controls.component'
 
 @Component({
   selector: 'marketplace-preview',
@@ -43,7 +46,7 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
       <ng-content select="[slot=close]" />
       @if (pkg$ | async; as pkg) {
         <marketplace-package-hero [pkg]="pkg">
-          <ng-content select="[slot=controls]" />
+          <marketplace-controls [pkg]="pkg" />
         </marketplace-package-hero>
         <div class="inner-container">
           @if (flavors$ | async; as flavors) {
@@ -96,6 +99,13 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
   styles: `
     :host {
       pointer-events: auto;
+      overflow-y: auto;
+      height: 100%;
+      max-width: 100%;
+
+      @media (min-width: 768px) {
+        max-width: 30rem;
+      }
     }
 
     .outer-container {
@@ -157,18 +167,21 @@ import { MarketplaceService } from 'src/app/services/marketplace.service'
     TuiLoader,
     FlavorsComponent,
     i18nPipe,
+    MarketplaceControlsComponent,
   ],
 })
 export class MarketplacePreviewComponent {
-  @Input({ required: true })
-  pkgId!: string
-
   private readonly dialog = inject(DialogService)
   private readonly exver = inject(Exver)
   private readonly router = inject(Router)
   private readonly marketplaceService = inject(MarketplaceService)
+
+  @Input({ required: true })
+  pkgId!: string
+
   private readonly flavor$ = this.router.routerState.root.queryParamMap.pipe(
     map(paramMap => paramMap.get('flavor')),
+    take(1),
   )
 
   readonly version$ = new BehaviorSubject<string | null>(null)

@@ -154,8 +154,4 @@ export class MarketplacePackageHeroComponent {
       ? this.pkg.icon
       : 'assets/img/service-icons/fallback.png'
   }
-
-  get pkgId() {
-    return this.pkg.id
-  }
 }
