@@ -1,10 +1,10 @@
-import { DOCUMENT } from '@angular/common'
 import {
   AfterViewInit,
   Component,
   HostListener,
   inject,
   OnDestroy,
+  DOCUMENT,
 } from '@angular/core'
 import { i18nPipe, pauseFor } from '@start9labs/shared'
 import { TuiButton, TuiDialogContext } from '@taiga-ui/core'

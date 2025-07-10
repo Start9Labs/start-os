@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiFade } from '@taiga-ui/kit'
@@ -35,7 +34,7 @@ import { TuiFade } from '@taiga-ui/kit'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, TuiIcon, TuiTitle, TuiFade],
+  imports: [TuiIcon, TuiTitle, TuiFade],
 })
 export class MarketplaceAdditionalItemComponent {
   @Input({ required: true })

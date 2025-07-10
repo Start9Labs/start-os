@@ -10,18 +10,21 @@
   (focusedChange)="onFocus($event)"
 >
   {{ spec.name }}
-  <span *ngIf="spec.required">*</span>
+  @if (spec.required) {
+    <span>*</span>
+  }
 </tui-input>
 <ng-template #color>
   <div class="wrapper" [style.color]="value">
-    <input
-      *ngIf="!readOnly && !spec.disabled"
-      type="color"
-      class="color"
-      tabindex="-1"
-      [(ngModel)]="value"
-      (click.stop)="(0)"
-    />
+    @if (!readOnly && !spec.disabled) {
+      <input
+        type="color"
+        class="color"
+        tabindex="-1"
+        [(ngModel)]="value"
+        (click.stop)="(0)"
+      />
+    }
     <tui-icon icon="@tui.paint-bucket" tuiAppearance="icon" class="icon" />
   </div>
 </ng-template>

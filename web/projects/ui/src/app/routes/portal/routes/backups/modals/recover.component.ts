@@ -17,7 +17,7 @@ import { RecoverOption } from '../types/recover-option'
 
 @Component({
   template: `
-    <ng-container *ngIf="packageData$ | toOptions: backups | async as options">
+    @if (packageData$ | toOptions: backups | async; as options) {
       <div
         tuiGroup
         orientation="vertical"
@@ -30,12 +30,9 @@ import { RecoverOption } from '../types/recover-option'
               <strong>{{ option.title }}</strong>
               <div>Version {{ option.version }}</div>
               <div>Backup made: {{ option.timestamp | date: 'medium' }}</div>
-              <div
-                *ngIf="option | tuiMapper: toMessage as message"
-                [style.color]="message.color"
-              >
-                {{ message.text }}
-              </div>
+              @if (option | tuiMapper: toMessage; as message) {
+                <div [style.color]="message.color">{{ message.text }}</div>
+              }
             </div>
             <input
               type="checkbox"
@@ -46,7 +43,6 @@ import { RecoverOption } from '../types/recover-option'
           </label>
         }
       </div>
-
       <footer class="g-buttons">
         <button
           tuiButton
@@ -56,7 +52,7 @@ import { RecoverOption } from '../types/recover-option'
           Restore Selected
         </button>
       </footer>
-    </ng-container>
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [

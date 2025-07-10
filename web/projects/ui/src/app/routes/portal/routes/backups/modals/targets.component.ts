@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import { Component, inject, OnInit, signal } from '@angular/core'
 import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TuiButton, TuiLink, TuiNotification } from '@taiga-ui/core'
@@ -64,7 +63,6 @@ import { DocsLinkDirective } from 'projects/shared/src/public-api'
     ></table>
   `,
   imports: [
-    CommonModule,
     TuiNotification,
     TuiButton,
     BackupsPhysicalComponent,

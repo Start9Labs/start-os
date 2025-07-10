@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -121,7 +120,7 @@ import { Proxy } from 'src/app/services/patch-db/data-model'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, TuiLink, TuiButton, TuiSkeleton],
+  imports: [TuiLink, TuiButton, TuiSkeleton],
 })
 export class ProxiesTableComponent {
   private readonly dialogs = inject(TuiDialogService)

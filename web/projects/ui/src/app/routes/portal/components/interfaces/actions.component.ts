@@ -3,6 +3,7 @@ import {
   Component,
   inject,
   input,
+  DOCUMENT,
 } from '@angular/core'
 import { CopyService, DialogService, i18nPipe } from '@start9labs/shared'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
@@ -15,7 +16,6 @@ import {
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { QRModal } from 'src/app/routes/portal/modals/qr.component'
 import { InterfaceComponent } from './interface.component'
-import { DOCUMENT } from '@angular/common'
 
 @Component({
   selector: 'td[actions]',

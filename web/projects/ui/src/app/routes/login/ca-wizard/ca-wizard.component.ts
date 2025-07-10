@@ -1,5 +1,4 @@
-import { CommonModule, DOCUMENT } from '@angular/common'
-import { Component, inject } from '@angular/core'
+import { Component, inject, DOCUMENT } from '@angular/core'
 import { DocsLinkDirective, i18nPipe, RELATIVE_URL } from '@start9labs/shared'
 import { TuiButton, TuiIcon, TuiSurface } from '@taiga-ui/core'
 import { TuiCardLarge } from '@taiga-ui/layout'
@@ -11,7 +10,6 @@ import { ConfigService } from 'src/app/services/config.service'
   templateUrl: './ca-wizard.component.html',
   styleUrls: ['./ca-wizard.component.scss'],
   imports: [
-    CommonModule,
     TuiIcon,
     TuiButton,
     TuiCardLarge,

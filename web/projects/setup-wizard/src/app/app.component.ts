@@ -1,9 +1,8 @@
-import { Component, inject } from '@angular/core'
+import { Component, inject, DOCUMENT } from '@angular/core'
 import { Router } from '@angular/router'
 import { ErrorService } from '@start9labs/shared'
 import { ApiService } from 'src/app/services/api.service'
 import { StateService } from './services/state.service'
-import { DOCUMENT } from '@angular/common'
 
 @Component({
   selector: 'app-root',

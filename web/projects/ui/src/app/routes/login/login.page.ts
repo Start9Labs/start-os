@@ -1,15 +1,14 @@
 import { Router } from '@angular/router'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
-import { Component, Inject, DestroyRef, inject } from '@angular/core'
+import { Component, Inject, DestroyRef, inject, DOCUMENT } from '@angular/core'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { ConfigService } from 'src/app/services/config.service'
 import { i18nKey, LoadingService } from '@start9labs/shared'
-import { DOCUMENT } from '@angular/common'
 
 @Component({
   selector: 'login',
-  templateUrl: './login.page.html',
+  templateUrl: './login.component.html',
   styleUrls: ['./login.page.scss'],
   providers: [],
   standalone: false,

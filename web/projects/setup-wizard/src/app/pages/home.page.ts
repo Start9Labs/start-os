@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import { Component, inject, OnInit } from '@angular/core'
 import { RouterModule } from '@angular/router'
 import { ErrorService } from '@start9labs/shared'
@@ -102,7 +101,6 @@ import { StateService } from 'src/app/services/state.service'
     }
   `,
   imports: [
-    CommonModule,
     RouterModule,
     TuiCardLarge,
     TuiButton,

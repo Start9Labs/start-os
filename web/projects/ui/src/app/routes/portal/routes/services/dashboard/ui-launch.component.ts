@@ -1,9 +1,9 @@
-import { DOCUMENT } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
   inject,
   Input,
+  DOCUMENT,
 } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'

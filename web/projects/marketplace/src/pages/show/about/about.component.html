@@ -13,17 +13,18 @@
     </button>
     <h2 class="additional-detail-title" [style.margin-top.rem]="2">About</h2>
     <p [innerHTML]="pkg.description.long"></p>
-    <a
-      *ngIf="pkg.marketingSite as url"
-      tuiButton
-      iconEnd="@tui.external-link"
-      size="s"
-      appearance="secondary-grayscale"
-      target="_blank"
-      rel="noreferrer"
-      [href]="url"
-    >
-      View website
-    </a>
+    @if (pkg.marketingSite; as url) {
+      <a
+        tuiButton
+        iconEnd="@tui.external-link"
+        size="s"
+        appearance="secondary-grayscale"
+        target="_blank"
+        rel="noreferrer"
+        [href]="url"
+      >
+        View website
+      </a>
+    }
   </div>
 </div>

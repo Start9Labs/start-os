@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
@@ -89,16 +88,7 @@ import { wifiSpec } from './wifi.const'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    CommonModule,
-    TuiCell,
-    TuiTitle,
-    TuiBadge,
-    TuiButton,
-    TuiIcon,
-    TuiFade,
-    i18nPipe,
-  ],
+  imports: [TuiCell, TuiTitle, TuiBadge, TuiButton, TuiIcon, TuiFade, i18nPipe],
 })
 export class WifiTableComponent {
   private readonly loader = inject(LoadingService)

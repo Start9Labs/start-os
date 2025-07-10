@@ -1,9 +1,9 @@
-import { DOCUMENT } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
   inject,
   Input,
+  DOCUMENT,
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { T } from '@start9labs/start-sdk'

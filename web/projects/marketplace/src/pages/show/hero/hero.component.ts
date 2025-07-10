@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { SharedPipesModule, TickerComponent } from '@start9labs/shared'
 
@@ -138,7 +137,7 @@ import { SharedPipesModule, TickerComponent } from '@start9labs/shared'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, SharedPipesModule, TickerComponent],
+  imports: [SharedPipesModule, TickerComponent],
 })
 export class MarketplacePackageHeroComponent {
   @Input({ required: true })

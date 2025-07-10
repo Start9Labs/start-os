@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -24,31 +23,33 @@ import { Domain } from 'src/app/services/patch-db/data-model'
     </thead>
     <tbody>
       @for (domain of domains; track $index) {
-        <tr *ngFor="let domain of domains">
-          <td class="title">{{ domain.value }}</td>
-          <td class="provider">{{ domain.provider }}</td>
-          <td class="strategy">{{ getStrategy(domain) }}</td>
-          <td class="used">
-            @if (domain.usedBy.length; as qty) {
-              <button tuiLink (click)="onUsedBy(domain)">
-                Used by: {{ qty }}
+        @for (domain of domains; track domain) {
+          <tr>
+            <td class="title">{{ domain.value }}</td>
+            <td class="provider">{{ domain.provider }}</td>
+            <td class="strategy">{{ getStrategy(domain) }}</td>
+            <td class="used">
+              @if (domain.usedBy.length; as qty) {
+                <button tuiLink (click)="onUsedBy(domain)">
+                  Used by: {{ qty }}
+                </button>
+              } @else {
+                N/A
+              }
+            </td>
+            <td class="actions">
+              <button
+                tuiIconButton
+                size="xs"
+                appearance="icon"
+                iconStart="@tui.trash-2"
+                (click)="delete.emit(domain)"
+              >
+                Delete
               </button>
-            } @else {
-              N/A
-            }
-          </td>
-          <td class="actions">
-            <button
-              tuiIconButton
-              size="xs"
-              appearance="icon"
-              iconStart="@tui.trash-2"
-              (click)="delete.emit(domain)"
-            >
-              Delete
-            </button>
-          </td>
-        </tr>
+            </td>
+          </tr>
+        }
       } @empty {
         <tr><td colspan="6">No domains</td></tr>
       }
@@ -105,7 +106,7 @@ import { Domain } from 'src/app/services/patch-db/data-model'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, TuiButton, TuiLink],
+  imports: [TuiButton, TuiLink],
 })
 export class DomainsTableComponent {
   private readonly dialogs = inject(TuiDialogService)

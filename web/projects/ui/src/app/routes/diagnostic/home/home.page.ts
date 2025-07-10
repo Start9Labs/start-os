@@ -7,7 +7,7 @@ import { ConfigService } from 'src/app/services/config.service'
 
 @Component({
   selector: 'diagnostic-home',
-  templateUrl: 'home.page.html',
+  templateUrl: 'home.component.html',
   styleUrls: ['home.page.scss'],
   standalone: false,
 })

@@ -3,29 +3,30 @@
     <h2 class="additional-detail-title">Information</h2>
     <div class="detail-container">
       <!-- release date -->
-      <marketplace-additional-item
-        *ngIf="pkg.s9pk?.publishedAt as published"
-        [data]="(published | date: 'medium')!"
-        label="Released"
-        icon=""
-      />
+      @if (pkg.s9pk?.publishedAt; as published) {
+        <marketplace-additional-item
+          [data]="(published | date: 'medium')!"
+          label="Released"
+          icon=""
+        />
+      }
       <!-- git hash -->
-      <marketplace-additional-item
-        *ngIf="pkg.gitHash as gitHash; else noHash"
-        (click)="copyService.copy(gitHash)"
-        [data]="gitHash"
-        label="Git Hash"
-        icon="@tui.copy"
-        class="item-copy"
-      />
-      <ng-template #noHash>
+      @if (pkg.gitHash; as gitHash) {
+        <marketplace-additional-item
+          (click)="copyService.copy(gitHash)"
+          [data]="gitHash"
+          label="Git Hash"
+          icon="@tui.copy"
+          class="item-copy"
+        />
+      } @else {
         <div class="item-padding">
           <label tuiTitle>
             <span tuiSubtitle>Git Hash</span>
             Unknown
           </label>
         </div>
-      </ng-template>
+      }
       <!-- license -->
       <marketplace-additional-item
         (click)="static.emit('license')"
@@ -45,34 +46,38 @@
       <!-- versions -->
       <ng-content />
       <!-- links -->
-      <marketplace-additional-link
-        *ngIf="pkg.marketingSite"
-        [url]="pkg.marketingSite"
-        label="Marketing Site"
-        icon="@tui.external-link"
-        class="item-pointer"
-      />
-      <marketplace-additional-link
-        *ngIf="pkg.upstreamRepo"
-        [url]="pkg.upstreamRepo"
-        label="Source Repository"
-        icon="@tui.external-link"
-        class="item-pointer"
-      />
-      <marketplace-additional-link
-        *ngIf="pkg.wrapperRepo"
-        [url]="pkg.wrapperRepo"
-        label="Wrapper Repository"
-        icon="@tui.external-link"
-        class="item-pointer"
-      />
-      <marketplace-additional-link
-        *ngIf="pkg.supportSite"
-        [url]="pkg.supportSite"
-        label="Support Site"
-        icon="@tui.external-link"
-        class="item-pointer"
-      />
+      @if (pkg.marketingSite) {
+        <marketplace-additional-link
+          [url]="pkg.marketingSite"
+          label="Marketing Site"
+          icon="@tui.external-link"
+          class="item-pointer"
+        />
+      }
+      @if (pkg.upstreamRepo) {
+        <marketplace-additional-link
+          [url]="pkg.upstreamRepo"
+          label="Source Repository"
+          icon="@tui.external-link"
+          class="item-pointer"
+        />
+      }
+      @if (pkg.wrapperRepo) {
+        <marketplace-additional-link
+          [url]="pkg.wrapperRepo"
+          label="Wrapper Repository"
+          icon="@tui.external-link"
+          class="item-pointer"
+        />
+      }
+      @if (pkg.supportSite) {
+        <marketplace-additional-link
+          [url]="pkg.supportSite"
+          label="Support Site"
+          icon="@tui.external-link"
+          class="item-pointer"
+        />
+      }
     </div>
   </div>
 </div>

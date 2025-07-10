@@ -1,4 +1,4 @@
-import { CommonModule, KeyValue } from '@angular/common'
+import { KeyValue } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { RouterModule } from '@angular/router'
 import { ExverPipesModule } from '@start9labs/shared'
@@ -19,10 +19,14 @@ import { MarketplacePkgBase } from '../../../types'
               {{ getTitle(dep.key) }}
             </span>
             <p>
-              <ng-container [ngSwitch]="dep.value.optional">
-                <span *ngSwitchCase="true">(optional)</span>
-                <span *ngSwitchCase="false">(required)</span>
-              </ng-container>
+              @switch (dep.value.optional) {
+                @case (true) {
+                  <span>(optional)</span>
+                }
+                @case (false) {
+                  <span>(required)</span>
+                }
+              }
             </p>
           </div>
         </ng-template>
@@ -87,13 +91,7 @@ import { MarketplacePkgBase } from '../../../types'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    CommonModule,
-    RouterModule,
-    TuiAvatar,
-    ExverPipesModule,
-    TuiLineClamp,
-  ],
+  imports: [RouterModule, TuiAvatar, ExverPipesModule, TuiLineClamp],
 })
 export class MarketplaceDepItemComponent {
   @Input({ required: true })

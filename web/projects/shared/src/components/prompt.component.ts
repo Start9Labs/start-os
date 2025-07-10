@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TuiAutoFocus } from '@taiga-ui/cdk'
@@ -14,7 +13,9 @@ import { i18nKey } from '../i18n/i18n.providers'
 @Component({
   template: `
     <p>{{ options.message }}</p>
-    <p *ngIf="options.warning" class="warning">{{ options.warning }}</p>
+    @if (options.warning) {
+      <p class="warning">{{ options.warning }}</p>
+    }
     <form (ngSubmit)="submit(value.trim())">
       <tui-input
         tuiAutoFocus
@@ -24,7 +25,9 @@ import { i18nKey } from '../i18n/i18n.providers'
         [(ngModel)]="value"
       >
         {{ options.label }}
-        <span *ngIf="options.required !== false && options.label">*</span>
+        @if (options.required !== false && options.label) {
+          <span>*</span>
+        }
         <input
           tuiTextfieldLegacy
           [class.masked]="options.useMask && masked && value"
@@ -74,7 +77,6 @@ import { i18nKey } from '../i18n/i18n.providers'
     }
   `,
   imports: [
-    CommonModule,
     FormsModule,
     TuiInputModule,
     TuiButton,
