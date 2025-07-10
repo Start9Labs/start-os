@@ -6,6 +6,7 @@ import {
   input,
 } from '@angular/core'
 import { Router } from '@angular/router'
+import { MarketplacePackageHeroComponent } from '@start9labs/marketplace'
 import {
   ErrorService,
   Exver,
@@ -111,7 +112,9 @@ export class MarketplaceControlsComponent {
   private readonly router = inject(Router)
   private readonly marketplaceService = inject(MarketplaceService)
   private readonly api = inject(ApiService)
-  private readonly preview = inject(MarketplacePreviewComponent)
+  private readonly parent =
+    inject(MarketplacePreviewComponent, { optional: true }) ||
+    inject(MarketplacePackageHeroComponent)
 
   version = input.required<string>()
   installAlert = input.required<string | null>()
@@ -156,11 +159,11 @@ export class MarketplaceControlsComponent {
   }
 
   async showService() {
-    this.router.navigate(['/portal/services', this.preview.pkgId])
+    this.router.navigate(['/portal/services', this.parent.pkgId])
   }
 
   private async dryInstall(url: string | null) {
-    const id = this.preview.pkgId
+    const id = this.parent.pkgId
     const breakages = dryUpdate(
       { id, version: this.version() },
       await getAllPackages(this.patch),
@@ -186,7 +189,7 @@ export class MarketplaceControlsComponent {
 
   private async install(url: string) {
     const loader = this.loader.open('Beginning install').subscribe()
-    const id = this.preview.pkgId
+    const id = this.parent.pkgId
 
     try {
       await this.marketplaceService.installPackage(id, this.version(), url)

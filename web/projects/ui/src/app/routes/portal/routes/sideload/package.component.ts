@@ -62,7 +62,6 @@ import { MarketplacePkgSideload } from './sideload.utils'
     }
 
     .package-details {
-      -moz-column-gap: 2rem;
       column-gap: 2rem;
 
       &-main {
@@ -80,7 +79,7 @@ import { MarketplacePkgSideload } from './sideload.utils'
         }
         &-additional {
           grid-column: span 4 / span 4;
-          margin-top: 0px;
+          margin-top: 0;
         }
       }
     }
@@ -130,13 +129,10 @@ export class SideloadPackageComponent {
   onStatic(type: 'license' | 'instructions') {
     const label = type === 'license' ? 'License' : 'Instructions'
     const key = type === 'license' ? 'fullLicense' : 'instructions'
+    const content = of(this.pkg()[key])
 
     this.dialog
-      .openComponent(MARKDOWN, {
-        label,
-        size: 'l',
-        data: { content: of(this.pkg()[key]) },
-      })
+      .openComponent(MARKDOWN, { label, size: 'l', data: { content } })
       .subscribe()
   }
 }

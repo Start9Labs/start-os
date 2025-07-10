@@ -73,7 +73,7 @@ import { PolymorpheusContent } from '@taiga-ui/polymorpheus'
       display: flex;
       align-items: center;
       align-content: center;
-      margin: 0px;
+      margin: 0;
 
       @media (min-width: 1024px) {
         margin-left: -3.5rem;
