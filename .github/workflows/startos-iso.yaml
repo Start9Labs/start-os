@@ -45,7 +45,7 @@ on:
       - next/*
 
 env:
-  NODEJS_VERSION: "20.16.0"
+  NODEJS_VERSION: "20.19"
   ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev''))[github.event.inputs.environment == ''NONE''] }}'
 
 jobs:
