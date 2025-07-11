@@ -9,7 +9,6 @@ use std::task::{Context, Poll};
 use color_eyre::eyre::eyre;
 use digest::Output;
 use ed25519_dalek::VerifyingKey;
-use futures::TryStreamExt;
 use models::{ImageId, PackageId};
 use sha2::{Digest, Sha512};
 use tokio::fs::File;
@@ -157,34 +156,6 @@ impl S9pkReader {
     }
 }
 impl<R: AsyncRead + AsyncSeek + Unpin + Send + Sync> S9pkReader<R> {
-    #[instrument(skip_all)]
-    pub async fn image_tags(&mut self, arch: &str) -> Result<Vec<ImageTag>, Error> {
-        let mut tar = tokio_tar::Archive::new(self.docker_images(arch).await?);
-        let mut entries = tar.entries()?;
-        while let Some(mut entry) = entries.try_next().await? {
-            if &*entry.path()? != Path::new("manifest.json") {
-                continue;
-            }
-            let mut buf = Vec::with_capacity(entry.header().size()? as usize);
-            entry.read_to_end(&mut buf).await?;
-            #[derive(serde::Deserialize)]
-            struct ManEntry {
-                #[serde(rename = "RepoTags")]
-                tags: Vec<String>,
-            }
-            let man_entries = serde_json::from_slice::<Vec<ManEntry>>(&buf)
-                .with_ctx(|_| (crate::ErrorKind::Deserialization, "manifest.json"))?;
-            return man_entries
-                .iter()
-                .flat_map(|e| &e.tags)
-                .map(|t| t.parse())
-                .collect();
-        }
-        Err(Error::new(
-            eyre!("image.tar missing manifest.json"),
-            crate::ErrorKind::ParseS9pk,
-        ))
-    }
     #[instrument(skip_all)]
     pub async fn from_reader(mut rdr: R, check_sig: bool) -> Result<Self, Error> {
         let header = Header::deserialize(&mut rdr).await?;

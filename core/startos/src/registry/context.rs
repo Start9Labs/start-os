@@ -181,24 +181,20 @@ impl CallRemote<RegistryContext> for CliContext {
         };
         let body = serde_json::to_vec(&rpc_req)?;
         let host = url.host().or_not_found("registry hostname")?.to_string();
-        let res = self
+        let mut req = self
             .client
             .request(Method::POST, url)
             .header(CONTENT_TYPE, "application/json")
             .header(ACCEPT, "application/json")
-            .header(CONTENT_LENGTH, body.len())
-            .header(
+            .header(CONTENT_LENGTH, body.len());
+        if let Ok(key) = self.developer_key() {
+            req = req.header(
                 AUTH_SIG_HEADER,
-                SignatureHeader::sign(
-                    &AnySigningKey::Ed25519(self.developer_key()?.clone()),
-                    &body,
-                    &host,
-                )?
-                .to_header(),
-            )
-            .body(body)
-            .send()
-            .await?;
+                SignatureHeader::sign(&AnySigningKey::Ed25519(key.clone()), &body, &host)?
+                    .to_header(),
+            );
+        }
+        let res = req.body(body).send().await?;
 
         if !res.status().is_success() {
             let status = res.status();

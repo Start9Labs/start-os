@@ -209,7 +209,7 @@ impl VersionT for Version {
 
         Ok((account, ssh_keys, cifs))
     }
-    fn up(self, db: &mut Value, (account, ssh_keys, cifs): Self::PreUpRes) -> Result<(), Error> {
+    fn up(self, db: &mut Value, (account, ssh_keys, cifs): Self::PreUpRes) -> Result<Value, Error> {
         let wifi = json!({
             "interface": db["server-info"]["wifi"]["interface"],
             "ssids": db["server-info"]["wifi"]["ssids"],
@@ -287,7 +287,7 @@ impl VersionT for Version {
         });
 
         *db = next;
-        Ok(())
+        Ok(Value::Null)
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {
         Err(Error::new(
@@ -298,7 +298,7 @@ impl VersionT for Version {
 
     #[instrument(skip(self, ctx))]
     /// MUST be idempotent, and is run after *all* db migrations
-    async fn post_up(self, ctx: &RpcContext) -> Result<(), Error> {
+    async fn post_up(self, ctx: &RpcContext, input: Value) -> Result<(), Error> {
         let path = Path::new(formatcp!("{PACKAGE_DATA}/archive/"));
         if !path.is_dir() {
             return Err(Error::new(

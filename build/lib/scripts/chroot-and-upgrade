@@ -1,6 +1,6 @@
 #!/bin/bash
 
-SOURCE_DIR="$(dirname "${BASH_SOURCE[0]}")"
+SOURCE_DIR="$(dirname $(realpath "${BASH_SOURCE[0]}"))"
 
 if [ "$UID" -ne 0 ]; then
     >&2 echo 'Must be run as root'

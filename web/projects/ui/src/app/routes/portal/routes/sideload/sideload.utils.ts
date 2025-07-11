@@ -42,7 +42,7 @@ async function parseS9pk(file: File): Promise<MarketplacePkgSideload> {
     sourceVersion: s9pk.manifest.canMigrateFrom,
     flavor: ExtendedVersion.parse(s9pk.manifest.version).flavor,
     fullLicense: await s9pk.license(),
-    instructions: await s9pk.instructions(),
+    instructions: 'TODO @MattHill: remove',
   }
 }
 

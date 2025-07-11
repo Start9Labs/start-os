@@ -57,11 +57,10 @@ fn priority(s: &str) -> Option<usize> {
         "manifest.json" => Some(0),
         a if Path::new(a).file_stem() == Some(OsStr::new("icon")) => Some(1),
         "LICENSE.md" => Some(2),
-        "instructions.md" => Some(3),
-        "dependencies" => Some(4),
-        "javascript.squashfs" => Some(5),
-        "assets.squashfs" => Some(6),
-        "images" => Some(7),
+        "dependencies" => Some(3),
+        "javascript.squashfs" => Some(4),
+        "assets.squashfs" => Some(5),
+        "images" => Some(6),
         _ => None,
     }
 }

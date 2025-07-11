@@ -58,6 +58,9 @@ export class VersionGraph<CurrentVersion extends string>
     ExtendedVersion | VersionRange,
     ((opts: { effects: T.Effects }) => Promise<void>) | undefined
   >
+  dump(): string {
+    return this.graph().dump((metadata) => metadata?.toString())
+  }
   private constructor(
     readonly current: VersionInfo<CurrentVersion>,
     versions: Array<VersionInfo<any>>,
@@ -97,7 +100,7 @@ export class VersionGraph<CurrentVersion extends string>
               VersionInfo<any>,
               Vertex<
                 ExtendedVersion | VersionRange,
-                (opts: { effects: T.Effects }) => Promise<void>
+                ((opts: { effects: T.Effects }) => Promise<void>) | undefined
               >,
             ]
           | undefined = undefined
@@ -146,6 +149,8 @@ export class VersionGraph<CurrentVersion extends string>
               }
             }
           }
+
+          prev = [v, version, vertex]
         }
       }
       return graph
@@ -198,6 +203,23 @@ export class VersionGraph<CurrentVersion extends string>
         (v) => overlaps(v.metadata, to),
       )
       if (path) {
+        console.log(
+          `Migrating ${
+            path.reduce<{ acc: string; prev: string | null }>(
+              ({ acc, prev }, x) => ({
+                acc:
+                  acc +
+                  (prev && prev != x.from.metadata.toString()
+                    ? ` (as ${prev})`
+                    : "") +
+                  " -> " +
+                  x.to.metadata.toString(),
+                prev: x.to.metadata.toString(),
+              }),
+              { acc: from.toString(), prev: null },
+            ).acc
+          }`,
+        )
         let dataVersion = from
         for (let edge of path) {
           if (edge.metadata) {

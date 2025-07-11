@@ -30,7 +30,7 @@ impl VersionT for Version {
         &V0_3_0_COMPAT
     }
     #[instrument]
-    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
+    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
         db["public"]["serverInfo"]
             .as_object_mut()
             .or_not_found("public.serverInfo")?
@@ -63,9 +63,9 @@ impl VersionT for Version {
             }
             pde.insert("tasks".into(), Value::Object(tasks));
         }
-        Ok(())
+        Ok(Value::Null)
     }
-    async fn post_up(self, _ctx: &RpcContext) -> Result<(), Error> {
+    async fn post_up(self, _ctx: &RpcContext, _input: Value) -> Result<(), Error> {
         use tokio::io::AsyncWriteExt;
 
         if tokio::fs::metadata("/media/startos/config/overlay/etc/shadow")

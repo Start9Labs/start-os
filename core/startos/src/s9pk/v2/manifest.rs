@@ -51,6 +51,8 @@ pub struct Manifest {
     pub marketing_site: Url,
     #[ts(type = "string | null")]
     pub donation_url: Option<Url>,
+    #[ts(type = "string | null")]
+    pub docs_url: Option<Url>,
     pub description: Description,
     pub images: BTreeMap<ImageId, ImageConfig>,
     pub volumes: BTreeSet<VolumeId>,
@@ -83,7 +85,6 @@ impl Manifest {
                 .map_or(false, |mime| mime.starts_with("image/"))
         })?;
         expected.check_file("LICENSE.md")?;
-        expected.check_file("instructions.md")?;
         expected.check_file("javascript.squashfs")?;
         for (dependency, _) in &self.dependencies.0 {
             let dep_path = Path::new("dependencies").join(dependency);

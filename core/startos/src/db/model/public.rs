@@ -50,7 +50,7 @@ impl Public {
                 hostname: account.hostname.no_dot_host_name(),
                 last_backup: None,
                 package_version_compat: Current::default().compat().clone(),
-                post_init_migration_todos: BTreeSet::new(),
+                post_init_migration_todos: BTreeMap::new(),
                 network: NetworkInfo {
                     host: Host {
                         bindings: [(
@@ -155,8 +155,8 @@ pub struct ServerInfo {
     pub version: Version,
     #[ts(type = "string")]
     pub package_version_compat: VersionRange,
-    #[ts(type = "string[]")]
-    pub post_init_migration_todos: BTreeSet<Version>,
+    #[ts(type = "Record<string, unknown>")]
+    pub post_init_migration_todos: BTreeMap<Version, Value>,
     #[ts(type = "string | null")]
     pub last_backup: Option<DateTime<Utc>>,
     pub network: NetworkInfo,

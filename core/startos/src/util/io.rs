@@ -15,7 +15,7 @@ use bytes::{Buf, BytesMut};
 use clap::builder::ValueParserFactory;
 use futures::future::{BoxFuture, Fuse};
 use futures::{AsyncSeek, FutureExt, Stream, TryStreamExt};
-use helpers::NonDetachingJoinHandle;
+use helpers::{AtomicFile, NonDetachingJoinHandle};
 use models::FromStrParser;
 use nix::unistd::{Gid, Uid};
 use serde::{Deserialize, Serialize};
@@ -920,6 +920,7 @@ impl Drop for TmpDir {
     }
 }
 
+#[instrument(skip_all)]
 pub async fn maybe_open_file(path: impl AsRef<Path>) -> Result<Option<File>, Error> {
     let path = path.as_ref();
     match File::open(path).await {
@@ -930,13 +931,32 @@ pub async fn maybe_open_file(path: impl AsRef<Path>) -> Result<Option<File>, Err
     .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("open {path:?}")))
 }
 
+#[instrument(skip_all)]
 pub async fn open_file(path: impl AsRef<Path>) -> Result<File, Error> {
-    let path = path.as_ref();
-    File::open(path)
-        .await
-        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("open {path:?}")))
+    maybe_open_file(path.as_ref())
+        .await?
+        .or_not_found(path.as_ref().display())
 }
 
+#[instrument(skip_all)]
+pub async fn maybe_read_file_to_string(path: impl AsRef<Path>) -> Result<Option<String>, Error> {
+    let Some(mut file) = maybe_open_file(path).await? else {
+        return Ok(None);
+    };
+    let meta = file.metadata().await?;
+    let mut res = String::with_capacity(meta.len() as usize);
+    file.read_to_string(&mut res).await?;
+    Ok(Some(res))
+}
+
+#[instrument(skip_all)]
+pub async fn read_file_to_string(path: impl AsRef<Path>) -> Result<String, Error> {
+    maybe_read_file_to_string(path.as_ref())
+        .await?
+        .or_not_found(path.as_ref().display())
+}
+
+#[instrument(skip_all)]
 pub async fn create_file(path: impl AsRef<Path>) -> Result<File, Error> {
     let path = path.as_ref();
     if let Some(parent) = path.parent() {
@@ -949,6 +969,7 @@ pub async fn create_file(path: impl AsRef<Path>) -> Result<File, Error> {
         .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("create {path:?}")))
 }
 
+#[instrument(skip_all)]
 pub async fn create_file_mod(path: impl AsRef<Path>, mode: u32) -> Result<File, Error> {
     let path = path.as_ref();
     if let Some(parent) = path.parent() {
@@ -966,6 +987,7 @@ pub async fn create_file_mod(path: impl AsRef<Path>, mode: u32) -> Result<File, 
         .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("create {path:?}")))
 }
 
+#[instrument(skip_all)]
 pub async fn append_file(path: impl AsRef<Path>) -> Result<File, Error> {
     let path = path.as_ref();
     if let Some(parent) = path.parent() {
@@ -981,6 +1003,7 @@ pub async fn append_file(path: impl AsRef<Path>) -> Result<File, Error> {
         .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("create {path:?}")))
 }
 
+#[instrument(skip_all)]
 pub async fn delete_file(path: impl AsRef<Path>) -> Result<(), Error> {
     let path = path.as_ref();
     tokio::fs::remove_file(path)
@@ -995,6 +1018,7 @@ pub async fn delete_file(path: impl AsRef<Path>) -> Result<(), Error> {
         .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("delete {path:?}")))
 }
 
+#[instrument(skip_all)]
 pub async fn rename(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), Error> {
     let src = src.as_ref();
     let dst = dst.as_ref();
@@ -1006,6 +1030,29 @@ pub async fn rename(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), 
     tokio::fs::rename(src, dst)
         .await
         .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mv {src:?} -> {dst:?}")))
+}
+
+#[instrument(skip_all)]
+pub async fn write_file_atomic(
+    path: impl AsRef<Path>,
+    contents: impl AsRef<[u8]>,
+) -> Result<(), Error> {
+    let path = path.as_ref();
+    if let Some(parent) = path.parent() {
+        tokio::fs::create_dir_all(parent)
+            .await
+            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("mkdir -p {parent:?}")))?;
+    }
+    let mut file = AtomicFile::new(path, None::<&Path>)
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("create {path:?}")))?;
+    file.write_all(contents.as_ref())
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("write {path:?}")))?;
+    file.save()
+        .await
+        .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("save {path:?}")))?;
+    Ok(())
 }
 
 fn poll_flush_prefix<W: AsyncWrite>(

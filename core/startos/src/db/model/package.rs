@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
 use exver::VersionRange;
@@ -287,6 +288,7 @@ pub struct InstallingState {
 #[ts(export)]
 pub struct UpdatingState {
     pub manifest: Manifest,
+    pub s9pk: PathBuf,
     pub installing_info: InstallingInfo,
 }
 
@@ -362,7 +364,7 @@ impl Default for ActionVisibility {
 #[ts(export)]
 pub struct PackageDataEntry {
     pub state_info: PackageState,
-    pub data_version: Option<String>,
+    pub s9pk: PathBuf,
     pub status: MainStatus,
     #[ts(type = "string | null")]
     pub registry: Option<Url>,

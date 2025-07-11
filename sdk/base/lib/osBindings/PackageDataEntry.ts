@@ -12,7 +12,7 @@ import type { TaskEntry } from "./TaskEntry"
 
 export type PackageDataEntry = {
   stateInfo: PackageState
-  dataVersion: string | null
+  s9pk: string
   status: MainStatus
   registry: string | null
   developerKey: string

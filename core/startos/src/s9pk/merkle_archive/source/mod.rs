@@ -310,6 +310,18 @@ pub struct Section<S> {
     position: u64,
     size: u64,
 }
+impl<S> Section<S> {
+    pub fn source(&self) -> &S {
+        &self.source
+    }
+    pub fn null(source: S) -> Self {
+        Self {
+            source,
+            position: 0,
+            size: 0,
+        }
+    }
+}
 impl<S: ArchiveSource> FileSource for Section<S> {
     type Reader = S::FetchReader;
     type SliceReader = S::FetchReader;

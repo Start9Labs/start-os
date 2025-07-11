@@ -4,6 +4,7 @@ use tokio::process::Command;
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_6_alpha_6, VersionT};
+use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::util::Invoke;
 
@@ -30,7 +31,7 @@ impl VersionT for Version {
     fn compat(self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
-    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
+    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
         let server_info = db["public"]["serverInfo"]
             .as_object_mut()
             .or_not_found("public.serverInfo")?;
@@ -44,9 +45,9 @@ impl VersionT for Version {
                 manifest["hardwareRequirements"]["device"] = json!([]);
             }
         }
-        Ok(())
+        Ok(Value::Null)
     }
-    async fn post_up(self, ctx: &crate::context::RpcContext) -> Result<(), Error> {
+    async fn post_up(self, ctx: &RpcContext, _input: Value) -> Result<(), Error> {
         Command::new("systemd-firstboot")
             .arg("--root=/media/startos/config/overlay/")
             .arg(format!(

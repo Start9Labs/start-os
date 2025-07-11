@@ -57,13 +57,6 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, soft: bool) -> Result<(),
                 if tokio::fs::metadata(&logs_dir).await.is_ok() {
                     tokio::fs::remove_dir_all(&logs_dir).await?;
                 }
-                let archive_path = Path::new(PACKAGE_DATA)
-                    .join("archive")
-                    .join("installed")
-                    .join(&state.manifest.id);
-                if tokio::fs::metadata(&archive_path).await.is_ok() {
-                    tokio::fs::remove_file(&archive_path).await?;
-                }
             }
         },
     )

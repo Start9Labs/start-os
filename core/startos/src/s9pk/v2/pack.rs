@@ -674,13 +674,6 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
         )),
     );
     files.insert(
-        "instructions.md".into(),
-        Entry::file(TmpSource::new(
-            tmp_dir.clone(),
-            PackSource::File(params.instructions()),
-        )),
-    );
-    files.insert(
         "javascript.squashfs".into(),
         Entry::file(TmpSource::new(
             tmp_dir.clone(),

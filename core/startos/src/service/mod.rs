@@ -39,7 +39,6 @@ use crate::db::model::package::{
 };
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
-use crate::install::PKG_ARCHIVE_DIR;
 use crate::lxc::ContainerId;
 use crate::prelude::*;
 use crate::progress::{NamedProgress, Progress};
@@ -50,7 +49,7 @@ use crate::service::rpc::{ExitParams, InitKind};
 use crate::service::service_map::InstallProgressHandles;
 use crate::service::uninstall::cleanup;
 use crate::util::actor::concurrent::ConcurrentActor;
-use crate::util::io::{create_file, AsyncReadStream, TermSize};
+use crate::util::io::{create_file, delete_file, AsyncReadStream, TermSize};
 use crate::util::net::WebSocketExt;
 use crate::util::serde::Pem;
 use crate::util::Never;
@@ -129,6 +128,18 @@ impl ServiceRef {
             uninit_res.log_err();
         } else {
             uninit_res?;
+        }
+
+        if let Some(s9pk_path) = ctx
+            .db
+            .peek()
+            .await
+            .as_public()
+            .as_package_data()
+            .as_idx(&id)
+            .map(|pde| pde.as_s9pk())
+        {
+            delete_file(s9pk_path.de()?).await?;
         }
 
         if uninit.is_uninstall() {
@@ -276,8 +287,6 @@ impl Service {
                     .map(Some)
             }
         };
-        let s9pk_dir = Path::new(DATA_DIR).join(PKG_ARCHIVE_DIR).join("installed"); // TODO: make this based on hash
-        let s9pk_path = s9pk_dir.join(id).with_extension("s9pk");
         let Some(entry) = ctx
             .db
             .peek()
@@ -288,21 +297,28 @@ impl Service {
         else {
             return Ok(None);
         };
+        let s9pk_path = entry.as_s9pk().de()?;
         match entry.as_state_info().as_match() {
             PackageStateMatchModelRef::Installing(_) => {
                 if disposition == LoadDisposition::Retry {
-                    if let Ok(s9pk) = S9pk::open(s9pk_path, Some(id)).await.map_err(|e| {
+                    if let Ok(s9pk) = S9pk::open(&s9pk_path, Some(id)).await.map_err(|e| {
                         tracing::error!("Error opening s9pk for install: {e}");
                         tracing::debug!("{e:?}")
                     }) {
-                        if let Ok(service) =
-                            Self::install(ctx.clone(), s9pk, &None, None, None::<Never>, None)
-                                .await
-                                .map_err(|e| {
-                                    tracing::error!("Error installing service: {e}");
-                                    tracing::debug!("{e:?}")
-                                })
-                        {
+                        if let Ok(service) = Self::install(
+                            ctx.clone(),
+                            s9pk,
+                            &s9pk_path,
+                            &None,
+                            None,
+                            None::<Never>,
+                            None,
+                        )
+                        .await
+                        .map_err(|e| {
+                            tracing::error!("Error installing service: {e}");
+                            tracing::debug!("{e:?}")
+                        }) {
                             return Ok(Some(service));
                         }
                     }
@@ -326,6 +342,7 @@ impl Service {
                                 && progress == &Progress::Complete(true)
                         })
                 {
+                    let s9pk_path = s.as_s9pk().de()?;
                     if let Ok(s9pk) = S9pk::open(&s9pk_path, Some(id)).await.map_err(|e| {
                         tracing::error!("Error opening s9pk for update: {e}");
                         tracing::debug!("{e:?}")
@@ -333,6 +350,7 @@ impl Service {
                         if let Ok(service) = Self::install(
                             ctx.clone(),
                             s9pk,
+                            &s9pk_path,
                             &None,
                             Some(entry.as_status().de()?.run_state()),
                             None::<Never>,
@@ -453,6 +471,7 @@ impl Service {
     pub async fn install(
         ctx: RpcContext,
         s9pk: S9pk,
+        s9pk_path: &PathBuf,
         registry: &Option<Url>,
         prev_state: Option<StartStop>,
         recovery_source: Option<impl GenericMountGuard>,
@@ -552,6 +571,7 @@ impl Service {
                 entry
                     .as_state_info_mut()
                     .ser(&PackageState::Installed(InstalledState { manifest }))?;
+                entry.as_s9pk_mut().ser(s9pk_path)?;
                 entry.as_developer_key_mut().ser(&Pem::new(developer_key))?;
                 entry.as_icon_mut().ser(&icon)?;
                 entry.as_registry_mut().ser(registry)?;

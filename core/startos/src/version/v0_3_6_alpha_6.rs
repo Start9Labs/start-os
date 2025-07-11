@@ -26,8 +26,8 @@ impl VersionT for Version {
     async fn pre_up(self) -> Result<Self::PreUpRes, Error> {
         Ok(())
     }
-    fn up(self, _db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
-        Ok(())
+    fn up(self, _db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
+        Ok(Value::Null)
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {
         Ok(())

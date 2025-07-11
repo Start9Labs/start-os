@@ -5,6 +5,7 @@ use tokio::fs::File;
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_6_alpha_7, VersionT};
+use crate::context::RpcContext;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::prelude::*;
 use crate::s9pk::manifest::{DeviceFilter, Manifest};
@@ -39,10 +40,10 @@ impl VersionT for Version {
     fn compat(self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
-    fn up(self, _: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
-        Ok(())
+    fn up(self, _: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
+        Ok(Value::Null)
     }
-    async fn post_up(self, ctx: &crate::context::RpcContext) -> Result<(), Error> {
+    async fn post_up(self, ctx: &RpcContext, _input: Value) -> Result<(), Error> {
         let s9pk_dir = Path::new(DATA_DIR).join(PKG_ARCHIVE_DIR).join("installed");
 
         if tokio::fs::metadata(&s9pk_dir).await.is_ok() {

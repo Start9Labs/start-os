@@ -170,7 +170,7 @@ export const mockPatchData: DataModel = {
     passwordHash:
       '$argon2d$v=19$m=1024,t=1,p=1$YXNkZmFzZGZhc2RmYXNkZg$Ceev1I901G6UwU+hY0sHrFZ56D+o+LNJ',
     packageVersionCompat: '>=0.3.0 <=0.3.6',
-    postInitMigrationTodos: [],
+    postInitMigrationTodos: {},
     statusInfo: {
       // currentBackup: null,
       updated: false,
@@ -200,7 +200,7 @@ export const mockPatchData: DataModel = {
           version: '0.20.0:0-alpha.1',
         },
       },
-      dataVersion: '0.20.0:0',
+      s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
       icon: '/assets/img/service-icons/bitcoind.svg',
       lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
       status: {
@@ -480,7 +480,7 @@ export const mockPatchData: DataModel = {
           version: '0.11.0:0.0.1',
         },
       },
-      dataVersion: '0.11.0:0.0.1',
+      s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
       icon: '/assets/img/service-icons/lnd.png',
       lastBackup: null,
       status: {

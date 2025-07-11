@@ -217,6 +217,7 @@ export namespace Mock {
     supportSite: 'https://bitcoin.org',
     marketingSite: 'https://bitcoin.org',
     donationUrl: 'https://start9.com',
+    docsUrl: 'https://docs.start9.com',
     alerts: {
       install: 'Bitcoin can take over a week to sync.',
       uninstall:
@@ -262,6 +263,7 @@ export namespace Mock {
     supportSite: 'https://lightning.engineering/',
     marketingSite: 'https://lightning.engineering/',
     donationUrl: null,
+    docsUrl: 'https://docs.start9.com',
     alerts: {
       install: null,
       uninstall: null,
@@ -319,6 +321,7 @@ export namespace Mock {
     supportSite: '',
     marketingSite: '',
     donationUrl: 'https://start9.com',
+    docsUrl: 'https://docs.start9.com',
     alerts: {
       install: 'Testing install alert',
       uninstall: null,
@@ -1930,7 +1933,7 @@ export namespace Mock {
       state: 'installed',
       manifest: MockManifestBitcoind,
     },
-    dataVersion: MockManifestBitcoind.version,
+    s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
     icon: '/assets/img/service-icons/bitcoind.svg',
     lastBackup: null,
     status: {
@@ -2204,7 +2207,7 @@ export namespace Mock {
       state: 'installed',
       manifest: MockManifestBitcoinProxy,
     },
-    dataVersion: MockManifestBitcoinProxy.version,
+    s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
     icon: '/assets/img/service-icons/btc-rpc-proxy.png',
     lastBackup: null,
     status: {
@@ -2249,7 +2252,7 @@ export namespace Mock {
       state: 'installed',
       manifest: MockManifestLnd,
     },
-    dataVersion: MockManifestLnd.version,
+    s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
     icon: '/assets/img/service-icons/lnd.png',
     lastBackup: null,
     status: {

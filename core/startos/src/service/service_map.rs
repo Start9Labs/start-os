@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -25,6 +25,7 @@ use crate::prelude::*;
 use crate::progress::{
     FullProgressTracker, PhaseProgressTrackerHandle, ProgressTrackerWriter, ProgressUnits,
 };
+use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
@@ -32,7 +33,7 @@ use crate::service::rpc::ExitParams;
 use crate::service::start_stop::StartStop;
 use crate::service::{LoadDisposition, Service, ServiceRef};
 use crate::status::MainStatus;
-use crate::util::serde::Pem;
+use crate::util::serde::{Base32, Pem};
 use crate::DATA_DIR;
 
 pub type DownloadInstallFuture = BoxFuture<'static, Result<InstallFuture, Error>>;
@@ -41,6 +42,22 @@ pub type InstallFuture = BoxFuture<'static, Result<(), Error>>;
 pub struct InstallProgressHandles {
     pub finalization_progress: PhaseProgressTrackerHandle,
     pub progress: FullProgressTracker,
+}
+
+fn s9pk_download_path(commitment: &MerkleArchiveCommitment) -> PathBuf {
+    Path::new(DATA_DIR)
+        .join(PKG_ARCHIVE_DIR)
+        .join("downloading")
+        .join(Base32(commitment.root_sighash.0).to_lower_string())
+        .with_extension("s9pk")
+}
+
+fn s9pk_installed_path(commitment: &MerkleArchiveCommitment) -> PathBuf {
+    Path::new(DATA_DIR)
+        .join(PKG_ARCHIVE_DIR)
+        .join("installed")
+        .join(Base32(commitment.root_sighash.0).to_lower_string())
+        .with_extension("s9pk")
 }
 
 /// This is the structure to contain all the services
@@ -152,6 +169,13 @@ impl ServiceMap {
         validate_progress.start();
         s9pk.validate_and_filter(ctx.s9pk_arch)?;
         validate_progress.complete();
+        let commitment = s9pk.as_archive().commitment().await?;
+        let mut installed_path = s9pk_installed_path(&commitment);
+        while tokio::fs::metadata(&installed_path).await.is_ok() {
+            let prev = installed_path.file_stem().unwrap_or_default();
+            installed_path.set_file_name(prev.to_string_lossy().into_owned() + "x.s9pk");
+            // append an x if already exists to avoid reference counting when reinstalling same s9pk
+        }
         let manifest = s9pk.as_manifest().clone();
         let id = manifest.id.clone();
         let icon = s9pk.icon_data_url().await?;
@@ -184,6 +208,7 @@ impl ServiceMap {
             .handle(async {
                 ctx.db
                     .mutate({
+                        let installed_path = installed_path.clone();
                         let manifest = manifest.clone();
                         let id = id.clone();
                         let install_progress = progress.snapshot();
@@ -196,6 +221,7 @@ impl ServiceMap {
                                 pde.as_state_info_mut().ser(&PackageState::Updating(
                                     UpdatingState {
                                         manifest: prev.manifest,
+                                        s9pk: installed_path,
                                         installing_info: InstallingInfo {
                                             new_manifest: manifest,
                                             progress: install_progress,
@@ -217,7 +243,7 @@ impl ServiceMap {
                                         } else {
                                             PackageState::Installing(installing)
                                         },
-                                        data_version: None,
+                                        s9pk: installed_path,
                                         status: MainStatus::Stopped,
                                         registry,
                                         developer_key: Pem::new(developer_key),
@@ -241,13 +267,9 @@ impl ServiceMap {
             .await?;
 
         Ok(async move {
-            let (installed_path, sync_progress_task) = reload_guard
+            let sync_progress_task = reload_guard
                 .handle(async {
-                    let download_path = Path::new(DATA_DIR)
-                        .join(PKG_ARCHIVE_DIR)
-                        .join("downloading")
-                        .join(&id)
-                        .with_extension("s9pk");
+                    let download_path = s9pk_download_path(&commitment);
 
                     let deref_id = id.clone();
                     let sync_progress_task =
@@ -273,15 +295,9 @@ impl ServiceMap {
                     file.sync_all().await?;
                     unpack_progress.complete();
 
-                    let installed_path = Path::new(DATA_DIR)
-                        .join(PKG_ARCHIVE_DIR)
-                        .join("installed")
-                        .join(&id)
-                        .with_extension("s9pk");
-
                     crate::util::io::rename(&download_path, &installed_path).await?;
 
-                    Ok::<_, Error>((installed_path, sync_progress_task))
+                    Ok::<_, Error>(sync_progress_task)
                 })
                 .await?;
             Ok(reload_guard
@@ -334,6 +350,7 @@ impl ServiceMap {
                     let new_service = Service::install(
                         ctx,
                         s9pk,
+                        &installed_path,
                         &registry,
                         prev,
                         recovery_source,

@@ -302,7 +302,7 @@ mod test {
     async fn test_conflicts() {
         let actor = super::ConcurrentActor::new(CActor);
         let guid = Guid::new();
-        actor.queue(guid.clone(), Pending);
+        let pending = actor.queue(guid.clone(), Pending);
         assert!(
             tokio::time::timeout(Duration::from_secs(1), actor.send(Guid::new(), Conflicts))
                 .await
@@ -318,5 +318,8 @@ mod test {
                 .await
                 .is_ok()
         );
+        assert!(tokio::time::timeout(Duration::from_secs(1), pending)
+            .await
+            .is_err());
     }
 }

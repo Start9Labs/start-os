@@ -1,4 +1,5 @@
 import { boolean } from "ts-matches"
+import { ExtendedVersion } from "../exver"
 
 export type Vertex<VMetadata = null, EMetadata = null> = {
   metadata: VMetadata
@@ -14,6 +15,22 @@ export type Edge<EMetadata = null, VMetadata = null> = {
 export class Graph<VMetadata = null, EMetadata = null> {
   private readonly vertices: Array<Vertex<VMetadata, EMetadata>> = []
   constructor() {}
+  dump(
+    metadataRepr: (metadata: VMetadata | EMetadata) => any = (a) => a,
+  ): string {
+    const seen = new WeakSet()
+
+    return JSON.stringify(
+      this.vertices,
+      (k, v) => {
+        if (k === "metadata") return metadataRepr(v)
+        if (k === "from") return metadataRepr(v.metadata)
+        if (k === "to") return metadataRepr(v.metadata)
+        return v
+      },
+      2,
+    )
+  }
   addVertex(
     metadata: VMetadata,
     fromEdges: Array<Omit<Edge<EMetadata, VMetadata>, "to">>,

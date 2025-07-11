@@ -968,6 +968,14 @@ impl<T: AsRef<[u8]>> std::fmt::Display for Base16<T> {
 #[derive(TS)]
 #[ts(type = "string", concrete(T = Vec<u8>))]
 pub struct Base32<T>(pub T);
+impl<T: AsRef<[u8]>> Base32<T> {
+    pub fn to_lower_string(&self) -> String {
+        base32::encode(
+            base32::Alphabet::Rfc4648Lower { padding: true },
+            self.0.as_ref(),
+        )
+    }
+}
 impl<T: AsRef<[u8]>> std::fmt::Display for Base32<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         base32::encode(base32::Alphabet::Rfc4648 { padding: true }, self.0.as_ref()).fmt(f)
