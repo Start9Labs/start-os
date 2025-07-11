@@ -24,6 +24,7 @@ export type Manifest = {
   supportSite: string
   marketingSite: string
   donationUrl: string | null
+  docsUrl: string | null
   description: Description
   images: { [key: ImageId]: ImageConfig }
   volumes: Array<VolumeId>

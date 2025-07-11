@@ -289,6 +289,7 @@ function convertProperties(
 
 const DEFAULT_REGISTRY = "https://registry.start9.com"
 export class SystemForEmbassy implements System {
+  private version: ExtendedVersion
   currentRunning: MainLoop | undefined
   static async of(manifestLocation: string = MANIFEST_LOCATION) {
     const moduleCode = await import(EMBASSY_JS_LOCATION)
@@ -310,7 +311,27 @@ export class SystemForEmbassy implements System {
   constructor(
     readonly manifest: Manifest,
     readonly moduleCode: Partial<U.ExpectedExports>,
-  ) {}
+  ) {
+    this.version = ExtendedVersion.parseEmver(manifest.version)
+    if (
+      this.manifest.id === "bitcoind" &&
+      this.manifest.title.toLowerCase().includes("knots")
+    )
+      this.version.flavor = "knots"
+
+    if (
+      this.manifest.id === "lnd" ||
+      this.manifest.id === "ride-the-lightning" ||
+      this.manifest.id === "datum"
+    ) {
+      this.version.upstream.prerelease = ["beta"]
+    } else if (
+      this.manifest.id === "lightning-terminal" ||
+      this.manifest.id === "robosats"
+    ) {
+      this.version.upstream.prerelease = ["alpha"]
+    }
+  }
 
   async init(
     effects: Effects,
@@ -386,35 +407,17 @@ export class SystemForEmbassy implements System {
         )
       }
     } else if (this.manifest.config) {
-      await effects.action.createTask({
-        packageId: this.manifest.id,
-        actionId: "config",
-        severity: "critical",
-        replayId: "needs-config",
-        reason: "This service must be configured before it can be run",
-      })
+      // await effects.action.createTask({
+      //   packageId: this.manifest.id,
+      //   actionId: "config",
+      //   severity: "critical",
+      //   replayId: "needs-config",
+      //   reason: "This service must be configured before it can be run",
+      // })
     }
-    const version = ExtendedVersion.parseEmver(this.manifest.version)
-    if (
-      this.manifest.id === "bitcoind" &&
-      this.manifest.title.toLowerCase().includes("knots")
-    )
-      version.flavor = "knots"
 
-    if (
-      this.manifest.id === "lnd" ||
-      this.manifest.id === "ride-the-lightning" ||
-      this.manifest.id === "datum"
-    ) {
-      version.upstream.prerelease = ["beta"]
-    } else if (
-      this.manifest.id === "lightning-terminal" ||
-      this.manifest.id === "robosats"
-    ) {
-      version.upstream.prerelease = ["alpha"]
-    }
     await effects.setDataVersion({
-      version: version.toString(),
+      version: this.version.toString(),
     })
     // @FullMetal: package hacks go here
   }
@@ -599,10 +602,7 @@ export class SystemForEmbassy implements System {
     timeoutMs?: number | null,
   ): Promise<void> {
     await this.currentRunning?.clean({ timeout: timeoutMs ?? undefined })
-    if (
-      target &&
-      !overlaps(target, ExtendedVersion.parseEmver(this.manifest.version))
-    ) {
+    if (target) {
       await this.migration(effects, { to: target }, timeoutMs ?? null)
     }
     await effects.setMainStatus({ status: "stopped" })
@@ -823,6 +823,7 @@ export class SystemForEmbassy implements System {
     let migration
     let args: [string, ...string[]]
     if ("from" in version) {
+      if (overlaps(this.version, version.from)) return null
       args = [version.from.toString(), "from"]
       if (!this.manifest.migrations) return { configured: true }
       migration = Object.entries(this.manifest.migrations.from)
@@ -832,6 +833,7 @@ export class SystemForEmbassy implements System {
         )
         .find(([versionEmver, _]) => overlaps(versionEmver, version.from))
     } else {
+      if (overlaps(this.version, version.to)) return null
       args = [version.to.toString(), "to"]
       if (!this.manifest.migrations) return { configured: true }
       migration = Object.entries(this.manifest.migrations.to)

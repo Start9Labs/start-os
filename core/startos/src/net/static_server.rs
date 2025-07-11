@@ -22,6 +22,7 @@ use http::request::Parts as RequestParts;
 use http::{HeaderValue, Method, StatusCode};
 use imbl_value::InternedString;
 use include_dir::Dir;
+use models::PackageId;
 use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;
@@ -32,7 +33,6 @@ use url::Url;
 
 use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
 use crate::hostname::Hostname;
-use crate::install::PKG_ARCHIVE_DIR;
 use crate::middleware::auth::{Auth, HasValidSession};
 use crate::middleware::cors::Cors;
 use crate::middleware::db::SyncDb;
@@ -46,7 +46,7 @@ use crate::s9pk::S9pk;
 use crate::util::io::open_file;
 use crate::util::net::SyncBody;
 use crate::util::serde::BASE64;
-use crate::{diagnostic_api, init_api, install_api, main_api, setup_api, DATA_DIR};
+use crate::{diagnostic_api, init_api, install_api, main_api, setup_api};
 
 const NOT_FOUND: &[u8] = b"Not Found";
 const METHOD_NOT_ALLOWED: &[u8] = b"Method Not Allowed";
@@ -263,13 +263,22 @@ fn s9pk_router(ctx: RpcContext) -> Router {
             any(
                 |x::Path(s9pk): x::Path<String>, request: Request| async move {
                     if_authorized(&ctx, request, |request| async {
+                        let id = s9pk
+                            .strip_suffix(".s9pk")
+                            .unwrap_or(&s9pk)
+                            .parse::<PackageId>()?;
                         let (parts, _) = request.into_parts();
                         match FileData::from_path(
                             &parts,
-                            &Path::new(DATA_DIR)
-                                .join(PKG_ARCHIVE_DIR)
-                                .join("installed")
-                                .join(s9pk),
+                            &ctx.db
+                                .peek()
+                                .await
+                                .into_public()
+                                .into_package_data()
+                                .into_idx(&id)
+                                .or_not_found(&id)?
+                                .into_s9pk()
+                                .de()?,
                         )
                         .await?
                         {
@@ -289,13 +298,22 @@ fn s9pk_router(ctx: RpcContext) -> Router {
                  x::RawQuery(query): x::RawQuery,
                  request: Request| async move {
                     if_authorized(&ctx, request, |request| async {
+                        let id = s9pk
+                            .strip_suffix(".s9pk")
+                            .unwrap_or(&s9pk)
+                            .parse::<PackageId>()?;
                         let s9pk = S9pk::deserialize(
                             &MultiCursorFile::from(
                                 open_file(
-                                    Path::new(DATA_DIR)
-                                        .join(PKG_ARCHIVE_DIR)
-                                        .join("installed")
-                                        .join(s9pk),
+                                    ctx.db
+                                        .peek()
+                                        .await
+                                        .into_public()
+                                        .into_package_data()
+                                        .into_idx(&id)
+                                        .or_not_found(&id)?
+                                        .into_s9pk()
+                                        .de()?,
                                 )
                                 .await?,
                             ),

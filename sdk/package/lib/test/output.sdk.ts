@@ -9,17 +9,16 @@ export const sdk = StartSdk.of()
       id: "testOutput",
       title: "",
       license: "",
-      replaces: [],
       wrapperRepo: "",
       upstreamRepo: "",
       supportSite: "",
       marketingSite: "",
       donationUrl: null,
+      docsUrl: "",
       description: {
         short: "",
         long: "",
       },
-      containers: {},
       images: {
         main: {
           source: {
@@ -30,7 +29,6 @@ export const sdk = StartSdk.of()
         },
       },
       volumes: [],
-      assets: [],
       alerts: {
         install: null,
         update: null,

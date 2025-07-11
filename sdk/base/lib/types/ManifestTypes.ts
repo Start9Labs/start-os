@@ -42,6 +42,10 @@ export type SDKManifest = {
    * @example `https://nextcloud.com/contribute/`
    */
   readonly donationUrl: string | null
+  /**
+   * URL where users can find instructions on how to use the service
+   */
+  readonly docsUrl: string
   readonly description: {
     /** Short description to display on the marketplace list page. Max length 80 chars. */
     readonly short: string

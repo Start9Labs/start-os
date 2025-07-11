@@ -1,7 +1,7 @@
 import { ValidateExVer } from "../../../base/lib/exver"
 import * as T from "../../../base/lib/types"
 
-export const IMPOSSIBLE = Symbol("IMPOSSIBLE")
+export const IMPOSSIBLE: unique symbol = Symbol("IMPOSSIBLE")
 
 export type VersionOptions<Version extends string> = {
   /** The exver-compliant version number */

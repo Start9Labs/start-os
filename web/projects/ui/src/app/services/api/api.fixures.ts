@@ -110,7 +110,7 @@ export namespace Mock {
       squashfs: {
         aarch64: {
           publishedAt: '2025-04-21T20:58:48.140749883Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.8/startos-0.4.0-alpha.8-33ae46f~dev_aarch64.squashfs',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.9/startos-0.4.0-alpha.9-33ae46f~dev_aarch64.squashfs',
           commitment: {
             hash: '4elBFVkd/r8hNadKmKtLIs42CoPltMvKe2z3LRqkphk=',
             size: 1343500288,
@@ -122,7 +122,7 @@ export namespace Mock {
         },
         'aarch64-nonfree': {
           publishedAt: '2025-04-21T21:07:00.249285116Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.8/startos-0.4.0-alpha.8-33ae46f~dev_aarch64-nonfree.squashfs',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.9/startos-0.4.0-alpha.9-33ae46f~dev_aarch64-nonfree.squashfs',
           commitment: {
             hash: 'MrCEi4jxbmPS7zAiGk/JSKlMsiuKqQy6RbYOxlGHOIQ=',
             size: 1653075968,
@@ -134,7 +134,7 @@ export namespace Mock {
         },
         raspberrypi: {
           publishedAt: '2025-04-21T21:16:12.933319237Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.8/startos-0.4.0-alpha.8-33ae46f~dev_raspberrypi.squashfs',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.9/startos-0.4.0-alpha.9-33ae46f~dev_raspberrypi.squashfs',
           commitment: {
             hash: '/XTVQRCqY3RK544PgitlKu7UplXjkmzWoXUh2E4HCw0=',
             size: 1490731008,
@@ -146,7 +146,7 @@ export namespace Mock {
         },
         x86_64: {
           publishedAt: '2025-04-21T21:14:20.246908903Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.8/startos-0.4.0-alpha.8-33ae46f~dev_x86_64.squashfs',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.9/startos-0.4.0-alpha.9-33ae46f~dev_x86_64.squashfs',
           commitment: {
             hash: '/6romKTVQGSaOU7FqSZdw0kFyd7P+NBSYNwM3q7Fe44=',
             size: 1411657728,
@@ -158,7 +158,7 @@ export namespace Mock {
         },
         'x86_64-nonfree': {
           publishedAt: '2025-04-21T21:15:17.955265284Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.8/startos-0.4.0-alpha.8-33ae46f~dev_x86_64-nonfree.squashfs',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.9/startos-0.4.0-alpha.9-33ae46f~dev_x86_64-nonfree.squashfs',
           commitment: {
             hash: 'HCRq9sr/0t85pMdrEgNBeM4x11zVKHszGnD1GDyZbSE=',
             size: 1731035136,
@@ -217,6 +217,7 @@ export namespace Mock {
     supportSite: 'https://bitcoin.org',
     marketingSite: 'https://bitcoin.org',
     donationUrl: 'https://start9.com',
+    docsUrl: 'https://docs.start9.com',
     alerts: {
       install: 'Bitcoin can take over a week to sync.',
       uninstall:
@@ -262,6 +263,7 @@ export namespace Mock {
     supportSite: 'https://lightning.engineering/',
     marketingSite: 'https://lightning.engineering/',
     donationUrl: null,
+    docsUrl: 'https://docs.start9.com',
     alerts: {
       install: null,
       uninstall: null,
@@ -319,6 +321,7 @@ export namespace Mock {
     supportSite: '',
     marketingSite: '',
     donationUrl: 'https://start9.com',
+    docsUrl: 'https://docs.start9.com',
     alerts: {
       install: 'Testing install alert',
       uninstall: null,
@@ -1930,7 +1933,7 @@ export namespace Mock {
       state: 'installed',
       manifest: MockManifestBitcoind,
     },
-    dataVersion: MockManifestBitcoind.version,
+    s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
     icon: '/assets/img/service-icons/bitcoind.svg',
     lastBackup: null,
     status: {
@@ -2204,7 +2207,7 @@ export namespace Mock {
       state: 'installed',
       manifest: MockManifestBitcoinProxy,
     },
-    dataVersion: MockManifestBitcoinProxy.version,
+    s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
     icon: '/assets/img/service-icons/btc-rpc-proxy.png',
     lastBackup: null,
     status: {
@@ -2249,7 +2252,7 @@ export namespace Mock {
       state: 'installed',
       manifest: MockManifestLnd,
     },
-    dataVersion: MockManifestLnd.version,
+    s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
     icon: '/assets/img/service-icons/lnd.png',
     lastBackup: null,
     status: {

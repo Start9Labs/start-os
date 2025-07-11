@@ -28,7 +28,7 @@ impl VersionT for Version {
     fn compat(self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
-    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
+    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
         let Some(ui) = db["public"]["ui"].as_object_mut() else {
             return Err(Error::new(
                 eyre!("db.public.ui is not an object"),
@@ -64,7 +64,7 @@ impl VersionT for Version {
         ui.remove("gaming");
         ui.remove("theme");
 
-        Ok(())
+        Ok(Value::Null)
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {
         Ok(())

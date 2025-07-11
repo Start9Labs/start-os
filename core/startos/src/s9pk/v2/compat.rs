@@ -68,17 +68,7 @@ impl S9pk<TmpSource<PackSource>> {
             )),
         )?;
 
-        // instructions.md
-        let instructions: Arc<[u8]> = reader.instructions().await?.to_vec().await?.into();
-        archive.insert_path(
-            "instructions.md",
-            Entry::file(TmpSource::new(
-                tmp_dir.clone(),
-                PackSource::Buffered(instructions.into()),
-            )),
-        )?;
-
-        // icon.md
+        // icon.*
         let icon: Arc<[u8]> = reader.icon().await?.to_vec().await?.into();
         archive.insert_path(
             format!("icon.{}", manifest.assets.icon_type()),
@@ -214,6 +204,7 @@ impl TryFrom<ManifestV1> for Manifest {
             support_site: value.support_site.unwrap_or_else(|| default_url.clone()),
             marketing_site: value.marketing_site.unwrap_or_else(|| default_url.clone()),
             donation_url: value.donation_url,
+            docs_url: None,
             description: value.description,
             images: BTreeMap::new(),
             volumes: value

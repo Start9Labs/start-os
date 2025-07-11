@@ -1,4 +1,9 @@
+use std::path::Path;
+
 use crate::service::effects::prelude::*;
+use crate::util::io::{delete_file, maybe_read_file_to_string, write_file_atomic};
+use crate::volume::PKG_VOLUME_DIR;
+use crate::DATA_DIR;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
@@ -7,43 +12,35 @@ pub struct SetDataVersionParams {
     #[ts(type = "string")]
     version: Option<String>,
 }
+#[instrument(skip(context))]
 pub async fn set_data_version(
     context: EffectContext,
     SetDataVersionParams { version }: SetDataVersionParams,
 ) -> Result<(), Error> {
     let context = context.deref()?;
     let package_id = &context.seed.id;
-    context
-        .seed
-        .ctx
-        .db
-        .mutate(|db| {
-            db.as_public_mut()
-                .as_package_data_mut()
-                .as_idx_mut(package_id)
-                .or_not_found(package_id)?
-                .as_data_version_mut()
-                .ser(&version)
-        })
-        .await
-        .result?;
+    let path = Path::new(DATA_DIR)
+        .join(PKG_VOLUME_DIR)
+        .join(package_id)
+        .join("data")
+        .join(".version");
+    if let Some(version) = version {
+        write_file_atomic(path, version.as_bytes()).await?;
+    } else {
+        delete_file(path).await?;
+    }
 
     Ok(())
 }
 
+#[instrument(skip_all)]
 pub async fn get_data_version(context: EffectContext) -> Result<Option<String>, Error> {
     let context = context.deref()?;
     let package_id = &context.seed.id;
-    context
-        .seed
-        .ctx
-        .db
-        .peek()
-        .await
-        .as_public()
-        .as_package_data()
-        .as_idx(package_id)
-        .or_not_found(package_id)?
-        .as_data_version()
-        .de()
+    let path = Path::new(DATA_DIR)
+        .join(PKG_VOLUME_DIR)
+        .join(package_id)
+        .join("data")
+        .join(".version");
+    maybe_read_file_to_string(path).await
 }

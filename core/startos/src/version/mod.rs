@@ -48,8 +48,9 @@ mod v0_4_0_alpha_5;
 mod v0_4_0_alpha_6;
 mod v0_4_0_alpha_7;
 mod v0_4_0_alpha_8;
+mod v0_4_0_alpha_9;
 
-pub type Current = v0_4_0_alpha_8::Version; // VERSION_BUMP
+pub type Current = v0_4_0_alpha_9::Version; // VERSION_BUMP
 
 impl Current {
     #[instrument(skip(self, db))]
@@ -96,20 +97,19 @@ pub async fn post_init(
         .de()?;
     if !todos.is_empty() {
         progress.set_total(todos.len() as u64);
-        while let Some(version) = {
+        while let Some((version, input)) = {
             peek = ctx.db.peek().await;
             peek.as_public()
                 .as_server_info()
                 .as_post_init_migration_todos()
                 .de()?
-                .first()
-                .cloned()
-                .map(Version::from_exver_version)
-                .as_ref()
-                .map(Version::as_version_t)
+                .pop_first()
+                .map(|(version, input)| {
+                    Ok::<_, Error>((Version::from_exver_version(version).as_version_t()?, input))
+                })
                 .transpose()?
         } {
-            version.0.post_up(ctx).await?;
+            version.0.post_up(ctx, input).await?;
             ctx.db
                 .mutate(|db| {
                     db.as_public_mut()
@@ -161,7 +161,8 @@ enum Version {
     V0_4_0_alpha_5(Wrapper<v0_4_0_alpha_5::Version>),
     V0_4_0_alpha_6(Wrapper<v0_4_0_alpha_6::Version>),
     V0_4_0_alpha_7(Wrapper<v0_4_0_alpha_7::Version>),
-    V0_4_0_alpha_8(Wrapper<v0_4_0_alpha_8::Version>), // VERSION_BUMP
+    V0_4_0_alpha_8(Wrapper<v0_4_0_alpha_8::Version>),
+    V0_4_0_alpha_9(Wrapper<v0_4_0_alpha_9::Version>), // VERSION_BUMP
     Other(exver::Version),
 }
 
@@ -212,7 +213,8 @@ impl Version {
             Self::V0_4_0_alpha_5(v) => DynVersion(Box::new(v.0)),
             Self::V0_4_0_alpha_6(v) => DynVersion(Box::new(v.0)),
             Self::V0_4_0_alpha_7(v) => DynVersion(Box::new(v.0)),
-            Self::V0_4_0_alpha_8(v) => DynVersion(Box::new(v.0)), // VERSION_BUMP
+            Self::V0_4_0_alpha_8(v) => DynVersion(Box::new(v.0)),
+            Self::V0_4_0_alpha_9(v) => DynVersion(Box::new(v.0)), // VERSION_BUMP
             Self::Other(v) => {
                 return Err(Error::new(
                     eyre!("unknown version {v}"),
@@ -255,7 +257,8 @@ impl Version {
             Version::V0_4_0_alpha_5(Wrapper(x)) => x.semver(),
             Version::V0_4_0_alpha_6(Wrapper(x)) => x.semver(),
             Version::V0_4_0_alpha_7(Wrapper(x)) => x.semver(),
-            Version::V0_4_0_alpha_8(Wrapper(x)) => x.semver(), // VERSION_BUMP
+            Version::V0_4_0_alpha_8(Wrapper(x)) => x.semver(),
+            Version::V0_4_0_alpha_9(Wrapper(x)) => x.semver(), // VERSION_BUMP
             Version::Other(x) => x.clone(),
         }
     }
@@ -363,8 +366,8 @@ fn migrate_from_unchecked<VFrom: DynVersionT + ?Sized, VTo: DynVersionT + ?Sized
         }
         _ => (),
     };
-    to.up(db, pre_ups.value)?;
-    to.commit(db)?;
+    let res = to.up(db, pre_ups.value)?;
+    to.commit(db, res)?;
     Ok(())
 }
 
@@ -375,7 +378,7 @@ fn rollback_to_unchecked<VFrom: DynVersionT + ?Sized, VTo: DynVersionT + ?Sized>
 ) -> Result<(), Error> {
     let previous = from.previous();
     from.down(db)?;
-    previous.commit(db)?;
+    previous.commit(db, Value::Null)?;
     if to.semver() < previous.semver() {
         rollback_to_unchecked(&previous, to, db)?
     } else if to.semver() > previous.semver() {
@@ -399,15 +402,16 @@ where
     type PreUpRes: Send + UnwindSafe;
     fn semver(self) -> exver::Version;
     fn compat(self) -> &'static exver::VersionRange;
-    /// MUST NOT change system state. Intended for async I/O reads
+    /// MUST be idempotent, and is run before *all* db migrations
     fn pre_up(self) -> impl Future<Output = Result<Self::PreUpRes, Error>> + Send + 'static;
-    fn up(self, db: &mut Value, input: Self::PreUpRes) -> Result<(), Error> {
-        Ok(())
+    fn up(self, db: &mut Value, input: Self::PreUpRes) -> Result<Value, Error> {
+        Ok(Value::Null)
     }
     /// MUST be idempotent, and is run after *all* db migrations
     fn post_up<'a>(
         self,
         ctx: &'a RpcContext,
+        input: Value,
     ) -> impl Future<Output = Result<(), Error>> + Send + 'a {
         async { Ok(()) }
     }
@@ -417,20 +421,27 @@ where
             ErrorKind::InvalidRequest,
         ))
     }
-    fn commit(self, db: &mut Value) -> Result<(), Error> {
-        *version_accessor(db).or_not_found("`version` in db")? = to_value(&self.semver())?;
-        *version_compat_accessor(db).or_not_found("`versionCompat` in db")? =
+    fn commit(self, db: &mut Value, res: Value) -> Result<(), Error> {
+        *version_accessor(db).or_not_found("`public.serverInfo.version` in db")? =
+            to_value(&self.semver())?;
+        *version_compat_accessor(db).or_not_found("`public.serverInfo.versionCompat` in db")? =
             to_value(self.compat())?;
-        post_init_migration_todos_accessor(db)
-            .or_not_found("`serverInfo` in db")?
+        if let Some(arr) = post_init_migration_todos_accessor(db)
+            .or_not_found("`public.serverInfo.postInitMigrationTodos` in db")?
             .as_array_mut()
-            .ok_or_else(|| {
-                Error::new(
-                    eyre!("postInitMigrationTodos is not an array"),
-                    ErrorKind::Database,
-                )
-            })?
-            .push_back(to_value(&self.semver())?);
+        {
+            arr.push_back(to_value(&self.semver())?);
+        } else if let Some(obj) = post_init_migration_todos_accessor(db)
+            .or_not_found("`public.serverInfo.postInitMigrationTodos` in db")?
+            .as_object_mut()
+        {
+            obj.insert(InternedString::from_display(&self.semver()), res);
+        } else {
+            return Err(Error::new(
+                eyre!("postInitMigrationTodos is not an array"),
+                ErrorKind::Database,
+            ));
+        }
         Ok(())
     }
 }
@@ -443,10 +454,10 @@ trait DynVersionT: RefUnwindSafe + Send + Sync {
     fn semver(&self) -> exver::Version;
     fn compat(&self) -> &'static exver::VersionRange;
     fn pre_up(&self) -> BoxFuture<'static, Result<Box<dyn Any + UnwindSafe + Send>, Error>>;
-    fn up(&self, db: &mut Value, input: Box<dyn Any + Send>) -> Result<(), Error>;
-    fn post_up<'a>(&self, ctx: &'a RpcContext) -> BoxFuture<'a, Result<(), Error>>;
+    fn up(&self, db: &mut Value, input: Box<dyn Any + Send>) -> Result<Value, Error>;
+    fn post_up<'a>(&self, ctx: &'a RpcContext, input: Value) -> BoxFuture<'a, Result<(), Error>>;
     fn down(&self, db: &mut Value) -> Result<(), Error>;
-    fn commit(&self, db: &mut Value) -> Result<(), Error>;
+    fn commit(&self, db: &mut Value, res: Value) -> Result<(), Error>;
 }
 impl<T> DynVersionT for T
 where
@@ -466,7 +477,7 @@ where
         async move { Ok(Box::new(VersionT::pre_up(v).await?) as Box<dyn Any + UnwindSafe + Send>) }
             .boxed()
     }
-    fn up(&self, db: &mut Value, input: Box<dyn Any + Send>) -> Result<(), Error> {
+    fn up(&self, db: &mut Value, input: Box<dyn Any + Send>) -> Result<Value, Error> {
         VersionT::up(
             *self,
             db,
@@ -478,14 +489,14 @@ where
             })?,
         )
     }
-    fn post_up<'a>(&self, ctx: &'a RpcContext) -> BoxFuture<'a, Result<(), Error>> {
-        VersionT::post_up(*self, ctx).boxed()
+    fn post_up<'a>(&self, ctx: &'a RpcContext, input: Value) -> BoxFuture<'a, Result<(), Error>> {
+        VersionT::post_up(*self, ctx, input).boxed()
     }
     fn down(&self, db: &mut Value) -> Result<(), Error> {
         VersionT::down(*self, db)
     }
-    fn commit(&self, db: &mut Value) -> Result<(), Error> {
-        VersionT::commit(*self, db)
+    fn commit(&self, db: &mut Value, res: Value) -> Result<(), Error> {
+        VersionT::commit(*self, db, res)
     }
 }
 impl DynVersionT for DynVersion {
@@ -501,17 +512,17 @@ impl DynVersionT for DynVersion {
     fn pre_up(&self) -> BoxFuture<'static, Result<Box<dyn Any + UnwindSafe + Send>, Error>> {
         self.0.pre_up()
     }
-    fn up(&self, db: &mut Value, input: Box<dyn Any + Send>) -> Result<(), Error> {
+    fn up(&self, db: &mut Value, input: Box<dyn Any + Send>) -> Result<Value, Error> {
         self.0.up(db, input)
     }
-    fn post_up<'a>(&self, ctx: &'a RpcContext) -> BoxFuture<'a, Result<(), Error>> {
-        self.0.post_up(ctx)
+    fn post_up<'a>(&self, ctx: &'a RpcContext, input: Value) -> BoxFuture<'a, Result<(), Error>> {
+        self.0.post_up(ctx, input)
     }
     fn down(&self, db: &mut Value) -> Result<(), Error> {
         self.0.down(db)
     }
-    fn commit(&self, db: &mut Value) -> Result<(), Error> {
-        self.0.commit(db)
+    fn commit(&self, db: &mut Value, res: Value) -> Result<(), Error> {
+        self.0.commit(db, res)
     }
 }
 

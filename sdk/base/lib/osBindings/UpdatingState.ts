@@ -4,5 +4,6 @@ import type { Manifest } from "./Manifest"
 
 export type UpdatingState = {
   manifest: Manifest
+  s9pk: string
   installingInfo: InstallingInfo
 }

@@ -396,14 +396,13 @@ describe("values", () => {
             supportSite: "",
             marketingSite: "",
             donationUrl: null,
+            docsUrl: "",
             description: {
               short: "",
               long: "",
             },
-            containers: {},
             images: {},
             volumes: [],
-            assets: [],
             alerts: {
               install: null,
               update: null,

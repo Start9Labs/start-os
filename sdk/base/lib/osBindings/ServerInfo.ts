@@ -12,7 +12,7 @@ export type ServerInfo = {
   hostname: string
   version: string
   packageVersionCompat: string
-  postInitMigrationTodos: string[]
+  postInitMigrationTodos: Record<string, unknown>
   lastBackup: string | null
   network: NetworkInfo
   statusInfo: ServerStatus

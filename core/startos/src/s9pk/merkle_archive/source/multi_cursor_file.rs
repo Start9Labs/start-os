@@ -39,7 +39,7 @@ pub struct MultiCursorFile {
     file: Arc<Mutex<File>>,
 }
 impl MultiCursorFile {
-    fn path(&self) -> Result<PathBuf, Error> {
+    pub fn path(&self) -> Result<PathBuf, Error> {
         path_from_fd(self.fd)
     }
     pub async fn open(fd: &impl AsRawFd) -> Result<Self, Error> {

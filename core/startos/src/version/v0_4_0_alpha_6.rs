@@ -28,7 +28,7 @@ impl VersionT for Version {
         &V0_3_0_COMPAT
     }
     #[instrument]
-    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
+    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
         let ui = db["public"]["ui"]
             .as_object_mut()
             .or_not_found("public.ui")?;
@@ -38,7 +38,7 @@ impl VersionT for Version {
             }
         }
         ui.remove("ackWelcome");
-        Ok(())
+        Ok(Value::Null)
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {
         Ok(())

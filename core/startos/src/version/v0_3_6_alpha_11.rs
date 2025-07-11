@@ -28,7 +28,7 @@ impl VersionT for Version {
     fn compat(self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
-    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
+    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
         let acme = std::mem::replace(
             &mut db["public"]["serverInfo"]["acme"],
             Value::Object(Default::default()),
@@ -75,7 +75,7 @@ impl VersionT for Version {
             }
         }
 
-        Ok(())
+        Ok(Value::Null)
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {
         Ok(())

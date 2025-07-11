@@ -3,6 +3,7 @@ use imbl_value::json;
 
 use super::v0_3_5::V0_3_0_COMPAT;
 use super::{v0_3_6_alpha_18, VersionT};
+use crate::context::RpcContext;
 use crate::notifications::{notify, NotificationLevel};
 use crate::prelude::*;
 
@@ -29,7 +30,7 @@ impl VersionT for Version {
     fn compat(self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
-    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<(), Error> {
+    fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
         let host = db["public"]["serverInfo"]["host"].clone();
         let mut wifi = db["public"]["serverInfo"]["wifi"].clone();
         wifi["enabled"] = Value::Bool(!wifi["selected"].is_null());
@@ -51,9 +52,9 @@ impl VersionT for Version {
             "networkInterfaces": network_interfaces,
             "acme": acme,
         });
-        Ok(())
+        Ok(Value::Null)
     }
-    async fn post_up<'a>(self, ctx: &'a crate::context::RpcContext) -> Result<(), Error> {
+    async fn post_up(self, ctx: &RpcContext, _input: Value) -> Result<(), Error> {
         let message_update = include_str!("update_details/v0_4_0.md").to_string();
 
         ctx.db
