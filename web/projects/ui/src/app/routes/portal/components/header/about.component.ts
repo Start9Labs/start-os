@@ -46,6 +46,20 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
           {{ 'Copy' | i18n }}
         </button>
       </div>
+      <div tuiCell>
+        <div tuiTitle>
+          <strong>Public Key</strong>
+          <div tuiSubtitle tuiFade>{{ server.pubkey }}</div>
+        </div>
+        <button
+          tuiIconButton
+          appearance="icon"
+          iconStart="@tui.copy"
+          (click)="copyService.copy(server.pubkey)"
+        >
+          {{ 'Copy' | i18n }}
+        </button>
+      </div>
     }
   `,
   styles: '[tuiCell] { padding-inline: 0; white-space: nowrap }',
