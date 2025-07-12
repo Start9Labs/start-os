@@ -33,7 +33,7 @@ export class StandardActionsService {
 
     try {
       await this.api.rebuildPackage({ id })
-      await this.router.navigate(['portal', 'services', id])
+      await this.router.navigate(['services', id])
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
@@ -81,7 +81,7 @@ export class StandardActionsService {
     try {
       await this.api.uninstallPackage(options)
       await this.api.setDbValue<boolean>(['ackInstructions', options.id], false)
-      await this.router.navigate(['portal'])
+      await this.router.navigate([''])
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

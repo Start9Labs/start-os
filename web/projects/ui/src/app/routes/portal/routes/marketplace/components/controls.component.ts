@@ -171,7 +171,7 @@ export class MarketplaceControlsComponent {
   }
 
   async showService() {
-    this.router.navigate(['/portal/services', this.pkg().id])
+    this.router.navigate(['services', this.pkg().id])
   }
 
   private async dryInstall(url: string | null) {
@@ -190,7 +190,7 @@ export class MarketplaceControlsComponent {
   private async installOrUpload(url: string | null) {
     if (this.file()) {
       await this.upload()
-      this.router.navigate(['/portal', 'services'])
+      this.router.navigate(['services'])
     } else if (url) {
       await this.install(url)
     }

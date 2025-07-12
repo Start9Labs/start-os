@@ -23,8 +23,8 @@ import { getMenu } from 'src/app/utils/system-utilities'
         routerLinkActive="link_active"
         tuiHintDirection="bottom"
         [tuiHintShowDelay]="750"
-        [routerLink]="item.routerLink"
-        [class.link_system]="item.routerLink === '/portal/system'"
+        [routerLink]="['/', item.routerLink]"
+        [class.link_system]="item.routerLink === 'system'"
         [tuiHint]="rla.isActive ? '' : (item.name | i18n)"
       >
         <tui-badged-content

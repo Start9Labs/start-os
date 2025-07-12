@@ -125,7 +125,7 @@ import { map } from 'rxjs'
 })
 export class SystemComponent {
   readonly menu = SYSTEM_MENU
-  readonly badge = toSignal(inject(BadgeService).getCount('/portal/system'))
+  readonly badge = toSignal(inject(BadgeService).getCount('system'))
   readonly wifiEnabled$ = inject<PatchDB<DataModel>>(PatchDB)
     .watch$('serverInfo', 'network', 'wifi')
     .pipe(map(wifi => !!wifi.interface && wifi.enabled))

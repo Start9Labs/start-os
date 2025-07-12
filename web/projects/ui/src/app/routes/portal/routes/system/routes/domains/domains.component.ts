@@ -97,7 +97,7 @@ export default class SystemDomainsComponent {
         buttons: [
           {
             text: 'Manage proxies',
-            link: '/portal/system/proxies',
+            link: '/system/proxies',
           },
           {
             text: 'Save',
@@ -122,7 +122,7 @@ export default class SystemDomainsComponent {
         buttons: [
           {
             text: 'Manage proxies',
-            link: '/portal/system/proxies',
+            link: '/system/proxies',
           },
           {
             text: 'Save',

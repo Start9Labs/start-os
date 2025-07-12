@@ -14,7 +14,7 @@ import { TuiBadgeNotification } from '@taiga-ui/kit'
 import { BadgeService } from 'src/app/services/badge.service'
 import { getMenu } from 'src/app/utils/system-utilities'
 
-const FILTER = ['/portal/services', '/portal/system', '/portal/marketplace']
+const FILTER = ['/services', '/system', '/marketplace']
 
 @Component({
   selector: 'app-tabs',
@@ -23,7 +23,7 @@ const FILTER = ['/portal/services', '/portal/system', '/portal/marketplace']
       <a
         tuiTabBarItem
         icon="@tui.layout-grid"
-        routerLink="/portal/services"
+        routerLink="/services"
         routerLinkActive
         (isActiveChange)="update()"
       >
@@ -32,7 +32,7 @@ const FILTER = ['/portal/services', '/portal/system', '/portal/marketplace']
       <a
         tuiTabBarItem
         icon="@tui.shopping-cart"
-        routerLink="/portal/marketplace"
+        routerLink="/marketplace"
         routerLinkActive
         (isActiveChange)="update()"
       >
@@ -41,7 +41,7 @@ const FILTER = ['/portal/services', '/portal/system', '/portal/marketplace']
       <a
         tuiTabBarItem
         icon="@tui.settings"
-        routerLink="/portal/system"
+        routerLink="/system"
         routerLinkActive
         [badge]="badge()"
         (isActiveChange)="update()"
@@ -60,7 +60,7 @@ const FILTER = ['/portal/services', '/portal/system', '/portal/marketplace']
             <a
               class="item"
               routerLinkActive="item_active"
-              [routerLink]="item.routerLink"
+              [routerLink]="['/', item.routerLink]"
               (click)="observer.complete()"
             >
               <tui-icon [icon]="item.icon" />
@@ -124,7 +124,7 @@ export class TabsComponent {
   index = 3
 
   readonly menu = getMenu().filter(item => !FILTER.includes(item.routerLink))
-  readonly badge = toSignal(inject(BadgeService).getCount('/portal/system'), {
+  readonly badge = toSignal(inject(BadgeService).getCount('system'), {
     initialValue: 0,
   })
 

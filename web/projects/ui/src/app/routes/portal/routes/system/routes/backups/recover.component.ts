@@ -156,7 +156,7 @@ export class BackupsRecoverComponent {
       await this.api.restorePackages(params)
 
       this.context.$implicit.complete()
-      this.router.navigate(['portal', 'services'])
+      this.router.navigate(['services'])
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

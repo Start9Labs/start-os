@@ -72,7 +72,7 @@ import { ABOUT } from './about.component'
           <a
             tuiOption
             iconStart="@tui.settings"
-            routerLink="/portal/system"
+            routerLink="/system"
             (click)="open = false"
           >
             {{ 'System Settings' | i18n }}
