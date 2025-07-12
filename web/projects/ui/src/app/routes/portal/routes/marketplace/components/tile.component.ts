@@ -6,30 +6,15 @@ import {
   inject,
   input,
 } from '@angular/core'
-import { toObservable, toSignal } from '@angular/core/rxjs-interop'
+import { toSignal } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, Router } from '@angular/router'
 import { ItemModule, MarketplacePkg } from '@start9labs/marketplace'
-import { Exver } from '@start9labs/shared'
 import { TuiAutoFocus } from '@taiga-ui/cdk'
 import { TuiButton, TuiDropdownService, TuiPopup } from '@taiga-ui/core'
 import { TuiDrawer } from '@taiga-ui/kit'
-import { PatchDB } from 'patch-db-client'
-import {
-  debounceTime,
-  filter,
-  map,
-  Observable,
-  shareReplay,
-  switchMap,
-} from 'rxjs'
-import {
-  DataModel,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
-import { getManifest } from 'src/app/utils/get-package-data'
+import { debounceTime } from 'rxjs'
 import { MarketplacePreviewComponent } from '../modals/preview.component'
 import { MarketplaceSidebarService } from '../services/sidebar.service'
-import { MarketplaceControlsComponent } from './controls.component'
 
 @Component({
   selector: 'marketplace-tile',
@@ -40,7 +25,7 @@ import { MarketplaceControlsComponent } from './controls.component'
         [overlay]="true"
         (click.self)="toggle(false)"
       >
-        <marketplace-preview [pkgId]="pkg().id" class="preview-wrapper">
+        <marketplace-preview [pkgId]="pkg().id">
           <button
             tuiAutoFocus
             slot="close"
@@ -53,19 +38,18 @@ import { MarketplaceControlsComponent } from './controls.component'
             [tuiAppearanceFocus]="false"
             (click)="toggle(false)"
           ></button>
-          <marketplace-controls
-            slot="controls"
-            class="controls-wrapper"
-            [version]="pkg().version"
-            [installAlert]="pkg().alerts.install"
-            [localPkg]="local$ | async"
-            [localFlavor]="!!(flavor$ | async)"
-          />
         </marketplace-preview>
       </tui-drawer>
     </marketplace-item>
   `,
   styles: `
+    @keyframes animateIn {
+      from {
+        opacity: 0;
+        transform: scale(0.6) translateY(-20px);
+      }
+    }
+
     :host {
       cursor: pointer;
       animation: animateIn 400ms calc(var(--animation-order) * 200ms) both;
@@ -77,41 +61,13 @@ import { MarketplaceControlsComponent } from './controls.component'
       border-radius: 0;
     }
 
-    @keyframes animateIn {
-      from {
-        opacity: 0;
-        transform: scale(0.6) translateY(-20px);
-      }
-
-      to {
-        opacity: 1;
-      }
-    }
-
-    .preview-wrapper {
-      overflow-y: auto;
-      height: 100%;
-      max-width: 100%;
-
-      @media (min-width: 768px) {
-        max-width: 30rem;
-      }
-    }
-
-    .close-button {
+    button {
       place-self: end;
       margin-bottom: 0;
 
       @media (min-width: 768px) {
         margin-bottom: 2rem;
       }
-    }
-
-    .controls-wrapper {
-      display: flex;
-      justify-content: flex-start;
-      gap: 0.5rem;
-      height: 4.5rem;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -128,13 +84,10 @@ import { MarketplaceControlsComponent } from './controls.component'
     TuiButton,
     TuiPopup,
     TuiDrawer,
-    MarketplaceControlsComponent,
     MarketplacePreviewComponent,
   ],
 })
 export class MarketplaceTileComponent {
-  private readonly exver = inject(Exver)
-  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly router = inject(Router)
   private readonly params = toSignal(
     inject(ActivatedRoute).queryParamMap.pipe(debounceTime(100)),
@@ -146,24 +99,6 @@ export class MarketplaceTileComponent {
       this.params()?.get('id') === this.pkg()?.id &&
       this.params()?.get('flavor') === this.pkg()?.flavor,
   )
-
-  readonly local$: Observable<PackageDataEntry | null> = toObservable(
-    this.pkg,
-  ).pipe(
-    switchMap(({ id, flavor }) =>
-      this.patch.watch$('packageData', id).pipe(
-        filter(Boolean),
-        map(pkg =>
-          this.exver.getFlavor(getManifest(pkg).version) === flavor
-            ? pkg
-            : null,
-        ),
-      ),
-    ),
-    shareReplay({ bufferSize: 1, refCount: true }),
-  )
-
-  readonly flavor$ = this.local$.pipe(map(pkg => !pkg))
 
   toggle(open: boolean) {
     this.router.navigate([], {

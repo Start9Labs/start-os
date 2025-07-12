@@ -1,5 +1,4 @@
-import { Inject, Injectable } from '@angular/core'
-import { DOCUMENT } from '@angular/common'
+import { Inject, Injectable, DOCUMENT } from '@angular/core'
 
 const PREFIX = '_startos/'
 

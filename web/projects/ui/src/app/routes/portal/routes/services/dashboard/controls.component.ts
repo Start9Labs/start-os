@@ -6,7 +6,7 @@ import {
   inject,
   input,
 } from '@angular/core'
-import { TuiLet } from '@taiga-ui/cdk'
+import { i18nPipe } from '@start9labs/shared'
 import { TuiButton, tuiButtonOptionsProvider } from '@taiga-ui/core'
 import { map } from 'rxjs'
 import { ControlsService } from 'src/app/services/controls.service'
@@ -15,7 +15,6 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getManifest } from 'src/app/utils/get-package-data'
 import { UILaunchComponent } from './ui-launch.component'
-import { i18nPipe } from '@start9labs/shared'
 
 const RUNNING = ['running', 'starting', 'restarting']
 
@@ -32,19 +31,19 @@ const RUNNING = ['running', 'starting', 'restarting']
         {{ 'Stop' | i18n }}
       </button>
     } @else {
+      @let unmet = hasUnmet() | async;
       <button
-        *tuiLet="hasUnmet() | async as hasUnmet"
         tuiIconButton
         iconStart="@tui.play"
         [disabled]="status().primary !== 'stopped'"
-        (click)="controls.start(manifest(), !!hasUnmet)"
+        (click)="controls.start(manifest(), !!unmet)"
       >
         {{ 'Start' | i18n }}
       </button>
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, UILaunchComponent, TuiLet, AsyncPipe, i18nPipe],
+  imports: [TuiButton, UILaunchComponent, AsyncPipe, i18nPipe],
   providers: [tuiButtonOptionsProvider({ size: 's', appearance: 'none' })],
   styles: `
     :host {

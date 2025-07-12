@@ -1,40 +1,58 @@
-<ng-container [ngSwitch]="spec.type">
-  <form-color *ngSwitchCase="'color'"></form-color>
-  <form-datetime *ngSwitchCase="'datetime'"></form-datetime>
-  <form-file *ngSwitchCase="'file'"></form-file>
-  <form-multiselect *ngSwitchCase="'multiselect'"></form-multiselect>
-  <form-number *ngSwitchCase="'number'"></form-number>
-  <form-select *ngSwitchCase="'select'"></form-select>
-  <form-text *ngSwitchCase="'text'"></form-text>
-  <form-textarea *ngSwitchCase="'textarea'"></form-textarea>
-  <form-toggle *ngSwitchCase="'toggle'"></form-toggle>
-</ng-container>
-<tui-error [error]="order | tuiFieldError | async"></tui-error>
-<ng-template
-  *ngIf="spec.warning || immutable"
-  #warning
-  let-completeWith="completeWith"
->
-  {{ spec.warning }}
-  <p *ngIf="immutable">{{ 'This value cannot be changed once set' | i18n }}!</p>
-  <div class="buttons">
-    <button
-      tuiButton
-      type="button"
-      appearance="secondary"
-      size="s"
-      (click)="completeWith(true)"
-    >
-      {{ 'Cancel' | i18n }}
-    </button>
-    <button
-      tuiButton
-      type="button"
-      appearance="flat-grayscale"
-      size="s"
-      (click)="completeWith(false)"
-    >
-      {{'Continue' | i18n}}
-    </button>
-  </div>
-</ng-template>
+@switch (spec.type) {
+  @case ('color') {
+    <form-color />
+  }
+  @case ('datetime') {
+    <form-datetime />
+  }
+  @case ('file') {
+    <form-file />
+  }
+  @case ('multiselect') {
+    <form-multiselect />
+  }
+  @case ('number') {
+    <form-number />
+  }
+  @case ('select') {
+    <form-select />
+  }
+  @case ('text') {
+    <form-text />
+  }
+  @case ('textarea') {
+    <form-textarea />
+  }
+  @case ('toggle') {
+    <form-toggle />
+  }
+}
+<tui-error [error]="order | tuiFieldError | async" />
+@if (spec.warning || immutable) {
+  <ng-template #warning let-completeWith="completeWith">
+    {{ spec.warning }}
+    @if (immutable) {
+      <p>{{ 'This value cannot be changed once set' | i18n }}!</p>
+    }
+    <div class="buttons">
+      <button
+        tuiButton
+        type="button"
+        appearance="secondary"
+        size="s"
+        (click)="completeWith(true)"
+      >
+        {{ 'Cancel' | i18n }}
+      </button>
+      <button
+        tuiButton
+        type="button"
+        appearance="flat-grayscale"
+        size="s"
+        (click)="completeWith(false)"
+      >
+        {{ 'Continue' | i18n }}
+      </button>
+    </div>
+  </ng-template>
+}

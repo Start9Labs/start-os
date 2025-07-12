@@ -1,56 +1,60 @@
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
-  ChangeDetectorRef,
   Component,
-  inject,
-  Input,
+  computed,
+  input,
+  OnChanges,
+  signal,
 } from '@angular/core'
-import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiButton, TuiDialogOptions, TuiDialogService } from '@taiga-ui/core'
-import {
-  TUI_CONFIRM,
-  TuiConfirmData,
-  TuiFade,
-  TuiSkeleton,
-} from '@taiga-ui/kit'
-import { filter, take } from 'rxjs'
+import { FormsModule } from '@angular/forms'
+import { i18nPipe } from '@start9labs/shared'
+import { TuiCheckbox, TuiFade, TuiSkeleton } from '@taiga-ui/kit'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
-import { PROMPT } from 'src/app/routes/portal/modals/prompt.component'
 import { SSHKey } from 'src/app/services/api/api.types'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
 
 @Component({
   selector: '[keys]',
   template: `
-    <table
-      [appTable]="['Hostname', 'Created At', 'Algorithm', 'Fingerprint', null]"
-    >
-      @for (key of keys; track $index) {
-        <tr>
-          <td class="title">{{ key.hostname }}</td>
+    <table [appTable]="['Created At', 'Algorithm', 'Fingerprint']">
+      <th [style.text-indent.rem]="1.75">
+        <input
+          tuiCheckbox
+          size="s"
+          type="checkbox"
+          [disabled]="!keys()"
+          [ngModel]="all()"
+          (ngModelChange)="selected.set(($event && keys()) || [])"
+        />
+        {{ 'Hostname' | i18n }}
+      </th>
+      @for (key of keys(); track $index) {
+        <tr (longtap)="!selected().length && onToggle(key)">
+          <td [style.padding-left.rem]="2.5">
+            <input
+              tuiCheckbox
+              size="s"
+              type="checkbox"
+              [ngModel]="selected().includes(key)"
+              (ngModelChange)="onToggle(key)"
+            />
+            <div tuiFade class="hostname">{{ key.hostname }}</div>
+          </td>
           <td class="date">{{ key.createdAt | date: 'medium' }}</td>
           <td class="algorithm">{{ key.alg }}</td>
           <td class="fingerprint" tuiFade>{{ key.fingerprint }}</td>
-          <td class="actions">
-            <button
-              tuiIconButton
-              size="xs"
-              appearance="icon"
-              iconStart="@tui.trash-2"
-              (click)="delete(key)"
-            >
-              Delete
-            </button>
-          </td>
         </tr>
       } @empty {
-        @if (keys) {
-          <tr><td colspan="5">No keys added</td></tr>
+        @if (keys()) {
+          <tr>
+            <td colspan="5">{{ 'No keys' | i18n }}</td>
+          </tr>
         } @else {
           @for (i of ['', '']; track $index) {
             <tr>
-              <td colspan="5"><div [tuiSkeleton]="true">Loading</div></td>
+              <td colspan="5">
+                <div [tuiSkeleton]="true">{{ 'Loading' | i18n }}</div>
+              </td>
             </tr>
           }
         }
@@ -58,111 +62,104 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
     </table>
   `,
   styles: `
-    :host-context(tui-root._mobile) {
-      tr {
-        grid-template-columns: 3fr 2fr;
-      }
+    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
 
-      td:only-child {
+    td {
+      position: relative;
+
+      &[colspan] {
         grid-column: span 2;
       }
+    }
 
-      .title {
+    input {
+      position: absolute;
+      top: 50%;
+      left: 0.75rem;
+      transform: translateY(-50%);
+    }
+
+    :host-context(tui-root._mobile) {
+      table {
+        &:has(:checked) tr {
+          padding-inline-start: 2rem;
+        }
+
+        &:not(:has(:checked)) input {
+          visibility: hidden;
+        }
+      }
+
+      tr {
+        grid-template-columns: 1fr 5rem;
+        user-select: none;
+      }
+
+      input {
+        left: 0.25rem;
+      }
+
+      td {
+        width: 100%;
+
+        &:first-child {
+          padding: 0 !important;
+        }
+      }
+
+      .hostname {
         order: 1;
+        grid-column: span 2;
         font-weight: bold;
         text-transform: uppercase;
       }
 
-      .actions {
-        order: 2;
-        padding: 0;
-        text-align: right;
-      }
-
       .fingerprint {
-        order: 3;
+        order: 2;
         grid-column: span 2;
       }
 
       .date {
-        order: 4;
+        order: 3;
         color: var(--tui-text-secondary);
       }
 
       .algorithm {
-        order: 5;
-        text-align: right;
-
-        &::before {
-          content: 'Algorithm: ';
-          color: var(--tui-text-secondary);
-        }
+        order: 4;
+        text-align: end;
       }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, TuiButton, TuiFade, TuiSkeleton, TableComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    TuiCheckbox,
+    TuiFade,
+    TuiSkeleton,
+    TableComponent,
+    i18nPipe,
+  ],
 })
-export class SSHTableComponent {
-  private readonly loader = inject(LoadingService)
-  private readonly errorService = inject(ErrorService)
-  private readonly api = inject(ApiService)
-  private readonly dialogs = inject(TuiDialogService)
-  private readonly cdr = inject(ChangeDetectorRef)
+export class SSHTableComponent<T extends SSHKey> implements OnChanges {
+  readonly keys = input<readonly T[] | null>(null)
 
-  @Input()
-  keys: SSHKey[] | null = null
+  readonly selected = signal<readonly T[]>([])
+  readonly all = computed(
+    () =>
+      !!this.selected()?.length &&
+      (this.selected().length === this.keys()?.length || null),
+  )
 
-  add() {
-    this.dialogs
-      .open<string>(PROMPT, ADD_OPTIONS)
-      .pipe(take(1))
-      .subscribe(async key => {
-        const loader = this.loader.open('Saving').subscribe()
-
-        try {
-          this.keys?.push(await this.api.addSshKey({ key }))
-        } finally {
-          loader.unsubscribe()
-          this.cdr.markForCheck()
-        }
-      })
+  ngOnChanges() {
+    this.selected.set([])
   }
 
-  delete(key: SSHKey) {
-    this.dialogs
-      .open(TUI_CONFIRM, DELETE_OPTIONS)
-      .pipe(filter(Boolean))
-      .subscribe(async () => {
-        const loader = this.loader.open('Deleting').subscribe()
-
-        try {
-          await this.api.deleteSshKey({ fingerprint: key.fingerprint })
-          this.keys?.splice(this.keys?.indexOf(key), 1)
-        } catch (e: any) {
-          this.errorService.handleError(e)
-        } finally {
-          loader.unsubscribe()
-          this.cdr.markForCheck()
-        }
-      })
+  onToggle(key: T) {
+    if (this.selected().includes(key)) {
+      this.selected.update(selected => selected.filter(s => s !== key))
+    } else {
+      this.selected.update(selected => [...selected, key])
+    }
   }
-}
-
-const ADD_OPTIONS: Partial<TuiDialogOptions<{ message: string }>> = {
-  label: 'SSH Key',
-  data: {
-    message:
-      'Enter the SSH public key you would like to authorize for root access to your Embassy.',
-  },
-}
-
-const DELETE_OPTIONS: Partial<TuiDialogOptions<TuiConfirmData>> = {
-  label: 'Confirm',
-  size: 's',
-  data: {
-    content: 'Delete key? This action cannot be undone.',
-    yes: 'Delete',
-    no: 'Cancel',
-  },
 }

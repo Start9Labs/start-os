@@ -4,20 +4,20 @@ import { knownRegistries, sameUrl } from '@start9labs/shared'
 @Component({
   selector: 'store-icon',
   template: `
-    <img
-      *ngIf="icon; else noIcon"
-      [style.border-radius.%]="100"
-      [style.max-width]="size || '100%'"
-      [src]="icon"
-      alt="Registry Icon"
-    />
-    <ng-template #noIcon>
+    @if (icon) {
+      <img
+        [style.border-radius.%]="100"
+        [style.max-width]="size || '100%'"
+        [src]="icon"
+        alt="Registry Icon"
+      />
+    } @else {
       <img
         [style.max-width]="size || '100%'"
         src="assets/img/storefront-outline.png"
         alt="Registry Icon"
       />
-    </ng-template>
+    }
   `,
   styles: ':host { overflow: hidden; }',
   changeDetection: ChangeDetectionStrategy.OnPush,

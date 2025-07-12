@@ -186,7 +186,7 @@ export class ServiceOutletComponent {
       tap(pkg => {
         // if package disappears, navigate to list page
         if (!pkg) {
-          this.router.navigate(['./portal/services'])
+          this.router.navigate(['services'])
         }
       }),
     ),

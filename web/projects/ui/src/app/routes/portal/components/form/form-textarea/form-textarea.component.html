@@ -10,7 +10,9 @@
   (focusedChange)="onFocus($event)"
 >
   {{ spec.name }}
-  <span *ngIf="spec.required">*</span>
+  @if (spec.required) {
+    <span>*</span>
+  }
   <textarea
     tuiTextfieldLegacy
     [placeholder]="spec.placeholder || ''"

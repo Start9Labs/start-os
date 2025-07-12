@@ -522,4 +522,8 @@ export default {
   521: 'Pour résoudre le problème, consultez',
   522: 'Version de SDK',
   523: 'Rapport de sauvegarde',
+  524: 'Supprimer la sélection',
+  525: 'Pas de clés',
+  526: 'Ajouter une clé publique SSH',
+  527: 'Par défaut, vous pouvez accéder à votre serveur en SSH depuis n’importe quel appareil en utilisant votre mot de passe maître. Vous pouvez également ajouter des clés publiques SSH pour accorder l’accès à certains appareils sans avoir à saisir de mot de passe.',
 } satisfies i18n

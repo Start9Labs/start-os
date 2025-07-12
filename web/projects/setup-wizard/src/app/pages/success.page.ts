@@ -1,10 +1,10 @@
-import { DOCUMENT } from '@angular/common'
 import {
   AfterViewInit,
   Component,
   ElementRef,
   inject,
   ViewChild,
+  DOCUMENT,
 } from '@angular/core'
 import { DownloadHTMLService, ErrorService } from '@start9labs/shared'
 import { TuiButton, TuiIcon, TuiSurface } from '@taiga-ui/core'

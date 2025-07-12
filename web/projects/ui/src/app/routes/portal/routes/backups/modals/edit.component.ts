@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
@@ -58,19 +57,21 @@ import { TARGET, TARGET_CREATE } from './target.component'
         Schedule
         <input tuiTextfieldLegacy placeholder="* * * * *" />
       </tui-input>
-      <div *ngIf="job.cron | toHumanCron as human" [style.color]="human.color">
-        {{ human.message }}
-      </div>
-      <div *ngIf="!job.job.id" class="g-toggle">
-        Also Execute Now
-        <input
-          tuiSwitch
-          type="checkbox"
-          name="now"
-          [showIcons]="false"
-          [(ngModel)]="job.now"
-        />
-      </div>
+      @if (job.cron | toHumanCron; as human) {
+        <div [style.color]="human.color">{{ human.message }}</div>
+      }
+      @if (!job.job.id) {
+        <div class="g-toggle">
+          Also Execute Now
+          <input
+            tuiSwitch
+            type="checkbox"
+            name="now"
+            [showIcons]="false"
+            [(ngModel)]="job.now"
+          />
+        </div>
+      }
       <button
         tuiButton
         class="submit"
@@ -96,7 +97,6 @@ import { TARGET, TARGET_CREATE } from './target.component'
     }
   `,
   imports: [
-    CommonModule,
     FormsModule,
     TuiInputModule,
     TuiInputNumberModule,

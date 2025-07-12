@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -21,17 +20,14 @@ import { PortForward } from 'src/app/services/patch-db/data-model'
   selector: 'tr[portForward]',
   template: `
     <td [style.text-align]="'right'">
-      <tui-icon
-        *ngIf="portForward.error; else noError"
-        icon="@tui.x"
-        [style.color]="'var(--tui-text-negative)'"
-      />
-      <ng-template #noError>
+      @if (portForward.error) {
+        <tui-icon icon="@tui.x" [style.color]="'var(--tui-text-negative)'" />
+      } @else {
         <tui-icon
           icon="@tui.check"
           [style.color]="'var(--tui-text-positive)'"
         />
-      </ng-template>
+      }
     </td>
     <td>
       <tui-input-number
@@ -44,17 +40,17 @@ import { PortForward } from 'src/app/services/patch-db/data-model'
         <input tuiTextfieldLegacy type="text" />
       </tui-input-number>
       <ng-template #buttons>
-        <button
-          *ngIf="!editing; else actions"
-          tuiIconButton
-          appearance="icon"
-          iconStart="@tui.pencil"
-          size="s"
-          (click)="toggle(true)"
-        >
-          Edit
-        </button>
-        <ng-template #actions>
+        @if (!editing) {
+          <button
+            tuiIconButton
+            appearance="icon"
+            iconStart="@tui.pencil"
+            size="s"
+            (click)="toggle(true)"
+          >
+            Edit
+          </button>
+        } @else {
           <button
             tuiIconButton
             appearance="icon"
@@ -74,7 +70,7 @@ import { PortForward } from 'src/app/services/patch-db/data-model'
           >
             Save
           </button>
-        </ng-template>
+        }
       </ng-template>
     </td>
     <td>{{ ip }}:{{ portForward.target }}</td>
@@ -97,7 +93,6 @@ import { PortForward } from 'src/app/services/patch-db/data-model'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
-    CommonModule,
     FormsModule,
     TuiIcon,
     TuiInputModule,

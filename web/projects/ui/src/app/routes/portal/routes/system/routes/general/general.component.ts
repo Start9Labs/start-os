@@ -1,9 +1,10 @@
-import { AsyncPipe, DOCUMENT } from '@angular/common'
+import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
   inject,
   INJECTOR,
+  DOCUMENT,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
@@ -130,6 +131,7 @@ import { SystemWipeComponent } from './wipe.component'
           {{ 'Change' | i18n }}
           <tui-data-list-wrapper
             *tuiTextfieldDropdown
+            new
             size="l"
             [items]="languages"
             [itemContent]="translation"

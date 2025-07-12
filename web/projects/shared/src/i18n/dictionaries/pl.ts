@@ -522,4 +522,8 @@ export default {
   521: 'Aby rozwiązać problem, zapoznaj się z',
   522: 'Wersja SDK',
   523: 'Raport kopii zapasowej',
+  524: 'Usuń wybrane',
+  525: 'Brak kluczy',
+  526: 'Dodaj klucz publiczny SSH',
+  527: 'Domyślnie możesz połączyć się z serwerem przez SSH z dowolnego urządzenia, używając hasła głównego. Opcjonalnie dodaj klucze publiczne SSH, aby przyznać dostęp określonym urządzeniom bez potrzeby wpisywania hasła.',
 } satisfies i18n

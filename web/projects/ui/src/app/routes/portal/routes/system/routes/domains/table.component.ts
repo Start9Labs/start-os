@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -24,7 +23,7 @@ import { Domain } from 'src/app/services/patch-db/data-model'
     </thead>
     <tbody>
       @for (domain of domains; track $index) {
-        <tr *ngFor="let domain of domains">
+        <tr>
           <td class="title">{{ domain.value }}</td>
           <td class="provider">{{ domain.provider }}</td>
           <td class="strategy">{{ getStrategy(domain) }}</td>
@@ -105,7 +104,7 @@ import { Domain } from 'src/app/services/patch-db/data-model'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, TuiButton, TuiLink],
+  imports: [TuiButton, TuiLink],
 })
 export class DomainsTableComponent {
   private readonly dialogs = inject(TuiDialogService)

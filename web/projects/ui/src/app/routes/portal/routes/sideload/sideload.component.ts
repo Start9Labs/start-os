@@ -5,6 +5,7 @@ import {
   signal,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
+import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { tuiIsString } from '@taiga-ui/cdk'
 import { TuiButton } from '@taiga-ui/core'
 import {
@@ -14,9 +15,9 @@ import {
 } from '@taiga-ui/kit'
 import { ConfigService } from 'src/app/services/config.service'
 import { TitleDirective } from 'src/app/services/title.service'
+
 import { SideloadPackageComponent } from './package.component'
 import { MarketplacePkgSideload, validateS9pk } from './sideload.utils'
-import { i18nKey, i18nPipe } from '@start9labs/shared'
 
 @Component({
   template: `

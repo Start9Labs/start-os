@@ -522,4 +522,8 @@ export default {
   521: 'Um das Problem zu beheben, siehe',
   522: 'SDK Version',
   523: 'Sicherungsbericht',
+  524: 'Ausgewählte löschen',
+  525: 'Keine schlüssel',
+  526: 'Öffentlichen SSH-Schlüssel hinzufügen',
+  527: 'Standardmäßig kannst du dich per SSH von jedem Gerät aus mit deinem Server verbinden, indem du dein Master-Passwort verwendest. Optional kannst du SSH-öffentliche Schlüssel hinzufügen, um bestimmten Geräten den Zugriff ohne Passworteingabe zu ermöglichen.',
 } satisfies i18n

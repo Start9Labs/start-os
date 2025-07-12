@@ -9,35 +9,37 @@ import { RouterPortComponent } from './table.component'
 
 @Component({
   template: `
-    <ng-container *ngIf="server$ | async as server">
+    @if (server$ | async; as server) {
       <router-info [enabled]="!server.network.wanConfig.upnp" />
-      <table
-        *ngIf="server.host.hostnameInfo[80] | primaryIp as ip"
-        tuiTextfieldAppearance="unstyled"
-        tuiTextfieldSize="m"
-        [tuiTextfieldLabelOutside]="true"
-      >
-        <thead>
-          <tr>
-            <th [style.width.rem]="2.5"></th>
-            <th [style.padding-left.rem]="0.75">
-              <div class="g-title">Port</div>
-            </th>
-            <th>
-              <div class="g-title">Target</div>
-            </th>
-            <th [style.width.rem]="3"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            *ngFor="let portForward of server.network.wanConfig.forwards"
-            [portForward]="portForward"
-            [ip]="ip"
-          ></tr>
-        </tbody>
-      </table>
-    </ng-container>
+      @if (server.host.hostnameInfo[80] | primaryIp; as ip) {
+        <table
+          tuiTextfieldAppearance="unstyled"
+          tuiTextfieldSize="m"
+          [tuiTextfieldLabelOutside]="true"
+        >
+          <thead>
+            <tr>
+              <th [style.width.rem]="2.5"></th>
+              <th [style.padding-left.rem]="0.75">
+                <div class="g-title">Port</div>
+              </th>
+              <th>
+                <div class="g-title">Target</div>
+              </th>
+              <th [style.width.rem]="3"></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (
+              portForward of server.network.wanConfig.forwards;
+              track portForward
+            ) {
+              <tr [portForward]="portForward" [ip]="ip"></tr>
+            }
+          </tbody>
+        </table>
+      }
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `

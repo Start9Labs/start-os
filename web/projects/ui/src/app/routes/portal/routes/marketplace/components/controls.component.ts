@@ -2,10 +2,13 @@ import { CommonModule, TitleCasePipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   input,
 } from '@angular/core'
+import { toObservable, toSignal } from '@angular/core/rxjs-interop'
 import { Router } from '@angular/router'
+import { MarketplacePkg } from '@start9labs/marketplace'
 import {
   ErrorService,
   Exver,
@@ -17,26 +20,25 @@ import {
 } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
-import { firstValueFrom } from 'rxjs'
+import { firstValueFrom, switchMap } from 'rxjs'
 import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
-import {
-  DataModel,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { dryUpdate } from 'src/app/utils/dry-update'
 import { getAllPackages, getManifest } from 'src/app/utils/get-package-data'
 import { hasCurrentDeps } from 'src/app/utils/has-deps'
-import { MarketplacePreviewComponent } from '../modals/preview.component'
+
 import { MarketplaceAlertsService } from '../services/alerts.service'
+
+type KEYS = 'id' | 'version' | 'alerts' | 'flavor'
 
 @Component({
   selector: 'marketplace-controls',
   template: `
-    @if (localPkg(); as local) {
+    @if (sameFlavor() && localPkg(); as local) {
       @if (local.stateInfo.state === 'installed') {
-        @switch ((local | toManifest).version | compareExver: version()) {
+        @switch ((local | toManifest).version | compareExver: pkg().version) {
           @case (1) {
             <button
               tuiButton
@@ -75,11 +77,8 @@ import { MarketplaceAlertsService } from '../services/alerts.service'
         appearance="secondary-grayscale"
         (click)="showService()"
       >
-        {{
-          ('View' | i18n) +
-            ' ' +
-            ($any(local.stateInfo.state | titlecase) | i18n)
-        }}
+        {{ 'View' | i18n }}
+        {{ $any(local.stateInfo.state | titlecase) | i18n }}
       </button>
     } @else {
       <button
@@ -88,8 +87,16 @@ import { MarketplaceAlertsService } from '../services/alerts.service'
         appearance="primary"
         (click)="tryInstall()"
       >
-        {{ localFlavor() ? ('Switch' | i18n) : ('Install' | i18n) }}
+        {{ (sameFlavor() ? 'Install' : 'Switch') | i18n }}
       </button>
+    }
+  `,
+  styles: `
+    :host {
+      display: flex;
+      justify-content: flex-start;
+      gap: 0.5rem;
+      height: 4.5rem;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -109,27 +116,35 @@ export class MarketplaceControlsComponent {
   private readonly loader = inject(LoadingService)
   private readonly exver = inject(Exver)
   private readonly router = inject(Router)
-  private readonly marketplaceService = inject(MarketplaceService)
+  private readonly marketplace = inject(MarketplaceService)
   private readonly api = inject(ApiService)
-  private readonly preview = inject(MarketplacePreviewComponent)
 
-  version = input.required<string>()
-  installAlert = input.required<string | null>()
-  localPkg = input.required<PackageDataEntry | null>()
-  localFlavor = input.required<boolean>()
+  readonly pkg = input.required<Pick<MarketplacePkg, KEYS>>()
+
   // only present if side loading
-  file = input<File>()
+  readonly file = input<File>()
+
+  readonly localPkg = toSignal(
+    toObservable(this.pkg).pipe(
+      switchMap(({ id }) => this.patch.watch$('packageData', id)),
+    ),
+  )
+
+  readonly sameFlavor = computed(
+    (pkg = this.localPkg()) =>
+      !pkg ||
+      this.exver.getFlavor(getManifest(pkg).version) === this.pkg().flavor,
+  )
 
   async tryInstall() {
     const localPkg = this.localPkg()
-
     const currentUrl = this.file()
       ? null
-      : await firstValueFrom(this.marketplaceService.currentRegistryUrl$)
+      : await firstValueFrom(this.marketplace.currentRegistryUrl$)
     const originalUrl = localPkg?.registry || null
 
     if (!localPkg) {
-      if (await this.alerts.alertInstall(this.installAlert() || '')) {
+      if (await this.alerts.alertInstall(this.pkg().alerts.install || '')) {
         this.installOrUpload(currentUrl)
       }
       return
@@ -143,11 +158,11 @@ export class MarketplaceControlsComponent {
       return
     }
 
-    const localManifest = getManifest(localPkg)
+    const { id, version } = getManifest(localPkg)
 
     if (
-      hasCurrentDeps(localManifest.id, await getAllPackages(this.patch)) &&
-      this.exver.compareExver(localManifest.version, this.version()) !== 0
+      hasCurrentDeps(id, await getAllPackages(this.patch)) &&
+      this.exver.compareExver(version, this.pkg().version) !== 0
     ) {
       this.dryInstall(currentUrl)
     } else {
@@ -156,16 +171,13 @@ export class MarketplaceControlsComponent {
   }
 
   async showService() {
-    this.router.navigate(['/portal/services', this.preview.pkgId])
+    this.router.navigate(['services', this.pkg().id])
   }
 
   private async dryInstall(url: string | null) {
-    const id = this.preview.pkgId
-    const breakages = dryUpdate(
-      { id, version: this.version() },
-      await getAllPackages(this.patch),
-      this.exver,
-    )
+    const { id, version } = this.pkg()
+    const packages = await getAllPackages(this.patch)
+    const breakages = dryUpdate({ id, version }, packages, this.exver)
 
     if (
       isEmptyObject(breakages) ||
@@ -178,7 +190,7 @@ export class MarketplaceControlsComponent {
   private async installOrUpload(url: string | null) {
     if (this.file()) {
       await this.upload()
-      this.router.navigate(['/portal', 'services'])
+      this.router.navigate(['services'])
     } else if (url) {
       await this.install(url)
     }
@@ -186,10 +198,10 @@ export class MarketplaceControlsComponent {
 
   private async install(url: string) {
     const loader = this.loader.open('Beginning install').subscribe()
-    const id = this.preview.pkgId
+    const { id, version } = this.pkg()
 
     try {
-      await this.marketplaceService.installPackage(id, this.version(), url)
+      await this.marketplace.installPackage(id, version, url)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

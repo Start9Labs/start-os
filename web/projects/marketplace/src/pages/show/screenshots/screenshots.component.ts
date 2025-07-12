@@ -1,5 +1,3 @@
-import { TuiCarousel } from '@taiga-ui/kit'
-import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -7,73 +5,72 @@ import {
   Input,
 } from '@angular/core'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
-import { TuiDialogContext, TuiDialogService, TuiButton } from '@taiga-ui/core'
-import { MarketplacePkg } from '../../../types'
+import { TuiButton, TuiDialogContext, TuiDialogService } from '@taiga-ui/core'
+import { TuiCarousel } from '@taiga-ui/kit'
 import { PolymorpheusContent } from '@taiga-ui/polymorpheus'
+import { MarketplacePkg } from '../../../types'
 
 @Component({
   selector: 'marketplace-package-screenshots',
   template: `
     <!--@TODO future release-->
-    <div
-      *ngIf="$any(pkg).screenshots as screenshots"
-      tuiCarouselButtons
-      class="outer-container"
-    >
-      <button
-        tuiIconButton
-        appearance="flat-grayscale"
-        iconStart="@tui.chevron-left"
-        title="Previous"
-        type="button"
-        (click)="carousel.prev()"
-      ></button>
-      <tui-carousel
-        #carousel
-        [itemsCount]="isMobile ? 1 : 2"
-        [(index)]="index"
-        class="carousel"
-      >
-        <ng-container *ngFor="let item of screenshots; let i = index">
-          <div
-            *tuiItem
-            draggable="false"
-            [class.item_active]="i === index + 1"
-            class="screenshot-item"
-          >
-            <img
-              #template
-              alt="Service screenshot"
-              src="assets/img/temp/{{ item }}"
-              class="screenshot-item-img"
-              (click)="presentModalImg(dialogTemplate)"
-            />
-            <ng-template #dialogTemplate let-observer>
+    @if ($any(pkg).screenshots; as screenshots) {
+      <div tuiCarouselButtons class="outer-container">
+        <button
+          tuiIconButton
+          appearance="flat-grayscale"
+          iconStart="@tui.chevron-left"
+          title="Previous"
+          type="button"
+          (click)="carousel.prev()"
+        ></button>
+        <tui-carousel
+          #carousel
+          [itemsCount]="isMobile ? 1 : 2"
+          [(index)]="index"
+          class="carousel"
+        >
+          @for (item of screenshots; track item; let i = $index) {
+            <div
+              *tuiItem
+              draggable="false"
+              [class.item_active]="i === index + 1"
+              class="screenshot-item"
+            >
               <img
+                #template
                 alt="Service screenshot"
                 src="assets/img/temp/{{ item }}"
-                class="screenshot-item-img-enlarged"
+                class="screenshot-item-img"
+                (click)="presentModalImg(dialogTemplate)"
               />
-            </ng-template>
-          </div>
-        </ng-container>
-      </tui-carousel>
-      <button
-        tuiIconButton
-        appearance="flat-grayscale"
-        type="button"
-        iconStart="@tui.chevron-right"
-        title="Next"
-        (click)="carousel.next()"
-      ></button>
-    </div>
+              <ng-template #dialogTemplate let-observer>
+                <img
+                  alt="Service screenshot"
+                  src="assets/img/temp/{{ item }}"
+                  class="screenshot-item-img-enlarged"
+                />
+              </ng-template>
+            </div>
+          }
+        </tui-carousel>
+        <button
+          tuiIconButton
+          appearance="flat-grayscale"
+          type="button"
+          iconStart="@tui.chevron-right"
+          title="Next"
+          (click)="carousel.next()"
+        ></button>
+      </div>
+    }
   `,
   styles: `
     .outer-container {
       display: flex;
       align-items: center;
       align-content: center;
-      margin: 0px;
+      margin: 0;
 
       @media (min-width: 1024px) {
         margin-left: -3.5rem;
@@ -123,7 +120,7 @@ import { PolymorpheusContent } from '@taiga-ui/polymorpheus'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, TuiCarousel, TuiButton],
+  imports: [TuiCarousel, TuiButton],
 })
 export class MarketplacePackageScreenshotComponent {
   private readonly dialogs = inject(TuiDialogService)

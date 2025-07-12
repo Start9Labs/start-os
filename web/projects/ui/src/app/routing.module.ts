@@ -22,13 +22,13 @@ const routes: Routes = [
       import('./routes/login/login.module').then(m => m.LoginPageModule),
   },
   {
-    path: 'portal',
+    path: '',
     canActivate: [AuthGuard, stateNot(['error', 'initializing'])],
     loadChildren: () => import('./routes/portal/portal.routes'),
   },
   {
     path: '**',
-    redirectTo: 'portal',
+    redirectTo: '',
     pathMatch: 'full',
   },
 ]

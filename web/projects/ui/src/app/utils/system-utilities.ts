@@ -7,40 +7,40 @@ export const SYSTEM_UTILITIES: Record<
   string,
   { icon: string; title: i18nKey }
 > = {
-  '/portal/services': {
+  services: {
     icon: '@tui.layout-grid',
     title: 'Services',
   },
-  '/portal/marketplace': {
+  marketplace: {
     icon: '@tui.shopping-cart',
     title: 'Marketplace',
   },
-  '/portal/sideload': {
+  sideload: {
     icon: '@tui.upload',
     title: 'Sideload',
   },
-  '/portal/updates': {
+  updates: {
     icon: '@tui.globe',
     title: 'Updates',
   },
   // @TODO 041
-  // '/portal/backups': {
+  // backups: {
   //   icon: '@tui.save',
   //   title: 'Backups',
   // },
-  '/portal/metrics': {
+  metrics: {
     icon: '@tui.activity',
     title: 'Metrics',
   },
-  '/portal/logs': {
+  logs: {
     icon: '@tui.file-text',
     title: 'Logs',
   },
-  '/portal/system': {
+  system: {
     icon: '@tui.settings',
     title: 'System',
   },
-  '/portal/notifications': {
+  notifications: {
     icon: '@tui.bell',
     title: 'Notifications',
   },

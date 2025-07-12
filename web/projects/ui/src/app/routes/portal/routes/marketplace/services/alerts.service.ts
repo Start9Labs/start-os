@@ -42,7 +42,7 @@ export class MarketplaceAlertsService {
 
   async alertBreakages(breakages: string[]): Promise<boolean> {
     let content =
-      `${this.i18n.transform('As a result of this update, the following services will no longer work properly and may crash')}:<ul>'` as i18nKey
+      `${this.i18n.transform('As a result of this update, the following services will no longer work properly and may crash')}:<ul>` as i18nKey
     const bullets = breakages.map(title => `<li><b>${title}</b></li>`)
     content = `${content}${bullets.join('')}</ul>` as i18nKey
 

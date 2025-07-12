@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -46,17 +45,17 @@ export interface FormContext<T> {
       <form-group [spec]="spec" />
       <footer>
         <ng-content />
-        <ng-container *ngFor="let button of buttons; let last = last">
-          <button
-            *ngIf="button.handler; else link"
-            tuiButton
-            [appearance]="last ? 'primary' : 'flat-grayscale'"
-            [type]="last ? 'submit' : 'button'"
-            (click)="onClick(button.handler)"
-          >
-            {{ button.text }}
-          </button>
-          <ng-template #link>
+        @for (button of buttons; track $index) {
+          @if (button.handler) {
+            <button
+              tuiButton
+              [appearance]="$last ? 'primary' : 'flat-grayscale'"
+              [type]="$last ? 'submit' : 'button'"
+              (click)="onClick(button.handler)"
+            >
+              {{ button.text }}
+            </button>
+          } @else {
             <a
               tuiButton
               appearance="flat-grayscale"
@@ -65,8 +64,8 @@ export interface FormContext<T> {
             >
               {{ button.text }}
             </a>
-          </ng-template>
-        </ng-container>
+          }
+        }
       </footer>
     </form>
   `,
@@ -85,7 +84,6 @@ export interface FormContext<T> {
     }
   `,
   imports: [
-    CommonModule,
     ReactiveFormsModule,
     RouterModule,
     TuiValueChanges,

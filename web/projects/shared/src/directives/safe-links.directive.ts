@@ -1,5 +1,4 @@
-import { DOCUMENT } from '@angular/common'
-import { Directive, inject } from '@angular/core'
+import { Directive, inject, DOCUMENT } from '@angular/core'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import {
   MutationObserverService,

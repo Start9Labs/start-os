@@ -16,7 +16,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
     @for (d of pkg.currentDependencies | keyvalue; track $index) {
       <a
         tuiCell
-        [routerLink]="services[d.key] ? ['..', d.key] : ['/portal/marketplace']"
+        [routerLink]="services[d.key] ? ['..', d.key] : ['/marketplace']"
         [queryParams]="services[d.key] ? {} : { id: d.key }"
         [class.error]="getError(d.key)"
       >

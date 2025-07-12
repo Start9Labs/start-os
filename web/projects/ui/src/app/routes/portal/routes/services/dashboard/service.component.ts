@@ -162,7 +162,7 @@ export class ServiceComponent implements OnChanges {
   }
 
   get routerLink() {
-    return `/portal/services/${this.manifest.id}`
+    return `/services/${this.manifest.id}`
   }
 
   ngOnChanges() {

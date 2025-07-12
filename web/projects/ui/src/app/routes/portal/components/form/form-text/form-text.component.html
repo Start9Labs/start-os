@@ -8,7 +8,9 @@
   (focusedChange)="onFocus($event)"
 >
   {{ spec.name }}
-  <span *ngIf="spec.required">*</span>
+  @if (spec.required) {
+    <span>*</span>
+  }
   <input
     tuiTextfieldLegacy
     [class.masked]="spec.masked && masked"
@@ -19,26 +21,28 @@
   />
 </tui-input>
 <ng-template #toggle>
-  <button
-    *ngIf="spec.generate"
-    tuiIconButton
-    type="button"
-    appearance="icon"
-    title="Generate"
-    size="xs"
-    class="button"
-    iconStart="@tui.refresh-ccw"
-    (click)="generate()"
-  ></button>
-  <button
-    *ngIf="spec.masked"
-    tuiIconButton
-    type="button"
-    appearance="icon"
-    title="Toggle masking"
-    size="xs"
-    class="button"
-    [iconStart]="masked ? '@tui.eye' : '@tui.eye-off'"
-    (click)="masked = !masked"
-  ></button>
+  @if (spec.generate) {
+    <button
+      tuiIconButton
+      type="button"
+      appearance="icon"
+      title="Generate"
+      size="xs"
+      class="button"
+      iconStart="@tui.refresh-ccw"
+      (click)="generate()"
+    ></button>
+  }
+  @if (spec.masked) {
+    <button
+      tuiIconButton
+      type="button"
+      appearance="icon"
+      title="Toggle masking"
+      size="xs"
+      class="button"
+      [iconStart]="masked ? '@tui.eye' : '@tui.eye-off'"
+      (click)="masked = !masked"
+    ></button>
+  }
 </ng-template>

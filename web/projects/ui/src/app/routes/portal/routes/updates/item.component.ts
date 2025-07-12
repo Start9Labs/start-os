@@ -123,8 +123,12 @@ import UpdatesComponent from './updates.component'
               <a
                 tuiLink
                 iconEnd="@tui.external-link"
-                routerLink="/portal/marketplace"
-                [queryParams]="{ url: parent.current()?.url, id: item().id }"
+                routerLink="/marketplace"
+                [queryParams]="{
+                  url: parent.current()?.url,
+                  id: item().id,
+                  flavor: item().flavor,
+                }"
                 [textContent]="'View listing' | i18n"
               ></a>
               )

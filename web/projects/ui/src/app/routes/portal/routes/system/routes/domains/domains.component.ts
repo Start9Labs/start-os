@@ -19,25 +19,20 @@ import { DomainsTableComponent } from './table.component'
 @Component({
   template: `
     <domains-info />
-    <ng-container *ngIf="domains$ | async as domains">
+    @if (domains$ | async; as domains) {
       <h3 class="g-title">
         Start9.to
-        <button
-          *ngIf="!domains.start9To.length"
-          tuiButton
-          size="xs"
-          iconStart="@tui.plus"
-          (click)="claim()"
-        >
-          Claim
-        </button>
+        @if (!domains.start9To.length) {
+          <button tuiButton size="xs" iconStart="@tui.plus" (click)="claim()">
+            Claim
+          </button>
+        }
       </h3>
       <table
         class="g-table"
         [domains]="domains.start9To"
         (delete)="delete()"
       ></table>
-
       <h3 class="g-title">
         Custom Domains
         <button tuiButton size="xs" iconStart="@tui.plus" (click)="add()">
@@ -49,7 +44,7 @@ import { DomainsTableComponent } from './table.component'
         [domains]="domains.custom"
         (delete)="delete($event.value)"
       ></table>
-    </ng-container>
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
@@ -102,7 +97,7 @@ export default class SystemDomainsComponent {
         buttons: [
           {
             text: 'Manage proxies',
-            link: '/portal/system/proxies',
+            link: '/system/proxies',
           },
           {
             text: 'Save',
@@ -127,7 +122,7 @@ export default class SystemDomainsComponent {
         buttons: [
           {
             text: 'Manage proxies',
-            link: '/portal/system/proxies',
+            link: '/system/proxies',
           },
           {
             text: 'Save',

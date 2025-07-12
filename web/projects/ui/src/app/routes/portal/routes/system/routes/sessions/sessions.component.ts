@@ -7,7 +7,6 @@ import {
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
-import { TuiLet } from '@taiga-ui/cdk'
 import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { from, map, merge, Observable, Subject } from 'rxjs'
@@ -38,7 +37,8 @@ import { SessionsTableComponent } from './table.component'
       <div [single]="true" [sessions]="current$ | async"></div>
     </section>
 
-    <section *tuiLet="other$ | async as others" class="g-card">
+    @let others = other$ | async;
+    <section class="g-card">
       <header>
         {{ 'Other sessions' | i18n }}
         <button
@@ -60,7 +60,6 @@ import { SessionsTableComponent } from './table.component'
     CommonModule,
     TuiButton,
     SessionsTableComponent,
-    TuiLet,
     RouterLink,
     TitleDirective,
     TuiHeader,

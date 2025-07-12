@@ -338,9 +338,6 @@ hr {
 
 .g-stretch,
 .g-table {
-  // @TODO drop after fixed and merged: https://github.com/evanw/esbuild/issues/4184
-  width: -webkit-fill-available;
-  width: -moz-available;
   width: stretch;
 }
 

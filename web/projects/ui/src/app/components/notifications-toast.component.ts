@@ -16,11 +16,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       (tuiAlertChange)="onDismiss()"
     >
       {{ 'New notifications' | i18n }}
-      <a
-        tuiLink
-        routerLink="/portal/notifications"
-        [queryParams]="{ toast: true }"
-      >
+      <a tuiLink routerLink="/notifications" [queryParams]="{ toast: true }">
         {{ 'View' | i18n }}
       </a>
     </ng-template>

@@ -65,8 +65,8 @@ import { DocsLinkDirective } from '@start9labs/shared'
               text-align: center;
               border-radius: clamp(2rem, 3rem, 4rem);
               cursor: pointer;
-              box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 6px -1px,
-                rgba(0, 0, 0, 0.06) 0px 2px 4px -1px;
+              box-shadow: rgba(0, 0, 0, 0.1) 0 4px 6px -1px,
+                rgba(0, 0, 0, 0.06) 0 2px 4px -1px;
               background: #6866cc;
               color: #f4f4f5;
             "

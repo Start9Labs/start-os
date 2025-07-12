@@ -9,19 +9,22 @@ import { TuiNotification } from '@taiga-ui/core'
 import { getValueByPointer, Operation } from 'fast-json-patch'
 import { i18nPipe, isObject } from '@start9labs/shared'
 import { tuiIsNumber } from '@taiga-ui/cdk'
-import { CommonModule } from '@angular/common'
 
 @Component({
   selector: 'task-info',
   template: `
-    <tui-notification *ngIf="diff.length">
-      {{ 'The following modifications were made' | i18n }}:
-      <ul>
-        <li *ngFor="let d of diff" [innerHTML]="d"></li>
-      </ul>
-    </tui-notification>
+    @if (diff.length) {
+      <tui-notification>
+        {{ 'The following modifications were made' | i18n }}:
+        <ul>
+          @for (d of diff; track d) {
+            <li [innerHTML]="d"></li>
+          }
+        </ul>
+      </tui-notification>
+    }
   `,
-  imports: [CommonModule, TuiNotification, i18nPipe],
+  imports: [TuiNotification, i18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styles: `
     tui-notification {
