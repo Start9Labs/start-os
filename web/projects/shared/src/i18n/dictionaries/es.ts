@@ -522,4 +522,7 @@ export default {
   521: 'Para resolver el problema, consulta',
   522: 'Versión de SDK',
   523: 'Informe de respaldo',
+  524: 'Eliminar seleccionado',
+  525: 'Sin llaves',
+  526: 'Agregar clave pública SSH',
 } satisfies i18n

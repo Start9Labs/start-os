@@ -29,18 +29,16 @@ import { SSHKey } from 'src/app/services/api/api.types'
         {{ 'Hostname' | i18n }}
       </th>
       @for (key of keys(); track $index) {
-        <tr>
+        <tr (longtap)="!selected().length && onToggle(key)">
           <td [style.padding-left.rem]="2.5">
-            <label>
-              <input
-                tuiCheckbox
-                size="s"
-                type="checkbox"
-                [ngModel]="selected().includes(key)"
-                (ngModelChange)="onToggle(key)"
-              />
-              <div tuiFade class="hostname">{{ key.hostname }}</div>
-            </label>
+            <input
+              tuiCheckbox
+              size="s"
+              type="checkbox"
+              [ngModel]="selected().includes(key)"
+              (ngModelChange)="onToggle(key)"
+            />
+            <div tuiFade class="hostname">{{ key.hostname }}</div>
           </td>
           <td class="date">{{ key.createdAt | date: 'medium' }}</td>
           <td class="algorithm">{{ key.alg }}</td>
@@ -48,9 +46,8 @@ import { SSHKey } from 'src/app/services/api/api.types'
         </tr>
       } @empty {
         @if (keys()) {
-          <!-- @TODO add translation -->
           <tr>
-            <td colspan="5">{{ 'No keys' }}</td>
+            <td colspan="5">{{ 'No keys' | i18n }}</td>
           </tr>
         } @else {
           @for (i of ['', '']; track $index) {
@@ -69,6 +66,7 @@ import { SSHKey } from 'src/app/services/api/api.types'
 
     td {
       position: relative;
+
       &[colspan] {
         grid-column: span 2;
       }
@@ -82,23 +80,23 @@ import { SSHKey } from 'src/app/services/api/api.types'
     }
 
     :host-context(tui-root._mobile) {
-      tr {
-        grid-template-columns: 2.5rem 1fr;
+      table {
+        &:has(:checked) tr {
+          padding-inline-start: 2rem;
+        }
 
-        &:has(:checked) .hostname {
+        &:not(:has(:checked)) input {
           visibility: hidden;
         }
       }
 
+      tr {
+        grid-template-columns: 1fr 5rem;
+        user-select: none;
+      }
+
       input {
         left: 0.25rem;
-
-        &:not(:checked) {
-          @include taiga.fullsize();
-          z-index: 1;
-          visibility: hidden;
-          transform: none;
-        }
       }
 
       td {
@@ -111,13 +109,14 @@ import { SSHKey } from 'src/app/services/api/api.types'
 
       .hostname {
         order: 1;
-        grid-column: span 1;
+        grid-column: span 2;
         font-weight: bold;
         text-transform: uppercase;
       }
 
       .fingerprint {
         order: 2;
+        grid-column: span 2;
       }
 
       .date {
@@ -127,6 +126,7 @@ import { SSHKey } from 'src/app/services/api/api.types'
 
       .algorithm {
         order: 4;
+        text-align: end;
       }
     }
   `,

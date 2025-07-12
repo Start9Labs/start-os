@@ -12,6 +12,7 @@ import { TuiIcon } from '@taiga-ui/core'
 import { TuiCheckbox, TuiFade, TuiSkeleton } from '@taiga-ui/kit'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { Session } from 'src/app/services/api/api.types'
+import { toAcmeName } from 'src/app/utils/acme'
 import { PlatformInfoPipe } from './platform-info.pipe'
 import { i18nPipe } from '@start9labs/shared'
 
@@ -39,20 +40,18 @@ import { i18nPipe } from '@start9labs/shared'
         </th>
       }
       @for (session of sessions(); track $index) {
-        <tr>
+        <tr (longtap)="!selected().length && onToggle(session)">
           <td [style.padding-left.rem]="single() ? null : 2.5">
-            <label>
-              @if (!single()) {
-                <input
-                  tuiCheckbox
-                  size="s"
-                  type="checkbox"
-                  [ngModel]="selected().includes(session)"
-                  (ngModelChange)="onToggle(session)"
-                />
-              }
-              <div tuiFade class="agent">{{ session.userAgent || '-' }}</div>
-            </label>
+            @if (!single()) {
+              <input
+                tuiCheckbox
+                size="s"
+                type="checkbox"
+                [ngModel]="selected().includes(session)"
+                (ngModelChange)="onToggle(session)"
+              />
+            }
+            <div tuiFade class="agent">{{ session.userAgent || '-' }}</div>
           </td>
           @if (session.userAgent | platformInfo; as platform) {
             <td class="platform">
@@ -107,23 +106,21 @@ import { i18nPipe } from '@start9labs/shared'
     }
 
     :host-context(tui-root._mobile) {
+      table:has(:checked) .platform {
+        visibility: hidden;
+      }
+
+      table:not(:has(:checked)) input {
+        visibility: hidden;
+      }
+
       tr {
         grid-template-columns: 2.5rem 1fr;
-
-        &:has(:checked) .platform {
-          visibility: hidden;
-        }
+        user-select: none;
       }
 
       input {
         left: 0.25rem;
-
-        &:not(:checked) {
-          @include taiga.fullsize();
-          z-index: 1;
-          visibility: hidden;
-          transform: none;
-        }
       }
 
       td {
@@ -185,4 +182,6 @@ export class SessionsTableComponent<T extends Session> implements OnChanges {
       this.selected.update(selected => [...selected, session])
     }
   }
+
+  protected readonly toAcmeName = toAcmeName
 }

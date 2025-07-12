@@ -6,7 +6,6 @@ import {
 } from '@angular/core'
 import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { TuiLet } from '@taiga-ui/cdk'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiProgress } from '@taiga-ui/kit'
 import { InstallingProgressPipe } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
@@ -34,7 +33,8 @@ import { getManifest } from 'src/app/utils/get-package-data'
       phase of pkg.stateInfo.installingInfo?.progress?.phases;
       track $index
     ) {
-      <div *tuiLet="phase.progress | installingProgress as percent">
+      @let percent = phase.progress | installingProgress;
+      <div>
         {{ $any(phase.name) | i18n }}:
         @if (phase.progress === null) {
           <span>{{ 'waiting' | i18n }}</span>
@@ -76,7 +76,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
   `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiProgress, TuiLet, InstallingProgressPipe, i18nPipe, TuiButton],
+  imports: [TuiProgress, InstallingProgressPipe, i18nPipe, TuiButton],
 })
 export class ServiceInstallProgressComponent {
   @Input({ required: true })

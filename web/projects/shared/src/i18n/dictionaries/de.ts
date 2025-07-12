@@ -522,4 +522,7 @@ export default {
   521: 'Um das Problem zu beheben, siehe',
   522: 'SDK Version',
   523: 'Sicherungsbericht',
+  524: 'Ausgewählte löschen',
+  525: 'Keine schlüssel',
+  526: 'Öffentlichen SSH-Schlüssel hinzufügen',
 } satisfies i18n

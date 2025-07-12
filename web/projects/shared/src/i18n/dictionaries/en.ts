@@ -521,4 +521,7 @@ export const ENGLISH = {
   'To resolve the issue, refer to': 521,
   'SDK Version': 522,
   'Backup Report': 523,
+  'Delete selected': 524,
+  'No keys': 525,
+  'Add SSH Public Key': 526,
 } as const

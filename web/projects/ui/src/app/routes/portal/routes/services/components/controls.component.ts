@@ -7,7 +7,6 @@ import {
   input,
 } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
-import { TuiLet } from '@taiga-ui/cdk'
 import { TuiButton } from '@taiga-ui/core'
 import { map } from 'rxjs'
 import { ControlsService } from 'src/app/services/controls.service'
@@ -41,11 +40,11 @@ import { getManifest } from 'src/app/utils/get-package-data'
     }
 
     @if (status() === 'stopped') {
+      @let unmet = hasUnmet() | async;
       <button
-        *tuiLet="hasUnmet() | async as hasUnmet"
         tuiButton
         iconStart="@tui.play"
-        (click)="controls.start(manifest(), !!hasUnmet)"
+        (click)="controls.start(manifest(), !!unmet)"
       >
         {{ 'Start' | i18n }}
       </button>
@@ -83,7 +82,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, i18nPipe, TuiLet, AsyncPipe],
+  imports: [TuiButton, i18nPipe, AsyncPipe],
 })
 export class ServiceControlsComponent {
   private readonly errors = inject(DepErrorService)
