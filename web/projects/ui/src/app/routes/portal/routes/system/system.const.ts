@@ -49,6 +49,11 @@ export const SYSTEM_MENU = [
       link: 'sessions',
     },
     {
+      icon: '@tui.terminal',
+      item: 'SSH' as i18nKey,
+      link: 'ssh',
+    },
+    {
       icon: '@tui.key',
       item: 'Change Password',
       link: 'password',

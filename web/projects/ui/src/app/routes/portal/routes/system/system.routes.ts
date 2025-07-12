@@ -63,6 +63,11 @@ export default [
         loadComponent: () => import('./routes/sessions/sessions.component'),
       },
       {
+        path: 'ssh',
+        title: titleResolver,
+        loadComponent: () => import('./routes/ssh/ssh.component'),
+      },
+      {
         path: 'password',
         title: titleResolver,
         loadComponent: () => import('./routes/password/password.component'),

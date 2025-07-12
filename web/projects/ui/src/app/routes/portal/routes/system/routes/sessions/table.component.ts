@@ -4,14 +4,12 @@ import {
   Component,
   computed,
   input,
-  Input,
   OnChanges,
   signal,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TuiIcon } from '@taiga-ui/core'
 import { TuiCheckbox, TuiFade, TuiSkeleton } from '@taiga-ui/kit'
-import { BehaviorSubject } from 'rxjs'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { Session } from 'src/app/services/api/api.types'
 import { PlatformInfoPipe } from './platform-info.pipe'
