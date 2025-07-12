@@ -131,6 +131,7 @@ import { SystemWipeComponent } from './wipe.component'
           {{ 'Change' | i18n }}
           <tui-data-list-wrapper
             *tuiTextfieldDropdown
+            new
             size="l"
             [items]="languages"
             [itemContent]="translation"
