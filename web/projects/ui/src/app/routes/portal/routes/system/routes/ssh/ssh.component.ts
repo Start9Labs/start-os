@@ -38,7 +38,7 @@ import { SSHTableComponent } from './table.component'
         <h3>SSH</h3>
         <p tuiSubtitle>
           {{
-            'Connecting an external SMTP server allows StartOS and your installed services to send you emails.'
+            'By default, you can SSH into your server from any device using your master password. Optionally add SSH public keys to grant specific devices access without needing to enter a password.'
               | i18n
           }}
           <a

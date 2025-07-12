@@ -525,4 +525,5 @@ export default {
   524: 'Eliminar seleccionado',
   525: 'Sin llaves',
   526: 'Agregar clave pública SSH',
+  527: 'De forma predeterminada, puedes conectarte por SSH a tu servidor desde cualquier dispositivo usando tu contraseña maestra. Opcionalmente, añade claves públicas SSH para otorgar acceso a dispositivos específicos sin necesidad de ingresar una contraseña.',
 } satisfies i18n

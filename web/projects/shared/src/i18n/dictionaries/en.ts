@@ -524,4 +524,5 @@ export const ENGLISH = {
   'Delete selected': 524,
   'No keys': 525,
   'Add SSH Public Key': 526,
+  'By default, you can SSH into your server from any device using your master password. Optionally add SSH public keys to grant specific devices access without needing to enter a password.': 527,
 } as const

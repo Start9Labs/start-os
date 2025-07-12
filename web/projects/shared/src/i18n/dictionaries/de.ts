@@ -525,4 +525,5 @@ export default {
   524: 'Ausgewählte löschen',
   525: 'Keine schlüssel',
   526: 'Öffentlichen SSH-Schlüssel hinzufügen',
+  527: 'Standardmäßig kannst du dich per SSH von jedem Gerät aus mit deinem Server verbinden, indem du dein Master-Passwort verwendest. Optional kannst du SSH-öffentliche Schlüssel hinzufügen, um bestimmten Geräten den Zugriff ohne Passworteingabe zu ermöglichen.',
 } satisfies i18n
