@@ -49,12 +49,12 @@ import { i18nPipe } from '@start9labs/shared'
         (overflownChange)="overflow = $event"
       />
       @if (overflow) {
-        <button tuiLink (click)="service.viewModal(notificationItem, true)">
+        <button tuiLink (click.stop)="onClick()">
           {{ 'View full' | i18n }}
         </button>
       }
-      @if (notificationItem.code === 1 || notificationItem.code === 2) {
-        <button tuiLink (click)="service.viewModal(notificationItem)">
+      @if ([1, 2].includes(notificationItem.code)) {
+        <button tuiLink (click.stop)="onClick()">
           {{
             notificationItem.code === 1
               ? ('View report' | i18n)
@@ -66,7 +66,8 @@ import { i18nPipe } from '@start9labs/shared'
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
-    '[class._new]': '!notificationItem.read',
+    '[class._new]': '!notificationItem.seen',
+    '(click)': 'onClick()',
   },
   styles: `
     @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
@@ -74,9 +75,18 @@ import { i18nPipe } from '@start9labs/shared'
     :host {
       grid-template-columns: 1fr;
 
-      &._new {
-        background: var(--tui-background-neutral-1) !important;
+      &._new td {
+        font-weight: bold;
+        color: var(--tui-text-primary);
+
+        &.checkbox {
+          box-shadow: inset 0.25rem 0 var(--tui-text-action);
+        }
       }
+    }
+
+    tui-icon {
+      vertical-align: text-top;
     }
 
     button {
@@ -86,6 +96,7 @@ import { i18nPipe } from '@start9labs/shared'
     td {
       padding: 0.25rem;
       vertical-align: top;
+      color: var(--tui-text-secondary);
     }
 
     .checkbox {
@@ -98,11 +109,6 @@ import { i18nPipe } from '@start9labs/shared'
 
       .checkbox {
         @include taiga.fullsize();
-        @include taiga.transition(box-shadow);
-
-        &:has(:checked) {
-          box-shadow: inset 0.25rem 0 var(--tui-background-accent-1);
-        }
       }
 
       .date {
@@ -114,12 +120,17 @@ import { i18nPipe } from '@start9labs/shared'
         font-weight: bold;
         font-size: 1.2em;
         display: flex;
+        align-items: center;
         gap: 0.5rem;
       }
 
       .service:not(:has(a)) {
         display: none;
       }
+    }
+
+    :host-context(tui-root._mobile table:has(:checked)) tui-icon {
+      opacity: 0;
     }
   `,
   imports: [CommonModule, RouterLink, TuiLineClamp, TuiLink, TuiIcon, i18nPipe],
@@ -154,5 +165,15 @@ export class NotificationItemComponent {
 
   getLink(id: string) {
     return toRouterLink(id)
+  }
+
+  onClick() {
+    if (this.overflow) {
+      this.service.viewModal(this.notificationItem, true)
+      this.notificationItem.seen = true
+    } else if ([1, 2].includes(this.notificationItem.code)) {
+      this.service.viewModal(this.notificationItem)
+      this.notificationItem.seen = true
+    }
   }
 }

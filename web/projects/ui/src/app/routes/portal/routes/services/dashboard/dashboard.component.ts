@@ -75,7 +75,6 @@ import { i18nPipe } from '@start9labs/shared'
     :host {
       position: relative;
       font-size: 1rem;
-      overflow: hidden;
     }
 
     :host-context(tui-root._mobile) {

@@ -41,7 +41,7 @@ import { i18nPipe } from '@start9labs/shared'
         @for (notification of notifications; track $index) {
           <tr
             [notificationItem]="notification"
-            [style.font-weight]="notification.seen ? 'normal' : 'bold'"
+            (longtap)="handleToggle(notification)"
           >
             <input
               tuiCheckbox
@@ -50,6 +50,7 @@ import { i18nPipe } from '@start9labs/shared'
               [style.display]="'block'"
               [ngModel]="selected().includes(notification)"
               (ngModelChange)="handleToggle(notification)"
+              (click.stop)="(0)"
             />
           </tr>
         } @empty {
@@ -69,13 +70,17 @@ import { i18nPipe } from '@start9labs/shared'
     </tbody>
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
-
     :host-context(tui-root._mobile) {
       margin: 0 -1rem;
 
       input {
-        @include taiga.fullsize();
+        position: absolute;
+        top: 0.875rem;
+        left: 1rem;
+        z-index: 1;
+      }
+
+      :host:not(:has(:checked)) input {
         opacity: 0;
       }
     }

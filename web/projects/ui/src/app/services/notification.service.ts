@@ -93,14 +93,13 @@ export class NotificationService {
     }
   }
 
-  viewModal(
-    { data, createdAt, code, title, message }: ServerNotification<number>,
-    full = false,
-  ) {
+  viewModal(notification: ServerNotification<number>, full = false) {
+    const { data, createdAt, code, title, message } = notification
     const label = code === 1 ? 'Backup Report' : (title as i18nKey)
     const component = code === 1 ? REPORT : MARKDOWN
     const content = code === 1 ? data : of(data)
 
+    this.markSeen([notification])
     this.dialogs
       .openComponent(full ? message : component, {
         label,
