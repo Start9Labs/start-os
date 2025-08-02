@@ -23,7 +23,7 @@ export async function getAllPackages(
 }
 
 export function getManifest(pkg: PackageDataEntry): T.Manifest {
-  return isInstalling(pkg) || isRestoring(pkg)
+  return isInstalling(pkg) || isRestoring(pkg) || isUpdating(pkg)
     ? pkg.stateInfo.installingInfo.newManifest
     : pkg.stateInfo.manifest!
 }
