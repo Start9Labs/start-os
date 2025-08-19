@@ -1,12 +1,8 @@
-import { ChangeDetectionStrategy, Component, Inject } from '@angular/core'
+import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { TuiAutoFocus } from '@taiga-ui/cdk'
-import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
-import { TuiInputModule, TuiTextfieldControllerModule } from '@taiga-ui/legacy'
-import {
-  POLYMORPHEUS_CONTEXT,
-  PolymorpheusComponent,
-} from '@taiga-ui/polymorpheus'
+import { TuiButton, TuiDialogContext, TuiTextfield } from '@taiga-ui/core'
+import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { i18nPipe } from '../i18n/i18n.pipe'
 import { i18nKey } from '../i18n/i18n.providers'
 
@@ -17,23 +13,36 @@ import { i18nKey } from '../i18n/i18n.providers'
       <p class="warning">{{ options.warning }}</p>
     }
     <form (ngSubmit)="submit(value.trim())">
-      <tui-input
-        tuiAutoFocus
-        [tuiTextfieldLabelOutside]="!options.label"
-        [tuiTextfieldCustomContent]="options.useMask ? toggle : ''"
-        [ngModelOptions]="{ standalone: true }"
-        [(ngModel)]="value"
-      >
-        {{ options.label }}
-        @if (options.required !== false && options.label) {
-          <span>*</span>
+      <tui-textfield>
+        @if (options.label) {
+          <label tuiLabel>
+            {{ options.label }}
+            @if (options.required !== false && options.label) {
+              <span>*</span>
+            }
+          </label>
         }
         <input
-          tuiTextfieldLegacy
+          tuiTextfield
+          tuiAutoFocus
+          [ngModelOptions]="{ standalone: true }"
+          [(ngModel)]="value"
           [class.masked]="options.useMask && masked && value"
           [placeholder]="options.placeholder || ''"
         />
-      </tui-input>
+        @if (options.useMask) {
+          <button
+            tuiIconButton
+            type="button"
+            appearance="icon"
+            title="Toggle masking"
+            size="xs"
+            class="button"
+            [iconStart]="masked ? '@tui.eye' : '@tui.eye-off'"
+            (click)="masked = !masked"
+          ></button>
+        }
+      </tui-textfield>
       <footer class="g-buttons">
         <button
           tuiButton
@@ -48,19 +57,6 @@ import { i18nKey } from '../i18n/i18n.providers'
         </button>
       </footer>
     </form>
-
-    <ng-template #toggle>
-      <button
-        tuiIconButton
-        type="button"
-        appearance="icon"
-        title="Toggle masking"
-        size="xs"
-        class="button"
-        [iconStart]="masked ? '@tui.eye' : '@tui.eye-off'"
-        (click)="masked = !masked"
-      ></button>
-    </ng-template>
   `,
   styles: `
     .warning {
@@ -76,24 +72,15 @@ import { i18nKey } from '../i18n/i18n.providers'
       -webkit-text-security: disc;
     }
   `,
-  imports: [
-    FormsModule,
-    TuiInputModule,
-    TuiButton,
-    TuiTextfieldControllerModule,
-    TuiAutoFocus,
-    i18nPipe,
-  ],
+  imports: [FormsModule, TuiButton, TuiTextfield, TuiAutoFocus, i18nPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PromptModal {
+  private readonly context =
+    injectContext<TuiDialogContext<string, PromptOptions>>()
+
   masked = this.options.useMask
   value = this.options.initialValue || ''
-
-  constructor(
-    @Inject(POLYMORPHEUS_CONTEXT)
-    private readonly context: TuiDialogContext<string, PromptOptions>,
-  ) {}
 
   get options(): PromptOptions {
     return this.context.data

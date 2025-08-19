@@ -7,14 +7,18 @@
     <img alt="StartOS Icon" class="logo" src="assets/img/icon.png" />
     <h1 class="header">{{ 'Login to StartOS' | i18n }}</h1>
     <form (submit)="submit()">
-      <tui-input-password
-        tuiTextfieldIconLeft="@tui.key"
-        [ngModelOptions]="{ standalone: true }"
-        [(ngModel)]="password"
-        (ngModelChange)="error = null"
-      >
-        {{ 'Password' | i18n }}
-      </tui-input-password>
+      <tui-textfield iconStart="@tui.key">
+        <label tuiLabel>{{ 'Password' | i18n }}</label>
+        <input
+          tuiAutoFocus
+          tuiTextfield
+          type="password"
+          [ngModelOptions]="{ standalone: true }"
+          [(ngModel)]="password"
+          (ngModelChange)="error = null"
+        />
+        <tui-icon tuiPassword />
+      </tui-textfield>
       <tui-error class="error" [error]="error || null" />
       <button tuiButton class="button">{{ 'Login' | i18n }}</button>
     </form>

@@ -14,9 +14,13 @@ import {
   TuiDialogContext,
   TuiDialogService,
   TuiError,
+  TuiTextfield,
 } from '@taiga-ui/core'
-import { TUI_VALIDATION_ERRORS, TuiFieldErrorPipe } from '@taiga-ui/kit'
-import { TuiInputModule, TuiInputPasswordModule } from '@taiga-ui/legacy'
+import {
+  TUI_VALIDATION_ERRORS,
+  TuiFieldErrorPipe,
+  TuiPassword,
+} from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { SERVERS, ServersResponse } from 'src/app/components/servers.component'
 import { ApiService } from 'src/app/services/api.service'
@@ -30,39 +34,47 @@ export interface CifsResponse {
 @Component({
   template: `
     <form [formGroup]="form" (ngSubmit)="submit()">
-      <tui-input formControlName="hostname">
-        Hostname *
+      <tui-textfield>
+        <label tuiLabel>Hostname *</label>
         <input
-          tuiTextfieldLegacy
+          tuiTextfield
+          formControlName="hostname"
           placeholder="e.g. 'My Computer' OR 'my-computer.local'"
         />
-      </tui-input>
+      </tui-textfield>
       <tui-error
         formControlName="hostname"
         [error]="['required'] | tuiFieldError | async"
-      ></tui-error>
+      />
 
-      <tui-input formControlName="path" class="input">
-        Path *
-        <input tuiTextfieldLegacy placeholder="/Desktop/my-folder'" />
-      </tui-input>
-      <tui-error
-        formControlName="path"
-        [error]="[] | tuiFieldError | async"
-      ></tui-error>
+      <tui-textfield class="input">
+        <label tuiLabel>Path *</label>
+        <input
+          tuiTextfield
+          formControlName="path"
+          placeholder="/Desktop/my-folder'"
+        />
+      </tui-textfield>
+      <tui-error formControlName="path" [error]="[] | tuiFieldError | async" />
 
-      <tui-input formControlName="username" class="input">
-        Username *
-        <input tuiTextfieldLegacy placeholder="Enter username" />
-      </tui-input>
+      <tui-textfield class="input">
+        <label tuiLabel>Username *</label>
+        <input
+          tuiTextfield
+          formControlName="username"
+          placeholder="Enter username"
+        />
+      </tui-textfield>
       <tui-error
         formControlName="username"
         [error]="[] | tuiFieldError | async"
-      ></tui-error>
+      />
 
-      <tui-input-password formControlName="password" class="input">
-        Password
-      </tui-input-password>
+      <tui-textfield class="input">
+        <label tuiLabel>Password</label>
+        <input tuiTextfield type="password" formControlName="password" />
+        <tui-icon tuiPassword />
+      </tui-textfield>
 
       <footer>
         <button
@@ -93,8 +105,8 @@ export interface CifsResponse {
     FormsModule,
     ReactiveFormsModule,
     TuiButton,
-    TuiInputModule,
-    TuiInputPasswordModule,
+    TuiTextfield,
+    TuiPassword,
     TuiError,
     TuiFieldErrorPipe,
   ],

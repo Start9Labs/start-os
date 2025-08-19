@@ -11,9 +11,8 @@ import {
   LoadingService,
 } from '@start9labs/shared'
 import { inputSpec, IST } from '@start9labs/start-sdk'
-import { TuiButton, TuiTitle } from '@taiga-ui/core'
+import { TuiButton, TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
-import { TuiInputModule } from '@taiga-ui/legacy'
 import { PatchDB } from 'patch-db-client'
 import { switchMap, tap } from 'rxjs'
 import { FormModule } from 'src/app/routes/portal/components/form/form.module'
@@ -80,13 +79,15 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
             <b>{{ 'Send test email' | i18n }}</b>
           </h3>
         </header>
-        <tui-input
-          [(ngModel)]="testAddress"
-          [ngModelOptions]="{ standalone: true }"
-        >
-          Name Lastname &lt;email&#64;example.com&gt;
-          <input tuiTextfieldLegacy inputmode="email" />
-        </tui-input>
+        <tui-textfield>
+          <label tuiLabel>Name Lastname &lt;email&#64;example.com&gt;</label>
+          <input
+            tuiTextfield
+            inputmode="email"
+            [(ngModel)]="testAddress"
+            [ngModelOptions]="{ standalone: true }"
+          />
+        </tui-textfield>
         <footer>
           <button
             tuiButton
@@ -123,7 +124,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
     ReactiveFormsModule,
     FormModule,
     TuiButton,
-    TuiInputModule,
+    TuiTextfield,
     TuiHeader,
     TuiTitle,
     RouterLink,

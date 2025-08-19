@@ -2,13 +2,13 @@ import { Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
 import { ErrorService, LoadingService } from '@start9labs/shared'
-import { TuiButton, TuiDialogContext, TuiDialogService } from '@taiga-ui/core'
-import { TuiBadge, TuiSwitch } from '@taiga-ui/kit'
 import {
-  TuiInputModule,
-  TuiInputNumberModule,
-  TuiWrapperModule,
-} from '@taiga-ui/legacy'
+  TuiButton,
+  TuiDialogContext,
+  TuiDialogService,
+  TuiTextfield,
+} from '@taiga-ui/core'
+import { TuiBadge, TuiSwitch } from '@taiga-ui/kit'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { from, map } from 'rxjs'
 import { BackupJob, BackupTarget } from 'src/app/services/api/api.types'
@@ -21,10 +21,15 @@ import { TARGET, TARGET_CREATE } from './target.component'
 @Component({
   template: `
     <form class="form">
-      <tui-input name="name" [(ngModel)]="job.name">
-        Job Name
-        <input tuiTextfieldLegacy placeholder="My Backup Job" />
-      </tui-input>
+      <tui-textfield>
+        <label tuiLabel>Job Name</label>
+        <input
+          tuiTextfield
+          name="name"
+          [(ngModel)]="job.name"
+          placeholder="My Backup Job"
+        />
+      </tui-textfield>
       <button
         tuiButton
         appearance="secondary"
@@ -53,10 +58,15 @@ import { TARGET, TARGET_CREATE } from './target.component'
           {{ job.packageIds.length + ' selected' }}
         </tui-badge>
       </button>
-      <tui-input name="cron" [(ngModel)]="job.cron">
-        Schedule
-        <input tuiTextfieldLegacy placeholder="* * * * *" />
-      </tui-input>
+      <tui-textfield>
+        <label tuiLabel>Schedule</label>
+        <input
+          tuiTextfield
+          name="cron"
+          [(ngModel)]="job.cron"
+          placeholder="* * * * *"
+        />
+      </tui-textfield>
       @if (job.cron | toHumanCron; as human) {
         <div [style.color]="human.color">{{ human.message }}</div>
       }
@@ -98,10 +108,8 @@ import { TARGET, TARGET_CREATE } from './target.component'
   `,
   imports: [
     FormsModule,
-    TuiInputModule,
-    TuiInputNumberModule,
+    TuiTextfield,
     TuiSwitch,
-    TuiWrapperModule,
     TuiButton,
     TuiBadge,
     ToHumanCronPipe,

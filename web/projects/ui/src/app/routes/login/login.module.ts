@@ -2,15 +2,13 @@ import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
 import { FormsModule } from '@angular/forms'
 import { RouterModule, Routes } from '@angular/router'
-import { TuiButton, TuiError } from '@taiga-ui/core'
+import { i18nPipe } from '@start9labs/shared'
+import { TuiAutoFocus } from '@taiga-ui/cdk'
+import { TuiButton, TuiError, TuiIcon, TuiTextfield } from '@taiga-ui/core'
+import { TuiPassword } from '@taiga-ui/kit'
 import { TuiCardLarge } from '@taiga-ui/layout'
-import {
-  TuiInputPasswordModule,
-  TuiTextfieldControllerModule,
-} from '@taiga-ui/legacy'
 import { CAWizardComponent } from './ca-wizard/ca-wizard.component'
 import { LoginPage } from './login.page'
-import { i18nPipe } from '@start9labs/shared'
 
 const routes: Routes = [
   {
@@ -26,8 +24,10 @@ const routes: Routes = [
     CAWizardComponent,
     TuiButton,
     TuiCardLarge,
-    TuiInputPasswordModule,
-    TuiTextfieldControllerModule,
+    ...TuiTextfield,
+    TuiIcon,
+    TuiPassword,
+    TuiAutoFocus,
     TuiError,
     RouterModule.forChild(routes),
     i18nPipe,
