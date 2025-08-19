@@ -32,6 +32,15 @@ import { InterfaceGateway } from './interface.service'
       }
     }
   `,
+  styles: `
+    :host {
+      grid-column: span 2;
+
+      &:has(+ section table) header {
+        background: transparent;
+      }
+    }
+  `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [

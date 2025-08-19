@@ -80,7 +80,7 @@ import { InterfaceComponent } from './interface.component'
   `,
   styles: `
     :host {
-      grid-column: span 2;
+      grid-column: span 3;
     }
   `,
   host: { class: 'g-card' },

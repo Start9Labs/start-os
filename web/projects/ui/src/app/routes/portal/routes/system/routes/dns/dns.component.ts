@@ -123,7 +123,7 @@ export default class SystemDnsComponent {
           spec: ISB.InputSpec.of({
             servers: ISB.Value.dynamicText(() => ({
               name: 'DHCP Servers',
-              default: null,
+              default: '1.1.1.1, 8.8.8.8',
               required: true,
               disabled: 'Cannot edit DHCP servers',
             })),

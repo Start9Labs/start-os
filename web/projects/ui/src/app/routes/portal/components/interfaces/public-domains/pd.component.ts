@@ -37,19 +37,15 @@ import { PublicDomain, PublicDomainService } from './pd.service'
         </button>
       }
     </header>
-    <table [appTable]="['Domain', 'Gateway', 'Certificate Authority', null]">
-      @for (domain of publicDomains(); track $index) {
-        <tr [publicDomain]="domain"></tr>
-      } @empty {
-        @if (publicDomains()) {
-          <tr>
-            <td colspan="4">
-              <app-placeholder icon="@tui.globe">
-                {{ 'No public domains' | i18n }}
-              </app-placeholder>
-            </td>
-          </tr>
-        } @else {
+    @if (publicDomains()?.length === 0) {
+      <app-placeholder icon="@tui.globe">
+        {{ 'No public domains' | i18n }}
+      </app-placeholder>
+    } @else {
+      <table [appTable]="['Domain', 'Gateway', 'Certificate Authority', null]">
+        @for (domain of publicDomains(); track $index) {
+          <tr [publicDomain]="domain"></tr>
+        } @empty {
           @for (_ of [0]; track $index) {
             <tr>
               <td colspan="4">
@@ -58,12 +54,12 @@ import { PublicDomain, PublicDomainService } from './pd.service'
             </tr>
           }
         }
-      }
-    </table>
+      </table>
+    }
   `,
   styles: `
     :host {
-      grid-column: span 3;
+      grid-column: span 4;
     }
   `,
   host: { class: 'g-card' },

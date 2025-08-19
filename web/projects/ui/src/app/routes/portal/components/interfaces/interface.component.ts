@@ -12,14 +12,14 @@ import { InterfaceAddressesComponent } from './addresses/addresses.component'
 @Component({
   selector: 'service-interface',
   template: `
-    <div [style.display]="'grid'">
+    <div>
       <section
         [gateways]="value()?.gateways"
         [isOs]="!!value()?.isOs"
       ></section>
+      <section [publicDomains]="value()?.publicDomains"></section>
       <section [torDomains]="value()?.torDomains"></section>
       <section [privateDomains]="value()?.privateDomains"></section>
-      <section [publicDomains]="value()?.publicDomains"></section>
     </div>
     <hr [style.width.rem]="10" />
     <section [addresses]="value()?.addresses" [isRunning]="true"></section>
@@ -33,7 +33,10 @@ import { InterfaceAddressesComponent } from './addresses/addresses.component'
       font: var(--tui-font-text-l);
 
       div {
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
         gap: inherit;
+        flex-direction: column;
       }
 
       ::ng-deep [tuiSkeleton] {
@@ -43,8 +46,8 @@ import { InterfaceAddressesComponent } from './addresses/addresses.component'
       }
     }
 
-    :host-context(tui-root._mobile) section {
-      grid-column: span 1;
+    :host-context(tui-root._mobile) div {
+      display: flex;
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
