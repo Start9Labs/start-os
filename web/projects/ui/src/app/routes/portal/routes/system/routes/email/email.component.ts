@@ -15,7 +15,7 @@ import { TuiButton, TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { switchMap, tap } from 'rxjs'
-import { FormModule } from 'src/app/routes/portal/components/form/form.module'
+import { FormGroupComponent } from 'src/app/routes/portal/components/form/containers/group.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormService } from 'src/app/services/form.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -122,7 +122,7 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    FormModule,
+    FormGroupComponent,
     TuiButton,
     TuiTextfield,
     TuiHeader,

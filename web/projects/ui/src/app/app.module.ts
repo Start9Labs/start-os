@@ -1,6 +1,6 @@
 import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
 import { NgModule } from '@angular/core'
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
+import { BrowserModule } from '@angular/platform-browser'
 import { ServiceWorkerModule } from '@angular/service-worker'
 import { TuiRoot } from '@taiga-ui/core'
 import { ToastContainerComponent } from 'src/app/components/toast-container.component'
@@ -12,7 +12,7 @@ import { RoutingModule } from './routing.module'
 @NgModule({
   declarations: [AppComponent],
   imports: [
-    BrowserAnimationsModule,
+    BrowserModule,
     RoutingModule,
     ToastContainerComponent,
     TuiRoot,

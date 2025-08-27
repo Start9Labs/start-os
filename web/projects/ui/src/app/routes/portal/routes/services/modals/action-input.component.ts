@@ -22,12 +22,12 @@ import {
   ActionButton,
   FormComponent,
 } from 'src/app/routes/portal/components/form.component'
+import { InvalidService } from 'src/app/routes/portal/components/form/containers/control.directive'
 import { TaskInfoComponent } from 'src/app/routes/portal/modals/config-dep.component'
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getAllPackages, getManifest } from 'src/app/utils/get-package-data'
-import { InvalidService } from '../../../components/form/invalid.service'
 
 export type PackageActionData = {
   pkgInfo: {

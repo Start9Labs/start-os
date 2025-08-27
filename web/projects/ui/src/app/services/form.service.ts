@@ -84,7 +84,6 @@ export class FormService {
     currentValue?: any,
   ): UntypedFormGroup | UntypedFormArray | UntypedFormControl {
     let value: any
-    console.log(spec)
     switch (spec.type) {
       case 'text':
         if (currentValue !== undefined) {

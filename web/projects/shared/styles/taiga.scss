@@ -88,7 +88,7 @@
   --start9-base-5: rgba(60, 62, 64, 1);
 }
 
-[tuiAppearance][data-appearance^='primary'] {
+[tuiAppearance][data-appearance^='primary']:not([tuiCheckbox]._readonly) {
   @include taiga.appearance-disabled {
     background: var(--tui-status-neutral);
     color: #333;
@@ -126,11 +126,8 @@ tui-dropdown[data-appearance='start-os'][data-appearance='start-os'] {
     var(--tui-background-elevation-3) 75%,
     transparent
   );
-  background-image: linear-gradient(
-      to bottom,
-      rgba(255, 255, 255, 0.15),
-      transparent
-    ),
+  background-image:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.15), transparent),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.15), transparent);
   background-size: 1px 100%;
   background-repeat: no-repeat;
@@ -160,6 +157,10 @@ a[tuiIconButton]:not([href]) {
 
 tui-badge-notification {
   background: var(--tui-status-negative);
+}
+
+tui-textfield [tuiTooltip] {
+  display: block !important;
 }
 
 [tuiCell] {
