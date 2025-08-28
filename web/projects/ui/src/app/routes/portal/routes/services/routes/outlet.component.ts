@@ -35,24 +35,61 @@ const INACTIVE: PrimaryStatus[] = [
         <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
           {{ 'Back' | i18n }}
         </a>
-        <div routerLink="./">{{ 'Services' | i18n }}</div>
+        <div routerLink="./" class="m-header">
+          <tui-avatar size="xs" [style.margin-inline-end.rem]="0.75">
+            <img alt="" [src]="service()?.icon" />
+          </tui-avatar>
+          <span tuiFade>{{ manifest()?.title }}</span>
+        </div>
       </div>
       <aside class="g-aside">
+        <header tuiCell routerLink="./">
+          <tui-avatar><img alt="" [src]="service()?.icon" /></tui-avatar>
+          <span tuiTitle>
+            <strong tuiFade>{{ manifest()?.title }}</strong>
+            <span tuiSubtitle [style.textTransform]="'none'">
+              {{ manifest()?.version }}
+            </span>
+          </span>
+        </header>
         <nav [attr.inert]="isInactive() ? '' : null">
           @for (item of nav; track $index) {
-            <a
-              tuiCell
-              tuiAppearance="action-grayscale"
-              routerLinkActive="active"
-              [routerLinkActiveOptions]="{ exact: true }"
-              [routerLink]="item.title === 'dashboard' ? './' : item.title"
-            >
-              <tui-icon [icon]="item.icon" />
-              <span tuiTitle>{{ item.title | i18n }}</span>
-              @if (item.title === 'dashboard') {
-                <a routerLink="interface" routerLinkActive="active"></a>
-              }
-            </a>
+            @if (item.title === 'Documentation') {
+              <a
+                tuiCell
+                tuiAppearance="action-grayscale"
+                [href]="manifest()?.docsUrl"
+                target="_blank"
+                noreferrer
+              >
+                <tui-icon [icon]="item.icon" />
+                <span tuiTitle>
+                  <span>
+                    {{ item.title | i18n }}
+                    <tui-icon
+                      [style.font-size.rem]="0.85"
+                      [style.vertical-align]="'top'"
+                      icon="@tui.external-link"
+                    />
+                  </span>
+                </span>
+              </a>
+            } @else {
+              <a
+                tuiCell
+                tuiAppearance="action-grayscale"
+                routerLinkActive="active"
+                [routerLinkActiveOptions]="{ exact: true }"
+                [routerLink]="item.title === 'dashboard' ? './' : item.title"
+              >
+                <tui-icon [icon]="item.icon" />
+                <span tuiTitle>{{ item.title | i18n }}</span>
+                <!-- @TODO Alex why is this here?
+                @if (item.title === 'dashboard') {
+                  <a routerLink="interface" routerLinkActive="active">Testing</a>
+                } -->
+              </a>
+            }
           }
         </nav>
       </aside>
@@ -67,20 +104,6 @@ const INACTIVE: PrimaryStatus[] = [
     :host {
       display: flex;
       padding: 0;
-      background:
-        radial-gradient(
-            circle at left top,
-            transparent,
-            var(--tui-background-base)
-          )
-          0 / 100%,
-        var(--background) 0 / 1px,
-        color-mix(in hsl, var(--tui-background-base) 90%, transparent);
-      background-blend-mode: color;
-    }
-
-    .g-aside {
-      background: none;
     }
 
     .title {
@@ -91,6 +114,11 @@ const INACTIVE: PrimaryStatus[] = [
       &:not(:only-child) {
         display: none;
       }
+    }
+
+    header {
+      margin: 0 -0.5rem;
+      cursor: pointer;
     }
 
     nav[inert] a:not(:first-child) {
@@ -110,6 +138,11 @@ const INACTIVE: PrimaryStatus[] = [
       }
     }
 
+    .m-header {
+      cursor: pointer;
+      display: flex;
+    }
+
     :host-context(tui-root._mobile) {
       flex-direction: column;
       padding: 0;
@@ -122,8 +155,9 @@ const INACTIVE: PrimaryStatus[] = [
         margin: 0;
         z-index: 1;
         box-shadow: inset 0 1px 0 1px var(--tui-background-neutral-1);
-        background: var(--start9-base-2) var(--background) 0 / 1px;
-        background-blend-mode: color;
+        header {
+          display: none;
+        }
 
         nav {
           display: flex;
@@ -154,9 +188,11 @@ const INACTIVE: PrimaryStatus[] = [
   imports: [
     RouterModule,
     TuiCell,
+    TuiAvatar,
     TuiTitle,
     TuiAppearance,
     TuiIcon,
+    TuiFade,
     TitleDirective,
     TuiButton,
     i18nPipe,
@@ -172,6 +208,7 @@ export class ServiceOutletComponent {
     { title: 'actions', icon: '@tui.clapperboard' },
     { title: 'logs', icon: '@tui.logs' },
     { title: 'about', icon: '@tui.info' },
+    { title: 'Documentation', icon: '@tui.book-open-text' },
   ]
 
   protected readonly service = toSignal(

@@ -146,7 +146,7 @@ export class MarketplaceService {
   }
 
   private fetchRegistry$(url: string): Observable<StoreDataWithUrl | null> {
-    console.warn('FETCHING REGISTRY: ', url)
+    console.log('FETCHING REGISTRY: ', url)
     return combineLatest([this.fetchInfo$(url), this.fetchPackages$(url)]).pipe(
       map(([info, packages]) => ({ info, packages, url })),
       catchError(e => {

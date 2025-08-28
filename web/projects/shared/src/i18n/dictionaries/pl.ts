@@ -578,4 +578,5 @@ export default {
   611: 'Brak interfejsów usług',
   612: 'Powód',
   613: 'Nie można wyłączyć prywatnych bram dla interfejsu użytkownika StartOS',
+  614: 'Odcisk palca CA',
 } satisfies i18n

@@ -22,7 +22,6 @@ import { InterfaceComponent } from './interface.component'
       <label tuiCell="s" [style.background]="">
         <span tuiTitle [style.opacity]="1">{{ gateway.ipInfo.name }}</span>
         @if (!interface.packageId() && !gateway.public) {
-          <!-- TODO: Translation -->
           <tui-icon
             [tuiTooltip]="
               'Cannot disable private gateways for StartOS UI' | i18n

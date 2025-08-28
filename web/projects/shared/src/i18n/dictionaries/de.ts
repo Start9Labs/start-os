@@ -491,7 +491,7 @@ export default {
   518: 'Verwerfen',
   520: 'Update verfügbar',
   521: 'Um das Problem zu beheben, siehe',
-  522: 'SDK Version',
+  522: 'SDK version',
   523: 'Sicherungsbericht',
   524: 'Ausgewählte löschen',
   525: 'Keine SSH-Schlüssel',
@@ -578,4 +578,5 @@ export default {
   611: 'Keine Service-Schnittstellen',
   612: 'Grund',
   613: 'Private Gateways für die StartOS-Benutzeroberfläche können nicht deaktiviert werden',
+  614: 'CA-Fingerabdruck',
 } satisfies i18n

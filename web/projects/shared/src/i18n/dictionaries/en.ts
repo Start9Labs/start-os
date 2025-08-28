@@ -254,9 +254,9 @@ export const ENGLISH = {
   'unknown %': 270,
   'Not provided': 271,
   'Links': 272,
-  'Git Hash': 273,
+  'Git hash': 273,
   'License': 274,
-  'Installed From': 275,
+  'Installed from': 275,
   'Marketing': 278,
   'Support': 279,
   'Donations': 280,
@@ -490,7 +490,7 @@ export const ENGLISH = {
   'Dismiss': 518, // as in, dismiss or delete a task
   'Update available': 520,
   'To resolve the issue, refer to': 521,
-  'SDK Version': 522,
+  'SDK version': 522,
   'Backup Report': 523,
   'Delete selected': 524,
   'No SSH keys': 525,
@@ -577,4 +577,5 @@ export const ENGLISH = {
   'No service interfaces': 611, // as in, there are no available interfaces (API, UI, etc) for this software application
   'Reason': 612, // as in, an explanation for something
   'Cannot disable private gateways for StartOS UI': 613,
+  'CA fingerprint': 614, // as in, the unique, fixed-length digital identifier generated from a certificate's data using a cryptographic hash function
 } as const

@@ -36,7 +36,7 @@ import { MarketplaceItemComponent } from './item.component'
           <marketplace-item
             [style.pointer-events]="'none'"
             [data]="pkg().sdkVersion || 'Unknown'"
-            label="SDK Version"
+            label="SDK version"
             icon=""
           />
           <!-- git hash -->

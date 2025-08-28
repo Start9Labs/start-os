@@ -578,4 +578,5 @@ export default {
   611: 'Aucune interface de service',
   612: 'Raison',
   613: "Impossible de désactiver les passerelles privées pour l'interface utilisateur StartOS",
+  614: 'Empreinte de l’AC',
 } satisfies i18n
