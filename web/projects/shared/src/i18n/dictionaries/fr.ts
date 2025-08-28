@@ -579,4 +579,10 @@ export default {
   612: 'Raison',
   613: "Impossible de désactiver les passerelles privées pour l'interface utilisateur StartOS",
   614: 'Empreinte de l’AC',
+  615: 'Serveurs DHCP',
+  616: 'Impossible de modifier les serveurs DHCP',
+  617: 'Statique',
+  618: 'Serveurs statiques',
+  619: 'Avertissement. StartOS utilise actuellement la passerelle suivante pour le DNS',
+  620: 'Si vous souhaitez utiliser cette passerelle pour la résolution de domaines privés, définissez des serveurs DNS statiques alternatifs à l’aide du formulaire ci-dessus.',
 } satisfies i18n

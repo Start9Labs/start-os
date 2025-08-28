@@ -579,4 +579,10 @@ export default {
   612: 'Razón',
   613: 'No se pueden deshabilitar las puertas de enlace privadas para la interfaz de usuario de StartOS',
   614: 'Huella digital de la CA',
+  615: 'Servidores DHCP',
+  616: 'No se pueden editar los servidores DHCP',
+  617: 'Estático',
+  618: 'Servidores estáticos',
+  619: 'Advertencia. StartOS está utilizando actualmente la siguiente puerta de enlace para DNS',
+  620: 'Si deseas usar esta puerta de enlace para la resolución de dominios privados, configura servidores DNS estáticos alternativos usando el formulario anterior.',
 } satisfies i18n

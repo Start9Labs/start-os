@@ -51,14 +51,8 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
 
         <form-group [spec]="d.spec" />
 
-        @if (d.warn.length; as length) {
-          <p>
-            Warning. StartOS is currently using {{ d.warn.join(', ') }} for DNS.
-            Therefore, {{ length > 1 ? 'they' : 'it' }} cannot use StartOS for
-            DNS. This is circular. If you want to use StartOS as the DNS server
-            for {{ d.warn.join(', ') }} for private domain resolution, you must
-            set custom DNS servers above.
-          </p>
+        @for (warn of d.warn; track $index) {
+          <p>{{ warn }}</p>
         }
 
         <footer>
@@ -122,20 +116,20 @@ export default class SystemDnsComponent {
           name: 'DHCP',
           spec: ISB.InputSpec.of({
             servers: ISB.Value.dynamicText(() => ({
-              name: 'DHCP Servers',
+              name: this.i18n.transform('DHCP Servers'),
               default: null,
               required: true,
-              disabled: 'Cannot edit DHCP servers',
+              disabled: this.i18n.transform('Cannot edit DHCP servers'),
             })),
           }),
         },
         static: {
-          name: 'Static',
+          name: this.i18n.transform('Static'),
           spec: ISB.InputSpec.of({
             servers: ISB.Value.list(
               ISB.List.text(
                 {
-                  name: 'Static Servers',
+                  name: this.i18n.transform('Static Servers'),
                   minLength: 1,
                   maxLength: 3,
                 },
@@ -157,13 +151,12 @@ export default class SystemDnsComponent {
         const spec = await configBuilderToSpec(this.dnsSpec)
 
         const dhcpServers = { servers: dns.dhcpServers.join(', ') }
-        const staticServers = { servers: dns.staticServers || [] }
 
         const current: (typeof this.dnsSpec._TYPE)['strategy'] =
           dns.staticServers
             ? {
                 selection: 'static',
-                value: staticServers,
+                value: { servers: dns.staticServers || [] },
                 other: {
                   dhcp: dhcpServers,
                 },
@@ -175,19 +168,29 @@ export default class SystemDnsComponent {
 
         const form = this.formService.createForm(spec, { strategy: current })
 
+        let warn: string[] = []
+
+        if (
+          Object.values(pkgs).some(p =>
+            Object.values(p.hosts).some(h => h?.privateDomains.length),
+          )
+        ) {
+          Object.values(gateways)
+            .filter(g =>
+              (dns.staticServers || dns.dhcpServers).some(d =>
+                g.ipInfo?.lanIp.includes(d),
+              ),
+            )
+            .map(
+              g =>
+                `${this.i18n.transform('Warning. StartOS is currently using the following gateway for DNS')}: ${g.ipInfo!.name}. ${this.i18n.transform('If you intend to use this gateway for private domain resolution, set alternative static DNS servers using the form above.')}`,
+            )
+        }
+
         return {
           spec,
           form,
-          warn:
-            (Object.values(pkgs).some(p =>
-              Object.values(p.hosts).some(h => h?.privateDomains.length),
-            ) ||
-              []) &&
-            Object.values(gateways)
-              .filter(g =>
-                dns.dhcpServers.some(d => g.ipInfo?.lanIp.includes(d)),
-              )
-              .map(g => g.ipInfo?.name),
+          warn,
         }
       }),
     ),

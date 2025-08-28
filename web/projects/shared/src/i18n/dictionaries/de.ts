@@ -579,4 +579,10 @@ export default {
   612: 'Grund',
   613: 'Private Gateways für die StartOS-Benutzeroberfläche können nicht deaktiviert werden',
   614: 'CA-Fingerabdruck',
+  615: 'DHCP-Server',
+  616: 'DHCP-Server können nicht bearbeitet werden',
+  617: 'Statisch',
+  618: 'Statische Server',
+  619: 'Warnung. StartOS verwendet derzeit das folgende Gateway für DNS',
+  620: 'Wenn Sie dieses Gateway für die Auflösung privater Domains verwenden möchten, legen Sie alternative statische DNS-Server mit dem obigen Formular fest.',
 } satisfies i18n

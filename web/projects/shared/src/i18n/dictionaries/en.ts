@@ -578,4 +578,10 @@ export const ENGLISH = {
   'Reason': 612, // as in, an explanation for something
   'Cannot disable private gateways for StartOS UI': 613,
   'CA fingerprint': 614, // as in, the unique, fixed-length digital identifier generated from a certificate's data using a cryptographic hash function
+  'DHCP Servers': 615,
+  'Cannot edit DHCP servers': 616,
+  'Static': 617, // as in, unchanging
+  'Static Servers': 618, // as in, servers that do not change
+  'Warning. StartOS is currently using the following gateway for DNS': 619,
+  'If you intend to use this gateway for private domain resolution, set alternative static DNS servers using the form above.': 620,
 } as const

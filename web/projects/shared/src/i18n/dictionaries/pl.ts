@@ -579,4 +579,10 @@ export default {
   612: 'Powód',
   613: 'Nie można wyłączyć prywatnych bram dla interfejsu użytkownika StartOS',
   614: 'Odcisk palca CA',
+  615: 'Serwery DHCP',
+  616: 'Nie można edytować serwerów DHCP',
+  617: 'Statyczny',
+  618: 'Serwery statyczne',
+  619: 'Ostrzeżenie. StartOS obecnie używa następującej bramy do DNS',
+  620: 'Jeśli zamierzasz używać tej bramy do rozwiązywania domen prywatnych, ustaw alternatywne statyczne serwery DNS za pomocą powyższego formularza.',
 } satisfies i18n
