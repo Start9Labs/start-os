@@ -14,6 +14,7 @@ import { TuiElement } from '@taiga-ui/cdk'
 import { TuiButton } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { map, of } from 'rxjs'
+import { ServiceCardComponent } from 'src/app/routes/portal/routes/services/components/card.component'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { DepErrorService } from 'src/app/services/dep-error.service'
 import {
@@ -39,6 +40,7 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
       } @else if (installing()) {
         <service-install-progress [pkg]="pkg" />
       } @else if (installed()) {
+        <service-card [service]="pkg" />
         <service-status
           [connected]="!!connected()"
           [installingInfo]="pkg.stateInfo.installingInfo"
@@ -161,6 +163,7 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
     ServiceErrorComponent,
     ServiceTasksComponent,
     ServiceUptimeComponent,
+    ServiceCardComponent,
   ],
 })
 export class ServiceRoute {

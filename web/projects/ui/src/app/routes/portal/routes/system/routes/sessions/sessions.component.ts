@@ -17,7 +17,9 @@ import { SessionsTableComponent } from './table.component'
 @Component({
   template: `
     <ng-container *title>
-      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
+      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+        {{ 'Back' | i18n }}
+      </a>
       {{ 'Active Sessions' | i18n }}
     </ng-container>
 

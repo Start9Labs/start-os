@@ -5,8 +5,8 @@ import {
   input,
   inject,
 } from '@angular/core'
-import { TuiTitle } from '@taiga-ui/core'
-import { TuiSkeleton, TuiSwitch } from '@taiga-ui/kit'
+import { TuiIcon, TuiTitle } from '@taiga-ui/core'
+import { TuiSkeleton, TuiSwitch, TuiTooltip } from '@taiga-ui/kit'
 import { FormsModule } from '@angular/forms'
 import { i18nPipe, LoadingService, ErrorService } from '@start9labs/shared'
 import { TuiCell } from '@taiga-ui/layout'
@@ -19,8 +19,16 @@ import { InterfaceComponent } from './interface.component'
   template: `
     <header>{{ 'Gateways' | i18n }}</header>
     @for (gateway of gateways(); track $index) {
-      <label tuiCell="s">
-        <span tuiTitle>{{ gateway.ipInfo.name }}</span>
+      <label tuiCell="s" [style.background]="">
+        <span tuiTitle [style.opacity]="1">{{ gateway.ipInfo.name }}</span>
+        @if (!interface.packageId() && !gateway.public) {
+          <!-- TODO: Translation -->
+          <tui-icon
+            [tuiTooltip]="
+              'Cannot disable private gateways for StartOS UI' | i18n
+            "
+          />
+        }
         <input
           type="checkbox"
           tuiSwitch
@@ -47,6 +55,10 @@ import { InterfaceComponent } from './interface.component'
         background: transparent;
       }
     }
+
+    [tuiCell]:has([tuiTooltip]) {
+      background: none !important;
+    }
   `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -58,6 +70,8 @@ import { InterfaceComponent } from './interface.component'
     TuiCell,
     TuiTitle,
     TuiSkeleton,
+    TuiIcon,
+    TuiTooltip,
   ],
 })
 export class InterfaceGatewaysComponent {

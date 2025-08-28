@@ -50,7 +50,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
           size="m"
           [max]="100"
           [class.g-positive]="phase.progress === true"
-          [value]="isIndeterminate(phase.progress) ? undefined : percent"
+          [attr.value]="isIndeterminate(phase.progress) ? undefined : percent"
         ></progress>
       </div>
     }

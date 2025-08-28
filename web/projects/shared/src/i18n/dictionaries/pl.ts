@@ -577,4 +577,5 @@ export default {
   610: 'Dynamiczny DNS',
   611: 'Brak interfejsów usług',
   612: 'Powód',
+  613: 'Nie można wyłączyć prywatnych bram dla interfejsu użytkownika StartOS',
 } satisfies i18n

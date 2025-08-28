@@ -88,13 +88,6 @@
   --start9-base-5: rgba(60, 62, 64, 1);
 }
 
-[tuiAppearance][data-appearance^='primary']:not([tuiCheckbox]._readonly) {
-  @include taiga.appearance-disabled {
-    background: var(--tui-status-neutral);
-    color: #333;
-  }
-}
-
 [tuiAppearance][data-appearance='primary-success'] {
   color: var(--tui-text-primary-on-accent-1);
   background: var(--tui-status-positive);
@@ -108,8 +101,7 @@
   }
 
   @include taiga.appearance-disabled {
-    background: var(--tui-status-neutral);
-    color: #333;
+    opacity: var(--tui-disabled-opacity);
   }
 }
 

@@ -3,48 +3,48 @@ import {
   Component,
   inject,
   Input,
-  DOCUMENT,
 } from '@angular/core'
-import { RouterLink } from '@angular/router'
 import { T } from '@start9labs/start-sdk'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiBadge } from '@taiga-ui/kit'
-import { ConfigService } from 'src/app/services/config.service'
+import { InterfaceService } from 'src/app/routes/portal/components/interfaces/interface.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { InterfaceService } from '../../../components/interfaces/interface.service'
 
 @Component({
   selector: 'tr[serviceInterface]',
   template: `
-    <td>
-      <strong>{{ info.name }}</strong>
-    </td>
+    <td><ng-content /></td>
     <td>
       <tui-badge size="m" [appearance]="appearance">{{ info.type }}</tui-badge>
     </td>
-    <td class="g-secondary" [style.grid-area]="'2 / span 4'">
+    <td class="g-secondary" [style.grid-area]="'2 / 1 / 2 / 3'">
       {{ info.description }}
     </td>
     <td>
       @if (info.type === 'ui') {
-        <button
+        <a
           tuiIconButton
           iconStart="@tui.external-link"
           appearance="flat-grayscale"
-          [disabled]="disabled"
-          (click)="openUI()"
-        ></button>
+          target="_blank"
+          rel="noopener noreferrer"
+          [attr.href]="disabled ? null : href"
+          (click.stop)="(0)"
+        ></a>
       }
-      <a
-        tuiIconButton
-        iconStart="@tui.settings"
-        appearance="flat-grayscale"
-        [routerLink]="info.routerLink"
-      ></a>
     </td>
   `,
   styles: `
-    strong {
+    :host {
+      clip-path: inset(0 round 0.75rem);
+      cursor: pointer;
+
+      &:hover {
+        background: var(--tui-background-neutral-1);
+      }
+    }
+
+    td:first-child {
       white-space: nowrap;
     }
 
@@ -58,7 +58,7 @@ import { InterfaceService } from '../../../components/interfaces/interface.servi
     }
 
     td:last-child {
-      grid-area: 3 / span 4;
+      grid-area: 1 / 3 / span 2 / 3;
       white-space: nowrap;
       text-align: right;
       flex-direction: row-reverse;
@@ -68,7 +68,7 @@ import { InterfaceService } from '../../../components/interfaces/interface.servi
 
     :host-context(tui-root._mobile) {
       display: grid;
-      grid-template-columns: repeat(3, min-content) 1fr;
+      grid-template-columns: min-content;
       align-items: center;
       padding: 1rem 0.5rem;
       gap: 0.5rem;
@@ -80,16 +80,13 @@ import { InterfaceService } from '../../../components/interfaces/interface.servi
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, TuiBadge, RouterLink],
+  imports: [TuiButton, TuiBadge],
 })
 export class ServiceInterfaceItemComponent {
   private readonly interfaceService = inject(InterfaceService)
-  private readonly document = inject(DOCUMENT)
 
   @Input({ required: true })
-  info!: T.ServiceInterface & {
-    routerLink: string
-  }
+  info!: T.ServiceInterface
 
   @Input({ required: true })
   pkg!: PackageDataEntry
@@ -110,11 +107,9 @@ export class ServiceInterfaceItemComponent {
 
   get href() {
     const host = this.pkg.hosts[this.info.addressInfo.hostId]
-    if (!host) return ''
-    return this.interfaceService.launchableAddress(this.info, host)
-  }
 
-  openUI() {
-    this.document.defaultView?.open(this.href, '_blank', 'noreferrer')
+    return host
+      ? this.interfaceService.launchableAddress(this.info, host)
+      : null
   }
 }

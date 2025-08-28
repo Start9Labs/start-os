@@ -577,4 +577,5 @@ export default {
   610: 'Dynamisches DNS',
   611: 'Keine Service-Schnittstellen',
   612: 'Grund',
+  613: 'Private Gateways für die StartOS-Benutzeroberfläche können nicht deaktiviert werden',
 } satisfies i18n

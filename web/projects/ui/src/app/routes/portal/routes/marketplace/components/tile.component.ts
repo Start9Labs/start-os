@@ -52,7 +52,7 @@ import { MarketplaceSidebarService } from '../services/sidebar.service'
 
     :host {
       cursor: pointer;
-      animation: animateIn 400ms calc(var(--animation-order) * 200ms) both;
+      animation: animateIn 400ms calc(var(--animation-order) * 50ms) both;
     }
 
     tui-drawer {

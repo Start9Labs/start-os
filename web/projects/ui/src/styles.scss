@@ -86,6 +86,7 @@ hr {
 }
 
 .g-card {
+  container: card / inline-size;
   position: relative;
   display: flex;
   flex-direction: column;

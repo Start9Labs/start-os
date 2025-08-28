@@ -32,24 +32,12 @@ const INACTIVE: PrimaryStatus[] = [
   template: `
     @if (service()) {
       <div *title class="title">
-        <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
-        <div routerLink="./" class="m-header">
-          <tui-avatar size="xs" [style.margin-inline-end.rem]="0.75">
-            <img alt="" [src]="service()?.icon" />
-          </tui-avatar>
-          <span tuiFade>{{ manifest()?.title }}</span>
-        </div>
+        <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+          {{ 'Back' | i18n }}
+        </a>
+        <div routerLink="./">{{ 'Services' | i18n }}</div>
       </div>
       <aside class="g-aside">
-        <header tuiCell routerLink="./">
-          <tui-avatar><img alt="" [src]="service()?.icon" /></tui-avatar>
-          <span tuiTitle>
-            <strong tuiFade>{{ manifest()?.title }}</strong>
-            <span tuiSubtitle [style.textTransform]="'none'">
-              {{ manifest()?.version }}
-            </span>
-          </span>
-        </header>
         <nav [attr.inert]="isInactive() ? '' : null">
           @for (item of nav; track $index) {
             <a
@@ -71,11 +59,28 @@ const INACTIVE: PrimaryStatus[] = [
     }
     <router-outlet />
   `,
-  host: { class: 'g-page' },
+  host: {
+    class: 'g-page',
+    '[style.--background]': '"url(" + service()?.icon + ")"',
+  },
   styles: `
     :host {
       display: flex;
       padding: 0;
+      background:
+        radial-gradient(
+            circle at left top,
+            transparent,
+            var(--tui-background-base)
+          )
+          0 / 100%,
+        var(--background) 0 / 1px,
+        color-mix(in hsl, var(--tui-background-base) 90%, transparent);
+      background-blend-mode: color;
+    }
+
+    .g-aside {
+      background: none;
     }
 
     .title {
@@ -86,11 +91,6 @@ const INACTIVE: PrimaryStatus[] = [
       &:not(:only-child) {
         display: none;
       }
-    }
-
-    header {
-      margin: 0 -0.5rem;
-      cursor: pointer;
     }
 
     nav[inert] a:not(:first-child) {
@@ -110,11 +110,6 @@ const INACTIVE: PrimaryStatus[] = [
       }
     }
 
-    .m-header {
-      cursor: pointer;
-      display: flex;
-    }
-
     :host-context(tui-root._mobile) {
       flex-direction: column;
       padding: 0;
@@ -127,10 +122,8 @@ const INACTIVE: PrimaryStatus[] = [
         margin: 0;
         z-index: 1;
         box-shadow: inset 0 1px 0 1px var(--tui-background-neutral-1);
-
-        header {
-          display: none;
-        }
+        background: var(--start9-base-2) var(--background) 0 / 1px;
+        background-blend-mode: color;
 
         nav {
           display: flex;
@@ -161,11 +154,9 @@ const INACTIVE: PrimaryStatus[] = [
   imports: [
     RouterModule,
     TuiCell,
-    TuiAvatar,
     TuiTitle,
     TuiAppearance,
     TuiIcon,
-    TuiFade,
     TitleDirective,
     TuiButton,
     i18nPipe,

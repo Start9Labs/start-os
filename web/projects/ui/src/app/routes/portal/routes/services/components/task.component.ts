@@ -23,35 +23,26 @@ import { getManifest } from 'src/app/utils/get-package-data'
 @Component({
   selector: 'tr[task]',
   template: `
-    <td tuiFade>
+    <td tuiFade class="row">
       <tui-avatar size="xs"><img [src]="pkg()?.icon" alt="" /></tui-avatar>
       <span>{{ pkgTitle() }}</span>
     </td>
-    <td>
-      {{ pkg()?.actions?.[task().actionId]?.name }}
+    <td [style.grid-row]="2">
+      <strong>{{ pkg()?.actions?.[task().actionId]?.name }}</strong>
     </td>
-    <td>
+    <td class="row">
       @if (task().severity === 'critical') {
-        <strong [style.color]="'var(--tui-status-warning)'">
-          {{ 'Required' | i18n }}
-        </strong>
+        <strong class="g-warning">{{ 'Required' | i18n }}</strong>
       } @else if (task().severity === 'important') {
-        <strong [style.color]="'var(--tui-status-info)'">
-          {{ 'Recommended' | i18n }}
-        </strong>
+        <strong class="g-info">{{ 'Recommended' | i18n }}</strong>
       } @else {
-        <strong>
-          {{ 'Optional' | i18n }}
-        </strong>
+        <strong>{{ 'Optional' | i18n }}</strong>
       }
     </td>
-    <td
-      [style.color]="'var(--tui-text-secondary)'"
-      [style.grid-area]="'2 / span 4'"
-    >
+    <td class="g-secondary" [style.grid-row]="3">
       {{ task().reason || ('No reason provided' | i18n) }}
     </td>
-    <td>
+    <td [style.grid-area]="'2 / 2 / 4'">
       @if (task().severity !== 'critical') {
         <button
           tuiIconButton
@@ -76,24 +67,25 @@ import { getManifest } from 'src/app/utils/get-package-data'
     }
 
     td:last-child {
-      grid-area: 3 / span 4;
       white-space: nowrap;
       text-align: right;
-      flex-direction: row-reverse;
-      justify-content: flex-end;
-      gap: 0.5rem;
+      justify-content: end;
     }
 
     span {
       margin-inline-start: 0.5rem;
+      line-height: 1.5rem;
       vertical-align: middle;
     }
 
     :host-context(tui-root._mobile) {
       display: grid;
-      align-items: center;
-      padding: 1rem 0rem 1rem 0.5rem;
-      gap: 0.5rem;
+      grid-template-columns: 1fr min-content;
+      padding: 1rem 0.5rem;
+
+      .row {
+        margin-bottom: 1rem;
+      }
 
       td {
         display: flex;

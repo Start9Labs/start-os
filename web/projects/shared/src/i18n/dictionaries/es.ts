@@ -577,4 +577,5 @@ export default {
   610: 'DNS dinámico',
   611: 'Sin interfaces de servicio',
   612: 'Razón',
+  613: 'No se pueden deshabilitar las puertas de enlace privadas para la interfaz de usuario de StartOS',
 } satisfies i18n

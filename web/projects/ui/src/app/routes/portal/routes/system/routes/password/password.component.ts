@@ -24,7 +24,9 @@ import { getServerInfo } from 'src/app/utils/get-server-info'
 @Component({
   template: `
     <ng-container *title>
-      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
+      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+        {{ 'Back' | i18n }}
+      </a>
       {{ 'Change Password' | i18n }}
     </ng-container>
     <header tuiHeader>

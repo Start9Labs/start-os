@@ -577,4 +577,5 @@ export default {
   610: 'DNS dynamique',
   611: 'Aucune interface de service',
   612: 'Raison',
+  613: "Impossible de désactiver les passerelles privées pour l'interface utilisateur StartOS",
 } satisfies i18n

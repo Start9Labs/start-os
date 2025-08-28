@@ -4,6 +4,7 @@ import {
   computed,
   input,
 } from '@angular/core'
+import { RouterLink } from '@angular/router'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { tuiDefaultSort } from '@taiga-ui/cdk'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
@@ -27,11 +28,17 @@ import { PlaceholderComponent } from '../../../components/placeholder.component'
       <tbody>
         @for (info of interfaces(); track $index) {
           <tr
+            tabindex="-1"
             serviceInterface
             [info]="info"
             [pkg]="pkg()"
             [disabled]="disabled()"
-          ></tr>
+            [routerLink]="info.routerLink"
+          >
+            <a [routerLink]="info.routerLink">
+              <strong>{{ info.name }}</strong>
+            </a>
+          </tr>
         } @empty {
           <app-placeholder icon="@tui.monitor-x">
             {{ 'No service interfaces' | i18n }}
@@ -52,6 +59,7 @@ import { PlaceholderComponent } from '../../../components/placeholder.component'
     TuiTable,
     i18nPipe,
     PlaceholderComponent,
+    RouterLink,
   ],
 })
 export class ServiceInterfacesComponent {
