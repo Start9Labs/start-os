@@ -43,7 +43,7 @@ import {
   `,
   styles: `
     :host {
-      grid-column: span 2;
+      grid-column: span 3;
       min-height: 12rem;
     }
 
@@ -78,14 +78,14 @@ import {
 
     :host-context(tui-root._mobile) {
       :host {
-          min-height: 0;
-        }
+        min-height: 0;
+      }
 
-        div {
-          display: grid;
-          grid-template-columns: 1fr max-content;
-          padding: 0.5rem 0;
-        }
+      div {
+        display: grid;
+        grid-template-columns: 1fr max-content;
+        padding: 0.5rem 0;
+      }
 
       h3 {
         text-align: left;

@@ -113,6 +113,10 @@ const INACTIVE: PrimaryStatus[] = [
       }
     }
 
+    [tuiSubtitle] {
+      text-transform: lowercase;
+    }
+
     header {
       margin: -0.5rem -0.5rem 0;
       padding-top: 1rem;

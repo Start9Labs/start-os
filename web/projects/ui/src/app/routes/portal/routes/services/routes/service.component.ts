@@ -14,7 +14,6 @@ import { TuiElement } from '@taiga-ui/cdk'
 import { TuiButton } from '@taiga-ui/core'
 import { PatchDB } from 'patch-db-client'
 import { map, of } from 'rxjs'
-import { ServiceCardComponent } from 'src/app/routes/portal/routes/services/components/card.component'
 import { ConnectionService } from 'src/app/services/connection.service'
 import { DepErrorService } from 'src/app/services/dep-error.service'
 import {
@@ -40,7 +39,6 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
       } @else if (installing()) {
         <service-install-progress [pkg]="pkg" />
       } @else if (installed()) {
-        <service-card [service]="pkg" />
         <service-status
           [connected]="!!connected()"
           [installingInfo]="pkg.stateInfo.installingInfo"
@@ -52,11 +50,11 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
         </service-status>
 
         @if (status() !== 'backingUp') {
+          <service-health-checks [checks]="health()" />
           <service-uptime
             class="g-card"
             [started]="$any(pkg.status)?.started"
           />
-          <service-interfaces [pkg]="pkg" [disabled]="status() !== 'running'" />
 
           @if (errors() | async; as errors) {
             <service-dependencies
@@ -65,8 +63,8 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
               [errors]="errors"
             />
           }
+          <service-interfaces [pkg]="pkg" [disabled]="status() !== 'running'" />
 
-          <service-health-checks [checks]="health()" />
           <service-tasks
             #tasks="elementRef"
             tuiElement
@@ -111,7 +109,7 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
 
     :host {
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
+      grid-template-columns: repeat(10, 1fr);
       grid-auto-rows: max-content;
       gap: 1rem;
     }
@@ -163,7 +161,6 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
     ServiceErrorComponent,
     ServiceTasksComponent,
     ServiceUptimeComponent,
-    ServiceCardComponent,
   ],
 })
 export class ServiceRoute {

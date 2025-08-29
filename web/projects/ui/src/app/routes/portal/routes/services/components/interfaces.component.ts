@@ -49,7 +49,7 @@ import { PlaceholderComponent } from '../../../components/placeholder.component'
   `,
   styles: `
     :host {
-      grid-column: span 6;
+      grid-column: span 7;
     }
   `,
   host: { class: 'g-card' },

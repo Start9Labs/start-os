@@ -32,7 +32,7 @@ import { distinctUntilChanged } from 'rxjs/operators'
   styles: [
     `
       :host {
-        grid-column: span 2;
+        grid-column: span 3;
       }
 
       h3 {

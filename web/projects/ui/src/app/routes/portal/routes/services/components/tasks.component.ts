@@ -39,7 +39,7 @@ import { i18nPipe } from '@start9labs/shared'
   styles: `
     :host {
       min-height: 12rem;
-      grid-column: span 6;
+      grid-column: span 10;
     }
   `,
   host: { class: 'g-card' },
