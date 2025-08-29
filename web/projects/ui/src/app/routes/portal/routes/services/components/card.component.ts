@@ -48,10 +48,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
       text-align: left;
     }
   `,
-  host: {
-    class: 'g-card',
-    '[style.--background]': '"url(" + service()?.icon + ")"',
-  },
+  host: { class: 'g-card' },
   imports: [TuiAvatar, TuiFade, TuiTitle],
 })
 export class ServiceCardComponent {

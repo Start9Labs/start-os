@@ -31,12 +31,16 @@ const INACTIVE: PrimaryStatus[] = [
 @Component({
   template: `
     @if (service()) {
-      <div *title class="title">
+      <div
+        *title
+        class="title"
+        [style.--background]="'url(' + service()?.icon + ')'"
+      >
         <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
           {{ 'Back' | i18n }}
         </a>
-        <div routerLink="./" class="m-header">
-          <tui-avatar size="xs" [style.margin-inline-end.rem]="0.75">
+        <div routerLink="./">
+          <tui-avatar size="xs" [style.margin]="'0 0.75rem 0.125rem 0'">
             <img alt="" [src]="service()?.icon" />
           </tui-avatar>
           <span tuiFade>{{ manifest()?.title }}</span>
@@ -47,9 +51,7 @@ const INACTIVE: PrimaryStatus[] = [
           <tui-avatar><img alt="" [src]="service()?.icon" /></tui-avatar>
           <span tuiTitle>
             <strong tuiFade>{{ manifest()?.title }}</strong>
-            <span tuiSubtitle [style.textTransform]="'none'">
-              {{ manifest()?.version }}
-            </span>
+            <span tuiSubtitle>{{ manifest()?.version }}</span>
           </span>
         </header>
         <nav [attr.inert]="isInactive() ? '' : null">
@@ -66,13 +68,9 @@ const INACTIVE: PrimaryStatus[] = [
                 <span tuiTitle>
                   <span>
                     {{ item.title | i18n }}
-                    <tui-icon
-                      [style.font-size.rem]="0.85"
-                      [style.vertical-align]="'top'"
-                      icon="@tui.external-link"
-                    />
                   </span>
                 </span>
+                <tui-icon icon="@tui.external-link" [style.font-size.rem]="1" />
               </a>
             } @else {
               <a
@@ -84,10 +82,9 @@ const INACTIVE: PrimaryStatus[] = [
               >
                 <tui-icon [icon]="item.icon" />
                 <span tuiTitle>{{ item.title | i18n }}</span>
-                <!-- @TODO Alex why is this here?
                 @if (item.title === 'dashboard') {
-                  <a routerLink="interface" routerLinkActive="active">Testing</a>
-                } -->
+                  <a routerLink="interface" routerLinkActive="active"></a>
+                }
               </a>
             }
           }
@@ -117,8 +114,26 @@ const INACTIVE: PrimaryStatus[] = [
     }
 
     header {
-      margin: 0 -0.5rem;
+      margin: -0.5rem -0.5rem 0;
+      padding-top: 1rem;
+      border-radius: 0;
       cursor: pointer;
+      box-shadow: 0 -1px rgba(255, 255, 255, 0.1);
+    }
+
+    header::before,
+    .title::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--background);
+      background-size: 1px;
+      mask: linear-gradient(to bottom, black, transparent);
+      opacity: 0.2;
+    }
+
+    .title::before {
+      mask: linear-gradient(to bottom right, black, transparent);
     }
 
     nav[inert] a:not(:first-child) {
@@ -138,11 +153,6 @@ const INACTIVE: PrimaryStatus[] = [
       }
     }
 
-    .m-header {
-      cursor: pointer;
-      display: flex;
-    }
-
     :host-context(tui-root._mobile) {
       flex-direction: column;
       padding: 0;
@@ -155,6 +165,7 @@ const INACTIVE: PrimaryStatus[] = [
         margin: 0;
         z-index: 1;
         box-shadow: inset 0 1px 0 1px var(--tui-background-neutral-1);
+
         header {
           display: none;
         }
@@ -177,7 +188,8 @@ const INACTIVE: PrimaryStatus[] = [
             box-shadow: none;
           }
 
-          [tuiTitle] {
+          [tuiTitle],
+          tui-icon:last-child {
             display: none;
           }
         }
