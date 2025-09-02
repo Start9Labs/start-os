@@ -181,7 +181,7 @@ impl<T: Eq> EqSet<T> {
     /// ```
     /// use startos::util::collections::EqSet;
     ///
-    /// let mut set: EqSet<i32, i32> = (0..8).set(|x| (x, x*10)).collect();
+    /// let mut set: EqSet<(i32, i32)> = (0..8).set(|x| (x, x*10)).collect();
     /// // Keep only the elements with even-numbered values.
     /// set.retain(|&k, _| k % 2 == 0);
     /// assert!(set.into_iter().eq(vec![(0, 0), (2, 20), (4, 40), (6, 60)]));
@@ -210,9 +210,9 @@ impl<T: Eq> EqSet<T> {
     /// a.insert("c"); // Note: "c" also present in b.
     ///
     /// let mut b = EqSet::new();
-    /// b.insert(3, "c"); // Note: "c" also present in a.
-    /// b.insert(4, "d");
-    /// b.insert(5, "e");
+    /// b.insert("c"); // Note: "c" also present in a.
+    /// b.insert("d");
+    /// b.insert("e");
     ///
     /// a.append(&mut b);
     ///
@@ -366,7 +366,7 @@ impl<T: Eq, const N: usize> From<[T; N]> for EqSet<T> {
     /// use startos::util::collections::EqSet;
     ///
     /// let set1 = EqSet::from([(1, 2), (3, 4)]);
-    /// let set2: EqSet<_, _> = [(1, 2), (3, 4)].into();
+    /// let set2: EqSet<_> = [(1, 2), (3, 4)].into();
     /// assert_eq!(set1, set2);
     /// ```
     fn from(arr: [T; N]) -> Self {

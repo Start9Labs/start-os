@@ -8,6 +8,7 @@ import { i18nKey, i18nPipe } from '@start9labs/shared'
 type AddressWithInfo = {
   url: URL
   info: T.HostnameInfo
+  gateway?: GatewayPlus
 }
 
 function cmpWithRankedPredicates<T extends AddressWithInfo>(
@@ -92,6 +93,7 @@ function cmpClearnet(
     x =>
       x.info.hostname.kind === 'domain' &&
       x.info.gatewayId === host.publicDomains[x.info.hostname.value]?.gateway, // public domain for this gateway
+    x => x.gateway?.public ?? false, // public gateway
     x => x.info.hostname.kind === 'ipv4', // ipv4
     x => x.info.hostname.kind === 'ipv6', // ipv6
     // remainder: private domains / domains public on other gateways
@@ -131,9 +133,11 @@ export class InterfaceService {
     if (!hostnamesInfos.length) return addresses
 
     const allAddressesWithInfo: AddressWithInfo[] = hostnamesInfos.flatMap(h =>
-      utils
-        .addressHostToUrl(serviceInterface.addressInfo, h)
-        .map(a => ({ url: new URL(a), info: h })),
+      utils.addressHostToUrl(serviceInterface.addressInfo, h).map(a => ({
+        url: new URL(a),
+        info: h,
+        gateway: gateways.find(g => h.kind === 'ip' && h.gatewayId === g.id),
+      })),
     )
 
     const torAddrs = allAddressesWithInfo.filter(filterTor).sort(cmpTor)
@@ -302,7 +306,7 @@ export class InterfaceService {
   }
 
   private toDisplayAddress(
-    { info, url }: AddressWithInfo,
+    { info, url, gateway }: AddressWithInfo,
     gateways: GatewayPlus[],
     publicDomains: Record<string, T.PublicDomainConfig>,
   ): DisplayAddress {
@@ -395,7 +399,7 @@ export class InterfaceService {
           ]
           if (!gateway.public) {
             bullets.push(
-              `${portForwarding} "${gatewayName}": ${port} -> ${info.hostname.value}:${port}`,
+              `${portForwarding} "${gatewayName}": ${port} -> ${gateway.subnets.find(s => s.isIpv4())?.address}:${port}`,
             )
           }
         } else {
@@ -428,7 +432,7 @@ export class InterfaceService {
           access = 'public'
           bullets = [
             `${dnsFor} ${info.hostname.value} ${resolvesTo} ${gateway.ipInfo.wanIp}`,
-            `${portForwarding} "${gatewayName}": ${port} -> ${info.hostname.value}:${port === 443 ? 5443 : port}`,
+            `${portForwarding} "${gatewayName}": ${port} -> ${gateway.subnets.find(s => s.isIpv4())?.address}:${port === 443 ? 5443 : port}`,
           ]
           if (publicDomains[info.hostname.value]?.acme) {
             bullets.unshift(

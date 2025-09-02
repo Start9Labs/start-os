@@ -97,7 +97,7 @@ impl VersionT for Version {
         }
         fix_host(&mut db["public"]["serverInfo"]["network"]["host"])?;
         let network = &mut db["public"]["serverInfo"]["network"];
-        network["gateways"] = network["networkInterfaces"].clone();
+        network["gateways"] = json!({});
         network["dns"] = json!({
             "dhcpServers": [],
         });

@@ -405,6 +405,11 @@ impl NetServiceData {
                     .iter()
                     .filter(|(id, info)| bind.net.filter(id, info))
                 {
+                    let port = bind.net.assigned_port.filter(|_| {
+                        bind.options.secure.map_or(false, |s| {
+                            !(s.ssl && bind.options.add_ssl.is_some()) || info.secure()
+                        })
+                    });
                     if !info.public() {
                         bind_hostname_info.push(HostnameInfo::Ip {
                             gateway_id: interface.clone(),
@@ -414,7 +419,7 @@ impl NetServiceData {
                                     let hostname = &hostname;
                                     lazy_format!("{hostname}.local")
                                 }),
-                                port: bind.net.assigned_port,
+                                port,
                                 ssl_port: bind.net.assigned_ssl_port,
                             },
                         });
@@ -424,43 +429,46 @@ impl NetServiceData {
                             address, public, ..
                         } = address
                         {
-                            if bind
-                                .options
-                                .add_ssl
-                                .as_ref()
-                                .map_or(false, |ssl| ssl.preferred_external_port == 443)
-                            {
-                                bind_hostname_info.push(HostnameInfo::Ip {
-                                    gateway_id: interface.clone(),
-                                    public: public.is_some(),
-                                    hostname: IpHostname::Domain {
-                                        value: address.clone(),
-                                        port: None,
-                                        ssl_port: Some(443),
-                                    },
-                                });
-                            } else {
-                                bind_hostname_info.push(HostnameInfo::Ip {
-                                    gateway_id: interface.clone(),
-                                    public: public.is_some(),
-                                    hostname: IpHostname::Domain {
-                                        value: address.clone(),
-                                        port: bind.net.assigned_port,
-                                        ssl_port: bind.net.assigned_ssl_port,
-                                    },
-                                });
+                            let public = public.map_or(false, |p| &p.gateway == interface);
+                            if public || !info.public() {
+                                if bind
+                                    .options
+                                    .add_ssl
+                                    .as_ref()
+                                    .map_or(false, |ssl| ssl.preferred_external_port == 443)
+                                {
+                                    bind_hostname_info.push(HostnameInfo::Ip {
+                                        gateway_id: interface.clone(),
+                                        public,
+                                        hostname: IpHostname::Domain {
+                                            value: address.clone(),
+                                            port: None,
+                                            ssl_port: Some(443),
+                                        },
+                                    });
+                                } else {
+                                    bind_hostname_info.push(HostnameInfo::Ip {
+                                        gateway_id: interface.clone(),
+                                        public,
+                                        hostname: IpHostname::Domain {
+                                            value: address.clone(),
+                                            port,
+                                            ssl_port: bind.net.assigned_ssl_port,
+                                        },
+                                    });
+                                }
                             }
                         }
                     }
                     if let Some(ip_info) = &info.ip_info {
                         let public = info.public();
-                        if let Some(wan_ip) = ip_info.wan_ip.filter(|_| public) {
+                        if let Some(wan_ip) = ip_info.wan_ip {
                             bind_hostname_info.push(HostnameInfo::Ip {
                                 gateway_id: interface.clone(),
-                                public,
+                                public: true,
                                 hostname: IpHostname::Ipv4 {
                                     value: wan_ip,
-                                    port: bind.net.assigned_port,
+                                    port,
                                     ssl_port: bind.net.assigned_ssl_port,
                                 },
                             });
@@ -474,7 +482,7 @@ impl NetServiceData {
                                             public,
                                             hostname: IpHostname::Ipv4 {
                                                 value: net.addr(),
-                                                port: bind.net.assigned_port,
+                                                port,
                                                 ssl_port: bind.net.assigned_ssl_port,
                                             },
                                         });
@@ -487,7 +495,7 @@ impl NetServiceData {
                                         hostname: IpHostname::Ipv6 {
                                             value: net.addr(),
                                             scope_id: ip_info.scope_id,
-                                            port: bind.net.assigned_port,
+                                            port,
                                             ssl_port: bind.net.assigned_ssl_port,
                                         },
                                     });

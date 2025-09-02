@@ -16,7 +16,7 @@ use itertools::Itertools;
 use models::GatewayId;
 use nix::net::if_::if_nametoindex;
 use patch_db::json_ptr::JsonPointer;
-use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
@@ -24,25 +24,24 @@ use tokio::process::Command;
 use ts_rs::TS;
 use zbus::proxy::{PropertyChanged, PropertyStream, SignalStream};
 use zbus::zvariant::{
-    DICT_ENTRY_SIG_END_STR, DeserializeDict, Dict, OwnedObjectPath, OwnedValue, Type as ZType,
-    Value as ZValue,
+    DeserializeDict, Dict, OwnedObjectPath, OwnedValue, Type as ZType, Value as ZValue,
 };
-use zbus::{Connection, proxy};
+use zbus::{proxy, Connection};
 
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::Database;
 use crate::db::model::public::{IpInfo, NetworkInterfaceInfo, NetworkInterfaceType};
+use crate::db::model::Database;
 use crate::net::forward::START9_BRIDGE_IFACE;
 use crate::net::gateway::device::DeviceProxy;
 use crate::net::utils::ipv6_is_link_local;
 use crate::net::web_server::Accept;
 use crate::prelude::*;
-use crate::util::Invoke;
 use crate::util::collections::OrdMapIterMut;
 use crate::util::future::Until;
 use crate::util::io::open_file;
-use crate::util::serde::{HandlerExtSerde, display_serializable};
+use crate::util::serde::{display_serializable, HandlerExtSerde};
 use crate::util::sync::{SyncMutex, Watch};
+use crate::util::Invoke;
 
 pub fn gateway_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -130,64 +129,61 @@ async fn list_interfaces(
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
 #[ts(export)]
 struct NetworkInterfaceSetPublicParams {
-    interface: GatewayId,
+    gateway: GatewayId,
     public: Option<bool>,
 }
 
 async fn set_public(
     ctx: RpcContext,
-    NetworkInterfaceSetPublicParams { interface, public }: NetworkInterfaceSetPublicParams,
+    NetworkInterfaceSetPublicParams { gateway, public }: NetworkInterfaceSetPublicParams,
 ) -> Result<(), Error> {
     ctx.net_controller
         .net_iface
-        .set_public(&interface, Some(public.unwrap_or(true)))
+        .set_public(&gateway, Some(public.unwrap_or(true)))
         .await
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
 #[ts(export)]
-struct UnsetInboundParams {
-    interface: GatewayId,
+struct UnsetPublicParams {
+    gateway: GatewayId,
 }
 
 async fn unset_public(
     ctx: RpcContext,
-    UnsetInboundParams { interface }: UnsetInboundParams,
+    UnsetPublicParams { gateway }: UnsetPublicParams,
 ) -> Result<(), Error> {
     ctx.net_controller
         .net_iface
-        .set_public(&interface, None)
+        .set_public(&gateway, None)
         .await
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
 #[ts(export)]
-struct ForgetInterfaceParams {
-    interface: GatewayId,
+struct ForgetGatewayParams {
+    gateway: GatewayId,
 }
 
 async fn forget_iface(
     ctx: RpcContext,
-    ForgetInterfaceParams { interface }: ForgetInterfaceParams,
+    ForgetGatewayParams { gateway }: ForgetGatewayParams,
 ) -> Result<(), Error> {
-    ctx.net_controller.net_iface.forget(&interface).await
+    ctx.net_controller.net_iface.forget(&gateway).await
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
 #[ts(export)]
-struct RenameInterfaceParams {
-    interface: GatewayId,
+struct RenameGatewayParams {
+    id: GatewayId,
     name: String,
 }
 
 async fn set_name(
     ctx: RpcContext,
-    RenameInterfaceParams { interface, name }: RenameInterfaceParams,
+    RenameGatewayParams { id, name }: RenameGatewayParams,
 ) -> Result<(), Error> {
-    ctx.net_controller
-        .net_iface
-        .set_name(&interface, &name)
-        .await
+    ctx.net_controller.net_iface.set_name(&id, &name).await
 }
 
 #[proxy(
@@ -765,7 +761,13 @@ impl NetworkInterfaceWatcher {
         watch_activated: impl IntoIterator<Item = GatewayId>,
     ) -> Self {
         let ip_info = Watch::new(OrdMap::new());
-        let activated = Watch::new(watch_activated.into_iter().map(|k| (k, false)).collect());
+        let activated = Watch::new(
+            watch_activated
+                .into_iter()
+                .chain([NetworkInterfaceInfo::lxc_bridge().0.clone()])
+                .map(|k| (k, false))
+                .collect(),
+        );
         Self {
             activated: activated.clone(),
             ip_info: ip_info.clone(),
@@ -818,9 +820,11 @@ impl NetworkInterfaceWatcher {
             Ok(())
         })?;
         let ip_info = self.ip_info.clone_unseen();
+        let activated = self.activated.clone_unseen();
         Ok(NetworkInterfaceListener {
             _arc: arc,
             ip_info,
+            activated,
             listeners: ListenerMap::new(port),
         })
     }
@@ -1363,15 +1367,14 @@ impl ListenerMap {
     fn update(
         &mut self,
         ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
+        lxc_bridge: bool,
         filter: &impl InterfaceFilter,
     ) -> Result<(), Error> {
         let mut keep = BTreeSet::<SocketAddr>::new();
         for (_, info) in ip_info
             .iter()
-            .chain([
-                NetworkInterfaceInfo::loopback(),
-                NetworkInterfaceInfo::lxc_bridge(),
-            ])
+            .chain([NetworkInterfaceInfo::loopback()])
+            .chain(Some(NetworkInterfaceInfo::lxc_bridge()).filter(|_| lxc_bridge))
             .filter(|(id, info)| filter.filter(*id, *info))
         {
             if let Some(ip_info) = &info.ip_info {
@@ -1459,6 +1462,7 @@ pub fn lookup_info_by_addr(
 
 pub struct NetworkInterfaceListener {
     pub ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
+    activated: Watch<BTreeMap<GatewayId, bool>>,
     listeners: ListenerMap,
     _arc: Arc<()>,
 }
@@ -1474,21 +1478,29 @@ impl NetworkInterfaceListener {
         filter: &impl InterfaceFilter,
     ) -> Poll<Result<Accepted, Error>> {
         while self.ip_info.poll_changed(cx).is_ready()
+            || self.activated.poll_changed(cx).is_ready()
             || !DynInterfaceFilterT::eq(&self.listeners.prev_filter, filter.as_any())
         {
+            let lxc_bridge = self.activated.peek(|a| {
+                a.get(NetworkInterfaceInfo::lxc_bridge().0)
+                    .copied()
+                    .unwrap_or_default()
+            });
             self.ip_info
-                .peek_and_mark_seen(|ip_info| self.listeners.update(ip_info, filter))?;
+                .peek_and_mark_seen(|ip_info| self.listeners.update(ip_info, lxc_bridge, filter))?;
         }
         self.listeners.poll_accept(cx)
     }
 
     pub(super) fn new(
         mut ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
+        activated: Watch<BTreeMap<GatewayId, bool>>,
         port: u16,
     ) -> Self {
         ip_info.mark_unseen();
         Self {
             ip_info,
+            activated,
             listeners: ListenerMap::new(port),
             _arc: Arc::new(()),
         }
@@ -1532,11 +1544,15 @@ pub struct SelfContainedNetworkInterfaceListener {
 impl SelfContainedNetworkInterfaceListener {
     pub fn bind(port: u16) -> Self {
         let ip_info = Watch::new(OrdMap::new());
-        let _watch_thread =
-            tokio::spawn(watcher(ip_info.clone(), Watch::new(BTreeMap::new()))).into();
+        let activated = Watch::new(
+            [(NetworkInterfaceInfo::lxc_bridge().0.clone(), false)]
+                .into_iter()
+                .collect(),
+        );
+        let _watch_thread = tokio::spawn(watcher(ip_info.clone(), activated.clone())).into();
         Self {
             _watch_thread,
-            listener: NetworkInterfaceListener::new(ip_info, port),
+            listener: NetworkInterfaceListener::new(ip_info, activated, port),
         }
     }
 }

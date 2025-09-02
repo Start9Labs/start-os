@@ -10,34 +10,34 @@ use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use hickory_client::client::Client;
-use hickory_client::proto::DnsHandle;
 use hickory_client::proto::runtime::TokioRuntimeProvider;
 use hickory_client::proto::tcp::TcpClientStream;
 use hickory_client::proto::udp::UdpClientStream;
 use hickory_client::proto::xfer::{DnsExchangeBackground, DnsRequestOptions};
-use hickory_server::ServerFuture;
+use hickory_client::proto::DnsHandle;
 use hickory_server::authority::MessageResponseBuilder;
 use hickory_server::proto::op::{Header, ResponseCode};
 use hickory_server::proto::rr::{Name, Record, RecordType};
 use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
+use hickory_server::ServerFuture;
 use imbl::OrdMap;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use models::{GatewayId, OptionExt, PackageId};
 use rpc_toolkit::{
-    Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async, from_fn_blocking,
+    from_fn_async, from_fn_blocking, Context, HandlerArgs, HandlerExt, ParentHandler,
 };
 use serde::{Deserialize, Serialize};
 use tokio::net::{TcpListener, UdpSocket};
 use tracing::instrument;
 
 use crate::context::RpcContext;
-use crate::db::model::Database;
 use crate::db::model::public::NetworkInterfaceInfo;
+use crate::db::model::Database;
 use crate::net::gateway::NetworkInterfaceWatcher;
 use crate::prelude::*;
 use crate::util::io::file_string_stream;
-use crate::util::serde::{HandlerExtSerde, display_serializable};
+use crate::util::serde::{display_serializable, HandlerExtSerde};
 use crate::util::sync::{SyncRwLock, Watch};
 
 pub fn dns_api<C: Context>() -> ParentHandler<C> {
@@ -343,13 +343,19 @@ impl RequestHandler for Resolver {
             if let Some(ip) = self.resolve(query.name().borrow(), req.src.ip()) {
                 match query.query_type() {
                     RecordType::A => {
+                        let mut header = Header::response_from_request(request.header());
+                        header.set_recursion_available(true);
                         response_handle
                             .send_response(
                                 MessageResponseBuilder::from_message_request(&*request).build(
-                                    Header::response_from_request(request.header()),
+                                    header,
                                     &ip.into_iter()
                                         .filter_map(|a| {
-                                            if let IpAddr::V4(a) = a { Some(a) } else { None }
+                                            if let IpAddr::V4(a) = a {
+                                                Some(a)
+                                            } else {
+                                                None
+                                            }
                                         })
                                         .map(|ip| {
                                             Record::from_rdata(
@@ -367,13 +373,19 @@ impl RequestHandler for Resolver {
                             .await
                     }
                     RecordType::AAAA => {
+                        let mut header = Header::response_from_request(request.header());
+                        header.set_recursion_available(true);
                         response_handle
                             .send_response(
                                 MessageResponseBuilder::from_message_request(&*request).build(
-                                    Header::response_from_request(request.header()),
+                                    header,
                                     &ip.into_iter()
                                         .filter_map(|a| {
-                                            if let IpAddr::V6(a) = a { Some(a) } else { None }
+                                            if let IpAddr::V6(a) = a {
+                                                Some(a)
+                                            } else {
+                                                None
+                                            }
                                         })
                                         .map(|ip| {
                                             Record::from_rdata(
@@ -391,11 +403,12 @@ impl RequestHandler for Resolver {
                             .await
                     }
                     _ => {
-                        let res = Header::response_from_request(request.header());
+                        let mut header = Header::response_from_request(request.header());
+                        header.set_recursion_available(true);
                         response_handle
                             .send_response(
                                 MessageResponseBuilder::from_message_request(&*request).build(
-                                    res.into(),
+                                    header.into(),
                                     [],
                                     [],
                                     [],
@@ -432,12 +445,13 @@ impl RequestHandler for Resolver {
                     tracing::error!("{e}");
                     tracing::debug!("{e:?}");
                 }
-                let mut res = Header::response_from_request(request.header());
-                res.set_response_code(ResponseCode::ServFail);
+                let mut header = Header::response_from_request(request.header());
+                header.set_recursion_available(true);
+                header.set_response_code(ResponseCode::ServFail);
                 response_handle
                     .send_response(
                         MessageResponseBuilder::from_message_request(&*request).build(
-                            res,
+                            header,
                             [],
                             [],
                             [],
@@ -453,12 +467,13 @@ impl RequestHandler for Resolver {
             Err(e) => {
                 tracing::error!("{}", e);
                 tracing::debug!("{:?}", e);
-                let mut res = Header::response_from_request(request.header());
-                res.set_response_code(ResponseCode::ServFail);
+                let mut header = Header::response_from_request(request.header());
+                header.set_recursion_available(true);
+                header.set_response_code(ResponseCode::ServFail);
                 response_handle
                     .send_response(
                         MessageResponseBuilder::from_message_request(&*request).build(
-                            res,
+                            header,
                             [],
                             [],
                             [],
@@ -466,7 +481,7 @@ impl RequestHandler for Resolver {
                         ),
                     )
                     .await
-                    .unwrap_or(res.into())
+                    .unwrap_or(header.into())
             }
         }
     }

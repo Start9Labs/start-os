@@ -258,6 +258,7 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
                         .await
                         {
                             err = Some(e);
+                            tokio::time::sleep(Duration::from_millis(100)).await;
                         } else {
                             break;
                         }

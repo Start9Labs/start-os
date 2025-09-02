@@ -495,14 +495,7 @@ pub async fn init_progress(ctx: InitContext) -> Result<InitProgressRes, Error> {
                         }
                     );
 
-                    if let Err(e) = ws
-                        .close_result(res.map(|_| "complete").map_err(|e| {
-                            tracing::error!("error in init progress websocket: {e}");
-                            tracing::debug!("{e:?}");
-                            e
-                        }))
-                        .await
-                    {
+                    if let Err(e) = ws.close_result(res.map(|_| "complete")).await {
                         tracing::error!("error closing init progress websocket: {e}");
                         tracing::debug!("{e:?}");
                     }
