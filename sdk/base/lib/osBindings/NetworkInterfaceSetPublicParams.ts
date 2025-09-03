@@ -2,6 +2,6 @@
 import type { GatewayId } from "./GatewayId"
 
 export type NetworkInterfaceSetPublicParams = {
-  interface: GatewayId
+  gateway: GatewayId
   public: boolean | null
 }
