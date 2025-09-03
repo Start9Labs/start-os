@@ -149,8 +149,8 @@ impl SocksController {
                                         }
                                         .await
                                         {
-                                            tracing::error!("SOCKS5 Stream Error: {e}");
-                                            tracing::debug!("{e:?}");
+                                            tracing::trace!("SOCKS5 Stream Error: {e}");
+                                            tracing::trace!("{e:?}");
                                         }
                                     });
                                 }

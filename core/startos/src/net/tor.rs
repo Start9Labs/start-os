@@ -417,6 +417,7 @@ impl TorController {
             0,
             TorClient::with_runtime(TokioRustlsRuntime::current()?)
                 .config(config.build().with_kind(ErrorKind::Tor)?)
+                .local_resource_timeout(Duration::from_secs(0))
                 .create_unbootstrapped()?,
         ));
         let reset = Arc::new(Notify::new());
@@ -424,10 +425,10 @@ impl TorController {
         let bootstrapper_client = client.clone();
         let bootstrapper = tokio::spawn(async move {
             loop {
+                let (epoch, client): (usize, _) = bootstrapper_client.read();
                 if let Err(e) = Until::new()
                     .with_async_fn(|| bootstrapper_reset.notified().map(Ok))
                     .run(async {
-                        let (epoch, client): (usize, _) = bootstrapper_client.read();
                         let mut events = client.bootstrap_events();
                         let bootstrap_fut =
                             client.bootstrap().map(|res| res.with_kind(ErrorKind::Tor));
@@ -560,7 +561,7 @@ impl TorController {
                                 }
                                 .await
                                 {
-                                    tracing::error!("Tor Client Creation Error: {e}");
+                                    tracing::error!("Tor Client Health Error: {e}");
                                     tracing::debug!("{e:?}");
                                 }
                             }
@@ -569,26 +570,30 @@ impl TorController {
                                 HEALTH_CHECK_FAILURE_ALLOWANCE
                             );
                         }
-                        if let Err::<(), Error>(e) = async {
-                            tokio::time::sleep(RETRY_COOLDOWN).await;
-                            bootstrapper_client.send((
-                                epoch.wrapping_add(1),
-                                TorClient::with_runtime(TokioRustlsRuntime::current()?)
-                                    .config(config.build().with_kind(ErrorKind::Tor)?)
-                                    .create_unbootstrapped()?,
-                            ));
-                            Ok(())
-                        }
-                        .await
-                        {
-                            tracing::error!("Tor Client Creation Error: {e}");
-                            tracing::debug!("{e:?}");
-                        }
+
                         Ok(())
                     })
                     .await
                 {
                     tracing::error!("Tor Bootstrapper Error: {e}");
+                    tracing::debug!("{e:?}");
+                }
+                if let Err::<(), Error>(e) = async {
+                    tokio::time::sleep(RETRY_COOLDOWN).await;
+                    bootstrapper_client.send((
+                        epoch.wrapping_add(1),
+                        TorClient::with_runtime(TokioRustlsRuntime::current()?)
+                            .config(config.build().with_kind(ErrorKind::Tor)?)
+                            .local_resource_timeout(Duration::from_secs(0))
+                            .create_unbootstrapped_async()
+                            .await?,
+                    ));
+                    tracing::debug!("TorClient recycled");
+                    Ok(())
+                }
+                .await
+                {
+                    tracing::error!("Tor Client Creation Error: {e}");
                     tracing::debug!("{e:?}");
                 }
             }
@@ -729,7 +734,7 @@ impl OnionService {
                             if let Err(e) = async {
                                 client.wait_for(|(_,c)| c.bootstrap_status().ready_for_traffic()).await;
                                 let epoch = client.peek(|(e, c)| {
-                                    ensure_code!(c.bootstrap_status().ready_for_traffic(), ErrorKind::Tor, "client recycled");
+                                    ensure_code!(c.bootstrap_status().ready_for_traffic(), ErrorKind::Tor, "TorClient recycled");
                                     Ok::<_, Error>(*e)
                                 })?;
                                 let (new_service, stream) = client.peek(|(_, c)| {
@@ -751,6 +756,7 @@ impl OnionService {
                                 let mut status_stream = new_service.status_events();
                                 bg.add_job(async move {
                                     while let Some(status) = status_stream.next().await {
+                                        tracing::debug!("{status:?}");
                                         // TODO: health daemon?
                                     }
                                 });
@@ -806,8 +812,8 @@ impl OnionService {
                                                             )
                                                             .await
                                                         {
-                                                            tracing::error!("Tor Stream Error: {e}");
-                                                            tracing::debug!("{e:?}");
+                                                            tracing::trace!("Tor Stream Error: {e}");
+                                                            tracing::trace!("{e:?}");
                                                         }
 
                                                         Ok::<_, Error>(())
