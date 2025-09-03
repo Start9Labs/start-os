@@ -572,7 +572,7 @@ export default {
   606: 'Host',
   607: 'Wert',
   608: 'Zweck',
-  609: 'Subdomains von',
+  609: 'alle Subdomains von',
   610: 'Dynamisches DNS',
   611: 'Keine Service-Schnittstellen',
   612: 'Grund',

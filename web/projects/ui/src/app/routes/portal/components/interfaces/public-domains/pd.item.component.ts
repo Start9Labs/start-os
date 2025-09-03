@@ -20,7 +20,7 @@ import { toAuthorityName } from 'src/app/utils/acme'
   template: `
     <td>{{ publicDomain().fqdn }}</td>
     <td>{{ publicDomain().gateway?.ipInfo?.name }}</td>
-    <td>{{ authority() }}</td>
+    <td class="authority">{{ authority() }}</td>
     <td>
       <button
         tuiIconButton
@@ -89,6 +89,9 @@ import { toAuthorityName } from 'src/app/utils/acme'
     }
 
     :host-context(tui-root._mobile) {
+      .authority {
+        grid-column: span 2;
+      }
       tui-badge {
         vertical-align: bottom;
         margin-inline-start: 0.25rem;

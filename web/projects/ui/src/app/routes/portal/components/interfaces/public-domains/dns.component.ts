@@ -125,7 +125,7 @@ export class DnsComponent {
 
     const segments = subdomain.split('.').slice(1)
 
-    const subdomains = this.i18n.transform('subdomains of')
+    const subdomains = this.i18n.transform('all subdomains of')
 
     return [
       {

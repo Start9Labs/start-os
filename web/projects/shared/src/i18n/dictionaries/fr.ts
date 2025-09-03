@@ -572,7 +572,7 @@ export default {
   606: 'Hôte',
   607: 'Valeur',
   608: 'But',
-  609: 'Sous-domaines de',
+  609: 'tous les sous-domaines de',
   610: 'DNS dynamique',
   611: 'Aucune interface de service',
   612: 'Raison',
