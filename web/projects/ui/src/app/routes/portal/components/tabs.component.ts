@@ -14,7 +14,7 @@ import { TuiBadgeNotification } from '@taiga-ui/kit'
 import { BadgeService } from 'src/app/services/badge.service'
 import { getMenu } from 'src/app/utils/system-utilities'
 
-const FILTER = ['/services', '/system', '/marketplace']
+const FILTER = ['services', 'system', 'marketplace']
 
 @Component({
   selector: 'app-tabs',

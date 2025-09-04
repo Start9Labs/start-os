@@ -91,10 +91,7 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
           </button>
         }
       } @else if (removing()) {
-        <service-status
-          [connected]="!!connected()"
-          [status]="status()"
-        ></service-status>
+        <service-status [connected]="!!connected()" [status]="status()" />
       }
     }
   `,

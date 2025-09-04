@@ -34,17 +34,17 @@ const INACTIVE: PrimaryStatus[] = [
       <div
         *title
         class="title"
+        tabindex="-1"
+        routerLink=".."
         [style.--background]="'url(' + service()?.icon + ')'"
       >
         <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
           {{ 'Back' | i18n }}
         </a>
-        <div routerLink="./">
-          <tui-avatar size="xs" [style.margin]="'0 0.75rem 0.125rem 0'">
-            <img alt="" [src]="service()?.icon" />
-          </tui-avatar>
-          <span tuiFade>{{ manifest()?.title }}</span>
-        </div>
+        <tui-avatar size="xs" [style.margin-inline-end.rem]="0.75">
+          <img alt="" [src]="service()?.icon" />
+        </tui-avatar>
+        <span tuiFade>{{ manifest()?.title }}</span>
       </div>
       <aside class="g-aside">
         <header tuiCell routerLink="./">

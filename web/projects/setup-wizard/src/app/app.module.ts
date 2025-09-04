@@ -1,4 +1,8 @@
-import { provideHttpClient, withInterceptorsFromDi } from '@angular/common/http'
+import {
+  provideHttpClient,
+  withFetch,
+  withInterceptorsFromDi,
+} from '@angular/common/http'
 import { inject, NgModule, provideAppInitializer } from '@angular/core'
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations'
 import { PreloadAllModules, RouterModule } from '@angular/router'
@@ -51,7 +55,7 @@ const version = require('../../../../package.json').version
       provide: VERSION,
       useValue: version,
     },
-    provideHttpClient(withInterceptorsFromDi()),
+    provideHttpClient(withInterceptorsFromDi(), withFetch()),
     provideAppInitializer(() => {
       const origin = inject(WA_LOCATION).origin
       const module_or_path = new URL('/assets/argon2_bg.wasm', origin)
