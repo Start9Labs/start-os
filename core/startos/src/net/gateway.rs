@@ -21,10 +21,11 @@ use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::process::Command;
+use tokio::sync::oneshot;
 use ts_rs::TS;
 use zbus::proxy::{PropertyChanged, PropertyStream, SignalStream};
 use zbus::zvariant::{
-    DeserializeDict, Dict, OwnedObjectPath, OwnedValue, Type as ZType, Value as ZValue,
+    self, DeserializeDict, Dict, OwnedObjectPath, OwnedValue, Type as ZType, Value as ZValue,
 };
 use zbus::{proxy, Connection};
 
@@ -243,12 +244,17 @@ mod active_connection {
     default_service = "org.freedesktop.NetworkManager"
 )]
 trait ConnectionSettings {
+    fn get_settings(&self) -> Result<HashMap<String, HashMap<String, OwnedValue>>, Error>;
+
     fn update2(
         &self,
-        settings: HashMap<String, HashMap<String, ZValue<'_>>>,
+        settings: HashMap<String, HashMap<String, OwnedValue>>,
         flags: u32,
         args: HashMap<String, ZValue<'_>>,
-    ) -> Result<(), Error>;
+    ) -> Result<HashMap<String, OwnedValue>, Error>;
+
+    #[zbus(signal)]
+    fn updated(&self) -> Result<(), Error>;
 }
 
 #[proxy(
@@ -552,6 +558,12 @@ async fn watch_ip(
                 let active_connection_proxy =
                     active_connection::ActiveConnectionProxy::new(&connection, dac).await?;
 
+                let settings_proxy = ConnectionSettingsProxy::new(
+                    &connection,
+                    active_connection_proxy.connection().await?,
+                )
+                .await?;
+
                 let mut until = Until::new()
                     .with_stream(
                         active_connection_proxy
@@ -565,7 +577,8 @@ async fn watch_ip(
                             .receive_dhcp4_config_changed()
                             .await
                             .stub(),
-                    );
+                    )
+                    .with_stream(settings_proxy.receive_updated().await?.into_inner().stub());
 
                 loop {
                     until
@@ -928,11 +941,12 @@ impl NetworkInterfaceController {
         Ok(())
     }
     pub fn new(db: TypedPatchDb<Database>) -> Self {
+        let (seeded_send, seeded) = oneshot::channel();
         let watcher = NetworkInterfaceWatcher::new(
             {
                 let db = db.clone();
                 async move {
-                    match db
+                    let info = match db
                         .peek()
                         .await
                         .as_public()
@@ -952,21 +966,26 @@ impl NetworkInterfaceController {
                             tracing::debug!("{e:?}");
                             OrdMap::new()
                         }
-                    }
+                    };
+                    let _ = seeded_send.send(info.clone());
+                    info
                 }
             },
             [START9_BRIDGE_IFACE.into()],
         );
-        let mut ip_info = watcher.subscribe();
+        let mut ip_info_watch = watcher.subscribe();
+        ip_info_watch.mark_seen();
         Self {
             db: db.clone(),
             watcher,
             _sync: tokio::spawn(async move {
                 let res: Result<(), Error> = async {
+                    let mut ip_info = seeded.await.ok();
                     loop {
                         if let Err(e) = async {
-                            let ip_info = ip_info.read();
-                            Self::sync(&db, &ip_info).boxed().await?;
+                            if let Some(ip_info) = ip_info {
+                                Self::sync(&db, &ip_info).boxed().await?;
+                            }
 
                             Ok::<_, Error>(())
                         }
@@ -976,7 +995,8 @@ impl NetworkInterfaceController {
                             tracing::debug!("{e:?}");
                         }
 
-                        let _ = ip_info.changed().await;
+                        let _ = ip_info_watch.changed().await;
+                        ip_info = Some(ip_info_watch.read());
                     }
                 }
                 .await;
@@ -1140,19 +1160,14 @@ impl NetworkInterfaceController {
 
         let settings_proxy = ConnectionSettingsProxy::new(&connection, settings).await?;
 
+        let mut settings = settings_proxy.get_settings().await?;
+        settings.entry("connection".into()).or_default().insert(
+            "id".into(),
+            OwnedValue::from(zbus::zvariant::Str::from(name)),
+        );
+
         settings_proxy
-            .update2(
-                [(
-                    "connection".into(),
-                    [("id".into(), zbus::zvariant::Value::Str(name.into()))]
-                        .into_iter()
-                        .collect(),
-                )]
-                .into_iter()
-                .collect(),
-                0x1,
-                HashMap::new(),
-            )
+            .update2(settings, 0x1, HashMap::new())
             .await?;
 
         sub.recv().await;

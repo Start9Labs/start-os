@@ -247,7 +247,8 @@ pub async fn init(
     Command::new("killall")
         .arg("journalctl")
         .invoke(crate::ErrorKind::Journald)
-        .await?;
+        .await
+        .log_err();
     mount_logs.complete();
     tokio::io::copy(
         &mut open_file("/run/startos/init.log").await?,

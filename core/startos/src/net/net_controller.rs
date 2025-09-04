@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing::instrument;
 
-use crate::db::model::public::NetworkInterfaceInfo;
+use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
 use crate::db::model::Database;
 use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
@@ -410,7 +410,11 @@ impl NetServiceData {
                             !(s.ssl && bind.options.add_ssl.is_some()) || info.secure()
                         })
                     });
-                    if !info.public() {
+                    if !info.public()
+                        && info.ip_info.as_ref().map_or(false, |i| {
+                            i.device_type != Some(NetworkInterfaceType::Wireguard)
+                        })
+                    {
                         bind_hostname_info.push(HostnameInfo::Ip {
                             gateway_id: interface.clone(),
                             public: false,
