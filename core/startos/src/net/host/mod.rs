@@ -6,15 +6,15 @@ use clap::Parser;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use models::{HostId, PackageId};
-use rpc_toolkit::{Context, Empty, HandlerExt, OrEmpty, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, OrEmpty, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::context::RpcContext;
 use crate::db::model::DatabaseModel;
 use crate::net::forward::AvailablePorts;
-use crate::net::host::address::{HostAddress, PublicDomainConfig, address_api};
-use crate::net::host::binding::{BindInfo, BindOptions, binding};
+use crate::net::host::address::{address_api, HostAddress, PublicDomainConfig};
+use crate::net::host::binding::{binding, BindInfo, BindOptions};
 use crate::net::service_interface::HostnameInfo;
 use crate::net::tor::OnionAddress;
 use crate::prelude::*;
@@ -56,14 +56,17 @@ impl Host {
                     .map(|(address, config)| HostAddress::Domain {
                         address: address.clone(),
                         public: Some(config.clone()),
+                        private: self.private_domains.contains(address),
                     }),
             )
             .chain(
                 self.private_domains
                     .iter()
+                    .filter(|a| !self.public_domains.contains_key(*a))
                     .map(|address| HostAddress::Domain {
                         address: address.clone(),
                         public: None,
+                        private: true,
                     }),
             )
     }

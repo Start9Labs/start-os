@@ -1255,7 +1255,7 @@ pub struct PublicFilter {
 }
 impl InterfaceFilter for PublicFilter {
     fn filter(&self, _: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
-        self.public || !info.public()
+        self.public == info.public()
     }
 }
 

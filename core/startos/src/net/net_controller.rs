@@ -295,7 +295,11 @@ impl NetServiceData {
                                     ); // TODO: wrap onion ssl stream directly in tor ctrl
                                 }
                             }
-                            HostAddress::Domain { address, public } => {
+                            HostAddress::Domain {
+                                address,
+                                public,
+                                private,
+                            } => {
                                 if hostnames.insert(address.clone()) {
                                     let address = Some(address.clone());
                                     if ssl.preferred_external_port == 443 {
@@ -321,10 +325,19 @@ impl NetServiceData {
                                                 TargetInfo {
                                                     filter: AndFilter(
                                                         bind.net.clone(),
-                                                        OrFilter(
-                                                            IdFilter(public.gateway.clone()),
-                                                            PublicFilter { public: false },
-                                                        ),
+                                                        if private {
+                                                            OrFilter(
+                                                                IdFilter(public.gateway.clone()),
+                                                                PublicFilter { public: false },
+                                                            )
+                                                            .into_dyn()
+                                                        } else {
+                                                            AndFilter(
+                                                                IdFilter(public.gateway.clone()),
+                                                                PublicFilter { public: true },
+                                                            )
+                                                            .into_dyn()
+                                                        },
                                                     )
                                                     .into_dyn(),
                                                     acme: public.acme.clone(),
@@ -354,7 +367,16 @@ impl NetServiceData {
                                                 TargetInfo {
                                                     filter: AndFilter(
                                                         bind.net.clone(),
-                                                        IdFilter(public.gateway.clone()),
+                                                        if private {
+                                                            OrFilter(
+                                                                IdFilter(public.gateway.clone()),
+                                                                PublicFilter { public: false },
+                                                            )
+                                                            .into_dyn()
+                                                        } else {
+                                                            IdFilter(public.gateway.clone())
+                                                                .into_dyn()
+                                                        },
                                                     )
                                                     .into_dyn(),
                                                     acme: public.acme.clone(),
@@ -366,7 +388,11 @@ impl NetServiceData {
                                             vhosts.insert(
                                                 (address.clone(), external),
                                                 TargetInfo {
-                                                    filter: bind.net.clone().into_dyn(),
+                                                    filter: AndFilter(
+                                                        bind.net.clone(),
+                                                        PublicFilter { public: false },
+                                                    )
+                                                    .into_dyn(),
                                                     acme: None,
                                                     addr,
                                                     connect_ssl: connect_ssl.clone(),
@@ -430,11 +456,14 @@ impl NetServiceData {
                     }
                     for address in host.addresses() {
                         if let HostAddress::Domain {
-                            address, public, ..
+                            address,
+                            public,
+                            private,
                         } = address
                         {
-                            let public = public.map_or(false, |p| &p.gateway == interface);
-                            if public || !info.public() {
+                            let private = private && !info.public();
+                            let public = public.as_ref().map_or(false, |p| &p.gateway == interface);
+                            if public || private {
                                 if bind
                                     .options
                                     .add_ssl

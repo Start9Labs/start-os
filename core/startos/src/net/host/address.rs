@@ -4,17 +4,17 @@ use std::net::Ipv4Addr;
 use clap::Parser;
 use imbl_value::InternedString;
 use models::GatewayId;
-use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::DatabaseModel;
 use crate::net::acme::AcmeProvider;
-use crate::net::host::{HostApiKind, all_hosts};
+use crate::net::host::{all_hosts, HostApiKind};
 use crate::net::tor::OnionAddress;
 use crate::prelude::*;
-use crate::util::serde::{HandlerExtSerde, display_serializable};
+use crate::util::serde::{display_serializable, HandlerExtSerde};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -27,6 +27,7 @@ pub enum HostAddress {
     Domain {
         address: InternedString,
         public: Option<PublicDomainConfig>,
+        private: bool,
     },
 }
 
@@ -70,11 +71,14 @@ fn handle_duplicates(db: &mut DatabaseModel) -> Result<(), Error> {
         for onion in host.as_onions().de()? {
             check_onion(&mut onions, onion)?;
         }
-        for domain in host.as_public_domains().keys()? {
-            check_domain(&mut domains, domain)?;
+        let public = host.as_public_domains().keys()?;
+        for domain in &public {
+            check_domain(&mut domains, domain.clone())?;
         }
         for domain in host.as_private_domains().de()? {
-            check_domain(&mut domains, domain)?;
+            if !public.contains(&domain) {
+                check_domain(&mut domains, domain)?;
+            }
         }
     }
     for host in not_in_use {
@@ -88,18 +92,21 @@ fn handle_duplicates(db: &mut DatabaseModel) -> Result<(), Error> {
         for onion in host.as_onions().de()? {
             check_onion(&mut onions, onion)?;
         }
-        for domain in host.as_public_domains().keys()? {
-            check_domain(&mut domains, domain)?;
+        let public = host.as_public_domains().keys()?;
+        for domain in &public {
+            check_domain(&mut domains, domain.clone())?;
         }
         for domain in host.as_private_domains().de()? {
-            check_domain(&mut domains, domain)?;
+            if !public.contains(&domain) {
+                check_domain(&mut domains, domain)?;
+            }
         }
     }
     Ok(())
 }
 
-pub fn address_api<C: Context, Kind: HostApiKind>()
--> ParentHandler<C, Kind::Params, Kind::InheritedParams> {
+pub fn address_api<C: Context, Kind: HostApiKind>(
+) -> ParentHandler<C, Kind::Params, Kind::InheritedParams> {
     ParentHandler::<C, Kind::Params, Kind::InheritedParams>::new()
         .subcommand(
             "domain",
@@ -198,16 +205,21 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
                             HostAddress::Domain {
                                 address,
                                 public: Some(PublicDomainConfig { gateway, acme }),
+                                private,
                             } => {
                                 table.add_row(row![
                                     address,
-                                    &format!("YES ({gateway})"),
+                                    &format!(
+                                        "{} ({gateway})",
+                                        if *private { "YES" } else { "ONLY" }
+                                    ),
                                     acme.as_ref().map(|a| a.0.as_str()).unwrap_or("NONE")
                                 ]);
                             }
                             HostAddress::Domain {
                                 address,
                                 public: None,
+                                ..
                             } => {
                                 table.add_row(row![address, &format!("NO"), "N/A"]);
                             }
