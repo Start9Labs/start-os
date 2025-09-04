@@ -17,8 +17,8 @@ import { Authority, AuthorityService } from './authority.service'
   selector: 'tr[authority]',
   template: `
     @if (authority(); as authority) {
-      <td [style.width.rem]="14">{{ authority.name }}</td>
-      <td [style.width.rem]="21">{{ authority.url || '-' }}</td>
+      <td>{{ authority.name }}</td>
+      <td>{{ authority.url || '-' }}</td>
       <td class="hidden">{{ authority.contact?.join(', ') || '-' }}</td>
       <td>
         <button

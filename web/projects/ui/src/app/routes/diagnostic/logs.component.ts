@@ -39,7 +39,7 @@ import { ApiService } from 'src/app/services/api/embassy-api.service'
   `,
   styles: `
     :host {
-      max-height: 100vh;
+      max-height: 100dvh;
       display: flex;
       flex-direction: column;
       justify-content: flex-start;

@@ -32,7 +32,7 @@ hr {
   @include taiga.scrollbar-hidden();
 
   display: block;
-  height: calc(100vh - 3.875rem);
+  height: calc(100dvh - 3.875rem);
   padding: 1px 2rem 1rem;
   box-sizing: border-box;
   overflow: auto;
@@ -62,7 +62,7 @@ hr {
 
   tui-root._mobile & {
     // For tui-tab-bar
-    height: calc(100vh - 3.875rem - var(--tui-height-l));
+    height: calc(100dvh - 3.875rem - var(--tui-height-l));
   }
 }
 
@@ -74,6 +74,8 @@ hr {
 }
 
 .g-aside {
+  @include taiga.scrollbar-hidden();
+
   position: sticky;
   top: 1px;
   left: 1px;
@@ -83,6 +85,7 @@ hr {
   text-transform: capitalize;
   box-shadow: 1px 0 var(--tui-border-normal);
   background: var(--tui-background-base);
+  overflow: auto;
 }
 
 .g-card {

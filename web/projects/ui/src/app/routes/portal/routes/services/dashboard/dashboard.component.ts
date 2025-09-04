@@ -80,7 +80,6 @@ import { ServiceComponent } from './service.component'
     :host {
       position: relative;
       font-size: 1rem;
-      overflow: hidden;
     }
 
     :host-context(tui-root._mobile) {
