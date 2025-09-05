@@ -35,7 +35,6 @@ const INACTIVE: PrimaryStatus[] = [
         *title
         class="title"
         tabindex="-1"
-        routerLink=".."
         [style.--background]="'url(' + service()?.icon + ')'"
       >
         <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
