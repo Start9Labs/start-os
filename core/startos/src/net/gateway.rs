@@ -637,12 +637,10 @@ async fn watch_ip(
                                         let lan_ip = [
                                             Some(ip4_proxy.gateway().await?)
                                                 .filter(|g| !g.is_empty())
-                                                .map(|g| g.parse::<IpAddr>())
-                                                .transpose()?,
+                                                .and_then(|g| g.parse::<IpAddr>().log_err()),
                                             Some(ip6_proxy.gateway().await?)
                                                 .filter(|g| !g.is_empty())
-                                                .map(|g| g.parse::<IpAddr>())
-                                                .transpose()?,
+                                                .and_then(|g| g.parse::<IpAddr>().log_err()),
                                         ]
                                         .into_iter()
                                         .filter_map(|a| a)
@@ -659,9 +657,11 @@ async fn watch_ip(
                                             }
                                             if let Some(dns) = dhcp.domain_name_servers {
                                                 dns_servers.extend(
-                                                    dns.split(",")
-                                                        .map(|s| s.trim().parse::<IpAddr>())
-                                                        .collect::<Result<Vec<_>, _>>()?,
+                                                    dns.split_ascii_whitespace()
+                                                        .filter_map(|s| {
+                                                            s.parse::<IpAddr>().log_err()
+                                                        })
+                                                        .collect::<Vec<_>>(),
                                                 );
                                             }
                                         }

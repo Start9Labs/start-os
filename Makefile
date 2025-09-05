@@ -264,7 +264,7 @@ container-runtime/dist/node_modules/.package-lock.json container-runtime/dist/pa
 container-runtime/rootfs.$(ARCH).squashfs: container-runtime/debian.$(ARCH).squashfs container-runtime/container-runtime.service container-runtime/update-image.sh container-runtime/deb-install.sh container-runtime/dist/index.js container-runtime/dist/node_modules/.package-lock.json core/target/$(ARCH)-unknown-linux-musl/release/containerbox
 	ARCH=$(ARCH) REQUIRES=linux ./build/os-compat/run-compat.sh ./container-runtime/update-image.sh
 
-build/lib/depends build/lib/conflicts: build/dpkg-deps/*
+build/lib/depends build/lib/conflicts: $(ENVIRONMENT_FILE) build/dpkg-deps/*
 	build/dpkg-deps/generate.sh
 
 $(FIRMWARE_ROMS): build/lib/firmware.json download-firmware.sh $(PLATFORM_FILE)
