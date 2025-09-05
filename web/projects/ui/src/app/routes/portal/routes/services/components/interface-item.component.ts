@@ -74,7 +74,6 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
       gap: 0.5rem;
 
       td {
-        display: flex;
         padding: 0;
       }
     }

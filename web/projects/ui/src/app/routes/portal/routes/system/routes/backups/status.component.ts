@@ -12,14 +12,17 @@ import { TuiIcon } from '@taiga-ui/core'
   selector: '[backupStatus]',
   template: `
     @if (type === 'create') {
-      <tui-icon icon="@tui.cloud" class="g-positive" />
+      <tui-icon
+        [icon]="physical() ? '@tui.ethernet-port' : '@tui.signal-high'"
+        class="g-positive"
+      />
       {{ 'Available for backup' | i18n }}
     } @else {
       @if (backupStatus()) {
-        <tui-icon icon="@tui.cloud-upload" class="g-positive" />
+        <tui-icon icon="@tui.save" class="g-positive" />
         {{ 'StartOS backups detected' | i18n }}
       } @else {
-        <tui-icon icon="@tui.cloud-off" class="g-negative" />
+        <tui-icon icon="@tui.save-off" class="g-negative" />
         {{ 'No StartOS backups detected' | i18n }}
       }
     }
@@ -46,4 +49,5 @@ import { TuiIcon } from '@taiga-ui/core'
 export class BackupStatusComponent {
   readonly type = inject(ActivatedRoute).snapshot.data['type']
   readonly backupStatus = input(false)
+  readonly physical = input(false)
 }

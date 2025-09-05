@@ -49,14 +49,16 @@ import { InterfaceComponent } from './interface.component'
   styles: `
     :host {
       grid-column: span 3;
-
-      &:has(+ section table) header {
-        background: transparent;
-      }
     }
 
     [tuiCell]:has([tuiTooltip]) {
       background: none !important;
+    }
+
+    :host-context(tui-root:not(._mobile)) {
+      &:has(+ section table) header {
+        background: transparent;
+      }
     }
   `,
   host: { class: 'g-card' },
