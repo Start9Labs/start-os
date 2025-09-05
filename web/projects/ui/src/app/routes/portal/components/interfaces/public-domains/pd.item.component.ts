@@ -19,7 +19,7 @@ import { toAuthorityName } from 'src/app/utils/acme'
   selector: 'tr[publicDomain]',
   template: `
     <td>{{ publicDomain().fqdn }}</td>
-    <td>{{ publicDomain().gateway?.ipInfo?.name }}</td>
+    <td>{{ publicDomain().gateway?.name }}</td>
     <td class="authority">{{ authority() }}</td>
     <td>
       <button

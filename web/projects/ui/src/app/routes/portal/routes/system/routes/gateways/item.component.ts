@@ -167,12 +167,12 @@ export class GatewaysItemComponent {
   }
 
   async rename() {
-    const { ipInfo, id } = this.gateway()
+    const { id, name } = this.gateway()
     const renameSpec = ISB.InputSpec.of({
       label: ISB.Value.text({
         name: this.i18n.transform('Name'),
         required: true,
-        default: ipInfo?.name || null,
+        default: name,
       }),
     })
 
