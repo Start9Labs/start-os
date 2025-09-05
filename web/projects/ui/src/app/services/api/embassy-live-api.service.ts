@@ -97,7 +97,7 @@ export class LiveApiService extends ApiService {
   }
 
   async getState(): Promise<RR.ServerState> {
-    return this.rpcRequest({ method: 'state', params: {} })
+    return this.rpcRequest({ method: 'state', params: {}, timeout: 10000 })
   }
 
   // db
