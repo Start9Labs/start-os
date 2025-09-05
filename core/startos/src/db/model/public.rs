@@ -19,8 +19,8 @@ use crate::account::AccountInfo;
 use crate::db::model::package::AllPackageData;
 use crate::net::acme::AcmeProvider;
 use crate::net::forward::START9_BRIDGE_IFACE;
-use crate::net::host::Host;
 use crate::net::host::binding::{AddSslOptions, BindInfo, BindOptions, NetInfo};
+use crate::net::host::Host;
 use crate::net::utils::ipv6_is_local;
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
@@ -211,6 +211,7 @@ pub struct DnsSettings {
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct NetworkInterfaceInfo {
+    pub name: Option<InternedString>,
     pub public: Option<bool>,
     pub secure: Option<bool>,
     pub ip_info: Option<IpInfo>,
@@ -220,6 +221,7 @@ impl NetworkInterfaceInfo {
         lazy_static! {
             static ref LO: GatewayId = GatewayId::from("lo");
             static ref LOOPBACK: NetworkInterfaceInfo = NetworkInterfaceInfo {
+                name: Some(InternedString::from_static("Loopback")),
                 public: Some(false),
                 secure: Some(true),
                 ip_info: Some(IpInfo {
@@ -250,6 +252,7 @@ impl NetworkInterfaceInfo {
         lazy_static! {
             static ref LXCBR0: GatewayId = GatewayId::from(START9_BRIDGE_IFACE);
             static ref LXC_BRIDGE: NetworkInterfaceInfo = NetworkInterfaceInfo {
+                name: Some(InternedString::from_static("LXC Bridge Interface")),
                 public: Some(false),
                 secure: Some(true),
                 ip_info: Some(IpInfo {

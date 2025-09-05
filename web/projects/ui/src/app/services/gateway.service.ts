@@ -7,6 +7,7 @@ import { toSignal } from '@angular/core/rxjs-interop'
 
 export type GatewayPlus = T.NetworkInterfaceInfo & {
   id: string
+  name: string
   ipInfo: T.IpInfo
   subnets: utils.IpNet[]
   lanIpv4: string[]
@@ -25,16 +26,17 @@ export class GatewayService {
             .filter(([_, val]) => !!val?.ipInfo)
             .map(([id, val]) => {
               const subnets =
-                val?.ipInfo?.subnets.map(s => utils.IpNet.parse(s)) ?? []
+                val.ipInfo?.subnets.map(s => utils.IpNet.parse(s)) ?? []
+              const name = val.name ?? val.ipInfo!.name
               return {
                 ...val,
                 id,
+                name,
                 subnets,
                 lanIpv4: subnets.filter(s => s.isIpv4()).map(s => s.address),
-                public: val?.public ?? subnets.some(s => s.isPublic()),
+                public: val.public ?? subnets.some(s => s.isPublic()),
                 wanIp:
-                  val?.ipInfo?.wanIp &&
-                  utils.IpAddress.parse(val?.ipInfo?.wanIp),
+                  val.ipInfo?.wanIp && utils.IpAddress.parse(val.ipInfo?.wanIp),
               } as GatewayPlus
             }),
         ),

@@ -138,6 +138,7 @@ export const mockPatchData: DataModel = {
       },
       gateways: {
         eth0: {
+          name: null,
           public: null,
           secure: null,
           ipInfo: {
@@ -152,6 +153,7 @@ export const mockPatchData: DataModel = {
           },
         },
         wlan0: {
+          name: null,
           public: null,
           secure: null,
           ipInfo: {
@@ -169,10 +171,11 @@ export const mockPatchData: DataModel = {
           },
         },
         wireguard1: {
+          name: 'StartTunnel',
           public: null,
           secure: null,
           ipInfo: {
-            name: 'StartTunnel',
+            name: 'wireguard1',
             scopeId: 2,
             deviceType: 'wireguard',
             subnets: [

@@ -737,11 +737,12 @@ impl OnionService {
                                     ensure_code!(c.bootstrap_status().ready_for_traffic(), ErrorKind::Tor, "TorClient recycled");
                                     Ok::<_, Error>(*e)
                                 })?;
+                                let addr = key.onion_address();
                                 let (new_service, stream) = client.peek(|(_, c)| {
                                     c.launch_onion_service_with_hsid(
                                         OnionServiceConfigBuilder::default()
                                             .nickname(
-                                                key.onion_address()
+                                                addr
                                                     .to_string()
                                                     .trim_end_matches(".onion")
                                                     .parse::<HsNickname>()
@@ -754,9 +755,20 @@ impl OnionService {
                                     .with_kind(ErrorKind::Tor)
                                 })?;
                                 let mut status_stream = new_service.status_events();
+                                let mut status = new_service.status();
+                                if status.state().is_fully_reachable() {
+                                    tracing::debug!("{addr} is fully reachable");
+                                } else {
+                                    tracing::debug!("{addr} is not fully reachable");
+                                }
                                 bg.add_job(async move {
-                                    while let Some(status) = status_stream.next().await {
-                                        tracing::debug!("{status:?}");
+                                    while let Some(new_status) = status_stream.next().await {
+                                        if status.state().is_fully_reachable() && !new_status.state().is_fully_reachable() {
+                                            tracing::debug!("{addr} is no longer fully reachable");
+                                        } else if !status.state().is_fully_reachable() && new_status.state().is_fully_reachable() {
+                                            tracing::debug!("{addr} is now fully reachable");
+                                        }
+                                        status = new_status;
                                         // TODO: health daemon?
                                     }
                                 });

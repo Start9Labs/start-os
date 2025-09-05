@@ -30,7 +30,7 @@ import { GatewayPlus } from 'src/app/services/gateway.service'
   template: `
     @if (gateway(); as gateway) {
       <td class="name">
-        {{ gateway.ipInfo.name }}
+        {{ gateway.name }}
       </td>
       <td class="type">
         @if (gateway.ipInfo.deviceType; as type) {

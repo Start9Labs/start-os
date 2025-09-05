@@ -40,7 +40,7 @@ sudo chown 0:0 tmp/combined/lib/systemd/system/container-runtime.service
 sudo cp container-runtime-failure.service tmp/combined/lib/systemd/system/container-runtime-failure.service
 sudo chown 0:0 tmp/combined/lib/systemd/system/container-runtime-failure.service
 sudo cp ../core/target/$ARCH-unknown-linux-musl/release/containerbox tmp/combined/usr/bin/start-container
-echo -e '#!/bin/bash\nexec start-container $@' | sudo tee tmp/combined/usr/bin/start-cli # TODO: remove
+echo -e '#!/bin/bash\nexec start-container "$@"' | sudo tee tmp/combined/usr/bin/start-cli # TODO: remove
 sudo chmod +x tmp/combined/usr/bin/start-cli
 sudo chown 0:0 tmp/combined/usr/bin/start-container
 echo container-runtime | sha256sum | head -c 32 | cat - <(echo) | sudo tee tmp/combined/etc/machine-id

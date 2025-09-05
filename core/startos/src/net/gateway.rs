@@ -177,14 +177,14 @@ async fn forget_iface(
 #[ts(export)]
 struct RenameGatewayParams {
     id: GatewayId,
-    name: String,
+    name: InternedString,
 }
 
 async fn set_name(
     ctx: RpcContext,
     RenameGatewayParams { id, name }: RenameGatewayParams,
 ) -> Result<(), Error> {
-    ctx.net_controller.net_iface.set_name(&id, &name).await
+    ctx.net_controller.net_iface.set_name(&id, name).await
 }
 
 #[proxy(
@@ -698,12 +698,14 @@ async fn watch_ip(
 
                                         write_to.send_if_modified(
                                             |m: &mut OrdMap<GatewayId, NetworkInterfaceInfo>| {
-                                                let (public, secure) = m
-                                                    .get(&iface)
-                                                    .map_or((None, None), |i| (i.public, i.secure));
+                                                let (name, public, secure) =
+                                                    m.get(&iface).map_or((None, None, None), |i| {
+                                                        (i.name.clone(), i.public, i.secure)
+                                                    });
                                                 m.insert(
                                                     iface.clone(),
                                                     NetworkInterfaceInfo {
+                                                        name,
                                                         public,
                                                         secure,
                                                         ip_info: ip_info.clone(),
@@ -1116,61 +1118,21 @@ impl NetworkInterfaceController {
         Ok(())
     }
 
-    pub async fn set_name(&self, interface: &GatewayId, name: &str) -> Result<(), Error> {
-        let (dump, mut sub) = self
-            .db
-            .dump_and_sub(
-                "/public/serverInfo/network/gateways"
-                    .parse::<JsonPointer<_, _>>()
-                    .with_kind(ErrorKind::Database)?
-                    .join_end(interface.as_str())
-                    .join_end("ipInfo")
-                    .join_end("name"),
-            )
-            .await;
-        let change = dump.value.as_str().or_not_found(interface)? != name;
+    pub async fn set_name(&self, interface: &GatewayId, name: InternedString) -> Result<(), Error> {
+        self.db
+            .mutate(|db| {
+                db.as_public_mut()
+                    .as_server_info_mut()
+                    .as_network_mut()
+                    .as_gateways_mut()
+                    .as_idx_mut(interface)
+                    .or_not_found(interface)?
+                    .as_name_mut()
+                    .ser(&Some(name))
+            })
+            .await
+            .result?;
 
-        if !change {
-            return Ok(());
-        }
-
-        let connection = Connection::system().await?;
-
-        let netman_proxy = NetworkManagerProxy::new(&connection).await?;
-
-        let device = Some(
-            netman_proxy
-                .get_device_by_ip_iface(interface.as_str())
-                .await?,
-        )
-        .filter(|o| &**o != "/")
-        .or_not_found(lazy_format!("{interface} in NetworkManager"))?;
-
-        let device_proxy = DeviceProxy::new(&connection, device).await?;
-
-        let dac = Some(device_proxy.active_connection().await?)
-            .filter(|o| &**o != "/")
-            .or_not_found(lazy_format!("ActiveConnection for {interface}"))?;
-
-        let dac_proxy = active_connection::ActiveConnectionProxy::new(&connection, dac).await?;
-
-        let settings = Some(dac_proxy.connection().await?)
-            .filter(|o| &**o != "/")
-            .or_not_found(lazy_format!("ConnectionSettings for {interface}"))?;
-
-        let settings_proxy = ConnectionSettingsProxy::new(&connection, settings).await?;
-
-        let mut settings = settings_proxy.get_settings().await?;
-        settings.entry("connection".into()).or_default().insert(
-            "id".into(),
-            OwnedValue::from(zbus::zvariant::Str::from(name)),
-        );
-
-        settings_proxy
-            .update2(settings, 0x1, HashMap::new())
-            .await?;
-
-        sub.recv().await;
         Ok(())
     }
 }

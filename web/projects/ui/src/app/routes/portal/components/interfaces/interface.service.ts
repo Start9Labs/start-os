@@ -6,7 +6,7 @@ import { PublicDomain } from './public-domains/pd.service'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
 
 type AddressWithInfo = {
-  url: URL
+  url: string
   info: T.HostnameInfo
   gateway?: GatewayPlus
 }
@@ -30,7 +30,7 @@ function filterTor(a: AddressWithInfo): a is TorAddress {
 }
 function cmpTor(a: TorAddress, b: TorAddress): -1 | 0 | 1 {
   for (let [x, y, sign] of [[a, b, 1] as const, [b, a, -1] as const]) {
-    if (y.url.protocol === 'http:' && x.url.protocol === 'https:') return sign
+    if (y.url.startsWith('http:') && x.url.startsWith('https:')) return sign
   }
   return 0
 }
@@ -133,8 +133,8 @@ export class InterfaceService {
     if (!hostnamesInfos.length) return addresses
 
     const allAddressesWithInfo: AddressWithInfo[] = hostnamesInfos.flatMap(h =>
-      utils.addressHostToUrl(serviceInterface.addressInfo, h).map(a => ({
-        url: new URL(a),
+      utils.addressHostToUrl(serviceInterface.addressInfo, h).map(url => ({
+        url,
         info: h,
         gateway: gateways.find(g => h.kind === 'ip' && h.gatewayId === g.id),
       })),
@@ -151,7 +151,14 @@ export class InterfaceService {
       .filter(filterClearnet)
       .sort((a, b) => cmpClearnet(host, a, b))
 
-    let bestAddrs = [clearnetAddrs[0], lanAddrs[0], vpnAddrs[0], torAddrs[0]]
+    let bestAddrs = [
+      (clearnetAddrs[0]?.gateway?.public ||
+        clearnetAddrs[0]?.info.hostname.kind === 'domain') &&
+        clearnetAddrs[0],
+      lanAddrs[0],
+      vpnAddrs[0],
+      torAddrs[0],
+    ]
       .filter(a => !!a)
       .reduce((acc, x) => {
         if (!acc.includes(x)) acc.push(x)
@@ -333,7 +340,7 @@ export class InterfaceService {
         this.i18n.transform('Requires using a Tor-enabled device or browser'),
       ]
       // Tor (HTTPS)
-      if (url.protocol.startsWith('https')) {
+      if (url.startsWith('https:')) {
         type = `${type} (HTTPS)`
         bullets = [
           this.i18n.transform('Only useful for clients that enforce HTTPS'),
@@ -353,7 +360,7 @@ export class InterfaceService {
     } else {
       const port = info.hostname.sslPort || info.hostname.port
       const gateway = gateways.find(g => g.id === info.gatewayId)!
-      gatewayName = gateway.ipInfo.name
+      gatewayName = gateway.name
 
       const gatewayLanIpv4 = gateway.lanIpv4[0]
       const isWireguard = gateway.ipInfo.deviceType === 'wireguard'
@@ -474,7 +481,7 @@ export class InterfaceService {
     }
 
     return {
-      url: url.href,
+      url,
       access,
       gatewayName,
       type,

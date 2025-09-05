@@ -6,7 +6,7 @@ use std::time::{Duration, SystemTime};
 use clap::Parser;
 use futures::future::join_all;
 use helpers::NonDetachingJoinHandle;
-use imbl::{Vector, vector};
+use imbl::{vector, Vector};
 use imbl_value::InternedString;
 use models::{HostId, PackageId, ServiceInterfaceId};
 use serde::{Deserialize, Serialize};
@@ -264,7 +264,6 @@ impl CallbackHandler {
         }
     }
     pub async fn call(mut self, args: Vector<Value>) -> Result<(), Error> {
-        crate::dbg!(eyre!("callback fired: {}", self.handle.is_active()));
         if let Some(seed) = self.seed.upgrade() {
             seed.persistent_container
                 .callback(self.handle.take(), args)

@@ -1,16 +1,17 @@
 use clap::Parser;
 use imbl_value::InternedString;
 use models::GatewayId;
-use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
+use patch_db::json_ptr::JsonPointer;
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::public::NetworkInterfaceType;
+use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
 use crate::prelude::*;
+use crate::util::io::{write_file_atomic, TmpDir};
 use crate::util::Invoke;
-use crate::util::io::{TmpDir, write_file_atomic};
 
 pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -32,7 +33,6 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
 #[ts(export)]
 pub struct AddTunnelParams {
-    #[ts(type = "string")]
     name: InternedString,
     config: String,
     public: bool,
@@ -46,26 +46,46 @@ pub async fn add_tunnel(
         public,
     }: AddTunnelParams,
 ) -> Result<GatewayId, Error> {
-    let existing = ctx
-        .db
-        .peek()
-        .await
-        .into_public()
-        .into_server_info()
-        .into_network()
-        .into_gateways()
-        .keys()?;
+    let ifaces = ctx.net_controller.net_iface.watcher.subscribe();
     let mut iface = GatewayId::from("wg0");
-    for id in 1.. {
-        if !existing.contains(&iface) {
-            break;
+    if !ifaces.send_if_modified(|i| {
+        for id in 1..256 {
+            if !i.contains_key(&iface) {
+                i.insert(
+                    iface.clone(),
+                    NetworkInterfaceInfo {
+                        name: Some(name),
+                        public: Some(public),
+                        secure: None,
+                        ip_info: None,
+                    },
+                );
+                return true;
+            }
+            iface = InternedString::from_display(&lazy_format!("wg{id}")).into();
         }
-        iface = InternedString::from_display(&lazy_format!("wg{id}")).into();
+        false
+    }) {
+        return Err(Error::new(
+            eyre!("too many wireguard interfaces"),
+            ErrorKind::InvalidRequest,
+        ));
     }
+
+    let mut sub = ctx
+        .db
+        .subscribe(
+            "/public/serverInfo/network/gateways"
+                .parse::<JsonPointer>()
+                .with_kind(ErrorKind::Database)?
+                .join_end(iface.as_str())
+                .join_end("ipInfo"),
+        )
+        .await;
+
     let tmpdir = TmpDir::new().await?;
     let conf = tmpdir.join(&iface).with_extension("conf");
     write_file_atomic(&conf, &config).await?;
-    let mut ifaces = ctx.net_controller.net_iface.watcher.subscribe();
     Command::new("nmcli")
         .arg("connection")
         .arg("import")
@@ -77,14 +97,7 @@ pub async fn add_tunnel(
         .await?;
     tmpdir.delete().await?;
 
-    ifaces.wait_for(|ifaces| ifaces.contains_key(&iface)).await;
-
-    ctx.net_controller
-        .net_iface
-        .set_public(&iface, Some(public))
-        .await?;
-
-    ctx.net_controller.net_iface.set_name(&iface, &name).await?;
+    sub.recv().await;
 
     Ok(iface)
 }

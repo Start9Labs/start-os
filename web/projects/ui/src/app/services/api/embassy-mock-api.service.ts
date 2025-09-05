@@ -555,10 +555,11 @@ export class MockApiService extends ApiService {
         op: PatchOp.ADD,
         path: `/serverInfo/network/gateways/${id}`,
         value: {
+          name: params.name,
           public: params.public,
           secure: false,
           ipInfo: {
-            name: params.name,
+            name: id,
             scopeId: 3,
             deviceType: 'wireguard',
             subnets: ['192.168.1.10/24'],

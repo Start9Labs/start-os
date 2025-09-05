@@ -20,7 +20,7 @@ import { InterfaceComponent } from './interface.component'
     <header>{{ 'Gateways' | i18n }}</header>
     @for (gateway of gateways(); track $index) {
       <label tuiCell="s" [style.background]="">
-        <span tuiTitle [style.opacity]="1">{{ gateway.ipInfo.name }}</span>
+        <span tuiTitle [style.opacity]="1">{{ gateway.name }}</span>
         @if (!interface.packageId() && !gateway.public) {
           <tui-icon
             [tuiTooltip]="
