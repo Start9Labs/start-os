@@ -230,7 +230,7 @@ export const mockPatchData: DataModel = {
         },
       },
       s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
-      icon: '/assets/img/service-icons/bitcoind.svg',
+      icon: '/assets/img/service-icons/bitcoin-core.svg',
       lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
       status: {
         main: 'stopped',
@@ -593,15 +593,15 @@ export const mockPatchData: DataModel = {
       },
       currentDependencies: {
         bitcoind: {
-          title: 'Bitcoin Core',
-          icon: 'assets/img/service-icons/bitcoind.svg',
+          title: Mock.BitcoinDep.title,
+          icon: Mock.BitcoinDep.icon,
           kind: 'running',
           versionRange: '>=26.0.0',
           healthChecks: [],
         },
         'btc-rpc-proxy': {
-          title: 'Bitcoin Proxy',
-          icon: 'assets/img/service-icons/btc-rpc-proxy.png',
+          title: Mock.ProxyDep.title,
+          icon: Mock.ProxyDep.icon,
           kind: 'running',
           versionRange: '>2.0.0',
           healthChecks: [],

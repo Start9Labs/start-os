@@ -354,7 +354,7 @@ export namespace Mock {
   }
 
   export const BitcoinDep: T.DependencyMetadata = {
-    title: 'Bitcoin Core',
+    title: 'Bitcoin',
     icon: BTC_ICON,
     optional: false,
     description: 'Needed to run',
@@ -552,18 +552,8 @@ export namespace Mock {
             icon: LND_ICON,
             sourceVersion: null,
             dependencyMetadata: {
-              bitcoind: {
-                title: 'Bitcoin Core',
-                icon: BTC_ICON,
-                description: 'Used for RPC requests',
-                optional: false,
-              },
-              'btc-rpc-proxy': {
-                title: 'Bitcoin Proxy',
-                icon: PROXY_ICON,
-                description: 'Used for authorized proxying of RPC requests',
-                optional: true,
-              },
+              bitcoind: BitcoinDep,
+              'btc-rpc-proxy': ProxyDep,
             },
             donationUrl: null,
             alerts: {
@@ -610,18 +600,8 @@ export namespace Mock {
             icon: LND_ICON,
             sourceVersion: null,
             dependencyMetadata: {
-              bitcoind: {
-                title: 'Bitcoin Core',
-                icon: BTC_ICON,
-                description: 'Used for RPC requests',
-                optional: false,
-              },
-              'btc-rpc-proxy': {
-                title: 'Bitcoin Proxy',
-                icon: PROXY_ICON,
-                description: 'Used for authorized proxying of RPC requests',
-                optional: true,
-              },
+              bitcoind: BitcoinDep,
+              'btc-rpc-proxy': ProxyDep,
             },
             donationUrl: null,
             alerts: {
@@ -752,18 +732,8 @@ export namespace Mock {
           icon: LND_ICON,
           sourceVersion: null,
           dependencyMetadata: {
-            bitcoind: {
-              title: 'Bitcoin Core',
-              icon: BTC_ICON,
-              description: 'Used for RPC requests',
-              optional: false,
-            },
-            'btc-rpc-proxy': {
-              title: 'Bitcoin Proxy',
-              icon: null,
-              description: 'Used for authorized RPC requests',
-              optional: true,
-            },
+            bitcoind: BitcoinDep,
+            'btc-rpc-proxy': ProxyDep,
           },
           donationUrl: null,
           alerts: {
@@ -810,12 +780,7 @@ export namespace Mock {
           icon: PROXY_ICON,
           sourceVersion: null,
           dependencyMetadata: {
-            bitcoind: {
-              title: 'Bitcoin Core',
-              icon: BTC_ICON,
-              description: 'Used for RPC requests',
-              optional: false,
-            },
+            bitcoind: BitcoinDep,
           },
           donationUrl: null,
           alerts: {
@@ -1954,7 +1919,7 @@ export namespace Mock {
       manifest: MockManifestBitcoind,
     },
     s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
-    icon: '/assets/img/service-icons/bitcoind.svg',
+    icon: '/assets/img/service-icons/bitcoin-core.svg',
     lastBackup: null,
     status: {
       main: 'running',
@@ -2259,8 +2224,8 @@ export namespace Mock {
     },
     currentDependencies: {
       bitcoind: {
-        title: Mock.MockManifestBitcoind.title,
-        icon: 'assets/img/service-icons/bitcoind.svg',
+        title: BitcoinDep.title,
+        icon: BitcoinDep.icon,
         kind: 'running',
         versionRange: '>=26.0.0',
         healthChecks: [],
@@ -2356,8 +2321,8 @@ export namespace Mock {
     },
     currentDependencies: {
       bitcoind: {
-        title: Mock.MockManifestBitcoind.title,
-        icon: 'assets/img/service-icons/bitcoind.svg',
+        title: BitcoinDep.title,
+        icon: BitcoinDep.icon,
         kind: 'running',
         versionRange: '>=26.0.0',
         healthChecks: [],

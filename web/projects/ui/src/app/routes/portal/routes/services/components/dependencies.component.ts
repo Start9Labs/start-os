@@ -1,5 +1,5 @@
 import { KeyValuePipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { ChangeDetectionStrategy, Component, input } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
@@ -8,26 +8,39 @@ import { TuiCell } from '@taiga-ui/layout'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { PkgDependencyErrors } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { ToManifestPipe } from '../../../pipes/to-manifest'
 
 @Component({
   selector: 'service-dependencies',
   template: `
     <header>{{ 'Dependencies' | i18n }}</header>
-    @for (d of pkg.currentDependencies | keyvalue; track $index) {
+
+    @let services = this.services();
+
+    @for (d of pkg().currentDependencies | keyvalue; track $index) {
+      <!-- @TODO Alex Marketplace should use "search" query param to prefill search bar -->
       <a
         tuiCell
         [routerLink]="services[d.key] ? ['..', d.key] : ['/marketplace']"
-        [queryParams]="services[d.key] ? {} : { id: d.key }"
+        [queryParams]="services[d.key] ? {} : { search: d.key }"
         [class.error]="getError(d.key)"
       >
         <tui-avatar>
           <img
             alt=""
-            [src]="d.value.icon || 'assets/img/service-icons/fallback.png'"
+            [src]="
+              services[d.key]?.icon ||
+              d.value.icon ||
+              'assets/img/service-icons/fallback.png'
+            "
           />
         </tui-avatar>
         <span tuiTitle>
-          {{ d.value.title || d.key }}
+          {{
+            services[d.key]
+              ? (services[d.key]! | toManifest).title
+              : d.value.title || d.key
+          }}
           @if (getError(d.key); as error) {
             <span tuiSubtitle class="g-warning">
               {{ error | i18n }}
@@ -69,20 +82,16 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
     TuiIcon,
     PlaceholderComponent,
     i18nPipe,
+    ToManifestPipe,
   ],
 })
 export class ServiceDependenciesComponent {
-  @Input({ required: true })
-  pkg!: PackageDataEntry
-
-  @Input({ required: true })
-  services: Record<string, PackageDataEntry> = {}
-
-  @Input({ required: true })
-  errors: PkgDependencyErrors = {}
+  pkg = input.required<PackageDataEntry>()
+  services = input.required<Record<string, PackageDataEntry>>()
+  errors = input.required<PkgDependencyErrors>()
 
   getError(id: string): i18nKey | undefined {
-    const depError = this.errors[id]
+    const depError = this.errors()[id]
 
     if (!depError) {
       return undefined
@@ -107,7 +116,7 @@ export class ServiceDependenciesComponent {
   }
 
   getHealthCheckName(id: string) {
-    const depError = this.errors[id]
+    const depError = this.errors()[id]
     return depError?.type === 'healthChecksFailed'
       ? depError.check.name
       : undefined
