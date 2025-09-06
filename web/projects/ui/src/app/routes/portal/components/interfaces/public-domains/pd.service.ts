@@ -206,10 +206,12 @@ export class PublicDomainService {
       } else {
         setTimeout(
           () =>
-            this.dialog.openAlert(
-              `${fqdn} ${this.i18n.transform('resolves to')} ${wanIp}` as i18nKey,
-              { label: 'DNS record detected!', appearance: 'positive' },
-            ),
+            this.dialog
+              .openAlert(
+                `${fqdn} ${this.i18n.transform('resolves to')} ${wanIp}` as i18nKey,
+                { label: 'DNS record detected!', appearance: 'positive' },
+              )
+              .subscribe(),
           250,
         )
       }

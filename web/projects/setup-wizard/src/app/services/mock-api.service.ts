@@ -324,6 +324,10 @@ export class MockApiService extends ApiService {
   async exit(): Promise<void> {
     await pauseFor(1000)
   }
+
+  async restart(): Promise<void> {
+    await pauseFor(1000)
+  }
 }
 
 const rootCA = `-----BEGIN CERTIFICATE-----
