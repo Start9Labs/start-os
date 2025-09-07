@@ -38,10 +38,10 @@ import { NotificationsTableComponent } from './table.component'
           tuiDropdownAlign="right"
           [tuiDropdown]="dropdown"
           [tuiDropdownEnabled]="!!table.selected().length"
-          [style.margin-inline-start]="'auto'"
+          [style.margin-inline-start.rem]="0.5"
           [disabled]="!table.selected().length"
         >
-          {{ 'Batch action' | i18n }}
+          {{ 'Actions' | i18n }}
           <ng-template #dropdown let-close>
             <tui-data-list (click)="close()">
               <button
@@ -130,7 +130,7 @@ export default class NotificationsComponent implements OnInit {
     this.notifications.set(
       current.map(c => ({
         ...c,
-        read: toUpdate.some(n => n.id === c.id) || c.seen,
+        seen: toUpdate.some(n => n.id === c.id) || c.seen,
       })),
     )
 
@@ -144,7 +144,7 @@ export default class NotificationsComponent implements OnInit {
     this.notifications.set(
       current.map(c => ({
         ...c,
-        read: c.seen && !toUpdate.some(n => n.id === c.id),
+        seen: c.seen && !toUpdate.some(n => n.id === c.id),
       })),
     )
 

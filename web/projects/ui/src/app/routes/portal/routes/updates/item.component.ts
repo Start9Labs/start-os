@@ -287,7 +287,7 @@ export class UpdatesItemComponent {
   private async alert(): Promise<boolean> {
     return firstValueFrom(
       this.dialog
-        .openConfirm<boolean>({
+        .openConfirm({
           label: 'Warning',
           size: 's',
           data: {

@@ -216,7 +216,7 @@ export class ActionInputModal {
 
     return firstValueFrom(
       this.dialog
-        .openConfirm<boolean>({
+        .openConfirm({
           label: 'Warning',
           data: { content, yes: 'Continue', no: 'Cancel' },
         })

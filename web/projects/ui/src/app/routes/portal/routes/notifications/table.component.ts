@@ -41,7 +41,10 @@ import { i18nPipe } from '@start9labs/shared'
         @for (notification of notifications; track $index) {
           <tr
             [notificationItem]="notification"
-            [style.font-weight]="notification.seen ? 'normal' : 'bold'"
+            (longtap)="!selected().length && onToggle(notification)"
+            (click.capture)="
+              selected().length && onToggle(notification, $event)
+            "
           >
             <input
               tuiCheckbox
@@ -49,7 +52,8 @@ import { i18nPipe } from '@start9labs/shared'
               type="checkbox"
               [style.display]="'block'"
               [ngModel]="selected().includes(notification)"
-              (ngModelChange)="handleToggle(notification)"
+              (ngModelChange)="onToggle(notification)"
+              (click.stop)="(0)"
             />
           </tr>
         } @empty {
@@ -69,13 +73,17 @@ import { i18nPipe } from '@start9labs/shared'
     </tbody>
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
-
     :host-context(tui-root._mobile) {
       margin: 0 -1rem;
 
       input {
-        @include taiga.fullsize();
+        position: absolute;
+        top: 0.875rem;
+        left: 1rem;
+        z-index: 1;
+      }
+
+      :host:not(:has(:checked)) input {
         opacity: 0;
       }
     }
@@ -114,13 +122,13 @@ export class NotificationsTableComponent implements OnChanges {
     this.selected.set((selected && this.notifications) || [])
   }
 
-  handleToggle(notification: ServerNotification<number>) {
-    const selected = this.selected()
+  onToggle(notification: ServerNotification<number>, event?: Event) {
+    event?.stopPropagation()
 
-    if (selected.some(s => s.id === notification.id)) {
-      this.selected.set(selected.filter(s => s.id !== notification.id))
+    if (this.selected().some(s => s.id === notification.id)) {
+      this.selected.update(value => value.filter(s => s.id !== notification.id))
     } else {
-      this.selected.set([...selected, notification])
+      this.selected.update(value => [...value, notification])
     }
   }
 }
