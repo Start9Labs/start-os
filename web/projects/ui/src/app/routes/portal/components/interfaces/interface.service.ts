@@ -439,8 +439,14 @@ export class InterfaceService {
           access = 'public'
           bullets = [
             `${dnsFor} ${info.hostname.value} ${resolvesTo} ${gateway.ipInfo.wanIp}`,
-            `${portForwarding} "${gatewayName}": ${port} -> ${gateway.subnets.find(s => s.isIpv4())?.address}:${port === 443 ? 5443 : port}`,
           ]
+
+          if (!gateway.public) {
+            bullets.push(
+              `${portForwarding} "${gatewayName}": ${port} -> ${gateway.subnets.find(s => s.isIpv4())?.address}:${port === 443 ? 5443 : port}`,
+            )
+          }
+
           if (publicDomains[info.hostname.value]?.acme) {
             bullets.unshift(
               this.i18n.transform('Ideal for public access via the Internet'),
