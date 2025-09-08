@@ -31,10 +31,10 @@ import { StateService } from 'src/app/services/state.service'
 
 @Component({
   template: `
-    @if (!error()) {
+    @if (error(); as err) {
       <section>
         <h1>{{ 'Error initializing server' }}</h1>
-        <p>{{ 'err' }}</p>
+        <p>{{ err }}</p>
         <button tuiButton (click)="restart()">
           {{ 'Restart server' }}
         </button>
