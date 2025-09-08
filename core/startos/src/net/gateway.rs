@@ -685,7 +685,7 @@ async fn watch_ip(
                                         } else {
                                             None
                                         };
-                                        let ip_info = Some(IpInfo {
+                                        let mut ip_info = IpInfo {
                                             name: name.clone(),
                                             scope_id,
                                             device_type,
@@ -694,24 +694,33 @@ async fn watch_ip(
                                             wan_ip,
                                             ntp_servers,
                                             dns_servers,
-                                        });
+                                        };
 
                                         write_to.send_if_modified(
                                             |m: &mut OrdMap<GatewayId, NetworkInterfaceInfo>| {
-                                                let (name, public, secure) =
-                                                    m.get(&iface).map_or((None, None, None), |i| {
-                                                        (i.name.clone(), i.public, i.secure)
+                                                let (name, public, secure, prev_wan_ip) = m
+                                                    .get(&iface)
+                                                    .map_or((None, None, None, None), |i| {
+                                                        (
+                                                            i.name.clone(),
+                                                            i.public,
+                                                            i.secure,
+                                                            i.ip_info
+                                                                .as_ref()
+                                                                .and_then(|i| i.wan_ip),
+                                                        )
                                                     });
+                                                ip_info.wan_ip = ip_info.wan_ip.or(prev_wan_ip);
                                                 m.insert(
                                                     iface.clone(),
                                                     NetworkInterfaceInfo {
                                                         name,
                                                         public,
                                                         secure,
-                                                        ip_info: ip_info.clone(),
+                                                        ip_info: Some(ip_info.clone()),
                                                     },
                                                 )
-                                                .filter(|old| &old.ip_info == &ip_info)
+                                                .filter(|old| &old.ip_info == &Some(ip_info))
                                                 .is_none()
                                             },
                                         );
