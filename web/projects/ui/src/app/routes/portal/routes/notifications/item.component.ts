@@ -121,6 +121,7 @@ import { i18nPipe } from '@start9labs/shared'
         font-weight: bold;
         font-size: 1.2em;
         display: flex;
+        align-items: center;
         gap: 0.5rem;
       }
 

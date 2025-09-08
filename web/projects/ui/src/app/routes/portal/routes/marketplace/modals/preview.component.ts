@@ -4,17 +4,16 @@ import {
   Component,
   inject,
   input,
-  Input,
 } from '@angular/core'
 import { Router } from '@angular/router'
 import {
-  MarketplaceLinksComponent,
-  MarketplaceFlavorsComponent,
   MarketplaceAboutComponent,
   MarketplaceDependenciesComponent,
+  MarketplaceFlavorsComponent,
+  MarketplaceLinksComponent,
   MarketplacePackageHeroComponent,
-  MarketplaceVersionsComponent,
   MarketplaceReleaseNotesComponent,
+  MarketplaceVersionsComponent,
 } from '@start9labs/marketplace'
 import {
   DialogService,
@@ -28,10 +27,11 @@ import {
   combineLatest,
   filter,
   map,
+  shareReplay,
   startWith,
   switchMap,
+  take,
 } from 'rxjs'
-import { shareReplay, take, tap } from 'rxjs/operators'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { MarketplaceControlsComponent } from '../components/controls.component'
 
@@ -141,7 +141,6 @@ export class MarketplacePreviewComponent {
   readonly selectedVersion$ = new BehaviorSubject<string | null>(null)
 
   readonly pkg$ = combineLatest([this.selectedVersion$, this.flavor$]).pipe(
-    tap(console.error),
     switchMap(([version, flavor]) =>
       this.marketplaceService
         .getPackage$(this.pkgId(), version, flavor)
