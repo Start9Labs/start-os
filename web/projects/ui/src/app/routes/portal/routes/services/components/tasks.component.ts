@@ -56,11 +56,7 @@ export class ServiceTasksComponent {
         ...entry,
         task: { ...entry.task, replayId },
       }))
-      .filter(
-        t =>
-          this.services()[t.task.packageId]?.actions[t.task.actionId] &&
-          t.active,
-      )
+      .filter(t => t.active)
       .sort((a, b) => a.task.severity.localeCompare(b.task.severity)),
   )
 }

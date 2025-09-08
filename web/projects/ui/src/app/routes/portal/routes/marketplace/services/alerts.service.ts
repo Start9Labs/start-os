@@ -25,7 +25,7 @@ export class MarketplaceAlertsService {
 
     return new Promise(async resolve => {
       this.dialog
-        .openConfirm<boolean>({
+        .openConfirm({
           label: 'Warning',
           size: 's',
           data: {
@@ -48,7 +48,7 @@ export class MarketplaceAlertsService {
 
     return new Promise(async resolve => {
       this.dialog
-        .openConfirm<boolean>({
+        .openConfirm({
           label: 'Warning',
           size: 's',
           data: {
@@ -68,7 +68,7 @@ export class MarketplaceAlertsService {
       (!!content &&
         new Promise(resolve => {
           this.dialog
-            .openConfirm<boolean>({
+            .openConfirm({
               label: 'Alert',
               size: 's',
               data: {

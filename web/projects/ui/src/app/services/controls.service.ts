@@ -116,7 +116,7 @@ export class ControlsService {
   private alert(content: i18nKey): Promise<boolean> {
     return firstValueFrom(
       this.dialog
-        .openConfirm<boolean>({
+        .openConfirm({
           label: 'Warning',
           size: 's',
           data: {

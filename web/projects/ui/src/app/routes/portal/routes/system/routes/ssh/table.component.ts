@@ -29,7 +29,10 @@ import { SSHKey } from 'src/app/services/api/api.types'
         {{ 'Hostname' | i18n }}
       </th>
       @for (key of keys(); track $index) {
-        <tr (longtap)="!selected().length && onToggle(key)">
+        <tr
+          (longtap)="!selected().length && onToggle(key)"
+          (click)="selected().length && onToggle(key)"
+        >
           <td [style.padding-left.rem]="2.5">
             <input
               tuiCheckbox

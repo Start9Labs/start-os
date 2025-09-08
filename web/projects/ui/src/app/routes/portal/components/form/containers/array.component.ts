@@ -194,7 +194,7 @@ export class FormArrayComponent {
   add() {
     if (!this.warned && this.spec.warning) {
       this.dialog
-        .openConfirm<boolean>({
+        .openConfirm({
           label: 'Warning',
           size: 's',
           data: {

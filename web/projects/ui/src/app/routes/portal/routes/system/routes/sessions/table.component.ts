@@ -39,7 +39,10 @@ import { i18nPipe } from '@start9labs/shared'
         </th>
       }
       @for (session of sessions(); track $index) {
-        <tr (longtap)="!selected().length && onToggle(session)">
+        <tr
+          (longtap)="!selected().length && onToggle(session)"
+          (click)="selected().length && onToggle(session)"
+        >
           <td [style.padding-left.rem]="single() ? null : 2.5">
             @if (!single()) {
               <input

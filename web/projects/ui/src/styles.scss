@@ -81,6 +81,7 @@ hr {
   left: 1px;
   margin: 1px;
   width: 18rem;
+  flex-shrink: 0;
   padding: 0.5rem;
   text-transform: capitalize;
   box-shadow: 1px 0 var(--tui-border-normal);
