@@ -269,7 +269,7 @@ export class FileHelper<A> {
     eq: (left: B | null | undefined, right: B | null) => boolean,
     abort?: AbortSignal,
   ) {
-    let res
+    let prev: { value: B | null } | null = null
     while (effects.isInContext && !abort?.aborted) {
       if (await exists(this.path)) {
         const ctrl = new AbortController()
@@ -287,8 +287,10 @@ export class FileHelper<A> {
             }
           })
           .catch((e) => console.error(asError(e)))
-        if (!eq(res, newRes)) yield newRes
-        res = newRes
+        if (!prev || !eq(prev.value, newRes)) {
+          yield newRes
+        }
+        prev = { value: newRes }
         await listen
       } else {
         yield null
