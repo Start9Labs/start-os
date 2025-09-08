@@ -563,7 +563,7 @@ export default {
   597: 'der sich auflöst zu',
   598: 'Nicht empfohlen für VPN-Zugriff. VPNs unterstützen keine „.local“-Domains ohne erweiterte Konfiguration',
   599: 'Kann für Clearnet-Zugriff verwendet werden',
-  600: 'In den meisten Fällen nicht empfohlen. Clearnet-Domains werden bevorzugt',
+  600: 'In den meisten Fällen nicht empfohlen. Öffentliche Domains werden bevorzugt',
   601: 'Lokal',
   602: 'Kann für lokalen Zugriff verwendet werden',
   603: 'Ideal für öffentlichen Zugriff über das Internet',

@@ -563,7 +563,7 @@ export default {
   597: 'który rozwiązuje się na',
   598: 'Niezalecane do dostępu VPN. VPN-y nie obsługują domen „.local” bez zaawansowanej konfiguracji',
   599: 'Może być używane do dostępu do clearnet',
-  600: 'Niezalecane w większości przypadków. Preferowane są domeny clearnet',
+  600: 'Niezalecane w większości przypadków. Preferowane są domeny publiczne',
   601: 'Lokalne',
   602: 'Może być używane do dostępu lokalnego',
   603: 'Idealne do publicznego dostępu przez Internet',

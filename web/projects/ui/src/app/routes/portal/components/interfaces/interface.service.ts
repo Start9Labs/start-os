@@ -400,7 +400,7 @@ export class InterfaceService {
           bullets = [
             this.i18n.transform('Can be used for clearnet access'),
             this.i18n.transform(
-              'Not recommended in most cases. Clearnet domains are preferred',
+              'Not recommended in most cases. Public domains are preferred',
             ),
             rootCaRequired,
           ]

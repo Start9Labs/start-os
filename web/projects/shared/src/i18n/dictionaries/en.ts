@@ -562,7 +562,7 @@ export const ENGLISH = {
   'that resolves to': 597, // this is a partial sentence. It is preceded by "requires a DNS record for [domain] "
   'Not recommended for VPN access. VPNs do not support ".local" domains without advanced configuration': 598,
   'Can be used for clearnet access': 599,
-  'Not recommended in most cases. Clearnet domains are preferred': 600,
+  'Not recommended in most cases. Public domains are preferred': 600,
   'Local': 601, // as in, not remote
   'Can be used for local access': 602,
   'Ideal for public access via the Internet': 603,
