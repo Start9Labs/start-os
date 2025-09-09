@@ -22,12 +22,19 @@ impl<'a> DataUrl<'a> {
     pub const DEFAULT_MIME: &'static str = "application/octet-stream";
     pub const MAX_SIZE: u64 = 100 * 1024;
 
-    fn data_url_len_without_mime(&self) -> usize {
+    fn to_string(&self) -> String {
+        use std::fmt::Write;
+        let mut res = String::with_capacity(self.len());
+        write!(&mut res, "{self}").unwrap();
+        res
+    }
+
+    fn len_without_mime(&self) -> usize {
         5 + 8 + (4 * self.data.len() / 3) + 3
     }
 
-    pub fn data_url_len(&self) -> usize {
-        self.data_url_len_without_mime() + self.mime.len()
+    pub fn len(&self) -> usize {
+        self.len_without_mime() + self.mime.len()
     }
 
     pub fn from_slice(mime: &str, data: &'a [u8]) -> Self {
@@ -197,6 +204,6 @@ fn doesnt_reallocate() {
             mime: InternedString::intern("png"),
             data: Cow::Borrowed(&random[..i]),
         };
-        assert_eq!(icon.to_string().capacity(), icon.data_url_len());
+        assert_eq!(icon.to_string().capacity(), icon.len());
     }
 }
