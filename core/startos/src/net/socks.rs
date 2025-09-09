@@ -1,5 +1,6 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::Arc;
+use std::time::Duration;
 
 use helpers::NonDetachingJoinHandle;
 use socks5_impl::protocol::{Address, Reply};
@@ -22,15 +23,21 @@ pub struct SocksController {
 }
 impl SocksController {
     pub fn new(listen: SocketAddr, tor: TorController) -> Result<Self, Error> {
-        let auth: AuthAdaptor<()> = Arc::new(NoAuth);
-        let listener = TcpListener::from_std(
-            mio::net::TcpListener::bind(listen)
-                .with_kind(ErrorKind::Network)?
-                .into(),
-        )
-        .with_kind(ErrorKind::Network)?;
         Ok(Self {
             _thread: tokio::spawn(async move {
+                let auth: AuthAdaptor<()> = Arc::new(NoAuth);
+                let listener;
+                loop {
+                    if let Some(l) = TcpListener::bind(listen)
+                        .await
+                        .with_kind(ErrorKind::Network)
+                        .log_err()
+                    {
+                        listener = l;
+                        break;
+                    }
+                    tokio::time::sleep(Duration::from_secs(1)).await;
+                }
                 let (bg, mut runner) = BackgroundJobQueue::new();
                 runner
                     .run_while(async {

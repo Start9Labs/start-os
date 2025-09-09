@@ -10,15 +10,14 @@ use josekit::jwk::Jwk;
 use patch_db::PatchDb;
 use rpc_toolkit::Context;
 use serde::{Deserialize, Serialize};
-use tokio::sync::OnceCell;
 use tokio::sync::broadcast::Sender;
+use tokio::sync::OnceCell;
 use tracing::instrument;
 use ts_rs::TS;
 
-use crate::MAIN_DATA;
 use crate::account::AccountInfo;
-use crate::context::RpcContext;
 use crate::context::config::ServerConfig;
+use crate::context::RpcContext;
 use crate::disk::OsPartitionInfo;
 use crate::hostname::Hostname;
 use crate::net::web_server::{UpgradableListener, WebServer, WebServerAcceptorSetter};
@@ -28,6 +27,7 @@ use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::setup::SetupProgress;
 use crate::shutdown::Shutdown;
 use crate::util::net::WebSocketExt;
+use crate::MAIN_DATA;
 
 lazy_static::lazy_static! {
     pub static ref CURRENT_SECRET: Jwk = Jwk::generate_ec_key(josekit::jwk::alg::ec::EcCurve::P256).unwrap_or_else(|e| {
@@ -86,6 +86,8 @@ impl SetupContext {
         config: &ServerConfig,
     ) -> Result<Self, Error> {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
+        let mut progress = FullProgressTracker::new();
+        progress.enable_logging(true);
         Ok(Self(Arc::new(SetupContextSeed {
             webserver: webserver.acceptor_setter(),
             config: config.clone(),
@@ -96,7 +98,7 @@ impl SetupContext {
                 )
             })?,
             disable_encryption: config.disable_encryption.unwrap_or(false),
-            progress: FullProgressTracker::new(),
+            progress,
             task: OnceCell::new(),
             result: OnceCell::new(),
             disk_guid: OnceCell::new(),

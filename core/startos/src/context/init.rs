@@ -6,10 +6,10 @@ use tokio::sync::broadcast::Sender;
 use tokio::sync::watch;
 use tracing::instrument;
 
-use crate::Error;
 use crate::context::config::ServerConfig;
 use crate::progress::FullProgressTracker;
 use crate::rpc_continuations::RpcContinuations;
+use crate::Error;
 
 pub struct InitContextSeed {
     pub config: ServerConfig,
@@ -25,10 +25,12 @@ impl InitContext {
     #[instrument(skip_all)]
     pub async fn init(cfg: &ServerConfig) -> Result<Self, Error> {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
+        let mut progress = FullProgressTracker::new();
+        progress.enable_logging(true);
         Ok(Self(Arc::new(InitContextSeed {
             config: cfg.clone(),
             error: watch::channel(None).0,
-            progress: FullProgressTracker::new(),
+            progress,
             shutdown,
             rpc_continuations: RpcContinuations::new(),
         })))
