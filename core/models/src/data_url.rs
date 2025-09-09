@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 use std::path::Path;
+use std::str::FromStr;
 
 use base64::Engine;
 use color_eyre::eyre::eyre;
@@ -14,21 +15,12 @@ use crate::{mime, Error, ErrorKind, ResultExt};
 #[derive(Clone, TS)]
 #[ts(type = "string")]
 pub struct DataUrl<'a> {
-    mime: InternedString,
-    data: Cow<'a, [u8]>,
+    pub mime: InternedString,
+    pub data: Cow<'a, [u8]>,
 }
 impl<'a> DataUrl<'a> {
     pub const DEFAULT_MIME: &'static str = "application/octet-stream";
     pub const MAX_SIZE: u64 = 100 * 1024;
-
-    // data:{mime};base64,{data}
-    pub fn to_string(&self) -> String {
-        use std::fmt::Write;
-        let mut res = String::with_capacity(self.data_url_len_without_mime() + self.mime.len());
-        let _ = write!(res, "data:{};base64,", self.mime);
-        base64::engine::general_purpose::STANDARD.encode_string(&self.data, &mut res);
-        res
-    }
 
     fn data_url_len_without_mime(&self) -> usize {
         5 + 8 + (4 * self.data.len() / 3) + 3
@@ -43,6 +35,10 @@ impl<'a> DataUrl<'a> {
             mime: InternedString::intern(mime),
             data: Cow::Borrowed(data),
         }
+    }
+
+    pub fn canonical_ext(&self) -> Option<&'static str> {
+        mime::unmime(&self.mime)
     }
 }
 impl DataUrl<'static> {
@@ -109,12 +105,57 @@ impl DataUrl<'static> {
     }
 }
 
+impl<'a> std::fmt::Display for DataUrl<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "data:{};base64,{}",
+            self.mime,
+            base64::display::Base64Display::new(
+                &*self.data,
+                &base64::engine::general_purpose::STANDARD
+            )
+        )
+    }
+}
 impl<'a> std::fmt::Debug for DataUrl<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.to_string())
+        std::fmt::Display::fmt(self, f)
     }
 }
 
+#[derive(Debug)]
+pub struct DataUrlParseError;
+impl std::fmt::Display for DataUrlParseError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "invalid base64 url")
+    }
+}
+impl std::error::Error for DataUrlParseError {}
+impl From<DataUrlParseError> for Error {
+    fn from(e: DataUrlParseError) -> Self {
+        Error::new(e, ErrorKind::ParseUrl)
+    }
+}
+
+impl FromStr for DataUrl<'static> {
+    type Err = DataUrlParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.strip_prefix("data:")
+            .and_then(|v| v.split_once(";base64,"))
+            .and_then(|(mime, data)| {
+                Some(DataUrl {
+                    mime: InternedString::intern(mime),
+                    data: Cow::Owned(
+                        base64::engine::general_purpose::STANDARD
+                            .decode(data)
+                            .ok()?,
+                    ),
+                })
+            })
+            .ok_or(DataUrlParseError)
+    }
+}
 impl<'de> Deserialize<'de> for DataUrl<'static> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -130,21 +171,9 @@ impl<'de> Deserialize<'de> for DataUrl<'static> {
             where
                 E: serde::de::Error,
             {
-                v.strip_prefix("data:")
-                    .and_then(|v| v.split_once(";base64,"))
-                    .and_then(|(mime, data)| {
-                        Some(DataUrl {
-                            mime: InternedString::intern(mime),
-                            data: Cow::Owned(
-                                base64::engine::general_purpose::STANDARD
-                                    .decode(data)
-                                    .ok()?,
-                            ),
-                        })
-                    })
-                    .ok_or_else(|| {
-                        E::invalid_value(serde::de::Unexpected::Str(v), &"a valid base64 data url")
-                    })
+                v.parse().map_err(|_| {
+                    E::invalid_value(serde::de::Unexpected::Str(v), &"a valid base64 data url")
+                })
             }
         }
         deserializer.deserialize_any(Visitor)
