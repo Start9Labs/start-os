@@ -173,18 +173,18 @@ impl<T: Eq> EqSet<T> {
 
     /// Retains only the elements specified by the predicate.
     ///
-    /// In other words, remove all pairs `(k, v)` for which `f(&k, &mut v)` returns `false`.
-    /// The elements are visited in ascending value order.
+    /// In other words, remove all elements `x` for which `f(&x)` returns `false`.
+    /// The elements are visited in order.
     ///
     /// # Examples
     ///
     /// ```
     /// use startos::util::collections::EqSet;
     ///
-    /// let mut set: EqSet<(i32, i32)> = (0..8).map(|x| (x, x*10)).collect();
+    /// let mut set: EqSet<i32> = (0..8).collect();
     /// // Keep only the elements with even-numbered values.
-    /// set.retain(|(&k, _)| k % 2 == 0);
-    /// assert!(set.into_iter().eq(vec![(0, 0), (2, 20), (4, 40), (6, 60)]));
+    /// set.retain(|x| *x % 2 == 0);
+    /// assert!(set.into_iter().eq(vec![0, 2, 4, 6]));
     /// ```
     #[inline]
     pub fn retain<F>(&mut self, f: F)

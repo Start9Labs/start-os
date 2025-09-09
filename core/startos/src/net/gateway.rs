@@ -25,7 +25,7 @@ use tokio::sync::oneshot;
 use ts_rs::TS;
 use zbus::proxy::{PropertyChanged, PropertyStream, SignalStream};
 use zbus::zvariant::{
-    self, DeserializeDict, Dict, OwnedObjectPath, OwnedValue, Type as ZType, Value as ZValue,
+    DeserializeDict, Dict, OwnedObjectPath, OwnedValue, Type as ZType, Value as ZValue,
 };
 use zbus::{proxy, Connection};
 
@@ -1128,19 +1128,31 @@ impl NetworkInterfaceController {
     }
 
     pub async fn set_name(&self, interface: &GatewayId, name: InternedString) -> Result<(), Error> {
-        self.db
-            .mutate(|db| {
-                db.as_public_mut()
-                    .as_server_info_mut()
-                    .as_network_mut()
-                    .as_gateways_mut()
-                    .as_idx_mut(interface)
-                    .or_not_found(interface)?
-                    .as_name_mut()
-                    .ser(&Some(name))
-            })
-            .await
-            .result?;
+        let mut sub = self
+            .db
+            .subscribe(
+                "/public/serverInfo/network/gateways"
+                    .parse::<JsonPointer<_, _>>()
+                    .with_kind(ErrorKind::Database)?
+                    .join_end(interface.as_str())
+                    .join_end("name"),
+            )
+            .await;
+        let changed = self.watcher.ip_info.send_if_modified(|i| {
+            i.get_mut(interface)
+                .map(|i| {
+                    if i.name.as_ref() != Some(&name) {
+                        i.name = Some(name);
+                        true
+                    } else {
+                        false
+                    }
+                })
+                .unwrap_or(false)
+        });
+        if changed {
+            sub.recv().await;
+        }
 
         Ok(())
     }
