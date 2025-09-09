@@ -177,7 +177,8 @@ export class MarketplacePreviewComponent {
   )
 
   open(id: string) {
-    this.router.navigate([], { queryParams: { id } })
+    // @TODO re-engage when button can link to root with search QP
+    // this.router.navigate([], { queryParams: { id } })
   }
 
   onStatic() {

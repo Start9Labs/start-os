@@ -49,10 +49,11 @@ import { MarketplacePkgBase } from '../../../types'
       filter: drop-shadow(0 10px 8px rgb(0 0 0 / 0.04))
         drop-shadow(0 4px 3px rgb(0 0 0 / 0.1));
 
-      &:hover {
-        background-color: rgb(63 63 70 / 0.7);
-        cursor: pointer;
-      }
+      // @TODO re-engage when button can link to root with search QP
+      // &:hover {
+      //   background-color: rgb(63 63 70 / 0.7);
+      //   cursor: pointer;
+      // }
     }
 
     .title {
