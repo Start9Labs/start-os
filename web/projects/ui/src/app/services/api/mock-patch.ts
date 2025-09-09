@@ -221,292 +221,292 @@ export const mockPatchData: DataModel = {
     kiosk: true,
   },
   packageData: {
-    // bitcoind: {
-    //   stateInfo: {
-    //     state: 'installed',
-    //     manifest: {
-    //       ...Mock.MockManifestBitcoind,
-    //       version: '0.20.0:0-alpha.1',
-    //     },
-    //   },
-    //   s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
-    //   icon: '/assets/img/service-icons/bitcoin-core.svg',
-    //   lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
-    //   status: {
-    //     main: 'stopped',
-    //   },
-    //   // status: {
-    //   //   main: 'error',
-    //   //   message: 'Bitcoin is erroring out',
-    //   //   debug: 'This is a complete stack trace for bitcoin',
-    //   //   onRebuild: 'start',
-    //   // },
-    //   actions: {
-    //     config: {
-    //       name: 'Set Config',
-    //       description: 'edit bitcoin.conf, <b>soo cool!</b>',
-    //       warning: null,
-    //       visibility: 'enabled',
-    //       allowedStatuses: 'any',
-    //       hasInput: true,
-    //       group: null,
-    //     },
-    //     rpc: {
-    //       name: 'Set RPC',
-    //       description: 'Create RPC Credentials',
-    //       warning: null,
-    //       visibility: 'enabled',
-    //       allowedStatuses: 'any',
-    //       hasInput: true,
-    //       group: null,
-    //     },
-    //     properties: {
-    //       name: 'View Properties',
-    //       description: 'view important information about Bitcoin',
-    //       warning: null,
-    //       visibility: 'hidden',
-    //       allowedStatuses: 'any',
-    //       hasInput: false,
-    //       group: null,
-    //     },
-    //     test: {
-    //       name: 'Do Another Thing',
-    //       description:
-    //         'An example of an action that shows a warning and takes no input',
-    //       warning: 'careful running this action',
-    //       visibility: { disabled: 'This is temporarily disabled' },
-    //       allowedStatuses: 'only-running',
-    //       hasInput: false,
-    //       group: null,
-    //     },
-    //   },
-    //   serviceInterfaces: {
-    //     ui: {
-    //       id: 'ui',
-    //       masked: false,
-    //       name: 'Web UI',
-    //       description:
-    //         'A launchable web app for you to interact with your Bitcoin node',
-    //       type: 'ui',
-    //       addressInfo: {
-    //         username: null,
-    //         hostId: 'abcdefg',
-    //         internalPort: 80,
-    //         scheme: 'http',
-    //         sslScheme: 'https',
-    //         suffix: '',
-    //       },
-    //     },
-    //     rpc: {
-    //       id: 'rpc',
-    //       masked: false,
-    //       name: 'RPC',
-    //       description:
-    //         'Used by dependent services and client wallets for connecting to your node',
-    //       type: 'api',
-    //       addressInfo: {
-    //         username: null,
-    //         hostId: 'bcdefgh',
-    //         internalPort: 8332,
-    //         scheme: 'http',
-    //         sslScheme: 'https',
-    //         suffix: '',
-    //       },
-    //     },
-    //     p2p: {
-    //       id: 'p2p',
-    //       masked: false,
-    //       name: 'P2P',
-    //       description:
-    //         'Used for connecting to other nodes on the Bitcoin network',
-    //       type: 'p2p',
-    //       addressInfo: {
-    //         username: null,
-    //         hostId: 'cdefghi',
-    //         internalPort: 8333,
-    //         scheme: 'bitcoin',
-    //         sslScheme: null,
-    //         suffix: '',
-    //       },
-    //     },
-    //   },
-    //   currentDependencies: {},
-    //   hosts: {
-    //     abcdefg: {
-    //       bindings: {
-    //         80: {
-    //           enabled: true,
-    //           net: {
-    //             assignedPort: 80,
-    //             assignedSslPort: 443,
-    //             publicEnabled: [],
-    //             privateDisabled: [],
-    //           },
-    //           options: {
-    //             addSsl: null,
-    //             preferredExternalPort: 443,
-    //             secure: { ssl: true },
-    //           },
-    //         },
-    //       },
-    //       publicDomains: {},
-    //       privateDomains: [],
-    //       onions: [],
-    //       hostnameInfo: {
-    //         80: [
-    //           {
-    //             kind: 'ip',
-    //             gatewayId: 'eth0',
-    //             public: false,
-    //             hostname: {
-    //               kind: 'local',
-    //               value: 'adjective-noun.local',
-    //               port: null,
-    //               sslPort: 1234,
-    //             },
-    //           },
-    //           {
-    //             kind: 'ip',
-    //             gatewayId: 'wlan0',
-    //             public: false,
-    //             hostname: {
-    //               kind: 'local',
-    //               value: 'adjective-noun.local',
-    //               port: null,
-    //               sslPort: 1234,
-    //             },
-    //           },
-    //           {
-    //             kind: 'ip',
-    //             gatewayId: 'eth0',
-    //             public: false,
-    //             hostname: {
-    //               kind: 'ipv4',
-    //               value: '10.0.0.1',
-    //               port: null,
-    //               sslPort: 1234,
-    //             },
-    //           },
-    //           {
-    //             kind: 'ip',
-    //             gatewayId: 'wlan0',
-    //             public: false,
-    //             hostname: {
-    //               kind: 'ipv4',
-    //               value: '10.0.0.2',
-    //               port: null,
-    //               sslPort: 1234,
-    //             },
-    //           },
-    //           {
-    //             kind: 'ip',
-    //             gatewayId: 'eth0',
-    //             public: false,
-    //             hostname: {
-    //               kind: 'ipv6',
-    //               value: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
-    //               scopeId: 2,
-    //               port: null,
-    //               sslPort: 1234,
-    //             },
-    //           },
-    //           {
-    //             kind: 'ip',
-    //             gatewayId: 'wlan0',
-    //             public: false,
-    //             hostname: {
-    //               kind: 'ipv6',
-    //               value: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
-    //               scopeId: 3,
-    //               port: null,
-    //               sslPort: 1234,
-    //             },
-    //           },
-    //           {
-    //             kind: 'onion',
-    //             hostname: {
-    //               value: 'bitcoin-p2p.onion',
-    //               port: 80,
-    //               sslPort: 443,
-    //             },
-    //           },
-    //         ],
-    //       },
-    //     },
-    //     bcdefgh: {
-    //       bindings: {
-    //         8332: {
-    //           enabled: true,
-    //           net: {
-    //             assignedPort: 8332,
-    //             assignedSslPort: null,
-    //             publicEnabled: [],
-    //             privateDisabled: [],
-    //           },
-    //           options: {
-    //             addSsl: null,
-    //             preferredExternalPort: 8332,
-    //             secure: { ssl: false },
-    //           },
-    //         },
-    //       },
-    //       publicDomains: {},
-    //       privateDomains: [],
-    //       onions: [],
-    //       hostnameInfo: {
-    //         8332: [],
-    //       },
-    //     },
-    //     cdefghi: {
-    //       bindings: {
-    //         8333: {
-    //           enabled: true,
-    //           net: {
-    //             assignedPort: 8333,
-    //             assignedSslPort: null,
-    //             publicEnabled: [],
-    //             privateDisabled: [],
-    //           },
-    //           options: {
-    //             addSsl: null,
-    //             preferredExternalPort: 8333,
-    //             secure: { ssl: false },
-    //           },
-    //         },
-    //       },
-    //       publicDomains: {},
-    //       privateDomains: [],
-    //       onions: [],
-    //       hostnameInfo: {
-    //         8333: [],
-    //       },
-    //     },
-    //   },
-    //   storeExposedDependents: [],
-    //   registry: 'https://registry.start9.com/',
-    //   developerKey: 'developer-key',
-    //   tasks: {
-    //     // 'bitcoind-config': {
-    //     //   task: {
-    //     //     packageId: 'bitcoind',
-    //     //     actionId: 'config',
-    //     //     severity: 'critical',
-    //     //     reason:
-    //     //       'You must run Config before starting Bitcoin for the first time',
-    //     //   },
-    //     //   active: true,
-    //     // },
-    //     'bitcoind-properties': {
-    //       task: {
-    //         packageId: 'bitcoind',
-    //         actionId: 'properties',
-    //         severity: 'important',
-    //         reason: 'Check out all the info about your Bitcoin node',
-    //       },
-    //       active: true,
-    //     },
-    //   },
-    // },
+    bitcoind: {
+      stateInfo: {
+        state: 'installed',
+        manifest: {
+          ...Mock.MockManifestBitcoind,
+          version: '0.20.0:0-alpha.1',
+        },
+      },
+      s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
+      icon: '/assets/img/service-icons/bitcoin-core.svg',
+      lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
+      status: {
+        main: 'stopped',
+      },
+      // status: {
+      //   main: 'error',
+      //   message: 'Bitcoin is erroring out',
+      //   debug: 'This is a complete stack trace for bitcoin',
+      //   onRebuild: 'start',
+      // },
+      actions: {
+        config: {
+          name: 'Set Config',
+          description: 'edit bitcoin.conf, <b>soo cool!</b>',
+          warning: null,
+          visibility: 'enabled',
+          allowedStatuses: 'any',
+          hasInput: true,
+          group: null,
+        },
+        rpc: {
+          name: 'Set RPC',
+          description: 'Create RPC Credentials',
+          warning: null,
+          visibility: 'enabled',
+          allowedStatuses: 'any',
+          hasInput: true,
+          group: null,
+        },
+        properties: {
+          name: 'View Properties',
+          description: 'view important information about Bitcoin',
+          warning: null,
+          visibility: 'hidden',
+          allowedStatuses: 'any',
+          hasInput: false,
+          group: null,
+        },
+        test: {
+          name: 'Do Another Thing',
+          description:
+            'An example of an action that shows a warning and takes no input',
+          warning: 'careful running this action',
+          visibility: { disabled: 'This is temporarily disabled' },
+          allowedStatuses: 'only-running',
+          hasInput: false,
+          group: null,
+        },
+      },
+      serviceInterfaces: {
+        ui: {
+          id: 'ui',
+          masked: false,
+          name: 'Web UI',
+          description:
+            'A launchable web app for you to interact with your Bitcoin node',
+          type: 'ui',
+          addressInfo: {
+            username: null,
+            hostId: 'abcdefg',
+            internalPort: 80,
+            scheme: 'http',
+            sslScheme: 'https',
+            suffix: '',
+          },
+        },
+        rpc: {
+          id: 'rpc',
+          masked: false,
+          name: 'RPC',
+          description:
+            'Used by dependent services and client wallets for connecting to your node',
+          type: 'api',
+          addressInfo: {
+            username: null,
+            hostId: 'bcdefgh',
+            internalPort: 8332,
+            scheme: 'http',
+            sslScheme: 'https',
+            suffix: '',
+          },
+        },
+        p2p: {
+          id: 'p2p',
+          masked: false,
+          name: 'P2P',
+          description:
+            'Used for connecting to other nodes on the Bitcoin network',
+          type: 'p2p',
+          addressInfo: {
+            username: null,
+            hostId: 'cdefghi',
+            internalPort: 8333,
+            scheme: 'bitcoin',
+            sslScheme: null,
+            suffix: '',
+          },
+        },
+      },
+      currentDependencies: {},
+      hosts: {
+        abcdefg: {
+          bindings: {
+            80: {
+              enabled: true,
+              net: {
+                assignedPort: 80,
+                assignedSslPort: 443,
+                publicEnabled: [],
+                privateDisabled: [],
+              },
+              options: {
+                addSsl: null,
+                preferredExternalPort: 443,
+                secure: { ssl: true },
+              },
+            },
+          },
+          publicDomains: {},
+          privateDomains: [],
+          onions: [],
+          hostnameInfo: {
+            80: [
+              {
+                kind: 'ip',
+                gatewayId: 'eth0',
+                public: false,
+                hostname: {
+                  kind: 'local',
+                  value: 'adjective-noun.local',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                gatewayId: 'wlan0',
+                public: false,
+                hostname: {
+                  kind: 'local',
+                  value: 'adjective-noun.local',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                gatewayId: 'eth0',
+                public: false,
+                hostname: {
+                  kind: 'ipv4',
+                  value: '10.0.0.1',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                gatewayId: 'wlan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv4',
+                  value: '10.0.0.2',
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                gatewayId: 'eth0',
+                public: false,
+                hostname: {
+                  kind: 'ipv6',
+                  value: 'fe80::cd00:0000:0cde:1257:0000:211e:72cd',
+                  scopeId: 2,
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'ip',
+                gatewayId: 'wlan0',
+                public: false,
+                hostname: {
+                  kind: 'ipv6',
+                  value: 'fe80::cd00:0000:0cde:1257:0000:211e:1234',
+                  scopeId: 3,
+                  port: null,
+                  sslPort: 1234,
+                },
+              },
+              {
+                kind: 'onion',
+                hostname: {
+                  value: 'bitcoin-p2p.onion',
+                  port: 80,
+                  sslPort: 443,
+                },
+              },
+            ],
+          },
+        },
+        bcdefgh: {
+          bindings: {
+            8332: {
+              enabled: true,
+              net: {
+                assignedPort: 8332,
+                assignedSslPort: null,
+                publicEnabled: [],
+                privateDisabled: [],
+              },
+              options: {
+                addSsl: null,
+                preferredExternalPort: 8332,
+                secure: { ssl: false },
+              },
+            },
+          },
+          publicDomains: {},
+          privateDomains: [],
+          onions: [],
+          hostnameInfo: {
+            8332: [],
+          },
+        },
+        cdefghi: {
+          bindings: {
+            8333: {
+              enabled: true,
+              net: {
+                assignedPort: 8333,
+                assignedSslPort: null,
+                publicEnabled: [],
+                privateDisabled: [],
+              },
+              options: {
+                addSsl: null,
+                preferredExternalPort: 8333,
+                secure: { ssl: false },
+              },
+            },
+          },
+          publicDomains: {},
+          privateDomains: [],
+          onions: [],
+          hostnameInfo: {
+            8333: [],
+          },
+        },
+      },
+      storeExposedDependents: [],
+      registry: 'https://registry.start9.com/',
+      developerKey: 'developer-key',
+      tasks: {
+        // 'bitcoind-config': {
+        //   task: {
+        //     packageId: 'bitcoind',
+        //     actionId: 'config',
+        //     severity: 'critical',
+        //     reason:
+        //       'You must run Config before starting Bitcoin for the first time',
+        //   },
+        //   active: true,
+        // },
+        'bitcoind-properties': {
+          task: {
+            packageId: 'bitcoind',
+            actionId: 'properties',
+            severity: 'important',
+            reason: 'Check out all the info about your Bitcoin node',
+          },
+          active: true,
+        },
+      },
+    },
     lnd: {
       stateInfo: {
         state: 'installed',
