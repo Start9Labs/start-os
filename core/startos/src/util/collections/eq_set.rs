@@ -181,7 +181,7 @@ impl<T: Eq> EqSet<T> {
     /// ```
     /// use startos::util::collections::EqSet;
     ///
-    /// let mut set: EqSet<(i32, i32)> = (0..8).set(|x| (x, x*10)).collect();
+    /// let mut set: EqSet<(i32, i32)> = (0..8).map(|x| (x, x*10)).collect();
     /// // Keep only the elements with even-numbered values.
     /// set.retain(|&k, _| k % 2 == 0);
     /// assert!(set.into_iter().eq(vec![(0, 0), (2, 20), (4, 40), (6, 60)]));
@@ -246,7 +246,7 @@ impl<T: Eq> EqSet<T> {
     // /// ```
     // /// use startos::util::collections::EqSet;
     // ///
-    // /// let mut set: EqSet<i32, i32> = (0..8).set(|x| (x, x)).collect();
+    // /// let mut set: EqSet<(i32, i32)> = (0..8).map(|x| (x, x)).collect();
     // /// let evens: EqSet<_, _> = set.extract_if(|k, _v| k % 2 == 0).collect();
     // /// let odds = set;
     // /// assert_eq!(evens.values().copied().collect::<Vec<_>>(), [0, 2, 4, 6]);
