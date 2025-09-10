@@ -59,7 +59,7 @@ export const mockPatchData: DataModel = {
           80: [
             {
               kind: 'ip',
-              gatewayId: 'eth0',
+              gateway: { id: 'eth0', name: 'Ethernet', public: false },
               public: false,
               hostname: {
                 kind: 'local',
@@ -70,7 +70,7 @@ export const mockPatchData: DataModel = {
             },
             {
               kind: 'ip',
-              gatewayId: 'wlan0',
+              gateway: { id: 'wlan0', name: 'Wireless', public: false },
               public: false,
               hostname: {
                 kind: 'local',
@@ -81,7 +81,7 @@ export const mockPatchData: DataModel = {
             },
             {
               kind: 'ip',
-              gatewayId: 'eth0',
+              gateway: { id: 'eth0', name: 'Ethernet', public: false },
               public: false,
               hostname: {
                 kind: 'ipv4',
@@ -92,7 +92,7 @@ export const mockPatchData: DataModel = {
             },
             {
               kind: 'ip',
-              gatewayId: 'wlan0',
+              gateway: { id: 'wlan0', name: 'Wireless', public: false },
               public: false,
               hostname: {
                 kind: 'ipv4',
@@ -103,7 +103,7 @@ export const mockPatchData: DataModel = {
             },
             {
               kind: 'ip',
-              gatewayId: 'eth0',
+              gateway: { id: 'eth0', name: 'Ethernet', public: false },
               public: false,
               hostname: {
                 kind: 'ipv6',
@@ -115,7 +115,7 @@ export const mockPatchData: DataModel = {
             },
             {
               kind: 'ip',
-              gatewayId: 'wlan0',
+              gateway: { id: 'wlan0', name: 'Wireless', public: false },
               public: false,
               hostname: {
                 kind: 'ipv6',
@@ -356,7 +356,7 @@ export const mockPatchData: DataModel = {
             80: [
               {
                 kind: 'ip',
-                gatewayId: 'eth0',
+                gateway: { id: 'eth0', name: 'Ethernet', public: false },
                 public: false,
                 hostname: {
                   kind: 'local',
@@ -367,7 +367,7 @@ export const mockPatchData: DataModel = {
               },
               {
                 kind: 'ip',
-                gatewayId: 'wlan0',
+                gateway: { id: 'wlan0', name: 'Wireless', public: false },
                 public: false,
                 hostname: {
                   kind: 'local',
@@ -378,7 +378,7 @@ export const mockPatchData: DataModel = {
               },
               {
                 kind: 'ip',
-                gatewayId: 'eth0',
+                gateway: { id: 'eth0', name: 'Ethernet', public: false },
                 public: false,
                 hostname: {
                   kind: 'ipv4',
@@ -389,7 +389,7 @@ export const mockPatchData: DataModel = {
               },
               {
                 kind: 'ip',
-                gatewayId: 'wlan0',
+                gateway: { id: 'wlan0', name: 'Wireless', public: false },
                 public: false,
                 hostname: {
                   kind: 'ipv4',
@@ -400,7 +400,7 @@ export const mockPatchData: DataModel = {
               },
               {
                 kind: 'ip',
-                gatewayId: 'eth0',
+                gateway: { id: 'eth0', name: 'Ethernet', public: false },
                 public: false,
                 hostname: {
                   kind: 'ipv6',
@@ -412,7 +412,7 @@ export const mockPatchData: DataModel = {
               },
               {
                 kind: 'ip',
-                gatewayId: 'wlan0',
+                gateway: { id: 'wlan0', name: 'Wireless', public: false },
                 public: false,
                 hostname: {
                   kind: 'ipv6',

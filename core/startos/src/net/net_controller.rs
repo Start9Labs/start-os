@@ -24,7 +24,7 @@ use crate::net::gateway::{
 use crate::net::host::address::HostAddress;
 use crate::net::host::binding::{AddSslOptions, BindId, BindOptions};
 use crate::net::host::{host_for, Host, Hosts};
-use crate::net::service_interface::{HostnameInfo, IpHostname, OnionHostname};
+use crate::net::service_interface::{GatewayInfo, HostnameInfo, IpHostname, OnionHostname};
 use crate::net::socks::SocksController;
 use crate::net::tor::{OnionAddress, TorController, TorSecretKey};
 use crate::net::utils::ipv6_is_local;
@@ -427,10 +427,19 @@ impl NetServiceData {
                 }
                 let mut bind_hostname_info: Vec<HostnameInfo> =
                     hostname_info.remove(port).unwrap_or_default();
-                for (interface, info) in net_ifaces
+                for (gateway_id, info) in net_ifaces
                     .iter()
                     .filter(|(id, info)| bind.net.filter(id, info))
                 {
+                    let gateway = GatewayInfo {
+                        id: gateway_id.clone(),
+                        name: info
+                            .name
+                            .clone()
+                            .or_else(|| info.ip_info.as_ref().map(|i| i.name.clone()))
+                            .unwrap_or_else(|| gateway_id.clone().into()),
+                        public: info.public(),
+                    };
                     let port = bind.net.assigned_port.filter(|_| {
                         bind.options.secure.map_or(false, |s| {
                             !(s.ssl && bind.options.add_ssl.is_some()) || info.secure()
@@ -442,7 +451,7 @@ impl NetServiceData {
                         })
                     {
                         bind_hostname_info.push(HostnameInfo::Ip {
-                            gateway_id: interface.clone(),
+                            gateway: gateway.clone(),
                             public: false,
                             hostname: IpHostname::Local {
                                 value: InternedString::from_display(&{
@@ -462,7 +471,8 @@ impl NetServiceData {
                         } = address
                         {
                             let private = private && !info.public();
-                            let public = public.as_ref().map_or(false, |p| &p.gateway == interface);
+                            let public =
+                                public.as_ref().map_or(false, |p| &p.gateway == gateway_id);
                             if public || private {
                                 if bind
                                     .options
@@ -471,7 +481,7 @@ impl NetServiceData {
                                     .map_or(false, |ssl| ssl.preferred_external_port == 443)
                                 {
                                     bind_hostname_info.push(HostnameInfo::Ip {
-                                        gateway_id: interface.clone(),
+                                        gateway: gateway.clone(),
                                         public,
                                         hostname: IpHostname::Domain {
                                             value: address.clone(),
@@ -481,7 +491,7 @@ impl NetServiceData {
                                     });
                                 } else {
                                     bind_hostname_info.push(HostnameInfo::Ip {
-                                        gateway_id: interface.clone(),
+                                        gateway: gateway.clone(),
                                         public,
                                         hostname: IpHostname::Domain {
                                             value: address.clone(),
@@ -497,7 +507,7 @@ impl NetServiceData {
                         let public = info.public();
                         if let Some(wan_ip) = ip_info.wan_ip {
                             bind_hostname_info.push(HostnameInfo::Ip {
-                                gateway_id: interface.clone(),
+                                gateway: gateway.clone(),
                                 public: true,
                                 hostname: IpHostname::Ipv4 {
                                     value: wan_ip,
@@ -511,7 +521,7 @@ impl NetServiceData {
                                 IpNet::V4(net) => {
                                     if !public {
                                         bind_hostname_info.push(HostnameInfo::Ip {
-                                            gateway_id: interface.clone(),
+                                            gateway: gateway.clone(),
                                             public,
                                             hostname: IpHostname::Ipv4 {
                                                 value: net.addr(),
@@ -523,7 +533,7 @@ impl NetServiceData {
                                 }
                                 IpNet::V6(net) => {
                                     bind_hostname_info.push(HostnameInfo::Ip {
-                                        gateway_id: interface.clone(),
+                                        gateway: gateway.clone(),
                                         public: public && !ipv6_is_local(net.addr()),
                                         hostname: IpHostname::Ipv6 {
                                             value: net.addr(),
