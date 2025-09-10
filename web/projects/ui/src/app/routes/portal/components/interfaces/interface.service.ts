@@ -321,7 +321,6 @@ export class InterfaceService {
     let gatewayName: DisplayAddress['gatewayName']
     let type: DisplayAddress['type']
     let bullets: any[]
-    // let bullets: DisplayAddress['bullets']
 
     const rootCaRequired = this.i18n.transform(
       "Requires trusting your server's Root CA",
@@ -354,7 +353,9 @@ export class InterfaceService {
             'Ideal for anonymous, censorship-resistant hosting and remote access',
           ),
         )
-        type = `${type} (HTTP)`
+        if (url.startsWith('http:')) {
+          type = `${type} (HTTP)`
+        }
       }
       // ** Not Tor **
     } else {
