@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 
 use super::{FileSystem, MountType};
-use crate::util::Invoke;
 use crate::Error;
+use crate::util::Invoke;
 
 pub async fn mount_httpdirfs(url: &Url, mountpoint: impl AsRef<Path>) -> Result<(), Error> {
     tokio::fs::create_dir_all(mountpoint.as_ref()).await?;

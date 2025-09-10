@@ -15,12 +15,12 @@ use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeek, AsyncSeekExt, BufReader, ReadBuf};
 use tracing::instrument;
 
-use super::header::{FileSection, Header, TableOfContents};
 use super::SIG_CONTEXT;
+use super::header::{FileSection, Header, TableOfContents};
 use crate::prelude::*;
 use crate::s9pk::v1::docker::DockerReader;
-use crate::util::io::open_file;
 use crate::util::VersionString;
+use crate::util::io::open_file;
 
 #[pin_project::pin_project]
 #[derive(Debug)]

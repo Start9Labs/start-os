@@ -7,15 +7,10 @@ import {
   ViewChild,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import { TuiButton } from '@taiga-ui/core'
-import {
-  TuiInputModule,
-  TuiTextfieldComponent,
-  TuiTextfieldControllerModule,
-} from '@taiga-ui/legacy'
-import { QrCodeModule } from 'ng-qrcode'
-import { SingleResult } from './types'
 import { i18nPipe } from '@start9labs/shared'
+import { TuiButton, TuiTextfield, TuiTextfieldDirective } from '@taiga-ui/core'
+import { QrCodeComponent } from 'ng-qrcode'
+import { SingleResult } from './types'
 
 @Component({
   selector: 'app-action-success-single',
@@ -23,19 +18,14 @@ import { i18nPipe } from '@start9labs/shared'
     @if (single.qr) {
       <p class="qr"><ng-container *ngTemplateOutlet="qr" /></p>
     }
-    <tui-input
-      [readOnly]="true"
-      [ngModel]="single.value"
-      [tuiTextfieldLabelOutside]="true"
-      [tuiTextfieldCustomContent]="actions"
-    >
+    <tui-textfield>
       <input
-        tuiTextfieldLegacy
+        tuiTextfield
+        [readOnly]="true"
+        [ngModel]="single.value"
         [style.border-inline-end-width.rem]="border"
         [type]="single.masked && masked ? 'password' : 'text'"
       />
-    </tui-input>
-    <ng-template #actions>
       @if (single.masked) {
         <button
           tuiIconButton
@@ -64,7 +54,7 @@ import { i18nPipe } from '@start9labs/shared'
           {{ 'Copy' | i18n }}
         </button>
       }
-    </ng-template>
+    </tui-textfield>
     <ng-template #qr>
       <qr-code
         [value]="single.value"
@@ -100,15 +90,14 @@ import { i18nPipe } from '@start9labs/shared'
   imports: [
     CommonModule,
     FormsModule,
-    TuiInputModule,
-    TuiTextfieldControllerModule,
+    TuiTextfield,
     TuiButton,
-    QrCodeModule,
+    QrCodeComponent,
     i18nPipe,
   ],
 })
 export class ActionSuccessSingleComponent {
-  @ViewChild(TuiTextfieldComponent, { read: ElementRef })
+  @ViewChild(TuiTextfieldDirective, { read: ElementRef })
   private readonly input!: ElementRef<HTMLInputElement>
 
   @Input()

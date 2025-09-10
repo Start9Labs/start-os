@@ -10,9 +10,9 @@ import { I18N, i18nKey } from './i18n.providers'
 export class i18nPipe implements PipeTransform {
   private readonly i18n = inject(I18N)
 
-  transform(englishKey: i18nKey | null | undefined): string | undefined {
-    return englishKey
-      ? this.i18n()?.[ENGLISH[englishKey as i18nKey]] || englishKey
-      : undefined
+  transform(englishKey: i18nKey | null | undefined): string {
+    englishKey = englishKey || ('' as i18nKey)
+
+    return this.i18n()?.[ENGLISH[englishKey]] || englishKey
   }
 }

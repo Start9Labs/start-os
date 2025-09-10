@@ -3,15 +3,16 @@ use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 
 use clap::Parser;
+use imbl_value::InternedString;
 use reqwest::Url;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
+use crate::MAIN_DATA;
 use crate::disk::OsPartitionInfo;
 use crate::prelude::*;
 use crate::util::serde::IoFormat;
 use crate::version::VersionT;
-use crate::MAIN_DATA;
 
 pub const DEVICE_CONFIG_PATH: &str = "/media/startos/config/config.yaml"; // "/media/startos/config/config.yaml";
 pub const CONFIG_PATH: &str = "/etc/startos/config.yaml";
@@ -55,7 +56,6 @@ pub trait ContextConfig: DeserializeOwned + Default {
 #[derive(Debug, Default, Deserialize, Serialize, Parser)]
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]
-#[command(name = "start-cli")]
 #[command(version = crate::version::Current::default().semver().to_string())]
 pub struct ClientConfig {
     #[arg(short = 'c', long)]
@@ -64,8 +64,18 @@ pub struct ClientConfig {
     pub host: Option<Url>,
     #[arg(short = 'r', long)]
     pub registry: Option<Url>,
+    #[arg(long)]
+    pub registry_hostname: Option<InternedString>,
+    #[arg(skip)]
+    pub registry_listen: Option<SocketAddr>,
+    #[arg(short = 't', long)]
+    pub tunnel: Option<SocketAddr>,
+    #[arg(skip)]
+    pub tunnel_listen: Option<SocketAddr>,
     #[arg(short = 'p', long)]
     pub proxy: Option<Url>,
+    #[arg(skip)]
+    pub socks_listen: Option<SocketAddr>,
     #[arg(long)]
     pub cookie_path: Option<PathBuf>,
     #[arg(long)]
@@ -78,6 +88,8 @@ impl ContextConfig for ClientConfig {
     fn merge_with(&mut self, other: Self) {
         self.host = self.host.take().or(other.host);
         self.registry = self.registry.take().or(other.registry);
+        self.registry_hostname = self.registry_hostname.take().or(other.registry_hostname);
+        self.tunnel = self.tunnel.take().or(other.tunnel);
         self.proxy = self.proxy.take().or(other.proxy);
         self.cookie_path = self.cookie_path.take().or(other.cookie_path);
         self.developer_key_path = self.developer_key_path.take().or(other.developer_key_path);
@@ -104,15 +116,15 @@ pub struct ServerConfig {
     #[arg(skip)]
     pub os_partitions: Option<OsPartitionInfo>,
     #[arg(long)]
-    pub tor_control: Option<SocketAddr>,
-    #[arg(long)]
-    pub tor_socks: Option<SocketAddr>,
+    pub socks_listen: Option<SocketAddr>,
     #[arg(long)]
     pub revision_cache_size: Option<usize>,
     #[arg(long)]
     pub disable_encryption: Option<bool>,
     #[arg(long)]
     pub multi_arch_s9pks: Option<bool>,
+    #[arg(long)]
+    pub developer_key_path: Option<PathBuf>,
 }
 impl ContextConfig for ServerConfig {
     fn next(&mut self) -> Option<PathBuf> {
@@ -121,14 +133,14 @@ impl ContextConfig for ServerConfig {
     fn merge_with(&mut self, other: Self) {
         self.ethernet_interface = self.ethernet_interface.take().or(other.ethernet_interface);
         self.os_partitions = self.os_partitions.take().or(other.os_partitions);
-        self.tor_control = self.tor_control.take().or(other.tor_control);
-        self.tor_socks = self.tor_socks.take().or(other.tor_socks);
+        self.socks_listen = self.socks_listen.take().or(other.socks_listen);
         self.revision_cache_size = self
             .revision_cache_size
             .take()
             .or(other.revision_cache_size);
         self.disable_encryption = self.disable_encryption.take().or(other.disable_encryption);
         self.multi_arch_s9pks = self.multi_arch_s9pks.take().or(other.multi_arch_s9pks);
+        self.developer_key_path = self.developer_key_path.take().or(other.developer_key_path);
     }
 }
 

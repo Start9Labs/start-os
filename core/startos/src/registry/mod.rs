@@ -3,16 +3,16 @@ use std::collections::{BTreeMap, BTreeSet};
 use axum::Router;
 use futures::future::ready;
 use models::DataUrl;
-use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler, Server};
+use rpc_toolkit::{Context, HandlerExt, ParentHandler, Server, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::middleware::cors::Cors;
+use crate::middleware::signature::SignatureAuth;
 use crate::net::static_server::{bad_request, not_found, server_error};
 use crate::net::web_server::{Accept, WebServer};
 use crate::prelude::*;
-use crate::registry::auth::Auth;
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfoMiddleware;
 use crate::registry::os::index::OsIndex;
@@ -23,7 +23,6 @@ use crate::util::serde::HandlerExtSerde;
 
 pub mod admin;
 pub mod asset;
-pub mod auth;
 pub mod context;
 pub mod db;
 pub mod device_info;
@@ -95,7 +94,7 @@ pub fn registry_router(ctx: RegistryContext) -> Router {
             any(
                 Server::new(move || ready(Ok(ctx.clone())), registry_api())
                     .middleware(Cors::new())
-                    .middleware(Auth::new())
+                    .middleware(SignatureAuth::new())
                     .middleware(DeviceInfoMiddleware::new()),
             )
         })

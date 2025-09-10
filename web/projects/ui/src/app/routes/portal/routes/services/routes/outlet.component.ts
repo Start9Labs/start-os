@@ -31,47 +31,71 @@ const INACTIVE: PrimaryStatus[] = [
 @Component({
   template: `
     @if (service()) {
-      <div *title class="title">
-        <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
-        <div routerLink="./" class="m-header">
-          <tui-avatar size="xs" [style.margin-inline-end.rem]="0.75">
-            <img alt="" [src]="service()?.icon" />
-          </tui-avatar>
-          <span tuiFade>{{ manifest()?.title }}</span>
-        </div>
+      <div
+        *title
+        class="title"
+        tabindex="-1"
+        [style.--background]="'url(' + service()?.icon + ')'"
+      >
+        <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+          {{ 'Back' | i18n }}
+        </a>
+        <tui-avatar size="xs" [style.margin-inline-end.rem]="0.75">
+          <img alt="" [src]="service()?.icon" />
+        </tui-avatar>
+        <span tuiFade>{{ manifest()?.title }}</span>
       </div>
       <aside class="g-aside">
         <header tuiCell routerLink="./">
           <tui-avatar><img alt="" [src]="service()?.icon" /></tui-avatar>
           <span tuiTitle>
             <strong tuiFade>{{ manifest()?.title }}</strong>
-            <span tuiSubtitle [style.textTransform]="'none'">
-              {{ manifest()?.version }}
-            </span>
+            <span tuiSubtitle>{{ manifest()?.version }}</span>
           </span>
         </header>
         <nav [attr.inert]="isInactive() ? '' : null">
           @for (item of nav; track $index) {
-            <a
-              tuiCell
-              tuiAppearance="action-grayscale"
-              routerLinkActive="active"
-              [routerLinkActiveOptions]="{ exact: true }"
-              [routerLink]="item.title === 'dashboard' ? './' : item.title"
-            >
-              <tui-icon [icon]="item.icon" />
-              <span tuiTitle>{{ item.title | i18n }}</span>
-              @if (item.title === 'dashboard') {
-                <a routerLink="interface" routerLinkActive="active"></a>
-              }
-            </a>
+            @if (item.title === 'Documentation') {
+              <a
+                tuiCell
+                tuiAppearance="action-grayscale"
+                [href]="manifest()?.docsUrl"
+                target="_blank"
+                noreferrer
+              >
+                <tui-icon [icon]="item.icon" />
+                <span tuiTitle>
+                  <span>
+                    {{ item.title | i18n }}
+                  </span>
+                </span>
+                <tui-icon icon="@tui.external-link" [style.font-size.rem]="1" />
+              </a>
+            } @else {
+              <a
+                tuiCell
+                tuiAppearance="action-grayscale"
+                routerLinkActive="active"
+                [routerLinkActiveOptions]="{ exact: true }"
+                [routerLink]="item.title === 'dashboard' ? './' : item.title"
+              >
+                <tui-icon [icon]="item.icon" />
+                <span tuiTitle>{{ item.title | i18n }}</span>
+                @if (item.title === 'dashboard') {
+                  <a routerLink="interface" routerLinkActive="active"></a>
+                }
+              </a>
+            }
           }
         </nav>
       </aside>
     }
     <router-outlet />
   `,
-  host: { class: 'g-page' },
+  host: {
+    class: 'g-page',
+    '[style.--background]': '"url(" + service()?.icon + ")"',
+  },
   styles: `
     :host {
       display: flex;
@@ -88,9 +112,31 @@ const INACTIVE: PrimaryStatus[] = [
       }
     }
 
+    [tuiSubtitle] {
+      text-transform: lowercase;
+    }
+
     header {
-      margin: 0 -0.5rem;
+      margin: -0.5rem -0.5rem 0;
+      padding-top: 1rem;
+      border-radius: 0;
       cursor: pointer;
+      box-shadow: 0 -1px rgba(255, 255, 255, 0.1);
+    }
+
+    header::before,
+    .title::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--background);
+      background-size: 1px;
+      mask: linear-gradient(to bottom, black, transparent);
+      opacity: 0.2;
+    }
+
+    .title::before {
+      mask: linear-gradient(to bottom right, black, transparent);
     }
 
     nav[inert] a:not(:first-child) {
@@ -108,11 +154,6 @@ const INACTIVE: PrimaryStatus[] = [
       [tuiTitle] {
         font-weight: bold;
       }
-    }
-
-    .m-header {
-      cursor: pointer;
-      display: flex;
     }
 
     :host-context(tui-root._mobile) {
@@ -150,7 +191,8 @@ const INACTIVE: PrimaryStatus[] = [
             box-shadow: none;
           }
 
-          [tuiTitle] {
+          [tuiTitle],
+          tui-icon:last-child {
             display: none;
           }
         }
@@ -178,9 +220,10 @@ export class ServiceOutletComponent {
 
   protected readonly nav: { title: i18nKey; icon: string }[] = [
     { title: 'dashboard', icon: '@tui.layout-dashboard' },
-    { title: 'actions', icon: '@tui.clapperboard' },
+    { title: 'actions', icon: '@tui.file-terminal' },
     { title: 'logs', icon: '@tui.logs' },
     { title: 'about', icon: '@tui.info' },
+    { title: 'Documentation', icon: '@tui.book-open-text' },
   ]
 
   protected readonly service = toSignal(

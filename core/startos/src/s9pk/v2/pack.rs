@@ -6,7 +6,7 @@ use clap::Parser;
 use futures::future::{ready, BoxFuture};
 use futures::{FutureExt, TryStreamExt};
 use imbl_value::InternedString;
-use models::{ImageId, PackageId, VersionString};
+use models::{DataUrl, ImageId, PackageId, VersionString};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::OnceCell;
@@ -15,7 +15,7 @@ use tracing::{debug, warn};
 use ts_rs::TS;
 
 use crate::context::CliContext;
-use crate::dependencies::DependencyMetadata;
+use crate::dependencies::{DependencyMetadata, MetadataSrc};
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
 use crate::s9pk::git_hash::GitHash;
@@ -147,8 +147,6 @@ pub struct PackParams {
     pub icon: Option<PathBuf>,
     #[arg(long)]
     pub license: Option<PathBuf>,
-    #[arg(long)]
-    pub instructions: Option<PathBuf>,
     #[arg(long, conflicts_with = "no-assets")]
     pub assets: Option<PathBuf>,
     #[arg(long, conflicts_with = "assets")]
@@ -239,12 +237,6 @@ impl PackParams {
                 )
                 .await?
         }
-    }
-    fn instructions(&self) -> PathBuf {
-        self.instructions
-            .as_ref()
-            .cloned()
-            .unwrap_or_else(|| self.path().join("instructions.md"))
     }
     fn assets(&self) -> PathBuf {
         self.assets
@@ -705,53 +697,77 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
 
     let mut to_insert = Vec::new();
     for (id, dependency) in &mut s9pk.as_manifest_mut().dependencies.0 {
-        if let Some(s9pk) = dependency.s9pk.take() {
-            let s9pk = match s9pk {
-                PathOrUrl::Path(path) => {
-                    S9pk::deserialize(&MultiCursorFile::from(open_file(path).await?), None)
-                        .await?
-                        .into_dyn()
-                }
-                PathOrUrl::Url(url) => {
-                    if url.scheme() == "http" || url.scheme() == "https" {
-                        S9pk::deserialize(
-                            &Arc::new(HttpSource::new(ctx.client.clone(), url).await?),
-                            None,
-                        )
-                        .await?
-                        .into_dyn()
-                    } else {
-                        return Err(Error::new(
-                            eyre!("unknown scheme: {}", url.scheme()),
-                            ErrorKind::InvalidRequest,
-                        ));
+        if let Some((title, icon)) = match dependency.metadata.take() {
+            Some(MetadataSrc::Metadata(metadata)) => {
+                let icon = match metadata.icon {
+                    PathOrUrl::Path(path) => DataUrl::from_path(path).await?,
+                    PathOrUrl::Url(url) => {
+                        if url.scheme() == "http" || url.scheme() == "https" {
+                            DataUrl::from_response(ctx.client.get(url).send().await?).await?
+                        } else if url.scheme() == "data" {
+                            url.as_str().parse()?
+                        } else {
+                            return Err(Error::new(
+                                eyre!("unknown scheme: {}", url.scheme()),
+                                ErrorKind::InvalidRequest,
+                            ));
+                        }
                     }
-                }
-            };
+                };
+                Some((metadata.title, icon))
+            }
+            Some(MetadataSrc::S9pk(Some(s9pk))) => {
+                let s9pk = match s9pk {
+                    PathOrUrl::Path(path) => {
+                        S9pk::deserialize(&MultiCursorFile::from(open_file(path).await?), None)
+                            .await?
+                            .into_dyn()
+                    }
+                    PathOrUrl::Url(url) => {
+                        if url.scheme() == "http" || url.scheme() == "https" {
+                            S9pk::deserialize(
+                                &Arc::new(HttpSource::new(ctx.client.clone(), url).await?),
+                                None,
+                            )
+                            .await?
+                            .into_dyn()
+                        } else {
+                            return Err(Error::new(
+                                eyre!("unknown scheme: {}", url.scheme()),
+                                ErrorKind::InvalidRequest,
+                            ));
+                        }
+                    }
+                };
+                Some((
+                    s9pk.as_manifest().title.clone(),
+                    s9pk.icon_data_url().await?,
+                ))
+            }
+            Some(MetadataSrc::S9pk(None)) | None => {
+                warn!("no metadata specified for {id}, leaving metadata empty");
+                None
+            }
+        } {
             let dep_path = Path::new("dependencies").join(id);
             to_insert.push((
                 dep_path.join("metadata.json"),
                 Entry::file(TmpSource::new(
                     tmp_dir.clone(),
                     PackSource::Buffered(
-                        IoFormat::Json
-                            .to_vec(&DependencyMetadata {
-                                title: s9pk.as_manifest().title.clone(),
-                            })?
-                            .into(),
+                        IoFormat::Json.to_vec(&DependencyMetadata { title })?.into(),
                     ),
                 )),
             ));
-            let icon = s9pk.icon().await?;
             to_insert.push((
-                dep_path.join(&*icon.0),
+                dep_path
+                    .join("icon")
+                    .with_extension(icon.canonical_ext().unwrap_or("ico")),
                 Entry::file(TmpSource::new(
                     tmp_dir.clone(),
-                    PackSource::Buffered(icon.1.expect_file()?.to_vec(icon.1.hash()).await?.into()),
+                    PackSource::Buffered(icon.data.into_owned().into()),
                 )),
             ));
-        } else {
-            warn!("no s9pk specified for {id}, leaving metadata empty");
         }
     }
     for (path, source) in to_insert {
@@ -797,24 +813,23 @@ pub async fn list_ingredients(_: CliContext, params: PackParams) -> Result<Vec<P
         Err(e) => {
             warn!("failed to load manifest: {e}");
             debug!("{e:?}");
-            return Ok(vec![
-                js_path,
-                params.icon().await?,
-                params.license().await?,
-                params.instructions(),
-            ]);
+            return Ok(vec![js_path, params.icon().await?, params.license().await?]);
         }
     };
-    let mut ingredients = vec![
-        js_path,
-        params.icon().await?,
-        params.license().await?,
-        params.instructions(),
-    ];
+    let mut ingredients = vec![js_path, params.icon().await?, params.license().await?];
 
     for (_, dependency) in manifest.dependencies.0 {
-        if let Some(PathOrUrl::Path(p)) = dependency.s9pk {
-            ingredients.push(p);
+        match dependency.metadata {
+            Some(MetadataSrc::Metadata(crate::dependencies::Metadata {
+                icon: PathOrUrl::Path(icon),
+                ..
+            })) => {
+                ingredients.push(icon);
+            }
+            Some(MetadataSrc::S9pk(Some(PathOrUrl::Path(s9pk)))) => {
+                ingredients.push(s9pk);
+            }
+            _ => (),
         }
     }
 

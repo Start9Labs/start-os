@@ -63,3 +63,29 @@ impl Future for BackgroundJobRunner {
         }
     }
 }
+impl BackgroundJobRunner {
+    pub fn run_while<Fut: Future + Send>(
+        &mut self,
+        fut: Fut,
+    ) -> impl Future<Output = Fut::Output> + Send {
+        #[pin_project::pin_project]
+        struct RunWhile<'a, Fut> {
+            #[pin]
+            runner: &'a mut BackgroundJobRunner,
+            #[pin]
+            fut: Fut,
+        }
+        impl<'a, Fut: Future> Future for RunWhile<'a, Fut> {
+            type Output = Fut::Output;
+            fn poll(
+                self: std::pin::Pin<&mut Self>,
+                cx: &mut std::task::Context<'_>,
+            ) -> std::task::Poll<Self::Output> {
+                let this = self.project();
+                let _ = this.runner.poll(cx);
+                this.fut.poll(cx)
+            }
+        }
+        RunWhile { runner: self, fut }
+    }
+}

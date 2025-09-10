@@ -2,7 +2,10 @@ import * as T from "../types"
 import { once } from "../util"
 
 export type RequiredDependenciesOf<Manifest extends T.SDKManifest> = {
-  [K in keyof Manifest["dependencies"]]: Manifest["dependencies"][K]["optional"] extends false
+  [K in keyof Manifest["dependencies"]]: Exclude<
+    Manifest["dependencies"][K],
+    undefined
+  >["optional"] extends false
     ? K
     : never
 }[keyof Manifest["dependencies"]]

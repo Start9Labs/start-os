@@ -4,9 +4,9 @@ use std::path::Path;
 use tokio::process::Command;
 use tracing::instrument;
 
+use crate::Error;
 use crate::disk::fsck::RequiresReboot;
 use crate::util::Invoke;
-use crate::Error;
 
 #[instrument(skip_all)]
 pub async fn btrfs_check_readonly(logicalname: impl AsRef<Path>) -> Result<RequiresReboot, Error> {

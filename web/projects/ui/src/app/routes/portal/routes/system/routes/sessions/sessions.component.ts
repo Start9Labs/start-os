@@ -7,8 +7,7 @@ import {
 } from '@angular/core'
 import { RouterLink } from '@angular/router'
 import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
-import { TuiButton, TuiTitle } from '@taiga-ui/core'
-import { TuiHeader } from '@taiga-ui/layout'
+import { TuiButton } from '@taiga-ui/core'
 import { from, map, merge, Observable, Subject } from 'rxjs'
 import { Session } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
@@ -18,20 +17,12 @@ import { SessionsTableComponent } from './table.component'
 @Component({
   template: `
     <ng-container *title>
-      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
+      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+        {{ 'Back' | i18n }}
+      </a>
       {{ 'Active Sessions' | i18n }}
     </ng-container>
-    <header tuiHeader>
-      <hgroup tuiTitle>
-        <h3>{{ 'Active Sessions' | i18n }}</h3>
-        <p tuiSubtitle>
-          {{
-            'A session is a device that is currently logged into StartOS. For best security, terminate sessions you do not recognize or no longer use.'
-              | i18n
-          }}
-        </p>
-      </hgroup>
-    </header>
+
     <section class="g-card">
       <header>{{ 'Current session' | i18n }}</header>
       <div [single]="true" [sessions]="current$ | async"></div>
@@ -55,6 +46,11 @@ import { SessionsTableComponent } from './table.component'
       <div #table [sessions]="others"></div>
     </section>
   `,
+  styles: `
+    :host {
+      max-width: 80rem;
+    }
+  `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     CommonModule,
@@ -62,8 +58,6 @@ import { SessionsTableComponent } from './table.component'
     SessionsTableComponent,
     RouterLink,
     TitleDirective,
-    TuiHeader,
-    TuiTitle,
     i18nPipe,
   ],
 })

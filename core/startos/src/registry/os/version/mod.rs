@@ -1,13 +1,12 @@
 use std::collections::BTreeMap;
 
-use chrono::Utc;
+use chrono::{DateTime, NaiveDate, NaiveDateTime, Utc};
 use clap::Parser;
 use exver::{Version, VersionRange};
 use imbl_value::InternedString;
 use itertools::Itertools;
-use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
-use sqlx::query;
 use ts_rs::TS;
 
 use crate::context::CliContext;
@@ -15,8 +14,8 @@ use crate::prelude::*;
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfo;
 use crate::registry::os::index::OsVersionInfo;
-use crate::registry::signer::sign::AnyVerifyingKey;
-use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
+use crate::sign::AnyVerifyingKey;
+use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 
 pub mod signer;
 
@@ -151,6 +150,33 @@ pub struct GetOsVersionParams {
     pub device_info: Option<DeviceInfo>,
 }
 
+struct PgDateTime(DateTime<Utc>);
+impl sqlx::Type<sqlx::Postgres> for PgDateTime {
+    fn type_info() -> <sqlx::Postgres as sqlx::Database>::TypeInfo {
+        sqlx::postgres::PgTypeInfo::with_oid(sqlx::postgres::types::Oid(1184))
+    }
+}
+impl sqlx::Encode<'_, sqlx::Postgres> for PgDateTime {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <sqlx::Postgres as sqlx::Database>::ArgumentBuffer<'_>,
+    ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
+        fn postgres_epoch_datetime() -> NaiveDateTime {
+            NaiveDate::from_ymd_opt(2000, 1, 1)
+                .expect("expected 2000-01-01 to be a valid NaiveDate")
+                .and_hms_opt(0, 0, 0)
+                .expect("expected 2000-01-01T00:00:00 to be a valid NaiveDateTime")
+        }
+        let micros = (self.0.naive_utc() - postgres_epoch_datetime())
+            .num_microseconds()
+            .ok_or_else(|| format!("NaiveDateTime out of range for Postgres: {:?}", self.0))?;
+        micros.encode(buf)
+    }
+    fn size_hint(&self) -> usize {
+        std::mem::size_of::<i64>()
+    }
+}
+
 pub async fn get_version(
     ctx: RegistryContext,
     GetOsVersionParams {
@@ -166,14 +192,13 @@ pub async fn get_version(
     if let (Some(pool), Some(server_id), Some(arch)) = (&ctx.pool, server_id, &platform) {
         let created_at = Utc::now();
 
-        query!(
-            "INSERT INTO user_activity (created_at, server_id, arch) VALUES ($1, $2, $3)",
-            created_at,
-            server_id,
-            &**arch
-        )
-        .execute(pool)
-        .await?;
+        sqlx::query("INSERT INTO user_activity (created_at, server_id, arch) VALUES ($1, $2, $3)")
+            .bind(PgDateTime(created_at))
+            .bind(server_id)
+            .bind(&**arch)
+            .execute(pool)
+            .await
+            .with_kind(ErrorKind::Database)?;
     }
     let target = target.unwrap_or(VersionRange::Any);
     ctx.db

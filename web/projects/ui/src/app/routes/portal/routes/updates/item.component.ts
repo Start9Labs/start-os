@@ -70,36 +70,34 @@ import UpdatesComponent from './updates.component'
       <td class="desktop">{{ item().gitHash }}</td>
       <td class="desktop">{{ item().s9pk.publishedAt | date }}</td>
       <td>
-        <div>
+        <button
+          tuiIconButton
+          size="m"
+          appearance="icon"
+          [tuiChevron]="expanded()"
+        >
+          {{ 'Show more' | i18n }}
+        </button>
+        @if (local().stateInfo.state === 'updating') {
+          <tui-progress-circle
+            size="xs"
+            [max]="100"
+            [value]="
+              (local().stateInfo.installingInfo?.progress?.overall
+                | installingProgress) || 0
+            "
+          />
+        } @else {
           <button
-            tuiIconButton
-            size="m"
-            appearance="icon"
-            [tuiChevron]="expanded()"
+            tuiButton
+            size="s"
+            [loading]="!ready()"
+            [appearance]="error() ? 'destructive' : 'primary'"
+            (click.stop)="onClick()"
           >
-            {{ 'Show more' | i18n }}
+            {{ error() ? ('Retry' | i18n) : ('Update' | i18n) }}
           </button>
-          @if (local().stateInfo.state === 'updating') {
-            <tui-progress-circle
-              size="xs"
-              [max]="100"
-              [value]="
-                (local().stateInfo.installingInfo?.progress?.overall
-                  | installingProgress) || 0
-              "
-            />
-          } @else {
-            <button
-              tuiButton
-              size="s"
-              [loading]="!ready()"
-              [appearance]="error() ? 'destructive' : 'primary'"
-              (click.stop)="onClick()"
-            >
-              {{ error() ? ('Retry' | i18n) : ('Update' | i18n) }}
-            </button>
-          }
-        </div>
+        }
       </td>
     </tr>
     <tr>
@@ -289,7 +287,7 @@ export class UpdatesItemComponent {
   private async alert(): Promise<boolean> {
     return firstValueFrom(
       this.dialog
-        .openConfirm<boolean>({
+        .openConfirm({
           label: 'Warning',
           size: 's',
           data: {

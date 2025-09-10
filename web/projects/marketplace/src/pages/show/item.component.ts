@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import { i18nKey } from '@start9labs/shared'
 import { TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiFade } from '@taiga-ui/kit'
 
@@ -6,7 +7,7 @@ import { TuiFade } from '@taiga-ui/kit'
   selector: 'marketplace-item',
   template: `
     <label tuiTitle>
-      <span tuiSubtitle>{{ label }}</span>
+      <span tuiSubtitle>{{ label || '' }}</span>
       <span tuiFade>{{ data }}</span>
     </label>
     <tui-icon [icon]="icon" />
@@ -38,7 +39,7 @@ import { TuiFade } from '@taiga-ui/kit'
 })
 export class MarketplaceItemComponent {
   @Input({ required: true })
-  label!: string
+  label!: i18nKey | null
 
   @Input({ required: true })
   icon!: string

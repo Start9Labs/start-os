@@ -66,9 +66,6 @@ export type ValueSpecTextarea = {
   immutable: boolean
 }
 
-export type FilePath = {
-  filePath: string
-}
 export type ValueSpecNumber = {
   type: "number"
   min: number | null

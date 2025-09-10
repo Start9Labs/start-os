@@ -2,19 +2,19 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use itertools::Itertools;
-use patch_db::json_ptr::{JsonPointer, ROOT};
 use patch_db::Dump;
+use patch_db::json_ptr::{JsonPointer, ROOT};
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::registry::context::RegistryContext;
 use crate::registry::RegistryDatabase;
-use crate::util::serde::{apply_expr, HandlerExtSerde};
+use crate::registry::context::RegistryContext;
+use crate::util::serde::{HandlerExtSerde, apply_expr};
 
 pub fn db_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()

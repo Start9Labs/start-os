@@ -19,11 +19,13 @@ export const VERSION = new InjectionToken<string>('VERSION')
 export class DocsLinkDirective {
   private readonly version = inject(VERSION)
 
-  readonly href = input.required<string>()
+  readonly path = input.required<string>()
+
+  readonly fragment = input<string>('')
 
   protected readonly url = computed(() => {
-    const path = this.href()
+    const path = this.path()
     const relative = path.startsWith('/') ? path : `/${path}`
-    return `https://docs.start9.com${relative}?os=${this.version}`
+    return `https://docs.start9.com${relative}?os=${this.version}${this.fragment()}`
   })
 }

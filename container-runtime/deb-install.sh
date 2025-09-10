@@ -2,6 +2,7 @@
 
 set -e
 
+
 mkdir -p /run/systemd/resolve
 echo "nameserver 8.8.8.8" > /run/systemd/resolve/stub-resolv.conf
 
@@ -13,6 +14,7 @@ source ~/.bashrc
 nvm install 22
 ln -s $(which node) /usr/bin/node
 
+sed -i '/\(^\|#\)DNSStubListener=/c\DNSStubListener=no' /etc/systemd/resolved.conf
 sed -i '/\(^\|#\)Storage=/c\Storage=persistent' /etc/systemd/journald.conf
 sed -i '/\(^\|#\)Compress=/c\Compress=yes' /etc/systemd/journald.conf
 sed -i '/\(^\|#\)SystemMaxUse=/c\SystemMaxUse=1G' /etc/systemd/journald.conf
@@ -21,3 +23,6 @@ sed -i '/\(^\|#\)ForwardToSyslog=/c\ForwardToSyslog=no' /etc/systemd/journald.co
 systemctl enable container-runtime.service
 
 rm -rf /run/systemd
+
+rm /etc/resolv.conf
+echo "nameserver 10.0.3.1" > /etc/resolv.conf

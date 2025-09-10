@@ -5,9 +5,9 @@ use std::path::{Path, PathBuf};
 use clap::Parser;
 use exver::Version;
 use helpers::AtomicFile;
-use imbl_value::{json, InternedString};
+use imbl_value::{InternedString, json};
 use itertools::Itertools;
-use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -16,11 +16,11 @@ use crate::prelude::*;
 use crate::progress::{FullProgressTracker, ProgressUnits};
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
-use crate::registry::os::index::OsVersionInfo;
 use crate::registry::os::SIG_CONTEXT;
-use crate::registry::signer::commitment::blake3::Blake3Commitment;
-use crate::registry::signer::commitment::Commitment;
+use crate::registry::os::index::OsVersionInfo;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
+use crate::sign::commitment::Commitment;
+use crate::sign::commitment::blake3::Blake3Commitment;
 use crate::util::io::open_file;
 
 pub fn get_api<C: Context>() -> ParentHandler<C> {
@@ -62,10 +62,10 @@ async fn get_os_asset(
     ctx: RegistryContext,
     GetOsAssetParams { version, platform }: GetOsAssetParams,
     accessor: impl FnOnce(
-            &Model<OsVersionInfo>,
-        ) -> &Model<BTreeMap<InternedString, RegistryAsset<Blake3Commitment>>>
-        + UnwindSafe
-        + Send,
+        &Model<OsVersionInfo>,
+    ) -> &Model<BTreeMap<InternedString, RegistryAsset<Blake3Commitment>>>
+    + UnwindSafe
+    + Send,
 ) -> Result<RegistryAsset<Blake3Commitment>, Error> {
     accessor(
         ctx.db

@@ -1,0 +1,10 @@
+[Interface]
+Address = {addr}/24
+PrivateKey = {privkey}
+
+[Peer]
+PublicKey = {server_pubkey}
+PresharedKey = {psk}
+AllowedIPs = 0.0.0.0/0, ::/0
+Endpoint = {server_addr}
+PersistentKeepalive = 25

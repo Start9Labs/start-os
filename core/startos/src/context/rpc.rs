@@ -18,7 +18,7 @@ use models::{ActionId, PackageId};
 use reqwest::{Client, Proxy};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty};
-use tokio::sync::{broadcast, oneshot, watch, Mutex, RwLock};
+use tokio::sync::{broadcast, oneshot, watch, RwLock};
 use tokio::time::Instant;
 use tracing::instrument;
 
@@ -31,8 +31,9 @@ use crate::db::model::Database;
 use crate::disk::OsPartitionInfo;
 use crate::init::{check_time_is_synchronized, InitResult};
 use crate::install::PKG_ARCHIVE_DIR;
-use crate::lxc::{ContainerId, LxcContainer, LxcManager};
+use crate::lxc::LxcManager;
 use crate::net::net_controller::{NetController, NetService};
+use crate::net::socks::DEFAULT_SOCKS_LISTEN;
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
 use crate::net::web_server::{UpgradableListener, WebServerAcceptorSetter};
 use crate::net::wifi::WpaCli;
@@ -46,7 +47,7 @@ use crate::shutdown::Shutdown;
 use crate::util::io::delete_file;
 use crate::util::lshw::LshwDevice;
 use crate::util::sync::{SyncMutex, Watch};
-use crate::DATA_DIR;
+use crate::{DATA_DIR, HOST_IP};
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
@@ -65,7 +66,6 @@ pub struct RpcContextSeed {
     pub cancellable_installs: SyncMutex<BTreeMap<PackageId, oneshot::Sender<()>>>,
     pub metrics_cache: Watch<Option<crate::system::Metrics>>,
     pub shutdown: broadcast::Sender<Option<Shutdown>>,
-    pub tor_socks: SocketAddr,
     pub lxc_manager: Arc<LxcManager>,
     pub open_authed_continuations: OpenAuthedContinuations<Option<InternedString>>,
     pub rpc_continuations: RpcContinuations,
@@ -75,12 +75,6 @@ pub struct RpcContextSeed {
     pub client: Client,
     pub start_time: Instant,
     pub crons: SyncMutex<BTreeMap<Guid, NonDetachingJoinHandle<()>>>,
-    // #[cfg(feature = "dev")]
-    pub dev: Dev,
-}
-
-pub struct Dev {
-    pub lxc: Mutex<BTreeMap<ContainerId, LxcContainer>>,
 }
 
 pub struct Hardware {
@@ -138,10 +132,7 @@ impl RpcContext {
             run_migrations,
         }: InitRpcContextPhases,
     ) -> Result<Self, Error> {
-        let tor_proxy = config.tor_socks.unwrap_or(SocketAddr::V4(SocketAddrV4::new(
-            Ipv4Addr::new(127, 0, 0, 1),
-            9050,
-        )));
+        let socks_proxy = config.socks_listen.unwrap_or(DEFAULT_SOCKS_LISTEN);
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
 
         load_db.start();
@@ -163,18 +154,9 @@ impl RpcContext {
         {
             (net_ctrl, os_net_service)
         } else {
-            let net_ctrl = Arc::new(
-                NetController::init(
-                    db.clone(),
-                    config
-                        .tor_control
-                        .unwrap_or(SocketAddr::from(([127, 0, 0, 1], 9051))),
-                    tor_proxy,
-                    &account.hostname,
-                )
-                .await?,
-            );
-            webserver.try_upgrade(|a| net_ctrl.net_iface.upgrade_listener(a))?;
+            let net_ctrl =
+                Arc::new(NetController::init(db.clone(), &account.hostname, socks_proxy).await?);
+            webserver.try_upgrade(|a| net_ctrl.net_iface.watcher.upgrade_listener(a))?;
             let os_net_service = net_ctrl.os_bindings().await?;
             (net_ctrl, os_net_service)
         };
@@ -183,7 +165,7 @@ impl RpcContext {
 
         let services = ServiceMap::default();
         let metrics_cache = Watch::<Option<crate::system::Metrics>>::new(None);
-        let tor_proxy_url = format!("socks5h://{tor_proxy}");
+        let socks_proxy_url = format!("socks5h://{socks_proxy}");
 
         let crons = SyncMutex::new(BTreeMap::new());
 
@@ -251,7 +233,6 @@ impl RpcContext {
             cancellable_installs: SyncMutex::new(BTreeMap::new()),
             metrics_cache,
             shutdown,
-            tor_socks: tor_proxy,
             lxc_manager: Arc::new(LxcManager::new()),
             open_authed_continuations: OpenAuthedContinuations::new(),
             rpc_continuations: RpcContinuations::new(),
@@ -267,21 +248,11 @@ impl RpcContext {
                 })?,
             ),
             client: Client::builder()
-                .proxy(Proxy::custom(move |url| {
-                    if url.host_str().map_or(false, |h| h.ends_with(".onion")) {
-                        Some(tor_proxy_url.clone())
-                    } else {
-                        None
-                    }
-                }))
+                .proxy(Proxy::all(socks_proxy_url)?)
                 .build()
                 .with_kind(crate::ErrorKind::ParseUrl)?,
             start_time: Instant::now(),
             crons,
-            // #[cfg(feature = "dev")]
-            dev: Dev {
-                lxc: Mutex::new(BTreeMap::new()),
-            },
         });
 
         let res = Self(seed.clone());

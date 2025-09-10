@@ -5,8 +5,8 @@ use std::sync::Mutex as SyncMutex;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
-use axum::extract::ws::WebSocket;
 use axum::extract::Request;
+use axum::extract::ws::WebSocket;
 use axum::response::Response;
 use clap::builder::ValueParserFactory;
 use futures::future::BoxFuture;
@@ -14,7 +14,7 @@ use futures::{Future, FutureExt};
 use helpers::TimedResource;
 use imbl_value::InternedString;
 use models::FromStrParser;
-use tokio::sync::{broadcast, Mutex as AsyncMutex};
+use tokio::sync::{Mutex as AsyncMutex, broadcast};
 use ts_rs::TS;
 
 #[allow(unused_imports)]

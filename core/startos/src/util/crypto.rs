@@ -1,4 +1,4 @@
-use ed25519_dalek::{SecretKey, EXPANDED_SECRET_KEY_LENGTH};
+use ed25519_dalek::{EXPANDED_SECRET_KEY_LENGTH, SecretKey};
 
 #[inline]
 pub fn ed25519_expand_key(key: &SecretKey) -> [u8; EXPANDED_SECRET_KEY_LENGTH] {
@@ -8,8 +8,8 @@ pub fn ed25519_expand_key(key: &SecretKey) -> [u8; EXPANDED_SECRET_KEY_LENGTH] {
     .to_bytes()
 }
 
-use aes::cipher::{CipherKey, NewCipher, Nonce, StreamCipher};
 use aes::Aes256Ctr;
+use aes::cipher::{CipherKey, NewCipher, Nonce, StreamCipher};
 use hmac::Hmac;
 use josekit::jwk::Jwk;
 use serde::{Deserialize, Serialize};

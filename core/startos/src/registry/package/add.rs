@@ -15,13 +15,13 @@ use crate::prelude::*;
 use crate::progress::{FullProgressTracker, ProgressTrackerWriter, ProgressUnits};
 use crate::registry::context::RegistryContext;
 use crate::registry::package::index::PackageVersionInfo;
-use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
-use crate::registry::signer::sign::ed25519::Ed25519;
-use crate::registry::signer::sign::{AnySignature, AnyVerifyingKey, SignatureScheme};
-use crate::s9pk::merkle_archive::source::http::HttpSource;
-use crate::s9pk::merkle_archive::source::ArchiveSource;
-use crate::s9pk::v2::SIG_CONTEXT;
 use crate::s9pk::S9pk;
+use crate::s9pk::merkle_archive::source::ArchiveSource;
+use crate::s9pk::merkle_archive::source::http::HttpSource;
+use crate::s9pk::v2::SIG_CONTEXT;
+use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
+use crate::sign::ed25519::Ed25519;
+use crate::sign::{AnySignature, AnyVerifyingKey, SignatureScheme};
 use crate::util::io::TrackingIO;
 
 #[derive(Debug, Deserialize, Serialize, TS)]

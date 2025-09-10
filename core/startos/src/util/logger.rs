@@ -59,7 +59,7 @@ impl StartOSLogger {
     fn base_subscriber(logfile: LogFile) -> impl Subscriber {
         use tracing_error::ErrorLayer;
         use tracing_subscriber::prelude::*;
-        use tracing_subscriber::{fmt, EnvFilter};
+        use tracing_subscriber::{EnvFilter, fmt};
 
         let filter_layer = || {
             EnvFilter::builder()

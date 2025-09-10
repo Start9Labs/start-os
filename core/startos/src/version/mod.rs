@@ -5,14 +5,14 @@ use std::panic::{RefUnwindSafe, UnwindSafe};
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::{Future, FutureExt};
-use imbl_value::{to_value, InternedString};
+use imbl_value::{InternedString, to_value};
 use patch_db::json_ptr::ROOT;
 
+use crate::Error;
 use crate::context::RpcContext;
 use crate::db::model::Database;
 use crate::prelude::*;
 use crate::progress::PhaseProgressTrackerHandle;
-use crate::Error;
 
 mod v0_3_5;
 mod v0_3_5_1;
@@ -49,7 +49,9 @@ mod v0_4_0_alpha_7;
 mod v0_4_0_alpha_8;
 mod v0_4_0_alpha_9;
 
-pub type Current = v0_4_0_alpha_9::Version; // VERSION_BUMP
+mod v0_4_0_alpha_10;
+
+pub type Current = v0_4_0_alpha_10::Version; // VERSION_BUMP
 
 impl Current {
     #[instrument(skip(self, db))]
@@ -161,7 +163,8 @@ enum Version {
     V0_4_0_alpha_6(Wrapper<v0_4_0_alpha_6::Version>),
     V0_4_0_alpha_7(Wrapper<v0_4_0_alpha_7::Version>),
     V0_4_0_alpha_8(Wrapper<v0_4_0_alpha_8::Version>),
-    V0_4_0_alpha_9(Wrapper<v0_4_0_alpha_9::Version>), // VERSION_BUMP
+    V0_4_0_alpha_9(Wrapper<v0_4_0_alpha_9::Version>),
+    V0_4_0_alpha_10(Wrapper<v0_4_0_alpha_10::Version>), // VERSION_BUMP
     Other(exver::Version),
 }
 
@@ -180,7 +183,7 @@ impl Version {
                 return Err(Error::new(
                     eyre!("cannot migrate from versions before 0.3.5"),
                     ErrorKind::MigrationFailed,
-                ))
+                ));
             }
             Self::V0_3_5(v) => DynVersion(Box::new(v.0)),
             Self::V0_3_5_1(v) => DynVersion(Box::new(v.0)),
@@ -213,12 +216,13 @@ impl Version {
             Self::V0_4_0_alpha_6(v) => DynVersion(Box::new(v.0)),
             Self::V0_4_0_alpha_7(v) => DynVersion(Box::new(v.0)),
             Self::V0_4_0_alpha_8(v) => DynVersion(Box::new(v.0)),
-            Self::V0_4_0_alpha_9(v) => DynVersion(Box::new(v.0)), // VERSION_BUMP
+            Self::V0_4_0_alpha_9(v) => DynVersion(Box::new(v.0)),
+            Self::V0_4_0_alpha_10(v) => DynVersion(Box::new(v.0)), // VERSION_BUMP
             Self::Other(v) => {
                 return Err(Error::new(
                     eyre!("unknown version {v}"),
                     ErrorKind::MigrationFailed,
-                ))
+                ));
             }
         })
     }
@@ -257,7 +261,8 @@ impl Version {
             Version::V0_4_0_alpha_6(Wrapper(x)) => x.semver(),
             Version::V0_4_0_alpha_7(Wrapper(x)) => x.semver(),
             Version::V0_4_0_alpha_8(Wrapper(x)) => x.semver(),
-            Version::V0_4_0_alpha_9(Wrapper(x)) => x.semver(), // VERSION_BUMP
+            Version::V0_4_0_alpha_9(Wrapper(x)) => x.semver(),
+            Version::V0_4_0_alpha_10(Wrapper(x)) => x.semver(), // VERSION_BUMP
             Version::Other(x) => x.clone(),
         }
     }
@@ -334,7 +339,7 @@ impl PreUps {
                             from.semver()
                         ),
                         crate::ErrorKind::MigrationFailed,
-                    ))
+                    ));
                 }
                 Ordering::Equal => None,
             };

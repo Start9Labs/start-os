@@ -3,15 +3,15 @@ use std::time::Duration;
 
 use imbl::vector;
 
-use super::start_stop::StartStop;
 use super::ServiceActorSeed;
+use super::start_stop::StartStop;
 use crate::prelude::*;
+use crate::service::SYNC_RETRY_COOLDOWN_SECONDS;
 use crate::service::persistent_container::ServiceStateKinds;
 use crate::service::transition::TransitionKind;
-use crate::service::SYNC_RETRY_COOLDOWN_SECONDS;
 use crate::status::MainStatus;
-use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::actor::Actor;
+use crate::util::actor::background::BackgroundJobQueue;
 
 #[derive(Clone)]
 pub(super) struct ServiceActor(pub(super) Arc<ServiceActorSeed>);

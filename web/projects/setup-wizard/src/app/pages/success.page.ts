@@ -127,12 +127,11 @@ export default class SuccessPage implements AfterViewInit {
   }
 
   download() {
-    const torAddress = this.document.getElementById('tor-addr')
-    const lanAddress = this.document.getElementById('lan-addr')
-    const html = this.documentation?.nativeElement.innerHTML || ''
+    const torElem = this.document.getElementById('tor-addr')
+    const lanElem = this.document.getElementById('lan-addr')
 
-    if (torAddress) torAddress.innerHTML = this.torAddresses?.join('\n') || ''
-    if (lanAddress) lanAddress.innerHTML = this.lanAddress || ''
+    if (torElem) torElem.innerHTML = this.torAddresses?.join('\n') || ''
+    if (lanElem) lanElem.innerHTML = this.lanAddress || ''
 
     this.document
       .getElementById('cert')
@@ -140,6 +139,9 @@ export default class SuccessPage implements AfterViewInit {
         'href',
         `data:application/x-x509-ca-cert;base64,${encodeURIComponent(this.cert!)}`,
       )
+
+    const html = this.documentation?.nativeElement.innerHTML || ''
+
     this.downloadHtml.download('StartOS-info.html', html).then(_ => {
       this.disableLogin = false
     })

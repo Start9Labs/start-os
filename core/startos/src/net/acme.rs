@@ -2,21 +2,21 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
 
 use async_acme::acme::Identifier;
-use clap::builder::ValueParserFactory;
 use clap::Parser;
+use clap::builder::ValueParserFactory;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use models::{ErrorData, FromStrParser};
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
-use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use url::Url;
 
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::public::AcmeSettings;
 use crate::db::model::Database;
+use crate::db::model::public::AcmeSettings;
 use crate::prelude::*;
 use crate::util::serde::{Pem, Pkcs8Doc};
 
@@ -174,7 +174,7 @@ impl<'a> async_acme::cache::AcmeCache for AcmeCertCache<'a> {
     }
 }
 
-pub fn acme<C: Context>() -> ParentHandler<C> {
+pub fn acme_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "init",
@@ -257,7 +257,8 @@ pub async fn init(
     ctx.db
         .mutate(|db| {
             db.as_public_mut()
-                .as_server_info_mut().as_network_mut()
+                .as_server_info_mut()
+                .as_network_mut()
                 .as_acme_mut()
                 .insert(&provider, &AcmeSettings { contact })
         })
@@ -279,7 +280,8 @@ pub async fn remove(
     ctx.db
         .mutate(|db| {
             db.as_public_mut()
-                .as_server_info_mut().as_network_mut()
+                .as_server_info_mut()
+                .as_network_mut()
                 .as_acme_mut()
                 .remove(&provider)
         })

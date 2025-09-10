@@ -66,7 +66,7 @@ import { BACKUP_RESTORE } from './restore.component'
             <a
               tuiLink
               docsLink
-              href="/user-manual/backup-create.html"
+              path="/user-manual/backup-create.html"
               appearance="action-grayscale"
               iconEnd="@tui.external-link"
               [pseudo]="true"
@@ -80,7 +80,7 @@ import { BACKUP_RESTORE } from './restore.component'
             <a
               tuiLink
               docsLink
-              href="/user-manual/backup-restore.html"
+              path="/user-manual/backup-restore.html"
               appearance="action-grayscale"
               iconEnd="@tui.external-link"
               [pseudo]="true"
@@ -123,7 +123,8 @@ import { BACKUP_RESTORE } from './restore.component'
           <a
             tuiLink
             docsLink
-            href="/user-manual/backup-create.html#network-folder"
+            path="/user-manual/backup-create.html"
+            fragment="#network-folder"
             appearance="action-grayscale"
             iconEnd="@tui.external-link"
             [pseudo]="true"

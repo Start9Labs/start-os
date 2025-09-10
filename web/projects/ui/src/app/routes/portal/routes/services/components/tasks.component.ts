@@ -20,7 +20,7 @@ import { i18nPipe } from '@start9labs/shared'
           <th tuiTh>{{ 'Service' | i18n }}</th>
           <th tuiTh>{{ 'Action' }}</th>
           <th tuiTh>{{ 'Severity' }}</th>
-          <th tuiTh>{{ 'Description' | i18n }}</th>
+          <th tuiTh>{{ 'Reason' | i18n }}</th>
           <th tuiTh></th>
         </tr>
       </thead>
@@ -39,7 +39,7 @@ import { i18nPipe } from '@start9labs/shared'
   styles: `
     :host {
       min-height: 12rem;
-      grid-column: span 6;
+      grid-column: span 10;
     }
   `,
   host: { class: 'g-card' },
@@ -56,11 +56,7 @@ export class ServiceTasksComponent {
         ...entry,
         task: { ...entry.task, replayId },
       }))
-      .filter(
-        t =>
-          this.services()[t.task.packageId]?.actions[t.task.actionId] &&
-          t.active,
-      )
+      .filter(t => t.active)
       .sort((a, b) => a.task.severity.localeCompare(b.task.severity)),
   )
 }

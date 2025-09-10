@@ -9,8 +9,8 @@ pub(super) use crate::service::effects::context::EffectContext;
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct ProcedureId {
+pub struct EventId {
     #[serde(default)]
     #[arg(default_value_t, long)]
-    pub procedure_id: Guid,
+    pub event_id: Guid,
 }

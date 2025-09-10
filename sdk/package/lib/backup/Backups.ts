@@ -197,7 +197,7 @@ async function runRsync(rsyncOptions: {
   for (const exclude of options.exclude) {
     args.push(`--exclude=${exclude}`)
   }
-  args.push("-actAXH")
+  args.push("-rlptgocAXH")
   args.push("--info=progress2")
   args.push("--no-inc-recursive")
   args.push(srcPath)

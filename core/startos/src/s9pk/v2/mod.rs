@@ -3,12 +3,11 @@ use std::path::Path;
 use std::sync::Arc;
 
 use imbl_value::InternedString;
-use models::{mime, DataUrl, PackageId};
+use models::{DataUrl, PackageId, mime};
 use tokio::fs::File;
 
 use crate::dependencies::DependencyMetadata;
 use crate::prelude::*;
-use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
@@ -17,7 +16,8 @@ use crate::s9pk::merkle_archive::source::{
 };
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::s9pk::v2::pack::{ImageSource, PackSource};
-use crate::util::io::{open_file, TmpDir};
+use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
+use crate::util::io::{TmpDir, open_file};
 use crate::util::serde::IoFormat;
 
 const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x02];
@@ -34,7 +34,6 @@ pub mod recipe;
     ├── manifest.json
     ├── icon.<ext>
     ├── LICENSE.md
-    ├── instructions.md
     ├── dependencies
     │   └── <id>
     │       ├── metadata.json

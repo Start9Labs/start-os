@@ -24,5 +24,5 @@ import { i18nKey, i18nPipe } from '@start9labs/shared'
   imports: [i18nPipe],
 })
 export class TableComponent {
-  readonly appTable = input.required<Array<i18nKey | null>>()
+  readonly appTable = input.required<ReadonlyArray<i18nKey | null>>()
 }

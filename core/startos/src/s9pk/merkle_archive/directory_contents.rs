@@ -4,20 +4,20 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use blake3::Hash;
-use futures::future::BoxFuture;
 use futures::FutureExt;
+use futures::future::BoxFuture;
 use imbl::OrdMap;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use tokio::io::AsyncRead;
 
+use crate::CAP_10_MiB;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
 use crate::s9pk::merkle_archive::write_queue::WriteQueue;
-use crate::s9pk::merkle_archive::{varint, Entry, EntryContents};
+use crate::s9pk::merkle_archive::{Entry, EntryContents, varint};
 use crate::util::io::{ParallelBlake3Writer, TrackingIO};
-use crate::CAP_10_MiB;
 
 #[derive(Clone)]
 pub struct DirectoryContents<S> {
@@ -145,7 +145,12 @@ impl<S: Clone> DirectoryContents<S> {
             {
                 dir = d;
             } else {
-                return Err(Error::new(eyre!("failed to insert entry at path {path:?}: ancestor exists and is not a directory"), ErrorKind::Pack));
+                return Err(Error::new(
+                    eyre!(
+                        "failed to insert entry at path {path:?}: ancestor exists and is not a directory"
+                    ),
+                    ErrorKind::Pack,
+                ));
             }
         }
         dir.insert(file.into(), entry);

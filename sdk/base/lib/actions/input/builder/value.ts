@@ -1,8 +1,7 @@
-import { ExtractInputSpecType, InputSpec, LazyBuild } from "./inputSpec"
+import { InputSpec, LazyBuild } from "./inputSpec"
 import { List } from "./list"
 import { UnionRes, UnionResStaticValidatedAs, Variants } from "./variants"
 import {
-  FilePath,
   Pattern,
   RandomString,
   ValueSpec,
@@ -26,6 +25,12 @@ import {
   string,
 } from "ts-matches"
 import { DeepPartial } from "../../../types"
+
+export const fileInfoParser = object({
+  path: string,
+  commitment: object({ hash: string, size: number }),
+})
+export type FileInfo = typeof fileInfoParser._TYPE
 
 type AsRequired<T, Required extends boolean> = Required extends true
   ? T
@@ -891,47 +896,54 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       }
     }, spec.validator)
   }
-  // static file<Store, Required extends boolean>(a: {
-  //   name: string
-  //   description?: string | null
-  //   extensions: string[]
-  //   required: Required
-  // }) {
-  //   const buildValue = {
-  //     type: "file" as const,
-  //     description: null,
-  //     warning: null,
-  //     ...a,
-  //   }
-  //   return new Value<AsRequired<FilePath, Required>, Store>(
-  //     () => ({
-  //       ...buildValue,
-  //     }),
-  //     asRequiredParser(object({ filePath: string }), a),
-  //   )
-  // }
-  // static dynamicFile<Store>(
-  //   a: LazyBuild<
-  //     Store,
-  //     {
-  //       name: string
-  //       description?: string | null
-  //       warning?: string | null
-  //       extensions: string[]
-  //       required: boolean
-  //     }
-  //   >,
-  // ) {
-  //   return new Value<FilePath | null, Store>(
-  //     async (options) => ({
-  //       type: "file" as const,
-  //       description: null,
-  //       warning: null,
-  //       ...(await a(options)),
-  //     }),
-  //     object({ filePath: string }).nullable(),
-  //   )
-  // }
+  static file<Required extends boolean>(a: {
+    name: string
+    description?: string | null
+    warning?: string | null
+    extensions: string[]
+    required: Required
+  }) {
+    const buildValue = {
+      type: "file" as const,
+      description: null,
+      warning: null,
+      ...a,
+    }
+    return new Value<AsRequired<FileInfo, Required>>(
+      () => ({
+        spec: {
+          ...buildValue,
+        },
+        validator: asRequiredParser(fileInfoParser, a),
+      }),
+      asRequiredParser(fileInfoParser, a),
+    )
+  }
+  static dynamicFile<Required extends boolean>(
+    a: LazyBuild<{
+      name: string
+      description?: string | null
+      warning?: string | null
+      extensions: string[]
+      required: Required
+    }>,
+  ) {
+    return new Value<AsRequired<FileInfo, Required>, FileInfo | null>(
+      async (options) => {
+        const spec = {
+          type: "file" as const,
+          description: null,
+          warning: null,
+          ...(await a(options)),
+        }
+        return {
+          spec,
+          validator: asRequiredParser(fileInfoParser, spec),
+        }
+      },
+      fileInfoParser.nullable(),
+    )
+  }
   /**
    * @description Displays a dropdown, allowing for a single selection. Depending on the selection, a different object ("sub form") is presented.
    * @example

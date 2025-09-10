@@ -21,11 +21,8 @@ impl<P0: AsRef<Path>, P1: AsRef<Path>, P2: AsRef<Path>> OverlayFs<P0, P1, P2> {
         Self { lower, upper, work }
     }
 }
-impl<
-        P0: AsRef<Path> + Send + Sync,
-        P1: AsRef<Path> + Send + Sync,
-        P2: AsRef<Path> + Send + Sync,
-    > FileSystem for OverlayFs<P0, P1, P2>
+impl<P0: AsRef<Path> + Send + Sync, P1: AsRef<Path> + Send + Sync, P2: AsRef<Path> + Send + Sync>
+    FileSystem for OverlayFs<P0, P1, P2>
 {
     fn mount_type(&self) -> Option<impl AsRef<str>> {
         Some("overlay")

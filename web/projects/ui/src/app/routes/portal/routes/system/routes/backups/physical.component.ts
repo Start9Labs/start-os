@@ -34,7 +34,9 @@ import { BackupStatusComponent } from './status.component'
           (click)="select(target)"
           (keydown.enter)="select(target)"
         >
-          <td><span [backupStatus]="target.hasAnyBackup"></span></td>
+          <td>
+            <span [backupStatus]="target.hasAnyBackup" [physical]="true"></span>
+          </td>
           <td class="name">
             {{ target.entry.label || target.entry.logicalname }}
           </td>
@@ -82,8 +84,7 @@ import { BackupStatusComponent } from './status.component'
 
     :host-context(tui-root._mobile) {
       tr {
-        max-width: 18rem;
-        grid-template-columns: min-content 2rem;
+        grid-template-columns: min-content 1fr 4rem;
         white-space: nowrap;
       }
 

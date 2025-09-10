@@ -1,101 +1,62 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  input,
-} from '@angular/core'
-import { ErrorService, i18nPipe, LoadingService } from '@start9labs/shared'
-import { TuiButton, tuiButtonOptionsProvider } from '@taiga-ui/core'
-import { InterfaceClearnetComponent } from 'src/app/routes/portal/components/interfaces/clearnet.component'
-import { InterfaceLocalComponent } from 'src/app/routes/portal/components/interfaces/local.component'
-import { InterfaceTorComponent } from 'src/app/routes/portal/components/interfaces/tor.component'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
-import { MappedServiceInterface } from './interface.utils'
+import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { tuiButtonOptionsProvider } from '@taiga-ui/core'
+import { MappedServiceInterface } from './interface.service'
+import { InterfaceGatewaysComponent } from './gateways.component'
+import { InterfaceTorDomainsComponent } from './tor-domains.component'
+import { PublicDomainsComponent } from './public-domains/pd.component'
+import { InterfacePrivateDomainsComponent } from './private-domains.component'
+import { InterfaceAddressesComponent } from './addresses/addresses.component'
 
 @Component({
-  selector: 'app-interface',
+  selector: 'service-interface',
   template: `
-    <button
-      tuiButton
-      size="s"
-      [appearance]="value().public ? 'primary-destructive' : 'primary-success'"
-      [iconStart]="value().public ? '@tui.globe-lock' : '@tui.globe'"
-      (click)="toggle()"
-    >
-      {{ value().public ? ('Make private' | i18n) : ('Make public' | i18n) }}
-    </button>
-    <section
-      [clearnet]="value().addresses.clearnet"
-      [isPublic]="value().public"
-      [isRunning]="isRunning()"
-    ></section>
-    <section [tor]="value().addresses.tor" [isRunning]="isRunning()"></section>
-    <section
-      [local]="value().addresses.local"
-      [isRunning]="isRunning()"
-    ></section>
+    <div>
+      <section [gateways]="value()?.gateways"></section>
+      <section [publicDomains]="value()?.publicDomains"></section>
+      <section [torDomains]="value()?.torDomains"></section>
+      <section [privateDomains]="value()?.privateDomains"></section>
+    </div>
+    <hr [style.width.rem]="10" />
+    <section [addresses]="value()?.addresses" [isRunning]="true"></section>
   `,
   styles: `
     :host {
-      max-width: 56rem;
       display: flex;
       flex-direction: column;
       gap: 1rem;
       color: var(--tui-text-secondary);
       font: var(--tui-font-text-l);
 
-      ::ng-deep td {
-        overflow-wrap: anywhere;
+      div {
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        gap: inherit;
+        flex-direction: column;
+      }
+
+      ::ng-deep [tuiSkeleton] {
+        width: 100%;
+        height: 1rem;
+        border-radius: var(--tui-radius-s);
       }
     }
 
-    button {
-      margin: -0.5rem auto 0 0;
+    :host-context(tui-root._mobile) div {
+      display: flex;
     }
   `,
-  providers: [tuiButtonOptionsProvider({ size: 'xs' })],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [tuiButtonOptionsProvider({ size: 'xs' })],
   imports: [
-    InterfaceClearnetComponent,
-    InterfaceTorComponent,
-    InterfaceLocalComponent,
-    TuiButton,
-    i18nPipe,
+    InterfaceGatewaysComponent,
+    InterfaceTorDomainsComponent,
+    PublicDomainsComponent,
+    InterfacePrivateDomainsComponent,
+    InterfaceAddressesComponent,
   ],
 })
 export class InterfaceComponent {
-  private readonly loader = inject(LoadingService)
-  private readonly errorService = inject(ErrorService)
-  private readonly api = inject(ApiService)
-
   readonly packageId = input('')
-  readonly value = input.required<MappedServiceInterface>()
+  readonly value = input.required<MappedServiceInterface | undefined>()
   readonly isRunning = input.required<boolean>()
-
-  async toggle() {
-    const loader = this.loader
-      .open(`Making ${this.value().public ? 'private' : 'public'}`)
-      .subscribe()
-
-    const params = {
-      internalPort: this.value().addressInfo.internalPort,
-      public: !this.value().public,
-    }
-
-    try {
-      if (this.packageId()) {
-        await this.api.pkgBindingSetPubic({
-          ...params,
-          host: this.value().addressInfo.hostId,
-          package: this.packageId(),
-        })
-      } else {
-        await this.api.serverBindingSetPubic(params)
-      }
-    } catch (e: any) {
-      this.errorService.handleError(e)
-    } finally {
-      loader.unsubscribe()
-    }
-  }
 }

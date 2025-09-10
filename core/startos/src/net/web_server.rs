@@ -1,8 +1,7 @@
 use std::future::Future;
 use std::net::SocketAddr;
 use std::ops::Deref;
-use std::sync::atomic::AtomicBool;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 
@@ -15,8 +14,8 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::oneshot;
 
 use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
-use crate::net::network_interface::{
-    NetworkInterfaceListener, SelfContainedNetworkInterfaceListener,
+use crate::net::gateway::{
+    lookup_info_by_addr, NetworkInterfaceListener, SelfContainedNetworkInterfaceListener,
 };
 use crate::net::static_server::{
     diagnostic_ui_router, init_ui_router, install_ui_router, main_ui_router, redirecter, refresher,
@@ -24,7 +23,7 @@ use crate::net::static_server::{
 };
 use crate::prelude::*;
 use crate::util::actor::background::BackgroundJobQueue;
-use crate::util::sync::{SyncMutex, Watch};
+use crate::util::sync::{SyncRwLock, Watch};
 
 pub struct Accepted {
     pub https_redirect: bool,
@@ -50,10 +49,15 @@ impl Accept for Vec<TcpListener> {
 }
 impl Accept for NetworkInterfaceListener {
     fn poll_accept(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>> {
-        NetworkInterfaceListener::poll_accept(self, cx, true).map(|res| {
-            res.map(|a| Accepted {
-                https_redirect: a.is_public,
-                stream: a.stream,
+        NetworkInterfaceListener::poll_accept(self, cx, &true).map(|res| {
+            res.map(|a| {
+                let public = self
+                    .ip_info
+                    .peek(|i| lookup_info_by_addr(i, a.bind).map_or(true, |(_, i)| i.public()));
+                Accepted {
+                    https_redirect: public,
+                    stream: a.stream,
+                }
             })
         })
     }
@@ -166,7 +170,7 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
             #[derive(Clone)]
             struct QueueRunner {
-                queue: Arc<SyncMutex<Option<BackgroundJobQueue>>>,
+                queue: Arc<SyncRwLock<Option<BackgroundJobQueue>>>,
             }
             impl<Fut> hyper::rt::Executor<Fut> for QueueRunner
             where
@@ -211,7 +215,7 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
                 }
             }
 
-            let queue_cell = Arc::new(SyncMutex::new(None));
+            let queue_cell = Arc::new(SyncRwLock::new(None));
             let graceful = hyper_util::server::graceful::GracefulShutdown::new();
             let mut server = hyper_util::server::conn::auto::Builder::new(QueueRunner {
                 queue: queue_cell.clone(),
@@ -227,27 +231,39 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
                 .keep_alive_interval(Duration::from_secs(60))
                 .keep_alive_timeout(Duration::from_secs(300));
             let (queue, mut runner) = BackgroundJobQueue::new();
-            queue_cell.mutate(|q| *q = Some(queue.clone()));
+            queue_cell.replace(Some(queue.clone()));
 
             let handler = async {
                 loop {
-                    if let Err(e) = async {
-                        let accepted = acceptor.accept().await?;
-                        queue.add_job(
-                            graceful.watch(
-                                server
-                                    .serve_connection_with_upgrades(
-                                        TokioIo::new(accepted.stream),
-                                        SwappableRouter(service.clone(), accepted.https_redirect),
-                                    )
-                                    .into_owned(),
-                            ),
-                        );
+                    let mut err = None;
+                    for _ in 0..5 {
+                        if let Err(e) = async {
+                            let accepted = acceptor.accept().await?;
+                            queue.add_job(
+                                graceful.watch(
+                                    server
+                                        .serve_connection_with_upgrades(
+                                            TokioIo::new(accepted.stream),
+                                            SwappableRouter(
+                                                service.clone(),
+                                                accepted.https_redirect,
+                                            ),
+                                        )
+                                        .into_owned(),
+                                ),
+                            );
 
-                        Ok::<_, Error>(())
+                            Ok::<_, Error>(())
+                        }
+                        .await
+                        {
+                            err = Some(e);
+                            tokio::time::sleep(Duration::from_millis(100)).await;
+                        } else {
+                            break;
+                        }
                     }
-                    .await
-                    {
+                    if let Some(e) = err {
                         tracing::error!("Error accepting HTTP connection: {e}");
                         tracing::debug!("{e:?}");
                     }
@@ -262,7 +278,7 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
             }
 
             drop(queue);
-            drop(queue_cell.mutate(|q| q.take()));
+            drop(queue_cell.replace(None));
 
             if !runner.is_empty() {
                 tokio::time::timeout(Duration::from_secs(60), runner)

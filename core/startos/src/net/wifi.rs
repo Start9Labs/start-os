@@ -3,12 +3,12 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use clap::builder::TypedValueParser;
 use clap::Parser;
+use clap::builder::TypedValueParser;
 use isocountry::CountryCode;
 use lazy_static::lazy_static;
 use regex::Regex;
-use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, Empty, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::RwLock;
@@ -16,11 +16,11 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::public::WifiInfo;
 use crate::db::model::Database;
+use crate::db::model::public::WifiInfo;
 use crate::prelude::*;
-use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
+use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 use crate::{Error, ErrorKind};
 
 type WifiManager = Arc<RwLock<Option<WpaCli>>>;
@@ -315,7 +315,12 @@ pub async fn remove(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<
     let is_current_removed_and_no_hardwire =
         is_current_being_removed && !interface_connected(&ctx.ethernet_interface).await?;
     if is_current_removed_and_no_hardwire {
-        return Err(Error::new(color_eyre::eyre::eyre!("Forbidden: Deleting this network would make your server unreachable. Either connect to ethernet or connect to a different WiFi network to remedy this."), ErrorKind::Wifi));
+        return Err(Error::new(
+            color_eyre::eyre::eyre!(
+                "Forbidden: Deleting this network would make your server unreachable. Either connect to ethernet or connect to a different WiFi network to remedy this."
+            ),
+            ErrorKind::Wifi,
+        ));
     }
 
     wpa_supplicant.remove_network(ctx.db.clone(), &ssid).await?;

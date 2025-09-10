@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core'
-import { pauseFor, Log, RPCErrorDetails, RPCOptions } from '@start9labs/shared'
+import { pauseFor, Log, RPCErrorDetails } from '@start9labs/shared'
 import { ApiService } from './embassy-api.service'
 import {
   AddOperation,
@@ -24,7 +24,7 @@ import { AuthService } from '../auth.service'
 import { T } from '@start9labs/start-sdk'
 import { MarketplacePkg } from '@start9labs/marketplace'
 import { WebSocketSubject } from 'rxjs/webSocket'
-import { toAcmeUrl } from 'src/app/utils/acme'
+import { toAuthorityUrl } from 'src/app/utils/acme'
 
 import markdown from './md-sample.md'
 
@@ -71,7 +71,7 @@ export class MockApiService extends ApiService {
       .subscribe()
   }
 
-  async uploadPackage(guid: string, body: Blob): Promise<void> {
+  async uploadFile(guid: string, body: Blob): Promise<void> {
     await pauseFor(2000)
   }
 
@@ -303,17 +303,6 @@ export class MockApiService extends ApiService {
     }
   }
 
-  async getTorLogs(params: RR.GetServerLogsReq): Promise<RR.GetServerLogsRes> {
-    await pauseFor(2000)
-    const entries = this.randomLogs(params.limit)
-
-    return {
-      entries,
-      startCursor: 'startCursor',
-      endCursor: 'end-cursor',
-    }
-  }
-
   async followServerLogs(
     params: RR.FollowServerLogsReq,
   ): Promise<RR.FollowServerLogsRes> {
@@ -325,16 +314,6 @@ export class MockApiService extends ApiService {
   }
 
   async followKernelLogs(
-    params: RR.FollowServerLogsReq,
-  ): Promise<RR.FollowServerLogsRes> {
-    await pauseFor(2000)
-    return {
-      startCursor: 'start-cursor',
-      guid: 'logs-guid',
-    }
-  }
-
-  async followTorLogs(
     params: RR.FollowServerLogsReq,
   ): Promise<RR.FollowServerLogsRes> {
     await pauseFor(2000)
@@ -462,27 +441,31 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async setDns(params: RR.SetDnsReq): Promise<RR.SetDnsRes> {
+    await pauseFor(2000)
+
+    const patch: ReplaceOperation<T.DnsSettings['staticServers']>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: '/serverInfo/network/dns/staticServers',
+        value: params.servers,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async queryDns(params: RR.QueryDnsReq): Promise<RR.QueryDnsRes> {
+    await pauseFor(2000)
+
+    return null
+  }
+
   async resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes> {
     await pauseFor(2000)
     return null
   }
-
-  // async setOsOutboundProxy(
-  //   params: RR.SetOsOutboundProxyReq,
-  // ): Promise<RR.SetOsOutboundProxyRes> {
-  //   await pauseFor(2000)
-
-  //   const patch = [
-  //     {
-  //       op: PatchOp.REPLACE,
-  //       path: '/serverInfo/network/outboundProxy',
-  //       value: params.proxy,
-  //     },
-  //   ]
-  //   this.mockRevision(patch)
-
-  //   return null
-  // }
 
   // marketplace URLs
 
@@ -559,153 +542,67 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  // network
+  // proxies
 
-  // async addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes> {
-  //   await pauseFor(2000)
+  private proxyId = 0
+  async addTunnel(params: RR.AddTunnelReq): Promise<RR.AddTunnelRes> {
+    await pauseFor(2000)
 
-  //   const patch = [
-  //     {
-  //       op: PatchOp.ADD,
-  //       path: `/serverInfo/network/networkInterfaces/wga1`,
-  //       value: {
-  //         inbound: true,
-  //         outbound: true,
-  //         ipInfo: {
-  //           name: params.name,
-  //           scopeId: 3,
-  //           deviceType: 'wireguard',
-  //           subnets: [],
-  //           wanIp: '1.1.1.1',
-  //           ntpServers: [],
-  //         },
-  //       },
-  //     },
-  //   ]
-  //   this.mockRevision(patch)
+    const id = `wg${this.proxyId++}`
 
-  //   return null
-  // }
+    const patch: AddOperation<T.NetworkInterfaceInfo>[] = [
+      {
+        op: PatchOp.ADD,
+        path: `/serverInfo/network/gateways/${id}`,
+        value: {
+          name: params.name,
+          public: params.public,
+          secure: false,
+          ipInfo: {
+            name: id,
+            scopeId: 3,
+            deviceType: 'wireguard',
+            subnets: ['192.168.1.10/24'],
+            wanIp: '203.0.113.45',
+            ntpServers: [],
+            lanIp: ['192.168.1.10'],
+            dnsServers: [],
+          },
+        },
+      },
+    ]
+    this.mockRevision(patch)
 
-  // async updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes> {
-  //   await pauseFor(2000)
+    return { id }
+  }
 
-  //   const patch = [
-  //     {
-  //       op: PatchOp.REPLACE,
-  //       path: `/serverInfo/network/proxies/0/name`,
-  //       value: params.name,
-  //     },
-  //   ]
-  //   this.mockRevision(patch)
+  async updateTunnel(params: RR.UpdateTunnelReq): Promise<RR.UpdateTunnelRes> {
+    await pauseFor(2000)
 
-  //   return null
-  // }
+    const patch: ReplaceOperation<string>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/serverInfo/network/gateways/${params.id}/label`,
+        value: params.name,
+      },
+    ]
+    this.mockRevision(patch)
 
-  // async deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes> {
-  //   await pauseFor(2000)
-  //   const patch = [
-  //     {
-  //       op: PatchOp.REPLACE,
-  //       path: '/serverInfo/network/proxies',
-  //       value: [],
-  //     },
-  //   ]
-  //   this.mockRevision(patch)
+    return null
+  }
 
-  //   return null
-  // }
+  async removeTunnel(params: RR.RemoveTunnelReq): Promise<RR.RemoveTunnelRes> {
+    await pauseFor(2000)
+    const patch: RemoveOperation[] = [
+      {
+        op: PatchOp.REMOVE,
+        path: `/serverInfo/network/gateways/${params.id}`,
+      },
+    ]
+    this.mockRevision(patch)
 
-  // domains
-
-  // async claimStart9ToDomain(
-  //   params: RR.ClaimStart9ToReq,
-  // ): Promise<RR.ClaimStart9ToRes> {
-  //   await pauseFor(2000)
-
-  //   const patch = [
-  //     {
-  //       op: PatchOp.REPLACE,
-  //       path: '/serverInfo/network/start9To',
-  //       value: {
-  //         subdomain: 'xyz',
-  //         networkInterfaceId: params.networkInterfaceId,
-  //       },
-  //     },
-  //   ]
-  //   this.mockRevision(patch)
-
-  //   return null
-  // }
-
-  // async deleteStart9ToDomain(
-  //   params: RR.DeleteStart9ToReq,
-  // ): Promise<RR.DeleteStart9ToRes> {
-  //   await pauseFor(2000)
-  //   const patch = [
-  //     {
-  //       op: PatchOp.REPLACE,
-  //       path: '/serverInfo/network/start9To',
-  //       value: null,
-  //     },
-  //   ]
-  //   this.mockRevision(patch)
-
-  //   return null
-  // }
-
-  // async addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes> {
-  //   await pauseFor(2000)
-
-  //   const patch = [
-  //     {
-  //       op: PatchOp.REPLACE,
-  //       path: `/serverInfo/network/domains`,
-  //       value: {
-  //         [params.hostname]: {
-  //           networkInterfaceId: params.networkInterfaceId,
-  //           provider: params.provider.name,
-  //         },
-  //       },
-  //     },
-  //   ]
-  //   this.mockRevision(patch)
-
-  //   return null
-  // }
-
-  // async deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes> {
-  //   await pauseFor(2000)
-  //   const patch = [
-  //     {
-  //       op: PatchOp.REPLACE,
-  //       path: '/serverInfo/network/domains',
-  //       value: {},
-  //     },
-  //   ]
-  //   this.mockRevision(patch)
-
-  //   return null
-  // }
-
-  // port forwards
-
-  // async overridePortForward(
-  //   params: RR.OverridePortReq,
-  // ): Promise<RR.OverridePortRes> {
-  //   await pauseFor(2000)
-
-  //   const patch = [
-  //     {
-  //       op: PatchOp.REPLACE,
-  //       path: '/serverInfo/network/wanConfig/forwards/0/override',
-  //       value: params.port,
-  //     },
-  //   ]
-  //   this.mockRevision(patch)
-
-  //   return null
-  // }
+    return null
+  }
 
   // wifi
 
@@ -1108,6 +1005,7 @@ export class MockApiService extends ApiService {
   ): Promise<RR.GetActionInputRes> {
     await pauseFor(2000)
     return {
+      eventId: 'ANZXNWIFRTTBZ6T52KQPZILIQQODDHXQ',
       value: Mock.MockConfig,
       spec: await Mock.getActionInputSpec(),
     }
@@ -1371,8 +1269,8 @@ export class MockApiService extends ApiService {
   }
 
   // async setServiceOutboundProxy(
-  //   params: RR.SetServiceOutboundProxyReq,
-  // ): Promise<RR.SetServiceOutboundProxyRes> {
+  //   params: RR.SetServiceOutboundTunnelReq,
+  // ): Promise<RR.SetServiceOutboundTunnelRes> {
   //   await pauseFor(2000)
   //   const patch = [
   //     {
@@ -1394,7 +1292,7 @@ export class MockApiService extends ApiService {
         op: PatchOp.ADD,
         path: `/serverInfo/acme`,
         value: {
-          [toAcmeUrl(params.provider)]: { contact: params.contact },
+          [toAuthorityUrl(params.provider)]: { contact: params.contact },
         },
       },
     ]
@@ -1421,24 +1319,24 @@ export class MockApiService extends ApiService {
 
   async addTorKey(params: RR.AddTorKeyReq): Promise<RR.AddTorKeyRes> {
     await pauseFor(2000)
-    return 'vanityabcdefghijklmnop'
+    return 'vanityabcdefghijklmnop.onion'
   }
 
   async generateTorKey(params: RR.GenerateTorKeyReq): Promise<RR.AddTorKeyRes> {
     await pauseFor(2000)
-    return 'abcdefghijklmnopqrstuv'
+    return 'abcdefghijklmnopqrstuv.onion'
   }
 
-  async serverBindingSetPubic(
-    params: RR.PkgBindingSetPublicReq,
-  ): Promise<RR.BindingSetPublicRes> {
+  async serverBindingToggleGateway(
+    params: RR.ServerBindingToggleGatewayReq,
+  ): Promise<RR.ServerBindingToggleGatewayRes> {
     await pauseFor(2000)
 
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: `/serverInfo/host/bindings/${params.internalPort}/net/public`,
-        value: params.public,
+        path: `/serverInfo/network/host/bindings/${params.internalPort}/net/publicEnabled`,
+        value: params.enabled ? [params.gateway] : [],
       },
     ]
     this.mockRevision(patch)
@@ -1493,15 +1391,17 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async serverAddDomain(params: RR.PkgAddDomainReq): Promise<RR.AddDomainRes> {
+  async osUiAddPublicDomain(
+    params: RR.OsUiAddPublicDomainReq,
+  ): Promise<RR.OsUiAddPublicDomainRes> {
     await pauseFor(2000)
 
     const patch: Operation<any>[] = [
       {
         op: PatchOp.ADD,
-        path: `/serverInfo/host/domains`,
+        path: `/serverInfo/host/publicDomains`,
         value: {
-          [params.domain]: { public: !params.private, acme: params.acme },
+          [params.fqdn]: { gateway: params.gateway, acme: params.acme },
         },
       },
       {
@@ -1509,11 +1409,11 @@ export class MockApiService extends ApiService {
         path: `/serverInfo/host/hostnameInfo/80/0`,
         value: {
           kind: 'ip',
-          networkInterfaceId: 'eth0',
-          public: false,
+          gatewayId: 'eth0',
+          public: true,
           hostname: {
             kind: 'domain',
-            domain: params.domain,
+            domain: params.fqdn,
             subdomain: null,
             port: null,
             sslPort: 443,
@@ -1526,15 +1426,15 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async serverRemoveDomain(
-    params: RR.PkgRemoveDomainReq,
-  ): Promise<RR.RemoveDomainRes> {
+  async osUiRemovePublicDomain(
+    params: RR.OsUiRemovePublicDomainReq,
+  ): Promise<RR.OsUiRemovePublicDomainRes> {
     await pauseFor(2000)
 
     const patch: RemoveOperation[] = [
       {
         op: PatchOp.REMOVE,
-        path: `/serverInfo/host/domains/${params.domain}`,
+        path: `/serverInfo/host/publicDomains/${params.fqdn}`,
       },
       {
         op: PatchOp.REMOVE,
@@ -1546,16 +1446,70 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async pkgBindingSetPubic(
-    params: RR.PkgBindingSetPublicReq,
-  ): Promise<RR.BindingSetPublicRes> {
+  async osUiAddPrivateDomain(
+    params: RR.OsUiAddPrivateDomainReq,
+  ): Promise<RR.OsUiAddPrivateDomainRes> {
+    await pauseFor(2000)
+
+    const patch: Operation<any>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/serverInfo/host/privateDomains`,
+        value: [params.fqdn],
+      },
+      {
+        op: PatchOp.ADD,
+        path: `/serverInfo/host/hostnameInfo/80/0`,
+        value: {
+          kind: 'ip',
+          gatewayId: 'eth0',
+          public: false,
+          hostname: {
+            kind: 'domain',
+            domain: params.fqdn,
+            subdomain: null,
+            port: null,
+            sslPort: 443,
+          },
+        },
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async osUiRemovePrivateDomain(
+    params: RR.OsUiRemovePrivateDomainReq,
+  ): Promise<RR.OsUiRemovePrivateDomainRes> {
+    await pauseFor(2000)
+
+    const patch: Operation<any>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/serverInfo/host/privateDomains`,
+        value: [],
+      },
+      {
+        op: PatchOp.REMOVE,
+        path: `/serverInfo/host/hostnameInfo/80/0`,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async pkgBindingToggleGateway(
+    params: RR.PkgBindingToggleGatewayReq,
+  ): Promise<RR.PkgBindingToggleGatewayRes> {
     await pauseFor(2000)
 
     const patch = [
       {
         op: PatchOp.REPLACE,
-        path: `/packageData/${params.package}/hosts/${params.host}/bindings/${params.internalPort}/net/public`,
-        value: params.public,
+        path: `/packageData/${params.package}/hosts/${params.host}/bindings/${params.internalPort}/net/privateDisabled`,
+        value: params.enabled ? [] : [params.gateway],
       },
     ]
     this.mockRevision(patch)
@@ -1610,15 +1564,17 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async pkgAddDomain(params: RR.PkgAddDomainReq): Promise<RR.AddDomainRes> {
+  async pkgAddPublicDomain(
+    params: RR.PkgAddPublicDomainReq,
+  ): Promise<RR.PkgAddPublicDomainRes> {
     await pauseFor(2000)
 
     const patch: Operation<any>[] = [
       {
         op: PatchOp.ADD,
-        path: `/packageData/${params.package}/hosts/${params.host}/domains`,
+        path: `/packageData/${params.package}/hosts/${params.host}/publicDomains`,
         value: {
-          [params.domain]: { public: !params.private, acme: params.acme },
+          [params.fqdn]: { gateway: params.gateway, acme: params.acme },
         },
       },
       {
@@ -1626,11 +1582,11 @@ export class MockApiService extends ApiService {
         path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
         value: {
           kind: 'ip',
-          networkInterfaceId: 'eth0',
-          public: false,
+          gatewayId: 'eth0',
+          public: true,
           hostname: {
             kind: 'domain',
-            domain: params.domain,
+            domain: params.fqdn,
             subdomain: null,
             port: null,
             sslPort: 443,
@@ -1643,15 +1599,69 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  async pkgRemoveDomain(
-    params: RR.PkgRemoveDomainReq,
-  ): Promise<RR.RemoveDomainRes> {
+  async pkgRemovePublicDomain(
+    params: RR.PkgRemovePublicDomainReq,
+  ): Promise<RR.PkgRemovePublicDomainRes> {
     await pauseFor(2000)
 
     const patch: RemoveOperation[] = [
       {
         op: PatchOp.REMOVE,
-        path: `/packageData/${params.package}/hosts/${params.host}/domains/${params.domain}`,
+        path: `/packageData/${params.package}/hosts/${params.host}/publicDomains/${params.fqdn}`,
+      },
+      {
+        op: PatchOp.REMOVE,
+        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async pkgAddPrivateDomain(
+    params: RR.PkgAddPrivateDomainReq,
+  ): Promise<RR.PkgAddPrivateDomainRes> {
+    await pauseFor(2000)
+
+    const patch: Operation<any>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/packageData/${params.package}/hosts/${params.host}/privateDomains`,
+        value: [params.fqdn],
+      },
+      {
+        op: PatchOp.ADD,
+        path: `/packageData/${params.package}/hosts/${params.host}/hostnameInfo/80/0`,
+        value: {
+          kind: 'ip',
+          gatewayId: 'eth0',
+          public: false,
+          hostname: {
+            kind: 'domain',
+            domain: params.fqdn,
+            subdomain: null,
+            port: null,
+            sslPort: 443,
+          },
+        },
+      },
+    ]
+    this.mockRevision(patch)
+
+    return null
+  }
+
+  async pkgRemovePrivateDomain(
+    params: RR.PkgRemovePrivateDomainReq,
+  ): Promise<RR.PkgRemovePrivateDomainRes> {
+    await pauseFor(2000)
+
+    const patch: Operation<any>[] = [
+      {
+        op: PatchOp.REPLACE,
+        path: `/packageData/${params.package}/hosts/${params.host}/privateDomains`,
+        value: [],
       },
       {
         op: PatchOp.REMOVE,

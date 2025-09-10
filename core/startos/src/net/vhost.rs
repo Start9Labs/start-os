@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, Weak};
 
-use async_acme::acme::{Identifier, ACME_TLS_ALPN_NAME};
+use async_acme::acme::{ACME_TLS_ALPN_NAME, Identifier};
 use axum::body::Body;
 use axum::extract::Request;
 use axum::response::Response;
@@ -10,9 +10,11 @@ use color_eyre::eyre::eyre;
 use futures::FutureExt;
 use helpers::NonDetachingJoinHandle;
 use http::Uri;
+use imbl::OrdMap;
 use imbl_value::InternedString;
-use models::ResultExt;
-use rpc_toolkit::{from_fn, Context, HandlerArgs, HandlerExt, ParentHandler};
+use itertools::Itertools;
+use models::{GatewayId, ResultExt};
+use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn};
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
@@ -25,21 +27,24 @@ use tokio_rustls::rustls::server::{Acceptor, ResolvesServerCert};
 use tokio_rustls::rustls::sign::CertifiedKey;
 use tokio_rustls::rustls::{RootCertStore, ServerConfig};
 use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
-use tokio_stream::wrappers::WatchStream;
 use tokio_stream::StreamExt;
+use tokio_stream::wrappers::WatchStream;
 use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
+use crate::db::model::public::NetworkInterfaceInfo;
 use crate::net::acme::{AcmeCertCache, AcmeProvider};
-use crate::net::network_interface::{
-    Accepted, NetworkInterfaceController, NetworkInterfaceListener,
+use crate::net::gateway::{
+    Accepted, AnyFilter, DynInterfaceFilter, InterfaceFilter, NetworkInterfaceController,
+    NetworkInterfaceListener,
 };
 use crate::net::static_server::server_error;
 use crate::prelude::*;
+use crate::util::collections::EqSet;
 use crate::util::io::BackTrackingIO;
-use crate::util::serde::{display_serializable, HandlerExtSerde, MaybeUtf8String};
+use crate::util::serde::{HandlerExtSerde, MaybeUtf8String, display_serializable};
 use crate::util::sync::SyncMutex;
 
 pub fn vhost_api<C: Context>() -> ParentHandler<C> {
@@ -51,12 +56,13 @@ pub fn vhost_api<C: Context>() -> ParentHandler<C> {
                 use prettytable::*;
 
                 if let Some(format) = params.format {
-                    display_serializable(format, res);
+                    display_serializable(format, res)?;
                     return Ok::<_, Error>(());
                 }
 
                 let mut table = Table::new();
-                table.add_row(row![bc => "FROM", "TO", "PUBLIC", "ACME", "CONNECT SSL", "ACTIVE"]);
+                table
+                    .add_row(row![bc => "FROM", "TO", "GATEWAYS", "ACME", "CONNECT SSL", "ACTIVE"]);
 
                 for (external, targets) in res {
                     for (host, targets) in targets {
@@ -68,7 +74,7 @@ pub fn vhost_api<C: Context>() -> ParentHandler<C> {
                                     external.0
                                 ),
                                 target.addr,
-                                target.public,
+                                target.gateways.iter().join(", "),
                                 target.acme.as_ref().map(|a| a.0.as_str()).unwrap_or("NONE"),
                                 target.connect_ssl.is_ok(),
                                 idx == 0
@@ -117,12 +123,7 @@ impl VHostController {
         &self,
         hostname: Option<InternedString>,
         external: u16,
-        TargetInfo {
-            public,
-            acme,
-            addr,
-            connect_ssl,
-        }: TargetInfo,
+        target: TargetInfo,
     ) -> Result<Arc<()>, Error> {
         self.servers.mutate(|writable| {
             let server = if let Some(server) = writable.remove(&external) {
@@ -136,15 +137,7 @@ impl VHostController {
                     self.acme_tls_alpn_cache.clone(),
                 )?
             };
-            let rc = server.add(
-                hostname,
-                TargetInfo {
-                    public,
-                    acme,
-                    addr,
-                    connect_ssl,
-                },
-            );
+            let rc = server.add(hostname, target);
             writable.insert(external, server);
             Ok(rc?)
         })
@@ -152,8 +145,9 @@ impl VHostController {
 
     pub fn dump_table(
         &self,
-    ) -> BTreeMap<JsonKey<u16>, BTreeMap<JsonKey<Option<InternedString>>, BTreeSet<TargetInfo>>>
+    ) -> BTreeMap<JsonKey<u16>, BTreeMap<JsonKey<Option<InternedString>>, EqSet<ShowTargetInfo>>>
     {
+        let ip_info = self.interfaces.watcher.ip_info();
         self.servers.peek(|s| {
             s.iter()
                 .map(|(k, v)| {
@@ -167,8 +161,7 @@ impl VHostController {
                                     JsonKey::new(k.clone()),
                                     v.iter()
                                         .filter(|(_, v)| v.strong_count() > 0)
-                                        .map(|(k, _)| k)
-                                        .cloned()
+                                        .map(|(k, _)| ShowTargetInfo::new(k.clone(), &ip_info))
                                         .collect(),
                                 )
                             })
@@ -192,12 +185,43 @@ impl VHostController {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TargetInfo {
-    pub public: bool,
+    pub filter: DynInterfaceFilter,
     pub acme: Option<AcmeProvider>,
     pub addr: SocketAddr,
     pub connect_ssl: Result<(), AlpnInfo>, // Ok: yes, connect using ssl, pass through alpn; Err: connect tcp, use provided strategy for alpn
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
+pub struct ShowTargetInfo {
+    pub gateways: BTreeSet<GatewayId>,
+    pub acme: Option<AcmeProvider>,
+    pub addr: SocketAddr,
+    pub connect_ssl: Result<(), AlpnInfo>, // Ok: yes, connect using ssl, pass through alpn; Err: connect tcp, use provided strategy for alpn
+}
+impl ShowTargetInfo {
+    pub fn new(
+        TargetInfo {
+            filter,
+            acme,
+            addr,
+            connect_ssl,
+        }: TargetInfo,
+        ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
+    ) -> Self {
+        ShowTargetInfo {
+            gateways: ip_info
+                .iter()
+                .filter(|(id, info)| filter.filter(*id, *info))
+                .map(|(k, _)| k)
+                .cloned()
+                .collect(),
+            acme,
+            addr,
+            connect_ssl,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
@@ -222,6 +246,21 @@ struct VHostServer {
     _thread: NonDetachingJoinHandle<()>,
 }
 
+impl<'a> From<&'a BTreeMap<Option<InternedString>, BTreeMap<TargetInfo, Weak<()>>>> for AnyFilter {
+    fn from(value: &'a BTreeMap<Option<InternedString>, BTreeMap<TargetInfo, Weak<()>>>) -> Self {
+        Self(
+            value
+                .iter()
+                .flat_map(|(_, v)| {
+                    v.iter()
+                        .filter(|(_, r)| r.strong_count() > 0)
+                        .map(|(t, _)| t.filter.clone())
+                })
+                .collect(),
+        )
+    }
+}
+
 impl VHostServer {
     async fn accept(
         listener: &mut NetworkInterfaceListener,
@@ -233,35 +272,35 @@ impl VHostServer {
         let accepted;
 
         loop {
-            let any_public = mapping
-                .borrow()
-                .iter()
-                .any(|(_, targets)| targets.iter().any(|(target, _)| target.public));
+            let any_filter = AnyFilter::from(&*mapping.borrow());
 
-            let changed_public = mapping
-                .wait_for(|m| {
-                    m.iter()
-                        .any(|(_, targets)| targets.iter().any(|(target, _)| target.public))
-                        != any_public
-                })
+            let changed_filter = mapping
+                .wait_for(|m| any_filter != AnyFilter::from(m))
                 .boxed();
 
             tokio::select! {
-                a = listener.accept(any_public) => {
+                a = listener.accept(&any_filter) => {
                     accepted = a?;
                     break;
                 }
-                _ = changed_public => {
-                    tracing::debug!("port {} {} public bindings", listener.port(), if any_public { "no longer has" } else { "now has" });
+                _ = changed_filter => {
+                    tracing::debug!("port {} filter changed", listener.port());
                 }
             }
         }
 
+        let check = listener.check_filter();
         tokio::spawn(async move {
             let bind = accepted.bind;
-            if let Err(e) =
-                Self::handle_stream(accepted, mapping, db, acme_tls_alpn_cache, crypto_provider)
-                    .await
+            if let Err(e) = Self::handle_stream(
+                accepted,
+                check,
+                mapping,
+                db,
+                acme_tls_alpn_cache,
+                crypto_provider,
+            )
+            .await
             {
                 tracing::error!("Error in VHostController on {bind}: {e}");
                 tracing::debug!("{e:?}")
@@ -273,11 +312,11 @@ impl VHostServer {
     async fn handle_stream(
         Accepted {
             stream,
-            is_public,
             wan_ip,
             bind,
             ..
         }: Accepted,
+        check_filter: impl FnOnce(SocketAddr, &DynInterfaceFilter) -> bool,
         mapping: watch::Receiver<Mapping>,
         db: TypedPatchDb<Database>,
         acme_tls_alpn_cache: AcmeTlsAlpnCache,
@@ -431,10 +470,8 @@ impl VHostServer {
                 .map(|(target, _)| target.clone())
         };
         if let Some(target) = target {
-            if is_public && !target.public {
-                log::warn!(
-                    "Rejecting connection from public interface to private bind: {bind} -> {target:?}"
-                );
+            if !check_filter(bind, &target.filter) {
+                log::warn!("Connection from {bind} to {target:?} rejected by filter");
                 return Ok(());
             }
             let peek = db.peek().await;
@@ -660,7 +697,10 @@ impl VHostServer {
         crypto_provider: Arc<CryptoProvider>,
         acme_tls_alpn_cache: AcmeTlsAlpnCache,
     ) -> Result<Self, Error> {
-        let mut listener = iface_ctrl.bind(port).with_kind(crate::ErrorKind::Network)?;
+        let mut listener = iface_ctrl
+            .watcher
+            .bind(port)
+            .with_kind(crate::ErrorKind::Network)?;
         let (map_send, map_recv) = watch::channel(BTreeMap::new());
         Ok(Self {
             mapping: map_send,

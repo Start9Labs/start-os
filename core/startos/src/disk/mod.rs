@@ -2,13 +2,13 @@ use std::path::{Path, PathBuf};
 
 use itertools::Itertools;
 use lazy_format::lazy_format;
-use rpc_toolkit::{from_fn_async, CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 
+use crate::Error;
 use crate::context::{CliContext, RpcContext};
 use crate::disk::util::DiskInfo;
-use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
-use crate::Error;
+use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 
 pub mod fsck;
 pub mod main;
@@ -96,14 +96,13 @@ fn display_disk_info(params: WithIoFormat<Empty>, args: Vec<DiskInfo>) -> Result
                     "N/A"
                 },
                 part.capacity,
-                if let Some(used) = part
+                &if let Some(used) = part
                     .used
                     .map(|u| format!("{:.2} GiB", u as f64 / 1024.0 / 1024.0 / 1024.0))
-                    .as_ref()
                 {
                     used
                 } else {
-                    "N/A"
+                    "N/A".to_owned()
                 },
                 &if part.start_os.is_empty() {
                     "N/A".to_owned()

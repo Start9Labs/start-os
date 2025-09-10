@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use clap::builder::ValueParserFactory;
 use clap::Parser;
+use clap::builder::ValueParserFactory;
 use imbl_value::InternedString;
 use models::FromStrParser;
-use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, Empty, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::fs::OpenOptions;
 use tokio::process::Command;
@@ -15,13 +15,13 @@ use ts_rs::TS;
 use crate::context::{CliContext, RpcContext};
 use crate::hostname::Hostname;
 use crate::prelude::*;
-use crate::util::io::create_file;
-use crate::util::serde::{display_serializable, HandlerExtSerde, Pem, WithIoFormat};
 use crate::util::Invoke;
+use crate::util::io::create_file;
+use crate::util::serde::{HandlerExtSerde, Pem, WithIoFormat, display_serializable};
 
 pub const SSH_DIR: &str = "/home/start9/.ssh";
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct SshKeys(BTreeMap<InternedString, WithTimeData<SshPubKey>>);
 impl SshKeys {
     pub fn new() -> Self {

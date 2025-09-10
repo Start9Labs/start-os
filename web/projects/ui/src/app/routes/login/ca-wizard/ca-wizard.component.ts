@@ -37,7 +37,7 @@ export class CAWizardComponent {
   }
 
   launchHttps() {
-    this.document.defaultView?.open(`https://${this.config.getHost()}`, '_self')
+    this.document.defaultView?.open(`https://${this.config.host}`, '_self')
   }
 
   private async testHttps() {

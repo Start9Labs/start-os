@@ -1,17 +1,17 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use futures::future::BoxFuture;
 use futures::FutureExt;
+use futures::future::BoxFuture;
 use models::ProcedureName;
 
 use super::TempDesiredRestore;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
+use crate::service::ServiceActor;
 use crate::service::action::GetActionInput;
 use crate::service::transition::{TransitionKind, TransitionState};
-use crate::service::ServiceActor;
 use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::actor::{ConflictBuilder, Handler};
 use crate::util::future::RemoteCancellable;

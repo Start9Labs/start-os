@@ -2,8 +2,8 @@ use std::path::Path;
 
 use tracing::instrument;
 
-use crate::util::Invoke;
 use crate::Error;
+use crate::util::Invoke;
 
 pub async fn is_mountpoint(path: impl AsRef<Path>) -> Result<bool, Error> {
     let is_mountpoint = tokio::process::Command::new("mountpoint")

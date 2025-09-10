@@ -1,18 +1,18 @@
 use std::path::Path;
 
 use clap::Parser;
-use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 
+use crate::CAP_10_MiB;
 use crate::context::CliContext;
 use crate::prelude::*;
+use crate::s9pk::merkle_archive::source::ArchiveSource;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
-use crate::s9pk::merkle_archive::source::ArchiveSource;
-use crate::util::io::{open_file, ParallelBlake3Writer};
+use crate::util::io::{ParallelBlake3Writer, open_file};
 use crate::util::serde::Base16;
 use crate::util::{Apply, PathOrUrl};
-use crate::CAP_10_MiB;
 
 pub fn util<C: Context>() -> ParentHandler<C> {
     ParentHandler::new().subcommand(

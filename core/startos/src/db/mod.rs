@@ -12,7 +12,7 @@ use itertools::Itertools;
 use patch_db::json_ptr::{JsonPointer, ROOT};
 use patch_db::{DiffPatch, Dump, Revision};
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 use tokio::sync::watch;
@@ -23,7 +23,7 @@ use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::util::net::WebSocketExt;
-use crate::util::serde::{apply_expr, HandlerExtSerde};
+use crate::util::serde::{HandlerExtSerde, apply_expr};
 
 lazy_static::lazy_static! {
     static ref PUBLIC: JsonPointer = "/public".parse().unwrap();

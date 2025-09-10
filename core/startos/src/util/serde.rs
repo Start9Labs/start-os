@@ -7,7 +7,7 @@ use base64::Engine;
 use clap::builder::ValueParserFactory;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use color_eyre::eyre::eyre;
-use imbl::OrdMap;
+use imbl_value::imbl::OrdMap;
 use models::FromStrParser;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
@@ -686,7 +686,7 @@ impl std::str::FromStr for Duration {
                 return Err(Error::new(
                     eyre!("Invalid units for duration"),
                     crate::ErrorKind::Deserialization,
-                ))
+                ));
             }
         }))
     }
@@ -1023,6 +1023,11 @@ pub const BASE64: base64::engine::GeneralPurpose =
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, TS)]
 #[ts(type = "string", concrete(T = Vec<u8>))]
 pub struct Base64<T>(pub T);
+impl<T: AsRef<[u8]>> Base64<T> {
+    pub fn to_padded_string(&self) -> String {
+        base64::engine::general_purpose::STANDARD.encode(self.0.as_ref())
+    }
+}
 impl<T: AsRef<[u8]>> std::fmt::Display for Base64<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&BASE64.encode(self.0.as_ref()))

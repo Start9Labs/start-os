@@ -4,17 +4,17 @@ use std::time::Duration;
 
 use axum::extract::ws;
 use clap::builder::ValueParserFactory;
-use clap::{value_parser, CommandFactory, FromArgMatches, Parser};
+use clap::{CommandFactory, FromArgMatches, Parser, value_parser};
 use color_eyre::eyre::eyre;
 use exver::VersionRange;
 use futures::{AsyncWriteExt, StreamExt};
-use imbl_value::{json, InternedString};
+use imbl_value::{InternedString, json};
 use itertools::Itertools;
 use models::{FromStrParser, VersionString};
-use reqwest::header::{HeaderMap, CONTENT_LENGTH};
 use reqwest::Url;
-use rpc_toolkit::yajrc::RpcError;
+use reqwest::header::{CONTENT_LENGTH, HeaderMap};
 use rpc_toolkit::HandlerArgs;
+use rpc_toolkit::yajrc::RpcError;
 use rustyline_async::ReadlineEvent;
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
@@ -31,9 +31,9 @@ use crate::registry::package::get::GetPackageResponse;
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::manifest::PackageId;
 use crate::upload::upload;
+use crate::util::Never;
 use crate::util::io::open_file;
 use crate::util::net::WebSocketExt;
-use crate::util::Never;
 
 pub const PKG_ARCHIVE_DIR: &str = "package-data/archive";
 pub const PKG_PUBLIC_DIR: &str = "package-data/public";
@@ -253,7 +253,7 @@ pub async fn sideload(
         .await;
     tokio::spawn(async move {
         if let Err(e) = async {
-            let key = ctx.db.peek().await.into_private().into_compat_s9pk_key();
+            let key = ctx.db.peek().await.into_private().into_developer_key();
 
             ctx.services
                 .install(
@@ -483,7 +483,9 @@ pub async fn cli_install(
             let version = if packages.best.len() == 1 {
                 packages.best.pop_first().map(|(k, _)| k).unwrap()
             } else {
-                println!("Multiple flavors of {id} found. Please select one of the following versions to install:");
+                println!(
+                    "Multiple flavors of {id} found. Please select one of the following versions to install:"
+                );
                 let version;
                 loop {
                     let (mut read, mut output) = rustyline_async::Readline::new("> ".into())

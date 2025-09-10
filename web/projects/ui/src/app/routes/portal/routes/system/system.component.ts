@@ -34,7 +34,7 @@ import { map } from 'rxjs'
             <span tuiTitle>
               <span>
                 {{ page.item | i18n }}
-                @if (page.item === 'General' && badge()) {
+                @if (page.item === 'General Settings' && badge()) {
                   <tui-badge-notification>{{ badge() }}</tui-badge-notification>
                 }
               </span>
@@ -99,10 +99,6 @@ import { map } from 'rxjs'
         [tuiTitle] {
           font: var(--tui-font-text-l);
         }
-      }
-
-      hr {
-        background: var(--tui-border-normal);
       }
 
       ::ng-deep hgroup h3 {

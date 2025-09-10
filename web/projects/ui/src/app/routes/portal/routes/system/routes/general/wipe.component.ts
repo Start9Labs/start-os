@@ -8,16 +8,14 @@ import { i18nPipe } from '@start9labs/shared'
 
 @Component({
   template: `
-    <p>
-      @if (isTor) {
+    @if (isTor) {
+      <p>
         {{
-          'You are currently connected over Tor. If you reset the Tor daemon, you will lose connectivity until it comes back online.'
+          'You are currently connected over Tor. If you restart the Tor daemon, you will lose connectivity until it comes back online.'
             | i18n
         }}
-      } @else {
-        {{ 'Reset Tor?' | i18n }}
-      }
-    </p>
+      </p>
+    }
     <p>
       {{
         'Optionally wipe state to forcibly acquire new guard nodes. It is recommended to try without wiping state first.'

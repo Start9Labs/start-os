@@ -1,10 +1,10 @@
 use std::path::Path;
 
-use gpt::disk::LogicalBlockSize;
 use gpt::GptConfig;
+use gpt::disk::LogicalBlockSize;
 
-use crate::disk::util::DiskInfo;
 use crate::disk::OsPartitionInfo;
+use crate::disk::util::DiskInfo;
 use crate::os_install::partition_for;
 use crate::prelude::*;
 

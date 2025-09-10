@@ -26,6 +26,12 @@ import { StatusComponent } from './status.component'
     <td [style.grid-area]="'1 / 2'">
       <a [routerLink]="routerLink">{{ manifest.title }}</a>
     </td>
+    <td
+      appStatus
+      [pkg]="pkg"
+      [hasDepErrors]="hasError(depErrors)"
+      [style.grid-area]="'3 / 2'"
+    ></td>
     <td [style.grid-area]="'2 / 2'">{{ manifest.version }}</td>
     <td class="uptime">
       @if ($any(pkg.status)?.started; as started) {
@@ -35,12 +41,6 @@ import { StatusComponent } from './status.component'
         -
       }
     </td>
-    <td
-      appStatus
-      [pkg]="pkg"
-      [hasDepErrors]="hasError(depErrors)"
-      [style.grid-area]="'3 / 2'"
-    ></td>
     <td [style.grid-area]="'2 / 3'" [style.text-align]="'center'">
       <fieldset
         appControls

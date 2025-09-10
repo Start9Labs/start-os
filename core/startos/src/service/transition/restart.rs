@@ -1,5 +1,5 @@
-use futures::future::BoxFuture;
 use futures::FutureExt;
+use futures::future::BoxFuture;
 
 use super::TempDesiredRestore;
 use crate::prelude::*;

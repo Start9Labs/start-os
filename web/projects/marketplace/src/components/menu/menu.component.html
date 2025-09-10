@@ -7,7 +7,7 @@
       [url]="registry?.url || ''"
     />
     <h1 [tuiSkeleton]="!registry">
-      {{ registry?.info?.name || 'Unnamed Registry' }}
+      {{ registry?.info?.name || 'Unnamed registry' }}
     </h1>
     <!-- change registry modal -->
     <ng-content select="[slot=desktop]"></ng-content>
@@ -62,12 +62,8 @@
               <div>
                 <!-- link to store for brochure -->
                 <ng-content select="[slot=store-mobile]" />
-                <a
-                  target="_blank"
-                  rel="noreferrer"
-                  href="https://docs.start9.com/latest/packaging-guide/"
-                >
-                  <span>Package a service</span>
+                <a docsLink path="/packaging-guide">
+                  <span>{{ 'Package a service' | i18n }}</span>
                   <tui-icon tuiAppearance="icon" icon="@tui.external-link" />
                 </a>
               </div>
@@ -90,12 +86,8 @@
       <div>
         <!-- link to store for brochure -->
         <ng-content select="[slot=store]" />
-        <a
-          target="_blank"
-          rel="noreferrer"
-          href="https://docs.start9.com/latest/packaging-guide/"
-        >
-          <span>Package a service</span>
+        <a docsLink path="/packaging-guide">
+          <span>{{ 'Package a service' | i18n }}</span>
           <tui-icon tuiAppearance="icon" icon="@tui.external-link" />
         </a>
       </div>

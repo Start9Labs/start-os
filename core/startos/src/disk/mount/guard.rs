@@ -10,8 +10,8 @@ use tracing::instrument;
 
 use super::filesystem::{FileSystem, MountType, ReadOnly, ReadWrite};
 use super::util::unmount;
-use crate::util::{Invoke, Never};
 use crate::Error;
+use crate::util::{Invoke, Never};
 
 pub const TMP_MOUNTPOINT: &'static str = "/media/startos/tmp";
 

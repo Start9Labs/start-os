@@ -5,9 +5,9 @@ use rpc_toolkit::Context;
 use tokio::sync::broadcast::Sender;
 use tracing::instrument;
 
+use crate::Error;
 use crate::net::utils::find_eth_iface;
 use crate::rpc_continuations::RpcContinuations;
-use crate::Error;
 
 pub struct InstallContextSeed {
     pub ethernet_interface: String,

@@ -3,9 +3,9 @@ use std::str::FromStr;
 use clap::builder::ValueParserFactory;
 use models::{FromStrParser, PackageId};
 
+use crate::service::RebuildParams;
 use crate::service::effects::prelude::*;
 use crate::service::rpc::CallbackId;
-use crate::service::RebuildParams;
 use crate::status::MainStatus;
 
 pub async fn rebuild(context: EffectContext) -> Result<(), Error> {
@@ -21,21 +21,15 @@ pub async fn rebuild(context: EffectContext) -> Result<(), Error> {
     Ok(())
 }
 
-pub async fn restart(
-    context: EffectContext,
-    ProcedureId { procedure_id }: ProcedureId,
-) -> Result<(), Error> {
+pub async fn restart(context: EffectContext, EventId { event_id }: EventId) -> Result<(), Error> {
     let context = context.deref()?;
-    context.restart(procedure_id, false).await?;
+    context.restart(event_id, false).await?;
     Ok(())
 }
 
-pub async fn shutdown(
-    context: EffectContext,
-    ProcedureId { procedure_id }: ProcedureId,
-) -> Result<(), Error> {
+pub async fn shutdown(context: EffectContext, EventId { event_id }: EventId) -> Result<(), Error> {
     let context = context.deref()?;
-    context.stop(procedure_id, false).await?;
+    context.stop(event_id, false).await?;
     Ok(())
 }
 

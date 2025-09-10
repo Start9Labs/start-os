@@ -2,9 +2,9 @@ use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::json;
 
 use super::v0_3_5::V0_3_0_COMPAT;
-use super::{v0_3_6_alpha_18, VersionT};
+use super::{VersionT, v0_3_6_alpha_18};
 use crate::context::RpcContext;
-use crate::notifications::{notify, NotificationLevel};
+use crate::notifications::{NotificationLevel, notify};
 use crate::prelude::*;
 
 lazy_static::lazy_static! {

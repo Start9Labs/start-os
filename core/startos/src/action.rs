@@ -52,6 +52,8 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionInput {
+    #[serde(default)]
+    pub event_id: Guid,
     #[ts(type = "Record<string, unknown>")]
     pub spec: Value,
     #[ts(type = "Record<string, unknown> | null")]
@@ -270,6 +272,7 @@ pub fn display_action_result<T: Serialize>(
 #[serde(rename_all = "camelCase")]
 pub struct RunActionParams {
     pub package_id: PackageId,
+    pub event_id: Option<Guid>,
     pub action_id: ActionId,
     #[ts(optional, type = "any")]
     pub input: Option<Value>,
@@ -278,6 +281,7 @@ pub struct RunActionParams {
 #[derive(Parser)]
 struct CliRunActionParams {
     pub package_id: PackageId,
+    pub event_id: Option<Guid>,
     pub action_id: ActionId,
     #[command(flatten)]
     pub input: StdinDeserializable<Option<Value>>,
@@ -286,12 +290,14 @@ impl From<CliRunActionParams> for RunActionParams {
     fn from(
         CliRunActionParams {
             package_id,
+            event_id,
             action_id,
             input,
         }: CliRunActionParams,
     ) -> Self {
         Self {
             package_id,
+            event_id,
             action_id,
             input: input.0,
         }
@@ -331,6 +337,7 @@ pub async fn run_action(
     ctx: RpcContext,
     RunActionParams {
         package_id,
+        event_id,
         action_id,
         input,
     }: RunActionParams,
@@ -340,7 +347,11 @@ pub async fn run_action(
         .await
         .as_ref()
         .or_not_found(lazy_format!("Manager for {}", package_id))?
-        .run_action(Guid::new(), action_id, input.unwrap_or_default())
+        .run_action(
+            event_id.unwrap_or_default(),
+            action_id,
+            input.unwrap_or_default(),
+        )
         .await
         .map(|res| res.map(ActionResult::upcast))
 }

@@ -6,8 +6,8 @@ import { WebSocketSubject } from 'rxjs/webSocket'
 export abstract class ApiService {
   // http
 
-  // for sideloading packages
-  abstract uploadPackage(guid: string, body: Blob): Promise<void>
+  // for uploading files
+  abstract uploadFile(guid: string, body: Blob): Promise<void>
 
   // for getting static files: ex license
   abstract getStaticProxy(
@@ -90,17 +90,11 @@ export abstract class ApiService {
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes>
 
-  abstract getTorLogs(params: RR.GetServerLogsReq): Promise<RR.GetServerLogsRes>
-
   abstract followServerLogs(
     params: RR.FollowServerLogsReq,
   ): Promise<RR.FollowServerLogsRes>
 
   abstract followKernelLogs(
-    params: RR.FollowServerLogsReq,
-  ): Promise<RR.FollowServerLogsRes>
-
-  abstract followTorLogs(
     params: RR.FollowServerLogsReq,
   ): Promise<RR.FollowServerLogsRes>
 
@@ -122,15 +116,11 @@ export abstract class ApiService {
 
   abstract toggleKiosk(enable: boolean): Promise<null>
 
+  abstract setDns(params: RR.SetDnsReq): Promise<RR.SetDnsRes>
+
+  abstract queryDns(params: RR.QueryDnsReq): Promise<RR.QueryDnsRes>
+
   abstract resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes>
-
-  // @TODO 041
-
-  // ** server outbound proxy **
-
-  // abstract setOsOutboundProxy(
-  //   params: RR.SetOsOutboundProxyReq,
-  // ): Promise<RR.SetOsOutboundProxyRes>
 
   // smtp
 
@@ -182,37 +172,13 @@ export abstract class ApiService {
 
   // ** proxies **
 
-  // @TODO 041
+  abstract addTunnel(params: RR.AddTunnelReq): Promise<RR.AddTunnelRes>
 
-  // abstract addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes>
+  abstract updateTunnel(params: RR.UpdateTunnelReq): Promise<RR.UpdateTunnelRes>
 
-  // abstract updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes>
-
-  // abstract deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes>
+  abstract removeTunnel(params: RR.RemoveTunnelReq): Promise<RR.RemoveTunnelRes>
 
   // ** domains **
-
-  // @TODO 041
-
-  // abstract claimStart9ToDomain(
-  //   params: RR.ClaimStart9ToReq,
-  // ): Promise<RR.ClaimStart9ToRes>
-
-  // abstract deleteStart9ToDomain(
-  //   params: RR.DeleteStart9ToReq,
-  // ): Promise<RR.DeleteStart9ToRes>
-
-  // abstract addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes>
-
-  // abstract deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes>
-
-  // ** port forwards **
-
-  // @TODO 041
-
-  // abstract overridePortForward(
-  //   params: RR.OverridePortReq,
-  // ): Promise<RR.OverridePortRes>
 
   // wifi
 
@@ -366,8 +332,8 @@ export abstract class ApiService {
   // ** service outbound proxy **
 
   // abstract setServiceOutboundProxy(
-  //   params: RR.SetServiceOutboundProxyReq,
-  // ): Promise<RR.SetServiceOutboundProxyRes>
+  //   params: RR.SetServiceOutboundTunnelReq,
+  // ): Promise<RR.SetServiceOutboundTunnelRes>
 
   abstract initAcme(params: RR.InitAcmeReq): Promise<RR.InitAcmeRes>
 
@@ -379,9 +345,9 @@ export abstract class ApiService {
     params: RR.GenerateTorKeyReq,
   ): Promise<RR.AddTorKeyRes>
 
-  abstract serverBindingSetPubic(
-    params: RR.ServerBindingSetPublicReq,
-  ): Promise<RR.BindingSetPublicRes>
+  abstract serverBindingToggleGateway(
+    params: RR.ServerBindingToggleGatewayReq,
+  ): Promise<RR.ServerBindingToggleGatewayRes>
 
   abstract serverAddOnion(params: RR.ServerAddOnionReq): Promise<RR.AddOnionRes>
 
@@ -389,17 +355,25 @@ export abstract class ApiService {
     params: RR.ServerRemoveOnionReq,
   ): Promise<RR.RemoveOnionRes>
 
-  abstract serverAddDomain(
-    params: RR.ServerAddDomainReq,
-  ): Promise<RR.AddDomainRes>
+  abstract osUiAddPublicDomain(
+    params: RR.OsUiAddPublicDomainReq,
+  ): Promise<RR.OsUiAddPublicDomainRes>
 
-  abstract serverRemoveDomain(
-    params: RR.ServerRemoveDomainReq,
-  ): Promise<RR.RemoveDomainRes>
+  abstract osUiRemovePublicDomain(
+    params: RR.OsUiRemovePublicDomainReq,
+  ): Promise<RR.OsUiRemovePublicDomainRes>
 
-  abstract pkgBindingSetPubic(
-    params: RR.PkgBindingSetPublicReq,
-  ): Promise<RR.BindingSetPublicRes>
+  abstract osUiAddPrivateDomain(
+    params: RR.OsUiAddPrivateDomainReq,
+  ): Promise<RR.OsUiAddPrivateDomainRes>
+
+  abstract osUiRemovePrivateDomain(
+    params: RR.OsUiRemovePrivateDomainReq,
+  ): Promise<RR.OsUiRemovePrivateDomainRes>
+
+  abstract pkgBindingToggleGateway(
+    params: RR.PkgBindingToggleGatewayReq,
+  ): Promise<RR.PkgBindingToggleGatewayRes>
 
   abstract pkgAddOnion(params: RR.PkgAddOnionReq): Promise<RR.AddOnionRes>
 
@@ -407,9 +381,19 @@ export abstract class ApiService {
     params: RR.PkgRemoveOnionReq,
   ): Promise<RR.RemoveOnionRes>
 
-  abstract pkgAddDomain(params: RR.PkgAddDomainReq): Promise<RR.AddDomainRes>
+  abstract pkgAddPublicDomain(
+    params: RR.PkgAddPublicDomainReq,
+  ): Promise<RR.PkgAddPublicDomainRes>
 
-  abstract pkgRemoveDomain(
-    params: RR.PkgRemoveDomainReq,
-  ): Promise<RR.RemoveDomainRes>
+  abstract pkgRemovePublicDomain(
+    params: RR.PkgRemovePublicDomainReq,
+  ): Promise<RR.PkgRemovePublicDomainRes>
+
+  abstract pkgAddPrivateDomain(
+    params: RR.PkgAddPrivateDomainReq,
+  ): Promise<RR.PkgAddPrivateDomainRes>
+
+  abstract pkgRemovePrivateDomain(
+    params: RR.PkgRemovePrivateDomainReq,
+  ): Promise<RR.PkgRemovePrivateDomainRes>
 }

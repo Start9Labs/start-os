@@ -1,9 +1,8 @@
-use std::path::Path;
 use std::sync::Arc;
 
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
-    from_fn, from_fn_async, CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler,
+    CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler, from_fn, from_fn_async,
 };
 
 use crate::context::{CliContext, DiagnosticContext, RpcContext};
@@ -12,7 +11,6 @@ use crate::init::SYSTEM_REBUILD_PATH;
 use crate::prelude::*;
 use crate::shutdown::Shutdown;
 use crate::util::io::delete_file;
-use crate::DATA_DIR;
 
 pub fn diagnostic<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -70,10 +68,7 @@ pub fn error(ctx: DiagnosticContext) -> Result<Arc<RpcError>, Error> {
 pub fn restart(ctx: DiagnosticContext) -> Result<(), Error> {
     ctx.shutdown
         .send(Shutdown {
-            export_args: ctx
-                .disk_guid
-                .clone()
-                .map(|guid| (guid, Path::new(DATA_DIR).to_owned())),
+            disk_guid: ctx.disk_guid.clone(),
             restart: true,
         })
         .map_err(|_| eyre!("receiver dropped"))

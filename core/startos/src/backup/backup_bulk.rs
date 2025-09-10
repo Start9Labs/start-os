@@ -13,9 +13,8 @@ use tokio::io::AsyncWriteExt;
 use tracing::instrument;
 use ts_rs::TS;
 
-use super::target::{BackupTargetId, PackageBackupInfo};
 use super::PackageBackupReport;
-use crate::auth::check_password_against_db;
+use super::target::{BackupTargetId, PackageBackupInfo};
 use crate::backup::os::OsBackup;
 use crate::backup::{BackupReport, ServerBackupReport};
 use crate::context::RpcContext;
@@ -24,7 +23,8 @@ use crate::db::model::{Database, DatabaseModel};
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
-use crate::notifications::{notify, NotificationLevel};
+use crate::middleware::auth::AuthContext;
+use crate::notifications::{NotificationLevel, notify};
 use crate::prelude::*;
 use crate::util::io::dir_copy;
 use crate::util::serde::IoFormat;
@@ -170,7 +170,7 @@ pub async fn backup_all(
     let ((fs, package_ids, server_id), status_guard) = (
         ctx.db
             .mutate(|db| {
-                check_password_against_db(db, &password)?;
+                RpcContext::check_password(db, &password)?;
                 let fs = target_id.load(db)?;
                 let package_ids = if let Some(ids) = package_ids {
                     ids.into_iter().collect()

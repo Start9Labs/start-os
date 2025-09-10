@@ -3,13 +3,13 @@ use std::fmt;
 use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
-use clap::builder::ValueParserFactory;
 use clap::Parser;
+use clap::builder::ValueParserFactory;
 use color_eyre::eyre::eyre;
 use helpers::const_true;
 use imbl_value::InternedString;
 use models::{FromStrParser, PackageId};
-use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
@@ -110,10 +110,6 @@ pub async fn list(
                             })
                         })
                         .collect::<Result<Vec<NotificationWithId>, Error>>()?;
-                    db.as_public_mut()
-                        .as_server_info_mut()
-                        .as_unread_notification_count_mut()
-                        .ser(&0)?;
                     Ok(notifs)
                 }
                 Some(before) => {
@@ -195,22 +191,23 @@ pub async fn mark_seen(
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
-            let mut diff = 0;
             let n = db.as_private_mut().as_notifications_mut();
             for id in ids {
-                if !n
-                    .as_idx_mut(&id)
+                n.as_idx_mut(&id)
                     .or_not_found(lazy_format!("Notification #{id}"))?
                     .as_seen_mut()
-                    .replace(&true)?
-                {
-                    diff += 1;
+                    .ser(&true)?;
+            }
+            let mut unread = 0;
+            for (_, n) in n.as_entries()? {
+                if !n.as_seen().de()? {
+                    unread += 1;
                 }
             }
             db.as_public_mut()
                 .as_server_info_mut()
                 .as_unread_notification_count_mut()
-                .mutate(|n| Ok(*n -= diff))?;
+                .ser(&unread)?;
             Ok(())
         })
         .await
@@ -223,22 +220,23 @@ pub async fn mark_seen_before(
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
-            let mut diff = 0;
             let n = db.as_private_mut().as_notifications_mut();
             for id in n.keys()?.range(..before) {
-                if !n
-                    .as_idx_mut(&id)
+                n.as_idx_mut(&id)
                     .or_not_found(lazy_format!("Notification #{id}"))?
                     .as_seen_mut()
-                    .replace(&true)?
-                {
-                    diff += 1;
+                    .ser(&true)?;
+            }
+            let mut unread = 0;
+            for (_, n) in n.as_entries()? {
+                if !n.as_seen().de()? {
+                    unread += 1;
                 }
             }
             db.as_public_mut()
                 .as_server_info_mut()
                 .as_unread_notification_count_mut()
-                .mutate(|n| Ok(*n -= diff))?;
+                .ser(&unread)?;
             Ok(())
         })
         .await
@@ -251,21 +249,23 @@ pub async fn mark_unseen(
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
-            let mut diff = 0;
             let n = db.as_private_mut().as_notifications_mut();
             for id in ids {
-                if n.as_idx_mut(&id)
+                n.as_idx_mut(&id)
                     .or_not_found(lazy_format!("Notification #{id}"))?
                     .as_seen_mut()
-                    .replace(&false)?
-                {
-                    diff += 1;
+                    .ser(&false)?;
+            }
+            let mut unread = 0;
+            for (_, n) in n.as_entries()? {
+                if !n.as_seen().de()? {
+                    unread += 1;
                 }
             }
             db.as_public_mut()
                 .as_server_info_mut()
                 .as_unread_notification_count_mut()
-                .mutate(|n| Ok(*n += diff))?;
+                .ser(&unread)?;
             Ok(())
         })
         .await

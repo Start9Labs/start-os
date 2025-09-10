@@ -1,15 +1,15 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
-use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::Context;
+use rpc_toolkit::yajrc::RpcError;
 use tokio::sync::broadcast::Sender;
 use tracing::instrument;
 
+use crate::Error;
 use crate::context::config::ServerConfig;
 use crate::rpc_continuations::RpcContinuations;
 use crate::shutdown::Shutdown;
-use crate::Error;
 
 pub struct DiagnosticContextSeed {
     pub shutdown: Sender<Shutdown>,

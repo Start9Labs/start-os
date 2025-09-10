@@ -76,24 +76,28 @@ export default class ServiceAboutRoute {
               header: 'General',
               items: [
                 {
+                  name: 'Title',
+                  value: manifest.title,
+                },
+                {
+                  name: 'ID' as i18nKey,
+                  value: manifest.id,
+                },
+                {
                   name: 'Version',
                   value: manifest.version,
                   icon: '@tui.copy',
                   action: () => this.copyService.copy(manifest.version),
                 },
                 {
-                  name: 'Installed From',
-                  value: pkg.registry || NOT_PROVIDED,
-                },
-                {
-                  name: 'Git Hash',
+                  name: 'Git hash',
                   value: manifest.gitHash || '-',
                   icon: manifest.gitHash ? '@tui.copy' : '',
                   action: () =>
                     manifest.gitHash && this.copyService.copy(manifest.gitHash),
                 },
                 {
-                  name: 'SDK Version',
+                  name: 'SDK version',
                   value: manifest.sdkVersion || '-',
                   icon: manifest.sdkVersion ? '@tui.copy' : '',
                   action: () =>
@@ -105,6 +109,10 @@ export default class ServiceAboutRoute {
                   value: manifest.license,
                   icon: '@tui.chevron-right',
                   action: () => this.markdown.subscribe(),
+                },
+                {
+                  name: 'Installed from',
+                  value: pkg.registry || NOT_PROVIDED,
                 },
               ],
             },
@@ -125,16 +133,16 @@ export default class ServiceAboutRoute {
               header: 'Links',
               items: [
                 {
-                  name: 'Marketing',
-                  value: manifest.marketingSite || NOT_PROVIDED,
-                },
-                {
                   name: 'Documentation',
                   value: manifest.docsUrl || NOT_PROVIDED,
                 },
                 {
                   name: 'Support',
                   value: manifest.supportSite || NOT_PROVIDED,
+                },
+                {
+                  name: 'Marketing',
+                  value: manifest.marketingSite || NOT_PROVIDED,
                 },
                 {
                   name: 'Donations',

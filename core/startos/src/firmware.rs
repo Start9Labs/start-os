@@ -6,11 +6,11 @@ use serde::{Deserialize, Serialize};
 use tokio::io::BufReader;
 use tokio::process::Command;
 
+use crate::PLATFORM;
 use crate::disk::fsck::RequiresReboot;
 use crate::prelude::*;
-use crate::util::io::open_file;
 use crate::util::Invoke;
-use crate::PLATFORM;
+use crate::util::io::open_file;
 
 /// Part of the Firmware, look there for more about
 #[derive(Debug, Clone, Deserialize, Serialize)]

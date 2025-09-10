@@ -16,8 +16,8 @@ import { TuiButton, TuiDialogContext } from '@taiga-ui/core'
 import { TuiConfirmService } from '@taiga-ui/kit'
 import { POLYMORPHEUS_CONTEXT } from '@taiga-ui/polymorpheus'
 import { Operation } from 'fast-json-patch'
-import { FormModule } from 'src/app/routes/portal/components/form/form.module'
-import { InvalidService } from 'src/app/routes/portal/components/form/invalid.service'
+import { FormGroupComponent } from 'src/app/routes/portal/components/form/containers/group.component'
+import { InvalidService } from 'src/app/routes/portal/components/form/containers/control.directive'
 import { FormService } from 'src/app/services/form.service'
 
 export interface ActionButton<T> {
@@ -88,7 +88,7 @@ export interface FormContext<T> {
     RouterModule,
     TuiValueChanges,
     TuiButton,
-    FormModule,
+    FormGroupComponent,
   ],
   providers: [InvalidService],
   changeDetection: ChangeDetectionStrategy.OnPush,

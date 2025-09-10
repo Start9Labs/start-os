@@ -9,8 +9,8 @@ import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { tuiPure } from '@taiga-ui/cdk'
 import { TuiDataList, TuiDropdown, TuiButton } from '@taiga-ui/core'
-import { ConfigService } from 'src/app/services/config.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { InterfaceService } from '../../../components/interfaces/interface.service'
 
 @Component({
   selector: 'app-ui-launch',
@@ -59,7 +59,7 @@ import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
   imports: [TuiButton, TuiDropdown, TuiDataList, i18nPipe],
 })
 export class UILaunchComponent {
-  private readonly config = inject(ConfigService)
+  private readonly interfaceService = inject(InterfaceService)
   private readonly document = inject(DOCUMENT)
 
   @Input()
@@ -86,7 +86,9 @@ export class UILaunchComponent {
   }
 
   getHref(ui: T.ServiceInterface): string {
-    return this.config.launchableAddress(ui, this.pkg.hosts)
+    const host = this.pkg.hosts[ui.addressInfo.hostId]
+    if (!host) return ''
+    return this.interfaceService.launchableAddress(ui, host)
   }
 
   openUI(ui: T.ServiceInterface) {

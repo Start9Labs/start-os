@@ -1,11 +1,11 @@
 use blake3::Hash;
 use tokio::io::AsyncRead;
 
+use crate::CAP_10_MiB;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
 use crate::util::io::{ParallelBlake3Writer, TrackingIO};
-use crate::CAP_10_MiB;
 
 #[derive(Debug, Clone)]
 pub struct FileContents<S>(S);

@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use clap::Parser;
 use imbl_value::InternedString;
 use models::PackageId;
-use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -11,7 +11,7 @@ use crate::context::CliContext;
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
 use crate::registry::package::index::Category;
-use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
+use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 
 pub fn category_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()

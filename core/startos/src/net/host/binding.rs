@@ -1,15 +1,18 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::str::FromStr;
 
 use clap::builder::ValueParserFactory;
 use clap::Parser;
-use models::{FromStrParser, HostId};
+use imbl::OrdSet;
+use models::{FromStrParser, GatewayId, HostId};
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
+use crate::db::model::public::NetworkInterfaceInfo;
 use crate::net::forward::AvailablePorts;
+use crate::net::gateway::InterfaceFilter;
 use crate::net::host::HostApiKind;
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
@@ -50,11 +53,16 @@ pub struct BindInfo {
     pub net: NetInfo,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, TS, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub struct NetInfo {
-    pub public: bool,
+    #[ts(as = "BTreeSet::<GatewayId>")]
+    #[serde(default)]
+    pub private_disabled: OrdSet<GatewayId>,
+    #[ts(as = "BTreeSet::<GatewayId>")]
+    #[serde(default)]
+    pub public_enabled: OrdSet<GatewayId>,
     pub assigned_port: Option<u16>,
     pub assigned_ssl_port: Option<u16>,
 }
@@ -65,16 +73,19 @@ impl BindInfo {
         if options.add_ssl.is_some() {
             assigned_ssl_port = Some(available_ports.alloc()?);
         }
-        if let Some(secure) = options.secure {
-            if !secure.ssl || !options.add_ssl.is_some() {
-                assigned_port = Some(available_ports.alloc()?);
-            }
+        if options
+            .secure
+            .map_or(true, |s| !(s.ssl && options.add_ssl.is_some()))
+        {
+            assigned_port = Some(available_ports.alloc()?);
         }
+
         Ok(Self {
             enabled: true,
             options,
             net: NetInfo {
-                public: false,
+                private_disabled: OrdSet::new(),
+                public_enabled: OrdSet::new(),
                 assigned_port,
                 assigned_ssl_port,
             },
@@ -88,7 +99,7 @@ impl BindInfo {
         let Self { net: mut lan, .. } = self;
         if options
             .secure
-            .map_or(false, |s| !(s.ssl && options.add_ssl.is_some()))
+            .map_or(true, |s| !(s.ssl && options.add_ssl.is_some()))
         // doesn't make sense to have 2 listening ports, both with ssl
         {
             lan.assigned_port = if let Some(port) = lan.assigned_port.take() {
@@ -120,6 +131,15 @@ impl BindInfo {
     }
     pub fn disable(&mut self) {
         self.enabled = false;
+    }
+}
+impl InterfaceFilter for NetInfo {
+    fn filter(&self, id: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
+        if info.public() {
+            self.public_enabled.contains(id)
+        } else {
+            !self.private_disabled.contains(id)
+        }
     }
 }
 
@@ -165,12 +185,11 @@ pub fn binding<C: Context, Kind: HostApiKind>(
                     }
 
                     let mut table = Table::new();
-                    table.add_row(row![bc => "INTERNAL PORT", "ENABLED", "PUBLIC", "EXTERNAL PORT", "EXTERNAL SSL PORT"]);
+                    table.add_row(row![bc => "INTERNAL PORT", "ENABLED", "EXTERNAL PORT", "EXTERNAL SSL PORT"]);
                     for (internal, info) in res {
                         table.add_row(row![
                             internal,
                             info.enabled,
-                            info.net.public,
                             if let Some(port) = info.net.assigned_port {
                                 port.to_string()
                             } else {
@@ -192,12 +211,12 @@ pub fn binding<C: Context, Kind: HostApiKind>(
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
-            "set-public",
-            from_fn_async(set_public::<Kind>)
+            "set-gateway-enabled",
+            from_fn_async(set_gateway_enabled::<Kind>)
                 .with_metadata("sync_db", Value::Bool(true))
                 .with_inherited(Kind::inheritance)
                 .no_display()
-                .with_about("Add an binding to this host")
+                .with_about("Set whether this gateway should be enabled for this binding")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -215,29 +234,50 @@ pub async fn list_bindings<Kind: HostApiKind>(
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct BindingSetPublicParams {
+pub struct BindingGatewaySetEnabledParams {
     internal_port: u16,
+    gateway: GatewayId,
     #[arg(long)]
-    public: Option<bool>,
+    enabled: Option<bool>,
 }
 
-pub async fn set_public<Kind: HostApiKind>(
+pub async fn set_gateway_enabled<Kind: HostApiKind>(
     ctx: RpcContext,
-    BindingSetPublicParams {
+    BindingGatewaySetEnabledParams {
         internal_port,
-        public,
-    }: BindingSetPublicParams,
+        gateway,
+        enabled,
+    }: BindingGatewaySetEnabledParams,
     inheritance: Kind::Inheritance,
 ) -> Result<(), Error> {
+    let enabled = enabled.unwrap_or(true);
+    let gateway_public = ctx
+        .net_controller
+        .net_iface
+        .watcher
+        .ip_info()
+        .get(&gateway)
+        .or_not_found(&gateway)?
+        .public();
     ctx.db
         .mutate(|db| {
             Kind::host_for(&inheritance, db)?
                 .as_bindings_mut()
                 .mutate(|b| {
-                    b.get_mut(&internal_port)
-                        .or_not_found(internal_port)?
-                        .net
-                        .public = public.unwrap_or(true);
+                    let net = &mut b.get_mut(&internal_port).or_not_found(internal_port)?.net;
+                    if gateway_public {
+                        if enabled {
+                            net.public_enabled.insert(gateway);
+                        } else {
+                            net.public_enabled.remove(&gateway);
+                        }
+                    } else {
+                        if enabled {
+                            net.private_disabled.remove(&gateway);
+                        } else {
+                            net.private_disabled.insert(gateway);
+                        }
+                    }
                     Ok(())
                 })
         })

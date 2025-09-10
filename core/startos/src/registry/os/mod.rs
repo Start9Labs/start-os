@@ -1,4 +1,4 @@
-use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 
 use crate::context::CliContext;
 use crate::util::serde::HandlerExtSerde;

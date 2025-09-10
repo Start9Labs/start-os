@@ -1,10 +1,10 @@
 use color_eyre::eyre::eyre;
-use mbrman::{MBRPartitionEntry, CHS, MBR};
+use mbrman::{CHS, MBR, MBRPartitionEntry};
 
-use crate::disk::util::DiskInfo;
-use crate::disk::OsPartitionInfo;
-use crate::os_install::partition_for;
 use crate::Error;
+use crate::disk::OsPartitionInfo;
+use crate::disk::util::DiskInfo;
+use crate::os_install::partition_for;
 
 pub async fn partition(disk: &DiskInfo, overwrite: bool) -> Result<OsPartitionInfo, Error> {
     {

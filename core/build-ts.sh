@@ -26,7 +26,7 @@ if [[ "${ENVIRONMENT}" =~ (^|-)unstable($|-) ]]; then
 	RUSTFLAGS="--cfg tokio_unstable"
 fi
 
-alias 'rust-musl-builder'='docker run $USE_TTY --rm -e "RUSTFLAGS=$RUSTFLAGS" -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$HOME/.cargo/git":/root/.cargo/git -v "$(pwd)":/home/rust/src -w /home/rust/src -P messense/rust-musl-cross:$ARCH-musl'
+source ./core/builder-alias.sh
 
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""

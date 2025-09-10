@@ -1,17 +1,22 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
+import { i18nPipe } from '@start9labs/shared'
 import { TuiComparator, TuiTable } from '@taiga-ui/addon-table'
 import { TuiButton, TuiLoader } from '@taiga-ui/core'
+import { PatchDB } from 'patch-db-client'
+import { map, shareReplay } from 'rxjs'
 import { ToManifestPipe } from 'src/app/routes/portal/pipes/to-manifest'
 import { DepErrorService } from 'src/app/services/dep-error.service'
-import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import {
+  DataModel,
+  PackageDataEntry,
+} from 'src/app/services/patch-db/data-model'
 import { getInstalledPrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
 import { TitleDirective } from 'src/app/services/title.service'
 import { getManifest } from 'src/app/utils/get-package-data'
+
 import { ServiceComponent } from './service.component'
-import { ServicesService } from './services.service'
-import { i18nPipe } from '@start9labs/shared'
 
 @Component({
   template: `
@@ -27,6 +32,9 @@ import { i18nPipe } from '@start9labs/shared'
               <th tuiTh [requiredSort]="true" [sorter]="name">
                 {{ 'Name' | i18n }}
               </th>
+              <th tuiTh [requiredSort]="true" [sorter]="status">
+                {{ 'Status' | i18n }}
+              </th>
               <th tuiTh>{{ 'Version' | i18n }}</th>
               <th
                 tuiTh
@@ -35,9 +43,6 @@ import { i18nPipe } from '@start9labs/shared'
                 [style.width.rem]="10"
               >
                 {{ 'Uptime' | i18n }}
-              </th>
-              <th tuiTh [requiredSort]="true" [sorter]="status">
-                {{ 'Status' | i18n }}
               </th>
               <th [style.width.rem]="8" [style.text-indent.rem]="1.5"></th>
             </tr>
@@ -123,13 +128,17 @@ import { i18nPipe } from '@start9labs/shared'
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class DashboardComponent {
-  readonly services = toSignal(inject(ServicesService))
   readonly errors = toSignal(inject(DepErrorService).depErrors$)
+  readonly services = toSignal(
+    inject<PatchDB<DataModel>>(PatchDB)
+      .watch$('packageData')
+      .pipe(
+        map(pkgs => Object.values(pkgs).sort(byName)),
+        shareReplay(1),
+      ),
+  )
 
-  readonly name: TuiComparator<PackageDataEntry> = (a, b) =>
-    getManifest(b).title.toLowerCase() > getManifest(a).title.toLowerCase()
-      ? -1
-      : 1
+  readonly name: TuiComparator<PackageDataEntry> = byName
 
   readonly status: TuiComparator<PackageDataEntry> = (a, b) =>
     getInstalledPrimaryStatus(b) > getInstalledPrimaryStatus(a) ? -1 : 1
@@ -138,4 +147,10 @@ export default class DashboardComponent {
     a.status.started || '' > a.status.started || '' ? -1 : 1
 
   sorter = this.name
+}
+
+function byName(a: PackageDataEntry, b: PackageDataEntry) {
+  return getManifest(b).title.toLowerCase() > getManifest(a).title.toLowerCase()
+    ? -1
+    : 1
 }

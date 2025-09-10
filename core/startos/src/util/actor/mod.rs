@@ -146,11 +146,7 @@ impl<A: Actor> ConflictBuilder<A> {
         Arc::new(move |m| {
             self.base
                 ^ if let Some(entry) = self.except.get(&m.type_id()) {
-                    if let Some(f) = entry {
-                        f(m)
-                    } else {
-                        true
-                    }
+                    if let Some(f) = entry { f(m) } else { true }
                 } else {
                     false
                 }

@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 
 use models::PackageId;
 use patch_db::{HasModel, Value};
@@ -10,6 +10,7 @@ use crate::net::forward::AvailablePorts;
 use crate::net::keys::KeyStore;
 use crate::notifications::Notifications;
 use crate::prelude::*;
+use crate::sign::AnyVerifyingKey;
 use crate::ssh::SshKeys;
 use crate::util::serde::Pem;
 
@@ -19,8 +20,9 @@ use crate::util::serde::Pem;
 pub struct Private {
     pub key_store: KeyStore,
     pub password: String, // argon2 hash
-    #[serde(default = "generate_compat_key")]
-    pub compat_s9pk_key: Pem<ed25519_dalek::SigningKey>,
+    pub auth_pubkeys: HashSet<AnyVerifyingKey>,
+    #[serde(default = "generate_developer_key")]
+    pub developer_key: Pem<ed25519_dalek::SigningKey>,
     pub ssh_privkey: Pem<ssh_key::PrivateKey>,
     pub ssh_pubkeys: SshKeys,
     pub available_ports: AvailablePorts,
@@ -31,7 +33,7 @@ pub struct Private {
     pub package_stores: BTreeMap<PackageId, Value>,
 }
 
-pub fn generate_compat_key() -> Pem<ed25519_dalek::SigningKey> {
+pub fn generate_developer_key() -> Pem<ed25519_dalek::SigningKey> {
     Pem(ed25519_dalek::SigningKey::generate(
         &mut ssh_key::rand_core::OsRng::default(),
     ))

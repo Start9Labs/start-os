@@ -49,7 +49,8 @@ import { TimeService } from 'src/app/services/time.service'
             docsLink
             iconEnd="@tui.external-link"
             appearance=""
-            href="/help/common-issues.html#clock-sync-failure"
+            path="/help/common-issues.html"
+            fragment="#clock-sync-failure"
             [pseudo]="true"
             [textContent]="'the docs' | i18n"
           ></a>

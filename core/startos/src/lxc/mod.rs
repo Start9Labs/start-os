@@ -31,7 +31,7 @@ use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::service::ServiceStats;
 use crate::util::io::open_file;
 use crate::util::rpc_client::UnixRpcClient;
-use crate::util::{new_guid, Invoke};
+use crate::util::{Invoke, new_guid};
 
 const LXC_CONTAINER_DIR: &str = "/var/lib/lxc";
 const RPC_DIR: &str = "media/startos/rpc"; // must not be absolute path

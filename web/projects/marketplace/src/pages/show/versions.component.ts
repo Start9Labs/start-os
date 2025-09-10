@@ -18,12 +18,12 @@ import { MarketplaceItemComponent } from './item.component'
   template: `
     <div class="background-border shadow-color-light box-shadow-lg">
       <div class="box-container">
-        <h2 class="additional-detail-title">Versions</h2>
+        <h2 class="additional-detail-title">{{ 'Versions' | i18n }}</h2>
         <marketplace-item
           (click)="promptSelectVersion(versionSelect)"
-          data="Select another version"
+          [data]="'Select another version' | i18n"
           icon="@tui.chevron-right"
-          label=""
+          [label]="null"
           class="select"
         />
         <ng-template

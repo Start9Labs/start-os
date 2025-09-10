@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { MarketplaceItemComponent } from './item.component'
+import { i18nKey } from '@start9labs/shared'
 
 @Component({
   selector: 'marketplace-link',
@@ -13,7 +14,7 @@ import { MarketplaceItemComponent } from './item.component'
 })
 export class MarketplaceLinkComponent {
   @Input({ required: true })
-  label!: string
+  label!: i18nKey
 
   @Input({ required: true })
   icon!: string

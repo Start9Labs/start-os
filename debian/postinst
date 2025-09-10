@@ -58,17 +58,12 @@ EOF
 rm -f /etc/localtime
 ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime
 
-# switch to systemd-resolved & network-manager
+rm /etc/resolv.conf
+echo "nameserver 127.0.0.1" > /etc/resolv.conf
+echo "nameserver 1.1.1.1" >> /etc/resolv.conf # Cloudflare DNS Fallback
+
+# switch to network-manager
 echo "#" > /etc/network/interfaces
-if ! [ -f /etc/resolv.conf ]; then
-  rm -f /etc/resolv.conf
-  echo "nameserver 1.1.1.1" > /etc/resolv.conf # Cloudflare DNS Fallback
-fi
-if ! [ -f /run/systemd/resolve/stub-resolv.conf ]; then
-    mkdir -p /run/systemd/resolve
-    cp /etc/resolv.conf /run/systemd/resolve/stub-resolv.conf
-fi
-ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 cat << EOF > /etc/NetworkManager/NetworkManager.conf
 [main]
 plugins=ifupdown,keyfile
@@ -83,7 +78,6 @@ $SYSTEMCTL enable ssh.service
 $SYSTEMCTL disable wpa_supplicant.service
 $SYSTEMCTL mask systemd-networkd-wait-online.service # currently use `NetworkManager-wait-online.service`
 
-$SYSTEMCTL disable docker.service
 $SYSTEMCTL disable postgresql.service
 $SYSTEMCTL disable tor.service
 $SYSTEMCTL disable bluetooth.service
@@ -111,6 +105,9 @@ sed -i '/^\s*#\?\s*issue_discards\s*=\s*/c\issue_discards = 1' /etc/lvm/lvm.conf
 sed -i '/\(^\|#\)\s*unqualified-search-registries\s*=\s*/c\unqualified-search-registries = ["docker.io"]' /etc/containers/registries.conf
 sed -i 's/\(#\|\^\)\s*\([^=]\+\)=\(suspend\|hibernate\)\s*$/\2=ignore/g' /etc/systemd/logind.conf
 sed -i '/\(^\|#\)MulticastDNS=/c\MulticastDNS=no' /etc/systemd/resolved.conf
+sed -i '/\(^\|#\)DNSStubListener=/c\DNSStubListener=no' /etc/systemd/resolved.conf
+sed -i '/\(^\|#\)LXC_DHCP_CONFILE=/c\LXC_DHCP_CONFILE=/etc/dnsmasq.conf' /etc/default/lxc-net
+echo 'port=0' > /etc/dnsmasq.conf
 sed -i 's/\[Service\]/[Service]\nEnvironment=SYSTEMD_LOG_LEVEL=debug/' /lib/systemd/system/systemd-timesyncd.service
 sed -i "s/\.debian\./\./g;s/#FallbackNTP=/FallbackNTP=/"  /etc/systemd/timesyncd.conf
 sed -i '/\(^\|#\)RootDistanceMaxSec=/c\RootDistanceMaxSec=10' /etc/systemd/timesyncd.conf

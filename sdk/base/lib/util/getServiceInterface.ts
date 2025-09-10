@@ -3,6 +3,7 @@ import { knownProtocols } from "../interfaces/Host"
 import { AddressInfo, Host, Hostname, HostnameInfo } from "../types"
 import { Effects } from "../Effects"
 import { DropGenerator, DropPromise } from "./Drop"
+import { IPV6_LINK_LOCAL } from "./ip"
 
 export type UrlString = string
 export type HostId = string
@@ -95,9 +96,9 @@ export const addressHostToUrl = (
       hostname = host.hostname.value
     } else if (host.kind === "ip") {
       if (host.hostname.kind === "domain") {
-        hostname = `${host.hostname.subdomain ? `${host.hostname.subdomain}.` : ""}${host.hostname.domain}`
+        hostname = host.hostname.value
       } else if (host.hostname.kind === "ipv6") {
-        hostname = host.hostname.value.startsWith("fe80::")
+        hostname = IPV6_LINK_LOCAL.contains(host.hostname.value)
           ? `[${host.hostname.value}%${host.hostname.scopeId}]`
           : `[${host.hostname.value}]`
       } else {
@@ -164,7 +165,7 @@ export const filledAddress = (
   addressInfo: AddressInfo,
 ): FilledAddressInfo => {
   const toUrl = addressHostToUrl.bind(null, addressInfo)
-  const hostnames = host.hostnameInfo[addressInfo.internalPort]
+  const hostnames = host.hostnameInfo[addressInfo.internalPort] ?? []
 
   return {
     ...addressInfo,

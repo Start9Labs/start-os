@@ -10,30 +10,30 @@ use futures::{Future, FutureExt, StreamExt, TryFutureExt};
 use helpers::NonDetachingJoinHandle;
 use imbl::OrdMap;
 use models::ErrorData;
-use tokio::sync::{oneshot, OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock};
+use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, oneshot};
 use tracing::instrument;
 use url::Url;
 
+use crate::DATA_DIR;
 use crate::context::RpcContext;
 use crate::db::model::package::{
     InstallingInfo, InstallingState, PackageDataEntry, PackageState, UpdatingState,
 };
 use crate::disk::mount::guard::GenericMountGuard;
 use crate::install::PKG_ARCHIVE_DIR;
-use crate::notifications::{notify, NotificationLevel};
+use crate::notifications::{NotificationLevel, notify};
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle, ProgressTrackerWriter};
-use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
+use crate::s9pk::S9pk;
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
-use crate::s9pk::S9pk;
 use crate::service::rpc::ExitParams;
 use crate::service::start_stop::StartStop;
 use crate::service::{LoadDisposition, Service, ServiceRef};
+use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::status::MainStatus;
 use crate::util::serde::{Base32, Pem};
 use crate::util::sync::SyncMutex;
-use crate::DATA_DIR;
 
 pub type DownloadInstallFuture = BoxFuture<'static, Result<InstallFuture, Error>>;
 pub type InstallFuture = BoxFuture<'static, Result<(), Error>>;
@@ -382,7 +382,7 @@ impl ServiceMap {
         id: PackageId,
         soft: bool,
         force: bool,
-    ) -> Result<impl Future<Output = Result<(), Error>> + Send, Error> {
+    ) -> Result<impl Future<Output = Result<(), Error>> + Send + 'static, Error> {
         let mut guard = self.get_mut(&id).await;
         ctx.db
             .mutate(|db| {

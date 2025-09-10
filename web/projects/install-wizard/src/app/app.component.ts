@@ -50,10 +50,7 @@ export class AppComponent {
 
   private async reboot() {
     this.dialogs
-      .open(
-        'Remove the USB stick and reboot your device to begin using your new Start9 server',
-        SUCCESS,
-      )
+      .open('1. Remove the USB stick<br />2. Click "Reboot" below', SUCCESS)
       .subscribe({
         complete: async () => {
           const loader = this.loader.open().subscribe()
@@ -62,7 +59,7 @@ export class AppComponent {
             await this.api.reboot()
             this.dialogs
               .open(
-                'Please wait for StartOS to restart, then refresh this page',
+                'Please wait 1-2 minutes, then refresh this page to access the StartOS setup wizard.',
                 {
                   label: 'Rebooting',
                   size: 's',

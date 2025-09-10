@@ -52,7 +52,7 @@ export class StatusComponent {
     const { primary, health } = this.getStatus(this.pkg)
     return (
       !this.hasDepErrors &&
-      primary !== 'actionRequired' &&
+      primary !== 'taskRequired' &&
       primary !== 'error' &&
       health !== 'failure'
     )
@@ -77,7 +77,7 @@ export class StatusComponent {
         return 'Running'
       case 'stopped':
         return 'Stopped'
-      case 'actionRequired':
+      case 'taskRequired':
         return 'Task Required'
       case 'updating':
         return 'Updating'
@@ -118,7 +118,7 @@ export class StatusComponent {
     switch (this.getStatus(this.pkg).primary) {
       case 'running':
         return 'var(--tui-status-positive)'
-      case 'actionRequired':
+      case 'taskRequired':
         return 'var(--tui-status-warning)'
       case 'error':
         return 'var(--tui-status-negative)'

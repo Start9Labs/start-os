@@ -101,18 +101,20 @@ export class S9pk {
     )
   }
 
-  async dependencyMetadata(): Promise<Record<PackageId, DependencyMetadata>> {
+  async dependencyMetadata() {
     return Object.fromEntries(
       await Promise.all(
-        Object.entries(this.manifest.dependencies).map(async ([id, info]) => [
-          id,
-          {
-            ...(await this.dependencyMetadataFor(id)),
-            icon: await this.dependencyIconFor(id),
-            description: info.description,
-            optional: info.optional,
-          },
-        ]),
+        Object.entries(this.manifest.dependencies)
+          .filter(([_, info]) => !!info)
+          .map(async ([id, info]) => [
+            id,
+            {
+              ...(await this.dependencyMetadataFor(id)),
+              icon: await this.dependencyIconFor(id),
+              description: info!.description,
+              optional: info!.optional,
+            },
+          ]),
       ),
     )
   }

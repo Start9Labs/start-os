@@ -11,9 +11,9 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use super::{FileSystem, MountType, ReadOnly};
+use crate::Error;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
 use crate::util::Invoke;
-use crate::Error;
 
 async fn resolve_hostname(hostname: &str) -> Result<IpAddr, Error> {
     if let Ok(addr) = hostname.parse() {

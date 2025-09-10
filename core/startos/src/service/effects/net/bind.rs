@@ -89,5 +89,6 @@ pub async fn get_service_port_forward(
         .de()?
         .get(&internal_port)
         .or_not_found(lazy_format!("binding for port {internal_port}"))?
-        .net)
+        .net
+        .clone())
 }

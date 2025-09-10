@@ -1,5 +1,10 @@
 #!/bin/bash
 
+PROFILE=${PROFILE:-release}
+if [ "${PROFILE}" = "release" ]; then
+	BUILD_FLAGS="--release"
+fi
+
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 set -ea
@@ -26,11 +31,11 @@ if [[ "${ENVIRONMENT}" =~ (^|-)unstable($|-) ]]; then
 	RUSTFLAGS="--cfg tokio_unstable"
 fi
 
-alias 'rust-musl-builder'='docker run $USE_TTY --rm -e "RUSTFLAGS=$RUSTFLAGS" -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$HOME/.cargo/git":/root/.cargo/git -v "$(pwd)":/home/rust/src -w /home/rust/src -P messense/rust-musl-cross:$ARCH-musl'
+source ./core/builder-alias.sh
 
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-musl-builder sh -c "cd core && cargo build --release --no-default-features --features cli,daemon,$FEATURES --locked --bin startbox --target=$ARCH-unknown-linux-musl"
-if [ "$(ls -nd core/target/$ARCH-unknown-linux-musl/release/startbox | awk '{ print $3 }')" != "$UID" ]; then
+rust-musl-builder sh -c "cd core && cargo build $BUILD_FLAGS --no-default-features --features cli,startd,$FEATURES --locked --bin startbox --target=$ARCH-unknown-linux-musl"
+if [ "$(ls -nd core/target/$ARCH-unknown-linux-musl/${PROFILE}/startbox | awk '{ print $3 }')" != "$UID" ]; then
 	rust-musl-builder sh -c "cd core && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
 fi

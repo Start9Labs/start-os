@@ -12,7 +12,6 @@ import { TuiIcon } from '@taiga-ui/core'
 import { TuiCheckbox, TuiFade, TuiSkeleton } from '@taiga-ui/kit'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { Session } from 'src/app/services/api/api.types'
-import { toAcmeName } from 'src/app/utils/acme'
 import { PlatformInfoPipe } from './platform-info.pipe'
 import { i18nPipe } from '@start9labs/shared'
 
@@ -40,7 +39,10 @@ import { i18nPipe } from '@start9labs/shared'
         </th>
       }
       @for (session of sessions(); track $index) {
-        <tr (longtap)="!selected().length && onToggle(session)">
+        <tr
+          (longtap)="!selected().length && onToggle(session)"
+          (click)="selected().length && onToggle(session)"
+        >
           <td [style.padding-left.rem]="single() ? null : 2.5">
             @if (!single()) {
               <input
@@ -182,6 +184,4 @@ export class SessionsTableComponent<T extends Session> implements OnChanges {
       this.selected.update(selected => [...selected, session])
     }
   }
-
-  protected readonly toAcmeName = toAcmeName
 }

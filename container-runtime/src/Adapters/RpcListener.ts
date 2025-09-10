@@ -242,11 +242,11 @@ export class RpcListener {
       .when(runType, async ({ id, params }) => {
         const system = this.system
         const procedure = jsonPath.unsafeCast(params.procedure)
-        const { input, timeout, id: procedureId } = params
+        const { input, timeout, id: eventId } = params
         const result = this.getResult(
           procedure,
           system,
-          procedureId,
+          eventId,
           timeout,
           input,
         )
@@ -256,11 +256,11 @@ export class RpcListener {
       .when(sandboxRunType, async ({ id, params }) => {
         const system = this.system
         const procedure = jsonPath.unsafeCast(params.procedure)
-        const { input, timeout, id: procedureId } = params
+        const { input, timeout, id: eventId } = params
         const result = this.getResult(
           procedure,
           system,
-          procedureId,
+          eventId,
           timeout,
           input,
         )
@@ -275,7 +275,7 @@ export class RpcListener {
         const callbacks =
           this.callbacks?.getChild("main") || this.callbacks?.child("main")
         const effects = makeEffects({
-          procedureId: null,
+          eventId: null,
           callbacks,
         })
         return handleRpc(
@@ -304,7 +304,7 @@ export class RpcListener {
                 }
               await this._system.exit(
                 makeEffects({
-                  procedureId: params.id,
+                  eventId: params.id,
                 }),
                 target,
               )
@@ -320,14 +320,14 @@ export class RpcListener {
               const system = await this.getDependencies.system()
               this.callbacks = new CallbackHolder(
                 makeEffects({
-                  procedureId: params.id,
+                  eventId: params.id,
                 }),
               )
               const callbacks = this.callbacks.child("init")
               console.error("Initializing...")
               await system.init(
                 makeEffects({
-                  procedureId: params.id,
+                  eventId: params.id,
                   callbacks,
                 }),
                 params.kind,
@@ -399,7 +399,7 @@ export class RpcListener {
   private getResult(
     procedure: typeof jsonPath._TYPE,
     system: System,
-    procedureId: string,
+    eventId: string,
     timeout: number | null | undefined,
     input: any,
   ) {
@@ -410,7 +410,7 @@ export class RpcListener {
     }
     const callbacks = this.callbacks?.child(procedure)
     const effects = makeEffects({
-      procedureId,
+      eventId,
       callbacks,
     })
 

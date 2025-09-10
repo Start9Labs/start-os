@@ -31,7 +31,7 @@ import { DocsLinkDirective } from 'projects/shared/src/public-api'
       backups. They can be physical drives plugged into your server, shared
       folders on your Local Area Network (LAN), or third party clouds such as
       Dropbox or Google Drive.
-      <a tuiLink docsLink href="/@TODO">View instructions</a>
+      <a tuiLink docsLink path="/@TODO">View instructions</a>
     </tui-notification>
     <h3 class="g-title">
       Unknown Physical Drives

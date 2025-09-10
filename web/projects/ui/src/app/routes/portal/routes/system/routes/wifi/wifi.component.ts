@@ -42,7 +42,9 @@ import { wifiSpec } from './wifi.const'
 @Component({
   template: `
     <ng-container *title>
-      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">Back</a>
+      <a routerLink=".." tuiIconButton iconStart="@tui.arrow-left">
+        {{ 'Back' | i18n }}
+      </a>
       WiFi
     </ng-container>
     <header tuiHeader>

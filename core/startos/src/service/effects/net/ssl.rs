@@ -6,11 +6,11 @@ use ipnet::IpNet;
 use itertools::Itertools;
 use openssl::pkey::{PKey, Private};
 
+use crate::HOST_IP;
 use crate::service::effects::callbacks::CallbackHandler;
 use crate::service::effects::prelude::*;
 use crate::service::rpc::CallbackId;
 use crate::util::serde::Pem;
-use crate::HOST_IP;
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -59,7 +59,8 @@ pub async fn get_ssl_certificate(
                         .de()?
                         .iter()
                         .map(InternedString::from_display)
-                        .chain(m.as_domains().keys()?)
+                        .chain(m.as_public_domains().keys()?)
+                        .chain(m.as_private_domains().de()?)
                         .chain(
                             m.as_hostname_info()
                                 .de()?
@@ -90,7 +91,7 @@ pub async fn get_ssl_certificate(
                         .as_public()
                         .as_server_info()
                         .as_network()
-                        .as_network_interfaces()
+                        .as_gateways()
                         .as_entries()?
                         .into_iter()
                         .flat_map(|(_, net)| net.as_ip_info().transpose_ref())
@@ -184,7 +185,8 @@ pub async fn get_ssl_key(
                         .de()?
                         .iter()
                         .map(InternedString::from_display)
-                        .chain(m.as_domains().keys()?)
+                        .chain(m.as_public_domains().keys()?)
+                        .chain(m.as_private_domains().de()?)
                         .chain(
                             m.as_hostname_info()
                                 .de()?

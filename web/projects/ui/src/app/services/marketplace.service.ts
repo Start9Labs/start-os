@@ -115,7 +115,6 @@ export class MarketplaceService {
     flavor: string | null,
     registryUrl?: string,
   ): Observable<MarketplacePkg> {
-    console.log('HERE')
     return this.currentRegistry$.pipe(
       switchMap(registry => {
         const url = registryUrl || registry.url
@@ -147,7 +146,7 @@ export class MarketplaceService {
   }
 
   private fetchRegistry$(url: string): Observable<StoreDataWithUrl | null> {
-    console.warn('FETCHING REGISTRY: ', url)
+    console.log('FETCHING REGISTRY: ', url)
     return combineLatest([this.fetchInfo$(url), this.fetchPackages$(url)]).pipe(
       map(([info, packages]) => ({ info, packages, url })),
       catchError(e => {

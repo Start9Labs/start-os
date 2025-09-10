@@ -55,7 +55,7 @@ export class BackupRestoreComponent {
   onClick(serverId: string, { passwordHash }: StartOSDiskInfo) {
     this.dialog
       .openPrompt<string>({
-        label: 'Password Required',
+        label: 'Password required',
         data: {
           message:
             'Enter the master password that was used to encrypt this backup. On the next screen, you will select the individual services you want to restore.',

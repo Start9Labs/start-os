@@ -82,7 +82,7 @@ import { MarketplaceControlsComponent } from '../components/controls.component'
     .outer-container {
       display: flex;
       flex-direction: column;
-      height: calc(100vh - var(--portal-header-height) - var(--bumper));
+      height: calc(100dvh - var(--portal-header-height) - var(--bumper));
     }
 
     .inner-container {
@@ -177,7 +177,8 @@ export class MarketplacePreviewComponent {
   )
 
   open(id: string) {
-    this.router.navigate([], { queryParams: { id } })
+    // @TODO re-engage when button can link to root with search QP
+    // this.router.navigate([], { queryParams: { id } })
   }
 
   onStatic() {

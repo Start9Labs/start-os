@@ -4,16 +4,16 @@ use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 
-use futures::future::ready;
 use futures::Future;
+use futures::future::ready;
 use helpers::NonDetachingJoinHandle;
-use imbl::{vector, Vector};
+use imbl::{Vector, vector};
 use imbl_value::InternedString;
 use models::{ImageId, ProcedureName, VolumeId};
 use rpc_toolkit::{Empty, Server, ShutdownHandle};
 use serde::de::DeserializeOwned;
 use tokio::process::Command;
-use tokio::sync::{oneshot, watch, Mutex, OnceCell};
+use tokio::sync::{Mutex, OnceCell, oneshot, watch};
 use tracing::instrument;
 
 use crate::context::RpcContext;
@@ -23,12 +23,12 @@ use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::filesystem::{MountType, ReadOnly};
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
-use crate::lxc::{LxcConfig, LxcContainer, HOST_RPC_SERVER_SOCKET};
+use crate::lxc::{HOST_RPC_SERVER_SOCKET, LxcConfig, LxcContainer};
 use crate::net::net_controller::NetService;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
-use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::S9pk;
+use crate::s9pk::merkle_archive::source::FileSource;
 use crate::service::effects::context::EffectContext;
 use crate::service::effects::handler;
 use crate::service::rpc::{
@@ -36,10 +36,10 @@ use crate::service::rpc::{
 };
 use crate::service::start_stop::StartStop;
 use crate::service::transition::{TransitionKind, TransitionState};
-use crate::service::{rpc, RunningStatus, Service};
+use crate::service::{RunningStatus, Service, rpc};
+use crate::util::Invoke;
 use crate::util::io::create_file;
 use crate::util::rpc_client::UnixRpcClient;
-use crate::util::Invoke;
 use crate::volume::data_dir;
 use crate::{ARCH, DATA_DIR, PACKAGE_DATA};
 
@@ -105,7 +105,6 @@ pub struct PersistentContainer {
     pub(super) lxc_container: OnceCell<LxcContainer>,
     pub(super) rpc_client: UnixRpcClient,
     pub(super) rpc_server: watch::Sender<Option<(NonDetachingJoinHandle<()>, ShutdownHandle)>>,
-    // procedures: Mutex<Vec<(ProcedureName, ProcedureId)>>,
     js_mount: MountGuard,
     volumes: BTreeMap<VolumeId, MountGuard>,
     assets: Vec<MountGuard>,

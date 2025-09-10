@@ -7,11 +7,15 @@ import {
 import { toSignal } from '@angular/core/rxjs-interop'
 import { Router } from '@angular/router'
 import {
+  DialogService,
   formatProgress,
   getErrorMessage,
+  i18nKey,
   InitializingComponent,
+  LoadingService,
 } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
+import { TuiButton } from '@taiga-ui/core'
 import {
   catchError,
   filter,
@@ -26,19 +30,43 @@ import { ApiService } from 'src/app/services/api.service'
 import { StateService } from 'src/app/services/state.service'
 
 @Component({
-  template:
-    '<app-initializing [setupType]="type" [progress]="progress()" [error]="error()" />',
+  template: `
+    @if (error(); as err) {
+      <section>
+        <h1>{{ 'Error initializing server' }}</h1>
+        <p>{{ err }}</p>
+        <button tuiButton (click)="restart()">
+          {{ 'Restart server' }}
+        </button>
+      </section>
+    } @else {
+      <app-initializing [initialSetup]="true" [progress]="progress()" />
+    }
+  `,
   styles: `
     :host {
       max-width: unset;
       align-items: stretch;
     }
+
+    section {
+      border-radius: 0.25rem;
+      padding: 1rem;
+      margin: 1.5rem;
+      text-align: center;
+      // @TODO Theme
+      background: #e0e0e0;
+      color: #333;
+      --tui-background-neutral-1: rgba(0, 0, 0, 0.1);
+    }
   `,
-  imports: [InitializingComponent],
+  imports: [InitializingComponent, TuiButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class LoadingPage {
   private readonly api = inject(ApiService)
+  private readonly loader = inject(LoadingService)
+  private readonly dialog = inject(DialogService)
 
   readonly type = inject(StateService).setupType
   readonly router = inject(Router)
@@ -83,5 +111,22 @@ export default class LoadingPage {
     }
 
     return null
+  }
+
+  async restart(): Promise<void> {
+    const loader = this.loader.open(undefined).subscribe()
+
+    try {
+      await this.api.restart()
+      this.dialog
+        .openAlert('Wait 1-2 minutes and refresh the page' as i18nKey, {
+          label: 'Server is restarting',
+        })
+        .subscribe()
+    } catch (e) {
+      console.error(e)
+    } finally {
+      loader.unsubscribe()
+    }
   }
 }

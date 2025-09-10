@@ -128,7 +128,7 @@ export class BackupsBackupComponent {
 
     this.dialog
       .openPrompt<string>({
-        label: 'Master Password Needed',
+        label: 'Master password needed',
         data: {
           message: 'Enter your master password to encrypt this backup.',
           label: 'Master Password',
@@ -169,7 +169,7 @@ export class BackupsBackupComponent {
 
     this.dialog
       .openPrompt<string>({
-        label: 'Original Password Needed',
+        label: 'Original password needed',
         data: {
           message:
             'This backup was created with a different password. Enter the original password that was used to encrypt this backup.',

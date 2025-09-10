@@ -21,7 +21,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       </div>
       <div tuiCell>
         <div tuiTitle>
-          <strong>Git Hash</strong>
+          <strong>{{ 'Git hash' | i18n }}</strong>
           <div tuiSubtitle tuiFade>{{ gitHash }}</div>
         </div>
         <button
@@ -35,7 +35,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       </div>
       <div tuiCell>
         <div tuiTitle>
-          <strong>CA fingerprint</strong>
+          <strong>{{ 'CA fingerprint' | i18n }}</strong>
           <div tuiSubtitle tuiFade>{{ server.caFingerprint }}</div>
         </div>
         <button

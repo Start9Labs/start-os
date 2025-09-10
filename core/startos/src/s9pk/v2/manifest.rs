@@ -5,7 +5,7 @@ use color_eyre::eyre::eyre;
 use exver::{Version, VersionRange};
 use imbl_value::InternedString;
 pub use models::PackageId;
-use models::{mime, ImageId, VolumeId};
+use models::{ImageId, VolumeId, mime};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use url::Url;
@@ -16,8 +16,8 @@ use crate::s9pk::git_hash::GitHash;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::expected::{Expected, Filter};
 use crate::s9pk::v2::pack::ImageConfig;
-use crate::util::serde::Regex;
 use crate::util::VersionString;
+use crate::util::serde::Regex;
 use crate::version::{Current, VersionT};
 
 fn current_version() -> Version {
@@ -153,7 +153,12 @@ impl Manifest {
                     check_arch(&arch)?;
                 }
             } else {
-                return Err(Error::new(eyre!("`emulateMissingAs` required for all images if no `arch` specified in `hardwareRequirements`"), ErrorKind::ParseS9pk));
+                return Err(Error::new(
+                    eyre!(
+                        "`emulateMissingAs` required for all images if no `arch` specified in `hardwareRequirements`"
+                    ),
+                    ErrorKind::ParseS9pk,
+                ));
             }
         }
         Ok(expected.into_filter())

@@ -19,7 +19,7 @@ ul {
 
 hr {
   height: 1px;
-  background: var(--tui-background-neutral-1);
+  background: var(--tui-border-normal);
   border: none;
 }
 
@@ -32,7 +32,7 @@ hr {
   @include taiga.scrollbar-hidden();
 
   display: block;
-  height: calc(100vh - 3.875rem);
+  height: calc(100dvh - 3.875rem);
   padding: 1px 2rem 1rem;
   box-sizing: border-box;
   overflow: auto;
@@ -51,11 +51,8 @@ hr {
     var(--tui-background-base) 90%,
     transparent
   );
-  background-image: linear-gradient(
-      to bottom,
-      rgba(255, 255, 255, 0.1),
-      transparent
-    ),
+  background-image:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.1), transparent),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.1), transparent);
   box-shadow:
     0 0.25rem 0.125rem rgba(0, 0, 0, 0.25),
@@ -65,7 +62,7 @@ hr {
 
   tui-root._mobile & {
     // For tui-tab-bar
-    height: calc(100vh - 3.875rem - var(--tui-height-l));
+    height: calc(100dvh - 3.875rem - var(--tui-height-l));
   }
 }
 
@@ -77,18 +74,23 @@ hr {
 }
 
 .g-aside {
+  @include taiga.scrollbar-hidden();
+
   position: sticky;
   top: 1px;
   left: 1px;
   margin: 1px;
   width: 18rem;
+  flex-shrink: 0;
   padding: 0.5rem;
   text-transform: capitalize;
   box-shadow: 1px 0 var(--tui-border-normal);
   background: var(--tui-background-base);
+  overflow: auto;
 }
 
 .g-card {
+  container: card / inline-size;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -97,11 +99,8 @@ hr {
   overflow: hidden;
   color: var(--tui-text-primary);
   background-color: color-mix(in hsl, var(--start9-base-1) 50%, transparent);
-  background-image: linear-gradient(
-      to bottom,
-      var(--tui-background-neutral-2),
-      transparent
-    ),
+  background-image:
+    linear-gradient(to bottom, var(--tui-background-neutral-2), transparent),
     linear-gradient(to bottom, var(--tui-background-neutral-2), transparent);
   background-size: 1px 100%;
   background-repeat: no-repeat;
@@ -231,6 +230,7 @@ hr {
       padding: 0;
 
       &:first-child {
+        font: var(--tui-font-text-m);
         font-weight: bold;
         color: var(--tui-text-primary);
       }
@@ -293,8 +293,8 @@ hr {
 .g-buttons {
   display: flex;
   justify-content: flex-end;
-  gap: 16px;
-  margin-top: 24px;
+  gap: 1rem;
+  margin-top: 1.5rem;
 }
 
 .g-toggle {

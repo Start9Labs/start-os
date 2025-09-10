@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::ffi::{c_int, OsStr, OsString};
+use std::ffi::{OsStr, OsString, c_int};
 use std::fs::File;
 use std::io::{IsTerminal, Read};
 use std::os::unix::process::{CommandExt, ExitStatusExt};
@@ -13,10 +13,10 @@ use signal_hook::consts::signal::*;
 use termion::raw::IntoRawMode;
 use tokio::sync::oneshot;
 
-use crate::service::effects::prelude::*;
-use crate::service::effects::ContainerCliContext;
-use crate::util::io::TermSize;
 use crate::CAP_1_KiB;
+use crate::service::effects::ContainerCliContext;
+use crate::service::effects::prelude::*;
+use crate::util::io::TermSize;
 
 const FWD_SIGNALS: &[c_int] = &[
     SIGABRT, SIGALRM, SIGCONT, SIGHUP, SIGINT, SIGIO, SIGPIPE, SIGPROF, SIGQUIT, SIGTERM, SIGTRAP,
@@ -284,7 +284,7 @@ pub fn launch(
     if tty {
         use pty_process::blocking as pty_process;
         let (pty, pts) = pty_process::open().with_kind(ErrorKind::Filesystem)?;
-        let mut cmd = pty_process::Command::new("/usr/bin/start-cli");
+        let mut cmd = pty_process::Command::new("/usr/bin/start-container");
         cmd = cmd.arg("subcontainer").arg("launch-init");
         if let Some(env) = env {
             cmd = cmd.arg("--env").arg(env);
@@ -339,7 +339,7 @@ pub fn launch(
             ))
         }
     } else {
-        let mut cmd = StdCommand::new("/usr/bin/start-cli");
+        let mut cmd = StdCommand::new("/usr/bin/start-container");
         cmd.arg("subcontainer").arg("launch-init");
         if let Some(env) = env {
             cmd.arg("--env").arg(env);
@@ -534,7 +534,7 @@ pub fn exec(
     if tty {
         use pty_process::blocking as pty_process;
         let (pty, pts) = pty_process::open().with_kind(ErrorKind::Filesystem)?;
-        let mut cmd = pty_process::Command::new("/usr/bin/start-cli");
+        let mut cmd = pty_process::Command::new("/usr/bin/start-container");
         cmd = cmd.arg("subcontainer").arg("exec-command");
         if let Some(env) = env {
             cmd = cmd.arg("--env").arg(env);
@@ -589,7 +589,7 @@ pub fn exec(
             ))
         }
     } else {
-        let mut cmd = StdCommand::new("/usr/bin/start-cli");
+        let mut cmd = StdCommand::new("/usr/bin/start-container");
         cmd.arg("subcontainer").arg("exec-command");
         if let Some(env) = env {
             cmd.arg("--env").arg(env);

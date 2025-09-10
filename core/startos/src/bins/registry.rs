@@ -2,9 +2,12 @@ use std::ffi::OsString;
 
 use clap::Parser;
 use futures::FutureExt;
+use rpc_toolkit::CliApp;
 use tokio::signal::unix::signal;
 use tracing::instrument;
 
+use crate::context::CliContext;
+use crate::context::config::ClientConfig;
 use crate::net::web_server::{Acceptor, WebServer};
 use crate::prelude::*;
 use crate::registry::context::{RegistryConfig, RegistryContext};
@@ -83,5 +86,32 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
             drop(e.source);
             std::process::exit(e.kind as i32)
         }
+    }
+}
+
+pub fn cli(args: impl IntoIterator<Item = OsString>) {
+    LOGGER.enable();
+
+    if let Err(e) = CliApp::new(
+        |cfg: ClientConfig| Ok(CliContext::init(cfg.load()?)?),
+        crate::registry::registry_api(),
+    )
+    .run(args)
+    {
+        match e.data {
+            Some(serde_json::Value::String(s)) => eprintln!("{}: {}", e.message, s),
+            Some(serde_json::Value::Object(o)) => {
+                if let Some(serde_json::Value::String(s)) = o.get("details") {
+                    eprintln!("{}: {}", e.message, s);
+                    if let Some(serde_json::Value::String(s)) = o.get("debug") {
+                        tracing::debug!("{}", s)
+                    }
+                }
+            }
+            Some(a) => eprintln!("{}: {}", e.message, a),
+            None => eprintln!("{}", e.message),
+        }
+
+        std::process::exit(e.code);
     }
 }

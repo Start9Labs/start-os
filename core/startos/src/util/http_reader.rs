@@ -122,7 +122,7 @@ impl HttpReader {
                         http_url
                     ),
                     crate::ErrorKind::MissingHeader,
-                ))
+                ));
             }
         };
 
@@ -137,7 +137,7 @@ impl HttpReader {
                 return Err(Error::new(
                     eyre!("No content length headers for {}", http_url),
                     crate::ErrorKind::MissingHeader,
-                ))
+                ));
             }
         };
 

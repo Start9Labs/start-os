@@ -3,10 +3,10 @@ use std::path::Path;
 use color_eyre::eyre::eyre;
 use tokio::process::Command;
 
+use crate::Error;
 use crate::disk::fsck::btrfs::{btrfs_check_readonly, btrfs_check_repair};
 use crate::disk::fsck::ext4::{e2fsck_aggressive, e2fsck_preen};
 use crate::util::Invoke;
-use crate::Error;
 
 pub mod btrfs;
 pub mod ext4;
@@ -45,7 +45,7 @@ impl RepairStrategy {
                 return Err(Error::new(
                     eyre!("Unknown filesystem {fs}"),
                     crate::ErrorKind::DiskManagement,
-                ))
+                ));
             }
         }
     }

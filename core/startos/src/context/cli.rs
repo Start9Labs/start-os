@@ -1,27 +1,32 @@
 use std::fs::File;
 use std::io::BufReader;
+use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use cookie_store::{CookieStore, RawCookie};
+use cookie::{Cookie, Expiration, SameSite};
+use cookie_store::CookieStore;
+use imbl_value::InternedString;
 use josekit::jwk::Jwk;
 use once_cell::sync::OnceCell;
 use reqwest::Proxy;
 use reqwest_cookie_store::CookieStoreMutex;
 use rpc_toolkit::reqwest::{Client, Url};
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{call_remote_http, CallRemote, Context, Empty};
+use rpc_toolkit::{CallRemote, Context, Empty};
 use tokio::net::TcpStream;
 use tokio::runtime::Runtime;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
-use crate::context::config::{local_config_path, ClientConfig};
+use crate::context::config::{ClientConfig, local_config_path};
 use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
-use crate::middleware::auth::LOCAL_AUTH_COOKIE_PATH;
+use crate::developer::{OS_DEVELOPER_KEY_PATH, default_developer_key_path};
+use crate::middleware::auth::AuthContext;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
+use crate::tunnel::context::TunnelContext;
 
 #[derive(Debug)]
 pub struct CliContextSeed {
@@ -29,6 +34,10 @@ pub struct CliContextSeed {
     pub base_url: Url,
     pub rpc_url: Url,
     pub registry_url: Option<Url>,
+    pub registry_hostname: Option<InternedString>,
+    pub registry_listen: Option<SocketAddr>,
+    pub tunnel_addr: Option<SocketAddr>,
+    pub tunnel_listen: Option<SocketAddr>,
     pub client: Client,
     pub cookie_store: Arc<CookieStoreMutex>,
     pub cookie_path: PathBuf,
@@ -55,9 +64,8 @@ impl Drop for CliContextSeed {
             true,
         )
         .unwrap();
-        let mut store = self.cookie_store.lock().unwrap();
-        store.remove("localhost", "", "local");
-        store.save_json(&mut *writer).unwrap();
+        let store = self.cookie_store.lock().unwrap();
+        cookie_store::serde::json::save(&store, &mut *writer).unwrap();
         writer.sync_all().unwrap();
         std::fs::rename(tmp, &self.cookie_path).unwrap();
     }
@@ -85,26 +93,14 @@ impl CliContext {
                 .unwrap_or(Path::new("/"))
                 .join(".cookies.json")
         });
-        let cookie_store = Arc::new(CookieStoreMutex::new({
-            let mut store = if cookie_path.exists() {
-                CookieStore::load_json(BufReader::new(
-                    File::open(&cookie_path)
-                        .with_ctx(|_| (ErrorKind::Filesystem, cookie_path.display()))?,
-                ))
-                .map_err(|e| eyre!("{}", e))
-                .with_kind(crate::ErrorKind::Deserialization)?
-            } else {
-                CookieStore::default()
-            };
-            if let Ok(local) = std::fs::read_to_string(LOCAL_AUTH_COOKIE_PATH) {
-                store
-                    .insert_raw(
-                        &RawCookie::new("local", local),
-                        &"http://localhost".parse()?,
-                    )
-                    .with_kind(crate::ErrorKind::Network)?;
-            }
-            store
+        let cookie_store = Arc::new(CookieStoreMutex::new(if cookie_path.exists() {
+            cookie_store::serde::json::load(BufReader::new(
+                File::open(&cookie_path)
+                    .with_ctx(|_| (ErrorKind::Filesystem, cookie_path.display()))?,
+            ))
+            .unwrap_or_default()
+        } else {
+            CookieStore::default()
         }));
 
         Ok(CliContext(Arc::new(CliContextSeed {
@@ -129,9 +125,17 @@ impl CliContext {
                     Ok::<_, Error>(registry)
                 })
                 .transpose()?,
+            registry_hostname: config.registry_hostname,
+            registry_listen: config.registry_listen,
+            tunnel_addr: config.tunnel,
+            tunnel_listen: config.tunnel_listen,
             client: {
                 let mut builder = Client::builder().cookie_provider(cookie_store.clone());
-                if let Some(proxy) = config.proxy {
+                if let Some(proxy) = config.proxy.or_else(|| {
+                    config
+                        .socks_listen
+                        .and_then(|socks| format!("socks5h://{socks}").parse::<Url>().log_err())
+                }) {
                     builder =
                         builder.proxy(Proxy::all(proxy).with_kind(crate::ErrorKind::ParseUrl)?)
                 }
@@ -139,14 +143,9 @@ impl CliContext {
             },
             cookie_store,
             cookie_path,
-            developer_key_path: config.developer_key_path.unwrap_or_else(|| {
-                local_config_path()
-                    .as_deref()
-                    .unwrap_or_else(|| Path::new(super::config::CONFIG_PATH))
-                    .parent()
-                    .unwrap_or(Path::new("/"))
-                    .join("developer.key.pem")
-            }),
+            developer_key_path: config
+                .developer_key_path
+                .unwrap_or_else(default_developer_key_path),
             developer_key: OnceCell::new(),
         })))
     }
@@ -155,20 +154,26 @@ impl CliContext {
     #[instrument(skip_all)]
     pub fn developer_key(&self) -> Result<&ed25519_dalek::SigningKey, Error> {
         self.developer_key.get_or_try_init(|| {
-            if !self.developer_key_path.exists() {
-                return Err(Error::new(eyre!("Developer Key does not exist! Please run `start-cli init` before running this command."), crate::ErrorKind::Uninitialized));
-            }
-            let pair = <ed25519::KeypairBytes as ed25519::pkcs8::DecodePrivateKey>::from_pkcs8_pem(
-                &std::fs::read_to_string(&self.developer_key_path)?,
-            )
-            .with_kind(crate::ErrorKind::Pem)?;
-            let secret = ed25519_dalek::SecretKey::try_from(&pair.secret_key[..]).map_err(|_| {
-                Error::new(
-                    eyre!("pkcs8 key is of incorrect length"),
-                    ErrorKind::OpenSsl,
+            for path in [Path::new(OS_DEVELOPER_KEY_PATH), &self.developer_key_path] {
+                if !path.exists() {
+                    continue;
+                }
+                let pair = <ed25519::KeypairBytes as ed25519::pkcs8::DecodePrivateKey>::from_pkcs8_pem(
+                    &std::fs::read_to_string(&self.developer_key_path)?,
                 )
-            })?;
-            Ok(secret.into())
+                .with_kind(crate::ErrorKind::Pem)?;
+                let secret = ed25519_dalek::SecretKey::try_from(&pair.secret_key[..]).map_err(|_| {
+                    Error::new(
+                        eyre!("pkcs8 key is of incorrect length"),
+                        ErrorKind::OpenSsl,
+                    )
+                })?;
+                return Ok(secret.into())
+            }
+            Err(Error::new(
+                eyre!("Developer Key does not exist! Please run `start-cli init` before running this command."),
+                crate::ErrorKind::Uninitialized
+            ))
         })
     }
 
@@ -185,7 +190,7 @@ impl CliContext {
                     eyre!("Cannot parse scheme from base URL"),
                     crate::ErrorKind::ParseUrl,
                 )
-                .into())
+                .into());
             }
         };
         url.set_scheme(ws_scheme)
@@ -276,27 +281,90 @@ impl Context for CliContext {
 }
 impl CallRemote<RpcContext> for CliContext {
     async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
-        call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
+        if let Ok(local) = std::fs::read_to_string(RpcContext::LOCAL_AUTH_COOKIE_PATH) {
+            self.cookie_store
+                .lock()
+                .unwrap()
+                .insert_raw(
+                    &Cookie::build(("local", local))
+                        .domain("localhost")
+                        .expires(Expiration::Session)
+                        .same_site(SameSite::Strict)
+                        .build(),
+                    &"http://localhost".parse()?,
+                )
+                .with_kind(crate::ErrorKind::Network)?;
+        }
+        crate::middleware::signature::call_remote(
+            self,
+            self.rpc_url.clone(),
+            self.rpc_url.host_str().or_not_found("rpc url hostname")?,
+            method,
+            params,
+        )
+        .await
     }
 }
 impl CallRemote<DiagnosticContext> for CliContext {
     async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
-        call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
+        if let Ok(local) = std::fs::read_to_string(TunnelContext::LOCAL_AUTH_COOKIE_PATH) {
+            self.cookie_store
+                .lock()
+                .unwrap()
+                .insert_raw(
+                    &Cookie::build(("local", local))
+                        .domain("localhost")
+                        .expires(Expiration::Session)
+                        .same_site(SameSite::Strict)
+                        .build(),
+                    &"http://localhost".parse()?,
+                )
+                .with_kind(crate::ErrorKind::Network)?;
+        }
+        crate::middleware::signature::call_remote(
+            self,
+            self.rpc_url.clone(),
+            self.rpc_url.host_str().or_not_found("rpc url hostname")?,
+            method,
+            params,
+        )
+        .await
     }
 }
 impl CallRemote<InitContext> for CliContext {
     async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
-        call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
+        crate::middleware::signature::call_remote(
+            self,
+            self.rpc_url.clone(),
+            self.rpc_url.host_str().or_not_found("rpc url hostname")?,
+            method,
+            params,
+        )
+        .await
     }
 }
 impl CallRemote<SetupContext> for CliContext {
     async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
-        call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
+        crate::middleware::signature::call_remote(
+            self,
+            self.rpc_url.clone(),
+            self.rpc_url.host_str().or_not_found("rpc url hostname")?,
+            method,
+            params,
+        )
+        .await
     }
 }
 impl CallRemote<InstallContext> for CliContext {
     async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
-        call_remote_http(&self.client, self.rpc_url.clone(), method, params).await
+        crate::middleware::signature::call_remote(
+            self,
+            self.rpc_url.clone(),
+            self.rpc_url.host_str().or_not_found("rpc url hostname")?,
+            method,
+            params,
+        )
+        .await
     }
 }
 

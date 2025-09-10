@@ -16,7 +16,10 @@
             Back
           </button>
         }
-        <h1>{{ selected ? 'Install Type' : 'Select Disk' }}</h1>
+        <h1>{{ selected ? 'Install Type' : 'StartOS Install' }}</h1>
+        @if (!selected) {
+          <h2>Select Disk</h2>
+        }
         <div [style.color]="'var(--tui-text-negative)'">{{ error }}</div>
       </header>
       <div class="pages">

@@ -1,6 +1,6 @@
 use axum::response::Response;
-use http::header::InvalidHeaderValue;
 use http::HeaderValue;
+use http::header::InvalidHeaderValue;
 use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};
 use serde::Deserialize;
 

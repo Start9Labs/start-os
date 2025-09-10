@@ -11,13 +11,13 @@ use url::Url;
 
 use crate::prelude::*;
 use crate::progress::PhaseProgressTrackerHandle;
-use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
-use crate::registry::signer::commitment::{Commitment, Digestable};
-use crate::registry::signer::sign::{AnySignature, AnyVerifyingKey};
 use crate::registry::signer::AcceptSigners;
+use crate::s9pk::S9pk;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, Section};
-use crate::s9pk::S9pk;
+use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
+use crate::sign::commitment::{Commitment, Digestable};
+use crate::sign::{AnySignature, AnyVerifyingKey};
 use crate::upload::UploadingFile;
 
 #[derive(Debug, Deserialize, Serialize, TS)]

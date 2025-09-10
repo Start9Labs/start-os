@@ -12,8 +12,8 @@ use tokio_util::io::StreamReader;
 
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::ArchiveSource;
-use crate::util::io::TrackingIO;
 use crate::util::Apply;
+use crate::util::io::TrackingIO;
 
 pub struct HttpSource {
     url: Url,

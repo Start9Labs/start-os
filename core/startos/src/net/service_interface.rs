@@ -1,8 +1,7 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use imbl_value::InternedString;
-use lazy_format::lazy_format;
-use models::{HostId, ServiceInterfaceId};
+use models::{GatewayId, HostId, ServiceInterfaceId};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -14,7 +13,7 @@ use ts_rs::TS;
 pub enum HostnameInfo {
     Ip {
         #[ts(type = "string")]
-        network_interface_id: InternedString,
+        gateway_id: GatewayId,
         public: bool,
         hostname: IpHostname,
     },
@@ -72,9 +71,7 @@ pub enum IpHostname {
     },
     Domain {
         #[ts(type = "string")]
-        domain: InternedString,
-        #[ts(type = "string | null")]
-        subdomain: Option<InternedString>,
+        value: InternedString,
         port: Option<u16>,
         ssl_port: Option<u16>,
     },
@@ -85,15 +82,7 @@ impl IpHostname {
             Self::Ipv4 { value, .. } => InternedString::from_display(value),
             Self::Ipv6 { value, .. } => InternedString::from_display(value),
             Self::Local { value, .. } => value.clone(),
-            Self::Domain {
-                domain, subdomain, ..
-            } => {
-                if let Some(subdomain) = subdomain {
-                    InternedString::from_display(&lazy_format!("{subdomain}.{domain}"))
-                } else {
-                    domain.clone()
-                }
-            }
+            Self::Domain { value, .. } => value.clone(),
         }
     }
 }

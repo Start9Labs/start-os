@@ -1,1 +1,0 @@
-FROM start9/compat

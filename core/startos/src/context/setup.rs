@@ -25,6 +25,7 @@ use crate::prelude::*;
 use crate::progress::FullProgressTracker;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::setup::SetupProgress;
+use crate::shutdown::Shutdown;
 use crate::util::net::WebSocketExt;
 use crate::MAIN_DATA;
 
@@ -54,7 +55,7 @@ impl TryFrom<&AccountInfo> for SetupResult {
             tor_addresses: value
                 .tor_keys
                 .iter()
-                .map(|tor_key| format!("https://{}", tor_key.public().get_onion_address()))
+                .map(|tor_key| format!("https://{}", tor_key.onion_address()))
                 .collect(),
             hostname: value.hostname.clone(),
             lan_address: value.hostname.lan_address(),
@@ -71,7 +72,8 @@ pub struct SetupContextSeed {
     pub progress: FullProgressTracker,
     pub task: OnceCell<NonDetachingJoinHandle<()>>,
     pub result: OnceCell<Result<(SetupResult, RpcContext), Error>>,
-    pub shutdown: Sender<()>,
+    pub disk_guid: OnceCell<Arc<String>>,
+    pub shutdown: Sender<Option<Shutdown>>,
     pub rpc_continuations: RpcContinuations,
 }
 
@@ -84,6 +86,8 @@ impl SetupContext {
         config: &ServerConfig,
     ) -> Result<Self, Error> {
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
+        let mut progress = FullProgressTracker::new();
+        progress.enable_logging(true);
         Ok(Self(Arc::new(SetupContextSeed {
             webserver: webserver.acceptor_setter(),
             config: config.clone(),
@@ -94,9 +98,10 @@ impl SetupContext {
                 )
             })?,
             disable_encryption: config.disable_encryption.unwrap_or(false),
-            progress: FullProgressTracker::new(),
+            progress,
             task: OnceCell::new(),
             result: OnceCell::new(),
+            disk_guid: OnceCell::new(),
             shutdown,
             rpc_continuations: RpcContinuations::new(),
         })))

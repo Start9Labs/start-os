@@ -4,9 +4,9 @@ use blake3::Hash;
 use tokio::io::AsyncWrite;
 use tokio_util::either::Either;
 
+use crate::CAP_10_MiB;
 use crate::prelude::*;
 use crate::util::io::{ParallelBlake3Writer, TeeWriter};
-use crate::CAP_10_MiB;
 
 #[pin_project::pin_project]
 pub struct VerifyingWriter<W> {

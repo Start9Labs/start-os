@@ -60,10 +60,12 @@ pub mod s9pk;
 pub mod service;
 pub mod setup;
 pub mod shutdown;
+pub mod sign;
 pub mod sound;
 pub mod ssh;
 pub mod status;
 pub mod system;
+pub mod tunnel;
 pub mod update;
 pub mod upload;
 pub mod util;
@@ -77,8 +79,8 @@ pub use error::{Error, ErrorKind, ResultExt};
 use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
-    from_fn, from_fn_async, from_fn_blocking, CallRemoteHandler, Context, Empty, HandlerExt,
-    ParentHandler,
+    CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler, from_fn, from_fn_async,
+    from_fn_blocking,
 };
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -89,7 +91,7 @@ use crate::context::{
 use crate::disk::fsck::RequiresReboot;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
 use crate::system::kiosk;
-use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
+use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
@@ -148,13 +150,12 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "net",
-            net::net::<C>().with_about("Network commands related to tor and dhcp"),
+            net::net_api::<C>().with_about("Network commands related to tor and dhcp"),
         )
         .subcommand(
             "auth",
-            auth::auth::<C>().with_about(
-                "Commands related to Authentication i.e. login, logout, reset-password",
-            ),
+            auth::auth::<C, RpcContext>()
+                .with_about("Commands related to Authentication i.e. login, logout"),
         )
         .subcommand(
             "db",
@@ -582,7 +583,7 @@ pub fn expanded_api() -> ParentHandler<CliContext> {
     main_api()
         .subcommand(
             "init",
-            from_fn_blocking(developer::init)
+            from_fn_async(developer::init)
                 .no_display()
                 .with_about("Create developer key if it doesn't exist"),
         )

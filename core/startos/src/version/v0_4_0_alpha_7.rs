@@ -1,7 +1,7 @@
 use exver::{PreReleaseSegment, VersionRange};
 
 use super::v0_3_5::V0_3_0_COMPAT;
-use super::{v0_4_0_alpha_6, VersionT};
+use super::{VersionT, v0_4_0_alpha_6};
 use crate::prelude::*;
 
 lazy_static::lazy_static! {

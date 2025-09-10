@@ -8,13 +8,14 @@ import {
 } from '@angular/core'
 import { MarketplacePkgBase } from '../../../types'
 import { MarketplaceDepItemComponent } from './dependency-item.component'
+import { i18nPipe } from '@start9labs/shared'
 
 @Component({
   selector: 'marketplace-dependencies',
   template: `
     <div class="background-border shadow-color-light box-shadow-lg">
       <div class="dependencies-container">
-        <h2 class="additional-detail-title">Dependencies</h2>
+        <h2 class="additional-detail-title">{{ 'Dependencies' | i18n }}</h2>
         <div class="dependencies-list">
           @for (dep of pkg.dependencyMetadata | keyvalue; track $index) {
             <marketplace-dep-item
@@ -48,7 +49,7 @@ import { MarketplaceDepItemComponent } from './dependency-item.component'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, MarketplaceDepItemComponent],
+  imports: [CommonModule, MarketplaceDepItemComponent, i18nPipe],
 })
 export class MarketplaceDependenciesComponent {
   @Input({ required: true })

@@ -2,7 +2,7 @@ use std::any::Any;
 use std::sync::Arc;
 use std::time::Duration;
 
-use futures::future::{ready, BoxFuture};
+use futures::future::{BoxFuture, ready};
 use futures::{Future, FutureExt, TryFutureExt};
 use helpers::NonDetachingJoinHandle;
 use tokio::sync::{mpsc, oneshot};
@@ -318,8 +318,10 @@ mod test {
                 .await
                 .is_ok()
         );
-        assert!(tokio::time::timeout(Duration::from_secs(1), pending)
-            .await
-            .is_err());
+        assert!(
+            tokio::time::timeout(Duration::from_secs(1), pending)
+                .await
+                .is_err()
+        );
     }
 }

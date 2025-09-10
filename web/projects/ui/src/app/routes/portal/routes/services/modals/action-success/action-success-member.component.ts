@@ -10,35 +10,26 @@ import {
 import { FormsModule } from '@angular/forms'
 import { DialogService, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import {
-  TuiInputModule,
-  TuiTextfieldComponent,
-  TuiTextfieldControllerModule,
-} from '@taiga-ui/legacy'
-import { QrCodeModule } from 'ng-qrcode'
+  TuiButton,
+  TuiTextfield,
+  TuiTextfieldDirective,
+  TuiTitle,
+} from '@taiga-ui/core'
+import { QrCodeComponent } from 'ng-qrcode'
 
 @Component({
   selector: 'app-action-success-member',
   template: `
-    <tui-input
-      [readOnly]="true"
-      [ngModel]="member.value"
-      [tuiTextfieldCustomContent]="actions"
-    >
-      {{ member.name }}
+    <tui-textfield>
+      <label tuiLabel>{{ member.name }}</label>
       <input
-        tuiTextfieldLegacy
+        tuiTextfield
+        [readOnly]="true"
+        [ngModel]="member.value"
         [style.border-inline-end-width.rem]="border"
         [type]="member.masked && masked ? 'password' : 'text'"
       />
-    </tui-input>
-    @if (member.description) {
-      <label [style.padding-top.rem]="0.25" tuiTitle>
-        <span tuiSubtitle [style.opacity]="0.8">{{ member.description }}</span>
-      </label>
-    }
-    <ng-template #actions>
       @if (member.masked) {
         <button
           tuiIconButton
@@ -81,7 +72,12 @@ import { QrCodeModule } from 'ng-qrcode'
           {{ 'Show QR' | i18n }}
         </button>
       }
-    </ng-template>
+    </tui-textfield>
+    @if (member.description) {
+      <label [style.padding-top.rem]="0.25" tuiTitle>
+        <span tuiSubtitle [style.opacity]="0.8">{{ member.description }}</span>
+      </label>
+    }
     <ng-template #qr>
       <qr-code
         [value]="member.value"
@@ -116,16 +112,15 @@ import { QrCodeModule } from 'ng-qrcode'
   `,
   imports: [
     FormsModule,
-    TuiInputModule,
-    TuiTextfieldControllerModule,
+    TuiTextfield,
     TuiButton,
-    QrCodeModule,
+    QrCodeComponent,
     TuiTitle,
     i18nPipe,
   ],
 })
 export class ActionSuccessMemberComponent {
-  @ViewChild(TuiTextfieldComponent, { read: ElementRef })
+  @ViewChild(TuiTextfieldDirective, { read: ElementRef })
   private readonly input!: ElementRef<HTMLInputElement>
   private readonly dialog = inject(DialogService)
 

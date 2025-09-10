@@ -87,20 +87,3 @@ impl Serialize for PackageId {
         Serialize::serialize(&self.0, serializer)
     }
 }
-impl<'q> sqlx::Encode<'q, sqlx::Postgres> for PackageId {
-    fn encode_by_ref(
-        &self,
-        buf: &mut <sqlx::Postgres as sqlx::Database>::ArgumentBuffer<'q>,
-    ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
-        <&str as sqlx::Encode<'q, sqlx::Postgres>>::encode_by_ref(&&**self, buf)
-    }
-}
-impl sqlx::Type<sqlx::Postgres> for PackageId {
-    fn type_info() -> sqlx::postgres::PgTypeInfo {
-        <&str as sqlx::Type<sqlx::Postgres>>::type_info()
-    }
-
-    fn compatible(ty: &sqlx::postgres::PgTypeInfo) -> bool {
-        <&str as sqlx::Type<sqlx::Postgres>>::compatible(ty)
-    }
-}

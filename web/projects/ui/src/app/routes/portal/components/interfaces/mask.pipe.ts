@@ -8,7 +8,7 @@ export class MaskPipe implements PipeTransform {
   private readonly interface = inject(InterfaceComponent)
 
   transform(value: string): string {
-    return this.interface.value().masked
+    return this.interface.value()?.masked
       ? '•'.repeat(Math.min(32, value.length))
       : value
   }

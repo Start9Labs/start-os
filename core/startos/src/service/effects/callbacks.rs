@@ -264,7 +264,6 @@ impl CallbackHandler {
         }
     }
     pub async fn call(mut self, args: Vector<Value>) -> Result<(), Error> {
-        crate::dbg!(eyre!("callback fired: {}", self.handle.is_active()));
         if let Some(seed) = self.seed.upgrade() {
             seed.persistent_container
                 .callback(self.handle.take(), args)

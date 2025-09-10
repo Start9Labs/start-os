@@ -11,12 +11,11 @@ import {
   LoadingService,
 } from '@start9labs/shared'
 import { inputSpec, IST } from '@start9labs/start-sdk'
-import { TuiButton, TuiLink, TuiTitle } from '@taiga-ui/core'
+import { TuiButton, TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
-import { TuiInputModule } from '@taiga-ui/legacy'
 import { PatchDB } from 'patch-db-client'
 import { switchMap, tap } from 'rxjs'
-import { FormModule } from 'src/app/routes/portal/components/form/form.module'
+import { FormGroupComponent } from 'src/app/routes/portal/components/form/containers/group.component'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { FormService } from 'src/app/services/form.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
@@ -31,31 +30,23 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
       </a>
       {{ 'Email' | i18n }}
     </ng-container>
-    <header tuiHeader>
-      <hgroup tuiTitle>
-        <h3>{{ 'Email' | i18n }}</h3>
-        <p tuiSubtitle>
-          {{
-            'Connecting an external SMTP server allows StartOS and your installed services to send you emails.'
-              | i18n
-          }}
-          <a
-            tuiLink
-            docsLink
-            href="/user-manual/smtp"
-            appearance="action-grayscale"
-            iconEnd="@tui.external-link"
-            [pseudo]="true"
-            [textContent]="'View instructions' | i18n"
-          ></a>
-        </p>
-      </hgroup>
-    </header>
     @if (form$ | async; as form) {
       <form [formGroup]="form">
         <header tuiHeader="body-l">
           <h3 tuiTitle>
-            <b>{{ 'SMTP Credentials' | i18n }}</b>
+            <b>
+              {{ 'SMTP Credentials' | i18n }}
+              <a
+                tuiIconButton
+                size="xs"
+                docsLink
+                path="/user-manual/smtp.html"
+                appearance="icon"
+                iconStart="@tui.external-link"
+              >
+                {{ 'Documentation' | i18n }}
+              </a>
+            </b>
           </h3>
         </header>
         @if (spec | async; as resolved) {
@@ -88,13 +79,15 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
             <b>{{ 'Send test email' | i18n }}</b>
           </h3>
         </header>
-        <tui-input
-          [(ngModel)]="testAddress"
-          [ngModelOptions]="{ standalone: true }"
-        >
-          Name Lastname &lt;email&#64;example.com&gt;
-          <input tuiTextfieldLegacy inputmode="email" />
-        </tui-input>
+        <tui-textfield>
+          <label tuiLabel>Name Lastname &lt;email&#64;example.com&gt;</label>
+          <input
+            tuiTextfield
+            inputmode="email"
+            [(ngModel)]="testAddress"
+            [ngModelOptions]="{ standalone: true }"
+          />
+        </tui-textfield>
         <footer>
           <button
             tuiButton
@@ -129,12 +122,11 @@ import { configBuilderToSpec } from 'src/app/utils/configBuilderToSpec'
     CommonModule,
     FormsModule,
     ReactiveFormsModule,
-    FormModule,
+    FormGroupComponent,
     TuiButton,
-    TuiInputModule,
+    TuiTextfield,
     TuiHeader,
     TuiTitle,
-    TuiLink,
     RouterLink,
     TitleDirective,
     i18nPipe,

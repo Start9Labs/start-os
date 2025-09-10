@@ -666,13 +666,27 @@ impl<K: Eq, V> IntoIterator for EqMap<K, V> {
 
 impl<K: Eq, V> Extend<(K, V)> for EqMap<K, V> {
     fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
-        self.0.extend(iter)
+        let iter = iter.into_iter();
+        if let (_, Some(len)) = iter.size_hint() {
+            self.0.reserve(len)
+        }
+        for (k, v) in iter {
+            self.insert(k, v);
+        }
     }
 }
 
 impl<K: Eq, V> FromIterator<(K, V)> for EqMap<K, V> {
     fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
-        Self(Vec::from_iter(iter))
+        let mut res = Self(Vec::new());
+        let iter = iter.into_iter();
+        if let (_, Some(len)) = iter.size_hint() {
+            res.0.reserve(len)
+        }
+        for (k, v) in iter {
+            res.insert(k, v);
+        }
+        res
     }
 }
 
@@ -687,7 +701,7 @@ impl<K: Eq, V, const N: usize> From<[(K, V); N]> for EqMap<K, V> {
     /// assert_eq!(map1, map2);
     /// ```
     fn from(arr: [(K, V); N]) -> Self {
-        EqMap(Vec::from(arr))
+        Self::from_iter(arr)
     }
 }
 

@@ -1,4 +1,5 @@
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
+use std::ops::Deref;
 use std::pin::Pin;
 use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Weak};
@@ -7,17 +8,217 @@ use std::task::{Poll, Waker};
 use futures::stream::BoxStream;
 use futures::Stream;
 
+use crate::prelude::*;
+
+#[cfg(feature = "unstable")]
+lazy_static::lazy_static! {
+    static ref ID_CTR: AtomicUsize = AtomicUsize::new(0);
+}
+
+#[cfg(not(feature = "unstable"))]
+fn annotate_lock<F, T>(f: F, _: bool) -> T
+where
+    F: FnOnce() -> T,
+{
+    f()
+}
+
+#[cfg(feature = "unstable")]
+fn annotate_lock<F, T>(f: F, id: usize, write: bool) -> T
+where
+    F: FnOnce() -> T,
+{
+    std::thread_local! {
+        static LOCK_CTX: std::cell::RefCell<BTreeMap<usize, Result<(), usize>>> = std::cell::RefCell::new(BTreeMap::new());
+    }
+    if LOCK_CTX.with_borrow_mut(|ctx| {
+        let panic = if write {
+            ctx.contains_key(&id)
+        } else {
+            ctx.get(&id).copied().unwrap_or(Err(0)).is_ok()
+        };
+        if !panic {
+            if write {
+                ctx.insert(id, Ok(()));
+            } else {
+                if let Err(count) = ctx.entry(id).or_insert(Err(0)) {
+                    *count += 1;
+                }
+            }
+        }
+        panic
+    }) {
+        panic!("lock {id} is already locked on this thread");
+    }
+    let tracer: helpers::NonDetachingJoinHandle<()> = {
+        let bt = std::backtrace::Backtrace::force_capture();
+        tokio::spawn(async move {
+            use std::time::Duration;
+
+            tokio::time::sleep(Duration::from_secs(10)).await;
+            tracing::error!("waited on lock {id} more than 10s:\n{bt}");
+        })
+        .into()
+    };
+    let res = f();
+    drop(tracer);
+    LOCK_CTX.with_borrow_mut(|ctx| {
+        if write {
+            ctx.remove(&id);
+        } else {
+            if ctx
+                .get_mut(&id)
+                .map(|c| {
+                    c.as_mut().map_err(|count| {
+                        *count -= 1;
+                        *count
+                    }) == Err(0)
+                })
+                .unwrap_or(false)
+            {
+                ctx.remove(&id);
+            }
+        }
+    });
+    res
+}
+
+#[cfg(feature = "unstable")]
+#[test]
+#[should_panic]
+fn test_annotate_lock() {
+    annotate_lock(|| annotate_lock(|| (), 0, true), 0, true)
+}
+
 #[derive(Debug, Default)]
-pub struct SyncMutex<T>(std::sync::Mutex<T>);
+pub struct SyncMutex<T> {
+    #[cfg(feature = "unstable")]
+    id: usize,
+    lock: std::sync::Mutex<T>,
+}
 impl<T> SyncMutex<T> {
     pub fn new(t: T) -> Self {
-        Self(std::sync::Mutex::new(t))
+        Self {
+            #[cfg(feature = "unstable")]
+            id: ID_CTR.fetch_add(1, std::sync::atomic::Ordering::SeqCst),
+            lock: std::sync::Mutex::new(t),
+        }
     }
+    #[cfg_attr(feature = "unstable", inline(never))]
     pub fn mutate<F: FnOnce(&mut T) -> U, U>(&self, f: F) -> U {
-        f(&mut *self.0.lock().unwrap())
+        annotate_lock(
+            || f(&mut *self.lock.lock().unwrap()),
+            #[cfg(feature = "unstable")]
+            self.id,
+            true,
+        )
     }
+    #[cfg_attr(feature = "unstable", inline(never))]
     pub fn peek<F: FnOnce(&T) -> U, U>(&self, f: F) -> U {
-        f(&*self.0.lock().unwrap())
+        annotate_lock(
+            || f(&*self.lock.lock().unwrap()),
+            #[cfg(feature = "unstable")]
+            self.id,
+            true,
+        )
+    }
+    #[cfg_attr(feature = "unstable", inline(never))]
+    pub fn replace(&self, value: T) -> T {
+        annotate_lock(
+            || std::mem::replace(&mut *self.lock.lock().unwrap(), value),
+            #[cfg(feature = "unstable")]
+            self.id,
+            true,
+        )
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct SyncRwLock<T> {
+    #[cfg(feature = "unstable")]
+    id: usize,
+    lock: std::sync::RwLock<T>,
+}
+impl<T> SyncRwLock<T> {
+    pub fn new(t: T) -> Self {
+        Self {
+            #[cfg(feature = "unstable")]
+            id: ID_CTR.fetch_add(1, std::sync::atomic::Ordering::SeqCst),
+            lock: std::sync::RwLock::new(t),
+        }
+    }
+    #[cfg_attr(feature = "unstable", inline(never))]
+    pub fn mutate<F: FnOnce(&mut T) -> U, U>(&self, f: F) -> U {
+        annotate_lock(
+            || f(&mut *self.lock.write().unwrap()),
+            #[cfg(feature = "unstable")]
+            self.id,
+            true,
+        )
+    }
+    #[cfg_attr(feature = "unstable", inline(never))]
+    pub fn peek<F: FnOnce(&T) -> U, U>(&self, f: F) -> U {
+        annotate_lock(
+            || f(&*self.lock.read().unwrap()),
+            #[cfg(feature = "unstable")]
+            self.id,
+            false,
+        )
+    }
+    #[cfg_attr(feature = "unstable", inline(never))]
+    pub fn replace(&self, value: T) -> T {
+        annotate_lock(
+            || std::mem::replace(&mut *self.lock.write().unwrap(), value),
+            #[cfg(feature = "unstable")]
+            self.id,
+            true,
+        )
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct AsyncMutex<T>(tokio::sync::Mutex<T>);
+impl<T> AsyncMutex<T> {
+    pub fn new(t: T) -> Self {
+        Self(tokio::sync::Mutex::new(t))
+    }
+    pub async fn mutate<F: FnOnce(&mut T) -> U, U>(&self, f: F) -> U {
+        f(&mut *self.0.lock().await)
+    }
+    pub async fn peek<F: FnOnce(&T) -> U, U>(&self, f: F) -> U {
+        f(&*self.0.lock().await)
+    }
+    pub async fn replace(&self, value: T) -> T {
+        std::mem::replace(&mut *self.lock().await, value)
+    }
+}
+impl<T> Deref for AsyncMutex<T> {
+    type Target = tokio::sync::Mutex<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct AsyncRwLock<T>(tokio::sync::RwLock<T>);
+impl<T> AsyncRwLock<T> {
+    pub fn new(t: T) -> Self {
+        Self(tokio::sync::RwLock::new(t))
+    }
+    pub async fn mutate<F: FnOnce(&mut T) -> U, U>(&self, f: F) -> U {
+        f(&mut *self.0.write().await)
+    }
+    pub async fn peek<F: FnOnce(&T) -> U, U>(&self, f: F) -> U {
+        f(&*self.0.read().await)
+    }
+    pub async fn replace(&self, value: T) -> T {
+        std::mem::replace(&mut *self.0.write().await, value)
+    }
+}
+impl<T> Deref for AsyncRwLock<T> {
+    type Target = tokio::sync::RwLock<T>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -37,7 +238,7 @@ impl<T> WatchShared<T> {
 
 #[pin_project::pin_project]
 pub struct Watch<T> {
-    shared: Arc<SyncMutex<WatchShared<T>>>,
+    shared: Arc<SyncRwLock<WatchShared<T>>>,
     version: u64,
 }
 impl<T> Clone for Watch<T> {
@@ -51,7 +252,7 @@ impl<T> Clone for Watch<T> {
 impl<T> Watch<T> {
     pub fn new(init: T) -> Self {
         Self {
-            shared: Arc::new(SyncMutex::new(WatchShared {
+            shared: Arc::new(SyncRwLock::new(WatchShared {
                 version: 1,
                 data: init,
                 wakers: Vec::new(),
@@ -65,6 +266,7 @@ impl<T> Watch<T> {
             version: 0,
         }
     }
+    #[cfg_attr(feature = "unstable", inline(never))]
     pub fn poll_changed(&mut self, cx: &mut std::task::Context<'_>) -> Poll<()> {
         self.shared.mutate(|shared| {
             if shared.version != self.version {
@@ -79,9 +281,11 @@ impl<T> Watch<T> {
             }
         })
     }
+    #[cfg_attr(feature = "unstable", inline(never))]
     pub async fn changed(&mut self) {
         futures::future::poll_fn(|cx| self.poll_changed(cx)).await
     }
+    #[cfg_attr(feature = "unstable", inline(never))]
     pub async fn wait_for<F: FnMut(&T) -> bool>(&mut self, mut f: F) {
         loop {
             if self.peek(&mut f) {
@@ -90,6 +294,7 @@ impl<T> Watch<T> {
             self.changed().await;
         }
     }
+    #[cfg_attr(feature = "unstable", inline(never))]
     pub fn send_if_modified<F: FnOnce(&mut T) -> bool>(&self, modify: F) -> bool {
         self.shared.mutate(|shared| {
             let changed = modify(&mut shared.data);
@@ -99,6 +304,7 @@ impl<T> Watch<T> {
             changed
         })
     }
+    #[cfg_attr(feature = "unstable", inline(never))]
     pub fn send_modify<U, F: FnOnce(&mut T) -> U>(&self, modify: F) -> U {
         self.shared.mutate(|shared| {
             let res = modify(&mut shared.data);
@@ -106,39 +312,51 @@ impl<T> Watch<T> {
             res
         })
     }
+    #[cfg_attr(feature = "unstable", inline(never))]
     pub fn send_replace(&self, new: T) -> T {
         self.send_modify(|a| std::mem::replace(a, new))
     }
+    #[cfg_attr(feature = "unstable", inline(never))]
     pub fn send(&self, new: T) {
         self.send_replace(new);
     }
+    #[cfg_attr(feature = "unstable", inline(never))]
     pub fn mark_changed(&self) {
         self.shared.mutate(|shared| shared.modified())
     }
     pub fn mark_unseen(&mut self) {
         self.version = 0;
     }
+    #[cfg_attr(feature = "unstable", inline(never))]
     pub fn mark_seen(&mut self) {
         self.shared.peek(|shared| {
             self.version = shared.version;
         })
     }
+    #[cfg_attr(feature = "unstable", inline(never))]
     pub fn peek<U, F: FnOnce(&T) -> U>(&self, f: F) -> U {
         self.shared.peek(|shared| f(&shared.data))
     }
+    #[cfg_attr(feature = "unstable", inline(never))]
     pub fn peek_and_mark_seen<U, F: FnOnce(&T) -> U>(&mut self, f: F) -> U {
         self.shared.peek(|shared| {
             self.version = shared.version;
             f(&shared.data)
         })
     }
+    #[cfg_attr(feature = "unstable", inline(never))]
     pub fn peek_mut<U, F: FnOnce(&mut T) -> U>(&self, f: F) -> U {
         self.shared.mutate(|shared| f(&mut shared.data))
     }
 }
 impl<T: Clone> Watch<T> {
+    #[cfg_attr(feature = "unstable", inline(never))]
     pub fn read(&self) -> T {
         self.peek(|a| a.clone())
+    }
+    #[cfg_attr(feature = "unstable", inline(never))]
+    pub fn read_and_mark_seen(&mut self) -> T {
+        self.peek_and_mark_seen(|a| a.clone())
     }
 }
 impl<T: Clone> futures::Stream for Watch<T> {

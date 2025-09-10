@@ -5,7 +5,7 @@ import {
   input,
 } from '@angular/core'
 import { ActivatedRoute } from '@angular/router'
-import { CopyService } from '@start9labs/shared'
+import { CopyService, i18nPipe } from '@start9labs/shared'
 import { MarketplacePkgBase } from '../../types'
 import { MarketplaceLinkComponent } from './link.component'
 
@@ -18,13 +18,13 @@ import { MarketplaceLinkComponent } from './link.component'
         <div class="detail-container">
           <marketplace-link
             [url]="pkg().upstreamRepo"
-            label="Upstream Service"
+            label="Upstream service"
             icon="@tui.external-link"
             class="item-pointer"
           />
           <marketplace-link
             [url]="pkg().wrapperRepo"
-            label="StartOS Package"
+            label="StartOS package"
             icon="@tui.external-link"
             class="item-pointer"
           />
@@ -34,7 +34,7 @@ import { MarketplaceLinkComponent } from './link.component'
 
     <div class="background-border shadow-color-light box-shadow-lg">
       <div class="box-container">
-        <h2 class="additional-detail-title">Links</h2>
+        <h2 class="additional-detail-title">{{ 'Links' | i18n }}</h2>
         <div class="detail-container">
           <marketplace-link
             [url]="pkg().marketingSite"
@@ -117,7 +117,7 @@ import { MarketplaceLinkComponent } from './link.component'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MarketplaceLinkComponent],
+  imports: [MarketplaceLinkComponent, i18nPipe],
 })
 export class MarketplaceLinksComponent {
   readonly copyService = inject(CopyService)

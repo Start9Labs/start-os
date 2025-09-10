@@ -50,7 +50,7 @@ import { ABOUT } from './about.component'
           </button>
         </tui-opt-group>
         <tui-opt-group label="" safeLinks>
-          <a tuiOption docsLink iconStart="@tui.book-open" href="/user-manual">
+          <a tuiOption docsLink iconStart="@tui.book-open" path="/user-manual">
             {{ 'User manual' | i18n }}
           </a>
           <a

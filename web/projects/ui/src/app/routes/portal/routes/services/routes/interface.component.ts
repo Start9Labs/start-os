@@ -15,11 +15,13 @@ import { TuiBadge, TuiBreadcrumbs } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { InterfaceComponent } from 'src/app/routes/portal/components/interfaces/interface.component'
-import { getAddresses } from 'src/app/routes/portal/components/interfaces/interface.utils'
-import { InterfaceStatusComponent } from 'src/app/routes/portal/components/interfaces/status.component'
-import { ConfigService } from 'src/app/services/config.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
+import {
+  getPublicDomains,
+  InterfaceService,
+} from '../../../components/interfaces/interface.service'
+import { GatewayService } from 'src/app/services/gateway.service'
 
 @Component({
   template: `
@@ -27,19 +29,15 @@ import { TitleDirective } from 'src/app/services/title.service'
       <a routerLink="../.." tuiIconButton iconStart="@tui.arrow-left">
         {{ 'Back' | i18n }}
       </a>
-      {{ interface()?.name }}
-      <interface-status
-        [style.margin-left.rem]="0.5"
-        [public]="!!interface()?.public"
-      />
+      {{ serviceInterface()?.name }}
     </ng-container>
     <tui-breadcrumbs size="l">
       <a *tuiItem tuiLink appearance="action-grayscale" routerLink="../..">
         {{ 'Dashboard' | i18n }}
       </a>
-      <span *tuiItem class="g-primary">{{ interface()?.name }}</span>
+      <span *tuiItem class="g-primary">{{ serviceInterface()?.name }}</span>
     </tui-breadcrumbs>
-    @if (interface(); as value) {
+    @if (serviceInterface(); as value) {
       <header tuiHeader [style.margin-bottom.rem]="1">
         <hgroup tuiTitle>
           <h3>
@@ -47,12 +45,11 @@ import { TitleDirective } from 'src/app/services/title.service'
             <tui-badge size="l" [appearance]="getAppearance(value.type)">
               {{ value.type }}
             </tui-badge>
-            <interface-status [public]="value.public" />
           </h3>
           <p tuiSubtitle>{{ value.description }}</p>
         </hgroup>
       </header>
-      <app-interface
+      <service-interface
         [packageId]="pkgId"
         [value]="value"
         [isRunning]="isRunning()"
@@ -78,6 +75,7 @@ import { TitleDirective } from 'src/app/services/title.service'
   `,
   host: { class: 'g-subpage' },
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [GatewayService],
   imports: [
     InterfaceComponent,
     RouterLink,
@@ -86,7 +84,6 @@ import { TitleDirective } from 'src/app/services/title.service'
     TuiBreadcrumbs,
     TuiItem,
     TuiLink,
-    InterfaceStatusComponent,
     i18nPipe,
     TuiBadge,
     TuiHeader,
@@ -94,20 +91,20 @@ import { TitleDirective } from 'src/app/services/title.service'
   ],
 })
 export default class ServiceInterfaceRoute {
-  private readonly config = inject(ConfigService)
+  private readonly interfaceService = inject(InterfaceService)
+  private readonly gatewayService = inject(GatewayService)
+  private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
 
   readonly pkgId = getPkgId()
   readonly interfaceId = input('')
 
-  readonly pkg = toSignal(
-    inject<PatchDB<DataModel>>(PatchDB).watch$('packageData', this.pkgId),
-  )
+  readonly pkg = toSignal(this.patch.watch$('packageData', this.pkgId))
 
   readonly isRunning = computed(() => {
     return this.pkg()?.status.main === 'running'
   })
 
-  readonly interface = computed(() => {
+  readonly serviceInterface = computed(() => {
     const pkg = this.pkg()
     const id = this.interfaceId()
 
@@ -116,20 +113,33 @@ export default class ServiceInterfaceRoute {
     }
 
     const { serviceInterfaces, hosts } = pkg
-    const item = serviceInterfaces[this.interfaceId()]
-    const key = item?.addressInfo.hostId || ''
+    const iFace = serviceInterfaces[this.interfaceId()]
+    const key = iFace!.addressInfo.hostId || ''
     const host = hosts[key]
-    const port = item?.addressInfo.internalPort
+    const port = iFace!.addressInfo.internalPort
 
-    if (!host || !item || !port) {
+    if (!host || !iFace || !port) {
       return
     }
 
+    const binding = host.bindings[port]
+
+    const gateways = this.gatewayService.gateways() || []
+
     return {
-      ...item,
-      addSsl: host?.bindings[port]?.options.addSsl,
-      public: !!host?.bindings[port]?.net.public,
-      addresses: getAddresses(item, host, this.config),
+      ...iFace,
+      addresses: this.interfaceService.getAddresses(iFace, host, gateways),
+      gateways:
+        gateways.map(g => ({
+          enabled:
+            (g.public
+              ? binding?.net.publicEnabled.includes(g.id)
+              : !binding?.net.privateDisabled.includes(g.id)) ?? false,
+          ...g,
+        })) || [],
+      torDomains: host.onions,
+      publicDomains: getPublicDomains(host.publicDomains, gateways),
+      privateDomains: host.privateDomains,
     }
   })
 

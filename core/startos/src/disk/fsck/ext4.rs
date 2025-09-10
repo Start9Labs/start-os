@@ -2,13 +2,13 @@ use std::ffi::OsStr;
 use std::path::Path;
 
 use color_eyre::eyre::eyre;
-use futures::future::BoxFuture;
 use futures::FutureExt;
+use futures::future::BoxFuture;
 use tokio::process::Command;
 use tracing::instrument;
 
-use crate::disk::fsck::RequiresReboot;
 use crate::Error;
+use crate::disk::fsck::RequiresReboot;
 
 #[instrument(skip_all)]
 pub async fn e2fsck_preen(

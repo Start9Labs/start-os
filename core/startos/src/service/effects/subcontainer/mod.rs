@@ -11,14 +11,14 @@ use crate::service::effects::prelude::*;
 use crate::service::persistent_container::Subcontainer;
 use crate::util::Invoke;
 
-#[cfg(feature = "container-runtime")]
+#[cfg(feature = "cli-container")]
 mod sync;
 
-#[cfg(not(feature = "container-runtime"))]
+#[cfg(not(feature = "cli-container"))]
 mod sync_dummy;
 
 pub use sync::*;
-#[cfg(not(feature = "container-runtime"))]
+#[cfg(not(feature = "cli-container"))]
 use sync_dummy as sync;
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
@@ -61,7 +61,9 @@ pub async fn destroy_subcontainer_fs(
         }
         overlay.overlay.unmount(true).await?;
     } else {
-        tracing::warn!("Could not find a subcontainer fs to destroy; assumming that it already is destroyed and will be skipping");
+        tracing::warn!(
+            "Could not find a subcontainer fs to destroy; assumming that it already is destroyed and will be skipping"
+        );
     }
     Ok(())
 }

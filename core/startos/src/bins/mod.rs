@@ -2,41 +2,64 @@ use std::collections::VecDeque;
 use std::ffi::OsString;
 use std::path::Path;
 
-#[cfg(feature = "container-runtime")]
+#[cfg(feature = "cli-container")]
 pub mod container_cli;
 pub mod deprecated;
-#[cfg(feature = "registry")]
+#[cfg(any(feature = "registry", feature = "cli-registry"))]
 pub mod registry;
 #[cfg(feature = "cli")]
 pub mod start_cli;
-#[cfg(feature = "daemon")]
+#[cfg(feature = "startd")]
 pub mod start_init;
-#[cfg(feature = "daemon")]
+#[cfg(feature = "startd")]
 pub mod startd;
+#[cfg(any(feature = "tunnel", feature = "cli-tunnel"))]
+pub mod tunnel;
 
 fn select_executable(name: &str) -> Option<fn(VecDeque<OsString>)> {
     match name {
-        #[cfg(feature = "cli")]
-        "start-cli" => Some(start_cli::main),
-        #[cfg(feature = "container-runtime")]
-        "start-cli" => Some(container_cli::main),
-        #[cfg(feature = "daemon")]
+        #[cfg(feature = "startd")]
         "startd" => Some(startd::main),
-        #[cfg(feature = "registry")]
-        "registry" => Some(registry::main),
-        "embassy-cli" => Some(|_| deprecated::renamed("embassy-cli", "start-cli")),
-        "embassy-sdk" => Some(|_| deprecated::renamed("embassy-sdk", "start-sdk")),
+        #[cfg(feature = "startd")]
         "embassyd" => Some(|_| deprecated::renamed("embassyd", "startd")),
+        #[cfg(feature = "startd")]
         "embassy-init" => Some(|_| deprecated::removed("embassy-init")),
+
+        #[cfg(feature = "cli-startd")]
+        "start-cli" => Some(start_cli::main),
+        #[cfg(feature = "cli-startd")]
+        "embassy-cli" => Some(|_| deprecated::renamed("embassy-cli", "start-cli")),
+        #[cfg(feature = "cli-startd")]
+        "embassy-sdk" => Some(|_| deprecated::removed("embassy-sdk")),
+
+        #[cfg(feature = "cli-container")]
+        "start-container" => Some(container_cli::main),
+
+        #[cfg(feature = "registry")]
+        "start-registryd" => Some(registry::main),
+        #[cfg(feature = "cli-registry")]
+        "start-registry" => Some(registry::cli),
+
+        #[cfg(feature = "tunnel")]
+        "start-tunneld" => Some(tunnel::main),
+        #[cfg(feature = "cli-tunnel")]
+        "start-tunnel" => Some(tunnel::cli),
+
         "contents" => Some(|_| {
-            #[cfg(feature = "cli")]
-            println!("start-cli");
-            #[cfg(feature = "container-runtime")]
-            println!("start-cli (container)");
-            #[cfg(feature = "daemon")]
+            #[cfg(feature = "startd")]
             println!("startd");
+            #[cfg(feature = "cli-startd")]
+            println!("start-cli");
+            #[cfg(feature = "cli-container")]
+            println!("start-container");
             #[cfg(feature = "registry")]
-            println!("registry");
+            println!("start-registryd");
+            #[cfg(feature = "cli-registry")]
+            println!("start-registry");
+            #[cfg(feature = "tunnel")]
+            println!("start-tunneld");
+            #[cfg(feature = "cli-tunnel")]
+            println!("start-tunnel");
         }),
         _ => None,
     }

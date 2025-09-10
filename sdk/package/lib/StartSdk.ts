@@ -61,7 +61,7 @@ import {
 } from "../../base/lib/inits"
 import { DropGenerator } from "../../base/lib/util/Drop"
 
-export const OSVersion = testTypeVersion("0.4.0-alpha.9")
+export const OSVersion = testTypeVersion("0.4.0-alpha.10")
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 
@@ -104,7 +104,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
 
     // prettier-ignore
     type StartSdkEffectWrapper = {
-      [K in keyof Omit<Effects, NestedEffects | InterfaceEffects | MainUsedEffects | CallbackEffects | AlreadyExposed>]: (effects: Effects, ...args: Parameters<Effects[K]>) => ReturnType<Effects[K]>
+      [K in keyof Omit<Effects, "eventId" | NestedEffects | InterfaceEffects | MainUsedEffects | CallbackEffects | AlreadyExposed>]: (effects: Effects, ...args: Parameters<Effects[K]>) => ReturnType<Effects[K]>
     }
     const startSdkEffectWrapper: StartSdkEffectWrapper = {
       restart: (effects, ...args) => effects.restart(...args),

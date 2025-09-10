@@ -77,7 +77,7 @@ export async function checkDependencies<
   }
   const tasksSatisfied = (packageId: DependencyId) =>
     Object.entries(infoFor(packageId).result.tasks).filter(
-      ([_, t]) => t.active && t.task.severity === "critical",
+      ([_, t]) => t?.active && t.task.severity === "critical",
     ).length === 0
   const healthCheckSatisfied = (
     packageId: DependencyId,
@@ -146,7 +146,7 @@ export async function checkDependencies<
   const throwIfTasksNotSatisfied = (packageId: DependencyId) => {
     const dep = infoFor(packageId)
     const reqs = Object.entries(dep.result.tasks)
-      .filter(([_, t]) => t.active && t.task.severity === "critical")
+      .filter(([_, t]) => t?.active && t.task.severity === "critical")
       .map(([id, _]) => id)
     if (reqs.length) {
       throw new Error(

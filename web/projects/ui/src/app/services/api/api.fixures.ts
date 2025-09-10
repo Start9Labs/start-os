@@ -110,7 +110,7 @@ export namespace Mock {
       squashfs: {
         aarch64: {
           publishedAt: '2025-04-21T20:58:48.140749883Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.9/startos-0.4.0-alpha.9-33ae46f~dev_aarch64.squashfs',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.10/startos-0.4.0-alpha.10-33ae46f~dev_aarch64.squashfs',
           commitment: {
             hash: '4elBFVkd/r8hNadKmKtLIs42CoPltMvKe2z3LRqkphk=',
             size: 1343500288,
@@ -122,7 +122,7 @@ export namespace Mock {
         },
         'aarch64-nonfree': {
           publishedAt: '2025-04-21T21:07:00.249285116Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.9/startos-0.4.0-alpha.9-33ae46f~dev_aarch64-nonfree.squashfs',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.10/startos-0.4.0-alpha.10-33ae46f~dev_aarch64-nonfree.squashfs',
           commitment: {
             hash: 'MrCEi4jxbmPS7zAiGk/JSKlMsiuKqQy6RbYOxlGHOIQ=',
             size: 1653075968,
@@ -134,7 +134,7 @@ export namespace Mock {
         },
         raspberrypi: {
           publishedAt: '2025-04-21T21:16:12.933319237Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.9/startos-0.4.0-alpha.9-33ae46f~dev_raspberrypi.squashfs',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.10/startos-0.4.0-alpha.10-33ae46f~dev_raspberrypi.squashfs',
           commitment: {
             hash: '/XTVQRCqY3RK544PgitlKu7UplXjkmzWoXUh2E4HCw0=',
             size: 1490731008,
@@ -146,7 +146,7 @@ export namespace Mock {
         },
         x86_64: {
           publishedAt: '2025-04-21T21:14:20.246908903Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.9/startos-0.4.0-alpha.9-33ae46f~dev_x86_64.squashfs',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.10/startos-0.4.0-alpha.10-33ae46f~dev_x86_64.squashfs',
           commitment: {
             hash: '/6romKTVQGSaOU7FqSZdw0kFyd7P+NBSYNwM3q7Fe44=',
             size: 1411657728,
@@ -158,7 +158,7 @@ export namespace Mock {
         },
         'x86_64-nonfree': {
           publishedAt: '2025-04-21T21:15:17.955265284Z',
-          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.9/startos-0.4.0-alpha.9-33ae46f~dev_x86_64-nonfree.squashfs',
+          url: 'https://alpha-registry-x.start9.com/startos/v0.4.0-alpha.10/startos-0.4.0-alpha.10-33ae46f~dev_x86_64-nonfree.squashfs',
           commitment: {
             hash: 'HCRq9sr/0t85pMdrEgNBeM4x11zVKHszGnD1GDyZbSE=',
             size: 1731035136,
@@ -354,7 +354,7 @@ export namespace Mock {
   }
 
   export const BitcoinDep: T.DependencyMetadata = {
-    title: 'Bitcoin Core',
+    title: 'Bitcoin',
     icon: BTC_ICON,
     optional: false,
     description: 'Needed to run',
@@ -385,7 +385,7 @@ export namespace Mock {
             docsUrl: 'https://bitcoin.org',
             releaseNotes: 'Even better support for Bitcoin and wallets!',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.36',
+            sdkVersion: '0.4.0-beta.37',
             gitHash: 'fakehash',
             icon: BTC_ICON,
             sourceVersion: null,
@@ -420,7 +420,7 @@ export namespace Mock {
             docsUrl: 'https://bitcoinknots.org',
             releaseNotes: 'Even better support for Bitcoin and wallets!',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.36',
+            sdkVersion: '0.4.0-beta.37',
             gitHash: 'fakehash',
             icon: BTC_ICON,
             sourceVersion: null,
@@ -465,7 +465,7 @@ export namespace Mock {
             docsUrl: 'https://bitcoin.org',
             releaseNotes: 'Even better support for Bitcoin and wallets!',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.36',
+            sdkVersion: '0.4.0-beta.37',
             gitHash: 'fakehash',
             icon: BTC_ICON,
             sourceVersion: null,
@@ -500,7 +500,7 @@ export namespace Mock {
             docsUrl: 'https://bitcoinknots.org',
             releaseNotes: 'Even better support for Bitcoin and wallets!',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.36',
+            sdkVersion: '0.4.0-beta.37',
             gitHash: 'fakehash',
             icon: BTC_ICON,
             sourceVersion: null,
@@ -547,23 +547,13 @@ export namespace Mock {
             docsUrl: 'https://lightning.engineering/',
             releaseNotes: 'Upstream release to 0.17.5',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.36',
+            sdkVersion: '0.4.0-beta.37',
             gitHash: 'fakehash',
             icon: LND_ICON,
             sourceVersion: null,
             dependencyMetadata: {
-              bitcoind: {
-                title: 'Bitcoin Core',
-                icon: BTC_ICON,
-                description: 'Used for RPC requests',
-                optional: false,
-              },
-              'btc-rpc-proxy': {
-                title: 'Bitcoin Proxy',
-                icon: PROXY_ICON,
-                description: 'Used for authorized proxying of RPC requests',
-                optional: true,
-              },
+              bitcoind: BitcoinDep,
+              'btc-rpc-proxy': ProxyDep,
             },
             donationUrl: null,
             alerts: {
@@ -605,23 +595,13 @@ export namespace Mock {
             docsUrl: 'https://lightning.engineering/',
             releaseNotes: 'Upstream release to 0.17.4',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.36',
+            sdkVersion: '0.4.0-beta.37',
             gitHash: 'fakehash',
             icon: LND_ICON,
             sourceVersion: null,
             dependencyMetadata: {
-              bitcoind: {
-                title: 'Bitcoin Core',
-                icon: BTC_ICON,
-                description: 'Used for RPC requests',
-                optional: false,
-              },
-              'btc-rpc-proxy': {
-                title: 'Bitcoin Proxy',
-                icon: PROXY_ICON,
-                description: 'Used for authorized proxying of RPC requests',
-                optional: true,
-              },
+              bitcoind: BitcoinDep,
+              'btc-rpc-proxy': ProxyDep,
             },
             donationUrl: null,
             alerts: {
@@ -667,7 +647,7 @@ export namespace Mock {
           docsUrl: 'https://bitcoin.org',
           releaseNotes: 'Even better support for Bitcoin and wallets!',
           osVersion: '0.3.6',
-          sdkVersion: '0.4.0-beta.36',
+          sdkVersion: '0.4.0-beta.37',
           gitHash: 'fakehash',
           icon: BTC_ICON,
           sourceVersion: null,
@@ -702,7 +682,7 @@ export namespace Mock {
           docsUrl: 'https://bitcoinknots.org',
           releaseNotes: 'Even better support for Bitcoin and wallets!',
           osVersion: '0.3.6',
-          sdkVersion: '0.4.0-beta.36',
+          sdkVersion: '0.4.0-beta.37',
           gitHash: 'fakehash',
           icon: BTC_ICON,
           sourceVersion: null,
@@ -747,23 +727,13 @@ export namespace Mock {
           docsUrl: 'https://lightning.engineering/',
           releaseNotes: 'Upstream release and minor fixes.',
           osVersion: '0.3.6',
-          sdkVersion: '0.4.0-beta.36',
+          sdkVersion: '0.4.0-beta.37',
           gitHash: 'fakehash',
           icon: LND_ICON,
           sourceVersion: null,
           dependencyMetadata: {
-            bitcoind: {
-              title: 'Bitcoin Core',
-              icon: BTC_ICON,
-              description: 'Used for RPC requests',
-              optional: false,
-            },
-            'btc-rpc-proxy': {
-              title: 'Bitcoin Proxy',
-              icon: null,
-              description: 'Used for authorized RPC requests',
-              optional: true,
-            },
+            bitcoind: BitcoinDep,
+            'btc-rpc-proxy': ProxyDep,
           },
           donationUrl: null,
           alerts: {
@@ -805,17 +775,12 @@ export namespace Mock {
           marketingSite: '',
           releaseNotes: 'Upstream release and minor fixes.',
           osVersion: '0.3.6',
-          sdkVersion: '0.4.0-beta.36',
+          sdkVersion: '0.4.0-beta.37',
           gitHash: 'fakehash',
           icon: PROXY_ICON,
           sourceVersion: null,
           dependencyMetadata: {
-            bitcoind: {
-              title: 'Bitcoin Core',
-              icon: BTC_ICON,
-              description: 'Used for RPC requests',
-              optional: false,
-            },
+            bitcoind: BitcoinDep,
           },
           donationUrl: null,
           alerts: {
@@ -1954,7 +1919,7 @@ export namespace Mock {
       manifest: MockManifestBitcoind,
     },
     s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
-    icon: '/assets/img/service-icons/bitcoind.svg',
+    icon: '/assets/img/service-icons/bitcoin-core.svg',
     lastBackup: null,
     status: {
       main: 'running',
@@ -2059,7 +2024,8 @@ export namespace Mock {
             net: {
               assignedPort: 80,
               assignedSslPort: 443,
-              public: false,
+              publicEnabled: [],
+              privateDisabled: [],
             },
             options: {
               addSsl: null,
@@ -2068,13 +2034,14 @@ export namespace Mock {
             },
           },
         },
+        publicDomains: {},
+        privateDomains: [],
         onions: [],
-        domains: {},
         hostnameInfo: {
           80: [
             {
               kind: 'ip',
-              networkInterfaceId: 'eth0',
+              gatewayId: 'eth0',
               public: false,
               hostname: {
                 kind: 'local',
@@ -2085,7 +2052,7 @@ export namespace Mock {
             },
             {
               kind: 'ip',
-              networkInterfaceId: 'wlan0',
+              gatewayId: 'wlan0',
               public: false,
               hostname: {
                 kind: 'local',
@@ -2096,7 +2063,7 @@ export namespace Mock {
             },
             {
               kind: 'ip',
-              networkInterfaceId: 'eth0',
+              gatewayId: 'eth0',
               public: false,
               hostname: {
                 kind: 'ipv4',
@@ -2107,7 +2074,7 @@ export namespace Mock {
             },
             {
               kind: 'ip',
-              networkInterfaceId: 'wlan0',
+              gatewayId: 'wlan0',
               public: false,
               hostname: {
                 kind: 'ipv4',
@@ -2118,7 +2085,7 @@ export namespace Mock {
             },
             {
               kind: 'ip',
-              networkInterfaceId: 'eth0',
+              gatewayId: 'eth0',
               public: false,
               hostname: {
                 kind: 'ipv6',
@@ -2130,7 +2097,7 @@ export namespace Mock {
             },
             {
               kind: 'ip',
-              networkInterfaceId: 'wlan0',
+              gatewayId: 'wlan0',
               public: false,
               hostname: {
                 kind: 'ipv6',
@@ -2158,7 +2125,8 @@ export namespace Mock {
             net: {
               assignedPort: 8332,
               assignedSslPort: null,
-              public: false,
+              publicEnabled: [],
+              privateDisabled: [],
             },
             options: {
               addSsl: null,
@@ -2167,8 +2135,9 @@ export namespace Mock {
             },
           },
         },
+        publicDomains: {},
+        privateDomains: [],
         onions: [],
-        domains: {},
         hostnameInfo: {
           8332: [],
         },
@@ -2180,7 +2149,8 @@ export namespace Mock {
             net: {
               assignedPort: 8333,
               assignedSslPort: null,
-              public: false,
+              publicEnabled: [],
+              privateDisabled: [],
             },
             options: {
               addSsl: null,
@@ -2189,8 +2159,9 @@ export namespace Mock {
             },
           },
         },
+        publicDomains: {},
+        privateDomains: [],
         onions: [],
-        domains: {},
         hostnameInfo: {
           8333: [],
         },
@@ -2253,8 +2224,8 @@ export namespace Mock {
     },
     currentDependencies: {
       bitcoind: {
-        title: Mock.MockManifestBitcoind.title,
-        icon: 'assets/img/service-icons/bitcoind.svg',
+        title: BitcoinDep.title,
+        icon: BitcoinDep.icon,
         kind: 'running',
         versionRange: '>=26.0.0',
         healthChecks: [],
@@ -2350,8 +2321,8 @@ export namespace Mock {
     },
     currentDependencies: {
       bitcoind: {
-        title: Mock.MockManifestBitcoind.title,
-        icon: 'assets/img/service-icons/bitcoind.svg',
+        title: BitcoinDep.title,
+        icon: BitcoinDep.icon,
         kind: 'running',
         versionRange: '>=26.0.0',
         healthChecks: [],

@@ -1,19 +1,22 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, SocketAddr, SocketAddrV6};
 use std::sync::{Arc, Weak};
 
 use futures::channel::oneshot;
 use helpers::NonDetachingJoinHandle;
 use id_pool::IdPool;
-use imbl_value::InternedString;
+use imbl::OrdMap;
+use models::GatewayId;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::mpsc;
 
 use crate::db::model::public::NetworkInterfaceInfo;
+use crate::net::gateway::{DynInterfaceFilter, InterfaceFilter};
+use crate::net::utils::ipv6_is_link_local;
 use crate::prelude::*;
-use crate::util::sync::Watch;
 use crate::util::Invoke;
+use crate::util::sync::Watch;
 
 pub const START9_BRIDGE_IFACE: &str = "lxcbr0";
 pub const FIRST_DYNAMIC_PRIVATE_PORT: u16 = 49152;
@@ -39,106 +42,162 @@ impl AvailablePorts {
     }
 }
 
-#[derive(Debug)]
 struct ForwardRequest {
-    public: bool,
+    external: u16,
     target: SocketAddr,
+    filter: DynInterfaceFilter,
     rc: Weak<()>,
 }
 
-#[derive(Debug, Default)]
-struct ForwardState {
-    requested: BTreeMap<u16, ForwardRequest>,
-    current: BTreeMap<u16, BTreeMap<InternedString, SocketAddr>>,
+struct ForwardEntry {
+    external: u16,
+    target: SocketAddr,
+    prev_filter: DynInterfaceFilter,
+    forwards: BTreeMap<SocketAddr, GatewayId>,
+    rc: Weak<()>,
 }
-impl ForwardState {
-    async fn sync(
+impl ForwardEntry {
+    fn new(external: u16, target: SocketAddr, rc: Weak<()>) -> Self {
+        Self {
+            external,
+            target,
+            prev_filter: false.into_dyn(),
+            forwards: BTreeMap::new(),
+            rc,
+        }
+    }
+
+    fn take(&mut self) -> Self {
+        Self {
+            external: self.external,
+            target: self.target,
+            prev_filter: std::mem::replace(&mut self.prev_filter, false.into_dyn()),
+            forwards: std::mem::take(&mut self.forwards),
+            rc: self.rc.clone(),
+        }
+    }
+
+    async fn destroy(mut self) -> Result<(), Error> {
+        while let Some((source, interface)) = self.forwards.pop_first() {
+            unforward(interface.as_str(), source, self.target).await?;
+        }
+        Ok(())
+    }
+
+    async fn update(
         &mut self,
-        interfaces: &BTreeMap<InternedString, (bool, Vec<Ipv4Addr>)>,
+        ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
+        filter: Option<DynInterfaceFilter>,
     ) -> Result<(), Error> {
-        let private_interfaces = interfaces
+        if self.rc.strong_count() == 0 {
+            return self.take().destroy().await;
+        }
+        let filter_ref = filter.as_ref().unwrap_or(&self.prev_filter);
+        let mut keep = BTreeSet::<SocketAddr>::new();
+        for (iface, info) in ip_info
             .iter()
-            .filter(|(_, (public, _))| !*public)
-            .map(|(i, _)| i)
-            .collect::<BTreeSet<_>>();
-        let all_interfaces = interfaces.keys().collect::<BTreeSet<_>>();
-        self.requested.retain(|_, req| req.rc.strong_count() > 0);
-        for external in self
-            .requested
-            .keys()
-            .chain(self.current.keys())
-            .copied()
-            .collect::<BTreeSet<_>>()
+            .chain([NetworkInterfaceInfo::loopback()])
+            .filter(|(id, info)| filter_ref.filter(*id, *info))
         {
-            match (
-                self.requested.get(&external),
-                self.current.get_mut(&external),
-            ) {
-                (Some(req), Some(cur)) => {
-                    let expected = if req.public {
-                        &all_interfaces
-                    } else {
-                        &private_interfaces
+            if let Some(ip_info) = &info.ip_info {
+                for ipnet in &ip_info.subnets {
+                    let addr = match ipnet.addr() {
+                        IpAddr::V6(ip6) => SocketAddrV6::new(
+                            ip6,
+                            self.external,
+                            0,
+                            if ipv6_is_link_local(ip6) {
+                                ip_info.scope_id
+                            } else {
+                                0
+                            },
+                        )
+                        .into(),
+                        ip => SocketAddr::new(ip, self.external),
                     };
-                    let actual = cur.keys().collect::<BTreeSet<_>>();
-                    let mut to_rm = actual
-                        .difference(expected)
-                        .copied()
-                        .map(|i| (i.clone(), &interfaces[i].1))
-                        .collect::<BTreeMap<_, _>>();
-                    let mut to_add = expected
-                        .difference(&actual)
-                        .copied()
-                        .map(|i| (i.clone(), &interfaces[i].1))
-                        .collect::<BTreeMap<_, _>>();
-                    for interface in actual.intersection(expected).copied() {
-                        if cur[interface] != req.target {
-                            to_rm.insert(interface.clone(), &interfaces[interface].1);
-                            to_add.insert(interface.clone(), &interfaces[interface].1);
-                        }
-                    }
-                    for (interface, ips) in to_rm {
-                        for ip in ips {
-                            unforward(&*interface, (*ip, external).into(), cur[&interface]).await?;
-                        }
-                        cur.remove(&interface);
-                    }
-                    for (interface, ips) in to_add {
-                        cur.insert(interface.clone(), req.target);
-                        for ip in ips {
-                            forward(&*interface, (*ip, external).into(), cur[&interface]).await?;
-                        }
+                    keep.insert(addr);
+                    if !self.forwards.contains_key(&addr) {
+                        forward(iface.as_str(), addr, self.target).await?;
+                        self.forwards.insert(addr, iface.clone());
                     }
                 }
-                (Some(req), None) => {
-                    let cur = self.current.entry(external).or_default();
-                    for interface in if req.public {
-                        &all_interfaces
-                    } else {
-                        &private_interfaces
-                    }
-                    .into_iter()
-                    .copied()
-                    {
-                        cur.insert(interface.clone(), req.target);
-                        for ip in &interfaces[interface].1 {
-                            forward(&**interface, (*ip, external).into(), req.target).await?;
-                        }
-                    }
-                }
-                (None, Some(cur)) => {
-                    let to_rm = cur.keys().cloned().collect::<BTreeSet<_>>();
-                    for interface in to_rm {
-                        for ip in &interfaces[&interface].1 {
-                            unforward(&*interface, (*ip, external).into(), cur[&interface]).await?;
-                        }
-                        cur.remove(&interface);
-                    }
-                    self.current.remove(&external);
-                }
-                _ => (),
             }
         }
+        let rm = self
+            .forwards
+            .keys()
+            .copied()
+            .filter(|a| !keep.contains(a))
+            .collect::<Vec<_>>();
+        for rm in rm {
+            if let Some((source, interface)) = self.forwards.remove_entry(&rm) {
+                unforward(interface.as_str(), source, self.target).await?;
+            }
+        }
+        if let Some(filter) = filter {
+            self.prev_filter = filter;
+        }
+        Ok(())
+    }
+
+    async fn update_request(
+        &mut self,
+        ForwardRequest {
+            external,
+            target,
+            filter,
+            rc,
+        }: ForwardRequest,
+        ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
+    ) -> Result<(), Error> {
+        if external != self.external || target != self.target {
+            self.take().destroy().await?;
+            *self = Self::new(external, target, rc);
+            self.update(ip_info, Some(filter)).await?;
+        } else {
+            if self.prev_filter != filter {
+                self.update(ip_info, Some(filter)).await?;
+            }
+            self.rc = rc;
+        }
+        Ok(())
+    }
+}
+impl Drop for ForwardEntry {
+    fn drop(&mut self) {
+        if !self.forwards.is_empty() {
+            let take = self.take();
+            tokio::spawn(async move {
+                take.destroy().await.log_err();
+            });
+        }
+    }
+}
+
+#[derive(Default)]
+struct ForwardState {
+    state: BTreeMap<u16, ForwardEntry>,
+}
+impl ForwardState {
+    async fn handle_request(
+        &mut self,
+        request: ForwardRequest,
+        ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
+    ) -> Result<(), Error> {
+        self.state
+            .entry(request.external)
+            .or_insert_with(|| ForwardEntry::new(request.external, request.target, Weak::new()))
+            .update_request(request, ip_info)
+            .await
+    }
+    async fn sync(
+        &mut self,
+        ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
+    ) -> Result<(), Error> {
+        for entry in self.state.values_mut() {
+            entry.update(ip_info, None).await?;
+        }
+        self.state.retain(|_, fwd| !fwd.forwards.is_empty());
         Ok(())
     }
 }
@@ -150,86 +209,36 @@ fn err_has_exited<T>(_: T) -> Error {
     )
 }
 
-pub struct LanPortForwardController {
-    req: mpsc::UnboundedSender<(
-        Option<(u16, ForwardRequest)>,
-        oneshot::Sender<Result<(), Error>>,
-    )>,
+pub struct PortForwardController {
+    req: mpsc::UnboundedSender<(Option<ForwardRequest>, oneshot::Sender<Result<(), Error>>)>,
     _thread: NonDetachingJoinHandle<()>,
 }
-impl LanPortForwardController {
-    pub fn new(mut ip_info: Watch<BTreeMap<InternedString, NetworkInterfaceInfo>>) -> Self {
-        let (req_send, mut req_recv) = mpsc::unbounded_channel();
+impl PortForwardController {
+    pub fn new(mut ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>) -> Self {
+        let (req_send, mut req_recv) = mpsc::unbounded_channel::<(
+            Option<ForwardRequest>,
+            oneshot::Sender<Result<(), Error>>,
+        )>();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
             let mut state = ForwardState::default();
-            let mut interfaces = ip_info.peek_and_mark_seen(|ip_info| {
-                ip_info
-                    .iter()
-                    .map(|(iface, info)| {
-                        (
-                            iface.clone(),
-                            (
-                                info.inbound(),
-                                info.ip_info.as_ref().map_or(Vec::new(), |i| {
-                                    i.subnets
-                                        .iter()
-                                        .filter_map(|s| {
-                                            if let IpAddr::V4(ip) = s.addr() {
-                                                Some(ip)
-                                            } else {
-                                                None
-                                            }
-                                        })
-                                        .collect()
-                                }),
-                            ),
-                        )
-                    })
-                    .collect()
-            });
-            let mut reply: Option<oneshot::Sender<Result<(), Error>>> = None;
+            let mut interfaces = ip_info.read_and_mark_seen();
             loop {
                 tokio::select! {
                     msg = req_recv.recv() => {
                         if let Some((msg, re)) = msg {
-                            if let Some((external, req)) = msg {
-                                state.requested.insert(external, req);
+                            if let Some(req) = msg {
+                                re.send(state.handle_request(req, &interfaces).await).ok();
+                            } else {
+                                re.send(state.sync(&interfaces).await).ok();
                             }
-                            reply = Some(re);
                         } else {
                             break;
                         }
                     }
                     _ = ip_info.changed() => {
-                        interfaces = ip_info.peek(|ip_info| {
-                            ip_info
-                                .iter()
-                                .map(|(iface, info)| (iface.clone(), (
-                                    info.inbound(),
-                                    info.ip_info.as_ref().map_or(Vec::new(), |i| {
-                                        i.subnets
-                                            .iter()
-                                            .filter_map(|s| {
-                                                if let IpAddr::V4(ip) = s.addr() {
-                                                    Some(ip)
-                                                } else {
-                                                    None
-                                                }
-                                            })
-                                            .collect()
-                                    }),
-                                )))
-                                .collect()
-                        });
+                        interfaces = ip_info.read();
+                        state.sync(&interfaces).await.log_err();
                     }
-                }
-                let res = state.sync(&interfaces).await;
-                if let Err(e) = &res {
-                    tracing::error!("Error in PortForwardController: {e}");
-                    tracing::debug!("{e:?}");
-                }
-                if let Some(re) = reply.take() {
-                    let _ = re.send(res);
                 }
             }
         }));
@@ -238,19 +247,22 @@ impl LanPortForwardController {
             _thread: thread,
         }
     }
-    pub async fn add(&self, port: u16, public: bool, target: SocketAddr) -> Result<Arc<()>, Error> {
+    pub async fn add(
+        &self,
+        external: u16,
+        filter: impl InterfaceFilter,
+        target: SocketAddr,
+    ) -> Result<Arc<()>, Error> {
         let rc = Arc::new(());
         let (send, recv) = oneshot::channel();
         self.req
             .send((
-                Some((
-                    port,
-                    ForwardRequest {
-                        public,
-                        target,
-                        rc: Arc::downgrade(&rc),
-                    },
-                )),
+                Some(ForwardRequest {
+                    external,
+                    target,
+                    filter: filter.into_dyn(),
+                    rc: Arc::downgrade(&rc),
+                }),
                 send,
             ))
             .map_err(err_has_exited)?;

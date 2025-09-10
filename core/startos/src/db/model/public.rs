@@ -1,13 +1,15 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 use chrono::{DateTime, Utc};
 use exver::{Version, VersionRange};
+use imbl::{OrdMap, OrdSet};
 use imbl_value::InternedString;
 use ipnet::IpNet;
 use isocountry::CountryCode;
 use itertools::Itertools;
-use models::PackageId;
+use lazy_static::lazy_static;
+use models::{GatewayId, PackageId};
 use openssl::hash::MessageDigest;
 use patch_db::{HasModel, Value};
 use serde::{Deserialize, Serialize};
@@ -16,6 +18,7 @@ use ts_rs::TS;
 use crate::account::AccountInfo;
 use crate::db::model::package::AllPackageData;
 use crate::net::acme::AcmeProvider;
+use crate::net::forward::START9_BRIDGE_IFACE;
 use crate::net::host::binding::{AddSslOptions, BindInfo, BindOptions, NetInfo};
 use crate::net::host::Host;
 use crate::net::utils::ipv6_is_local;
@@ -27,7 +30,7 @@ use crate::util::cpupower::Governor;
 use crate::util::lshw::LshwDevice;
 use crate::util::serde::MaybeUtf8String;
 use crate::version::{Current, VersionT};
-use crate::{ARCH, PLATFORM};
+use crate::{ARCH, HOST_IP, PLATFORM};
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
@@ -71,26 +74,25 @@ impl Public {
                                 net: NetInfo {
                                     assigned_port: None,
                                     assigned_ssl_port: Some(443),
-                                    public: false,
+                                    private_disabled: OrdSet::new(),
+                                    public_enabled: OrdSet::new(),
                                 },
                             },
                         )]
                         .into_iter()
                         .collect(),
-                        onions: account
-                            .tor_keys
-                            .iter()
-                            .map(|k| k.public().get_onion_address())
-                            .collect(),
-                        domains: BTreeMap::new(),
+                        onions: account.tor_keys.iter().map(|k| k.onion_address()).collect(),
+                        public_domains: BTreeMap::new(),
+                        private_domains: BTreeSet::new(),
                         hostname_info: BTreeMap::new(),
                     },
                     wifi: WifiInfo {
                         enabled: true,
                         ..Default::default()
                     },
-                    network_interfaces: BTreeMap::new(),
+                    gateways: OrdMap::new(),
                     acme: BTreeMap::new(),
+                    dns: Default::default(),
                 },
                 status_info: ServerStatus {
                     backup_progress: None,
@@ -186,11 +188,22 @@ pub struct ServerInfo {
 pub struct NetworkInfo {
     pub wifi: WifiInfo,
     pub host: Host,
-    #[ts(as = "BTreeMap::<String, NetworkInterfaceInfo>")]
+    #[ts(as = "BTreeMap::<GatewayId, NetworkInterfaceInfo>")]
     #[serde(default)]
-    pub network_interfaces: BTreeMap<InternedString, NetworkInterfaceInfo>,
+    pub gateways: OrdMap<GatewayId, NetworkInterfaceInfo>,
     #[serde(default)]
     pub acme: BTreeMap<AcmeProvider, AcmeSettings>,
+    #[serde(default)]
+    pub dns: DnsSettings,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+#[ts(export)]
+pub struct DnsSettings {
+    pub dhcp_servers: Vec<SocketAddr>,
+    pub static_servers: Option<Vec<SocketAddr>>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, TS)]
@@ -198,13 +211,68 @@ pub struct NetworkInfo {
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct NetworkInterfaceInfo {
-    pub inbound: Option<bool>,
-    pub outbound: Option<bool>,
+    pub name: Option<InternedString>,
+    pub public: Option<bool>,
+    pub secure: Option<bool>,
     pub ip_info: Option<IpInfo>,
 }
 impl NetworkInterfaceInfo {
-    pub fn inbound(&self) -> bool {
-        self.inbound.unwrap_or_else(|| {
+    pub fn loopback() -> (&'static GatewayId, &'static Self) {
+        lazy_static! {
+            static ref LO: GatewayId = GatewayId::from("lo");
+            static ref LOOPBACK: NetworkInterfaceInfo = NetworkInterfaceInfo {
+                name: Some(InternedString::from_static("Loopback")),
+                public: Some(false),
+                secure: Some(true),
+                ip_info: Some(IpInfo {
+                    name: "lo".into(),
+                    scope_id: 1,
+                    device_type: None,
+                    subnets: [
+                        IpNet::new(Ipv4Addr::LOCALHOST.into(), 8).unwrap(),
+                        IpNet::new(Ipv6Addr::LOCALHOST.into(), 128).unwrap(),
+                    ]
+                    .into_iter()
+                    .collect(),
+                    lan_ip: [
+                        IpAddr::from(Ipv4Addr::LOCALHOST),
+                        IpAddr::from(Ipv6Addr::LOCALHOST)
+                    ]
+                    .into_iter()
+                    .collect(),
+                    wan_ip: None,
+                    ntp_servers: Default::default(),
+                    dns_servers: Default::default(),
+                }),
+            };
+        }
+        (&*LO, &*LOOPBACK)
+    }
+    pub fn lxc_bridge() -> (&'static GatewayId, &'static Self) {
+        lazy_static! {
+            static ref LXCBR0: GatewayId = GatewayId::from(START9_BRIDGE_IFACE);
+            static ref LXC_BRIDGE: NetworkInterfaceInfo = NetworkInterfaceInfo {
+                name: Some(InternedString::from_static("LXC Bridge Interface")),
+                public: Some(false),
+                secure: Some(true),
+                ip_info: Some(IpInfo {
+                    name: START9_BRIDGE_IFACE.into(),
+                    scope_id: 0,
+                    device_type: None,
+                    subnets: [IpNet::new(HOST_IP.into(), 24).unwrap()]
+                        .into_iter()
+                        .collect(),
+                    lan_ip: [IpAddr::from(HOST_IP)].into_iter().collect(),
+                    wan_ip: None,
+                    ntp_servers: Default::default(),
+                    dns_servers: Default::default(),
+                }),
+            };
+        }
+        (&*LXCBR0, &*LXC_BRIDGE)
+    }
+    pub fn public(&self) -> bool {
+        self.public.unwrap_or_else(|| {
             !self.ip_info.as_ref().map_or(true, |ip_info| {
                 let ip4s = ip_info
                     .subnets
@@ -218,11 +286,9 @@ impl NetworkInterfaceInfo {
                     })
                     .collect::<BTreeSet<_>>();
                 if !ip4s.is_empty() {
-                    return ip4s.iter().all(|ip4| {
-                        ip4.is_loopback()
-                    || (ip4.is_private() && !ip4.octets().starts_with(&[10, 59])) // reserving 10.59 for public wireguard configurations
-                    || ip4.is_link_local()
-                    });
+                    return ip4s
+                        .iter()
+                        .all(|ip4| ip4.is_loopback() || ip4.is_private() || ip4.is_link_local());
                 }
                 ip_info.subnets.iter().all(|ipnet| {
                     if let IpAddr::V6(ip6) = ipnet.addr() {
@@ -231,6 +297,14 @@ impl NetworkInterfaceInfo {
                         true
                     }
                 })
+            })
+        })
+    }
+
+    pub fn secure(&self) -> bool {
+        self.secure.unwrap_or_else(|| {
+            self.ip_info.as_ref().map_or(false, |ip_info| {
+                ip_info.device_type == Some(NetworkInterfaceType::Wireguard)
             })
         })
     }
@@ -246,10 +320,14 @@ pub struct IpInfo {
     pub scope_id: u32,
     pub device_type: Option<NetworkInterfaceType>,
     #[ts(type = "string[]")]
-    pub subnets: BTreeSet<IpNet>,
+    pub subnets: OrdSet<IpNet>,
+    #[ts(type = "string[]")]
+    pub lan_ip: OrdSet<IpAddr>,
     pub wan_ip: Option<Ipv4Addr>,
     #[ts(type = "string[]")]
-    pub ntp_servers: BTreeSet<InternedString>,
+    pub ntp_servers: OrdSet<InternedString>,
+    #[ts(type = "string[]")]
+    pub dns_servers: OrdSet<IpAddr>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
@@ -267,6 +345,14 @@ pub enum NetworkInterfaceType {
 #[ts(export)]
 pub struct AcmeSettings {
     pub contact: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+#[ts(export)]
+pub struct DomainSettings {
+    pub gateway: GatewayId,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]

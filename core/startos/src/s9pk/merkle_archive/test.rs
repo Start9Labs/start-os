@@ -87,7 +87,7 @@ fn test(files: Vec<(PathBuf, String)>) -> Result<(), Error> {
                         return Err(Error::new(
                             eyre!("expected file at {path:?}"),
                             ErrorKind::ParseS9pk,
-                        ))
+                        ));
                     }
                 }
             }

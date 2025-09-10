@@ -8,8 +8,8 @@ IFS="-" read -ra FEATURES <<< "$ENVIRONMENT"
 
 feature_file_checker='
 /^#/ { next }
-/^\+ [a-z0-9]+$/ { next }
-/^- [a-z0-9]+$/ { next }
+/^\+ [a-z0-9-]+$/ { next }
+/^- [a-z0-9-]+$/ { next }
 { exit 1 }
 '
 

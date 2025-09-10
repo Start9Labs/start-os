@@ -7,7 +7,7 @@ pub mod v2;
 use std::sync::Arc;
 
 use tokio::io::{AsyncReadExt, AsyncSeek};
-pub use v2::{manifest, S9pk};
+pub use v2::{S9pk, manifest};
 
 use crate::prelude::*;
 use crate::progress::FullProgressTracker;

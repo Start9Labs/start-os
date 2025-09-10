@@ -6,6 +6,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use yasi::InternedString;
 
 mod action;
+mod gateway;
 mod health_check;
 mod host;
 mod image;
@@ -16,6 +17,7 @@ mod service_interface;
 mod volume;
 
 pub use action::ActionId;
+pub use gateway::GatewayId;
 pub use health_check::HealthCheckId;
 pub use host::HostId;
 pub use image::ImageId;
@@ -114,22 +116,5 @@ impl Serialize for Id {
         Ser: Serializer,
     {
         serializer.serialize_str(self)
-    }
-}
-impl<'q> sqlx::Encode<'q, sqlx::Postgres> for Id {
-    fn encode_by_ref(
-        &self,
-        buf: &mut <sqlx::Postgres as sqlx::Database>::ArgumentBuffer<'q>,
-    ) -> Result<sqlx::encode::IsNull, sqlx::error::BoxDynError> {
-        <&str as sqlx::Encode<'q, sqlx::Postgres>>::encode_by_ref(&&**self, buf)
-    }
-}
-impl sqlx::Type<sqlx::Postgres> for Id {
-    fn type_info() -> sqlx::postgres::PgTypeInfo {
-        <&str as sqlx::Type<sqlx::Postgres>>::type_info()
-    }
-
-    fn compatible(ty: &sqlx::postgres::PgTypeInfo) -> bool {
-        <&str as sqlx::Type<sqlx::Postgres>>::compatible(ty)
     }
 }

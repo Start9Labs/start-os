@@ -1,6 +1,10 @@
 import { CommonModule } from '@angular/common'
 import { NgModule } from '@angular/core'
-import { SharedPipesModule } from '@start9labs/shared'
+import {
+  DocsLinkDirective,
+  i18nPipe,
+  SharedPipesModule,
+} from '@start9labs/shared'
 import { TuiLet } from '@taiga-ui/cdk'
 import {
   TuiAppearance,
@@ -31,6 +35,8 @@ import { MenuComponent } from './menu.component'
     TuiSkeleton,
     TuiDrawer,
     TuiPopup,
+    i18nPipe,
+    DocsLinkDirective,
   ],
   declarations: [MenuComponent],
   exports: [MenuComponent],

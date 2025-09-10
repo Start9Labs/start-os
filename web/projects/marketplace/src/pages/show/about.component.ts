@@ -6,7 +6,7 @@ import {
   output,
 } from '@angular/core'
 import { MarketplacePkgBase } from '../../types'
-import { CopyService } from '@start9labs/shared'
+import { CopyService, i18nPipe } from '@start9labs/shared'
 import { DatePipe } from '@angular/common'
 import { MarketplaceItemComponent } from './item.component'
 
@@ -36,7 +36,7 @@ import { MarketplaceItemComponent } from './item.component'
           <marketplace-item
             [style.pointer-events]="'none'"
             [data]="pkg().sdkVersion || 'Unknown'"
-            label="SDK Version"
+            label="SDK version"
             icon=""
           />
           <!-- git hash -->
@@ -44,15 +44,15 @@ import { MarketplaceItemComponent } from './item.component'
             <marketplace-item
               (click)="copyService.copy(gitHash)"
               [data]="gitHash"
-              label="Git Hash"
+              label="Git hash"
               icon="@tui.copy"
               class="item-copy"
             />
           } @else {
             <div class="item-padding">
               <label tuiTitle>
-                <span tuiSubtitle>Git Hash</span>
-                Unknown
+                <span tuiSubtitle>{{ 'Git hash' | i18n }}</span>
+                {{ 'Unknown' | i18n }}
               </label>
             </div>
           }
@@ -128,7 +128,7 @@ import { MarketplaceItemComponent } from './item.component'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MarketplaceItemComponent, DatePipe],
+  imports: [MarketplaceItemComponent, DatePipe, i18nPipe],
 })
 export class MarketplaceAboutComponent {
   readonly copyService = inject(CopyService)

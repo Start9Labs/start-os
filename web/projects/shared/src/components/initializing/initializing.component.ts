@@ -4,7 +4,6 @@ import {
   computed,
   inject,
   input,
-  Input,
 } from '@angular/core'
 import { TuiProgress } from '@taiga-ui/kit'
 import { LogsWindowComponent } from './logs-window.component'
@@ -13,32 +12,25 @@ import { i18nPipe } from '../../i18n/i18n.pipe'
 @Component({
   selector: 'app-initializing',
   template: `
-    @if (error(); as err) {
-      <section>
-        <h1>{{ 'Error initializing server' | i18n }}</h1>
-        <p>{{ err }}</p>
-      </section>
-    } @else {
-      <section>
-        <h1 [style.font-size.rem]="2" [style.margin-bottom.rem]="2">
-          {{
-            setupType()
-              ? ('Setting up your server' | i18n)
-              : ('Booting StartOS' | i18n)
-          }}
-        </h1>
-        <div>
-          {{ 'Progress' | i18n }}: {{ (progress().total * 100).toFixed(0) }}%
-        </div>
-        <progress
-          tuiProgressBar
-          [style.max-width.rem]="40"
-          [style.margin]="'1rem auto'"
-          [attr.value]="progress().total"
-        ></progress>
-        <p [innerHTML]="message()"></p>
-      </section>
-    }
+    <section>
+      <h1 [style.font-size.rem]="2" [style.margin-bottom.rem]="2">
+        {{
+          initialSetup()
+            ? ('Setting up your server' | i18n)
+            : ('Booting StartOS' | i18n)
+        }}
+      </h1>
+      <div>
+        {{ 'Progress' | i18n }}: {{ (progress().total * 100).toFixed(0) }}%
+      </div>
+      <progress
+        tuiProgressBar
+        [style.max-width.rem]="40"
+        [style.margin]="'1rem auto'"
+        [attr.value]="progress().total"
+      ></progress>
+      <p [innerHTML]="message()"></p>
+    </section>
     <logs-window />
   `,
   styles: `
@@ -76,10 +68,7 @@ export class InitializingComponent {
     total: 0,
     message: '',
   })
-  readonly setupType = input<
-    'fresh' | 'restore' | 'attach' | 'transfer' | undefined
-  >()
-  readonly error = input<string>()
+  readonly initialSetup = input(false)
 
   readonly message = computed(() => {
     return (

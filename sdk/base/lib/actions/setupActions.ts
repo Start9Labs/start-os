@@ -5,9 +5,11 @@ import { once } from "../util"
 import { InitScript } from "../inits"
 import { Parser } from "ts-matches"
 
+type MaybeInputSpec<Type> = {} extends Type ? null : InputSpec<Type>
 export type Run<A extends Record<string, any>> = (options: {
   effects: T.Effects
   input: A
+  spec: T.inputSpecTypes.InputSpec
 }) => Promise<(T.ActionResult & { version: "1" }) | null | void | undefined>
 export type GetInput<A extends Record<string, any>> = (options: {
   effects: T.Effects
@@ -47,11 +49,14 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
   implements ActionInfo<Id, Type>
 {
   readonly _INPUT: Type = null as any as Type
-  private cachedParser?: Parser<unknown, Type>
+  private prevInputSpec: Record<
+    string,
+    { spec: T.inputSpecTypes.InputSpec; validator: Parser<unknown, Type> }
+  > = {}
   private constructor(
     readonly id: Id,
     private readonly metadataFn: MaybeFn<T.ActionMetadata>,
-    private readonly inputSpec: InputSpec<Type>,
+    private readonly inputSpec: MaybeInputSpec<Type>,
     private readonly getInputFn: GetInput<Type>,
     private readonly runFn: Run<Type>,
   ) {}
@@ -81,7 +86,7 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
     return new Action(
       id,
       mapMaybeFn(metadata, (m) => ({ ...m, hasInput: false })),
-      InputSpec.of({}),
+      null,
       async () => null,
       run,
     )
@@ -100,10 +105,15 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
     return metadata
   }
   async getInput(options: { effects: T.Effects }): Promise<T.ActionInput> {
-    const built = await this.inputSpec.build(options)
-    this.cachedParser = built.validator
+    let spec = {}
+    if (this.inputSpec) {
+      const built = await this.inputSpec.build(options)
+      this.prevInputSpec[options.effects.eventId!] = built
+      spec = built.spec
+    }
     return {
-      spec: built.spec,
+      eventId: options.effects.eventId!,
+      spec,
       value:
         ((await this.getInputFn(options)) as
           | Record<string, unknown>
@@ -115,15 +125,23 @@ export class Action<Id extends T.ActionId, Type extends Record<string, any>>
     effects: T.Effects
     input: Type
   }): Promise<T.ActionResult | null> {
-    const parser =
-      this.cachedParser ?? (await this.inputSpec.build(options)).validator
+    let spec = {}
+    if (this.inputSpec) {
+      const prevInputSpec = this.prevInputSpec[options.effects.eventId!]
+      if (!prevInputSpec) {
+        throw new Error(
+          `getActionInput has not been called for EventID ${options.effects.eventId}`,
+        )
+      }
+      options.input = prevInputSpec.validator.unsafeCast(options.input)
+      spec = prevInputSpec.spec
+    }
     return (
       (await this.runFn({
         effects: options.effects,
-        input: this.cachedParser
-          ? this.cachedParser.unsafeCast(options.input)
-          : options.input,
-      })) || null
+        input: options.input,
+        spec,
+      })) ?? null
     )
   }
 }

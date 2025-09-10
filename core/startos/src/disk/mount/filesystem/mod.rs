@@ -2,8 +2,8 @@ use std::ffi::OsStr;
 use std::fmt::{Display, Write};
 use std::path::Path;
 
-use digest::generic_array::GenericArray;
 use digest::OutputSizeUser;
+use digest::generic_array::GenericArray;
 use futures::Future;
 use sha2::Sha256;
 use tokio::process::Command;
@@ -106,6 +106,7 @@ pub trait FileSystem: Send + Sync {
     }
     fn source_hash(
         &self,
-    ) -> impl Future<Output = Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error>>
-           + Send;
+    ) -> impl Future<
+        Output = Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error>,
+    > + Send;
 }

@@ -144,7 +144,7 @@ export class WifiTableComponent {
       await this.component.saveAndConnect(network.ssid)
     } else {
       this.formDialog.open<FormContext<WiFiForm>>(FormComponent, {
-        label: 'Password Needed',
+        label: 'Password needed',
         data: {
           spec: wifiSpec.spec,
           buttons: [

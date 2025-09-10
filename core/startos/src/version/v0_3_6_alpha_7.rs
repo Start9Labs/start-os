@@ -3,7 +3,7 @@ use imbl_value::json;
 use tokio::process::Command;
 
 use super::v0_3_5::V0_3_0_COMPAT;
-use super::{v0_3_6_alpha_6, VersionT};
+use super::{VersionT, v0_3_6_alpha_6};
 use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::util::Invoke;

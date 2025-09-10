@@ -1,11 +1,11 @@
 use std::net::Ipv4Addr;
 
-use rpc_toolkit::{from_fn, from_fn_async, from_fn_blocking, Context, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn, from_fn_async, from_fn_blocking};
 
 use crate::prelude::*;
 use crate::service::cli::ContainerCliContext;
 use crate::service::effects::context::EffectContext;
-use crate::{echo, HOST_IP};
+use crate::{HOST_IP, echo};
 
 mod action;
 pub mod callbacks;

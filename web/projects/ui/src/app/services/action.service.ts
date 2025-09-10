@@ -67,9 +67,9 @@ export class ActionService {
               },
             })
             .pipe(filter(Boolean))
-            .subscribe(() => this.execute(pkgInfo.id, actionInfo.id))
+            .subscribe(() => this.execute(pkgInfo.id, null, actionInfo.id))
         } else {
-          this.execute(pkgInfo.id, actionInfo.id)
+          this.execute(pkgInfo.id, null, actionInfo.id)
         }
       }
     } else {
@@ -96,14 +96,20 @@ export class ActionService {
     }
   }
 
-  async execute(packageId: string, actionId: string, input?: object) {
+  async execute(
+    packageId: string,
+    eventId: string | null,
+    actionId: string,
+    input?: object,
+  ) {
     const loader = this.loader.open('Loading').subscribe()
 
     try {
       const res = await this.api.runAction({
         packageId,
+        eventId,
         actionId,
-        input: input || null,
+        input: input ?? null,
       })
 
       if (!res) return

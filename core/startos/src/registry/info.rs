@@ -5,7 +5,7 @@ use clap::Parser;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use models::DataUrl;
-use rpc_toolkit::{from_fn_async, Context, Empty, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -51,7 +51,6 @@ pub fn info_api<C: Context>() -> ParentHandler<C, WithIoFormat<Empty>> {
 pub struct RegistryInfo {
     pub name: Option<String>,
     pub icon: Option<DataUrl<'static>>,
-    #[ts(as = "BTreeMap::<String, Category>")]
     pub categories: BTreeMap<InternedString, Category>,
 }
 

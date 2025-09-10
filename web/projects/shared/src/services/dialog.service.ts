@@ -39,7 +39,7 @@ export class DialogService {
     })
   }
 
-  openConfirm<T = void>(
+  openConfirm(
     options: Partial<TuiResponsiveDialogOptions<TuiConfirmData>> & {
       label: i18nKey
       data?: TuiConfirmData & {
@@ -49,13 +49,13 @@ export class DialogService {
       }
     },
   ) {
-    options.data = options.data || {}
-    const { content, yes, no } = options.data
+    const { content, yes, no } = options.data || {}
 
-    return this.dialogs.open<T>(TUI_CONFIRM, {
+    return this.dialogs.open<boolean>(TUI_CONFIRM, {
+      ...options,
       label: this.i18n.transform(options.label),
       data: {
-        ...options.data,
+        ...(options.data || {}),
         content: isI18n(content) ? this.i18n.transform(content) : content,
         yes: this.i18n.transform(yes),
         no: this.i18n.transform(no),

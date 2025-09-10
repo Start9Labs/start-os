@@ -5,8 +5,8 @@ use chrono::{DateTime, Utc};
 use exver::VersionRange;
 use imbl_value::InternedString;
 use models::{ActionId, DataUrl, HealthCheckId, HostId, PackageId, ReplayId, ServiceInterfaceId};
-use patch_db::json_ptr::JsonPointer;
 use patch_db::HasModel;
+use patch_db::json_ptr::JsonPointer;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -17,7 +17,7 @@ use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::s9pk::manifest::Manifest;
 use crate::status::MainStatus;
-use crate::util::serde::{is_partial_of, Pem};
+use crate::util::serde::{Pem, is_partial_of};
 
 #[derive(Debug, Default, Deserialize, Serialize, TS)]
 #[ts(export)]
@@ -268,7 +268,7 @@ impl Model<PackageState> {
                 return Err(Error::new(
                     eyre!("could not determine package state to get manifest"),
                     ErrorKind::Database,
-                ))
+                ));
             }
         })
     }
@@ -375,7 +375,6 @@ pub struct PackageDataEntry {
     pub last_backup: Option<DateTime<Utc>>,
     pub current_dependencies: CurrentDependencies,
     pub actions: BTreeMap<ActionId, ActionMetadata>,
-    #[ts(as = "BTreeMap::<String, TaskEntry>")]
     pub tasks: BTreeMap<ReplayId, TaskEntry>,
     pub service_interfaces: BTreeMap<ServiceInterfaceId, ServiceInterface>,
     pub hosts: Hosts,

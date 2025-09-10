@@ -12,20 +12,19 @@ use crate::prelude::*;
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfo;
-use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
-use crate::registry::signer::sign::{AnySignature, AnyVerifyingKey};
 use crate::rpc_continuations::Guid;
+use crate::s9pk::S9pk;
 use crate::s9pk::git_hash::GitHash;
 use crate::s9pk::manifest::{Alerts, Description, HardwareRequirements};
 use crate::s9pk::merkle_archive::source::FileSource;
-use crate::s9pk::S9pk;
+use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
+use crate::sign::{AnySignature, AnyVerifyingKey};
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct PackageIndex {
-    #[ts(as = "BTreeMap::<String, Category>")]
     pub categories: BTreeMap<InternedString, Category>,
     pub packages: BTreeMap<PackageId, PackageInfo>,
 }

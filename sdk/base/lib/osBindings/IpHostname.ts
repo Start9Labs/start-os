@@ -17,8 +17,7 @@ export type IpHostname =
     }
   | {
       kind: "domain"
-      domain: string
-      subdomain: string | null
+      value: string
       port: number | null
       sslPort: number | null
     }

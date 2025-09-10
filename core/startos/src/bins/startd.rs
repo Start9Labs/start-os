@@ -12,7 +12,7 @@ use tracing::instrument;
 use crate::context::config::ServerConfig;
 use crate::context::rpc::InitRpcContextPhases;
 use crate::context::{DiagnosticContext, InitContext, RpcContext};
-use crate::net::network_interface::SelfContainedNetworkInterfaceListener;
+use crate::net::gateway::SelfContainedNetworkInterfaceListener;
 use crate::net::web_server::{Acceptor, UpgradableListener, WebServer};
 use crate::shutdown::Shutdown;
 use crate::system::launch_metrics_task;
@@ -144,7 +144,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
 
     let res = {
         let rt = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(max(4, num_cpus::get()))
+            .worker_threads(max(1, num_cpus::get()))
             .enable_all()
             .build()
             .expect("failed to initialize runtime");

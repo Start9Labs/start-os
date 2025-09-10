@@ -83,6 +83,7 @@ export default class ServiceActionsRoute {
             icon: pkg.icon,
             manifest: getManifest(pkg),
             actions: Object.entries(pkg.actions)
+              .filter(([_, action]) => action.visibility !== 'hidden')
               .map(([id, action]) => ({
                 ...action,
                 id,

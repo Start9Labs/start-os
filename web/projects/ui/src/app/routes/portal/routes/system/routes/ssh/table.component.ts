@@ -29,7 +29,10 @@ import { SSHKey } from 'src/app/services/api/api.types'
         {{ 'Hostname' | i18n }}
       </th>
       @for (key of keys(); track $index) {
-        <tr (longtap)="!selected().length && onToggle(key)">
+        <tr
+          (longtap)="!selected().length && onToggle(key)"
+          (click)="selected().length && onToggle(key)"
+        >
           <td [style.padding-left.rem]="2.5">
             <input
               tuiCheckbox
@@ -47,7 +50,7 @@ import { SSHKey } from 'src/app/services/api/api.types'
       } @empty {
         @if (keys()) {
           <tr>
-            <td colspan="5">{{ 'No keys' | i18n }}</td>
+            <td colspan="5">{{ 'No SSH keys' | i18n }}</td>
           </tr>
         } @else {
           @for (i of ['', '']; track $index) {
@@ -70,6 +73,10 @@ import { SSHKey } from 'src/app/services/api/api.types'
       &[colspan] {
         grid-column: span 2;
       }
+    }
+
+    .date {
+      width: 12rem;
     }
 
     input {

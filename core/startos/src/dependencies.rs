@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::path::Path;
 
 use imbl_value::InternedString;
 use models::PackageId;
@@ -24,20 +25,62 @@ impl Map for Dependencies {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
+#[derive(Clone, Debug, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct DepInfo {
     pub description: Option<String>,
     pub optional: bool,
-    pub s9pk: Option<PathOrUrl>,
+    #[serde(flatten)]
+    pub metadata: Option<MetadataSrc>,
+}
+impl TS for DepInfo {
+    type WithoutGenerics = Self;
+    fn decl() -> String {
+        format!("type {} = {}", Self::name(), Self::inline())
+    }
+    fn decl_concrete() -> String {
+        Self::decl()
+    }
+    fn name() -> String {
+        "DepInfo".into()
+    }
+    fn inline() -> String {
+        "{ description: string | null, optional: boolean } & MetadataSrc".into()
+    }
+    fn inline_flattened() -> String {
+        Self::inline()
+    }
+    fn visit_dependencies(v: &mut impl ts_rs::TypeVisitor)
+    where
+        Self: 'static,
+    {
+        v.visit::<MetadataSrc>()
+    }
+    fn output_path() -> Option<&'static std::path::Path> {
+        Some(Path::new("DepInfo.ts"))
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub enum MetadataSrc {
+    Metadata(Metadata),
+    S9pk(Option<PathOrUrl>), // backwards compatibility
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct Metadata {
+    pub title: InternedString,
+    pub icon: PathOrUrl,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct DependencyMetadata {
     #[ts(type = "string")]
     pub title: InternedString,

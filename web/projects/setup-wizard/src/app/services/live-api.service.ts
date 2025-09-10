@@ -120,6 +120,13 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  async restart(): Promise<void> {
+    await this.rpcRequest<void>({
+      method: 'setup.restart',
+      params: {},
+    })
+  }
+
   private async rpcRequest<T>(opts: RPCOptions): Promise<T> {
     const res = await this.http.rpcRequest<T>(opts)
 

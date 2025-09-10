@@ -157,10 +157,14 @@ export class SubContainerOwned<
   ) {
     super()
     this.leaderExited = false
-    this.leader = cp.spawn("start-cli", ["subcontainer", "launch", rootfs], {
-      killSignal: "SIGKILL",
-      stdio: "inherit",
-    })
+    this.leader = cp.spawn(
+      "start-container",
+      ["subcontainer", "launch", rootfs],
+      {
+        killSignal: "SIGKILL",
+        stdio: "inherit",
+      },
+    )
     this.leader.on("exit", () => {
       this.leaderExited = true
     })
@@ -407,7 +411,7 @@ export class SubContainerOwned<
       delete options.cwd
     }
     const child = cp.spawn(
-      "start-cli",
+      "start-container",
       [
         "subcontainer",
         "exec",
@@ -529,7 +533,7 @@ export class SubContainerOwned<
     await this.killLeader()
     this.leaderExited = false
     this.leader = cp.spawn(
-      "start-cli",
+      "start-container",
       [
         "subcontainer",
         "launch",
@@ -571,7 +575,7 @@ export class SubContainerOwned<
       delete options.cwd
     }
     return cp.spawn(
-      "start-cli",
+      "start-container",
       [
         "subcontainer",
         "exec",

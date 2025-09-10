@@ -12,8 +12,8 @@ use crate::prelude::*;
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfo;
 use crate::registry::package::index::{PackageIndex, PackageVersionInfo};
-use crate::util::serde::{display_serializable, WithIoFormat};
 use crate::util::VersionString;
+use crate::util::serde::{WithIoFormat, display_serializable};
 
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS, ValueEnum,

@@ -115,7 +115,7 @@ pub fn update_tasks(
 }
 
 pub(super) struct RunAction {
-    id: ActionId,
+    action_id: ActionId,
     input: Value,
 }
 impl Handler<RunAction> for ServiceActor {
@@ -127,7 +127,7 @@ impl Handler<RunAction> for ServiceActor {
         &mut self,
         id: Guid,
         RunAction {
-            id: ref action_id,
+            ref action_id,
             input,
         }: RunAction,
         jobs: &BackgroundJobQueue,
@@ -145,7 +145,7 @@ impl Handler<RunAction> for ServiceActor {
             .into_idx(package_id)
             .or_not_found(package_id)?
             .into_actions()
-            .into_idx(&action_id)
+            .into_idx(action_id)
             .or_not_found(lazy_format!("{package_id} action {action_id}"))?
             .de()?;
         if matches!(&action.visibility, ActionVisibility::Disabled(_)) {
@@ -226,14 +226,6 @@ impl Service {
         action_id: ActionId,
         input: Value,
     ) -> Result<Option<ActionResult>, Error> {
-        self.actor
-            .send(
-                id,
-                RunAction {
-                    id: action_id,
-                    input,
-                },
-            )
-            .await?
+        self.actor.send(id, RunAction { action_id, input }).await?
     }
 }

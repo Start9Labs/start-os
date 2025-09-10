@@ -22,12 +22,12 @@ import {
   ActionButton,
   FormComponent,
 } from 'src/app/routes/portal/components/form.component'
+import { InvalidService } from 'src/app/routes/portal/components/form/containers/control.directive'
 import { TaskInfoComponent } from 'src/app/routes/portal/modals/config-dep.component'
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getAllPackages, getManifest } from 'src/app/utils/get-package-data'
-import { InvalidService } from '../../../components/form/invalid.service'
 
 export type PackageActionData = {
   pkgInfo: {
@@ -133,6 +133,7 @@ export class ActionInputModal {
   readonly warning = this.context.data.actionInfo.metadata.warning
   readonly pkgInfo = this.context.data.pkgInfo
   readonly requestInfo = this.context.data.requestInfo
+  eventId: string | null = null
 
   buttons: ActionButton<any>[] = [
     {
@@ -151,6 +152,7 @@ export class ActionInputModal {
   ).pipe(
     map(res => {
       const originalValue = res.value || {}
+      this.eventId = res.eventId
 
       return {
         spec: res.spec,
@@ -174,7 +176,12 @@ export class ActionInputModal {
 
   async execute(input: object) {
     if (await this.checkConflicts(input)) {
-      await this.actionService.execute(this.pkgInfo.id, this.actionId, input)
+      await this.actionService.execute(
+        this.pkgInfo.id,
+        this.eventId,
+        this.actionId,
+        input,
+      )
       this.context.$implicit.complete()
     }
   }
@@ -209,7 +216,7 @@ export class ActionInputModal {
 
     return firstValueFrom(
       this.dialog
-        .openConfirm<boolean>({
+        .openConfirm({
           label: 'Warning',
           data: { content, yes: 'Continue', no: 'Cancel' },
         })

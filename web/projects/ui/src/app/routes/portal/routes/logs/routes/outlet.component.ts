@@ -85,11 +85,5 @@ export default class SystemLogsComponent {
       subtitle: 'Diagnostics for drivers and other kernel processes',
       icon: '@tui.square-chevron-right',
     },
-    {
-      link: 'tor',
-      title: 'Tor Logs',
-      subtitle: 'Diagnostic logs for the Tor daemon on StartOS',
-      icon: '@tui.globe',
-    },
   ] as const
 }

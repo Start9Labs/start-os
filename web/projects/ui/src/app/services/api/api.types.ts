@@ -104,6 +104,16 @@ export namespace RR {
   export type DiskRepairReq = {} // server.disk.repair
   export type DiskRepairRes = null
 
+  export type SetDnsReq = {
+    servers: string[] | null
+  } // net.dns.set-static
+  export type SetDnsRes = null
+
+  export type QueryDnsReq = {
+    fqdn: string
+  } // net.dns.query
+  export type QueryDnsRes = string | null
+
   export type ResetTorReq = {
     wipeState: boolean
     reason: string
@@ -234,10 +244,28 @@ export namespace RR {
   }
   export type CreateBackupRes = null
 
-  // package
+  // network
+
+  export type AddTunnelReq = {
+    name: string
+    config: string // file contents
+    public: boolean
+  } // net.tunnel.add
+  export type AddTunnelRes = {
+    id: string
+  }
+
+  export type UpdateTunnelReq = {
+    id: string
+    name: string
+  } // net.gateway.set-name
+  export type UpdateTunnelRes = null
+
+  export type RemoveTunnelReq = { id: string } // net.tunnel.remove
+  export type RemoveTunnelRes = null
 
   export type InitAcmeReq = {
-    provider: 'letsencrypt' | 'letsencrypt-staging' | string
+    provider: string
     contact: string[]
   }
   export type InitAcmeRes = null
@@ -252,14 +280,15 @@ export namespace RR {
     key: string
   }
   export type GenerateTorKeyReq = {} // net.tor.key.generate
-  export type AddTorKeyRes = string // onion address without .onion suffix
+  export type AddTorKeyRes = string // onion address *with* .onion suffix
 
-  export type ServerBindingSetPublicReq = {
-    // server.host.binding.set-public
-    internalPort: number
-    public: boolean | null // default true
+  export type ServerBindingToggleGatewayReq = {
+    // server.host.binding.set-gateway-enabled
+    gateway: T.GatewayId
+    internalPort: 80
+    enabled: boolean
   }
-  export type BindingSetPublicRes = null
+  export type ServerBindingToggleGatewayRes = null
 
   export type ServerAddOnionReq = {
     // server.host.address.onion.add
@@ -270,45 +299,73 @@ export namespace RR {
   export type ServerRemoveOnionReq = ServerAddOnionReq // server.host.address.onion.remove
   export type RemoveOnionRes = null
 
-  export type ServerAddDomainReq = {
-    // server.host.address.domain.add
-    domain: string // FQDN
-    private: boolean
-    acme: string | null // "letsencrypt" | "letsencrypt-staging" | Url | null
+  export type OsUiAddPublicDomainReq = {
+    // server.host.address.domain.public.add
+    fqdn: string // FQDN
+    gateway: T.GatewayId
+    acme: string | null // URL. null means local Root CA
   }
-  export type AddDomainRes = null
+  export type OsUiAddPublicDomainRes = QueryDnsRes
 
-  export type ServerRemoveDomainReq = {
-    // server.host.address.domain.remove
-    domain: string // FQDN
+  export type OsUiRemovePublicDomainReq = {
+    // server.host.address.domain.public.remove
+    fqdn: string // FQDN
   }
-  export type RemoveDomainRes = null
+  export type OsUiRemovePublicDomainRes = null
 
-  export type PkgBindingSetPublicReq = ServerBindingSetPublicReq & {
-    // package.host.binding.set-public
+  export type OsUiAddPrivateDomainReq = {
+    // server.host.address.domain.private.add
+    fqdn: string // FQDN
+  }
+  export type OsUiAddPrivateDomainRes = null
+
+  export type OsUiRemovePrivateDomainReq = {
+    // server.host.address.domain.private.remove
+    fqdn: string // FQDN
+  }
+  export type OsUiRemovePrivateDomainRes = null
+
+  export type PkgBindingToggleGatewayReq = Omit<
+    ServerBindingToggleGatewayReq,
+    'internalPort'
+  > & {
+    // package.host.binding.set-gateway-enabled
+    internalPort: number
     package: T.PackageId // string
     host: T.HostId // string
   }
+  export type PkgBindingToggleGatewayRes = null
 
   export type PkgAddOnionReq = ServerAddOnionReq & {
     // package.host.address.onion.add
     package: T.PackageId // string
     host: T.HostId // string
   }
-
   export type PkgRemoveOnionReq = PkgAddOnionReq // package.host.address.onion.remove
 
-  export type PkgAddDomainReq = ServerAddDomainReq & {
-    // package.host.address.domain.add
+  export type PkgAddPublicDomainReq = OsUiAddPublicDomainReq & {
+    // package.host.address.domain.public.add
     package: T.PackageId // string
     host: T.HostId // string
   }
+  export type PkgAddPublicDomainRes = OsUiAddPublicDomainRes
 
-  export type PkgRemoveDomainReq = ServerRemoveDomainReq & {
-    // package.host.address.domain.remove
+  export type PkgRemovePublicDomainReq = OsUiRemovePublicDomainReq & {
+    // package.host.address.domain.public.remove
     package: T.PackageId // string
     host: T.HostId // string
   }
+  export type PkgRemovePublicDomainRes = OsUiRemovePublicDomainRes
+
+  export type PkgAddPrivateDomainReq = OsUiAddPrivateDomainReq & {
+    // package.host.address.domain.private.add
+    package: T.PackageId // string
+    host: T.HostId // string
+  }
+  export type PkgAddPrivateDomainRes = OsUiAddPrivateDomainRes
+
+  export type PkgRemovePrivateDomainReq = PkgAddPrivateDomainReq
+  export type PkgRemovePrivateDomainRes = OsUiRemovePrivateDomainRes
 
   export type GetPackageLogsReq = FetchLogsReq & { id: string } // package.logs
   export type GetPackageLogsRes = FetchLogsRes
@@ -324,12 +381,14 @@ export namespace RR {
 
   export type GetActionInputReq = { packageId: string; actionId: string } // package.action.get-input
   export type GetActionInputRes = {
+    eventId: string
     spec: IST.InputSpec
     value: object | null
   }
 
   export type ActionReq = {
     packageId: string
+    eventId: string | null
     actionId: string
     input: object | null
   } // package.action.run
@@ -374,7 +433,7 @@ export namespace RR {
     icon: string // base64
   }
   export type SideloadPackageRes = {
-    upload: string // guid
+    upload: string
     progress: string // guid
   }
 
@@ -392,15 +451,6 @@ export namespace RR {
 
   export type GetRegistryPackagesReq = GetPackagesReq & { registry: string }
   export type GetRegistryPackagesRes = GetPackagesRes
-}
-
-export type Breakages = {
-  [id: string]: TaggedDependencyError
-}
-
-export type TaggedDependencyError = {
-  dependency: string
-  error: DependencyError
 }
 
 interface MetricData {
@@ -566,99 +616,9 @@ export type Encrypted = {
   encrypted: string
 }
 
-export type DependencyError =
-  | DependencyErrorNotInstalled
-  | DependencyErrorNotRunning
-  | DependencyErrorIncorrectVersion
-  | DependencyErrorActionRequired
-  | DependencyErrorHealthChecksFailed
-  | DependencyErrorTransitive
-
-export type DependencyErrorNotInstalled = {
-  type: 'notInstalled'
-}
-
-export type DependencyErrorNotRunning = {
-  type: 'notRunning'
-}
-
-export type DependencyErrorIncorrectVersion = {
-  type: 'incorrectVersion'
-  expected: string // version range
-  received: string // version
-}
-
-export interface DependencyErrorActionRequired {
-  type: 'actionRequired'
-}
-
-export type DependencyErrorHealthChecksFailed = {
-  type: 'healthChecksFailed'
-  check: T.NamedHealthCheckResult
-}
-
-export type DependencyErrorTransitive = {
-  type: 'transitive'
-}
-
 // @TODO 041
 
 // export namespace RR041 {
-//   // ** domains **
-
-//   export type ClaimStart9ToReq = { networkInterfaceId: string } // net.domain.me.claim
-//   export type ClaimStart9ToRes = null
-
-//   export type DeleteStart9ToReq = {} // net.domain.me.delete
-//   export type DeleteStart9ToRes = null
-
-//   export type AddDomainReq = {
-//     hostname: string
-//     provider: {
-//       name: string
-//       username: string | null
-//       password: string | null
-//     }
-//     networkInterfaceId: string
-//   } // net.domain.add
-//   export type AddDomainRes = null
-
-//   export type DeleteDomainReq = { hostname: string } // net.domain.delete
-//   export type DeleteDomainRes = null
-
-//   // port forwards
-
-//   export type OverridePortReq = { target: number; port: number } // net.port-forwards.override
-//   export type OverridePortRes = null
-
-//   // ** proxies **
-
-//   export type AddProxyReq = {
-//     name: string
-//     config: string
-//   } // net.proxy.add
-//   export type AddProxyRes = null
-
-//   export type UpdateProxyReq = {
-//     name: string
-//   } // net.proxy.update
-//   export type UpdateProxyRes = null
-
-//   export type DeleteProxyReq = { id: string } // net.proxy.delete
-//   export type DeleteProxyRes = null
-
-//   // ** set outbound proxies **
-
-//   export type SetOsOutboundProxyReq = {
-//     proxy: string | null
-//   } // server.proxy.set-outbound
-//   export type SetOsOutboundProxyRes = null
-
-//   export type SetServiceOutboundProxyReq = {
-//     packageId: string
-//     proxy: string | null
-//   } // package.proxy.set-outbound
-//   export type SetServiceOutboundProxyRes = null
 
 //   // ** automated backups **
 
@@ -739,20 +699,6 @@ export type DependencyErrorTransitive = {
 // }
 
 // @TODO 041 types
-
-// export type AppMetrics = {
-//   memory: {
-//     percentageUsed: MetricData
-//     used: MetricData
-//   }
-//   cpu: {
-//     percentageUsed: MetricData
-//   }
-//   disk: {
-//     percentageUsed: MetricData
-//     used: MetricData
-//   }
-// }
 
 // export type RemoteBackupTarget = CifsBackupTarget | CloudBackupTarget
 // export type BackupTarget = RemoteBackupTarget | DiskBackupTarget

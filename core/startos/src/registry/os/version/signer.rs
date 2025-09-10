@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use clap::Parser;
 use exver::Version;
-use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

@@ -3,18 +3,18 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use itertools::Itertools;
-use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::registry::context::RegistryContext;
-use crate::registry::signer::sign::AnyVerifyingKey;
-use crate::registry::signer::{ContactInfo, SignerInfo};
 use crate::registry::RegistryDatabase;
+use crate::registry::context::RegistryContext;
+use crate::registry::signer::{ContactInfo, SignerInfo};
 use crate::rpc_continuations::Guid;
-use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
+use crate::sign::AnyVerifyingKey;
+use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 
 pub fn admin_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()

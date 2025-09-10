@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
 import { RouterLink } from '@angular/router'
-import { SharedPipesModule } from '@start9labs/shared'
+import { i18nPipe, SharedPipesModule } from '@start9labs/shared'
 import { TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar } from '@taiga-ui/kit'
 import { TuiCell } from '@taiga-ui/layout'
@@ -11,7 +11,9 @@ import { MarketplacePkg } from '../../types'
   template: `
     <div class="background-border box-shadow-lg shadow-color-light">
       <div class="box-container">
-        <h2 class="additional-detail-title">Alternative Implementations</h2>
+        <h2 class="additional-detail-title">
+          {{ 'Alternative Implementations' | i18n }}
+        </h2>
         @for (pkg of pkgs; track $index) {
           <a
             tuiCell
@@ -42,7 +44,14 @@ import { MarketplacePkg } from '../../types'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, TuiCell, TuiTitle, SharedPipesModule, TuiAvatar],
+  imports: [
+    RouterLink,
+    TuiCell,
+    TuiTitle,
+    SharedPipesModule,
+    TuiAvatar,
+    i18nPipe,
+  ],
 })
 export class MarketplaceFlavorsComponent {
   @Input()

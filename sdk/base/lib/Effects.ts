@@ -27,6 +27,7 @@ import {
 /** Used to reach out from the pure js runtime */
 
 export type Effects = {
+  readonly eventId: string | null
   child: (name: string) => Effects
   constRetry?: () => void
   isInContext: boolean

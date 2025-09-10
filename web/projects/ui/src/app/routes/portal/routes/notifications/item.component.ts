@@ -87,6 +87,7 @@ import { i18nPipe } from '@start9labs/shared'
 
     tui-icon {
       vertical-align: text-top;
+      align-self: center;
     }
 
     button {

@@ -14,14 +14,14 @@ use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tracing::instrument;
 
-use super::mount::filesystem::block_dev::BlockDev;
 use super::mount::filesystem::ReadOnly;
+use super::mount::filesystem::block_dev::BlockDev;
 use super::mount::guard::TmpMountGuard;
-use crate::disk::mount::guard::GenericMountGuard;
 use crate::disk::OsPartitionInfo;
+use crate::disk::mount::guard::GenericMountGuard;
 use crate::hostname::Hostname;
-use crate::util::serde::IoFormat;
 use crate::util::Invoke;
+use crate::util::serde::IoFormat;
 use crate::{Error, ResultExt as _};
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]

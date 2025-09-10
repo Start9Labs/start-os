@@ -1,0 +1,5 @@
+[Interface]
+Address = {subnets}
+PrivateKey = {server_privkey}
+ListenPort = {server_port}
+

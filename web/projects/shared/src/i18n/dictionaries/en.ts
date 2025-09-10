@@ -2,7 +2,6 @@
 export const ENGLISH = {
   'Change': 1, // verb
   'Update': 2, // verb
-  'Reset': 3, // verb
   'System': 4, // as in, system preferences
   'General': 5, // as in, general settings
   'Email': 6,
@@ -14,8 +13,7 @@ export const ENGLISH = {
   'Active Sessions': 12,
   'Change Password': 13,
   'General Settings': 14,
-  'Manage your overall setup and preferences': 15,
-  'Browser Tab Title': 16,
+  'Browser tab title': 16,
   'Language': 17,
   'Disk Repair': 18,
   'Attempt automatic repair': 19,
@@ -23,7 +21,7 @@ export const ENGLISH = {
   'Root Certificate Authority': 21,
   'Download your Root CA': 22,
   'Download': 23,
-  'Reset Tor': 24,
+  'Restart Tor': 24,
   'Restart the Tor daemon on your server': 25,
   'Software Update': 26,
   'Restart to apply': 27,
@@ -38,8 +36,8 @@ export const ENGLISH = {
   'Cancel': 36,
   'This action should only be executed if directed by a Start9 support specialist. We recommend backing up your device before preforming this action. If anything happens to the device during the reboot, such as losing power or unplugging the drive, the filesystem will be in an unrecoverable state. Please proceed with caution.': 37,
   'Delete': 38,
-  'Tor reset in progress': 39,
-  'Resetting Tor': 40,
+  'Tor restart in progress': 39,
+  'Restarting Tor': 40,
   'Checking for updates': 41,
   'Beginning restart': 42,
   'You are on the latest version of StartOS.': 43,
@@ -47,8 +45,7 @@ export const ENGLISH = {
   'Release notes': 45,
   'Begin Update': 46,
   'Beginning update': 47,
-  'You are currently connected over Tor. If you reset the Tor daemon, you will lose connectivity until it comes back online.': 48,
-  'Reset Tor?': 49,
+  'You are currently connected over Tor. If you restart the Tor daemon, you will lose connectivity until it comes back online.': 48,
   'Optionally wipe state to forcibly acquire new guard nodes. It is recommended to try without wiping state first.': 50,
   'Wipe state': 51,
   'Saving high score': 52,
@@ -90,30 +87,18 @@ export const ENGLISH = {
   'Actions': 88, // as in, actions available to the user
   'not recommended': 89,
   'Root CA Trusted!': 90,
-  'Add a clearnet address to expose this interface on the Internet. Clearnet addresses are fully public and not anonymous.': 91,
-  'Learn more': 92,
-  'Make public': 93,
-  'Make private': 94,
-  'No public addresses': 95,
-  'Add domain': 96,
+  'Add public domain': 96,
   'Removing': 97,
-  'Making public': 98,
-  'Making private': 99,
   'Unsaved changes': 100,
   'You have unsaved changes. Are you sure you want to leave?': 101,
   'Leave': 102,
   'Are you sure?': 103,
-  'Select Domain': 104,
-  'Local': 105,
-  'Local addresses can only be accessed by devices connected to the same LAN as your server, either directly or using a VPN.': 106,
-  'Learn More': 107,
-  'Public': 108,
-  'Private': 109,
-  'Add an onion address to anonymously expose this interface on the darknet. Onion addresses can only be reached over the Tor network.': 110,
-  'No onion addresses': 111,
-  'New Onion Address': 112,
+  'public': 108,
+  'private': 109,
+  'No Tor domains': 111,
+  'New Tor domain': 112,
   'Private Key (optional)': 113,
-  'Optionally provide a base64-encoded ed25519 private key for generating the Tor V3 (.onion) address. If not provided, a random key will be generated and used.': 114,
+  'Optionally provide a base64-encoded ed25519 private key for generating the Tor V3 (.onion) domain. If not provided, a random key will be generated.': 114,
   'Processing 10,000 logs': 115,
   'Loading older logs': 116,
   'Waiting for network connectivity': 117,
@@ -139,7 +124,6 @@ export const ENGLISH = {
   'Tor Logs': 137,
   'Raw, unfiltered operating system logs': 138,
   'Diagnostics for drivers and other kernel processes': 139,
-  'Diagnostic logs for the Tor daemon on StartOS': 140,
   'Downgrade': 141,
   'Reinstall': 142,
   'Installed': 143,
@@ -178,7 +162,6 @@ export const ENGLISH = {
   'Kernel space': 177,
   'Idle': 178, // a CPU metric
   'I/O wait': 179,
-  'ACME': 180,
   'Total': 181,
   'Used': 182,
   'Available': 183,
@@ -241,7 +224,7 @@ export const ENGLISH = {
   'Name': 240,
   'Status': 241,
   'Open': 242, // verb
-  'Interfaces': 243, // as in user interface or application program interface
+  'Service Interfaces': 243, // as in, a UI or API for an application
   'Hosting': 244,
   'Installing': 245,
   'See below': 246,
@@ -270,9 +253,9 @@ export const ENGLISH = {
   'unknown %': 270,
   'Not provided': 271,
   'Links': 272,
-  'Git Hash': 273,
+  'Git hash': 273,
   'License': 274,
-  'Installed From': 275,
+  'Installed from': 275,
   'Marketing': 278,
   'Support': 279,
   'Donations': 280,
@@ -289,27 +272,24 @@ export const ENGLISH = {
   'Starting upload': 292,
   'Try again': 293,
   'Upload .s9pk package file': 294,
-  'Warning: package upload will be slow over Tor. Switch to local for a better experience.': 295,
-  'Upload': 296,
+  'Warning: package upload will be slow over Tor.': 295,
+  'Select': 296,
   'Version 1 s9pk detected. This package format is deprecated. You can sideload a V1 s9pk via start-cli if necessary.': 297,
   'Invalid package file': 298,
-  'Add ACME providers in order to generate SSL (https) certificates for clearnet access.': 299,
   'View instructions': 300,
-  'Saved Providers': 301, // as in, ACME service provider, such as Let's Encrypt
-  'Add Provider': 302,
   'Contact': 303, //  as in, "contact us"
   'Edit': 304,
-  'Add ACME Provider': 305,
-  'Edit ACME Provider': 306,
+  'Add Certificate Authority': 305,
+  'Edit contact info': 306,
   'Contact Emails': 307,
   'Needed to obtain a certificate from a Certificate Authority': 308,
   'Toggle all': 309,
   'Done': 310,
-  'Master Password Needed': 311,
+  'Master password needed': 311,
   'Enter your master password to encrypt this backup.': 312,
   'Master Password': 313,
   'Enter master password': 314,
-  'Original Password Needed': 315,
+  'Original password needed': 315,
   'This backup was created with a different password. Enter the original password that was used to encrypt this backup.': 316,
   'Original Password': 317,
   'Enter original password': 318,
@@ -326,8 +306,6 @@ export const ENGLISH = {
   'Hostname': 329,
   'Path': 330, // as in, a URL path
   'URL': 331,
-  'Network Interface': 332,
-  'Protocol': 333, // as in, http protocol
   'Model': 334, // as in, a product model
   'User Agent': 335,
   'Platform': 336, // as in, OS platform, such as iOS, Android, Linux, etc
@@ -366,7 +344,7 @@ export const ENGLISH = {
   'Ready to restore': 369,
   'Local Hostname': 370,
   'Created': 371,
-  'Password Required': 372,
+  'Password required': 372,
   'Enter the master password that was used to encrypt this backup. On the next screen, you will select the individual services you want to restore.': 373,
   'Decrypting drive': 374,
   'Select services to restore': 375,
@@ -374,7 +352,6 @@ export const ENGLISH = {
   'StartOS backups detected': 377,
   'No StartOS backups detected': 378,
   'StartOS Version': 379,
-  'Connecting an external SMTP server allows StartOS and your installed services to send you emails.': 380,
   'SMTP Credentials': 381,
   'Send test email': 382,
   'Send': 383,
@@ -382,7 +359,6 @@ export const ENGLISH = {
   'A test email has been sent to': 385,
   'Check your spam folder and mark as not spam.': 386,
   'The web user interface for your StartOS server, accessible from any browser.': 387,
-  'Change your StartOS master password.': 388,
   'You will still need your current password to decrypt existing backups!': 389,
   'New passwords do not match': 390,
   'New password must be 12 characters or greater': 391,
@@ -392,13 +368,12 @@ export const ENGLISH = {
   'Current Password': 395,
   'New Password': 396,
   'Retype New Password': 397,
-  'A session is a device that is currently logged into StartOS. For best security, terminate sessions you do not recognize or no longer use.': 398,
   'Current session': 399,
   'Other sessions': 400,
   'Terminate selected': 401,
   'Terminating sessions': 402,
   'No sessions': 403,
-  'Password Needed': 404,
+  'Password needed': 404,
   'Connected': 405,
   'Forget': 406, // as in, delete or remove
   'WiFi Credentials': 407,
@@ -499,7 +474,6 @@ export const ENGLISH = {
   'sovereign computing': 502,
   'Customize the name appearing in your browser tab': 503,
   'Manage': 504, // as in, administer
-  'Are you sure you want to delete this address?': 505, // this address referes to a domain or URL
   '"Soft uninstall" will remove the service from StartOS but preserve its data.': 506,
   'No saved providers': 507,
   'Kiosk Mode': 508, // an OS mode that permits attaching a monitor to the computer
@@ -513,18 +487,105 @@ export const ENGLISH = {
   'Recommended': 516, // as in, we recommend this
   'Are you sure you want to dismiss this task?': 517,
   'Dismiss': 518, // as in, dismiss or delete a task
-  'To publish clearnet domains, you must click "Make Public", above.': 519,
   'Update available': 520,
   'To resolve the issue, refer to': 521,
-  'SDK Version': 522,
+  'SDK version': 522,
   'Backup Report': 523,
   'Delete selected': 524,
-  'No keys': 525,
-  'Add SSH Public Key': 526,
-  'By default, you can SSH into your server from any device using your master password. Optionally add SSH public keys to grant specific devices access without needing to enter a password.': 527,
+  'No SSH keys': 525,
+  'Add SSH key': 526,
+  'SSH Keys': 527,
   'Source Code': 528,
   'Upstream service': 529, // as in, the URL of the source code for the original software
   'StartOS package': 530, // as in, the URL of the source code for the StartOS package
   'Error initializing server': 531,
   'Finished': 532, // an in, complete
+  'Gateways': 533, // as in, a device or software that connects two different networks
+  'Add gateway': 535, // as in, add a new network gateway to StartOS
+  'Rename': 536,
+  'Access': 537, // as in, public or private access, almost "permission"
+  'Public Domains': 538, // as in, internet domains
+  'Certificate Authorities': 539,
+  'Domain': 540, // as in, an internat domain name
+  'Gateway': 541, // as in, a device or software that connects two different networks
+  'Certificate Authority': 543,
+  'Edit public domain': 544,
+  'No public domains': 545,
+  'Provider': 546,
+  'View DNS': 547,
+  'New public domain': 548,
+  'Addresses': 550,
+  'No addresses': 553,
+  'Change CA': 554,
+  'Address details': 555,
+  'Private Domains': 556,
+  'No private domains': 557,
+  'New private domain': 558,
+  'DNS Servers': 559,
+  'Enter a fully qualified domain name. Since the domain is for private use, it can be any domain you want, even one you do not control.': 560,
+  'Enter a fully qualified domain name. For example, if you control domain.com, you could enter domain.com or subdomain.domain.com or another.subdomain.domain.com.': 561,
+  'DNS Records': 562,
+  'Create one of the DNS records below.': 563,
+  'No DNS record detected for': 564, // this is a partial sentence. A domain name will be added after "for" to complete the sentence.
+  'Invalid DNS record': 565,
+  'resolves to': 566, // as in "domain.com 'resolves to' [IP address]"
+  'DNS record detected!': 567,
+  'Select a gateway to use for this domain.': 568,
+  'Select a Certificate Authority to issue SSL/TLS certificates for this domain': 569,
+  'Other': 570, // as in, a list option to indicate none of the options listed
+  'A name to easily identify the gateway': 571,
+  'select this option if the gateway is configured for private access to authorized clients only. StartTunnel is a private gateway.': 572,
+  'select this option if the gateway is configured for unfettered public access.': 573,
+  'File': 574, // as in, a computer file
+  'Wireguard Config File': 575,
+  'Copy/Paste': 576,
+  'File Contents': 577,
+  'Public Key': 578, // as in, a cryptographic public key
+  'must be a valid SSH public key': 579,
+  'Refresh Needed': 580,
+  'Your user interface is cached and out of date. Attempt to reload the PWA using the button below. If you continue to see this message, uninstall and reinstall the PWA.': 581,
+  'Your user interface is cached and out of date. Hard refresh the page to get the latest UI.': 582,
+  "Requires trusting your server's Root CA": 583,
+  'Connections can be slow or unreliable at times': 584,
+  'Public if you share the address publicly, otherwise private': 585,
+  'Requires using a Tor-enabled device or browser': 586,
+  'Only useful for clients that enforce HTTPS': 587,
+  'Ideal for anonymous, censorship-resistant hosting and remote access': 588,
+  'Ideal for local access': 589,
+  'Requires being connected to the same Local Area Network (LAN) as your server, either physically or via VPN': 590,
+  'Requires setting a static IP address for': 591, // this is a partial sentence. An IP address will be added after "for" to complete the sentence.
+  'Ideal for VPN access via': 592, // this is a partial sentence. A connection medium will be added after "via" to complete the sentence.
+  'in your gateway': 593, // this is a partial sentence. It is preceded by an instruction: e.g. "do something" in your gateway. Gateway refers to a router or VPN server.
+  "your router's Wireguard server": 594, // this is a partial sentence. It is preceded by "ideal for access via"
+  'Requires port forwarding in gateway': 595,
+  'Requires a DNS record for': 596, // this is a partial sentence. A domain name will be added after "for" to complete the sentence.
+  'that resolves to': 597, // this is a partial sentence. It is preceded by "requires a DNS record for [domain] "
+  'Not recommended for VPN access. VPNs do not support ".local" domains without advanced configuration': 598,
+  'Can be used for clearnet access': 599,
+  'Not recommended in most cases. Public domains are preferred': 600,
+  'Local': 601, // as in, not remote
+  'Can be used for local access': 602,
+  'Ideal for public access via the Internet': 603,
+  'Can be used for personal access via the public Internet. VPN is more private and secure': 604,
+  'when using IP addresses and ports is undesirable': 605, // this is a partial sentence. It is preceded by "Good for connections "
+  'Host': 606, // as in, a network host
+  'Value': 607, // as in, the value in a column of a table
+  'Purpose': 608, // as in, the reason for a thing to exist
+  'all subdomains of': 609, // this is a partial sentence. A domain name will be added after "of" to complete the sentence.
+  'Dynamic DNS': 610,
+  'No service interfaces': 611, // as in, there are no available interfaces (API, UI, etc) for this software application
+  'Reason': 612, // as in, an explanation for something
+  'Cannot disable private gateways for StartOS UI': 613,
+  'CA fingerprint': 614, // as in, the unique, fixed-length digital identifier generated from a certificate's data using a cryptographic hash function
+  'DHCP Servers': 615,
+  'Cannot edit DHCP servers': 616,
+  'Static': 617, // as in, unchanging
+  'Static Servers': 618, // as in, servers that do not change
+  'Warning. StartOS is currently using the following gateway for DNS': 619,
+  'If you intend to use this gateway for private domain resolution, set alternative static DNS servers using the form above.': 620,
+  'Package a service': 621, // as in, package a software application for an operating system
+  'Released': 622, // as in, the date something became available
+  'Alternative Implementations': 623,
+  'Versions': 624,
+  'Select another version': 625,
 } as const

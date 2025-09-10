@@ -6,6 +6,8 @@ export type IpInfo = {
   scopeId: number
   deviceType: NetworkInterfaceType | null
   subnets: string[]
+  lanIp: string[]
   wanIp: string | null
   ntpServers: string[]
+  dnsServers: string[]
 }

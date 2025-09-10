@@ -3,8 +3,8 @@ use std::ffi::OsString;
 use rpc_toolkit::CliApp;
 use serde_json::Value;
 
-use crate::context::config::ClientConfig;
 use crate::context::CliContext;
+use crate::context::config::ClientConfig;
 use crate::util::logger::LOGGER;
 use crate::version::{Current, VersionT};
 

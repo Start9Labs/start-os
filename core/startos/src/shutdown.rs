@@ -1,17 +1,16 @@
-use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use crate::PLATFORM;
 use crate::context::RpcContext;
 use crate::disk::main::export;
 use crate::init::{STANDBY_MODE_PATH, SYSTEM_REBUILD_PATH};
 use crate::prelude::*;
 use crate::sound::SHUTDOWN;
 use crate::util::Invoke;
-use crate::{DATA_DIR, PLATFORM};
 
 #[derive(Debug, Clone)]
 pub struct Shutdown {
-    pub export_args: Option<(Arc<String>, PathBuf)>,
+    pub disk_guid: Option<Arc<String>>,
     pub restart: bool,
 }
 impl Shutdown {
@@ -41,8 +40,8 @@ impl Shutdown {
                 tracing::error!("Error Stopping Journald: {}", e);
                 tracing::debug!("{:?}", e);
             }
-            if let Some((guid, datadir)) = &self.export_args {
-                if let Err(e) = export(guid, datadir).await {
+            if let Some(guid) = &self.disk_guid {
+                if let Err(e) = export(guid, crate::DATA_DIR).await {
                     tracing::error!("Error Exporting Volume Group: {}", e);
                     tracing::debug!("{:?}", e);
                 }
@@ -87,7 +86,7 @@ pub async fn shutdown(ctx: RpcContext) -> Result<(), Error> {
         .result?;
     ctx.shutdown
         .send(Some(Shutdown {
-            export_args: Some((ctx.disk_guid.clone(), Path::new(DATA_DIR).to_owned())),
+            disk_guid: Some(ctx.disk_guid.clone()),
             restart: false,
         }))
         .map_err(|_| eyre!("receiver dropped"))
@@ -108,7 +107,7 @@ pub async fn restart(ctx: RpcContext) -> Result<(), Error> {
         .result?;
     ctx.shutdown
         .send(Some(Shutdown {
-            export_args: Some((ctx.disk_guid.clone(), Path::new(DATA_DIR).to_owned())),
+            disk_guid: Some(ctx.disk_guid.clone()),
             restart: true,
         }))
         .map_err(|_| eyre!("receiver dropped"))

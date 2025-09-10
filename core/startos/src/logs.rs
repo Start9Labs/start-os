@@ -551,8 +551,8 @@ pub async fn journalctl(
     let deserialized_entries = String::from_utf8(cmd.invoke(ErrorKind::Journald).await?)?
         .lines()
         .map(serde_json::from_str::<JournalctlEntry>)
-        .collect::<Result<Vec<_>, _>>()
-        .with_kind(ErrorKind::Deserialization)?;
+        .filter_map(|e| e.ok())
+        .collect::<Vec<_>>();
 
     if follow {
         let mut follow_cmd = gen_journalctl_command(&id);
@@ -573,11 +573,8 @@ pub async fn journalctl(
 
         let follow_deserialized_entries = journalctl_entries
             .map_err(|e| Error::new(e, crate::ErrorKind::Journald))
-            .and_then(|s| {
-                futures::future::ready(
-                    serde_json::from_str::<JournalctlEntry>(&s)
-                        .with_kind(crate::ErrorKind::Deserialization),
-                )
+            .try_filter_map(|s| {
+                futures::future::ready(Ok(serde_json::from_str::<JournalctlEntry>(&s).ok()))
             });
 
         let entries = futures::stream::iter(deserialized_entries)

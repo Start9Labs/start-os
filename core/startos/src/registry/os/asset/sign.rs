@@ -6,7 +6,7 @@ use clap::Parser;
 use exver::Version;
 use imbl_value::InternedString;
 use itertools::Itertools;
-use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -15,13 +15,13 @@ use crate::prelude::*;
 use crate::progress::FullProgressTracker;
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
-use crate::registry::os::index::OsVersionInfo;
 use crate::registry::os::SIG_CONTEXT;
-use crate::registry::signer::commitment::blake3::Blake3Commitment;
-use crate::registry::signer::sign::ed25519::Ed25519;
-use crate::registry::signer::sign::{AnySignature, AnyVerifyingKey, SignatureScheme};
-use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
+use crate::registry::os::index::OsVersionInfo;
 use crate::s9pk::merkle_archive::source::ArchiveSource;
+use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
+use crate::sign::commitment::blake3::Blake3Commitment;
+use crate::sign::ed25519::Ed25519;
+use crate::sign::{AnySignature, AnyVerifyingKey, SignatureScheme};
 use crate::util::io::open_file;
 use crate::util::serde::Base64;
 
@@ -70,10 +70,10 @@ async fn sign_asset(
         signature,
     }: SignAssetParams,
     accessor: impl FnOnce(
-            &mut Model<OsVersionInfo>,
-        ) -> &mut Model<BTreeMap<InternedString, RegistryAsset<Blake3Commitment>>>
-        + UnwindSafe
-        + Send,
+        &mut Model<OsVersionInfo>,
+    ) -> &mut Model<BTreeMap<InternedString, RegistryAsset<Blake3Commitment>>>
+    + UnwindSafe
+    + Send,
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
@@ -165,7 +165,7 @@ pub async fn cli_sign_asset(
             return Err(Error::new(
                 eyre!("Unknown extension"),
                 ErrorKind::InvalidRequest,
-            ))
+            ));
         }
     };
 

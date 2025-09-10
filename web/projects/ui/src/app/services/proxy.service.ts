@@ -1,5 +1,3 @@
-// @TODO 041
-
 // import { Injectable } from '@angular/core'
 // import { ErrorService, LoadingService } from '@start9labs/shared'
 // import { TuiDialogOptions } from '@taiga-ui/core'
@@ -28,14 +26,14 @@
 //   ) {}
 
 //   async presentModalSetOutboundProxy(current: string | null, pkgId?: string) {
-//     const networkInterfaces = await firstValueFrom(
-//       this.patch.watch$('serverInfo', 'network', 'networkInterfaces'),
+//     const gateways = await firstValueFrom(
+//       this.patch.watch$('serverInfo', 'network', 'gateways'),
 //     )
 //     const config = ISB.InputSpec.of({
 //       proxyId: ISB.Value.select({
 //         name: 'Select Proxy',
 //         default: current || '',
-//         values: Object.entries(networkInterfaces)
+//         values: Object.entries(gateways)
 //           .filter(
 //             ([_, n]) => n.outbound && n.ipInfo?.deviceType === 'wireguard',
 //           )
@@ -52,7 +50,7 @@
 //     const options: Partial<
 //       TuiDialogOptions<FormContext<typeof config.validator._TYPE>>
 //     > = {
-//       label: 'Outbound Proxy',
+//       label: 'Outbound proxy',
 //       data: {
 //         spec: await configBuilderToSpec(config),
 //         buttons: [

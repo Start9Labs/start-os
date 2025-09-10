@@ -38,7 +38,7 @@ import {
   TuiButtonSelect,
   TuiDataListWrapper,
 } from '@taiga-ui/kit'
-import { TuiCell, tuiCellOptionsProvider, TuiHeader } from '@taiga-ui/layout'
+import { TuiCell, tuiCellOptionsProvider } from '@taiga-ui/layout'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
 import { filter } from 'rxjs'
@@ -59,14 +59,6 @@ import { SystemWipeComponent } from './wipe.component'
       </a>
       {{ 'General Settings' | i18n }}
     </ng-container>
-    <header tuiHeader>
-      <hgroup tuiTitle>
-        <h3>{{ 'General Settings' | i18n }}</h3>
-        <p tuiSubtitle>
-          {{ 'Manage your overall setup and preferences' | i18n }}
-        </p>
-      </hgroup>
-    </header>
     @if (server(); as server) {
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.zap" />
@@ -102,7 +94,7 @@ import { SystemWipeComponent } from './wipe.component'
       <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.app-window" />
         <span tuiTitle>
-          <strong>{{ 'Browser Tab Title' | i18n }}</strong>
+          <strong>{{ 'Browser tab title' | i18n }}</strong>
           <span tuiSubtitle>
             {{ 'Customize the name appearing in your browser tab' | i18n }}
           </span>
@@ -139,16 +131,6 @@ import { SystemWipeComponent } from './wipe.component'
         </button>
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
-        <tui-icon icon="@tui.award" />
-        <span tuiTitle>
-          <strong>{{ 'Root Certificate Authority' | i18n }}</strong>
-          <span tuiSubtitle>{{ 'Download your Root CA' | i18n }}</span>
-        </span>
-        <button tuiButton iconStart="@tui.download" (click)="downloadCA()">
-          {{ 'Download' | i18n }}
-        </button>
-      </div>
-      <div tuiCell tuiAppearance="outline-grayscale">
         <tui-icon icon="@tui.monitor" />
         <span tuiTitle>
           <strong>
@@ -175,15 +157,15 @@ import { SystemWipeComponent } from './wipe.component'
         }
       </div>
       <div tuiCell tuiAppearance="outline-grayscale">
-        <tui-icon icon="@tui.circle-power" (click)="count = count + 1" />
+        <tui-icon icon="@tui.rotate-cw" (click)="count = count + 1" />
         <span tuiTitle>
-          <strong>{{ 'Reset Tor' | i18n }}</strong>
+          <strong>{{ 'Restart Tor' | i18n }}</strong>
           <span tuiSubtitle>
             {{ 'Restart the Tor daemon on your server' | i18n }}
           </span>
         </span>
-        <button tuiButton appearance="glass" (click)="onReset()">
-          {{ 'Reset' | i18n }}
+        <button tuiButton appearance="glass" (click)="onTorRestart()">
+          {{ 'Restart' | i18n }}
         </button>
       </div>
       @if (count > 4) {
@@ -205,8 +187,6 @@ import { SystemWipeComponent } from './wipe.component'
         src="assets/img/icons/snek.png"
       />
     }
-    <!-- hidden element for downloading cert -->
-    <a id="download-ca" href="/static/local-root-ca.crt"></a>
   `,
   styles: `
     :host {
@@ -239,7 +219,6 @@ import { SystemWipeComponent } from './wipe.component'
     RouterLink,
     i18nPipe,
     TuiTitle,
-    TuiHeader,
     TuiCell,
     TuiAppearance,
     TuiButton,
@@ -302,7 +281,7 @@ export default class SystemGeneralComponent {
   onTitle() {
     const sub = this.dialog
       .openPrompt<string>({
-        label: 'Browser Tab Title',
+        label: 'Browser tab title',
         data: {
           label: 'Device Name',
           message:
@@ -329,7 +308,7 @@ export default class SystemGeneralComponent {
       })
   }
 
-  onReset() {
+  onTorRestart() {
     this.wipe = false
     this.dialog
       .openConfirm({
@@ -339,16 +318,12 @@ export default class SystemGeneralComponent {
             SystemWipeComponent,
             this.injector,
           ),
-          yes: 'Reset',
+          yes: 'Restart',
           no: 'Cancel',
         },
       })
       .pipe(filter(Boolean))
       .subscribe(() => this.resetTor(this.wipe))
-  }
-
-  downloadCA() {
-    this.document.getElementById('download-ca')?.click()
   }
 
   async tryToggleKiosk() {
@@ -412,11 +387,11 @@ export default class SystemGeneralComponent {
   }
 
   private async resetTor(wipeState: boolean) {
-    const loader = this.loader.open('Resetting Tor').subscribe()
+    const loader = this.loader.open().subscribe()
 
     try {
       await this.api.resetTor({ wipeState, reason: 'User triggered' })
-      this.dialog.openAlert('Tor reset in progress').subscribe()
+      this.dialog.openAlert('Tor restart in progress').subscribe()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

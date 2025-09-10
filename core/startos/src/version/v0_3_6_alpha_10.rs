@@ -2,12 +2,13 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::InternedString;
+use models::GatewayId;
 use serde::{Deserialize, Serialize};
-use torut::onion::OnionAddressV3;
 
 use super::v0_3_5::V0_3_0_COMPAT;
-use super::{v0_3_6_alpha_9, VersionT};
-use crate::net::host::address::DomainConfig;
+use super::{VersionT, v0_3_6_alpha_9};
+use crate::net::host::address::PublicDomainConfig;
+use crate::net::tor::OnionAddress;
 use crate::prelude::*;
 
 lazy_static::lazy_static! {
@@ -21,7 +22,7 @@ lazy_static::lazy_static! {
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "kind")]
 enum HostAddress {
-    Onion { address: OnionAddressV3 },
+    Onion { address: OnionAddress },
     Domain { address: InternedString },
 }
 
@@ -72,9 +73,9 @@ impl VersionT for Version {
                         }
                         HostAddress::Domain { address } => {
                             domains.insert(
-                                address,
-                                DomainConfig {
-                                    public: true,
+                                address.clone(),
+                                PublicDomainConfig {
+                                    gateway: GatewayId::from("lo"),
                                     acme: None,
                                 },
                             );

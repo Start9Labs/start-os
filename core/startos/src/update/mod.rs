@@ -3,7 +3,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use clap::{ArgAction, Parser};
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{Result, eyre};
 use exver::{Version, VersionRange};
 use futures::TryStreamExt;
 use helpers::{AtomicFile, NonDetachingJoinHandle};
@@ -17,32 +17,32 @@ use tokio::process::Command;
 use tracing::instrument;
 use ts_rs::TS;
 
+use crate::PLATFORM;
 use crate::context::{CliContext, RpcContext};
+use crate::disk::mount::filesystem::MountType;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::efivarfs::EfiVarFs;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
-use crate::disk::mount::filesystem::MountType;
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
-use crate::notifications::{notify, NotificationLevel};
+use crate::notifications::{NotificationLevel, notify};
 use crate::prelude::*;
 use crate::progress::{
     FullProgressTracker, PhaseProgressTrackerHandle, PhasedProgressBar, ProgressUnits,
 };
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
-use crate::registry::os::index::OsVersionInfo;
 use crate::registry::os::SIG_CONTEXT;
-use crate::registry::signer::commitment::blake3::Blake3Commitment;
-use crate::registry::signer::commitment::Commitment;
+use crate::registry::os::index::OsVersionInfo;
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
+use crate::sign::commitment::Commitment;
+use crate::sign::commitment::blake3::Blake3Commitment;
 use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
 };
-use crate::util::net::WebSocketExt;
 use crate::util::Invoke;
-use crate::PLATFORM;
+use crate::util::net::WebSocketExt;
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
@@ -87,7 +87,12 @@ pub async fn update_system(
         .into_updated()
         .de()?
     {
-        return Err(Error::new(eyre!("Server was already updated. Please restart your device before attempting to update again."), ErrorKind::InvalidRequest));
+        return Err(Error::new(
+            eyre!(
+                "Server was already updated. Please restart your device before attempting to update again."
+            ),
+            ErrorKind::InvalidRequest,
+        ));
     }
     let target =
         maybe_do_update(ctx.clone(), registry, target.unwrap_or(VersionRange::Any)).await?;
@@ -202,6 +207,7 @@ pub async fn cli_update_system(
                     prev.overall.set_complete();
                     progress.update(&prev);
                 }
+                println!("Update complete. Restart your server to apply the update.")
             } else {
                 println!("Updating to v{v}...")
             }
@@ -297,7 +303,9 @@ async fn maybe_do_update(
 
     if status.updated {
         return Err(Error::new(
-            eyre!("Server was already updated. Please restart your device before attempting to update again."),
+            eyre!(
+                "Server was already updated. Please restart your device before attempting to update again."
+            ),
             crate::ErrorKind::InvalidRequest,
         ));
     }

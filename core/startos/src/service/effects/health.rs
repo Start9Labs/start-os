@@ -1,8 +1,8 @@
 use models::HealthCheckId;
 
 use crate::service::effects::prelude::*;
-use crate::status::health_check::NamedHealthCheckResult;
 use crate::status::MainStatus;
+use crate::status::health_check::NamedHealthCheckResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
@@ -31,8 +31,7 @@ pub async fn set_health(
                 .as_status_mut()
                 .mutate(|main| {
                     match main {
-                        MainStatus::Running { ref mut health, .. }
-                        | MainStatus::Starting { ref mut health } => {
+                        MainStatus::Running { health, .. } | MainStatus::Starting { health } => {
                             health.insert(id, result);
                         }
                         _ => (),

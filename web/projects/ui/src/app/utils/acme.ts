@@ -1,12 +1,14 @@
-export function toAcmeName(url: string | null): string | 'System CA' {
-  return knownACME.find(acme => acme.url === url)?.name || url || 'System CA'
+export function toAuthorityName(url: string | null): string | 'Local Root CA' {
+  return (
+    knownAuthorities.find(ca => ca.url === url)?.name || url || 'Local Root CA'
+  )
 }
 
-export function toAcmeUrl(name: string): string {
-  return knownACME.find(acme => acme.name === name)?.url || name
+export function toAuthorityUrl(name: string): string {
+  return knownAuthorities.find(ca => ca.name === name)?.url || name
 }
 
-export const knownACME = [
+export const knownAuthorities = [
   {
     name: `Let's Encrypt`,
     url: 'https://acme-v02.api.letsencrypt.org/directory',

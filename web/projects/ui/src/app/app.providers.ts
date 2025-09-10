@@ -1,5 +1,6 @@
 import { inject, provideAppInitializer } from '@angular/core'
 import { UntypedFormBuilder } from '@angular/forms'
+import { provideAnimations } from '@angular/platform-browser/animations'
 import { Router } from '@angular/router'
 import { WA_LOCATION } from '@ng-web-apis/common'
 import initArgon from '@start9labs/argon2'
@@ -28,7 +29,6 @@ import {
   TUI_DATE_TIME_VALUE_TRANSFORMER,
   TUI_DATE_VALUE_TRANSFORMER,
 } from '@taiga-ui/kit'
-import { tuiTextfieldOptionsProvider } from '@taiga-ui/legacy'
 import { PatchDB } from 'patch-db-client'
 import { filter, of, pairwise } from 'rxjs'
 import { ConfigService } from 'src/app/services/config.service'
@@ -37,6 +37,7 @@ import {
   PatchDbSource,
 } from 'src/app/services/patch-db/patch-db-source'
 import { StateService } from 'src/app/services/state.service'
+import { FilterUpdatesPipe } from './routes/portal/routes/updates/filter-updates.pipe'
 import { ApiService } from './services/api/embassy-api.service'
 import { LiveApiService } from './services/api/embassy-live-api.service'
 import { MockApiService } from './services/api/embassy-mock-api.service'
@@ -46,7 +47,6 @@ import { ClientStorageService } from './services/client-storage.service'
 import { DateTransformerService } from './services/date-transformer.service'
 import { DatetimeTransformerService } from './services/datetime-transformer.service'
 import { StorageService } from './services/storage.service'
-import { FilterUpdatesPipe } from './routes/portal/routes/updates/filter-updates.pipe'
 
 const {
   useMocks,
@@ -54,6 +54,7 @@ const {
 } = require('../../../../config.json') as WorkspaceConfig
 
 export const APP_PROVIDERS = [
+  provideAnimations(),
   provideEventPlugins(),
   I18N_PROVIDERS,
   FilterPackagesPipe,
@@ -61,7 +62,6 @@ export const APP_PROVIDERS = [
   UntypedFormBuilder,
   tuiNumberFormatProvider({ decimalSeparator: '.', thousandSeparator: '' }),
   tuiButtonOptionsProvider({ size: 'm' }),
-  tuiTextfieldOptionsProvider({ hintOnDisabled: true }),
   tuiDropdownOptionsProvider({ appearance: 'start-os' }),
   tuiAlertOptionsProvider({
     autoClose: appearance => (appearance === 'negative' ? 0 : 3000),

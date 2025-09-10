@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { SwUpdate } from '@angular/service-worker'
 import { WA_WINDOW } from '@ng-web-apis/common'
-import { LoadingService } from '@start9labs/shared'
+import { i18nPipe, LoadingService } from '@start9labs/shared'
 import { Version } from '@start9labs/start-sdk'
 import { TuiResponsiveDialog } from '@taiga-ui/addon-mobile'
 import { TuiAutoFocus } from '@taiga-ui/cdk'
@@ -17,14 +17,18 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
   template: `
     <ng-template
       [tuiResponsiveDialog]="show()"
-      [tuiResponsiveDialogOptions]="{ label: 'Refresh Needed', size: 's' }"
+      [tuiResponsiveDialogOptions]="{
+        label: i18n.transform('Refresh Needed'),
+        size: 's',
+      }"
       (tuiResponsiveDialogChange)="dismiss$.next()"
     >
       @if (isPwa) {
         <p>
-          Your user interface is cached and out of date. Attempt to reload the
-          PWA using the button below. If you continue to see this message,
-          uninstall and reinstall the PWA.
+          {{
+            'Your user interface is cached and out of date. Attempt to reload the PWA using the button below. If you continue to see this message, uninstall and reinstall the PWA.'
+              | i18n
+          }}
         </p>
         <button
           tuiButton
@@ -34,11 +38,13 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
           [tuiAppearanceFocus]="false"
           (click)="pwaReload()"
         >
-          Reload
+          {{ 'Refresh' | i18n }}
         </button>
       } @else {
-        Your user interface is cached and out of date. Hard refresh the page to
-        get the latest UI.
+        {{
+          'Your user interface is cached and out of date. Hard refresh the page to get the latest UI.'
+            | i18n
+        }}
         <ul>
           <li>
             <b>On Mac</b>
@@ -57,19 +63,21 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
           [tuiAppearanceFocus]="false"
           (click)="dismiss$.next()"
         >
-          Ok
+          {{ 'Ok' | i18n }}
         </button>
       }
     </ng-template>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiResponsiveDialog, TuiButton, TuiAutoFocus],
+  imports: [TuiResponsiveDialog, TuiButton, TuiAutoFocus, i18nPipe],
 })
 export class RefreshAlertComponent {
   private readonly win = inject(WA_WINDOW)
   private readonly updates = inject(SwUpdate)
   private readonly loader = inject(LoadingService)
   private readonly version = Version.parse(inject(ConfigService).version)
+
+  readonly i18n = inject(i18nPipe)
 
   readonly dismiss$ = new Subject<void>()
   readonly isPwa = this.win.matchMedia('(display-mode: standalone)').matches

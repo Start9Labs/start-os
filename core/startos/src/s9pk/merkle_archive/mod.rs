@@ -6,17 +6,17 @@ use imbl_value::InternedString;
 use sha2::{Digest, Sha512};
 use tokio::io::AsyncRead;
 
+use crate::CAP_1_MiB;
 use crate::prelude::*;
-use crate::registry::signer::commitment::merkle_archive::MerkleArchiveCommitment;
-use crate::registry::signer::sign::ed25519::Ed25519;
-use crate::registry::signer::sign::SignatureScheme;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::file_contents::FileContents;
 use crate::s9pk::merkle_archive::sink::Sink;
 use crate::s9pk::merkle_archive::source::{ArchiveSource, DynFileSource, FileSource, Section};
 use crate::s9pk::merkle_archive::write_queue::WriteQueue;
+use crate::sign::SignatureScheme;
+use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
+use crate::sign::ed25519::Ed25519;
 use crate::util::serde::Base64;
-use crate::CAP_1_MiB;
 
 pub mod directory_contents;
 pub mod expected;
@@ -128,7 +128,9 @@ impl<S: ArchiveSource + Clone> MerkleArchive<Section<S>> {
         } else {
             if max_size > CAP_1_MiB as u64 {
                 return Err(Error::new(
-                    eyre!("root directory max size over 1MiB, cancelling download in case of DOS attack"),
+                    eyre!(
+                        "root directory max size over 1MiB, cancelling download in case of DOS attack"
+                    ),
                     ErrorKind::InvalidSignature,
                 ));
             }

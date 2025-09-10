@@ -33,9 +33,9 @@ export class LiveApiService extends ApiService {
     this.document.defaultView.rpcClient = this
   }
 
-  // for sideloading packages
+  // for uploading files
 
-  async uploadPackage(guid: string, body: Blob): Promise<void> {
+  async uploadFile(guid: string, body: Blob): Promise<void> {
     await this.httpRequest({
       method: Method.POST,
       body,
@@ -97,7 +97,7 @@ export class LiveApiService extends ApiService {
   }
 
   async getState(): Promise<RR.ServerState> {
-    return this.rpcRequest({ method: 'state', params: {} })
+    return this.rpcRequest({ method: 'state', params: {}, timeout: 10000 })
   }
 
   // db
@@ -212,10 +212,6 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'server.kernel-logs', params })
   }
 
-  async getTorLogs(params: RR.GetServerLogsReq): Promise<RR.GetServerLogsRes> {
-    return this.rpcRequest({ method: 'net.tor.logs', params })
-  }
-
   async followServerLogs(
     params: RR.FollowServerLogsReq,
   ): Promise<RR.FollowServerLogsRes> {
@@ -226,12 +222,6 @@ export class LiveApiService extends ApiService {
     params: RR.FollowServerLogsReq,
   ): Promise<RR.FollowServerLogsRes> {
     return this.rpcRequest({ method: 'server.kernel-logs.follow', params })
-  }
-
-  async followTorLogs(
-    params: RR.FollowServerLogsReq,
-  ): Promise<RR.FollowServerLogsRes> {
-    return this.rpcRequest({ method: 'net.tor.logs.follow', params })
   }
 
   async followServerMetrics(
@@ -267,15 +257,23 @@ export class LiveApiService extends ApiService {
     })
   }
 
+  async setDns(params: RR.SetDnsReq): Promise<RR.SetDnsRes> {
+    return this.rpcRequest({
+      method: 'net.dns.set-static',
+      params,
+    })
+  }
+
+  async queryDns(params: RR.QueryDnsReq): Promise<RR.QueryDnsRes> {
+    return this.rpcRequest({
+      method: 'net.dns.query',
+      params,
+    })
+  }
+
   async resetTor(params: RR.ResetTorReq): Promise<RR.ResetTorRes> {
     return this.rpcRequest({ method: 'net.tor.reset', params })
   }
-
-  // async setOsOutboundProxy(
-  //   params: RR.SetOsOutboundProxyReq,
-  // ): Promise<RR.SetOsOutboundProxyRes> {
-  //   return this.rpcRequest({ method: 'server.proxy.set-outbound', params })
-  // }
 
   // marketplace URLs
 
@@ -352,47 +350,17 @@ export class LiveApiService extends ApiService {
 
   // proxies
 
-  // async addProxy(params: RR.AddProxyReq): Promise<RR.AddProxyRes> {
-  //   return this.rpcRequest({ method: 'net.proxy.add', params })
-  // }
+  async addTunnel(params: RR.AddTunnelReq): Promise<RR.AddTunnelRes> {
+    return this.rpcRequest({ method: 'net.tunnel.add', params })
+  }
 
-  // async updateProxy(params: RR.UpdateProxyReq): Promise<RR.UpdateProxyRes> {
-  //   return this.rpcRequest({ method: 'net.proxy.update', params })
-  // }
+  async updateTunnel(params: RR.UpdateTunnelReq): Promise<RR.UpdateTunnelRes> {
+    return this.rpcRequest({ method: 'net.gateway.set-name', params })
+  }
 
-  // async deleteProxy(params: RR.DeleteProxyReq): Promise<RR.DeleteProxyRes> {
-  //   return this.rpcRequest({ method: 'net.proxy.delete', params })
-  // }
-
-  // domains
-
-  // async claimStart9ToDomain(
-  //   params: RR.ClaimStart9ToReq,
-  // ): Promise<RR.ClaimStart9ToRes> {
-  //   return this.rpcRequest({ method: 'net.domain.me.claim', params })
-  // }
-
-  // async deleteStart9ToDomain(
-  //   params: RR.DeleteStart9ToReq,
-  // ): Promise<RR.DeleteStart9ToRes> {
-  //   return this.rpcRequest({ method: 'net.domain.me.delete', params })
-  // }
-
-  // async addDomain(params: RR.AddDomainReq): Promise<RR.AddDomainRes> {
-  //   return this.rpcRequest({ method: 'net.domain.add', params })
-  // }
-
-  // async deleteDomain(params: RR.DeleteDomainReq): Promise<RR.DeleteDomainRes> {
-  //   return this.rpcRequest({ method: 'net.domain.delete', params })
-  // }
-
-  // port forwards
-
-  // async overridePortForward(
-  //   params: RR.OverridePortReq,
-  // ): Promise<RR.OverridePortRes> {
-  //   return this.rpcRequest({ method: 'net.port-forwards.override', params })
-  // }
+  async removeTunnel(params: RR.RemoveTunnelReq): Promise<RR.RemoveTunnelRes> {
+    return this.rpcRequest({ method: 'net.tunnel.remove', params })
+  }
 
   // wifi
 
@@ -627,8 +595,8 @@ export class LiveApiService extends ApiService {
   }
 
   // async setServiceOutboundProxy(
-  //   params: RR.SetServiceOutboundProxyReq,
-  // ): Promise<RR.SetServiceOutboundProxyRes> {
+  //   params: RR.SetServiceOutboundTunnelReq,
+  // ): Promise<RR.SetServiceOutboundTunnelRes> {
   //   return this.rpcRequest({ method: 'package.proxy.set-outbound', params })
   // }
 
@@ -660,11 +628,11 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async serverBindingSetPubic(
-    params: RR.ServerBindingSetPublicReq,
-  ): Promise<RR.BindingSetPublicRes> {
+  async serverBindingToggleGateway(
+    params: RR.ServerBindingToggleGatewayReq,
+  ): Promise<RR.ServerBindingToggleGatewayRes> {
     return this.rpcRequest({
-      method: 'server.host.binding.set-public',
+      method: 'server.host.binding.set-gateway-enabled',
       params,
     })
   }
@@ -685,29 +653,47 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async serverAddDomain(
-    params: RR.ServerAddDomainReq,
-  ): Promise<RR.AddDomainRes> {
+  async osUiAddPublicDomain(
+    params: RR.OsUiAddPublicDomainReq,
+  ): Promise<RR.OsUiAddPublicDomainRes> {
     return this.rpcRequest({
-      method: 'server.host.address.domain.add',
+      method: 'server.host.address.domain.public.add',
       params,
     })
   }
 
-  async serverRemoveDomain(
-    params: RR.ServerRemoveDomainReq,
-  ): Promise<RR.RemoveDomainRes> {
+  async osUiRemovePublicDomain(
+    params: RR.OsUiRemovePublicDomainReq,
+  ): Promise<RR.OsUiRemovePublicDomainRes> {
     return this.rpcRequest({
-      method: 'server.host.address.domain.remove',
+      method: 'server.host.address.domain.public.remove',
       params,
     })
   }
 
-  async pkgBindingSetPubic(
-    params: RR.PkgBindingSetPublicReq,
-  ): Promise<RR.BindingSetPublicRes> {
+  async osUiAddPrivateDomain(
+    params: RR.OsUiAddPrivateDomainReq,
+  ): Promise<RR.OsUiAddPrivateDomainRes> {
     return this.rpcRequest({
-      method: 'package.host.binding.set-public',
+      method: 'server.host.address.domain.private.add',
+      params,
+    })
+  }
+
+  async osUiRemovePrivateDomain(
+    params: RR.OsUiRemovePrivateDomainReq,
+  ): Promise<RR.OsUiRemovePrivateDomainRes> {
+    return this.rpcRequest({
+      method: 'server.host.address.domain.private.remove',
+      params,
+    })
+  }
+
+  async pkgBindingToggleGateway(
+    params: RR.PkgBindingToggleGatewayReq,
+  ): Promise<RR.PkgBindingToggleGatewayRes> {
+    return this.rpcRequest({
+      method: 'package.host.binding.set-gateway-enabled',
       params,
     })
   }
@@ -728,18 +714,38 @@ export class LiveApiService extends ApiService {
     })
   }
 
-  async pkgAddDomain(params: RR.PkgAddDomainReq): Promise<RR.AddDomainRes> {
+  async pkgAddPublicDomain(
+    params: RR.PkgAddPublicDomainReq,
+  ): Promise<RR.PkgAddPublicDomainRes> {
     return this.rpcRequest({
-      method: 'package.host.address.domain.add',
+      method: 'package.host.address.domain.public.add',
       params,
     })
   }
 
-  async pkgRemoveDomain(
-    params: RR.PkgRemoveDomainReq,
-  ): Promise<RR.RemoveDomainRes> {
+  async pkgRemovePublicDomain(
+    params: RR.PkgRemovePublicDomainReq,
+  ): Promise<RR.PkgRemovePublicDomainRes> {
     return this.rpcRequest({
-      method: 'package.host.address.domain.remove',
+      method: 'package.host.address.domain.public.remove',
+      params,
+    })
+  }
+
+  async pkgAddPrivateDomain(
+    params: RR.PkgAddPrivateDomainReq,
+  ): Promise<RR.PkgAddPrivateDomainRes> {
+    return this.rpcRequest({
+      method: 'package.host.address.domain.private.add',
+      params,
+    })
+  }
+
+  async pkgRemovePrivateDomain(
+    params: RR.PkgRemovePrivateDomainReq,
+  ): Promise<RR.PkgRemovePrivateDomainRes> {
+    return this.rpcRequest({
+      method: 'package.host.address.domain.private.remove',
       params,
     })
   }

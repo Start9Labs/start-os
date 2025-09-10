@@ -12,6 +12,7 @@ use crate::net::forward::AvailablePorts;
 use crate::net::keys::KeyStore;
 use crate::notifications::Notifications;
 use crate::prelude::*;
+use crate::sign::AnyVerifyingKey;
 use crate::ssh::SshKeys;
 use crate::util::serde::Pem;
 
@@ -33,6 +34,9 @@ impl Database {
             private: Private {
                 key_store: KeyStore::new(account)?,
                 password: account.password.clone(),
+                auth_pubkeys: [AnyVerifyingKey::Ed25519((&account.developer_key).into())]
+                    .into_iter()
+                    .collect(),
                 ssh_privkey: Pem(account.ssh_key.clone()),
                 ssh_pubkeys: SshKeys::new(),
                 available_ports: AvailablePorts::new(),
@@ -40,7 +44,7 @@ impl Database {
                 notifications: Notifications::new(),
                 cifs: CifsTargets::new(),
                 package_stores: BTreeMap::new(),
-                compat_s9pk_key: Pem(account.compat_s9pk_key.clone()),
+                developer_key: Pem(account.developer_key.clone()),
             }, // TODO
         })
     }

@@ -1,0 +1,4 @@
+[Peer]
+PublicKey = {pubkey}
+PresharedKey = {psk}
+AllowedIPs = {addr}/32

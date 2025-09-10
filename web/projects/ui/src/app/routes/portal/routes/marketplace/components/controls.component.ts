@@ -221,8 +221,8 @@ export class MarketplaceControlsComponent {
     const loader = this.loader.open('Starting upload').subscribe()
 
     try {
-      const { upload } = await this.api.sideloadPackage()
-      this.api.uploadPackage(upload, file).catch(console.error)
+      const res = await this.api.sideloadPackage()
+      this.api.uploadFile(res.upload, file).catch(console.error)
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

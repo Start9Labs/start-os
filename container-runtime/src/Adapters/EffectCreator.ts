@@ -35,13 +35,13 @@ const SOCKET_PATH = "/media/startos/rpc/host.sock"
 let hostSystemId = 0
 
 export type EffectContext = {
-  procedureId: string | null
+  eventId: string | null
   callbacks?: CallbackHolder
   constRetry?: () => void
 }
 
 const rpcRoundFor =
-  (procedureId: string | null) =>
+  (eventId: string | null) =>
   <K extends T.EffectMethod | "clearCallbacks">(
     method: K,
     params: Record<string, unknown>,
@@ -52,7 +52,7 @@ const rpcRoundFor =
         JSON.stringify({
           id,
           method,
-          params: { ...params, procedureId: procedureId || undefined },
+          params: { ...params, eventId: eventId ?? undefined },
         }) + "\n",
       )
     })
@@ -103,8 +103,9 @@ const rpcRoundFor =
   }
 
 export function makeEffects(context: EffectContext): Effects {
-  const rpcRound = rpcRoundFor(context.procedureId)
+  const rpcRound = rpcRoundFor(context.eventId)
   const self: Effects = {
+    eventId: context.eventId,
     child: (name) =>
       makeEffects({ ...context, callbacks: context.callbacks?.child(name) }),
     constRetry: context.constRetry,

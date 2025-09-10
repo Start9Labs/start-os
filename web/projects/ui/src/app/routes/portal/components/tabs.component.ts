@@ -14,7 +14,7 @@ import { TuiBadgeNotification } from '@taiga-ui/kit'
 import { BadgeService } from 'src/app/services/badge.service'
 import { getMenu } from 'src/app/utils/system-utilities'
 
-const FILTER = ['/services', '/system', '/marketplace']
+const FILTER = ['services', 'system', 'marketplace']
 
 @Component({
   selector: 'app-tabs',
@@ -133,7 +133,7 @@ export class TabsComponent {
   )
 
   more(content: TemplateRef<any>) {
-    this.dialogs.open(content, { label: 'Start OS' }).subscribe({
+    this.dialogs.open(content, { label: 'StartOS' }).subscribe({
       complete: () => this.update(),
     })
   }

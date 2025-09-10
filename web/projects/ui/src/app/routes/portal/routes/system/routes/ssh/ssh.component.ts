@@ -14,8 +14,7 @@ import {
   LoadingService,
 } from '@start9labs/shared'
 import { ISB } from '@start9labs/start-sdk'
-import { TuiButton, TuiLink, TuiTitle } from '@taiga-ui/core'
-import { TuiHeader } from '@taiga-ui/layout'
+import { TuiButton } from '@taiga-ui/core'
 import { filter, from, merge, Subject } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { SSHKey } from 'src/app/services/api/api.types'
@@ -33,30 +32,20 @@ import { SSHTableComponent } from './table.component'
       </a>
       SSH
     </ng-container>
-    <header tuiHeader>
-      <hgroup tuiTitle>
-        <h3>SSH</h3>
-        <p tuiSubtitle>
-          {{
-            'By default, you can SSH into your server from any device using your master password. Optionally add SSH public keys to grant specific devices access without needing to enter a password.'
-              | i18n
-          }}
-          <a
-            tuiLink
-            docsLink
-            href="/user-manual/ssh"
-            appearance="action-grayscale"
-            iconEnd="@tui.external-link"
-            [pseudo]="true"
-            [textContent]="'View instructions' | i18n"
-          ></a>
-        </p>
-      </hgroup>
-    </header>
     @let keys = keys$ | async;
     <section class="g-card">
       <header>
-        Saved Keys
+        {{ 'SSH Keys' | i18n }}
+        <a
+          tuiIconButton
+          size="xs"
+          docsLink
+          path="/user-manual/ssh.html"
+          appearance="icon"
+          iconStart="@tui.external-link"
+        >
+          {{ 'Documentation' | i18n }}
+        </a>
         <button
           tuiButton
           size="xs"
@@ -81,6 +70,10 @@ import { SSHTableComponent } from './table.component'
     </section>
   `,
   styles: `
+    :host {
+      max-width: 70rem;
+    }
+
     :host-context(tui-root._mobile) {
       [tuiButton] {
         font-size: 0;
@@ -95,9 +88,6 @@ import { SSHTableComponent } from './table.component'
     SSHTableComponent,
     RouterLink,
     TitleDirective,
-    TuiHeader,
-    TuiTitle,
-    TuiLink,
     i18nPipe,
     DocsLinkDirective,
   ],
@@ -117,14 +107,29 @@ export default class SystemSSHComponent {
   protected tableKeys = viewChild<SSHTableComponent<SSHKey>>('table')
 
   async add(all: readonly SSHKey[]) {
+    const spec = ISB.InputSpec.of({
+      key: ISB.Value.text({
+        name: this.i18n.transform('Public Key'),
+        required: true,
+        default: null,
+        patterns: [
+          {
+            regex:
+              '^(ssh-(rsa|ed25519|dss|ecdsa)|ecdsa-sha2-nistp(256|384|521))\\s+[A-Za-z0-9+/=]+(\\s[^\\s]+)?$',
+            description: this.i18n.transform('must be a valid SSH public key'),
+          },
+        ],
+      }),
+    })
+
     this.formDialog.open(FormComponent, {
-      label: 'Add SSH Public Key',
+      label: 'Add SSH key',
       data: {
-        spec: await configBuilderToSpec(SSHSpec),
+        spec: await configBuilderToSpec(spec),
         buttons: [
           {
             text: this.i18n.transform('Save'),
-            handler: async ({ key }: typeof SSHSpec._TYPE) => {
+            handler: async ({ key }: typeof spec._TYPE) => {
               const loader = this.loader.open('Saving').subscribe()
 
               try {
@@ -167,18 +172,3 @@ export default class SystemSSHComponent {
       })
   }
 }
-
-const SSHSpec = ISB.InputSpec.of({
-  key: ISB.Value.text({
-    name: 'Public Key',
-    required: true,
-    default: null,
-    patterns: [
-      {
-        regex:
-          '^(ssh-(rsa|ed25519|dss|ecdsa)|ecdsa-sha2-nistp(256|384|521))\\s+[A-Za-z0-9+/=]+(\\s[^\\s]+)?$',
-        description: 'must be a valid SSH public key',
-      },
-    ],
-  }),
-})

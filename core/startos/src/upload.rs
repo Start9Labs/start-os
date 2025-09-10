@@ -8,7 +8,7 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::response::Response;
 use bytes::Bytes;
-use futures::{ready, FutureExt, Stream, StreamExt};
+use futures::{FutureExt, Stream, StreamExt, ready};
 use http::header::CONTENT_LENGTH;
 use http::{HeaderMap, StatusCode};
 use imbl_value::InternedString;
@@ -20,9 +20,9 @@ use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::progress::{PhaseProgressTrackerHandle, ProgressUnits};
 use crate::rpc_continuations::{Guid, RpcContinuation};
-use crate::s9pk::merkle_archive::source::multi_cursor_file::{FileCursor, MultiCursorFile};
 use crate::s9pk::merkle_archive::source::ArchiveSource;
-use crate::util::io::{create_file, TmpDir};
+use crate::s9pk::merkle_archive::source::multi_cursor_file::{FileCursor, MultiCursorFile};
+use crate::util::io::{TmpDir, create_file};
 
 pub async fn upload(
     ctx: &RpcContext,
@@ -359,7 +359,7 @@ impl UploadHandle {
             });
         }
     }
-    async fn process_body<E: Into<Box<(dyn std::error::Error + Send + Sync + 'static)>>>(
+    async fn process_body<E: Into<Box<dyn std::error::Error + Send + Sync + 'static>>>(
         &mut self,
         mut body: impl Stream<Item = Result<Bytes, E>> + Unpin,
     ) {

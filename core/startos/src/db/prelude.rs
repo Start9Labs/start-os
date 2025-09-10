@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
+use imbl::OrdMap;
 pub use imbl_value::Value;
 use patch_db::value::InternedString;
 pub use patch_db::{HasModel, MutateResult, PatchDb};
@@ -196,6 +197,18 @@ where
     type Value = B;
     fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
         serde_json::to_string(key).with_kind(ErrorKind::Serialization)
+    }
+}
+
+impl<A, B> Map for OrdMap<A, B>
+where
+    A: serde::Serialize + serde::de::DeserializeOwned + Clone + Ord + AsRef<str>,
+    B: serde::Serialize + serde::de::DeserializeOwned + Clone,
+{
+    type Key = A;
+    type Value = B;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Ok(key.as_ref())
     }
 }
 

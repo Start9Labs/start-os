@@ -8,7 +8,7 @@ use const_format::formatcp;
 use josekit::jwk::Jwk;
 use patch_db::json_ptr::ROOT;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, Empty, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
@@ -24,23 +24,24 @@ use crate::context::rpc::InitRpcContextPhases;
 use crate::context::setup::SetupResult;
 use crate::context::{RpcContext, SetupContext};
 use crate::db::model::Database;
+use crate::disk::REPAIR_DISK_PATH;
 use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
-use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::filesystem::ReadWrite;
+use crate::disk::mount::filesystem::cifs::Cifs;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
-use crate::disk::util::{pvscan, recovery_info, DiskInfo, StartOsRecoveryInfo};
-use crate::disk::REPAIR_DISK_PATH;
-use crate::init::{init, InitPhases, InitResult};
+use crate::disk::util::{DiskInfo, StartOsRecoveryInfo, pvscan, recovery_info};
+use crate::init::{InitPhases, InitResult, init};
 use crate::net::ssl::root_ca_start_time;
 use crate::prelude::*;
 use crate::progress::{FullProgress, PhaseProgressTrackerHandle, ProgressUnits};
 use crate::rpc_continuations::Guid;
+use crate::shutdown::Shutdown;
 use crate::system::sync_kiosk;
-use crate::util::crypto::EncryptedWire;
-use crate::util::io::{create_file, dir_copy, dir_size, Counter};
 use crate::util::Invoke;
-use crate::{Error, ErrorKind, ResultExt, DATA_DIR, MAIN_DATA, PACKAGE_DATA, PLATFORM};
+use crate::util::crypto::EncryptedWire;
+use crate::util::io::{Counter, create_file, dir_copy, dir_size};
+use crate::{DATA_DIR, Error, ErrorKind, MAIN_DATA, PACKAGE_DATA, PLATFORM, ResultExt};
 
 pub fn setup<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -67,6 +68,7 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
             "logs",
             from_fn_async(crate::logs::cli_logs::<SetupContext, Empty>).no_display(),
         )
+        .subcommand("restart", from_fn_async(restart).no_cli())
 }
 
 pub fn disk<C: Context>() -> ParentHandler<C> {
@@ -172,6 +174,7 @@ pub async fn attach(
                 if disk_guid.ends_with("_UNENC") { None } else { Some(DEFAULT_PASSWORD) },
             )
             .await?;
+            let _ = setup_ctx.disk_guid.set(disk_guid.clone());
             if tokio::fs::metadata(REPAIR_DISK_PATH).await.is_ok() {
                 tokio::fs::remove_file(REPAIR_DISK_PATH)
                     .await
@@ -328,7 +331,7 @@ pub async fn execute(
             return Err(Error::new(
                 color_eyre::eyre::eyre!("Couldn't decode startOsPassword"),
                 crate::ErrorKind::Unknown,
-            ))
+            ));
         }
     };
     let recovery = match recovery_source {
@@ -390,9 +393,19 @@ pub async fn complete(ctx: SetupContext) -> Result<SetupResult, Error> {
 }
 
 #[instrument(skip_all)]
-// #[command(rpc_only)]
 pub async fn exit(ctx: SetupContext) -> Result<(), Error> {
-    ctx.shutdown.send(()).expect("failed to shutdown");
+    ctx.shutdown.send(None).expect("failed to shutdown");
+    Ok(())
+}
+
+#[instrument(skip_all)]
+pub async fn restart(ctx: SetupContext) -> Result<(), Error> {
+    ctx.shutdown
+        .send(Some(Shutdown {
+            disk_guid: ctx.disk_guid.get().cloned(),
+            restart: true,
+        }))
+        .expect("failed to shutdown");
     Ok(())
 }
 
@@ -435,6 +448,7 @@ pub async fn execute_inner(
     );
     let _ = crate::disk::main::import(&*guid, DATA_DIR, RepairStrategy::Preen, encryption_password)
         .await?;
+    let _ = ctx.disk_guid.set(guid.clone());
     disk_phase.complete();
 
     let progress = SetupExecuteProgress {

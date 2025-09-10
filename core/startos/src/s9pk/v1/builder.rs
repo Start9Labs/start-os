@@ -3,11 +3,11 @@ use tokio::io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt, SeekFrom};
 use tracing::instrument;
 use typed_builder::TypedBuilder;
 
+use super::SIG_CONTEXT;
 use super::header::{FileSection, Header};
 use super::manifest::Manifest;
-use super::SIG_CONTEXT;
-use crate::util::io::to_cbor_async_writer;
 use crate::util::HashWriter;
+use crate::util::io::to_cbor_async_writer;
 use crate::{Error, ResultExt};
 
 #[derive(TypedBuilder)]
@@ -31,15 +31,15 @@ pub struct S9pkPacker<
     scripts: Option<RScripts>,
 }
 impl<
-        'a,
-        W: AsyncWriteExt + AsyncSeekExt + Unpin,
-        RLicense: AsyncReadExt + Unpin,
-        RInstructions: AsyncReadExt + Unpin,
-        RIcon: AsyncReadExt + Unpin,
-        RDockerImages: AsyncReadExt + Unpin,
-        RAssets: AsyncReadExt + Unpin,
-        RScripts: AsyncReadExt + Unpin,
-    > S9pkPacker<'a, W, RLicense, RInstructions, RIcon, RDockerImages, RAssets, RScripts>
+    'a,
+    W: AsyncWriteExt + AsyncSeekExt + Unpin,
+    RLicense: AsyncReadExt + Unpin,
+    RInstructions: AsyncReadExt + Unpin,
+    RIcon: AsyncReadExt + Unpin,
+    RDockerImages: AsyncReadExt + Unpin,
+    RAssets: AsyncReadExt + Unpin,
+    RScripts: AsyncReadExt + Unpin,
+> S9pkPacker<'a, W, RLicense, RInstructions, RIcon, RDockerImages, RAssets, RScripts>
 {
     /// BLOCKING
     #[instrument(skip_all)]

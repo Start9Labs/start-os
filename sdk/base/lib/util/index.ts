@@ -1,6 +1,7 @@
 /// Currently being used
 export { addressHostToUrl } from "./getServiceInterface"
 export { getDefaultString } from "./getDefaultString"
+export * from "./ip"
 
 /// Not being used, but known to be browser compatible
 export { GetServiceInterface, getServiceInterface } from "./getServiceInterface"
@@ -16,6 +17,5 @@ export { splitCommand } from "./splitCommand"
 export { nullIfEmpty } from "./nullIfEmpty"
 export { deepMerge, partialDiff } from "./deepMerge"
 export { deepEqual } from "./deepEqual"
-export { hostnameInfoToAddress } from "./Hostname"
 export * as regexes from "./regexes"
 export { stringFromStdErrOut } from "./stringFromStdErrOut"

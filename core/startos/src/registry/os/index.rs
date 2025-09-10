@@ -8,8 +8,8 @@ use ts_rs::TS;
 use crate::prelude::*;
 use crate::registry::asset::RegistryAsset;
 use crate::registry::context::RegistryContext;
-use crate::registry::signer::commitment::blake3::Blake3Commitment;
 use crate::rpc_continuations::Guid;
+use crate::sign::commitment::blake3::Blake3Commitment;
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
@@ -44,11 +44,8 @@ pub struct OsVersionInfo {
     #[ts(type = "string")]
     pub source_version: VersionRange,
     pub authorized: BTreeSet<Guid>,
-    #[ts(as = "BTreeMap::<String, RegistryAsset::<Blake3Commitment>>")]
     pub iso: BTreeMap<InternedString, RegistryAsset<Blake3Commitment>>, // platform (i.e. x86_64-nonfree) -> asset
-    #[ts(as = "BTreeMap::<String, RegistryAsset::<Blake3Commitment>>")]
     pub squashfs: BTreeMap<InternedString, RegistryAsset<Blake3Commitment>>, // platform (i.e. x86_64-nonfree) -> asset
-    #[ts(as = "BTreeMap::<String, RegistryAsset::<Blake3Commitment>>")]
     pub img: BTreeMap<InternedString, RegistryAsset<Blake3Commitment>>, // platform (i.e. raspberrypi) -> asset
 }
 

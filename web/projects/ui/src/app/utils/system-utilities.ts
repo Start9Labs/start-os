@@ -8,7 +8,7 @@ export const SYSTEM_UTILITIES: Record<
   { icon: string; title: i18nKey }
 > = {
   services: {
-    icon: '@tui.layout-grid',
+    icon: '@tui.package',
     title: 'Services',
   },
   marketplace: {
@@ -33,7 +33,7 @@ export const SYSTEM_UTILITIES: Record<
     title: 'Metrics',
   },
   logs: {
-    icon: '@tui.file-text',
+    icon: '@tui.logs',
     title: 'Logs',
   },
   system: {

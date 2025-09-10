@@ -44,7 +44,7 @@ import { DocsLinkDirective } from '@start9labs/shared'
                 Download your server's Root CA and
                 <a
                   docsLink
-                  href="/user-manual/trust-ca.html"
+                  path="/user-manual/trust-ca.html"
                   style="color: #6866cc; font-weight: bold; text-decoration: none"
                 >
                   follow the instructions
@@ -110,7 +110,7 @@ import { DocsLinkDirective } from '@start9labs/shared'
               This address will only work from a Tor-enabled browser.
               <a
                 docsLink
-                href="/user-manual/connecting-remotely/tor.html"
+                path="/user-manual/connecting-remotely/tor.html"
                 style="color: #6866cc; font-weight: bold; text-decoration: none"
               >
                 Follow the instructions

@@ -1,4 +1,3 @@
-use std::path::Path;
 use std::sync::Arc;
 
 use tokio::process::Command;
@@ -7,9 +6,9 @@ use tracing::instrument;
 use crate::context::config::ServerConfig;
 use crate::context::rpc::InitRpcContextPhases;
 use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
+use crate::disk::REPAIR_DISK_PATH;
 use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
-use crate::disk::REPAIR_DISK_PATH;
 use crate::firmware::{check_for_firmware_update, update_firmware};
 use crate::init::{InitPhases, STANDBY_MODE_PATH};
 use crate::net::web_server::{UpgradableListener, WebServer};
@@ -48,7 +47,7 @@ async fn setup_or_init(
             update_phase.complete();
             reboot_phase.start();
             return Ok(Err(Shutdown {
-                export_args: None,
+                disk_guid: None,
                 restart: true,
             }));
         }
@@ -103,7 +102,7 @@ async fn setup_or_init(
             .expect("context dropped");
 
         return Ok(Err(Shutdown {
-            export_args: None,
+            disk_guid: None,
             restart: true,
         }));
     }
@@ -117,7 +116,9 @@ async fn setup_or_init(
         server.serve_setup(ctx.clone());
 
         let mut shutdown = ctx.shutdown.subscribe();
-        shutdown.recv().await.expect("context dropped");
+        if let Some(shutdown) = shutdown.recv().await.expect("context dropped") {
+            return Ok(Err(shutdown));
+        }
 
         tokio::task::yield_now().await;
         if let Err(e) = Command::new("killall")
@@ -136,7 +137,7 @@ async fn setup_or_init(
                 return Err(Error::new(
                     eyre!("Setup mode exited before setup completed"),
                     ErrorKind::Unknown,
-                ))
+                ));
             }
         }))
     } else {
@@ -183,7 +184,7 @@ async fn setup_or_init(
                 let mut reboot_phase = handle.add_phase("Rebooting".into(), Some(1));
                 reboot_phase.start();
                 return Ok(Err(Shutdown {
-                    export_args: Some((disk_guid, Path::new(DATA_DIR).to_owned())),
+                    disk_guid: Some(disk_guid),
                     restart: true,
                 }));
             }

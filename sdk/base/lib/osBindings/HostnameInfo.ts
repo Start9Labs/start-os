@@ -3,10 +3,5 @@ import type { IpHostname } from "./IpHostname"
 import type { OnionHostname } from "./OnionHostname"
 
 export type HostnameInfo =
-  | {
-      kind: "ip"
-      networkInterfaceId: string
-      public: boolean
-      hostname: IpHostname
-    }
+  | { kind: "ip"; gatewayId: string; public: boolean; hostname: IpHostname }
   | { kind: "onion"; hostname: OnionHostname }

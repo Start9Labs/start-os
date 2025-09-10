@@ -1,4 +1,4 @@
-use std::cmp::{min, Ordering};
+use std::cmp::{Ordering, min};
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::IpAddr;
 use std::path::Path;
@@ -13,18 +13,18 @@ use openssl::ec::{EcGroup, EcKey};
 use openssl::hash::MessageDigest;
 use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
-use openssl::x509::{X509Builder, X509Extension, X509NameBuilder, X509};
+use openssl::x509::{X509, X509Builder, X509Extension, X509NameBuilder};
 use openssl::*;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
+use crate::SOURCE_DATE;
 use crate::account::AccountInfo;
 use crate::hostname::Hostname;
 use crate::init::check_time_is_synchronized;
 use crate::prelude::*;
 use crate::util::serde::Pem;
-use crate::SOURCE_DATE;
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[model = "Model<Self>"]

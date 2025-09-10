@@ -32,7 +32,7 @@ import { distinctUntilChanged } from 'rxjs/operators'
   styles: [
     `
       :host {
-        grid-column: span 4;
+        grid-column: span 3;
       }
 
       h3 {
@@ -55,11 +55,13 @@ import { distinctUntilChanged } from 'rxjs/operators'
         text-transform: uppercase;
         color: var(--tui-text-secondary);
         font: var(--tui-font-text-ui-xs);
+        font-size: min(4cqw, 0.75rem);
       }
 
       label {
         display: block;
         font-size: min(6vw, 2.5rem);
+        font-size: min(20cqw, 2.5rem);
         margin: 1rem 0;
         color: var(--tui-text-primary);
       }
