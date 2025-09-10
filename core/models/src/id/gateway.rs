@@ -14,12 +14,14 @@ impl GatewayId {
         &*self.0
     }
 }
-impl<T> From<T> for GatewayId
-where
-    T: Into<InternedString>,
-{
-    fn from(value: T) -> Self {
-        Self(value.into())
+impl From<InternedString> for GatewayId {
+    fn from(value: InternedString) -> Self {
+        Self(value)
+    }
+}
+impl From<GatewayId> for InternedString {
+    fn from(value: GatewayId) -> Self {
+        value.0
     }
 }
 impl FromStr for GatewayId {

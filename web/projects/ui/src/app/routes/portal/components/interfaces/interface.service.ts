@@ -92,7 +92,7 @@ function cmpClearnet(
   return cmpWithRankedPredicates(a, b, [
     x =>
       x.info.hostname.kind === 'domain' &&
-      x.info.gatewayId === host.publicDomains[x.info.hostname.value]?.gateway, // public domain for this gateway
+      x.info.gateway.id === host.publicDomains[x.info.hostname.value]?.gateway, // public domain for this gateway
     x => x.gateway?.public ?? false, // public gateway
     x => x.info.hostname.kind === 'ipv4', // ipv4
     x => x.info.hostname.kind === 'ipv6', // ipv6
@@ -136,7 +136,7 @@ export class InterfaceService {
       utils.addressHostToUrl(serviceInterface.addressInfo, h).map(url => ({
         url,
         info: h,
-        gateway: gateways.find(g => h.kind === 'ip' && h.gatewayId === g.id),
+        gateway: gateways.find(g => h.kind === 'ip' && h.gateway.id === g.id),
       })),
     )
 
@@ -306,7 +306,7 @@ export class InterfaceService {
             h.kind === 'ip' &&
             ((h.hostname.kind === 'ipv6' &&
               utils.IPV6_LINK_LOCAL.contains(h.hostname.value)) ||
-              h.gatewayId === 'lo')
+              h.gateway.id === 'lo')
           ),
       ) || []
     )
@@ -360,7 +360,7 @@ export class InterfaceService {
       // ** Not Tor **
     } else {
       const port = info.hostname.sslPort || info.hostname.port
-      const gateway = gateways.find(g => g.id === info.gatewayId)!
+      const gateway = gateways.find(g => g.id === info.gateway.id)!
       gatewayName = gateway.name
 
       const gatewayLanIpv4 = gateway.lanIpv4[0]

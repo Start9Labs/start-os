@@ -385,7 +385,7 @@ export namespace Mock {
             docsUrl: 'https://bitcoin.org',
             releaseNotes: 'Even better support for Bitcoin and wallets!',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.37',
+            sdkVersion: '0.4.0-beta.38',
             gitHash: 'fakehash',
             icon: BTC_ICON,
             sourceVersion: null,
@@ -420,7 +420,7 @@ export namespace Mock {
             docsUrl: 'https://bitcoinknots.org',
             releaseNotes: 'Even better support for Bitcoin and wallets!',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.37',
+            sdkVersion: '0.4.0-beta.38',
             gitHash: 'fakehash',
             icon: BTC_ICON,
             sourceVersion: null,
@@ -465,7 +465,7 @@ export namespace Mock {
             docsUrl: 'https://bitcoin.org',
             releaseNotes: 'Even better support for Bitcoin and wallets!',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.37',
+            sdkVersion: '0.4.0-beta.38',
             gitHash: 'fakehash',
             icon: BTC_ICON,
             sourceVersion: null,
@@ -500,7 +500,7 @@ export namespace Mock {
             docsUrl: 'https://bitcoinknots.org',
             releaseNotes: 'Even better support for Bitcoin and wallets!',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.37',
+            sdkVersion: '0.4.0-beta.38',
             gitHash: 'fakehash',
             icon: BTC_ICON,
             sourceVersion: null,
@@ -547,7 +547,7 @@ export namespace Mock {
             docsUrl: 'https://lightning.engineering/',
             releaseNotes: 'Upstream release to 0.17.5',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.37',
+            sdkVersion: '0.4.0-beta.38',
             gitHash: 'fakehash',
             icon: LND_ICON,
             sourceVersion: null,
@@ -595,7 +595,7 @@ export namespace Mock {
             docsUrl: 'https://lightning.engineering/',
             releaseNotes: 'Upstream release to 0.17.4',
             osVersion: '0.3.6',
-            sdkVersion: '0.4.0-beta.37',
+            sdkVersion: '0.4.0-beta.38',
             gitHash: 'fakehash',
             icon: LND_ICON,
             sourceVersion: null,
@@ -647,7 +647,7 @@ export namespace Mock {
           docsUrl: 'https://bitcoin.org',
           releaseNotes: 'Even better support for Bitcoin and wallets!',
           osVersion: '0.3.6',
-          sdkVersion: '0.4.0-beta.37',
+          sdkVersion: '0.4.0-beta.38',
           gitHash: 'fakehash',
           icon: BTC_ICON,
           sourceVersion: null,
@@ -682,7 +682,7 @@ export namespace Mock {
           docsUrl: 'https://bitcoinknots.org',
           releaseNotes: 'Even better support for Bitcoin and wallets!',
           osVersion: '0.3.6',
-          sdkVersion: '0.4.0-beta.37',
+          sdkVersion: '0.4.0-beta.38',
           gitHash: 'fakehash',
           icon: BTC_ICON,
           sourceVersion: null,
@@ -727,7 +727,7 @@ export namespace Mock {
           docsUrl: 'https://lightning.engineering/',
           releaseNotes: 'Upstream release and minor fixes.',
           osVersion: '0.3.6',
-          sdkVersion: '0.4.0-beta.37',
+          sdkVersion: '0.4.0-beta.38',
           gitHash: 'fakehash',
           icon: LND_ICON,
           sourceVersion: null,
@@ -775,7 +775,7 @@ export namespace Mock {
           marketingSite: '',
           releaseNotes: 'Upstream release and minor fixes.',
           osVersion: '0.3.6',
-          sdkVersion: '0.4.0-beta.37',
+          sdkVersion: '0.4.0-beta.38',
           gitHash: 'fakehash',
           icon: PROXY_ICON,
           sourceVersion: null,
@@ -2041,7 +2041,7 @@ export namespace Mock {
           80: [
             {
               kind: 'ip',
-              gatewayId: 'eth0',
+              gateway: { id: 'eth0', name: 'Ethernet', public: false },
               public: false,
               hostname: {
                 kind: 'local',
@@ -2052,7 +2052,7 @@ export namespace Mock {
             },
             {
               kind: 'ip',
-              gatewayId: 'wlan0',
+              gateway: { id: 'wlan0', name: 'Wireless', public: false },
               public: false,
               hostname: {
                 kind: 'local',
@@ -2063,7 +2063,7 @@ export namespace Mock {
             },
             {
               kind: 'ip',
-              gatewayId: 'eth0',
+              gateway: { id: 'wlan0', name: 'Wireless', public: false },
               public: false,
               hostname: {
                 kind: 'ipv4',
@@ -2074,7 +2074,7 @@ export namespace Mock {
             },
             {
               kind: 'ip',
-              gatewayId: 'wlan0',
+              gateway: { id: 'wlan0', name: 'Wireless', public: false },
               public: false,
               hostname: {
                 kind: 'ipv4',
@@ -2085,7 +2085,7 @@ export namespace Mock {
             },
             {
               kind: 'ip',
-              gatewayId: 'eth0',
+              gateway: { id: 'eth0', name: 'Ethernet', public: false },
               public: false,
               hostname: {
                 kind: 'ipv6',
@@ -2097,7 +2097,7 @@ export namespace Mock {
             },
             {
               kind: 'ip',
-              gatewayId: 'wlan0',
+              gateway: { id: 'wlan0', name: 'Wireless', public: false },
               public: false,
               hostname: {
                 kind: 'ipv6',

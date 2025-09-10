@@ -6,7 +6,7 @@ use models::GatewayId;
 use serde::{Deserialize, Serialize};
 
 use super::v0_3_5::V0_3_0_COMPAT;
-use super::{VersionT, v0_3_6_alpha_9};
+use super::{v0_3_6_alpha_9, VersionT};
 use crate::net::host::address::PublicDomainConfig;
 use crate::net::tor::OnionAddress;
 use crate::prelude::*;
@@ -75,7 +75,7 @@ impl VersionT for Version {
                             domains.insert(
                                 address.clone(),
                                 PublicDomainConfig {
-                                    gateway: GatewayId::from("lo"),
+                                    gateway: GatewayId::from(InternedString::intern("lo")),
                                     acme: None,
                                 },
                             );
