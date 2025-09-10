@@ -237,14 +237,14 @@ export class PublicDomainService {
         values: data.gateways.reduce<Record<string, string>>(
           (obj, gateway) => ({
             ...obj,
-            [gateway.id]: gateway.ipInfo!.name,
+            [gateway.id]: gateway.name || gateway.ipInfo!.name,
           }),
           {},
         ),
         default: '',
         disabled: data.gateways
           .filter(
-            g => !g.ipInfo?.wanIp || utils.CGNAT.contains(g.ipInfo?.wanIp),
+            g => !g.ipInfo!.wanIp || utils.CGNAT.contains(g.ipInfo!.wanIp),
           )
           .map(g => g.id),
       })),
