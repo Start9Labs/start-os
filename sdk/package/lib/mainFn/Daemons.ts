@@ -11,7 +11,7 @@ import * as CP from "node:child_process"
 
 export { Daemon } from "./Daemon"
 export { CommandController } from "./CommandController"
-import { HealthDaemon } from "./HealthDaemon"
+import { EXIT_SUCCESS, HealthDaemon } from "./HealthDaemon"
 import { Daemon } from "./Daemon"
 import { CommandController } from "./CommandController"
 import { HealthCheck } from "../health/HealthCheck"
@@ -90,6 +90,10 @@ type NewDaemonParams<
   /** The subcontainer in which the daemon runs */
   subcontainer: C
 }
+
+type OptionalParamSync<T> = T | (() => T | null)
+type OptionalParamAsync<T> = () => Promise<T | null>
+type OptionalParam<T> = OptionalParamSync<T> | OptionalParamAsync<T>
 
 type AddDaemonParams<
   Manifest extends T.SDKManifest,
@@ -192,6 +196,37 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       [],
     )
   }
+
+  private addDaemonImpl<Id extends string>(
+    id: Id,
+    daemon: Promise<
+      Daemon<Manifest, SubContainer<Manifest, T.Effects> | null>
+    > | null,
+    requires: Ids[],
+    ready: Ready | typeof EXIT_SUCCESS,
+  ) {
+    const healthDaemon = new HealthDaemon(
+      daemon,
+      requires
+        .map((x) => this.ids.indexOf(x))
+        .filter((x) => x >= 0)
+        .map((id) => this.healthDaemons[id]),
+      id,
+      ready,
+      this.effects,
+    )
+    const daemons = daemon ? [...this.daemons, daemon] : [...this.daemons]
+    const ids = [...this.ids, id] as (Ids | Id)[]
+    const healthDaemons = [...this.healthDaemons, healthDaemon]
+    return new Daemons<Manifest, Ids | Id>(
+      this.effects,
+      this.started,
+      daemons,
+      ids,
+      healthDaemons,
+    )
+  }
+
   /**
    * Returns the complete list of daemons, including the one defined here
    * @param id
@@ -205,36 +240,42 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       ErrorDuplicateId<Id> extends Id ? never :
       Id extends Ids ? ErrorDuplicateId<Id> :
       Id,
-    options: AddDaemonParams<Manifest, Ids, Id, C>,
+    options: OptionalParamSync<AddDaemonParams<Manifest, Ids, Id, C>>,
+  ): Daemons<Manifest, Ids | Id>
+  addDaemon<Id extends string, C extends SubContainer<Manifest> | null>(
+    // prettier-ignore
+    id: 
+      "" extends Id ? never :
+      ErrorDuplicateId<Id> extends Id ? never :
+      Id extends Ids ? ErrorDuplicateId<Id> :
+      Id,
+    options: OptionalParamAsync<AddDaemonParams<Manifest, Ids, Id, C>>,
+  ): Promise<Daemons<Manifest, Ids | Id>>
+  addDaemon<Id extends string, C extends SubContainer<Manifest> | null>(
+    id: Id,
+    options: OptionalParam<AddDaemonParams<Manifest, Ids, Id, C>>,
   ) {
-    const daemon =
-      "daemon" in options
-        ? Promise.resolve(options.daemon)
-        : Daemon.of<Manifest>()<C>(
-            this.effects,
-            options.subcontainer,
-            options.exec,
-          )
-    const healthDaemon = new HealthDaemon(
-      daemon,
-      options.requires
-        .map((x) => this.ids.indexOf(x))
-        .filter((x) => x >= 0)
-        .map((id) => this.healthDaemons[id]),
-      id,
-      options.ready,
-      this.effects,
-    )
-    const daemons = [...this.daemons, daemon]
-    const ids = [...this.ids, id] as (Ids | Id)[]
-    const healthDaemons = [...this.healthDaemons, healthDaemon]
-    return new Daemons<Manifest, Ids | Id>(
-      this.effects,
-      this.started,
-      daemons,
-      ids,
-      healthDaemons,
-    )
+    const prev = this
+    const res = (options: AddDaemonParams<Manifest, Ids, Id, C> | null) => {
+      if (!options) return prev
+      const daemon =
+        "daemon" in options
+          ? Promise.resolve(options.daemon)
+          : Daemon.of<Manifest>()<C>(
+              this.effects,
+              options.subcontainer,
+              options.exec,
+            )
+      return prev.addDaemonImpl(id, daemon, options.requires, options.ready)
+    }
+    if (options instanceof Function) {
+      const opts = options()
+      if (opts instanceof Promise) {
+        return opts.then(res)
+      }
+      return res(opts)
+    }
+    return res(options)
   }
 
   /**
@@ -245,40 +286,45 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
    * @returns a new Daemons object
    */
   addOneshot<Id extends string, C extends SubContainer<Manifest> | null>(
-    id: "" extends Id
-      ? never
-      : ErrorDuplicateId<Id> extends Id
-        ? never
-        : Id extends Ids
-          ? ErrorDuplicateId<Id>
-          : Id,
-    options: AddOneshotParams<Manifest, Ids, Id, C>,
+    // prettier-ignore
+    id: 
+      "" extends Id ? never :
+      ErrorDuplicateId<Id> extends Id ? never :
+      Id extends Ids ? ErrorDuplicateId<Id> :
+      Id,
+    options: OptionalParamSync<AddOneshotParams<Manifest, Ids, Id, C>>,
+  ): Daemons<Manifest, Ids | Id>
+  addOneshot<Id extends string, C extends SubContainer<Manifest> | null>(
+    // prettier-ignore
+    id: 
+      "" extends Id ? never :
+      ErrorDuplicateId<Id> extends Id ? never :
+      Id extends Ids ? ErrorDuplicateId<Id> :
+      Id,
+    options: OptionalParamAsync<AddOneshotParams<Manifest, Ids, Id, C>>,
+  ): Promise<Daemons<Manifest, Ids | Id>>
+  addOneshot<Id extends string, C extends SubContainer<Manifest> | null>(
+    id: Id,
+    options: OptionalParam<AddOneshotParams<Manifest, Ids, Id, C>>,
   ) {
-    const daemon = Oneshot.of<Manifest>()<C>(
-      this.effects,
-      options.subcontainer,
-      options.exec,
-    )
-    const healthDaemon = new HealthDaemon<Manifest>(
-      daemon,
-      options.requires
-        .map((x) => this.ids.indexOf(x))
-        .filter((x) => x >= 0)
-        .map((id) => this.healthDaemons[id]),
-      id,
-      "EXIT_SUCCESS",
-      this.effects,
-    )
-    const daemons = [...this.daemons, daemon]
-    const ids = [...this.ids, id] as (Ids | Id)[]
-    const healthDaemons = [...this.healthDaemons, healthDaemon]
-    return new Daemons<Manifest, Ids | Id>(
-      this.effects,
-      this.started,
-      daemons,
-      ids,
-      healthDaemons,
-    )
+    const prev = this
+    const res = (options: AddOneshotParams<Manifest, Ids, Id, C> | null) => {
+      if (!options) return prev
+      const daemon = Oneshot.of<Manifest>()<C>(
+        this.effects,
+        options.subcontainer,
+        options.exec,
+      )
+      return prev.addDaemonImpl(id, daemon, options.requires, EXIT_SUCCESS)
+    }
+    if (options instanceof Function) {
+      const opts = options()
+      if (opts instanceof Promise) {
+        return opts.then(res)
+      }
+      return res(opts)
+    }
+    return res(options)
   }
 
   /**
@@ -288,35 +334,40 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
    * @returns a new Daemons object
    */
   addHealthCheck<Id extends string>(
-    id: "" extends Id
-      ? never
-      : ErrorDuplicateId<Id> extends Id
-        ? never
-        : Id extends Ids
-          ? ErrorDuplicateId<Id>
-          : Id,
-    options: AddHealthCheckParams<Ids, Id>,
+    // prettier-ignore
+    id: 
+      "" extends Id ? never :
+      ErrorDuplicateId<Id> extends Id ? never :
+      Id extends Ids ? ErrorDuplicateId<Id> :
+      Id,
+    options: OptionalParamSync<AddHealthCheckParams<Ids, Id>>,
+  ): Daemons<Manifest, Ids | Id>
+  addHealthCheck<Id extends string>(
+    // prettier-ignore
+    id: 
+      "" extends Id ? never :
+      ErrorDuplicateId<Id> extends Id ? never :
+      Id extends Ids ? ErrorDuplicateId<Id> :
+      Id,
+    options: OptionalParamAsync<AddHealthCheckParams<Ids, Id>>,
+  ): Promise<Daemons<Manifest, Ids | Id>>
+  addHealthCheck<Id extends string>(
+    id: Id,
+    options: OptionalParam<AddHealthCheckParams<Ids, Id>>,
   ) {
-    const healthDaemon = new HealthDaemon<Manifest>(
-      null,
-      options.requires
-        .map((x) => this.ids.indexOf(x))
-        .filter((x) => x >= 0)
-        .map((id) => this.healthDaemons[id]),
-      id,
-      options.ready,
-      this.effects,
-    )
-    const daemons = [...this.daemons]
-    const ids = [...this.ids, id] as (Ids | Id)[]
-    const healthDaemons = [...this.healthDaemons, healthDaemon]
-    return new Daemons<Manifest, Ids | Id>(
-      this.effects,
-      this.started,
-      daemons,
-      ids,
-      healthDaemons,
-    )
+    const prev = this
+    const res = (options: AddHealthCheckParams<Ids, Id> | null) => {
+      if (!options) return prev
+      return prev.addDaemonImpl(id, null, options.requires, EXIT_SUCCESS)
+    }
+    if (options instanceof Function) {
+      const opts = options()
+      if (opts instanceof Promise) {
+        return opts.then(res)
+      }
+      return res(opts)
+    }
+    return res(options)
   }
 
   /**
