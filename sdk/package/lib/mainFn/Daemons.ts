@@ -275,6 +275,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       }
       return res(opts)
     }
+    return res(options)
   }
 
   /**
@@ -323,6 +324,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       }
       return res(opts)
     }
+    return res(options)
   }
 
   /**
@@ -365,6 +367,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       }
       return res(opts)
     }
+    return res(options)
   }
 
   /**
