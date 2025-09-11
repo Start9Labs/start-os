@@ -304,7 +304,7 @@ impl Resolver {
                     return Some(res);
                 }
             }
-            if name.zone_of(&*STARTOS) || name.zone_of(&*EMBASSY) {
+            if STARTOS.zone_of(name) || EMBASSY.zone_of(name) {
                 let Ok(pkg) = name
                     .trim_to(2)
                     .iter()
