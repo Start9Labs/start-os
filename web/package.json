@@ -1,0 +1,65 @@
+{
+  "name": "startwrt",
+  "version": "0.0.0",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "check": "tsc --project tsconfig.app.json --noEmit --skipLibCheck"
+  },
+  "private": true,
+  "dependencies": {
+    "@angular/cdk": "^20.0.0",
+    "@angular/common": "^20.3.0",
+    "@angular/compiler": "^20.3.0",
+    "@angular/core": "^20.3.0",
+    "@angular/forms": "^20.3.0",
+    "@angular/platform-browser": "^20.3.0",
+    "@angular/router": "^20.3.0",
+    "@taiga-ui/addon-mobile": "^4.53.0",
+    "@taiga-ui/cdk": "^4.53.0",
+    "@taiga-ui/core": "^4.53.0",
+    "@taiga-ui/event-plugins": "^4.0.2",
+    "@taiga-ui/icons": "^4.53.0",
+    "@taiga-ui/kit": "^4.53.0",
+    "@taiga-ui/layout": "^4.53.0",
+    "rxjs": "~7.8.0",
+    "tslib": "^2.3.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^20.3.1",
+    "@angular/cli": "^20.3.1",
+    "@angular/compiler-cli": "^20.3.0",
+    "husky": "^4.3.8",
+    "less-loader": "^12.3.0",
+    "lint-staged": "^16.1.6",
+    "prettier": "^3.6.2",
+    "typescript": "~5.9.2"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged --concurrent false && npm run check"
+    }
+  },
+  "lint-staged": {
+    "**/*.{js,ts,html,md,json}": "prettier --write",
+    "*.css": "stylelint --fix"
+  },
+  "prettier": {
+    "singleQuote": true,
+    "semi": false,
+    "arrowParens": "avoid",
+    "trailingComma": "all",
+    "htmlWhitespaceSensitivity": "ignore",
+    "tabWidth": 2,
+    "overrides": [
+      {
+        "files": "*.html",
+        "options": {
+          "parser": "angular"
+        }
+      }
+    ]
+  }
+}
