@@ -31,7 +31,7 @@ pub async fn write_developer_key(
         secret_key: secret.to_bytes(),
         public_key: Some(PublicKeyBytes(VerifyingKey::from(secret).to_bytes())),
     };
-    let mut file = create_file_mod(path, 0o046).await?;
+    let mut file = create_file_mod(path, 0o600).await?;
     file.write_all(
         keypair_bytes
             .to_pkcs8_pem(base64ct::LineEnding::default())
