@@ -126,13 +126,14 @@ export class DepErrorService {
     const expected = currentDep?.versionRange || ''
 
     // incorrect version
-    if (!this.exver.satisfies(depManifest.version, expected)) {
-      if (depManifest.satisfies.some(v => !this.exver.satisfies(v, expected))) {
-        return {
-          expected,
-          type: 'incorrectVersion',
-          received: depManifest.version,
-        }
+    if (
+      !this.exver.satisfies(depManifest.version, expected) &&
+      !depManifest.satisfies.some(v => this.exver.satisfies(v, expected))
+    ) {
+      return {
+        expected,
+        type: 'incorrectVersion',
+        received: depManifest.version,
       }
     }
 

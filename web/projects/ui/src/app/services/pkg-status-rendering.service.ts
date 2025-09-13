@@ -25,11 +25,21 @@ export function getInstalledPrimaryStatus({
   tasks,
   status,
 }: T.PackageDataEntry): PrimaryStatus {
-  return Object.values(tasks).some(
-    t => t.active && t.task.severity === 'critical',
-  )
-    ? 'taskRequired'
-    : status.main
+  if (
+    Object.values(tasks).some(t => t.active && t.task.severity === 'critical')
+  ) {
+    return 'taskRequired'
+  }
+
+  if (
+    Object.values(status.main === 'running' && status.health)
+      .filter(h => !!h)
+      .some(h => h.result === 'starting')
+  ) {
+    return 'starting'
+  }
+
+  return status.main
 }
 
 function getHealthStatus(status: T.MainStatus): T.HealthStatus | null {
@@ -43,12 +53,12 @@ function getHealthStatus(status: T.MainStatus): T.HealthStatus | null {
     return 'failure'
   }
 
-  if (values.some(h => h.result === 'loading')) {
-    return 'loading'
-  }
-
   if (values.some(h => h.result === 'starting')) {
     return 'starting'
+  }
+
+  if (values.some(h => h.result === 'loading')) {
+    return 'loading'
   }
 
   return 'success'

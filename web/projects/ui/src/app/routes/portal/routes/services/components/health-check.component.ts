@@ -97,10 +97,8 @@ export class ServiceHealthCheckComponent {
         return `${this.i18n.transform('Success')}: ${this.healthCheck.message || 'health check passing'}`
       case 'loading':
       case 'failure':
-        return this.healthCheck.message
-      // disabled
-      default:
-        return this.healthCheck.result
+      case 'disabled':
+        return this.healthCheck.message || this.healthCheck.result
     }
   }
 }
