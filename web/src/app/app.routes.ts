@@ -5,7 +5,7 @@ import { AuthService } from 'src/app/services/auth.service'
 export const routes: Routes = [
   {
     path: '',
-    loadComponent: () => import('./routes/home'),
+    loadChildren: () => import('./routes/home'),
     canMatch: [() => inject(AuthService).authenticated()],
   },
   {
@@ -13,4 +13,5 @@ export const routes: Routes = [
     loadComponent: () => import('./routes/login'),
     canMatch: [() => !inject(AuthService).authenticated()],
   },
+  { path: '**', redirectTo: '' },
 ]

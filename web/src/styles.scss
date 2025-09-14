@@ -1,1 +1,37 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  height: 100%;
+
+  --tui-text-action: #428bf9;
+  --tui-text-action-hover: #165eca;
+  --tui-background-accent-1: #428bf9;
+  --tui-background-accent-1-hover: #126df7;
+  --tui-background-accent-1-pressed: #156ed4;
+}
+
+body {
+  height: 100%;
+  isolation: isolate;
+  overflow-x: hidden;
+  background:
+    conic-gradient(var(--tui-background-base)),
+    radial-gradient(circle at top right, #5240a8, transparent 40%),
+    radial-gradient(circle at bottom right, #9236c9, transparent),
+    radial-gradient(circle at 25% 100%, #5b65d5, transparent 30%),
+    radial-gradient(circle at bottom left, #0090c0, transparent 50%),
+    radial-gradient(circle at top left, #2a5ba8, transparent 50%),
+    linear-gradient(to bottom, #5654b2, transparent);
+  background-blend-mode: hard-light;
+
+  &:not([tuiTheme]) {
+    background-blend-mode: soft-light;
+
+    &::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      background: rgb(255 255 255 / 15%);
+      backdrop-filter: brightness(1.5);
+    }
+  }
+}
