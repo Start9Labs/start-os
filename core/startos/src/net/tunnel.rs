@@ -47,7 +47,7 @@ pub async fn add_tunnel(
     }: AddTunnelParams,
 ) -> Result<GatewayId, Error> {
     let ifaces = ctx.net_controller.net_iface.watcher.subscribe();
-    let mut iface = GatewayId::from("wg0");
+    let mut iface = GatewayId::from(InternedString::intern("wg0"));
     if !ifaces.send_if_modified(|i| {
         for id in 1..256 {
             if !i.contains_key(&iface) {

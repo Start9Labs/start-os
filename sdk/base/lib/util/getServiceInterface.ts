@@ -21,23 +21,78 @@ type FilterKinds = "onion" | "local" | "domain" | "ip" | "ipv4" | "ipv6"
 export type Filter = {
   visibility?: "public" | "private"
   kind?: FilterKinds | FilterKinds[]
+  predicate?: (h: HostnameInfo) => boolean
   exclude?: Filter
 }
 
+type VisibilityFilter<V extends "public" | "private"> = V extends "public"
+  ? (HostnameInfo & { public: true }) | VisibilityFilter<Exclude<V, "public">>
+  : V extends "private"
+    ?
+        | (HostnameInfo & { public: false })
+        | VisibilityFilter<Exclude<V, "private">>
+    : never
+type KindFilter<K extends FilterKinds> = K extends "onion"
+  ? (HostnameInfo & { kind: "onion" }) | KindFilter<Exclude<K, "onion">>
+  : K extends "local"
+    ?
+        | (HostnameInfo & { kind: "ip"; hostname: { kind: "local" } })
+        | KindFilter<Exclude<K, "local">>
+    : K extends "domain"
+      ?
+          | (HostnameInfo & { kind: "ip"; hostname: { kind: "domain" } })
+          | KindFilter<Exclude<K, "domain">>
+      : K extends "ipv4"
+        ?
+            | (HostnameInfo & { kind: "ip"; hostname: { kind: "ipv4" } })
+            | KindFilter<Exclude<K, "ipv4">>
+        : K extends "ipv6"
+          ?
+              | (HostnameInfo & { kind: "ip"; hostname: { kind: "ipv6" } })
+              | KindFilter<Exclude<K, "ipv6">>
+          : K extends "ip"
+            ? KindFilter<Exclude<K, "ip"> | "ipv4" | "ipv6">
+            : never
+
+type FilterReturnTy<F extends Filter> = F extends {
+  visibility: infer V extends "public" | "private"
+}
+  ? VisibilityFilter<V> & FilterReturnTy<Omit<F, "visibility">>
+  : F extends {
+        kind: (infer K extends FilterKinds) | (infer K extends FilterKinds)[]
+      }
+    ? KindFilter<K> & FilterReturnTy<Omit<F, "kind">>
+    : F extends {
+          predicate: (h: HostnameInfo) => h is infer H extends HostnameInfo
+        }
+      ? H & FilterReturnTy<Omit<F, "predicate">>
+      : F extends { exclude: infer E extends Filter } // MUST BE LAST
+        ? HostnameInfo extends FilterReturnTy<E>
+          ? HostnameInfo
+          : Exclude<HostnameInfo, FilterReturnTy<E>>
+        : HostnameInfo
+
 type Formats = "hostname-info" | "urlstring" | "url"
-type FormatReturnTy<Format extends Formats> = Format extends "hostname-info"
-  ? HostnameInfo
+type FormatReturnTy<
+  F extends Filter,
+  Format extends Formats,
+> = Format extends "hostname-info"
+  ? FilterReturnTy<F> | FormatReturnTy<F, Exclude<Format, "hostname-info">>
   : Format extends "url"
-    ? URL
-    : UrlString
+    ? URL | FormatReturnTy<F, Exclude<Format, "url">>
+    : Format extends "urlstring"
+      ? UrlString | FormatReturnTy<F, Exclude<Format, "urlstring">>
+      : never
 
 export type Filled = {
   hostnames: HostnameInfo[]
 
-  filter: <Format extends Formats = "urlstring">(
-    filter: Filter,
+  toUrl: (h: HostnameInfo) => UrlString[]
+
+  filter: <F extends Filter, Format extends Formats = "urlstring">(
+    filter: F,
     format?: Format,
-  ) => FormatReturnTy<Format>[]
+  ) => FormatReturnTy<F, Format>[]
 
   publicHostnames: HostnameInfo[]
   onionHostnames: HostnameInfo[]
@@ -83,7 +138,7 @@ const negate =
 const unique = <A>(values: A[]) => Array.from(new Set(values))
 export const addressHostToUrl = (
   { scheme, sslScheme, username, suffix }: AddressInfo,
-  host: HostnameInfo,
+  hostname: HostnameInfo,
 ): UrlString[] => {
   const res = []
   const fmt = (scheme: string | null, host: HostnameInfo, port: number) => {
@@ -109,11 +164,11 @@ export const addressHostToUrl = (
       username ? `${username}@` : ""
     }${hostname}${excludePort ? "" : `:${port}`}${suffix}`
   }
-  if (host.hostname.sslPort !== null) {
-    res.push(fmt(sslScheme, host, host.hostname.sslPort))
+  if (hostname.hostname.sslPort !== null) {
+    res.push(fmt(sslScheme, hostname, hostname.hostname.sslPort))
   }
-  if (host.hostname.port !== null) {
-    res.push(fmt(scheme, host, host.hostname.port))
+  if (hostname.hostname.port !== null) {
+    res.push(fmt(scheme, hostname, hostname.hostname.port))
   }
 
   return res
@@ -124,6 +179,10 @@ function filterRec(
   filter: Filter,
   invert: boolean,
 ): HostnameInfo[] {
+  if (filter.predicate) {
+    const pred = filter.predicate
+    hostnames = hostnames.filter((h) => invert !== pred(h))
+  }
   if (filter.visibility === "public")
     hostnames = hostnames.filter(
       (h) => invert !== (h.kind === "onion" || h.public),
@@ -170,13 +229,18 @@ export const filledAddress = (
   return {
     ...addressInfo,
     hostnames,
-    filter: <T extends Formats = "urlstring">(filter: Filter, format?: T) => {
-      const res = filterRec(hostnames, filter, false)
-      if (format === "hostname-info") return res as FormatReturnTy<T>[]
-      const urls = res.flatMap(toUrl)
-      if (format === "url")
-        return urls.map((u) => new URL(u)) as FormatReturnTy<T>[]
-      return urls as FormatReturnTy<T>[]
+    toUrl,
+    filter: <F extends Filter, Format extends Formats = "urlstring">(
+      filter: F,
+      format?: Format,
+    ) => {
+      const filtered = filterRec(hostnames, filter, false)
+      let res: FormatReturnTy<F, Format>[] = filtered as any
+      if (format === "hostname-info") return res
+      const urls = filtered.flatMap(toUrl)
+      if (format === "url") res = urls.map((u) => new URL(u)) as any
+      else res = urls as any
+      return res
     },
     get publicHostnames() {
       return hostnames.filter((h) => h.kind === "onion" || h.public)

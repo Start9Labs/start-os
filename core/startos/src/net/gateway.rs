@@ -982,7 +982,7 @@ impl NetworkInterfaceController {
                     info
                 }
             },
-            [START9_BRIDGE_IFACE.into()],
+            [InternedString::from_static(START9_BRIDGE_IFACE).into()],
         );
         let mut ip_info_watch = watcher.subscribe();
         ip_info_watch.mark_seen();

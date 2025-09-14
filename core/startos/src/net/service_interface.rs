@@ -12,8 +12,7 @@ use ts_rs::TS;
 #[serde(tag = "kind")]
 pub enum HostnameInfo {
     Ip {
-        #[ts(type = "string")]
-        gateway_id: GatewayId,
+        gateway: GatewayInfo,
         public: bool,
         hostname: IpHostname,
     },
@@ -28,6 +27,15 @@ impl HostnameInfo {
             Self::Onion { hostname } => hostname.to_san_hostname(),
         }
     }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
+#[ts(export)]
+#[serde(rename_all = "camelCase")]
+pub struct GatewayInfo {
+    pub id: GatewayId,
+    pub name: InternedString,
+    pub public: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]

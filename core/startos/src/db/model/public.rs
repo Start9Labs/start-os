@@ -219,7 +219,7 @@ pub struct NetworkInterfaceInfo {
 impl NetworkInterfaceInfo {
     pub fn loopback() -> (&'static GatewayId, &'static Self) {
         lazy_static! {
-            static ref LO: GatewayId = GatewayId::from("lo");
+            static ref LO: GatewayId = GatewayId::from(InternedString::intern("lo"));
             static ref LOOPBACK: NetworkInterfaceInfo = NetworkInterfaceInfo {
                 name: Some(InternedString::from_static("Loopback")),
                 public: Some(false),
@@ -250,7 +250,8 @@ impl NetworkInterfaceInfo {
     }
     pub fn lxc_bridge() -> (&'static GatewayId, &'static Self) {
         lazy_static! {
-            static ref LXCBR0: GatewayId = GatewayId::from(START9_BRIDGE_IFACE);
+            static ref LXCBR0: GatewayId =
+                GatewayId::from(InternedString::intern(START9_BRIDGE_IFACE));
             static ref LXC_BRIDGE: NetworkInterfaceInfo = NetworkInterfaceInfo {
                 name: Some(InternedString::from_static("LXC Bridge Interface")),
                 public: Some(false),
