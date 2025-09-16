@@ -23,7 +23,6 @@ import { SingleResult } from './types'
         tuiTextfield
         [readOnly]="true"
         [ngModel]="single.value"
-        [style.border-inline-end-width.rem]="border"
         [type]="single.masked && masked ? 'password' : 'text'"
       />
       @if (single.masked) {
@@ -104,15 +103,6 @@ export class ActionSuccessSingleComponent {
   single!: SingleResult
 
   masked = true
-
-  get border(): number {
-    let border = 0
-
-    if (this.single.masked) border += 2
-    if (this.single.copyable) border += 2
-
-    return border
-  }
 
   copy() {
     const el = this.input.nativeElement

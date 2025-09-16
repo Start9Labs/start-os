@@ -27,7 +27,6 @@ import { QrCodeComponent } from 'ng-qrcode'
         tuiTextfield
         [readOnly]="true"
         [ngModel]="member.value"
-        [style.border-inline-end-width.rem]="border"
         [type]="member.masked && masked ? 'password' : 'text'"
       />
       @if (member.masked) {
@@ -128,16 +127,6 @@ export class ActionSuccessMemberComponent {
   member!: T.ActionResultMember & { type: 'single' }
 
   masked = true
-
-  get border(): number {
-    let border = 0
-
-    if (this.member.masked) border += 2
-    if (this.member.copyable) border += 2
-    if (this.member.qr) border += 2
-
-    return border
-  }
 
   show(template: TemplateRef<any>) {
     const masked = this.masked
