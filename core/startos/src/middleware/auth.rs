@@ -43,7 +43,7 @@ pub trait AuthContext: SignatureAuthContext {
     const LOCAL_AUTH_COOKIE_OWNERSHIP: &str;
     fn init_auth_cookie() -> impl Future<Output = Result<(), Error>> + Send {
         async {
-            let mut file = create_file_mod(Self::LOCAL_AUTH_COOKIE_PATH, 0o046).await?;
+            let mut file = create_file_mod(Self::LOCAL_AUTH_COOKIE_PATH, 0o640).await?;
             file.write_all(BASE64.encode(random::<[u8; 32]>()).as_bytes())
                 .await?;
             file.sync_all().await?;
