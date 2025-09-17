@@ -6,22 +6,26 @@ import {
 } from '@angular/core'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
 import { tuiPure } from '@taiga-ui/cdk'
-import { TuiIcon, TuiLoader } from '@taiga-ui/core'
+import { TuiIcon } from '@taiga-ui/core'
 import { getProgressText } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
-import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
+import {
+  PrimaryRendering,
+  renderPkgStatus,
+} from 'src/app/services/pkg-status-rendering.service'
 
 @Component({
   selector: 'td[appStatus]',
   template: `
-    @if (loading) {
-      <tui-loader size="s" />
-    } @else {
-      @if (!healthy) {
-        <tui-icon icon="@tui.triangle-alert" class="g-warning" />
-      }
+    @if (!healthy) {
+      <tui-icon icon="@tui.triangle-alert" class="g-warning" />
     }
-    <b [style.color]="color">{{ status | i18n }}{{ dots }}</b>
+
+    <b [style.color]="color">{{ status | i18n }}</b>
+
+    @if (showDots) {
+      <span class="loading-dots g-info"></span>
+    }
   `,
   styles: `
     :host {
@@ -37,7 +41,7 @@ import { renderPkgStatus } from 'src/app/services/pkg-status-rendering.service'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiIcon, TuiLoader, i18nPipe],
+  imports: [TuiIcon, i18nPipe],
 })
 export class StatusComponent {
   @Input()
@@ -58,10 +62,6 @@ export class StatusComponent {
     )
   }
 
-  get loading(): boolean {
-    return this.color === 'var(--tui-status-info)'
-  }
-
   @tuiPure
   getStatus(pkg: PackageDataEntry) {
     return renderPkgStatus(pkg)
@@ -72,35 +72,10 @@ export class StatusComponent {
       return `${this.i18n.transform('Installing')}... ${this.i18n.transform(getProgressText(this.pkg.stateInfo.installingInfo.progress.overall))}` as i18nKey
     }
 
-    switch (this.getStatus(this.pkg).primary) {
-      case 'running':
-        return 'Running'
-      case 'stopped':
-        return 'Stopped'
-      case 'taskRequired':
-        return 'Task Required'
-      case 'updating':
-        return 'Updating'
-      case 'stopping':
-        return 'Stopping'
-      case 'starting':
-        return 'Starting'
-      case 'backingUp':
-        return 'Backing Up'
-      case 'restarting':
-        return 'Restarting'
-      case 'removing':
-        return 'Removing'
-      case 'restoring':
-        return 'Restoring'
-      case 'error':
-        return 'Error'
-      default:
-        return 'Unknown'
-    }
+    return PrimaryRendering[this.getStatus(this.pkg).primary].display
   }
 
-  get dots(): '...' | '' {
+  get showDots() {
     switch (this.getStatus(this.pkg).primary) {
       case 'updating':
       case 'stopping':
@@ -108,9 +83,9 @@ export class StatusComponent {
       case 'backingUp':
       case 'restarting':
       case 'removing':
-        return '...'
+        return true
       default:
-        return ''
+        return false
     }
   }
 

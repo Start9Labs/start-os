@@ -166,12 +166,10 @@ export class InterfaceService {
       }, [] as AddressWithInfo[])
 
     return {
-      common: bestAddrs.map(a =>
-        this.toDisplayAddress(a, gateways, host.publicDomains),
-      ),
+      common: bestAddrs.map(a => this.toDisplayAddress(a, host.publicDomains)),
       uncommon: allAddressesWithInfo
         .filter(a => !bestAddrs.includes(a))
-        .map(a => this.toDisplayAddress(a, gateways, host.publicDomains)),
+        .map(a => this.toDisplayAddress(a, host.publicDomains)),
     }
   }
 
@@ -314,7 +312,6 @@ export class InterfaceService {
 
   private toDisplayAddress(
     { info, url, gateway }: AddressWithInfo,
-    gateways: GatewayPlus[],
     publicDomains: Record<string, T.PublicDomainConfig>,
   ): DisplayAddress {
     let access: DisplayAddress['access']
@@ -360,11 +357,11 @@ export class InterfaceService {
       // ** Not Tor **
     } else {
       const port = info.hostname.sslPort || info.hostname.port
-      const gateway = gateways.find(g => g.id === info.gateway.id)!
-      gatewayName = gateway.name
+      const g = gateway!
+      gatewayName = g.name
 
-      const gatewayLanIpv4 = gateway.lanIpv4[0]
-      const isWireguard = gateway.ipInfo.deviceType === 'wireguard'
+      const gatewayLanIpv4 = g.lanIpv4[0]
+      const isWireguard = g.ipInfo.deviceType === 'wireguard'
 
       const localIdeal = this.i18n.transform('Ideal for local access')
       const lanRequired = this.i18n.transform(
@@ -405,9 +402,9 @@ export class InterfaceService {
             ),
             rootCaRequired,
           ]
-          if (!gateway.public) {
+          if (!g.public) {
             bullets.push(
-              `${portForwarding} "${gatewayName}": ${port} -> ${gateway.subnets.find(s => s.isIpv4())?.address}:${port}`,
+              `${portForwarding} "${gatewayName}": ${port} -> ${g.subnets.find(s => s.isIpv4())?.address}:${port}`,
             )
           }
         } else {
@@ -439,12 +436,12 @@ export class InterfaceService {
         if (info.public) {
           access = 'public'
           bullets = [
-            `${dnsFor} ${info.hostname.value} ${resolvesTo} ${gateway.ipInfo.wanIp}`,
+            `${dnsFor} ${info.hostname.value} ${resolvesTo} ${g.ipInfo.wanIp}`,
           ]
 
-          if (!gateway.public) {
+          if (!g.public) {
             bullets.push(
-              `${portForwarding} "${gatewayName}": ${port} -> ${gateway.subnets.find(s => s.isIpv4())?.address}:${port === 443 ? 5443 : port}`,
+              `${portForwarding} "${gatewayName}": ${port} -> ${g.subnets.find(s => s.isIpv4())?.address}:${port === 443 ? 5443 : port}`,
             )
           }
 
