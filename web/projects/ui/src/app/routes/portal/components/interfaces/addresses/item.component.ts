@@ -24,8 +24,8 @@ import { TuiBadge } from '@taiga-ui/kit'
           {{ 'Address details' | i18n }}
         </button>
       </td>
-      <td [style.width.rem]="6">{{ address.type }}</td>
-      <td [style.width.rem]="5">
+      <td>{{ address.type }}</td>
+      <td>
         @if (address.access === 'public') {
           <tui-badge size="s" appearance="primary-success">
             {{ 'public' | i18n }}
@@ -38,20 +38,41 @@ import { TuiBadge } from '@taiga-ui/kit'
           -
         }
       </td>
-      <td [style.width.rem]="10" [style.order]="-1">
-        {{ address.gatewayName || '-' }}
+      <td [style.order]="-1">
+        <div [title]="address.gatewayName">
+          {{ address.gatewayName || '-' }}
+        </div>
       </td>
-      <td>{{ address.url }}</td>
+      <td>
+        <div [title]="address.url">{{ address.url }}</div>
+      </td>
       <td
         actions
         [disabled]="!isRunning()"
         [href]="address.url"
-        [style.width.rem]="7"
+        [style.width.rem]="5"
         (onDetails)="viewDetails(address.bullets)"
       ></td>
     }
   `,
   styles: `
+    :host {
+      white-space: nowrap;
+
+      td:last-child {
+        padding-inline-start: 0;
+      }
+    }
+
+    div {
+      white-space: normal;
+      word-break: break-all;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 1;
+      overflow: hidden;
+    }
+
     :host-context(tui-root._mobile) {
       td {
         width: auto !important;
