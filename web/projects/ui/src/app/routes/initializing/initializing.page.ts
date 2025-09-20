@@ -24,7 +24,7 @@ import { StateService } from 'src/app/services/state.service'
     <app-initializing [progress]="progress()" />
   `,
   providers: [provideSetupLogsService(ApiService)],
-  styles: ':host { padding: 1rem; }',
+  styles: ':host { height: 100%; }',
   imports: [InitializingComponent],
 })
 export default class InitializingPage {
