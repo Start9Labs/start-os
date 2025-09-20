@@ -34,6 +34,12 @@ import { i18nPipe } from '../../i18n/i18n.pipe'
     <logs-window />
   `,
   styles: `
+    :host {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
     section {
       border-radius: 0.25rem;
       padding: 1rem;
@@ -48,7 +54,7 @@ import { i18nPipe } from '../../i18n/i18n.pipe'
     logs-window {
       display: flex;
       flex-direction: column;
-      height: 18rem;
+      flex: 1;
       padding: 1rem;
       margin: 0 1.5rem auto;
       text-align: left;
