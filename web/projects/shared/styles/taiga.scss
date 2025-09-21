@@ -168,3 +168,8 @@ tui-textfield [tuiTooltip] {
     align-self: center !important;
   }
 }
+
+// TODO: Remove after migrating to v5
+[tuiOption] {
+  word-break: break-word;
+}
