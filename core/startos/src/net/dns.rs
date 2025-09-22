@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, VecDeque};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
@@ -23,7 +23,9 @@ use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseI
 use hickory_server::ServerFuture;
 use imbl::OrdMap;
 use imbl_value::InternedString;
+use itertools::Itertools;
 use models::{GatewayId, OptionExt, PackageId};
+use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{
     from_fn_async, from_fn_blocking, Context, HandlerArgs, HandlerExt, ParentHandler,
 };
@@ -36,6 +38,7 @@ use crate::db::model::public::NetworkInterfaceInfo;
 use crate::db::model::Database;
 use crate::net::gateway::NetworkInterfaceWatcher;
 use crate::prelude::*;
+use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::io::file_string_stream;
 use crate::util::serde::{display_serializable, HandlerExtSerde};
 use crate::util::sync::{SyncRwLock, Watch};
@@ -161,97 +164,146 @@ impl DnsClient {
         Self {
             client: client.clone(),
             _thread: tokio::spawn(async move {
-                loop {
-                    if let Err::<(), Error>(e) = async {
-                        let mut stream = file_string_stream("/run/systemd/resolve/resolv.conf")
-                            .filter_map(|a| futures::future::ready(a.transpose()))
-                            .boxed();
-                        let mut conf: String = stream
-                            .next()
-                            .await
-                            .or_not_found("/run/systemd/resolve/resolv.conf")??;
-                        let mut prev_nameservers = Vec::new();
-                        let mut bg = BTreeMap::<SocketAddr, BoxFuture<_>>::new();
-                        loop {
-                            let nameservers = conf
-                                .lines()
-                                .map(|l| l.trim())
-                                .filter_map(|l| l.strip_prefix("nameserver "))
-                                .skip(2)
-                                .map(|n| {
-                                    n.parse::<SocketAddr>()
-                                        .or_else(|_| n.parse::<IpAddr>().map(|a| (a, 53).into()))
-                                })
-                                .collect::<Result<Vec<_>, _>>()?;
-                            let static_nameservers = db
-                                .mutate(|db| {
-                                    let dns = db
-                                        .as_public_mut()
-                                        .as_server_info_mut()
-                                        .as_network_mut()
-                                        .as_dns_mut();
-                                    dns.as_dhcp_servers_mut().ser(&nameservers)?;
-                                    dns.as_static_servers().de()
-                                })
-                                .await
-                                .result?;
-                            let nameservers = static_nameservers.unwrap_or(nameservers);
-                            if nameservers != prev_nameservers {
-                                let mut existing: BTreeMap<_, _> =
-                                    client.peek(|c| c.iter().cloned().collect());
-                                let mut new = Vec::with_capacity(nameservers.len());
-                                for addr in &nameservers {
-                                    if let Some(existing) = existing.remove(addr) {
-                                        new.push((*addr, existing));
-                                    } else {
-                                        let client = if let Ok((client, bg_thread)) =
-                                            Client::connect(
-                                                UdpClientStream::builder(
-                                                    *addr,
-                                                    TokioRuntimeProvider::new(),
-                                                )
-                                                .build(),
-                                            )
-                                            .await
+                let (bg, mut runner) = BackgroundJobQueue::new();
+                runner
+                    .run_while(async move {
+                        let dhcp_ns_db = db.clone();
+                        bg.add_job(async move {
+                            loop {
+                                if let Err(e) = async {
+                                    let mut stream =
+                                        file_string_stream("/run/systemd/resolve/resolv.conf")
+                                            .filter_map(|a| futures::future::ready(a.transpose()))
+                                            .boxed();
+                                    while let Some(conf) = stream.next().await {
+                                        let conf: String = conf?;
+                                        let mut nameservers = conf
+                                            .lines()
+                                            .map(|l| l.trim())
+                                            .filter_map(|l| l.strip_prefix("nameserver "))
+                                            .map(|n| {
+                                                n.parse::<SocketAddr>().or_else(|_| {
+                                                    n.parse::<IpAddr>().map(|a| (a, 53).into())
+                                                })
+                                            })
+                                            .collect::<Result<VecDeque<_>, _>>()?;
+                                        if nameservers
+                                            .front()
+                                            .map_or(false, |addr| addr.ip().is_loopback())
                                         {
-                                            bg.insert(*addr, bg_thread.boxed());
-                                            client
-                                        } else {
-                                            let (stream, sender) = TcpClientStream::new(
-                                                *addr,
-                                                None,
-                                                Some(Duration::from_secs(30)),
-                                                TokioRuntimeProvider::new(),
-                                            );
-                                            let (client, bg_thread) =
-                                                Client::new(stream, sender, None)
-                                                    .await
-                                                    .with_kind(ErrorKind::Network)?;
-                                            bg.insert(*addr, bg_thread.boxed());
-                                            client
-                                        };
-                                        new.push((*addr, client));
+                                            nameservers.pop_front();
+                                        }
+                                        if nameservers.front().map_or(false, |addr| {
+                                            addr.ip() == IpAddr::from([1, 1, 1, 1])
+                                        }) {
+                                            nameservers.pop_front();
+                                        }
+                                        dhcp_ns_db
+                                            .mutate(|db| {
+                                                let dns = db
+                                                    .as_public_mut()
+                                                    .as_server_info_mut()
+                                                    .as_network_mut()
+                                                    .as_dns_mut();
+                                                dns.as_dhcp_servers_mut().ser(&nameservers)
+                                            })
+                                            .await
+                                            .result?
                                     }
+                                    Ok::<_, Error>(())
                                 }
-                                bg.retain(|n, _| nameservers.iter().any(|a| a == n));
-                                prev_nameservers = nameservers;
-                                client.replace(new);
+                                .await
+                                {
+                                    tracing::error!("{e}");
+                                    tracing::debug!("{e:?}");
+                                    tokio::time::sleep(Duration::from_secs(1)).await;
+                                }
                             }
-                            tokio::select! {
-                                c = stream.next() => conf = c.or_not_found("/run/systemd/resolve/resolv.conf")??,
-                                _ = futures::future::join(
-                                    futures::future::join_all(bg.values_mut()),
-                                    futures::future::pending::<()>(),
-                                ) => (),
+                        });
+                        loop {
+                            if let Err::<(), Error>(e) = async {
+                                let mut static_changed = db
+                                    .subscribe(
+                                        "/public/serverInfo/network/dns/staticServers"
+                                            .parse::<JsonPointer>()
+                                            .with_kind(ErrorKind::Database)?,
+                                    )
+                                    .await;
+                                let mut prev_nameservers = VecDeque::new();
+                                let mut bg = BTreeMap::<SocketAddr, BoxFuture<_>>::new();
+                                loop {
+                                    let dns = db
+                                        .peek()
+                                        .await
+                                        .into_public()
+                                        .into_server_info()
+                                        .into_network()
+                                        .into_dns();
+                                    let nameservers = dns
+                                        .as_static_servers()
+                                        .transpose_ref()
+                                        .unwrap_or_else(|| dns.as_dhcp_servers())
+                                        .de()?;
+                                    if nameservers != prev_nameservers {
+                                        let mut existing: BTreeMap<_, _> =
+                                            client.peek(|c| c.iter().cloned().collect());
+                                        let mut new = Vec::with_capacity(nameservers.len());
+                                        for addr in &nameservers {
+                                            if let Some(existing) = existing.remove(addr) {
+                                                new.push((*addr, existing));
+                                            } else {
+                                                let client = if let Ok((client, bg_thread)) =
+                                                    Client::connect(
+                                                        UdpClientStream::builder(
+                                                            *addr,
+                                                            TokioRuntimeProvider::new(),
+                                                        )
+                                                        .build(),
+                                                    )
+                                                    .await
+                                                {
+                                                    bg.insert(*addr, bg_thread.boxed());
+                                                    client
+                                                } else {
+                                                    let (stream, sender) = TcpClientStream::new(
+                                                        *addr,
+                                                        None,
+                                                        Some(Duration::from_secs(30)),
+                                                        TokioRuntimeProvider::new(),
+                                                    );
+                                                    let (client, bg_thread) =
+                                                        Client::new(stream, sender, None)
+                                                            .await
+                                                            .with_kind(ErrorKind::Network)?;
+                                                    bg.insert(*addr, bg_thread.boxed());
+                                                    client
+                                                };
+                                                new.push((*addr, client));
+                                            }
+                                        }
+                                        bg.retain(|n, _| nameservers.iter().any(|a| a == n));
+                                        prev_nameservers = nameservers;
+                                        client.replace(new);
+                                    }
+                                    futures::future::select(
+                                        static_changed.recv().boxed(),
+                                        futures::future::join(
+                                            futures::future::join_all(bg.values_mut()),
+                                            futures::future::pending::<()>(),
+                                        ),
+                                    )
+                                    .await;
+                                }
                             }
+                            .await
+                            {
+                                tracing::error!("{e}");
+                                tracing::debug!("{e:?}");
+                            }
+                            tokio::time::sleep(Duration::from_secs(1)).await;
                         }
-                    }
-                    .await
-                    {
-                        tracing::error!("{e}");
-                        tracing::debug!("{e:?}");
-                    }
-                }
+                    })
+                    .await;
             })
             .into(),
         }

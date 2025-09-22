@@ -34,6 +34,10 @@ pub fn net_api<C: Context>() -> ParentHandler<C> {
             dns::dns_api::<C>().with_about("Manage and query DNS"),
         )
         .subcommand(
+            "forward",
+            forward::forward_api::<C>().with_about("Manage port forwards"),
+        )
+        .subcommand(
             "gateway",
             gateway::gateway_api::<C>().with_about("View and edit gateway configurations"),
         )

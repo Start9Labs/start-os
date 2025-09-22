@@ -14,10 +14,10 @@ use ::serde::{Deserialize, Serialize};
 use async_trait::async_trait;
 use color_eyre::eyre::{self, eyre};
 use fd_lock_rs::FdLock;
-use futures::FutureExt;
 use futures::future::BoxFuture;
-pub use helpers::NonDetachingJoinHandle;
+use futures::FutureExt;
 use helpers::canonicalize;
+pub use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use lazy_static::lazy_static;
 pub use models::VersionString;
@@ -25,7 +25,7 @@ use pin_project::pin_project;
 use sha2::Digest;
 use tokio::fs::File;
 use tokio::io::{AsyncRead, AsyncReadExt, BufReader};
-use tokio::sync::{Mutex, OwnedMutexGuard, RwLock, oneshot};
+use tokio::sync::{oneshot, Mutex, OwnedMutexGuard, RwLock};
 use tracing::instrument;
 use ts_rs::TS;
 use url::Url;
@@ -197,17 +197,17 @@ impl<'a> Invoke<'a> for ExtendedCommand<'a> {
     }
     #[instrument(skip_all)]
     async fn invoke(&mut self, error_kind: crate::ErrorKind) -> Result<Vec<u8>, Error> {
-        let cmd_str = self
-            .cmd
-            .as_std()
-            .get_program()
-            .to_string_lossy()
-            .into_owned();
         self.cmd.kill_on_drop(true);
         if self.input.is_some() {
             self.cmd.stdin(Stdio::piped());
         }
         if self.pipe.is_empty() {
+            let cmd_str = self
+                .cmd
+                .as_std()
+                .get_program()
+                .to_string_lossy()
+                .into_owned();
             if self.capture {
                 self.cmd.stdout(Stdio::piped());
                 self.cmd.stderr(Stdio::piped());
@@ -256,6 +256,7 @@ impl<'a> Invoke<'a> for ExtendedCommand<'a> {
                 .take()
                 .map(|i| Box::new(i) as Box<dyn AsyncRead + Unpin + Send>);
             for (idx, cmd) in IntoIterator::into_iter(cmds).enumerate() {
+                let cmd_str = cmd.as_std().get_program().to_string_lossy().into_owned();
                 let last = idx == len - 1;
                 if self.capture || !last {
                     cmd.stdout(Stdio::piped());

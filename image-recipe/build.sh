@@ -231,7 +231,6 @@ lb chroot
 lb installer
 lb binary_chroot
 lb chroot_prep install all mode-apt-install-binary mode-archives-chroot
-ln -sf /run/systemd/resolve/stub-resolv.conf chroot/chroot/etc/resolv.conf
 lb binary_rootfs
 
 cp $prep_results_dir/binary/live/filesystem.squashfs $RESULTS_DIR/$IMAGE_BASENAME.squashfs

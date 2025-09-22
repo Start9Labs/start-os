@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 use chrono::{DateTime, Utc};
@@ -202,8 +202,10 @@ pub struct NetworkInfo {
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct DnsSettings {
-    pub dhcp_servers: Vec<SocketAddr>,
-    pub static_servers: Option<Vec<SocketAddr>>,
+    #[ts(type = "string[]")]
+    pub dhcp_servers: VecDeque<SocketAddr>,
+    #[ts(type = "string[] | null")]
+    pub static_servers: Option<VecDeque<SocketAddr>>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, TS)]
