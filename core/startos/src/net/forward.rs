@@ -7,16 +7,19 @@ use helpers::NonDetachingJoinHandle;
 use id_pool::IdPool;
 use imbl::OrdMap;
 use models::GatewayId;
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::mpsc;
 
+use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::NetworkInterfaceInfo;
-use crate::net::gateway::{DynInterfaceFilter, InterfaceFilter};
+use crate::net::gateway::{DynInterfaceFilter, InterfaceFilter, SecureFilter};
 use crate::net::utils::ipv6_is_link_local;
 use crate::prelude::*;
-use crate::util::Invoke;
+use crate::util::serde::{display_serializable, HandlerExtSerde};
 use crate::util::sync::Watch;
+use crate::util::Invoke;
 
 pub const START9_BRIDGE_IFACE: &str = "lxcbr0";
 pub const FIRST_DYNAMIC_PRIVATE_PORT: u16 = 49152;
@@ -42,6 +45,42 @@ impl AvailablePorts {
     }
 }
 
+pub fn forward_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new().subcommand(
+        "dump-table",
+        from_fn_async(
+            |ctx: RpcContext| async move { ctx.net_controller.forward.dump_table().await },
+        )
+        .with_display_serializable()
+        .with_custom_display_fn(|HandlerArgs { params, .. }, res| {
+            use prettytable::*;
+
+            if let Some(format) = params.format {
+                return display_serializable(format, res);
+            }
+
+            let mut table = Table::new();
+            table.add_row(row![bc => "FROM", "TO", "FILTER / GATEWAY"]);
+
+            for (external, target) in res.0 {
+                table.add_row(row![external, target.target, target.filter]);
+                for (source, gateway) in target.gateways {
+                    table.add_row(row![
+                        format!("{}:{}", source, external),
+                        target.target,
+                        gateway
+                    ]);
+                }
+            }
+
+            table.print_tty(false)?;
+
+            Ok(())
+        })
+        .with_call_remote::<CliContext>(),
+    )
+}
+
 struct ForwardRequest {
     external: u16,
     target: SocketAddr,
@@ -49,6 +88,7 @@ struct ForwardRequest {
     rc: Weak<()>,
 }
 
+#[derive(Clone)]
 struct ForwardEntry {
     external: u16,
     target: SocketAddr,
@@ -96,7 +136,7 @@ impl ForwardEntry {
         let mut keep = BTreeSet::<SocketAddr>::new();
         for (iface, info) in ip_info
             .iter()
-            .chain([NetworkInterfaceInfo::loopback()])
+            // .chain([NetworkInterfaceInfo::loopback()])
             .filter(|(id, info)| filter_ref.filter(*id, *info))
         {
             if let Some(ip_info) = &info.ip_info {
@@ -155,10 +195,9 @@ impl ForwardEntry {
             *self = Self::new(external, target, rc);
             self.update(ip_info, Some(filter)).await?;
         } else {
-            if self.prev_filter != filter {
-                self.update(ip_info, Some(filter)).await?;
-            }
             self.rc = rc;
+            self.update(ip_info, Some(filter).filter(|f| f != &self.prev_filter))
+                .await?;
         }
         Ok(())
     }
@@ -174,7 +213,7 @@ impl Drop for ForwardEntry {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct ForwardState {
     state: BTreeMap<u16, ForwardEntry>,
 }
@@ -197,7 +236,7 @@ impl ForwardState {
         for entry in self.state.values_mut() {
             entry.update(ip_info, None).await?;
         }
-        self.state.retain(|_, fwd| !fwd.forwards.is_empty());
+        self.state.retain(|_, fwd| fwd.rc.strong_count() > 0);
         Ok(())
     }
 }
@@ -209,28 +248,68 @@ fn err_has_exited<T>(_: T) -> Error {
     )
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ForwardTable(pub BTreeMap<u16, ForwardTarget>);
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ForwardTarget {
+    pub target: SocketAddr,
+    pub filter: String,
+    pub gateways: BTreeMap<SocketAddr, GatewayId>,
+}
+impl From<&ForwardState> for ForwardTable {
+    fn from(value: &ForwardState) -> Self {
+        Self(
+            value
+                .state
+                .iter()
+                .map(|(external, entry)| {
+                    (
+                        *external,
+                        ForwardTarget {
+                            target: entry.target,
+                            filter: format!("{:?}", entry.prev_filter),
+                            gateways: entry.forwards.clone(),
+                        },
+                    )
+                })
+                .collect(),
+        )
+    }
+}
+
+enum ForwardCommand {
+    Forward(ForwardRequest, oneshot::Sender<Result<(), Error>>),
+    Sync(oneshot::Sender<Result<(), Error>>),
+    DumpTable(oneshot::Sender<ForwardTable>),
+}
+
+#[test]
+fn test() {
+    assert_ne!(
+        false.into_dyn(),
+        SecureFilter { secure: false }.into_dyn().into_dyn()
+    );
+}
+
 pub struct PortForwardController {
-    req: mpsc::UnboundedSender<(Option<ForwardRequest>, oneshot::Sender<Result<(), Error>>)>,
+    req: mpsc::UnboundedSender<ForwardCommand>,
     _thread: NonDetachingJoinHandle<()>,
 }
 impl PortForwardController {
     pub fn new(mut ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>) -> Self {
-        let (req_send, mut req_recv) = mpsc::unbounded_channel::<(
-            Option<ForwardRequest>,
-            oneshot::Sender<Result<(), Error>>,
-        )>();
+        let (req_send, mut req_recv) = mpsc::unbounded_channel::<ForwardCommand>();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
             let mut state = ForwardState::default();
             let mut interfaces = ip_info.read_and_mark_seen();
             loop {
                 tokio::select! {
                     msg = req_recv.recv() => {
-                        if let Some((msg, re)) = msg {
-                            if let Some(req) = msg {
-                                re.send(state.handle_request(req, &interfaces).await).ok();
-                            } else {
-                                re.send(state.sync(&interfaces).await).ok();
-                            }
+                        if let Some(cmd) = msg {
+                            match cmd {
+                                ForwardCommand::Forward(req, re) => re.send(state.handle_request(req, &interfaces).await).ok(),
+                                ForwardCommand::Sync(re) => re.send(state.sync(&interfaces).await).ok(),
+                                ForwardCommand::DumpTable(re) => re.send((&state).into()).ok(),
+                            };
                         } else {
                             break;
                         }
@@ -250,19 +329,19 @@ impl PortForwardController {
     pub async fn add(
         &self,
         external: u16,
-        filter: impl InterfaceFilter,
+        filter: DynInterfaceFilter,
         target: SocketAddr,
     ) -> Result<Arc<()>, Error> {
         let rc = Arc::new(());
         let (send, recv) = oneshot::channel();
         self.req
-            .send((
-                Some(ForwardRequest {
+            .send(ForwardCommand::Forward(
+                ForwardRequest {
                     external,
                     target,
-                    filter: filter.into_dyn(),
+                    filter,
                     rc: Arc::downgrade(&rc),
-                }),
+                },
                 send,
             ))
             .map_err(err_has_exited)?;
@@ -271,13 +350,25 @@ impl PortForwardController {
     }
     pub async fn gc(&self) -> Result<(), Error> {
         let (send, recv) = oneshot::channel();
-        self.req.send((None, send)).map_err(err_has_exited)?;
+        self.req
+            .send(ForwardCommand::Sync(send))
+            .map_err(err_has_exited)?;
 
         recv.await.map_err(err_has_exited)?
+    }
+    pub async fn dump_table(&self) -> Result<ForwardTable, Error> {
+        let (req, res) = oneshot::channel();
+        self.req
+            .send(ForwardCommand::DumpTable(req))
+            .map_err(err_has_exited)?;
+        res.await.map_err(err_has_exited)
     }
 }
 
 async fn forward(interface: &str, source: SocketAddr, target: SocketAddr) -> Result<(), Error> {
+    if source.is_ipv6() {
+        return Ok(()); // TODO: socat? ip6tables?
+    }
     Command::new("/usr/lib/startos/scripts/forward-port")
         .env("iiface", interface)
         .env("oiface", START9_BRIDGE_IFACE)
@@ -291,6 +382,9 @@ async fn forward(interface: &str, source: SocketAddr, target: SocketAddr) -> Res
 }
 
 async fn unforward(interface: &str, source: SocketAddr, target: SocketAddr) -> Result<(), Error> {
+    if source.is_ipv6() {
+        return Ok(()); // TODO: socat? ip6tables?
+    }
     Command::new("/usr/lib/startos/scripts/forward-port")
         .env("UNDO", "1")
         .env("iiface", interface)

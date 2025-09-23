@@ -3,13 +3,13 @@ use std::fmt;
 use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
-use clap::Parser;
 use clap::builder::ValueParserFactory;
+use clap::Parser;
 use color_eyre::eyre::eyre;
 use helpers::const_true;
 use imbl_value::InternedString;
 use models::{FromStrParser, PackageId};
-use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
@@ -155,6 +155,16 @@ pub async fn remove(
             for id in ids {
                 n.remove(&id)?;
             }
+            let mut unread = 0;
+            for (_, n) in n.as_entries()? {
+                if !n.as_seen().de()? {
+                    unread += 1;
+                }
+            }
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_unread_notification_count_mut()
+                .ser(&unread)?;
             Ok(())
         })
         .await
@@ -179,6 +189,16 @@ pub async fn remove_before(
             for id in n.keys()?.range(..before) {
                 n.remove(&id)?;
             }
+            let mut unread = 0;
+            for (_, n) in n.as_entries()? {
+                if !n.as_seen().de()? {
+                    unread += 1;
+                }
+            }
+            db.as_public_mut()
+                .as_server_info_mut()
+                .as_unread_notification_count_mut()
+                .ser(&unread)?;
             Ok(())
         })
         .await

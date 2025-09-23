@@ -1329,6 +1329,9 @@ impl InterfaceFilter for DynInterfaceFilter {
     fn as_any(&self) -> &dyn Any {
         self.0.as_any()
     }
+    fn into_dyn(self) -> DynInterfaceFilter {
+        self
+    }
 }
 impl DynInterfaceFilter {
     fn new<T: InterfaceFilter>(value: T) -> Self {

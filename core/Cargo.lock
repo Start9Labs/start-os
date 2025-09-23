@@ -4632,6 +4632,7 @@ dependencies = [
  "tokio",
  "tracing",
  "ts-rs",
+ "typeid",
  "yasi",
  "zbus",
 ]
@@ -7265,7 +7266,7 @@ checksum = "a8f112729512f8e442d81f95a8a7ddf2b7c6b8a1a6f509a95864142b30cab2d3"
 
 [[package]]
 name = "start-os"
-version = "0.4.0-alpha.10"
+version = "0.4.0-alpha.11"
 dependencies = [
  "aes 0.7.5",
  "arti-client",
@@ -9248,6 +9249,12 @@ dependencies = [
  "bincode 2.0.1",
  "serde",
 ]
+
+[[package]]
+name = "typeid"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc7d623258602320d5c55d1bc22793b57daff0ec7efc270ea7d55ce1d5f5471c"
 
 [[package]]
 name = "typenum"
