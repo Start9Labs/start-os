@@ -188,6 +188,7 @@ impl Display for ErrorKind {
 #[derive(Debug)]
 pub struct Error {
     pub source: color_eyre::eyre::Error,
+    pub debug: Option<color_eyre::eyre::Error>,
     pub kind: ErrorKind,
     pub revision: Option<Revision>,
     pub task: Option<JoinHandle<()>>,
@@ -199,9 +200,15 @@ impl Display for Error {
     }
 }
 impl Error {
-    pub fn new<E: Into<color_eyre::eyre::Error>>(source: E, kind: ErrorKind) -> Self {
+    pub fn new<E: Into<color_eyre::eyre::Error> + std::fmt::Debug + 'static>(
+        source: E,
+        kind: ErrorKind,
+    ) -> Self {
+        let debug = (typeid::of::<E>() == typeid::of::<color_eyre::eyre::Error>())
+            .then(|| eyre!("{source:?}"));
         Error {
             source: source.into(),
+            debug,
             kind,
             revision: None,
             task: None,
@@ -209,11 +216,8 @@ impl Error {
     }
     pub fn clone_output(&self) -> Self {
         Error {
-            source: ErrorData {
-                details: format!("{}", self.source),
-                debug: format!("{:?}", self.source),
-            }
-            .into(),
+            source: eyre!("{}", self.source),
+            debug: self.debug.as_ref().map(|e| eyre!("{e}")),
             kind: self.kind,
             revision: self.revision.clone(),
             task: None,
@@ -539,25 +543,24 @@ where
 impl<T, E> ResultExt<T, E> for Result<T, E>
 where
     color_eyre::eyre::Error: From<E>,
+    E: std::fmt::Debug + 'static,
 {
     fn with_kind(self, kind: ErrorKind) -> Result<T, Error> {
-        self.map_err(|e| Error {
-            source: e.into(),
-            kind,
-            revision: None,
-            task: None,
-        })
+        self.map_err(|e| Error::new(e, kind))
     }
 
     fn with_ctx<F: FnOnce(&E) -> (ErrorKind, D), D: Display>(self, f: F) -> Result<T, Error> {
         self.map_err(|e| {
             let (kind, ctx) = f(&e);
+            let debug = (typeid::of::<E>() == typeid::of::<color_eyre::eyre::Error>())
+                .then(|| eyre!("{ctx}: {e:?}"));
             let source = color_eyre::eyre::Error::from(e);
-            let ctx = format!("{}: {}", ctx, source);
-            let source = source.wrap_err(ctx);
+            let with_ctx = format!("{ctx}: {source}");
+            let source = source.wrap_err(with_ctx);
             Error {
                 kind,
                 source,
+                debug,
                 revision: None,
                 task: None,
             }
@@ -578,25 +581,24 @@ where
 }
 impl<T> ResultExt<T, Error> for Result<T, Error> {
     fn with_kind(self, kind: ErrorKind) -> Result<T, Error> {
-        self.map_err(|e| Error {
-            source: e.source,
-            kind,
-            revision: e.revision,
-            task: e.task,
-        })
+        self.map_err(|e| Error { kind, ..e })
     }
 
     fn with_ctx<F: FnOnce(&Error) -> (ErrorKind, D), D: Display>(self, f: F) -> Result<T, Error> {
         self.map_err(|e| {
             let (kind, ctx) = f(&e);
             let source = e.source;
-            let ctx = format!("{}: {}", ctx, source);
-            let source = source.wrap_err(ctx);
+            let with_ctx = format!("{ctx}: {source}");
+            let source = source.wrap_err(with_ctx);
+            let debug = e.debug.map(|e| {
+                let with_ctx = format!("{ctx}: {e}");
+                e.wrap_err(with_ctx)
+            });
             Error {
                 kind,
                 source,
-                revision: e.revision,
-                task: e.task,
+                debug,
+                ..e
             }
         })
     }

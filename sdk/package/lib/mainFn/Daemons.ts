@@ -164,7 +164,6 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     readonly started:
       | ((onTerm: () => PromiseLike<void>) => PromiseLike<null>)
       | null,
-    readonly daemons: Promise<Daemon<Manifest>>[],
     readonly ids: Ids[],
     readonly healthDaemons: HealthDaemon<Manifest>[],
   ) {}
@@ -193,7 +192,6 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       options.started,
       [],
       [],
-      [],
     )
   }
 
@@ -215,13 +213,11 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       ready,
       this.effects,
     )
-    const daemons = daemon ? [...this.daemons, daemon] : [...this.daemons]
     const ids = [...this.ids, id] as (Ids | Id)[]
     const healthDaemons = [...this.healthDaemons, healthDaemon]
     return new Daemons<Manifest, Ids | Id>(
       this.effects,
       this.started,
-      daemons,
       ids,
       healthDaemons,
     )
@@ -358,7 +354,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     const prev = this
     const res = (options: AddHealthCheckParams<Ids, Id> | null) => {
       if (!options) return prev
-      return prev.addDaemonImpl(id, null, options.requires, EXIT_SUCCESS)
+      return prev.addDaemonImpl(id, null, options.requires, options.ready)
     }
     if (options instanceof Function) {
       const opts = options()
@@ -404,7 +400,6 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     const daemons = await new Daemons<Manifest, Ids>(
       this.effects,
       this.started,
-      [...this.daemons, daemon],
       this.ids,
       [...this.healthDaemons, healthDaemon],
     ).build()

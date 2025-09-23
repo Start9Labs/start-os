@@ -35,5 +35,6 @@ ts-rs = "9"
 thiserror = "2.0"
 tokio = { version = "1", features = ["full"] }
 tracing = "0.1.39"
+typeid = "1"
 yasi = { version = "0.1.6", features = ["serde", "ts-rs"] }
 zbus = "5"

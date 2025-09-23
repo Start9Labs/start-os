@@ -10,8 +10,8 @@ use tracing::instrument;
 
 use super::filesystem::{FileSystem, MountType, ReadOnly, ReadWrite};
 use super::util::unmount;
-use crate::Error;
 use crate::util::{Invoke, Never};
+use crate::Error;
 
 pub const TMP_MOUNTPOINT: &'static str = "/media/startos/tmp";
 
@@ -74,7 +74,7 @@ impl MountGuard {
     }
     pub async fn unmount(mut self, delete_mountpoint: bool) -> Result<(), Error> {
         if self.mounted {
-            unmount(&self.mountpoint, false).await?;
+            unmount(&self.mountpoint, !cfg!(feature = "unstable")).await?;
             if delete_mountpoint {
                 match tokio::fs::remove_dir(&self.mountpoint).await {
                     Err(e) if e.raw_os_error() == Some(39) => Ok(()), // directory not empty

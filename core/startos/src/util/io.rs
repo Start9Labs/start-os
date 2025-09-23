@@ -1575,7 +1575,7 @@ pub fn file_string_stream(
             loop {
                 match stream.watches().add(
                     &path,
-                    WatchMask::MODIFY | WatchMask::MOVE_SELF | WatchMask::MOVED_TO | WatchMask::DELETE_SELF,
+                    WatchMask::MODIFY | WatchMask::CLOSE_WRITE | WatchMask::MOVE_SELF | WatchMask::MOVED_TO | WatchMask::DELETE_SELF,
                 ) {
                     Ok(_) => break,
                     Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
