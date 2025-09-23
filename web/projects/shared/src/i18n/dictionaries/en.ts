@@ -501,7 +501,7 @@ export const ENGLISH = {
   'Error initializing server': 531,
   'Finished': 532, // an in, complete
   'Gateways': 533, // as in, a device or software that connects two different networks
-  'Add gateway': 535, // as in, add a new network gateway to StartOS
+  'Add StartTunnel Gateway': 535, // as in, add a new StartTunnel network gateway to StartOS
   'Rename': 536,
   'Access': 537, // as in, public or private access, almost "permission"
   'Public Domains': 538, // as in, internet domains
@@ -534,10 +534,8 @@ export const ENGLISH = {
   'Select a Certificate Authority to issue SSL/TLS certificates for this domain': 569,
   'Other': 570, // as in, a list option to indicate none of the options listed
   'A name to easily identify the gateway': 571,
-  'select this option if the gateway is configured for private access to authorized clients only. StartTunnel is a private gateway.': 572,
-  'select this option if the gateway is configured for unfettered public access.': 573,
   'File': 574, // as in, a computer file
-  'Wireguard Config File': 575,
+  'StartTunnel Config File': 575,
   'Copy/Paste': 576,
   'File Contents': 577,
   'Public Key': 578, // as in, a cryptographic public key
@@ -549,7 +547,7 @@ export const ENGLISH = {
   'Connections can be slow or unreliable at times': 584,
   'Public if you share the address publicly, otherwise private': 585,
   'Requires using a Tor-enabled device or browser': 586,
-  'Only useful for clients that enforce HTTPS': 587,
+  'Only useful for clients that require SSL': 587,
   'Ideal for anonymous, censorship-resistant hosting and remote access': 588,
   'Ideal for local access': 589,
   'Requires being connected to the same Local Area Network (LAN) as your server, either physically or via VPN': 590,
@@ -588,4 +586,5 @@ export const ENGLISH = {
   'Alternative Implementations': 623,
   'Versions': 624,
   'Select another version': 625,
+  'Upload': 626, // as in, upload a file
 } as const

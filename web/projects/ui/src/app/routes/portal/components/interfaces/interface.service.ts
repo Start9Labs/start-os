@@ -335,24 +335,21 @@ export class InterfaceService {
         ),
         this.i18n.transform('Requires using a Tor-enabled device or browser'),
       ]
-      // Tor (HTTPS)
-      if (url.startsWith('https:')) {
-        type = `${type} (HTTPS)`
+      // Tor (SSL)
+      if (info.hostname.sslPort) {
+        type = `${type} (SSL)`
         bullets = [
-          this.i18n.transform('Only useful for clients that enforce HTTPS'),
+          this.i18n.transform('Only useful for clients that require SSL'),
           rootCaRequired,
           ...bullets,
         ]
-        // Tor (HTTP)
+        // Tor (NON-SSL)
       } else {
         bullets.unshift(
           this.i18n.transform(
             'Ideal for anonymous, censorship-resistant hosting and remote access',
           ),
         )
-        if (url.startsWith('http:')) {
-          type = `${type} (HTTP)`
-        }
       }
       // ** Not Tor **
     } else {
