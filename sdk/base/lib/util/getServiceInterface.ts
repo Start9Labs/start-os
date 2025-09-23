@@ -87,7 +87,10 @@ type FormatReturnTy<
 export type Filled = {
   hostnames: HostnameInfo[]
 
-  toUrl: (h: HostnameInfo) => UrlString[]
+  toUrls: (h: HostnameInfo) => {
+    url: UrlString | null
+    sslUrl: UrlString | null
+  }
 
   filter: <F extends Filter, Format extends Formats = "urlstring">(
     filter: F,
@@ -139,7 +142,7 @@ const unique = <A>(values: A[]) => Array.from(new Set(values))
 export const addressHostToUrl = (
   { scheme, sslScheme, username, suffix }: AddressInfo,
   hostname: HostnameInfo,
-): UrlString[] => {
+): { url: UrlString | null; sslUrl: UrlString | null } => {
   const res = []
   const fmt = (scheme: string | null, host: HostnameInfo, port: number) => {
     const excludePort =
@@ -164,14 +167,16 @@ export const addressHostToUrl = (
       username ? `${username}@` : ""
     }${hostname}${excludePort ? "" : `:${port}`}${suffix}`
   }
+  let url = null
   if (hostname.hostname.sslPort !== null) {
-    res.push(fmt(sslScheme, hostname, hostname.hostname.sslPort))
+    url = fmt(sslScheme, hostname, hostname.hostname.sslPort)
   }
+  let sslUrl = null
   if (hostname.hostname.port !== null) {
-    res.push(fmt(scheme, hostname, hostname.hostname.port))
+    sslUrl = fmt(scheme, hostname, hostname.hostname.port)
   }
 
-  return res
+  return { url, sslUrl }
 }
 
 function filterRec(
@@ -223,13 +228,17 @@ export const filledAddress = (
   host: Host,
   addressInfo: AddressInfo,
 ): FilledAddressInfo => {
-  const toUrl = addressHostToUrl.bind(null, addressInfo)
+  const toUrls = addressHostToUrl.bind(null, addressInfo)
+  const toUrlArray = (h: HostnameInfo) => {
+    const u = toUrls(h)
+    return [u.url, u.sslUrl].filter((u) => u !== null)
+  }
   const hostnames = host.hostnameInfo[addressInfo.internalPort] ?? []
 
   return {
     ...addressInfo,
     hostnames,
-    toUrl,
+    toUrls,
     filter: <F extends Filter, Format extends Formats = "urlstring">(
       filter: F,
       format?: Format,
@@ -237,7 +246,7 @@ export const filledAddress = (
       const filtered = filterRec(hostnames, filter, false)
       let res: FormatReturnTy<F, Format>[] = filtered as any
       if (format === "hostname-info") return res
-      const urls = filtered.flatMap(toUrl)
+      const urls = filtered.flatMap(toUrlArray)
       if (format === "url") res = urls.map((u) => new URL(u)) as any
       else res = urls as any
       return res
@@ -279,28 +288,28 @@ export const filledAddress = (
       )
     },
     get urls() {
-      return this.hostnames.flatMap(toUrl)
+      return this.hostnames.flatMap(toUrlArray)
     },
     get publicUrls() {
-      return this.publicHostnames.flatMap(toUrl)
+      return this.publicHostnames.flatMap(toUrlArray)
     },
     get onionUrls() {
-      return this.onionHostnames.flatMap(toUrl)
+      return this.onionHostnames.flatMap(toUrlArray)
     },
     get localUrls() {
-      return this.localHostnames.flatMap(toUrl)
+      return this.localHostnames.flatMap(toUrlArray)
     },
     get ipUrls() {
-      return this.ipHostnames.flatMap(toUrl)
+      return this.ipHostnames.flatMap(toUrlArray)
     },
     get ipv4Urls() {
-      return this.ipv4Hostnames.flatMap(toUrl)
+      return this.ipv4Hostnames.flatMap(toUrlArray)
     },
     get ipv6Urls() {
-      return this.ipv6Hostnames.flatMap(toUrl)
+      return this.ipv6Hostnames.flatMap(toUrlArray)
     },
     get nonIpUrls() {
-      return this.nonIpHostnames.flatMap(toUrl)
+      return this.nonIpHostnames.flatMap(toUrlArray)
     },
   }
 }

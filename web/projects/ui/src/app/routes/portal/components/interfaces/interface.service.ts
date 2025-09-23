@@ -7,6 +7,7 @@ import { i18nKey, i18nPipe } from '@start9labs/shared'
 
 type AddressWithInfo = {
   url: string
+  ssl: boolean
   info: T.HostnameInfo
   gateway?: GatewayPlus
 }
@@ -132,12 +133,25 @@ export class InterfaceService {
 
     if (!hostnamesInfos.length) return addresses
 
-    const allAddressesWithInfo: AddressWithInfo[] = hostnamesInfos.flatMap(h =>
-      utils.addressHostToUrl(serviceInterface.addressInfo, h).map(url => ({
-        url,
-        info: h,
-        gateway: gateways.find(g => h.kind === 'ip' && h.gateway.id === g.id),
-      })),
+    const allAddressesWithInfo: AddressWithInfo[] = hostnamesInfos.flatMap(
+      h => {
+        const { url, sslUrl } = utils.addressHostToUrl(
+          serviceInterface.addressInfo,
+          h,
+        )
+        const info = h
+        const gateway = gateways.find(
+          g => h.kind === 'ip' && h.gateway.id === g.id,
+        )
+        const res = []
+        if (url) {
+          res.push({ url, ssl: false, info, gateway })
+        }
+        if (sslUrl) {
+          res.push({ url: sslUrl, ssl: true, info, gateway })
+        }
+        return res
+      },
     )
 
     const torAddrs = allAddressesWithInfo.filter(filterTor).sort(cmpTor)
@@ -311,7 +325,7 @@ export class InterfaceService {
   }
 
   private toDisplayAddress(
-    { info, url, gateway }: AddressWithInfo,
+    { info, ssl, url, gateway }: AddressWithInfo,
     publicDomains: Record<string, T.PublicDomainConfig>,
   ): DisplayAddress {
     let access: DisplayAddress['access']
@@ -336,7 +350,7 @@ export class InterfaceService {
         this.i18n.transform('Requires using a Tor-enabled device or browser'),
       ]
       // Tor (SSL)
-      if (info.hostname.sslPort) {
+      if (ssl) {
         type = `${type} (SSL)`
         bullets = [
           this.i18n.transform('Only useful for clients that require SSL'),
