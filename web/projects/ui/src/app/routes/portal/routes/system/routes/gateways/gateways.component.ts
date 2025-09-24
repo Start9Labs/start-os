@@ -83,18 +83,10 @@ export default class GatewaysComponent {
         ),
         required: true,
         default: null,
-      }),
-      type: ISB.Value.select({
-        name: this.i18n.transform('Type'),
-        description: `-**${this.i18n.transform('private')}**: ${this.i18n.transform('select this option if the gateway is configured for private access to authorized clients only. StartTunnel is a private gateway.')}\n-**${this.i18n.transform('public')}**: ${this.i18n.transform('select this option if the gateway is configured for unfettered public access.')}`,
-        default: 'private',
-        values: {
-          private: this.i18n.transform('private'),
-          public: this.i18n.transform('public'),
-        },
+        placeholder: 'StartTunnel 1',
       }),
       config: ISB.Value.union({
-        name: this.i18n.transform('Wireguard Config File'),
+        name: this.i18n.transform('StartTunnel Config File'),
         default: 'paste',
         variants: ISB.Variants.of({
           paste: {
@@ -108,7 +100,7 @@ export default class GatewaysComponent {
             }),
           },
           select: {
-            name: this.i18n.transform('Select'),
+            name: this.i18n.transform('Upload'),
             spec: ISB.InputSpec.of({
               file: ISB.Value.file({
                 name: this.i18n.transform('File'),
@@ -122,7 +114,7 @@ export default class GatewaysComponent {
     })
 
     this.formDialog.open(FormComponent, {
-      label: 'Add gateway',
+      label: 'Add StartTunnel Gateway',
       data: {
         spec: await configBuilderToSpec(spec),
         buttons: [
@@ -138,7 +130,7 @@ export default class GatewaysComponent {
                     input.config.selection === 'paste'
                       ? input.config.value.file
                       : await (input.config.value.file as any as File).text(),
-                  public: input.type === 'public',
+                  public: false,
                 })
                 return true
               } catch (e: any) {

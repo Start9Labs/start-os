@@ -7,6 +7,7 @@ import { i18nKey, i18nPipe } from '@start9labs/shared'
 
 type AddressWithInfo = {
   url: string
+  ssl: boolean
   info: T.HostnameInfo
   gateway?: GatewayPlus
 }
@@ -132,12 +133,26 @@ export class InterfaceService {
 
     if (!hostnamesInfos.length) return addresses
 
-    const allAddressesWithInfo: AddressWithInfo[] = hostnamesInfos.flatMap(h =>
-      utils.addressHostToUrl(serviceInterface.addressInfo, h).map(url => ({
-        url,
-        info: h,
-        gateway: gateways.find(g => h.kind === 'ip' && h.gateway.id === g.id),
-      })),
+    const allAddressesWithInfo: AddressWithInfo[] = hostnamesInfos.flatMap(
+      h => {
+        const { url, sslUrl } = utils.addressHostToUrl(
+          serviceInterface.addressInfo,
+          h,
+        )
+        const info = h
+        const gateway =
+          h.kind === 'ip'
+            ? gateways.find(g => h.gateway.id === g.id)
+            : undefined
+        const res = []
+        if (url) {
+          res.push({ url, ssl: false, info, gateway })
+        }
+        if (sslUrl) {
+          res.push({ url: sslUrl, ssl: true, info, gateway })
+        }
+        return res
+      },
     )
 
     const torAddrs = allAddressesWithInfo.filter(filterTor).sort(cmpTor)
@@ -311,7 +326,7 @@ export class InterfaceService {
   }
 
   private toDisplayAddress(
-    { info, url, gateway }: AddressWithInfo,
+    { info, ssl, url, gateway }: AddressWithInfo,
     publicDomains: Record<string, T.PublicDomainConfig>,
   ): DisplayAddress {
     let access: DisplayAddress['access']
@@ -335,33 +350,29 @@ export class InterfaceService {
         ),
         this.i18n.transform('Requires using a Tor-enabled device or browser'),
       ]
-      // Tor (HTTPS)
-      if (url.startsWith('https:')) {
-        type = `${type} (HTTPS)`
+      // Tor (SSL)
+      if (ssl) {
+        type = `${type} (SSL)`
         bullets = [
-          this.i18n.transform('Only useful for clients that enforce HTTPS'),
+          this.i18n.transform('Only useful for clients that require SSL'),
           rootCaRequired,
           ...bullets,
         ]
-        // Tor (HTTP)
+        // Tor (NON-SSL)
       } else {
         bullets.unshift(
           this.i18n.transform(
             'Ideal for anonymous, censorship-resistant hosting and remote access',
           ),
         )
-        if (url.startsWith('http:')) {
-          type = `${type} (HTTP)`
-        }
       }
       // ** Not Tor **
     } else {
       const port = info.hostname.sslPort || info.hostname.port
-      const g = gateway!
-      gatewayName = g.name
+      gatewayName = info.gateway.name
 
-      const gatewayLanIpv4 = g.lanIpv4[0]
-      const isWireguard = g.ipInfo.deviceType === 'wireguard'
+      const gatewayLanIpv4 = gateway?.lanIpv4[0]
+      const isWireguard = gateway?.ipInfo.deviceType === 'wireguard'
 
       const localIdeal = this.i18n.transform('Ideal for local access')
       const lanRequired = this.i18n.transform(
@@ -402,9 +413,9 @@ export class InterfaceService {
             ),
             rootCaRequired,
           ]
-          if (!g.public) {
+          if (!info.gateway.public) {
             bullets.push(
-              `${portForwarding} "${gatewayName}": ${port} -> ${g.subnets.find(s => s.isIpv4())?.address}:${port}`,
+              `${portForwarding} "${gatewayName}": ${port} -> ${gateway?.subnets.find(s => s.isIpv4())?.address}:${port}`,
             )
           }
         } else {
@@ -436,12 +447,12 @@ export class InterfaceService {
         if (info.public) {
           access = 'public'
           bullets = [
-            `${dnsFor} ${info.hostname.value} ${resolvesTo} ${g.ipInfo.wanIp}`,
+            `${dnsFor} ${info.hostname.value} ${resolvesTo} ${gateway?.ipInfo.wanIp}`,
           ]
 
-          if (!g.public) {
+          if (!info.gateway.public) {
             bullets.push(
-              `${portForwarding} "${gatewayName}": ${port} -> ${g.subnets.find(s => s.isIpv4())?.address}:${port === 443 ? 5443 : port}`,
+              `${portForwarding} "${gatewayName}": ${port} -> ${gateway?.subnets.find(s => s.isIpv4())?.address}:${port === 443 ? 5443 : port}`,
             )
           }
 
