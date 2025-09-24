@@ -135,11 +135,12 @@ impl BindInfo {
 }
 impl InterfaceFilter for NetInfo {
     fn filter(&self, id: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
-        if info.public() {
-            self.public_enabled.contains(id)
-        } else {
-            !self.private_disabled.contains(id)
-        }
+        info.ip_info.is_some()
+            && if info.public() {
+                self.public_enabled.contains(id)
+            } else {
+                !self.private_disabled.contains(id)
+            }
     }
 }
 
