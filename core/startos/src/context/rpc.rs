@@ -78,7 +78,7 @@ pub struct RpcContextSeed {
 }
 impl Drop for RpcContextSeed {
     fn drop(&mut self) {
-        tracing::error!("RpcContext is dropped");
+        tracing::info!("RpcContext is dropped");
     }
 }
 
