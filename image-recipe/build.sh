@@ -231,6 +231,8 @@ lb chroot
 lb installer
 lb binary_chroot
 lb chroot_prep install all mode-apt-install-binary mode-archives-chroot
+echo "nameserver 127.0.0.1" > chroot/chroot/etc/resolv.conf
+echo "nameserver 1.1.1.1" >> chroot/chroot/etc/resolv.conf # Cloudflare DNS Fallback
 lb binary_rootfs
 
 cp $prep_results_dir/binary/live/filesystem.squashfs $RESULTS_DIR/$IMAGE_BASENAME.squashfs

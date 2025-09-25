@@ -27,7 +27,7 @@ cd ..
 FEATURES="$(echo $ENVIRONMENT | sed 's/-/,/g')"
 RUSTFLAGS=""
 
-if [[ "${ENVIRONMENT}" =~ (^|-)unstable($|-) ]]; then
+if [[ "${ENVIRONMENT}" =~ (^|-)console($|-) ]]; then
 	RUSTFLAGS="--cfg tokio_unstable"
 fi
 

@@ -48,13 +48,14 @@ cli-registry = []
 cli-startd = []
 cli-tunnel = []
 default = ["cli", "startd", "registry", "cli-container", "tunnel"]
-dev = []
+dev = ["backtrace-on-stack-overflow"]
 docker = []
 registry = []
 startd = ["mail-send"]
 test = []
 tunnel = []
-unstable = ["console-subscriber", "tokio/tracing"]
+console = ["console-subscriber", "tokio/tracing"]
+unstable = ["backtrace-on-stack-overflow"]
 
 [dependencies]
 arti-client = { version = "0.33", features = [
@@ -82,6 +83,7 @@ async-trait = "0.1.74"
 axum = { version = "0.8.4", features = ["ws"] }
 barrage = "0.2.3"
 backhand = "0.21.0"
+backtrace-on-stack-overflow = { version = "0.3.0", optional = true }
 base32 = "0.5.0"
 base64 = "0.22.1"
 base64ct = "1.6.0"

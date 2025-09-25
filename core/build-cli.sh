@@ -46,7 +46,7 @@ if [ -n "$FEATURES" ]; then
 fi
 
 RUSTFLAGS=""
-if [[ "${ENVIRONMENT:-}" =~ (^|-)unstable($|-) ]]; then
+if [[ "${ENVIRONMENT:-}" =~ (^|-)console($|-) ]]; then
   RUSTFLAGS="--cfg tokio_unstable"
 fi
 

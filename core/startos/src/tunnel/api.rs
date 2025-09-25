@@ -2,7 +2,7 @@ use std::net::Ipv4Addr;
 
 use clap::Parser;
 use ipnet::Ipv4Net;
-use rpc_toolkit::{Context, Empty, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 
 use crate::context::CliContext;
@@ -22,7 +22,7 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
             subnet_api::<C>().with_about("Add, remove, or modify subnets"),
         )
     // .subcommand(
-    //     "forward",
+    //     "port-forward",
     //     ParentHandler::<C>::new()
     //         .subcommand(
     //             "add",
@@ -77,19 +77,19 @@ pub fn subnet_api<C: Context>() -> ParentHandler<C, SubnetParams> {
     //         .with_call_remote::<CliContext>(),
     // )
     // .subcommand(
-    //     "add-client",
-    //     from_fn_async(add_client)
+    //     "add-device",
+    //     from_fn_async(add_device)
     //         .with_metadata("sync_db", Value::Bool(true))
     //         .no_display()
-    //         .with_about("Add a client to a subnet")
+    //         .with_about("Add a device to a subnet")
     //         .with_call_remote::<CliContext>(),
     // )
     // .subcommand(
-    //     "remove-client",
-    //     from_fn_async(remove_client)
+    //     "remove-device",
+    //     from_fn_async(remove_device)
     //         .with_metadata("sync_db", Value::Bool(true))
     //         .no_display()
-    //         .with_about("Remove a client from a subnet")
+    //         .with_about("Remove a device from a subnet")
     //         .with_call_remote::<CliContext>(),
     // )
 }
