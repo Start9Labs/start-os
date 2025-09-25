@@ -132,8 +132,6 @@ async fn inner_main(
     .await?;
     rpc_ctx.shutdown().await?;
 
-    tracing::info!("RPC Context is dropped");
-
     Ok(shutdown)
 }
 

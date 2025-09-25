@@ -76,6 +76,11 @@ pub struct RpcContextSeed {
     pub start_time: Instant,
     pub crons: SyncMutex<BTreeMap<Guid, NonDetachingJoinHandle<()>>>,
 }
+impl Drop for RpcContextSeed {
+    fn drop(&mut self) {
+        tracing::error!("RpcContext is dropped");
+    }
+}
 
 pub struct Hardware {
     pub devices: Vec<LshwDevice>,
@@ -269,7 +274,7 @@ impl RpcContext {
         self.crons.mutate(|c| std::mem::take(c));
         self.services.shutdown_all().await?;
         self.is_closed.store(true, Ordering::SeqCst);
-        tracing::info!("RPC Context is shutdown");
+        tracing::info!("RpcContext is shutdown");
         Ok(())
     }
 

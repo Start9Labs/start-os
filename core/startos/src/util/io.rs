@@ -912,7 +912,7 @@ impl AsRef<Path> for TmpDir {
 }
 impl Drop for TmpDir {
     fn drop(&mut self) {
-        if self.path.exists() {
+        if self.path != PathBuf::new() && self.path.exists() {
             let path = std::mem::take(&mut self.path);
             tokio::spawn(async move {
                 tokio::fs::remove_dir_all(&path).await.log_err();
