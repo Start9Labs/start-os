@@ -7439,6 +7439,7 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
+ "x25519-dalek",
  "zbus",
  "zeroize",
 ]

@@ -56,7 +56,7 @@ pub struct SignAssetParams {
     #[ts(type = "string")]
     platform: InternedString,
     #[ts(skip)]
-    #[serde(rename = "__auth_signer")]
+    #[serde(rename = "__Auth_signer")]
     signer: AnyVerifyingKey,
     signature: AnySignature,
 }

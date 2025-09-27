@@ -5,7 +5,7 @@ use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 
 use crate::db::model::DatabaseModel;
-use crate::hostname::{Hostname, generate_hostname, generate_id};
+use crate::hostname::{generate_hostname, generate_id, Hostname};
 use crate::net::ssl::{generate_key, make_root_cert};
 use crate::net::tor::TorSecretKey;
 use crate::prelude::*;
@@ -107,6 +107,7 @@ impl AccountInfo {
                     .map(|tor_key| tor_key.onion_address())
                     .collect(),
             )?;
+        server_info.as_password_hash_mut().ser(&self.password)?;
         db.as_private_mut().as_password_mut().ser(&self.password)?;
         db.as_private_mut()
             .as_ssh_privkey_mut()

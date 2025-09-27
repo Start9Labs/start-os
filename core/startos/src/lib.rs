@@ -79,19 +79,18 @@ pub use error::{Error, ErrorKind, ResultExt};
 use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
-    CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler, from_fn, from_fn_async,
-    from_fn_blocking,
+    from_fn, from_fn_async, from_fn_blocking, CallRemoteHandler, Context, Empty, HandlerExt,
+    ParentHandler,
 };
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::context::{
-    CliContext, DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext,
-};
+use crate::context::{CliContext, DiagnosticContext, InitContext, RpcContext};
 use crate::disk::fsck::RequiresReboot;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
 use crate::system::kiosk;
-use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
+use crate::tunnel::context::TunnelUrlParams;
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
@@ -135,6 +134,20 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "state",
             from_fn(|_: RpcContext| Ok::<_, Error>(ApiState::Running))
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_about("Display the API that is currently serving")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "state",
+            from_fn(|_: InitContext| Ok::<_, Error>(ApiState::Initializing))
+                .with_metadata("authenticated", Value::Bool(false))
+                .with_about("Display the API that is currently serving")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "state",
+            from_fn(|_: DiagnosticContext| Ok::<_, Error>(ApiState::Error))
                 .with_metadata("authenticated", Value::Bool(false))
                 .with_about("Display the API that is currently serving")
                 .with_call_remote::<CliContext>(),
@@ -192,12 +205,47 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
             .no_cli(),
         )
         .subcommand(
+            "registry",
+            registry::registry_api::<CliContext>().with_about("Commands related to the registry"),
+        )
+        .subcommand(
+            "tunnel",
+            CallRemoteHandler::<RpcContext, _, _, TunnelUrlParams>::new(tunnel::api::tunnel_api())
+                .no_cli(),
+        )
+        .subcommand(
+            "tunnel",
+            tunnel::api::tunnel_api::<CliContext>().with_about("Commands related to StartTunnel"),
+        )
+        .subcommand(
             "s9pk",
             s9pk::rpc::s9pk().with_about("Commands for interacting with s9pk files"),
         )
         .subcommand(
             "util",
             util::rpc::util::<C>().with_about("Command for calculating the blake3 hash of a file"),
+        )
+        .subcommand(
+            "init",
+            from_fn_async(developer::init)
+                .no_display()
+                .with_about("Create developer key if it doesn't exist"),
+        )
+        .subcommand(
+            "pubkey",
+            from_fn_blocking(developer::pubkey)
+                .with_about("Get public key for developer private key"),
+        )
+        .subcommand(
+            "diagnostic",
+            diagnostic::diagnostic::<C>()
+                .with_about("Commands to display logs, restart the server, etc"),
+        )
+        .subcommand("setup", setup::setup::<C>())
+        .subcommand(
+            "install",
+            os_install::install::<C>()
+                .with_about("Commands to list disk info, install StartOS, and reboot"),
         );
     if &*PLATFORM != "raspberrypi" {
         api = api.subcommand("kiosk", kiosk::<C>());
@@ -482,129 +530,5 @@ pub fn package<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "host",
             net::host::host_api::<C>().with_about("Manage network hosts for a package"),
-        )
-}
-
-pub fn diagnostic_api() -> ParentHandler<DiagnosticContext> {
-    ParentHandler::new()
-        .subcommand(
-            "git-info",
-            from_fn(|_: DiagnosticContext| version::git_info())
-                .with_metadata("authenticated", Value::Bool(false))
-                .with_about("Display the githash of StartOS CLI"),
-        )
-        .subcommand(
-            "echo",
-            from_fn(echo::<DiagnosticContext>)
-                .with_about("Echo a message")
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "state",
-            from_fn(|_: DiagnosticContext| Ok::<_, Error>(ApiState::Error))
-                .with_metadata("authenticated", Value::Bool(false))
-                .with_about("Display the API that is currently serving")
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "diagnostic",
-            diagnostic::diagnostic::<DiagnosticContext>()
-                .with_about("Diagnostic commands i.e. logs, restart, rebuild"),
-        )
-}
-
-pub fn init_api() -> ParentHandler<InitContext> {
-    ParentHandler::new()
-        .subcommand(
-            "git-info",
-            from_fn(|_: InitContext| version::git_info())
-                .with_metadata("authenticated", Value::Bool(false))
-                .with_about("Display the githash of StartOS CLI"),
-        )
-        .subcommand(
-            "echo",
-            from_fn(echo::<InitContext>)
-                .with_about("Echo a message")
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "state",
-            from_fn(|_: InitContext| Ok::<_, Error>(ApiState::Initializing))
-                .with_metadata("authenticated", Value::Bool(false))
-                .with_about("Display the API that is currently serving")
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "init",
-            init::init_api::<InitContext>()
-                .with_about("Commands to get logs or initialization progress"),
-        )
-}
-
-pub fn setup_api() -> ParentHandler<SetupContext> {
-    ParentHandler::new()
-        .subcommand(
-            "git-info",
-            from_fn(|_: SetupContext| version::git_info())
-                .with_metadata("authenticated", Value::Bool(false))
-                .with_about("Display the githash of StartOS CLI"),
-        )
-        .subcommand(
-            "echo",
-            from_fn(echo::<SetupContext>)
-                .with_about("Echo a message")
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand("setup", setup::setup::<SetupContext>())
-}
-
-pub fn install_api() -> ParentHandler<InstallContext> {
-    ParentHandler::new()
-        .subcommand(
-            "git-info",
-            from_fn(|_: InstallContext| version::git_info())
-                .with_metadata("authenticated", Value::Bool(false))
-                .with_about("Display the githash of StartOS CLI"),
-        )
-        .subcommand(
-            "echo",
-            from_fn(echo::<InstallContext>)
-                .with_about("Echo a message")
-                .with_call_remote::<CliContext>(),
-        )
-        .subcommand(
-            "install",
-            os_install::install::<InstallContext>()
-                .with_about("Commands to list disk info, install StartOS, and reboot"),
-        )
-}
-
-pub fn expanded_api() -> ParentHandler<CliContext> {
-    main_api()
-        .subcommand(
-            "init",
-            from_fn_async(developer::init)
-                .no_display()
-                .with_about("Create developer key if it doesn't exist"),
-        )
-        .subcommand(
-            "pubkey",
-            from_fn_blocking(developer::pubkey)
-                .with_about("Get public key for developer private key"),
-        )
-        .subcommand(
-            "diagnostic",
-            diagnostic::diagnostic::<CliContext>()
-                .with_about("Commands to display logs, restart the server, etc"),
-        )
-        .subcommand("setup", setup::setup::<CliContext>())
-        .subcommand(
-            "install",
-            os_install::install::<CliContext>()
-                .with_about("Commands to list disk info, install StartOS, and reboot"),
-        )
-        .subcommand(
-            "registry",
-            registry::registry_api::<CliContext>().with_about("Commands related to the registry"),
         )
 }

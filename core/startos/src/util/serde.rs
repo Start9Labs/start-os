@@ -1055,7 +1055,11 @@ impl<T: TryFrom<Vec<u8>>> ValueParserFactory for Base64<T> {
         Self::Parser::new()
     }
 }
-impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base64<T> {
+impl<'de, T> Deserialize<'de> for Base64<T>
+where
+    Base64<T>: FromStr,
+    <Base64<T> as FromStr>::Err: std::fmt::Display,
+{
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,

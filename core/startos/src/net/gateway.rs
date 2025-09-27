@@ -244,6 +244,8 @@ mod active_connection {
     default_service = "org.freedesktop.NetworkManager"
 )]
 trait ConnectionSettings {
+    fn delete(&self) -> Result<(), Error>;
+
     fn get_settings(&self) -> Result<HashMap<String, HashMap<String, OwnedValue>>, Error>;
 
     fn update2(
@@ -1095,7 +1097,7 @@ impl NetworkInterfaceController {
             .ip_info
             .peek(|ifaces| ifaces.get(interface).map(|i| i.ip_info.is_some()))
         else {
-            return Ok(());
+            return self.forget(interface).await;
         };
 
         if has_ip_info {
@@ -1115,7 +1117,21 @@ impl NetworkInterfaceController {
 
             let device_proxy = DeviceProxy::new(&connection, device).await?;
 
-            device_proxy.delete().await?;
+            let ac = device_proxy.active_connection().await?;
+
+            if &*ac == "/" {
+                return Err(Error::new(
+                    eyre!("Cannot delete device without active connection"),
+                    ErrorKind::InvalidRequest,
+                ));
+            }
+
+            let ac_proxy = active_connection::ActiveConnectionProxy::new(&connection, ac).await?;
+
+            let settings =
+                ConnectionSettingsProxy::new(&connection, ac_proxy.connection().await?).await?;
+
+            settings.delete().await?;
 
             ip_info
                 .wait_for(|ifaces| ifaces.get(interface).map_or(true, |i| i.ip_info.is_none()))

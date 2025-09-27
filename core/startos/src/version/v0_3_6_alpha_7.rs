@@ -3,7 +3,7 @@ use imbl_value::json;
 use tokio::process::Command;
 
 use super::v0_3_5::V0_3_0_COMPAT;
-use super::{VersionT, v0_3_6_alpha_6};
+use super::{v0_3_6_alpha_6, VersionT};
 use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::util::Invoke;
@@ -50,10 +50,7 @@ impl VersionT for Version {
     async fn post_up(self, ctx: &RpcContext, _input: Value) -> Result<(), Error> {
         Command::new("systemd-firstboot")
             .arg("--root=/media/startos/config/overlay/")
-            .arg(format!(
-                "--hostname={}",
-                ctx.account.read().await.hostname.0
-            ))
+            .arg(ctx.account.peek(|a| format!("--hostname={}", a.hostname.0)))
             .invoke(ErrorKind::ParseSysInfo)
             .await?;
         Ok(())

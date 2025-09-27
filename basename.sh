@@ -1,5 +1,7 @@
 #!/bin/bash
 
+PROJECT=${PROJECT:-"startos"}
+
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 PLATFORM="$(if [ -f ./PLATFORM.txt ]; then cat ./PLATFORM.txt; else echo unknown; fi)"
@@ -16,4 +18,4 @@ if [ -n "$STARTOS_ENV" ]; then
   VERSION_FULL="$VERSION_FULL~${STARTOS_ENV}"
 fi
 
-echo -n "startos-${VERSION_FULL}_${PLATFORM}"
+echo -n "${PROJECT}-${VERSION_FULL}_${PLATFORM}"

@@ -4,8 +4,9 @@ set -e
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-BASENAME=$(./basename.sh)
-VERSION=$(cat ./VERSION.txt)
+PROJECT=${PROJECT:-"startos"}
+BASENAME=${BASENAME:-"$(./basename.sh)"}
+VERSION=${VERSION:-$(cat ./VERSION.txt)}
 if [ "$PLATFORM" = "x86_64" ] || [ "$PLATFORM" = "x86_64-nonfree" ]; then
     DEB_ARCH=amd64
 elif [ "$PLATFORM" = "aarch64" ] || [ "$PLATFORM" = "aarch64-nonfree" ] || [ "$PLATFORM" = "raspberrypi" ]; then
@@ -17,14 +18,34 @@ fi
 rm -rf dpkg-workdir/$BASENAME
 mkdir -p dpkg-workdir/$BASENAME
 
-make install DESTDIR=dpkg-workdir/$BASENAME
+if [ "${PROJECT}" = "startos" ]; then
+    INSTALL_TARGET="install"
+else
+    INSTALL_TARGET="install-${PROJECT#start-}"
+fi
+make "${INSTALL_TARGET}" DESTDIR=dpkg-workdir/$BASENAME
 
-DEPENDS=$(cat dpkg-workdir/$BASENAME/usr/lib/startos/depends | tr $'\n' ',' | sed 's/,,\+/,/g' | sed 's/,$//')
-CONFLICTS=$(cat dpkg-workdir/$BASENAME/usr/lib/startos/conflicts | tr $'\n' ',' | sed 's/,,\+/,/g' | sed 's/,$//')
+if [ -f dpkg-workdir/$BASENAME/usr/lib/$PROJECT/depends ]; then
+    if [ -n "$DEPENDS" ]; then
+        DEPENDS="$DEPENDS,"
+    fi
+    DEPENDS="${DEPENDS}$(cat dpkg-workdir/$BASENAME/usr/lib/$PROJECT/depends | tr $'\n' ',' | sed 's/,,\+/,/g' | sed 's/,$//')"
+fi
+if [ -f dpkg-workdir/$BASENAME/usr/lib/$PROJECT/conflicts ]; then
+    if [ -n "$CONFLICTS" ]; then
+        CONFLICTS="$CONFLICTS,"
+    fi
+    CONFLICTS="${CONFLICTS}$(cat dpkg-workdir/$BASENAME/usr/lib/$PROJECT/conflicts | tr $'\n' ',' | sed 's/,,\+/,/g' | sed 's/,$//')"
+fi
+CONFLICTS=${CONFLICTS:-"$(cat dpkg-workdir/$BASENAME/usr/lib/startos/conflicts | tr $'\n' ',' | sed 's/,,\+/,/g' | sed 's/,$//')"}
 
-cp -r debian dpkg-workdir/$BASENAME/DEBIAN
+if [ -d debian/${PROJECT} ]; then
+    cp -r debian/${PROJECT} dpkg-workdir/$BASENAME/DEBIAN
+else
+    mkdir -p dpkg-workdir/$BASENAME/DEBIAN
+fi
 cat > dpkg-workdir/$BASENAME/DEBIAN/control << EOF
-Package: startos
+Package: ${PROJECT}
 Version: ${VERSION}
 Section: unknown
 Priority: required

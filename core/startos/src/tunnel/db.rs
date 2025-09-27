@@ -1,15 +1,14 @@
-use std::collections::{BTreeMap, HashSet};
-use std::net::{Ipv4Addr, SocketAddrV4};
+use std::collections::BTreeMap;
+use std::net::SocketAddrV4;
 use std::path::PathBuf;
 
 use clap::Parser;
-use imbl_value::InternedString;
-use ipnet::Ipv4Net;
+use imbl::HashMap;
 use itertools::Itertools;
-use patch_db::Dump;
 use patch_db::json_ptr::{JsonPointer, ROOT};
+use patch_db::Dump;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
@@ -18,9 +17,10 @@ use crate::auth::Sessions;
 use crate::context::CliContext;
 use crate::prelude::*;
 use crate::sign::AnyVerifyingKey;
+use crate::tunnel::auth::SignerInfo;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::wg::WgServer;
-use crate::util::serde::{HandlerExtSerde, apply_expr};
+use crate::util::serde::{apply_expr, HandlerExtSerde};
 
 #[derive(Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "camelCase")]
@@ -28,7 +28,7 @@ use crate::util::serde::{HandlerExtSerde, apply_expr};
 pub struct TunnelDatabase {
     pub sessions: Sessions,
     pub password: String,
-    pub auth_pubkeys: HashSet<AnyVerifyingKey>,
+    pub auth_pubkeys: HashMap<AnyVerifyingKey, SignerInfo>,
     pub wg: WgServer,
     pub port_forwards: BTreeMap<SocketAddrV4, SocketAddrV4>,
 }

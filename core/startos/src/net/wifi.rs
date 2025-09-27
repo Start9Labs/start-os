@@ -3,12 +3,12 @@ use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
-use clap::Parser;
 use clap::builder::TypedValueParser;
+use clap::Parser;
 use isocountry::CountryCode;
 use lazy_static::lazy_static;
 use regex::Regex;
-use rpc_toolkit::{Context, Empty, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::RwLock;
@@ -16,11 +16,11 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::Database;
 use crate::db::model::public::WifiInfo;
+use crate::db::model::Database;
 use crate::prelude::*;
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::Invoke;
-use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 use crate::{Error, ErrorKind};
 
 type WifiManager = Arc<RwLock<Option<WpaCli>>>;
@@ -1016,6 +1016,31 @@ pub async fn synchronize_network_manager<P: AsRef<Path>>(
             .invoke(ErrorKind::Wifi)
             .await?;
     }
+
+    Command::new("ip")
+        .arg("rule")
+        .arg("add")
+        .arg("pref")
+        .arg("1000")
+        .arg("from")
+        .arg("all")
+        .arg("lookup")
+        .arg("main")
+        .invoke(ErrorKind::Network)
+        .await
+        .log_err();
+    Command::new("ip")
+        .arg("rule")
+        .arg("add")
+        .arg("pref")
+        .arg("1100")
+        .arg("from")
+        .arg("all")
+        .arg("lookup")
+        .arg("default")
+        .invoke(ErrorKind::Network)
+        .await
+        .log_err();
 
     Command::new("systemctl")
         .arg("restart")

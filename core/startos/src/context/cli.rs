@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use cookie::{Cookie, Expiration, SameSite};
 use cookie_store::CookieStore;
+use http::HeaderMap;
 use imbl_value::InternedString;
 use josekit::jwk::Jwk;
 use once_cell::sync::OnceCell;
@@ -20,13 +21,13 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
-use crate::context::config::{ClientConfig, local_config_path};
+use crate::context::config::{local_config_path, ClientConfig};
 use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
-use crate::developer::{OS_DEVELOPER_KEY_PATH, default_developer_key_path};
+use crate::developer::{default_developer_key_path, OS_DEVELOPER_KEY_PATH};
 use crate::middleware::auth::AuthContext;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
-use crate::tunnel::context::TunnelContext;
+use crate::util::io::read_file_to_string;
 
 #[derive(Debug)]
 pub struct CliContextSeed {
@@ -159,7 +160,7 @@ impl CliContext {
                     continue;
                 }
                 let pair = <ed25519::KeypairBytes as ed25519::pkcs8::DecodePrivateKey>::from_pkcs8_pem(
-                    &std::fs::read_to_string(&self.developer_key_path)?,
+                    &std::fs::read_to_string(path)?,
                 )
                 .with_kind(crate::ErrorKind::Pem)?;
                 let secret = ed25519_dalek::SecretKey::try_from(&pair.secret_key[..]).map_err(|_| {
@@ -279,9 +280,15 @@ impl Context for CliContext {
         )
     }
 }
+impl AsRef<Client> for CliContext {
+    fn as_ref(&self) -> &Client {
+        &self.client
+    }
+}
+
 impl CallRemote<RpcContext> for CliContext {
     async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
-        if let Ok(local) = std::fs::read_to_string(RpcContext::LOCAL_AUTH_COOKIE_PATH) {
+        if let Ok(local) = read_file_to_string(RpcContext::LOCAL_AUTH_COOKIE_PATH).await {
             self.cookie_store
                 .lock()
                 .unwrap()
@@ -298,7 +305,8 @@ impl CallRemote<RpcContext> for CliContext {
         crate::middleware::signature::call_remote(
             self,
             self.rpc_url.clone(),
-            self.rpc_url.host_str().or_not_found("rpc url hostname")?,
+            HeaderMap::new(),
+            self.rpc_url.host_str(),
             method,
             params,
         )
@@ -307,24 +315,11 @@ impl CallRemote<RpcContext> for CliContext {
 }
 impl CallRemote<DiagnosticContext> for CliContext {
     async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
-        if let Ok(local) = std::fs::read_to_string(TunnelContext::LOCAL_AUTH_COOKIE_PATH) {
-            self.cookie_store
-                .lock()
-                .unwrap()
-                .insert_raw(
-                    &Cookie::build(("local", local))
-                        .domain("localhost")
-                        .expires(Expiration::Session)
-                        .same_site(SameSite::Strict)
-                        .build(),
-                    &"http://localhost".parse()?,
-                )
-                .with_kind(crate::ErrorKind::Network)?;
-        }
         crate::middleware::signature::call_remote(
             self,
             self.rpc_url.clone(),
-            self.rpc_url.host_str().or_not_found("rpc url hostname")?,
+            HeaderMap::new(),
+            self.rpc_url.host_str(),
             method,
             params,
         )
@@ -336,7 +331,8 @@ impl CallRemote<InitContext> for CliContext {
         crate::middleware::signature::call_remote(
             self,
             self.rpc_url.clone(),
-            self.rpc_url.host_str().or_not_found("rpc url hostname")?,
+            HeaderMap::new(),
+            self.rpc_url.host_str(),
             method,
             params,
         )
@@ -348,7 +344,8 @@ impl CallRemote<SetupContext> for CliContext {
         crate::middleware::signature::call_remote(
             self,
             self.rpc_url.clone(),
-            self.rpc_url.host_str().or_not_found("rpc url hostname")?,
+            HeaderMap::new(),
+            self.rpc_url.host_str(),
             method,
             params,
         )
@@ -360,7 +357,8 @@ impl CallRemote<InstallContext> for CliContext {
         crate::middleware::signature::call_remote(
             self,
             self.rpc_url.clone(),
-            self.rpc_url.host_str().or_not_found("rpc url hostname")?,
+            HeaderMap::new(),
+            self.rpc_url.host_str(),
             method,
             params,
         )

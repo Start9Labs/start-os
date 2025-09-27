@@ -1,7 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
 use std::future::Future;
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -46,7 +45,7 @@ use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
 use crate::util::io::delete_file;
 use crate::util::lshw::LshwDevice;
-use crate::util::sync::{SyncMutex, Watch};
+use crate::util::sync::{SyncMutex, SyncRwLock, Watch};
 use crate::{DATA_DIR, HOST_IP};
 
 pub struct RpcContextSeed {
@@ -58,7 +57,7 @@ pub struct RpcContextSeed {
     pub ephemeral_sessions: SyncMutex<Sessions>,
     pub db: TypedPatchDb<Database>,
     pub sync_db: watch::Sender<u64>,
-    pub account: RwLock<AccountInfo>,
+    pub account: SyncRwLock<AccountInfo>,
     pub net_controller: Arc<NetController>,
     pub os_net_service: NetService,
     pub s9pk_arch: Option<&'static str>,
@@ -225,7 +224,7 @@ impl RpcContext {
             ephemeral_sessions: SyncMutex::new(Sessions::new()),
             sync_db: watch::Sender::new(db.sequence().await),
             db,
-            account: RwLock::new(account),
+            account: SyncRwLock::new(account),
             callbacks: net_controller.callbacks.clone(),
             net_controller,
             os_net_service,
@@ -481,6 +480,11 @@ impl RpcContext {
         Self: CallRemote<RemoteContext, T>,
     {
         <Self as CallRemote<RemoteContext, T>>::call_remote(&self, method, params, extra).await
+    }
+}
+impl AsRef<Client> for RpcContext {
+    fn as_ref(&self) -> &Client {
+        &self.client
     }
 }
 impl AsRef<Jwk> for RpcContext {

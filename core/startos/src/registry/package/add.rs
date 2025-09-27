@@ -31,7 +31,7 @@ pub struct AddPackageParams {
     #[ts(type = "string")]
     pub url: Url,
     #[ts(skip)]
-    #[serde(rename = "__auth_signer")]
+    #[serde(rename = "__Auth_signer")]
     pub uploader: AnyVerifyingKey,
     pub commitment: MerkleArchiveCommitment,
     pub signature: AnySignature,
@@ -169,7 +169,7 @@ pub struct RemovePackageParams {
     pub version: VersionString,
     #[ts(skip)]
     #[arg(skip)]
-    #[serde(rename = "__auth_signer")]
+    #[serde(rename = "__Auth_signer")]
     pub signer: Option<AnyVerifyingKey>,
 }
 

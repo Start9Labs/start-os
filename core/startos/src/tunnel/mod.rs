@@ -1,6 +1,6 @@
 use axum::Router;
 use futures::future::ready;
-use rpc_toolkit::{Context, HandlerExt, ParentHandler, Server, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler, Server};
 
 use crate::context::CliContext;
 use crate::middleware::auth::Auth;
@@ -12,6 +12,7 @@ use crate::rpc_continuations::Guid;
 use crate::tunnel::context::TunnelContext;
 
 pub mod api;
+pub mod auth;
 pub mod context;
 pub mod db;
 pub mod forward;

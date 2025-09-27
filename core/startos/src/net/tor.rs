@@ -191,7 +191,8 @@ impl Model<OnionStore> {
         Ok(key)
     }
     pub fn insert_key(&mut self, key: &TorSecretKey) -> Result<(), Error> {
-        self.insert(&key.onion_address(), &key)
+        self.insert(&key.onion_address(), &key)?;
+        Ok(())
     }
     pub fn get_key(&self, address: &OnionAddress) -> Result<TorSecretKey, Error> {
         self.as_idx(address)

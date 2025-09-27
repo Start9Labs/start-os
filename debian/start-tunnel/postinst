@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+
+SYSTEMCTL=systemctl
+if [ -n "$DPKG_MAINTSCRIPT_PACKAGE" ]; then
+	  SYSTEMCTL=deb-systemd-helper
+fi
+
+$SYSTEMCTL enable start-tunneld.service

@@ -5,20 +5,25 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use axum::body::Body;
 use axum::extract::Request;
-use http::HeaderValue;
+use http::{HeaderMap, HeaderValue};
+use reqwest::Client;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{Context, Middleware, RpcRequest, RpcResponse};
-use serde::Deserialize;
 use serde::de::DeserializeOwned;
+use serde::Deserialize;
 use tokio::sync::Mutex;
 use url::Url;
 
-use crate::context::CliContext;
+use crate::context::{CliContext, RpcContext};
+use crate::db::model::Database;
 use crate::prelude::*;
-use crate::sign::commitment::Commitment;
 use crate::sign::commitment::request::RequestCommitment;
+use crate::sign::commitment::Commitment;
 use crate::sign::{AnySignature, AnySigningKey, AnyVerifyingKey, SignatureScheme};
+use crate::util::iter::TransposeResultIterExt;
 use crate::util::serde::Base64;
+
+pub const AUTH_SIG_HEADER: &str = "X-StartOS-Auth-Sig";
 
 pub trait SignatureAuthContext: Context {
     type Database: HasModel<Model = Model<Self::Database>> + Send + Sync;
@@ -28,7 +33,7 @@ pub trait SignatureAuthContext: Context {
     fn sig_context(
         &self,
     ) -> impl Future<Output = impl IntoIterator<Item = Result<impl AsRef<str> + Send, Error>> + Send>
-    + Send;
+           + Send;
     fn check_pubkey(
         db: &Model<Self::Database>,
         pubkey: Option<&AnyVerifyingKey>,
@@ -41,7 +46,82 @@ pub trait SignatureAuthContext: Context {
     ) -> impl Future<Output = Result<(), Error>> + Send;
 }
 
-pub const AUTH_SIG_HEADER: &str = "X-StartOS-Auth-Sig";
+impl SignatureAuthContext for RpcContext {
+    type Database = Database;
+    type AdditionalMetadata = ();
+    type CheckPubkeyRes = ();
+    fn db(&self) -> &TypedPatchDb<Self::Database> {
+        &self.db
+    }
+    async fn sig_context(
+        &self,
+    ) -> impl IntoIterator<Item = Result<impl AsRef<str> + Send, Error>> + Send {
+        let peek = self.db.peek().await;
+        self.account.peek(|a| {
+            a.hostnames()
+                .into_iter()
+                .map(Ok)
+                .chain(
+                    peek.as_public()
+                        .as_server_info()
+                        .as_network()
+                        .as_host()
+                        .as_public_domains()
+                        .keys()
+                        .map(|k| k.into_iter())
+                        .transpose(),
+                )
+                .chain(
+                    peek.as_public()
+                        .as_server_info()
+                        .as_network()
+                        .as_host()
+                        .as_private_domains()
+                        .de()
+                        .map(|k| k.into_iter())
+                        .transpose(),
+                )
+                .collect::<Vec<_>>()
+        })
+    }
+    fn check_pubkey(
+        db: &Model<Self::Database>,
+        pubkey: Option<&AnyVerifyingKey>,
+        _: Self::AdditionalMetadata,
+    ) -> Result<Self::CheckPubkeyRes, Error> {
+        if let Some(pubkey) = pubkey {
+            if db.as_private().as_auth_pubkeys().de()?.contains(pubkey) {
+                return Ok(());
+            }
+        }
+
+        Err(Error::new(
+            eyre!("Developer Key is not authorized"),
+            ErrorKind::IncorrectPassword,
+        ))
+    }
+    async fn post_auth_hook(&self, _: Self::CheckPubkeyRes, _: &RpcRequest) -> Result<(), Error> {
+        Ok(())
+    }
+}
+
+pub trait SigningContext {
+    fn signing_key(&self) -> Result<AnySigningKey, Error>;
+}
+
+impl SigningContext for CliContext {
+    fn signing_key(&self) -> Result<AnySigningKey, Error> {
+        Ok(AnySigningKey::Ed25519(self.developer_key()?.clone()))
+    }
+}
+
+impl SigningContext for RpcContext {
+    fn signing_key(&self) -> Result<AnySigningKey, Error> {
+        Ok(AnySigningKey::Ed25519(
+            self.account.peek(|a| a.developer_key.clone()),
+        ))
+    }
+}
 
 #[derive(Deserialize)]
 pub struct Metadata<Additional> {
@@ -203,7 +283,7 @@ impl<C: SignatureAuthContext> Middleware<C> for SignatureAuth {
             let signer = self.signer.take().transpose()?;
             if metadata.get_signer {
                 if let Some(signer) = &signer {
-                    request.params["__auth_signer"] = to_value(signer)?;
+                    request.params["__Auth_signer"] = to_value(signer)?;
                 }
             }
             let db = context.db().peek().await;
@@ -216,17 +296,18 @@ impl<C: SignatureAuthContext> Middleware<C> for SignatureAuth {
     }
 }
 
-pub async fn call_remote(
-    ctx: &CliContext,
+pub async fn call_remote<Ctx: SigningContext + AsRef<Client>>(
+    ctx: &Ctx,
     url: Url,
-    sig_context: &str,
+    headers: HeaderMap,
+    sig_context: Option<&str>,
     method: &str,
     params: Value,
 ) -> Result<Value, RpcError> {
-    use reqwest::Method;
     use reqwest::header::{ACCEPT, CONTENT_LENGTH, CONTENT_TYPE};
-    use rpc_toolkit::RpcResponse;
+    use reqwest::Method;
     use rpc_toolkit::yajrc::{GenericRpcMethod, Id, RpcRequest};
+    use rpc_toolkit::RpcResponse;
 
     let rpc_req = RpcRequest {
         id: Some(Id::Number(0.into())),
@@ -235,16 +316,16 @@ pub async fn call_remote(
     };
     let body = serde_json::to_vec(&rpc_req)?;
     let mut req = ctx
-        .client
+        .as_ref()
         .request(Method::POST, url)
         .header(CONTENT_TYPE, "application/json")
         .header(ACCEPT, "application/json")
-        .header(CONTENT_LENGTH, body.len());
-    if let Ok(key) = ctx.developer_key() {
+        .header(CONTENT_LENGTH, body.len())
+        .headers(headers);
+    if let (Some(sig_ctx), Ok(key)) = (sig_context, ctx.signing_key()) {
         req = req.header(
             AUTH_SIG_HEADER,
-            SignatureHeader::sign(&AnySigningKey::Ed25519(key.clone()), &body, sig_context)?
-                .to_header(),
+            SignatureHeader::sign(&key, &body, sig_ctx)?.to_header(),
         );
     }
     let res = req.body(body).send().await?;

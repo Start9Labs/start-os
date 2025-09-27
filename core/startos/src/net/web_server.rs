@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 
+use axum::extract::ConnectInfo;
 use axum::Router;
 use futures::future::Either;
 use futures::FutureExt;
@@ -13,19 +14,17 @@ use hyper_util::rt::{TokioIo, TokioTimer};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::oneshot;
 
-use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
 use crate::net::gateway::{
     lookup_info_by_addr, NetworkInterfaceListener, SelfContainedNetworkInterfaceListener,
 };
-use crate::net::static_server::{
-    diagnostic_ui_router, init_ui_router, install_ui_router, main_ui_router, redirecter, refresher,
-    setup_ui_router,
-};
+use crate::net::static_server::{redirecter, refresher, ui_router, UiContext};
 use crate::prelude::*;
 use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::sync::{SyncRwLock, Watch};
 
 pub struct Accepted {
+    pub peer_addr: SocketAddr,
+    pub local_addr: SocketAddr,
     pub https_redirect: bool,
     pub stream: TcpStream,
 }
@@ -37,8 +36,10 @@ pub trait Accept {
 impl Accept for Vec<TcpListener> {
     fn poll_accept(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>> {
         for listener in &*self {
-            if let Poll::Ready((stream, _)) = listener.poll_accept(cx)? {
+            if let Poll::Ready((stream, peer_addr)) = listener.poll_accept(cx)? {
                 return Poll::Ready(Ok(Accepted {
+                    local_addr: listener.local_addr()?,
+                    peer_addr,
                     https_redirect: false,
                     stream,
                 }));
@@ -55,6 +56,8 @@ impl Accept for NetworkInterfaceListener {
                     .ip_info
                     .peek(|i| lookup_info_by_addr(i, a.bind).map_or(true, |(_, i)| i.public()));
                 Accepted {
+                    peer_addr: a.peer,
+                    local_addr: a.bind,
                     https_redirect: public,
                     stream: a.stream,
                 }
@@ -187,7 +190,12 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
                 }
             }
 
-            struct SwappableRouter(Watch<Option<Router>>, bool);
+            struct SwappableRouter {
+                router: Watch<Option<Router>>,
+                redirect: bool,
+                local_addr: SocketAddr,
+                peer_addr: SocketAddr,
+            }
             impl hyper::service::Service<hyper::Request<hyper::body::Incoming>> for SwappableRouter {
                 type Response = <Router as tower_service::Service<
                     hyper::Request<hyper::body::Incoming>,
@@ -199,13 +207,16 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
                     hyper::Request<hyper::body::Incoming>,
                 >>::Future;
 
-                fn call(&self, req: hyper::Request<hyper::body::Incoming>) -> Self::Future {
+                fn call(&self, mut req: hyper::Request<hyper::body::Incoming>) -> Self::Future {
                     use tower_service::Service;
 
-                    if self.1 {
+                    req.extensions_mut()
+                        .insert(ConnectInfo((self.peer_addr, self.local_addr)));
+
+                    if self.redirect {
                         redirecter().call(req)
                     } else {
-                        let router = self.0.read();
+                        let router = self.router.read();
                         if let Some(mut router) = router {
                             router.call(req)
                         } else {
@@ -239,15 +250,18 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
                     for _ in 0..5 {
                         if let Err(e) = async {
                             let accepted = acceptor.accept().await?;
+                            let src = accepted.stream.peer_addr().ok();
                             queue.add_job(
                                 graceful.watch(
                                     server
                                         .serve_connection_with_upgrades(
                                             TokioIo::new(accepted.stream),
-                                            SwappableRouter(
-                                                service.clone(),
-                                                accepted.https_redirect,
-                                            ),
+                                            SwappableRouter {
+                                                router: service.clone(),
+                                                redirect: accepted.https_redirect,
+                                                peer_addr: accepted.peer_addr,
+                                                local_addr: accepted.local_addr,
+                                            },
                                         )
                                         .into_owned(),
                                 ),
@@ -303,23 +317,7 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
         self.router.send(Some(router))
     }
 
-    pub fn serve_main(&mut self, ctx: RpcContext) {
-        self.serve_router(main_ui_router(ctx))
-    }
-
-    pub fn serve_setup(&mut self, ctx: SetupContext) {
-        self.serve_router(setup_ui_router(ctx))
-    }
-
-    pub fn serve_diagnostic(&mut self, ctx: DiagnosticContext) {
-        self.serve_router(diagnostic_ui_router(ctx))
-    }
-
-    pub fn serve_install(&mut self, ctx: InstallContext) {
-        self.serve_router(install_ui_router(ctx))
-    }
-
-    pub fn serve_init(&mut self, ctx: InitContext) {
-        self.serve_router(init_ui_router(ctx))
+    pub fn serve_ui_for<C: UiContext>(&mut self, ctx: C) {
+        self.serve_router(ui_router(ctx))
     }
 }

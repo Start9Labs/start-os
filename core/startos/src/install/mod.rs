@@ -175,7 +175,7 @@ pub async fn install(
 #[serde(rename_all = "camelCase")]
 pub struct SideloadParams {
     #[ts(skip)]
-    #[serde(rename = "__auth_session")]
+    #[serde(rename = "__Auth_session")]
     session: Option<InternedString>,
 }
 

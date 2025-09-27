@@ -5,15 +5,16 @@ PLATFORM_FILE := $(shell ./check-platform.sh)
 ENVIRONMENT_FILE := $(shell ./check-environment.sh)
 GIT_HASH_FILE := $(shell ./check-git-hash.sh)
 VERSION_FILE := $(shell ./check-version.sh)
-BASENAME := $(shell ./basename.sh)
+BASENAME := $(shell PROJECT=startos ./basename.sh)
 PLATFORM := $(shell if [ -f ./PLATFORM.txt ]; then cat ./PLATFORM.txt; else echo unknown; fi)
 ARCH := $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo aarch64; else echo $(PLATFORM) | sed 's/-nonfree$$//g'; fi)
+REGISTRY_BASENAME := $(shell PROJECT=start-registry PLATFORM=$(ARCH) ./basename.sh)
+TUNNEL_BASENAME := $(shell PROJECT=start-tunnel PLATFORM=$(ARCH) ./basename.sh)
 IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
 WEB_UIS := web/dist/raw/ui/index.html web/dist/raw/setup-wizard/index.html web/dist/raw/install-wizard/index.html
 COMPRESSED_WEB_UIS := web/dist/static/ui/index.html web/dist/static/setup-wizard/index.html web/dist/static/install-wizard/index.html
 FIRMWARE_ROMS := ./firmware/$(PLATFORM) $(shell jq --raw-output '.[] | select(.platform[] | contains("$(PLATFORM)")) | "./firmware/$(PLATFORM)/" + .id + ".rom.gz"' build/lib/firmware.json)
 BUILD_SRC := $(call ls-files, build) build/lib/depends build/lib/conflicts $(FIRMWARE_ROMS)
-DEBIAN_SRC := $(call ls-files, debian/)
 IMAGE_RECIPE_SRC := $(call ls-files, image-recipe/)
 STARTD_SRC := core/startos/startd.service $(BUILD_SRC)
 CORE_SRC := $(call ls-files, core) $(shell git ls-files --recurse-submodules patch-db) $(GIT_HASH_FILE)
@@ -25,7 +26,7 @@ PATCH_DB_CLIENT_SRC := $(shell git ls-files --recurse-submodules patch-db/client
 GZIP_BIN := $(shell which pigz || which gzip)
 TAR_BIN := $(shell which gtar || which tar)
 COMPILED_TARGETS := core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/startbox core/target/$(ARCH)-unknown-linux-musl/release/containerbox container-runtime/rootfs.$(ARCH).squashfs
-ALL_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) cargo-deps/$(ARCH)-unknown-linux-musl/release/startos-backup-fs $(PLATFORM_FILE) \
+STARTOS_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) cargo-deps/$(ARCH)-unknown-linux-musl/release/startos-backup-fs $(PLATFORM_FILE) \
 	$(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then \
 		echo cargo-deps/aarch64-unknown-linux-musl/release/pi-beep; \
 	fi) \
@@ -35,6 +36,8 @@ ALL_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE
 	$(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)console($$|-) ]]; then \
 		echo cargo-deps/$(ARCH)-unknown-linux-musl/release/tokio-console; \
 	fi')
+REGISTRY_TARGETS := core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/registrybox core/startos/start-registryd.service
+TUNNEL_TARGETS := core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox core/startos/start-tunneld.service
 REBUILD_TYPES = 1
 
 ifeq ($(REMOTE),)
@@ -58,12 +61,12 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs wormhole wormhole-deb test test-core test-sdk test-container-runtime registry
+.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs wormhole wormhole-deb test test-core test-sdk test-container-runtime registry install-registry tunnel install-tunnel
 
-all: $(ALL_TARGETS)
+all: $(STARTOS_TARGETS)
 
 touch:
-	touch $(ALL_TARGETS)
+	touch $(STARTOS_TARGETS)
 
 metadata: $(VERSION_FILE) $(PLATFORM_FILE) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE)
 
@@ -111,19 +114,48 @@ test-container-runtime: container-runtime/node_modules/.package-lock.json $(call
 cli:
 	./core/install-cli.sh
 
-registry:
-	./core/build-registrybox.sh
+registry: core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/registrybox
 
-tunnel:
-	./core/build-tunnelbox.sh
+install-registry: $(REGISTRY_TARGETS)
+	$(call mkdir,$(DESTDIR)/usr/bin)
+	$(call cp,core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/registrybox,$(DESTDIR)/usr/bin/start-registrybox)
+	$(call ln,/usr/bin/start-registrybox,$(DESTDIR)/usr/bin/start-registryd)
+	$(call ln,/usr/bin/start-registrybox,$(DESTDIR)/usr/bin/start-registry)
+
+	$(call mkdir,$(DESTDIR)/lib/systemd/system)
+	$(call cp,core/startos/start-registryd.service,$(DESTDIR)/lib/systemd/system/start-registryd.service)
+
+core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/registrybox: $(CORE_SRC) $(ENVIRONMENT_FILE)
+	ARCH=$(ARCH) PROFILE=$(PROFILE) ./core/build-registrybox.sh
+
+tunnel: core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox
+
+install-tunnel: core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox core/startos/start-tunneld.service
+	$(call mkdir,$(DESTDIR)/usr/bin)
+	$(call cp,core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox,$(DESTDIR)/usr/bin/start-tunnelbox)
+	$(call ln,/usr/bin/start-tunnelbox,$(DESTDIR)/usr/bin/start-tunneld)
+	$(call ln,/usr/bin/start-tunnelbox,$(DESTDIR)/usr/bin/start-tunnel)
+
+	$(call mkdir,$(DESTDIR)/lib/systemd/system)
+	$(call cp,core/startos/start-tunneld.service,$(DESTDIR)/lib/systemd/system/start-tunneld.service)
+
+core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox: $(CORE_SRC) $(ENVIRONMENT_FILE)
+	ARCH=$(ARCH) PROFILE=$(PROFILE) ./core/build-tunnelbox.sh
 
 deb: results/$(BASENAME).deb
 
-debian/control: build/lib/depends build/lib/conflicts
-	./debuild/control.sh
-
-results/$(BASENAME).deb: dpkg-build.sh $(DEBIAN_SRC) $(ALL_TARGETS)
+results/$(BASENAME).deb: dpkg-build.sh $(call ls-files,debian/startos) $(STARTOS_TARGETS)
 	PLATFORM=$(PLATFORM) REQUIRES=debian ./build/os-compat/run-compat.sh ./dpkg-build.sh
+
+registry-deb: results/$(REGISTRY_BASENAME).deb
+
+results/$(REGISTRY_BASENAME).deb: dpkg-build.sh $(call ls-files,debian/start-registry) $(REGISTRY_TARGETS)
+	PROJECT=start-registry PLATFORM=$(ARCH) REQUIRES=debian ./build/os-compat/run-compat.sh ./dpkg-build.sh
+
+tunnel-deb: results/$(TUNNEL_BASENAME).deb
+
+results/$(TUNNEL_BASENAME).deb: dpkg-build.sh $(call ls-files,debian/start-tunnel) $(TUNNEL_TARGETS)
+	PROJECT=start-tunnel PLATFORM=$(ARCH) REQUIRES=debian DEPENDS=wireguard-tools,iptables,network-manager ./build/os-compat/run-compat.sh ./dpkg-build.sh
 
 $(IMAGE_TYPE): results/$(BASENAME).$(IMAGE_TYPE)
 
@@ -133,7 +165,7 @@ results/$(BASENAME).$(IMAGE_TYPE) results/$(BASENAME).squashfs: $(IMAGE_RECIPE_S
 	REQUIRES=debian ./build/os-compat/run-compat.sh ./image-recipe/run-local-build.sh "results/$(BASENAME).deb"
 
 # For creating os images. DO NOT USE
-install: $(ALL_TARGETS) 
+install: $(STARTOS_TARGETS) 
 	$(call mkdir,$(DESTDIR)/usr/bin)
 	$(call mkdir,$(DESTDIR)/usr/sbin)
 	$(call cp,core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/startbox,$(DESTDIR)/usr/bin/startbox)
@@ -165,7 +197,7 @@ install: $(ALL_TARGETS)
 
 	$(call cp,firmware/$(PLATFORM),$(DESTDIR)/usr/lib/startos/firmware)
 
-update-overlay: $(ALL_TARGETS)
+update-overlay: $(STARTOS_TARGETS)
 	@echo "\033[33m!!! THIS WILL ONLY REFLASH YOUR DEVICE IN MEMORY !!!\033[0m"
 	@echo "\033[33mALL CHANGES WILL BE REVERTED IF YOU RESTART THE DEVICE\033[0m"
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
@@ -191,7 +223,7 @@ wormhole-squashfs: results/$(BASENAME).squashfs
 	@echo
 	@wormhole send results/$(BASENAME).squashfs 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo sh -c '"'"'/usr/lib/startos/scripts/prune-images $(SQFS_SIZE) && /usr/lib/startos/scripts/prune-boot && cd /media/startos/images && wormhole receive --accept-file %s && CHECKSUM=$(SQFS_SUM) /usr/lib/startos/scripts/use-img ./$(BASENAME).squashfs'"'"'\n", $$3 }'
 
-update: $(ALL_TARGETS)
+update: $(STARTOS_TARGETS)
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,'sudo /usr/lib/startos/scripts/chroot-and-upgrade --create')
 	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/startos/next PLATFORM=$(PLATFORM)
@@ -219,7 +251,7 @@ update-squashfs: results/$(BASENAME).squashfs
 	$(call cp,results/$(BASENAME).squashfs,/media/startos/images/next.rootfs)
 	$(call ssh,'sudo CHECKSUM=$(SQFS_SUM) /usr/lib/startos/scripts/use-img /media/startos/images/next.rootfs')
 
-emulate-reflash: $(ALL_TARGETS)
+emulate-reflash: $(STARTOS_TARGETS)
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,'sudo /usr/lib/startos/scripts/chroot-and-upgrade --create')
 	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/startos/next PLATFORM=$(PLATFORM)

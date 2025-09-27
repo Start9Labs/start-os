@@ -3,8 +3,8 @@ use std::ffi::OsString;
 use rpc_toolkit::CliApp;
 use serde_json::Value;
 
-use crate::context::CliContext;
 use crate::context::config::ClientConfig;
+use crate::context::CliContext;
 use crate::util::logger::LOGGER;
 use crate::version::{Current, VersionT};
 
@@ -17,7 +17,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
 
     if let Err(e) = CliApp::new(
         |cfg: ClientConfig| Ok(CliContext::init(cfg.load()?)?),
-        crate::expanded_api(),
+        crate::main_api(),
     )
     .run(args)
     {

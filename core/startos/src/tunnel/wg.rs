@@ -1,17 +1,17 @@
 use std::collections::BTreeMap;
-use std::net::{Ipv4Addr, SocketAddrV4};
+use std::net::{Ipv4Addr, SocketAddr};
 
-use ed25519_dalek::{SigningKey, VerifyingKey};
 use imbl_value::InternedString;
 use ipnet::Ipv4Net;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
+use x25519_dalek::{PublicKey, StaticSecret};
 
 use crate::prelude::*;
-use crate::util::Invoke;
 use crate::util::io::write_file_atomic;
 use crate::util::serde::Base64;
+use crate::util::Invoke;
 
 #[derive(Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "camelCase")]
@@ -79,31 +79,38 @@ impl Map for WgSubnetMap {
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct WgSubnetConfig {
-    pub default_forward_target: Option<Ipv4Addr>,
-    pub clients: BTreeMap<Ipv4Addr, WgConfig>,
+    pub name: InternedString,
+    pub clients: WgSubnetClients,
 }
 impl WgSubnetConfig {
-    pub fn new() -> Self {
-        Self::default()
-    }
-    pub fn add_client<'a>(
-        &'a mut self,
-        subnet: Ipv4Net,
-    ) -> Result<(Ipv4Addr, &'a WgConfig), Error> {
-        let addr = subnet
-            .hosts()
-            .find(|a| !self.clients.contains_key(a))
-            .ok_or_else(|| Error::new(eyre!("subnet exhausted"), ErrorKind::Network))?;
-        let config = self.clients.entry(addr).or_insert(WgConfig::generate());
-        Ok((addr, config))
+    pub fn new(name: InternedString) -> Self {
+        Self {
+            name,
+            ..Self::default()
+        }
     }
 }
 
-pub struct WgKey(SigningKey);
+#[derive(Default, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WgSubnetClients(pub BTreeMap<Ipv4Addr, WgConfig>);
+impl Map for WgSubnetClients {
+    type Key = Ipv4Addr;
+    type Value = WgConfig;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Self::key_string(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        Ok(InternedString::from_display(key))
+    }
+}
+
+#[derive(Clone)]
+pub struct WgKey(StaticSecret);
 impl WgKey {
     pub fn generate() -> Self {
-        Self(SigningKey::generate(
-            &mut ssh_key::rand_core::OsRng::default(),
+        Self(StaticSecret::random_from_rng(
+            ssh_key::rand_core::OsRng::default(),
         ))
     }
 }
@@ -113,33 +120,39 @@ impl AsRef<[u8]> for WgKey {
     }
 }
 impl TryFrom<Vec<u8>> for WgKey {
-    type Error = ed25519_dalek::SignatureError;
+    type Error = Error;
     fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        Ok(Self(value.as_slice().try_into()?))
+        Ok(Self(
+            <[u8; 32]>::try_from(value)
+                .map_err(|_| Error::new(eyre!("invalid key length"), ErrorKind::Deserialization))?
+                .into(),
+        ))
     }
 }
 impl std::ops::Deref for WgKey {
-    type Target = SigningKey;
+    type Target = StaticSecret;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 impl Base64<WgKey> {
-    pub fn verifying_key(&self) -> Base64<VerifyingKey> {
-        Base64(self.0.verifying_key())
+    pub fn verifying_key(&self) -> Base64<PublicKey> {
+        Base64((&*self.0).into())
     }
 }
 
-#[derive(Deserialize, Serialize, HasModel)]
+#[derive(Clone, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct WgConfig {
+    pub name: InternedString,
     pub key: Base64<WgKey>,
     pub psk: Base64<[u8; 32]>,
 }
 impl WgConfig {
-    pub fn generate() -> Self {
+    pub fn generate(name: InternedString) -> Self {
         Self {
+            name,
             key: Base64(WgKey::generate()),
             psk: Base64(rand::random()),
         }
@@ -150,12 +163,12 @@ impl WgConfig {
             client_addr: addr,
         }
     }
-    pub fn client_config<'a>(
-        &'a self,
+    pub fn client_config(
+        self,
         addr: Ipv4Addr,
-        server_pubkey: Base64<VerifyingKey>,
-        server_addr: SocketAddrV4,
-    ) -> ClientConfig<'a> {
+        server_pubkey: Base64<PublicKey>,
+        server_addr: SocketAddr,
+    ) -> ClientConfig {
         ClientConfig {
             client_config: self,
             client_addr: addr,
@@ -181,19 +194,33 @@ impl<'a> std::fmt::Display for ServerPeerConfig<'a> {
     }
 }
 
-pub struct ClientConfig<'a> {
-    client_config: &'a WgConfig,
-    client_addr: Ipv4Addr,
-    server_pubkey: Base64<VerifyingKey>,
-    server_addr: SocketAddrV4,
+fn deserialize_verifying_key<'de, D>(deserializer: D) -> Result<Base64<PublicKey>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Base64::<Vec<u8>>::deserialize(deserializer).and_then(|b| {
+        Ok(Base64(PublicKey::from(<[u8; 32]>::try_from(b.0).map_err(
+            |e: Vec<u8>| serde::de::Error::invalid_length(e.len(), &"a 32 byte base64 string"),
+        )?)))
+    })
 }
-impl<'a> std::fmt::Display for ClientConfig<'a> {
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ClientConfig {
+    client_config: WgConfig,
+    client_addr: Ipv4Addr,
+    #[serde(deserialize_with = "deserialize_verifying_key")]
+    server_pubkey: Base64<PublicKey>,
+    server_addr: SocketAddr,
+}
+impl std::fmt::Display for ClientConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
             include_str!("./client.conf.template"),
+            name = self.client_config.name,
             privkey = self.client_config.key.to_padded_string(),
-            psk = self.client_config.psk,
+            psk = self.client_config.psk.to_padded_string(),
             addr = self.client_addr,
             server_pubkey = self.server_pubkey.to_padded_string(),
             server_addr = self.server_addr,
@@ -212,7 +239,7 @@ impl<'a> std::fmt::Display for ServerConfig<'a> {
             server_port = server.port,
             server_privkey = server.key.to_padded_string(),
         )?;
-        for (addr, peer) in server.subnets.0.values().flat_map(|s| &s.clients) {
+        for (addr, peer) in server.subnets.0.values().flat_map(|s| &s.clients.0) {
             write!(f, "{}", peer.server_peer_config(*addr))?;
         }
         Ok(())

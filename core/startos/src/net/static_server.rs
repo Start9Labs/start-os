@@ -6,11 +6,11 @@ use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
 use async_compression::tokio::bufread::GzipEncoder;
-use axum::Router;
 use axum::body::Body;
 use axum::extract::{self as x, Request};
 use axum::response::{Redirect, Response};
 use axum::routing::{any, get};
+use axum::Router;
 use base64::display::Base64Display;
 use digest::Digest;
 use futures::future::ready;
@@ -33,20 +33,20 @@ use url::Url;
 
 use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
 use crate::hostname::Hostname;
+use crate::main_api;
 use crate::middleware::auth::{Auth, HasValidSession};
 use crate::middleware::cors::Cors;
 use crate::middleware::db::SyncDb;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuations};
-use crate::s9pk::S9pk;
-use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
+use crate::s9pk::merkle_archive::source::FileSource;
+use crate::s9pk::S9pk;
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::util::io::open_file;
 use crate::util::net::SyncBody;
 use crate::util::serde::BASE64;
-use crate::{diagnostic_api, init_api, install_api, main_api, setup_api};
 
 const NOT_FOUND: &[u8] = b"Not Found";
 const METHOD_NOT_ALLOWED: &[u8] = b"Method Not Allowed";
@@ -61,20 +61,84 @@ const EMBEDDED_UIS: Dir<'_> =
 #[cfg(not(all(feature = "startd", not(feature = "test"))))]
 const EMBEDDED_UIS: Dir<'_> = Dir::new("", &[]);
 
-#[derive(Clone)]
-pub enum UiMode {
-    Setup,
-    Install,
-    Main,
+pub trait UiContext: Context + AsRef<RpcContinuations> + Clone + Sized {
+    fn path(path: &str) -> PathBuf;
+    fn middleware(server: Server<Self>) -> HttpServer<Self>;
+    fn extend_router(self, router: Router) -> Router {
+        router
+    }
 }
 
-impl UiMode {
-    fn path(&self, path: &str) -> PathBuf {
-        match self {
-            Self::Setup => Path::new("setup-wizard").join(path),
-            Self::Install => Path::new("install-wizard").join(path),
-            Self::Main => Path::new("ui").join(path),
-        }
+impl UiContext for RpcContext {
+    fn path(path: &str) -> PathBuf {
+        Path::new("ui").join(path)
+    }
+    fn middleware(server: Server<Self>) -> HttpServer<Self> {
+        server
+            .middleware(Cors::new())
+            .middleware(Auth::new())
+            .middleware(SyncDb::new())
+    }
+    fn extend_router(self, router: Router) -> Router {
+        router
+            .route("/proxy/{url}", {
+                let ctx = self.clone();
+                any(move |x::Path(url): x::Path<String>, request: Request| {
+                    let ctx = ctx.clone();
+                    async move {
+                        proxy_request(ctx, request, url)
+                            .await
+                            .unwrap_or_else(server_error)
+                    }
+                })
+            })
+            .nest("/s9pk", s9pk_router(self.clone()))
+            .route(
+                "/static/local-root-ca.crt",
+                get(move || {
+                    let ctx = self.clone();
+                    async move {
+                        ctx.account
+                            .peek(|account| cert_send(&account.root_ca_cert, &account.hostname))
+                    }
+                }),
+            )
+    }
+}
+
+impl UiContext for InitContext {
+    fn path(path: &str) -> PathBuf {
+        Path::new("ui").join(path)
+    }
+    fn middleware(server: Server<Self>) -> HttpServer<Self> {
+        server.middleware(Cors::new())
+    }
+}
+
+impl UiContext for DiagnosticContext {
+    fn path(path: &str) -> PathBuf {
+        Path::new("ui").join(path)
+    }
+    fn middleware(server: Server<Self>) -> HttpServer<Self> {
+        server.middleware(Cors::new())
+    }
+}
+
+impl UiContext for SetupContext {
+    fn path(path: &str) -> PathBuf {
+        Path::new("setup-wizard").join(path)
+    }
+    fn middleware(server: Server<Self>) -> HttpServer<Self> {
+        server.middleware(Cors::new())
+    }
+}
+
+impl UiContext for InstallContext {
+    fn path(path: &str) -> PathBuf {
+        Path::new("install-wizard").join(path)
+    }
+    fn middleware(server: Server<Self>) -> HttpServer<Self> {
+        server.middleware(Cors::new())
     }
 }
 
@@ -111,11 +175,11 @@ pub fn rpc_router<C: Context + Clone + AsRef<RpcContinuations>>(
         )
 }
 
-fn serve_ui(req: Request, ui_mode: UiMode) -> Result<Response, Error> {
+fn serve_ui<C: UiContext>(req: Request) -> Result<Response, Error> {
     let (request_parts, _body) = req.into_parts();
     match &request_parts.method {
         &Method::GET | &Method::HEAD => {
-            let uri_path = ui_mode.path(
+            let uri_path = C::path(
                 request_parts
                     .uri
                     .path()
@@ -125,7 +189,7 @@ fn serve_ui(req: Request, ui_mode: UiMode) -> Result<Response, Error> {
 
             let file = EMBEDDED_UIS
                 .get_file(&*uri_path)
-                .or_else(|| EMBEDDED_UIS.get_file(&*ui_mode.path("index.html")));
+                .or_else(|| EMBEDDED_UIS.get_file(&*C::path("index.html")));
 
             if let Some(file) = file {
                 FileData::from_embedded(&request_parts, file)?.into_response(&request_parts)
@@ -137,79 +201,15 @@ fn serve_ui(req: Request, ui_mode: UiMode) -> Result<Response, Error> {
     }
 }
 
-pub fn setup_ui_router(ctx: SetupContext) -> Router {
-    rpc_router(
-        ctx.clone(),
-        Server::new(move || ready(Ok(ctx.clone())), setup_api()).middleware(Cors::new()),
-    )
-    .fallback(any(|request: Request| async move {
-        serve_ui(request, UiMode::Setup).unwrap_or_else(server_error)
-    }))
-}
-
-pub fn diagnostic_ui_router(ctx: DiagnosticContext) -> Router {
-    rpc_router(
-        ctx.clone(),
-        Server::new(move || ready(Ok(ctx.clone())), diagnostic_api()).middleware(Cors::new()),
-    )
-    .fallback(any(|request: Request| async move {
-        serve_ui(request, UiMode::Main).unwrap_or_else(server_error)
-    }))
-}
-
-pub fn install_ui_router(ctx: InstallContext) -> Router {
-    rpc_router(
-        ctx.clone(),
-        Server::new(move || ready(Ok(ctx.clone())), install_api()).middleware(Cors::new()),
-    )
-    .fallback(any(|request: Request| async move {
-        serve_ui(request, UiMode::Install).unwrap_or_else(server_error)
-    }))
-}
-
-pub fn init_ui_router(ctx: InitContext) -> Router {
-    rpc_router(
-        ctx.clone(),
-        Server::new(move || ready(Ok(ctx.clone())), init_api()).middleware(Cors::new()),
-    )
-    .fallback(any(|request: Request| async move {
-        serve_ui(request, UiMode::Main).unwrap_or_else(server_error)
-    }))
-}
-
-pub fn main_ui_router(ctx: RpcContext) -> Router {
-    rpc_router(ctx.clone(), {
-        let ctx = ctx.clone();
-        Server::new(move || ready(Ok(ctx.clone())), main_api::<RpcContext>())
-            .middleware(Cors::new())
-            .middleware(Auth::new())
-            .middleware(SyncDb::new())
-    })
-    .route("/proxy/{url}", {
-        let ctx = ctx.clone();
-        any(move |x::Path(url): x::Path<String>, request: Request| {
-            let ctx = ctx.clone();
-            async move {
-                proxy_request(ctx, request, url)
-                    .await
-                    .unwrap_or_else(server_error)
-            }
-        })
-    })
-    .nest("/s9pk", s9pk_router(ctx.clone()))
-    .route(
-        "/static/local-root-ca.crt",
-        get(move || {
-            let ctx = ctx.clone();
-            async move {
-                let account = ctx.account.read().await;
-                cert_send(&account.root_ca_cert, &account.hostname)
-            }
-        }),
-    )
-    .fallback(any(|request: Request| async move {
-        serve_ui(request, UiMode::Main).unwrap_or_else(server_error)
-    }))
+pub fn ui_router<C: UiContext>(ctx: C) -> Router {
+    ctx.clone()
+        .extend_router(rpc_router(
+            ctx.clone(),
+            C::middleware(Server::new(move || ready(Ok(ctx.clone())), main_api())),
+        ))
+        .fallback(any(|request: Request| async move {
+            serve_ui::<C>(request).unwrap_or_else(server_error)
+        }))
 }
 
 pub fn refresher() -> Router {

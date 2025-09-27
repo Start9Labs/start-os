@@ -463,7 +463,8 @@ pub fn notify<T: NotificationType>(
             data,
             seen: false,
         },
-    )
+    )?;
+    Ok(())
 }
 
 #[test]

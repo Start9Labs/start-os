@@ -4,18 +4,18 @@ use exver::{PreReleaseSegment, VersionRange};
 use tokio::fs::File;
 
 use super::v0_3_5::V0_3_0_COMPAT;
-use super::{VersionT, v0_3_6_alpha_7};
-use crate::DATA_DIR;
+use super::{v0_3_6_alpha_7, VersionT};
 use crate::context::RpcContext;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::prelude::*;
-use crate::s9pk::S9pk;
 use crate::s9pk::manifest::{DeviceFilter, Manifest};
-use crate::s9pk::merkle_archive::MerkleArchive;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
+use crate::s9pk::merkle_archive::MerkleArchive;
 use crate::s9pk::v2::SIG_CONTEXT;
+use crate::s9pk::S9pk;
 use crate::service::LoadDisposition;
 use crate::util::io::create_file;
+use crate::DATA_DIR;
 
 lazy_static::lazy_static! {
     static ref V0_3_6_alpha_8: exver::Version = exver::Version::new(
@@ -115,7 +115,7 @@ impl VersionT for Version {
                     let manifest: Manifest = from_value(manifest.clone())?;
                     let id = manifest.id.clone();
                     let mut s9pk: S9pk<_> = S9pk::new_with_manifest(archive, None, manifest);
-                    let s9pk_compat_key = ctx.account.read().await.developer_key.clone();
+                    let s9pk_compat_key = ctx.account.peek(|a| a.developer_key.clone());
                     s9pk.as_archive_mut()
                         .set_signer(s9pk_compat_key, SIG_CONTEXT);
                     s9pk.serialize(&mut tmp_file, true).await?;

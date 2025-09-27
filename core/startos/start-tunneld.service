@@ -1,10 +1,10 @@
 [Unit]
-Description=StartOS Registry
+Description=StartTunnel
 
 [Service]
 Type=simple
 Environment=RUST_LOG=startos=debug,patch_db=warn
-ExecStart=/usr/local/bin/registry
+ExecStart=/usr/bin/start-tunneld
 Restart=always
 RestartSec=3
 ManagedOOMPreference=avoid

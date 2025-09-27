@@ -216,13 +216,18 @@ impl<T: Map> Model<T>
 where
     T::Value: Serialize,
 {
-    pub fn insert(&mut self, key: &T::Key, value: &T::Value) -> Result<(), Error> {
+    pub fn insert_model(
+        &mut self,
+        key: &T::Key,
+        value: Model<T::Value>,
+    ) -> Result<Option<Model<T::Value>>, Error> {
+        use patch_db::ModelExt;
         use serde::ser::Error;
-        let v = patch_db::value::to_value(value)?;
+        let v = value.into_value();
         match &mut self.value {
             Value::Object(o) => {
-                o.insert(T::key_string(key)?, v);
-                Ok(())
+                let prev = o.insert(T::key_string(key)?, v);
+                Ok(prev.map(|v| Model::from_value(v)))
             }
             v => Err(patch_db::value::Error {
                 source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
@@ -230,6 +235,13 @@ where
             }
             .into()),
         }
+    }
+    pub fn insert(
+        &mut self,
+        key: &T::Key,
+        value: &T::Value,
+    ) -> Result<Option<Model<T::Value>>, Error> {
+        self.insert_model(key, Model::new(value)?)
     }
     pub fn upsert<F>(&mut self, key: &T::Key, value: F) -> Result<&mut Model<T::Value>, Error>
     where
@@ -249,22 +261,6 @@ where
                     res.ser(&value()?)?;
                 }
                 Ok(res)
-            }
-            v => Err(patch_db::value::Error {
-                source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
-                kind: patch_db::value::ErrorKind::Serialization,
-            }
-            .into()),
-        }
-    }
-    pub fn insert_model(&mut self, key: &T::Key, value: Model<T::Value>) -> Result<(), Error> {
-        use patch_db::ModelExt;
-        use serde::ser::Error;
-        let v = value.into_value();
-        match &mut self.value {
-            Value::Object(o) => {
-                o.insert(T::key_string(key)?, v);
-                Ok(())
             }
             v => Err(patch_db::value::Error {
                 source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),

@@ -15,8 +15,8 @@ use url::Url;
 use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
-use crate::util::VersionString;
 use crate::util::lshw::{LshwDevice, LshwDisplay, LshwProcessor};
+use crate::util::VersionString;
 use crate::version::VersionT;
 
 pub const DEVICE_INFO_HEADER: &str = "X-StartOS-Device-Info";
@@ -175,7 +175,7 @@ impl Middleware<RegistryContext> for DeviceInfoMiddleware {
         async move {
             if metadata.get_device_info {
                 if let Some(device_info) = &self.device_info {
-                    request.params["__device_info"] =
+                    request.params["__DeviceInfo_device_info"] =
                         to_value(&DeviceInfo::from_header_value(device_info)?)?;
                 }
             }

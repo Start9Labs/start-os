@@ -616,6 +616,7 @@ export class SubContainerRc<
     return this.subcontainer.guid
   }
   private destroyed = false
+  private destroying: Promise<null> | null = null
   public constructor(
     private readonly subcontainer: SubContainerOwned<Manifest, Effects>,
   ) {
@@ -695,14 +696,16 @@ export class SubContainerRc<
 
   get destroy() {
     return async () => {
-      if (!this.destroyed) {
+      if (!this.destroyed && !this.destroying) {
         const rcs = --this.subcontainer.rcs
         if (rcs <= 0) {
-          await this.subcontainer.destroy()
+          this.destroying = this.subcontainer.destroy()
           if (rcs < 0) console.error(new Error("UNREACHABLE: rcs < 0").stack)
         }
-        this.destroyed = true
       }
+      await this.destroying
+      this.destroyed = true
+      this.destroying = null
       return null
     }
   }

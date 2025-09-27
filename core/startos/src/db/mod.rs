@@ -127,7 +127,7 @@ pub struct SubscribeParams {
     #[ts(type = "string | null")]
     pointer: Option<JsonPointer>,
     #[ts(skip)]
-    #[serde(rename = "__auth_session")]
+    #[serde(rename = "__Auth_session")]
     session: Option<InternedString>,
 }
 

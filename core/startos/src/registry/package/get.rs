@@ -12,8 +12,8 @@ use crate::prelude::*;
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfo;
 use crate::registry::package::index::{PackageIndex, PackageVersionInfo};
+use crate::util::serde::{display_serializable, WithIoFormat};
 use crate::util::VersionString;
-use crate::util::serde::{WithIoFormat, display_serializable};
 
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS, ValueEnum,
@@ -51,7 +51,7 @@ pub struct GetPackageParams {
     pub source_version: Option<VersionString>,
     #[ts(skip)]
     #[arg(skip)]
-    #[serde(rename = "__device_info")]
+    #[serde(rename = "__DeviceInfo_device_info")]
     pub device_info: Option<DeviceInfo>,
     #[serde(default)]
     #[arg(default_value = "none")]

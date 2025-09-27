@@ -18,7 +18,7 @@ if [ "$FORCE_COMPAT" = 1 ] || ( [ "$REQUIRES" = "linux" ] && [ "$(uname -s)" != 
 
     docker run -d --rm --name os-compat --privileged --security-opt apparmor=unconfined -v "${project_pwd}:/root/start-os" -v /lib/modules:/lib/modules:ro start9/build-env
     while ! docker exec os-compat systemctl is-active --quiet multi-user.target 2> /dev/null; do sleep .5; done
-    docker exec -eARCH -eENVIRONMENT -ePLATFORM -eGIT_BRANCH_AS_HASH $USE_TTY -w "/root/start-os${rel_pwd}" os-compat $@
+    docker exec -eARCH -eENVIRONMENT -ePLATFORM -eGIT_BRANCH_AS_HASH -ePROJECT -eDEPENDS -eCONFLICTS $USE_TTY -w "/root/start-os${rel_pwd}" os-compat $@
     code=$?
     docker stop os-compat
     exit $code

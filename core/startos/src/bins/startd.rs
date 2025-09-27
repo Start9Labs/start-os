@@ -38,7 +38,7 @@ async fn inner_main(
         };
         tokio::fs::write("/run/startos/initialized", "").await?;
 
-        server.serve_main(ctx.clone());
+        server.serve_ui_for(ctx.clone());
         LOGGER.set_logfile(None);
         handle.complete();
 
@@ -47,7 +47,7 @@ async fn inner_main(
         let init_ctx = InitContext::init(config).await?;
         let handle = init_ctx.progress.clone();
         let rpc_ctx_phases = InitRpcContextPhases::new(&handle);
-        server.serve_init(init_ctx);
+        server.serve_ui_for(init_ctx);
 
         let ctx = RpcContext::init(
             &server.acceptor_setter(),
@@ -63,14 +63,14 @@ async fn inner_main(
         )
         .await?;
 
-        server.serve_main(ctx.clone());
+        server.serve_ui_for(ctx.clone());
         handle.complete();
 
         ctx
     };
 
     let (rpc_ctx, shutdown) = async {
-        crate::hostname::sync_hostname(&rpc_ctx.account.read().await.hostname).await?;
+        crate::hostname::sync_hostname(&rpc_ctx.account.peek(|a| a.hostname.clone())).await?;
 
         let mut shutdown_recv = rpc_ctx.shutdown.subscribe();
 
@@ -177,7 +177,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
                             e,
                         )?;
 
-                        server.serve_diagnostic(ctx.clone());
+                        server.serve_ui_for(ctx.clone());
 
                         let mut shutdown = ctx.shutdown.subscribe();
 
