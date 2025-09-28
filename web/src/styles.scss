@@ -11,7 +11,7 @@
 body {
   height: 100%;
   isolation: isolate;
-  overflow-x: hidden;
+  overflow: hidden;
   background:
     conic-gradient(var(--tui-background-base)),
     radial-gradient(circle at top right, #5240a8, transparent 40%),
@@ -34,4 +34,93 @@ body {
       backdrop-filter: brightness(1.5);
     }
   }
+}
+
+ul {
+  padding-inline-start: 1rem;
+}
+
+li {
+  margin-block-end: 0.5rem;
+}
+
+header[tuiHeader] {
+  margin-block-end: 1rem;
+}
+
+.g-primary {
+  color: var(--tui-text-primary) !important;
+}
+
+.g-secondary {
+  color: var(--tui-text-secondary) !important;
+}
+
+.g-negative {
+  color: var(--tui-text-negative) !important;
+}
+
+.g-positive {
+  color: var(--tui-text-positive) !important;
+}
+
+.g-form {
+  margin: 1rem 0;
+
+  section {
+    display: flex;
+    gap: inherit;
+    flex-wrap: wrap;
+
+    > *:has([tuiTextfield]) {
+      display: flex;
+      flex: 1;
+      min-width: 8rem;
+      max-width: 20rem;
+
+      &:not(tui-textfield) {
+        flex-direction: column;
+        gap: inherit;
+      }
+    }
+  }
+
+  tui-error {
+    font: var(--tui-font-text-xs);
+  }
+
+  label:has(input[type='checkbox'], input[type='radio']) {
+    cursor: pointer;
+    align-self: center;
+    align-items: center;
+  }
+
+  [tuiHeader] [tuiAccessories] [tuiLabel] {
+    font: var(--tui-font-text-s);
+  }
+}
+
+.g-footer {
+  display: flex;
+  gap: 1rem;
+  justify-content: end;
+}
+
+tui-dropdown[data-appearance='start-9'] {
+  background: none;
+  backdrop-filter: blur(1rem);
+}
+
+tui-dialog[new][data-appearance~='start-9'] {
+  background: var(--tui-background-neutral-1);
+  backdrop-filter: blur(5rem);
+}
+
+tui-data-list {
+  --tui-text-action: var(--tui-text-primary);
+}
+
+// TODO: Remove in Taiga v5, use native scrollbars
+tui-root > tui-scroll-controls {
+  display: none !important;
 }

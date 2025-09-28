@@ -8,7 +8,7 @@ export default [
     children: [
       {
         path: 'wan',
-        loadComponent: () => import('./routes/wan'),
+        loadChildren: () => import('./routes/wan'),
       },
       {
         path: 'outbound',

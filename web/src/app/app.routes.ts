@@ -6,12 +6,12 @@ export const routes: Routes = [
   {
     path: '',
     loadChildren: () => import('./routes/home'),
-    canMatch: [() => inject(AuthService).authenticated()],
+    canMatch: [() => !inject(AuthService).authenticated()],
   },
   {
     path: '',
     loadComponent: () => import('./routes/login'),
-    canMatch: [() => !inject(AuthService).authenticated()],
+    canMatch: [() => inject(AuthService).authenticated()],
   },
   { path: '**', redirectTo: '' },
 ]
