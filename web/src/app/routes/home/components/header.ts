@@ -31,7 +31,6 @@ import { SidebarService } from 'src/app/services/sidebar.service'
       gap: 0.75rem;
       padding: 0 0.75rem;
       background: var(--tui-background-neutral-2);
-      box-shadow: var(--tui-shadow-medium);
       border-bottom: 1px solid var(--tui-border-normal);
     }
 
@@ -60,6 +59,12 @@ import { SidebarService } from 'src/app/services/sidebar.service'
 
       button {
         pointer-events: auto;
+      }
+    }
+
+    :host-context(body:not([tuiTheme])) {
+      button {
+        filter: invert(1);
       }
     }
   `,

@@ -2,6 +2,7 @@ import { KeyValuePipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { Router, RouterLink, RouterLinkActive } from '@angular/router'
 import { TuiButton, TuiScrollbar } from '@taiga-ui/core'
+import { MENU } from 'src/app/routes/home/components/menu'
 import { AuthService } from 'src/app/services/auth.service'
 import { SidebarService } from 'src/app/services/sidebar.service'
 
@@ -31,8 +32,8 @@ import { SidebarService } from 'src/app/services/sidebar.service'
     <button
       tuiButton
       iconStart="@tui.log-out"
-      appearance="glass"
-      size="m"
+      appearance="neutral"
+      size="s"
       (click)="logout()"
     >
       Logout
@@ -120,73 +121,7 @@ export class Nav {
   private readonly router = inject(Router)
 
   protected readonly sidebars = inject(SidebarService)
-  protected readonly routes = {
-    Internet: [
-      {
-        name: 'WAN Settings',
-        icon: '@tui.globe',
-        link: 'wan',
-      },
-      {
-        name: 'Outbound VPNs',
-        icon: '@tui.globe-lock',
-        link: 'outbound',
-      },
-    ],
-    Network: [
-      {
-        name: 'LAN Settings',
-        icon: '@tui.network',
-        link: 'lan',
-      },
-      {
-        name: 'Devices',
-        icon: '@tui.monitor-smartphone',
-        link: 'devices',
-      },
-      {
-        name: 'Port Forwarding',
-        icon: '@tui.chevrons-right',
-        link: 'forwarding',
-      },
-    ],
-    Permissions: [
-      {
-        name: 'Profiles',
-        icon: '@tui.scroll-text',
-        link: 'profiles',
-      },
-      {
-        name: 'Schedules',
-        icon: '@tui.clock',
-        link: 'schedules',
-      },
-    ],
-    ['Points of entry']: [
-      {
-        name: 'Ethernet',
-        icon: '@tui.ethernet-port',
-        link: 'ethernet',
-      },
-      {
-        name: 'Wi-Fi',
-        icon: '@tui.wifi',
-        link: 'wifi',
-      },
-      {
-        name: 'Inbound VPNs',
-        icon: '@tui.hard-drive-download',
-        link: 'inbound',
-      },
-    ],
-    System: [
-      {
-        name: 'Settings',
-        icon: '@tui.settings',
-        link: 'settings',
-      },
-    ],
-  } as const
+  protected readonly routes = MENU
 
   protected logout(): void {
     this.service.authenticated.set(false)

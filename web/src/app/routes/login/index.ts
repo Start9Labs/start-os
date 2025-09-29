@@ -42,12 +42,16 @@ import { AuthService } from 'src/app/services/auth.service'
     img {
       width: 5rem;
       height: 5rem;
-      filter: drop-shadow(0.25rem 0.25rem 0.5rem rgb(146 54 201 / 66%))
-        drop-shadow(-0.25rem -0.25rem 0.25rem rgb(0 144 192 / 33%));
     }
 
     tui-textfield {
       width: 18rem;
+    }
+
+    :host-context(body:not([tuiTheme])) {
+      img {
+        filter: invert(1);
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

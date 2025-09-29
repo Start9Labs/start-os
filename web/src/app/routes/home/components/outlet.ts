@@ -21,7 +21,7 @@ import { SidebarService } from 'src/app/services/sidebar.service'
     <main>
       <tui-scrollbar><router-outlet /></tui-scrollbar>
     </main>
-    <aside></aside>
+    <aside inert></aside>
   `,
   styles: `
     :host {

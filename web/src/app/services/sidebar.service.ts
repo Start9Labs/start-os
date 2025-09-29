@@ -1,10 +1,9 @@
-import { inject, Injectable, signal } from '@angular/core'
-import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
+import { Injectable, signal } from '@angular/core'
 
 @Injectable({
   providedIn: 'root',
 })
 export class SidebarService {
   readonly start = signal(false)
-  readonly end = signal(!inject(TUI_IS_MOBILE))
+  readonly end = signal(false)
 }
