@@ -13,7 +13,7 @@ import { DnsSummary } from './summary'
 
 @Component({
   template: `
-    <div dnsSummary tuiCardLarge="compact"></div>
+    <article dnsSummary tuiCardLarge="compact"></article>
     <form
       tuiForm
       tuiCardLarge="compact"

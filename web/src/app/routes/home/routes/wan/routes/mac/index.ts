@@ -8,7 +8,7 @@ import { MacSummary } from './summary'
 
 @Component({
   template: `
-    <div macSummary tuiCardLarge="compact"></div>
+    <article macSummary tuiCardLarge="compact"></article>
     <form
       tuiForm
       tuiCardLarge="compact"

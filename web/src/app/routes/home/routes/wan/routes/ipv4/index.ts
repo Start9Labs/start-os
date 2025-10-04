@@ -8,7 +8,7 @@ import { Ipv4Summary } from './summary'
 
 @Component({
   template: `
-    <div ipv4Summary tuiCardLarge="compact"></div>
+    <article ipv4Summary tuiCardLarge="compact"></article>
     <ipv4-ip />
     <ipv4-dns />
   `,

@@ -8,7 +8,7 @@ import { Ipv6Summary } from './summary'
 
 @Component({
   template: `
-    <div ipv6Summary tuiCardLarge="compact"></div>
+    <article ipv6Summary tuiCardLarge="compact"></article>
     <ipv6-ip />
     <ipv6-dns />
   `,

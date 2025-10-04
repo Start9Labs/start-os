@@ -17,9 +17,7 @@ import { WanAside } from './aside'
   template: `
     <wan-aside *help />
     <header tuiHeader>
-      <hgroup tuiTitle>
-        <h2>Internet (WAN)</h2>
-      </hgroup>
+      <hgroup tuiTitle><h2>Internet (WAN)</h2></hgroup>
     </header>
     <tui-tabs>
       @for (tab of tabs; track $index) {
