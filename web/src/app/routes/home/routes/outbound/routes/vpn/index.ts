@@ -57,51 +57,53 @@ import { VPNSummary } from './summary'
       tuiForm="m"
       [formGroup]="form"
     >
-      <h3 tuiHeader="body-m">
-        VPN Chaining
-        <tui-icon tuiTooltip="Send traffic from this VPN through another VPN" />
-        <aside tuiAccessories [style.margin-inline-start]="'auto'">
+      <h3 tuiHeader><span tuiTitle>Label</span></h3>
+      <tui-textfield>
+        <input tuiTextfield formControlName="label" />
+      </tui-textfield>
+    </form>
+    <form
+      tuiCardLarge="compact"
+      tuiAppearance="neutral"
+      tuiForm="m"
+      [formGroup]="form"
+      [style.margin-block.rem]="1"
+    >
+      <label tuiHeader [style.margin-inline]="0">
+        <span tuiTitle>VPN Chaining</span>
+        <aside tuiAccessories>
+          <tui-icon
+            tuiTooltip="Send traffic from this VPN through another VPN"
+          />
           <input type="checkbox" tuiSwitch formControlName="chaining" />
         </aside>
-      </h3>
-      <fieldset>
-        <tui-textfield>
-          <label tuiLabel>Label</label>
-          <input tuiTextfield formControlName="label" />
+      </label>
+      @if (form.value.chaining) {
+        <tui-textfield tuiChevron>
+          <label tuiLabel>Chain to</label>
+          <input tuiSelect formControlName="vpn" />
+          <tui-data-list-wrapper
+            *tuiTextfieldDropdown
+            new
+            [items]="['Proton', 'NordVPN']"
+          />
         </tui-textfield>
-        @if (form.value.chaining) {
-          <tui-textfield tuiChevron>
-            <label tuiLabel>VPN Label</label>
-            <input tuiSelect formControlName="vpn" />
-            <tui-data-list-wrapper
-              *tuiTextfieldDropdown
-              new
-              [items]="['Proton', 'NordVPN']"
-            />
-          </tui-textfield>
-        }
-      </fieldset>
-      <footer>
-        <button
-          tuiButton
-          type="button"
-          appearance="secondary-destructive"
-          [style.margin-inline-end]="'auto'"
-        >
-          Delete
-        </button>
-        <button tuiButton type="button" appearance="flat" routerLink="..">
-          Cancel
-        </button>
-        <button tuiButton>Save</button>
-      </footer>
+      }
     </form>
-  `,
-  styles: `
-    fieldset {
-      grid-auto-flow: row;
-      grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
-    }
+    <footer class="g-footer">
+      <button
+        tuiButton
+        type="button"
+        appearance="action-destructive"
+        [style.margin-inline-end]="'auto'"
+      >
+        Delete
+      </button>
+      <button tuiButton type="button" appearance="flat" routerLink="..">
+        Cancel
+      </button>
+      <button tuiButton>Save</button>
+    </footer>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [tuiTextfieldOptionsProvider({ cleaner: signal(false) })],
@@ -121,10 +123,10 @@ import { VPNSummary } from './summary'
     TuiAppearance,
     TuiIcon,
     TuiTooltip,
+    TuiButton,
     Help,
     VPNAside,
     VPNSummary,
-    TuiButton,
   ],
 })
 export default class OutboundVPN {

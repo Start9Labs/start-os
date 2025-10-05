@@ -11,6 +11,7 @@ import {
   TuiIcon,
   TuiTextfield,
   tuiTextfieldOptionsProvider,
+  TuiTitle,
 } from '@taiga-ui/core'
 import { TuiDialogContext } from '@taiga-ui/experimental'
 import {
@@ -58,13 +59,15 @@ import { PolymorpheusComponent, injectContext } from '@taiga-ui/polymorpheus'
         <input tuiInputFiles formControlName="config" />
         <ng-template>Drag and drop config file here</ng-template>
       </label>
-      <h3 tuiHeader="body-m">
-        VPN Chaining
-        <tui-icon tuiTooltip="Send traffic from this VPN through another VPN" />
+      <label tuiHeader="body-m">
+        <span tuiTitle>VPN Chaining</span>
         <aside tuiAccessories [style.margin-inline-start]="'auto'">
+          <tui-icon
+            tuiTooltip="Send traffic from this VPN through another VPN"
+          />
           <input type="checkbox" tuiSwitch formControlName="chaining" />
         </aside>
-      </h3>
+      </label>
       @if (form.value.chaining) {
         <tui-textfield tuiChevron>
           <label tuiLabel>VPN Label</label>
@@ -106,6 +109,7 @@ import { PolymorpheusComponent, injectContext } from '@taiga-ui/polymorpheus'
     TuiDataListWrapper,
     TuiChevron,
     TuiButton,
+    TuiTitle,
   ],
 })
 export class AddVPN {
