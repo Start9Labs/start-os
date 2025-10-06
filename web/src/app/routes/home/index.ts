@@ -12,7 +12,7 @@ export default [
       },
       {
         path: 'outbound',
-        loadComponent: () => import('./routes/outbound'),
+        loadChildren: () => import('./routes/outbound'),
       },
       { path: '**', redirectTo: 'wan' },
     ],

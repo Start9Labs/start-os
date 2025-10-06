@@ -47,8 +47,10 @@ import { TuiForm } from '@taiga-ui/layout'
         margin: -0.5rem 0;
       }
 
-      [tuiBadge] {
-        margin: -0.125rem;
+      [tuiSubtitle] {
+        color: var(--tui-text-secondary);
+        display: flex;
+        align-items: center;
       }
 
       > *::first-letter {

@@ -1,9 +1,5 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import {
-  TuiAccordionComponent,
-  TuiAccordionDirective,
-  TuiExpand,
-} from '@taiga-ui/experimental'
+import { TuiAccordion } from '@taiga-ui/experimental'
 
 @Component({
   selector: 'wan-aside',
@@ -85,7 +81,7 @@ import {
       </tui-expand>
     </tui-accordion>
   `,
-  imports: [TuiAccordionComponent, TuiAccordionDirective, TuiExpand],
+  imports: [TuiAccordion],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WanAside {}

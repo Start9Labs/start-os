@@ -18,6 +18,7 @@
     "@angular/platform-browser": "^20.3.0",
     "@angular/router": "^20.3.0",
     "@taiga-ui/addon-mobile": "^4.55.0",
+    "@taiga-ui/addon-table": "^4.55.0",
     "@taiga-ui/cdk": "^4.55.0",
     "@taiga-ui/core": "^4.55.0",
     "@taiga-ui/event-plugins": "^4.7.0",

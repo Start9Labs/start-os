@@ -1,20 +1,26 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { Help } from 'src/app/directives/help.directive'
+import { RouterOutlet, Routes } from '@angular/router'
 
 @Component({
-  template: `
-    @for (item of mock; track $index) {
-      <p>{{ item }}</p>
-    }
-    <ng-template help>
-      @for (item of mock; track $index) {
-        <p>{{ item }}</p>
-      }
-    </ng-template>
-  `,
+  template: '<router-outlet />',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Help],
+  imports: [RouterOutlet],
 })
-export default class Outbound {
-  protected readonly mock = Array.from({ length: 200 }).fill('outbound')
-}
+export class Outbound {}
+
+export default [
+  {
+    path: '',
+    component: Outbound,
+    children: [
+      {
+        path: '',
+        loadComponent: () => import('./routes/table'),
+      },
+      {
+        path: ':label',
+        loadComponent: () => import('./routes/vpn'),
+      },
+    ],
+  },
+] satisfies Routes
