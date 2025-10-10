@@ -90,7 +90,7 @@ export class CpuComponent {
 
   readonly transform = computed(
     (value = this.value()?.percentageUsed?.value || '0') =>
-      `rotate(${60 + (300 * Number.parseFloat(value)) / 100}deg)`,
+      `rotate(${60 + (240 * Number.parseFloat(value)) / 100}deg)`,
   )
 
   readonly labels = LABELS
