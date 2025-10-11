@@ -29,15 +29,10 @@ body {
   background-blend-mode: hard-light;
 
   &:not([tuiTheme]) {
-    background-blend-mode: soft-light;
+    background: var(--tui-background-base-alt);
 
-    &::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      z-index: -1;
-      background: rgb(255 255 255 / 15%);
-      backdrop-filter: brightness(1.5);
+    [data-appearance='neutral'] {
+      background: var(--tui-background-base);
     }
   }
 }
@@ -114,6 +109,10 @@ header[tuiHeader] {
   display: flex;
   gap: 1rem;
   justify-content: end;
+
+  &:last-child {
+    padding-bottom: 2rem;
+  }
 }
 
 .g-aside {
@@ -134,6 +133,14 @@ header[tuiHeader] {
     backdrop-filter: blur(5rem);
     border-radius: var(--tui-radius-s) var(--tui-radius-s) 0 0;
     z-index: 1;
+    background: rgb(255 255 255 / 80%);
+    box-shadow:
+      inset 1px 0 var(--tui-background-neutral-1),
+      inset -1px 0 var(--tui-background-neutral-1);
+
+    [tuiTheme='dark'] & {
+      background: rgb(255 255 255 / 10%);
+    }
 
     th:first-child {
       border-radius: var(--tui-radius-s) 0 0 0;
@@ -145,7 +152,11 @@ header[tuiHeader] {
   }
 
   tr:nth-child(even) {
-    backdrop-filter: brightness(0.9);
+    backdrop-filter: brightness(1.03);
+
+    [tuiTheme='dark'] & {
+      backdrop-filter: brightness(0.9);
+    }
   }
 
   th,
@@ -177,4 +188,10 @@ tui-data-list {
 // TODO: Remove in Taiga v5, use native scrollbars
 tui-root > tui-scroll-controls {
   display: none !important;
+}
+
+// TODO: Remove in Taiga v5
+[tuiForm][tuiForm] > fieldset {
+  grid-auto-flow: row;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
 }

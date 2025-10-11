@@ -63,6 +63,8 @@ import { SidebarService } from 'src/app/services/sidebar.service'
     }
 
     :host-context(body:not([tuiTheme])) {
+      background: var(--tui-background-base);
+
       button {
         filter: invert(1);
       }

@@ -41,6 +41,14 @@ import { SidebarService } from 'src/app/services/sidebar.service'
       overflow: hidden;
     }
 
+    tui-scrollbar {
+      height: 100%;
+
+      ::ng-deep > .t-content {
+        height: 100%;
+      }
+    }
+
     router-outlet + ::ng-deep ng-component {
       display: block;
       margin: 1rem 1.5rem;
