@@ -114,16 +114,6 @@ sed -i '/\(^\|#\)RootDistanceMaxSec=/c\RootDistanceMaxSec=10' /etc/systemd/times
 
 mkdir -p /etc/nginx/ssl
 
-cat << EOF > /etc/tor/torrc
-SocksPort 0.0.0.0:9050
-SocksPolicy accept 127.0.0.1
-SocksPolicy accept 172.18.0.0/16
-SocksPolicy accept 10.0.3.0/24
-SocksPolicy reject *
-ControlPort 9051
-CookieAuthentication 1
-EOF
-
 rm -rf /var/lib/tor/*
 ln -sf /usr/lib/startos/scripts/chroot-and-upgrade /usr/bin/chroot-and-upgrade
 ln -sf /usr/lib/startos/scripts/tor-check /usr/bin/tor-check
@@ -132,11 +122,7 @@ ln -sf /usr/lib/startos/scripts/wireguard-vps-proxy-setup /usr/bin/wireguard-vps
 
 echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-startos.conf
 
-# Old pi was set with this locale, because of pg we are now stuck with including that locale
-locale-gen en_GB en_GB.UTF-8 
-echo "locales locales/locales_to_be_generated multiselect en_GB.UTF-8 UTF-8" | debconf-set-selections
-update-locale  LANGUAGE
-rm -f "/etc/locale.gen"
+locale-gen en_US.UTF-8
 dpkg-reconfigure --frontend noninteractive locales
 
 if ! getent group | grep '^startos:'; then

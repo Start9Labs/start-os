@@ -5,6 +5,10 @@ set -e
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 IFS="-" read -ra FEATURES <<< "$ENVIRONMENT"
+FEATURES+=("${ARCH}")
+if [ "$ARCH" != "$PLATFORM" ]; then
+    FEATURES+=("${PLATFORM}")
+fi
 
 feature_file_checker='
 /^#/ { next }

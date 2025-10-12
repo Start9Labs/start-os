@@ -169,17 +169,23 @@ impl CallRemote<RegistryContext> for CliContext {
         let url = if let Some(url) = self.registry_url.clone() {
             url
         } else if self.registry_hostname.is_some() {
-            format!(
+            let mut url: Url = format!(
                 "http://{}",
                 self.registry_listen.unwrap_or(DEFAULT_REGISTRY_LISTEN)
             )
             .parse()
-            .map_err(Error::from)?
+            .map_err(Error::from)?;
+            url.path_segments_mut()
+                .map_err(|_| Error::new(eyre!("cannot extend URL path"), ErrorKind::ParseUrl))?
+                .push("rpc")
+                .push("v0");
+            url
         } else {
             return Err(
                 Error::new(eyre!("`--registry` required"), ErrorKind::InvalidRequest).into(),
             );
         };
+
         method = method.strip_prefix("registry.").unwrap_or(method);
         let sig_context = self
             .registry_hostname
@@ -203,13 +209,19 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
         &self,
         mut method: &str,
         params: Value,
-        RegistryUrlParams { registry }: RegistryUrlParams,
+        RegistryUrlParams { mut registry }: RegistryUrlParams,
     ) -> Result<Value, RpcError> {
         let mut headers = HeaderMap::new();
         headers.insert(
             DEVICE_INFO_HEADER,
             DeviceInfo::load(self).await?.to_header_value(),
         );
+
+        registry
+            .path_segments_mut()
+            .map_err(|_| Error::new(eyre!("cannot extend URL path"), ErrorKind::ParseUrl))?
+            .push("rpc")
+            .push("v0");
 
         method = method.strip_prefix("registry.").unwrap_or(method);
         let sig_context = registry.host_str().map(InternedString::from);

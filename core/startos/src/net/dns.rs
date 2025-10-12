@@ -33,7 +33,7 @@ use serde::{Deserialize, Serialize};
 use tokio::net::{TcpListener, UdpSocket};
 use tracing::instrument;
 
-use crate::context::RpcContext;
+use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::NetworkInterfaceInfo;
 use crate::db::model::Database;
 use crate::net::gateway::NetworkInterfaceWatcher;
@@ -66,7 +66,36 @@ pub fn dns_api<C: Context>() -> ParentHandler<C> {
             "set-static",
             from_fn_async(set_static_dns)
                 .no_display()
-                .with_about("Set static DNS servers"),
+                .with_about("Set static DNS servers")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "dump-table",
+            from_fn_async(dump_table)
+                .with_display_serializable()
+                .with_custom_display_fn(|HandlerArgs { params, .. }, res| {
+                    use prettytable::*;
+
+                    if let Some(format) = params.format {
+                        return display_serializable(format, res);
+                    }
+
+                    let mut table = Table::new();
+                    table.add_row(row![bc => "FQDN", "DESTINATION"]);
+                    for (hostname, destination) in res {
+                        if let Some(ip) = destination {
+                            table.add_row(row![hostname, ip]);
+                        } else {
+                            table.add_row(row![hostname, "SELF"]);
+                        }
+                    }
+
+                    table.print_tty(false)?;
+
+                    Ok(())
+                })
+                .with_about("Dump address resolution table")
+                .with_call_remote::<CliContext>(),
         )
 }
 
@@ -140,6 +169,38 @@ pub async fn set_static_dns(
         })
         .await
         .result
+}
+
+pub async fn dump_table(
+    ctx: RpcContext,
+) -> Result<BTreeMap<InternedString, Option<IpAddr>>, Error> {
+    Ok(ctx
+        .net_controller
+        .dns
+        .resolve
+        .upgrade()
+        .or_not_found("DnsController")?
+        .peek(|map| {
+            map.private_domains
+                .iter()
+                .map(|(d, _)| (d.clone(), None))
+                .chain(map.services.iter().filter_map(|(svc, ip)| {
+                    ip.iter()
+                        .find(|(_, rc)| rc.strong_count() > 0)
+                        .map(|(ip, _)| {
+                            (
+                                svc.as_ref().map_or(
+                                    InternedString::from_static("startos"),
+                                    |svc| {
+                                        InternedString::from_display(&lazy_format!("{svc}.startos"))
+                                    },
+                                ),
+                                Some(IpAddr::V4(*ip)),
+                            )
+                        })
+                }))
+                .collect()
+        }))
 }
 
 #[derive(Default)]
@@ -222,9 +283,9 @@ impl DnsClient {
                         });
                         loop {
                             if let Err::<(), Error>(e) = async {
-                                let mut static_changed = db
+                                let mut dns_changed = db
                                     .subscribe(
-                                        "/public/serverInfo/network/dns/staticServers"
+                                        "/public/serverInfo/network/dns"
                                             .parse::<JsonPointer>()
                                             .with_kind(ErrorKind::Database)?,
                                     )
@@ -275,7 +336,7 @@ impl DnsClient {
                                                         Client::new(stream, sender, None)
                                                             .await
                                                             .with_kind(ErrorKind::Network)?;
-                                                    bg.insert(*addr, bg_thread.boxed());
+                                                    bg.insert(*addr, bg_thread.fuse().boxed());
                                                     client
                                                 };
                                                 new.push((*addr, client));
@@ -286,7 +347,7 @@ impl DnsClient {
                                         client.replace(new);
                                     }
                                     futures::future::select(
-                                        static_changed.recv().boxed(),
+                                        dns_changed.recv().boxed(),
                                         futures::future::join(
                                             futures::future::join_all(bg.values_mut()),
                                             futures::future::pending::<()>(),
@@ -333,10 +394,20 @@ struct Resolver {
     resolve: Arc<SyncRwLock<ResolveMap>>,
 }
 impl Resolver {
-    fn resolve(&self, name: &Name, src: IpAddr) -> Option<Vec<IpAddr>> {
+    fn resolve(&self, name: &Name, mut src: IpAddr) -> Option<Vec<IpAddr>> {
         if name.zone_of(&*LOCALHOST) {
             return Some(vec![Ipv4Addr::LOCALHOST.into(), Ipv6Addr::LOCALHOST.into()]);
         }
+        src = match src {
+            IpAddr::V6(v6) => {
+                if let Some(v4) = v6.to_ipv4_mapped() {
+                    IpAddr::V4(v4)
+                } else {
+                    IpAddr::V6(v6)
+                }
+            }
+            a => a,
+        };
         self.resolve.peek(|r| {
             if r.private_domains
                 .get(&*name.to_lowercase().to_utf8().trim_end_matches('.'))
@@ -344,8 +415,11 @@ impl Resolver {
             {
                 if let Some(res) = self.net_iface.peek(|i| {
                     i.values()
-                        .chain([NetworkInterfaceInfo::lxc_bridge().1])
-                        .flat_map(|i| i.ip_info.as_ref())
+                        .chain([
+                            NetworkInterfaceInfo::loopback().1,
+                            NetworkInterfaceInfo::lxc_bridge().1,
+                        ])
+                        .filter_map(|i| i.ip_info.as_ref())
                         .find(|i| i.subnets.iter().any(|s| s.contains(&src)))
                         .map(|ip_info| {
                             let mut res = ip_info.subnets.iter().collect::<Vec<_>>();
@@ -354,6 +428,8 @@ impl Resolver {
                         })
                 }) {
                     return Some(res);
+                } else {
+                    tracing::warn!("Could not determine source interface of {src}");
                 }
             }
             if STARTOS.zone_of(name) || EMBASSY.zone_of(name) {

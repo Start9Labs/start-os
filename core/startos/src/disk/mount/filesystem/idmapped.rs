@@ -80,23 +80,6 @@ impl<Fs: FileSystem> FileSystem for IdMapped<Fs> {
         }
         Ok(())
     }
-    async fn mount<P: AsRef<Path> + Send>(
-        &self,
-        mountpoint: P,
-        mount_type: MountType,
-    ) -> Result<(), Error> {
-        self.pre_mount(mountpoint.as_ref()).await?;
-        Command::new("mount.next")
-            .args(
-                default_mount_command(self, mountpoint, mount_type)
-                    .await?
-                    .get_args(),
-            )
-            .invoke(ErrorKind::Filesystem)
-            .await?;
-
-        Ok(())
-    }
     async fn source_hash(
         &self,
     ) -> Result<GenericArray<u8, <Sha256 as OutputSizeUser>::OutputSize>, Error> {

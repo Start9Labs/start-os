@@ -357,15 +357,7 @@ pub async fn add_onion<Kind: HostApiKind>(
     OnionParams { onion }: OnionParams,
     inheritance: Kind::Inheritance,
 ) -> Result<(), Error> {
-    let onion = onion
-        .strip_suffix(".onion")
-        .ok_or_else(|| {
-            Error::new(
-                eyre!("onion hostname must end in .onion"),
-                ErrorKind::InvalidOnionAddress,
-            )
-        })?
-        .parse::<OnionAddress>()?;
+    let onion = onion.parse::<OnionAddress>()?;
     ctx.db
         .mutate(|db| {
             db.as_private().as_key_store().as_onion().get_key(&onion)?;
@@ -388,15 +380,7 @@ pub async fn remove_onion<Kind: HostApiKind>(
     OnionParams { onion }: OnionParams,
     inheritance: Kind::Inheritance,
 ) -> Result<(), Error> {
-    let onion = onion
-        .strip_suffix(".onion")
-        .ok_or_else(|| {
-            Error::new(
-                eyre!("onion hostname must end in .onion"),
-                ErrorKind::InvalidOnionAddress,
-            )
-        })?
-        .parse::<OnionAddress>()?;
+    let onion = onion.parse::<OnionAddress>()?;
     ctx.db
         .mutate(|db| {
             Kind::host_for(&inheritance, db)?

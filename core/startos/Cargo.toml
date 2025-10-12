@@ -14,7 +14,7 @@ keywords = [
 name = "start-os"
 readme = "README.md"
 repository = "https://github.com/Start9Labs/start-os"
-version = "0.4.0-alpha.11" # VERSION_BUMP
+version = "0.4.0-alpha.12" # VERSION_BUMP
 license = "MIT"
 
 [lib]
@@ -42,16 +42,28 @@ name = "tunnelbox"
 path = "src/main.rs"
 
 [features]
+arti = [
+  "arti-client",
+  "tor-rtcompat",
+  "tor-keymgr",
+  "tor-proto",
+  "tor-hscrypto",
+  "tor-llcrypto",
+  "tor-cell",
+  "tor-hsservice",
+  "safelog",
+  "models/arti",
+]
 cli = ["cli-startd", "cli-registry", "cli-tunnel"]
 cli-container = ["procfs", "pty-process"]
 cli-registry = []
 cli-startd = []
 cli-tunnel = []
 default = ["cli", "startd", "registry", "cli-container", "tunnel"]
-dev = ["backtrace-on-stack-overflow"]
+dev = []
 docker = []
 registry = []
-startd = ["mail-send"]
+startd = []
 test = []
 tunnel = []
 console = ["console-subscriber", "tokio/tracing"]
@@ -67,7 +79,7 @@ arti-client = { version = "0.33", features = [
   "ephemeral-keystore",
   "onion-service-client",
   "onion-service-service",
-], default-features = false, git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit" }
+], default-features = false, git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit", optional = true }
 aes = { version = "0.7.5", features = ["ctr"] }
 async-acme = { version = "0.6.0", git = "https://github.com/dr-bonez/async-acme.git", features = [
   "use_rustls",
@@ -98,6 +110,7 @@ console-subscriber = { version = "0.4.1", optional = true }
 const_format = "0.2.34"
 cookie = "0.18.0"
 cookie_store = "0.21.0"
+curve25519-dalek = "4.1.3"
 der = { version = "0.7.9", features = ["derive", "pem"] }
 digest = "0.10.7"
 divrem = "1.0.0"
@@ -109,6 +122,7 @@ ed25519-dalek = { version = "2.2.0", features = [
   "rand_core",
   "digest",
   "pkcs8",
+  "hazmat",
 ] }
 ed25519-dalek-v1 = { package = "ed25519-dalek", version = "1" }
 exver = { version = "0.2.0", git = "https://github.com/Start9Labs/exver-rs.git", features = [
@@ -156,6 +170,15 @@ jsonpath_lib = { git = "https://github.com/Start9Labs/jsonpath.git" }
 lazy_async_pool = "0.3.3"
 lazy_format = "2.0"
 lazy_static = "1.4.0"
+lettre = { version = "0.11.18", default-features = false, features = [
+  "smtp-transport",
+  "pool",
+  "hostname",
+  "builder",
+  "tokio1-rustls",
+  "rustls-platform-verifier",
+  "aws-lc-rs",
+] }
 libc = "0.2.149"
 log = "0.4.20"
 mio = "1"
@@ -199,7 +222,7 @@ rpassword = "7.2.0"
 rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "master" }
 rust-argon2 = "2.0.0"
 rustyline-async = "0.4.1"
-safelog = { version = "0.4.8", git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit" }
+safelog = { version = "0.4.8", git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit", optional = true }
 semver = { version = "1.0.20", features = ["serde"] }
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_cbor = { package = "ciborium", version = "0.2.1" }
@@ -214,7 +237,7 @@ shell-words = "1"
 signal-hook = "0.3.17"
 simple-logging = "2.0.2"
 socket2 = { version = "0.6.0", features = ["all"] }
-socks5-impl = { version = "0.7.2", features = ["server"] }
+socks5-impl = { version = "0.7.2", features = ["server", "client"] }
 sqlx = { version = "0.8.6", features = [
   "runtime-tokio-rustls",
   "postgres",
@@ -231,22 +254,23 @@ tokio-stream = { version = "0.1.14", features = ["io-util", "sync", "net"] }
 tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git" }
 tokio-tungstenite = { version = "0.26.2", features = ["native-tls", "url"] }
 tokio-util = { version = "0.7.9", features = ["io"] }
-tor-cell = { version = "0.33", git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit" }
+tor-cell = { version = "0.33", git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit", optional = true }
 tor-hscrypto = { version = "0.33", features = [
   "full",
-], git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit" }
-tor-hsservice = { version = "0.33", git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit" }
+], git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit", optional = true }
+tor-hsservice = { version = "0.33", git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit", optional = true }
 tor-keymgr = { version = "0.33", features = [
   "ephemeral-keystore",
-], git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit" }
+], git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit", optional = true }
 tor-llcrypto = { version = "0.33", features = [
   "full",
-], git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit" }
-tor-proto = { version = "0.33", git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit" }
+], git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit", optional = true }
+tor-proto = { version = "0.33", git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit", optional = true }
 tor-rtcompat = { version = "0.33", features = [
   "tokio",
   "rustls",
-], git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit" }
+], git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit", optional = true }
+torut = "0.2.1"
 tower-service = "0.3.3"
 tracing = "0.1.39"
 tracing-error = "0.2.0"
@@ -259,12 +283,9 @@ unix-named-pipe = "0.2.0"
 url = { version = "2.4.1", features = ["serde"] }
 urlencoding = "2.1.3"
 uuid = { version = "1.4.1", features = ["v4"] }
-x25519-dalek = "2.0.1"
+x25519-dalek = { version = "2.0.1", features = ["static_secrets"] }
 zbus = "5.1.1"
 zeroize = "1.6.0"
-mail-send = { git = "https://github.com/dr-bonez/mail-send.git", branch = "main", optional = true }
-rustls = "0.23.20"
-rustls-pki-types = { version = "1.10.1", features = ["alloc"] }
 
 [profile.test]
 opt-level = 3

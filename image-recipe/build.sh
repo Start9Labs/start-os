@@ -7,33 +7,50 @@ echo "==== StartOS Image Build ===="
 
 echo "Building for architecture: $IB_TARGET_ARCH"
 
-base_dir="$(dirname "$(readlink -f "$0")")"
+SOURCE_DIR="$(realpath $(dirname "${BASH_SOURCE[0]}"))"
+
+base_dir="$(pwd	-P)"
 prep_results_dir="$base_dir/images-prep"
-if systemd-detect-virt -qc; then
-	RESULTS_DIR="/srv/artifacts"
-else
-	RESULTS_DIR="$base_dir/results"
-fi
+RESULTS_DIR="$base_dir/results"
 echo "Saving results in: $RESULTS_DIR"
+
+DEB_PATH="$base_dir/$1"
+
+VERSION="$(dpkg-deb --fsys-tarfile $DEB_PATH | tar --to-stdout -xvf - ./usr/lib/startos/VERSION.txt)"
+GIT_HASH="$(dpkg-deb --fsys-tarfile $DEB_PATH | tar --to-stdout -xvf - ./usr/lib/startos/GIT_HASH.txt)"
+if [[ "$GIT_HASH" =~ ^@ ]]; then
+  GIT_HASH="unknown"
+else
+  GIT_HASH="$(echo -n "$GIT_HASH" |  head -c 7)"
+fi
+IB_OS_ENV="$(dpkg-deb --fsys-tarfile $DEB_PATH | tar --to-stdout -xvf - ./usr/lib/startos/ENVIRONMENT.txt)"
+IB_TARGET_PLATFORM="$(dpkg-deb --fsys-tarfile $DEB_PATH | tar --to-stdout -xvf - ./usr/lib/startos/PLATFORM.txt)"
+
+VERSION_FULL="${VERSION}-${GIT_HASH}"
+if [ -n "$IB_OS_ENV" ]; then
+  VERSION_FULL="$VERSION_FULL~${IB_OS_ENV}"
+fi
 
 IMAGE_BASENAME=startos-${VERSION_FULL}_${IB_TARGET_PLATFORM}
 
-QEMU_ARCH=${IB_TARGET_ARCH}
-BOOTLOADERS=grub-efi,syslinux
-if [ "$QEMU_ARCH" = 'amd64' ]; then
+BOOTLOADERS=grub-efi
+if [ "$IB_TARGET_PLATFORM" = "x86_64" ] || [ "$IB_TARGET_PLATFORM" = "x86_64-nonfree" ]; then
+	IB_TARGET_ARCH=amd64
 	QEMU_ARCH=x86_64
-elif [ "$QEMU_ARCH" = 'arm64' ]; then
+	BOOTLOADERS=grub-efi,syslinux
+elif [ "$IB_TARGET_PLATFORM" = "aarch64" ] || [ "$IB_TARGET_PLATFORM" = "aarch64-nonfree" ] || [ "$IB_TARGET_PLATFORM" = "raspberrypi" ]  || [ "$IB_TARGET_PLATFORM" = "rockchip64" ]; then
+	IB_TARGET_ARCH=arm64
 	QEMU_ARCH=aarch64
-	BOOTLOADERS=grub-efi
+else
+	IB_TARGET_ARCH="$IB_TARGET_PLATFORM"
+	QEMU_ARCH="$IB_TARGET_PLATFORM"
 fi
 
-# TODO: remove when util-linux is released at v2.39
-cd $base_dir
-git clone --depth=1 --branch=v2.39.3 https://github.com/util-linux/util-linux.git
-cd util-linux
-./autogen.sh
-CC=$QEMU_ARCH-linux-gnu-gcc ./configure --host=$QEMU_ARCH-linux-gnu --disable-all-programs --enable-mount --enable-libmount --enable-libblkid --enable-libuuid --enable-static-programs
-CC=$QEMU_ARCH-linux-gnu-gcc make -j mount.static
+QEMU_ARGS=()
+if [ "$QEMU_ARCH" != $(uname -m) ]; then
+	QEMU_ARGS+=(--bootstrap-qemu-arch ${IB_TARGET_ARCH})
+	QEMU_ARGS+=(--bootstrap-qemu-static /usr/bin/qemu-${QEMU_ARCH}-static)
+fi
 
 mkdir -p $prep_results_dir
 
@@ -80,27 +97,21 @@ lb config \
 	--backports true \
 	--bootappend-live "boot=live noautologin" \
 	--bootloaders $BOOTLOADERS \
+	--cache false \
 	--mirror-bootstrap "https://deb.debian.org/debian/" \
 	--mirror-chroot "https://deb.debian.org/debian/" \
 	--mirror-chroot-security "https://security.debian.org/debian-security" \
 	-d ${IB_SUITE} \
 	-a ${IB_TARGET_ARCH} \
-	--bootstrap-qemu-arch ${IB_TARGET_ARCH} \
-	--bootstrap-qemu-static /usr/bin/qemu-${QEMU_ARCH}-static \
+	${QEMU_ARGS[@]} \
 	--archive-areas "${ARCHIVE_AREAS}" \
 	${PLATFORM_CONFIG_EXTRAS[@]}
 
 # Overlays
 
-mkdir -p config/includes.chroot/deb
-cp $base_dir/deb/${IMAGE_BASENAME}.deb config/includes.chroot/deb/
-
-mkdir -p config/includes.chroot/usr/local/bin
-cp $base_dir/util-linux/mount.static config/includes.chroot/usr/local/bin/mount.next
-
-if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	cp -r $base_dir/raspberrypi/squashfs/* config/includes.chroot/
-fi
+mkdir -p config/packages.chroot/
+cp $RESULTS_DIR/$IMAGE_BASENAME.deb config/packages.chroot/
+dpkg-name config/packages.chroot/*.deb
 
 mkdir -p config/includes.chroot/etc
 echo start > config/includes.chroot/etc/hostname
@@ -110,6 +121,10 @@ cat > config/includes.chroot/etc/hosts << EOT
 ff02::1         ip6-allnodes
 ff02::2         ip6-allrouters
 EOT
+
+if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+	cp -r $SOURCE_DIR/raspberrypi/squashfs/* config/includes.chroot/
+fi
 
 # Bootloaders
 
@@ -130,10 +145,9 @@ prompt 0
 timeout 50
 EOF
 
-rm config/bootloaders/syslinux_common/splash.svg
-cp $base_dir/splash.png config/bootloaders/syslinux_common/splash.png
-cp $base_dir/splash.png config/bootloaders/isolinux/splash.png
-cp $base_dir/splash.png config/bootloaders/grub-pc/splash.png
+cp $SOURCE_DIR/splash.png config/bootloaders/syslinux_common/splash.png
+cp $SOURCE_DIR/splash.png config/bootloaders/isolinux/splash.png
+cp $SOURCE_DIR/splash.png config/bootloaders/grub-pc/splash.png
 
 sed -i -e '2i set timeout=5' config/bootloaders/grub-pc/config.cfg
 
@@ -146,16 +160,6 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/raspi.key.gpg] https://archive.raspberrypi.com/debian/ ${IB_SUITE} main" > config/archives/raspi.list
 fi
 
-cat > config/archives/backports.pref <<- EOF
-Package: linux-image-*
-Pin: release n=${IB_SUITE}-backports
-Pin-Priority: 500
-
-Package: linux-base
-Pin: release n=${IB_SUITE}-backports
-Pin-Priority: 500
-EOF
-
 if [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	curl -fsSL https://apt.armbian.com/armbian.key | gpg --dearmor -o config/archives/armbian.key
 	echo "deb https://apt.armbian.com/ ${IB_SUITE} main" > config/archives/armbian.list
@@ -163,21 +167,9 @@ fi
 
 # Dependencies
 
-## Base dependencies
-dpkg-deb --fsys-tarfile $base_dir/deb/${IMAGE_BASENAME}.deb | tar --to-stdout -xvf - ./usr/lib/startos/depends > config/package-lists/startos-depends.list.chroot
-
 ## Firmware
 if [ "$NON_FREE" = 1 ]; then
 	echo 'firmware-iwlwifi firmware-misc-nonfree firmware-brcm80211 firmware-realtek firmware-atheros firmware-libertas firmware-amd-graphics' > config/package-lists/nonfree.list.chroot
-fi
-
-if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	echo 'raspberrypi-net-mods raspberrypi-sys-mods raspi-config raspi-firmware raspi-gpio raspi-utils rpi-eeprom rpi-update rpi.gpio-common parted' > config/package-lists/bootloader.list.chroot
-else
-	echo 'grub-efi grub2-common' > config/package-lists/bootloader.list.chroot
-fi
-if [ "${IB_TARGET_ARCH}" = "amd64" ] || [ "${IB_TARGET_ARCH}" = "i386" ]; then
-	echo 'grub-pc-bin' >> config/package-lists/bootloader.list.chroot
 fi
 
 cat > config/hooks/normal/9000-install-startos.hook.chroot << EOF
@@ -185,15 +177,15 @@ cat > config/hooks/normal/9000-install-startos.hook.chroot << EOF
 
 set -e
 
-apt-get install -y /deb/${IMAGE_BASENAME}.deb
-rm -rf /deb
+cp /etc/resolv.conf /etc/resolv.conf.bak
 
-if [ "${IB_SUITE}" = bookworm ]; then
-	echo 'deb https://deb.debian.org/debian/ bullseye main' > /etc/apt/sources.list.d/bullseye.list
+if [ "${IB_SUITE}" = trixie ]; then
+	echo 'deb https://deb.debian.org/debian/ bookworm main' > /etc/apt/sources.list.d/bookworm.list
 	apt-get update
-	apt-get install -y postgresql-13
-	rm /etc/apt/sources.list.d/bullseye.list
+	apt-get install -y postgresql-15
+	rm /etc/apt/sources.list.d/bookworm.list
 	apt-get update
+	systemctl mask postgresql
 fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
@@ -231,8 +223,7 @@ lb chroot
 lb installer
 lb binary_chroot
 lb chroot_prep install all mode-apt-install-binary mode-archives-chroot
-echo "nameserver 127.0.0.1" > chroot/chroot/etc/resolv.conf
-echo "nameserver 1.1.1.1" >> chroot/chroot/etc/resolv.conf # Cloudflare DNS Fallback
+mv chroot/chroot/etc/resolv.conf.bak chroot/chroot/etc/resolv.conf
 lb binary_rootfs
 
 cp $prep_results_dir/binary/live/filesystem.squashfs $RESULTS_DIR/$IMAGE_BASENAME.squashfs
@@ -325,7 +316,7 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 
 	if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 		sed -i 's| boot=startos| boot=startos init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
-		rsync -a $base_dir/raspberrypi/img/ $TMPDIR/next/
+		rsync -a $SOURCE_DIR/raspberrypi/img/ $TMPDIR/next/
 	fi
 
 	umount $TMPDIR/next
@@ -361,3 +352,5 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	mv $TARGET_NAME $RESULTS_DIR/$IMAGE_BASENAME.img
 
 fi
+
+chown $IB_UID:$IB_UID $RESULTS_DIR/$IMAGE_BASENAME.*

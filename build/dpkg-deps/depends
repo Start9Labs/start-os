@@ -9,7 +9,6 @@ ca-certificates
 cifs-utils
 cryptsetup
 curl
-dnsutils
 dmidecode
 dnsutils
 dosfstools
@@ -19,6 +18,8 @@ exfatprogs
 flashrom
 fuse3
 grub-common
+grub-efi
+grub2-common
 htop
 httpdirfs
 iotop
@@ -41,7 +42,6 @@ nvme-cli
 nyx
 openssh-server
 podman
-postgresql
 psmisc
 qemu-guest-agent
 rfkill

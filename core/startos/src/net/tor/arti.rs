@@ -6,7 +6,7 @@ use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
 
 use arti_client::config::onion_service::OnionServiceConfigBuilder;
-use arti_client::{DataStream, TorClient, TorClientConfig};
+use arti_client::{TorClient, TorClientConfig};
 use base64::Engine;
 use clap::Parser;
 use color_eyre::eyre::eyre;
@@ -191,8 +191,7 @@ impl Model<OnionStore> {
         Ok(key)
     }
     pub fn insert_key(&mut self, key: &TorSecretKey) -> Result<(), Error> {
-        self.insert(&key.onion_address(), &key)?;
-        Ok(())
+        self.insert(&key.onion_address(), &key)
     }
     pub fn get_key(&self, address: &OnionAddress) -> Result<TorSecretKey, Error> {
         self.as_idx(address)
@@ -862,11 +861,11 @@ impl OnionService {
         })))
     }
 
-    pub fn proxy_all<Rcs: FromIterator<Arc<()>>>(
+    pub async fn proxy_all<Rcs: FromIterator<Arc<()>>>(
         &self,
         bindings: impl IntoIterator<Item = (u16, SocketAddr)>,
-    ) -> Rcs {
-        self.0.bindings.mutate(|b| {
+    ) -> Result<Rcs, Error> {
+        Ok(self.0.bindings.mutate(|b| {
             bindings
                 .into_iter()
                 .map(|(port, target)| {
@@ -880,7 +879,7 @@ impl OnionService {
                     }
                 })
                 .collect()
-        })
+        }))
     }
 
     pub fn gc(&self) -> bool {

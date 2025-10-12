@@ -83,6 +83,7 @@ local_mount_root()
 	if [ -d "$image" ]; then
 		mount -r --bind $image /lower
 	elif [ -f "$image" ]; then
+		modprobe loop
 		modprobe squashfs
 		mount -r $image /lower
 	else

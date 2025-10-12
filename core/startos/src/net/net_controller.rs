@@ -688,7 +688,7 @@ impl NetServiceData {
             .collect::<BTreeSet<_>>();
         for onion in all {
             let mut prev = binds.tor.remove(&onion);
-            if let Some((key, tor_binds)) = tor.remove(&onion) {
+            if let Some((key, tor_binds)) = tor.remove(&onion).filter(|(_, b)| !b.is_empty()) {
                 prev = prev.filter(|(b, _)| b == &tor_binds);
                 binds.tor.insert(
                     onion,

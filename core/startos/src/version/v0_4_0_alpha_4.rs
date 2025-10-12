@@ -1,7 +1,7 @@
 use exver::{PreReleaseSegment, VersionRange};
 
 use super::v0_3_5::V0_3_0_COMPAT;
-use super::{VersionT, v0_4_0_alpha_3};
+use super::{v0_4_0_alpha_3, VersionT};
 use crate::context::RpcContext;
 use crate::prelude::*;
 use crate::util::io::create_file_mod;
@@ -29,7 +29,7 @@ impl VersionT for Version {
     fn compat(self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
-    #[instrument]
+    #[instrument(skip_all)]
     fn up(self, db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
         db["public"]["serverInfo"]
             .as_object_mut()
