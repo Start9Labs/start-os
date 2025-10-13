@@ -5,19 +5,15 @@ import {
   RouterOutlet,
   Routes,
 } from '@angular/router'
-import { TuiButton, TuiTitle } from '@taiga-ui/core'
+import { TuiTitle } from '@taiga-ui/core'
 import { TuiTabs } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
-import { Help } from 'src/app/directives/help.directive'
 import { ToCamelPipe } from 'src/app/pipes/to-camel.pipe'
-
-import { WanAside } from './aside'
 
 @Component({
   template: `
-    <wan-aside *help />
     <header tuiHeader>
-      <hgroup tuiTitle><h2>Internet (WAN)</h2></hgroup>
+      <hgroup tuiTitle><h2>System Settings</h2></hgroup>
     </header>
     <tui-tabs>
       @for (tab of tabs; track $index) {
@@ -27,10 +23,11 @@ import { WanAside } from './aside'
       }
     </tui-tabs>
     <router-outlet />
-    <footer class="g-footer">
-      <button tuiButton appearance="flat">Cancel</button>
-      <button tuiButton>Save</button>
-    </footer>
+  `,
+  styles: `
+    :host {
+      height: stretch;
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
@@ -40,40 +37,33 @@ import { WanAside } from './aside'
     TuiHeader,
     TuiTitle,
     TuiTabs,
-    TuiButton,
-    Help,
-    WanAside,
     ToCamelPipe,
   ],
 })
-class Wan {
-  protected readonly tabs = ['IPv4', 'IPv6', 'MAC Address', 'Dynamic DNS']
+class Settings {
+  protected readonly tabs = ['General', 'Security', 'Logs']
 }
 
 export default [
   {
     path: '',
-    component: Wan,
+    component: Settings,
     children: [
       {
-        path: 'ipv4',
-        loadComponent: () => import('./routes/ipv4'),
+        path: 'general',
+        loadComponent: () => import('./routes/general'),
       },
       {
-        path: 'ipv6',
-        loadComponent: () => import('./routes/ipv6'),
+        path: 'security',
+        loadComponent: () => import('./routes/security'),
       },
       {
-        path: 'mac-address',
-        loadComponent: () => import('./routes/mac'),
-      },
-      {
-        path: 'dynamic-dns',
-        loadComponent: () => import('./routes/dns'),
+        path: 'logs',
+        loadComponent: () => import('./routes/logs'),
       },
       {
         path: '**',
-        redirectTo: 'ipv4',
+        redirectTo: 'general',
       },
     ],
   },

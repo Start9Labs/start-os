@@ -1,5 +1,9 @@
 import {
   ApplicationConfig,
+  DOCUMENT,
+  effect,
+  inject,
+  provideAppInitializer,
   provideBrowserGlobalErrorListeners,
   provideZonelessChangeDetection,
   signal,
@@ -7,6 +11,7 @@ import {
 import { provideAnimations } from '@angular/platform-browser/animations'
 import { provideRouter, withRouterConfig } from '@angular/router'
 import {
+  TUI_DARK_MODE,
   tuiButtonOptionsProvider,
   tuiDropdownOptionsProvider,
   tuiTextfieldOptionsProvider,
@@ -39,5 +44,18 @@ export const appConfig: ApplicationConfig = {
     tuiFormOptionsProvider({ size: 'm' }),
     tuiDropdownOptionsProvider({ appearance: 'start-9' }),
     tuiDialogOptionsProvider({ appearance: 'start-9 taiga' }),
+    // TODO: Remove in Taiga UI 5
+    provideAppInitializer(() => {
+      const doc = inject(DOCUMENT)
+      const mode = inject(TUI_DARK_MODE)
+
+      effect(() => {
+        if (mode()) {
+          doc.body.setAttribute('tuiTheme', 'dark')
+        } else {
+          doc.body.removeAttribute('tuiTheme')
+        }
+      })
+    }),
   ],
 }

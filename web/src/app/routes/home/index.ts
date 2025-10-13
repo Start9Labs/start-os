@@ -14,6 +14,10 @@ export default [
         path: 'outbound',
         loadChildren: () => import('./routes/outbound'),
       },
+      {
+        path: 'settings',
+        loadChildren: () => import('./routes/settings'),
+      },
       { path: '**', redirectTo: 'wan' },
     ],
   },
