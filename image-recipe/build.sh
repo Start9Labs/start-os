@@ -69,7 +69,7 @@ ARCHIVE_AREAS="main contrib"
 if [ "$NON_FREE" = 1 ]; then
 	if [ "$IB_SUITE" = "bullseye" ]; then
 		ARCHIVE_AREAS="$ARCHIVE_AREAS non-free"
-	elif [ "$IB_SUITE" = "bookworm" ]; then
+	else
 		ARCHIVE_AREAS="$ARCHIVE_AREAS non-free-firmware"
 	fi
 fi
