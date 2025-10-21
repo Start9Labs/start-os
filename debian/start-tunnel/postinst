@@ -6,4 +6,12 @@ if [ -n "$DPKG_MAINTSCRIPT_PACKAGE" ]; then
 	  SYSTEMCTL=deb-systemd-helper
 fi
 
+augtool << EOI
+set /augeas/load/Ini/lens IniFile.lns_loose
+set /augeas/load/Ini/incl /etc/NetworkManager/NetworkManager.conf
+load
+set /files/etc/NetworkManager/NetworkManager.conf/section[.="ifupdown"]/managed true
+save
+EOI
+
 $SYSTEMCTL enable start-tunneld.service

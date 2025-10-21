@@ -6,7 +6,7 @@ use color_eyre::eyre::eyre;
 use imbl::{vector, OrdMap};
 use imbl_value::InternedString;
 use ipnet::IpNet;
-use models::{HostId, OptionExt, PackageId};
+use models::{GatewayId, HostId, OptionExt, PackageId};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing::instrument;
@@ -16,7 +16,7 @@ use crate::db::model::Database;
 use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
-use crate::net::forward::PortForwardController;
+use crate::net::forward::{PortForwardController, START9_BRIDGE_IFACE};
 use crate::net::gateway::{
     AndFilter, DynInterfaceFilter, IdFilter, InterfaceFilter, NetworkInterfaceController, OrFilter,
     PublicFilter, SecureFilter,
@@ -283,9 +283,9 @@ impl NetServiceData {
                                                 IdFilter(
                                                     NetworkInterfaceInfo::loopback().0.clone(),
                                                 ),
-                                                IdFilter(
-                                                    NetworkInterfaceInfo::lxc_bridge().0.clone(),
-                                                ),
+                                                IdFilter(GatewayId::from(InternedString::from(
+                                                    START9_BRIDGE_IFACE,
+                                                ))),
                                             )
                                             .into_dyn(),
                                             acme: None,

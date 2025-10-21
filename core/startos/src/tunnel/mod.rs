@@ -1,13 +1,11 @@
 use axum::Router;
 use futures::future::ready;
-use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler, Server};
+use rpc_toolkit::Server;
 
-use crate::context::CliContext;
 use crate::middleware::auth::Auth;
 use crate::middleware::cors::Cors;
 use crate::net::static_server::{bad_request, not_found, server_error};
 use crate::net::web_server::{Accept, WebServer};
-use crate::prelude::*;
 use crate::rpc_continuations::Guid;
 use crate::tunnel::context::TunnelContext;
 
@@ -15,7 +13,6 @@ pub mod api;
 pub mod auth;
 pub mod context;
 pub mod db;
-pub mod forward;
 pub mod wg;
 
 pub const TUNNEL_DEFAULT_PORT: u16 = 5960;

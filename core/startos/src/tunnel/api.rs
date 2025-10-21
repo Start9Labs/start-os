@@ -1,14 +1,17 @@
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 
 use clap::Parser;
 use imbl_value::InternedString;
 use ipnet::Ipv4Net;
+use models::GatewayId;
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 
 use crate::context::CliContext;
+use crate::net::gateway::{IdFilter, InterfaceFilter};
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
+use crate::tunnel::db::GatewayPort;
 use crate::tunnel::wg::{ClientConfig, WgConfig, WgSubnetClients, WgSubnetConfig};
 use crate::util::serde::{display_serializable, HandlerExtSerde};
 
@@ -27,26 +30,26 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
             "subnet",
             subnet_api::<C>().with_about("Add, remove, or modify subnets"),
         )
-    // .subcommand(
-    //     "port-forward",
-    //     ParentHandler::<C>::new()
-    //         .subcommand(
-    //             "add",
-    //             from_fn_async(add_forward)
-    //                 .with_metadata("sync_db", Value::Bool(true))
-    //                 .no_display()
-    //                 .with_about("Add a new port forward")
-    //                 .with_call_remote::<CliContext>(),
-    //         )
-    //         .subcommand(
-    //             "remove",
-    //             from_fn_async(remove_forward)
-    //                 .with_metadata("sync_db", Value::Bool(true))
-    //                 .no_display()
-    //                 .with_about("Remove a port forward")
-    //                 .with_call_remote::<CliContext>(),
-    //         ),
-    // )
+        .subcommand(
+            "port-forward",
+            ParentHandler::<C>::new()
+                .subcommand(
+                    "add",
+                    from_fn_async(add_forward)
+                        .with_metadata("sync_db", Value::Bool(true))
+                        .no_display()
+                        .with_about("Add a new port forward")
+                        .with_call_remote::<CliContext>(),
+                )
+                .subcommand(
+                    "remove",
+                    from_fn_async(remove_forward)
+                        .with_metadata("sync_db", Value::Bool(true))
+                        .no_display()
+                        .with_about("Remove a port forward")
+                        .with_call_remote::<CliContext>(),
+                ),
+        )
 }
 
 #[derive(Deserialize, Serialize, Parser)]
@@ -344,4 +347,54 @@ pub async fn show_config(
         wg.as_key().de()?.verifying_key(),
         (wan_addr, wg.as_port().de()?).into(),
     ))
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+pub struct AddPortForwardParams {
+    source: GatewayPort,
+    target: SocketAddrV4,
+}
+
+pub async fn add_forward(
+    ctx: TunnelContext,
+    AddPortForwardParams { source, target }: AddPortForwardParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| db.as_port_forwards_mut().insert(&source, &target))
+        .await
+        .result?;
+    let rc = ctx
+        .forward
+        .add(
+            source.1,
+            IdFilter(source.0.clone()).into_dyn(),
+            target.into(),
+        )
+        .await?;
+    ctx.active_forwards.mutate(|m| {
+        m.insert(source, rc);
+    });
+    Ok(())
+}
+
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+pub struct RemovePortForwardParams {
+    source: GatewayPort,
+}
+
+pub async fn remove_forward(
+    ctx: TunnelContext,
+    RemovePortForwardParams { source, .. }: RemovePortForwardParams,
+) -> Result<(), Error> {
+    ctx.db
+        .mutate(|db| db.as_port_forwards_mut().remove(&source))
+        .await
+        .result?;
+    if let Some(rc) = ctx.active_forwards.mutate(|m| m.remove(&source)) {
+        drop(rc);
+        ctx.forward.gc().await?;
+    }
+    Ok(())
 }

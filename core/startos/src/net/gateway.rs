@@ -585,17 +585,18 @@ async fn watch_ip(
                 loop {
                     until
                         .run(async {
-                            let external = active_connection_proxy.state_flags().await? & 0x80 != 0;
-                            if external {
-                                return Ok(());
-                            }
-
                             let device_type = match device_proxy.device_type().await? {
                                 1 => Some(NetworkInterfaceType::Ethernet),
                                 2 => Some(NetworkInterfaceType::Wireless),
+                                13 => Some(NetworkInterfaceType::Bridge),
                                 29 => Some(NetworkInterfaceType::Wireguard),
+                                32 => Some(NetworkInterfaceType::Loopback),
                                 _ => None,
                             };
+
+                            if device_type == Some(NetworkInterfaceType::Loopback) {
+                                return Ok(());
+                            }
 
                             let name = InternedString::from(active_connection_proxy.id().await?);
 
@@ -787,13 +788,7 @@ impl NetworkInterfaceWatcher {
         watch_activated: impl IntoIterator<Item = GatewayId>,
     ) -> Self {
         let ip_info = Watch::new(OrdMap::new());
-        let activated = Watch::new(
-            watch_activated
-                .into_iter()
-                .chain([NetworkInterfaceInfo::lxc_bridge().0.clone()])
-                .map(|k| (k, false))
-                .collect(),
-        );
+        let activated = Watch::new(watch_activated.into_iter().map(|k| (k, false)).collect());
         Self {
             activated: activated.clone(),
             ip_info: ip_info.clone(),
@@ -1384,14 +1379,12 @@ impl ListenerMap {
     fn update(
         &mut self,
         ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
-        lxc_bridge: bool,
         filter: &impl InterfaceFilter,
     ) -> Result<(), Error> {
         let mut keep = BTreeSet::<SocketAddr>::new();
         for (_, info) in ip_info
             .iter()
             .chain([NetworkInterfaceInfo::loopback()])
-            .chain(Some(NetworkInterfaceInfo::lxc_bridge()).filter(|_| lxc_bridge))
             .filter(|(id, info)| filter.filter(*id, *info))
         {
             if let Some(ip_info) = &info.ip_info {
@@ -1466,10 +1459,7 @@ pub fn lookup_info_by_addr(
 ) -> Option<(&GatewayId, &NetworkInterfaceInfo)> {
     ip_info
         .iter()
-        .chain([
-            NetworkInterfaceInfo::loopback(),
-            NetworkInterfaceInfo::lxc_bridge(),
-        ])
+        .chain([NetworkInterfaceInfo::loopback()])
         .find(|(_, i)| {
             i.ip_info
                 .as_ref()
@@ -1495,16 +1485,10 @@ impl NetworkInterfaceListener {
         filter: &impl InterfaceFilter,
     ) -> Poll<Result<Accepted, Error>> {
         while self.ip_info.poll_changed(cx).is_ready()
-            || self.activated.poll_changed(cx).is_ready()
             || !DynInterfaceFilterT::eq(&self.listeners.prev_filter, filter.as_any())
         {
-            let lxc_bridge = self.activated.peek(|a| {
-                a.get(NetworkInterfaceInfo::lxc_bridge().0)
-                    .copied()
-                    .unwrap_or_default()
-            });
             self.ip_info
-                .peek_and_mark_seen(|ip_info| self.listeners.update(ip_info, lxc_bridge, filter))?;
+                .peek_and_mark_seen(|ip_info| self.listeners.update(ip_info, filter))?;
         }
         self.listeners.poll_accept(cx)
     }
@@ -1562,9 +1546,12 @@ impl SelfContainedNetworkInterfaceListener {
     pub fn bind(port: u16) -> Self {
         let ip_info = Watch::new(OrdMap::new());
         let activated = Watch::new(
-            [(NetworkInterfaceInfo::lxc_bridge().0.clone(), false)]
-                .into_iter()
-                .collect(),
+            [(
+                GatewayId::from(InternedString::from(START9_BRIDGE_IFACE)),
+                false,
+            )]
+            .into_iter()
+            .collect(),
         );
         let _watch_thread = tokio::spawn(watcher(ip_info.clone(), activated.clone())).into();
         Self {

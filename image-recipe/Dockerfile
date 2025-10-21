@@ -16,6 +16,7 @@ RUN apt-get update && \
     curl \
     wget \
     gpg \
+    git \
     fdisk \
     dosfstools \
     e2fsprogs \

@@ -78,7 +78,8 @@ PLATFORM_CONFIG_EXTRAS=()
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	PLATFORM_CONFIG_EXTRAS+=( --firmware-binary false )
 	PLATFORM_CONFIG_EXTRAS+=( --firmware-chroot false )
-	PLATFORM_CONFIG_EXTRAS+=( --linux-packages linux-image-6.12.47+rpt )
+	RPI_KERNEL_VERSION=6.12.47+rpt
+	PLATFORM_CONFIG_EXTRAS+=( --linux-packages linux-image-$RPI_KERNEL_VERSION )
 	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours "rpi-v8 rpi-2712" )
 elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours rockchip64 )
@@ -123,7 +124,9 @@ ff02::2         ip6-allrouters
 EOT
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	cp -r $SOURCE_DIR/raspberrypi/squashfs/* config/includes.chroot/
+	mkdir -p config/includes.chroot
+	git clone --depth=1 --branch=stable https://github.com/raspberrypi/rpi-firmware.git config/includes.chroot/boot
+	rsync -rLp $SOURCE_DIR/raspberrypi/squashfs/ config/includes.chroot/
 fi
 
 # Bootloaders
@@ -190,14 +193,9 @@ fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	ln -sf /usr/bin/pi-beep /usr/local/bin/beep
-	SKIP_WARNING=1 SKIP_BOOTLOADER=1 SKIP_CHECK_PARTITION=1 WANT_64BIT=1 WANT_PI4=1 WANT_PI5=1 BOOT_PART=/boot rpi-update stable
-	for f in /usr/lib/modules/*; do
-    	v=\${f#/usr/lib/modules/}
-		echo "Configuring raspi kernel '\$v'"
-    	extract-ikconfig "/usr/lib/modules/\$v/kernel/kernel/configs.ko.xz" > /boot/config-\$v
-	done
-	mkinitramfs -c gzip -o /boot/initramfs8 6.12.47-v8+
-	mkinitramfs -c gzip -o /boot/initramfs_2712 6.12.47-v8-16k+
+	KERNEL_VERSION=${RPI_KERNEL_VERSION} sh /boot/config.sh > /boot/config.txt
+	mkinitramfs -c gzip -o initrd.img-${RPI_KERNEL_VERSION}-rpi-v8 ${RPI_KERNEL_VERSION}-rpi-v8
+	mkinitramfs -c gzip -o initrd.img-${RPI_KERNEL_VERSION}-rpi-2712 ${RPI_KERNEL_VERSION}-rpi-2712
 fi
 
 useradd --shell /bin/bash -G startos -m start9

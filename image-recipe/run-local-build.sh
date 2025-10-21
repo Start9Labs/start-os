@@ -7,7 +7,7 @@ BASEDIR="$(pwd -P)"
 
 SUITE=trixie
 
-dockerfile_hash=$(sha256sum ${BASEDIR}/image-recipe/prepare.sh | head -c 7)
+dockerfile_hash=$(sha256sum ${BASEDIR}/image-recipe/Dockerfile | head -c 7)
 
 docker_img_name="startos_build:${SUITE}-${dockerfile_hash}"
 

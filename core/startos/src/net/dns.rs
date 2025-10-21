@@ -415,10 +415,7 @@ impl Resolver {
             {
                 if let Some(res) = self.net_iface.peek(|i| {
                     i.values()
-                        .chain([
-                            NetworkInterfaceInfo::loopback().1,
-                            NetworkInterfaceInfo::lxc_bridge().1,
-                        ])
+                        .chain([NetworkInterfaceInfo::loopback().1])
                         .filter_map(|i| i.ip_info.as_ref())
                         .find(|i| i.subnets.iter().any(|s| s.contains(&src)))
                         .map(|ip_info| {

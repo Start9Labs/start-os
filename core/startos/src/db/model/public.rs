@@ -250,30 +250,6 @@ impl NetworkInterfaceInfo {
         }
         (&*LO, &*LOOPBACK)
     }
-    pub fn lxc_bridge() -> (&'static GatewayId, &'static Self) {
-        lazy_static! {
-            static ref LXCBR0: GatewayId =
-                GatewayId::from(InternedString::intern(START9_BRIDGE_IFACE));
-            static ref LXC_BRIDGE: NetworkInterfaceInfo = NetworkInterfaceInfo {
-                name: Some(InternedString::from_static("LXC Bridge Interface")),
-                public: Some(false),
-                secure: Some(true),
-                ip_info: Some(IpInfo {
-                    name: START9_BRIDGE_IFACE.into(),
-                    scope_id: 0,
-                    device_type: None,
-                    subnets: [IpNet::new(HOST_IP.into(), 24).unwrap()]
-                        .into_iter()
-                        .collect(),
-                    lan_ip: [IpAddr::from(HOST_IP)].into_iter().collect(),
-                    wan_ip: None,
-                    ntp_servers: Default::default(),
-                    dns_servers: Default::default(),
-                }),
-            };
-        }
-        (&*LXCBR0, &*LXC_BRIDGE)
-    }
     pub fn public(&self) -> bool {
         self.public.unwrap_or_else(|| {
             !self.ip_info.as_ref().map_or(true, |ip_info| {
@@ -339,7 +315,9 @@ pub struct IpInfo {
 pub enum NetworkInterfaceType {
     Ethernet,
     Wireless,
+    Bridge,
     Wireguard,
+    Loopback,
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]

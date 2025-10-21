@@ -6,7 +6,6 @@
 + raspberrypi-sys-mods
 + raspi-config
 + raspi-firmware
-+ raspi-gpio
 + raspi-utils
 + rpi-eeprom
 + rpi-update

@@ -2,9 +2,12 @@ use std::collections::BTreeMap;
 use std::net::SocketAddrV4;
 use std::path::PathBuf;
 
+use clap::builder::ValueParserFactory;
 use clap::Parser;
 use imbl::HashMap;
+use imbl_value::InternedString;
 use itertools::Itertools;
+use models::{FromStrParser, GatewayId};
 use patch_db::json_ptr::{JsonPointer, ROOT};
 use patch_db::Dump;
 use rpc_toolkit::yajrc::RpcError;
@@ -20,7 +23,52 @@ use crate::sign::AnyVerifyingKey;
 use crate::tunnel::auth::SignerInfo;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::wg::WgServer;
-use crate::util::serde::{apply_expr, HandlerExtSerde};
+use crate::util::serde::{apply_expr, deserialize_from_str, serialize_display, HandlerExtSerde};
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct GatewayPort(pub GatewayId, pub u16);
+impl std::fmt::Display for GatewayPort {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}:{}", self.0, self.1)
+    }
+}
+impl std::str::FromStr for GatewayPort {
+    type Err = crate::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut parts = s.splitn(2, ':');
+        let gw: GatewayId = parts
+            .next()
+            .ok_or_else(|| Error::new(eyre!("missing gateway id"), ErrorKind::ParseNetAddress))?
+            .parse()?;
+        let port: u16 = parts
+            .next()
+            .ok_or_else(|| Error::new(eyre!("missing port"), ErrorKind::ParseNetAddress))?
+            .parse()?;
+        Ok(GatewayPort(gw, port))
+    }
+}
+impl Serialize for GatewayPort {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serialize_display(self, serializer)
+    }
+}
+impl<'de> Deserialize<'de> for GatewayPort {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserialize_from_str(deserializer)
+    }
+}
+impl ValueParserFactory for GatewayPort {
+    type Parser = FromStrParser<Self>;
+    fn value_parser() -> Self::Parser {
+        FromStrParser::new()
+    }
+}
 
 #[derive(Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "camelCase")]
@@ -30,7 +78,20 @@ pub struct TunnelDatabase {
     pub password: String,
     pub auth_pubkeys: HashMap<AnyVerifyingKey, SignerInfo>,
     pub wg: WgServer,
-    pub port_forwards: BTreeMap<SocketAddrV4, SocketAddrV4>,
+    pub port_forwards: PortForwards,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct PortForwards(pub BTreeMap<GatewayPort, SocketAddrV4>);
+impl Map for PortForwards {
+    type Key = GatewayPort;
+    type Value = SocketAddrV4;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Self::key_string(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        Ok(InternedString::from_display(key))
+    }
 }
 
 pub fn db_api<C: Context>() -> ParentHandler<C> {

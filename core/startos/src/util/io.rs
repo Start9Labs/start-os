@@ -14,7 +14,7 @@ use std::time::Duration;
 use bytes::{Buf, BytesMut};
 use clap::builder::ValueParserFactory;
 use futures::future::{BoxFuture, Fuse};
-use futures::{AsyncSeek, FutureExt, Stream, StreamExt, TryStreamExt};
+use futures::{FutureExt, Stream, StreamExt, TryStreamExt};
 use helpers::{AtomicFile, NonDetachingJoinHandle};
 use inotify::{EventMask, EventStream, Inotify, WatchMask};
 use models::FromStrParser;
@@ -22,7 +22,8 @@ use nix::unistd::{Gid, Uid};
 use serde::{Deserialize, Serialize};
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{
-    duplex, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, WriteHalf,
+    duplex, AsyncRead, AsyncReadExt, AsyncSeek, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf,
+    SeekFrom, WriteHalf,
 };
 use tokio::net::TcpStream;
 use tokio::sync::{Notify, OwnedMutexGuard};

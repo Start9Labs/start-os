@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -10,6 +10,7 @@ use helpers::NonDetachingJoinHandle;
 use http::HeaderMap;
 use imbl::OrdMap;
 use imbl_value::InternedString;
+use models::GatewayId;
 use patch_db::PatchDb;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty};
@@ -22,12 +23,13 @@ use url::Url;
 use crate::auth::Sessions;
 use crate::context::config::ContextConfig;
 use crate::context::{CliContext, RpcContext};
+use crate::db::model::public::NetworkInterfaceType;
 use crate::middleware::auth::AuthContext;
 use crate::net::forward::PortForwardController;
-use crate::net::gateway::NetworkInterfaceWatcher;
+use crate::net::gateway::{IdFilter, InterfaceFilter, NetworkInterfaceWatcher};
 use crate::prelude::*;
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
-use crate::tunnel::db::TunnelDatabase;
+use crate::tunnel::db::{GatewayPort, TunnelDatabase};
 use crate::tunnel::TUNNEL_DEFAULT_PORT;
 use crate::util::io::read_file_to_string;
 use crate::util::sync::SyncMutex;
@@ -73,6 +75,7 @@ pub struct TunnelContextSeed {
     pub ephemeral_sessions: SyncMutex<Sessions>,
     pub net_iface: NetworkInterfaceWatcher,
     pub forward: PortForwardController,
+    pub active_forwards: SyncMutex<BTreeMap<GatewayPort, Arc<()>>>,
     pub masquerade_thread: NonDetachingJoinHandle<()>,
     pub shutdown: Sender<()>,
 }
@@ -114,7 +117,17 @@ impl TunnelContext {
         let mut masquerade_net_iface = net_iface.subscribe();
         let masquerade_thread = tokio::spawn(async move {
             loop {
-                for iface in masquerade_net_iface.peek(|i| i.keys().cloned().collect::<Vec<_>>()) {
+                for iface in masquerade_net_iface.peek(|i| {
+                    i.iter()
+                        .filter(|(_, info)| {
+                            dbg!(info).ip_info.as_ref().map_or(false, |i| {
+                                dbg!(i).device_type != Some(NetworkInterfaceType::Wireguard)
+                            })
+                        })
+                        .map(|(name, _)| name)
+                        .cloned()
+                        .collect::<Vec<_>>()
+                }) {
                     if Command::new("iptables")
                         .arg("-t")
                         .arg("nat")
@@ -128,6 +141,7 @@ impl TunnelContext {
                         .await
                         .is_err()
                     {
+                        tracing::info!("Adding masquerade rule for interface {}", iface);
                         Command::new("iptables")
                             .arg("-t")
                             .arg("nat")
@@ -144,11 +158,23 @@ impl TunnelContext {
                 }
 
                 masquerade_net_iface.changed().await;
+
+                tracing::info!("Network interfaces changed, updating masquerade rules");
             }
         })
         .into();
 
-        db.peek().await.into_wg().de()?.sync().await?;
+        let peek = db.peek().await;
+        peek.as_wg().de()?.sync().await?;
+        let mut active_forwards = BTreeMap::new();
+        for (from, to) in peek.as_port_forwards().de()?.0 {
+            active_forwards.insert(
+                from.clone(),
+                forward
+                    .add(from.1, IdFilter(from.0).into_dyn(), to.into())
+                    .await?,
+            );
+        }
 
         Ok(Self(Arc::new(TunnelContextSeed {
             listen,
@@ -164,6 +190,7 @@ impl TunnelContext {
             ephemeral_sessions: SyncMutex::new(Sessions::new()),
             net_iface,
             forward,
+            active_forwards: SyncMutex::new(active_forwards),
             masquerade_thread,
             shutdown,
         })))
