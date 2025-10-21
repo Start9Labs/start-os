@@ -10,6 +10,7 @@ use libc::time_t;
 use openssl::asn1::{Asn1Integer, Asn1Time, Asn1TimeRef};
 use openssl::bn::{BigNum, MsbOption};
 use openssl::ec::{EcGroup, EcKey};
+use openssl::error::ErrorStack;
 use openssl::hash::MessageDigest;
 use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
@@ -25,6 +26,12 @@ use crate::hostname::Hostname;
 use crate::init::check_time_is_synchronized;
 use crate::prelude::*;
 use crate::util::serde::Pem;
+
+pub fn gen_nistp256() -> Result<PKey<Private>, ErrorStack> {
+    PKey::from_ec_key(EcKey::generate(&*EcGroup::from_curve_name(
+        Nid::X9_62_PRIME256V1,
+    )?)?)
+}
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[model = "Model<Self>"]
@@ -96,9 +103,7 @@ impl Model<CertStore> {
         } else {
             PKeyPair {
                 ed25519: PKey::generate_ed25519()?,
-                nistp256: PKey::from_ec_key(EcKey::generate(&*EcGroup::from_curve_name(
-                    Nid::X9_62_PRIME256V1,
-                )?)?)?,
+                nistp256: gen_nistp256()?,
             }
         };
         let int_key = self.as_int_key().de()?.0;
@@ -514,6 +519,77 @@ pub fn make_leaf_cert(
     builder.append_extension(key_usage)?;
 
     builder.sign(&signer.0, MessageDigest::sha256())?;
+
+    let cert = builder.build();
+    Ok(cert)
+}
+
+#[instrument(skip_all)]
+pub fn make_self_signed(applicant: (&PKey<Private>, &SANInfo)) -> Result<X509, Error> {
+    let mut builder = X509Builder::new()?;
+    builder.set_version(CERTIFICATE_VERSION)?;
+
+    let embargo = Asn1Time::from_unix(unix_time(SystemTime::now()) - 86400)?;
+    builder.set_not_before(&embargo)?;
+
+    // Google Apple and Mozilla reject certificate horizons longer than 398 days
+    // https://techbeacon.com/security/google-apple-mozilla-enforce-1-year-max-security-certifications
+    let expiration = Asn1Time::days_from_now(397)?;
+    builder.set_not_after(&expiration)?;
+
+    builder.set_serial_number(&*rand_serial()?)?;
+
+    let mut subject_name_builder = X509NameBuilder::new()?;
+    subject_name_builder.append_entry_by_text(
+        "CN",
+        applicant
+            .1
+            .dns
+            .first()
+            .map(MaybeWildcard::as_str)
+            .unwrap_or("localhost"),
+    )?;
+    subject_name_builder.append_entry_by_text("O", "Start9")?;
+    subject_name_builder.append_entry_by_text("OU", "StartOS")?;
+    let subject_name = subject_name_builder.build();
+    builder.set_subject_name(&subject_name)?;
+
+    builder.set_issuer_name(&subject_name)?;
+
+    builder.set_pubkey(&applicant.0)?;
+
+    // Extensions
+    let cfg = conf::Conf::new(conf::ConfMethod::default())?;
+    let ctx = builder.x509v3_context(None, Some(&cfg));
+    // subjectKeyIdentifier = hash
+    let subject_key_identifier =
+        X509Extension::new_nid(Some(&cfg), Some(&ctx), Nid::SUBJECT_KEY_IDENTIFIER, "hash")?;
+    // authorityKeyIdentifier = keyid:always,issuer
+    let authority_key_identifier = X509Extension::new_nid(
+        Some(&cfg),
+        Some(&ctx),
+        Nid::AUTHORITY_KEY_IDENTIFIER,
+        "keyid,issuer:always",
+    )?;
+    let basic_constraints =
+        X509Extension::new_nid(Some(&cfg), Some(&ctx), Nid::BASIC_CONSTRAINTS, "CA:FALSE")?;
+    let key_usage = X509Extension::new_nid(
+        Some(&cfg),
+        Some(&ctx),
+        Nid::KEY_USAGE,
+        "critical,digitalSignature,keyEncipherment",
+    )?;
+
+    let san_string = applicant.1.to_string();
+    let subject_alt_name =
+        X509Extension::new_nid(Some(&cfg), Some(&ctx), Nid::SUBJECT_ALT_NAME, &san_string)?;
+    builder.append_extension(subject_key_identifier)?;
+    builder.append_extension(authority_key_identifier)?;
+    builder.append_extension(subject_alt_name)?;
+    builder.append_extension(basic_constraints)?;
+    builder.append_extension(key_usage)?;
+
+    builder.sign(&applicant.0, MessageDigest::sha256())?;
 
     let cert = builder.build();
     Ok(cert)

@@ -573,23 +573,23 @@ export class FileHelper<A> {
   /**
    * Create a File Helper for a .toml file
    */
-  static toml<A extends TOML.JsonMap>(
+  static toml<A extends Record<string, unknown>>(
     path: ToPath,
-    shape: Validator<TOML.JsonMap, A>,
+    shape: Validator<Record<string, unknown>, A>,
   ): FileHelper<A>
-  static toml<A extends Transformed, Transformed = TOML.JsonMap>(
+  static toml<A extends Transformed, Transformed = Record<string, unknown>>(
     path: ToPath,
     shape: Validator<Transformed, A>,
-    transformers: Transformers<TOML.JsonMap, Transformed>,
+    transformers: Transformers<Record<string, unknown>, Transformed>,
   ): FileHelper<A>
-  static toml<A extends Transformed, Transformed = TOML.JsonMap>(
+  static toml<A extends Transformed, Transformed = Record<string, unknown>>(
     path: ToPath,
     shape: Validator<Transformed, A>,
-    transformers?: Transformers<TOML.JsonMap, Transformed>,
+    transformers?: Transformers<Record<string, unknown>, Transformed>,
   ) {
-    return FileHelper.rawTransformed<A, TOML.JsonMap, Transformed>(
+    return FileHelper.rawTransformed<A, Record<string, unknown>, Transformed>(
       path,
-      (inData) => TOML.stringify(inData),
+      (inData) => TOML.stringify(inData as TOML.JsonMap),
       (inString) => TOML.parse(inString),
       (data) => shape.unsafeCast(data),
       transformers,

@@ -2,13 +2,14 @@ use std::net::IpAddr;
 
 use clap::Parser;
 use imbl::HashMap;
-use imbl_value::InternedString;
+use imbl_value::{InternedString, json};
+use itertools::Itertools;
 use patch_db::HasModel;
-use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::auth::{check_password, Sessions};
+use crate::auth::{Sessions, check_password};
 use crate::context::CliContext;
 use crate::middleware::auth::AuthContext;
 use crate::middleware::signature::SignatureAuthContext;
@@ -17,7 +18,7 @@ use crate::rpc_continuations::OpenAuthedContinuations;
 use crate::sign::AnyVerifyingKey;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::db::TunnelDatabase;
-use crate::util::serde::{display_serializable, HandlerExtSerde};
+use crate::util::serde::{HandlerExtSerde, display_serializable};
 use crate::util::sync::SyncMutex;
 
 impl SignatureAuthContext for TunnelContext {
@@ -89,51 +90,59 @@ pub struct SignerInfo {
 }
 
 pub fn auth_api<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new().subcommand(
-        "key",
-        ParentHandler::<C>::new()
-            .subcommand(
-                "add",
-                from_fn_async(add_key)
-                    .with_metadata("sync_db", Value::Bool(true))
-                    .no_display()
-                    .with_about("Add a new authorized key")
-                    .with_call_remote::<CliContext>(),
-            )
-            .subcommand(
-                "remove",
-                from_fn_async(remove_key)
-                    .with_metadata("sync_db", Value::Bool(true))
-                    .no_display()
-                    .with_about("Remove an authorized key")
-                    .with_call_remote::<CliContext>(),
-            )
-            .subcommand(
-                "list",
-                from_fn_async(list_keys)
-                    .with_metadata("sync_db", Value::Bool(true))
-                    .with_display_serializable()
-                    .with_custom_display_fn(|HandlerArgs { params, .. }, res| {
-                        use prettytable::*;
+    ParentHandler::new()
+        .subcommand("set-password", from_fn_async(set_password_rpc).no_cli())
+        .subcommand(
+            "set-password",
+            from_fn_async(set_password_cli)
+                .with_about("Set user interface password")
+                .no_display(),
+        )
+        .subcommand(
+            "key",
+            ParentHandler::<C>::new()
+                .subcommand(
+                    "add",
+                    from_fn_async(add_key)
+                        .with_metadata("sync_db", Value::Bool(true))
+                        .no_display()
+                        .with_about("Add a new authorized key")
+                        .with_call_remote::<CliContext>(),
+                )
+                .subcommand(
+                    "remove",
+                    from_fn_async(remove_key)
+                        .with_metadata("sync_db", Value::Bool(true))
+                        .no_display()
+                        .with_about("Remove an authorized key")
+                        .with_call_remote::<CliContext>(),
+                )
+                .subcommand(
+                    "list",
+                    from_fn_async(list_keys)
+                        .with_metadata("sync_db", Value::Bool(true))
+                        .with_display_serializable()
+                        .with_custom_display_fn(|HandlerArgs { params, .. }, res| {
+                            use prettytable::*;
 
-                        if let Some(format) = params.format {
-                            return display_serializable(format, res);
-                        }
+                            if let Some(format) = params.format {
+                                return display_serializable(format, res);
+                            }
 
-                        let mut table = Table::new();
-                        table.add_row(row![bc => "NAME", "KEY"]);
-                        for (key, info) in res {
-                            table.add_row(row![info.name, key]);
-                        }
+                            let mut table = Table::new();
+                            table.add_row(row![bc => "NAME", "KEY"]);
+                            for (key, info) in res {
+                                table.add_row(row![info.name, key]);
+                            }
 
-                        table.print_tty(false)?;
+                            table.print_tty(false)?;
 
-                        Ok(())
-                    })
-                    .with_about("List authorized keys")
-                    .with_call_remote::<CliContext>(),
-            ),
-    )
+                            Ok(())
+                        })
+                        .with_about("List authorized keys")
+                        .with_call_remote::<CliContext>(),
+                ),
+        )
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
@@ -180,4 +189,56 @@ pub async fn remove_key(
 
 pub async fn list_keys(ctx: TunnelContext) -> Result<HashMap<AnyVerifyingKey, SignerInfo>, Error> {
     ctx.db.peek().await.into_auth_pubkeys().de()
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SetPasswordParams {
+    pub password: String,
+}
+
+pub async fn set_password_rpc(
+    ctx: TunnelContext,
+    SetPasswordParams { password }: SetPasswordParams,
+) -> Result<(), Error> {
+    let pwhash = argon2::hash_encoded(
+        password.as_bytes(),
+        &rand::random::<[u8; 16]>(),
+        &argon2::Config::rfc9106_low_mem(),
+    )?;
+    ctx.db
+        .mutate(|db| db.as_password_mut().ser(&Some(pwhash)))
+        .await
+        .result?;
+
+    Ok(())
+}
+
+pub async fn set_password_cli(
+    HandlerArgs {
+        context,
+        parent_method,
+        method,
+        ..
+    }: HandlerArgs<CliContext>,
+) -> Result<(), Error> {
+    let password = rpassword::prompt_password("New Password")?;
+    let confirm = rpassword::prompt_password("Confirm Password")?;
+
+    if password != confirm {
+        return Err(Error::new(
+            eyre!("Passwords do not match"),
+            ErrorKind::InvalidRequest,
+        ));
+    }
+
+    context
+        .call_remote::<TunnelContext>(
+            &parent_method.iter().chain(method.iter()).join("."),
+            to_value(SetPasswordParams { password }),
+        )
+        .await?;
+
+    println!("Password set successfully");
+
+    Ok(())
 }

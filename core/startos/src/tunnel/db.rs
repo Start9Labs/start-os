@@ -1,29 +1,35 @@
-use std::collections::BTreeMap;
-use std::net::SocketAddrV4;
+use std::collections::{BTreeMap, BTreeSet};
+use std::net::{IpAddr, SocketAddr, SocketAddrV4};
 use std::path::PathBuf;
 
-use clap::builder::ValueParserFactory;
 use clap::Parser;
+use clap::builder::ValueParserFactory;
 use imbl::HashMap;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use models::{FromStrParser, GatewayId};
-use patch_db::json_ptr::{JsonPointer, ROOT};
+use openssl::pkey::{PKey, Private};
+use openssl::x509::X509;
 use patch_db::Dump;
+use patch_db::json_ptr::{JsonPointer, ROOT};
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
 
 use crate::auth::Sessions;
 use crate::context::CliContext;
+use crate::net::ssl::FullchainCertData;
 use crate::prelude::*;
 use crate::sign::AnyVerifyingKey;
 use crate::tunnel::auth::SignerInfo;
 use crate::tunnel::context::TunnelContext;
+use crate::tunnel::web::TunnelCertData;
 use crate::tunnel::wg::WgServer;
-use crate::util::serde::{apply_expr, deserialize_from_str, serialize_display, HandlerExtSerde};
+use crate::util::serde::{
+    HandlerExtSerde, Pem, apply_expr, deserialize_from_str, serialize_display,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GatewayPort(pub GatewayId, pub u16);
@@ -74,9 +80,11 @@ impl ValueParserFactory for GatewayPort {
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct TunnelDatabase {
+    pub webserver: Option<SocketAddr>,
     pub sessions: Sessions,
-    pub password: String,
+    pub password: Option<String>,
     pub auth_pubkeys: HashMap<AnyVerifyingKey, SignerInfo>,
+    pub certificate: BTreeMap<JsonKey<BTreeSet<InternedString>>, TunnelCertData>,
     pub wg: WgServer,
     pub port_forwards: PortForwards,
 }

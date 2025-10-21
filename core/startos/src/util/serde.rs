@@ -1199,6 +1199,21 @@ impl PemEncoding for X509 {
     }
 }
 
+impl PemEncoding for Vec<X509> {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
+        X509::stack_from_pem(pem).map_err(E::custom)
+    }
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
+        self.iter()
+            .map(|x| x.to_pem())
+            .try_fold(String::new(), |mut acc, x| {
+                acc.push_str(&x?);
+                acc.push_str("\n");
+                Ok(acc)
+            })
+    }
+}
+
 impl PemEncoding for PKey<Private> {
     fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
         Self::private_key_from_pem(pem.as_bytes()).map_err(E::custom)

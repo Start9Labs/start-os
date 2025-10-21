@@ -13,6 +13,7 @@ pub mod api;
 pub mod auth;
 pub mod context;
 pub mod db;
+pub mod web;
 pub mod wg;
 
 pub const TUNNEL_DEFAULT_PORT: u16 = 5960;
