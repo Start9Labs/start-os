@@ -1,3 +1,5 @@
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+
 use axum::Router;
 use futures::future::ready;
 use rpc_toolkit::Server;
@@ -17,6 +19,10 @@ pub mod web;
 pub mod wg;
 
 pub const TUNNEL_DEFAULT_PORT: u16 = 5960;
+pub const TUNNEL_DEFAULT_LISTEN: SocketAddr = SocketAddr::V4(SocketAddrV4::new(
+    Ipv4Addr::new(127, 0, 59, 60),
+    TUNNEL_DEFAULT_PORT,
+));
 
 pub fn tunnel_router(ctx: TunnelContext) -> Router {
     use axum::extract as x;

@@ -3,8 +3,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use clap::Parser;
 use imbl_value::InternedString;
 use ipnet::Ipv4Net;
-use models::GatewayId;
-use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 
 use crate::context::CliContext;
@@ -13,11 +12,11 @@ use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::db::GatewayPort;
 use crate::tunnel::wg::{ClientConfig, WgConfig, WgSubnetClients, WgSubnetConfig};
-use crate::util::serde::{HandlerExtSerde, display_serializable};
+use crate::util::serde::{display_serializable, HandlerExtSerde};
 
 pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
-        .subcommand("web", super::web::web_api())
+        .subcommand("web", super::web::web_api::<C>())
         .subcommand(
             "db",
             super::db::db_api::<C>()
@@ -165,9 +164,11 @@ pub async fn add_subnet(
         .db
         .mutate(|db| {
             let map = db.as_wg_mut().as_subnets_mut();
-            if !map.contains_key(&subnet)? {
-                map.insert(&subnet, &WgSubnetConfig::new(name))?;
-            }
+            map.upsert(&subnet, || {
+                Ok(WgSubnetConfig::new(InternedString::default()))
+            })?
+            .as_name_mut()
+            .ser(&name)?;
             db.as_wg().de()
         })
         .await
@@ -312,7 +313,8 @@ pub async fn show_config(
     }: ShowConfigParams,
     SubnetParams { subnet }: SubnetParams,
 ) -> Result<ClientConfig, Error> {
-    let wg = ctx.db.peek().await.into_wg();
+    let peek = ctx.db.peek().await;
+    let wg = peek.as_wg();
     let client = wg
         .as_subnets()
         .as_idx(&subnet)
@@ -329,16 +331,19 @@ pub async fn show_config(
             }
     }) {
         wan_addr
+    } else if let Some(webserver) = peek.as_webserver().de()? {
+        webserver.ip()
     } else {
         ctx.net_iface
-            .ip_info()
-            .into_iter()
-            .find_map(|(_, info)| {
-                info.public()
-                    .then_some(info.ip_info)
-                    .flatten()
-                    .into_iter()
-                    .find_map(|info| info.subnets.into_iter().next())
+            .peek(|i| {
+                i.iter().find_map(|(_, info)| {
+                    info.ip_info
+                        .as_ref()
+                        .filter(|_| info.public())
+                        .iter()
+                        .find_map(|info| info.subnets.iter().next())
+                        .copied()
+                })
             })
             .or_not_found("a public IP address")?
             .addr()

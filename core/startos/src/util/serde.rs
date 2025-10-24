@@ -1201,7 +1201,7 @@ impl PemEncoding for X509 {
 
 impl PemEncoding for Vec<X509> {
     fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
-        X509::stack_from_pem(pem).map_err(E::custom)
+        X509::stack_from_pem(pem.as_bytes()).map_err(E::custom)
     }
     fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
         self.iter()

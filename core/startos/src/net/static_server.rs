@@ -8,7 +8,7 @@ use std::time::UNIX_EPOCH;
 use async_compression::tokio::bufread::GzipEncoder;
 use axum::body::Body;
 use axum::extract::{self as x, Request};
-use axum::response::{Redirect, Response};
+use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{any, get};
 use axum::Router;
 use base64::display::Base64Display;
@@ -37,6 +37,8 @@ use crate::main_api;
 use crate::middleware::auth::{Auth, HasValidSession};
 use crate::middleware::cors::Cors;
 use crate::middleware::db::SyncDb;
+use crate::net::gateway::GatewayInfo;
+use crate::net::tls::TlsHandshakeInfo;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuations};
 use crate::s9pk::merkle_archive::source::http::HttpSource;
@@ -80,6 +82,30 @@ impl UiContext for RpcContext {
             .middleware(SyncDb::new())
     }
     fn extend_router(self, router: Router) -> Router {
+        async fn https_redirect_if_public_http(
+            req: Request,
+            next: axum::middleware::Next,
+        ) -> Response {
+            if req
+                .extensions()
+                .get::<GatewayInfo>()
+                .map_or(false, |p| p.info.public())
+                && req.extensions().get::<TlsHandshakeInfo>().is_none()
+            {
+                Redirect::temporary(&format!(
+                    "https://{}{}",
+                    req.headers()
+                        .get(HOST)
+                        .and_then(|s| s.to_str().ok())
+                        .unwrap_or("localhost"),
+                    req.uri()
+                ))
+                .into_response()
+            } else {
+                next.run(req).await
+            }
+        }
+
         router
             .route("/proxy/{url}", {
                 let ctx = self.clone();
@@ -103,6 +129,7 @@ impl UiContext for RpcContext {
                     }
                 }),
             )
+            .layer(axum::middleware::from_fn(https_redirect_if_public_http))
     }
 }
 
@@ -226,20 +253,6 @@ pub fn refresher() -> Router {
         }
         .into_response(&request.into_parts().0)
         .unwrap_or_else(server_error)
-    }))
-}
-
-pub fn redirecter() -> Router {
-    Router::new().fallback(get(|request: Request| async move {
-        Redirect::temporary(&format!(
-            "https://{}{}",
-            request
-                .headers()
-                .get(HOST)
-                .and_then(|s| s.to_str().ok())
-                .unwrap_or("localhost"),
-            request.uri()
-        ))
     }))
 }
 

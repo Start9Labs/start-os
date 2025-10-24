@@ -193,7 +193,7 @@ where
     A: serde::Serialize + serde::de::DeserializeOwned + Ord,
     B: serde::Serialize + serde::de::DeserializeOwned,
 {
-    type Key = A;
+    type Key = JsonKey<A>;
     type Value = B;
     fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
         serde_json::to_string(key).with_kind(ErrorKind::Serialization)
@@ -433,6 +433,12 @@ impl<T> std::ops::DerefMut for JsonKey<T> {
         &mut self.0
     }
 }
+impl<T: DeserializeOwned> FromStr for JsonKey<T> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s).with_kind(ErrorKind::Deserialization)
+    }
+}
 impl<T: Serialize> Serialize for JsonKey<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -445,7 +451,7 @@ impl<T: Serialize> Serialize for JsonKey<T> {
     }
 }
 // { "foo": "bar" } -> "{ \"foo\": \"bar\" }"
-impl<'de, T: Serialize + DeserializeOwned> Deserialize<'de> for JsonKey<T> {
+impl<'de, T: DeserializeOwned> Deserialize<'de> for JsonKey<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,

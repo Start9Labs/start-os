@@ -1,15 +1,13 @@
-use std::net::IpAddr;
-
 use clap::Parser;
 use imbl::HashMap;
-use imbl_value::{InternedString, json};
+use imbl_value::InternedString;
 use itertools::Itertools;
 use patch_db::HasModel;
-use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::auth::{Sessions, check_password};
+use crate::auth::{check_password, Sessions};
 use crate::context::CliContext;
 use crate::middleware::auth::AuthContext;
 use crate::middleware::signature::SignatureAuthContext;
@@ -18,7 +16,7 @@ use crate::rpc_continuations::OpenAuthedContinuations;
 use crate::sign::AnyVerifyingKey;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::db::TunnelDatabase;
-use crate::util::serde::{HandlerExtSerde, display_serializable};
+use crate::util::serde::{display_serializable, HandlerExtSerde};
 use crate::util::sync::SyncMutex;
 
 impl SignatureAuthContext for TunnelContext {
@@ -31,14 +29,18 @@ impl SignatureAuthContext for TunnelContext {
     async fn sig_context(
         &self,
     ) -> impl IntoIterator<Item = Result<impl AsRef<str> + Send, Error>> + Send {
-        self.addrs
-            .iter()
-            .filter(|a| !match a {
-                IpAddr::V4(a) => a.is_loopback() || a.is_unspecified(),
-                IpAddr::V6(a) => a.is_loopback() || a.is_unspecified(),
-            })
-            .map(|a| InternedString::from_display(&a))
-            .map(Ok)
+        let peek = self.db().peek().await;
+        peek.as_webserver()
+            .de()
+            .map(|a| a.as_ref().map(InternedString::from_display))
+            .transpose()
+            .into_iter()
+            .chain(
+                std::iter::from_fn(move || Some(peek.as_certificates().keys()))
+                    .flatten_ok()
+                    .map_ok(|h| h.0)
+                    .flatten_ok(),
+            )
     }
     fn check_pubkey(
         db: &Model<Self::Database>,
@@ -77,7 +79,7 @@ impl AuthContext for TunnelContext {
         &self.open_authed_continuations
     }
     fn check_password(db: &Model<Self::Database>, password: &str) -> Result<(), Error> {
-        check_password(&db.as_password().de()?, password)
+        check_password(&db.as_password().de()?.unwrap_or_default(), password)
     }
 }
 
@@ -204,7 +206,8 @@ pub async fn set_password_rpc(
         password.as_bytes(),
         &rand::random::<[u8; 16]>(),
         &argon2::Config::rfc9106_low_mem(),
-    )?;
+    )
+    .with_kind(ErrorKind::PasswordHashGeneration)?;
     ctx.db
         .mutate(|db| db.as_password_mut().ser(&Some(pwhash)))
         .await
@@ -234,7 +237,7 @@ pub async fn set_password_cli(
     context
         .call_remote::<TunnelContext>(
             &parent_method.iter().chain(method.iter()).join("."),
-            to_value(SetPasswordParams { password }),
+            to_value(&SetPasswordParams { password })?,
         )
         .await?;
 

@@ -22,10 +22,11 @@ use crate::db::model::Database;
 use crate::developer::OS_DEVELOPER_KEY_PATH;
 use crate::hostname::Hostname;
 use crate::middleware::auth::AuthContext;
+use crate::net::gateway::UpgradableListener;
 use crate::net::net_controller::{NetController, NetService};
 use crate::net::socks::DEFAULT_SOCKS_LISTEN;
 use crate::net::utils::find_wifi_iface;
-use crate::net::web_server::{UpgradableListener, WebServerAcceptorSetter};
+use crate::net::web_server::WebServerAcceptorSetter;
 use crate::prelude::*;
 use crate::progress::{
     FullProgress, FullProgressTracker, PhaseProgressTrackerHandle, PhasedProgressBar, ProgressUnits,

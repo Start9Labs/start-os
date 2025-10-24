@@ -3,10 +3,11 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::future::Future;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV6};
 use std::sync::{Arc, Weak};
-use std::task::Poll;
+use std::task::{ready, Poll};
 use std::time::Duration;
 
 use clap::Parser;
+use futures::future::Either;
 use futures::{FutureExt, Stream, StreamExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
 use imbl::{OrdMap, OrdSet};
@@ -19,10 +20,11 @@ use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpListener;
 use tokio::process::Command;
 use tokio::sync::oneshot;
 use ts_rs::TS;
+use visit_rs::{Visit, VisitFields};
 use zbus::proxy::{PropertyChanged, PropertyStream, SignalStream};
 use zbus::zvariant::{
     DeserializeDict, Dict, OwnedObjectPath, OwnedValue, Type as ZType, Value as ZValue,
@@ -35,7 +37,7 @@ use crate::db::model::Database;
 use crate::net::forward::START9_BRIDGE_IFACE;
 use crate::net::gateway::device::DeviceProxy;
 use crate::net::utils::ipv6_is_link_local;
-use crate::net::web_server::Accept;
+use crate::net::web_server::{Accept, AcceptStream, Acceptor, MetadataVisitor};
 use crate::prelude::*;
 use crate::util::collections::OrdMapIterMut;
 use crate::util::future::Until;
@@ -714,6 +716,7 @@ async fn watch_ip(
                                                         )
                                                     });
                                                 ip_info.wan_ip = ip_info.wan_ip.or(prev_wan_ip);
+                                                let ip_info = Arc::new(ip_info);
                                                 m.insert(
                                                     iface.clone(),
                                                     NetworkInterfaceInfo {
@@ -828,7 +831,7 @@ impl NetworkInterfaceWatcher {
         self.ip_info.read()
     }
 
-    pub fn bind(&self, port: u16) -> Result<NetworkInterfaceListener, Error> {
+    pub fn bind<B: Bind>(&self, bind: B, port: u16) -> Result<NetworkInterfaceListener<B>, Error> {
         let arc = Arc::new(());
         self.listeners.mutate(|l| {
             if l.get(&port).filter(|w| w.strong_count() > 0).is_some() {
@@ -841,22 +844,20 @@ impl NetworkInterfaceWatcher {
             Ok(())
         })?;
         let ip_info = self.ip_info.clone_unseen();
-        let activated = self.activated.clone_unseen();
         Ok(NetworkInterfaceListener {
             _arc: arc,
             ip_info,
-            activated,
-            listeners: ListenerMap::new(port),
+            listeners: ListenerMap::new(bind, port),
         })
     }
 
-    pub fn upgrade_listener(
+    pub fn upgrade_listener<B: Bind>(
         &self,
         SelfContainedNetworkInterfaceListener {
             mut listener,
             ..
-        }: SelfContainedNetworkInterfaceListener,
-    ) -> Result<NetworkInterfaceListener, Error> {
+        }: SelfContainedNetworkInterfaceListener<B>,
+    ) -> Result<NetworkInterfaceListener<B>, Error> {
         let port = listener.listeners.port;
         let arc = &listener._arc;
         self.listeners.mutate(|l| {
@@ -1169,45 +1170,6 @@ impl NetworkInterfaceController {
     }
 }
 
-struct ListenerMap {
-    prev_filter: DynInterfaceFilter,
-    port: u16,
-    listeners: BTreeMap<SocketAddr, (TcpListener, Option<Ipv4Addr>)>,
-}
-impl ListenerMap {
-    fn from_listener(listener: impl IntoIterator<Item = TcpListener>) -> Result<Self, Error> {
-        let mut port = 0;
-        let mut listeners = BTreeMap::<SocketAddr, (TcpListener, Option<Ipv4Addr>)>::new();
-        for listener in listener {
-            let mut local = listener.local_addr().with_kind(ErrorKind::Network)?;
-            if let SocketAddr::V6(l) = &mut local {
-                if ipv6_is_link_local(*l.ip()) && l.scope_id() == 0 {
-                    continue; // TODO determine scope id
-                }
-            }
-            if port != 0 && port != local.port() {
-                return Err(Error::new(
-                    eyre!("Provided listeners are bound to different ports"),
-                    ErrorKind::InvalidRequest,
-                ));
-            }
-            port = local.port();
-            listeners.insert(local, (listener, None));
-        }
-        if port == 0 {
-            return Err(Error::new(
-                eyre!("Listener array cannot be empty"),
-                ErrorKind::InvalidRequest,
-            ));
-        }
-        Ok(Self {
-            prev_filter: false.into_dyn(),
-            port,
-            listeners,
-        })
-    }
-}
-
 pub trait InterfaceFilter: Any + Clone + std::fmt::Debug + Eq + Ord + Send + Sync {
     fn filter(&self, id: &GatewayId, info: &NetworkInterfaceInfo) -> bool;
     fn eq(&self, other: &dyn Any) -> bool {
@@ -1232,6 +1194,14 @@ pub trait InterfaceFilter: Any + Clone + std::fmt::Debug + Eq + Ord + Send + Syn
 impl InterfaceFilter for bool {
     fn filter(&self, _: &GatewayId, _: &NetworkInterfaceInfo) -> bool {
         *self
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct TypeFilter(pub NetworkInterfaceType);
+impl InterfaceFilter for TypeFilter {
+    fn filter(&self, _: &GatewayId, info: &NetworkInterfaceInfo) -> bool {
+        info.ip_info.as_ref().and_then(|i| i.device_type) == Some(self.0)
     }
 }
 
@@ -1366,10 +1336,17 @@ impl Ord for DynInterfaceFilter {
     }
 }
 
-impl ListenerMap {
-    fn new(port: u16) -> Self {
+struct ListenerMap<B: Bind> {
+    prev_filter: DynInterfaceFilter,
+    bind: B,
+    port: u16,
+    listeners: BTreeMap<SocketAddr, B::Accept>,
+}
+impl<B: Bind> ListenerMap<B> {
+    fn new(bind: B, port: u16) -> Self {
         Self {
             prev_filter: false.into_dyn(),
+            bind,
             port,
             listeners: BTreeMap::new(),
         }
@@ -1384,7 +1361,6 @@ impl ListenerMap {
         let mut keep = BTreeSet::<SocketAddr>::new();
         for (_, info) in ip_info
             .iter()
-            .chain([NetworkInterfaceInfo::loopback()])
             .filter(|(id, info)| filter.filter(*id, *info))
         {
             if let Some(ip_info) = &info.ip_info {
@@ -1404,24 +1380,9 @@ impl ListenerMap {
                         ip => SocketAddr::new(ip, self.port),
                     };
                     keep.insert(addr);
-                    if let Some((_, wan_ip)) = self.listeners.get_mut(&addr) {
-                        *wan_ip = info.ip_info.as_ref().and_then(|i| i.wan_ip);
-                        continue;
+                    if !self.listeners.contains_key(&addr) {
+                        self.listeners.insert(addr, self.bind.bind(addr)?);
                     }
-                    self.listeners.insert(
-                        addr,
-                        (
-                            TcpListener::from_std(
-                                mio::net::TcpListener::bind(addr)
-                                    .with_ctx(|_| {
-                                        (ErrorKind::Network, lazy_format!("binding to {addr:?}"))
-                                    })?
-                                    .into(),
-                            )
-                            .with_kind(ErrorKind::Network)?,
-                            info.ip_info.as_ref().and_then(|i| i.wan_ip),
-                        ),
-                    );
                 }
             }
         }
@@ -1429,24 +1390,13 @@ impl ListenerMap {
         self.prev_filter = filter.clone().into_dyn();
         Ok(())
     }
-    fn poll_accept(&self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>> {
-        for (bind_addr, (listener, wan_ip)) in self.listeners.iter() {
-            if let Poll::Ready((stream, addr)) = listener.poll_accept(cx)? {
-                if let Err(e) = socket2::SockRef::from(&stream).set_tcp_keepalive(
-                    &socket2::TcpKeepalive::new()
-                        .with_time(Duration::from_secs(900))
-                        .with_interval(Duration::from_secs(60))
-                        .with_retries(5),
-                ) {
-                    tracing::error!("Failed to set tcp keepalive: {e}");
-                    tracing::debug!("{e:?}");
-                }
-                return Poll::Ready(Ok(Accepted {
-                    stream,
-                    peer: addr,
-                    wan_ip: *wan_ip,
-                    bind: *bind_addr,
-                }));
+    fn poll_accept(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(SocketAddr, <B::Accept as Accept>::Metadata, AcceptStream), Error>> {
+        for (addr, listener) in self.listeners.iter_mut() {
+            if let Poll::Ready((metadata, stream)) = listener.poll_accept(cx)? {
+                return Poll::Ready(Ok((*addr, metadata, stream)));
             }
         }
         Poll::Pending
@@ -1457,54 +1407,100 @@ pub fn lookup_info_by_addr(
     ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
     addr: SocketAddr,
 ) -> Option<(&GatewayId, &NetworkInterfaceInfo)> {
-    ip_info
-        .iter()
-        .chain([NetworkInterfaceInfo::loopback()])
-        .find(|(_, i)| {
-            i.ip_info
-                .as_ref()
-                .map_or(false, |i| i.subnets.iter().any(|i| i.addr() == addr.ip()))
-        })
+    ip_info.iter().find(|(_, i)| {
+        i.ip_info
+            .as_ref()
+            .map_or(false, |i| i.subnets.iter().any(|i| i.addr() == addr.ip()))
+    })
 }
 
-pub struct NetworkInterfaceListener {
+pub trait Bind {
+    type Accept: Accept;
+    fn bind(&mut self, addr: SocketAddr) -> Result<Self::Accept, Error>;
+}
+
+#[derive(Clone, Copy, Default)]
+pub struct BindTcp;
+impl Bind for BindTcp {
+    type Accept = TcpListener;
+    fn bind(&mut self, addr: SocketAddr) -> Result<Self::Accept, Error> {
+        TcpListener::from_std(
+            mio::net::TcpListener::bind(addr)
+                .with_kind(ErrorKind::Network)?
+                .into(),
+        )
+        .with_kind(ErrorKind::Network)
+    }
+}
+
+pub trait FromGatewayInfo {
+    fn from_gateway_info(id: &GatewayId, info: &NetworkInterfaceInfo) -> Self;
+}
+#[derive(Clone, Debug)]
+pub struct GatewayInfo {
+    pub id: GatewayId,
+    pub info: NetworkInterfaceInfo,
+}
+impl<V: MetadataVisitor> Visit<V> for GatewayInfo {
+    fn visit(&self, visitor: &mut V) -> <V as visit_rs::Visitor>::Result {
+        visitor.visit(self)
+    }
+}
+impl FromGatewayInfo for GatewayInfo {
+    fn from_gateway_info(id: &GatewayId, info: &NetworkInterfaceInfo) -> Self {
+        Self {
+            id: id.clone(),
+            info: info.clone(),
+        }
+    }
+}
+
+pub struct NetworkInterfaceListener<B: Bind = BindTcp> {
     pub ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
-    activated: Watch<BTreeMap<GatewayId, bool>>,
-    listeners: ListenerMap,
+    listeners: ListenerMap<B>,
     _arc: Arc<()>,
 }
-impl NetworkInterfaceListener {
+impl<B: Bind> NetworkInterfaceListener<B> {
+    pub(super) fn new(
+        mut ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
+        bind: B,
+        port: u16,
+    ) -> Self {
+        ip_info.mark_unseen();
+        Self {
+            ip_info,
+            listeners: ListenerMap::new(bind, port),
+            _arc: Arc::new(()),
+        }
+    }
+
     pub fn port(&self) -> u16 {
         self.listeners.port
     }
 
     #[cfg_attr(feature = "unstable", inline(never))]
-    pub fn poll_accept(
+    pub fn poll_accept<M: FromGatewayInfo>(
         &mut self,
         cx: &mut std::task::Context<'_>,
         filter: &impl InterfaceFilter,
-    ) -> Poll<Result<Accepted, Error>> {
+    ) -> Poll<Result<(M, <B::Accept as Accept>::Metadata, AcceptStream), Error>> {
         while self.ip_info.poll_changed(cx).is_ready()
             || !DynInterfaceFilterT::eq(&self.listeners.prev_filter, filter.as_any())
         {
             self.ip_info
                 .peek_and_mark_seen(|ip_info| self.listeners.update(ip_info, filter))?;
         }
-        self.listeners.poll_accept(cx)
-    }
-
-    pub(super) fn new(
-        mut ip_info: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
-        activated: Watch<BTreeMap<GatewayId, bool>>,
-        port: u16,
-    ) -> Self {
-        ip_info.mark_unseen();
-        Self {
-            ip_info,
-            activated,
-            listeners: ListenerMap::new(port),
-            _arc: Arc::new(()),
-        }
+        let (addr, inner, stream) = ready!(self.listeners.poll_accept(cx)?);
+        Poll::Ready(Ok((
+            self.ip_info
+                .peek(|ip_info| {
+                    lookup_info_by_addr(ip_info, addr)
+                        .map(|(id, info)| M::from_gateway_info(id, info))
+                })
+                .or_not_found(lazy_format!("gateway for {addr}"))?,
+            inner,
+            stream,
+        )))
     }
 
     pub fn change_ip_info_source(
@@ -1515,7 +1511,10 @@ impl NetworkInterfaceListener {
         self.ip_info = ip_info;
     }
 
-    pub async fn accept(&mut self, filter: &impl InterfaceFilter) -> Result<Accepted, Error> {
+    pub async fn accept<M: FromGatewayInfo>(
+        &mut self,
+        filter: &impl InterfaceFilter,
+    ) -> Result<(M, <B::Accept as Accept>::Metadata, AcceptStream), Error> {
         futures::future::poll_fn(|cx| self.poll_accept(cx, filter)).await
     }
 
@@ -1531,40 +1530,73 @@ impl NetworkInterfaceListener {
     }
 }
 
-pub struct Accepted {
-    pub stream: TcpStream,
-    pub peer: SocketAddr,
-    pub wan_ip: Option<Ipv4Addr>,
-    pub bind: SocketAddr,
+#[derive(VisitFields)]
+pub struct NetworkInterfaceListenerAcceptMetadata<B: Bind> {
+    pub inner: <B::Accept as Accept>::Metadata,
+    pub info: GatewayInfo,
 }
-
-pub struct SelfContainedNetworkInterfaceListener {
-    _watch_thread: NonDetachingJoinHandle<()>,
-    listener: NetworkInterfaceListener,
-}
-impl SelfContainedNetworkInterfaceListener {
-    pub fn bind(port: u16) -> Self {
-        let ip_info = Watch::new(OrdMap::new());
-        let activated = Watch::new(
-            [(
-                GatewayId::from(InternedString::from(START9_BRIDGE_IFACE)),
-                false,
-            )]
-            .into_iter()
-            .collect(),
-        );
-        let _watch_thread = tokio::spawn(watcher(ip_info.clone(), activated.clone())).into();
-        Self {
-            _watch_thread,
-            listener: NetworkInterfaceListener::new(ip_info, activated, port),
-        }
+impl<B, V> Visit<V> for NetworkInterfaceListenerAcceptMetadata<B>
+where
+    B: Bind,
+    <B::Accept as Accept>::Metadata: Visit<V> + Clone + Send + Sync + 'static,
+    V: MetadataVisitor,
+{
+    fn visit(&self, visitor: &mut V) -> V::Result {
+        self.visit_fields(visitor).collect()
     }
 }
-impl Accept for SelfContainedNetworkInterfaceListener {
+
+impl<B: Bind> Accept for NetworkInterfaceListener<B> {
+    type Metadata = NetworkInterfaceListenerAcceptMetadata<B>;
     fn poll_accept(
         &mut self,
         cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Result<super::web_server::Accepted, Error>> {
+    ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>> {
+        NetworkInterfaceListener::poll_accept(self, cx, &true).map(|res| {
+            res.map(|(info, inner, stream)| {
+                (
+                    NetworkInterfaceListenerAcceptMetadata { inner, info },
+                    stream,
+                )
+            })
+        })
+    }
+}
+
+pub struct SelfContainedNetworkInterfaceListener<B: Bind = BindTcp> {
+    _watch_thread: NonDetachingJoinHandle<()>,
+    listener: NetworkInterfaceListener<B>,
+}
+impl<B: Bind> SelfContainedNetworkInterfaceListener<B> {
+    pub fn bind(bind: B, port: u16) -> Self {
+        let ip_info = Watch::new(OrdMap::new());
+        let _watch_thread =
+            tokio::spawn(watcher(ip_info.clone(), Watch::new(BTreeMap::new()))).into();
+        Self {
+            _watch_thread,
+            listener: NetworkInterfaceListener::new(ip_info, bind, port),
+        }
+    }
+}
+impl<B: Bind> Accept for SelfContainedNetworkInterfaceListener<B> {
+    type Metadata = <NetworkInterfaceListener<B> as Accept>::Metadata;
+    fn poll_accept(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(Self::Metadata, AcceptStream), Error>> {
         Accept::poll_accept(&mut self.listener, cx)
+    }
+}
+
+pub type UpgradableListener<B = BindTcp> =
+    Option<Either<SelfContainedNetworkInterfaceListener<B>, NetworkInterfaceListener<B>>>;
+
+impl<B> Acceptor<UpgradableListener<B>>
+where
+    B: Bind + Send + Sync + 'static,
+    B::Accept: Send + Sync,
+{
+    pub fn bind_upgradable(listener: SelfContainedNetworkInterfaceListener<B>) -> Self {
+        Self::new(Some(Either::Left(listener)))
     }
 }

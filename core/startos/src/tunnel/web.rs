@@ -1,23 +1,21 @@
-use std::{
-    collections::BTreeSet,
-    net::{Ipv4Addr, Ipv6Addr, SocketAddr},
-};
+use std::collections::{BTreeSet, VecDeque};
+use std::io::Write;
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 
-use crate::{
-    context::CliContext, net::ssl::SANInfo, prelude::*, tunnel::context::TunnelContext,
-    util::serde::Pem,
-};
 use clap::Parser;
-use futures::AsyncWriteExt;
-use imbl_value::{InternedString, json};
+use imbl_value::{json, InternedString};
 use itertools::Itertools;
-use openssl::{
-    pkey::{PKey, Private},
-    x509::{GeneralName, X509},
-};
-use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
+use openssl::pkey::{PKey, Private};
+use openssl::x509::X509;
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
+
+use crate::context::CliContext;
+use crate::net::ssl::SANInfo;
+use crate::prelude::*;
+use crate::tunnel::context::TunnelContext;
+use crate::util::serde::Pem;
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
 #[serde(rename_all = "camelCase")]
@@ -39,11 +37,18 @@ pub fn web_api<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "import-certificate",
-            from_fn_async(set_certificate)
+            from_fn_async(import_certificate)
                 .with_about("Import a certificate to use for the webserver")
                 .no_display()
                 .with_call_remote::<CliContext>(),
         )
+        // .subcommand(
+        //     "forget-certificate",
+        //     from_fn_async(forget_certificate)
+        //         .with_about("Forget a certificate that was imported into the webserver")
+        //         .no_display()
+        //         .with_call_remote::<CliContext>(),
+        // )
         .subcommand(
             "uninit",
             from_fn_async(uninit_web)
@@ -53,7 +58,10 @@ pub fn web_api<C: Context>() -> ParentHandler<C> {
         )
 }
 
-pub async fn set_certificate(ctx: TunnelContext, cert_data: TunnelCertData) -> Result<(), Error> {
+pub async fn import_certificate(
+    ctx: TunnelContext,
+    cert_data: TunnelCertData,
+) -> Result<(), Error> {
     let mut saninfo = BTreeSet::new();
     let leaf = cert_data.cert.get(0).ok_or_else(|| {
         Error::new(
@@ -66,18 +74,20 @@ pub async fn set_certificate(ctx: TunnelContext, cert_data: TunnelCertData) -> R
             saninfo.insert(dns.into());
         }
         if let Some(ip) = san.ipaddress() {
-            if ip.len() == 4 {
-                saninfo.insert(InternedString::from_display(&Ipv4Addr::new(
-                    ip[0], ip[1], ip[2], ip[3],
+            if let Ok::<[u8; 4], _>(ip) = ip.try_into() {
+                saninfo.insert(InternedString::from_display(&Ipv4Addr::from_bits(
+                    u32::from_be_bytes(ip),
                 )));
-            } else if ip.len() == 16 {
-                saninfo.insert(InternedString::from_display(&Ipv6Addr::from_bits(bits)))
+            } else if let Ok::<[u8; 16], _>(ip) = ip.try_into() {
+                saninfo.insert(InternedString::from_display(&Ipv6Addr::from_bits(
+                    u128::from_be_bytes(ip),
+                )));
             }
         }
     }
     ctx.db
         .mutate(|db| {
-            db.as_certificate_mut()
+            db.as_certificates_mut()
                 .insert(&JsonKey(saninfo), &cert_data)
         })
         .await
@@ -85,7 +95,7 @@ pub async fn set_certificate(ctx: TunnelContext, cert_data: TunnelCertData) -> R
     Ok(())
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Parser)]
 pub struct InitWebParams {
     listen: SocketAddr,
 }
@@ -96,7 +106,7 @@ pub async fn init_web_rpc(
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
-            if db.as_certificate().de()?.is_empty() {
+            if db.as_certificates().de()?.is_empty() {
                 return Err(Error::new(
                     eyre!("No certificate available"),
                     ErrorKind::OpenSsl,
@@ -119,7 +129,7 @@ pub async fn init_web_rpc(
 
 pub async fn uninit_web(ctx: TunnelContext) -> Result<(), Error> {
     ctx.db
-        .mutate(|db| db.as_webserver_mut().ser(&false))
+        .mutate(|db| db.as_webserver_mut().ser(&None))
         .await
         .result
 }
@@ -129,18 +139,19 @@ pub async fn init_web_cli(
         context,
         parent_method,
         method,
+        params: InitWebParams { listen },
         ..
-    }: HandlerArgs<CliContext>,
+    }: HandlerArgs<CliContext, InitWebParams>,
 ) -> Result<(), Error> {
     loop {
         match context
-            .call_remote(
+            .call_remote::<TunnelContext>(
                 &parent_method.iter().chain(method.iter()).join("."),
-                json!({}),
+                to_value(&InitWebParams { listen })?,
             )
             .await
         {
-            Ok(a) => println!("Webserver Initialized"),
+            Ok(_) => println!("Webserver Initialized"),
             Err(e) if e.code == ErrorKind::OpenSsl as i32 => {
                 println!(
                     "StartTunnel has not been set up with an SSL Certificate yet. Setting one up now..."
@@ -155,11 +166,15 @@ pub async fn init_web_cli(
                 let self_signed;
                 loop {
                     match readline.readline().await.with_kind(ErrorKind::Filesystem)? {
-                        rustyline_async::ReadlineEvent::Line(l) if l.trim() == "1" => {
+                        rustyline_async::ReadlineEvent::Line(l)
+                            if l.trim_matches(|c: char| c.is_whitespace() || c == '"') == "1" =>
+                        {
                             self_signed = true;
                             break;
                         }
-                        rustyline_async::ReadlineEvent::Line(l) if l.trim() == "2" => {
+                        rustyline_async::ReadlineEvent::Line(l)
+                            if l.trim_matches(|c: char| c.is_whitespace() || c == '"') == "2" =>
+                        {
                             self_signed = false;
                             break;
                         }
@@ -167,21 +182,47 @@ pub async fn init_web_cli(
                             readline.clear_history();
                             readline.add_history_entry("1".into());
                             readline.add_history_entry("2".into());
-                            writer
-                                .write_all(b"Invalid response. Enter either \"1\" or \"2\".")
-                                .await?;
+                            writeln!(writer, "Invalid response. Enter either \"1\" or \"2\".")?;
                         }
                         _ => return Err(Error::new(eyre!("Aborted"), ErrorKind::Unknown)),
                     }
                 }
-                drop((readline, writer));
                 if self_signed {
+                    writeln!(
+                        writer,
+                        "Enter the name(s) to sign the certificate for, separated by commas."
+                    )?;
+                    readline.clear_history();
+                    readline
+                        .update_prompt(&format!("Subject Alternative Name(s) [{}]: ", listen.ip()))
+                        .with_kind(ErrorKind::Filesystem)?;
+                    let mut saninfo = BTreeSet::new();
+                    loop {
+                        match readline.readline().await.with_kind(ErrorKind::Filesystem)? {
+                            rustyline_async::ReadlineEvent::Line(l) if !l.trim().is_empty() => {
+                                saninfo.extend(l.split(",").map(|h| h.trim().into()));
+                                break;
+                            }
+                            rustyline_async::ReadlineEvent::Line(_) => {
+                                readline.clear_history();
+                            }
+                            _ => return Err(Error::new(eyre!("Aborted"), ErrorKind::Unknown)),
+                        }
+                    }
                     let key = crate::net::ssl::gen_nistp256()?;
-                    let cert = crate::net::ssl::make_self_signed((
-                        &key,
-                        &SANInfo::new(&[].into_iter().collect()),
-                    ))?;
+                    let cert = crate::net::ssl::make_self_signed((&key, &SANInfo::new(&saninfo)))?;
+
+                    context
+                        .call_remote::<TunnelContext>(
+                            "web.import-certificate",
+                            to_value(&TunnelCertData {
+                                key: Pem(key),
+                                cert: Pem(vec![cert]),
+                            })?,
+                        )
+                        .await?;
                 } else {
+                    drop((readline, writer));
                     println!("Please paste in your PEM encoded private key: ");
                     let mut stdin_lines = BufReader::new(tokio::io::stdin()).lines();
                     let mut key_string = String::new();
@@ -225,7 +266,7 @@ pub async fn init_web_cli(
                     }
 
                     context
-                        .call_remote(
+                        .call_remote::<TunnelContext>(
                             "web.import-certificate",
                             to_value(&TunnelCertData {
                                 key,
@@ -235,7 +276,19 @@ pub async fn init_web_cli(
                         .await?;
                 }
             }
-            Err(e) if e.code == ErrorKind::Authorization as i32 => {}
+            Err(e) if e.code == ErrorKind::Authorization as i32 => {
+                println!("A password has not been setup yet. Setting one up now...");
+
+                super::auth::set_password_cli(HandlerArgs {
+                    context: context.clone(),
+                    parent_method: vec!["auth", "set-password"].into(),
+                    method: VecDeque::new(),
+                    params: Empty {},
+                    inherited_params: Empty {},
+                    raw_params: json!({}),
+                })
+                .await?;
+            }
             Err(e) => return Err(e.into()),
         }
     }

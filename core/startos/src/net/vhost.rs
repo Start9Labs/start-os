@@ -1,20 +1,22 @@
+use std::any::Any;
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, Weak};
 
-use async_acme::acme::{ACME_TLS_ALPN_NAME, Identifier};
+use async_acme::acme::{Identifier, ACME_TLS_ALPN_NAME};
 use axum::body::Body;
 use axum::extract::Request;
 use axum::response::Response;
 use color_eyre::eyre::eyre;
+use futures::future::BoxFuture;
 use futures::FutureExt;
 use helpers::NonDetachingJoinHandle;
-use http::Uri;
+use http::{Extensions, Uri};
 use imbl::OrdMap;
-use imbl_value::InternedString;
+use imbl_value::{InOMap, InternedString};
 use itertools::Itertools;
 use models::{GatewayId, ResultExt};
-use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn};
+use rpc_toolkit::{from_fn, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
@@ -23,29 +25,29 @@ use tokio_rustls::rustls::crypto::CryptoProvider;
 use tokio_rustls::rustls::pki_types::{
     CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer, ServerName,
 };
-use tokio_rustls::rustls::server::{Acceptor, ResolvesServerCert};
-use tokio_rustls::rustls::sign::CertifiedKey;
-use tokio_rustls::rustls::{RootCertStore, ServerConfig};
+use tokio_rustls::rustls::server::{Acceptor, ClientHello};
+use tokio_rustls::rustls::{ClientConfig, RootCertStore, ServerConfig};
 use tokio_rustls::{LazyConfigAcceptor, TlsConnector};
-use tokio_stream::StreamExt;
 use tokio_stream::wrappers::WatchStream;
+use tokio_stream::StreamExt;
 use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::Database;
 use crate::db::model::public::NetworkInterfaceInfo;
-use crate::net::acme::{AcmeCertCache, AcmeProvider};
+use crate::db::model::Database;
+use crate::net::acme::{AcmeCertCache, AcmeTlsAlpnCache, AcmeTlsHandler};
 use crate::net::gateway::{
-    Accepted, AnyFilter, DynInterfaceFilter, InterfaceFilter, NetworkInterfaceController,
-    NetworkInterfaceListener,
+    AnyFilter, BindTcp, DynInterfaceFilter, GatewayInfo, InterfaceFilter, NetworkInterfaceController, NetworkInterfaceListener
 };
 use crate::net::static_server::server_error;
+use crate::net::tls::{ChainedHandler, TlsHandler, TlsListener, WrapTlsHandler};
+use crate::net::web_server::{Accept, AcceptStream, extract};
 use crate::prelude::*;
 use crate::util::collections::EqSet;
 use crate::util::io::BackTrackingIO;
-use crate::util::serde::{HandlerExtSerde, MaybeUtf8String, display_serializable};
-use crate::util::sync::SyncMutex;
+use crate::util::serde::{display_serializable, HandlerExtSerde, MaybeUtf8String};
+use crate::util::sync::{SyncMutex, Watch};
 
 pub fn vhost_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new().subcommand(
@@ -61,8 +63,7 @@ pub fn vhost_api<C: Context>() -> ParentHandler<C> {
                 }
 
                 let mut table = Table::new();
-                table
-                    .add_row(row![bc => "FROM", "TO", "GATEWAYS", "ACME", "CONNECT SSL", "ACTIVE"]);
+                table.add_row(row![bc => "FROM", "TO", "GATEWAYS", "CONNECT SSL", "ACTIVE"]);
 
                 for (external, targets) in res {
                     for (host, targets) in targets {
@@ -75,7 +76,6 @@ pub fn vhost_api<C: Context>() -> ParentHandler<C> {
                                 ),
                                 target.addr,
                                 target.gateways.iter().join(", "),
-                                target.acme.as_ref().map(|a| a.0.as_str()).unwrap_or("NONE"),
                                 target.connect_ssl.is_ok(),
                                 idx == 0
                             ]);
@@ -91,22 +91,14 @@ pub fn vhost_api<C: Context>() -> ParentHandler<C> {
     )
 }
 
-#[derive(Debug)]
-struct SingleCertResolver(Arc<CertifiedKey>);
-impl ResolvesServerCert for SingleCertResolver {
-    fn resolve(&self, _: tokio_rustls::rustls::server::ClientHello) -> Option<Arc<CertifiedKey>> {
-        Some(self.0.clone())
-    }
-}
-
 // not allowed: <=1024, >=32768, 5355, 5432, 9050, 6010, 9051, 5353
 
 pub struct VHostController {
     db: TypedPatchDb<Database>,
     interfaces: Arc<NetworkInterfaceController>,
     crypto_provider: Arc<CryptoProvider>,
-    acme_tls_alpn_cache: AcmeTlsAlpnCache,
-    servers: SyncMutex<BTreeMap<u16, VHostServer>>,
+    acme_cache: AcmeTlsAlpnCache,
+    servers: SyncMutex<BTreeMap<u16, VHostServer<NetworkInterfaceListener>>>,
 }
 impl VHostController {
     pub fn new(db: TypedPatchDb<Database>, interfaces: Arc<NetworkInterfaceController>) -> Self {
@@ -114,7 +106,7 @@ impl VHostController {
             db,
             interfaces,
             crypto_provider: Arc::new(tokio_rustls::rustls::crypto::ring::default_provider()),
-            acme_tls_alpn_cache: Arc::new(SyncMutex::new(BTreeMap::new())),
+            acme_cache: Arc::new(SyncMutex::new(BTreeMap::new())),
             servers: SyncMutex::new(BTreeMap::new()),
         }
     }
@@ -123,19 +115,18 @@ impl VHostController {
         &self,
         hostname: Option<InternedString>,
         external: u16,
-        target: TargetInfo,
+        target: impl VHostTarget<NetworkInterfaceListener>,
     ) -> Result<Arc<()>, Error> {
         self.servers.mutate(|writable| {
             let server = if let Some(server) = writable.remove(&external) {
                 server
             } else {
                 VHostServer::new(
-                    external,
+                    self.interfaces.watcher.bind(BindTcp, external)?,
                     self.db.clone(),
-                    self.interfaces.clone(),
                     self.crypto_provider.clone(),
-                    self.acme_tls_alpn_cache.clone(),
-                )?
+                    self.acme_cache.clone(),
+                )
             };
             let rc = server.add(hostname, target);
             writable.insert(external, server);
@@ -185,42 +176,157 @@ impl VHostController {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct TargetInfo {
-    pub filter: DynInterfaceFilter,
-    pub acme: Option<AcmeProvider>,
-    pub addr: SocketAddr,
-    pub connect_ssl: Result<(), AlpnInfo>, // Ok: yes, connect using ssl, pass through alpn; Err: connect tcp, use provided strategy for alpn
+pub trait VHostTarget<A: Accept>: std::fmt::Debug + Eq {
+    type PreprocessRes: Send + 'static;
+    #[allow(unused_variables)]
+    fn skip(&self, metadata: &<A as Accept>::Metadata) -> bool {
+        false
+    }
+    fn preprocess<'a>(
+        &'a self,
+        prev: ServerConfig,
+        hello: &'a ClientHello<'a>,
+        metadata: &'a <A as Accept>::Metadata,
+    ) -> impl Future<Output = Option<(ServerConfig, Self::PreprocessRes)>> + Send + 'a;
+    fn handle_stream(&self, stream: AcceptStream, prev: Self::PreprocessRes);
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
-pub struct ShowTargetInfo {
-    pub gateways: BTreeSet<GatewayId>,
-    pub acme: Option<AcmeProvider>,
-    pub addr: SocketAddr,
-    pub connect_ssl: Result<(), AlpnInfo>, // Ok: yes, connect using ssl, pass through alpn; Err: connect tcp, use provided strategy for alpn
+pub trait DynVHostTargetT<A: Accept>: std::fmt::Debug + Any {
+    fn skip(&self, metadata: &<A as Accept>::Metadata) -> bool;
+    fn preprocess<'a>(
+        &'a self,
+        prev: ServerConfig,
+        hello: &'a ClientHello<'a>,
+        metadata: &'a <A as Accept>::Metadata,
+    ) -> BoxFuture<'a, Option<(ServerConfig, Box<dyn Any + Send>)>>;
+    fn handle_stream(&self, stream: AcceptStream, prev: Box<dyn Any + Send>);
+    fn eq(&self, other: &dyn DynVHostTargetT<A>) -> bool;
 }
-impl ShowTargetInfo {
-    pub fn new(
-        TargetInfo {
-            filter,
-            acme,
-            addr,
-            connect_ssl,
-        }: TargetInfo,
-        ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
-    ) -> Self {
-        ShowTargetInfo {
-            gateways: ip_info
-                .iter()
-                .filter(|(id, info)| filter.filter(*id, *info))
-                .map(|(k, _)| k)
-                .cloned()
-                .collect(),
-            acme,
-            addr,
-            connect_ssl,
+impl<A: Accept, T: VHostTarget<A> + 'static> DynVHostTargetT<A> for T {
+    fn skip(&self, metadata: &<A as Accept>::Metadata) -> bool {
+        VHostTarget::skip(self, metadata)
+    }
+    fn preprocess<'a>(
+        &'a self,
+        prev: ServerConfig,
+        hello: &'a ClientHello<'a>,
+        metadata: &'a <A as Accept>::Metadata,
+    ) -> BoxFuture<'a, Option<(ServerConfig, Box<dyn Any + Send>)>> {
+        VHostTarget::preprocess(self, prev, hello, metadata)
+            .map(|o| o.map(|(cfg, res)| (cfg, Box::new(res) as Box<dyn Any + Send>)))
+            .boxed()
+    }
+    fn handle_stream(&self, stream: AcceptStream, prev: Box<dyn Any + Send>) {
+        if let Ok(prev) = prev.downcast() {
+            VHostTarget::handle_stream(self, stream, *prev);
         }
+    }
+    fn eq(&self, other: &dyn DynVHostTargetT<A>) -> bool {
+        Some(self) == (other as &dyn Any).downcast_ref()
+    }
+}
+
+struct DynVHostTarget<A: Accept>(Arc<dyn DynVHostTargetT<A> + Send + Sync>);
+impl<A: Accept> Clone for DynVHostTarget<A> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+impl<A: Accept + 'static> PartialEq for DynVHostTarget<A> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&*other.0)
+    }
+}
+impl<A: Accept + 'static> Eq for DynVHostTarget<A> {}
+struct Preprocessed<A: Accept>(DynVHostTarget<A>, Box<dyn Any + Send>);
+impl<A: Accept + 'static> DynVHostTarget<A> {
+    async fn into_preprocessed(
+        self,
+        prev: ServerConfig,
+        hello: &ClientHello<'_>,
+        metadata: &<A as Accept>::Metadata,
+    ) -> Option<(ServerConfig, Preprocessed<A>)> {
+        let (cfg, res) = self.0.preprocess(prev, hello, metadata).await?;
+        Some((cfg, Preprocessed(self, res)))
+    }
+}
+impl<A: Accept + 'static> Preprocessed<A> {
+    fn finish(self, stream: AcceptStream) {
+        (self.0).0.handle_stream(stream, self.1);
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ProxyTarget {
+    pub filter: DynInterfaceFilter,
+    pub addr: SocketAddr,
+    pub connect_ssl: Result<Arc<ClientConfig>, AlpnInfo>, // Ok: yes, connect using ssl, pass through alpn; Err: connect tcp, use provided strategy for alpn
+}
+impl PartialEq for ProxyTarget {
+    fn eq(&self, other: &Self) -> bool {
+        self.filter == other.filter
+            && self.addr == other.addr
+            && self.connect_ssl.as_ref().err() == other.connect_ssl.as_ref().err()
+    }
+}
+impl Eq for ProxyTarget {}
+
+impl<A> VHostTarget<A> for ProxyTarget
+where
+    A: Accept + 'static,
+    <A as Accept>::Metadata: Send + Sync,
+{
+    type PreprocessRes = AcceptStream;
+    fn skip(&self, metadata: &<A as Accept>::Metadata) -> bool {
+        let info = extract::<GatewayInfo,_>(metadata)
+    }
+    async fn preprocess<'a>(
+        &'a self,
+        mut prev: ServerConfig,
+        hello: &'a ClientHello<'a>,
+        metadata: &'a <A as Accept>::Metadata,
+    ) -> Option<(ServerConfig, Self::PreprocessRes)> {
+        let tcp_stream = TcpStream::connect(self.addr)
+            .await
+            .with_ctx(|_| (ErrorKind::Network, self.addr))
+            .log_err()?;
+        match &self.connect_ssl {
+            Ok(client_cfg) => {
+                let mut client_cfg = (&**client_cfg).clone();
+                client_cfg.alpn_protocols = hello
+                    .alpn()
+                    .into_iter()
+                    .flatten()
+                    .map(|x| x.to_vec())
+                    .collect();
+                let target_stream = TlsConnector::from(Arc::new(client_cfg))
+                    .connect_with(
+                        ServerName::IpAddress(self.addr.ip().into()),
+                        tcp_stream,
+                        |conn| {
+                            prev.alpn_protocols
+                                .extend(conn.alpn_protocol().into_iter().map(|p| p.to_vec()))
+                        },
+                    )
+                    .await
+                    .log_err()?;
+                return Some((prev, Box::pin(target_stream)));
+            }
+            Err(AlpnInfo::Reflect) => {
+                for alpn in hello.alpn().into_iter().flatten() {
+                    prev.alpn_protocols.push(alpn.to_vec());
+                }
+            }
+            Err(AlpnInfo::Specified(a)) => {
+                for alpn in a {
+                    prev.alpn_protocols.push(alpn.0.clone());
+                }
+            }
+        }
+        Some((prev, Box::pin(tcp_stream)))
+    }
+    fn handle_stream(&self, mut stream: AcceptStream, mut prev: Self::PreprocessRes) {
+        tokio::spawn(async move { tokio::io::copy_bidirectional(&mut stream, &mut prev).await });
     }
 }
 
@@ -237,17 +343,57 @@ impl Default for AlpnInfo {
     }
 }
 
-type AcmeTlsAlpnCache =
-    Arc<SyncMutex<BTreeMap<InternedString, watch::Receiver<Option<Arc<CertifiedKey>>>>>>;
-type Mapping = BTreeMap<Option<InternedString>, BTreeMap<TargetInfo, Weak<()>>>;
+type Mapping<A: Accept> = BTreeMap<Option<InternedString>, InOMap<DynVHostTarget<A>, Weak<()>>>;
 
-struct VHostServer {
-    mapping: watch::Sender<Mapping>,
+pub struct VHostConnector<'a, A: Accept + 'static>(&'a Watch<Mapping<A>>, Option<Preprocessed<A>>);
+
+impl<'b, A> WrapTlsHandler<A> for &'b mut VHostConnector<'b, A>
+where
+    A: Accept + 'static,
+    <A as Accept>::Metadata: Send + Sync,
+{
+    async fn wrap<'a>(
+        self,
+        prev: ServerConfig,
+        hello: &'a ClientHello<'a>,
+        metadata: &'a <A as Accept>::Metadata,
+    ) -> Option<ServerConfig>
+    where
+        Self: 'a,
+    {
+        if hello
+            .alpn()
+            .into_iter()
+            .flatten()
+            .any(|a| a == ACME_TLS_ALPN_NAME)
+        {
+            return Some(prev);
+        }
+
+        let target = self.0.peek(|m| {
+            m.get(&hello.server_name().map(InternedString::from))
+                .into_iter()
+                .flatten()
+                .filter(|(_, rc)| rc.strong_count() > 0)
+                .find(|(t, _)| !t.skip(metadata))
+                .map(|(e, _)| e.clone())
+        })?;
+
+        let (prev, store) = target.into_preprocessed(prev, hello, metadata).await?;
+
+        self.1 = Some(store);
+
+        Some(prev)
+    }
+}
+
+struct VHostServer<A: Accept + 'static> {
+    mapping: Watch<Mapping<A>>,
     _thread: NonDetachingJoinHandle<()>,
 }
 
-impl<'a> From<&'a BTreeMap<Option<InternedString>, BTreeMap<TargetInfo, Weak<()>>>> for AnyFilter {
-    fn from(value: &'a BTreeMap<Option<InternedString>, BTreeMap<TargetInfo, Weak<()>>>) -> Self {
+impl<'a> From<&'a BTreeMap<Option<InternedString>, BTreeMap<ProxyTarget, Weak<()>>>> for AnyFilter {
+    fn from(value: &'a BTreeMap<Option<InternedString>, BTreeMap<ProxyTarget, Weak<()>>>) -> Self {
         Self(
             value
                 .iter()
@@ -690,34 +836,35 @@ impl VHostServer {
     }
 
     #[instrument(skip_all)]
-    fn new(
-        port: u16,
+    fn new<A: Accept>(
+        listener: A,
         db: TypedPatchDb<Database>,
-        iface_ctrl: Arc<NetworkInterfaceController>,
         crypto_provider: Arc<CryptoProvider>,
-        acme_tls_alpn_cache: AcmeTlsAlpnCache,
+        acme_cache: AcmeTlsAlpnCache,
     ) -> Result<Self, Error> {
-        let mut listener = iface_ctrl
-            .watcher
-            .bind(port)
-            .with_kind(crate::ErrorKind::Network)?;
-        let (map_send, map_recv) = watch::channel(BTreeMap::new());
+        let mapping = Watch::new(BTreeMap::new());
         Ok(Self {
-            mapping: map_send,
+            mapping: mapping.clone(),
             _thread: tokio::spawn(async move {
+                let listener = TlsListener::new(
+                    listener,
+                    VHostTlsHandler {
+                        cert_handler: ChainedHandler(
+                            &AcmeTlsHandler {
+                                db: &db,
+                                acme_cache: &acme_cache,
+                                crypto_provider: &crypto_provider,
+                                get_provider: todo!(),
+                                in_progress: Watch::new(BTreeSet::new()),
+                            },
+                            todo!(),
+                        ),
+                        alpn_handler: todo!(),
+                    },
+                );
                 loop {
-                    if let Err(e) = Self::accept(
-                        &mut listener,
-                        map_recv.clone(),
-                        db.clone(),
-                        acme_tls_alpn_cache.clone(),
-                        crypto_provider.clone(),
-                    )
-                    .await
-                    {
-                        tracing::error!(
-                            "VHostController: failed to accept connection on {port}: {e}"
-                        );
+                    if let Err(e) = Self::accept(&mut listener, &mapping).await {
+                        tracing::error!("VHostController: failed to accept connection: {e}");
                         tracing::debug!("{e:?}");
                     }
                 }
@@ -725,7 +872,7 @@ impl VHostServer {
             .into(),
         })
     }
-    fn add(&self, hostname: Option<InternedString>, target: TargetInfo) -> Result<Arc<()>, Error> {
+    fn add(&self, hostname: Option<InternedString>, target: ProxyTarget) -> Result<Arc<()>, Error> {
         let mut res = Ok(Arc::new(()));
         self.mapping.send_if_modified(|writable| {
             let mut changed = false;

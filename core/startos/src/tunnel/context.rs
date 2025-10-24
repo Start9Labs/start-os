@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -23,16 +23,16 @@ use url::Url;
 use crate::auth::Sessions;
 use crate::context::config::ContextConfig;
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::public::NetworkInterfaceType;
+use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
 use crate::middleware::auth::AuthContext;
 use crate::net::forward::PortForwardController;
 use crate::net::gateway::{IdFilter, InterfaceFilter, NetworkInterfaceWatcher};
 use crate::prelude::*;
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::tunnel::db::{GatewayPort, TunnelDatabase};
-use crate::tunnel::TUNNEL_DEFAULT_PORT;
+use crate::tunnel::TUNNEL_DEFAULT_LISTEN;
 use crate::util::io::read_file_to_string;
-use crate::util::sync::SyncMutex;
+use crate::util::sync::{SyncMutex, Watch};
 use crate::util::Invoke;
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, Parser)]
@@ -67,16 +67,14 @@ impl TunnelConfig {
 
 pub struct TunnelContextSeed {
     pub listen: SocketAddr,
-    pub addrs: BTreeSet<IpAddr>,
     pub db: TypedPatchDb<TunnelDatabase>,
     pub datadir: PathBuf,
     pub rpc_continuations: RpcContinuations,
     pub open_authed_continuations: OpenAuthedContinuations<Option<InternedString>>,
     pub ephemeral_sessions: SyncMutex<Sessions>,
-    pub net_iface: NetworkInterfaceWatcher,
+    pub net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
     pub forward: PortForwardController,
     pub active_forwards: SyncMutex<BTreeMap<GatewayPort, Arc<()>>>,
-    pub masquerade_thread: NonDetachingJoinHandle<()>,
     pub shutdown: Sender<()>,
 }
 
@@ -101,12 +99,9 @@ impl TunnelContext {
             || async { Ok(Default::default()) },
         )
         .await?;
-        let listen = config.tunnel_listen.unwrap_or(SocketAddr::new(
-            Ipv6Addr::UNSPECIFIED.into(),
-            TUNNEL_DEFAULT_PORT,
-        ));
-        let net_iface = NetworkInterfaceWatcher::new(async { OrdMap::new() }, []);
-        let forward = PortForwardController::new(net_iface.subscribe());
+        let listen = config.tunnel_listen.unwrap_or(TUNNEL_DEFAULT_LISTEN);
+        let net_iface = Watch::new(crate::net::utils::load_network_interface_info().await?);
+        let forward = PortForwardController::new(net_iface.clone_unseen());
 
         Command::new("sysctl")
             .arg("-w")
@@ -114,55 +109,45 @@ impl TunnelContext {
             .invoke(ErrorKind::Network)
             .await?;
 
-        let mut masquerade_net_iface = net_iface.subscribe();
-        let masquerade_thread = tokio::spawn(async move {
-            loop {
-                for iface in masquerade_net_iface.peek(|i| {
-                    i.iter()
-                        .filter(|(_, info)| {
-                            dbg!(info).ip_info.as_ref().map_or(false, |i| {
-                                dbg!(i).device_type != Some(NetworkInterfaceType::Wireguard)
-                            })
-                        })
-                        .map(|(name, _)| name)
-                        .cloned()
-                        .collect::<Vec<_>>()
-                }) {
-                    if Command::new("iptables")
-                        .arg("-t")
-                        .arg("nat")
-                        .arg("-C")
-                        .arg("POSTROUTING")
-                        .arg("-o")
-                        .arg(iface.as_str())
-                        .arg("-j")
-                        .arg("MASQUERADE")
-                        .invoke(ErrorKind::Network)
-                        .await
-                        .is_err()
-                    {
-                        tracing::info!("Adding masquerade rule for interface {}", iface);
-                        Command::new("iptables")
-                            .arg("-t")
-                            .arg("nat")
-                            .arg("-A")
-                            .arg("POSTROUTING")
-                            .arg("-o")
-                            .arg(iface.as_str())
-                            .arg("-j")
-                            .arg("MASQUERADE")
-                            .invoke(ErrorKind::Network)
-                            .await
-                            .log_err();
-                    }
-                }
-
-                masquerade_net_iface.changed().await;
-
-                tracing::info!("Network interfaces changed, updating masquerade rules");
+        for iface in net_iface.peek(|i| {
+            i.iter()
+                .filter(|(_, info)| {
+                    dbg!(info).ip_info.as_ref().map_or(false, |i| {
+                        dbg!(i).device_type != Some(NetworkInterfaceType::Wireguard)
+                    })
+                })
+                .map(|(name, _)| name)
+                .cloned()
+                .collect::<Vec<_>>()
+        }) {
+            if Command::new("iptables")
+                .arg("-t")
+                .arg("nat")
+                .arg("-C")
+                .arg("POSTROUTING")
+                .arg("-o")
+                .arg(iface.as_str())
+                .arg("-j")
+                .arg("MASQUERADE")
+                .invoke(ErrorKind::Network)
+                .await
+                .is_err()
+            {
+                tracing::info!("Adding masquerade rule for interface {}", iface);
+                Command::new("iptables")
+                    .arg("-t")
+                    .arg("nat")
+                    .arg("-A")
+                    .arg("POSTROUTING")
+                    .arg("-o")
+                    .arg(iface.as_str())
+                    .arg("-j")
+                    .arg("MASQUERADE")
+                    .invoke(ErrorKind::Network)
+                    .await
+                    .log_err();
             }
-        })
-        .into();
+        }
 
         let peek = db.peek().await;
         peek.as_wg().de()?.sync().await?;
@@ -178,11 +163,6 @@ impl TunnelContext {
 
         Ok(Self(Arc::new(TunnelContextSeed {
             listen,
-            addrs: crate::net::utils::all_socket_addrs_for(listen.port())
-                .await?
-                .into_iter()
-                .map(|(_, a)| a.ip())
-                .collect(),
             db,
             datadir,
             rpc_continuations: RpcContinuations::new(),
@@ -191,7 +171,6 @@ impl TunnelContext {
             net_iface,
             forward,
             active_forwards: SyncMutex::new(active_forwards),
-            masquerade_thread,
             shutdown,
         })))
     }
@@ -222,6 +201,14 @@ impl CallRemote<TunnelContext> for CliContext {
         params: Value,
         _: Empty,
     ) -> Result<Value, RpcError> {
+        let (tunnel_addr, addr_from_config) = if let Some(addr) = self.tunnel_addr {
+            (addr, true)
+        } else if let Some(addr) = self.tunnel_listen {
+            (addr, true)
+        } else {
+            (TUNNEL_DEFAULT_LISTEN, false)
+        };
+
         let local =
             if let Ok(local) = read_file_to_string(TunnelContext::LOCAL_AUTH_COOKIE_PATH).await {
                 self.cookie_store
@@ -229,11 +216,11 @@ impl CallRemote<TunnelContext> for CliContext {
                     .unwrap()
                     .insert_raw(
                         &Cookie::build(("local", local))
-                            .domain("localhost")
+                            .domain(&tunnel_addr.ip().to_string())
                             .expires(Expiration::Session)
                             .same_site(SameSite::Strict)
                             .build(),
-                        &"http://localhost".parse()?,
+                        &format!("http://{tunnel_addr}").parse()?,
                     )
                     .with_kind(crate::ErrorKind::Network)?;
                 true
@@ -241,24 +228,12 @@ impl CallRemote<TunnelContext> for CliContext {
                 false
             };
 
-        let tunnel_addr = if let Some(addr) = self.tunnel_addr {
-            Some(addr)
-        } else if let Some(addr) = self.tunnel_listen {
-            Some(addr)
-        } else {
-            None
-        };
-        let (url, sig_ctx) = if let Some(tunnel_addr) = tunnel_addr {
+        let (url, sig_ctx) = if local && tunnel_addr.ip().is_loopback() {
+            (format!("http://{tunnel_addr}/rpc/v0").parse()?, None)
+        } else if addr_from_config {
             (
                 format!("https://{tunnel_addr}/rpc/v0").parse()?,
-                Some(InternedString::from_display(
-                    &self.tunnel_listen.unwrap_or(tunnel_addr).ip(),
-                )),
-            )
-        } else if local {
-            (
-                format!("http://localhost:{TUNNEL_DEFAULT_PORT}/rpc/v0").parse()?,
-                None,
+                Some(InternedString::from_display(&tunnel_addr.ip())),
             )
         } else {
             return Err(Error::new(eyre!("`--tunnel` required"), ErrorKind::InvalidRequest).into());

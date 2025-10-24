@@ -1,13 +1,15 @@
 use std::ffi::OsString;
+use std::time::Duration;
 
 use clap::Parser;
 use futures::FutureExt;
+use helpers::NonDetachingJoinHandle;
 use rpc_toolkit::CliApp;
 use tokio::signal::unix::signal;
 use tracing::instrument;
 
-use crate::context::CliContext;
 use crate::context::config::ClientConfig;
+use crate::context::CliContext;
 use crate::net::web_server::{Acceptor, WebServer};
 use crate::prelude::*;
 use crate::tunnel::context::{TunnelConfig, TunnelContext};
@@ -17,13 +19,51 @@ use crate::util::logger::LOGGER;
 async fn inner_main(config: &TunnelConfig) -> Result<(), Error> {
     let server = async {
         let ctx = TunnelContext::init(config).await?;
-        let mut server = WebServer::new(Acceptor::bind([ctx.listen]).await?);
+        let listen = ctx.listen;
+        let mut server = WebServer::new(Acceptor::bind([listen]).await?);
+        let https_thread: NonDetachingJoinHandle<()> = tokio::spawn(async move {
+            let mut sub = setter_db.subscribe("/webserver".parse().unwrap()).await;
+            while sub.recv().await.is_some() {
+                while let Err(e) = async {
+                    let external = setter_db.peek().await.into_webserver().de()?;
+
+                    let mut bind_err = None;
+
+                    setter.send_modify(|a| {
+                        a.retain(|a, _| *a == listen || Some(*a) == external);
+                        if let Some(external) = external {
+                            if !a.contains_key(&external) {
+                                match mio::net::TcpListener::bind(external) {
+                                    Ok(l) => {
+                                        a.insert(external, TcpListener::from_std(l.into()));
+                                    }
+                                    Err(e) => bind_err = Some(e),
+                                }
+                            }
+                        }
+                    });
+
+                    if let Some(e) = bind_err {
+                        return Err(e);
+                    }
+
+                    Ok::<_, Error>(())
+                }
+                .await
+                {
+                    tracing::error!("error updating webserver bind: {e}");
+                    tracing::debug!("{e:?}");
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                }
+            }
+        })
+        .into();
         server.serve_tunnel(ctx.clone());
 
         let mut shutdown_recv = ctx.shutdown.subscribe();
 
         let sig_handler_ctx = ctx;
-        let sig_handler = tokio::spawn(async move {
+        let sig_handler: NonDetachingJoinHandle<()> = tokio::spawn(async move {
             use tokio::signal::unix::SignalKind;
             futures::future::select_all(
                 [
@@ -48,14 +88,16 @@ async fn inner_main(config: &TunnelConfig) -> Result<(), Error> {
                 .send(())
                 .map_err(|_| ())
                 .expect("send shutdown signal");
-        });
+        })
+        .into();
 
         shutdown_recv
             .recv()
             .await
             .with_kind(crate::ErrorKind::Unknown)?;
 
-        sig_handler.abort();
+        sig_handler.wait_for_abort().await;
+        setter_thread.wait_for_abort().await;
 
         Ok::<_, Error>(server)
     }

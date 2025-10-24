@@ -2,18 +2,18 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, SocketAddr, SocketAddrV4};
 use std::path::PathBuf;
 
-use clap::Parser;
 use clap::builder::ValueParserFactory;
+use clap::Parser;
 use imbl::HashMap;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use models::{FromStrParser, GatewayId};
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
-use patch_db::Dump;
 use patch_db::json_ptr::{JsonPointer, ROOT};
+use patch_db::Dump;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
@@ -28,7 +28,7 @@ use crate::tunnel::context::TunnelContext;
 use crate::tunnel::web::TunnelCertData;
 use crate::tunnel::wg::WgServer;
 use crate::util::serde::{
-    HandlerExtSerde, Pem, apply_expr, deserialize_from_str, serialize_display,
+    apply_expr, deserialize_from_str, serialize_display, HandlerExtSerde, Pem,
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -84,7 +84,7 @@ pub struct TunnelDatabase {
     pub sessions: Sessions,
     pub password: Option<String>,
     pub auth_pubkeys: HashMap<AnyVerifyingKey, SignerInfo>,
-    pub certificate: BTreeMap<JsonKey<BTreeSet<InternedString>>, TunnelCertData>,
+    pub certificates: BTreeMap<JsonKey<BTreeSet<InternedString>>, TunnelCertData>,
     pub wg: WgServer,
     pub port_forwards: PortForwards,
 }

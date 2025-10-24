@@ -1,5 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use exver::{Version, VersionRange};
@@ -8,7 +9,6 @@ use imbl_value::InternedString;
 use ipnet::IpNet;
 use isocountry::CountryCode;
 use itertools::Itertools;
-use lazy_static::lazy_static;
 use models::{GatewayId, PackageId};
 use openssl::hash::MessageDigest;
 use patch_db::{HasModel, Value};
@@ -18,7 +18,6 @@ use ts_rs::TS;
 use crate::account::AccountInfo;
 use crate::db::model::package::AllPackageData;
 use crate::net::acme::AcmeProvider;
-use crate::net::forward::START9_BRIDGE_IFACE;
 use crate::net::host::binding::{AddSslOptions, BindInfo, BindOptions, NetInfo};
 use crate::net::host::Host;
 use crate::net::utils::ipv6_is_local;
@@ -30,7 +29,7 @@ use crate::util::cpupower::Governor;
 use crate::util::lshw::LshwDevice;
 use crate::util::serde::MaybeUtf8String;
 use crate::version::{Current, VersionT};
-use crate::{ARCH, HOST_IP, PLATFORM};
+use crate::{ARCH, PLATFORM};
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
@@ -216,40 +215,9 @@ pub struct NetworkInterfaceInfo {
     pub name: Option<InternedString>,
     pub public: Option<bool>,
     pub secure: Option<bool>,
-    pub ip_info: Option<IpInfo>,
+    pub ip_info: Option<Arc<IpInfo>>,
 }
 impl NetworkInterfaceInfo {
-    pub fn loopback() -> (&'static GatewayId, &'static Self) {
-        lazy_static! {
-            static ref LO: GatewayId = GatewayId::from(InternedString::intern("lo"));
-            static ref LOOPBACK: NetworkInterfaceInfo = NetworkInterfaceInfo {
-                name: Some(InternedString::from_static("Loopback")),
-                public: Some(false),
-                secure: Some(true),
-                ip_info: Some(IpInfo {
-                    name: "lo".into(),
-                    scope_id: 1,
-                    device_type: None,
-                    subnets: [
-                        IpNet::new(Ipv4Addr::LOCALHOST.into(), 8).unwrap(),
-                        IpNet::new(Ipv6Addr::LOCALHOST.into(), 128).unwrap(),
-                    ]
-                    .into_iter()
-                    .collect(),
-                    lan_ip: [
-                        IpAddr::from(Ipv4Addr::LOCALHOST),
-                        IpAddr::from(Ipv6Addr::LOCALHOST)
-                    ]
-                    .into_iter()
-                    .collect(),
-                    wan_ip: None,
-                    ntp_servers: Default::default(),
-                    dns_servers: Default::default(),
-                }),
-            };
-        }
-        (&*LO, &*LOOPBACK)
-    }
     pub fn public(&self) -> bool {
         self.public.unwrap_or_else(|| {
             !self.ip_info.as_ref().map_or(true, |ip_info| {
@@ -309,7 +277,7 @@ pub struct IpInfo {
     pub dns_servers: OrdSet<IpAddr>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize, TS)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "kebab-case")]
 pub enum NetworkInterfaceType {

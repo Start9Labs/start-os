@@ -1,73 +1,136 @@
+use std::any::Any;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::ops::Deref;
+use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
 
-use axum::extract::ConnectInfo;
 use axum::Router;
 use futures::future::Either;
 use futures::FutureExt;
 use helpers::NonDetachingJoinHandle;
+use http::Extensions;
 use hyper_util::rt::{TokioIo, TokioTimer};
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpListener;
 use tokio::sync::oneshot;
+use visit_rs::{Visit, Visitor};
 
-use crate::net::gateway::{
-    lookup_info_by_addr, NetworkInterfaceListener, SelfContainedNetworkInterfaceListener,
-};
-use crate::net::static_server::{redirecter, refresher, ui_router, UiContext};
+use crate::net::static_server::{ui_router, UiContext};
 use crate::prelude::*;
 use crate::util::actor::background::BackgroundJobQueue;
+use crate::util::io::ReadWriter;
 use crate::util::sync::{SyncRwLock, Watch};
 
-pub struct Accepted {
+pub type AcceptStream = Pin<Box<dyn ReadWriter + Send + 'static>>;
+
+pub trait MetadataVisitor: Visitor<Result = ()> {
+    fn visit<M: Clone + Send + Sync + 'static>(&mut self, metadata: &M) -> Self::Result;
+}
+
+pub struct ExtensionVisitor<'a>(&'a mut Extensions);
+impl<'a> Visitor for ExtensionVisitor<'a> {
+    type Result = ();
+}
+impl<'a> MetadataVisitor for ExtensionVisitor<'a> {
+    fn visit<M: Clone + Send + Sync + 'static>(&mut self, metadata: &M) -> Self::Result {
+        self.0.insert(metadata.clone());
+    }
+}
+
+pub struct ExtractVisitor<T>(Option<T>);
+impl<T> Visitor for ExtractVisitor<T> {
+    type Result = ();
+}
+impl<T: Clone + Send + Sync + 'static> MetadataVisitor for ExtractVisitor<T> {
+    fn visit<M: Clone + Send + Sync + 'static>(&mut self, metadata: &M) -> Self::Result {
+        if let Some(matching) = (metadata as &dyn Any).downcast_ref::<T>() {
+            self.0 = Some(matching.clone());
+        }
+    }
+}
+pub fn extract<T, M: Visit<ExtractVisitor<T>>>(metadata: &M) -> Option<T> {
+    let mut visitor = ExtractVisitor(None);
+    visitor.visit(metadata);
+    visitor.0
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct TcpMetadata {
     pub peer_addr: SocketAddr,
     pub local_addr: SocketAddr,
-    pub https_redirect: bool,
-    pub stream: TcpStream,
+}
+impl<V: MetadataVisitor> Visit<V> for TcpMetadata {
+    fn visit(&self, visitor: &mut V) -> <V as visit_rs::Visitor>::Result {
+        visitor.visit(self)
+    }
 }
 
 pub trait Accept {
-    fn poll_accept(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>>;
+    type Metadata;
+    fn poll_accept(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>>;
 }
 
-impl Accept for Vec<TcpListener> {
-    fn poll_accept(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>> {
-        for listener in &*self {
-            if let Poll::Ready((stream, peer_addr)) = listener.poll_accept(cx)? {
-                return Poll::Ready(Ok(Accepted {
-                    local_addr: listener.local_addr()?,
+impl Accept for TcpListener {
+    type Metadata = TcpMetadata;
+    fn poll_accept(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>> {
+        if let Poll::Ready((stream, peer_addr)) = TcpListener::poll_accept(self, cx)? {
+            if let Err(e) = socket2::SockRef::from(&stream).set_tcp_keepalive(
+                &socket2::TcpKeepalive::new()
+                    .with_time(Duration::from_secs(900))
+                    .with_interval(Duration::from_secs(60))
+                    .with_retries(5),
+            ) {
+                tracing::error!("Failed to set tcp keepalive: {e}");
+                tracing::debug!("{e:?}");
+            }
+            return Poll::Ready(Ok((
+                TcpMetadata {
+                    local_addr: self.local_addr()?,
                     peer_addr,
-                    https_redirect: false,
-                    stream,
-                }));
+                },
+                Box::pin(stream),
+            )));
+        }
+        Poll::Pending
+    }
+}
+
+impl<A> Accept for Vec<A>
+where
+    A: Accept,
+{
+    type Metadata = A::Metadata;
+    fn poll_accept(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>> {
+        for listener in self {
+            if let Poll::Ready(accepted) = listener.poll_accept(cx)? {
+                return Poll::Ready(Ok(accepted));
             }
         }
         Poll::Pending
     }
 }
-impl Accept for NetworkInterfaceListener {
-    fn poll_accept(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>> {
-        NetworkInterfaceListener::poll_accept(self, cx, &true).map(|res| {
-            res.map(|a| {
-                let public = self
-                    .ip_info
-                    .peek(|i| lookup_info_by_addr(i, a.bind).map_or(true, |(_, i)| i.public()));
-                Accepted {
-                    peer_addr: a.peer,
-                    local_addr: a.bind,
-                    https_redirect: public,
-                    stream: a.stream,
-                }
-            })
-        })
-    }
-}
 
-impl<A: Accept, B: Accept> Accept for Either<A, B> {
-    fn poll_accept(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>> {
+impl<A, B> Accept for Either<A, B>
+where
+    A: Accept,
+    B: Accept<Metadata = A::Metadata>,
+{
+    type Metadata = A::Metadata;
+    fn poll_accept(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>> {
         match self {
             Either::Left(a) => a.poll_accept(cx),
             Either::Right(b) => b.poll_accept(cx),
@@ -75,7 +138,11 @@ impl<A: Accept, B: Accept> Accept for Either<A, B> {
     }
 }
 impl<A: Accept> Accept for Option<A> {
-    fn poll_accept(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>> {
+    type Metadata = A::Metadata;
+    fn poll_accept(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>> {
         match self {
             None => Poll::Pending,
             Some(a) => a.poll_accept(cx),
@@ -98,12 +165,15 @@ impl<A: Accept + Send + Sync + 'static> Acceptor<A> {
         self.acceptor.poll_changed(cx)
     }
 
-    fn poll_accept(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<Accepted, Error>> {
+    fn poll_accept(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(A::Metadata, AcceptStream), Error>> {
         let _ = self.poll_changed(cx);
         self.acceptor.peek_mut(|a| a.poll_accept(cx))
     }
 
-    async fn accept(&mut self) -> Result<Accepted, Error> {
+    async fn accept(&mut self) -> Result<(A::Metadata, AcceptStream), Error> {
         std::future::poll_fn(|cx| self.poll_accept(cx)).await
     }
 }
@@ -115,19 +185,14 @@ impl Acceptor<Vec<TcpListener>> {
     }
 }
 
-pub type UpgradableListener =
-    Option<Either<SelfContainedNetworkInterfaceListener, NetworkInterfaceListener>>;
-
-impl Acceptor<UpgradableListener> {
-    pub fn bind_upgradable(listener: SelfContainedNetworkInterfaceListener) -> Self {
-        Self::new(Some(Either::Left(listener)))
-    }
-}
-
 pub struct WebServerAcceptorSetter<A: Accept> {
     acceptor: Watch<A>,
 }
-impl<A: Accept, B: Accept> WebServerAcceptorSetter<Option<Either<A, B>>> {
+impl<A, B> WebServerAcceptorSetter<Option<Either<A, B>>>
+where
+    A: Accept,
+    B: Accept<Metadata = A::Metadata>,
+{
     pub fn try_upgrade<F: FnOnce(A) -> Result<B, Error>>(&self, f: F) -> Result<(), Error> {
         let mut res = Ok(());
         self.acceptor.send_modify(|a| {
@@ -154,20 +219,24 @@ impl<A: Accept> Deref for WebServerAcceptorSetter<A> {
 
 pub struct WebServer<A: Accept> {
     shutdown: oneshot::Sender<()>,
-    router: Watch<Option<Router>>,
+    router: Watch<Router>,
     acceptor: Watch<A>,
     thread: NonDetachingJoinHandle<()>,
 }
-impl<A: Accept + Send + Sync + 'static> WebServer<A> {
+impl<A> WebServer<A>
+where
+    A: Accept + Send + Sync + 'static,
+    for<'a> A::Metadata: Visit<ExtensionVisitor<'a>> + Send + Sync + 'static,
+{
     pub fn acceptor_setter(&self) -> WebServerAcceptorSetter<A> {
         WebServerAcceptorSetter {
             acceptor: self.acceptor.clone(),
         }
     }
 
-    pub fn new(mut acceptor: Acceptor<A>) -> Self {
+    pub fn new(mut acceptor: Acceptor<A>, router: Router) -> Self {
         let acceptor_send = acceptor.acceptor.clone();
-        let router = Watch::<Option<Router>>::new(None);
+        let router = Watch::new(router);
         let service = router.clone_unseen();
         let (shutdown, shutdown_recv) = oneshot::channel();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
@@ -190,13 +259,14 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
                 }
             }
 
-            struct SwappableRouter {
-                router: Watch<Option<Router>>,
-                redirect: bool,
-                local_addr: SocketAddr,
-                peer_addr: SocketAddr,
+            struct SwappableRouter<M> {
+                router: Watch<Router>,
+                metadata: M,
             }
-            impl hyper::service::Service<hyper::Request<hyper::body::Incoming>> for SwappableRouter {
+            impl<M: for<'a> Visit<ExtensionVisitor<'a>> + Send + Sync + 'static>
+                hyper::service::Service<hyper::Request<hyper::body::Incoming>>
+                for SwappableRouter<M>
+            {
                 type Response = <Router as tower_service::Service<
                     hyper::Request<hyper::body::Incoming>,
                 >>::Response;
@@ -210,19 +280,10 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
                 fn call(&self, mut req: hyper::Request<hyper::body::Incoming>) -> Self::Future {
                     use tower_service::Service;
 
-                    req.extensions_mut()
-                        .insert(ConnectInfo((self.peer_addr, self.local_addr)));
+                    self.metadata
+                        .visit(&mut ExtensionVisitor(req.extensions_mut()));
 
-                    if self.redirect {
-                        redirecter().call(req)
-                    } else {
-                        let router = self.router.read();
-                        if let Some(mut router) = router {
-                            router.call(req)
-                        } else {
-                            refresher().call(req)
-                        }
-                    }
+                    self.router.read().call(req)
                 }
             }
 
@@ -249,18 +310,15 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
                     let mut err = None;
                     for _ in 0..5 {
                         if let Err(e) = async {
-                            let accepted = acceptor.accept().await?;
-                            let src = accepted.stream.peer_addr().ok();
+                            let (metadata, stream) = acceptor.accept().await?;
                             queue.add_job(
                                 graceful.watch(
                                     server
                                         .serve_connection_with_upgrades(
-                                            TokioIo::new(accepted.stream),
+                                            TokioIo::new(stream),
                                             SwappableRouter {
                                                 router: service.clone(),
-                                                redirect: accepted.https_redirect,
-                                                peer_addr: accepted.peer_addr,
-                                                local_addr: accepted.local_addr,
+                                                metadata,
                                             },
                                         )
                                         .into_owned(),
@@ -314,7 +372,7 @@ impl<A: Accept + Send + Sync + 'static> WebServer<A> {
     }
 
     pub fn serve_router(&mut self, router: Router) {
-        self.router.send(Some(router))
+        self.router.send(router)
     }
 
     pub fn serve_ui_for<C: UiContext>(&mut self, ctx: C) {

@@ -19,7 +19,7 @@ use crate::net::dns::DnsController;
 use crate::net::forward::{PortForwardController, START9_BRIDGE_IFACE};
 use crate::net::gateway::{
     AndFilter, DynInterfaceFilter, IdFilter, InterfaceFilter, NetworkInterfaceController, OrFilter,
-    PublicFilter, SecureFilter,
+    PublicFilter, SecureFilter, TypeFilter,
 };
 use crate::net::host::address::HostAddress;
 use crate::net::host::binding::{AddSslOptions, BindId, BindOptions};
@@ -28,7 +28,7 @@ use crate::net::service_interface::{GatewayInfo, HostnameInfo, IpHostname, Onion
 use crate::net::socks::SocksController;
 use crate::net::tor::{OnionAddress, TorController, TorSecretKey};
 use crate::net::utils::ipv6_is_local;
-use crate::net::vhost::{AlpnInfo, TargetInfo, VHostController};
+use crate::net::vhost::{AlpnInfo, ProxyTarget, VHostController};
 use crate::prelude::*;
 use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::util::serde::MaybeUtf8String;
@@ -134,7 +134,7 @@ impl NetController {
 #[derive(Default, Debug)]
 struct HostBinds {
     forwards: BTreeMap<u16, (SocketAddr, DynInterfaceFilter, Arc<()>)>,
-    vhosts: BTreeMap<(Option<InternedString>, u16), (TargetInfo, Arc<()>)>,
+    vhosts: BTreeMap<(Option<InternedString>, u16), (ProxyTarget, Arc<()>)>,
     private_dns: BTreeMap<InternedString, Arc<()>>,
     tor: BTreeMap<OnionAddress, (OrdMap<u16, SocketAddr>, Vec<Arc<()>>)>,
 }
@@ -226,7 +226,7 @@ impl NetServiceData {
 
     async fn update(&mut self, ctrl: &NetController, id: HostId, host: Host) -> Result<(), Error> {
         let mut forwards: BTreeMap<u16, (SocketAddr, DynInterfaceFilter)> = BTreeMap::new();
-        let mut vhosts: BTreeMap<(Option<InternedString>, u16), TargetInfo> = BTreeMap::new();
+        let mut vhosts: BTreeMap<(Option<InternedString>, u16), ProxyTarget> = BTreeMap::new();
         let mut private_dns: BTreeSet<InternedString> = BTreeSet::new();
         let mut tor: BTreeMap<OnionAddress, (TorSecretKey, OrdMap<u16, SocketAddr>)> =
             BTreeMap::new();
@@ -263,7 +263,7 @@ impl NetServiceData {
                     for hostname in ctrl.server_hostnames.iter().cloned() {
                         vhosts.insert(
                             (hostname, external),
-                            TargetInfo {
+                            ProxyTarget {
                                 filter: bind.net.clone().into_dyn(),
                                 acme: None,
                                 addr,
@@ -278,11 +278,9 @@ impl NetServiceData {
                                 if hostnames.insert(hostname.clone()) {
                                     vhosts.insert(
                                         (Some(hostname), external),
-                                        TargetInfo {
+                                        ProxyTarget {
                                             filter: OrFilter(
-                                                IdFilter(
-                                                    NetworkInterfaceInfo::loopback().0.clone(),
-                                                ),
+                                                TypeFilter(NetworkInterfaceType::Loopback),
                                                 IdFilter(GatewayId::from(InternedString::from(
                                                     START9_BRIDGE_IFACE,
                                                 ))),
@@ -306,7 +304,7 @@ impl NetServiceData {
                                         if let Some(public) = &public {
                                             vhosts.insert(
                                                 (address.clone(), 5443),
-                                                TargetInfo {
+                                                ProxyTarget {
                                                     filter: AndFilter(
                                                         bind.net.clone(),
                                                         AndFilter(
@@ -322,7 +320,7 @@ impl NetServiceData {
                                             );
                                             vhosts.insert(
                                                 (address.clone(), 443),
-                                                TargetInfo {
+                                                ProxyTarget {
                                                     filter: AndFilter(
                                                         bind.net.clone(),
                                                         if private {
@@ -348,7 +346,7 @@ impl NetServiceData {
                                         } else {
                                             vhosts.insert(
                                                 (address.clone(), 443),
-                                                TargetInfo {
+                                                ProxyTarget {
                                                     filter: AndFilter(
                                                         bind.net.clone(),
                                                         PublicFilter { public: false },
@@ -364,7 +362,7 @@ impl NetServiceData {
                                         if let Some(public) = public {
                                             vhosts.insert(
                                                 (address.clone(), external),
-                                                TargetInfo {
+                                                ProxyTarget {
                                                     filter: AndFilter(
                                                         bind.net.clone(),
                                                         if private {
@@ -387,7 +385,7 @@ impl NetServiceData {
                                         } else {
                                             vhosts.insert(
                                                 (address.clone(), external),
-                                                TargetInfo {
+                                                ProxyTarget {
                                                     filter: AndFilter(
                                                         bind.net.clone(),
                                                         PublicFilter { public: false },

@@ -1,6 +1,7 @@
 pub mod model;
 pub mod prelude;
 
+use std::panic::UnwindSafe;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -12,7 +13,7 @@ use itertools::Itertools;
 use patch_db::json_ptr::{JsonPointer, ROOT};
 use patch_db::{DiffPatch, Dump, Revision};
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{self, UnboundedReceiver};
 use tokio::sync::watch;
@@ -23,10 +24,20 @@ use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::util::net::WebSocketExt;
-use crate::util::serde::{HandlerExtSerde, apply_expr};
+use crate::util::serde::{apply_expr, HandlerExtSerde};
 
 lazy_static::lazy_static! {
     static ref PUBLIC: JsonPointer = "/public".parse().unwrap();
+}
+
+pub trait DbAccess<T>: Sized {
+    type Key<'a>;
+    fn access<'a>(db: &'a Model<Self>, key: Self::Key<'_>) -> &'a Model<T>;
+}
+
+pub trait DbAccessMut<T>: Sized {
+    type Key<'a>;
+    fn access_mut<'a>(db: &'a mut Model<Self>, key: Self::Key<'_>) -> &'a mut Model<T>;
 }
 
 pub fn db<C: Context>() -> ParentHandler<C> {
