@@ -63,7 +63,7 @@ import { TunnelData } from 'src/app/services/patch-db/data-model'
                     tuiOption
                     iconStart="@tui.pencil"
                     new
-                    (click)="onEdit(subnet.name)"
+                    (click)="onEdit(subnet)"
                   >
                     Rename
                   </button>
@@ -102,7 +102,11 @@ import { TunnelData } from 'src/app/services/patch-db/data-model'
             [error]="[] | tuiFieldError | async"
           />
         }
-        <footer><button tuiButton (click)="onSave()">Save</button></footer>
+        <footer>
+          <button tuiButton (click)="onSave()" [disabled]="form.invalid">
+            Save
+          </button>
+        </footer>
       </form>
     </ng-template>
   `,
@@ -130,7 +134,7 @@ export default class Subnets {
   protected readonly dialog = signal(false)
   protected readonly editing = signal(false)
 
-  protected readonly subnets = toSignal(
+  protected readonly subnets = toSignal<MappedSubnet[], []>(
     this.patch.watch$('wg', 'subnets').pipe(
       map(s =>
         Object.entries(s).map(([range, info]) => ({
@@ -165,9 +169,9 @@ export default class Subnets {
     this.dialog.set(true)
   }
 
-  protected onEdit(name: string): void {
+  protected onEdit(subnet: MappedSubnet): void {
     this.editing.set(true)
-    this.form.reset({ name })
+    this.form.reset({ subnet: subnet.range, name: subnet.name })
     this.dialog.set(true)
   }
 
@@ -211,4 +215,10 @@ export default class Subnets {
         }
       })
   }
+}
+
+type MappedSubnet = {
+  range: string
+  name: string
+  hasClients: boolean
 }

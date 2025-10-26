@@ -46,7 +46,6 @@ export class MockApiService extends ApiService {
 
   openWebsocket$<T>(guid: string): WebSocketSubject<T> {
     return this.mockWsSource$.pipe(
-      tap(v => console.log('MOCK WS', v)),
       shareReplay({ bufferSize: 1, refCount: true }),
     ) as WebSocketSubject<T>
   }
@@ -80,7 +79,7 @@ export class MockApiService extends ApiService {
     const patch: AddOperation<WgSubnet>[] = [
       {
         op: PatchOp.ADD,
-        path: `/wg/subnets/${params.subnet}`,
+        path: `/wg/subnets/${replaceSlashes(params.subnet)}`,
         value: { name: params.name, clients: {} },
       },
     ]
@@ -95,7 +94,7 @@ export class MockApiService extends ApiService {
     const patch: ReplaceOperation<string>[] = [
       {
         op: PatchOp.REPLACE,
-        path: `/wg/subnets/${params.subnet}/name`,
+        path: `/wg/subnets/${replaceSlashes(params.subnet)}/name`,
         value: params.name,
       },
     ]
@@ -110,7 +109,7 @@ export class MockApiService extends ApiService {
     const patch: RemoveOperation[] = [
       {
         op: PatchOp.REMOVE,
-        path: `/wg/subnets/${params.subnet}`,
+        path: `/wg/subnets/${replaceSlashes(params.subnet)}`,
       },
     ]
     this.mockRevision(patch)
@@ -124,7 +123,7 @@ export class MockApiService extends ApiService {
     const patch: AddOperation<WgClient>[] = [
       {
         op: PatchOp.ADD,
-        path: `/wg/subnets/${params.subnet}/clients/${params.ip}`,
+        path: `/wg/subnets/${replaceSlashes(params.subnet)}/clients/${params.ip}`,
         value: { name: params.name },
       },
     ]
@@ -139,7 +138,7 @@ export class MockApiService extends ApiService {
     const patch: ReplaceOperation<string>[] = [
       {
         op: PatchOp.REPLACE,
-        path: `/wg/subnets/${params.subnet}/clients/${params.ip}/name`,
+        path: `/wg/subnets/${replaceSlashes(params.subnet)}/clients/${params.ip}/name`,
         value: params.name,
       },
     ]
@@ -154,7 +153,7 @@ export class MockApiService extends ApiService {
     const patch: RemoveOperation[] = [
       {
         op: PatchOp.REMOVE,
-        path: `/wg/subnets/${params.subnet}/clients/${params.ip}`,
+        path: `/wg/subnets/${replaceSlashes(params.subnet)}/clients/${params.ip}`,
       },
     ]
     this.mockRevision(patch)
@@ -198,4 +197,8 @@ export class MockApiService extends ApiService {
     }
     this.mockWsSource$.next(revision)
   }
+}
+
+function replaceSlashes(val: string) {
+  return val.replace(new RegExp('/', 'g'), '~1')
 }

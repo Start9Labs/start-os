@@ -65,7 +65,7 @@ import { TunnelData, WgServer } from 'src/app/services/patch-db/data-model'
         @for (device of devices(); track $index) {
           <tr>
             <td>{{ device.name }}</td>
-            <td>{{ device.subnetName }}</td>
+            <td>{{ device.subnet.name }}</td>
             <td>{{ device.ip }}</td>
             <td>
               <button
@@ -82,7 +82,7 @@ import { TunnelData, WgServer } from 'src/app/services/patch-db/data-model'
                     tuiOption
                     iconStart="@tui.pencil"
                     new
-                    (click)="onEdit(device.name)"
+                    (click)="onEdit(device)"
                   >
                     Rename
                   </button>
@@ -156,7 +156,11 @@ import { TunnelData, WgServer } from 'src/app/services/patch-db/data-model'
             />
           }
         }
-        <footer><button tuiButton (click)="onSave()">Save</button></footer>
+        <footer>
+          <button tuiButton (click)="onSave()" [disabled]="form.invalid">
+            Save
+          </button>
+        </footer>
       </form>
     </ng-template>
     <ng-template [(tuiDialog)]="config">
@@ -252,8 +256,10 @@ export default class Devices {
   protected readonly devices = computed(() =>
     this.subnets().flatMap(subnet =>
       Object.entries(subnet.clients).map(([ip, { name }]) => ({
-        subnet: subnet.range,
-        subnetName: subnet.name,
+        subnet: {
+          name: subnet.name,
+          range: subnet.range,
+        },
         ip,
         name,
       })),
@@ -269,7 +275,7 @@ export default class Devices {
   protected readonly mobile = inject(TUI_IS_MOBILE)
   protected readonly form = inject(NonNullableFormBuilder).group({
     name: ['', Validators.required],
-    subnet: [{} as MappedSubnet, Validators.required],
+    subnet: [{} as MappedDevice['subnet'], Validators.required],
     ip: ['', Validators.required],
   })
 
@@ -279,9 +285,9 @@ export default class Devices {
     this.dialog.set(true)
   }
 
-  protected onEdit(name: string): void {
+  protected onEdit(device: MappedDevice): void {
     this.editing.set(true)
-    this.form.reset({ name })
+    this.form.reset(device)
     this.dialog.set(true)
   }
 
@@ -319,7 +325,10 @@ export default class Devices {
       .subscribe(async () => {
         const loader = this.loading.open().subscribe()
         try {
-          await this.api.deleteDevice({ subnet: device.subnet, ip: device.ip })
+          await this.api.deleteDevice({
+            subnet: device.subnet.range,
+            ip: device.ip,
+          })
         } catch (e) {
           console.log(e)
         } finally {
@@ -337,8 +346,10 @@ type MappedSubnet = {
 }
 
 type MappedDevice = {
-  subnet: string
-  subnetName: string
+  subnet: {
+    name: string
+    range: string
+  }
   ip: string
   name: string
 }
