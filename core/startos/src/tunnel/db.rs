@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::net::{SocketAddr, SocketAddrV4};
+use std::net::SocketAddrV4;
 use std::path::PathBuf;
 
 use clap::builder::ValueParserFactory;
@@ -23,7 +23,7 @@ use crate::prelude::*;
 use crate::sign::AnyVerifyingKey;
 use crate::tunnel::auth::SignerInfo;
 use crate::tunnel::context::TunnelContext;
-use crate::tunnel::web::TunnelCertData;
+use crate::tunnel::web::WebserverInfo;
 use crate::tunnel::wg::WgServer;
 use crate::util::serde::{apply_expr, deserialize_from_str, serialize_display, HandlerExtSerde};
 
@@ -76,11 +76,10 @@ impl ValueParserFactory for GatewayPort {
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct TunnelDatabase {
-    pub webserver: Option<SocketAddr>,
+    pub webserver: WebserverInfo,
     pub sessions: Sessions,
     pub password: Option<String>,
     pub auth_pubkeys: HashMap<AnyVerifyingKey, SignerInfo>,
-    pub certificates: Option<TunnelCertData>,
     pub gateways: OrdMap<GatewayId, NetworkInterfaceInfo>,
     pub wg: WgServer,
     pub port_forwards: PortForwards,

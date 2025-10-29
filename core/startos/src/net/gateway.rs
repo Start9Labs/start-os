@@ -552,7 +552,6 @@ async fn watch_ip(
 
                 let managed = device_proxy.managed().await?;
                 if !managed {
-                    dbg!("unmanaged", &iface);
                     return Ok(());
                 }
                 let dac = device_proxy.active_connection().await?;

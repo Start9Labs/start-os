@@ -31,15 +31,42 @@ impl SignatureAuthContext for TunnelContext {
     ) -> impl IntoIterator<Item = Result<impl AsRef<str> + Send, Error>> + Send {
         let peek = self.db().peek().await;
         peek.as_webserver()
+            .as_listen()
             .de()
             .map(|a| a.as_ref().map(InternedString::from_display))
             .transpose()
             .into_iter()
             .chain(
-                std::iter::from_fn(move || Some(peek.as_certificates().keys()))
-                    .flatten_ok()
-                    .map_ok(|h| h.0)
-                    .flatten_ok(),
+                std::iter::once_with(move || {
+                    peek.as_webserver()
+                        .as_certificate()
+                        .de()
+                        .ok()
+                        .flatten()
+                        .and_then(|cert_data| cert_data.cert.0.first().cloned())
+                        .and_then(|cert| cert.subject_alt_names())
+                        .into_iter()
+                        .flatten()
+                        .filter_map(|san| {
+                            san.dnsname().map(InternedString::from).or_else(|| {
+                                san.ipaddress().and_then(|ip_bytes| {
+                                    let ip: std::net::IpAddr = match ip_bytes.len() {
+                                        4 => std::net::IpAddr::V4(std::net::Ipv4Addr::from(
+                                            <[u8; 4]>::try_from(ip_bytes).ok()?,
+                                        )),
+                                        16 => std::net::IpAddr::V6(std::net::Ipv6Addr::from(
+                                            <[u8; 16]>::try_from(ip_bytes).ok()?,
+                                        )),
+                                        _ => return None,
+                                    };
+                                    Some(InternedString::from_display(&ip))
+                                })
+                            })
+                        })
+                        .map(Ok)
+                        .collect::<Vec<_>>()
+                })
+                .flatten(),
             )
     }
     fn check_pubkey(

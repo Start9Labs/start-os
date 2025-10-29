@@ -6,7 +6,7 @@ use std::sync::Arc;
 use async_acme::acme::{Identifier, ACME_TLS_ALPN_NAME};
 use clap::builder::ValueParserFactory;
 use clap::Parser;
-use futures::{FutureExt, StreamExt};
+use futures::StreamExt;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use models::{ErrorData, FromStrParser};

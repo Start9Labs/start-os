@@ -7,7 +7,6 @@ use rpc_toolkit::Server;
 use crate::middleware::auth::Auth;
 use crate::middleware::cors::Cors;
 use crate::net::static_server::{bad_request, not_found, server_error};
-use crate::net::web_server::{Accept, WebServer};
 use crate::rpc_continuations::Guid;
 use crate::tunnel::context::TunnelContext;
 

@@ -1,6 +1,6 @@
-use std::collections::BTreeMap;
 use std::ffi::OsString;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::Duration;
 
 use clap::Parser;
@@ -14,11 +14,12 @@ use visit_rs::Visit;
 use crate::context::config::ClientConfig;
 use crate::context::CliContext;
 use crate::net::gateway::{Bind, BindTcp};
-use crate::net::tls::{ChainedHandler, TlsListener};
+use crate::net::tls::TlsListener;
 use crate::net::web_server::{Accept, Acceptor, MetadataVisitor, WebServer};
 use crate::prelude::*;
 use crate::tunnel::context::{TunnelConfig, TunnelContext};
 use crate::tunnel::tunnel_router;
+use crate::tunnel::web::TunnelCertHandler;
 use crate::util::logger::LOGGER;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -47,14 +48,19 @@ async fn inner_main(config: &TunnelConfig) -> Result<(), Error> {
             let mut sub = https_db.subscribe("/webserver".parse().unwrap()).await;
             while sub.recv().await.is_some() {
                 while let Err(e) = async {
-                    if let Some(addr) = https_db.peek().await.as_webserver().de()? {
+                    let webserver = https_db.peek().await.into_webserver();
+                    if webserver.as_enabled().de()? {
+                        let addr = webserver.as_listen().de()?.or_not_found("listen address")?;
                         acceptor_setter.send_if_modified(|a| {
                             let key = WebserverListener::Https(addr);
                             if !a.contains_key(&key) {
                                 match (|| {
                                     Ok::<_, Error>(TlsListener::new(
                                         BindTcp.bind(addr)?,
-                                        BasicCertHandler(https_db.clone()),
+                                        TunnelCertHandler {
+                                            db: https_db.clone(),
+                                            crypto_provider: Arc::new(tokio_rustls::rustls::crypto::ring::default_provider()),
+                                        },
                                     ))
                                 })() {
                                     Ok(l) => {
@@ -130,8 +136,8 @@ async fn inner_main(config: &TunnelConfig) -> Result<(), Error> {
             .await
             .with_kind(crate::ErrorKind::Unknown)?;
 
-        sig_handler.wait_for_abort().await;
-        https_thread.wait_for_abort().await;
+        sig_handler.wait_for_abort().await.with_kind(ErrorKind::Unknown)?;
+        https_thread.wait_for_abort().await.with_kind(ErrorKind::Unknown)?;
 
         Ok::<_, Error>(server)
     }

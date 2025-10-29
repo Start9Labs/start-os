@@ -331,7 +331,7 @@ pub async fn show_config(
             }
     }) {
         wan_addr
-    } else if let Some(webserver) = peek.as_webserver().de()? {
+    } else if let Some(webserver) = peek.as_webserver().as_listen().de()? {
         webserver.ip()
     } else {
         ctx.net_iface
