@@ -377,6 +377,9 @@ impl PortForwardController {
 }
 
 async fn forward(interface: &str, source: SocketAddr, target: SocketAddr) -> Result<(), Error> {
+    if interface == START9_BRIDGE_IFACE {
+        return Ok(());
+    }
     if source.is_ipv6() {
         return Ok(()); // TODO: socat? ip6tables?
     }
@@ -393,6 +396,9 @@ async fn forward(interface: &str, source: SocketAddr, target: SocketAddr) -> Res
 }
 
 async fn unforward(interface: &str, source: SocketAddr, target: SocketAddr) -> Result<(), Error> {
+    if interface == START9_BRIDGE_IFACE {
+        return Ok(());
+    }
     if source.is_ipv6() {
         return Ok(()); // TODO: socat? ip6tables?
     }

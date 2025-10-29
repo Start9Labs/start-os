@@ -226,7 +226,7 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
             util::rpc::util::<C>().with_about("Command for calculating the blake3 hash of a file"),
         )
         .subcommand(
-            "init",
+            "init-key",
             from_fn_async(developer::init)
                 .no_display()
                 .with_about("Create developer key if it doesn't exist"),
@@ -241,6 +241,7 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
             diagnostic::diagnostic::<C>()
                 .with_about("Commands to display logs, restart the server, etc"),
         )
+        .subcommand("init", init::init_api::<C>())
         .subcommand("setup", setup::setup::<C>())
         .subcommand(
             "install",

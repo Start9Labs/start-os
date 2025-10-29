@@ -10,11 +10,16 @@ use openssl::x509::X509;
 use rpc_toolkit::{from_fn_async, Context, Empty, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio_rustls::rustls::server::ClientHello;
+use tokio_rustls::rustls::ServerConfig;
 
 use crate::context::CliContext;
 use crate::net::ssl::SANInfo;
+use crate::net::tls::TlsHandler;
+use crate::net::web_server::Accept;
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
+use crate::tunnel::db::TunnelDatabase;
 use crate::util::serde::Pem;
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
@@ -24,6 +29,19 @@ pub struct TunnelCertData {
     pub key: Pem<PKey<Private>>,
     #[arg(long)]
     pub cert: Pem<Vec<X509>>,
+}
+
+pub struct TunnelCertHandler(TypedPatchDb<TunnelDatabase>);
+impl<'a, A> TlsHandler<'a, A> for TunnelCertHandler
+where
+    A: Accept,
+{
+    async fn get_config(
+        &'a mut self,
+        hello: &'a ClientHello<'a>,
+        metadata: &'a <A as Accept>::Metadata,
+    ) -> Option<ServerConfig> {
+    }
 }
 
 pub fn web_api<C: Context>() -> ParentHandler<C> {

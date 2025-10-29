@@ -6,7 +6,7 @@ use std::sync::Arc;
 use async_acme::acme::{Identifier, ACME_TLS_ALPN_NAME};
 use clap::builder::ValueParserFactory;
 use clap::Parser;
-use futures::StreamExt;
+use futures::{FutureExt, StreamExt};
 use imbl_value::InternedString;
 use itertools::Itertools;
 use models::{ErrorData, FromStrParser};
@@ -16,6 +16,7 @@ use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio_rustls::rustls::crypto::CryptoProvider;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
+use tokio_rustls::rustls::server::ClientHello;
 use tokio_rustls::rustls::sign::CertifiedKey;
 use tokio_rustls::rustls::ServerConfig;
 use ts_rs::TS;
@@ -24,7 +25,7 @@ use url::Url;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::AcmeSettings;
 use crate::db::model::Database;
-use crate::db::{DbAccess, DbAccessMut};
+use crate::db::{DbAccess, DbAccessByKey, DbAccessMut};
 use crate::net::tls::{SingleCertResolver, TlsHandler};
 use crate::net::web_server::Accept;
 use crate::prelude::*;
@@ -34,28 +35,28 @@ use crate::util::sync::{SyncMutex, Watch};
 pub type AcmeTlsAlpnCache =
     Arc<SyncMutex<BTreeMap<InternedString, Watch<Option<Arc<CertifiedKey>>>>>>;
 
-pub struct AcmeTlsHandler<'a, M: HasModel, S: 'a> {
-    pub db: &'a TypedPatchDb<M>,
-    pub acme_cache: &'a AcmeTlsAlpnCache,
-    pub crypto_provider: &'a Arc<CryptoProvider>,
+pub struct AcmeTlsHandler<M: HasModel, S> {
+    pub db: TypedPatchDb<M>,
+    pub acme_cache: AcmeTlsAlpnCache,
+    pub crypto_provider: Arc<CryptoProvider>,
     pub get_provider: S,
     pub in_progress: Watch<BTreeSet<BTreeSet<InternedString>>>,
 }
-impl<'b, M, S> AcmeTlsHandler<'b, M, S>
+impl<M, S> AcmeTlsHandler<M, S>
 where
-    for<'a> M: DbAccess<AcmeCertStore, Key<'a> = ()>
-        + DbAccess<AcmeSettings, Key<'a> = &'a AcmeProvider>
-        + DbAccessMut<AcmeCertStore, Key<'a> = ()>
+    for<'a> M: DbAccessByKey<AcmeSettings, Key<'a> = &'a AcmeProvider>
+        + DbAccessMut<AcmeCertStore>
         + HasModel<Model = Model<M>>
         + Send
         + Sync,
-    S: GetAcmeProvider<'b> + Clone + 'b,
+    S: GetAcmeProvider + Clone,
 {
     pub async fn get_cert(&self, san_info: &BTreeSet<InternedString>) -> Option<CertifiedKey> {
-        let provider = self.get_provider.clone().get_provider(san_info).await?;
+        let provider = self.get_provider.get_provider(san_info).await?;
+        let provider = provider.as_ref();
         loop {
             let peek = self.db.peek().await;
-            let store = <M as DbAccess<AcmeCertStore>>::access(&peek, ());
+            let store = <M as DbAccess<AcmeCertStore>>::access(&peek);
             if let Some(cert) = store
                 .as_certs()
                 .as_idx(&provider.0)
@@ -93,7 +94,7 @@ where
                 continue;
             }
 
-            let contact = <M as DbAccess<AcmeSettings>>::access(&peek, provider)
+            let contact = <M as DbAccessByKey<AcmeSettings>>::access_by_key(&peek, &provider)?
                 .as_contact()
                 .de()
                 .log_err()?;
@@ -141,37 +142,29 @@ where
     }
 }
 
-pub trait GetAcmeProvider<'a> {
-    fn get_provider<'b>(
-        self,
-        san_info: &'b BTreeSet<InternedString>,
-    ) -> impl Future<Output = Option<&'a AcmeProvider>> + Send + 'b
-    where
-        Self: 'b;
+pub trait GetAcmeProvider {
+    fn get_provider<'a, 'b: 'a>(
+        &'b self,
+        san_info: &'a BTreeSet<InternedString>,
+    ) -> impl Future<Output = Option<impl AsRef<AcmeProvider> + Send + 'b>> + Send + 'a;
 }
 
-impl<'b, A, M, S> TlsHandler<A> for &'b AcmeTlsHandler<'b, M, S>
+impl<'a, A, M, S> TlsHandler<'a, A> for Arc<AcmeTlsHandler<M, S>>
 where
-    A: Accept,
+    A: Accept + 'a,
     <A as Accept>::Metadata: Send + Sync,
-    for<'a> M: DbAccess<AcmeCertStore, Key<'a> = ()>
-        + DbAccess<AcmeSettings, Key<'a> = &'a AcmeProvider>
-        + DbAccessMut<AcmeCertStore, Key<'a> = ()>
+    for<'m> M: DbAccessByKey<AcmeSettings, Key<'m> = &'m AcmeProvider>
+        + DbAccessMut<AcmeCertStore>
         + HasModel<Model = Model<M>>
         + Send
         + Sync,
-    S: GetAcmeProvider<'b> + Clone + Send + Sync + 'b,
+    S: GetAcmeProvider + Clone + Send + Sync,
 {
-    async fn get_config<'a>(
-        self,
-        hello: &'a tokio_rustls::rustls::server::ClientHello<'a>,
-        metadata: &'a <A as Accept>::Metadata,
-    ) -> Option<ServerConfig>
-    where
-        Self: 'a,
-        A: 'a,
-        <A as Accept>::Metadata: 'a,
-    {
+    async fn get_config(
+        &'a mut self,
+        hello: &'a ClientHello<'a>,
+        _: &'a <A as Accept>::Metadata,
+    ) -> Option<ServerConfig> {
         let domain = hello.server_name()?;
         if hello
             .alpn()
@@ -238,14 +231,12 @@ impl AcmeCertStore {
 }
 
 impl DbAccess<AcmeCertStore> for Database {
-    type Key<'a> = ();
-    fn access<'a>(db: &'a Model<Self>, _: Self::Key<'_>) -> &'a Model<AcmeCertStore> {
+    fn access<'a>(db: &'a Model<Self>) -> &'a Model<AcmeCertStore> {
         db.as_private().as_key_store().as_acme()
     }
 }
 impl DbAccessMut<AcmeCertStore> for Database {
-    type Key<'a> = ();
-    fn access_mut<'a>(db: &'a mut Model<Self>, _: Self::Key<'_>) -> &'a mut Model<AcmeCertStore> {
+    fn access_mut<'a>(db: &'a mut Model<Self>) -> &'a mut Model<AcmeCertStore> {
         db.as_private_mut().as_key_store_mut().as_acme_mut()
     }
 }
@@ -260,18 +251,14 @@ pub struct AcmeCertCache<'a, M: HasModel>(pub &'a TypedPatchDb<M>);
 #[async_trait::async_trait]
 impl<'a, M> async_acme::cache::AcmeCache for AcmeCertCache<'a, M>
 where
-    for<'b> M: HasModel<Model = Model<M>>
-        + DbAccess<AcmeCertStore, Key<'b> = ()>
-        + DbAccessMut<AcmeCertStore, Key<'b> = ()>
-        + Send
-        + Sync,
+    M: HasModel<Model = Model<M>> + DbAccessMut<AcmeCertStore> + Send + Sync,
 {
     type Error = ErrorData;
 
     async fn read_account(&self, contacts: &[&str]) -> Result<Option<Vec<u8>>, Self::Error> {
         let contacts = JsonKey::new(contacts.into_iter().map(|s| (*s).to_owned()).collect_vec());
         let peek = self.0.peek().await;
-        let Some(account) = M::access(&peek, ()).as_accounts().as_idx(&contacts) else {
+        let Some(account) = M::access(&peek).as_accounts().as_idx(&contacts) else {
             return Ok(None);
         };
         Ok(Some(account.de()?.0.document.into_vec()))
@@ -285,7 +272,7 @@ where
         };
         self.0
             .mutate(|db| {
-                M::access_mut(db, ())
+                M::access_mut(db)
                     .as_accounts_mut()
                     .insert(&contacts, &Pem::new(key))
             })
@@ -312,7 +299,7 @@ where
             .parse::<Url>()
             .with_kind(ErrorKind::ParseUrl)?;
         let peek = self.0.peek().await;
-        let Some(cert) = M::access(&peek, ())
+        let Some(cert) = M::access(&peek)
             .as_certs()
             .as_idx(&directory_url)
             .and_then(|a| a.as_idx(&identifiers))
@@ -370,7 +357,7 @@ where
         };
         self.0
             .mutate(|db| {
-                M::access_mut(db, ())
+                M::access_mut(db)
                     .as_certs_mut()
                     .upsert(&directory_url, || Ok(BTreeMap::new()))?
                     .insert(&identifiers, &cert)
@@ -441,6 +428,11 @@ impl<'de> Deserialize<'de> for AcmeProvider {
 impl AsRef<str> for AcmeProvider {
     fn as_ref(&self) -> &str {
         self.0.as_str()
+    }
+}
+impl AsRef<AcmeProvider> for AcmeProvider {
+    fn as_ref(&self) -> &AcmeProvider {
+        self
     }
 }
 impl ValueParserFactory for AcmeProvider {

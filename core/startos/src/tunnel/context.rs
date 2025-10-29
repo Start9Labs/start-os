@@ -1,12 +1,11 @@
-use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::collections::BTreeMap;
+use std::net::{IpAddr, SocketAddr};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use clap::Parser;
 use cookie::{Cookie, Expiration, SameSite};
-use helpers::NonDetachingJoinHandle;
 use http::HeaderMap;
 use imbl::OrdMap;
 use imbl_value::InternedString;
@@ -23,14 +22,16 @@ use url::Url;
 use crate::auth::Sessions;
 use crate::context::config::ContextConfig;
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
+use crate::db::model::public::NetworkInterfaceInfo;
 use crate::middleware::auth::AuthContext;
 use crate::net::forward::PortForwardController;
-use crate::net::gateway::{IdFilter, InterfaceFilter, NetworkInterfaceWatcher};
+use crate::net::gateway::{IdFilter, InterfaceFilter};
 use crate::prelude::*;
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::tunnel::db::{GatewayPort, TunnelDatabase};
+use crate::tunnel::wg::WIREGUARD_INTERFACE_NAME;
 use crate::tunnel::TUNNEL_DEFAULT_LISTEN;
+use crate::util::collections::OrdMapIterMut;
 use crate::util::io::read_file_to_string;
 use crate::util::sync::{SyncMutex, Watch};
 use crate::util::Invoke;
@@ -100,7 +101,24 @@ impl TunnelContext {
         )
         .await?;
         let listen = config.tunnel_listen.unwrap_or(TUNNEL_DEFAULT_LISTEN);
-        let net_iface = Watch::new(crate::net::utils::load_network_interface_info().await?);
+        let ip_info = crate::net::utils::load_ip_info().await?;
+        let net_iface = db
+            .mutate(|db| {
+                db.as_gateways_mut().mutate(|g| {
+                    for (_, v) in OrdMapIterMut::from(&mut *g) {
+                        v.ip_info = None;
+                    }
+                    for (id, info) in ip_info {
+                        if id.as_str() != WIREGUARD_INTERFACE_NAME {
+                            g.entry(id).or_default().ip_info = Some(Arc::new(info));
+                        }
+                    }
+                    Ok(g.clone())
+                })
+            })
+            .await
+            .result?;
+        let net_iface = Watch::new(net_iface);
         let forward = PortForwardController::new(net_iface.clone_unseen());
 
         Command::new("sysctl")
@@ -111,12 +129,8 @@ impl TunnelContext {
 
         for iface in net_iface.peek(|i| {
             i.iter()
-                .filter(|(_, info)| {
-                    dbg!(info).ip_info.as_ref().map_or(false, |i| {
-                        dbg!(i).device_type != Some(NetworkInterfaceType::Wireguard)
-                    })
-                })
                 .map(|(name, _)| name)
+                .filter(|id| id.as_str() != WIREGUARD_INTERFACE_NAME)
                 .cloned()
                 .collect::<Vec<_>>()
         }) {

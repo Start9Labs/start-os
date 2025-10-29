@@ -8,6 +8,7 @@ use crate::prelude::*;
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
 #[model = "Model<Self>"]
+#[serde(rename_all = "camelCase")]
 pub struct KeyStore {
     pub onion: OnionStore,
     pub local_certs: CertStore,

@@ -222,7 +222,7 @@ reqwest_cookie_store = "0.8.0"
 rpassword = "7.2.0"
 rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "master" }
 rust-argon2 = "2.0.0"
-rustyline-async = "0.4.1"
+rustyline-async = "0.4.7"
 safelog = { version = "0.4.8", git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit", optional = true }
 semver = { version = "1.0.20", features = ["serde"] }
 serde = { version = "1.0", features = ["derive", "rc"] }

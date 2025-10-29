@@ -79,9 +79,3 @@ pub fn tunnel_router(ctx: TunnelContext) -> Router {
             }),
         )
 }
-
-impl<A: Accept + Send + Sync + 'static> WebServer<A> {
-    pub fn serve_tunnel(&mut self, ctx: TunnelContext) {
-        self.serve_router(tunnel_router(ctx))
-    }
-}

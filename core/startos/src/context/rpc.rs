@@ -31,10 +31,11 @@ use crate::disk::OsPartitionInfo;
 use crate::init::{check_time_is_synchronized, InitResult};
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::lxc::LxcManager;
+use crate::net::gateway::UpgradableListener;
 use crate::net::net_controller::{NetController, NetService};
 use crate::net::socks::DEFAULT_SOCKS_LISTEN;
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
-use crate::net::web_server::{UpgradableListener, WebServerAcceptorSetter};
+use crate::net::web_server::WebServerAcceptorSetter;
 use crate::net::wifi::WpaCli;
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};
@@ -46,7 +47,7 @@ use crate::shutdown::Shutdown;
 use crate::util::io::delete_file;
 use crate::util::lshw::LshwDevice;
 use crate::util::sync::{SyncMutex, SyncRwLock, Watch};
-use crate::{DATA_DIR, HOST_IP};
+use crate::DATA_DIR;
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,

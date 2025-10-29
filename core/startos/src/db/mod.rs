@@ -31,13 +31,23 @@ lazy_static::lazy_static! {
 }
 
 pub trait DbAccess<T>: Sized {
-    type Key<'a>;
-    fn access<'a>(db: &'a Model<Self>, key: Self::Key<'_>) -> &'a Model<T>;
+    fn access<'a>(db: &'a Model<Self>) -> &'a Model<T>;
 }
 
-pub trait DbAccessMut<T>: Sized {
+pub trait DbAccessMut<T>: DbAccess<T> {
+    fn access_mut<'a>(db: &'a mut Model<Self>) -> &'a mut Model<T>;
+}
+
+pub trait DbAccessByKey<T>: Sized {
     type Key<'a>;
-    fn access_mut<'a>(db: &'a mut Model<Self>, key: Self::Key<'_>) -> &'a mut Model<T>;
+    fn access_by_key<'a>(db: &'a Model<Self>, key: Self::Key<'_>) -> Option<&'a Model<T>>;
+}
+
+pub trait DbAccessMutByKey<T>: DbAccessByKey<T> {
+    fn access_mut_by_key<'a>(
+        db: &'a mut Model<Self>,
+        key: Self::Key<'_>,
+    ) -> Option<&'a mut Model<T>>;
 }
 
 pub fn db<C: Context>() -> ParentHandler<C> {

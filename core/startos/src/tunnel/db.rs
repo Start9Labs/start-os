@@ -1,15 +1,13 @@
-use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, SocketAddr, SocketAddrV4};
+use std::collections::BTreeMap;
+use std::net::{SocketAddr, SocketAddrV4};
 use std::path::PathBuf;
 
 use clap::builder::ValueParserFactory;
 use clap::Parser;
-use imbl::HashMap;
+use imbl::{HashMap, OrdMap};
 use imbl_value::InternedString;
 use itertools::Itertools;
 use models::{FromStrParser, GatewayId};
-use openssl::pkey::{PKey, Private};
-use openssl::x509::X509;
 use patch_db::json_ptr::{JsonPointer, ROOT};
 use patch_db::Dump;
 use rpc_toolkit::yajrc::RpcError;
@@ -20,16 +18,14 @@ use ts_rs::TS;
 
 use crate::auth::Sessions;
 use crate::context::CliContext;
-use crate::net::ssl::FullchainCertData;
+use crate::db::model::public::NetworkInterfaceInfo;
 use crate::prelude::*;
 use crate::sign::AnyVerifyingKey;
 use crate::tunnel::auth::SignerInfo;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::web::TunnelCertData;
 use crate::tunnel::wg::WgServer;
-use crate::util::serde::{
-    apply_expr, deserialize_from_str, serialize_display, HandlerExtSerde, Pem,
-};
+use crate::util::serde::{apply_expr, deserialize_from_str, serialize_display, HandlerExtSerde};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct GatewayPort(pub GatewayId, pub u16);
@@ -84,7 +80,8 @@ pub struct TunnelDatabase {
     pub sessions: Sessions,
     pub password: Option<String>,
     pub auth_pubkeys: HashMap<AnyVerifyingKey, SignerInfo>,
-    pub certificates: BTreeMap<JsonKey<BTreeSet<InternedString>>, TunnelCertData>,
+    pub certificates: Option<TunnelCertData>,
+    pub gateways: OrdMap<GatewayId, NetworkInterfaceInfo>,
     pub wg: WgServer,
     pub port_forwards: PortForwards,
 }

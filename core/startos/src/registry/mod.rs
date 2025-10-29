@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use axum::Router;
 use futures::future::ready;
 use models::DataUrl;
-use rpc_toolkit::{Context, HandlerExt, ParentHandler, Server, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler, Server};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -140,10 +140,4 @@ pub fn registry_router(ctx: RegistryContext) -> Router {
                 }
             }),
         )
-}
-
-impl<A: Accept + Send + Sync + 'static> WebServer<A> {
-    pub fn serve_registry(&mut self, ctx: RegistryContext) {
-        self.serve_router(registry_router(ctx))
-    }
 }

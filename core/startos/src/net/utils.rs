@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6};
 use std::path::Path;
 
@@ -5,7 +6,6 @@ use async_stream::try_stream;
 use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
 use futures::{StreamExt, TryStreamExt};
-use imbl::OrdMap;
 use imbl_value::InternedString;
 use ipnet::{IpNet, Ipv4Net, Ipv6Net};
 use models::GatewayId;
@@ -13,13 +13,11 @@ use nix::net::if_::if_nametoindex;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::process::Command;
 
-use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
+use crate::db::model::public::{IpInfo, NetworkInterfaceType};
 use crate::prelude::*;
-use crate::util::collections::OrdMapIterMut;
 use crate::util::Invoke;
 
-pub async fn load_network_interface_info() -> Result<OrdMap<GatewayId, NetworkInterfaceInfo>, Error>
-{
+pub async fn load_ip_info() -> Result<BTreeMap<GatewayId, IpInfo>, Error> {
     let output = String::from_utf8(
         Command::new("ip")
             .arg("-o")
@@ -36,14 +34,14 @@ pub async fn load_network_interface_info() -> Result<OrdMap<GatewayId, NetworkIn
         )
     };
 
-    let mut res = OrdMap::<GatewayId, NetworkInterfaceInfo>::new();
+    let mut res = BTreeMap::<GatewayId, IpInfo>::new();
 
     for line in output.lines() {
         let split = line.split_ascii_whitespace().collect::<Vec<_>>();
         let iface = GatewayId::from(InternedString::from(*split.get(1).ok_or_else(&err_fn)?));
         let subnet: IpNet = split.get(3).ok_or_else(&err_fn)?.parse()?;
-        let info = res.entry(iface).or_default();
-        let ip_info = info.ip_info.get_or_insert_default();
+        let ip_info = res.entry(iface.clone()).or_default();
+        ip_info.name = iface.into();
         ip_info.scope_id = split
             .get(0)
             .ok_or_else(&err_fn)?
@@ -53,8 +51,7 @@ pub async fn load_network_interface_info() -> Result<OrdMap<GatewayId, NetworkIn
         ip_info.subnets.insert(subnet);
     }
 
-    for (id, info) in OrdMapIterMut::from(&mut res) {
-        let ip_info = info.ip_info.get_or_insert_default();
+    for (id, ip_info) in res.iter_mut() {
         ip_info.device_type = probe_iface_type(id.as_str()).await;
     }
 

@@ -12,8 +12,9 @@ use tracing::instrument;
 use crate::context::config::ServerConfig;
 use crate::context::rpc::InitRpcContextPhases;
 use crate::context::{DiagnosticContext, InitContext, RpcContext};
-use crate::net::gateway::SelfContainedNetworkInterfaceListener;
-use crate::net::web_server::{Acceptor, UpgradableListener, WebServer};
+use crate::net::gateway::{BindTcp, SelfContainedNetworkInterfaceListener, UpgradableListener};
+use crate::net::static_server::refresher;
+use crate::net::web_server::{Acceptor, WebServer};
 use crate::shutdown::Shutdown;
 use crate::system::launch_metrics_task;
 use crate::util::io::append_file;
@@ -147,9 +148,10 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
             .build()
             .expect("failed to initialize runtime");
         let res = rt.block_on(async {
-            let mut server = WebServer::new(Acceptor::bind_upgradable(
-                SelfContainedNetworkInterfaceListener::bind(80),
-            ));
+            let mut server = WebServer::new(
+                Acceptor::bind_upgradable(SelfContainedNetworkInterfaceListener::bind(BindTcp, 80)),
+                refresher(),
+            );
             match inner_main(&mut server, &config).await {
                 Ok(a) => {
                     server.shutdown().await;

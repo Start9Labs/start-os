@@ -75,6 +75,8 @@ impl VersionT for Version {
         }
         fix_host(&mut db["public"]["serverInfo"]["network"]["host"])?;
 
+        db["private"]["keyStore"]["localCerts"] = db["private"]["keyStore"]["local_certs"].clone();
+
         Ok(Value::Null)
     }
     fn down(self, _db: &mut Value) -> Result<(), Error> {

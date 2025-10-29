@@ -80,6 +80,8 @@ export const PRIVATE_IPV4_RANGES = [
   new IpNet("192.168.0.0/16"),
 ]
 
+export const IPV4_LOOPBACK = new IpNet("127.0.0.0/8")
+export const IPV6_LOOPBACK = new IpNet("::1/128")
 export const IPV6_LINK_LOCAL = new IpNet("fe80::/10")
 
 export const CGNAT = new IpNet("100.64.0.0/10")

@@ -266,6 +266,9 @@ impl<T> Watch<T> {
             version: 0,
         }
     }
+    pub fn watcher_count(&self) -> usize {
+        Arc::strong_count(&self.shared)
+    }
     #[cfg_attr(feature = "unstable", inline(never))]
     pub fn poll_changed(&mut self, cx: &mut std::task::Context<'_>) -> Poll<()> {
         self.shared.mutate(|shared| {

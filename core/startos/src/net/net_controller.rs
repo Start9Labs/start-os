@@ -9,9 +9,10 @@ use ipnet::IpNet;
 use models::{GatewayId, HostId, OptionExt, PackageId};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
+use tokio_rustls::rustls::ClientConfig as TlsClientConfig;
 use tracing::instrument;
 
-use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
+use crate::db::model::public::NetworkInterfaceType;
 use crate::db::model::Database;
 use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
@@ -28,7 +29,7 @@ use crate::net::service_interface::{GatewayInfo, HostnameInfo, IpHostname, Onion
 use crate::net::socks::SocksController;
 use crate::net::tor::{OnionAddress, TorController, TorSecretKey};
 use crate::net::utils::ipv6_is_local;
-use crate::net::vhost::{AlpnInfo, ProxyTarget, VHostController};
+use crate::net::vhost::{AlpnInfo, DynVHostTarget, ProxyTarget, VHostController};
 use crate::prelude::*;
 use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::util::serde::MaybeUtf8String;
@@ -38,6 +39,7 @@ pub struct NetController {
     pub(crate) db: TypedPatchDb<Database>,
     pub(super) tor: TorController,
     pub(super) vhost: VHostController,
+    pub(super) tls_client_config: Arc<TlsClientConfig>,
     pub(crate) net_iface: Arc<NetworkInterfaceController>,
     pub(super) dns: DnsController,
     pub(super) forward: PortForwardController,
@@ -55,10 +57,24 @@ impl NetController {
         let net_iface = Arc::new(NetworkInterfaceController::new(db.clone()));
         let tor = TorController::new()?;
         let socks = SocksController::new(socks_listen, tor.clone())?;
+        let crypto_provider = Arc::new(tokio_rustls::rustls::crypto::ring::default_provider());
+        let tls_client_config = Arc::new(crate::net::tls::client_config(
+            crypto_provider.clone(),
+            [&*db
+                .peek()
+                .await
+                .as_private()
+                .as_key_store()
+                .as_local_certs()
+                .as_root_cert()
+                .de()?
+                .0],
+        )?);
         Ok(Self {
             db: db.clone(),
             tor,
-            vhost: VHostController::new(db.clone(), net_iface.clone()),
+            vhost: VHostController::new(db.clone(), net_iface.clone(), crypto_provider),
+            tls_client_config,
             dns: DnsController::init(db, &net_iface.watcher).await?,
             forward: PortForwardController::new(net_iface.watcher.subscribe()),
             net_iface,
@@ -267,7 +283,9 @@ impl NetServiceData {
                                 filter: bind.net.clone().into_dyn(),
                                 acme: None,
                                 addr,
-                                connect_ssl: connect_ssl.clone(),
+                                connect_ssl: connect_ssl
+                                    .clone()
+                                    .map(|_| ctrl.tls_client_config.clone()),
                             },
                         );
                     }
@@ -288,7 +306,9 @@ impl NetServiceData {
                                             .into_dyn(),
                                             acme: None,
                                             addr,
-                                            connect_ssl: connect_ssl.clone(),
+                                            connect_ssl: connect_ssl
+                                                .clone()
+                                                .map(|_| ctrl.tls_client_config.clone()),
                                         },
                                     ); // TODO: wrap onion ssl stream directly in tor ctrl
                                 }
@@ -315,7 +335,9 @@ impl NetServiceData {
                                                     .into_dyn(),
                                                     acme: public.acme.clone(),
                                                     addr,
-                                                    connect_ssl: connect_ssl.clone(),
+                                                    connect_ssl: connect_ssl
+                                                        .clone()
+                                                        .map(|_| ctrl.tls_client_config.clone()),
                                                 },
                                             );
                                             vhosts.insert(
@@ -340,7 +362,9 @@ impl NetServiceData {
                                                     .into_dyn(),
                                                     acme: public.acme.clone(),
                                                     addr,
-                                                    connect_ssl: connect_ssl.clone(),
+                                                    connect_ssl: connect_ssl
+                                                        .clone()
+                                                        .map(|_| ctrl.tls_client_config.clone()),
                                                 },
                                             );
                                         } else {
@@ -354,7 +378,9 @@ impl NetServiceData {
                                                     .into_dyn(),
                                                     acme: None,
                                                     addr,
-                                                    connect_ssl: connect_ssl.clone(),
+                                                    connect_ssl: connect_ssl
+                                                        .clone()
+                                                        .map(|_| ctrl.tls_client_config.clone()),
                                                 },
                                             );
                                         }
@@ -379,7 +405,9 @@ impl NetServiceData {
                                                     .into_dyn(),
                                                     acme: public.acme.clone(),
                                                     addr,
-                                                    connect_ssl: connect_ssl.clone(),
+                                                    connect_ssl: connect_ssl
+                                                        .clone()
+                                                        .map(|_| ctrl.tls_client_config.clone()),
                                                 },
                                             );
                                         } else {
@@ -393,7 +421,9 @@ impl NetServiceData {
                                                     .into_dyn(),
                                                     acme: None,
                                                     addr,
-                                                    connect_ssl: connect_ssl.clone(),
+                                                    connect_ssl: connect_ssl
+                                                        .clone()
+                                                        .map(|_| ctrl.tls_client_config.clone()),
                                                 },
                                             );
                                         }
@@ -427,6 +457,11 @@ impl NetServiceData {
                     hostname_info.remove(port).unwrap_or_default();
                 for (gateway_id, info) in net_ifaces
                     .iter()
+                    .filter(|(_, info)| {
+                        info.ip_info.as_ref().map_or(false, |i| {
+                            !matches!(i.device_type, Some(NetworkInterfaceType::Bridge))
+                        })
+                    })
                     .filter(|(id, info)| bind.net.filter(id, info))
                 {
                     let gateway = GatewayInfo {
@@ -651,7 +686,10 @@ impl NetServiceData {
                     if let Some(prev) = prev {
                         prev
                     } else {
-                        (target.clone(), ctrl.vhost.add(key.0, key.1, target)?)
+                        (
+                            target.clone(),
+                            ctrl.vhost.add(key.0, key.1, DynVHostTarget::new(target))?,
+                        )
                     },
                 );
             } else {

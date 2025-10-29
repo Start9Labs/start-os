@@ -1,21 +1,22 @@
 use std::any::Any;
+use std::collections::BTreeMap;
 use std::future::Future;
 use std::net::SocketAddr;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::task::Poll;
+use std::task::{ready, Poll};
 use std::time::Duration;
 
 use axum::Router;
 use futures::future::Either;
-use futures::FutureExt;
+use futures::{FutureExt, TryFutureExt};
 use helpers::NonDetachingJoinHandle;
 use http::Extensions;
 use hyper_util::rt::{TokioIo, TokioTimer};
 use tokio::net::TcpListener;
 use tokio::sync::oneshot;
-use visit_rs::{Visit, Visitor};
+use visit_rs::{Visit, VisitFields, Visitor};
 
 use crate::net::static_server::{ui_router, UiContext};
 use crate::prelude::*;
@@ -38,6 +39,16 @@ impl<'a> MetadataVisitor for ExtensionVisitor<'a> {
         self.0.insert(metadata.clone());
     }
 }
+impl<'a> Visit<ExtensionVisitor<'a>>
+    for Box<dyn for<'x> Visit<ExtensionVisitor<'x>> + Send + Sync + 'static>
+{
+    fn visit(
+        &self,
+        visitor: &mut ExtensionVisitor<'a>,
+    ) -> <ExtensionVisitor<'a> as Visitor>::Result {
+        (&**self).visit(visitor)
+    }
+}
 
 pub struct ExtractVisitor<T>(Option<T>);
 impl<T> Visitor for ExtractVisitor<T> {
@@ -50,7 +61,12 @@ impl<T: Clone + Send + Sync + 'static> MetadataVisitor for ExtractVisitor<T> {
         }
     }
 }
-pub fn extract<T, M: Visit<ExtractVisitor<T>>>(metadata: &M) -> Option<T> {
+pub fn extract<
+    T: Clone + Send + Sync + 'static,
+    M: Visit<ExtractVisitor<T>> + Clone + Send + Sync + 'static,
+>(
+    metadata: &M,
+) -> Option<T> {
     let mut visitor = ExtractVisitor(None);
     visitor.visit(metadata);
     visitor.0
@@ -73,6 +89,13 @@ pub trait Accept {
         &mut self,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>>;
+    fn into_dyn(self) -> DynAccept
+    where
+        Self: Sized + Send + Sync + 'static,
+        for<'a> Self::Metadata: Visit<ExtensionVisitor<'a>> + Send + Sync + 'static,
+    {
+        DynAccept::new(self)
+    }
 }
 
 impl Accept for TcpListener {
@@ -121,6 +144,47 @@ where
     }
 }
 
+#[derive(Clone, VisitFields)]
+pub struct MapListenerMetadata<K, M> {
+    pub inner: M,
+    pub key: K,
+}
+impl<K, M, V> Visit<V> for MapListenerMetadata<K, M>
+where
+    V: MetadataVisitor,
+    K: Visit<V>,
+    M: Visit<V>,
+{
+    fn visit(&self, visitor: &mut V) -> <V as Visitor>::Result {
+        self.visit_fields(visitor).collect()
+    }
+}
+
+impl<K, A> Accept for BTreeMap<K, A>
+where
+    K: Clone,
+    A: Accept,
+{
+    type Metadata = MapListenerMetadata<K, A::Metadata>;
+    fn poll_accept(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>> {
+        for (key, listener) in self {
+            if let Poll::Ready((metadata, stream)) = listener.poll_accept(cx)? {
+                return Poll::Ready(Ok((
+                    MapListenerMetadata {
+                        inner: metadata,
+                        key: key.clone(),
+                    },
+                    stream,
+                )));
+            }
+        }
+        Poll::Pending
+    }
+}
+
 impl<A, B> Accept for Either<A, B>
 where
     A: Accept,
@@ -147,6 +211,68 @@ impl<A: Accept> Accept for Option<A> {
             None => Poll::Pending,
             Some(a) => a.poll_accept(cx),
         }
+    }
+}
+
+trait DynAcceptT: Send + Sync {
+    fn poll_accept(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<
+        Result<
+            (
+                Box<dyn for<'a> Visit<ExtensionVisitor<'a>> + Send + Sync>,
+                AcceptStream,
+            ),
+            Error,
+        >,
+    >;
+}
+impl<A> DynAcceptT for A
+where
+    A: Accept + Send + Sync,
+    for<'a> <A as Accept>::Metadata: Visit<ExtensionVisitor<'a>> + Send + Sync + 'static,
+{
+    fn poll_accept(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<
+        Result<
+            (
+                Box<dyn for<'a> Visit<ExtensionVisitor<'a>> + Send + Sync>,
+                AcceptStream,
+            ),
+            Error,
+        >,
+    > {
+        let (metadata, stream) = ready!(Accept::poll_accept(self, cx)?);
+        Poll::Ready(Ok((Box::new(metadata), stream)))
+    }
+}
+pub struct DynAccept(Box<dyn DynAcceptT>);
+impl Accept for DynAccept {
+    type Metadata = Box<dyn for<'a> Visit<ExtensionVisitor<'a>> + Send + Sync>;
+    fn poll_accept(
+        &mut self,
+        cx: &mut std::task::Context<'_>,
+    ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>> {
+        DynAcceptT::poll_accept(&mut *self.0, cx)
+    }
+    fn into_dyn(self) -> DynAccept
+    where
+        Self: Sized,
+        for<'a> Self::Metadata: Visit<ExtensionVisitor<'a>> + Send + Sync + 'static,
+    {
+        self
+    }
+}
+impl DynAccept {
+    pub fn new<A>(accept: A) -> Self
+    where
+        A: Accept + Send + Sync + 'static,
+        for<'a> <A as Accept>::Metadata: Visit<ExtensionVisitor<'a>> + Send + Sync + 'static,
+    {
+        Self(Box::new(accept))
     }
 }
 
@@ -181,6 +307,64 @@ impl Acceptor<Vec<TcpListener>> {
     pub async fn bind(listen: impl IntoIterator<Item = SocketAddr>) -> Result<Self, Error> {
         Ok(Self::new(
             futures::future::try_join_all(listen.into_iter().map(TcpListener::bind)).await?,
+        ))
+    }
+}
+impl Acceptor<Vec<DynAccept>> {
+    pub async fn bind_dyn(listen: impl IntoIterator<Item = SocketAddr>) -> Result<Self, Error> {
+        Ok(Self::new(
+            futures::future::try_join_all(
+                listen
+                    .into_iter()
+                    .map(TcpListener::bind)
+                    .map(|f| f.map_ok(DynAccept::new)),
+            )
+            .await?,
+        ))
+    }
+}
+impl<K> Acceptor<BTreeMap<K, TcpListener>>
+where
+    K: Ord + Clone + Send + Sync + 'static,
+{
+    pub async fn bind_map(
+        listen: impl IntoIterator<Item = (K, SocketAddr)>,
+    ) -> Result<Self, Error> {
+        Ok(Self::new(
+            futures::future::try_join_all(listen.into_iter().map(|(key, addr)| async move {
+                Ok::<_, Error>((
+                    key,
+                    TcpListener::bind(addr)
+                        .await
+                        .with_kind(ErrorKind::Network)?,
+                ))
+            }))
+            .await?
+            .into_iter()
+            .collect(),
+        ))
+    }
+}
+impl<K> Acceptor<BTreeMap<K, DynAccept>>
+where
+    K: Ord + Clone + Send + Sync + 'static,
+{
+    pub async fn bind_map_dyn(
+        listen: impl IntoIterator<Item = (K, SocketAddr)>,
+    ) -> Result<Self, Error> {
+        Ok(Self::new(
+            futures::future::try_join_all(listen.into_iter().map(|(key, addr)| async move {
+                Ok::<_, Error>((
+                    key,
+                    TcpListener::bind(addr)
+                        .await
+                        .with_kind(ErrorKind::Network)?,
+                ))
+            }))
+            .await?
+            .into_iter()
+            .map(|(key, listener)| (key, listener.into_dyn()))
+            .collect(),
         ))
     }
 }

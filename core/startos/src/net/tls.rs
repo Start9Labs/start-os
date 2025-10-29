@@ -4,10 +4,13 @@ use std::task::Poll;
 use futures::future::BoxFuture;
 use futures::FutureExt;
 use imbl_value::InternedString;
+use openssl::x509::X509Ref;
 use tokio::io::AsyncWriteExt;
+use tokio_rustls::rustls::crypto::CryptoProvider;
+use tokio_rustls::rustls::pki_types::CertificateDer;
 use tokio_rustls::rustls::server::{Acceptor, ClientHello, ResolvesServerCert};
 use tokio_rustls::rustls::sign::CertifiedKey;
-use tokio_rustls::rustls::ServerConfig;
+use tokio_rustls::rustls::{ClientConfig, RootCertStore, ServerConfig};
 use tokio_rustls::LazyConfigAcceptor;
 use visit_rs::{Visit, VisitFields};
 
@@ -38,35 +41,28 @@ impl<V: MetadataVisitor> Visit<V> for TlsHandshakeInfo {
     }
 }
 
-pub trait TlsHandler<A: Accept> {
-    fn get_config<'a>(
-        self,
+pub trait TlsHandler<'a, A: Accept> {
+    fn get_config(
+        &'a mut self,
         hello: &'a ClientHello<'a>,
         metadata: &'a A::Metadata,
-    ) -> impl Future<Output = Option<ServerConfig>> + Send + 'a
-    where
-        Self: 'a,
-        A: 'a,
-        A::Metadata: 'a;
+    ) -> impl Future<Output = Option<ServerConfig>> + Send + 'a;
 }
 
 #[derive(Clone)]
 pub struct ChainedHandler<H0, H1>(pub H0, pub H1);
-impl<A, H0, H1> TlsHandler<A> for ChainedHandler<H0, H1>
+impl<'a, A, H0, H1> TlsHandler<'a, A> for ChainedHandler<H0, H1>
 where
-    A: Accept,
+    A: Accept + 'a,
     <A as Accept>::Metadata: Send + Sync,
-    H0: TlsHandler<A> + Send,
-    H1: TlsHandler<A> + Send,
+    H0: TlsHandler<'a, A> + Send,
+    H1: TlsHandler<'a, A> + Send,
 {
-    async fn get_config<'a>(
-        self,
+    async fn get_config(
+        &'a mut self,
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
-    ) -> Option<ServerConfig>
-    where
-        Self: 'a,
-    {
+    ) -> Option<ServerConfig> {
         if let Some(config) = self.0.get_config(hello, metadata).await {
             return Some(config);
         }
@@ -74,6 +70,7 @@ where
     }
 }
 
+#[derive(Clone)]
 pub struct TlsHandlerWrapper<I, W> {
     pub inner: I,
     pub wrapper: W,
@@ -81,7 +78,7 @@ pub struct TlsHandlerWrapper<I, W> {
 
 pub trait WrapTlsHandler<A: Accept> {
     fn wrap<'a>(
-        self,
+        &'a mut self,
         prev: ServerConfig,
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
@@ -90,23 +87,18 @@ pub trait WrapTlsHandler<A: Accept> {
         Self: 'a;
 }
 
-impl<A, I, W> TlsHandler<A> for TlsHandlerWrapper<I, W>
+impl<'a, A, I, W> TlsHandler<'a, A> for TlsHandlerWrapper<I, W>
 where
-    A: Accept,
+    A: Accept + 'a,
     <A as Accept>::Metadata: Send + Sync,
-    I: TlsHandler<A> + Send,
+    I: TlsHandler<'a, A> + Send,
     W: WrapTlsHandler<A> + Send,
 {
-    async fn get_config<'a>(
-        self,
+    async fn get_config(
+        &'a mut self,
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
-    ) -> Option<ServerConfig>
-    where
-        Self: 'a,
-        A: 'a,
-        <A as Accept>::Metadata: 'a,
-    {
+    ) -> Option<ServerConfig> {
         let prev = self.inner.get_config(hello, metadata).await?;
         self.wrapper.wrap(prev, hello, metadata).await
     }
@@ -120,13 +112,20 @@ impl ResolvesServerCert for SingleCertResolver {
     }
 }
 
-pub struct TlsListener<A: Accept, H: TlsHandler<A>> {
+pub struct TlsListener<A: Accept, H: for<'a> TlsHandler<'a, A>> {
     pub accept: A,
     pub tls_handler: H,
-    in_progress:
-        Vec<BoxFuture<'static, Result<Option<(TlsMetadata<A::Metadata>, AcceptStream)>, Error>>>,
+    in_progress: Vec<
+        BoxFuture<
+            'static,
+            (
+                H,
+                Result<Option<(TlsMetadata<A::Metadata>, AcceptStream)>, Error>,
+            ),
+        >,
+    >,
 }
-impl<A: Accept, H: TlsHandler<A>> TlsListener<A, H> {
+impl<A: Accept, H: for<'a> TlsHandler<'a, A>> TlsListener<A, H> {
     pub fn new(accept: A, cert_handler: H) -> Self {
         Self {
             accept,
@@ -137,93 +136,111 @@ impl<A: Accept, H: TlsHandler<A>> TlsListener<A, H> {
 }
 impl<A, H> Accept for TlsListener<A, H>
 where
-    A: Accept,
+    A: Accept + 'static,
     A::Metadata: Send + 'static,
-    H: TlsHandler<A> + Clone + Send + 'static,
+    for<'a> H: TlsHandler<'a, A> + Clone + Send + 'static,
 {
     type Metadata = TlsMetadata<A::Metadata>;
     fn poll_accept(
         &mut self,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(Self::Metadata, AcceptStream), Error>> {
-        if let Some((idx, res)) = self
-            .in_progress
-            .iter_mut()
-            .enumerate()
-            .find_map(|(idx, fut)| match fut.poll_unpin(cx) {
-                Poll::Ready(a) => Some((idx, a)),
-                Poll::Pending => None,
-            })
-        {
-            self.in_progress.swap_remove(idx);
-            if let Some(res) = res.transpose() {
-                return Poll::Ready(res);
-            }
-        }
-
-        if let Poll::Ready((metadata, stream)) = self.accept.poll_accept(cx)? {
-            let tls_handler = self.tls_handler.clone();
-            self.in_progress.push(
-                async move {
-                    let mut acceptor =
-                        LazyConfigAcceptor::new(Acceptor::default(), BackTrackingIO::new(stream));
-                    let mut mid: tokio_rustls::StartHandshake<BackTrackingIO<AcceptStream>> =
-                        match (&mut acceptor).await {
-                            Ok(a) => a,
-                            Err(e) => {
-                                let mut stream = acceptor.take_io().or_not_found("acceptor io")?;
-                                let (_, buf) = stream.rewind();
-                                if std::str::from_utf8(buf)
-                                    .ok()
-                                    .and_then(|buf| {
-                                        buf.lines()
-                                            .map(|l| l.trim())
-                                            .filter(|l| !l.is_empty())
-                                            .next()
-                                    })
-                                    .map_or(false, |buf| {
-                                        regex::Regex::new("[A-Z]+ (.+) HTTP/1")
-                                            .unwrap()
-                                            .is_match(buf)
-                                    })
-                                {
-                                    handle_http_on_https(stream).await.log_err();
-
-                                    return Ok(None);
-                                } else {
-                                    return Err(e).with_kind(ErrorKind::Network);
-                                }
-                            }
-                        };
-                    let hello = mid.client_hello();
-                    if let Some(cfg) = tls_handler.get_config(&hello, &metadata).await {
-                        let metadata = TlsMetadata {
-                            inner: metadata,
-                            tls_info: TlsHandshakeInfo {
-                                sni: hello.server_name().map(InternedString::intern),
-                                alpn: hello
-                                    .alpn()
-                                    .into_iter()
-                                    .flatten()
-                                    .map(|a| MaybeUtf8String(a.to_vec()))
-                                    .collect(),
-                            },
-                        };
-                        let buffered = mid.io.stop_buffering();
-                        mid.io
-                            .write_all(&buffered)
-                            .await
-                            .with_kind(ErrorKind::Network)?;
-                        return Ok(Some((
-                            metadata,
-                            Box::pin(mid.into_stream(Arc::new(cfg)).await?) as AcceptStream,
-                        )));
-                    }
-
-                    Ok(None)
+        loop {
+            if let Some((idx, (handler, res))) =
+                self.in_progress
+                    .iter_mut()
+                    .enumerate()
+                    .find_map(|(idx, fut)| match fut.poll_unpin(cx) {
+                        Poll::Ready(a) => Some((idx, a)),
+                        Poll::Pending => None,
+                    })
+            {
+                drop(self.in_progress.swap_remove(idx));
+                if let Some(res) = res.transpose() {
+                    self.tls_handler = handler;
+                    return Poll::Ready(res);
                 }
-                .boxed(),
-            );
+                continue;
+            }
+
+            if let Poll::Ready((metadata, stream)) = self.accept.poll_accept(cx)? {
+                crate::dbg!("ACCEPTED");
+                let mut tls_handler = self.tls_handler.clone();
+                self.in_progress.push(
+                    async move {
+                        let res = async {
+                            let mut acceptor = LazyConfigAcceptor::new(
+                                Acceptor::default(),
+                                BackTrackingIO::new(stream),
+                            );
+                            let mut mid: tokio_rustls::StartHandshake<
+                                BackTrackingIO<AcceptStream>,
+                            > = match (&mut acceptor).await {
+                                Ok(a) => a,
+                                Err(e) => {
+                                    let mut stream =
+                                        acceptor.take_io().or_not_found("acceptor io")?;
+                                    let (_, buf) = stream.rewind();
+                                    if std::str::from_utf8(buf)
+                                        .ok()
+                                        .and_then(|buf| {
+                                            buf.lines()
+                                                .map(|l| l.trim())
+                                                .filter(|l| !l.is_empty())
+                                                .next()
+                                        })
+                                        .map_or(false, |buf| {
+                                            regex::Regex::new("[A-Z]+ (.+) HTTP/1")
+                                                .unwrap()
+                                                .is_match(buf)
+                                        })
+                                    {
+                                        handle_http_on_https(stream).await.log_err();
+
+                                        return Ok(None);
+                                    } else {
+                                        return Err(e).with_kind(ErrorKind::Network);
+                                    }
+                                }
+                            };
+                            let hello = mid.client_hello();
+                            crate::dbg!("getting config");
+                            if let Some(cfg) = tls_handler.get_config(&hello, &metadata).await {
+                                crate::dbg!("config gotten");
+                                let metadata = TlsMetadata {
+                                    inner: metadata,
+                                    tls_info: TlsHandshakeInfo {
+                                        sni: hello.server_name().map(InternedString::intern),
+                                        alpn: hello
+                                            .alpn()
+                                            .into_iter()
+                                            .flatten()
+                                            .map(|a| MaybeUtf8String(a.to_vec()))
+                                            .collect(),
+                                    },
+                                };
+                                let buffered = mid.io.stop_buffering();
+                                mid.io
+                                    .write_all(&buffered)
+                                    .await
+                                    .with_kind(ErrorKind::Network)?;
+                                return Ok(Some((
+                                    metadata,
+                                    Box::pin(mid.into_stream(Arc::new(cfg)).await?) as AcceptStream,
+                                )));
+                            }
+                            crate::dbg!("no config");
+
+                            Ok(None)
+                        }
+                        .await;
+                        (tls_handler, res)
+                    }
+                    .boxed(),
+                );
+                continue;
+            }
+            break;
         }
 
         Poll::Pending
@@ -279,4 +296,21 @@ async fn handle_http_on_https(stream: impl ReadWriter + Unpin + 'static) -> Resu
         )
         .await
         .map_err(|e| Error::new(color_eyre::eyre::Report::msg(e), ErrorKind::Network))
+}
+
+pub fn client_config<'a, I: IntoIterator<Item = &'a X509Ref>>(
+    crypto_provider: Arc<CryptoProvider>,
+    root_certs: I,
+) -> Result<ClientConfig, Error> {
+    let mut certs = RootCertStore::empty();
+    for cert in root_certs {
+        certs
+            .add(CertificateDer::from_slice(&cert.to_der()?))
+            .with_kind(ErrorKind::OpenSsl)?;
+    }
+    Ok(ClientConfig::builder_with_provider(crypto_provider.clone())
+        .with_safe_default_protocol_versions()
+        .with_kind(ErrorKind::OpenSsl)?
+        .with_root_certificates(certs)
+        .with_no_client_auth())
 }

@@ -157,6 +157,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
 
 [[package]]
+name = "ansi-width"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "219e3ce6f2611d83b51ec2098a12702112c29e57203a6b0a0929b2cddb486608"
+dependencies = [
+ "unicode-width 0.1.14",
+]
+
+[[package]]
 name = "anstream"
 version = "0.6.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1777,16 +1786,18 @@ checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 
 [[package]]
 name = "crossterm"
-version = "0.27.0"
+version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f476fe445d41c9e991fd07515a6f463074b782242ccf4a5b7b1d1012e70824df"
+checksum = "d8b9f2e4c67f833b660cdb0a3523065869fb35570177239812ed4c905aeff87b"
 dependencies = [
  "bitflags 2.10.0",
  "crossterm_winapi",
+ "derive_more 2.0.1",
+ "document-features",
  "futures-core",
- "libc",
- "mio 0.8.11",
+ "mio",
  "parking_lot",
+ "rustix 1.1.2",
  "signal-hook",
  "signal-hook-mio",
  "winapi",
@@ -4535,26 +4546,14 @@ dependencies = [
 
 [[package]]
 name = "mio"
-version = "0.8.11"
+version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4a650543ca06a924e8b371db273b2756685faae30f8487da1b56505a8f78b0c"
+checksum = "78bed444cc8a2160f01cbcf811ef18cac863ad68ae8ca62092e8db51d51c761c"
 dependencies = [
  "libc",
  "log",
  "wasi 0.11.1+wasi-snapshot-preview1",
- "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "mio"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69d83b0086dc8ecf3ce9ae2874b2d1290252e2a30720bea58a5c6639b0092873"
-dependencies = [
- "libc",
- "log",
- "wasi 0.11.1+wasi-snapshot-preview1",
- "windows-sys 0.61.2",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -4726,7 +4725,7 @@ dependencies = [
  "kqueue",
  "libc",
  "log",
- "mio 1.1.0",
+ "mio",
  "notify-types",
  "walkdir",
  "windows-sys 0.60.2",
@@ -6440,18 +6439,17 @@ dependencies = [
 
 [[package]]
 name = "rustyline-async"
-version = "0.4.2"
+version = "0.4.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b6eb06391513b2184f0a5405c11a4a0a5302e8be442f4c5c35267187c2b37d5"
+checksum = "6e07ddce8399c61495b405dc94d4f30d01fc1c5e1238f10b9c09940678bc81ab"
 dependencies = [
+ "ansi-width",
  "crossterm",
- "futures-channel",
  "futures-util",
  "pin-project",
  "thingbuf",
- "thiserror 1.0.69",
+ "thiserror 2.0.17",
  "unicode-segmentation",
- "unicode-width 0.1.14",
 ]
 
 [[package]]
@@ -6907,7 +6905,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34db1a06d485c9142248b7a054f034b349b212551f3dfd19c94d45a754a217cd"
 dependencies = [
  "libc",
- "mio 0.8.11",
+ "mio",
  "signal-hook",
 ]
 
@@ -7338,7 +7336,7 @@ dependencies = [
  "libc",
  "log",
  "mbrman",
- "mio 1.1.0",
+ "mio",
  "models",
  "new_mime_guess",
  "nix 0.30.1",
@@ -7793,7 +7791,7 @@ checksum = "ff360e02eab121e0bc37a2d3b4d4dc622e6eda3a8e5253d5435ecf5bd4c68408"
 dependencies = [
  "bytes",
  "libc",
- "mio 1.1.0",
+ "mio",
  "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",

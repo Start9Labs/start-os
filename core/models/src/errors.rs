@@ -187,7 +187,6 @@ impl Display for ErrorKind {
     }
 }
 
-#[derive(Debug)]
 pub struct Error {
     pub source: color_eyre::eyre::Error,
     pub debug: Option<color_eyre::eyre::Error>,
@@ -198,7 +197,17 @@ pub struct Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.kind.as_str(), self.source)
+        write!(f, "{}: {:#}", self.kind.as_str(), self.source)
+    }
+}
+impl Debug for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}: {:?}",
+            self.kind.as_str(),
+            self.debug.as_ref().unwrap_or(&self.source)
+        )
     }
 }
 impl Error {

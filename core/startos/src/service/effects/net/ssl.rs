@@ -6,11 +6,11 @@ use ipnet::IpNet;
 use itertools::Itertools;
 use openssl::pkey::{PKey, Private};
 
-use crate::HOST_IP;
 use crate::service::effects::callbacks::CallbackHandler;
 use crate::service::effects::prelude::*;
 use crate::service::rpc::CallbackId;
 use crate::util::serde::Pem;
+use crate::HOST_IP;
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -95,7 +95,7 @@ pub async fn get_ssl_certificate(
                         .as_entries()?
                         .into_iter()
                         .flat_map(|(_, net)| net.as_ip_info().transpose_ref())
-                        .flat_map(|net| net.as_subnets().de().log_err())
+                        .flat_map(|net| net.as_deref().as_subnets().de().log_err())
                         .flatten()
                         .any(|s| s.addr() == ip)
                     {

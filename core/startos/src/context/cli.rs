@@ -172,7 +172,7 @@ impl CliContext {
                 return Ok(secret.into())
             }
             Err(Error::new(
-                eyre!("Developer Key does not exist! Please run `start-cli init` before running this command."),
+                eyre!("Developer Key does not exist! Please run `start-cli init-key` before running this command."),
                 crate::ErrorKind::Uninitialized
             ))
         })

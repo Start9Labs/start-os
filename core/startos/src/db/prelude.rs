@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::marker::PhantomData;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use imbl::OrdMap;
@@ -167,6 +168,21 @@ impl<T> Model<Option<T>> {
     }
 }
 
+impl<T> Model<Arc<T>> {
+    pub fn deref(self) -> Model<T> {
+        use patch_db::ModelExt;
+        self.transmute(|a| a)
+    }
+    pub fn as_deref(&self) -> &Model<T> {
+        use patch_db::ModelExt;
+        self.transmute_ref(|a| a)
+    }
+    pub fn as_deref_mut(&mut self) -> &mut Model<T> {
+        use patch_db::ModelExt;
+        self.transmute_mut(|a| a)
+    }
+}
+
 pub trait Map: DeserializeOwned + Serialize {
     type Key;
     type Value;
@@ -196,7 +212,7 @@ where
     type Key = JsonKey<A>;
     type Value = B;
     fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
-        serde_json::to_string(key).with_kind(ErrorKind::Serialization)
+        serde_json::to_string(&key.0).with_kind(ErrorKind::Serialization)
     }
 }
 

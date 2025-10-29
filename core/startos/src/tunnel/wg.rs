@@ -13,6 +13,8 @@ use crate::util::io::write_file_atomic;
 use crate::util::serde::Base64;
 use crate::util::Invoke;
 
+pub const WIREGUARD_INTERFACE_NAME: &str = "wg-start-tunnel";
+
 #[derive(Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
@@ -37,7 +39,7 @@ impl WgServer {
     pub async fn sync(&self) -> Result<(), Error> {
         Command::new("wg-quick")
             .arg("down")
-            .arg("wg0")
+            .arg(WIREGUARD_INTERFACE_NAME)
             .invoke(ErrorKind::Network)
             .await
             .or_else(|e| {
@@ -49,13 +51,13 @@ impl WgServer {
                 }
             })?;
         write_file_atomic(
-            "/etc/wireguard/wg0.conf",
+            const_format::formatcp!("/etc/wireguard/{WIREGUARD_INTERFACE_NAME}.conf"),
             self.server_config().to_string().as_bytes(),
         )
         .await?;
         Command::new("wg-quick")
             .arg("up")
-            .arg("wg0")
+            .arg(WIREGUARD_INTERFACE_NAME)
             .invoke(ErrorKind::Network)
             .await?;
         Ok(())

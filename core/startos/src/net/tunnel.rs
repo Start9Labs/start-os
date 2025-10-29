@@ -125,7 +125,7 @@ pub async fn remove_tunnel(
         return Ok(());
     };
 
-    if existing.as_device_type().de()? != Some(NetworkInterfaceType::Wireguard) {
+    if existing.as_deref().as_device_type().de()? != Some(NetworkInterfaceType::Wireguard) {
         return Err(Error::new(
             eyre!("network interface {id} is not a proxy"),
             ErrorKind::InvalidRequest,

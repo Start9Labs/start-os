@@ -17,6 +17,8 @@ use ts_rs::TS;
 
 use crate::account::AccountInfo;
 use crate::db::model::package::AllPackageData;
+use crate::db::model::Database;
+use crate::db::DbAccessByKey;
 use crate::net::acme::AcmeProvider;
 use crate::net::host::binding::{AddSslOptions, BindInfo, BindOptions, NetInfo};
 use crate::net::host::Host;
@@ -294,6 +296,19 @@ pub enum NetworkInterfaceType {
 #[ts(export)]
 pub struct AcmeSettings {
     pub contact: Vec<String>,
+}
+impl DbAccessByKey<AcmeSettings> for Database {
+    type Key<'a> = &'a AcmeProvider;
+    fn access_by_key<'a>(
+        db: &'a Model<Self>,
+        key: Self::Key<'_>,
+    ) -> Option<&'a Model<AcmeSettings>> {
+        db.as_public()
+            .as_server_info()
+            .as_network()
+            .as_acme()
+            .as_idx(key)
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]

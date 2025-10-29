@@ -1,4 +1,6 @@
+use std::collections::BTreeMap;
 use std::ffi::OsString;
+use std::net::SocketAddr;
 use std::time::Duration;
 
 use clap::Parser;
@@ -7,44 +9,77 @@ use helpers::NonDetachingJoinHandle;
 use rpc_toolkit::CliApp;
 use tokio::signal::unix::signal;
 use tracing::instrument;
+use visit_rs::Visit;
 
 use crate::context::config::ClientConfig;
 use crate::context::CliContext;
-use crate::net::web_server::{Acceptor, WebServer};
+use crate::net::gateway::{Bind, BindTcp};
+use crate::net::tls::{ChainedHandler, TlsListener};
+use crate::net::web_server::{Accept, Acceptor, MetadataVisitor, WebServer};
 use crate::prelude::*;
 use crate::tunnel::context::{TunnelConfig, TunnelContext};
+use crate::tunnel::tunnel_router;
 use crate::util::logger::LOGGER;
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum WebserverListener {
+    Http,
+    Https(SocketAddr),
+}
+impl<V: MetadataVisitor> Visit<V> for WebserverListener {
+    fn visit(&self, visitor: &mut V) -> <V as visit_rs::Visitor>::Result {
+        visitor.visit(self)
+    }
+}
 
 #[instrument(skip_all)]
 async fn inner_main(config: &TunnelConfig) -> Result<(), Error> {
     let server = async {
         let ctx = TunnelContext::init(config).await?;
         let listen = ctx.listen;
-        let mut server = WebServer::new(Acceptor::bind([listen]).await?);
+        let server = WebServer::new(
+            Acceptor::bind_map_dyn([(WebserverListener::Http, listen)]).await?,
+            tunnel_router(ctx.clone()),
+        );
+        let acceptor_setter = server.acceptor_setter();
+        let https_db = ctx.db.clone();
         let https_thread: NonDetachingJoinHandle<()> = tokio::spawn(async move {
-            let mut sub = setter_db.subscribe("/webserver".parse().unwrap()).await;
+            let mut sub = https_db.subscribe("/webserver".parse().unwrap()).await;
             while sub.recv().await.is_some() {
                 while let Err(e) = async {
-                    let external = setter_db.peek().await.into_webserver().de()?;
-
-                    let mut bind_err = None;
-
-                    setter.send_modify(|a| {
-                        a.retain(|a, _| *a == listen || Some(*a) == external);
-                        if let Some(external) = external {
-                            if !a.contains_key(&external) {
-                                match mio::net::TcpListener::bind(external) {
+                    if let Some(addr) = https_db.peek().await.as_webserver().de()? {
+                        acceptor_setter.send_if_modified(|a| {
+                            let key = WebserverListener::Https(addr);
+                            if !a.contains_key(&key) {
+                                match (|| {
+                                    Ok::<_, Error>(TlsListener::new(
+                                        BindTcp.bind(addr)?,
+                                        BasicCertHandler(https_db.clone()),
+                                    ))
+                                })() {
                                     Ok(l) => {
-                                        a.insert(external, TcpListener::from_std(l.into()));
-                                    }
-                                    Err(e) => bind_err = Some(e),
-                                }
-                            }
-                        }
-                    });
+                                        a.retain(|k, _| *k == WebserverListener::Http);
+                                        a.insert(key, l.into_dyn());
 
-                    if let Some(e) = bind_err {
-                        return Err(e);
+                                        true
+                                    }
+                                    Err(e) => {
+                                        tracing::error!("error adding ssl listener: {e}");
+                                        tracing::debug!("{e:?}");
+
+                                        false
+                                    }
+                                }
+                            } else {
+                                false
+                            }
+                        });
+                    } else {
+                        acceptor_setter.send_if_modified(|a| {
+                            let before = a.len();
+                            a.retain(|k, _| *k == WebserverListener::Http);
+                            a.len() != before
+                        });
                     }
 
                     Ok::<_, Error>(())
@@ -58,7 +93,6 @@ async fn inner_main(config: &TunnelConfig) -> Result<(), Error> {
             }
         })
         .into();
-        server.serve_tunnel(ctx.clone());
 
         let mut shutdown_recv = ctx.shutdown.subscribe();
 
@@ -97,7 +131,7 @@ async fn inner_main(config: &TunnelConfig) -> Result<(), Error> {
             .with_kind(crate::ErrorKind::Unknown)?;
 
         sig_handler.wait_for_abort().await;
-        setter_thread.wait_for_abort().await;
+        https_thread.wait_for_abort().await;
 
         Ok::<_, Error>(server)
     }

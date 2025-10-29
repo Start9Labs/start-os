@@ -552,6 +552,7 @@ async fn watch_ip(
 
                 let managed = device_proxy.managed().await?;
                 if !managed {
+                    dbg!("unmanaged", &iface);
                     return Ok(());
                 }
                 let dac = device_proxy.active_connection().await?;
@@ -595,10 +596,6 @@ async fn watch_ip(
                                 32 => Some(NetworkInterfaceType::Loopback),
                                 _ => None,
                             };
-
-                            if device_type == Some(NetworkInterfaceType::Loopback) {
-                                return Ok(());
-                            }
 
                             let name = InternedString::from(active_connection_proxy.id().await?);
 
@@ -676,7 +673,14 @@ async fn watch_ip(
                                             .into_iter()
                                             .map(IpNet::try_from)
                                             .try_collect()?;
-                                        let wan_ip = if !subnets.is_empty() {
+                                        let wan_ip = if !subnets.is_empty()
+                                            && !matches!(
+                                                device_type,
+                                                Some(
+                                                    NetworkInterfaceType::Bridge
+                                                        | NetworkInterfaceType::Loopback
+                                                )
+                                            ) {
                                             match get_wan_ipv4(iface.as_str()).await {
                                                 Ok(a) => a,
                                                 Err(e) => {
@@ -1534,6 +1538,17 @@ impl<B: Bind> NetworkInterfaceListener<B> {
 pub struct NetworkInterfaceListenerAcceptMetadata<B: Bind> {
     pub inner: <B::Accept as Accept>::Metadata,
     pub info: GatewayInfo,
+}
+impl<B: Bind> Clone for NetworkInterfaceListenerAcceptMetadata<B>
+where
+    <B::Accept as Accept>::Metadata: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            info: self.info.clone(),
+        }
+    }
 }
 impl<B, V> Visit<V> for NetworkInterfaceListenerAcceptMetadata<B>
 where

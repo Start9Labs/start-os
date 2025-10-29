@@ -1,7 +1,8 @@
-use std::cmp::{Ordering, min};
+use std::cmp::{min, Ordering};
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::IpAddr;
 use std::path::Path;
+use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use futures::FutureExt;
@@ -14,18 +15,32 @@ use openssl::error::ErrorStack;
 use openssl::hash::MessageDigest;
 use openssl::nid::Nid;
 use openssl::pkey::{PKey, Private};
-use openssl::x509::{X509, X509Builder, X509Extension, X509NameBuilder};
+use openssl::x509::extension::{
+    AuthorityKeyIdentifier, BasicConstraints, KeyUsage, SubjectAlternativeName,
+    SubjectKeyIdentifier,
+};
+use openssl::x509::{X509Builder, X509NameBuilder, X509};
 use openssl::*;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
+use tokio_rustls::rustls::crypto::CryptoProvider;
+use tokio_rustls::rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
+use tokio_rustls::rustls::server::ClientHello;
+use tokio_rustls::rustls::ServerConfig;
 use tracing::instrument;
+use visit_rs::Visit;
 
-use crate::SOURCE_DATE;
 use crate::account::AccountInfo;
+use crate::db::model::Database;
+use crate::db::{DbAccess, DbAccessMut};
 use crate::hostname::Hostname;
 use crate::init::check_time_is_synchronized;
+use crate::net::gateway::GatewayInfo;
+use crate::net::tls::TlsHandler;
+use crate::net::web_server::{extract, Accept, ExtractVisitor, TcpMetadata};
 use crate::prelude::*;
 use crate::util::serde::Pem;
+use crate::SOURCE_DATE;
 
 pub fn gen_nistp256() -> Result<PKey<Private>, ErrorStack> {
     PKey::from_ec_key(EcKey::generate(&*EcGroup::from_curve_name(
@@ -128,6 +143,16 @@ impl Model<CertStore> {
             int: self.as_int_cert().de()?.0,
             leaf: cert_data,
         })
+    }
+}
+impl DbAccess<CertStore> for Database {
+    fn access<'a>(db: &'a Model<Self>) -> &'a Model<CertStore> {
+        db.as_private().as_key_store().as_local_certs()
+    }
+}
+impl DbAccessMut<CertStore> for Database {
+    fn access_mut<'a>(db: &'a mut Model<Self>) -> &'a mut Model<CertStore> {
+        db.as_private_mut().as_key_store_mut().as_local_certs_mut()
     }
 }
 
@@ -305,22 +330,16 @@ pub fn make_root_cert(
     let cfg = conf::Conf::new(conf::ConfMethod::default())?;
     let ctx = builder.x509v3_context(None, Some(&cfg));
     // subjectKeyIdentifier = hash
-    let subject_key_identifier =
-        X509Extension::new_nid(Some(&cfg), Some(&ctx), Nid::SUBJECT_KEY_IDENTIFIER, "hash")?;
+    let subject_key_identifier = SubjectKeyIdentifier::new().build(&ctx)?;
     // basicConstraints = critical, CA:true, pathlen:0
-    let basic_constraints = X509Extension::new_nid(
-        Some(&cfg),
-        Some(&ctx),
-        Nid::BASIC_CONSTRAINTS,
-        "critical,CA:true",
-    )?;
+    let basic_constraints = BasicConstraints::new().critical().ca().build()?;
     // keyUsage = critical, digitalSignature, cRLSign, keyCertSign
-    let key_usage = X509Extension::new_nid(
-        Some(&cfg),
-        Some(&ctx),
-        Nid::KEY_USAGE,
-        "critical,digitalSignature,cRLSign,keyCertSign",
-    )?;
+    let key_usage = KeyUsage::new()
+        .critical()
+        .digital_signature()
+        .crl_sign()
+        .key_cert_sign()
+        .build()?;
     builder.append_extension(subject_key_identifier)?;
     builder.append_extension(basic_constraints)?;
     builder.append_extension(key_usage)?;
@@ -355,30 +374,23 @@ pub fn make_int_cert(
 
     let cfg = conf::Conf::new(conf::ConfMethod::default())?;
     let ctx = builder.x509v3_context(Some(&signer.1), Some(&cfg));
+
     // subjectKeyIdentifier = hash
-    let subject_key_identifier =
-        X509Extension::new_nid(Some(&cfg), Some(&ctx), Nid::SUBJECT_KEY_IDENTIFIER, "hash")?;
+    let subject_key_identifier = SubjectKeyIdentifier::new().build(&ctx)?;
     // authorityKeyIdentifier = keyid:always,issuer
-    let authority_key_identifier = X509Extension::new_nid(
-        Some(&cfg),
-        Some(&ctx),
-        Nid::AUTHORITY_KEY_IDENTIFIER,
-        "keyid:always,issuer",
-    )?;
+    let authority_key_identifier = AuthorityKeyIdentifier::new()
+        .keyid(false)
+        .issuer(true)
+        .build(&ctx)?;
     // basicConstraints = critical, CA:true, pathlen:0
-    let basic_constraints = X509Extension::new_nid(
-        Some(&cfg),
-        Some(&ctx),
-        Nid::BASIC_CONSTRAINTS,
-        "critical,CA:true,pathlen:0",
-    )?;
+    let basic_constraints = BasicConstraints::new().critical().ca().pathlen(0).build()?;
     // keyUsage = critical, digitalSignature, cRLSign, keyCertSign
-    let key_usage = X509Extension::new_nid(
-        Some(&cfg),
-        Some(&ctx),
-        Nid::KEY_USAGE,
-        "critical,digitalSignature,cRLSign,keyCertSign",
-    )?;
+    let key_usage = KeyUsage::new()
+        .critical()
+        .digital_signature()
+        .crl_sign()
+        .key_cert_sign()
+        .build()?;
     builder.append_extension(subject_key_identifier)?;
     builder.append_extension(authority_key_identifier)?;
     builder.append_extension(basic_constraints)?;
@@ -427,6 +439,16 @@ impl SANInfo {
             }
         }
         Self { dns, ips }
+    }
+    pub fn x509_extension(&self) -> SubjectAlternativeName {
+        let mut san = SubjectAlternativeName::new();
+        for h in &self.dns {
+            san.dns(&h.as_str());
+        }
+        for ip in &self.ips {
+            san.ip(&ip.to_string());
+        }
+        san
     }
 }
 impl std::fmt::Display for SANInfo {
@@ -490,28 +512,20 @@ pub fn make_leaf_cert(
     // Extensions
     let cfg = conf::Conf::new(conf::ConfMethod::default())?;
     let ctx = builder.x509v3_context(Some(&signer.1), Some(&cfg));
-    // subjectKeyIdentifier = hash
-    let subject_key_identifier =
-        X509Extension::new_nid(Some(&cfg), Some(&ctx), Nid::SUBJECT_KEY_IDENTIFIER, "hash")?;
-    // authorityKeyIdentifier = keyid:always,issuer
-    let authority_key_identifier = X509Extension::new_nid(
-        Some(&cfg),
-        Some(&ctx),
-        Nid::AUTHORITY_KEY_IDENTIFIER,
-        "keyid,issuer:always",
-    )?;
-    let basic_constraints =
-        X509Extension::new_nid(Some(&cfg), Some(&ctx), Nid::BASIC_CONSTRAINTS, "CA:FALSE")?;
-    let key_usage = X509Extension::new_nid(
-        Some(&cfg),
-        Some(&ctx),
-        Nid::KEY_USAGE,
-        "critical,digitalSignature,keyEncipherment",
-    )?;
 
-    let san_string = applicant.1.to_string();
-    let subject_alt_name =
-        X509Extension::new_nid(Some(&cfg), Some(&ctx), Nid::SUBJECT_ALT_NAME, &san_string)?;
+    let subject_key_identifier = SubjectKeyIdentifier::new().build(&ctx)?;
+    let authority_key_identifier = AuthorityKeyIdentifier::new()
+        .keyid(false)
+        .issuer(true)
+        .build(&ctx)?;
+    let subject_alt_name = applicant.1.x509_extension().build(&ctx)?;
+    let basic_constraints = BasicConstraints::new().build()?;
+    let key_usage = KeyUsage::new()
+        .critical()
+        .digital_signature()
+        .key_encipherment()
+        .build()?;
+
     builder.append_extension(subject_key_identifier)?;
     builder.append_extension(authority_key_identifier)?;
     builder.append_extension(subject_alt_name)?;
@@ -561,28 +575,20 @@ pub fn make_self_signed(applicant: (&PKey<Private>, &SANInfo)) -> Result<X509, E
     // Extensions
     let cfg = conf::Conf::new(conf::ConfMethod::default())?;
     let ctx = builder.x509v3_context(None, Some(&cfg));
-    // subjectKeyIdentifier = hash
-    let subject_key_identifier =
-        X509Extension::new_nid(Some(&cfg), Some(&ctx), Nid::SUBJECT_KEY_IDENTIFIER, "hash")?;
-    // authorityKeyIdentifier = keyid:always,issuer
-    let authority_key_identifier = X509Extension::new_nid(
-        Some(&cfg),
-        Some(&ctx),
-        Nid::AUTHORITY_KEY_IDENTIFIER,
-        "keyid,issuer:always",
-    )?;
-    let basic_constraints =
-        X509Extension::new_nid(Some(&cfg), Some(&ctx), Nid::BASIC_CONSTRAINTS, "CA:FALSE")?;
-    let key_usage = X509Extension::new_nid(
-        Some(&cfg),
-        Some(&ctx),
-        Nid::KEY_USAGE,
-        "critical,digitalSignature,keyEncipherment",
-    )?;
 
-    let san_string = applicant.1.to_string();
-    let subject_alt_name =
-        X509Extension::new_nid(Some(&cfg), Some(&ctx), Nid::SUBJECT_ALT_NAME, &san_string)?;
+    let subject_key_identifier = SubjectKeyIdentifier::new().build(&ctx)?;
+    let authority_key_identifier = AuthorityKeyIdentifier::new()
+        .keyid(false)
+        .issuer(true)
+        .build(&ctx)?;
+    let subject_alt_name = applicant.1.x509_extension().build(&ctx)?;
+    let basic_constraints = BasicConstraints::new().build()?;
+    let key_usage = KeyUsage::new()
+        .critical()
+        .digital_signature()
+        .key_encipherment()
+        .build()?;
+
     builder.append_extension(subject_key_identifier)?;
     builder.append_extension(authority_key_identifier)?;
     builder.append_extension(subject_alt_name)?;
@@ -593,4 +599,99 @@ pub fn make_self_signed(applicant: (&PKey<Private>, &SANInfo)) -> Result<X509, E
 
     let cert = builder.build();
     Ok(cert)
+}
+
+pub struct RootCaTlsHandler<M: HasModel> {
+    pub db: TypedPatchDb<M>,
+    pub crypto_provider: Arc<CryptoProvider>,
+}
+impl<M: HasModel> Clone for RootCaTlsHandler<M> {
+    fn clone(&self) -> Self {
+        Self {
+            db: self.db.clone(),
+            crypto_provider: self.crypto_provider.clone(),
+        }
+    }
+}
+
+impl<'a, A, M> TlsHandler<'a, A> for RootCaTlsHandler<M>
+where
+    A: Accept + 'a,
+    <A as Accept>::Metadata: Visit<ExtractVisitor<TcpMetadata>>
+        + Visit<ExtractVisitor<GatewayInfo>>
+        + Clone
+        + Send
+        + Sync
+        + 'static,
+    M: HasModel<Model = Model<M>> + DbAccessMut<CertStore> + Send + Sync,
+{
+    async fn get_config(
+        &mut self,
+        hello: &ClientHello<'_>,
+        metadata: &<A as Accept>::Metadata,
+    ) -> Option<ServerConfig> {
+        let hostnames: BTreeSet<InternedString> = hello
+            .server_name()
+            .map(InternedString::from)
+            .into_iter()
+            .chain(
+                extract::<TcpMetadata, _>(metadata)
+                    .map(|m| m.local_addr.ip())
+                    .as_ref()
+                    .map(InternedString::from_display),
+            )
+            .chain(
+                extract::<GatewayInfo, _>(metadata)
+                    .and_then(|i| i.info.ip_info)
+                    .and_then(|i| i.wan_ip)
+                    .as_ref()
+                    .map(InternedString::from_display),
+            )
+            .collect();
+        let cert = self
+            .db
+            .mutate(|db| M::access_mut(db).cert_for(&hostnames))
+            .await
+            .result
+            .log_err()?;
+        let cfg = ServerConfig::builder_with_provider(self.crypto_provider.clone())
+            .with_safe_default_protocol_versions()
+            .log_err()?
+            .with_no_client_auth();
+        if hello
+            .signature_schemes()
+            .contains(&tokio_rustls::rustls::SignatureScheme::ED25519)
+        {
+            cfg.with_single_cert(
+                cert.fullchain_ed25519()
+                    .into_iter()
+                    .map(|c| {
+                        Ok(tokio_rustls::rustls::pki_types::CertificateDer::from(
+                            c.to_der()?,
+                        ))
+                    })
+                    .collect::<Result<_, Error>>()
+                    .log_err()?,
+                PrivateKeyDer::from(PrivatePkcs8KeyDer::from(
+                    cert.leaf.keys.ed25519.private_key_to_pkcs8().log_err()?,
+                )),
+            )
+        } else {
+            cfg.with_single_cert(
+                cert.fullchain_nistp256()
+                    .into_iter()
+                    .map(|c| {
+                        Ok(tokio_rustls::rustls::pki_types::CertificateDer::from(
+                            c.to_der()?,
+                        ))
+                    })
+                    .collect::<Result<_, Error>>()
+                    .log_err()?,
+                PrivateKeyDer::from(PrivatePkcs8KeyDer::from(
+                    cert.leaf.keys.nistp256.private_key_to_pkcs8().log_err()?,
+                )),
+            )
+        }
+        .log_err()
+    }
 }
