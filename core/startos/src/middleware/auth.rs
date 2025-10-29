@@ -13,9 +13,9 @@ use chrono::Utc;
 use color_eyre::eyre::eyre;
 use digest::Digest;
 use helpers::const_true;
-use http::header::{COOKIE, USER_AGENT};
 use http::HeaderValue;
-use imbl_value::{json, InternedString};
+use http::header::{COOKIE, USER_AGENT};
+use imbl_value::{InternedString, json};
 use rand::random;
 use rpc_toolkit::yajrc::INTERNAL_ERROR;
 use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};
@@ -25,15 +25,15 @@ use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 use tokio::sync::Mutex;
 
-use crate::auth::{check_password, write_shadow, Sessions};
+use crate::auth::{Sessions, check_password, write_shadow};
 use crate::context::RpcContext;
 use crate::middleware::signature::{SignatureAuth, SignatureAuthContext};
 use crate::prelude::*;
 use crate::rpc_continuations::OpenAuthedContinuations;
+use crate::util::Invoke;
 use crate::util::io::{create_file_mod, read_file_to_string};
 use crate::util::serde::BASE64;
 use crate::util::sync::SyncMutex;
-use crate::util::Invoke;
 
 pub trait AuthContext: SignatureAuthContext {
     const LOCAL_AUTH_COOKIE_PATH: &str;

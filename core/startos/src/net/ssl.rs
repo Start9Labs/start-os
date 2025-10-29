@@ -1,4 +1,4 @@
-use std::cmp::{min, Ordering};
+use std::cmp::{Ordering, min};
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::IpAddr;
 use std::path::Path;
@@ -19,17 +19,18 @@ use openssl::x509::extension::{
     AuthorityKeyIdentifier, BasicConstraints, KeyUsage, SubjectAlternativeName,
     SubjectKeyIdentifier,
 };
-use openssl::x509::{X509Builder, X509NameBuilder, X509};
+use openssl::x509::{X509, X509Builder, X509NameBuilder};
 use openssl::*;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
+use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::rustls::crypto::CryptoProvider;
 use tokio_rustls::rustls::pki_types::{PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio_rustls::rustls::server::ClientHello;
-use tokio_rustls::rustls::ServerConfig;
 use tracing::instrument;
 use visit_rs::Visit;
 
+use crate::SOURCE_DATE;
 use crate::account::AccountInfo;
 use crate::db::model::Database;
 use crate::db::{DbAccess, DbAccessMut};
@@ -37,10 +38,9 @@ use crate::hostname::Hostname;
 use crate::init::check_time_is_synchronized;
 use crate::net::gateway::GatewayInfo;
 use crate::net::tls::TlsHandler;
-use crate::net::web_server::{extract, Accept, ExtractVisitor, TcpMetadata};
+use crate::net::web_server::{Accept, ExtractVisitor, TcpMetadata, extract};
 use crate::prelude::*;
 use crate::util::serde::Pem;
-use crate::SOURCE_DATE;
 
 pub fn gen_nistp256() -> Result<PKey<Private>, ErrorStack> {
     PKey::from_ec_key(EcKey::generate(&*EcGroup::from_curve_name(

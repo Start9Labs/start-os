@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::future::Future;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV6};
 use std::sync::{Arc, Weak};
-use std::task::{ready, Poll};
+use std::task::{Poll, ready};
 use std::time::Duration;
 
 use clap::Parser;
@@ -17,7 +17,7 @@ use itertools::Itertools;
 use models::GatewayId;
 use nix::net::if_::if_nametoindex;
 use patch_db::json_ptr::JsonPointer;
-use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::net::TcpListener;
@@ -29,22 +29,22 @@ use zbus::proxy::{PropertyChanged, PropertyStream, SignalStream};
 use zbus::zvariant::{
     DeserializeDict, Dict, OwnedObjectPath, OwnedValue, Type as ZType, Value as ZValue,
 };
-use zbus::{proxy, Connection};
+use zbus::{Connection, proxy};
 
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::public::{IpInfo, NetworkInterfaceInfo, NetworkInterfaceType};
 use crate::db::model::Database;
+use crate::db::model::public::{IpInfo, NetworkInterfaceInfo, NetworkInterfaceType};
 use crate::net::forward::START9_BRIDGE_IFACE;
 use crate::net::gateway::device::DeviceProxy;
 use crate::net::utils::ipv6_is_link_local;
 use crate::net::web_server::{Accept, AcceptStream, Acceptor, MetadataVisitor};
 use crate::prelude::*;
+use crate::util::Invoke;
 use crate::util::collections::OrdMapIterMut;
 use crate::util::future::Until;
 use crate::util::io::open_file;
-use crate::util::serde::{display_serializable, HandlerExtSerde};
+use crate::util::serde::{HandlerExtSerde, display_serializable};
 use crate::util::sync::{SyncMutex, Watch};
-use crate::util::Invoke;
 
 pub fn gateway_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()

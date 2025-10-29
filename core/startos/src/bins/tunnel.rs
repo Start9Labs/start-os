@@ -11,8 +11,8 @@ use tokio::signal::unix::signal;
 use tracing::instrument;
 use visit_rs::Visit;
 
-use crate::context::config::ClientConfig;
 use crate::context::CliContext;
+use crate::context::config::ClientConfig;
 use crate::net::gateway::{Bind, BindTcp};
 use crate::net::tls::TlsListener;
 use crate::net::web_server::{Accept, Acceptor, MetadataVisitor, WebServer};

@@ -79,8 +79,8 @@ pub use error::{Error, ErrorKind, ResultExt};
 use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
-    from_fn, from_fn_async, from_fn_blocking, CallRemoteHandler, Context, Empty, HandlerExt,
-    ParentHandler,
+    CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler, from_fn, from_fn_async,
+    from_fn_blocking,
 };
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -90,7 +90,7 @@ use crate::disk::fsck::RequiresReboot;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
 use crate::system::kiosk;
 use crate::tunnel::context::TunnelUrlParams;
-use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
+use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]

@@ -6,8 +6,8 @@ use rpc_toolkit::CliApp;
 use tokio::signal::unix::signal;
 use tracing::instrument;
 
-use crate::context::config::ClientConfig;
 use crate::context::CliContext;
+use crate::context::config::ClientConfig;
 use crate::net::web_server::{Acceptor, WebServer};
 use crate::prelude::*;
 use crate::registry::context::{RegistryConfig, RegistryContext};

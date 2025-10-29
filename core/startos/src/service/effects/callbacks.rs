@@ -6,7 +6,7 @@ use std::time::{Duration, SystemTime};
 use clap::Parser;
 use futures::future::join_all;
 use helpers::NonDetachingJoinHandle;
-use imbl::{vector, Vector};
+use imbl::{Vector, vector};
 use imbl_value::InternedString;
 use models::{HostId, PackageId, ServiceInterfaceId};
 use serde::{Deserialize, Serialize};

@@ -4,17 +4,17 @@ use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 
 use clap::Parser;
-use imbl_value::{json, InternedString};
+use imbl_value::{InternedString, json};
 use itertools::Itertools;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
-use rpc_toolkit::{from_fn_async, Context, Empty, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::rustls::crypto::CryptoProvider;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio_rustls::rustls::server::ClientHello;
-use tokio_rustls::rustls::ServerConfig;
 
 use crate::context::CliContext;
 use crate::net::ssl::SANInfo;
@@ -411,7 +411,9 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                             match l.trim().parse() {
                                 Ok(addr) => break addr,
                                 Err(_) => {
-                                    println!("Invalid socket address. Please enter in format IP:PORT (e.g., 0.0.0.0:8443)");
+                                    println!(
+                                        "Invalid socket address. Please enter in format IP:PORT (e.g., 0.0.0.0:8443)"
+                                    );
                                     readline.clear_history();
                                 }
                             }

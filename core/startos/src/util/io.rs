@@ -6,8 +6,8 @@ use std::os::unix::prelude::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::str::FromStr;
-use std::sync::atomic::AtomicU64;
 use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
 use std::task::{Poll, Waker};
 use std::time::Duration;
 
@@ -22,8 +22,8 @@ use nix::unistd::{Gid, Uid};
 use serde::{Deserialize, Serialize};
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{
-    duplex, AsyncRead, AsyncReadExt, AsyncSeek, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf,
-    SeekFrom, WriteHalf,
+    AsyncRead, AsyncReadExt, AsyncSeek, AsyncWrite, AsyncWriteExt, DuplexStream, ReadBuf, SeekFrom,
+    WriteHalf, duplex,
 };
 use tokio::net::TcpStream;
 use tokio::sync::{Notify, OwnedMutexGuard};

@@ -9,16 +9,16 @@ use http::{HeaderMap, HeaderValue};
 use reqwest::Client;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{Context, Middleware, RpcRequest, RpcResponse};
-use serde::de::DeserializeOwned;
 use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use tokio::sync::Mutex;
 use url::Url;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
 use crate::prelude::*;
-use crate::sign::commitment::request::RequestCommitment;
 use crate::sign::commitment::Commitment;
+use crate::sign::commitment::request::RequestCommitment;
 use crate::sign::{AnySignature, AnySigningKey, AnyVerifyingKey, SignatureScheme};
 use crate::util::iter::TransposeResultIterExt;
 use crate::util::serde::Base64;
@@ -33,7 +33,7 @@ pub trait SignatureAuthContext: Context {
     fn sig_context(
         &self,
     ) -> impl Future<Output = impl IntoIterator<Item = Result<impl AsRef<str> + Send, Error>> + Send>
-           + Send;
+    + Send;
     fn check_pubkey(
         db: &Model<Self::Database>,
         pubkey: Option<&AnyVerifyingKey>,
@@ -304,10 +304,10 @@ pub async fn call_remote<Ctx: SigningContext + AsRef<Client>>(
     method: &str,
     params: Value,
 ) -> Result<Value, RpcError> {
-    use reqwest::header::{ACCEPT, CONTENT_LENGTH, CONTENT_TYPE};
     use reqwest::Method;
-    use rpc_toolkit::yajrc::{GenericRpcMethod, Id, RpcRequest};
+    use reqwest::header::{ACCEPT, CONTENT_LENGTH, CONTENT_TYPE};
     use rpc_toolkit::RpcResponse;
+    use rpc_toolkit::yajrc::{GenericRpcMethod, Id, RpcRequest};
 
     let rpc_req = RpcRequest {
         id: Some(Id::Number(0.into())),

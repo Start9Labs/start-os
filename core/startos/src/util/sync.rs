@@ -5,8 +5,8 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Weak};
 use std::task::{Poll, Waker};
 
-use futures::stream::BoxStream;
 use futures::Stream;
+use futures::stream::BoxStream;
 
 use crate::prelude::*;
 

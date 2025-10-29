@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use const_format::formatcp;
 use ed25519_dalek::SigningKey;
 use exver::{PreReleaseSegment, VersionRange};
-use imbl_value::{json, InternedString};
+use imbl_value::{InternedString, json};
 use models::{HostId, Id, PackageId, ReplayId};
 use openssl::pkey::PKey;
 use openssl::x509::X509;
@@ -15,7 +15,7 @@ use sqlx::{PgPool, Row};
 use tokio::process::Command;
 
 use super::v0_3_5::V0_3_0_COMPAT;
-use super::{v0_3_5_2, VersionT};
+use super::{VersionT, v0_3_5_2};
 use crate::account::AccountInfo;
 use crate::auth::Sessions;
 use crate::backup::target::cifs::CifsTargets;
@@ -31,9 +31,9 @@ use crate::notifications::Notifications;
 use crate::prelude::*;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::ssh::{SshKeys, SshPubKey};
+use crate::util::Invoke;
 use crate::util::crypto::ed25519_expand_key;
 use crate::util::serde::Pem;
-use crate::util::Invoke;
 use crate::{DATA_DIR, PACKAGE_DATA};
 
 lazy_static::lazy_static! {
@@ -208,10 +208,12 @@ impl VersionT for Version {
             let tor_address: String = from_value(db["server-info"]["tor-address"].clone())?;
             // Maybe we do this like the Public::init does
             server_info["torAddress"] = json!(tor_address);
-            server_info["onionAddress"] = json!(tor_address
-                .replace("https://", "")
-                .replace("http://", "")
-                .replace(".onion/", ""));
+            server_info["onionAddress"] = json!(
+                tor_address
+                    .replace("https://", "")
+                    .replace("http://", "")
+                    .replace(".onion/", "")
+            );
             server_info["networkInterfaces"] = json!({});
             server_info["statusInfo"] = status_info;
             server_info["wifi"] = wifi;

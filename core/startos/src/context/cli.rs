@@ -21,9 +21,9 @@ use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
-use crate::context::config::{local_config_path, ClientConfig};
+use crate::context::config::{ClientConfig, local_config_path};
 use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
-use crate::developer::{default_developer_key_path, OS_DEVELOPER_KEY_PATH};
+use crate::developer::{OS_DEVELOPER_KEY_PATH, default_developer_key_path};
 use crate::middleware::auth::AuthContext;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;

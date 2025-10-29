@@ -18,13 +18,13 @@ use tracing::instrument;
 use ts_rs::TS;
 use url::Url;
 
-use crate::context::config::{ContextConfig, CONFIG_PATH};
+use crate::context::config::{CONFIG_PATH, ContextConfig};
 use crate::context::{CliContext, RpcContext};
 use crate::middleware::signature::SignatureAuthContext;
 use crate::prelude::*;
-use crate::registry::device_info::{DeviceInfo, DEVICE_INFO_HEADER};
-use crate::registry::signer::SignerInfo;
 use crate::registry::RegistryDatabase;
+use crate::registry::device_info::{DEVICE_INFO_HEADER, DeviceInfo};
+use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::RpcContinuations;
 use crate::sign::AnyVerifyingKey;
 use crate::util::io::append_file;

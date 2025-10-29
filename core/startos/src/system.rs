@@ -8,7 +8,7 @@ use color_eyre::eyre::eyre;
 use futures::{FutureExt, TryStreamExt};
 use imbl::vector;
 use imbl_value::InternedString;
-use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, Empty, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::process::Command;
 use tokio::sync::broadcast::Receiver;
@@ -21,12 +21,12 @@ use crate::logs::{LogSource, LogsParams, SYSTEM_UNIT};
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::shutdown::Shutdown;
-use crate::util::cpupower::{get_available_governors, set_governor, Governor};
+use crate::util::Invoke;
+use crate::util::cpupower::{Governor, get_available_governors, set_governor};
 use crate::util::io::open_file;
 use crate::util::net::WebSocketExt;
-use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
+use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
 use crate::util::sync::Watch;
-use crate::util::Invoke;
 use crate::{MAIN_DATA, PACKAGE_DATA};
 
 pub fn experimental<C: Context>() -> ParentHandler<C> {

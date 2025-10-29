@@ -4,7 +4,7 @@ use clap::{CommandFactory, FromArgMatches, Parser};
 pub use models::ActionId;
 use models::{PackageId, ReplayId};
 use qrcode::QrCode;
-use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
@@ -14,7 +14,7 @@ use crate::db::model::package::TaskSeverity;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
 use crate::util::serde::{
-    display_serializable, HandlerExtSerde, StdinDeserializable, WithIoFormat,
+    HandlerExtSerde, StdinDeserializable, WithIoFormat, display_serializable,
 };
 
 pub fn action_api<C: Context>() -> ParentHandler<C> {

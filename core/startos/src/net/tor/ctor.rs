@@ -15,7 +15,7 @@ use imbl::OrdMap;
 use imbl_value::InternedString;
 use lazy_static::lazy_static;
 use regex::Regex;
-use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, Empty, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
 use tokio::process::Command;
@@ -27,16 +27,16 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::logs::{journalctl, LogSource, LogsParams};
+use crate::logs::{LogSource, LogsParams, journalctl};
 use crate::prelude::*;
+use crate::util::Invoke;
 use crate::util::collections::ordmap_retain;
-use crate::util::io::{write_file_atomic, ReadWriter};
+use crate::util::io::{ReadWriter, write_file_atomic};
 use crate::util::serde::{
-    deserialize_from_str, display_serializable, serialize_display, Base64, HandlerExtSerde,
-    WithIoFormat, BASE64,
+    BASE64, Base64, HandlerExtSerde, WithIoFormat, deserialize_from_str, display_serializable,
+    serialize_display,
 };
 use crate::util::sync::Watch;
-use crate::util::Invoke;
 
 pub const SYSTEMD_UNIT: &str = "tor@default";
 const STARTING_HEALTH_TIMEOUT: u64 = 120; // 2min
@@ -911,7 +911,12 @@ async fn torctl(
                 .is_err()
             {
                 if last_success.elapsed() > *health_timeout {
-                    let err = Error::new(eyre!("Tor health check failed for longer than current timeout ({health_timeout:?})"), crate::ErrorKind::Tor);
+                    let err = Error::new(
+                        eyre!(
+                            "Tor health check failed for longer than current timeout ({health_timeout:?})"
+                        ),
+                        crate::ErrorKind::Tor,
+                    );
                     *health_timeout *= 2;
                     wipe_state.store(true, std::sync::atomic::Ordering::SeqCst);
                     return Err(err);

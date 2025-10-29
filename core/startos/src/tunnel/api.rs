@@ -3,7 +3,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use clap::Parser;
 use imbl_value::InternedString;
 use ipnet::Ipv4Net;
-use rpc_toolkit::{from_fn_async, Context, Empty, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 
 use crate::context::CliContext;
@@ -12,7 +12,7 @@ use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::db::GatewayPort;
 use crate::tunnel::wg::{ClientConfig, WgConfig, WgSubnetClients, WgSubnetConfig};
-use crate::util::serde::{display_serializable, HandlerExtSerde};
+use crate::util::serde::{HandlerExtSerde, display_serializable};
 
 pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()

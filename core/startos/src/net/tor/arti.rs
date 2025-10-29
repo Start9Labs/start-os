@@ -14,7 +14,7 @@ use futures::{FutureExt, StreamExt};
 use helpers::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use itertools::Itertools;
-use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, Empty, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
@@ -34,8 +34,8 @@ use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::future::Until;
 use crate::util::io::ReadWriter;
 use crate::util::serde::{
-    deserialize_from_str, display_serializable, serialize_display, Base64, HandlerExtSerde,
-    WithIoFormat, BASE64,
+    BASE64, Base64, HandlerExtSerde, WithIoFormat, deserialize_from_str, display_serializable,
+    serialize_display,
 };
 use crate::util::sync::{SyncMutex, SyncRwLock, Watch};
 
@@ -628,11 +628,7 @@ impl TorController {
                 } else {
                     false
                 };
-                if rm {
-                    s.remove(&addr)
-                } else {
-                    None
-                }
+                if rm { s.remove(&addr) } else { None }
             }) {
                 s.shutdown().await
             } else {

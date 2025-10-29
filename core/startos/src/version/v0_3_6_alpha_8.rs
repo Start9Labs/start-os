@@ -4,18 +4,18 @@ use exver::{PreReleaseSegment, VersionRange};
 use tokio::fs::File;
 
 use super::v0_3_5::V0_3_0_COMPAT;
-use super::{v0_3_6_alpha_7, VersionT};
+use super::{VersionT, v0_3_6_alpha_7};
+use crate::DATA_DIR;
 use crate::context::RpcContext;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::prelude::*;
-use crate::s9pk::manifest::{DeviceFilter, Manifest};
-use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
-use crate::s9pk::merkle_archive::MerkleArchive;
-use crate::s9pk::v2::SIG_CONTEXT;
 use crate::s9pk::S9pk;
+use crate::s9pk::manifest::{DeviceFilter, Manifest};
+use crate::s9pk::merkle_archive::MerkleArchive;
+use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
+use crate::s9pk::v2::SIG_CONTEXT;
 use crate::service::LoadDisposition;
 use crate::util::io::create_file;
-use crate::DATA_DIR;
 
 lazy_static::lazy_static! {
     static ref V0_3_6_alpha_8: exver::Version = exver::Version::new(

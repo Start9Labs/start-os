@@ -5,6 +5,6 @@ mod arti;
 mod ctor;
 
 #[cfg(feature = "arti")]
-pub use arti::{tor_api, OnionAddress, OnionStore, TorController, TorSecretKey};
+pub use arti::{OnionAddress, OnionStore, TorController, TorSecretKey, tor_api};
 #[cfg(not(feature = "arti"))]
-pub use ctor::{tor_api, OnionAddress, OnionStore, TorController, TorSecretKey};
+pub use ctor::{OnionAddress, OnionStore, TorController, TorSecretKey, tor_api};

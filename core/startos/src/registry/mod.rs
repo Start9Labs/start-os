@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use axum::Router;
 use futures::future::ready;
 use models::DataUrl;
-use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler, Server};
+use rpc_toolkit::{Context, HandlerExt, ParentHandler, Server, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

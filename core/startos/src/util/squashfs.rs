@@ -4,7 +4,7 @@ use std::task::Poll;
 
 use async_compression::codecs::{Encode, ZstdEncoder};
 use async_compression::core::util::PartialBuffer;
-use futures::{ready, TryStreamExt};
+use futures::{TryStreamExt, ready};
 use tokio::io::{AsyncSeek, AsyncWrite};
 use visit_rs::{Visit, VisitAsync, VisitFields, VisitFieldsAsync, Visitor};
 

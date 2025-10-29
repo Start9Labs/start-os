@@ -3,11 +3,11 @@ use imbl::HashMap;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use patch_db::HasModel;
-use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::auth::{check_password, Sessions};
+use crate::auth::{Sessions, check_password};
 use crate::context::CliContext;
 use crate::middleware::auth::AuthContext;
 use crate::middleware::signature::SignatureAuthContext;
@@ -16,7 +16,7 @@ use crate::rpc_continuations::OpenAuthedContinuations;
 use crate::sign::AnyVerifyingKey;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::db::TunnelDatabase;
-use crate::util::serde::{display_serializable, HandlerExtSerde};
+use crate::util::serde::{HandlerExtSerde, display_serializable};
 use crate::util::sync::SyncMutex;
 
 impl SignatureAuthContext for TunnelContext {

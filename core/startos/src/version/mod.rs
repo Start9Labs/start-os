@@ -5,14 +5,14 @@ use std::panic::{RefUnwindSafe, UnwindSafe};
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::{Future, FutureExt};
-use imbl_value::{to_value, InternedString};
+use imbl_value::{InternedString, to_value};
 use patch_db::json_ptr::ROOT;
 
+use crate::Error;
 use crate::context::RpcContext;
 use crate::db::model::Database;
 use crate::prelude::*;
 use crate::progress::PhaseProgressTrackerHandle;
-use crate::Error;
 
 mod v0_3_5;
 mod v0_3_5_1;

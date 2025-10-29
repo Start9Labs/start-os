@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{ready, Poll};
+use std::task::{Poll, ready};
 use std::time::Duration;
 
 use axum::Router;
@@ -18,7 +18,7 @@ use tokio::net::TcpListener;
 use tokio::sync::oneshot;
 use visit_rs::{Visit, VisitFields, Visitor};
 
-use crate::net::static_server::{ui_router, UiContext};
+use crate::net::static_server::{UiContext, ui_router};
 use crate::prelude::*;
 use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::io::ReadWriter;

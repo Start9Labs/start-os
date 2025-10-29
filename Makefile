@@ -22,6 +22,7 @@ WEB_SHARED_SRC := $(call ls-files, web/projects/shared) $(call ls-files, web/pro
 WEB_UI_SRC := $(call ls-files, web/projects/ui)
 WEB_SETUP_WIZARD_SRC := $(call ls-files, web/projects/setup-wizard)
 WEB_INSTALL_WIZARD_SRC := $(call ls-files, web/projects/install-wizard)
+WEB_START_TUNNEL_SRC := $(call ls-files, web/projects/start-tunnel)
 PATCH_DB_CLIENT_SRC := $(shell git ls-files --recurse-submodules patch-db/client)
 GZIP_BIN := $(shell which pigz || which gzip)
 TAR_BIN := $(shell which gtar || which tar)
@@ -139,7 +140,7 @@ install-tunnel: core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox core
 	$(call mkdir,$(DESTDIR)/lib/systemd/system)
 	$(call cp,core/startos/start-tunneld.service,$(DESTDIR)/lib/systemd/system/start-tunneld.service)
 
-core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox: $(CORE_SRC) $(ENVIRONMENT_FILE)
+core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox: $(CORE_SRC) $(ENVIRONMENT_FILE) web/dist/static/start-tunnel/index.html
 	ARCH=$(ARCH) PROFILE=$(PROFILE) ./core/build-tunnelbox.sh
 
 deb: results/$(BASENAME).deb
@@ -339,8 +340,12 @@ web/dist/raw/install-wizard/index.html: $(WEB_INSTALL_WIZARD_SRC) $(WEB_SHARED_S
 	npm --prefix web run build:install
 	touch web/dist/raw/install-wizard/index.html
 
-$(COMPRESSED_WEB_UIS): $(WEB_UIS) $(ENVIRONMENT_FILE)
-	./compress-uis.sh
+web/dist/raw/start-tunnel/index.html: $(WEB_START_TUNNEL_SRC) $(WEB_SHARED_SRC) web/.angular/.updated
+	npm --prefix web run build:tunnel
+	touch web/dist/raw/start-tunnel/index.html
+
+web/dist/static/%/index.html: web/dist/raw/%/index.html
+	./compress-uis.sh $*
 
 web/config.json: $(GIT_HASH_FILE) web/config-sample.json
 	jq '.useMocks = false' web/config-sample.json | jq '.gitHash = "$(shell cat GIT_HASH.txt)"' > web/config.json

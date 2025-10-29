@@ -6,11 +6,11 @@ use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 
 use async_compression::tokio::bufread::GzipEncoder;
+use axum::Router;
 use axum::body::Body;
 use axum::extract::{self as x, Request};
 use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{any, get};
-use axum::Router;
 use base64::display::Base64Display;
 use digest::Digest;
 use futures::future::ready;
@@ -21,7 +21,7 @@ use http::header::{
 use http::request::Parts as RequestParts;
 use http::{HeaderValue, Method, StatusCode};
 use imbl_value::InternedString;
-use include_dir::Dir;
+use include_dir::{Dir, include_dir};
 use models::PackageId;
 use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
@@ -41,10 +41,10 @@ use crate::net::gateway::GatewayInfo;
 use crate::net::tls::TlsHandshakeInfo;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuations};
+use crate::s9pk::S9pk;
+use crate::s9pk::merkle_archive::source::FileSource;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
-use crate::s9pk::merkle_archive::source::FileSource;
-use crate::s9pk::S9pk;
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::util::io::open_file;
 use crate::util::net::SyncBody;
@@ -57,14 +57,29 @@ const INTERNAL_SERVER_ERROR: &[u8] = b"Internal Server Error";
 
 const PROXY_STRIP_HEADERS: &[&str] = &["cookie", "host", "origin", "referer", "user-agent"];
 
-#[cfg(all(feature = "startd", not(feature = "test")))]
-const EMBEDDED_UIS: Dir<'_> =
-    include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static");
-#[cfg(not(all(feature = "startd", not(feature = "test"))))]
-const EMBEDDED_UIS: Dir<'_> = Dir::new("", &[]);
+pub const EMPTY_DIR: Dir<'_> = Dir::new("", &[]);
+
+#[macro_export]
+macro_rules! else_empty_dir {
+    ($cfg:meta => $dir:expr) => {{
+        #[cfg(all($cfg, not(feature = "test")))]
+        {
+            $dir
+        }
+        #[cfg(not(all($cfg, not(feature = "test"))))]
+        {
+            crate::net::static_server::EMPTY_DIR
+        }
+    }};
+}
+
+const EMBEDDED_UI_ROOT: Dir<'_> = else_empty_dir!(
+    feature = "startd" =>
+    include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static")
+);
 
 pub trait UiContext: Context + AsRef<RpcContinuations> + Clone + Sized {
-    fn path(path: &str) -> PathBuf;
+    const UI_DIR: &'static Dir<'static>;
     fn middleware(server: Server<Self>) -> HttpServer<Self>;
     fn extend_router(self, router: Router) -> Router {
         router
@@ -72,9 +87,11 @@ pub trait UiContext: Context + AsRef<RpcContinuations> + Clone + Sized {
 }
 
 impl UiContext for RpcContext {
-    fn path(path: &str) -> PathBuf {
-        Path::new("ui").join(path)
-    }
+    const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
+        feature = "startd" =>
+        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/ui")
+    );
+
     fn middleware(server: Server<Self>) -> HttpServer<Self> {
         server
             .middleware(Cors::new())
@@ -134,36 +151,44 @@ impl UiContext for RpcContext {
 }
 
 impl UiContext for InitContext {
-    fn path(path: &str) -> PathBuf {
-        Path::new("ui").join(path)
-    }
+    const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
+        feature = "startd" =>
+        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/ui")
+    );
+
     fn middleware(server: Server<Self>) -> HttpServer<Self> {
         server.middleware(Cors::new())
     }
 }
 
 impl UiContext for DiagnosticContext {
-    fn path(path: &str) -> PathBuf {
-        Path::new("ui").join(path)
-    }
+    const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
+        feature = "startd" =>
+        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/ui")
+    );
+
     fn middleware(server: Server<Self>) -> HttpServer<Self> {
         server.middleware(Cors::new())
     }
 }
 
 impl UiContext for SetupContext {
-    fn path(path: &str) -> PathBuf {
-        Path::new("setup-wizard").join(path)
-    }
+    const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
+        feature = "startd" =>
+        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/setup-wizard")
+    );
+
     fn middleware(server: Server<Self>) -> HttpServer<Self> {
         server.middleware(Cors::new())
     }
 }
 
 impl UiContext for InstallContext {
-    fn path(path: &str) -> PathBuf {
-        Path::new("install-wizard").join(path)
-    }
+    const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
+        feature = "startd" =>
+        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/install-wizard")
+    );
+
     fn middleware(server: Server<Self>) -> HttpServer<Self> {
         server.middleware(Cors::new())
     }
@@ -206,20 +231,19 @@ fn serve_ui<C: UiContext>(req: Request) -> Result<Response, Error> {
     let (request_parts, _body) = req.into_parts();
     match &request_parts.method {
         &Method::GET | &Method::HEAD => {
-            let uri_path = C::path(
-                request_parts
-                    .uri
-                    .path()
-                    .strip_prefix('/')
-                    .unwrap_or(request_parts.uri.path()),
-            );
+            let uri_path = request_parts
+                .uri
+                .path()
+                .strip_prefix('/')
+                .unwrap_or(request_parts.uri.path());
 
-            let file = EMBEDDED_UIS
-                .get_file(&*uri_path)
-                .or_else(|| EMBEDDED_UIS.get_file(&*C::path("index.html")));
+            let file = C::UI_DIR
+                .get_file(uri_path)
+                .or_else(|| C::UI_DIR.get_file("index.html"));
 
             if let Some(file) = file {
-                FileData::from_embedded(&request_parts, file)?.into_response(&request_parts)
+                FileData::from_embedded(&request_parts, file, C::UI_DIR)?
+                    .into_response(&request_parts)
             } else {
                 Ok(not_found())
             }
@@ -505,6 +529,7 @@ impl FileData {
     fn from_embedded(
         req: &RequestParts,
         file: &'static include_dir::File<'static>,
+        ui_dir: &'static Dir<'static>,
     ) -> Result<Self, Error> {
         let path = file.path();
         let (encoding, data, len, content_range) = if let Some(range) = req.headers.get(RANGE) {
@@ -546,12 +571,12 @@ impl FileData {
                 .fold((None, file.contents()), |acc, e| {
                     if let Some(file) = (e == "br")
                         .then_some(())
-                        .and_then(|_| EMBEDDED_UIS.get_file(format!("{}.br", path.display())))
+                        .and_then(|_| ui_dir.get_file(format!("{}.br", path.display())))
                     {
                         (Some("br"), file.contents())
                     } else if let Some(file) = (e == "gzip" && acc.0 != Some("br"))
                         .then_some(())
-                        .and_then(|_| EMBEDDED_UIS.get_file(format!("{}.gz", path.display())))
+                        .and_then(|_| ui_dir.get_file(format!("{}.gz", path.display())))
                     {
                         (Some("gzip"), file.contents())
                     } else {

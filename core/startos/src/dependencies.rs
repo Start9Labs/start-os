@@ -6,9 +6,9 @@ use models::PackageId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::Error;
 use crate::prelude::*;
 use crate::util::PathOrUrl;
-use crate::Error;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[model = "Model<Self>"]

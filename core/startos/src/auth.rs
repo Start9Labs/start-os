@@ -3,11 +3,11 @@ use std::collections::BTreeMap;
 use chrono::{DateTime, Utc};
 use clap::Parser;
 use color_eyre::eyre::eyre;
-use imbl_value::{json, InternedString};
+use imbl_value::{InternedString, json};
 use itertools::Itertools;
 use josekit::jwk::Jwk;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{from_fn_async, CallRemote, Context, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{CallRemote, Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tracing::instrument;
@@ -20,8 +20,8 @@ use crate::middleware::auth::{
 use crate::prelude::*;
 use crate::util::crypto::EncryptedWire;
 use crate::util::io::create_file_mod;
-use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
-use crate::{ensure_code, Error, ResultExt};
+use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
+use crate::{Error, ResultExt, ensure_code};
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, TS)]
 pub struct Sessions(pub BTreeMap<InternedString, Session>);

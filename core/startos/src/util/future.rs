@@ -1,7 +1,7 @@
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use futures::future::{abortable, pending, BoxFuture, FusedFuture};
+use futures::future::{BoxFuture, FusedFuture, abortable, pending};
 use futures::stream::{AbortHandle, Abortable, BoxStream};
 use futures::{Future, FutureExt, Stream, StreamExt};
 use tokio::sync::watch;

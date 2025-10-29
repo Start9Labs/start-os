@@ -11,36 +11,36 @@ use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
 use helpers::NonDetachingJoinHandle;
 use hickory_client::client::Client;
+use hickory_client::proto::DnsHandle;
 use hickory_client::proto::runtime::TokioRuntimeProvider;
 use hickory_client::proto::tcp::TcpClientStream;
 use hickory_client::proto::udp::UdpClientStream;
 use hickory_client::proto::xfer::DnsRequestOptions;
-use hickory_client::proto::DnsHandle;
+use hickory_server::ServerFuture;
 use hickory_server::authority::MessageResponseBuilder;
 use hickory_server::proto::op::{Header, ResponseCode};
 use hickory_server::proto::rr::{Name, Record, RecordType};
 use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
-use hickory_server::ServerFuture;
 use imbl::OrdMap;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use models::{GatewayId, OptionExt, PackageId};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{
-    from_fn_async, from_fn_blocking, Context, HandlerArgs, HandlerExt, ParentHandler,
+    Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async, from_fn_blocking,
 };
 use serde::{Deserialize, Serialize};
 use tokio::net::{TcpListener, UdpSocket};
 use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::public::NetworkInterfaceInfo;
 use crate::db::model::Database;
+use crate::db::model::public::NetworkInterfaceInfo;
 use crate::net::gateway::NetworkInterfaceWatcher;
 use crate::prelude::*;
 use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::io::file_string_stream;
-use crate::util::serde::{display_serializable, HandlerExtSerde};
+use crate::util::serde::{HandlerExtSerde, display_serializable};
 use crate::util::sync::{SyncRwLock, Watch};
 
 pub fn dns_api<C: Context>() -> ParentHandler<C> {
@@ -478,11 +478,7 @@ impl RequestHandler for Resolver {
                                     header,
                                     &ip.into_iter()
                                         .filter_map(|a| {
-                                            if let IpAddr::V4(a) = a {
-                                                Some(a)
-                                            } else {
-                                                None
-                                            }
+                                            if let IpAddr::V4(a) = a { Some(a) } else { None }
                                         })
                                         .map(|ip| {
                                             Record::from_rdata(
@@ -508,11 +504,7 @@ impl RequestHandler for Resolver {
                                     header,
                                     &ip.into_iter()
                                         .filter_map(|a| {
-                                            if let IpAddr::V6(a) = a {
-                                                Some(a)
-                                            } else {
-                                                None
-                                            }
+                                            if let IpAddr::V6(a) = a { Some(a) } else { None }
                                         })
                                         .map(|ip| {
                                             Record::from_rdata(

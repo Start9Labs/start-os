@@ -9,6 +9,7 @@ use cookie::{Cookie, Expiration, SameSite};
 use http::HeaderMap;
 use imbl::OrdMap;
 use imbl_value::InternedString;
+use include_dir::Dir;
 use models::GatewayId;
 use patch_db::PatchDb;
 use rpc_toolkit::yajrc::RpcError;
@@ -23,18 +24,27 @@ use crate::auth::Sessions;
 use crate::context::config::ContextConfig;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::NetworkInterfaceInfo;
-use crate::middleware::auth::AuthContext;
+use crate::else_empty_dir;
+use crate::middleware::auth::{Auth, AuthContext};
+use crate::middleware::cors::Cors;
 use crate::net::forward::PortForwardController;
 use crate::net::gateway::{IdFilter, InterfaceFilter};
+use crate::net::static_server::UiContext;
 use crate::prelude::*;
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
+use crate::tunnel::TUNNEL_DEFAULT_LISTEN;
 use crate::tunnel::db::{GatewayPort, TunnelDatabase};
 use crate::tunnel::wg::WIREGUARD_INTERFACE_NAME;
-use crate::tunnel::TUNNEL_DEFAULT_LISTEN;
+use crate::util::Invoke;
 use crate::util::collections::OrdMapIterMut;
 use crate::util::io::read_file_to_string;
 use crate::util::sync::{SyncMutex, Watch};
-use crate::util::Invoke;
+
+#[cfg(all(feature = "tunnel", not(feature = "test")))]
+const EMBEDDED_TUNNEL_UI_ROOT: Dir<'_> =
+    include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static");
+#[cfg(not(all(feature = "tunnel", not(feature = "test"))))]
+const EMBEDDED_TUNNEL_UI_ROOT: Dir<'_> = Dir::new("", &[]);
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, Parser)]
 #[serde(rename_all = "kebab-case")]
@@ -293,5 +303,16 @@ impl CallRemote<TunnelContext, TunnelUrlParams> for RpcContext {
             params,
         )
         .await
+    }
+}
+
+impl UiContext for TunnelContext {
+    const UI_DIR: &'static include_dir::Dir<'static> = &else_empty_dir!(
+        feature = "tunnel" =>
+        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/start-tunnel")
+    );
+
+    fn middleware(server: rpc_toolkit::Server<Self>) -> rpc_toolkit::HttpServer<Self> {
+        server.middleware(Cors::new()).middleware(Auth::new())
     }
 }

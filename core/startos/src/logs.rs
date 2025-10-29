@@ -15,7 +15,7 @@ use itertools::Itertools;
 use models::{FromStrParser, PackageId};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
-    from_fn_async, CallRemote, Context, Empty, HandlerArgs, HandlerExt, HandlerFor, ParentHandler,
+    CallRemote, Context, Empty, HandlerArgs, HandlerExt, HandlerFor, ParentHandler, from_fn_async,
 };
 use serde::de::{self, DeserializeOwned};
 use serde::{Deserialize, Serialize};
@@ -30,9 +30,9 @@ use crate::error::ResultExt;
 use crate::lxc::ContainerId;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
+use crate::util::Invoke;
 use crate::util::net::WebSocketExt;
 use crate::util::serde::Reversible;
-use crate::util::Invoke;
 
 #[pin_project::pin_project]
 pub struct LogStream {
