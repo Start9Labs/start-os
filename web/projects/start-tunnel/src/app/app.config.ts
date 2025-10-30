@@ -17,9 +17,17 @@ import { routes } from './app.routes'
 import { ApiService } from './services/api/api.service'
 import { LiveApiService } from './services/api/live-api.service'
 import { MockApiService } from './services/api/mock-api.service'
-import { WorkspaceConfig } from '@start9labs/shared'
+import { RELATIVE_URL, WorkspaceConfig } from '@start9labs/shared'
+import {
+  provideHttpClient,
+  withFetch,
+  withInterceptorsFromDi,
+} from '@angular/common/http'
 
-const { useMocks } = require('../../../../config.json') as WorkspaceConfig
+const {
+  useMocks,
+  ui: { api },
+} = require('../../../../config.json') as WorkspaceConfig
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -39,5 +47,10 @@ export const appConfig: ApplicationConfig = {
       provide: ApiService,
       useClass: useMocks ? MockApiService : LiveApiService,
     },
+    {
+      provide: RELATIVE_URL,
+      useValue: `/${api.url}/${api.version}`,
+    },
+    provideHttpClient(withInterceptorsFromDi(), withFetch()),
   ],
 }
