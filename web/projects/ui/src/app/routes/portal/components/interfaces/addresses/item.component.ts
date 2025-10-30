@@ -1,11 +1,5 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  input,
-  inject,
-} from '@angular/core'
-import { DialogService, i18nKey, i18nPipe } from '@start9labs/shared'
-import { TuiButton } from '@taiga-ui/core'
+import { ChangeDetectionStrategy, Component, input } from '@angular/core'
+import { i18nPipe } from '@start9labs/shared'
 import { DisplayAddress } from '../interface.service'
 import { AddressActionsComponent } from './actions.component'
 import { TuiBadge } from '@taiga-ui/kit'
@@ -14,16 +8,6 @@ import { TuiBadge } from '@taiga-ui/kit'
   selector: 'tr[address]',
   template: `
     @if (address(); as address) {
-      <td [style.width.rem]="3">
-        <button
-          tuiIconButton
-          appearance="flat-grayscale"
-          iconStart="@tui.info"
-          (click)="viewDetails(address.bullets)"
-        >
-          {{ 'Address details' | i18n }}
-        </button>
-      </td>
       <td>{{ address.type }}</td>
       <td>
         @if (address.access === 'public') {
@@ -50,8 +34,8 @@ import { TuiBadge } from '@taiga-ui/kit'
         actions
         [disabled]="!isRunning()"
         [href]="address.url"
+        [bullets]="address.bullets"
         [style.width.rem]="5"
-        (onDetails)="viewDetails(address.bullets)"
       ></td>
     }
   `,
@@ -89,22 +73,10 @@ import { TuiBadge } from '@taiga-ui/kit'
       }
     }
   `,
-  imports: [i18nPipe, AddressActionsComponent, TuiButton, TuiBadge],
+  imports: [i18nPipe, AddressActionsComponent, TuiBadge],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InterfaceAddressItemComponent {
   readonly address = input.required<DisplayAddress>()
   readonly isRunning = input.required<boolean>()
-  readonly dialog = inject(DialogService)
-
-  viewDetails(bullets: string[]) {
-    this.dialog
-      .openAlert(
-        `<ul>${bullets.map(b => `<li>${b}</li>`).join('')}</ul>` as i18nKey,
-        {
-          label: 'About this address' as i18nKey,
-        },
-      )
-      .subscribe()
-  }
 }

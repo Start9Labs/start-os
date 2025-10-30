@@ -5,7 +5,12 @@ import {
   input,
   output,
 } from '@angular/core'
-import { CopyService, DialogService, i18nPipe } from '@start9labs/shared'
+import {
+  CopyService,
+  DialogService,
+  i18nKey,
+  i18nPipe,
+} from '@start9labs/shared'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import {
   TuiButton,
@@ -22,6 +27,14 @@ import { InterfaceComponent } from '../interface.component'
   selector: 'td[actions]',
   template: `
     <div class="desktop">
+      <button
+        tuiIconButton
+        appearance="flat-grayscale"
+        iconStart="@tui.info"
+        (click)="viewDetails()"
+      >
+        {{ 'Address details' | i18n }}
+      </button>
       @if (interface.value()?.type === 'ui') {
         <a
           tuiIconButton
@@ -62,7 +75,7 @@ import { InterfaceComponent } from '../interface.component'
       >
         {{ 'Actions' | i18n }}
         <tui-data-list *tuiTextfieldDropdown="let close">
-          <button tuiOption new iconStart="@tui.eye" (click)="onDetails.emit()">
+          <button tuiOption new iconStart="@tui.info" (click)="viewDetails()">
             {{ 'Address details' | i18n }}
           </button>
           @if (interface.value()?.type === 'ui') {
@@ -125,11 +138,23 @@ export class AddressActionsComponent {
   readonly interface = inject(InterfaceComponent)
 
   readonly href = input.required<string>()
+  readonly bullets = input.required<string[]>()
   readonly disabled = input.required<boolean>()
 
-  readonly onDetails = output<void>()
-
   open = false
+
+  viewDetails() {
+    this.dialog
+      .openAlert(
+        `<ul>${this.bullets()
+          .map(b => `<li>${b}</li>`)
+          .join('')}</ul>` as i18nKey,
+        {
+          label: 'About this address' as i18nKey,
+        },
+      )
+      .subscribe()
+  }
 
   showQR() {
     this.dialog
