@@ -251,8 +251,8 @@ pub async fn set_password_cli(
         ..
     }: HandlerArgs<CliContext>,
 ) -> Result<(), Error> {
-    let password = rpassword::prompt_password("New Password")?;
-    let confirm = rpassword::prompt_password("Confirm Password")?;
+    let password = rpassword::prompt_password("New Password: ")?;
+    let confirm = rpassword::prompt_password("Confirm Password: ")?;
 
     if password != confirm {
         return Err(Error::new(

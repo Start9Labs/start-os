@@ -313,10 +313,10 @@ pub async fn get_available_ips(ctx: TunnelContext) -> Result<Vec<IpAddr>, Error>
     let ips = ctx.net_iface.peek(|interfaces| {
         interfaces
             .values()
-            .filter_map(|info| {
+            .flat_map(|info| {
                 info.ip_info
-                    .as_ref()
-                    .and_then(|ip_info| ip_info.subnets.iter().next().map(|subnet| subnet.addr()))
+                    .iter()
+                    .flat_map(|ip_info| ip_info.subnets.iter().map(|subnet| subnet.addr()))
             })
             .collect::<Vec<IpAddr>>()
     });
@@ -377,8 +377,11 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
             .call_remote::<TunnelContext>("web.enable", json!({}))
             .await
         {
-            Ok(_) => println!("Webserver Initialized"),
-            Err(e) if e.code == ErrorKind::ParseNetAddress as i32 => {
+            Ok(_) => {
+                println!("Webserver Initialized");
+                return Ok(());
+            }
+            Err(e) if e.kind == ErrorKind::ParseNetAddress => {
                 println!("A listen address has not been set yet. Setting one up now...");
 
                 let available_ips = from_value::<Vec<IpAddr>>(
@@ -431,7 +434,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                 )
                 .await?;
             }
-            Err(e) if e.code == ErrorKind::OpenSsl as i32 => {
+            Err(e) if e.kind == ErrorKind::OpenSsl => {
                 println!(
                     "StartTunnel has not been set up with an SSL Certificate yet. Setting one up now..."
                 );
@@ -526,7 +529,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                     .await?;
                 }
             }
-            Err(e) if e.code == ErrorKind::Authorization as i32 => {
+            Err(e) if e.kind == ErrorKind::Authorization => {
                 println!("A password has not been setup yet. Setting one up now...");
 
                 super::auth::set_password_cli(HandlerArgs {

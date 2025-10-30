@@ -156,7 +156,7 @@ results/$(REGISTRY_BASENAME).deb: dpkg-build.sh $(call ls-files,debian/start-reg
 tunnel-deb: results/$(TUNNEL_BASENAME).deb
 
 results/$(TUNNEL_BASENAME).deb: dpkg-build.sh $(call ls-files,debian/start-tunnel) $(TUNNEL_TARGETS)
-	PROJECT=start-tunnel PLATFORM=$(ARCH) REQUIRES=debian DEPENDS=wireguard-tools,iptables,network-manager,augeas-tools ./build/os-compat/run-compat.sh ./dpkg-build.sh
+	PROJECT=start-tunnel PLATFORM=$(ARCH) REQUIRES=debian DEPENDS=wireguard-tools,iptables ./build/os-compat/run-compat.sh ./dpkg-build.sh
 
 $(IMAGE_TYPE): results/$(BASENAME).$(IMAGE_TYPE)
 

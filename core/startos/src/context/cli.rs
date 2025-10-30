@@ -234,23 +234,28 @@ impl CliContext {
         &self,
         method: &str,
         params: Value,
-    ) -> Result<Value, RpcError>
+    ) -> Result<Value, Error>
     where
         Self: CallRemote<RemoteContext>,
     {
         <Self as CallRemote<RemoteContext, Empty>>::call_remote(&self, method, params, Empty {})
             .await
+            .map_err(Error::from)
+            .with_ctx(|e| (e.kind, method))
     }
     pub async fn call_remote_with<RemoteContext, T>(
         &self,
         method: &str,
         params: Value,
         extra: T,
-    ) -> Result<Value, RpcError>
+    ) -> Result<Value, Error>
     where
         Self: CallRemote<RemoteContext, T>,
     {
-        <Self as CallRemote<RemoteContext, T>>::call_remote(&self, method, params, extra).await
+        <Self as CallRemote<RemoteContext, T>>::call_remote(&self, method, params, extra)
+            .await
+            .map_err(Error::from)
+            .with_ctx(|e| (e.kind, method))
     }
 }
 impl AsRef<Jwk> for CliContext {

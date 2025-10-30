@@ -13,7 +13,7 @@ use include_dir::Dir;
 use models::GatewayId;
 use patch_db::PatchDb;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{CallRemote, Context, Empty};
+use rpc_toolkit::{CallRemote, Context, Empty, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::broadcast::Sender;
@@ -33,6 +33,7 @@ use crate::net::static_server::UiContext;
 use crate::prelude::*;
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::tunnel::TUNNEL_DEFAULT_LISTEN;
+use crate::tunnel::api::tunnel_api;
 use crate::tunnel::db::{GatewayPort, TunnelDatabase};
 use crate::tunnel::wg::WIREGUARD_INTERFACE_NAME;
 use crate::util::Invoke;
@@ -311,7 +312,10 @@ impl UiContext for TunnelContext {
         feature = "tunnel" =>
         include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/start-tunnel")
     );
-
+    fn api() -> ParentHandler<Self> {
+        tracing::info!("loading tunnel api...");
+        tunnel_api()
+    }
     fn middleware(server: rpc_toolkit::Server<Self>) -> rpc_toolkit::HttpServer<Self> {
         server.middleware(Cors::new()).middleware(Auth::new())
     }

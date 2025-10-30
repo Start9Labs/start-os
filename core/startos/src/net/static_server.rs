@@ -21,12 +21,12 @@ use http::header::{
 use http::request::Parts as RequestParts;
 use http::{HeaderValue, Method, StatusCode};
 use imbl_value::InternedString;
-use include_dir::{Dir, include_dir};
+use include_dir::Dir;
 use models::PackageId;
 use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;
-use rpc_toolkit::{Context, HttpServer, Server};
+use rpc_toolkit::{Context, HttpServer, ParentHandler, Server};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, BufReader};
 use tokio_util::io::ReaderStream;
 use url::Url;
@@ -80,6 +80,7 @@ const EMBEDDED_UI_ROOT: Dir<'_> = else_empty_dir!(
 
 pub trait UiContext: Context + AsRef<RpcContinuations> + Clone + Sized {
     const UI_DIR: &'static Dir<'static>;
+    fn api() -> ParentHandler<Self>;
     fn middleware(server: Server<Self>) -> HttpServer<Self>;
     fn extend_router(self, router: Router) -> Router {
         router
@@ -91,7 +92,9 @@ impl UiContext for RpcContext {
         feature = "startd" =>
         include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/ui")
     );
-
+    fn api() -> ParentHandler<Self> {
+        main_api()
+    }
     fn middleware(server: Server<Self>) -> HttpServer<Self> {
         server
             .middleware(Cors::new())
@@ -155,7 +158,9 @@ impl UiContext for InitContext {
         feature = "startd" =>
         include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/ui")
     );
-
+    fn api() -> ParentHandler<Self> {
+        main_api()
+    }
     fn middleware(server: Server<Self>) -> HttpServer<Self> {
         server.middleware(Cors::new())
     }
@@ -166,7 +171,9 @@ impl UiContext for DiagnosticContext {
         feature = "startd" =>
         include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/ui")
     );
-
+    fn api() -> ParentHandler<Self> {
+        main_api()
+    }
     fn middleware(server: Server<Self>) -> HttpServer<Self> {
         server.middleware(Cors::new())
     }
@@ -177,7 +184,9 @@ impl UiContext for SetupContext {
         feature = "startd" =>
         include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/setup-wizard")
     );
-
+    fn api() -> ParentHandler<Self> {
+        main_api()
+    }
     fn middleware(server: Server<Self>) -> HttpServer<Self> {
         server.middleware(Cors::new())
     }
@@ -188,7 +197,9 @@ impl UiContext for InstallContext {
         feature = "startd" =>
         include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/install-wizard")
     );
-
+    fn api() -> ParentHandler<Self> {
+        main_api()
+    }
     fn middleware(server: Server<Self>) -> HttpServer<Self> {
         server.middleware(Cors::new())
     }
@@ -256,7 +267,7 @@ pub fn ui_router<C: UiContext>(ctx: C) -> Router {
     ctx.clone()
         .extend_router(rpc_router(
             ctx.clone(),
-            C::middleware(Server::new(move || ready(Ok(ctx.clone())), main_api())),
+            C::middleware(Server::new(move || ready(Ok(ctx.clone())), C::api())),
         ))
         .fallback(any(|request: Request| async move {
             serve_ui::<C>(request).unwrap_or_else(server_error)
