@@ -8,22 +8,23 @@ import { Observable } from 'rxjs'
 })
 export abstract class ApiService {
   abstract openWebsocket$<T>(guid: string): Observable<T>
-  abstract subscribe(): Promise<SubscribeRes>
+  abstract subscribe(): Promise<SubscribeRes> // db.subscribe
   // auth
-  abstract login(params: LoginReq): Promise<null>
-  abstract logout(): Promise<null>
-  abstract setPassword(params: LoginReq): Promise<null>
+  abstract login(params: LoginReq): Promise<null> // auth.login
+  abstract logout(): Promise<null> // auth.logout
+  abstract setPassword(params: LoginReq): Promise<null> // auth.set-password
   // subnets
-  abstract addSubnet(params: UpsertSubnetReq): Promise<null>
-  abstract editSubnet(params: UpsertSubnetReq): Promise<null>
-  abstract deleteSubnet(params: DeleteSubnetReq): Promise<null>
+  abstract addSubnet(params: UpsertSubnetReq): Promise<null> // subnet.add
+  abstract editSubnet(params: UpsertSubnetReq): Promise<null> // subnet.add
+  abstract deleteSubnet(params: DeleteSubnetReq): Promise<null> // subnet.remove
   // devices
-  abstract addDevice(params: UpsertDeviceReq): Promise<null>
-  abstract editDevice(params: UpsertDeviceReq): Promise<null>
-  abstract deleteDevice(params: DeleteDeviceReq): Promise<null>
+  abstract addDevice(params: UpsertDeviceReq): Promise<null> // device.add
+  abstract editDevice(params: UpsertDeviceReq): Promise<null> // device.add
+  abstract deleteDevice(params: DeleteDeviceReq): Promise<null> // device.remove
+  abstract showDeviceConfig(params: DeleteDeviceReq): Promise<string> // device.show-config
   // forwards
-  abstract addForward(params: AddForwardReq): Promise<null>
-  abstract deleteForward(params: DeleteForwardReq): Promise<null>
+  abstract addForward(params: AddForwardReq): Promise<null> // forward.add
+  abstract deleteForward(params: DeleteForwardReq): Promise<null> // forward.remove
 }
 
 export type SubscribeRes = {
