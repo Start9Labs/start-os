@@ -161,6 +161,12 @@ export class MockApiService extends ApiService {
     return null
   }
 
+  async showDeviceConfig(params: DeleteDeviceReq): Promise<string> {
+    await pauseFor(1000)
+
+    return MOCK_CONFIG
+  }
+
   async addForward(params: AddForwardReq): Promise<null> {
     await pauseFor(1000)
 
@@ -202,3 +208,21 @@ export class MockApiService extends ApiService {
 function replaceSlashes(val: string) {
   return val.replace(new RegExp('/', 'g'), '~1')
 }
+
+const MOCK_CONFIG = `[Interface]
+# Server's private IP address for the WireGuard VPN subnet
+Address = 10.20.10.1/24
+# UDP port WireGuard listens on
+ListenPort = 33333
+# Server private key (generated)
+PrivateKey = 4K68mdpQWdEz/FpdVuRoZYgWpQgpW63J9GFzn+iOulQ=
+
+# Commands to run after starting/stopping WireGuard tunnel to enable forwarding and NAT (example)
+PostUp = iptables -A FORWARD -i %i -j ACCEPT; iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+PostDown = iptables -D FORWARD -i %i -j ACCEPT; iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE
+
+# Add client peers below with their public keys and allowed IPs
+[Peer]
+# Client public key
+PublicKey = MQBiYHxAj7u8paj3L4w4uav3P/9YBPbaN4gkWn90SSs=
+# Allowed client IP address within VPN subnet`

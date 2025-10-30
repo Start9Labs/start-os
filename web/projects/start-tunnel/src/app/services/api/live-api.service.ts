@@ -70,7 +70,7 @@ export class LiveApiService extends ApiService {
   }
 
   async deleteSubnet(params: DeleteSubnetReq): Promise<null> {
-    return this.rpcRequest({ method: 'subnet.delete', params })
+    return this.rpcRequest({ method: 'subnet.remove', params })
   }
 
   // devices
@@ -84,27 +84,31 @@ export class LiveApiService extends ApiService {
   }
 
   async deleteDevice(params: DeleteDeviceReq): Promise<null> {
-    return this.rpcRequest({ method: 'device.delete', params })
+    return this.rpcRequest({ method: 'device.remove', params })
+  }
+
+  async showDeviceConfig(params: DeleteDeviceReq): Promise<string> {
+    return this.rpcRequest({ method: 'device.show-config', params })
   }
 
   // forwards
 
   async addForward(params: AddForwardReq): Promise<null> {
-    return this.rpcRequest({ method: 'forward.create', params })
+    return this.rpcRequest({ method: 'forward.add', params })
   }
 
   async deleteForward(params: DeleteForwardReq): Promise<null> {
-    return this.rpcRequest({ method: 'forward.delete', params })
+    return this.rpcRequest({ method: 'forward.remove', params })
   }
 
   // private
 
   private async upsertSubnet(params: UpsertSubnetReq): Promise<null> {
-    return this.rpcRequest({ method: 'subnet.upsert', params })
+    return this.rpcRequest({ method: 'subnet.add', params })
   }
 
   private async upsertDevice(params: UpsertDeviceReq): Promise<null> {
-    return this.rpcRequest({ method: 'device.upsert', params })
+    return this.rpcRequest({ method: 'device.add', params })
   }
 
   private async rpcRequest<T>(
