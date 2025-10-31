@@ -298,7 +298,9 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     required: Required
     minLength?: number | null
     maxLength?: number | null
+    /** Defaults to 3 */
     minRows?: number | null
+    /** Maximum number of rows before scroll appears. Defaults to 6 */
     maxRows?: number | null
     placeholder?: string | null
     /**
