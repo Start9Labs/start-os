@@ -11,7 +11,7 @@ use crate::net::gateway::{IdFilter, InterfaceFilter};
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::db::GatewayPort;
-use crate::tunnel::wg::{ClientConfig, WgConfig, WgSubnetClients, WgSubnetConfig};
+use crate::tunnel::wg::{WgConfig, WgSubnetClients, WgSubnetConfig};
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 
 pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
@@ -29,6 +29,10 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "subnet",
             subnet_api::<C>().with_about("Add, remove, or modify subnets"),
+        )
+        .subcommand(
+            "device",
+            device_api::<C>().with_about("Add, remove, or list devices in subnets"),
         )
         .subcommand(
             "port-forward",
@@ -78,28 +82,29 @@ pub fn subnet_api<C: Context>() -> ParentHandler<C, SubnetParams> {
                 .with_about("Remove a subnet")
                 .with_call_remote::<CliContext>(),
         )
+}
+
+pub fn device_api<C: Context>() -> ParentHandler<C> {
+    ParentHandler::new()
         .subcommand(
-            "add-device",
+            "add",
             from_fn_async(add_device)
                 .with_metadata("sync_db", Value::Bool(true))
-                .with_inherited(|a, _| a)
                 .no_display()
                 .with_about("Add a device to a subnet")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
-            "remove-device",
+            "remove",
             from_fn_async(remove_device)
                 .with_metadata("sync_db", Value::Bool(true))
-                .with_inherited(|a, _| a)
                 .no_display()
                 .with_about("Remove a device from a subnet")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
-            "list-devices",
+            "list",
             from_fn_async(list_devices)
-                .with_inherited(|a, _| a)
                 .with_display_serializable()
                 .with_custom_display_fn(|HandlerArgs { params, .. }, res| {
                     use prettytable::*;
@@ -124,18 +129,7 @@ pub fn subnet_api<C: Context>() -> ParentHandler<C, SubnetParams> {
         .subcommand(
             "show-config",
             from_fn_async(show_config)
-                .with_inherited(|a, _| a)
-                .with_display_serializable()
-                .with_custom_display_fn(|HandlerArgs { params, .. }, res| {
-                    if let Some(format) = params.format {
-                        return display_serializable(format, res);
-                    }
-
-                    println!("{}", res);
-
-                    Ok(())
-                })
-                .with_about("Show the WireGuard configuration for a subnet")
+                .with_about("Show the WireGuard configuration for a device")
                 .with_call_remote::<CliContext>(),
         )
 }
@@ -195,14 +189,14 @@ pub async fn remove_subnet(
 #[derive(Deserialize, Serialize, Parser)]
 #[serde(rename_all = "camelCase")]
 pub struct AddDeviceParams {
+    subnet: Ipv4Net,
     name: InternedString,
     ip: Option<Ipv4Addr>,
 }
 
 pub async fn add_device(
     ctx: TunnelContext,
-    AddDeviceParams { name, ip }: AddDeviceParams,
-    SubnetParams { subnet }: SubnetParams,
+    AddDeviceParams { subnet, name, ip }: AddDeviceParams,
 ) -> Result<(), Error> {
     let config = WgConfig::generate(name);
     let server = ctx
@@ -254,13 +248,13 @@ pub async fn add_device(
 #[derive(Deserialize, Serialize, Parser)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDeviceParams {
+    subnet: Ipv4Net,
     device: Ipv4Addr,
 }
 
 pub async fn remove_device(
     ctx: TunnelContext,
-    RemoveDeviceParams { device }: RemoveDeviceParams,
-    SubnetParams { subnet }: SubnetParams,
+    RemoveDeviceParams { subnet, device }: RemoveDeviceParams,
 ) -> Result<(), Error> {
     let server = ctx
         .db
@@ -279,10 +273,15 @@ pub async fn remove_device(
     server.sync().await
 }
 
+#[derive(Deserialize, Serialize, Parser)]
+#[serde(rename_all = "camelCase")]
+pub struct ListDevicesParams {
+    subnet: Ipv4Net,
+}
+
 pub async fn list_devices(
     ctx: TunnelContext,
-    _: Empty,
-    SubnetParams { subnet }: SubnetParams,
+    ListDevicesParams { subnet }: ListDevicesParams,
 ) -> Result<WgSubnetConfig, Error> {
     ctx.db
         .peek()
@@ -297,7 +296,8 @@ pub async fn list_devices(
 #[derive(Deserialize, Serialize, Parser)]
 #[serde(rename_all = "camelCase")]
 pub struct ShowConfigParams {
-    device: Ipv4Addr,
+    subnet: Ipv4Net,
+    ip: Ipv4Addr,
     wan_addr: Option<IpAddr>,
     #[serde(rename = "__ConnectInfo_local_addr")]
     #[arg(skip)]
@@ -307,12 +307,12 @@ pub struct ShowConfigParams {
 pub async fn show_config(
     ctx: TunnelContext,
     ShowConfigParams {
-        device,
+        subnet,
+        ip,
         wan_addr,
         local_addr,
     }: ShowConfigParams,
-    SubnetParams { subnet }: SubnetParams,
-) -> Result<ClientConfig, Error> {
+) -> Result<String, Error> {
     let peek = ctx.db.peek().await;
     let wg = peek.as_wg();
     let client = wg
@@ -320,8 +320,8 @@ pub async fn show_config(
         .as_idx(&subnet)
         .or_not_found(&subnet)?
         .as_clients()
-        .as_idx(&device)
-        .or_not_found(&device)?
+        .as_idx(&ip)
+        .or_not_found(&ip)?
         .de()?;
     let wan_addr = if let Some(wan_addr) = wan_addr.or(local_addr.map(|a| a.ip())).filter(|ip| {
         !ip.is_loopback()
@@ -348,11 +348,13 @@ pub async fn show_config(
             .or_not_found("a public IP address")?
             .addr()
     };
-    Ok(client.client_config(
-        device,
-        wg.as_key().de()?.verifying_key(),
-        (wan_addr, wg.as_port().de()?).into(),
-    ))
+    Ok(client
+        .client_config(
+            ip,
+            wg.as_key().de()?.verifying_key(),
+            (wan_addr, wg.as_port().de()?).into(),
+        )
+        .to_string())
 }
 
 #[derive(Deserialize, Serialize, Parser)]

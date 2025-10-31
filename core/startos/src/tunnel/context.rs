@@ -23,7 +23,7 @@ use url::Url;
 use crate::auth::Sessions;
 use crate::context::config::ContextConfig;
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::public::NetworkInterfaceInfo;
+use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
 use crate::else_empty_dir;
 use crate::middleware::auth::{Auth, AuthContext};
 use crate::middleware::cors::Cors;
@@ -140,6 +140,11 @@ impl TunnelContext {
 
         for iface in net_iface.peek(|i| {
             i.iter()
+                .filter(|(_, info)| {
+                    info.ip_info.as_ref().map_or(false, |i| {
+                        i.device_type != Some(NetworkInterfaceType::Loopback)
+                    })
+                })
                 .map(|(name, _)| name)
                 .filter(|id| id.as_str() != WIREGUARD_INTERFACE_NAME)
                 .cloned()
@@ -203,6 +208,12 @@ impl TunnelContext {
 impl AsRef<RpcContinuations> for TunnelContext {
     fn as_ref(&self) -> &RpcContinuations {
         &self.rpc_continuations
+    }
+}
+
+impl AsRef<OpenAuthedContinuations<Option<InternedString>>> for TunnelContext {
+    fn as_ref(&self) -> &OpenAuthedContinuations<Option<InternedString>> {
+        &self.open_authed_continuations
     }
 }
 

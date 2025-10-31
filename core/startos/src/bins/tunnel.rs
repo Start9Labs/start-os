@@ -46,7 +46,7 @@ async fn inner_main(config: &TunnelConfig) -> Result<(), Error> {
         let https_db = ctx.db.clone();
         let https_thread: NonDetachingJoinHandle<()> = tokio::spawn(async move {
             let mut sub = https_db.subscribe("/webserver".parse().unwrap()).await;
-            while sub.recv().await.is_some() {
+            while {
                 while let Err(e) = async {
                     let webserver = https_db.peek().await.into_webserver();
                     if webserver.as_enabled().de()? {
@@ -96,7 +96,8 @@ async fn inner_main(config: &TunnelConfig) -> Result<(), Error> {
                     tracing::debug!("{e:?}");
                     tokio::time::sleep(Duration::from_secs(5)).await;
                 }
-            }
+                sub.recv().await.is_some()
+            } {}
         })
         .into();
 

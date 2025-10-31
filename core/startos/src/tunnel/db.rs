@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 use std::net::SocketAddrV4;
 use std::path::PathBuf;
+use std::time::Duration;
 
+use axum::extract::ws;
 use clap::Parser;
 use clap::builder::ValueParserFactory;
 use imbl::{HashMap, OrdMap};
@@ -20,11 +22,13 @@ use crate::auth::Sessions;
 use crate::context::CliContext;
 use crate::db::model::public::NetworkInterfaceInfo;
 use crate::prelude::*;
+use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::sign::AnyVerifyingKey;
 use crate::tunnel::auth::SignerInfo;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::web::WebserverInfo;
 use crate::tunnel::wg::WgServer;
+use crate::util::net::WebSocketExt;
 use crate::util::serde::{HandlerExtSerde, apply_expr, deserialize_from_str, serialize_display};
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -110,6 +114,12 @@ pub fn db_api<C: Context>() -> ParentHandler<C> {
             "dump",
             from_fn_async(dump)
                 .with_metadata("admin", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand(
+            "subscribe",
+            from_fn_async(subscribe)
+                .with_metadata("get_session", Value::Bool(true))
                 .no_cli(),
         )
         .subcommand(
@@ -259,4 +269,76 @@ pub async fn apply(ctx: TunnelContext, ApplyParams { expr, .. }: ApplyParams) ->
         })
         .await
         .result
+}
+
+#[derive(Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscribeParams {
+    #[ts(type = "string | null")]
+    pointer: Option<JsonPointer>,
+    #[ts(skip)]
+    #[serde(rename = "__Auth_session")]
+    session: Option<InternedString>,
+}
+
+#[derive(Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscribeRes {
+    #[ts(type = "{ id: number; value: unknown }")]
+    pub dump: Dump,
+    pub guid: Guid,
+}
+
+pub async fn subscribe(
+    ctx: TunnelContext,
+    SubscribeParams { pointer, session }: SubscribeParams,
+) -> Result<SubscribeRes, Error> {
+    let (dump, mut sub) = ctx
+        .db
+        .dump_and_sub(pointer.unwrap_or_else(|| ROOT.to_owned()))
+        .await;
+    let guid = Guid::new();
+    ctx.rpc_continuations
+        .add(
+            guid.clone(),
+            RpcContinuation::ws_authed(
+                &ctx,
+                session,
+                |mut ws| async move {
+                    if let Err(e) = async {
+                        loop {
+                            tokio::select! {
+                                rev = sub.recv() => {
+                                    if let Some(rev) = rev {
+                                        ws.send(ws::Message::Text(
+                                            serde_json::to_string(&rev)
+                                                .with_kind(ErrorKind::Serialization)?
+                                                .into(),
+                                        ))
+                                        .await
+                                        .with_kind(ErrorKind::Network)?;
+                                    } else {
+                                        return ws.normal_close("complete").await;
+                                    }
+                                }
+                                msg = ws.recv() => {
+                                    if msg.transpose().with_kind(ErrorKind::Network)?.is_none() {
+                                        return Ok(())
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .await
+                    {
+                        tracing::error!("Error in db websocket: {e}");
+                        tracing::debug!("{e:?}");
+                    }
+                },
+                Duration::from_secs(30),
+            ),
+        )
+        .await;
+
+    Ok(SubscribeRes { dump, guid })
 }

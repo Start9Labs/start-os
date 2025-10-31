@@ -120,6 +120,20 @@ pub struct SignerInfo {
 
 pub fn auth_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
+        .subcommand(
+            "login",
+            from_fn_async(crate::auth::login_impl::<TunnelContext>)
+                .with_metadata("login", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand(
+            "logout",
+            from_fn_async(crate::auth::logout::<TunnelContext>)
+                .with_metadata("get_session", Value::Bool(true))
+                .no_display()
+                .with_about("Log out of current auth session")
+                .with_call_remote::<CliContext>(),
+        )
         .subcommand("set-password", from_fn_async(set_password_rpc).no_cli())
         .subcommand(
             "set-password",
