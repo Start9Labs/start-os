@@ -140,6 +140,8 @@ describe("values", () => {
       warning: null,
       minLength: null,
       maxLength: null,
+      minRows: 3,
+      maxRows: 6,
       placeholder: null,
     }).build({} as any)
     const validator = value.validator
@@ -452,6 +454,8 @@ describe("values", () => {
         warning: null,
         minLength: null,
         maxLength: null,
+        minRows: 3,
+        maxRows: 6,
         placeholder: null,
       })).build({} as any)
       const validator = value.validator
