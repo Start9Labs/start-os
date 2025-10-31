@@ -283,6 +283,8 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       warning: null,
       minLength: null,
       maxLength: null,
+      minRows: null
+      maxRows: null
       immutable: false,
     }),
     * ```
@@ -296,6 +298,8 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     required: Required
     minLength?: number | null
     maxLength?: number | null
+    minRows?: number | null
+    maxRows?: number | null
     placeholder?: string | null
     /**
      * @description Once set, the value can never be changed.
@@ -310,6 +314,8 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         warning: null,
         minLength: null,
         maxLength: null,
+        minRows: null,
+        maxRows: null,
         placeholder: null,
         type: "textarea" as const,
         disabled: false,
@@ -328,6 +334,8 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       required: Required
       minLength?: number | null
       maxLength?: number | null
+      minRows?: number | null
+      maxRows?: number | null
       placeholder?: string | null
       disabled?: false | string
     }>,
@@ -341,6 +349,8 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
             warning: null,
             minLength: null,
             maxLength: null,
+            minRows: null,
+            maxRows: null,
             placeholder: null,
             type: "textarea" as const,
             disabled: false,

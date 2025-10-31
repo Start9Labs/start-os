@@ -96,6 +96,8 @@ export default class GatewaysComponent {
                 name: this.i18n.transform('File Contents'),
                 default: null,
                 required: true,
+                minRows: 16,
+                maxRows: 16,
               }),
             }),
           },

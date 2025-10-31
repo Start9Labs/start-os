@@ -83,6 +83,8 @@ const {InputSpec, List, Value, Variants} = sdk
               placeholder: value.placeholder || null,
               maxLength: null,
               minLength: null,
+              maxRows: null,
+              minRows: null,
             },
             null,
             2,
