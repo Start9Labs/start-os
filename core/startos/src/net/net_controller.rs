@@ -18,7 +18,7 @@ use crate::db::model::public::NetworkInterfaceType;
 use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
-use crate::net::forward::{PortForwardController, START9_BRIDGE_IFACE};
+use crate::net::forward::{InterfacePortForwardController, START9_BRIDGE_IFACE};
 use crate::net::gateway::{
     AndFilter, DynInterfaceFilter, IdFilter, InterfaceFilter, NetworkInterfaceController, OrFilter,
     PublicFilter, SecureFilter, TypeFilter,
@@ -42,7 +42,7 @@ pub struct NetController {
     pub(super) tls_client_config: Arc<TlsClientConfig>,
     pub(crate) net_iface: Arc<NetworkInterfaceController>,
     pub(super) dns: DnsController,
-    pub(super) forward: PortForwardController,
+    pub(super) forward: InterfacePortForwardController,
     pub(super) socks: SocksController,
     pub(super) server_hostnames: Vec<Option<InternedString>>,
     pub(crate) callbacks: Arc<ServiceCallbacks>,
@@ -76,7 +76,7 @@ impl NetController {
             vhost: VHostController::new(db.clone(), net_iface.clone(), crypto_provider),
             tls_client_config,
             dns: DnsController::init(db, &net_iface.watcher).await?,
-            forward: PortForwardController::new(net_iface.watcher.subscribe()),
+            forward: InterfacePortForwardController::new(net_iface.watcher.subscribe()),
             net_iface,
             socks,
             server_hostnames: vec![

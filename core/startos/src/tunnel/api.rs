@@ -7,7 +7,6 @@ use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_f
 use serde::{Deserialize, Serialize};
 
 use crate::context::CliContext;
-use crate::net::gateway::{IdFilter, InterfaceFilter};
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::db::GatewayPort;
@@ -372,13 +371,26 @@ pub async fn add_forward(
         .mutate(|db| db.as_port_forwards_mut().insert(&source, &target))
         .await
         .result?;
+
+    // source is (GatewayId, port), target is SocketAddrV4
+    // Find the first IP address for the specified gateway and create a source SocketAddr
+    let source_addr = ctx.net_iface.peek(|ifaces| {
+        ifaces
+            .get(&source.0)
+            .and_then(|info| info.ip_info.as_ref())
+            .and_then(|ip_info| ip_info.subnets.iter().next())
+            .map(|ipnet| std::net::SocketAddr::new(ipnet.addr(), source.1))
+    })
+    .ok_or_else(|| {
+        Error::new(
+            eyre!("Gateway {} not found or has no IP addresses", source.0),
+            crate::ErrorKind::Network,
+        )
+    })?;
+
     let rc = ctx
         .forward
-        .add(
-            source.1,
-            IdFilter(source.0.clone()).into_dyn(),
-            target.into(),
-        )
+        .add_forward(source.0.clone(), source_addr, target.into())
         .await?;
     ctx.active_forwards.mutate(|m| {
         m.insert(source, rc);

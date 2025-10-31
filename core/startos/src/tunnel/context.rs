@@ -28,7 +28,6 @@ use crate::else_empty_dir;
 use crate::middleware::auth::{Auth, AuthContext};
 use crate::middleware::cors::Cors;
 use crate::net::forward::PortForwardController;
-use crate::net::gateway::{IdFilter, InterfaceFilter};
 use crate::net::static_server::UiContext;
 use crate::prelude::*;
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
@@ -130,7 +129,7 @@ impl TunnelContext {
             .await
             .result?;
         let net_iface = Watch::new(net_iface);
-        let forward = PortForwardController::new(net_iface.clone_unseen());
+        let forward = PortForwardController::new();
 
         Command::new("sysctl")
             .arg("-w")
@@ -183,12 +182,24 @@ impl TunnelContext {
         peek.as_wg().de()?.sync().await?;
         let mut active_forwards = BTreeMap::new();
         for (from, to) in peek.as_port_forwards().de()?.0 {
-            active_forwards.insert(
-                from.clone(),
-                forward
-                    .add(from.1, IdFilter(from.0).into_dyn(), to.into())
-                    .await?,
-            );
+            // from is (GatewayId, u16), to is SocketAddr
+            // Create the source SocketAddr for each interface matching the gateway
+            for (gateway_id, info) in net_iface.peek(|i| i.clone()) {
+                if gateway_id == from.0 {
+                    if let Some(ip_info) = &info.ip_info {
+                        if let Some(ipnet) = ip_info.subnets.iter().next() {
+                            let source = std::net::SocketAddr::new(ipnet.addr(), from.1);
+                            active_forwards.insert(
+                                from.clone(),
+                                forward
+                                    .add_forward(gateway_id.clone(), source, to.into())
+                                    .await?,
+                            );
+                        }
+                    }
+                    break;
+                }
+            }
         }
 
         Ok(Self(Arc::new(TunnelContextSeed {
