@@ -9,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use crate::context::CliContext;
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
-use crate::tunnel::db::GatewayPort;
 use crate::tunnel::wg::{WgConfig, WgSubnetClients, WgSubnetConfig};
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 
@@ -359,7 +358,7 @@ pub async fn show_config(
 #[derive(Deserialize, Serialize, Parser)]
 #[serde(rename_all = "camelCase")]
 pub struct AddPortForwardParams {
-    source: GatewayPort,
+    source: SocketAddrV4,
     target: SocketAddrV4,
 }
 
@@ -372,26 +371,7 @@ pub async fn add_forward(
         .await
         .result?;
 
-    // source is (GatewayId, port), target is SocketAddrV4
-    // Find the first IP address for the specified gateway and create a source SocketAddr
-    let source_addr = ctx.net_iface.peek(|ifaces| {
-        ifaces
-            .get(&source.0)
-            .and_then(|info| info.ip_info.as_ref())
-            .and_then(|ip_info| ip_info.subnets.iter().next())
-            .map(|ipnet| std::net::SocketAddr::new(ipnet.addr(), source.1))
-    })
-    .ok_or_else(|| {
-        Error::new(
-            eyre!("Gateway {} not found or has no IP addresses", source.0),
-            crate::ErrorKind::Network,
-        )
-    })?;
-
-    let rc = ctx
-        .forward
-        .add_forward(source.0.clone(), source_addr, target.into())
-        .await?;
+    let rc = ctx.forward.add_forward(source, target).await?;
     ctx.active_forwards.mutate(|m| {
         m.insert(source, rc);
     });
@@ -401,7 +381,7 @@ pub async fn add_forward(
 #[derive(Deserialize, Serialize, Parser)]
 #[serde(rename_all = "camelCase")]
 pub struct RemovePortForwardParams {
-    source: GatewayPort,
+    source: SocketAddrV4,
 }
 
 pub async fn remove_forward(

@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::net::{IpAddr, SocketAddr};
+use std::net::{IpAddr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -33,7 +33,7 @@ use crate::prelude::*;
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::tunnel::TUNNEL_DEFAULT_LISTEN;
 use crate::tunnel::api::tunnel_api;
-use crate::tunnel::db::{GatewayPort, TunnelDatabase};
+use crate::tunnel::db::TunnelDatabase;
 use crate::tunnel::wg::WIREGUARD_INTERFACE_NAME;
 use crate::util::Invoke;
 use crate::util::collections::OrdMapIterMut;
@@ -85,7 +85,7 @@ pub struct TunnelContextSeed {
     pub ephemeral_sessions: SyncMutex<Sessions>,
     pub net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
     pub forward: PortForwardController,
-    pub active_forwards: SyncMutex<BTreeMap<GatewayPort, Arc<()>>>,
+    pub active_forwards: SyncMutex<BTreeMap<SocketAddrV4, Arc<()>>>,
     pub shutdown: Sender<()>,
 }
 
@@ -182,24 +182,7 @@ impl TunnelContext {
         peek.as_wg().de()?.sync().await?;
         let mut active_forwards = BTreeMap::new();
         for (from, to) in peek.as_port_forwards().de()?.0 {
-            // from is (GatewayId, u16), to is SocketAddr
-            // Create the source SocketAddr for each interface matching the gateway
-            for (gateway_id, info) in net_iface.peek(|i| i.clone()) {
-                if gateway_id == from.0 {
-                    if let Some(ip_info) = &info.ip_info {
-                        if let Some(ipnet) = ip_info.subnets.iter().next() {
-                            let source = std::net::SocketAddr::new(ipnet.addr(), from.1);
-                            active_forwards.insert(
-                                from.clone(),
-                                forward
-                                    .add_forward(gateway_id.clone(), source, to.into())
-                                    .await?,
-                            );
-                        }
-                    }
-                    break;
-                }
-            }
+            active_forwards.insert(from, forward.add_forward(from, to).await?);
         }
 
         Ok(Self(Arc::new(TunnelContextSeed {

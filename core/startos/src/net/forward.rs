@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{IpAddr, SocketAddr, SocketAddrV6};
+use std::net::{IpAddr, SocketAddrV4};
 use std::sync::{Arc, Weak};
+use std::time::Duration;
 
 use futures::channel::oneshot;
 use helpers::NonDetachingJoinHandle;
@@ -16,7 +17,6 @@ use tokio::sync::mpsc;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::NetworkInterfaceInfo;
 use crate::net::gateway::{DynInterfaceFilter, InterfaceFilter};
-use crate::net::utils::ipv6_is_link_local;
 use crate::prelude::*;
 use crate::util::Invoke;
 use crate::util::serde::{HandlerExtSerde, display_serializable};
@@ -76,51 +76,46 @@ pub fn forward_api<C: Context>() -> ParentHandler<C> {
 }
 
 struct ForwardMapping {
-    source: SocketAddr,
-    target: SocketAddr,
-    interface: GatewayId,
+    source: SocketAddrV4,
+    target: SocketAddrV4,
     rc: Weak<()>,
 }
 
 #[derive(Default)]
 struct PortForwardState {
-    mappings: BTreeMap<SocketAddr, ForwardMapping>, // source -> target
+    mappings: BTreeMap<SocketAddrV4, ForwardMapping>, // source -> target
 }
 
 impl PortForwardState {
     async fn add_forward(
         &mut self,
-        interface: GatewayId,
-        source: SocketAddr,
-        target: SocketAddr,
-        rc: Arc<()>,
+        source: SocketAddrV4,
+        target: SocketAddrV4,
     ) -> Result<Arc<()>, Error> {
-        // Check if mapping already exists
         if let Some(existing) = self.mappings.get_mut(&source) {
-            // If it's the same target and interface, just update the reference
-            if existing.target == target && existing.interface == interface {
+            if existing.target == target {
                 if let Some(existing_rc) = existing.rc.upgrade() {
                     return Ok(existing_rc);
                 } else {
+                    let rc = Arc::new(());
                     existing.rc = Arc::downgrade(&rc);
                     return Ok(rc);
                 }
             } else {
-                // Different target/interface, need to remove old and add new
+                // Different target, need to remove old and add new
                 if let Some(mapping) = self.mappings.remove(&source) {
-                    unforward(mapping.interface.as_str(), mapping.source, mapping.target).await?;
+                    unforward(mapping.source, mapping.target).await?;
                 }
             }
         }
 
-        // Add the new forward
-        forward(interface.as_str(), source, target).await?;
+        let rc = Arc::new(());
+        forward(source, target).await?;
         self.mappings.insert(
             source,
             ForwardMapping {
                 source,
                 target,
-                interface: interface.clone(),
                 rc: Arc::downgrade(&rc),
             },
         );
@@ -129,7 +124,7 @@ impl PortForwardState {
     }
 
     async fn gc(&mut self) -> Result<(), Error> {
-        let to_remove: Vec<SocketAddr> = self
+        let to_remove: Vec<SocketAddrV4> = self
             .mappings
             .iter()
             .filter(|(_, mapping)| mapping.rc.strong_count() == 0)
@@ -138,13 +133,13 @@ impl PortForwardState {
 
         for source in to_remove {
             if let Some(mapping) = self.mappings.remove(&source) {
-                unforward(mapping.interface.as_str(), mapping.source, mapping.target).await?;
+                unforward(mapping.source, mapping.target).await?;
             }
         }
         Ok(())
     }
 
-    fn dump(&self) -> BTreeMap<SocketAddr, SocketAddr> {
+    fn dump(&self) -> BTreeMap<SocketAddrV4, SocketAddrV4> {
         self.mappings
             .iter()
             .filter(|(_, mapping)| mapping.rc.strong_count() > 0)
@@ -159,9 +154,7 @@ impl Drop for PortForwardState {
             let mappings = std::mem::take(&mut self.mappings);
             tokio::spawn(async move {
                 for (_, mapping) in mappings {
-                    unforward(mapping.interface.as_str(), mapping.source, mapping.target)
-                        .await
-                        .log_err();
+                    unforward(mapping.source, mapping.target).await.log_err();
                 }
             });
         }
@@ -170,17 +163,15 @@ impl Drop for PortForwardState {
 
 enum PortForwardCommand {
     AddForward {
-        interface: GatewayId,
-        source: SocketAddr,
-        target: SocketAddr,
-        rc: Arc<()>,
+        source: SocketAddrV4,
+        target: SocketAddrV4,
         respond: oneshot::Sender<Result<Arc<()>, Error>>,
     },
     Gc {
         respond: oneshot::Sender<Result<(), Error>>,
     },
     Dump {
-        respond: oneshot::Sender<BTreeMap<SocketAddr, SocketAddr>>,
+        respond: oneshot::Sender<BTreeMap<SocketAddrV4, SocketAddrV4>>,
     },
 }
 
@@ -193,17 +184,50 @@ impl PortForwardController {
     pub fn new() -> Self {
         let (req_send, mut req_recv) = mpsc::unbounded_channel::<PortForwardCommand>();
         let thread = NonDetachingJoinHandle::from(tokio::spawn(async move {
+            while let Err(e) = async {
+                Command::new("sysctl")
+                    .arg("-w")
+                    .arg("net.ipv4.ip_forward=1")
+                    .invoke(ErrorKind::Network)
+                    .await?;
+                if Command::new("iptables")
+                    .arg("-t")
+                    .arg("nat")
+                    .arg("-C")
+                    .arg("POSTROUTING")
+                    .arg("-j")
+                    .arg("MASQUERADE")
+                    .invoke(ErrorKind::Network)
+                    .await
+                    .is_err()
+                {
+                    Command::new("iptables")
+                        .arg("-t")
+                        .arg("nat")
+                        .arg("-A")
+                        .arg("POSTROUTING")
+                        .arg("-j")
+                        .arg("MASQUERADE")
+                        .invoke(ErrorKind::Network)
+                        .await?;
+                }
+                Ok::<_, Error>(())
+            }
+            .await
+            {
+                tracing::error!("error initializing PortForwardController: {e:#}");
+                tracing::debug!("{e:?}");
+                tokio::time::sleep(Duration::from_secs(5)).await;
+            }
             let mut state = PortForwardState::default();
             while let Some(cmd) = req_recv.recv().await {
                 match cmd {
                     PortForwardCommand::AddForward {
-                        interface,
                         source,
                         target,
-                        rc,
                         respond,
                     } => {
-                        let result = state.add_forward(interface, source, target, rc).await;
+                        let result = state.add_forward(source, target).await;
                         respond.send(result).ok();
                     }
                     PortForwardCommand::Gc { respond } => {
@@ -225,18 +249,14 @@ impl PortForwardController {
 
     pub async fn add_forward(
         &self,
-        interface: GatewayId,
-        source: SocketAddr,
-        target: SocketAddr,
+        source: SocketAddrV4,
+        target: SocketAddrV4,
     ) -> Result<Arc<()>, Error> {
-        let rc = Arc::new(());
         let (send, recv) = oneshot::channel();
         self.req
             .send(PortForwardCommand::AddForward {
-                interface,
                 source,
                 target,
-                rc,
                 respond: send,
             })
             .map_err(err_has_exited)?;
@@ -253,7 +273,7 @@ impl PortForwardController {
         recv.await.map_err(err_has_exited)?
     }
 
-    pub async fn dump(&self) -> Result<BTreeMap<SocketAddr, SocketAddr>, Error> {
+    pub async fn dump(&self) -> Result<BTreeMap<SocketAddrV4, SocketAddrV4>, Error> {
         let (send, recv) = oneshot::channel();
         self.req
             .send(PortForwardCommand::Dump { respond: send })
@@ -265,7 +285,7 @@ impl PortForwardController {
 
 struct InterfaceForwardRequest {
     external: u16,
-    target: SocketAddr,
+    target: SocketAddrV4,
     filter: DynInterfaceFilter,
     rc: Arc<()>,
 }
@@ -273,9 +293,9 @@ struct InterfaceForwardRequest {
 #[derive(Clone)]
 struct InterfaceForwardEntry {
     external: u16,
-    filter: BTreeMap<DynInterfaceFilter, (SocketAddr, Weak<()>)>,
+    filter: BTreeMap<DynInterfaceFilter, (SocketAddrV4, Weak<()>)>,
     // Maps source SocketAddr -> strong reference for the forward created in PortForwardController
-    forwards: BTreeMap<SocketAddr, Arc<()>>,
+    forwards: BTreeMap<SocketAddrV4, Arc<()>>,
 }
 
 impl IdOrdItem for InterfaceForwardEntry {
@@ -301,7 +321,7 @@ impl InterfaceForwardEntry {
         ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
         port_forward: &PortForwardController,
     ) -> Result<(), Error> {
-        let mut keep = BTreeSet::<SocketAddr>::new();
+        let mut keep = BTreeSet::<SocketAddrV4>::new();
 
         for (iface, info) in ip_info.iter() {
             if let Some(target) = self
@@ -312,26 +332,16 @@ impl InterfaceForwardEntry {
                 .map(|(_, (target, _))| *target)
             {
                 if let Some(ip_info) = &info.ip_info {
-                    for ipnet in &ip_info.subnets {
-                        let addr = match ipnet.addr() {
-                            IpAddr::V6(ip6) => SocketAddrV6::new(
-                                ip6,
-                                self.external,
-                                0,
-                                if ipv6_is_link_local(ip6) {
-                                    ip_info.scope_id
-                                } else {
-                                    0
-                                },
-                            )
-                            .into(),
-                            ip => SocketAddr::new(ip, self.external),
-                        };
+                    for addr in ip_info.subnets.iter().filter_map(|net| {
+                        if let IpAddr::V4(ip) = net.addr() {
+                            Some(SocketAddrV4::new(ip, self.external))
+                        } else {
+                            None
+                        }
+                    }) {
                         keep.insert(addr);
                         if !self.forwards.contains_key(&addr) {
-                            let rc = port_forward
-                                .add_forward(iface.clone(), addr, target)
-                                .await?;
+                            let rc = port_forward.add_forward(addr, target).await?;
                             self.forwards.insert(addr, rc);
                         }
                     }
@@ -387,10 +397,8 @@ impl InterfaceForwardEntry {
         ip_info: &OrdMap<GatewayId, NetworkInterfaceInfo>,
         port_forward: &PortForwardController,
     ) -> Result<(), Error> {
-        // Clean up dead filter references
         self.filter.retain(|_, (_, rc)| rc.strong_count() > 0);
 
-        // Update to add/remove forwards based on current state (this will drop strong references as needed)
         self.update(ip_info, port_forward).await
     }
 }
@@ -445,7 +453,7 @@ pub struct ForwardTable(pub BTreeMap<u16, ForwardTarget>);
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ForwardTarget {
-    pub target: SocketAddr,
+    pub target: SocketAddrV4,
     pub filter: String,
 }
 
@@ -545,7 +553,7 @@ impl InterfacePortForwardController {
         &self,
         external: u16,
         filter: DynInterfaceFilter,
-        target: SocketAddr,
+        target: SocketAddrV4,
     ) -> Result<Arc<()>, Error> {
         let rc = Arc::new(());
         let (send, recv) = oneshot::channel();
@@ -582,16 +590,8 @@ impl InterfacePortForwardController {
     }
 }
 
-async fn forward(interface: &str, source: SocketAddr, target: SocketAddr) -> Result<(), Error> {
-    if interface == START9_BRIDGE_IFACE {
-        return Ok(());
-    }
-    if source.is_ipv6() {
-        return Ok(()); // TODO: socat? ip6tables?
-    }
+async fn forward(source: SocketAddrV4, target: SocketAddrV4) -> Result<(), Error> {
     Command::new("/usr/lib/startos/scripts/forward-port")
-        .env("iiface", interface)
-        .env("oiface", START9_BRIDGE_IFACE)
         .env("sip", source.ip().to_string())
         .env("dip", target.ip().to_string())
         .env("sport", source.port().to_string())
@@ -601,17 +601,9 @@ async fn forward(interface: &str, source: SocketAddr, target: SocketAddr) -> Res
     Ok(())
 }
 
-async fn unforward(interface: &str, source: SocketAddr, target: SocketAddr) -> Result<(), Error> {
-    if interface == START9_BRIDGE_IFACE {
-        return Ok(());
-    }
-    if source.is_ipv6() {
-        return Ok(()); // TODO: socat? ip6tables?
-    }
+async fn unforward(source: SocketAddrV4, target: SocketAddrV4) -> Result<(), Error> {
     Command::new("/usr/lib/startos/scripts/forward-port")
         .env("UNDO", "1")
-        .env("iiface", interface)
-        .env("oiface", START9_BRIDGE_IFACE)
         .env("sip", source.ip().to_string())
         .env("dip", target.ip().to_string())
         .env("sport", source.port().to_string())

@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
@@ -149,7 +149,7 @@ impl NetController {
 
 #[derive(Default, Debug)]
 struct HostBinds {
-    forwards: BTreeMap<u16, (SocketAddr, DynInterfaceFilter, Arc<()>)>,
+    forwards: BTreeMap<u16, (SocketAddrV4, DynInterfaceFilter, Arc<()>)>,
     vhosts: BTreeMap<(Option<InternedString>, u16), (ProxyTarget, Arc<()>)>,
     private_dns: BTreeMap<InternedString, Arc<()>>,
     tor: BTreeMap<OnionAddress, (OrdMap<u16, SocketAddr>, Vec<Arc<()>>)>,
@@ -241,7 +241,7 @@ impl NetServiceData {
     }
 
     async fn update(&mut self, ctrl: &NetController, id: HostId, host: Host) -> Result<(), Error> {
-        let mut forwards: BTreeMap<u16, (SocketAddr, DynInterfaceFilter)> = BTreeMap::new();
+        let mut forwards: BTreeMap<u16, (SocketAddrV4, DynInterfaceFilter)> = BTreeMap::new();
         let mut vhosts: BTreeMap<(Option<InternedString>, u16), ProxyTarget> = BTreeMap::new();
         let mut private_dns: BTreeSet<InternedString> = BTreeSet::new();
         let mut tor: BTreeMap<OnionAddress, (TorSecretKey, OrdMap<u16, SocketAddr>)> =
@@ -442,7 +442,7 @@ impl NetServiceData {
                     forwards.insert(
                         external,
                         (
-                            (self.ip, *port).into(),
+                            SocketAddrV4::new(self.ip, *port),
                             AndFilter(
                                 SecureFilter {
                                     secure: bind.options.secure.is_some(),

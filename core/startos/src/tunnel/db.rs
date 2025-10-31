@@ -31,51 +31,6 @@ use crate::tunnel::wg::WgServer;
 use crate::util::net::WebSocketExt;
 use crate::util::serde::{HandlerExtSerde, apply_expr, deserialize_from_str, serialize_display};
 
-#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct GatewayPort(pub GatewayId, pub u16);
-impl std::fmt::Display for GatewayPort {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.0, self.1)
-    }
-}
-impl std::str::FromStr for GatewayPort {
-    type Err = crate::Error;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut parts = s.splitn(2, ':');
-        let gw: GatewayId = parts
-            .next()
-            .ok_or_else(|| Error::new(eyre!("missing gateway id"), ErrorKind::ParseNetAddress))?
-            .parse()?;
-        let port: u16 = parts
-            .next()
-            .ok_or_else(|| Error::new(eyre!("missing port"), ErrorKind::ParseNetAddress))?
-            .parse()?;
-        Ok(GatewayPort(gw, port))
-    }
-}
-impl Serialize for GatewayPort {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serialize_display(self, serializer)
-    }
-}
-impl<'de> Deserialize<'de> for GatewayPort {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserialize_from_str(deserializer)
-    }
-}
-impl ValueParserFactory for GatewayPort {
-    type Parser = FromStrParser<Self>;
-    fn value_parser() -> Self::Parser {
-        FromStrParser::new()
-    }
-}
-
 #[derive(Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
@@ -90,9 +45,9 @@ pub struct TunnelDatabase {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct PortForwards(pub BTreeMap<GatewayPort, SocketAddrV4>);
+pub struct PortForwards(pub BTreeMap<SocketAddrV4, SocketAddrV4>);
 impl Map for PortForwards {
-    type Key = GatewayPort;
+    type Key = SocketAddrV4;
     type Value = SocketAddrV4;
     fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
         Self::key_string(key)
