@@ -283,8 +283,8 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       warning: null,
       minLength: null,
       maxLength: null,
-      minRows: null
-      maxRows: null
+      minRows: 3
+      maxRows: 6
       immutable: false,
     }),
     * ```
@@ -299,9 +299,9 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     minLength?: number | null
     maxLength?: number | null
     /** Defaults to 3 */
-    minRows?: number | null
+    minRows?: number
     /** Maximum number of rows before scroll appears. Defaults to 6 */
-    maxRows?: number | null
+    maxRows?: number
     placeholder?: string | null
     /**
      * @description Once set, the value can never be changed.
@@ -316,8 +316,8 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         warning: null,
         minLength: null,
         maxLength: null,
-        minRows: null,
-        maxRows: null,
+        minRows: 3,
+        maxRows: 6,
         placeholder: null,
         type: "textarea" as const,
         disabled: false,
@@ -336,8 +336,8 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       required: Required
       minLength?: number | null
       maxLength?: number | null
-      minRows?: number | null
-      maxRows?: number | null
+      minRows?: number
+      maxRows?: number
       placeholder?: string | null
       disabled?: false | string
     }>,
@@ -351,8 +351,8 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
             warning: null,
             minLength: null,
             maxLength: null,
-            minRows: null,
-            maxRows: null,
+            minRows: 3,
+            maxRows: 6,
             placeholder: null,
             type: "textarea" as const,
             disabled: false,
