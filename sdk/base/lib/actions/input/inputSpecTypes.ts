@@ -61,6 +61,8 @@ export type ValueSpecTextarea = {
   placeholder: string | null
   minLength: number | null
   maxLength: number | null
+  minRows: number
+  maxRows: number
   required: boolean
   disabled: false | string
   immutable: boolean

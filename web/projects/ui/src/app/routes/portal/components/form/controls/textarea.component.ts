@@ -22,8 +22,8 @@ import { HintPipe } from '../pipes/hint.pipe'
       <textarea
         placeholder="Placeholder"
         tuiTextarea
-        [max]="6"
-        [min]="3"
+        [min]="spec.minRows"
+        [max]="spec.maxRows"
         [attr.maxLength]="spec.maxLength"
         [disabled]="!!spec.disabled"
         [readOnly]="readOnly"
