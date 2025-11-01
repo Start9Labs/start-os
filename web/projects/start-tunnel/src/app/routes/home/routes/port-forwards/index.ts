@@ -181,7 +181,7 @@ export default class PortForwards {
   })
 
   protected readonly forwards = toSignal<MappedForward[], []>(
-    combineLatest([this.devices$, this.patch.watch$('port_forwards')]).pipe(
+    combineLatest([this.devices$, this.patch.watch$('portForwards')]).pipe(
       map(([devices, forwards]) =>
         Object.entries(forwards).map(([source, target]) => {
           const sourceSplit = source.split(':')

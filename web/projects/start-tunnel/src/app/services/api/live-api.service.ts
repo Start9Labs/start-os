@@ -94,11 +94,11 @@ export class LiveApiService extends ApiService {
   // forwards
 
   async addForward(params: AddForwardReq): Promise<null> {
-    return this.rpcRequest({ method: 'forward.add', params })
+    return this.rpcRequest({ method: 'port-forward.add', params })
   }
 
   async deleteForward(params: DeleteForwardReq): Promise<null> {
-    return this.rpcRequest({ method: 'forward.remove', params })
+    return this.rpcRequest({ method: 'port-forward.remove', params })
   }
 
   // private

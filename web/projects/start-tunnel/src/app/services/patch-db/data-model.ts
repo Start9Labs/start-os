@@ -1,6 +1,6 @@
 export type TunnelData = {
   wg: WgServer
-  port_forwards: Record<string, string>
+  portForwards: Record<string, string>
 }
 
 export type WgServer = {
@@ -35,7 +35,7 @@ export const mockTunnelData: TunnelData = {
       },
     },
   },
-  port_forwards: {
+  portForwards: {
     '69.1.1.42:443': '10.59.0.2:5443',
     '69.1.1.42:3000': '10.59.0.2:3000',
   },

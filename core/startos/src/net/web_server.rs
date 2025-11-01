@@ -295,7 +295,7 @@ impl<A: Accept + Send + Sync + 'static> Acceptor<A> {
         &mut self,
         cx: &mut std::task::Context<'_>,
     ) -> Poll<Result<(A::Metadata, AcceptStream), Error>> {
-        let _ = self.poll_changed(cx);
+        while self.poll_changed(cx).is_ready() {}
         self.acceptor.peek_mut(|a| a.poll_accept(cx))
     }
 

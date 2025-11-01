@@ -23,8 +23,8 @@ export abstract class ApiService {
   abstract deleteDevice(params: DeleteDeviceReq): Promise<null> // device.remove
   abstract showDeviceConfig(params: DeleteDeviceReq): Promise<string> // device.show-config
   // forwards
-  abstract addForward(params: AddForwardReq): Promise<null> // forward.add
-  abstract deleteForward(params: DeleteForwardReq): Promise<null> // forward.remove
+  abstract addForward(params: AddForwardReq): Promise<null> // port-forward.add
+  abstract deleteForward(params: DeleteForwardReq): Promise<null> // port-forward.remove
 }
 
 export type SubscribeRes = {

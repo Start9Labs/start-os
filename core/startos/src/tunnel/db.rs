@@ -29,7 +29,7 @@ use crate::tunnel::context::TunnelContext;
 use crate::tunnel::web::WebserverInfo;
 use crate::tunnel::wg::WgServer;
 use crate::util::net::WebSocketExt;
-use crate::util::serde::{HandlerExtSerde, apply_expr, deserialize_from_str, serialize_display};
+use crate::util::serde::{HandlerExtSerde, apply_expr};
 
 #[derive(Default, Deserialize, Serialize, HasModel)]
 #[serde(rename_all = "camelCase")]
