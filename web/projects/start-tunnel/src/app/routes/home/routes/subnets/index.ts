@@ -13,6 +13,7 @@ import {
   Validators,
 } from '@angular/forms'
 import { LoadingService } from '@start9labs/shared'
+import { utils } from '@start9labs/start-sdk'
 import { TuiAutoFocus, tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import {
   TuiButton,
@@ -25,7 +26,7 @@ import { TuiDialog, TuiDialogService } from '@taiga-ui/experimental'
 import { TUI_CONFIRM, TuiFieldErrorPipe } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
-import { filter, map, tap } from 'rxjs'
+import { filter, map } from 'rxjs'
 import { ApiService } from 'src/app/services/api/api.service'
 import { TunnelData } from 'src/app/services/patch-db/data-model'
 
@@ -130,6 +131,18 @@ export default class Subnets {
   private readonly api = inject(ApiService)
   private readonly loading = inject(LoadingService)
   private readonly patch = inject<PatchDB<TunnelData>>(PatchDB)
+  protected readonly form = inject(NonNullableFormBuilder).group({
+    name: ['', Validators.required],
+    subnet: [
+      '',
+      [
+        Validators.required,
+        Validators.pattern(
+          '^(?:(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)\\.){3}(?:25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)/(?:[12]?\\d|3[0-2])$',
+        ),
+      ],
+    ],
+  })
 
   protected readonly dialog = signal(false)
   protected readonly editing = signal(false)
@@ -148,20 +161,21 @@ export default class Subnets {
   )
 
   protected readonly next = computed(() => {
-    const last = Number(
-      this.subnets().at(-1)?.range.split('/')[0]?.split('.')[2] || '-1',
-    )
-    return `10.59.${last + 1}.1/24`
+    const used = this.subnets().map(s => new utils.IpNet(s.range).octets.at(2))
+
+    for (let i = 0; i < 256; i++) {
+      if (!used.includes(i)) {
+        return `10.59.${i}.0/24`
+      }
+    }
+
+    // No recommendation if /24 subnets are used
+    return ''
   })
 
   protected readonly label = computed(() =>
     this.editing() ? 'Rename Subnet' : 'Add Subnet',
   )
-
-  protected readonly form = inject(NonNullableFormBuilder).group({
-    name: ['', Validators.required],
-    subnet: ['', Validators.required],
-  })
 
   protected onAdd(): void {
     this.editing.set(false)

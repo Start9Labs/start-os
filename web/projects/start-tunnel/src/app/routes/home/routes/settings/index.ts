@@ -102,6 +102,7 @@ export default class Settings {
     const { password, confirm } = this.form.getRawValue()
 
     if (password !== confirm) {
+      // @TODO not working
       this.form.controls.confirm.setErrors({
         notEqual: 'New passwords do not match',
       })

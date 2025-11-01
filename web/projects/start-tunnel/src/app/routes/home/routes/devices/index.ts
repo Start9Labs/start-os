@@ -4,7 +4,6 @@ import {
   Component,
   computed,
   inject,
-  Signal,
   signal,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
@@ -14,6 +13,8 @@ import {
   Validators,
 } from '@angular/forms'
 import { LoadingService } from '@start9labs/shared'
+import { utils } from '@start9labs/start-sdk'
+import { IpNet } from '@start9labs/start-sdk/util'
 import {
   TUI_IS_MOBILE,
   TuiAutoFocus,
@@ -137,6 +138,7 @@ import { TunnelData, WgServer } from 'src/app/services/patch-db/data-model'
                 *tuiTextfieldDropdown
                 new
                 [items]="subnets()"
+                (itemClick)="onSubnet($event)"
               />
             }
           </tui-textfield>
@@ -233,16 +235,21 @@ export default class Devices {
   private readonly api = inject(ApiService)
   private readonly loading = inject(LoadingService)
   private readonly patch = inject<PatchDB<TunnelData>>(PatchDB)
+  protected readonly mobile = inject(TUI_IS_MOBILE)
+  protected readonly form = inject(NonNullableFormBuilder).group({
+    name: ['', Validators.required],
+    subnet: [{} as MappedDevice['subnet'], Validators.required],
+    ip: [
+      '',
+      [Validators.required, Validators.pattern(utils.Patterns.ipv4.regex)],
+    ],
+  })
 
   protected readonly dialog = signal(false)
-
   protected readonly showConfig = signal(false)
   protected readonly config = signal('')
-  protected readonly href = computed(
-    () => `data:text/plain;charset=utf-8,${encodeURIComponent(this.config())}`,
-  )
-
   protected readonly editing = signal(false)
+  protected readonly next = signal('')
 
   protected readonly subnets = toSignal<MappedSubnet[], []>(
     this.patch.watch$('wg', 'subnets').pipe(
@@ -257,6 +264,9 @@ export default class Devices {
     { initialValue: [] },
   )
 
+  protected readonly href = computed(
+    () => `data:text/plain;charset=utf-8,${encodeURIComponent(this.config())}`,
+  )
   protected readonly devices = computed(() =>
     this.subnets().flatMap(subnet =>
       Object.entries(subnet.clients).map(([ip, { name }]) => ({
@@ -269,19 +279,12 @@ export default class Devices {
       })),
     ),
   )
-
-  protected subnetDisplay: TuiStringHandler<MappedSubnet> = subnet =>
-    subnet.range ? `${subnet.name} (${subnet.range})` : ''
-
   protected readonly label = computed(() =>
     this.editing() ? 'Rename device' : 'Add device',
   )
-  protected readonly mobile = inject(TUI_IS_MOBILE)
-  protected readonly form = inject(NonNullableFormBuilder).group({
-    name: ['', Validators.required],
-    subnet: [{} as MappedDevice['subnet'], Validators.required],
-    ip: ['', Validators.required],
-  })
+
+  protected subnetDisplay: TuiStringHandler<MappedSubnet> = subnet =>
+    subnet.range ? `${subnet.name} (${subnet.range})` : ''
 
   protected onAdd() {
     this.editing.set(false)
@@ -293,6 +296,25 @@ export default class Devices {
     this.editing.set(true)
     this.form.reset(device)
     this.dialog.set(true)
+  }
+
+  protected onSubnet(subnet: MappedSubnet) {
+    const ipNet = new IpNet(subnet.range)
+
+    const used = Object.keys(subnet.clients).map(ip =>
+      new utils.IpAddress(ip).octets.at(3),
+    )
+
+    for (let i = 2; i < totalHosts(ipNet.prefix); i++) {
+      if (!used.includes(i)) {
+        return this.form.controls.ip.setValue(
+          [...ipNet.octets.slice(0, 3), i].join('.'),
+        )
+      }
+    }
+    // @TODO not working
+    this.form.controls.subnet.setErrors({ noHosts: 'No hosts available' })
+    this.form.controls.ip.disable()
   }
 
   async onConfig(device: MappedDevice) {
@@ -374,4 +396,12 @@ type MappedDevice = {
   }
   ip: string
   name: string
+}
+
+function totalHosts(prefix: number) {
+  // Handle special cases per RFC 3021
+  if (prefix === 31) return 4 // point-to-point, 2 usable addresses
+  if (prefix === 32) return 3 // single host, 1 usable address
+
+  return Math.pow(2, 32 - prefix)
 }

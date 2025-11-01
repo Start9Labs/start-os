@@ -2,7 +2,6 @@ import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   inject,
   signal,
 } from '@angular/core'
@@ -13,18 +12,25 @@ import {
   Validators,
 } from '@angular/forms'
 import { LoadingService } from '@start9labs/shared'
+import { utils } from '@start9labs/start-sdk'
 import {
   TUI_IS_MOBILE,
   tuiMarkControlAsTouchedAndValidate,
   TuiStringHandler,
 } from '@taiga-ui/cdk'
-import { TuiButton, TuiError, TuiTextfield } from '@taiga-ui/core'
+import {
+  TuiButton,
+  TuiError,
+  TuiNumberFormat,
+  TuiTextfield,
+} from '@taiga-ui/core'
 import { TuiDialog, TuiDialogService } from '@taiga-ui/experimental'
 import {
   TUI_CONFIRM,
   TuiChevron,
   TuiDataListWrapper,
   TuiFieldErrorPipe,
+  TuiInputNumber,
   TuiSelect,
 } from '@taiga-ui/kit'
 import { TuiForm } from '@taiga-ui/layout'
@@ -82,13 +88,13 @@ import { TunnelData } from 'src/app/services/patch-db/data-model'
             <select
               tuiSelect
               formControlName="externalip"
-              [items]="ips"
+              [items]="ips()"
             ></select>
           } @else {
             <input tuiSelect formControlName="externalip" />
           }
           @if (!mobile) {
-            <tui-data-list-wrapper *tuiTextfieldDropdown new [items]="ips" />
+            <tui-data-list-wrapper *tuiTextfieldDropdown new [items]="ips()" />
           }
         </tui-textfield>
         <tui-error
@@ -97,7 +103,11 @@ import { TunnelData } from 'src/app/services/patch-db/data-model'
         />
         <tui-textfield>
           <label tuiLabel>External Port</label>
-          <input tuiTextfield formControlName="externalport" />
+          <input
+            tuiInputNumber
+            [tuiNumberFormat]="{ thousandSeparator: '' }"
+            formControlName="externalport"
+          />
         </tui-textfield>
         <tui-error
           formControlName="externalport"
@@ -128,13 +138,21 @@ import { TunnelData } from 'src/app/services/patch-db/data-model'
         />
         <tui-textfield>
           <label tuiLabel>Internal Port</label>
-          <input tuiTextfield formControlName="internalport" />
+          <input
+            tuiInputNumber
+            [tuiNumberFormat]="{ thousandSeparator: '' }"
+            formControlName="internalport"
+          />
         </tui-textfield>
         <tui-error
           formControlName="internalport"
           [error]="[] | tuiFieldError | async"
         />
-        <footer><button tuiButton (click)="onSave()">Save</button></footer>
+        <footer>
+          <button tuiButton [disabled]="form.invalid" (click)="onSave()">
+            Save
+          </button>
+        </footer>
       </form>
     </ng-template>
   `,
@@ -151,6 +169,8 @@ import { TunnelData } from 'src/app/services/patch-db/data-model'
     TuiChevron,
     TuiSelect,
     TuiDataListWrapper,
+    TuiInputNumber,
+    TuiNumberFormat,
   ],
 })
 export default class PortForwards {
@@ -158,10 +178,36 @@ export default class PortForwards {
   private readonly api = inject(ApiService)
   private readonly loading = inject(LoadingService)
   private readonly patch = inject<PatchDB<TunnelData>>(PatchDB)
+  protected readonly mobile = inject(TUI_IS_MOBILE)
+  protected readonly form = inject(NonNullableFormBuilder).group({
+    externalip: ['', Validators.required],
+    externalport: [
+      null,
+      [Validators.required, Validators.min(0), Validators.max(65535)],
+    ],
+    device: [{} as MappedDevice, Validators.required],
+    internalport: [
+      null,
+      [Validators.required, Validators.min(0), Validators.max(65535)],
+    ],
+  })
 
   protected readonly dialog = signal(false)
 
-  protected readonly ips = ['69.1.1.42']
+  protected readonly ips = toSignal(
+    this.patch.watch$('gateways').pipe(
+      map(g =>
+        Object.values(g)
+          .filter(
+            val =>
+              val.public ??
+              val.ipInfo?.subnets.some(s => new utils.IpNet(s).isPublic()),
+          )
+          .map(val => val.ipInfo!.wanIp),
+      ),
+    ),
+    { initialValue: [] },
+  )
 
   protected readonly devices$: Observable<MappedDevice[]> = this.patch
     .watch$('wg', 'subnets')
@@ -201,14 +247,6 @@ export default class PortForwards {
 
   protected readonly deviceDisplay: TuiStringHandler<MappedDevice> = device =>
     device.ip ? `${device.name} (${device.ip})` : ''
-
-  protected readonly mobile = inject(TUI_IS_MOBILE)
-  protected readonly form = inject(NonNullableFormBuilder).group({
-    externalip: ['', Validators.required],
-    externalport: ['', Validators.required],
-    device: [{} as MappedDevice, Validators.required],
-    internalport: ['', Validators.required],
-  })
 
   protected onAdd(): void {
     this.form.reset()
