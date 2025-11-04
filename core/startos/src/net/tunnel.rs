@@ -9,6 +9,7 @@ use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
+use crate::net::host::all_hosts;
 use crate::prelude::*;
 use crate::util::Invoke;
 use crate::util::io::{TmpDir, write_file_atomic};
@@ -132,7 +133,37 @@ pub async fn remove_tunnel(
         ));
     }
 
+    ctx.db
+        .mutate(|db| {
+            for host in all_hosts(db) {
+                let host = host?;
+                host.as_public_domains_mut()
+                    .mutate(|p| Ok(p.retain(|_, v| v.gateway != id)))?;
+            }
+
+            Ok(())
+        })
+        .await
+        .result?;
+
     ctx.net_controller.net_iface.delete_iface(&id).await?;
+
+    ctx.db
+        .mutate(|db| {
+            for host in all_hosts(db) {
+                let host = host?;
+                host.as_bindings_mut().mutate(|b| {
+                    Ok(b.values_mut().for_each(|v| {
+                        v.net.private_disabled.remove(&id);
+                        v.net.public_enabled.remove(&id);
+                    }))
+                })?;
+            }
+
+            Ok(())
+        })
+        .await
+        .result?;
 
     Ok(())
 }

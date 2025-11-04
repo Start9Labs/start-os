@@ -10,7 +10,6 @@ use imbl_value::{InOMap, InternedString};
 use models::{FromStrParser, InvalidId, PackageId};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{GenericRpcMethod, RpcRequest, RpcResponse};
-use rustyline_async::{ReadlineEvent, SharedWriter};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
@@ -468,115 +467,6 @@ pub async fn connect(ctx: &RpcContext, container: &LxcContainer) -> Result<Guid,
         )
         .await;
     Ok(guid)
-}
-
-pub async fn connect_cli(ctx: &CliContext, guid: Guid) -> Result<(), Error> {
-    use futures::SinkExt;
-    use tokio_tungstenite::tungstenite::Message;
-
-    let mut ws = ctx.ws_continuation(guid).await?;
-    let (mut input, mut output) =
-        rustyline_async::Readline::new("> ".into()).with_kind(ErrorKind::Filesystem)?;
-
-    async fn handle_message(
-        msg: Option<Result<Message, tokio_tungstenite::tungstenite::Error>>,
-        output: &mut SharedWriter,
-    ) -> Result<bool, Error> {
-        match msg {
-            None => return Ok(true),
-            Some(Ok(Message::Text(txt))) => match serde_json::from_str::<RpcResponse>(&txt) {
-                Ok(RpcResponse { result: Ok(a), .. }) => {
-                    output
-                        .write_all(
-                            (serde_json::to_string(&a).with_kind(ErrorKind::Serialization)? + "\n")
-                                .as_bytes(),
-                        )
-                        .await?;
-                }
-                Ok(RpcResponse { result: Err(e), .. }) => {
-                    let e: Error = e.into();
-                    tracing::error!("{e}");
-                    tracing::debug!("{e:?}");
-                }
-                Err(e) => {
-                    tracing::error!("Error Parsing RPC response: {e}");
-                    tracing::debug!("{e:?}");
-                }
-            },
-            Some(Ok(_)) => (),
-            Some(Err(e)) => {
-                return Err(Error::new(e, ErrorKind::Network));
-            }
-        };
-        Ok(false)
-    }
-
-    loop {
-        tokio::select! {
-            line = input.readline() => {
-                let line = line.with_kind(ErrorKind::Filesystem)?;
-                if let ReadlineEvent::Line(line) = line {
-                    input.add_history_entry(line.clone());
-                    if serde_json::from_str::<RpcRequest>(&line).is_ok() {
-                        ws.send(Message::Text(line.into()))
-                            .await
-                            .with_kind(ErrorKind::Network)?;
-                    } else {
-                        match shell_words::split(&line) {
-                            Ok(command) => {
-                                if let Some((method, rest)) = command.split_first() {
-                                    let mut params = InOMap::new();
-                                    for arg in rest {
-                                        if let Some((name, value)) = arg.split_once('=') {
-                                            params.insert(InternedString::intern(name), if value.is_empty() {
-                                                Value::Null
-                                            } else if let Ok(v) = serde_json::from_str(value) {
-                                                v
-                                            } else {
-                                                Value::String(Arc::new(value.into()))
-                                            });
-                                        } else {
-                                            tracing::error!("argument without a value: {arg}");
-                                            tracing::debug!("help: set the value of {arg} with `{arg}=...`");
-                                            continue;
-                                        }
-                                    }
-                                    ws.send(Message::Text(match serde_json::to_string(&RpcRequest {
-                                        id: None,
-                                        method: GenericRpcMethod::new(method.into()),
-                                        params: Value::Object(params),
-                                    }) {
-                                        Ok(a) => a.into(),
-                                        Err(e) => {
-                                            tracing::error!("Error Serializing Request: {e}");
-                                            tracing::debug!("{e:?}");
-                                            continue;
-                                        }
-                                    })).await.with_kind(ErrorKind::Network)?;
-                                    if handle_message(ws.next().await, &mut output).await? {
-                                        break
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                tracing::error!("{e}");
-                                tracing::debug!("{e:?}");
-                            }
-                        }
-                    }
-                } else {
-                    ws.send(Message::Close(None)).await.with_kind(ErrorKind::Network)?;
-                }
-            }
-            msg = ws.next() => {
-                if handle_message(msg, &mut output).await? {
-                    break;
-                }
-            }
-        }
-    }
-
-    Ok(())
 }
 
 pub async fn stats(ctx: RpcContext) -> Result<BTreeMap<PackageId, Option<ServiceStats>>, Error> {

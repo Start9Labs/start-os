@@ -80,7 +80,7 @@ use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
     CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler, from_fn, from_fn_async,
-    from_fn_blocking,
+    from_fn_async_local, from_fn_blocking,
 };
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -392,7 +392,7 @@ pub fn package<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "install",
-            from_fn_async(install::cli_install)
+            from_fn_async_local(install::cli_install)
                 .no_display()
                 .with_about("Install a package from a marketplace or via sideloading"),
         )
@@ -512,13 +512,6 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             "backup",
             backup::package_backup::<C>()
                 .with_about("Commands for restoring package(s) from backup"),
-        )
-        .subcommand("connect", from_fn_async(service::connect_rpc).no_cli())
-        .subcommand(
-            "connect",
-            from_fn_async(service::connect_rpc_cli)
-                .no_display()
-                .with_about("Connect to a LXC container"),
         )
         .subcommand(
             "attach",

@@ -5,11 +5,10 @@ use std::time::Duration;
 
 use axum::extract::ws;
 use clap::Parser;
-use clap::builder::ValueParserFactory;
 use imbl::{HashMap, OrdMap};
 use imbl_value::InternedString;
 use itertools::Itertools;
-use models::{FromStrParser, GatewayId};
+use models::GatewayId;
 use patch_db::Dump;
 use patch_db::json_ptr::{JsonPointer, ROOT};
 use rpc_toolkit::yajrc::RpcError;
@@ -31,20 +30,27 @@ use crate::tunnel::wg::WgServer;
 use crate::util::net::WebSocketExt;
 use crate::util::serde::{HandlerExtSerde, apply_expr};
 
-#[derive(Default, Deserialize, Serialize, HasModel)]
+#[derive(Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct TunnelDatabase {
     pub webserver: WebserverInfo,
     pub sessions: Sessions,
     pub password: Option<String>,
+    #[ts(as = "std::collections::HashMap::<AnyVerifyingKey, SignerInfo>")]
     pub auth_pubkeys: HashMap<AnyVerifyingKey, SignerInfo>,
+    #[ts(as = "std::collections::BTreeMap::<AnyVerifyingKey, SignerInfo>")]
     pub gateways: OrdMap<GatewayId, NetworkInterfaceInfo>,
     pub wg: WgServer,
     pub port_forwards: PortForwards,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[test]
+fn export_bindings_tunnel_db() {
+    TunnelDatabase::export_all_to("bindings/tunnel").unwrap();
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
 pub struct PortForwards(pub BTreeMap<SocketAddrV4, SocketAddrV4>);
 impl Map for PortForwards {
     type Key = SocketAddrV4;

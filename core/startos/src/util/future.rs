@@ -1,10 +1,13 @@
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use axum::middleware::FromFn;
 use futures::future::{BoxFuture, FusedFuture, abortable, pending};
 use futures::stream::{AbortHandle, Abortable, BoxStream};
 use futures::{Future, FutureExt, Stream, StreamExt};
+use rpc_toolkit::from_fn_blocking;
 use tokio::sync::watch;
+use tokio::task::LocalSet;
 
 use crate::prelude::*;
 
@@ -156,6 +159,31 @@ impl<'a> Until<'a> {
         .await;
         res
     }
+}
+
+pub async fn make_send<F, Fut, T>(f: F) -> Result<T, Error>
+where
+    F: FnOnce() -> Fut + Send + 'static,
+    Fut: Future<Output = Result<T, Error>> + 'static,
+    T: Send + 'static,
+{
+    tokio::task::spawn_blocking(move || {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+
+        let local = LocalSet::new();
+
+        local.block_on(&rt, async move { f().await })
+    })
+    .await
+    .map_err(|e| {
+        Error::new(
+            eyre!("Task running non-Send future panicked: {}", e),
+            ErrorKind::Unknown,
+        )
+    })?
 }
 
 #[tokio::test]

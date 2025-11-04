@@ -7,3 +7,4 @@ if [ -n "$DPKG_MAINTSCRIPT_PACKAGE" ]; then
 fi
 
 $SYSTEMCTL enable start-tunneld.service
+$SYSTEMCTL restart start-tunneld.service

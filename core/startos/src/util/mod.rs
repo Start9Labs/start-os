@@ -51,6 +51,7 @@ pub mod rpc_client;
 pub mod serde;
 pub mod squashfs;
 pub mod sync;
+pub mod tui;
 
 #[derive(Clone, Copy, Debug, ::serde::Deserialize, ::serde::Serialize)]
 pub enum Never {}

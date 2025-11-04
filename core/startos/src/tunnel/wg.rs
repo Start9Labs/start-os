@@ -6,6 +6,7 @@ use ipnet::Ipv4Net;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
+use ts_rs::TS;
 use x25519_dalek::{PublicKey, StaticSecret};
 
 use crate::prelude::*;
@@ -15,7 +16,7 @@ use crate::util::serde::Base64;
 
 pub const WIREGUARD_INTERFACE_NAME: &str = "wg-start-tunnel";
 
-#[derive(Deserialize, Serialize, HasModel)]
+#[derive(Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct WgServer {
@@ -64,8 +65,10 @@ impl WgServer {
     }
 }
 
-#[derive(Default, Deserialize, Serialize)]
-pub struct WgSubnetMap(pub BTreeMap<Ipv4Net, WgSubnetConfig>);
+#[derive(Default, Deserialize, Serialize, TS)]
+pub struct WgSubnetMap(
+    #[ts(as = "BTreeMap::<String, WgSubnetConfig>")] pub BTreeMap<Ipv4Net, WgSubnetConfig>,
+);
 impl Map for WgSubnetMap {
     type Key = Ipv4Net;
     type Value = WgSubnetConfig;
@@ -77,7 +80,7 @@ impl Map for WgSubnetMap {
     }
 }
 
-#[derive(Default, Deserialize, Serialize, HasModel)]
+#[derive(Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct WgSubnetConfig {
@@ -93,8 +96,7 @@ impl WgSubnetConfig {
     }
 }
 
-#[derive(Default, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Default, Deserialize, Serialize, TS)]
 pub struct WgSubnetClients(pub BTreeMap<Ipv4Addr, WgConfig>);
 impl Map for WgSubnetClients {
     type Key = Ipv4Addr;
@@ -143,7 +145,7 @@ impl Base64<WgKey> {
     }
 }
 
-#[derive(Clone, Deserialize, Serialize, HasModel)]
+#[derive(Clone, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct WgConfig {

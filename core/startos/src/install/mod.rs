@@ -7,7 +7,7 @@ use clap::builder::ValueParserFactory;
 use clap::{CommandFactory, FromArgMatches, Parser, value_parser};
 use color_eyre::eyre::eyre;
 use exver::VersionRange;
-use futures::{AsyncWriteExt, StreamExt};
+use futures::StreamExt;
 use imbl_value::{InternedString, json};
 use itertools::Itertools;
 use models::{FromStrParser, VersionString};
@@ -15,7 +15,6 @@ use reqwest::Url;
 use reqwest::header::{CONTENT_LENGTH, HeaderMap};
 use rpc_toolkit::HandlerArgs;
 use rpc_toolkit::yajrc::RpcError;
-use rustyline_async::ReadlineEvent;
 use serde::{Deserialize, Serialize};
 use tokio::sync::oneshot;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
@@ -34,6 +33,7 @@ use crate::upload::upload;
 use crate::util::Never;
 use crate::util::io::open_file;
 use crate::util::net::WebSocketExt;
+use crate::util::tui::choose;
 
 pub const PKG_ARCHIVE_DIR: &str = "package-data/archive";
 pub const PKG_PUBLIC_DIR: &str = "package-data/public";
@@ -483,47 +483,19 @@ pub async fn cli_install(
             let version = if packages.best.len() == 1 {
                 packages.best.pop_first().map(|(k, _)| k).unwrap()
             } else {
-                println!(
-                    "Multiple flavors of {id} found. Please select one of the following versions to install:"
-                );
-                let version;
-                loop {
-                    let (mut read, mut output) = rustyline_async::Readline::new("> ".into())
-                        .with_kind(ErrorKind::Filesystem)?;
-                    for (idx, version) in packages.best.keys().enumerate() {
-                        output
-                            .write_all(format!("  {}) {}\n", idx + 1, version).as_bytes())
-                            .await?;
-                        read.add_history_entry(version.to_string());
-                    }
-                    if let ReadlineEvent::Line(line) = read.readline().await? {
-                        let trimmed = line.trim();
-                        match trimmed.parse() {
-                            Ok(v) => {
-                                if let Some((k, _)) = packages.best.remove_entry(&v) {
-                                    version = k;
-                                    break;
-                                }
-                            }
-                            Err(_) => match trimmed.parse::<usize>() {
-                                Ok(i) if (1..=packages.best.len()).contains(&i) => {
-                                    version = packages.best.keys().nth(i - 1).unwrap().clone();
-                                    break;
-                                }
-                                _ => (),
-                            },
-                        }
-                        eprintln!("invalid selection: {trimmed}");
-                        println!("Please select one of the following versions to install:");
-                    } else {
-                        return Err(Error::new(
-                            eyre!("Could not determine precise version to install"),
-                            ErrorKind::InvalidRequest,
-                        )
-                        .into());
-                    }
-                }
-                version
+                let versions = packages.best.keys().collect::<Vec<_>>();
+                let version = choose(
+                    &format!(
+                        concat!(
+                            "Multiple flavors of {id} found. ",
+                            "Please select one of the following versions to install:"
+                        ),
+                        id = id
+                    ),
+                    &versions,
+                )
+                .await?;
+                (*version).clone()
             };
             ctx.call_remote::<RpcContext>(
                 &method.join("."),

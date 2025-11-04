@@ -1,31 +1,36 @@
 use std::collections::VecDeque;
-use std::io::Write;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::sync::Arc;
 
 use clap::Parser;
+use hickory_client::proto::rr::rdata::cert;
 use imbl_value::{InternedString, json};
 use itertools::Itertools;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
-use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{
+    Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async, from_fn_async_local,
+};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::rustls::crypto::CryptoProvider;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio_rustls::rustls::server::ClientHello;
+use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::net::ssl::SANInfo;
 use crate::net::tls::TlsHandler;
 use crate::net::web_server::Accept;
 use crate::prelude::*;
+use crate::tunnel::auth::SetPasswordParams;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::db::TunnelDatabase;
-use crate::util::serde::{HandlerExtSerde, Pem};
+use crate::util::serde::{HandlerExtSerde, Pem, display_serializable};
+use crate::util::tui::{choose, parse_as, prompt, prompt_multiline};
 
-#[derive(Debug, Default, Deserialize, Serialize, HasModel)]
+#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct WebserverInfo {
@@ -34,7 +39,7 @@ pub struct WebserverInfo {
     pub certificate: Option<TunnelCertData>,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct TunnelCertData {
     pub key: Pem<PKey<Private>>,
@@ -91,7 +96,7 @@ pub fn web_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand(
             "init",
-            from_fn_async(init_web)
+            from_fn_async_local(init_web)
                 .no_display()
                 .with_about("Initialize the webserver"),
         )
@@ -122,7 +127,7 @@ pub fn web_api<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "import-certificate",
-            from_fn_async(import_certificate_cli)
+            from_fn_async_local(import_certificate_cli)
                 .no_display()
                 .with_about("Import a certificate to use for the webserver"),
         )
@@ -130,6 +135,22 @@ pub fn web_api<C: Context>() -> ParentHandler<C> {
             "generate-certificate",
             from_fn_async(generate_certificate)
                 .with_about("Generate a self signed certificaet to use for the webserver")
+                .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "get-certificate",
+            from_fn_async(get_certificate)
+                .with_display_serializable()
+                .with_custom_display_fn(|HandlerArgs { params, .. }, res| {
+                    if let Some(format) = params.format {
+                        return display_serializable(format, res);
+                    }
+                    if let Some(res) = res {
+                        println!("{res}");
+                    }
+                    Ok(())
+                })
+                .with_about("Get the certificate for the webserver")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -178,58 +199,61 @@ pub async fn import_certificate_cli(
         ..
     }: HandlerArgs<CliContext>,
 ) -> Result<(), Error> {
-    println!("Please paste in your PEM encoded private key: ");
-    let mut stdin_lines = BufReader::new(tokio::io::stdin()).lines();
     let mut key_string = String::new();
-
-    while let Some(line) = stdin_lines.next_line().await? {
-        key_string.push_str(&line);
-        key_string.push_str("\n");
-        if line.trim().starts_with("-----END") {
-            break;
-        }
-    }
-
-    let key: Pem<PKey<Private>> = key_string.parse()?;
-
-    println!("Please paste in your PEM encoded certificate (or certificate chain): ");
+    let key: Pem<PKey<Private>> =
+        prompt_multiline("Please paste in your PEM encoded private key: ", |line| {
+            key_string.push_str(&line);
+            key_string.push_str("\n");
+            if line.trim().starts_with("-----END") {
+                return key_string.parse().map(Some).map_err(|e| {
+                    key_string.truncate(0);
+                    e
+                });
+            }
+            Ok(None)
+        })
+        .await?;
 
     let mut chain = Vec::<X509>::new();
-
-    loop {
-        let mut cert_string = String::new();
-
-        while let Some(line) = stdin_lines.next_line().await? {
+    let mut cert_string = String::new();
+    prompt_multiline(
+        concat!(
+            "Please paste in your PEM encoded certificate",
+            " (or certificate chain):"
+        ),
+        |line| {
             cert_string.push_str(&line);
             cert_string.push_str("\n");
             if line.trim().starts_with("-----END") {
-                break;
+                let cert = cert_string.parse::<Pem<X509>>();
+                cert_string.truncate(0);
+                let cert = cert?;
+
+                let key = cert.0.public_key()?;
+
+                if let Some(prev) = chain.last() {
+                    if !prev.verify(&key)? {
+                        return Err(Error::new(
+                            eyre!(concat!(
+                                "Invalid Fullchain: ",
+                                "Previous cert was not signed by this certificate's key"
+                            )),
+                            ErrorKind::InvalidSignature,
+                        ));
+                    }
+                }
+
+                let is_root = cert.0.verify(&key)?;
+
+                chain.push(cert.0);
+
+                if is_root { Ok(Some(())) } else { Ok(None) }
+            } else {
+                Ok(None)
             }
-        }
-
-        let cert: Pem<X509> = cert_string.parse()?;
-
-        let key = cert.0.public_key()?;
-
-        if let Some(prev) = chain.last() {
-            if !prev.verify(&key)? {
-                return Err(Error::new(
-                    eyre!(
-                        "Invalid Fullchain: Previous cert was not signed by this certificate's key"
-                    ),
-                    ErrorKind::InvalidSignature,
-                ));
-            }
-        }
-
-        let is_root = cert.0.verify(&key)?;
-
-        chain.push(cert.0);
-
-        if is_root {
-            break;
-        }
-    }
+        },
+    )
+    .await?;
 
     context
         .call_remote::<TunnelContext>(
@@ -272,6 +296,17 @@ pub async fn generate_certificate(
         .result?;
 
     Ok(Pem(cert))
+}
+
+pub async fn get_certificate(ctx: TunnelContext) -> Result<Option<Pem<Vec<X509>>>, Error> {
+    ctx.db
+        .peek()
+        .await
+        .as_webserver()
+        .as_certificate()
+        .de()?
+        .map(|cert_data| Ok(cert_data.cert))
+        .transpose()
 }
 
 #[derive(Debug, Deserialize, Serialize, Parser)]
@@ -371,27 +406,115 @@ pub async fn reset_web(ctx: TunnelContext) -> Result<(), Error> {
         .result
 }
 
+fn is_valid_domain(domain: &str) -> bool {
+    if domain.is_empty() || domain.len() > 253 || domain.starts_with('.') || domain.ends_with('.') {
+        return false;
+    }
+
+    let labels: Vec<&str> = domain.split('.').collect();
+
+    for label in labels {
+        if label.is_empty() || label.len() > 63 {
+            return false;
+        }
+
+        if !label.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
+            return false;
+        }
+
+        if label.chars().next().map_or(true, |c| c == '-')
+            || label.chars().next_back().map_or(true, |c| c == '-')
+        {
+            return false;
+        }
+    }
+
+    true
+}
+
 pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
+    let mut password = None;
     loop {
         match ctx
             .call_remote::<TunnelContext>("web.enable", json!({}))
             .await
         {
             Ok(_) => {
-                println!("Webserver Initialized");
+                let listen = from_value::<SocketAddr>(
+                    ctx.call_remote::<TunnelContext>("web.get-listen", json!({}))
+                        .await?,
+                )?;
+
+                println!("✅ Success! ✅");
+                println!(
+                    "The webserver is running. Below is your URL{} and SSL certificate.",
+                    if password.is_some() {
+                        ", password,"
+                    } else {
+                        ""
+                    }
+                );
+                println!();
+                println!("🌐 URL");
+                println!("https://{listen}");
+                if listen.ip().is_unspecified() {
+                    println!(concat!(
+                        "Note: this is the unspecified address. ",
+                        "This means you can use any IP address available to this device to connect. ",
+                        "Using the above address as-is will only work from this device."
+                    ));
+                } else if listen.ip().is_loopback() {
+                    println!(concat!(
+                        "Note: this is a loopback address. ",
+                        "This is only recommended if you are planning to run a proxy in front of the web ui. ",
+                        "Using the above address as-is will only work from this device."
+                    ));
+                }
+                println!();
+
+                if let Some(password) = password {
+                    println!("🔒 Password");
+                    println!("{password}");
+                    println!();
+                    println!(concat!(
+                        "If you lose or forget your password, you can reset it using the command: ",
+                        "start-tunnel auth reset-password"
+                    ));
+                } else {
+                    println!(concat!(
+                        "Your password was set up previously. ",
+                        "If you don't remember it, you can reset it using the command: ",
+                        "start-tunnel auth reset-password"
+                    ));
+                }
+                println!();
+
+                let cert = from_value::<Pem<Vec<X509>>>(
+                    ctx.call_remote::<TunnelContext>("web.get-certificate", json!({}))
+                        .await?,
+                )?;
+                println!("📝 SSL Certificate:");
+                println!("{cert}");
+                println!();
+
+                println!(concat!(
+                    "If you haven't already, ",
+                    "trust the certificate in your system keychain and/or browser."
+                ));
+
                 return Ok(());
             }
             Err(e) if e.kind == ErrorKind::ParseNetAddress => {
-                println!("A listen address has not been set yet. Setting one up now...");
+                println!("Select the IP address at which to host the web interface:");
 
                 let available_ips = from_value::<Vec<IpAddr>>(
                     ctx.call_remote::<TunnelContext>("web.get-available-ips", json!({}))
                         .await?,
                 )?;
 
-                let suggested_addr = available_ips
+                let suggested_addrs = available_ips
                     .into_iter()
-                    .find(|ip| match ip {
+                    .filter(|ip| match ip {
                         IpAddr::V4(ipv4) => !ipv4.is_private() && !ipv4.is_loopback(),
                         IpAddr::V6(ipv6) => {
                             !ipv6.is_loopback()
@@ -399,148 +522,132 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                                 && !ipv6.is_unicast_link_local()
                         }
                     })
-                    .map(|ip| SocketAddr::new(ip, 8443))
-                    .unwrap_or_else(|| SocketAddr::from((Ipv6Addr::UNSPECIFIED, 8443)));
+                    .chain([Ipv6Addr::UNSPECIFIED.into()])
+                    .collect::<Vec<_>>();
 
-                let (mut readline, _writer) = rustyline_async::Readline::new(format!(
-                    "Listen Address [{}]: ",
-                    suggested_addr
-                ))
-                .with_kind(ErrorKind::Filesystem)?;
-
-                let listen: SocketAddr = loop {
-                    match readline.readline().await.with_kind(ErrorKind::Filesystem)? {
-                        rustyline_async::ReadlineEvent::Line(l) if !l.trim().is_empty() => {
-                            match l.trim().parse() {
-                                Ok(addr) => break addr,
-                                Err(_) => {
-                                    println!(
-                                        "Invalid socket address. Please enter in format IP:PORT (e.g., 0.0.0.0:8443)"
-                                    );
-                                    readline.clear_history();
-                                }
-                            }
-                        }
-                        rustyline_async::ReadlineEvent::Line(_) => {
-                            break suggested_addr;
-                        }
-                        _ => return Err(Error::new(eyre!("Aborted"), ErrorKind::Unknown)),
-                    }
+                let ip = if suggested_addrs.len() > 16 {
+                    prompt(
+                        &format!("Listen Address [{}]: ", suggested_addrs[0]),
+                        parse_as::<IpAddr>("IP Address"),
+                        Some(suggested_addrs[0]),
+                    )
+                    .await?
+                } else {
+                    *choose("Listen Address:", &suggested_addrs).await?
                 };
+
+                println!(concat!(
+                    "Enter the port at which to host the web interface. ",
+                    "The recommended default is 8443. ",
+                    "If you change the default, choose an uncommon port to avoid conflicts: "
+                ));
+                let port = prompt("Port [8443]: ", parse_as::<u16>("port"), Some(8443)).await?;
+
+                let listen = SocketAddr::new(ip, port);
 
                 ctx.call_remote::<TunnelContext>(
                     "web.set-listen",
                     to_value(&SetListenParams { listen })?,
                 )
                 .await?;
+
+                println!();
             }
             Err(e) if e.kind == ErrorKind::OpenSsl => {
-                println!(
-                    "StartTunnel has not been set up with an SSL Certificate yet. Setting one up now..."
-                );
-                println!("[1]: Generate a Self Signed Certificate");
-                println!("[2]: Provide your own certificate and key");
-                let (mut readline, mut writer) =
-                    rustyline_async::Readline::new("What would you like to do? [1-2]: ".into())
-                        .with_kind(ErrorKind::Filesystem)?;
-                readline.add_history_entry("1".into());
-                readline.add_history_entry("2".into());
-                let self_signed;
-                loop {
-                    match readline.readline().await.with_kind(ErrorKind::Filesystem)? {
-                        rustyline_async::ReadlineEvent::Line(l)
-                            if l.trim_matches(|c: char| c.is_whitespace() || c == '"') == "1" =>
-                        {
-                            self_signed = true;
-                            break;
+                enum Choice {
+                    Generate,
+                    Provide,
+                }
+                impl std::fmt::Display for Choice {
+                    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        match self {
+                            Self::Generate => write!(f, "Generate a Self Signed Certificate"),
+                            Self::Provide => write!(f, "Provide your own certificate and key"),
                         }
-                        rustyline_async::ReadlineEvent::Line(l)
-                            if l.trim_matches(|c: char| c.is_whitespace() || c == '"') == "2" =>
-                        {
-                            self_signed = false;
-                            break;
-                        }
-                        rustyline_async::ReadlineEvent::Line(_) => {
-                            readline.clear_history();
-                            readline.add_history_entry("1".into());
-                            readline.add_history_entry("2".into());
-                            writeln!(writer, "Invalid response. Enter either \"1\" or \"2\".")?;
-                        }
-                        _ => return Err(Error::new(eyre!("Aborted"), ErrorKind::Unknown)),
                     }
                 }
-                if self_signed {
-                    let listen = from_value::<Option<SocketAddr>>(
-                        ctx.call_remote::<TunnelContext>("web.get-listen", json!({}))
-                            .await?,
-                    )?
-                    .filter(|a| !a.ip().is_unspecified());
-                    writeln!(
-                        writer,
-                        "Enter the name(s) to sign the certificate for, separated by commas."
-                    )?;
-                    readline.clear_history();
-                    let default_prompt = if let Some(listen) = listen {
-                        format!("Subject Alternative Name(s) [{}]: ", listen.ip())
-                    } else {
-                        "Subject Alternative Name(s): ".to_string()
-                    };
-                    readline
-                        .update_prompt(&default_prompt)
-                        .with_kind(ErrorKind::Filesystem)?;
-                    let mut saninfo = Vec::new();
-                    loop {
-                        match readline.readline().await.with_kind(ErrorKind::Filesystem)? {
-                            rustyline_async::ReadlineEvent::Line(l) if !l.trim().is_empty() => {
-                                saninfo.extend(l.split(",").map(|h| h.trim().into()));
-                                break;
-                            }
-                            rustyline_async::ReadlineEvent::Line(_) => {
-                                saninfo.extend(
-                                    listen
-                                        .map(|l| l.ip())
-                                        .as_ref()
-                                        .map(InternedString::from_display),
-                                );
-                                readline.clear_history();
-                                if !saninfo.is_empty() {
-                                    break;
-                                }
-                            }
-                            _ => return Err(Error::new(eyre!("Aborted"), ErrorKind::Unknown)),
-                        }
-                    }
+                let options = vec![Choice::Generate, Choice::Provide];
+                let choice = choose(
+                    concat!(
+                        "Select whether to autogenerate a self-signed SSL certificate ",
+                        "or provide your own certificate and key:"
+                    ),
+                    &options,
+                )
+                .await?;
 
-                    ctx.call_remote::<TunnelContext>(
-                        "web.generate-certificate",
-                        to_value(&GenerateCertParams { subject: saninfo })?,
-                    )
-                    .await?;
-                } else {
-                    drop((readline, writer));
-                    import_certificate_cli(HandlerArgs {
-                        context: ctx.clone(),
-                        parent_method: vec!["web", "import-certificate"].into(),
-                        method: VecDeque::new(),
-                        params: Empty {},
-                        inherited_params: Empty {},
-                        raw_params: json!({}),
-                    })
-                    .await?;
+                match choice {
+                    Choice::Generate => {
+                        let listen = from_value::<Option<SocketAddr>>(
+                            ctx.call_remote::<TunnelContext>("web.get-listen", json!({}))
+                                .await?,
+                        )?
+                        .filter(|a| !a.ip().is_unspecified());
+
+                        let default_prompt = if let Some(listen) = listen {
+                            format!("Subject Alternative Name(s) [{}]: ", listen.ip())
+                        } else {
+                            "Subject Alternative Name(s): ".to_string()
+                        };
+
+                        println!(
+                            "List all IP addresses and domains for which to sign the certificate, separated by commas."
+                        );
+                        let san_info = prompt(
+                            &default_prompt,
+                            |s| {
+                                s.split(",")
+                                    .map(|s| {
+                                        let s = s.trim();
+                                        if let Ok(ip) = s.parse::<IpAddr>() {
+                                            Ok(InternedString::from_display(&ip))
+                                        } else if is_valid_domain(s) {
+                                            Ok(s.into())
+                                        } else {
+                                            Err(format!("{s} is not a valid ip address or domain"))
+                                        }
+                                    })
+                                    .collect()
+                            },
+                            listen.map(|l| vec![InternedString::from_display(&l.ip())]),
+                        )
+                        .await?;
+
+                        ctx.call_remote::<TunnelContext>(
+                            "web.generate-certificate",
+                            to_value(&GenerateCertParams { subject: san_info })?,
+                        )
+                        .await?;
+                    }
+                    Choice::Provide => {
+                        import_certificate_cli(HandlerArgs {
+                            context: ctx.clone(),
+                            parent_method: vec!["web", "import-certificate"].into(),
+                            method: VecDeque::new(),
+                            params: Empty {},
+                            inherited_params: Empty {},
+                            raw_params: json!({}),
+                        })
+                        .await?;
+                    }
                 }
+
+                println!();
             }
             Err(e) if e.kind == ErrorKind::Authorization => {
-                println!("A password has not been setup yet. Setting one up now...");
+                println!("Generating a random password...");
+                let params = SetPasswordParams {
+                    password: base32::encode(
+                        base32::Alphabet::Rfc4648 { padding: false },
+                        &rand::random::<[u8; 10]>(),
+                    ),
+                };
+                ctx.call_remote::<TunnelContext>("auth.set-password", to_value(&params)?)
+                    .await?;
 
-                super::auth::set_password_cli(HandlerArgs {
-                    context: ctx.clone(),
-                    parent_method: vec!["auth", "set-password"].into(),
-                    method: VecDeque::new(),
-                    params: Empty {},
-                    inherited_params: Empty {},
-                    raw_params: json!({}),
-                })
-                .await?;
+                password = Some(params.password);
+
+                println!();
             }
             Err(e) => return Err(e.into()),
         }

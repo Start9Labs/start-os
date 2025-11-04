@@ -140,6 +140,9 @@ install-tunnel: core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox core
 	$(call mkdir,$(DESTDIR)/lib/systemd/system)
 	$(call cp,core/startos/start-tunneld.service,$(DESTDIR)/lib/systemd/system/start-tunneld.service)
 
+	$(call mkdir,$(DESTDIR)/usr/lib/startos/scripts)
+	$(call cp,build/lib/scripts/forward-port,$(DESTDIR)/usr/lib/startos/scripts/forward-port)
+
 core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox: $(CORE_SRC) $(ENVIRONMENT_FILE) web/dist/static/start-tunnel/index.html
 	ARCH=$(ARCH) PROFILE=$(PROFILE) ./core/build-tunnelbox.sh
 

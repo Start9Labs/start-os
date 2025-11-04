@@ -366,15 +366,16 @@ pub async fn add_forward(
     ctx: TunnelContext,
     AddPortForwardParams { source, target }: AddPortForwardParams,
 ) -> Result<(), Error> {
+    let rc = ctx.forward.add_forward(source, target).await?;
+    ctx.active_forwards.mutate(|m| {
+        m.insert(source, rc);
+    });
+
     ctx.db
         .mutate(|db| db.as_port_forwards_mut().insert(&source, &target))
         .await
         .result?;
 
-    let rc = ctx.forward.add_forward(source, target).await?;
-    ctx.active_forwards.mutate(|m| {
-        m.insert(source, rc);
-    });
     Ok(())
 }
 

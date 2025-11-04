@@ -142,6 +142,12 @@ pub fn auth_api<C: Context>() -> ParentHandler<C> {
                 .no_display(),
         )
         .subcommand(
+            "reset-password",
+            from_fn_async(reset_password)
+                .with_about("Reset user interface password")
+                .no_display(),
+        )
+        .subcommand(
             "key",
             ParentHandler::<C>::new()
                 .subcommand(
@@ -283,6 +289,35 @@ pub async fn set_password_cli(
         .await?;
 
     println!("Password set successfully");
+
+    Ok(())
+}
+
+pub async fn reset_password(
+    HandlerArgs {
+        context,
+        parent_method,
+        method,
+        ..
+    }: HandlerArgs<CliContext>,
+) -> Result<(), Error> {
+    println!("Generating a random password...");
+    let params = SetPasswordParams {
+        password: base32::encode(
+            base32::Alphabet::Rfc4648Lower { padding: false },
+            &rand::random::<[u8; 10]>(),
+        ),
+    };
+
+    context
+        .call_remote::<TunnelContext>(
+            &parent_method.iter().chain(method.iter()).join("."),
+            to_value(&params)?,
+        )
+        .await?;
+
+    println!("Your new password is:");
+    println!("{}", params.password);
 
     Ok(())
 }
