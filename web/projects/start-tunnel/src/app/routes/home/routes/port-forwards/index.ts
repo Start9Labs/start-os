@@ -72,12 +72,11 @@ export default class PortForwards {
     this.patch.watch$('gateways').pipe(
       map(g =>
         Object.values(g)
-          .filter(
-            val =>
-              val.public ??
-              val.ipInfo?.subnets.some(s => new utils.IpNet(s).isPublic()),
+          .flatMap(
+            val => val.ipInfo?.subnets.map(s => new utils.IpNet(s)) || [],
           )
-          .map(val => val.ipInfo!.wanIp),
+          .filter(s => s.isIpv4() && s.isPublic())
+          .map(s => s.address),
       ),
     ),
     { initialValue: [] },

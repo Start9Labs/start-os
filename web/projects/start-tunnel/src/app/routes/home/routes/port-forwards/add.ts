@@ -140,9 +140,9 @@ export class PortForwardsAdd {
 
   protected readonly form = inject(NonNullableFormBuilder).group({
     externalip: ['', Validators.required],
-    externalport: [null, Validators.required],
+    externalport: [null as number | null, Validators.required],
     device: [null as MappedDevice | null, Validators.required],
-    internalport: [null, Validators.required],
+    internalport: [null as number | null, Validators.required],
   })
 
   protected readonly stringify = ({ ip, name }: MappedDevice) =>
