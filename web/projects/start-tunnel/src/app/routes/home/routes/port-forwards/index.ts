@@ -1,43 +1,24 @@
-import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
-  signal,
+  Signal,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import {
-  NonNullableFormBuilder,
-  ReactiveFormsModule,
-  Validators,
-} from '@angular/forms'
+import { ReactiveFormsModule } from '@angular/forms'
 import { LoadingService } from '@start9labs/shared'
 import { utils } from '@start9labs/start-sdk'
-import {
-  TUI_IS_MOBILE,
-  tuiMarkControlAsTouchedAndValidate,
-  TuiStringHandler,
-} from '@taiga-ui/cdk'
-import {
-  TuiButton,
-  TuiError,
-  TuiNumberFormat,
-  TuiTextfield,
-} from '@taiga-ui/core'
-import { TuiDialog, TuiDialogService } from '@taiga-ui/experimental'
-import {
-  TUI_CONFIRM,
-  TuiChevron,
-  TuiDataListWrapper,
-  TuiFieldErrorPipe,
-  TuiInputNumber,
-  TuiSelect,
-} from '@taiga-ui/kit'
-import { TuiForm } from '@taiga-ui/layout'
+import { TuiButton } from '@taiga-ui/core'
+import { TuiDialogService } from '@taiga-ui/experimental'
+import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
-import { combineLatest, filter, map, Observable } from 'rxjs'
+import { filter, map } from 'rxjs'
+import { PORT_FORWARDS_ADD } from 'src/app/routes/home/routes/port-forwards/add'
 import { ApiService } from 'src/app/services/api/api.service'
 import { TunnelData } from 'src/app/services/patch-db/data-model'
+
+import { MappedDevice, MappedForward } from './utils'
 
 @Component({
   template: `
@@ -77,234 +58,81 @@ import { TunnelData } from 'src/app/services/patch-db/data-model'
         }
       </tbody>
     </table>
-    <ng-template
-      [tuiDialogOptions]="{ label: 'Add port forward' }"
-      [(tuiDialog)]="dialog"
-    >
-      <form tuiForm [formGroup]="form">
-        <tui-textfield tuiChevron>
-          <label tuiLabel>External IP</label>
-          @if (mobile) {
-            <select
-              tuiSelect
-              formControlName="externalip"
-              [items]="ips()"
-            ></select>
-          } @else {
-            <input tuiSelect formControlName="externalip" />
-          }
-          @if (!mobile) {
-            <tui-data-list-wrapper *tuiTextfieldDropdown new [items]="ips()" />
-          }
-        </tui-textfield>
-        <tui-error
-          formControlName="externalip"
-          [error]="[] | tuiFieldError | async"
-        />
-        <tui-textfield>
-          <label tuiLabel>External Port</label>
-          <input
-            tuiInputNumber
-            [tuiNumberFormat]="{ thousandSeparator: '' }"
-            formControlName="externalport"
-          />
-        </tui-textfield>
-        <tui-error
-          formControlName="externalport"
-          [error]="[] | tuiFieldError | async"
-        />
-        <tui-textfield tuiChevron [stringify]="deviceDisplay">
-          <label tuiLabel>Device</label>
-          @if (mobile) {
-            <select
-              tuiSelect
-              formControlName="device"
-              [items]="devices()"
-            ></select>
-          } @else {
-            <input tuiSelect formControlName="device" />
-          }
-          @if (!mobile) {
-            <tui-data-list-wrapper
-              *tuiTextfieldDropdown
-              new
-              [items]="devices()"
-            />
-          }
-        </tui-textfield>
-        <tui-error
-          formControlName="device"
-          [error]="[] | tuiFieldError | async"
-        />
-        <tui-textfield>
-          <label tuiLabel>Internal Port</label>
-          <input
-            tuiInputNumber
-            [tuiNumberFormat]="{ thousandSeparator: '' }"
-            formControlName="internalport"
-          />
-        </tui-textfield>
-        <tui-error
-          formControlName="internalport"
-          [error]="[] | tuiFieldError | async"
-        />
-        <footer>
-          <button tuiButton [disabled]="form.invalid" (click)="onSave()">
-            Save
-          </button>
-        </footer>
-      </form>
-    </ng-template>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    AsyncPipe,
-    ReactiveFormsModule,
-    TuiButton,
-    TuiTextfield,
-    TuiDialog,
-    TuiForm,
-    TuiError,
-    TuiFieldErrorPipe,
-    TuiChevron,
-    TuiSelect,
-    TuiDataListWrapper,
-    TuiInputNumber,
-    TuiNumberFormat,
-  ],
+  imports: [ReactiveFormsModule, TuiButton],
 })
 export default class PortForwards {
   private readonly dialogs = inject(TuiDialogService)
   private readonly api = inject(ApiService)
   private readonly loading = inject(LoadingService)
   private readonly patch = inject<PatchDB<TunnelData>>(PatchDB)
-  protected readonly mobile = inject(TUI_IS_MOBILE)
-  protected readonly form = inject(NonNullableFormBuilder).group({
-    externalip: ['', Validators.required],
-    externalport: [
-      null,
-      [Validators.required, Validators.min(0), Validators.max(65535)],
-    ],
-    device: [{} as MappedDevice, Validators.required],
-    internalport: [
-      null,
-      [Validators.required, Validators.min(0), Validators.max(65535)],
-    ],
-  })
-
-  protected readonly dialog = signal(false)
-
-  protected readonly ips = toSignal(
+  private readonly portForwards = toSignal(this.patch.watch$('portForwards'))
+  private readonly ips = toSignal(
     this.patch.watch$('gateways').pipe(
       map(g =>
         Object.values(g)
-          .filter(
-            val =>
-              val.public ??
-              val.ipInfo?.subnets.some(s => new utils.IpNet(s).isPublic()),
+          .flatMap(
+            val => val.ipInfo?.subnets.map(s => new utils.IpNet(s)) || [],
           )
-          .map(val => val.ipInfo!.wanIp),
+          .filter(s => s.isIpv4() && s.isPublic())
+          .map(s => s.address),
       ),
     ),
     { initialValue: [] },
   )
 
-  protected readonly devices$: Observable<MappedDevice[]> = this.patch
-    .watch$('wg', 'subnets')
-    .pipe(
-      map(s =>
-        Object.values(s).flatMap(({ clients }) =>
-          Object.entries(clients).map(([ip, { name }]) => ({
-            ip,
-            name,
-          })),
+  private readonly devices: Signal<MappedDevice[]> = toSignal(
+    this.patch
+      .watch$('wg', 'subnets')
+      .pipe(
+        map(subnets =>
+          Object.values(subnets).flatMap(({ clients }) =>
+            Object.entries(clients).map(([ip, { name }]) => ({ ip, name })),
+          ),
         ),
       ),
-    )
-
-  protected readonly devices = toSignal(this.devices$, {
-    initialValue: [],
-  })
-
-  protected readonly forwards = toSignal<MappedForward[], []>(
-    combineLatest([this.devices$, this.patch.watch$('portForwards')]).pipe(
-      map(([devices, forwards]) =>
-        Object.entries(forwards).map(([source, target]) => {
-          const sourceSplit = source.split(':')
-          const targetSplit = target.split(':')
-
-          return {
-            externalip: sourceSplit[0]!,
-            externalport: sourceSplit[1]!,
-            device: devices.find(d => d.ip === targetSplit[0])!,
-            internalport: targetSplit[1]!,
-          }
-        }),
-      ),
-    ),
     { initialValue: [] },
   )
 
-  protected readonly deviceDisplay: TuiStringHandler<MappedDevice> = device =>
-    device.ip ? `${device.name} (${device.ip})` : ''
+  protected readonly forwards = computed(() =>
+    Object.entries(this.portForwards() || {}).map(([source, target]) => {
+      const sourceSplit = source.split(':')
+      const targetSplit = target.split(':')
+
+      return {
+        externalip: sourceSplit[0]!,
+        externalport: sourceSplit[1]!,
+        device: this.devices().find(d => d.ip === targetSplit[0])!,
+        internalport: targetSplit[1]!,
+      }
+    }),
+  )
 
   protected onAdd(): void {
-    this.form.reset()
-    this.dialog.set(true)
-  }
-
-  protected async onSave() {
-    if (this.form.invalid) {
-      tuiMarkControlAsTouchedAndValidate(this.form)
-      return
-    }
-
-    const loader = this.loading.open().subscribe()
-
-    const { externalip, externalport, device, internalport } =
-      this.form.getRawValue()
-
-    try {
-      await this.api.addForward({
-        source: `${externalip}:${externalport}`,
-        target: `${device.ip}:${internalport}`,
+    this.dialogs
+      .open(PORT_FORWARDS_ADD, {
+        label: 'Add port forward',
+        data: { ips: this.ips, devices: this.devices },
       })
-    } catch (e) {
-      console.error(e)
-    } finally {
-      loader.unsubscribe()
-      this.dialog.set(false)
-    }
+      .subscribe()
   }
 
-  protected onDelete(forward: MappedForward): void {
+  protected onDelete({ externalip, externalport }: MappedForward): void {
     this.dialogs
       .open(TUI_CONFIRM, { label: 'Are you sure?' })
       .pipe(filter(Boolean))
       .subscribe(async () => {
         const loader = this.loading.open().subscribe()
+        const source = `${externalip}:${externalport}`
+
         try {
-          await this.api.deleteForward({
-            source: `${forward.externalip}:${forward.externalport}`,
-          })
+          await this.api.deleteForward({ source })
         } catch (e) {
           console.log(e)
         } finally {
           loader.unsubscribe()
-          this.dialog.set(false)
         }
       })
   }
-}
-
-type MappedDevice = {
-  ip: string
-  name: string
-}
-
-type MappedForward = {
-  externalip: string
-  externalport: string
-  device: MappedDevice
-  internalport: string
 }

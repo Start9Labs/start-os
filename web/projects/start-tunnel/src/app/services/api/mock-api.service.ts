@@ -173,7 +173,7 @@ export class MockApiService extends ApiService {
     const patch: AddOperation<string>[] = [
       {
         op: PatchOp.ADD,
-        path: `/port_forwards/${params.source}`,
+        path: `/portForwards/${params.source}`,
         value: params.target,
       },
     ]
@@ -188,7 +188,7 @@ export class MockApiService extends ApiService {
     const patch: RemoveOperation[] = [
       {
         op: PatchOp.REMOVE,
-        path: `/port_forwards/${params.source}`,
+        path: `/portForwards/${params.source}`,
       },
     ]
     this.mockRevision(patch)

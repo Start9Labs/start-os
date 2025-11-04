@@ -172,7 +172,7 @@ export class InterfaceTorDomainsComponent {
         ? await this.api.addTorKey({ key })
         : await this.api.generateTorKey({})
 
-      if (this.interface.packageId) {
+      if (this.interface.packageId()) {
         await this.api.pkgAddOnion({
           onion,
           package: this.interface.packageId(),

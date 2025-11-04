@@ -45,14 +45,14 @@ export const mockTunnelData: TunnelData = {
   gateways: {
     eth0: {
       name: null,
-      public: true,
+      public: null,
       secure: null,
       ipInfo: {
         name: 'Wired Connection 1',
         scopeId: 1,
         deviceType: 'ethernet',
-        subnets: ['10.59.0.0/24'],
-        wanIp: '203.0.113.45',
+        subnets: ['69.1.1.42/24'],
+        wanIp: null,
         ntpServers: [],
         lanIp: ['10.59.0.1'],
         dnsServers: [],

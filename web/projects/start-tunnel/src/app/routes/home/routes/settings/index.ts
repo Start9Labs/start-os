@@ -5,27 +5,36 @@ import {
   inject,
   signal,
 } from '@angular/core'
+import { toSignal } from '@angular/core/rxjs-interop'
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
+  ValidatorFn,
   Validators,
 } from '@angular/forms'
 import { DialogService, ErrorService } from '@start9labs/shared'
 import { TuiResponsiveDialogService } from '@taiga-ui/addon-mobile'
+import { tuiMarkControlAsTouchedAndValidate, TuiValidator } from '@taiga-ui/cdk'
 import {
   TuiAlertService,
+  TuiAppearance,
   TuiButton,
   TuiError,
   TuiTextfield,
   TuiTitle,
 } from '@taiga-ui/core'
-import { TuiButtonLoading, TuiFieldErrorPipe } from '@taiga-ui/kit'
+import {
+  TuiButtonLoading,
+  TuiFieldErrorPipe,
+  tuiValidationErrorsProvider,
+} from '@taiga-ui/kit'
 import { TuiCard, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { map } from 'rxjs'
 import { ApiService } from 'src/app/services/api/api.service'
 
 @Component({
   template: `
-    <form tuiCardLarge tuiForm [formGroup]="form">
+    <form tuiCardLarge tuiAppearance="neutral" tuiForm [formGroup]="form">
       <header tuiHeader>
         <h2 tuiTitle>
           Settings
@@ -42,29 +51,29 @@ import { ApiService } from 'src/app/services/api/api.service'
       />
       <tui-textfield>
         <label tuiLabel>Confirm new password</label>
-        <input formControlName="confirm" tuiTextfield />
+        <input
+          formControlName="confirm"
+          tuiTextfield
+          [tuiValidator]="matchValidator()"
+        />
       </tui-textfield>
       <tui-error
         formControlName="confirm"
         [error]="[] | tuiFieldError | async"
       />
       <footer>
-        <button
-          tuiButton
-          (click)="onSave()"
-          [disabled]="form.invalid"
-          [loading]="loading()"
-        >
-          Save
-        </button>
+        <button tuiButton (click)="onSave()" [loading]="loading()">Save</button>
       </footer>
     </form>
   `,
-  styles: `
-    form {
-      background: var(--tui-background-neutral-1);
-    }
-  `,
+  providers: [
+    tuiValidationErrorsProvider({
+      required: 'This field is required',
+      minlength: 'Password must be at least 8 characters',
+      maxlength: 'Password cannot exceed 64 characters',
+      match: 'Passwords do not match',
+    }),
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
@@ -78,6 +87,8 @@ import { ApiService } from 'src/app/services/api/api.service'
     TuiFieldErrorPipe,
     TuiButton,
     TuiButtonLoading,
+    TuiValidator,
+    TuiAppearance,
   ],
 })
 export default class Settings {
@@ -86,7 +97,6 @@ export default class Settings {
   private readonly errorService = inject(ErrorService)
 
   protected readonly loading = signal(false)
-
   protected readonly form = inject(NonNullableFormBuilder).group({
     password: [
       '',
@@ -98,26 +108,30 @@ export default class Settings {
     ],
   })
 
-  protected async onSave() {
-    const { password, confirm } = this.form.getRawValue()
+  protected readonly matchValidator = toSignal(
+    this.form.controls.password.valueChanges.pipe(
+      map(
+        (password): ValidatorFn =>
+          ({ value }) =>
+            value === password ? null : { match: true },
+      ),
+    ),
+    { initialValue: Validators.nullValidator },
+  )
 
-    if (password !== confirm) {
-      // @TODO not working
-      this.form.controls.confirm.setErrors({
-        notEqual: 'New passwords do not match',
-      })
+  protected async onSave() {
+    if (this.form.invalid) {
+      tuiMarkControlAsTouchedAndValidate(this.form)
+
       return
     }
 
     this.loading.set(true)
 
     try {
-      await this.api.setPassword({ password })
+      await this.api.setPassword({ password: this.form.getRawValue().password })
       this.alerts
-        .open('Password changed', {
-          label: 'Success',
-          appearance: 'positive',
-        })
+        .open('Password changed', { label: 'Success', appearance: 'positive' })
         .subscribe()
       this.form.reset()
     } catch (e: any) {
