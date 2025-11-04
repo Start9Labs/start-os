@@ -350,7 +350,7 @@
             },
             "index": "projects/start-tunnel/src/index.html",
             "browser": "projects/start-tunnel/src/main.ts",
-            "polyfills": ["zone.js"],
+            "polyfills": [],
             "tsConfig": "projects/start-tunnel/tsconfig.json",
             "inlineStyleLanguage": "scss",
             "assets": [

@@ -7,8 +7,18 @@ import { PatchService } from './services/patch.service'
 @Component({
   selector: 'app-root',
   imports: [RouterOutlet, TuiRoot],
-  templateUrl: './app.html',
-  styleUrl: './app.scss',
+  template: '<tui-root><router-outlet /></tui-root>',
+  styles: `
+    :host {
+      height: 100%;
+      display: block;
+    }
+
+    tui-root {
+      height: 100%;
+      border-image: none;
+    }
+  `,
 })
 export class App {
   readonly subscription = inject(PatchService)
