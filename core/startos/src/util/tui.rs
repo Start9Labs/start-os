@@ -95,16 +95,14 @@ pub async fn prompt_multiline<
     Ok(res)
 }
 
-pub async fn choose<'t, T: std::fmt::Display>(
+pub async fn choose_custom_display<'t, T: std::fmt::Display>(
     prompt: &str,
     choices: &'t [T],
+    mut display: impl FnMut(&T) -> String,
 ) -> Result<&'t T, Error> {
     let mut io = DefaultIoDevices::default();
     let style = r3bl_tui::readline_async::StyleSheet::default();
-    let string_choices = choices
-        .into_iter()
-        .map(|c| c.to_string())
-        .collect::<Vec<_>>();
+    let string_choices = choices.into_iter().map(|c| display(c)).collect::<Vec<_>>();
     let choice = r3bl_tui::readline_async::choose(
         prompt,
         string_choices.clone(),
@@ -136,4 +134,11 @@ pub async fn choose<'t, T: std::fmt::Display>(
     let choice = &choices[idx];
     println!("{prompt} {choice}");
     Ok(&choice)
+}
+
+pub async fn choose<'t, T: std::fmt::Display>(
+    prompt: &str,
+    choices: &'t [T],
+) -> Result<&'t T, Error> {
+    choose_custom_display(prompt, choices, |t| t.to_string()).await
 }

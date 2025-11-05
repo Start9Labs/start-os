@@ -305,7 +305,7 @@ pub async fn reset_password(
     let params = SetPasswordParams {
         password: base32::encode(
             base32::Alphabet::Rfc4648Lower { padding: false },
-            &rand::random::<[u8; 10]>(),
+            &rand::random::<[u8; 16]>(),
         ),
     };
 

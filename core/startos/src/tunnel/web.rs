@@ -28,7 +28,7 @@ use crate::tunnel::auth::SetPasswordParams;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::db::TunnelDatabase;
 use crate::util::serde::{HandlerExtSerde, Pem, display_serializable};
-use crate::util::tui::{choose, parse_as, prompt, prompt_multiline};
+use crate::util::tui::{choose, choose_custom_display, parse_as, prompt, prompt_multiline};
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
@@ -229,10 +229,19 @@ pub async fn import_certificate_cli(
                 cert_string.truncate(0);
                 let cert = cert?;
 
-                let key = cert.0.public_key()?;
+                let pubkey = cert.0.public_key()?;
+
+                if chain.is_empty() {
+                    if !key.public_eq(&pubkey) {
+                        return Err(Error::new(
+                            eyre!("Certificate does not match key!"),
+                            ErrorKind::InvalidSignature,
+                        ));
+                    }
+                }
 
                 if let Some(prev) = chain.last() {
-                    if !prev.verify(&key)? {
+                    if !prev.verify(&pubkey)? {
                         return Err(Error::new(
                             eyre!(concat!(
                                 "Invalid Fullchain: ",
@@ -243,7 +252,7 @@ pub async fn import_certificate_cli(
                     }
                 }
 
-                let is_root = cert.0.verify(&key)?;
+                let is_root = cert.0.verify(&pubkey)?;
 
                 chain.push(cert.0);
 
@@ -494,8 +503,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                         .await?,
                 )?;
                 println!("📝 SSL Certificate:");
-                println!("{cert}");
-                println!();
+                print!("{cert}");
 
                 println!(concat!(
                     "If you haven't already, ",
@@ -507,25 +515,35 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
             Err(e) if e.kind == ErrorKind::ParseNetAddress => {
                 println!("Select the IP address at which to host the web interface:");
 
-                let available_ips = from_value::<Vec<IpAddr>>(
+                let mut suggested_addrs = from_value::<Vec<IpAddr>>(
                     ctx.call_remote::<TunnelContext>("web.get-available-ips", json!({}))
                         .await?,
                 )?;
 
-                let suggested_addrs = available_ips
-                    .into_iter()
-                    .filter(|ip| match ip {
-                        IpAddr::V4(ipv4) => !ipv4.is_private() && !ipv4.is_loopback(),
-                        IpAddr::V6(ipv6) => {
-                            !ipv6.is_loopback()
-                                && !ipv6.is_unique_local()
-                                && !ipv6.is_unicast_link_local()
+                suggested_addrs.sort_by_cached_key(|a| match a {
+                    IpAddr::V4(a) => {
+                        if a.is_loopback() {
+                            3
+                        } else if a.is_private() {
+                            2
+                        } else {
+                            0
                         }
-                    })
-                    .chain([Ipv6Addr::UNSPECIFIED.into()])
-                    .collect::<Vec<_>>();
+                    }
+                    IpAddr::V6(a) => {
+                        if a.is_loopback() {
+                            5
+                        } else if a.is_unicast_link_local() {
+                            4
+                        } else {
+                            1
+                        }
+                    }
+                });
 
-                let ip = if suggested_addrs.len() > 16 {
+                let ip = if suggested_addrs.is_empty() {
+                    prompt("Listen Address: ", parse_as::<IpAddr>("IP Address"), None).await?
+                } else if suggested_addrs.len() > 16 {
                     prompt(
                         &format!("Listen Address [{}]: ", suggested_addrs[0]),
                         parse_as::<IpAddr>("IP Address"),
@@ -533,7 +551,22 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                     )
                     .await?
                 } else {
-                    *choose("Listen Address:", &suggested_addrs).await?
+                    *choose_custom_display("Listen Address:", &suggested_addrs, |a| match a {
+                        a if a.is_loopback() => {
+                            format!("{a} (Loopback Address: only use if planning to proxy traffic)")
+                        }
+                        IpAddr::V4(a) if a.is_private() => {
+                            format!("{a} (Private Address: only available from Local Area Network)")
+                        }
+                        IpAddr::V6(a) if a.is_unicast_link_local() => {
+                            format!(
+                                "[{a}] (Private Address: only available from Local Area Network)"
+                            )
+                        }
+                        IpAddr::V6(a) => format!("[{a}]"),
+                        a => a.to_string(),
+                    })
+                    .await?
                 };
 
                 println!(concat!(
@@ -638,8 +671,8 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                 println!("Generating a random password...");
                 let params = SetPasswordParams {
                     password: base32::encode(
-                        base32::Alphabet::Rfc4648 { padding: false },
-                        &rand::random::<[u8; 10]>(),
+                        base32::Alphabet::Rfc4648Lower { padding: false },
+                        &rand::random::<[u8; 16]>(),
                     ),
                 };
                 ctx.call_remote::<TunnelContext>("auth.set-password", to_value(&params)?)
