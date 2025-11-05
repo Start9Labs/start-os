@@ -52,6 +52,7 @@ import { getIp, DeviceData, MappedSubnet, subnetValidator } from './utils'
             <select
               tuiSelect
               formControlName="subnet"
+              placeholder="Select Subnet"
               [items]="context.data.subnets()"
             ></select>
           } @else {
@@ -87,9 +88,7 @@ import { getIp, DeviceData, MappedSubnet, subnetValidator } from './utils'
         }
       }
       <footer>
-        <button tuiButton (click)="onSave()" [disabled]="form.invalid">
-          Save
-        </button>
+        <button tuiButton (click)="onSave()">Save</button>
       </footer>
     </form>
   `,
@@ -147,6 +146,7 @@ export class DevicesAdd {
   protected async onSave() {
     if (this.form.invalid) {
       tuiMarkControlAsTouchedAndValidate(this.form)
+
       return
     }
 

@@ -39,6 +39,7 @@ import { MappedDevice, PortForwardsData } from './utils'
           <select
             tuiSelect
             formControlName="externalip"
+            placeholder="Select IP"
             [items]="context.data.ips()"
           ></select>
         } @else {
@@ -76,6 +77,7 @@ import { MappedDevice, PortForwardsData } from './utils'
           <select
             tuiSelect
             formControlName="device"
+            placeholder="Select Device"
             [items]="context.data.devices()"
           ></select>
         } @else {

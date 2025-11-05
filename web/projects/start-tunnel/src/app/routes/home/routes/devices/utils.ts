@@ -25,7 +25,9 @@ export interface DeviceData {
 }
 
 export function subnetValidator({ value }: AbstractControl<MappedSubnet>) {
-  return value && getIp(value) ? null : { noHosts: 'No hosts available' }
+  return !value?.clients || getIp(value)
+    ? null
+    : { noHosts: 'No hosts available' }
 }
 
 export function getIp({ clients, range }: MappedSubnet) {
