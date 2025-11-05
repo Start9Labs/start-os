@@ -30,25 +30,31 @@ export function subnetValidator({ value }: AbstractControl<MappedSubnet>) {
     : { noHosts: 'No hosts available' }
 }
 
-export function getIp({ clients, range }: MappedSubnet) {
-  const { prefix, octets } = new IpNet(range)
-  const used = Object.keys(clients).map(ip =>
-    new utils.IpAddress(ip).octets.at(3),
-  )
+export const ipInSubnetValidator = (subnet: string | null = null) => {
+  const ipnet = subnet && utils.IpNet.parse(subnet)
+  return ({ value }: AbstractControl<string>) => {
+    let ip: utils.IpAddress
+    try {
+      ip = utils.IpAddress.parse(value)
+    } catch (e) {
+      return { invalidIp: 'Not a valid IP Address' }
+    }
+    if (!ipnet) return null
+    return ipnet.contains(ip)
+      ? null
+      : { notInSubnet: `Address is not part of ${subnet}` }
+  }
+}
 
-  for (let i = 2; i < totalHosts(prefix); i++) {
-    if (!used.includes(i)) {
-      return [...octets.slice(0, 3), i].join('.')
+export function getIp({ clients, range }: MappedSubnet) {
+  const net = IpNet.parse(range)
+  const last = net.last()
+
+  for (let ip = net.add(1); ip.cmp(last) === -1; ip.add(1)) {
+    if (!clients[ip.address]) {
+      return ip.address
     }
   }
 
   return ''
-}
-
-function totalHosts(prefix: number) {
-  // Handle special cases per RFC 3021
-  if (prefix === 31) return 4 // point-to-point, 2 usable addresses
-  if (prefix === 32) return 3 // single host, 1 usable address
-
-  return Math.pow(2, 32 - prefix)
 }

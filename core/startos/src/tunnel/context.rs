@@ -40,12 +40,6 @@ use crate::util::collections::OrdMapIterMut;
 use crate::util::io::read_file_to_string;
 use crate::util::sync::{SyncMutex, Watch};
 
-#[cfg(all(feature = "tunnel", not(feature = "test")))]
-const EMBEDDED_TUNNEL_UI_ROOT: Dir<'_> =
-    include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static");
-#[cfg(not(all(feature = "tunnel", not(feature = "test"))))]
-const EMBEDDED_TUNNEL_UI_ROOT: Dir<'_> = Dir::new("", &[]);
-
 #[derive(Debug, Clone, Default, Deserialize, Serialize, Parser)]
 #[serde(rename_all = "kebab-case")]
 #[command(rename_all = "kebab-case")]

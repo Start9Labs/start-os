@@ -34,7 +34,13 @@ import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { ApiService } from 'src/app/services/api/api.service'
 
-import { getIp, DeviceData, MappedSubnet, subnetValidator } from './utils'
+import {
+  getIp,
+  DeviceData,
+  MappedSubnet,
+  subnetValidator,
+  ipInSubnetValidator,
+} from './utils'
 
 @Component({
   template: `
@@ -132,6 +138,11 @@ export class DevicesAdd {
     range ? `${name} (${range})` : ''
 
   protected onSubnet(subnet: MappedSubnet) {
+    this.form.controls.ip.clearValidators()
+    this.form.controls.ip.addValidators([
+      Validators.required,
+      ipInSubnetValidator(subnet.range),
+    ])
     const ip = getIp(subnet)
 
     if (ip) {

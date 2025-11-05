@@ -131,12 +131,13 @@ export default class Subnets {
   }
 
   private getNext(): string {
-    const used = this.subnets().map(s => new utils.IpNet(s.range).octets.at(2))
-
-    for (let i = 0; i < 256; i++) {
-      if (!used.includes(i)) {
-        return `10.59.${i}.0/24`
-      }
+    const last =
+      this.subnets()
+        .map(s => utils.IpNet.parse(s.range))
+        .sort((a, b) => -1 * a.cmp(b))[0] ?? utils.IpNet.parse('10.58.255.0/24')
+    const next = utils.IpNet.fromIpPrefix(last.last().add(2), 24)
+    if (!next.isPublic()) {
+      return next.ipnet
     }
 
     // No recommendation if /24 subnets are used

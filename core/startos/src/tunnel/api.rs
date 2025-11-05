@@ -141,17 +141,19 @@ pub struct AddSubnetParams {
 pub async fn add_subnet(
     ctx: TunnelContext,
     AddSubnetParams { name }: AddSubnetParams,
-    SubnetParams { subnet }: SubnetParams,
+    SubnetParams { mut subnet }: SubnetParams,
 ) -> Result<(), Error> {
-    if subnet.addr().octets()[3] == 0
-        || subnet.addr().octets()[3] == 255
-        || subnet.prefix_len() > 24
-    {
+    if subnet.prefix_len() > 24 {
         return Err(Error::new(
             eyre!("invalid subnet"),
             ErrorKind::InvalidRequest,
         ));
     }
+    let addr = subnet
+        .hosts()
+        .next()
+        .ok_or_else(|| Error::new(eyre!("invalid subnet"), ErrorKind::InvalidRequest))?;
+    subnet = Ipv4Net::new_assert(addr, subnet.prefix_len());
     let server = ctx
         .db
         .mutate(|db| {
@@ -196,7 +198,6 @@ pub async fn add_device(
     ctx: TunnelContext,
     AddDeviceParams { subnet, name, ip }: AddDeviceParams,
 ) -> Result<(), Error> {
-    let config = WgConfig::generate(name);
     let server = ctx
         .db
         .mutate(|db| {
@@ -223,18 +224,21 @@ pub async fn add_device(
                     if ip.octets()[3] == 0 || ip.octets()[3] == 255 {
                         return Err(Error::new(eyre!("invalid ip"), ErrorKind::InvalidRequest));
                     }
+                    if ip == subnet.addr() {
+                        return Err(Error::new(eyre!("invalid ip"), ErrorKind::InvalidRequest));
+                    }
                     if !subnet.contains(&ip) {
                         return Err(Error::new(
                             eyre!("ip not in subnet"),
                             ErrorKind::InvalidRequest,
                         ));
                     }
-                    clients.insert(ip, config).map_or(Ok(()), |_| {
-                        Err(Error::new(
-                            eyre!("ip already in use"),
-                            ErrorKind::InvalidRequest,
-                        ))
-                    })
+                    let client = clients
+                        .entry(ip)
+                        .or_insert_with(|| WgConfig::generate(name.clone()));
+                    client.name = name;
+
+                    Ok(())
                 })?;
             db.as_wg().de()
         })
@@ -247,12 +251,12 @@ pub async fn add_device(
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDeviceParams {
     subnet: Ipv4Net,
-    device: Ipv4Addr,
+    ip: Ipv4Addr,
 }
 
 pub async fn remove_device(
     ctx: TunnelContext,
-    RemoveDeviceParams { subnet, device }: RemoveDeviceParams,
+    RemoveDeviceParams { subnet, ip }: RemoveDeviceParams,
 ) -> Result<(), Error> {
     let server = ctx
         .db
@@ -262,8 +266,8 @@ pub async fn remove_device(
                 .as_idx_mut(&subnet)
                 .or_not_found(&subnet)?
                 .as_clients_mut()
-                .remove(&device)?
-                .or_not_found(&device)?;
+                .remove(&ip)?
+                .or_not_found(&ip)?;
             db.as_wg().de()
         })
         .await

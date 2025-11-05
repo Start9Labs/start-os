@@ -73,7 +73,7 @@ export default class PortForwards {
       map(g =>
         Object.values(g)
           .flatMap(
-            val => val.ipInfo?.subnets.map(s => new utils.IpNet(s)) || [],
+            val => val.ipInfo?.subnets.map(s => utils.IpNet.parse(s)) || [],
           )
           .filter(s => s.isIpv4() && s.isPublic())
           .map(s => s.address),
