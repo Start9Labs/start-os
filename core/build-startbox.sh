@@ -18,9 +18,9 @@ if [ "$ARCH" = "arm64" ]; then
   ARCH="aarch64"
 fi
 
-USE_TTY=
-if tty -s; then
-	USE_TTY="-it"
+RUST_ARCH="$ARCH"
+if [ "$ARCH" = "riscv64" ]; then
+  RUST_ARCH="riscv64gc"
 fi
 
 cd ..
@@ -31,11 +31,6 @@ if [[ "${ENVIRONMENT}" =~ (^|-)console($|-) ]]; then
 	RUSTFLAGS="--cfg tokio_unstable"
 fi
 
-source ./core/builder-alias.sh
-
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-musl-builder sh -c "cd core && cargo build $BUILD_FLAGS --no-default-features --features cli,startd,$FEATURES --locked --bin startbox --target=$ARCH-unknown-linux-musl"
-if [ "$(ls -nd core/target/$ARCH-unknown-linux-musl/${PROFILE}/startbox | awk '{ print $3 }')" != "$UID" ]; then
-	rust-musl-builder sh -c "cd core && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
-fi
+cross build --manifest-path=./core/Cargo.toml $BUILD_FLAGS --no-default-features --features cli,startd,$FEATURES --locked --bin startbox --target=$RUST_ARCH-unknown-linux-musl

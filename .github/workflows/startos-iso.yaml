@@ -28,6 +28,7 @@ on:
           - aarch64
           - aarch64-nonfree
           - raspberrypi
+          - riscv64
       deploy:
         type: choice
         description: Deploy
@@ -45,7 +46,7 @@ on:
       - next/*
 
 env:
-  NODEJS_VERSION: "22.17.1"
+  NODEJS_VERSION: "24.11.0"
   ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev''))[github.event.inputs.environment == ''NONE''] }}'
 
 jobs:
@@ -62,6 +63,7 @@ jobs:
               "aarch64": ["aarch64"],
               "aarch64-nonfree": ["aarch64"],
               "raspberrypi": ["aarch64"],
+              "riscv64": ["riscv64"],
               "ALL": ["x86_64", "aarch64"]
             }')[github.event.inputs.platform || 'ALL']
           }}
@@ -139,6 +141,7 @@ jobs:
               "aarch64": "buildjet-8vcpu-ubuntu-2204-arm",
               "aarch64-nonfree": "buildjet-8vcpu-ubuntu-2204-arm",
               "raspberrypi": "buildjet-8vcpu-ubuntu-2204-arm",
+              "riscv64": "buildjet-8vcpu-ubuntu-2204",
             }')[matrix.platform]
           )
         )[github.event.inputs.runner == 'fast']
@@ -152,6 +155,7 @@ jobs:
             "aarch64": "aarch64",
             "aarch64-nonfree": "aarch64",
             "raspberrypi": "aarch64",
+            "riscv64": "riscv64",
           }')[matrix.platform]
         }}
     steps:

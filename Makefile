@@ -8,6 +8,7 @@ VERSION_FILE := $(shell ./check-version.sh)
 BASENAME := $(shell PROJECT=startos ./basename.sh)
 PLATFORM := $(shell if [ -f ./PLATFORM.txt ]; then cat ./PLATFORM.txt; else echo unknown; fi)
 ARCH := $(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then echo aarch64; else echo $(PLATFORM) | sed 's/-nonfree$$//g'; fi)
+RUST_ARCH := $(shell if [ "$(ARCH)" = "riscv64" ]; then echo riscv64gc; else echo $(ARCH); fi)
 REGISTRY_BASENAME := $(shell PROJECT=start-registry PLATFORM=$(ARCH) ./basename.sh)
 TUNNEL_BASENAME := $(shell PROJECT=start-tunnel PLATFORM=$(ARCH) ./basename.sh)
 IMAGE_TYPE=$(shell if [ "$(PLATFORM)" = raspberrypi ]; then echo img; else echo iso; fi)
@@ -26,19 +27,19 @@ WEB_START_TUNNEL_SRC := $(call ls-files, web/projects/start-tunnel)
 PATCH_DB_CLIENT_SRC := $(shell git ls-files --recurse-submodules patch-db/client)
 GZIP_BIN := $(shell which pigz || which gzip)
 TAR_BIN := $(shell which gtar || which tar)
-COMPILED_TARGETS := core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/startbox core/target/$(ARCH)-unknown-linux-musl/release/containerbox container-runtime/rootfs.$(ARCH).squashfs
-STARTOS_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) cargo-deps/$(ARCH)-unknown-linux-musl/release/startos-backup-fs $(PLATFORM_FILE) \
+COMPILED_TARGETS := core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox core/target/$(RUST_ARCH)-unknown-linux-musl/release/containerbox container-runtime/rootfs.$(ARCH).squashfs
+STARTOS_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/startos-backup-fs $(PLATFORM_FILE) \
 	$(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then \
 		echo cargo-deps/aarch64-unknown-linux-musl/release/pi-beep; \
 	fi) \
 	$(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]; then \
-		echo cargo-deps/$(ARCH)-unknown-linux-musl/release/flamegraph; \
+		echo cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/flamegraph; \
 	fi') \
 	$(shell /bin/bash -c 'if [[ "${ENVIRONMENT}" =~ (^|-)console($$|-) ]]; then \
-		echo cargo-deps/$(ARCH)-unknown-linux-musl/release/tokio-console; \
+		echo cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/tokio-console; \
 	fi')
-REGISTRY_TARGETS := core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/registrybox core/startos/start-registryd.service
-TUNNEL_TARGETS := core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox core/startos/start-tunneld.service
+REGISTRY_TARGETS := core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox core/startos/start-registryd.service
+TUNNEL_TARGETS := core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox core/startos/start-tunneld.service
 REBUILD_TYPES = 1
 
 ifeq ($(REMOTE),)
@@ -115,25 +116,25 @@ test-container-runtime: container-runtime/node_modules/.package-lock.json $(call
 cli:
 	./core/install-cli.sh
 
-registry: core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/registrybox
+registry: core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox
 
 install-registry: $(REGISTRY_TARGETS)
 	$(call mkdir,$(DESTDIR)/usr/bin)
-	$(call cp,core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/registrybox,$(DESTDIR)/usr/bin/start-registrybox)
+	$(call cp,core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox,$(DESTDIR)/usr/bin/start-registrybox)
 	$(call ln,/usr/bin/start-registrybox,$(DESTDIR)/usr/bin/start-registryd)
 	$(call ln,/usr/bin/start-registrybox,$(DESTDIR)/usr/bin/start-registry)
 
 	$(call mkdir,$(DESTDIR)/lib/systemd/system)
 	$(call cp,core/startos/start-registryd.service,$(DESTDIR)/lib/systemd/system/start-registryd.service)
 
-core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/registrybox: $(CORE_SRC) $(ENVIRONMENT_FILE)
+core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox: $(CORE_SRC) $(ENVIRONMENT_FILE)
 	ARCH=$(ARCH) PROFILE=$(PROFILE) ./core/build-registrybox.sh
 
-tunnel: core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox
+tunnel: core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox
 
-install-tunnel: core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox core/startos/start-tunneld.service
+install-tunnel: core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox core/startos/start-tunneld.service
 	$(call mkdir,$(DESTDIR)/usr/bin)
-	$(call cp,core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox,$(DESTDIR)/usr/bin/start-tunnelbox)
+	$(call cp,core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox,$(DESTDIR)/usr/bin/start-tunnelbox)
 	$(call ln,/usr/bin/start-tunnelbox,$(DESTDIR)/usr/bin/start-tunneld)
 	$(call ln,/usr/bin/start-tunnelbox,$(DESTDIR)/usr/bin/start-tunnel)
 
@@ -143,7 +144,7 @@ install-tunnel: core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox core
 	$(call mkdir,$(DESTDIR)/usr/lib/startos/scripts)
 	$(call cp,build/lib/scripts/forward-port,$(DESTDIR)/usr/lib/startos/scripts/forward-port)
 
-core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox: $(CORE_SRC) $(ENVIRONMENT_FILE) web/dist/static/start-tunnel/index.html
+core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox: $(CORE_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) web/dist/static/start-tunnel/index.html
 	ARCH=$(ARCH) PROFILE=$(PROFILE) ./core/build-tunnelbox.sh
 
 deb: results/$(BASENAME).deb
@@ -169,20 +170,20 @@ results/$(BASENAME).$(IMAGE_TYPE) results/$(BASENAME).squashfs: $(IMAGE_RECIPE_S
 	./image-recipe/run-local-build.sh "results/$(BASENAME).deb"
 
 # For creating os images. DO NOT USE
-install: $(STARTOS_TARGETS) 
+install: $(STARTOS_TARGETS)
 	$(call mkdir,$(DESTDIR)/usr/bin)
 	$(call mkdir,$(DESTDIR)/usr/sbin)
-	$(call cp,core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/startbox,$(DESTDIR)/usr/bin/startbox)
+	$(call cp,core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox,$(DESTDIR)/usr/bin/startbox)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/startd)
 	$(call ln,/usr/bin/startbox,$(DESTDIR)/usr/bin/start-cli)
 	if [ "$(PLATFORM)" = "raspberrypi" ]; then $(call cp,cargo-deps/aarch64-unknown-linux-musl/release/pi-beep,$(DESTDIR)/usr/bin/pi-beep); fi
 	if /bin/bash -c '[[ "${ENVIRONMENT}" =~ (^|-)unstable($$|-) ]]'; then \
-		$(call cp,cargo-deps/$(ARCH)-unknown-linux-musl/release/flamegraph,$(DESTDIR)/usr/bin/flamegraph); \
+		$(call cp,cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/flamegraph,$(DESTDIR)/usr/bin/flamegraph); \
 	fi
 	if /bin/bash -c '[[ "${ENVIRONMENT}" =~ (^|-)console($$|-) ]]'; then \
-		$(call cp,cargo-deps/$(ARCH)-unknown-linux-musl/release/tokio-console,$(DESTDIR)/usr/bin/tokio-console); \
+		$(call cp,cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/tokio-console,$(DESTDIR)/usr/bin/tokio-console); \
 	fi
-	$(call cp,cargo-deps/$(ARCH)-unknown-linux-musl/release/startos-backup-fs,$(DESTDIR)/usr/bin/startos-backup-fs)
+	$(call cp,cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/startos-backup-fs,$(DESTDIR)/usr/bin/startos-backup-fs)
 	$(call ln,/usr/bin/startos-backup-fs,$(DESTDIR)/usr/sbin/mount.backup-fs)
 	
 	$(call mkdir,$(DESTDIR)/lib/systemd/system)
@@ -210,10 +211,10 @@ update-overlay: $(STARTOS_TARGETS)
 	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) PLATFORM=$(PLATFORM)
 	$(call ssh,"sudo systemctl start startd")
 
-wormhole: core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/startbox
+wormhole: core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox
 	@echo "Paste the following command into the shell of your StartOS server:"
 	@echo
-	@wormhole send core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/startbox 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade \"cd /usr/bin && rm startbox && wormhole receive --accept-file %s && chmod +x startbox\"\n", $$3 }'
+	@wormhole send core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox 2>&1 | awk -Winteractive '/wormhole receive/ { printf "sudo /usr/lib/startos/scripts/chroot-and-upgrade \"cd /usr/bin && rm startbox && wormhole receive --accept-file %s && chmod +x startbox\"\n", $$3 }'
 
 wormhole-deb: results/$(BASENAME).deb
 	@echo "Paste the following command into the shell of your StartOS server:"
@@ -233,10 +234,10 @@ update: $(STARTOS_TARGETS)
 	$(MAKE) install REMOTE=$(REMOTE) SSHPASS=$(SSHPASS) DESTDIR=/media/startos/next PLATFORM=$(PLATFORM)
 	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync "apt-get install -y $(shell cat ./build/lib/depends)"')
 
-update-startbox: core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/startbox # only update binary (faster than full update)
+update-startbox: core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox # only update binary (faster than full update)
 	@if [ -z "$(REMOTE)" ]; then >&2 echo "Must specify REMOTE" && false; fi
 	$(call ssh,'sudo /usr/lib/startos/scripts/chroot-and-upgrade --create')
-	$(call cp,core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/startbox,/media/startos/next/usr/bin/startbox)
+	$(call cp,core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox,/media/startos/next/usr/bin/startbox)
 	$(call ssh,'sudo /media/startos/next/usr/lib/startos/scripts/chroot-and-upgrade --no-sync true')
 
 update-deb: results/$(BASENAME).deb # better than update, but only available from debian
@@ -301,7 +302,7 @@ container-runtime/dist/node_modules/.package-lock.json container-runtime/dist/pa
 	./container-runtime/install-dist-deps.sh
 	touch container-runtime/dist/node_modules/.package-lock.json
 
-container-runtime/rootfs.$(ARCH).squashfs: container-runtime/debian.$(ARCH).squashfs container-runtime/container-runtime.service container-runtime/update-image.sh container-runtime/deb-install.sh container-runtime/dist/index.js container-runtime/dist/node_modules/.package-lock.json core/target/$(ARCH)-unknown-linux-musl/release/containerbox
+container-runtime/rootfs.$(ARCH).squashfs: container-runtime/debian.$(ARCH).squashfs container-runtime/container-runtime.service container-runtime/update-image.sh container-runtime/deb-install.sh container-runtime/dist/index.js container-runtime/dist/node_modules/.package-lock.json core/target/$(RUST_ARCH)-unknown-linux-musl/release/containerbox
 	ARCH=$(ARCH) REQUIRES=linux ./build/os-compat/run-compat.sh ./container-runtime/update-image.sh
 
 build/lib/depends build/lib/conflicts: $(ENVIRONMENT_FILE) $(PLATFORM_FILE) $(shell ls build/dpkg-deps/*)
@@ -310,13 +311,13 @@ build/lib/depends build/lib/conflicts: $(ENVIRONMENT_FILE) $(PLATFORM_FILE) $(sh
 $(FIRMWARE_ROMS): build/lib/firmware.json download-firmware.sh $(PLATFORM_FILE)
 	./download-firmware.sh $(PLATFORM)
 
-core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/startbox: $(CORE_SRC) $(COMPRESSED_WEB_UIS) web/patchdb-ui-seed.json $(ENVIRONMENT_FILE)
+core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox: $(CORE_SRC) $(COMPRESSED_WEB_UIS) web/patchdb-ui-seed.json $(ENVIRONMENT_FILE)
 	ARCH=$(ARCH) PROFILE=$(PROFILE) ./core/build-startbox.sh
-	touch core/target/$(ARCH)-unknown-linux-musl/$(PROFILE)/startbox
+	touch core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox
 
-core/target/$(ARCH)-unknown-linux-musl/release/containerbox: $(CORE_SRC) $(ENVIRONMENT_FILE)
+core/target/$(RUST_ARCH)-unknown-linux-musl/release/containerbox: $(CORE_SRC) $(ENVIRONMENT_FILE)
 	ARCH=$(ARCH) ./core/build-containerbox.sh
-	touch core/target/$(ARCH)-unknown-linux-musl/release/containerbox
+	touch core/target/$(RUST_ARCH)-unknown-linux-musl/release/containerbox
 
 web/package-lock.json: web/package.json sdk/baseDist/package.json
 	npm --prefix web i
@@ -375,11 +376,11 @@ ui: web/dist/raw/ui
 cargo-deps/aarch64-unknown-linux-musl/release/pi-beep:
 	ARCH=aarch64 ./build-cargo-dep.sh pi-beep
 
-cargo-deps/$(ARCH)-unknown-linux-musl/release/tokio-console:
+cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/tokio-console:
 	ARCH=$(ARCH) PREINSTALL="apk add musl-dev pkgconfig" ./build-cargo-dep.sh tokio-console
 
-cargo-deps/$(ARCH)-unknown-linux-musl/release/startos-backup-fs:
+cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/startos-backup-fs:
 	ARCH=$(ARCH) PREINSTALL="apk add fuse3 fuse3-dev fuse3-static musl-dev pkgconfig" ./build-cargo-dep.sh --git https://github.com/Start9Labs/start-fs.git startos-backup-fs
 
-cargo-deps/$(ARCH)-unknown-linux-musl/release/flamegraph:
+cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/flamegraph:
 	ARCH=$(ARCH) PREINSTALL="apk add musl-dev pkgconfig" ./build-cargo-dep.sh flamegraph

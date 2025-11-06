@@ -416,6 +416,8 @@ impl ImageSource {
                         "--platform=linux/amd64".to_owned()
                     } else if arch == "aarch64" {
                         "--platform=linux/arm64".to_owned()
+                    } else if arch == "riscv64" {
+                        "--platform=linux/riscv64".to_owned()
                     } else {
                         format!("--platform=linux/{arch}")
                     };
@@ -478,6 +480,8 @@ impl ImageSource {
                         "--platform=linux/amd64".to_owned()
                     } else if arch == "aarch64" {
                         "--platform=linux/arm64".to_owned()
+                    } else if arch == "riscv64" {
+                        "--platform=linux/riscv64".to_owned()
                     } else {
                         format!("--platform=linux/{arch}")
                     };

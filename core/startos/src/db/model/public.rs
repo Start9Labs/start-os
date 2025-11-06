@@ -123,11 +123,20 @@ impl Public {
                 kiosk,
             },
             package_data: AllPackageData::default(),
-            ui: serde_json::from_str(include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../../web/patchdb-ui-seed.json"
-            )))
-            .with_kind(ErrorKind::Deserialization)?,
+            ui: {
+                #[cfg(feature = "startd")]
+                {
+                    serde_json::from_str(include_str!(concat!(
+                        env!("CARGO_MANIFEST_DIR"),
+                        "/../../web/patchdb-ui-seed.json"
+                    )))
+                    .with_kind(ErrorKind::Deserialization)?
+                }
+                #[cfg(not(feature = "startd"))]
+                {
+                    Value::Null
+                }
+            },
         })
     }
 }

@@ -41,6 +41,9 @@ if [ "$IB_TARGET_PLATFORM" = "x86_64" ] || [ "$IB_TARGET_PLATFORM" = "x86_64-non
 elif [ "$IB_TARGET_PLATFORM" = "aarch64" ] || [ "$IB_TARGET_PLATFORM" = "aarch64-nonfree" ] || [ "$IB_TARGET_PLATFORM" = "raspberrypi" ]  || [ "$IB_TARGET_PLATFORM" = "rockchip64" ]; then
 	IB_TARGET_ARCH=arm64
 	QEMU_ARCH=aarch64
+elif [ "$IB_TARGET_PLATFORM" = "riscv64" ]; then
+	IB_TARGET_ARCH=riscv64
+	QEMU_ARCH=riscv64
 else
 	IB_TARGET_ARCH="$IB_TARGET_PLATFORM"
 	QEMU_ARCH="$IB_TARGET_PLATFORM"
@@ -182,7 +185,7 @@ set -e
 
 cp /etc/resolv.conf /etc/resolv.conf.bak
 
-if [ "${IB_SUITE}" = trixie ]; then
+if [ "${IB_SUITE}" = trixie ] && [ "${IB_PLATFORM}" != riscv64 ]; then
 	echo 'deb https://deb.debian.org/debian/ bookworm main' > /etc/apt/sources.list.d/bookworm.list
 	apt-get update
 	apt-get install -y postgresql-15
@@ -257,49 +260,41 @@ if [ "${IMAGE_TYPE}" = iso ]; then
 
 elif [ "${IMAGE_TYPE}" = img ]; then
 
-	function partition_for () {
-		if [[ "$1" =~ [0-9]+$ ]]; then
-			echo "$1p$2"
-		else
-			echo "$1$2"
-		fi
-	}
-
+	BOOT_START=2048
+	BOOT_END=526335
+	ROOT_START=526336
 	ROOT_PART_END=$MAX_IMG_SECTORS
+
 	TARGET_NAME=$prep_results_dir/${IMAGE_BASENAME}.img
 	TARGET_SIZE=$[($ROOT_PART_END+1)*512]
 	truncate -s $TARGET_SIZE $TARGET_NAME
-	(
-		echo o
-		echo x
-		echo i
-		echo "0xcb15ae4d"
-		echo r
-		echo n
-		echo p
-		echo 1
-		echo 2048
-		echo 526335
-		echo t
-		echo c
-		echo n
-		echo p
-		echo 2
-		echo 526336
-		echo $ROOT_PART_END
-		echo a
-		echo 1
-		echo w
-	) | fdisk $TARGET_NAME
-	OUTPUT_DEVICE=$(losetup --show -fP $TARGET_NAME)
-	mkfs.ext4 `partition_for ${OUTPUT_DEVICE} 2`
-	mkfs.vfat `partition_for ${OUTPUT_DEVICE} 1`
+
+	sfdisk $TARGET_NAME <<-EOF
+		label: dos
+		label-id: 0xcb15ae4d
+		unit: sectors
+		sector-size: 512
+
+		${TARGET_NAME}1 : start=$BOOT_START, size=$((BOOT_END-BOOT_START+1)), type=c, bootable
+		${TARGET_NAME}2 : start=$ROOT_START, size=$((ROOT_PART_END-ROOT_START+1)), type=83
+	EOF
+
+	BOOT_OFFSET=$((BOOT_START * 512))
+	BOOT_SIZE=$(((BOOT_END - BOOT_START + 1) * 512))
+	ROOT_OFFSET=$((ROOT_START * 512))
+	ROOT_SIZE=$(((ROOT_PART_END - ROOT_START + 1) * 512))
+
+	BOOT_DEV=$(losetup --show -f --offset $BOOT_OFFSET --sizelimit $BOOT_SIZE $TARGET_NAME)
+	ROOT_DEV=$(losetup --show -f --offset $ROOT_OFFSET --sizelimit $ROOT_SIZE $TARGET_NAME)
+
+	mkfs.vfat -F32 $BOOT_DEV
+	mkfs.ext4 $ROOT_DEV
 
 	TMPDIR=$(mktemp -d)
 
-	mkdir -p $TMPDIR/boot $TMPDIR/root 
-	mount `partition_for ${OUTPUT_DEVICE} 2` $TMPDIR/root
-	mount `partition_for ${OUTPUT_DEVICE} 1` $TMPDIR/boot
+	mkdir -p $TMPDIR/boot $TMPDIR/root
+	mount $ROOT_DEV $TMPDIR/root
+	mount $BOOT_DEV $TMPDIR/boot
 	unsquashfs -n -f -d $TMPDIR $prep_results_dir/binary/live/filesystem.squashfs boot
 
 	mkdir $TMPDIR/root/images $TMPDIR/root/config
@@ -323,27 +318,29 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	umount $TMPDIR/boot
 	umount $TMPDIR/root
 
-	e2fsck -fy `partition_for ${OUTPUT_DEVICE} 2`
-	resize2fs -M `partition_for ${OUTPUT_DEVICE} 2`
 
-	BLOCK_COUNT=$(dumpe2fs -h `partition_for ${OUTPUT_DEVICE} 2` | awk '/^Block count:/ { print $3 }')
-	BLOCK_SIZE=$(dumpe2fs -h `partition_for ${OUTPUT_DEVICE} 2` | awk '/^Block size:/ { print $3 }')
+	e2fsck -fy $ROOT_DEV
+	resize2fs -M $ROOT_DEV
+
+	BLOCK_COUNT=$(dumpe2fs -h $ROOT_DEV | awk '/^Block count:/ { print $3 }')
+	BLOCK_SIZE=$(dumpe2fs -h $ROOT_DEV | awk '/^Block size:/ { print $3 }')
 	SECTOR_LEN=$[$BLOCK_COUNT*$BLOCK_SIZE/512]
 
-	losetup -d $OUTPUT_DEVICE
+	losetup -d $ROOT_DEV
+	losetup -d $BOOT_DEV
 
-	(
-		echo d
-		echo 2
-		echo n
-		echo p
-		echo 2
-		echo 526336
-		echo +$SECTOR_LEN
-		echo w
-	) | fdisk $TARGET_NAME
+	# Recreate partition 2 with the new size using sfdisk
+	sfdisk $TARGET_NAME <<-EOF
+		label: dos
+		label-id: 0xcb15ae4d
+		unit: sectors
+		sector-size: 512
 
-	ROOT_PART_END=$[526336+$SECTOR_LEN]
+		${TARGET_NAME}1 : start=$BOOT_START, size=$((BOOT_END-BOOT_START+1)), type=c, bootable
+		${TARGET_NAME}2 : start=$ROOT_START, size=$SECTOR_LEN, type=83
+	EOF
+
+	ROOT_PART_END=$[$ROOT_START+$SECTOR_LEN]
 	TARGET_SIZE=$[($ROOT_PART_END+1)*512]
 	truncate -s $TARGET_SIZE $TARGET_NAME
 

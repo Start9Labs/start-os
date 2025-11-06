@@ -24,6 +24,11 @@ RUN apt-get update && \
     rsync \
     b3sum \
     dpkg-dev
+
+
+COPY binary_grub-efi.patch /root/binary_grub-efi.patch
+RUN patch /usr/lib/live/build/binary_grub-efi < /root/binary_grub-efi.patch && rm /root/binary_grub-efi.patch
+
 RUN echo 'retry_connrefused = on' > /etc/wgetrc && \
     echo 'tries = 100' >> /etc/wgetrc
 

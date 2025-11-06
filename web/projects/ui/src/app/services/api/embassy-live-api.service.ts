@@ -794,10 +794,18 @@ export class LiveApiService extends ApiService {
         )
         return res.body
       }
-      const computedDigest = Buffer.from(blake3(data)).toString('base64')
-      if (`blake3=:${computedDigest}:` === digest) return res.body
-      console.debug(computedDigest, digest)
-      throw new Error('File digest mismatch.')
+      const [alg, hash] = digest.split('=', 2)
+      if (alg === 'blake3') {
+        if (
+          Buffer.from(blake3(data)).compare(
+            Buffer.from(hash?.replace(/:/g, '') || '', 'base64'),
+          ) !== 0
+        ) {
+          throw new Error('File digest mismatch.')
+        }
+      } else {
+        console.warn(`Unknown Repr-Digest algorithm ${alg}`)
+      }
     }
     return res.body
   }

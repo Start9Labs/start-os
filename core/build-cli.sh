@@ -27,11 +27,6 @@ if [ -z "${TARGET:-}" ]; then
   fi
 fi
 
-USE_TTY=
-if tty -s; then
-  USE_TTY="-it"
-fi
-
 cd ..
 
 # Ensure GIT_HASH.txt exists if not created by higher-level build steps
@@ -50,15 +45,6 @@ if [[ "${ENVIRONMENT:-}" =~ (^|-)console($|-) ]]; then
   RUSTFLAGS="--cfg tokio_unstable"
 fi
 
-if command -v zig >/dev/null 2>&1 && [ "${ENFORCE_USE_DOCKER:-0}" != "1" ]; then
-  echo "FEATURES=\"$FEATURES\""
-  echo "RUSTFLAGS=\"$RUSTFLAGS\""
-  RUSTFLAGS=$RUSTFLAGS sh -c "cd core && cargo zigbuild --release --no-default-features --features $FEATURE_ARGS --locked --bin start-cli --target=$TARGET"
-else
-  alias 'rust-zig-builder'='docker run '"$USE_TTY"' --rm -e "RUSTFLAGS=$RUSTFLAGS" -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$HOME/.cargo/git":/root/.cargo/git -v "$(pwd)":/home/rust/src -w /home/rust/src -P messense/cargo-zigbuild'
-  RUSTFLAGS=$RUSTFLAGS rust-zig-builder sh -c "cd core && cargo zigbuild --release --no-default-features --features $FEATURE_ARGS --locked --bin start-cli --target=$TARGET"
-
-  if [ "$(ls -nd "core/target/$TARGET/release/start-cli" | awk '{ print $3 }')" != "$UID" ]; then
-    rust-zig-builder sh -c "cd core && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
-  fi
-fi
+echo "FEATURES=\"$FEATURES\""
+echo "RUSTFLAGS=\"$RUSTFLAGS\""
+cross build --manifest-path=./core/Cargo.toml --release --no-default-features --features $FEATURE_ARGS --locked --bin start-cli --target=$TARGET

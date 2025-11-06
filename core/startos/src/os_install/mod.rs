@@ -361,6 +361,7 @@ pub async fn execute<C: Context>(
         match ARCH {
             "x86_64" => install.arg("--target=x86_64-efi"),
             "aarch64" => install.arg("--target=arm64-efi"),
+            "riscv64" => install.arg("--target=riscv64-efi"),
             _ => &mut install,
         };
     }

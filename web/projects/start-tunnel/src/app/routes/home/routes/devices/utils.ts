@@ -40,9 +40,15 @@ export const ipInSubnetValidator = (subnet: string | null = null) => {
       return { invalidIp: 'Not a valid IP Address' }
     }
     if (!ipnet) return null
-    return ipnet.zero().cmp(ip) === -1 && ipnet.broadcast().cmp(ip) === 1
+    const zero = ipnet.zero().cmp(ip)
+    const broadcast = ipnet.broadcast().cmp(ip)
+    return zero + broadcast === 0
       ? null
-      : { notInSubnet: `Address is not part of ${subnet}` }
+      : zero === 0
+        ? { isZeroAddr: `Address cannot be the zero address` }
+        : broadcast === 0
+          ? { isBroadcastAddress: `Address cannot be the broadcast address` }
+          : { notInSubnet: `Address is not part of ${subnet}` }
   }
 }
 
