@@ -31,7 +31,7 @@ export class IpAddress {
       octets = address.split(".").map(Number)
       if (octets.length !== 4) throw new Error("invalid ipv4 address")
     }
-    if (octets.some((o) => o > 255)) {
+    if (octets.some((o) => isNaN(o) || o > 255)) {
       throw new Error("invalid ip address")
     }
     return new IpAddress(octets, address)
@@ -175,7 +175,7 @@ export class IpNet extends IpAddress {
 
     return IpAddress.fromOctets(octets)
   }
-  last(): IpAddress {
+  broadcast(): IpAddress {
     let octets: number[] = []
     let prefix = this.prefix
     for (let idx = 0; idx < this.octets.length; idx++) {

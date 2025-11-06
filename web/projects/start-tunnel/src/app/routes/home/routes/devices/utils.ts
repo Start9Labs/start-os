@@ -40,7 +40,7 @@ export const ipInSubnetValidator = (subnet: string | null = null) => {
       return { invalidIp: 'Not a valid IP Address' }
     }
     if (!ipnet) return null
-    return ipnet.contains(ip)
+    return ipnet.zero().cmp(ip) === -1 && ipnet.broadcast().cmp(ip) === 1
       ? null
       : { notInSubnet: `Address is not part of ${subnet}` }
   }
@@ -48,7 +48,7 @@ export const ipInSubnetValidator = (subnet: string | null = null) => {
 
 export function getIp({ clients, range }: MappedSubnet) {
   const net = IpNet.parse(range)
-  const last = net.last()
+  const last = net.broadcast()
 
   for (let ip = net.add(1); ip.cmp(last) === -1; ip.add(1)) {
     if (!clients[ip.address]) {

@@ -135,7 +135,7 @@ export default class Subnets {
       this.subnets()
         .map(s => utils.IpNet.parse(s.range))
         .sort((a, b) => -1 * a.cmp(b))[0] ?? utils.IpNet.parse('10.58.255.0/24')
-    const next = utils.IpNet.fromIpPrefix(last.last().add(2), 24)
+    const next = utils.IpNet.fromIpPrefix(last.broadcast().add(2), 24)
     if (!next.isPublic()) {
       return next.ipnet
     }
