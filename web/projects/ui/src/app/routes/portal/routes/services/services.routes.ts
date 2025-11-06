@@ -1,8 +1,4 @@
-import { inject } from '@angular/core'
-import { ActivatedRouteSnapshot, ResolveFn, Routes } from '@angular/router'
-import { defer, map, Observable, of } from 'rxjs'
-import { share } from 'rxjs/operators'
-import { ApiService } from 'src/app/services/api/embassy-api.service'
+import { Routes } from '@angular/router'
 import { titleResolver } from 'src/app/utils/title-resolver'
 
 import { ServiceOutletComponent } from './routes/outlet.component'
@@ -33,7 +29,6 @@ export const ROUTES: Routes = [
       {
         path: 'about',
         loadComponent: () => import('./routes/about.component'),
-        resolve: { content: getStatic() },
       },
     ],
   },
@@ -43,16 +38,5 @@ export const ROUTES: Routes = [
     loadComponent: () => import('./dashboard/dashboard.component'),
   },
 ]
-
-function getStatic(): ResolveFn<Observable<string>> {
-  return ({ paramMap }: ActivatedRouteSnapshot) =>
-    of(inject(ApiService)).pipe(
-      map(api =>
-        defer(() =>
-          api.getStaticInstalled(paramMap.get('pkgId')!, 'LICENSE.md'),
-        ).pipe(share()),
-      ),
-    )
-}
 
 export default ROUTES

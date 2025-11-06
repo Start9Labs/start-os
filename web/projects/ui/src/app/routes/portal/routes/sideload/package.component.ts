@@ -87,13 +87,11 @@ export class SideloadPackageComponent {
   readonly file = input.required<File>()
 
   onStatic() {
-    const content = of(this.pkg()['license'])
-
     this.dialog
       .openComponent(MARKDOWN, {
         label: 'License',
         size: 'l',
-        data: { content },
+        data: of(this.pkg()['license']),
       })
       .subscribe()
   }

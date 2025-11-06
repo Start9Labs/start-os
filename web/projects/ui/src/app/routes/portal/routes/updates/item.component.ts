@@ -149,6 +149,11 @@ import UpdatesComponent from './updates.component'
       font-size: 1rem;
     }
 
+    tui-progress-circle {
+      display: inline-block;
+      vertical-align: middle;
+    }
+
     div {
       display: flex;
       align-items: center;
@@ -172,12 +177,7 @@ import UpdatesComponent from './updates.component'
       }
 
       &:last-child {
-        text-align: right;
         white-space: nowrap;
-
-        div {
-          justify-content: flex-start;
-        }
       }
 
       &[colspan]:only-child {
