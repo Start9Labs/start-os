@@ -5,7 +5,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
-import { LoadingService } from '@start9labs/shared'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import {
   TUI_IS_MOBILE,
   tuiMarkControlAsTouchedAndValidate,
@@ -135,6 +135,7 @@ import { MappedDevice, PortForwardsData } from './utils'
 export class PortForwardsAdd {
   private readonly api = inject(ApiService)
   private readonly loading = inject(LoadingService)
+  private readonly errorService = inject(ErrorService)
 
   protected readonly mobile = inject(TUI_IS_MOBILE)
   protected readonly context =
@@ -166,8 +167,9 @@ export class PortForwardsAdd {
         source: `${externalip}:${externalport}`,
         target: `${device?.ip}:${internalport}`,
       })
-    } catch (e) {
+    } catch (e: any) {
       console.error(e)
+      this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
       this.context.$implicit.complete()

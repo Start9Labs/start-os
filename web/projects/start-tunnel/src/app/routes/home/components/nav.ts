@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { Router, RouterLink, RouterLinkActive } from '@angular/router'
-import { LoadingService } from '@start9labs/shared'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import { TuiButton } from '@taiga-ui/core'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
@@ -91,6 +91,7 @@ export class Nav {
   protected readonly sidebars = inject(SidebarService)
   protected readonly api = inject(ApiService)
   private readonly loader = inject(LoadingService)
+  private readonly errorService = inject(ErrorService)
 
   protected readonly routes = [
     {
@@ -121,8 +122,9 @@ export class Nav {
       await this.api.logout()
       this.service.authenticated.set(false)
       this.router.navigate(['.'])
-    } catch (e) {
+    } catch (e: any) {
       console.error(e)
+      this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }

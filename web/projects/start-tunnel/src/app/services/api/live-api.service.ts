@@ -4,6 +4,7 @@ import {
   RPCOptions,
   isRpcError,
   RpcError,
+  ErrorService,
 } from '@start9labs/shared'
 import { filter, firstValueFrom, Observable } from 'rxjs'
 import { webSocket } from 'rxjs/webSocket'
@@ -29,6 +30,7 @@ export class LiveApiService extends ApiService {
   private readonly document = inject(DOCUMENT)
   private readonly auth = inject(AuthService)
   private readonly cache$ = inject(PATCH_CACHE)
+  private readonly errorService = inject(ErrorService)
 
   constructor() {
     super()

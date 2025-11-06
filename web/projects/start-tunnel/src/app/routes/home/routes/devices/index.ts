@@ -6,7 +6,7 @@ import {
   Signal,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
-import { LoadingService } from '@start9labs/shared'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import {
   TuiButton,
   TuiDataList,
@@ -95,6 +95,7 @@ export default class Devices {
   private readonly dialogs = inject(TuiDialogService)
   private readonly api = inject(ApiService)
   private readonly loading = inject(LoadingService)
+  private readonly errorService = inject(ErrorService)
 
   protected readonly subnets: Signal<readonly MappedSubnet[]> = toSignal(
     inject<PatchDB<TunnelData>>(PatchDB)
@@ -148,8 +149,9 @@ export default class Devices {
       const data = await this.api.showDeviceConfig({ subnet: subnet.range, ip })
 
       this.dialogs.open(DEVICES_CONFIG, { data }).subscribe()
-    } catch (e) {
+    } catch (e: any) {
       console.log(e)
+      this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
     }
@@ -163,7 +165,8 @@ export default class Devices {
         const loader = this.loading.open().subscribe()
         try {
           await this.api.deleteDevice({ subnet: subnet.range, ip })
-        } catch (e) {
+        } catch (e: any) {
+          this.errorService.handleError(e)
           console.log(e)
         } finally {
           loader.unsubscribe()

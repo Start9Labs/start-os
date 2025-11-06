@@ -10,7 +10,7 @@ import {
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms'
-import { LoadingService } from '@start9labs/shared'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import { utils } from '@start9labs/start-sdk'
 import {
   TUI_IS_MOBILE,
@@ -117,6 +117,7 @@ import {
 export class DevicesAdd {
   private readonly loading = inject(LoadingService)
   private readonly api = inject(ApiService)
+  private readonly errorService = inject(ErrorService)
 
   protected readonly mobile = inject(TUI_IS_MOBILE)
   protected readonly context =
@@ -169,8 +170,9 @@ export class DevicesAdd {
       this.context.data.device
         ? await this.api.editDevice(data)
         : await this.api.addDevice(data)
-    } catch (e) {
+    } catch (e: any) {
       console.error(e)
+      this.errorService.handleError(e)
     } finally {
       loader.unsubscribe()
       this.context.$implicit.complete()

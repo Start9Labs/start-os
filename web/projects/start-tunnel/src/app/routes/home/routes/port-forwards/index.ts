@@ -7,7 +7,7 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { ReactiveFormsModule } from '@angular/forms'
-import { LoadingService } from '@start9labs/shared'
+import { ErrorService, LoadingService } from '@start9labs/shared'
 import { utils } from '@start9labs/start-sdk'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiDialogService } from '@taiga-ui/experimental'
@@ -67,6 +67,8 @@ export default class PortForwards {
   private readonly api = inject(ApiService)
   private readonly loading = inject(LoadingService)
   private readonly patch = inject<PatchDB<TunnelData>>(PatchDB)
+  private readonly errorService = inject(ErrorService)
+
   private readonly portForwards = toSignal(this.patch.watch$('portForwards'))
   private readonly ips = toSignal(
     this.patch.watch$('gateways').pipe(
@@ -128,8 +130,9 @@ export default class PortForwards {
 
         try {
           await this.api.deleteForward({ source })
-        } catch (e) {
+        } catch (e: any) {
           console.log(e)
+          this.errorService.handleError(e)
         } finally {
           loader.unsubscribe()
         }
