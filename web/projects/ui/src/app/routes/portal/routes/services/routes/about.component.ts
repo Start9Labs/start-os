@@ -1,9 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  INJECTOR,
-} from '@angular/core'
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import {
   CopyService,
@@ -11,12 +6,12 @@ import {
   getPkgId,
   i18nKey,
   i18nPipe,
-  MarkdownComponent,
+  MARKDOWN,
 } from '@start9labs/shared'
 import { TuiCell } from '@taiga-ui/layout'
-import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { PatchDB } from 'patch-db-client'
-import { map } from 'rxjs'
+import { from, map } from 'rxjs'
+import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
 import {
@@ -58,15 +53,17 @@ import {
   imports: [ServiceAdditionalItemComponent, TuiCell, i18nPipe],
 })
 export default class ServiceAboutRoute {
+  private readonly pkgId = getPkgId()
   private readonly copyService = inject(CopyService)
-  private readonly markdown = inject(DialogService).openComponent(
-    new PolymorpheusComponent(MarkdownComponent, inject(INJECTOR)),
-    { label: 'License', size: 'l' },
-  )
+  private readonly markdown = inject(DialogService).openComponent(MARKDOWN, {
+    label: 'License',
+    size: 'l',
+    data: from(inject(ApiService).getStaticInstalled(this.pkgId, 'LICENSE.md')),
+  })
 
   readonly groups = toSignal<{ header: i18nKey; items: AdditionalItem[] }[]>(
     inject<PatchDB<DataModel>>(PatchDB)
-      .watch$('packageData', getPkgId())
+      .watch$('packageData', this.pkgId)
       .pipe(
         map(pkg => {
           const manifest = getManifest(pkg)

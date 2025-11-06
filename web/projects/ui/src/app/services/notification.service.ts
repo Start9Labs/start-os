@@ -95,21 +95,26 @@ export class NotificationService {
 
   viewModal(notification: ServerNotification<number>, full = false) {
     const { data, createdAt, code, title, message } = notification
-    const label = code === 1 ? 'Backup Report' : (title as i18nKey)
-    const component = code === 1 ? REPORT : MARKDOWN
-    const content = code === 1 ? data : of(data)
-
     this.markSeen([notification])
-    this.dialogs
-      .openComponent(full ? message : component, {
-        label,
-        data: {
-          content,
-          timestamp: createdAt,
-        },
-        size: code === 1 ? 'm' : 'l',
-      })
-      .subscribe()
+
+    if (code === 1) {
+      // Backup Report
+      this.dialogs
+        .openComponent(full ? message : REPORT, {
+          label: 'Backup Report',
+          data: { content: data, createdAt },
+        })
+        .subscribe()
+    } else {
+      // Markdown viewer
+      this.dialogs
+        .openComponent(full ? message : MARKDOWN, {
+          label: title as i18nKey,
+          data: of(data),
+          size: 'l',
+        })
+        .subscribe()
+    }
   }
 
   private async updateCount(toAdjust: number) {

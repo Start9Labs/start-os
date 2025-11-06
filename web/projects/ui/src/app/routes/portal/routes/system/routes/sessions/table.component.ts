@@ -41,7 +41,11 @@ import { i18nPipe } from '@start9labs/shared'
       @for (session of sessions(); track $index) {
         <tr
           (longtap)="!selected().length && onToggle(session)"
-          (click)="selected().length && onToggle(session)"
+          (click)="
+            selected().length &&
+              $any($event.target).closest('tui-root._mobile') &&
+              onToggle(session)
+          "
         >
           <td [style.padding-left.rem]="single() ? null : 2.5">
             @if (!single()) {
@@ -123,6 +127,7 @@ import { i18nPipe } from '@start9labs/shared'
 
       input {
         left: 0.25rem;
+        pointer-events: none;
       }
 
       td {
