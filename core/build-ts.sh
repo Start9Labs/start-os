@@ -5,6 +5,11 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 set -ea
 shopt -s expand_aliases
 
+PROFILE=${PROFILE:-release}
+if [ "${PROFILE}" = "release" ]; then
+	BUILD_FLAGS="--release"
+fi
+
 if [ -z "$ARCH" ]; then
 	ARCH=$(uname -m)
 fi
@@ -26,4 +31,4 @@ if [[ "${ENVIRONMENT}" =~ (^|-)console($|-) ]]; then
 fi
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-cross test --manifest-path=./core/Cargo.toml --no-default-features --features test,$FEATURES --locked 'export_bindings_'
+cross test --manifest-path=./core/Cargo.toml $BUILD_FLAGS --no-default-features --features test,$FEATURES --locked 'export_bindings_'
