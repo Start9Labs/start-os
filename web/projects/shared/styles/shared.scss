@@ -95,6 +95,9 @@ $wide-modal: 900px;
   --tw-color-zinc-800: 39 39 42;
   --tw-color-zinc-900: 24 24 27;
   --tw-color-zinc-950: 9 9 11;
+
+  --tui-font-text: 'Proxima Nova', system-ui;
+  --tui-font-heading: 'Proxima Nova', system-ui;
 }
 
 body {
@@ -172,14 +175,6 @@ a {
   font-weight: 300;
   text-transform: uppercase;
   letter-spacing: 0.06rem;
-  margin: 0rem 0 1rem 0;
+  margin: 0 0 1rem 0;
   pointer-events: none;
-}
-
-.buttons {
-  margin-top: 1rem;
-
-  :first-child {
-    margin-right: 0.5rem;
-  }
 }

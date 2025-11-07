@@ -12,15 +12,15 @@ import { getErrorMessage } from '../services/error.service'
 @Component({
   template: `
     @if (error()) {
-      <tui-notification appearance="negative" safeLinks>
-        {{ error() }}
-      </tui-notification>
+      <tui-notification appearance="negative" safeLinks [innerHTML]="error()" />
     }
 
     @if (content(); as result) {
       <div safeLinks [innerHTML]="result | markdown | dompurify"></div>
     } @else {
-      <tui-loader textContent="Loading" [style.height.%]="100" />
+      @if (!error()) {
+        <tui-loader textContent="Loading" [style.height.%]="100" />
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -34,14 +34,10 @@ import { getErrorMessage } from '../services/error.service'
   ],
 })
 export class MarkdownComponent {
-  private readonly data =
-    injectContext<TuiDialogContext<void, { content: Observable<string> }>>({
-      optional: true,
-    })?.data || inject(ActivatedRoute).snapshot.data
-
-  readonly content = toSignal<string>(this.data['content'])
-  readonly error = toSignal(
-    this.data['content'].pipe(
+  protected readonly data = injectContext<{ data: Observable<string> }>().data
+  protected readonly content = toSignal<string>(this.data)
+  protected readonly error = toSignal(
+    this.data.pipe(
       ignoreElements(),
       catchError(e => of(getErrorMessage(e))),
     ),

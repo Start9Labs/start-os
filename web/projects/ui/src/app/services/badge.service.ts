@@ -1,23 +1,11 @@
 import { inject, Injectable } from '@angular/core'
 import { PatchDB } from 'patch-db-client'
-import {
-  combineLatest,
-  EMPTY,
-  filter,
-  first,
-  map,
-  Observable,
-  pairwise,
-  shareReplay,
-  startWith,
-  switchMap,
-} from 'rxjs'
-import { ConnectionService } from 'src/app/services/connection.service'
-import { OSService } from 'src/app/services/os.service'
+import { combineLatest, EMPTY, map, Observable, shareReplay } from 'rxjs'
+import { LocalPackagesService } from 'src/app/services/local-packages.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import { NotificationService } from 'src/app/services/notification.service'
+import { OSService } from 'src/app/services/os.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { getManifest } from 'src/app/utils/get-package-data'
 import { FilterUpdatesPipe } from '../routes/portal/routes/updates/filter-updates.pipe'
 
 @Injectable({
@@ -35,32 +23,9 @@ export class BadgeService {
   private readonly marketplaceService = inject(MarketplaceService)
   private readonly filterUpdatesPipe = inject(FilterUpdatesPipe)
 
-  private readonly local$ = inject(ConnectionService).pipe(
-    filter(Boolean),
-    switchMap(() => this.patch.watch$('packageData').pipe(first())),
-    switchMap(outer =>
-      this.patch.watch$('packageData').pipe(
-        pairwise(),
-        filter(([prev, curr]) =>
-          Object.values(prev).some(p => {
-            const { id } = getManifest(p)
-
-            return (
-              !curr[id] ||
-              (p.stateInfo.installingInfo &&
-                !curr[id]?.stateInfo.installingInfo)
-            )
-          }),
-        ),
-        map(([_, curr]) => curr),
-        startWith(outer),
-      ),
-    ),
-  )
-
   private readonly updates$ = combineLatest([
     this.marketplaceService.marketplace$,
-    this.local$,
+    inject(LocalPackagesService),
   ]).pipe(
     map(
       ([marketplace, local]) =>

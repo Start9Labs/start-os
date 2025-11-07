@@ -31,7 +31,11 @@ import { SSHKey } from 'src/app/services/api/api.types'
       @for (key of keys(); track $index) {
         <tr
           (longtap)="!selected().length && onToggle(key)"
-          (click)="selected().length && onToggle(key)"
+          (click)="
+            selected().length &&
+              $any($event.target).closest('tui-root._mobile') &&
+              onToggle(key)
+          "
         >
           <td [style.padding-left.rem]="2.5">
             <input
@@ -104,6 +108,7 @@ import { SSHKey } from 'src/app/services/api/api.types'
 
       input {
         left: 0.25rem;
+        pointer-events: none;
       }
 
       td {

@@ -67,7 +67,6 @@ import { i18nPipe } from '@start9labs/shared'
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '[class._new]': '!notificationItem.seen',
-    '(click)': 'onClick()',
   },
   styles: `
     @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;

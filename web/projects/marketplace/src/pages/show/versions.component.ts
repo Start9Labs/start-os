@@ -32,7 +32,7 @@ import { MarketplaceItemComponent } from './item.component'
           let-completeWith="completeWith"
         >
           <tui-radio-list [items]="versions()" [(ngModel)]="data.version" />
-          <footer class="buttons">
+          <footer class="g-buttons">
             <button
               tuiButton
               appearance="secondary"

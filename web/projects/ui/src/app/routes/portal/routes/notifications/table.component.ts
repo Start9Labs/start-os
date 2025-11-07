@@ -1,7 +1,9 @@
+import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import { TuiCheckbox, TuiSkeleton } from '@taiga-ui/kit'
 import {
   ChangeDetectionStrategy,
   Component,
+  inject,
   Input,
   OnChanges,
   signal,
@@ -43,7 +45,9 @@ import { i18nPipe } from '@start9labs/shared'
             [notificationItem]="notification"
             (longtap)="!selected().length && onToggle(notification)"
             (click.capture)="
-              selected().length && onToggle(notification, $event)
+              selected().length &&
+                $any($event.target).closest('tui-root._mobile') &&
+                onToggle(notification, $event)
             "
           >
             <input
@@ -81,6 +85,7 @@ import { i18nPipe } from '@start9labs/shared'
         top: 0.875rem;
         left: 1rem;
         z-index: 1;
+        pointer-events: none;
       }
 
       :host:not(:has(:checked)) input {
