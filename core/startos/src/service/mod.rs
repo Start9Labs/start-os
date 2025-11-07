@@ -725,6 +725,8 @@ pub struct AttachParams {
     name: Option<InternedString>,
     #[ts(type = "string | null")]
     image_id: Option<ImageId>,
+    #[ts(type = "string | null")]
+    user: Option<InternedString>,
 }
 pub async fn attach(
     ctx: RpcContext,
@@ -738,6 +740,7 @@ pub async fn attach(
         subcontainer,
         image_id,
         name,
+        user,
     }: AttachParams,
 ) -> Result<Guid, Error> {
     let (container_id, subcontainer_id, image_id, workdir, root_command) = {
@@ -814,9 +817,26 @@ pub async fn attach(
             .join("etc")
             .join("passwd");
 
-        let root_command = get_passwd_root_command(passwd).await;
+        let image_meta = serde_json::from_str::<Value>(
+            &tokio::fs::read_to_string(
+                root_dir
+                    .join("media/startos/images/")
+                    .join(&image_id)
+                    .with_extension("json"),
+            )
+            .await?,
+        )
+        .with_kind(ErrorKind::Deserialization)?;
 
-        let workdir = attach_workdir(&image_id, &root_dir).await?;
+        let root_command = get_passwd_command(
+            passwd,
+            user.as_deref()
+                .or_else(|| image_meta["user"].as_str())
+                .unwrap_or("root"),
+        )
+        .await;
+
+        let workdir = image_meta["workdir"].as_str().map(|s| s.to_owned());
 
         if subcontainer_ids.len() > 1 {
             let subcontainer_ids = subcontainer_ids
@@ -1051,19 +1071,7 @@ pub async fn attach(
     Ok(guid)
 }
 
-async fn attach_workdir(image_id: &ImageId, root_dir: &Path) -> Result<Option<String>, Error> {
-    let path_str = root_dir.join("media/startos/images/");
-
-    let mut subcontainer_json =
-        tokio::fs::File::open(path_str.join(image_id).with_extension("json")).await?;
-    let mut contents = vec![];
-    subcontainer_json.read_to_end(&mut contents).await?;
-    let subcontainer_json: serde_json::Value =
-        serde_json::from_slice(&contents).with_kind(ErrorKind::Filesystem)?;
-    Ok(subcontainer_json["workdir"].as_str().map(|x| x.to_string()))
-}
-
-async fn get_passwd_root_command(etc_passwd_path: PathBuf) -> RootCommand {
+async fn get_passwd_command(etc_passwd_path: PathBuf, user: &str) -> RootCommand {
     async {
         let mut file = tokio::fs::File::open(etc_passwd_path).await?;
 
@@ -1074,8 +1082,8 @@ async fn get_passwd_root_command(etc_passwd_path: PathBuf) -> RootCommand {
 
         for line in contents.split('\n') {
             let line_information = line.split(':').collect::<Vec<_>>();
-            if let (Some(&"root"), Some(shell)) =
-                (line_information.first(), line_information.last())
+            if let (Some(&u), Some(shell)) = (line_information.first(), line_information.last())
+                && u == user
             {
                 return Ok(shell.to_string());
             }
@@ -1105,6 +1113,8 @@ pub struct CliAttachParams {
     subcontainer: Option<InternedString>,
     #[arg(long, short)]
     name: Option<InternedString>,
+    #[arg(long, short)]
+    user: Option<InternedString>,
     #[arg(long, short)]
     image_id: Option<ImageId>,
 }
@@ -1147,6 +1157,7 @@ pub async fn cli_attach(
                     "subcontainer": params.subcontainer,
                     "imageId": params.image_id,
                     "name": params.name,
+                    "user": params.user,
                 }),
             )
             .await?,
