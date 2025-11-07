@@ -1,14 +1,14 @@
 #!/bin/bash
 
-PROFILE=${PROFILE:-release}
-if [ "${PROFILE}" = "release" ]; then
-	BUILD_FLAGS="--release"
-fi
-
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 set -ea
 shopt -s expand_aliases
+
+PROFILE=${PROFILE:-release}
+if [ "${PROFILE}" = "release" ]; then
+	BUILD_FLAGS="--release"
+fi
 
 if [ -z "$ARCH" ]; then
 	ARCH=$(uname -m)

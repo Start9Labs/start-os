@@ -5,6 +5,11 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 set -ea
 shopt -s expand_aliases
 
+PROFILE=${PROFILE:-release}
+if [ "${PROFILE}" = "release" ]; then
+	BUILD_FLAGS="--release"
+fi
+
 if [ -z "$ARCH" ]; then
 	ARCH=$(uname -m)
 fi
@@ -28,4 +33,4 @@ fi
 
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-cross build --manifest-path=./core/Cargo.toml --release --no-default-features --features cli-registry,registry,$FEATURES --locked --bin registrybox --target=$RUST_ARCH-unknown-linux-musl
+cross build --manifest-path=./core/Cargo.toml $BUILD_FLAGS --no-default-features --features cli-registry,registry,$FEATURES --locked --bin registrybox --target=$RUST_ARCH-unknown-linux-musl

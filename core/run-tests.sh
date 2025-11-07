@@ -5,6 +5,11 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 set -ea
 shopt -s expand_aliases
 
+PROFILE=${PROFILE:-release}
+if [ "${PROFILE}" = "release" ]; then
+	BUILD_FLAGS="--release"
+fi
+
 if [ -z "$ARCH" ]; then
 	ARCH=$(uname -m)
 fi
@@ -30,7 +35,4 @@ source ./core/builder-alias.sh
 
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-musl-builder sh -c "apt-get update && apt-get install -y rsync && cd core && cargo test --release --features=test,$FEATURES --workspace --locked --target=$ARCH-unknown-linux-musl -- --skip export_bindings_ && chown \$UID:\$UID target"
-if [ "$(ls -nd core/target | awk '{ print $3 }')" != "$UID" ]; then
-	rust-musl-builder sh -c "cd core && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
-fi
+cross test --manifest-path=./core/Cargo.toml $BUILD_FLAGS --features=test,$FEATURES --workspace --locked --target=$ARCH-unknown-linux-musl -- --skip export_bindings_
