@@ -19,8 +19,9 @@ Use it for private, remote access, to self-hosted services running on a personal
 1.  Access the VPS via SSH.
 
 1.  Install StartTunnel:
-
-        @TODO
+```sh
+TMP_DIR=$(mktemp -d) && (cd $TMP_DIR && wget https://github.com/Start9Labs/start-os/releases/download/v0.4.0-alpha.12/start-tunnel-0.4.0-alpha.12-68f401b_$(uname -m).deb && apt-get install -y ./start-tunnel-0.4.0-alpha.12-68f401b_$(uname -m).deb) && rm -rf $TMP_DIR && systemctl start start-tunneld && sleep 1 && start-tunnel web init
+```
 
 ## Features
 
