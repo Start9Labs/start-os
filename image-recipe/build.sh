@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-MAX_IMG_SECTORS=7217792 # 4GB
+MAX_IMG_LEN=$((4 * 1024 * 1024 * 1024)) # 4GB
 
 echo "==== StartOS Image Build ===="
 
@@ -129,6 +129,7 @@ EOT
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	mkdir -p config/includes.chroot
 	git clone --depth=1 --branch=stable https://github.com/raspberrypi/rpi-firmware.git config/includes.chroot/boot
+	rm -rf config/includes.chroot/boot/.git config/includes.chroot/boot/modules
 	rsync -rLp $SOURCE_DIR/raspberrypi/squashfs/ config/includes.chroot/
 fi
 
@@ -260,14 +261,16 @@ if [ "${IMAGE_TYPE}" = iso ]; then
 
 elif [ "${IMAGE_TYPE}" = img ]; then
 
-	BOOT_START=2048
-	BOOT_END=526335
-	ROOT_START=526336
-	ROOT_PART_END=$MAX_IMG_SECTORS
+	SECTOR_LEN=512
+	BOOT_START=$((1024 * 1024)) # 1MiB
+	BOOT_LEN=$((512 * 1024 * 1024)) # 512MiB
+	BOOT_END=$((BOOT_START + BOOT_LEN - 1))
+	ROOT_START=$((BOOT_END + 1))
+	ROOT_LEN=$((MAX_IMG_LEN - ROOT_START))
+	ROOT_END=$((MAX_IMG_LEN - 1))
 
 	TARGET_NAME=$prep_results_dir/${IMAGE_BASENAME}.img
-	TARGET_SIZE=$[($ROOT_PART_END+1)*512]
-	truncate -s $TARGET_SIZE $TARGET_NAME
+	truncate -s $MAX_IMG_LEN $TARGET_NAME
 
 	sfdisk $TARGET_NAME <<-EOF
 		label: dos
@@ -275,17 +278,12 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 		unit: sectors
 		sector-size: 512
 
-		${TARGET_NAME}1 : start=$BOOT_START, size=$((BOOT_END-BOOT_START+1)), type=c, bootable
-		${TARGET_NAME}2 : start=$ROOT_START, size=$((ROOT_PART_END-ROOT_START+1)), type=83
+		${TARGET_NAME}1 : start=$((BOOT_START / SECTOR_LEN)), size=$((BOOT_LEN / SECTOR_LEN)), type=c, bootable
+		${TARGET_NAME}2 : start=$((ROOT_START / SECTOR_LEN)), size=$((ROOT_LEN / SECTOR_LEN)), type=83
 	EOF
 
-	BOOT_OFFSET=$((BOOT_START * 512))
-	BOOT_SIZE=$(((BOOT_END - BOOT_START + 1) * 512))
-	ROOT_OFFSET=$((ROOT_START * 512))
-	ROOT_SIZE=$(((ROOT_PART_END - ROOT_START + 1) * 512))
-
-	BOOT_DEV=$(losetup --show -f --offset $BOOT_OFFSET --sizelimit $BOOT_SIZE $TARGET_NAME)
-	ROOT_DEV=$(losetup --show -f --offset $ROOT_OFFSET --sizelimit $ROOT_SIZE $TARGET_NAME)
+	BOOT_DEV=$(losetup --show -f --offset $BOOT_START --sizelimit $BOOT_LEN $TARGET_NAME)
+	ROOT_DEV=$(losetup --show -f --offset $ROOT_START --sizelimit $ROOT_LEN $TARGET_NAME)
 
 	mkfs.vfat -F32 $BOOT_DEV
 	mkfs.ext4 $ROOT_DEV
@@ -324,7 +322,7 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 
 	BLOCK_COUNT=$(dumpe2fs -h $ROOT_DEV | awk '/^Block count:/ { print $3 }')
 	BLOCK_SIZE=$(dumpe2fs -h $ROOT_DEV | awk '/^Block size:/ { print $3 }')
-	SECTOR_LEN=$[$BLOCK_COUNT*$BLOCK_SIZE/512]
+	ROOT_LEN=$((BLOCK_COUNT * BLOCK_SIZE))
 
 	losetup -d $ROOT_DEV
 	losetup -d $BOOT_DEV
@@ -336,12 +334,11 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 		unit: sectors
 		sector-size: 512
 
-		${TARGET_NAME}1 : start=$BOOT_START, size=$((BOOT_END-BOOT_START+1)), type=c, bootable
-		${TARGET_NAME}2 : start=$ROOT_START, size=$SECTOR_LEN, type=83
+		${TARGET_NAME}1 : start=$((BOOT_START / SECTOR_LEN)), size=$((BOOT_LEN / SECTOR_LEN)), type=c, bootable
+		${TARGET_NAME}2 : start=$((ROOT_START / SECTOR_LEN)), size=$((ROOT_LEN / SECTOR_LEN)), type=83
 	EOF
 
-	ROOT_PART_END=$[$ROOT_START+$SECTOR_LEN]
-	TARGET_SIZE=$[($ROOT_PART_END+1)*512]
+	TARGET_SIZE=$((ROOT_START + ROOT_LEN))
 	truncate -s $TARGET_SIZE $TARGET_NAME
 
 	mv $TARGET_NAME $RESULTS_DIR/$IMAGE_BASENAME.img
