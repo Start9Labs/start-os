@@ -10,27 +10,20 @@ if [ -z "$ARCH" ]; then
 fi
 
 if [ "$ARCH" = "arm64" ]; then
-  ARCH="aarch64"
+	ARCH="aarch64"
 fi
 
-USE_TTY=
-if tty -s; then
-	USE_TTY="-it"
+RUST_ARCH="$ARCH"
+if [ "$ARCH" = "riscv64" ]; then
+	RUST_ARCH="riscv64gc"
 fi
 
 cd ..
 FEATURES="$(echo $ENVIRONMENT | sed 's/-/,/g')"
 RUSTFLAGS=""
-
 if [[ "${ENVIRONMENT}" =~ (^|-)console($|-) ]]; then
 	RUSTFLAGS="--cfg tokio_unstable"
 fi
-
-source ./core/builder-alias.sh
-
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-musl-builder sh -c "cd core && cargo test --release --features=test,$FEATURES 'export_bindings_' && chown \$UID:\$UID startos/bindings"
-if [ "$(ls -nd core/startos/bindings | awk '{ print $3 }')" != "$UID" ]; then
-	rust-musl-builder sh -c "cd core && chown -R $UID:$UID startos/bindings && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
-fi
+cross test --manifest-path=./core/Cargo.toml --no-default-features --features test,$FEATURES --locked 'export_bindings_'
