@@ -64,9 +64,11 @@ user_pref("messaging-system.rsexperimentloader.enabled", false);
 user_pref("network.allow-experiments", false);
 user_pref("network.captive-portal-service.enabled", false);
 user_pref("network.connectivity-service.enabled", false);
-user_pref("network.proxy.autoconfig_url", "file:///usr/lib/startos/proxy.pac");
+user_pref("network.proxy.socks", "10.0.3.1");
+user_pref("network.proxy.socks_port", 9050);
+user_pref("network.proxy.socks_version", 5);
 user_pref("network.proxy.socks_remote_dns", true);
-user_pref("network.proxy.type", 2);
+user_pref("network.proxy.type", 1);
 user_pref("privacy.resistFingerprinting", true);
 //Enable letterboxing if we want the window size sent to the server to snap to common resolutions:
 //user_pref("privacy.resistFingerprinting.letterboxing", true);

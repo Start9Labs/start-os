@@ -1,11 +1,14 @@
-use std::collections::{BTreeMap, HashSet};
-use std::net::{Ipv4Addr, SocketAddrV4};
+use std::collections::BTreeMap;
+use std::net::SocketAddrV4;
 use std::path::PathBuf;
+use std::time::Duration;
 
+use axum::extract::ws;
 use clap::Parser;
+use imbl::{HashMap, OrdMap};
 use imbl_value::InternedString;
-use ipnet::Ipv4Net;
 use itertools::Itertools;
+use models::GatewayId;
 use patch_db::Dump;
 use patch_db::json_ptr::{JsonPointer, ROOT};
 use rpc_toolkit::yajrc::RpcError;
@@ -16,21 +19,48 @@ use ts_rs::TS;
 
 use crate::auth::Sessions;
 use crate::context::CliContext;
+use crate::db::model::public::NetworkInterfaceInfo;
 use crate::prelude::*;
+use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::sign::AnyVerifyingKey;
+use crate::tunnel::auth::SignerInfo;
 use crate::tunnel::context::TunnelContext;
+use crate::tunnel::web::WebserverInfo;
 use crate::tunnel::wg::WgServer;
+use crate::util::net::WebSocketExt;
 use crate::util::serde::{HandlerExtSerde, apply_expr};
 
-#[derive(Default, Deserialize, Serialize, HasModel)]
+#[derive(Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct TunnelDatabase {
+    pub webserver: WebserverInfo,
     pub sessions: Sessions,
-    pub password: String,
-    pub auth_pubkeys: HashSet<AnyVerifyingKey>,
+    pub password: Option<String>,
+    #[ts(as = "std::collections::HashMap::<AnyVerifyingKey, SignerInfo>")]
+    pub auth_pubkeys: HashMap<AnyVerifyingKey, SignerInfo>,
+    #[ts(as = "std::collections::BTreeMap::<AnyVerifyingKey, SignerInfo>")]
+    pub gateways: OrdMap<GatewayId, NetworkInterfaceInfo>,
     pub wg: WgServer,
-    pub port_forwards: BTreeMap<SocketAddrV4, SocketAddrV4>,
+    pub port_forwards: PortForwards,
+}
+
+#[test]
+fn export_bindings_tunnel_db() {
+    TunnelDatabase::export_all_to("bindings/tunnel").unwrap();
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
+pub struct PortForwards(pub BTreeMap<SocketAddrV4, SocketAddrV4>);
+impl Map for PortForwards {
+    type Key = SocketAddrV4;
+    type Value = SocketAddrV4;
+    fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
+        Self::key_string(key)
+    }
+    fn key_string(key: &Self::Key) -> Result<InternedString, Error> {
+        Ok(InternedString::from_display(key))
+    }
 }
 
 pub fn db_api<C: Context>() -> ParentHandler<C> {
@@ -45,6 +75,12 @@ pub fn db_api<C: Context>() -> ParentHandler<C> {
             "dump",
             from_fn_async(dump)
                 .with_metadata("admin", Value::Bool(true))
+                .no_cli(),
+        )
+        .subcommand(
+            "subscribe",
+            from_fn_async(subscribe)
+                .with_metadata("get_session", Value::Bool(true))
                 .no_cli(),
         )
         .subcommand(
@@ -194,4 +230,76 @@ pub async fn apply(ctx: TunnelContext, ApplyParams { expr, .. }: ApplyParams) ->
         })
         .await
         .result
+}
+
+#[derive(Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscribeParams {
+    #[ts(type = "string | null")]
+    pointer: Option<JsonPointer>,
+    #[ts(skip)]
+    #[serde(rename = "__Auth_session")]
+    session: Option<InternedString>,
+}
+
+#[derive(Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SubscribeRes {
+    #[ts(type = "{ id: number; value: unknown }")]
+    pub dump: Dump,
+    pub guid: Guid,
+}
+
+pub async fn subscribe(
+    ctx: TunnelContext,
+    SubscribeParams { pointer, session }: SubscribeParams,
+) -> Result<SubscribeRes, Error> {
+    let (dump, mut sub) = ctx
+        .db
+        .dump_and_sub(pointer.unwrap_or_else(|| ROOT.to_owned()))
+        .await;
+    let guid = Guid::new();
+    ctx.rpc_continuations
+        .add(
+            guid.clone(),
+            RpcContinuation::ws_authed(
+                &ctx,
+                session,
+                |mut ws| async move {
+                    if let Err(e) = async {
+                        loop {
+                            tokio::select! {
+                                rev = sub.recv() => {
+                                    if let Some(rev) = rev {
+                                        ws.send(ws::Message::Text(
+                                            serde_json::to_string(&rev)
+                                                .with_kind(ErrorKind::Serialization)?
+                                                .into(),
+                                        ))
+                                        .await
+                                        .with_kind(ErrorKind::Network)?;
+                                    } else {
+                                        return ws.normal_close("complete").await;
+                                    }
+                                }
+                                msg = ws.recv() => {
+                                    if msg.transpose().with_kind(ErrorKind::Network)?.is_none() {
+                                        return Ok(())
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .await
+                    {
+                        tracing::error!("Error in db websocket: {e}");
+                        tracing::debug!("{e:?}");
+                    }
+                },
+                Duration::from_secs(30),
+            ),
+        )
+        .await;
+
+    Ok(SubscribeRes { dump, guid })
 }

@@ -15,12 +15,12 @@ use futures::future::BoxFuture;
 use futures::stream::FusedStream;
 use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
 use helpers::NonDetachingJoinHandle;
-use imbl_value::{json, InternedString};
+use imbl_value::{InternedString, json};
 use itertools::Itertools;
 use models::{ActionId, HostId, ImageId, PackageId};
 use nix::sys::signal::Signal;
 use persistent_container::{PersistentContainer, Subcontainer};
-use rpc_toolkit::{from_fn_async, CallRemoteHandler, Empty, HandlerArgs, HandlerFor};
+use rpc_toolkit::{HandlerArgs, HandlerFor};
 use serde::{Deserialize, Serialize};
 use service_actor::ServiceActor;
 use start_stop::StartStop;
@@ -47,11 +47,11 @@ use crate::service::action::update_tasks;
 use crate::service::rpc::{ExitParams, InitKind};
 use crate::service::service_map::InstallProgressHandles;
 use crate::service::uninstall::cleanup;
+use crate::util::Never;
 use crate::util::actor::concurrent::ConcurrentActor;
-use crate::util::io::{create_file, delete_file, AsyncReadStream, TermSize};
+use crate::util::io::{AsyncReadStream, TermSize, create_file, delete_file};
 use crate::util::net::WebSocketExt;
 use crate::util::serde::Pem;
-use crate::util::Never;
 use crate::volume::data_dir;
 use crate::{CAP_1_KiB, DATA_DIR};
 
@@ -707,57 +707,6 @@ pub async fn rebuild(ctx: RpcContext, RebuildParams { id }: RebuildParams) -> Re
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
-pub struct ConnectParams {
-    pub id: PackageId,
-}
-
-pub async fn connect_rpc(
-    ctx: RpcContext,
-    ConnectParams { id }: ConnectParams,
-) -> Result<Guid, Error> {
-    let id_ref = &id;
-    crate::lxc::connect(
-        &ctx,
-        ctx.services
-            .get(&id)
-            .await
-            .as_ref()
-            .or_not_found(lazy_format!("service for {id_ref}"))?
-            .seed
-            .persistent_container
-            .lxc_container
-            .get()
-            .or_not_found(lazy_format!("container for {id_ref}"))?,
-    )
-    .await
-}
-
-pub async fn connect_rpc_cli(
-    HandlerArgs {
-        context,
-        parent_method,
-        method,
-        params,
-        inherited_params,
-        raw_params,
-    }: HandlerArgs<CliContext, ConnectParams>,
-) -> Result<(), Error> {
-    let ctx = context.clone();
-    let guid = CallRemoteHandler::<CliContext, _, _>::new(from_fn_async(connect_rpc))
-        .handle_async(HandlerArgs {
-            context,
-            parent_method,
-            method,
-            params: rpc_toolkit::util::Flat(params, Empty {}),
-            inherited_params,
-            raw_params,
-        })
-        .await?;
-
-    crate::lxc::connect_cli(&ctx, guid).await
-}
-
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AttachParams {
@@ -768,7 +717,7 @@ pub struct AttachParams {
     pub stderr_tty: bool,
     pub pty_size: Option<TermSize>,
     #[ts(skip)]
-    #[serde(rename = "__auth_session")]
+    #[serde(rename = "__Auth_session")]
     session: Option<InternedString>,
     #[ts(type = "string | null")]
     subcontainer: Option<InternedString>,

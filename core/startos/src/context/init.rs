@@ -6,10 +6,10 @@ use tokio::sync::broadcast::Sender;
 use tokio::sync::watch;
 use tracing::instrument;
 
+use crate::Error;
 use crate::context::config::ServerConfig;
 use crate::progress::FullProgressTracker;
 use crate::rpc_continuations::RpcContinuations;
-use crate::Error;
 
 pub struct InitContextSeed {
     pub config: ServerConfig,

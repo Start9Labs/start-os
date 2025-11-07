@@ -11,7 +11,8 @@ use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
 use crate::firmware::{check_for_firmware_update, update_firmware};
 use crate::init::{InitPhases, STANDBY_MODE_PATH};
-use crate::net::web_server::{UpgradableListener, WebServer};
+use crate::net::gateway::UpgradableListener;
+use crate::net::web_server::WebServer;
 use crate::prelude::*;
 use crate::progress::FullProgressTracker;
 use crate::shutdown::Shutdown;
@@ -37,7 +38,7 @@ async fn setup_or_init(
         let mut update_phase = handle.add_phase("Updating Firmware".into(), Some(10));
         let mut reboot_phase = handle.add_phase("Rebooting".into(), Some(1));
 
-        server.serve_init(init_ctx);
+        server.serve_ui_for(init_ctx);
 
         update_phase.start();
         if let Err(e) = update_firmware(firmware).await {
@@ -93,7 +94,7 @@ async fn setup_or_init(
 
         let ctx = InstallContext::init().await?;
 
-        server.serve_install(ctx.clone());
+        server.serve_ui_for(ctx.clone());
 
         ctx.shutdown
             .subscribe()
@@ -113,7 +114,7 @@ async fn setup_or_init(
     {
         let ctx = SetupContext::init(server, config)?;
 
-        server.serve_setup(ctx.clone());
+        server.serve_ui_for(ctx.clone());
 
         let mut shutdown = ctx.shutdown.subscribe();
         if let Some(shutdown) = shutdown.recv().await.expect("context dropped") {
@@ -149,7 +150,7 @@ async fn setup_or_init(
         let init_phases = InitPhases::new(&handle);
         let rpc_ctx_phases = InitRpcContextPhases::new(&handle);
 
-        server.serve_init(init_ctx);
+        server.serve_ui_for(init_ctx);
 
         async {
             disk_phase.start();
@@ -247,7 +248,7 @@ pub async fn main(
                     e,
                 )?;
 
-                server.serve_diagnostic(ctx.clone());
+                server.serve_ui_for(ctx.clone());
 
                 let shutdown = ctx.shutdown.subscribe().recv().await.unwrap();
 

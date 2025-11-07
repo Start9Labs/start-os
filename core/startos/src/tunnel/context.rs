@@ -1,31 +1,44 @@
-use std::collections::BTreeSet;
-use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::collections::BTreeMap;
+use std::net::{IpAddr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use clap::Parser;
+use cookie::{Cookie, Expiration, SameSite};
+use http::HeaderMap;
 use imbl::OrdMap;
 use imbl_value::InternedString;
+use include_dir::Dir;
+use models::GatewayId;
 use patch_db::PatchDb;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{CallRemote, Context, Empty};
+use rpc_toolkit::{CallRemote, Context, Empty, ParentHandler};
 use serde::{Deserialize, Serialize};
+use tokio::process::Command;
 use tokio::sync::broadcast::Sender;
 use tracing::instrument;
+use url::Url;
 
-use crate::auth::{Sessions, check_password};
-use crate::context::CliContext;
+use crate::auth::Sessions;
 use crate::context::config::ContextConfig;
-use crate::middleware::auth::AuthContext;
-use crate::middleware::signature::SignatureAuthContext;
+use crate::context::{CliContext, RpcContext};
+use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
+use crate::else_empty_dir;
+use crate::middleware::auth::{Auth, AuthContext};
+use crate::middleware::cors::Cors;
 use crate::net::forward::PortForwardController;
-use crate::net::gateway::NetworkInterfaceWatcher;
+use crate::net::static_server::UiContext;
 use crate::prelude::*;
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
-use crate::tunnel::TUNNEL_DEFAULT_PORT;
+use crate::tunnel::TUNNEL_DEFAULT_LISTEN;
+use crate::tunnel::api::tunnel_api;
 use crate::tunnel::db::TunnelDatabase;
-use crate::util::sync::SyncMutex;
+use crate::tunnel::wg::WIREGUARD_INTERFACE_NAME;
+use crate::util::Invoke;
+use crate::util::collections::OrdMapIterMut;
+use crate::util::io::read_file_to_string;
+use crate::util::sync::{SyncMutex, Watch};
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, Parser)]
 #[serde(rename_all = "kebab-case")]
@@ -59,14 +72,14 @@ impl TunnelConfig {
 
 pub struct TunnelContextSeed {
     pub listen: SocketAddr,
-    pub addrs: BTreeSet<IpAddr>,
     pub db: TypedPatchDb<TunnelDatabase>,
     pub datadir: PathBuf,
     pub rpc_continuations: RpcContinuations,
     pub open_authed_continuations: OpenAuthedContinuations<Option<InternedString>>,
     pub ephemeral_sessions: SyncMutex<Sessions>,
-    pub net_iface: NetworkInterfaceWatcher,
+    pub net_iface: Watch<OrdMap<GatewayId, NetworkInterfaceInfo>>,
     pub forward: PortForwardController,
+    pub active_forwards: SyncMutex<BTreeMap<SocketAddrV4, Arc<()>>>,
     pub shutdown: Sender<()>,
 }
 
@@ -75,6 +88,7 @@ pub struct TunnelContext(Arc<TunnelContextSeed>);
 impl TunnelContext {
     #[instrument(skip_all)]
     pub async fn init(config: &TunnelConfig) -> Result<Self, Error> {
+        Self::init_auth_cookie().await?;
         let (shutdown, _) = tokio::sync::broadcast::channel(1);
         let datadir = config
             .datadir
@@ -90,19 +104,83 @@ impl TunnelContext {
             || async { Ok(Default::default()) },
         )
         .await?;
-        let listen = config.tunnel_listen.unwrap_or(SocketAddr::new(
-            Ipv6Addr::UNSPECIFIED.into(),
-            TUNNEL_DEFAULT_PORT,
-        ));
-        let net_iface = NetworkInterfaceWatcher::new(async { OrdMap::new() }, []);
-        let forward = PortForwardController::new(net_iface.subscribe());
+        let listen = config.tunnel_listen.unwrap_or(TUNNEL_DEFAULT_LISTEN);
+        let ip_info = crate::net::utils::load_ip_info().await?;
+        let net_iface = db
+            .mutate(|db| {
+                db.as_gateways_mut().mutate(|g| {
+                    for (_, v) in OrdMapIterMut::from(&mut *g) {
+                        v.ip_info = None;
+                    }
+                    for (id, info) in ip_info {
+                        if id.as_str() != WIREGUARD_INTERFACE_NAME {
+                            g.entry(id).or_default().ip_info = Some(Arc::new(info));
+                        }
+                    }
+                    Ok(g.clone())
+                })
+            })
+            .await
+            .result?;
+        let net_iface = Watch::new(net_iface);
+        let forward = PortForwardController::new();
+
+        Command::new("sysctl")
+            .arg("-w")
+            .arg("net.ipv4.ip_forward=1")
+            .invoke(ErrorKind::Network)
+            .await?;
+
+        for iface in net_iface.peek(|i| {
+            i.iter()
+                .filter(|(_, info)| {
+                    info.ip_info.as_ref().map_or(false, |i| {
+                        i.device_type != Some(NetworkInterfaceType::Loopback)
+                    })
+                })
+                .map(|(name, _)| name)
+                .filter(|id| id.as_str() != WIREGUARD_INTERFACE_NAME)
+                .cloned()
+                .collect::<Vec<_>>()
+        }) {
+            if Command::new("iptables")
+                .arg("-t")
+                .arg("nat")
+                .arg("-C")
+                .arg("POSTROUTING")
+                .arg("-o")
+                .arg(iface.as_str())
+                .arg("-j")
+                .arg("MASQUERADE")
+                .invoke(ErrorKind::Network)
+                .await
+                .is_err()
+            {
+                tracing::info!("Adding masquerade rule for interface {}", iface);
+                Command::new("iptables")
+                    .arg("-t")
+                    .arg("nat")
+                    .arg("-A")
+                    .arg("POSTROUTING")
+                    .arg("-o")
+                    .arg(iface.as_str())
+                    .arg("-j")
+                    .arg("MASQUERADE")
+                    .invoke(ErrorKind::Network)
+                    .await
+                    .log_err();
+            }
+        }
+
+        let peek = db.peek().await;
+        peek.as_wg().de()?.sync().await?;
+        let mut active_forwards = BTreeMap::new();
+        for (from, to) in peek.as_port_forwards().de()?.0 {
+            active_forwards.insert(from, forward.add_forward(from, to).await?);
+        }
+
         Ok(Self(Arc::new(TunnelContextSeed {
             listen,
-            addrs: crate::net::utils::all_socket_addrs_for(listen.port())
-                .await?
-                .into_iter()
-                .map(|(_, a)| a.ip())
-                .collect(),
             db,
             datadir,
             rpc_continuations: RpcContinuations::new(),
@@ -110,6 +188,7 @@ impl TunnelContext {
             ephemeral_sessions: SyncMutex::new(Sessions::new()),
             net_iface,
             forward,
+            active_forwards: SyncMutex::new(active_forwards),
             shutdown,
         })))
     }
@@ -117,6 +196,12 @@ impl TunnelContext {
 impl AsRef<RpcContinuations> for TunnelContext {
     fn as_ref(&self) -> &RpcContinuations {
         &self.rpc_continuations
+    }
+}
+
+impl AsRef<OpenAuthedContinuations<Option<InternedString>>> for TunnelContext {
+    fn as_ref(&self) -> &OpenAuthedContinuations<Option<InternedString>> {
+        &self.open_authed_continuations
     }
 }
 
@@ -133,66 +218,6 @@ pub struct TunnelAddrParams {
     pub tunnel: IpAddr,
 }
 
-impl SignatureAuthContext for TunnelContext {
-    type Database = TunnelDatabase;
-    type AdditionalMetadata = ();
-    type CheckPubkeyRes = ();
-    fn db(&self) -> &TypedPatchDb<Self::Database> {
-        &self.db
-    }
-    async fn sig_context(
-        &self,
-    ) -> impl IntoIterator<Item = Result<impl AsRef<str> + Send, Error>> + Send {
-        self.addrs
-            .iter()
-            .filter(|a| !match a {
-                IpAddr::V4(a) => a.is_loopback() || a.is_unspecified(),
-                IpAddr::V6(a) => a.is_loopback() || a.is_unspecified(),
-            })
-            .map(|a| InternedString::from_display(&a))
-            .map(Ok)
-    }
-    fn check_pubkey(
-        db: &Model<Self::Database>,
-        pubkey: Option<&crate::sign::AnyVerifyingKey>,
-        _: Self::AdditionalMetadata,
-    ) -> Result<Self::CheckPubkeyRes, Error> {
-        if let Some(pubkey) = pubkey {
-            if db.as_auth_pubkeys().de()?.contains(pubkey) {
-                return Ok(());
-            }
-        }
-
-        Err(Error::new(
-            eyre!("Developer Key is not authorized"),
-            ErrorKind::IncorrectPassword,
-        ))
-    }
-    async fn post_auth_hook(
-        &self,
-        _: Self::CheckPubkeyRes,
-        _: &rpc_toolkit::RpcRequest,
-    ) -> Result<(), Error> {
-        Ok(())
-    }
-}
-impl AuthContext for TunnelContext {
-    const LOCAL_AUTH_COOKIE_PATH: &str = "/run/start-tunnel/rpc.authcookie";
-    const LOCAL_AUTH_COOKIE_OWNERSHIP: &str = "root:root";
-    fn access_sessions(db: &mut Model<Self::Database>) -> &mut Model<crate::auth::Sessions> {
-        db.as_sessions_mut()
-    }
-    fn ephemeral_sessions(&self) -> &SyncMutex<Sessions> {
-        &self.ephemeral_sessions
-    }
-    fn open_authed_continuations(&self) -> &OpenAuthedContinuations<Option<InternedString>> {
-        &self.open_authed_continuations
-    }
-    fn check_password(db: &Model<Self::Database>, password: &str) -> Result<(), Error> {
-        check_password(&db.as_password().de()?, password)
-    }
-}
-
 impl CallRemote<TunnelContext> for CliContext {
     async fn call_remote(
         &self,
@@ -200,25 +225,97 @@ impl CallRemote<TunnelContext> for CliContext {
         params: Value,
         _: Empty,
     ) -> Result<Value, RpcError> {
-        let tunnel_addr = if let Some(addr) = self.tunnel_addr {
-            addr
+        let (tunnel_addr, addr_from_config) = if let Some(addr) = self.tunnel_addr {
+            (addr, true)
         } else if let Some(addr) = self.tunnel_listen {
-            addr
+            (addr, true)
+        } else {
+            (TUNNEL_DEFAULT_LISTEN, false)
+        };
+
+        let local =
+            if let Ok(local) = read_file_to_string(TunnelContext::LOCAL_AUTH_COOKIE_PATH).await {
+                self.cookie_store
+                    .lock()
+                    .unwrap()
+                    .insert_raw(
+                        &Cookie::build(("local", local))
+                            .domain(&tunnel_addr.ip().to_string())
+                            .expires(Expiration::Session)
+                            .same_site(SameSite::Strict)
+                            .build(),
+                        &format!("http://{tunnel_addr}").parse()?,
+                    )
+                    .with_kind(crate::ErrorKind::Network)?;
+                true
+            } else {
+                false
+            };
+
+        let (url, sig_ctx) = if local && tunnel_addr.ip().is_loopback() {
+            (format!("http://{tunnel_addr}/rpc/v0").parse()?, None)
+        } else if addr_from_config {
+            (
+                format!("https://{tunnel_addr}/rpc/v0").parse()?,
+                Some(InternedString::from_display(&tunnel_addr.ip())),
+            )
         } else {
             return Err(Error::new(eyre!("`--tunnel` required"), ErrorKind::InvalidRequest).into());
         };
-        let sig_addr = self.tunnel_listen.unwrap_or(tunnel_addr);
-        let url = format!("https://{tunnel_addr}").parse()?;
 
         method = method.strip_prefix("tunnel.").unwrap_or(method);
 
         crate::middleware::signature::call_remote(
             self,
             url,
-            &InternedString::from_display(&sig_addr.ip()),
+            HeaderMap::new(),
+            sig_ctx.as_deref(),
             method,
             params,
         )
         .await
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Parser)]
+pub struct TunnelUrlParams {
+    pub tunnel: Url,
+}
+
+impl CallRemote<TunnelContext, TunnelUrlParams> for RpcContext {
+    async fn call_remote(
+        &self,
+        mut method: &str,
+        params: Value,
+        TunnelUrlParams { tunnel }: TunnelUrlParams,
+    ) -> Result<Value, RpcError> {
+        let url = tunnel.join("rpc/v0")?;
+        method = method.strip_prefix("tunnel.").unwrap_or(method);
+
+        let sig_ctx = url.host_str().map(InternedString::from_display);
+
+        crate::middleware::signature::call_remote(
+            self,
+            url,
+            HeaderMap::new(),
+            sig_ctx.as_deref(),
+            method,
+            params,
+        )
+        .await
+    }
+}
+
+impl UiContext for TunnelContext {
+    const UI_DIR: &'static include_dir::Dir<'static> = &else_empty_dir!(
+        feature = "tunnel" =>
+        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/start-tunnel")
+    );
+    fn api() -> ParentHandler<Self> {
+        tracing::info!("loading tunnel api...");
+        tunnel_api()
+    }
+    fn middleware(server: rpc_toolkit::Server<Self>) -> rpc_toolkit::HttpServer<Self> {
+        server.middleware(Cors::new()).middleware(Auth::new())
     }
 }

@@ -83,7 +83,7 @@ pub struct AddAssetParams {
     pub platform: InternedString,
     #[ts(type = "string")]
     pub url: Url,
-    #[serde(rename = "__auth_signer")]
+    #[serde(rename = "__Auth_signer")]
     #[ts(skip)]
     pub signer: AnyVerifyingKey,
     pub signature: AnySignature,
@@ -289,7 +289,7 @@ pub struct RemoveAssetParams {
     pub version: Version,
     #[ts(type = "string")]
     pub platform: InternedString,
-    #[serde(rename = "__auth_signer")]
+    #[serde(rename = "__Auth_signer")]
     #[ts(skip)]
     pub signer: AnyVerifyingKey,
 }

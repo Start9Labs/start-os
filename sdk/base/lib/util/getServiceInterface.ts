@@ -168,12 +168,12 @@ export const addressHostToUrl = (
     }${hostname}${excludePort ? "" : `:${port}`}${suffix}`
   }
   let url = null
-  if (hostname.hostname.sslPort !== null) {
-    url = fmt(sslScheme, hostname, hostname.hostname.sslPort)
+  if (hostname.hostname.port !== null) {
+    url = fmt(scheme, hostname, hostname.hostname.port)
   }
   let sslUrl = null
-  if (hostname.hostname.port !== null) {
-    sslUrl = fmt(scheme, hostname, hostname.hostname.port)
+  if (hostname.hostname.sslPort !== null) {
+    sslUrl = fmt(sslScheme, hostname, hostname.hostname.sslPort)
   }
 
   return { url, sslUrl }

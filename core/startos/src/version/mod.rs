@@ -5,14 +5,14 @@ use std::panic::{RefUnwindSafe, UnwindSafe};
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::{Future, FutureExt};
-use imbl_value::{to_value, InternedString};
+use imbl_value::{InternedString, to_value};
 use patch_db::json_ptr::ROOT;
 
+use crate::Error;
 use crate::context::RpcContext;
 use crate::db::model::Database;
 use crate::prelude::*;
 use crate::progress::PhaseProgressTrackerHandle;
-use crate::Error;
 
 mod v0_3_5;
 mod v0_3_5_1;
@@ -51,8 +51,9 @@ mod v0_4_0_alpha_9;
 
 mod v0_4_0_alpha_10;
 mod v0_4_0_alpha_11;
+mod v0_4_0_alpha_12;
 
-pub type Current = v0_4_0_alpha_11::Version; // VERSION_BUMP
+pub type Current = v0_4_0_alpha_12::Version; // VERSION_BUMP
 
 impl Current {
     #[instrument(skip(self, db))]
@@ -97,8 +98,8 @@ pub async fn post_init(
         .as_server_info()
         .as_post_init_migration_todos()
         .de()?;
+    progress.start();
     if !todos.is_empty() {
-        progress.set_total(todos.len() as u64);
         while let Some((version, input)) = {
             peek = ctx.db.peek().await;
             peek.as_public()
@@ -121,7 +122,6 @@ pub async fn post_init(
                 })
                 .await
                 .result?;
-            progress += 1;
         }
     }
     progress.complete();
@@ -166,7 +166,8 @@ enum Version {
     V0_4_0_alpha_8(Wrapper<v0_4_0_alpha_8::Version>),
     V0_4_0_alpha_9(Wrapper<v0_4_0_alpha_9::Version>),
     V0_4_0_alpha_10(Wrapper<v0_4_0_alpha_10::Version>),
-    V0_4_0_alpha_11(Wrapper<v0_4_0_alpha_11::Version>), // VERSION_BUMP
+    V0_4_0_alpha_11(Wrapper<v0_4_0_alpha_11::Version>),
+    V0_4_0_alpha_12(Wrapper<v0_4_0_alpha_12::Version>), // VERSION_BUMP
     Other(exver::Version),
 }
 
@@ -220,7 +221,8 @@ impl Version {
             Self::V0_4_0_alpha_8(v) => DynVersion(Box::new(v.0)),
             Self::V0_4_0_alpha_9(v) => DynVersion(Box::new(v.0)),
             Self::V0_4_0_alpha_10(v) => DynVersion(Box::new(v.0)),
-            Self::V0_4_0_alpha_11(v) => DynVersion(Box::new(v.0)), // VERSION_BUMP
+            Self::V0_4_0_alpha_11(v) => DynVersion(Box::new(v.0)),
+            Self::V0_4_0_alpha_12(v) => DynVersion(Box::new(v.0)), // VERSION_BUMP
             Self::Other(v) => {
                 return Err(Error::new(
                     eyre!("unknown version {v}"),
@@ -266,7 +268,8 @@ impl Version {
             Version::V0_4_0_alpha_8(Wrapper(x)) => x.semver(),
             Version::V0_4_0_alpha_9(Wrapper(x)) => x.semver(),
             Version::V0_4_0_alpha_10(Wrapper(x)) => x.semver(),
-            Version::V0_4_0_alpha_11(Wrapper(x)) => x.semver(), // VERSION_BUMP
+            Version::V0_4_0_alpha_11(Wrapper(x)) => x.semver(),
+            Version::V0_4_0_alpha_12(Wrapper(x)) => x.semver(), // VERSION_BUMP
             Version::Other(x) => x.clone(),
         }
     }

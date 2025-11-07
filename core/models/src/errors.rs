@@ -94,6 +94,7 @@ pub enum ErrorKind {
     DBus = 75,
     InstallFailed = 76,
     UpdateFailed = 77,
+    Smtp = 78,
 }
 impl ErrorKind {
     pub fn as_str(&self) -> &'static str {
@@ -176,6 +177,7 @@ impl ErrorKind {
             DBus => "DBus Error",
             InstallFailed => "Install Failed",
             UpdateFailed => "Update Failed",
+            Smtp => "SMTP Error",
         }
     }
 }
@@ -185,7 +187,6 @@ impl Display for ErrorKind {
     }
 }
 
-#[derive(Debug)]
 pub struct Error {
     pub source: color_eyre::eyre::Error,
     pub debug: Option<color_eyre::eyre::Error>,
@@ -196,7 +197,17 @@ pub struct Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.kind.as_str(), self.source)
+        write!(f, "{}: {:#}", self.kind.as_str(), self.source)
+    }
+}
+impl Debug for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}: {:?}",
+            self.kind.as_str(),
+            self.debug.as_ref().unwrap_or(&self.source)
+        )
     }
 }
 impl Error {
@@ -347,8 +358,14 @@ impl From<reqwest::Error> for Error {
         Error::new(e, kind)
     }
 }
+#[cfg(feature = "arti")]
 impl From<arti_client::Error> for Error {
     fn from(e: arti_client::Error) -> Self {
+        Error::new(e, ErrorKind::Tor)
+    }
+}
+impl From<torut::control::ConnError> for Error {
+    fn from(e: torut::control::ConnError) -> Self {
         Error::new(e, ErrorKind::Tor)
     }
 }
@@ -360,6 +377,21 @@ impl From<zbus::Error> for Error {
 impl From<rustls::Error> for Error {
     fn from(e: rustls::Error) -> Self {
         Error::new(e, ErrorKind::OpenSsl)
+    }
+}
+impl From<lettre::error::Error> for Error {
+    fn from(e: lettre::error::Error) -> Self {
+        Error::new(e, ErrorKind::Smtp)
+    }
+}
+impl From<lettre::transport::smtp::Error> for Error {
+    fn from(e: lettre::transport::smtp::Error) -> Self {
+        Error::new(e, ErrorKind::Smtp)
+    }
+}
+impl From<lettre::address::AddressError> for Error {
+    fn from(e: lettre::address::AddressError) -> Self {
+        Error::new(e, ErrorKind::Smtp)
     }
 }
 impl From<patch_db::value::Error> for Error {

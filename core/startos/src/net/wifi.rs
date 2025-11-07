@@ -1017,6 +1017,31 @@ pub async fn synchronize_network_manager<P: AsRef<Path>>(
             .await?;
     }
 
+    Command::new("ip")
+        .arg("rule")
+        .arg("add")
+        .arg("pref")
+        .arg("1000")
+        .arg("from")
+        .arg("all")
+        .arg("lookup")
+        .arg("main")
+        .invoke(ErrorKind::Network)
+        .await
+        .log_err();
+    Command::new("ip")
+        .arg("rule")
+        .arg("add")
+        .arg("pref")
+        .arg("1100")
+        .arg("from")
+        .arg("all")
+        .arg("lookup")
+        .arg("default")
+        .invoke(ErrorKind::Network)
+        .await
+        .log_err();
+
     Command::new("systemctl")
         .arg("restart")
         .arg("NetworkManager")

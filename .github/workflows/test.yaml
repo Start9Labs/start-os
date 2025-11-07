@@ -11,7 +11,7 @@ on:
       - next/*
 
 env:
-  NODEJS_VERSION: "22.17.1"
+  NODEJS_VERSION: "24.11.0"
   ENVIRONMENT: dev-unstable
 
 jobs:
@@ -26,6 +26,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODEJS_VERSION }}
+
+      - name: Use Beta Toolchain
+        run: rustup default beta
+
+      - name: Setup Cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Build And Run Tests
         run: make test

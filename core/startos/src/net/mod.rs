@@ -12,6 +12,7 @@ pub mod service_interface;
 pub mod socks;
 pub mod ssl;
 pub mod static_server;
+pub mod tls;
 pub mod tor;
 pub mod tunnel;
 pub mod utils;

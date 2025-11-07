@@ -68,7 +68,7 @@ pub struct AddVersionParams {
     pub source_version: VersionRange,
     #[arg(skip)]
     #[ts(skip)]
-    #[serde(rename = "__auth_signer")]
+    #[serde(rename = "__Auth_signer")]
     pub signer: Option<AnyVerifyingKey>,
 }
 
@@ -146,7 +146,7 @@ pub struct GetOsVersionParams {
     platform: Option<InternedString>,
     #[ts(skip)]
     #[arg(skip)]
-    #[serde(rename = "__device_info")]
+    #[serde(rename = "__DeviceInfo_device_info")]
     pub device_info: Option<DeviceInfo>,
 }
 

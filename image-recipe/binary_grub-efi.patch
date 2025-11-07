@@ -1,0 +1,47 @@
+--- /usr/lib/live/build/binary_grub-efi	2024-05-25 05:22:52.000000000 -0600
++++ binary_grub-efi	2025-10-16 13:04:32.338740922 -0600
+@@ -54,6 +54,8 @@
+ 	armhf)
+ 		Check_package chroot /usr/lib/grub/arm-efi/configfile.mod grub-efi-arm-bin
+ 		;;
++	riscv64)
++		Check_package chroot /usr/lib/grub/riscv64-efi/configfile.mod grub-efi-riscv64-bin
+ esac
+ Check_package chroot /usr/bin/grub-mkimage grub-common
+ Check_package chroot /usr/bin/mcopy mtools
+@@ -136,7 +138,7 @@
+ esac
+ 
+ # Cleanup files that we generate
+-rm -rf binary/boot/efi.img binary/boot/grub/i386-efi/ binary/boot/grub/x86_64-efi binary/boot/grub/arm64-efi binary/boot/grub/arm-efi
++rm -rf binary/boot/efi.img binary/boot/grub/i386-efi/ binary/boot/grub/x86_64-efi binary/boot/grub/arm64-efi binary/boot/grub/arm-efi binary/boot/grub/riscv64-efi
+ 
+ # This is workaround till both efi-image and grub-cpmodules are put into a binary package
+ case "${LB_BUILD_WITH_CHROOT}" in
+@@ -243,6 +245,10 @@
+ 		gen_efi_boot_img "arm-efi" "arm" "debian-live/arm"
+ 		PATH="\${PRE_EFI_IMAGE_PATH}"
+ 		;;
++	riscv64)
++		gen_efi_boot_img "riscv64-efi" "riscv64" "debian-live/riscv64"
++		PATH="\${PRE_EFI_IMAGE_PATH}"
++		;;
+ esac
+ 
+ 
+@@ -324,6 +330,7 @@
+ rm -f chroot/grub-efi-temp/bootnetx64.efi
+ rm -f chroot/grub-efi-temp/bootnetaa64.efi
+ rm -f chroot/grub-efi-temp/bootnetarm.efi
++rm -f chroot/grub-efi-temp/bootnetriscv64.efi
+ 
+ mkdir -p binary
+ cp -a chroot/grub-efi-temp/* binary/
+@@ -331,6 +338,7 @@
+ rm -rf chroot/grub-efi-temp-i386-efi
+ rm -rf chroot/grub-efi-temp-arm64-efi
+ rm -rf chroot/grub-efi-temp-arm-efi
++rm -rf chroot/grub-efi-temp-riscv64-efi
+ rm -rf chroot/grub-efi-temp-cfg
+ rm -rf chroot/grub-efi-temp
+ 

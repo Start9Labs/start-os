@@ -8,10 +8,10 @@ use socks5_impl::server::auth::NoAuth;
 use socks5_impl::server::{AuthAdaptor, ClientConnection, Server};
 use tokio::net::{TcpListener, TcpStream};
 
+use crate::HOST_IP;
 use crate::net::tor::TorController;
 use crate::prelude::*;
 use crate::util::actor::background::BackgroundJobQueue;
-use crate::HOST_IP;
 
 pub const DEFAULT_SOCKS_LISTEN: SocketAddr = SocketAddr::V4(SocketAddrV4::new(
     Ipv4Addr::new(HOST_IP[0], HOST_IP[1], HOST_IP[2], HOST_IP[3]),

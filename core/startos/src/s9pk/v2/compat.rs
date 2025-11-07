@@ -16,10 +16,10 @@ use crate::s9pk::merkle_archive::source::TmpSource;
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::s9pk::v1::manifest::{Manifest as ManifestV1, PackageProcedure};
 use crate::s9pk::v1::reader::S9pkReader;
-use crate::s9pk::v2::pack::{ImageSource, PackSource, CONTAINER_TOOL};
+use crate::s9pk::v2::pack::{CONTAINER_TOOL, ImageSource, PackSource};
 use crate::s9pk::v2::{S9pk, SIG_CONTEXT};
-use crate::util::io::{create_file, TmpDir};
 use crate::util::Invoke;
+use crate::util::io::{TmpDir, create_file};
 
 pub const MAGIC_AND_VERSION: &[u8] = &[0x3b, 0x3b, 0x01];
 

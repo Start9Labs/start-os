@@ -182,16 +182,14 @@ export class MarketplacePreviewComponent {
   }
 
   onStatic() {
-    const content = this.pkg$.pipe(
-      filter(Boolean),
-      switchMap(pkg => this.marketplaceService.fetchStatic$(pkg)),
-    )
-
     this.dialog
       .openComponent(MARKDOWN, {
         label: 'License',
         size: 'l',
-        data: { content },
+        data: this.pkg$.pipe(
+          filter(Boolean),
+          switchMap(pkg => this.marketplaceService.fetchStatic$(pkg)),
+        ),
       })
       .subscribe()
   }

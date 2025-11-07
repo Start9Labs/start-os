@@ -19,19 +19,17 @@ import {
   TuiSkeleton,
 } from '@taiga-ui/kit'
 import { TuiCell } from '@taiga-ui/layout'
-import { PatchDB } from 'patch-db-client'
-import { combineLatest, map, tap } from 'rxjs'
+import { combineLatest, tap } from 'rxjs'
 import { PlaceholderComponent } from 'src/app/routes/portal/components/placeholder.component'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
+import { LocalPackagesService } from 'src/app/services/local-packages.service'
 import { MarketplaceService } from 'src/app/services/marketplace.service'
 import {
-  DataModel,
   InstalledState,
   PackageDataEntry,
   UpdatingState,
 } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
-import { isInstalled, isUpdating } from 'src/app/utils/get-package-data'
 import { FilterUpdatesPipe } from './filter-updates.pipe'
 import { UpdatesItemComponent } from './item.component'
 import { i18nPipe } from '@start9labs/shared'
@@ -256,21 +254,7 @@ export default class UpdatesComponent {
         ),
       ),
       marketplace: this.marketplaceService.marketplace$,
-      localPkgs: inject<PatchDB<DataModel>>(PatchDB)
-        .watch$('packageData')
-        .pipe(
-          map(pkgs =>
-            Object.entries(pkgs).reduce<
-              Record<string, PackageDataEntry<InstalledState | UpdatingState>>
-            >(
-              (acc, [id, val]) =>
-                isInstalled(val) || isUpdating(val)
-                  ? { ...acc, [id]: val }
-                  : acc,
-              {},
-            ),
-          ),
-        ),
+      localPkgs: inject(LocalPackagesService),
       errors: this.marketplaceService.requestErrors$,
     }),
   )

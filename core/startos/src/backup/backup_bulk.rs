@@ -317,7 +317,7 @@ async fn perform_backup(
             .with_kind(ErrorKind::Filesystem)?;
     os_backup_file
         .write_all(&IoFormat::Json.to_vec(&OsBackup {
-            account: ctx.account.read().await.clone(),
+            account: ctx.account.peek(|a| a.clone()),
             ui,
         })?)
         .await?;
@@ -342,7 +342,7 @@ async fn perform_backup(
     let timestamp = Utc::now();
 
     backup_guard.unencrypted_metadata.version = crate::version::Current::default().semver().into();
-    backup_guard.unencrypted_metadata.hostname = ctx.account.read().await.hostname.clone();
+    backup_guard.unencrypted_metadata.hostname = ctx.account.peek(|a| a.hostname.clone());
     backup_guard.unencrypted_metadata.timestamp = timestamp.clone();
     backup_guard.metadata.version = crate::version::Current::default().semver().into();
     backup_guard.metadata.timestamp = Some(timestamp);

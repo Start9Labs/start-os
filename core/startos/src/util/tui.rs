@@ -1,0 +1,144 @@
+use std::io::Write;
+use std::str::FromStr;
+
+use r3bl_tui::{DefaultIoDevices, ReadlineAsyncContext, ReadlineEvent};
+
+use crate::prelude::*;
+
+fn map_miette(m: miette::Error) -> Error {
+    Error::new(eyre!("{m}"), ErrorKind::Filesystem)
+}
+fn noninteractive_err() -> Error {
+    Error::new(
+        eyre!("Terminal must be in interactive mode for this wizard"),
+        ErrorKind::Filesystem,
+    )
+}
+
+pub fn parse_as<'a, T>(what: &'a str) -> impl Fn(&str) -> Result<T, String> + 'a
+where
+    T: FromStr,
+{
+    move |s| {
+        s.parse::<T>()
+            .map_err(|_| format!("Please enter a valid {what}."))
+    }
+}
+
+pub async fn prompt<T, E: std::fmt::Display, Parse: FnMut(&str) -> Result<T, E>>(
+    prompt: &str,
+    mut parse: Parse,
+    default: Option<T>,
+) -> Result<T, Error> {
+    let mut rl_ctx = ReadlineAsyncContext::try_new(Some(prompt))
+        .await
+        .map_err(map_miette)?
+        .ok_or_else(noninteractive_err)?;
+    let res = loop {
+        match rl_ctx.read_line().await.map_err(map_miette)? {
+            ReadlineEvent::Line(l) => {
+                let l = l.trim();
+                if !l.is_empty() {
+                    match parse(l) {
+                        Ok(a) => break a,
+                        Err(e) => {
+                            writeln!(&mut rl_ctx.shared_writer, "{e}")?;
+                        }
+                    }
+                } else if let Some(default) = default {
+                    break default;
+                }
+            }
+            ReadlineEvent::Eof | ReadlineEvent::Interrupted => {
+                return Err(Error::new(eyre!("Aborted"), ErrorKind::Cancelled));
+            }
+            _ => (),
+        }
+    };
+
+    rl_ctx.request_shutdown(None).await.map_err(map_miette)?;
+    rl_ctx.await_shutdown().await;
+
+    Ok(res)
+}
+
+pub async fn prompt_multiline<
+    T,
+    E: std::fmt::Display,
+    HandleLine: FnMut(String) -> Result<Option<T>, E>,
+>(
+    prompt: &str,
+    mut handle_line: HandleLine,
+) -> Result<T, Error> {
+    println!("{prompt}");
+    let mut rl_ctx = ReadlineAsyncContext::try_new(None::<&str>)
+        .await
+        .map_err(map_miette)?
+        .ok_or_else(noninteractive_err)?;
+    let res = loop {
+        match rl_ctx.read_line().await.map_err(map_miette)? {
+            ReadlineEvent::Line(l) => match handle_line(l) {
+                Ok(Some(a)) => break a,
+                Ok(None) => (),
+                Err(e) => writeln!(&mut rl_ctx.shared_writer, "{e}")?,
+            },
+            ReadlineEvent::Eof | ReadlineEvent::Interrupted => {
+                return Err(Error::new(eyre!("Aborted"), ErrorKind::Cancelled));
+            }
+            _ => (),
+        }
+    };
+
+    rl_ctx.request_shutdown(None).await.map_err(map_miette)?;
+    rl_ctx.await_shutdown().await;
+
+    Ok(res)
+}
+
+pub async fn choose_custom_display<'t, T: std::fmt::Display>(
+    prompt: &str,
+    choices: &'t [T],
+    mut display: impl FnMut(&T) -> String,
+) -> Result<&'t T, Error> {
+    let mut io = DefaultIoDevices::default();
+    let style = r3bl_tui::readline_async::StyleSheet::default();
+    let string_choices = choices.into_iter().map(|c| display(c)).collect::<Vec<_>>();
+    let choice = r3bl_tui::readline_async::choose(
+        prompt,
+        string_choices.clone(),
+        None,
+        None,
+        r3bl_tui::HowToChoose::Single,
+        style,
+        (
+            &mut io.output_device,
+            &mut io.input_device,
+            io.maybe_shared_writer,
+        ),
+    )
+    .await
+    .map_err(map_miette)?;
+    if choice.len() < 1 {
+        return Err(Error::new(eyre!("Aborted"), ErrorKind::Cancelled));
+    }
+    let (idx, _) = string_choices
+        .iter()
+        .enumerate()
+        .find(|(_, s)| s.as_str() == choice[0].as_str())
+        .ok_or_else(|| {
+            Error::new(
+                eyre!("selected choice does not appear in input"),
+                ErrorKind::Incoherent,
+            )
+        })?;
+    let choice = &choices[idx];
+    println!("{prompt} {choice}");
+    Ok(&choice)
+}
+
+pub async fn choose<'t, T: std::fmt::Display>(
+    prompt: &str,
+    choices: &'t [T],
+) -> Result<&'t T, Error> {
+    choose_custom_display(prompt, choices, |t| t.to_string()).await
+}

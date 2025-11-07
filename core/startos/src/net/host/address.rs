@@ -4,17 +4,17 @@ use std::net::Ipv4Addr;
 use clap::Parser;
 use imbl_value::InternedString;
 use models::GatewayId;
-use rpc_toolkit::{from_fn_async, Context, Empty, HandlerArgs, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::DatabaseModel;
 use crate::net::acme::AcmeProvider;
-use crate::net::host::{all_hosts, HostApiKind};
+use crate::net::host::{HostApiKind, all_hosts};
 use crate::net::tor::OnionAddress;
 use crate::prelude::*;
-use crate::util::serde::{display_serializable, HandlerExtSerde};
+use crate::util::serde::{HandlerExtSerde, display_serializable};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -105,8 +105,8 @@ fn handle_duplicates(db: &mut DatabaseModel) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn address_api<C: Context, Kind: HostApiKind>(
-) -> ParentHandler<C, Kind::Params, Kind::InheritedParams> {
+pub fn address_api<C: Context, Kind: HostApiKind>()
+-> ParentHandler<C, Kind::Params, Kind::InheritedParams> {
     ParentHandler::<C, Kind::Params, Kind::InheritedParams>::new()
         .subcommand(
             "domain",
@@ -357,15 +357,7 @@ pub async fn add_onion<Kind: HostApiKind>(
     OnionParams { onion }: OnionParams,
     inheritance: Kind::Inheritance,
 ) -> Result<(), Error> {
-    let onion = onion
-        .strip_suffix(".onion")
-        .ok_or_else(|| {
-            Error::new(
-                eyre!("onion hostname must end in .onion"),
-                ErrorKind::InvalidOnionAddress,
-            )
-        })?
-        .parse::<OnionAddress>()?;
+    let onion = onion.parse::<OnionAddress>()?;
     ctx.db
         .mutate(|db| {
             db.as_private().as_key_store().as_onion().get_key(&onion)?;
@@ -388,15 +380,7 @@ pub async fn remove_onion<Kind: HostApiKind>(
     OnionParams { onion }: OnionParams,
     inheritance: Kind::Inheritance,
 ) -> Result<(), Error> {
-    let onion = onion
-        .strip_suffix(".onion")
-        .ok_or_else(|| {
-            Error::new(
-                eyre!("onion hostname must end in .onion"),
-                ErrorKind::InvalidOnionAddress,
-            )
-        })?
-        .parse::<OnionAddress>()?;
+    let onion = onion.parse::<OnionAddress>()?;
     ctx.db
         .mutate(|db| {
             Kind::host_for(&inheritance, db)?

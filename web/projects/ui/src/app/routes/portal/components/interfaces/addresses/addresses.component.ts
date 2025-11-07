@@ -12,7 +12,7 @@ import { InterfaceAddressItemComponent } from './item.component'
   selector: 'section[addresses]',
   template: `
     <header>{{ 'Addresses' | i18n }}</header>
-    <table [appTable]="[null, 'Type', 'Access', 'Gateway', 'URL', null]">
+    <table [appTable]="['Type', 'Access', 'Gateway', 'URL', null]">
       @for (address of addresses()?.common; track $index) {
         <tr [address]="address" [isRunning]="isRunning()"></tr>
       } @empty {

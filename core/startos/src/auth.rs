@@ -220,7 +220,7 @@ pub fn check_password(hash: &str, password: &str) -> Result<(), Error> {
 pub struct LoginParams {
     password: String,
     #[ts(skip)]
-    #[serde(rename = "__auth_userAgent")] // from Auth middleware
+    #[serde(rename = "__Auth_userAgent")] // from Auth middleware
     user_agent: Option<String>,
     #[serde(default)]
     ephemeral: bool,
@@ -279,7 +279,7 @@ pub async fn login_impl<C: AuthContext>(
 #[command(rename_all = "kebab-case")]
 pub struct LogoutParams {
     #[ts(skip)]
-    #[serde(rename = "__auth_session")] // from Auth middleware
+    #[serde(rename = "__Auth_session")] // from Auth middleware
     session: InternedString,
 }
 
@@ -373,7 +373,7 @@ fn display_sessions(params: WithIoFormat<ListParams>, arg: SessionList) -> Resul
 pub struct ListParams {
     #[arg(skip)]
     #[ts(skip)]
-    #[serde(rename = "__auth_session")] // from Auth middleware
+    #[serde(rename = "__Auth_session")] // from Auth middleware
     session: Option<InternedString>,
 }
 
@@ -474,30 +474,19 @@ pub async fn reset_password_impl(
     let old_password = old_password.unwrap_or_default().decrypt(&ctx)?;
     let new_password = new_password.unwrap_or_default().decrypt(&ctx)?;
 
-    let mut account = ctx.account.write().await;
-    if !argon2::verify_encoded(&account.password, old_password.as_bytes())
-        .with_kind(crate::ErrorKind::IncorrectPassword)?
-    {
-        return Err(Error::new(
-            eyre!("Incorrect Password"),
-            crate::ErrorKind::IncorrectPassword,
-        ));
-    }
-    account.set_password(&new_password)?;
-    let account_password = &account.password;
-    let account = account.clone();
-    ctx.db
-        .mutate(|d| {
-            d.as_public_mut()
-                .as_server_info_mut()
-                .as_password_hash_mut()
-                .ser(account_password)?;
-            account.save(d)?;
-
-            Ok(())
-        })
-        .await
-        .result
+    let account = ctx.account.mutate(|account| {
+        if !argon2::verify_encoded(&account.password, old_password.as_bytes())
+            .with_kind(crate::ErrorKind::IncorrectPassword)?
+        {
+            return Err(Error::new(
+                eyre!("Incorrect Password"),
+                crate::ErrorKind::IncorrectPassword,
+            ));
+        }
+        account.set_password(&new_password)?;
+        Ok(account.clone())
+    })?;
+    ctx.db.mutate(|d| account.save(d)).await.result
 }
 
 #[instrument(skip_all)]

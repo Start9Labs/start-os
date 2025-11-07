@@ -334,6 +334,105 @@
         }
       }
     },
+    "start-tunnel": {
+      "projectType": "application",
+      "schematics": {},
+      "root": "projects/start-tunnel",
+      "sourceRoot": "projects/start-tunnel/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": {
+              "base": "dist/raw/start-tunnel",
+              "browser": ""
+            },
+            "index": "projects/start-tunnel/src/index.html",
+            "browser": "projects/start-tunnel/src/main.ts",
+            "polyfills": [],
+            "tsConfig": "projects/start-tunnel/tsconfig.json",
+            "inlineStyleLanguage": "scss",
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "projects/shared/assets",
+                "output": "assets"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/@taiga-ui/icons/src",
+                "output": "assets/taiga-ui/icons"
+              }
+            ],
+            "styles": [
+              "node_modules/@taiga-ui/core/styles/taiga-ui-theme.less",
+              "node_modules/@taiga-ui/core/styles/taiga-ui-fonts.less",
+              "projects/shared/styles/shared.scss",
+              "projects/start-tunnel/src/styles.scss"
+            ],
+            "scripts": []
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "5MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true,
+              "namedChunks": true
+            },
+            "ci": {
+              "progress": false
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "start-tunnel:build:production"
+            },
+            "development": {
+              "buildTarget": "start-tunnel:build:development"
+            }
+          },
+          "defaultConfiguration": "development",
+          "options": {
+            "port": 8100
+          }
+        },
+        "extract-i18n": {
+          "builder": "@angular/build:extract-i18n",
+          "options": {
+            "buildTarget": "start-tunnel:build"
+          }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/start-tunnel/src/**/*.ts",
+              "projects/start-tunnel/src/**/*.html"
+            ]
+          }
+        }
+      }
+    },
     "marketplace": {
       "projectType": "library",
       "root": "projects/marketplace",

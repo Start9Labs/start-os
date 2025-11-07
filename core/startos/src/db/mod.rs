@@ -1,6 +1,7 @@
 pub mod model;
 pub mod prelude;
 
+use std::panic::UnwindSafe;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -27,6 +28,26 @@ use crate::util::serde::{HandlerExtSerde, apply_expr};
 
 lazy_static::lazy_static! {
     static ref PUBLIC: JsonPointer = "/public".parse().unwrap();
+}
+
+pub trait DbAccess<T>: Sized {
+    fn access<'a>(db: &'a Model<Self>) -> &'a Model<T>;
+}
+
+pub trait DbAccessMut<T>: DbAccess<T> {
+    fn access_mut<'a>(db: &'a mut Model<Self>) -> &'a mut Model<T>;
+}
+
+pub trait DbAccessByKey<T>: Sized {
+    type Key<'a>;
+    fn access_by_key<'a>(db: &'a Model<Self>, key: Self::Key<'_>) -> Option<&'a Model<T>>;
+}
+
+pub trait DbAccessMutByKey<T>: DbAccessByKey<T> {
+    fn access_mut_by_key<'a>(
+        db: &'a mut Model<Self>,
+        key: Self::Key<'_>,
+    ) -> Option<&'a mut Model<T>>;
 }
 
 pub fn db<C: Context>() -> ParentHandler<C> {
@@ -127,7 +148,7 @@ pub struct SubscribeParams {
     #[ts(type = "string | null")]
     pointer: Option<JsonPointer>,
     #[ts(skip)]
-    #[serde(rename = "__auth_session")]
+    #[serde(rename = "__Auth_session")]
     session: Option<InternedString>,
 }
 

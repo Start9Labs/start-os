@@ -141,9 +141,3 @@ pub fn registry_router(ctx: RegistryContext) -> Router {
             }),
         )
 }
-
-impl<A: Accept + Send + Sync + 'static> WebServer<A> {
-    pub fn serve_registry(&mut self, ctx: RegistryContext) {
-        self.serve_router(registry_router(ctx))
-    }
-}

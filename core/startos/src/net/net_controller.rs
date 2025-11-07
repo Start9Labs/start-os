@@ -1,46 +1,48 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::net::{Ipv4Addr, SocketAddr};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::{Arc, Weak};
 
 use color_eyre::eyre::eyre;
-use imbl::{vector, OrdMap};
+use imbl::{OrdMap, vector};
 use imbl_value::InternedString;
 use ipnet::IpNet;
-use models::{HostId, OptionExt, PackageId};
+use models::{GatewayId, HostId, OptionExt, PackageId};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
+use tokio_rustls::rustls::ClientConfig as TlsClientConfig;
 use tracing::instrument;
 
-use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
+use crate::HOST_IP;
 use crate::db::model::Database;
+use crate::db::model::public::NetworkInterfaceType;
 use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
-use crate::net::forward::PortForwardController;
+use crate::net::forward::{InterfacePortForwardController, START9_BRIDGE_IFACE};
 use crate::net::gateway::{
     AndFilter, DynInterfaceFilter, IdFilter, InterfaceFilter, NetworkInterfaceController, OrFilter,
-    PublicFilter, SecureFilter,
+    PublicFilter, SecureFilter, TypeFilter,
 };
 use crate::net::host::address::HostAddress;
 use crate::net::host::binding::{AddSslOptions, BindId, BindOptions};
-use crate::net::host::{host_for, Host, Hosts};
+use crate::net::host::{Host, Hosts, host_for};
 use crate::net::service_interface::{GatewayInfo, HostnameInfo, IpHostname, OnionHostname};
 use crate::net::socks::SocksController;
 use crate::net::tor::{OnionAddress, TorController, TorSecretKey};
 use crate::net::utils::ipv6_is_local;
-use crate::net::vhost::{AlpnInfo, TargetInfo, VHostController};
+use crate::net::vhost::{AlpnInfo, DynVHostTarget, ProxyTarget, VHostController};
 use crate::prelude::*;
 use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::util::serde::MaybeUtf8String;
-use crate::HOST_IP;
 
 pub struct NetController {
     pub(crate) db: TypedPatchDb<Database>,
     pub(super) tor: TorController,
     pub(super) vhost: VHostController,
+    pub(super) tls_client_config: Arc<TlsClientConfig>,
     pub(crate) net_iface: Arc<NetworkInterfaceController>,
     pub(super) dns: DnsController,
-    pub(super) forward: PortForwardController,
+    pub(super) forward: InterfacePortForwardController,
     pub(super) socks: SocksController,
     pub(super) server_hostnames: Vec<Option<InternedString>>,
     pub(crate) callbacks: Arc<ServiceCallbacks>,
@@ -55,12 +57,26 @@ impl NetController {
         let net_iface = Arc::new(NetworkInterfaceController::new(db.clone()));
         let tor = TorController::new()?;
         let socks = SocksController::new(socks_listen, tor.clone())?;
+        let crypto_provider = Arc::new(tokio_rustls::rustls::crypto::ring::default_provider());
+        let tls_client_config = Arc::new(crate::net::tls::client_config(
+            crypto_provider.clone(),
+            [&*db
+                .peek()
+                .await
+                .as_private()
+                .as_key_store()
+                .as_local_certs()
+                .as_root_cert()
+                .de()?
+                .0],
+        )?);
         Ok(Self {
             db: db.clone(),
             tor,
-            vhost: VHostController::new(db.clone(), net_iface.clone()),
+            vhost: VHostController::new(db.clone(), net_iface.clone(), crypto_provider),
+            tls_client_config,
             dns: DnsController::init(db, &net_iface.watcher).await?,
-            forward: PortForwardController::new(net_iface.watcher.subscribe()),
+            forward: InterfacePortForwardController::new(net_iface.watcher.subscribe()),
             net_iface,
             socks,
             server_hostnames: vec![
@@ -133,8 +149,8 @@ impl NetController {
 
 #[derive(Default, Debug)]
 struct HostBinds {
-    forwards: BTreeMap<u16, (SocketAddr, DynInterfaceFilter, Arc<()>)>,
-    vhosts: BTreeMap<(Option<InternedString>, u16), (TargetInfo, Arc<()>)>,
+    forwards: BTreeMap<u16, (SocketAddrV4, DynInterfaceFilter, Arc<()>)>,
+    vhosts: BTreeMap<(Option<InternedString>, u16), (ProxyTarget, Arc<()>)>,
     private_dns: BTreeMap<InternedString, Arc<()>>,
     tor: BTreeMap<OnionAddress, (OrdMap<u16, SocketAddr>, Vec<Arc<()>>)>,
 }
@@ -225,8 +241,8 @@ impl NetServiceData {
     }
 
     async fn update(&mut self, ctrl: &NetController, id: HostId, host: Host) -> Result<(), Error> {
-        let mut forwards: BTreeMap<u16, (SocketAddr, DynInterfaceFilter)> = BTreeMap::new();
-        let mut vhosts: BTreeMap<(Option<InternedString>, u16), TargetInfo> = BTreeMap::new();
+        let mut forwards: BTreeMap<u16, (SocketAddrV4, DynInterfaceFilter)> = BTreeMap::new();
+        let mut vhosts: BTreeMap<(Option<InternedString>, u16), ProxyTarget> = BTreeMap::new();
         let mut private_dns: BTreeSet<InternedString> = BTreeSet::new();
         let mut tor: BTreeMap<OnionAddress, (TorSecretKey, OrdMap<u16, SocketAddr>)> =
             BTreeMap::new();
@@ -263,11 +279,13 @@ impl NetServiceData {
                     for hostname in ctrl.server_hostnames.iter().cloned() {
                         vhosts.insert(
                             (hostname, external),
-                            TargetInfo {
+                            ProxyTarget {
                                 filter: bind.net.clone().into_dyn(),
                                 acme: None,
                                 addr,
-                                connect_ssl: connect_ssl.clone(),
+                                connect_ssl: connect_ssl
+                                    .clone()
+                                    .map(|_| ctrl.tls_client_config.clone()),
                             },
                         );
                     }
@@ -278,19 +296,19 @@ impl NetServiceData {
                                 if hostnames.insert(hostname.clone()) {
                                     vhosts.insert(
                                         (Some(hostname), external),
-                                        TargetInfo {
+                                        ProxyTarget {
                                             filter: OrFilter(
-                                                IdFilter(
-                                                    NetworkInterfaceInfo::loopback().0.clone(),
-                                                ),
-                                                IdFilter(
-                                                    NetworkInterfaceInfo::lxc_bridge().0.clone(),
-                                                ),
+                                                TypeFilter(NetworkInterfaceType::Loopback),
+                                                IdFilter(GatewayId::from(InternedString::from(
+                                                    START9_BRIDGE_IFACE,
+                                                ))),
                                             )
                                             .into_dyn(),
                                             acme: None,
                                             addr,
-                                            connect_ssl: connect_ssl.clone(),
+                                            connect_ssl: connect_ssl
+                                                .clone()
+                                                .map(|_| ctrl.tls_client_config.clone()),
                                         },
                                     ); // TODO: wrap onion ssl stream directly in tor ctrl
                                 }
@@ -306,7 +324,7 @@ impl NetServiceData {
                                         if let Some(public) = &public {
                                             vhosts.insert(
                                                 (address.clone(), 5443),
-                                                TargetInfo {
+                                                ProxyTarget {
                                                     filter: AndFilter(
                                                         bind.net.clone(),
                                                         AndFilter(
@@ -317,12 +335,14 @@ impl NetServiceData {
                                                     .into_dyn(),
                                                     acme: public.acme.clone(),
                                                     addr,
-                                                    connect_ssl: connect_ssl.clone(),
+                                                    connect_ssl: connect_ssl
+                                                        .clone()
+                                                        .map(|_| ctrl.tls_client_config.clone()),
                                                 },
                                             );
                                             vhosts.insert(
                                                 (address.clone(), 443),
-                                                TargetInfo {
+                                                ProxyTarget {
                                                     filter: AndFilter(
                                                         bind.net.clone(),
                                                         if private {
@@ -342,13 +362,15 @@ impl NetServiceData {
                                                     .into_dyn(),
                                                     acme: public.acme.clone(),
                                                     addr,
-                                                    connect_ssl: connect_ssl.clone(),
+                                                    connect_ssl: connect_ssl
+                                                        .clone()
+                                                        .map(|_| ctrl.tls_client_config.clone()),
                                                 },
                                             );
                                         } else {
                                             vhosts.insert(
                                                 (address.clone(), 443),
-                                                TargetInfo {
+                                                ProxyTarget {
                                                     filter: AndFilter(
                                                         bind.net.clone(),
                                                         PublicFilter { public: false },
@@ -356,7 +378,9 @@ impl NetServiceData {
                                                     .into_dyn(),
                                                     acme: None,
                                                     addr,
-                                                    connect_ssl: connect_ssl.clone(),
+                                                    connect_ssl: connect_ssl
+                                                        .clone()
+                                                        .map(|_| ctrl.tls_client_config.clone()),
                                                 },
                                             );
                                         }
@@ -364,7 +388,7 @@ impl NetServiceData {
                                         if let Some(public) = public {
                                             vhosts.insert(
                                                 (address.clone(), external),
-                                                TargetInfo {
+                                                ProxyTarget {
                                                     filter: AndFilter(
                                                         bind.net.clone(),
                                                         if private {
@@ -381,13 +405,15 @@ impl NetServiceData {
                                                     .into_dyn(),
                                                     acme: public.acme.clone(),
                                                     addr,
-                                                    connect_ssl: connect_ssl.clone(),
+                                                    connect_ssl: connect_ssl
+                                                        .clone()
+                                                        .map(|_| ctrl.tls_client_config.clone()),
                                                 },
                                             );
                                         } else {
                                             vhosts.insert(
                                                 (address.clone(), external),
-                                                TargetInfo {
+                                                ProxyTarget {
                                                     filter: AndFilter(
                                                         bind.net.clone(),
                                                         PublicFilter { public: false },
@@ -395,7 +421,9 @@ impl NetServiceData {
                                                     .into_dyn(),
                                                     acme: None,
                                                     addr,
-                                                    connect_ssl: connect_ssl.clone(),
+                                                    connect_ssl: connect_ssl
+                                                        .clone()
+                                                        .map(|_| ctrl.tls_client_config.clone()),
                                                 },
                                             );
                                         }
@@ -414,7 +442,7 @@ impl NetServiceData {
                     forwards.insert(
                         external,
                         (
-                            (self.ip, *port).into(),
+                            SocketAddrV4::new(self.ip, *port),
                             AndFilter(
                                 SecureFilter {
                                     secure: bind.options.secure.is_some(),
@@ -429,6 +457,11 @@ impl NetServiceData {
                     hostname_info.remove(port).unwrap_or_default();
                 for (gateway_id, info) in net_ifaces
                     .iter()
+                    .filter(|(_, info)| {
+                        info.ip_info.as_ref().map_or(false, |i| {
+                            !matches!(i.device_type, Some(NetworkInterfaceType::Bridge))
+                        })
+                    })
                     .filter(|(id, info)| bind.net.filter(id, info))
                 {
                     let gateway = GatewayInfo {
@@ -653,7 +686,10 @@ impl NetServiceData {
                     if let Some(prev) = prev {
                         prev
                     } else {
-                        (target.clone(), ctrl.vhost.add(key.0, key.1, target)?)
+                        (
+                            target.clone(),
+                            ctrl.vhost.add(key.0, key.1, DynVHostTarget::new(target))?,
+                        )
                     },
                 );
             } else {
@@ -688,7 +724,7 @@ impl NetServiceData {
             .collect::<BTreeSet<_>>();
         for onion in all {
             let mut prev = binds.tor.remove(&onion);
-            if let Some((key, tor_binds)) = tor.remove(&onion) {
+            if let Some((key, tor_binds)) = tor.remove(&onion).filter(|(_, b)| !b.is_empty()) {
                 prev = prev.filter(|(b, _)| b == &tor_binds);
                 binds.tor.insert(
                     onion,

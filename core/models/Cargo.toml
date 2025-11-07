@@ -1,23 +1,28 @@
 [package]
+edition = "2021"
 name = "models"
 version = "0.1.0"
-edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+arti = ["arti-client"]
+
 [dependencies]
-arti-client = { version = "0.33", default-features = false, git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit" }
+arti-client = { version = "0.33", default-features = false, git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit", optional = true }
 axum = "0.8.4"
 base64 = "0.22.1"
 color-eyre = "0.6.2"
 ed25519-dalek = { version = "2.0.0", features = ["serde"] }
-gpt = "4.1.0"
-lazy_static = "1.4"
-mbrman = "0.6.0"
 exver = { version = "0.2.0", git = "https://github.com/Start9Labs/exver-rs.git", features = [
   "serde",
 ] }
+gpt = "4.1.0"
 ipnet = "2.8.0"
+lazy_static = "1.4"
+lettre = { version = "0.11", default-features = false }
+mbrman = "0.6.0"
+miette = "7.6.0"
 num_enum = "0.7.1"
 openssl = { version = "0.10.57", features = ["vendored"] }
 patch-db = { version = "*", path = "../../patch-db/patch-db", features = [
@@ -31,10 +36,11 @@ rustls = "0.23"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
 ssh-key = "0.6.2"
-ts-rs = "9"
 thiserror = "2.0"
 tokio = { version = "1", features = ["full"] }
+torut = "0.2.1"
 tracing = "0.1.39"
+ts-rs = "9"
 typeid = "1"
 yasi = { version = "0.1.6", features = ["serde", "ts-rs"] }
 zbus = "5"

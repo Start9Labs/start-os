@@ -5,6 +5,11 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 set -ea
 shopt -s expand_aliases
 
+PROFILE=${PROFILE:-release}
+if [ "${PROFILE}" = "release" ]; then
+	BUILD_FLAGS="--release"
+fi
+
 if [ -z "$ARCH" ]; then
 	ARCH=$(uname -m)
 fi
@@ -26,11 +31,8 @@ if [[ "${ENVIRONMENT}" =~ (^|-)console($|-) ]]; then
 	RUSTFLAGS="--cfg tokio_unstable"
 fi
 
-alias 'rust-musl-builder'='docker run $USE_TTY --rm -e "RUSTFLAGS=$RUSTFLAGS" -v "$HOME/.cargo/registry":/root/.cargo/registry -v "$HOME/.cargo/git":/root/.cargo/git -v "$(pwd)":/home/rust/src -w /home/rust/src -P messense/rust-musl-cross:$ARCH-musl'
+source ./core/builder-alias.sh
 
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-musl-builder sh -c "apt-get update && apt-get install -y rsync && cd core && cargo test --release --features=test,$FEATURES --workspace --locked --target=$ARCH-unknown-linux-musl -- --skip export_bindings_ && chown \$UID:\$UID target"
-if [ "$(ls -nd core/target | awk '{ print $3 }')" != "$UID" ]; then
-	rust-musl-builder sh -c "cd core && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
-fi
+cross test --manifest-path=./core/Cargo.toml $BUILD_FLAGS --features=test,$FEATURES --workspace --locked --target=$ARCH-unknown-linux-musl -- --skip export_bindings_

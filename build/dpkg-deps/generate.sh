@@ -5,11 +5,15 @@ set -e
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
 IFS="-" read -ra FEATURES <<< "$ENVIRONMENT"
+FEATURES+=("${ARCH}")
+if [ "$ARCH" != "$PLATFORM" ]; then
+    FEATURES+=("${PLATFORM}")
+fi
 
 feature_file_checker='
 /^#/ { next }
-/^\+ [a-z0-9-]+$/ { next }
-/^- [a-z0-9-]+$/ { next }
+/^\+ [a-z0-9.-]+$/ { next }
+/^- [a-z0-9.-]+$/ { next }
 { exit 1 }
 '
 
@@ -30,8 +34,8 @@ for type in conflicts depends; do
         for feature in ${FEATURES[@]}; do
             file="$feature.$type"
             if [ -f $file ]; then
-                if grep "^- $pkg$" $file; then
-                    SKIP=1
+                if grep "^- $pkg$" $file > /dev/null; then
+                    SKIP=yes
                 fi
             fi
         done

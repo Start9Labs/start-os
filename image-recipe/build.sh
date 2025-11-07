@@ -1,39 +1,59 @@
 #!/bin/bash
 set -e
 
-MAX_IMG_SECTORS=7217792 # 4GB
+MAX_IMG_LEN=$((4 * 1024 * 1024 * 1024)) # 4GB
 
 echo "==== StartOS Image Build ===="
 
 echo "Building for architecture: $IB_TARGET_ARCH"
 
-base_dir="$(dirname "$(readlink -f "$0")")"
+SOURCE_DIR="$(realpath $(dirname "${BASH_SOURCE[0]}"))"
+
+base_dir="$(pwd	-P)"
 prep_results_dir="$base_dir/images-prep"
-if systemd-detect-virt -qc; then
-	RESULTS_DIR="/srv/artifacts"
-else
-	RESULTS_DIR="$base_dir/results"
-fi
+RESULTS_DIR="$base_dir/results"
 echo "Saving results in: $RESULTS_DIR"
+
+DEB_PATH="$base_dir/$1"
+
+VERSION="$(dpkg-deb --fsys-tarfile $DEB_PATH | tar --to-stdout -xvf - ./usr/lib/startos/VERSION.txt)"
+GIT_HASH="$(dpkg-deb --fsys-tarfile $DEB_PATH | tar --to-stdout -xvf - ./usr/lib/startos/GIT_HASH.txt)"
+if [[ "$GIT_HASH" =~ ^@ ]]; then
+  GIT_HASH="unknown"
+else
+  GIT_HASH="$(echo -n "$GIT_HASH" |  head -c 7)"
+fi
+IB_OS_ENV="$(dpkg-deb --fsys-tarfile $DEB_PATH | tar --to-stdout -xvf - ./usr/lib/startos/ENVIRONMENT.txt)"
+IB_TARGET_PLATFORM="$(dpkg-deb --fsys-tarfile $DEB_PATH | tar --to-stdout -xvf - ./usr/lib/startos/PLATFORM.txt)"
+
+VERSION_FULL="${VERSION}-${GIT_HASH}"
+if [ -n "$IB_OS_ENV" ]; then
+  VERSION_FULL="$VERSION_FULL~${IB_OS_ENV}"
+fi
 
 IMAGE_BASENAME=startos-${VERSION_FULL}_${IB_TARGET_PLATFORM}
 
-QEMU_ARCH=${IB_TARGET_ARCH}
-BOOTLOADERS=grub-efi,syslinux
-if [ "$QEMU_ARCH" = 'amd64' ]; then
+BOOTLOADERS=grub-efi
+if [ "$IB_TARGET_PLATFORM" = "x86_64" ] || [ "$IB_TARGET_PLATFORM" = "x86_64-nonfree" ]; then
+	IB_TARGET_ARCH=amd64
 	QEMU_ARCH=x86_64
-elif [ "$QEMU_ARCH" = 'arm64' ]; then
+	BOOTLOADERS=grub-efi,syslinux
+elif [ "$IB_TARGET_PLATFORM" = "aarch64" ] || [ "$IB_TARGET_PLATFORM" = "aarch64-nonfree" ] || [ "$IB_TARGET_PLATFORM" = "raspberrypi" ]  || [ "$IB_TARGET_PLATFORM" = "rockchip64" ]; then
+	IB_TARGET_ARCH=arm64
 	QEMU_ARCH=aarch64
-	BOOTLOADERS=grub-efi
+elif [ "$IB_TARGET_PLATFORM" = "riscv64" ]; then
+	IB_TARGET_ARCH=riscv64
+	QEMU_ARCH=riscv64
+else
+	IB_TARGET_ARCH="$IB_TARGET_PLATFORM"
+	QEMU_ARCH="$IB_TARGET_PLATFORM"
 fi
 
-# TODO: remove when util-linux is released at v2.39
-cd $base_dir
-git clone --depth=1 --branch=v2.39.3 https://github.com/util-linux/util-linux.git
-cd util-linux
-./autogen.sh
-CC=$QEMU_ARCH-linux-gnu-gcc ./configure --host=$QEMU_ARCH-linux-gnu --disable-all-programs --enable-mount --enable-libmount --enable-libblkid --enable-libuuid --enable-static-programs
-CC=$QEMU_ARCH-linux-gnu-gcc make -j mount.static
+QEMU_ARGS=()
+if [ "$QEMU_ARCH" != $(uname -m) ]; then
+	QEMU_ARGS+=(--bootstrap-qemu-arch ${IB_TARGET_ARCH})
+	QEMU_ARGS+=(--bootstrap-qemu-static /usr/bin/qemu-${QEMU_ARCH}-static)
+fi
 
 mkdir -p $prep_results_dir
 
@@ -52,7 +72,7 @@ ARCHIVE_AREAS="main contrib"
 if [ "$NON_FREE" = 1 ]; then
 	if [ "$IB_SUITE" = "bullseye" ]; then
 		ARCHIVE_AREAS="$ARCHIVE_AREAS non-free"
-	elif [ "$IB_SUITE" = "bookworm" ]; then
+	else
 		ARCHIVE_AREAS="$ARCHIVE_AREAS non-free-firmware"
 	fi
 fi
@@ -61,7 +81,8 @@ PLATFORM_CONFIG_EXTRAS=()
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	PLATFORM_CONFIG_EXTRAS+=( --firmware-binary false )
 	PLATFORM_CONFIG_EXTRAS+=( --firmware-chroot false )
-	PLATFORM_CONFIG_EXTRAS+=( --linux-packages linux-image-6.12.47+rpt )
+	RPI_KERNEL_VERSION=6.12.47+rpt
+	PLATFORM_CONFIG_EXTRAS+=( --linux-packages linux-image-$RPI_KERNEL_VERSION )
 	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours "rpi-v8 rpi-2712" )
 elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours rockchip64 )
@@ -80,27 +101,21 @@ lb config \
 	--backports true \
 	--bootappend-live "boot=live noautologin" \
 	--bootloaders $BOOTLOADERS \
+	--cache false \
 	--mirror-bootstrap "https://deb.debian.org/debian/" \
 	--mirror-chroot "https://deb.debian.org/debian/" \
 	--mirror-chroot-security "https://security.debian.org/debian-security" \
 	-d ${IB_SUITE} \
 	-a ${IB_TARGET_ARCH} \
-	--bootstrap-qemu-arch ${IB_TARGET_ARCH} \
-	--bootstrap-qemu-static /usr/bin/qemu-${QEMU_ARCH}-static \
+	${QEMU_ARGS[@]} \
 	--archive-areas "${ARCHIVE_AREAS}" \
 	${PLATFORM_CONFIG_EXTRAS[@]}
 
 # Overlays
 
-mkdir -p config/includes.chroot/deb
-cp $base_dir/deb/${IMAGE_BASENAME}.deb config/includes.chroot/deb/
-
-mkdir -p config/includes.chroot/usr/local/bin
-cp $base_dir/util-linux/mount.static config/includes.chroot/usr/local/bin/mount.next
-
-if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	cp -r $base_dir/raspberrypi/squashfs/* config/includes.chroot/
-fi
+mkdir -p config/packages.chroot/
+cp $RESULTS_DIR/$IMAGE_BASENAME.deb config/packages.chroot/
+dpkg-name config/packages.chroot/*.deb
 
 mkdir -p config/includes.chroot/etc
 echo start > config/includes.chroot/etc/hostname
@@ -110,6 +125,13 @@ cat > config/includes.chroot/etc/hosts << EOT
 ff02::1         ip6-allnodes
 ff02::2         ip6-allrouters
 EOT
+
+if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
+	mkdir -p config/includes.chroot
+	git clone --depth=1 --branch=stable https://github.com/raspberrypi/rpi-firmware.git config/includes.chroot/boot
+	rm -rf config/includes.chroot/boot/.git config/includes.chroot/boot/modules
+	rsync -rLp $SOURCE_DIR/raspberrypi/squashfs/ config/includes.chroot/
+fi
 
 # Bootloaders
 
@@ -130,10 +152,9 @@ prompt 0
 timeout 50
 EOF
 
-rm config/bootloaders/syslinux_common/splash.svg
-cp $base_dir/splash.png config/bootloaders/syslinux_common/splash.png
-cp $base_dir/splash.png config/bootloaders/isolinux/splash.png
-cp $base_dir/splash.png config/bootloaders/grub-pc/splash.png
+cp $SOURCE_DIR/splash.png config/bootloaders/syslinux_common/splash.png
+cp $SOURCE_DIR/splash.png config/bootloaders/isolinux/splash.png
+cp $SOURCE_DIR/splash.png config/bootloaders/grub-pc/splash.png
 
 sed -i -e '2i set timeout=5' config/bootloaders/grub-pc/config.cfg
 
@@ -146,16 +167,6 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	echo "deb [arch=${IB_TARGET_ARCH} signed-by=/etc/apt/trusted.gpg.d/raspi.key.gpg] https://archive.raspberrypi.com/debian/ ${IB_SUITE} main" > config/archives/raspi.list
 fi
 
-cat > config/archives/backports.pref <<- EOF
-Package: linux-image-*
-Pin: release n=${IB_SUITE}-backports
-Pin-Priority: 500
-
-Package: linux-base
-Pin: release n=${IB_SUITE}-backports
-Pin-Priority: 500
-EOF
-
 if [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	curl -fsSL https://apt.armbian.com/armbian.key | gpg --dearmor -o config/archives/armbian.key
 	echo "deb https://apt.armbian.com/ ${IB_SUITE} main" > config/archives/armbian.list
@@ -163,21 +174,9 @@ fi
 
 # Dependencies
 
-## Base dependencies
-dpkg-deb --fsys-tarfile $base_dir/deb/${IMAGE_BASENAME}.deb | tar --to-stdout -xvf - ./usr/lib/startos/depends > config/package-lists/startos-depends.list.chroot
-
 ## Firmware
 if [ "$NON_FREE" = 1 ]; then
 	echo 'firmware-iwlwifi firmware-misc-nonfree firmware-brcm80211 firmware-realtek firmware-atheros firmware-libertas firmware-amd-graphics' > config/package-lists/nonfree.list.chroot
-fi
-
-if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
-	echo 'raspberrypi-net-mods raspberrypi-sys-mods raspi-config raspi-firmware raspi-gpio raspi-utils rpi-eeprom rpi-update rpi.gpio-common parted' > config/package-lists/bootloader.list.chroot
-else
-	echo 'grub-efi grub2-common' > config/package-lists/bootloader.list.chroot
-fi
-if [ "${IB_TARGET_ARCH}" = "amd64" ] || [ "${IB_TARGET_ARCH}" = "i386" ]; then
-	echo 'grub-pc-bin' >> config/package-lists/bootloader.list.chroot
 fi
 
 cat > config/hooks/normal/9000-install-startos.hook.chroot << EOF
@@ -185,27 +184,22 @@ cat > config/hooks/normal/9000-install-startos.hook.chroot << EOF
 
 set -e
 
-apt-get install -y /deb/${IMAGE_BASENAME}.deb
-rm -rf /deb
+cp /etc/resolv.conf /etc/resolv.conf.bak
 
-if [ "${IB_SUITE}" = bookworm ]; then
-	echo 'deb https://deb.debian.org/debian/ bullseye main' > /etc/apt/sources.list.d/bullseye.list
+if [ "${IB_SUITE}" = trixie ] && [ "${IB_PLATFORM}" != riscv64 ]; then
+	echo 'deb https://deb.debian.org/debian/ bookworm main' > /etc/apt/sources.list.d/bookworm.list
 	apt-get update
-	apt-get install -y postgresql-13
-	rm /etc/apt/sources.list.d/bullseye.list
+	apt-get install -y postgresql-15
+	rm /etc/apt/sources.list.d/bookworm.list
 	apt-get update
+	systemctl mask postgresql
 fi
 
 if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	ln -sf /usr/bin/pi-beep /usr/local/bin/beep
-	SKIP_WARNING=1 SKIP_BOOTLOADER=1 SKIP_CHECK_PARTITION=1 WANT_64BIT=1 WANT_PI4=1 WANT_PI5=1 BOOT_PART=/boot rpi-update stable
-	for f in /usr/lib/modules/*; do
-    	v=\${f#/usr/lib/modules/}
-		echo "Configuring raspi kernel '\$v'"
-    	extract-ikconfig "/usr/lib/modules/\$v/kernel/kernel/configs.ko.xz" > /boot/config-\$v
-	done
-	mkinitramfs -c gzip -o /boot/initramfs8 6.12.47-v8+
-	mkinitramfs -c gzip -o /boot/initramfs_2712 6.12.47-v8-16k+
+	KERNEL_VERSION=${RPI_KERNEL_VERSION} sh /boot/config.sh > /boot/config.txt
+	mkinitramfs -c gzip -o initrd.img-${RPI_KERNEL_VERSION}-rpi-v8 ${RPI_KERNEL_VERSION}-rpi-v8
+	mkinitramfs -c gzip -o initrd.img-${RPI_KERNEL_VERSION}-rpi-2712 ${RPI_KERNEL_VERSION}-rpi-2712
 fi
 
 useradd --shell /bin/bash -G startos -m start9
@@ -231,8 +225,7 @@ lb chroot
 lb installer
 lb binary_chroot
 lb chroot_prep install all mode-apt-install-binary mode-archives-chroot
-echo "nameserver 127.0.0.1" > chroot/chroot/etc/resolv.conf
-echo "nameserver 1.1.1.1" >> chroot/chroot/etc/resolv.conf # Cloudflare DNS Fallback
+mv chroot/chroot/etc/resolv.conf.bak chroot/chroot/etc/resolv.conf
 lb binary_rootfs
 
 cp $prep_results_dir/binary/live/filesystem.squashfs $RESULTS_DIR/$IMAGE_BASENAME.squashfs
@@ -268,49 +261,38 @@ if [ "${IMAGE_TYPE}" = iso ]; then
 
 elif [ "${IMAGE_TYPE}" = img ]; then
 
-	function partition_for () {
-		if [[ "$1" =~ [0-9]+$ ]]; then
-			echo "$1p$2"
-		else
-			echo "$1$2"
-		fi
-	}
+	SECTOR_LEN=512
+	BOOT_START=$((1024 * 1024)) # 1MiB
+	BOOT_LEN=$((512 * 1024 * 1024)) # 512MiB
+	BOOT_END=$((BOOT_START + BOOT_LEN - 1))
+	ROOT_START=$((BOOT_END + 1))
+	ROOT_LEN=$((MAX_IMG_LEN - ROOT_START))
+	ROOT_END=$((MAX_IMG_LEN - 1))
 
-	ROOT_PART_END=$MAX_IMG_SECTORS
 	TARGET_NAME=$prep_results_dir/${IMAGE_BASENAME}.img
-	TARGET_SIZE=$[($ROOT_PART_END+1)*512]
-	truncate -s $TARGET_SIZE $TARGET_NAME
-	(
-		echo o
-		echo x
-		echo i
-		echo "0xcb15ae4d"
-		echo r
-		echo n
-		echo p
-		echo 1
-		echo 2048
-		echo 526335
-		echo t
-		echo c
-		echo n
-		echo p
-		echo 2
-		echo 526336
-		echo $ROOT_PART_END
-		echo a
-		echo 1
-		echo w
-	) | fdisk $TARGET_NAME
-	OUTPUT_DEVICE=$(losetup --show -fP $TARGET_NAME)
-	mkfs.ext4 `partition_for ${OUTPUT_DEVICE} 2`
-	mkfs.vfat `partition_for ${OUTPUT_DEVICE} 1`
+	truncate -s $MAX_IMG_LEN $TARGET_NAME
+
+	sfdisk $TARGET_NAME <<-EOF
+		label: dos
+		label-id: 0xcb15ae4d
+		unit: sectors
+		sector-size: 512
+
+		${TARGET_NAME}1 : start=$((BOOT_START / SECTOR_LEN)), size=$((BOOT_LEN / SECTOR_LEN)), type=c, bootable
+		${TARGET_NAME}2 : start=$((ROOT_START / SECTOR_LEN)), size=$((ROOT_LEN / SECTOR_LEN)), type=83
+	EOF
+
+	BOOT_DEV=$(losetup --show -f --offset $BOOT_START --sizelimit $BOOT_LEN $TARGET_NAME)
+	ROOT_DEV=$(losetup --show -f --offset $ROOT_START --sizelimit $ROOT_LEN $TARGET_NAME)
+
+	mkfs.vfat -F32 $BOOT_DEV
+	mkfs.ext4 $ROOT_DEV
 
 	TMPDIR=$(mktemp -d)
 
-	mkdir -p $TMPDIR/boot $TMPDIR/root 
-	mount `partition_for ${OUTPUT_DEVICE} 2` $TMPDIR/root
-	mount `partition_for ${OUTPUT_DEVICE} 1` $TMPDIR/boot
+	mkdir -p $TMPDIR/boot $TMPDIR/root
+	mount $ROOT_DEV $TMPDIR/root
+	mount $BOOT_DEV $TMPDIR/boot
 	unsquashfs -n -f -d $TMPDIR $prep_results_dir/binary/live/filesystem.squashfs boot
 
 	mkdir $TMPDIR/root/images $TMPDIR/root/config
@@ -325,7 +307,7 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 
 	if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 		sed -i 's| boot=startos| boot=startos init=/usr/lib/startos/scripts/init_resize\.sh|' $TMPDIR/boot/cmdline.txt
-		rsync -a $base_dir/raspberrypi/img/ $TMPDIR/next/
+		rsync -a $SOURCE_DIR/raspberrypi/img/ $TMPDIR/next/
 	fi
 
 	umount $TMPDIR/next
@@ -334,30 +316,33 @@ elif [ "${IMAGE_TYPE}" = img ]; then
 	umount $TMPDIR/boot
 	umount $TMPDIR/root
 
-	e2fsck -fy `partition_for ${OUTPUT_DEVICE} 2`
-	resize2fs -M `partition_for ${OUTPUT_DEVICE} 2`
 
-	BLOCK_COUNT=$(dumpe2fs -h `partition_for ${OUTPUT_DEVICE} 2` | awk '/^Block count:/ { print $3 }')
-	BLOCK_SIZE=$(dumpe2fs -h `partition_for ${OUTPUT_DEVICE} 2` | awk '/^Block size:/ { print $3 }')
-	SECTOR_LEN=$[$BLOCK_COUNT*$BLOCK_SIZE/512]
+	e2fsck -fy $ROOT_DEV
+	resize2fs -M $ROOT_DEV
 
-	losetup -d $OUTPUT_DEVICE
+	BLOCK_COUNT=$(dumpe2fs -h $ROOT_DEV | awk '/^Block count:/ { print $3 }')
+	BLOCK_SIZE=$(dumpe2fs -h $ROOT_DEV | awk '/^Block size:/ { print $3 }')
+	ROOT_LEN=$((BLOCK_COUNT * BLOCK_SIZE))
 
-	(
-		echo d
-		echo 2
-		echo n
-		echo p
-		echo 2
-		echo 526336
-		echo +$SECTOR_LEN
-		echo w
-	) | fdisk $TARGET_NAME
+	losetup -d $ROOT_DEV
+	losetup -d $BOOT_DEV
 
-	ROOT_PART_END=$[526336+$SECTOR_LEN]
-	TARGET_SIZE=$[($ROOT_PART_END+1)*512]
+	# Recreate partition 2 with the new size using sfdisk
+	sfdisk $TARGET_NAME <<-EOF
+		label: dos
+		label-id: 0xcb15ae4d
+		unit: sectors
+		sector-size: 512
+
+		${TARGET_NAME}1 : start=$((BOOT_START / SECTOR_LEN)), size=$((BOOT_LEN / SECTOR_LEN)), type=c, bootable
+		${TARGET_NAME}2 : start=$((ROOT_START / SECTOR_LEN)), size=$((ROOT_LEN / SECTOR_LEN)), type=83
+	EOF
+
+	TARGET_SIZE=$((ROOT_START + ROOT_LEN))
 	truncate -s $TARGET_SIZE $TARGET_NAME
 
 	mv $TARGET_NAME $RESULTS_DIR/$IMAGE_BASENAME.img
 
 fi
+
+chown $IB_UID:$IB_UID $RESULTS_DIR/$IMAGE_BASENAME.*

@@ -27,14 +27,11 @@ use tokio::sync::Mutex;
 
 use crate::auth::{Sessions, check_password, write_shadow};
 use crate::context::RpcContext;
-use crate::db::model::Database;
 use crate::middleware::signature::{SignatureAuth, SignatureAuthContext};
 use crate::prelude::*;
 use crate::rpc_continuations::OpenAuthedContinuations;
-use crate::sign::AnyVerifyingKey;
 use crate::util::Invoke;
 use crate::util::io::{create_file_mod, read_file_to_string};
-use crate::util::iter::TransposeResultIterExt;
 use crate::util::serde::BASE64;
 use crate::util::sync::SyncMutex;
 
@@ -66,65 +63,6 @@ pub trait AuthContext: SignatureAuthContext {
     }
 }
 
-impl SignatureAuthContext for RpcContext {
-    type Database = Database;
-    type AdditionalMetadata = ();
-    type CheckPubkeyRes = ();
-    fn db(&self) -> &TypedPatchDb<Self::Database> {
-        &self.db
-    }
-    async fn sig_context(
-        &self,
-    ) -> impl IntoIterator<Item = Result<impl AsRef<str> + Send, Error>> + Send {
-        let peek = self.db.peek().await;
-        self.account
-            .read()
-            .await
-            .hostnames()
-            .into_iter()
-            .map(Ok)
-            .chain(
-                peek.as_public()
-                    .as_server_info()
-                    .as_network()
-                    .as_host()
-                    .as_public_domains()
-                    .keys()
-                    .map(|k| k.into_iter())
-                    .transpose(),
-            )
-            .chain(
-                peek.as_public()
-                    .as_server_info()
-                    .as_network()
-                    .as_host()
-                    .as_private_domains()
-                    .de()
-                    .map(|k| k.into_iter())
-                    .transpose(),
-            )
-            .collect::<Vec<_>>()
-    }
-    fn check_pubkey(
-        db: &Model<Self::Database>,
-        pubkey: Option<&AnyVerifyingKey>,
-        _: Self::AdditionalMetadata,
-    ) -> Result<Self::CheckPubkeyRes, Error> {
-        if let Some(pubkey) = pubkey {
-            if db.as_private().as_auth_pubkeys().de()?.contains(pubkey) {
-                return Ok(());
-            }
-        }
-
-        Err(Error::new(
-            eyre!("Developer Key is not authorized"),
-            ErrorKind::IncorrectPassword,
-        ))
-    }
-    async fn post_auth_hook(&self, _: Self::CheckPubkeyRes, _: &RpcRequest) -> Result<(), Error> {
-        Ok(())
-    }
-}
 impl AuthContext for RpcContext {
     const LOCAL_AUTH_COOKIE_PATH: &str = "/run/startos/rpc.authcookie";
     const LOCAL_AUTH_COOKIE_OWNERSHIP: &str = "root:startos";
@@ -439,7 +377,7 @@ impl<C: AuthContext> Middleware<C> for Auth {
                     ));
                 }
                 if let Some(user_agent) = self.user_agent.as_ref().and_then(|h| h.to_str().ok()) {
-                    request.params["__auth_userAgent"] =
+                    request.params["__Auth_userAgent"] =
                         Value::String(Arc::new(user_agent.to_owned()))
                     // TODO: will this panic?
                 }
@@ -458,7 +396,7 @@ impl<C: AuthContext> Middleware<C> for Auth {
                 {
                     match HasValidSession::from_header(self.cookie.as_ref(), context).await? {
                         HasValidSession(SessionType::Session(s)) if metadata.get_session => {
-                            request.params["__auth_session"] =
+                            request.params["__Auth_session"] =
                                 Value::String(Arc::new(s.hashed().deref().to_owned()));
                         }
                         _ => (),

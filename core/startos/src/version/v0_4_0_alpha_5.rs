@@ -27,7 +27,7 @@ impl VersionT for Version {
     fn compat(self) -> &'static VersionRange {
         &V0_3_0_COMPAT
     }
-    #[instrument]
+    #[instrument(skip_all)]
     fn up(self, _db: &mut Value, _: Self::PreUpRes) -> Result<Value, Error> {
         Ok(Value::Null)
     }

@@ -2,16 +2,17 @@ use clap::Parser;
 use imbl_value::InternedString;
 use models::GatewayId;
 use patch_db::json_ptr::JsonPointer;
-use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
+use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
+use crate::net::host::all_hosts;
 use crate::prelude::*;
-use crate::util::io::{write_file_atomic, TmpDir};
 use crate::util::Invoke;
+use crate::util::io::{TmpDir, write_file_atomic};
 
 pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -125,14 +126,44 @@ pub async fn remove_tunnel(
         return Ok(());
     };
 
-    if existing.as_device_type().de()? != Some(NetworkInterfaceType::Wireguard) {
+    if existing.as_deref().as_device_type().de()? != Some(NetworkInterfaceType::Wireguard) {
         return Err(Error::new(
             eyre!("network interface {id} is not a proxy"),
             ErrorKind::InvalidRequest,
         ));
     }
 
+    ctx.db
+        .mutate(|db| {
+            for host in all_hosts(db) {
+                let host = host?;
+                host.as_public_domains_mut()
+                    .mutate(|p| Ok(p.retain(|_, v| v.gateway != id)))?;
+            }
+
+            Ok(())
+        })
+        .await
+        .result?;
+
     ctx.net_controller.net_iface.delete_iface(&id).await?;
+
+    ctx.db
+        .mutate(|db| {
+            for host in all_hosts(db) {
+                let host = host?;
+                host.as_bindings_mut().mutate(|b| {
+                    Ok(b.values_mut().for_each(|v| {
+                        v.net.private_disabled.remove(&id);
+                        v.net.public_enabled.remove(&id);
+                    }))
+                })?;
+            }
+
+            Ok(())
+        })
+        .await
+        .result?;
 
     Ok(())
 }

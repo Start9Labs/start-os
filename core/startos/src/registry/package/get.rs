@@ -51,7 +51,7 @@ pub struct GetPackageParams {
     pub source_version: Option<VersionString>,
     #[ts(skip)]
     #[arg(skip)]
-    #[serde(rename = "__device_info")]
+    #[serde(rename = "__DeviceInfo_device_info")]
     pub device_info: Option<DeviceInfo>,
     #[serde(default)]
     #[arg(default_value = "none")]

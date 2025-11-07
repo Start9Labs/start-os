@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::time::SystemTime;
 
 use imbl_value::InternedString;
@@ -107,6 +108,7 @@ impl AccountInfo {
                     .map(|tor_key| tor_key.onion_address())
                     .collect(),
             )?;
+        server_info.as_password_hash_mut().ser(&self.password)?;
         db.as_private_mut().as_password_mut().ser(&self.password)?;
         db.as_private_mut()
             .as_ssh_privkey_mut()
@@ -119,12 +121,20 @@ impl AccountInfo {
             key_store.as_onion_mut().insert_key(tor_key)?;
         }
         let cert_store = key_store.as_local_certs_mut();
-        cert_store
-            .as_root_key_mut()
-            .ser(Pem::new_ref(&self.root_ca_key))?;
-        cert_store
-            .as_root_cert_mut()
-            .ser(Pem::new_ref(&self.root_ca_cert))?;
+        if cert_store.as_root_cert().de()?.0 != self.root_ca_cert {
+            cert_store
+                .as_root_key_mut()
+                .ser(Pem::new_ref(&self.root_ca_key))?;
+            cert_store
+                .as_root_cert_mut()
+                .ser(Pem::new_ref(&self.root_ca_cert))?;
+            let int_key = crate::net::ssl::generate_key()?;
+            let int_cert =
+                crate::net::ssl::make_int_cert((&self.root_ca_key, &self.root_ca_cert), &int_key)?;
+            cert_store.as_int_key_mut().ser(&Pem(int_key))?;
+            cert_store.as_int_cert_mut().ser(&Pem(int_cert))?;
+            cert_store.as_leaves_mut().ser(&BTreeMap::new())?;
+        }
         Ok(())
     }
 

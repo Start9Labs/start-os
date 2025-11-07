@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV6};
 use std::path::Path;
 
@@ -7,12 +8,55 @@ use futures::stream::BoxStream;
 use futures::{StreamExt, TryStreamExt};
 use imbl_value::InternedString;
 use ipnet::{IpNet, Ipv4Net, Ipv6Net};
+use models::GatewayId;
 use nix::net::if_::if_nametoindex;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::process::Command;
 
+use crate::db::model::public::{IpInfo, NetworkInterfaceType};
 use crate::prelude::*;
 use crate::util::Invoke;
+
+pub async fn load_ip_info() -> Result<BTreeMap<GatewayId, IpInfo>, Error> {
+    let output = String::from_utf8(
+        Command::new("ip")
+            .arg("-o")
+            .arg("addr")
+            .arg("show")
+            .invoke(crate::ErrorKind::Network)
+            .await?,
+    )?;
+
+    let err_fn = || {
+        Error::new(
+            eyre!("malformed output from `ip`"),
+            crate::ErrorKind::Network,
+        )
+    };
+
+    let mut res = BTreeMap::<GatewayId, IpInfo>::new();
+
+    for line in output.lines() {
+        let split = line.split_ascii_whitespace().collect::<Vec<_>>();
+        let iface = GatewayId::from(InternedString::from(*split.get(1).ok_or_else(&err_fn)?));
+        let subnet: IpNet = split.get(3).ok_or_else(&err_fn)?.parse()?;
+        let ip_info = res.entry(iface.clone()).or_default();
+        ip_info.name = iface.into();
+        ip_info.scope_id = split
+            .get(0)
+            .ok_or_else(&err_fn)?
+            .strip_suffix(":")
+            .ok_or_else(&err_fn)?
+            .parse()?;
+        ip_info.subnets.insert(subnet);
+    }
+
+    for (id, ip_info) in res.iter_mut() {
+        ip_info.device_type = probe_iface_type(id.as_str()).await;
+    }
+
+    Ok(res)
+}
 
 pub fn ipv6_is_link_local(addr: Ipv6Addr) -> bool {
     (addr.segments()[0] & 0xffc0) == 0xfe80
@@ -75,6 +119,22 @@ pub async fn get_iface_ipv6_addr(iface: &str) -> Result<Option<(Ipv6Addr, Ipv6Ne
     .transpose()?)
 }
 
+pub async fn probe_iface_type(iface: &str) -> Option<NetworkInterfaceType> {
+    match tokio::fs::read_to_string(Path::new("/sys/class/net").join(iface).join("uevent"))
+        .await
+        .ok()?
+        .lines()
+        .find_map(|l| l.strip_prefix("DEVTYPE="))
+    {
+        Some("wlan") => Some(NetworkInterfaceType::Wireless),
+        Some("bridge") => Some(NetworkInterfaceType::Bridge),
+        Some("wireguard") => Some(NetworkInterfaceType::Wireguard),
+        None if iface_is_physical(iface).await => Some(NetworkInterfaceType::Ethernet),
+        None if iface_is_loopback(iface).await => Some(NetworkInterfaceType::Loopback),
+        _ => None,
+    }
+}
+
 pub async fn iface_is_physical(iface: &str) -> bool {
     tokio::fs::metadata(Path::new("/sys/class/net").join(iface).join("device"))
         .await
@@ -85,6 +145,19 @@ pub async fn iface_is_wireless(iface: &str) -> bool {
     tokio::fs::metadata(Path::new("/sys/class/net").join(iface).join("wireless"))
         .await
         .is_ok()
+}
+
+pub async fn iface_is_bridge(iface: &str) -> bool {
+    tokio::fs::metadata(Path::new("/sys/class/net").join(iface).join("bridge"))
+        .await
+        .is_ok()
+}
+
+pub async fn iface_is_loopback(iface: &str) -> bool {
+    tokio::fs::read_to_string(Path::new("/sys/class/net").join(iface).join("type"))
+        .await
+        .ok()
+        .map_or(false, |x| x.trim() == "772")
 }
 
 pub fn list_interfaces() -> BoxStream<'static, Result<String, Error>> {

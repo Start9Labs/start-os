@@ -9,7 +9,7 @@ use async_compression::tokio::bufread::GzipEncoder;
 use axum::Router;
 use axum::body::Body;
 use axum::extract::{self as x, Request};
-use axum::response::{Redirect, Response};
+use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::{any, get};
 use base64::display::Base64Display;
 use digest::Digest;
@@ -26,16 +26,19 @@ use models::PackageId;
 use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;
-use rpc_toolkit::{Context, HttpServer, Server};
+use rpc_toolkit::{Context, HttpServer, ParentHandler, Server};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, BufReader};
 use tokio_util::io::ReaderStream;
 use url::Url;
 
 use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
 use crate::hostname::Hostname;
+use crate::main_api;
 use crate::middleware::auth::{Auth, HasValidSession};
 use crate::middleware::cors::Cors;
 use crate::middleware::db::SyncDb;
+use crate::net::gateway::GatewayInfo;
+use crate::net::tls::TlsHandshakeInfo;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuations};
 use crate::s9pk::S9pk;
@@ -46,7 +49,6 @@ use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::util::io::open_file;
 use crate::util::net::SyncBody;
 use crate::util::serde::BASE64;
-use crate::{diagnostic_api, init_api, install_api, main_api, setup_api};
 
 const NOT_FOUND: &[u8] = b"Not Found";
 const METHOD_NOT_ALLOWED: &[u8] = b"Method Not Allowed";
@@ -55,26 +57,151 @@ const INTERNAL_SERVER_ERROR: &[u8] = b"Internal Server Error";
 
 const PROXY_STRIP_HEADERS: &[&str] = &["cookie", "host", "origin", "referer", "user-agent"];
 
-#[cfg(all(feature = "startd", not(feature = "test")))]
-const EMBEDDED_UIS: Dir<'_> =
-    include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static");
-#[cfg(not(all(feature = "startd", not(feature = "test"))))]
-const EMBEDDED_UIS: Dir<'_> = Dir::new("", &[]);
+pub const EMPTY_DIR: Dir<'_> = Dir::new("", &[]);
 
-#[derive(Clone)]
-pub enum UiMode {
-    Setup,
-    Install,
-    Main,
+#[macro_export]
+macro_rules! else_empty_dir {
+    ($cfg:meta => $dir:expr) => {{
+        #[cfg(all($cfg, not(feature = "test")))]
+        {
+            $dir
+        }
+        #[cfg(not(all($cfg, not(feature = "test"))))]
+        {
+            crate::net::static_server::EMPTY_DIR
+        }
+    }};
 }
 
-impl UiMode {
-    fn path(&self, path: &str) -> PathBuf {
-        match self {
-            Self::Setup => Path::new("setup-wizard").join(path),
-            Self::Install => Path::new("install-wizard").join(path),
-            Self::Main => Path::new("ui").join(path),
+const EMBEDDED_UI_ROOT: Dir<'_> = else_empty_dir!(
+    feature = "startd" =>
+    include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static")
+);
+
+pub trait UiContext: Context + AsRef<RpcContinuations> + Clone + Sized {
+    const UI_DIR: &'static Dir<'static>;
+    fn api() -> ParentHandler<Self>;
+    fn middleware(server: Server<Self>) -> HttpServer<Self>;
+    fn extend_router(self, router: Router) -> Router {
+        router
+    }
+}
+
+impl UiContext for RpcContext {
+    const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
+        feature = "startd" =>
+        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/ui")
+    );
+    fn api() -> ParentHandler<Self> {
+        main_api()
+    }
+    fn middleware(server: Server<Self>) -> HttpServer<Self> {
+        server
+            .middleware(Cors::new())
+            .middleware(Auth::new())
+            .middleware(SyncDb::new())
+    }
+    fn extend_router(self, router: Router) -> Router {
+        async fn https_redirect_if_public_http(
+            req: Request,
+            next: axum::middleware::Next,
+        ) -> Response {
+            if req
+                .extensions()
+                .get::<GatewayInfo>()
+                .map_or(false, |p| p.info.public())
+                && req.extensions().get::<TlsHandshakeInfo>().is_none()
+            {
+                Redirect::temporary(&format!(
+                    "https://{}{}",
+                    req.headers()
+                        .get(HOST)
+                        .and_then(|s| s.to_str().ok())
+                        .unwrap_or("localhost"),
+                    req.uri()
+                ))
+                .into_response()
+            } else {
+                next.run(req).await
+            }
         }
+
+        router
+            .route("/proxy/{url}", {
+                let ctx = self.clone();
+                any(move |x::Path(url): x::Path<String>, request: Request| {
+                    let ctx = ctx.clone();
+                    async move {
+                        proxy_request(ctx, request, url)
+                            .await
+                            .unwrap_or_else(server_error)
+                    }
+                })
+            })
+            .nest("/s9pk", s9pk_router(self.clone()))
+            .route(
+                "/static/local-root-ca.crt",
+                get(move || {
+                    let ctx = self.clone();
+                    async move {
+                        ctx.account
+                            .peek(|account| cert_send(&account.root_ca_cert, &account.hostname))
+                    }
+                }),
+            )
+            .layer(axum::middleware::from_fn(https_redirect_if_public_http))
+    }
+}
+
+impl UiContext for InitContext {
+    const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
+        feature = "startd" =>
+        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/ui")
+    );
+    fn api() -> ParentHandler<Self> {
+        main_api()
+    }
+    fn middleware(server: Server<Self>) -> HttpServer<Self> {
+        server.middleware(Cors::new())
+    }
+}
+
+impl UiContext for DiagnosticContext {
+    const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
+        feature = "startd" =>
+        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/ui")
+    );
+    fn api() -> ParentHandler<Self> {
+        main_api()
+    }
+    fn middleware(server: Server<Self>) -> HttpServer<Self> {
+        server.middleware(Cors::new())
+    }
+}
+
+impl UiContext for SetupContext {
+    const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
+        feature = "startd" =>
+        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/setup-wizard")
+    );
+    fn api() -> ParentHandler<Self> {
+        main_api()
+    }
+    fn middleware(server: Server<Self>) -> HttpServer<Self> {
+        server.middleware(Cors::new())
+    }
+}
+
+impl UiContext for InstallContext {
+    const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
+        feature = "startd" =>
+        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/install-wizard")
+    );
+    fn api() -> ParentHandler<Self> {
+        main_api()
+    }
+    fn middleware(server: Server<Self>) -> HttpServer<Self> {
+        server.middleware(Cors::new())
     }
 }
 
@@ -111,24 +238,23 @@ pub fn rpc_router<C: Context + Clone + AsRef<RpcContinuations>>(
         )
 }
 
-fn serve_ui(req: Request, ui_mode: UiMode) -> Result<Response, Error> {
+fn serve_ui<C: UiContext>(req: Request) -> Result<Response, Error> {
     let (request_parts, _body) = req.into_parts();
     match &request_parts.method {
         &Method::GET | &Method::HEAD => {
-            let uri_path = ui_mode.path(
-                request_parts
-                    .uri
-                    .path()
-                    .strip_prefix('/')
-                    .unwrap_or(request_parts.uri.path()),
-            );
+            let uri_path = request_parts
+                .uri
+                .path()
+                .strip_prefix('/')
+                .unwrap_or(request_parts.uri.path());
 
-            let file = EMBEDDED_UIS
-                .get_file(&*uri_path)
-                .or_else(|| EMBEDDED_UIS.get_file(&*ui_mode.path("index.html")));
+            let file = C::UI_DIR
+                .get_file(uri_path)
+                .or_else(|| C::UI_DIR.get_file("index.html"));
 
             if let Some(file) = file {
-                FileData::from_embedded(&request_parts, file)?.into_response(&request_parts)
+                FileData::from_embedded(&request_parts, file, C::UI_DIR)?
+                    .into_response(&request_parts)
             } else {
                 Ok(not_found())
             }
@@ -137,79 +263,15 @@ fn serve_ui(req: Request, ui_mode: UiMode) -> Result<Response, Error> {
     }
 }
 
-pub fn setup_ui_router(ctx: SetupContext) -> Router {
-    rpc_router(
-        ctx.clone(),
-        Server::new(move || ready(Ok(ctx.clone())), setup_api()).middleware(Cors::new()),
-    )
-    .fallback(any(|request: Request| async move {
-        serve_ui(request, UiMode::Setup).unwrap_or_else(server_error)
-    }))
-}
-
-pub fn diagnostic_ui_router(ctx: DiagnosticContext) -> Router {
-    rpc_router(
-        ctx.clone(),
-        Server::new(move || ready(Ok(ctx.clone())), diagnostic_api()).middleware(Cors::new()),
-    )
-    .fallback(any(|request: Request| async move {
-        serve_ui(request, UiMode::Main).unwrap_or_else(server_error)
-    }))
-}
-
-pub fn install_ui_router(ctx: InstallContext) -> Router {
-    rpc_router(
-        ctx.clone(),
-        Server::new(move || ready(Ok(ctx.clone())), install_api()).middleware(Cors::new()),
-    )
-    .fallback(any(|request: Request| async move {
-        serve_ui(request, UiMode::Install).unwrap_or_else(server_error)
-    }))
-}
-
-pub fn init_ui_router(ctx: InitContext) -> Router {
-    rpc_router(
-        ctx.clone(),
-        Server::new(move || ready(Ok(ctx.clone())), init_api()).middleware(Cors::new()),
-    )
-    .fallback(any(|request: Request| async move {
-        serve_ui(request, UiMode::Main).unwrap_or_else(server_error)
-    }))
-}
-
-pub fn main_ui_router(ctx: RpcContext) -> Router {
-    rpc_router(ctx.clone(), {
-        let ctx = ctx.clone();
-        Server::new(move || ready(Ok(ctx.clone())), main_api::<RpcContext>())
-            .middleware(Cors::new())
-            .middleware(Auth::new())
-            .middleware(SyncDb::new())
-    })
-    .route("/proxy/{url}", {
-        let ctx = ctx.clone();
-        any(move |x::Path(url): x::Path<String>, request: Request| {
-            let ctx = ctx.clone();
-            async move {
-                proxy_request(ctx, request, url)
-                    .await
-                    .unwrap_or_else(server_error)
-            }
-        })
-    })
-    .nest("/s9pk", s9pk_router(ctx.clone()))
-    .route(
-        "/static/local-root-ca.crt",
-        get(move || {
-            let ctx = ctx.clone();
-            async move {
-                let account = ctx.account.read().await;
-                cert_send(&account.root_ca_cert, &account.hostname)
-            }
-        }),
-    )
-    .fallback(any(|request: Request| async move {
-        serve_ui(request, UiMode::Main).unwrap_or_else(server_error)
-    }))
+pub fn ui_router<C: UiContext>(ctx: C) -> Router {
+    ctx.clone()
+        .extend_router(rpc_router(
+            ctx.clone(),
+            C::middleware(Server::new(move || ready(Ok(ctx.clone())), C::api())),
+        ))
+        .fallback(any(|request: Request| async move {
+            serve_ui::<C>(request).unwrap_or_else(server_error)
+        }))
 }
 
 pub fn refresher() -> Router {
@@ -226,20 +288,6 @@ pub fn refresher() -> Router {
         }
         .into_response(&request.into_parts().0)
         .unwrap_or_else(server_error)
-    }))
-}
-
-pub fn redirecter() -> Router {
-    Router::new().fallback(get(|request: Request| async move {
-        Redirect::temporary(&format!(
-            "https://{}{}",
-            request
-                .headers()
-                .get(HOST)
-                .and_then(|s| s.to_str().ok())
-                .unwrap_or("localhost"),
-            request.uri()
-        ))
     }))
 }
 
@@ -492,6 +540,7 @@ impl FileData {
     fn from_embedded(
         req: &RequestParts,
         file: &'static include_dir::File<'static>,
+        ui_dir: &'static Dir<'static>,
     ) -> Result<Self, Error> {
         let path = file.path();
         let (encoding, data, len, content_range) = if let Some(range) = req.headers.get(RANGE) {
@@ -533,12 +582,12 @@ impl FileData {
                 .fold((None, file.contents()), |acc, e| {
                     if let Some(file) = (e == "br")
                         .then_some(())
-                        .and_then(|_| EMBEDDED_UIS.get_file(format!("{}.br", path.display())))
+                        .and_then(|_| ui_dir.get_file(format!("{}.br", path.display())))
                     {
                         (Some("br"), file.contents())
                     } else if let Some(file) = (e == "gzip" && acc.0 != Some("br"))
                         .then_some(())
-                        .and_then(|_| EMBEDDED_UIS.get_file(format!("{}.gz", path.display())))
+                        .and_then(|_| ui_dir.get_file(format!("{}.gz", path.display())))
                     {
                         (Some("gzip"), file.contents())
                     } else {

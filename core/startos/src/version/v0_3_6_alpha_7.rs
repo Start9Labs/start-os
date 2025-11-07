@@ -50,10 +50,7 @@ impl VersionT for Version {
     async fn post_up(self, ctx: &RpcContext, _input: Value) -> Result<(), Error> {
         Command::new("systemd-firstboot")
             .arg("--root=/media/startos/config/overlay/")
-            .arg(format!(
-                "--hostname={}",
-                ctx.account.read().await.hostname.0
-            ))
+            .arg(ctx.account.peek(|a| format!("--hostname={}", a.hostname.0)))
             .invoke(ErrorKind::ParseSysInfo)
             .await?;
         Ok(())

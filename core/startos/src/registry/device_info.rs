@@ -175,7 +175,7 @@ impl Middleware<RegistryContext> for DeviceInfoMiddleware {
         async move {
             if metadata.get_device_info {
                 if let Some(device_info) = &self.device_info {
-                    request.params["__device_info"] =
+                    request.params["__DeviceInfo_device_info"] =
                         to_value(&DeviceInfo::from_header_value(device_info)?)?;
                 }
             }

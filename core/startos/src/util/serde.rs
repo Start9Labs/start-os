@@ -1055,7 +1055,11 @@ impl<T: TryFrom<Vec<u8>>> ValueParserFactory for Base64<T> {
         Self::Parser::new()
     }
 }
-impl<'de, T: TryFrom<Vec<u8>>> Deserialize<'de> for Base64<T> {
+impl<'de, T> Deserialize<'de> for Base64<T>
+where
+    Base64<T>: FromStr,
+    <Base64<T> as FromStr>::Err: std::fmt::Display,
+{
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -1192,6 +1196,21 @@ impl PemEncoding for X509 {
     }
     fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
         String::from_utf8((&**self).to_pem().map_err(E::custom)?).map_err(E::custom)
+    }
+}
+
+impl PemEncoding for Vec<X509> {
+    fn from_pem<E: serde::de::Error>(pem: &str) -> Result<Self, E> {
+        X509::stack_from_pem(pem.as_bytes()).map_err(E::custom)
+    }
+    fn to_pem<E: serde::ser::Error>(&self) -> Result<String, E> {
+        self.iter()
+            .map(|x| x.to_pem())
+            .try_fold(String::new(), |mut acc, x| {
+                acc.push_str(&x?);
+                acc.push_str("\n");
+                Ok(acc)
+            })
     }
 }
 

@@ -1,11 +1,10 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsStr;
 use std::future::Future;
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use chrono::{TimeDelta, Utc};
@@ -18,36 +17,37 @@ use models::{ActionId, PackageId};
 use reqwest::{Client, Proxy};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty};
-use tokio::sync::{broadcast, oneshot, watch, RwLock};
+use tokio::sync::{RwLock, broadcast, oneshot, watch};
 use tokio::time::Instant;
 use tracing::instrument;
 
 use super::setup::CURRENT_SECRET;
+use crate::DATA_DIR;
 use crate::account::AccountInfo;
 use crate::auth::Sessions;
 use crate::context::config::ServerConfig;
-use crate::db::model::package::TaskSeverity;
 use crate::db::model::Database;
+use crate::db::model::package::TaskSeverity;
 use crate::disk::OsPartitionInfo;
-use crate::init::{check_time_is_synchronized, InitResult};
+use crate::init::{InitResult, check_time_is_synchronized};
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::lxc::LxcManager;
+use crate::net::gateway::UpgradableListener;
 use crate::net::net_controller::{NetController, NetService};
 use crate::net::socks::DEFAULT_SOCKS_LISTEN;
 use crate::net::utils::{find_eth_iface, find_wifi_iface};
-use crate::net::web_server::{UpgradableListener, WebServerAcceptorSetter};
+use crate::net::web_server::WebServerAcceptorSetter;
 use crate::net::wifi::WpaCli;
 use crate::prelude::*;
 use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle};
 use crate::rpc_continuations::{Guid, OpenAuthedContinuations, RpcContinuations};
+use crate::service::ServiceMap;
 use crate::service::action::update_tasks;
 use crate::service::effects::callbacks::ServiceCallbacks;
-use crate::service::ServiceMap;
 use crate::shutdown::Shutdown;
 use crate::util::io::delete_file;
 use crate::util::lshw::LshwDevice;
-use crate::util::sync::{SyncMutex, Watch};
-use crate::{DATA_DIR, HOST_IP};
+use crate::util::sync::{SyncMutex, SyncRwLock, Watch};
 
 pub struct RpcContextSeed {
     is_closed: AtomicBool,
@@ -58,7 +58,7 @@ pub struct RpcContextSeed {
     pub ephemeral_sessions: SyncMutex<Sessions>,
     pub db: TypedPatchDb<Database>,
     pub sync_db: watch::Sender<u64>,
-    pub account: RwLock<AccountInfo>,
+    pub account: SyncRwLock<AccountInfo>,
     pub net_controller: Arc<NetController>,
     pub os_net_service: NetService,
     pub s9pk_arch: Option<&'static str>,
@@ -225,7 +225,7 @@ impl RpcContext {
             ephemeral_sessions: SyncMutex::new(Sessions::new()),
             sync_db: watch::Sender::new(db.sequence().await),
             db,
-            account: RwLock::new(account),
+            account: SyncRwLock::new(account),
             callbacks: net_controller.callbacks.clone(),
             net_controller,
             os_net_service,
@@ -481,6 +481,11 @@ impl RpcContext {
         Self: CallRemote<RemoteContext, T>,
     {
         <Self as CallRemote<RemoteContext, T>>::call_remote(&self, method, params, extra).await
+    }
+}
+impl AsRef<Client> for RpcContext {
+    fn as_ref(&self) -> &Client {
+        &self.client
     }
 }
 impl AsRef<Jwk> for RpcContext {

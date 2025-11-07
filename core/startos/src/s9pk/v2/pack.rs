@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use clap::Parser;
-use futures::future::{ready, BoxFuture};
+use futures::future::{BoxFuture, ready};
 use futures::{FutureExt, TryStreamExt};
 use imbl_value::InternedString;
 use models::{DataUrl, ImageId, PackageId, VersionString};
@@ -18,20 +18,20 @@ use crate::context::CliContext;
 use crate::dependencies::{DependencyMetadata, MetadataSrc};
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
+use crate::s9pk::S9pk;
 use crate::s9pk::git_hash::GitHash;
 use crate::s9pk::manifest::Manifest;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::source::http::HttpSource;
 use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::s9pk::merkle_archive::source::{
-    into_dyn_read, ArchiveSource, DynFileSource, DynRead, FileSource, TmpSource,
+    ArchiveSource, DynFileSource, DynRead, FileSource, TmpSource, into_dyn_read,
 };
 use crate::s9pk::merkle_archive::{Entry, MerkleArchive};
 use crate::s9pk::v2::SIG_CONTEXT;
-use crate::s9pk::S9pk;
-use crate::util::io::{create_file, open_file, TmpDir};
+use crate::util::io::{TmpDir, create_file, open_file};
 use crate::util::serde::IoFormat;
-use crate::util::{new_guid, Invoke, PathOrUrl};
+use crate::util::{Invoke, PathOrUrl, new_guid};
 
 #[cfg(not(feature = "docker"))]
 pub const CONTAINER_TOOL: &str = "podman";
@@ -369,10 +369,12 @@ impl ImageSource {
                 workdir,
                 ..
             } => {
-                vec![workdir
-                    .as_deref()
-                    .unwrap_or(Path::new("."))
-                    .join(dockerfile.as_deref().unwrap_or(Path::new("Dockerfile")))]
+                vec![
+                    workdir
+                        .as_deref()
+                        .unwrap_or(Path::new("."))
+                        .join(dockerfile.as_deref().unwrap_or(Path::new("Dockerfile"))),
+                ]
             }
             Self::DockerTag(_) => Vec::new(),
         }
@@ -414,6 +416,8 @@ impl ImageSource {
                         "--platform=linux/amd64".to_owned()
                     } else if arch == "aarch64" {
                         "--platform=linux/arm64".to_owned()
+                    } else if arch == "riscv64" {
+                        "--platform=linux/riscv64".to_owned()
                     } else {
                         format!("--platform=linux/{arch}")
                     };
@@ -476,6 +480,8 @@ impl ImageSource {
                         "--platform=linux/amd64".to_owned()
                     } else if arch == "aarch64" {
                         "--platform=linux/arm64".to_owned()
+                    } else if arch == "riscv64" {
+                        "--platform=linux/riscv64".to_owned()
                     } else {
                         format!("--platform=linux/{arch}")
                     };

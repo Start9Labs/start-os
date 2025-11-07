@@ -6,5 +6,5 @@ export type TestSmtpParams = {
   from: string
   to: string
   login: string
-  password: string | null
+  password: string
 }

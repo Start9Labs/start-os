@@ -24,6 +24,11 @@ export class GatewayService {
         map(gateways =>
           Object.entries(gateways)
             .filter(([_, val]) => !!val?.ipInfo)
+            .filter(
+              ([_, val]) =>
+                val?.ipInfo?.deviceType !== 'bridge' &&
+                val?.ipInfo?.deviceType !== 'loopback',
+            )
             .map(([id, val]) => {
               const subnets =
                 val.ipInfo?.subnets.map(s => utils.IpNet.parse(s)) ?? []

@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::marker::PhantomData;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
 use imbl::OrdMap;
@@ -167,6 +168,21 @@ impl<T> Model<Option<T>> {
     }
 }
 
+impl<T> Model<Arc<T>> {
+    pub fn deref(self) -> Model<T> {
+        use patch_db::ModelExt;
+        self.transmute(|a| a)
+    }
+    pub fn as_deref(&self) -> &Model<T> {
+        use patch_db::ModelExt;
+        self.transmute_ref(|a| a)
+    }
+    pub fn as_deref_mut(&mut self) -> &mut Model<T> {
+        use patch_db::ModelExt;
+        self.transmute_mut(|a| a)
+    }
+}
+
 pub trait Map: DeserializeOwned + Serialize {
     type Key;
     type Value;
@@ -193,10 +209,10 @@ where
     A: serde::Serialize + serde::de::DeserializeOwned + Ord,
     B: serde::Serialize + serde::de::DeserializeOwned,
 {
-    type Key = A;
+    type Key = JsonKey<A>;
     type Value = B;
     fn key_str(key: &Self::Key) -> Result<impl AsRef<str>, Error> {
-        serde_json::to_string(key).with_kind(ErrorKind::Serialization)
+        serde_json::to_string(&key.0).with_kind(ErrorKind::Serialization)
     }
 }
 
@@ -216,13 +232,18 @@ impl<T: Map> Model<T>
 where
     T::Value: Serialize,
 {
-    pub fn insert(&mut self, key: &T::Key, value: &T::Value) -> Result<(), Error> {
+    pub fn insert_model(
+        &mut self,
+        key: &T::Key,
+        value: Model<T::Value>,
+    ) -> Result<Option<Model<T::Value>>, Error> {
+        use patch_db::ModelExt;
         use serde::ser::Error;
-        let v = patch_db::value::to_value(value)?;
+        let v = value.into_value();
         match &mut self.value {
             Value::Object(o) => {
-                o.insert(T::key_string(key)?, v);
-                Ok(())
+                let prev = o.insert(T::key_string(key)?, v);
+                Ok(prev.map(|v| Model::from_value(v)))
             }
             v => Err(patch_db::value::Error {
                 source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
@@ -230,6 +251,13 @@ where
             }
             .into()),
         }
+    }
+    pub fn insert(
+        &mut self,
+        key: &T::Key,
+        value: &T::Value,
+    ) -> Result<Option<Model<T::Value>>, Error> {
+        self.insert_model(key, Model::new(value)?)
     }
     pub fn upsert<F>(&mut self, key: &T::Key, value: F) -> Result<&mut Model<T::Value>, Error>
     where
@@ -249,22 +277,6 @@ where
                     res.ser(&value()?)?;
                 }
                 Ok(res)
-            }
-            v => Err(patch_db::value::Error {
-                source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
-                kind: patch_db::value::ErrorKind::Serialization,
-            }
-            .into()),
-        }
-    }
-    pub fn insert_model(&mut self, key: &T::Key, value: Model<T::Value>) -> Result<(), Error> {
-        use patch_db::ModelExt;
-        use serde::ser::Error;
-        let v = value.into_value();
-        match &mut self.value {
-            Value::Object(o) => {
-                o.insert(T::key_string(key)?, v);
-                Ok(())
             }
             v => Err(patch_db::value::Error {
                 source: patch_db::value::ErrorSource::custom(format!("expected object found {v}")),
@@ -437,6 +449,12 @@ impl<T> std::ops::DerefMut for JsonKey<T> {
         &mut self.0
     }
 }
+impl<T: DeserializeOwned> FromStr for JsonKey<T> {
+    type Err = Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s).with_kind(ErrorKind::Deserialization)
+    }
+}
 impl<T: Serialize> Serialize for JsonKey<T> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -449,7 +467,7 @@ impl<T: Serialize> Serialize for JsonKey<T> {
     }
 }
 // { "foo": "bar" } -> "{ \"foo\": \"bar\" }"
-impl<'de, T: Serialize + DeserializeOwned> Deserialize<'de> for JsonKey<T> {
+impl<'de, T: DeserializeOwned> Deserialize<'de> for JsonKey<T> {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,

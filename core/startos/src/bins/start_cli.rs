@@ -17,7 +17,7 @@ pub fn main(args: impl IntoIterator<Item = OsString>) {
 
     if let Err(e) = CliApp::new(
         |cfg: ClientConfig| Ok(CliContext::init(cfg.load()?)?),
-        crate::expanded_api(),
+        crate::main_api(),
     )
     .run(args)
     {

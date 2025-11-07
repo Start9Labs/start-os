@@ -2,17 +2,11 @@
 
 set -e
 
-
 mkdir -p /run/systemd/resolve
 echo "nameserver 8.8.8.8" > /run/systemd/resolve/stub-resolv.conf
 
 apt-get update
-apt-get install -y curl rsync qemu-user-static
-
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-source ~/.bashrc
-nvm install 22
-ln -s $(which node) /usr/bin/node
+apt-get install -y curl rsync qemu-user-static nodejs
 
 sed -i '/\(^\|#\)DNSStubListener=/c\DNSStubListener=no' /etc/systemd/resolved.conf
 sed -i '/\(^\|#\)Storage=/c\Storage=persistent' /etc/systemd/journald.conf
@@ -24,5 +18,5 @@ systemctl enable container-runtime.service
 
 rm -rf /run/systemd
 
-rm /etc/resolv.conf
+rm -f /etc/resolv.conf
 echo "nameserver 10.0.3.1" > /etc/resolv.conf

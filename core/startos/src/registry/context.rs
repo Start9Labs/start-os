@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use clap::Parser;
+use http::HeaderMap;
 use imbl_value::InternedString;
 use patch_db::PatchDb;
 use reqwest::{Client, Proxy};
@@ -168,25 +169,38 @@ impl CallRemote<RegistryContext> for CliContext {
         let url = if let Some(url) = self.registry_url.clone() {
             url
         } else if self.registry_hostname.is_some() {
-            format!(
+            let mut url: Url = format!(
                 "http://{}",
                 self.registry_listen.unwrap_or(DEFAULT_REGISTRY_LISTEN)
             )
             .parse()
-            .map_err(Error::from)?
+            .map_err(Error::from)?;
+            url.path_segments_mut()
+                .map_err(|_| Error::new(eyre!("cannot extend URL path"), ErrorKind::ParseUrl))?
+                .push("rpc")
+                .push("v0");
+            url
         } else {
             return Err(
                 Error::new(eyre!("`--registry` required"), ErrorKind::InvalidRequest).into(),
             );
         };
+
         method = method.strip_prefix("registry.").unwrap_or(method);
         let sig_context = self
             .registry_hostname
             .clone()
-            .or(url.host().as_ref().map(InternedString::from_display))
-            .or_not_found("registry hostname")?;
+            .or_else(|| url.host().as_ref().map(InternedString::from_display));
 
-        crate::middleware::signature::call_remote(self, url, &sig_context, method, params).await
+        crate::middleware::signature::call_remote(
+            self,
+            url,
+            HeaderMap::new(),
+            sig_context.as_deref(),
+            method,
+            params,
+        )
+        .await
     }
 }
 
@@ -195,61 +209,32 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
         &self,
         mut method: &str,
         params: Value,
-        RegistryUrlParams { registry }: RegistryUrlParams,
+        RegistryUrlParams { mut registry }: RegistryUrlParams,
     ) -> Result<Value, RpcError> {
-        use reqwest::Method;
-        use reqwest::header::{ACCEPT, CONTENT_LENGTH, CONTENT_TYPE};
-        use rpc_toolkit::RpcResponse;
-        use rpc_toolkit::yajrc::{GenericRpcMethod, Id, RpcRequest};
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            DEVICE_INFO_HEADER,
+            DeviceInfo::load(self).await?.to_header_value(),
+        );
 
-        let url = registry.join("rpc/v0")?;
+        registry
+            .path_segments_mut()
+            .map_err(|_| Error::new(eyre!("cannot extend URL path"), ErrorKind::ParseUrl))?
+            .push("rpc")
+            .push("v0");
+
         method = method.strip_prefix("registry.").unwrap_or(method);
+        let sig_context = registry.host_str().map(InternedString::from);
 
-        let rpc_req = RpcRequest {
-            id: Some(Id::Number(0.into())),
-            method: GenericRpcMethod::<_, _, Value>::new(method),
+        crate::middleware::signature::call_remote(
+            self,
+            registry,
+            headers,
+            sig_context.as_deref(),
+            method,
             params,
-        };
-        let body = serde_json::to_vec(&rpc_req)?;
-        let res = self
-            .client
-            .request(Method::POST, url)
-            .header(CONTENT_TYPE, "application/json")
-            .header(ACCEPT, "application/json")
-            .header(CONTENT_LENGTH, body.len())
-            .header(
-                DEVICE_INFO_HEADER,
-                DeviceInfo::load(self).await?.to_header_value(),
-            )
-            .body(body)
-            .send()
-            .await?;
-
-        if !res.status().is_success() {
-            let status = res.status();
-            let txt = res.text().await?;
-            let mut res = Err(Error::new(
-                eyre!("{}", status.canonical_reason().unwrap_or(status.as_str())),
-                ErrorKind::Network,
-            ));
-            if !txt.is_empty() {
-                res = res.with_ctx(|_| (ErrorKind::Network, txt));
-            }
-            return res.map_err(From::from);
-        }
-
-        match res
-            .headers()
-            .get(CONTENT_TYPE)
-            .and_then(|v| v.to_str().ok())
-        {
-            Some("application/json") => {
-                serde_json::from_slice::<RpcResponse>(&*res.bytes().await?)
-                    .with_kind(ErrorKind::Deserialization)?
-                    .result
-            }
-            _ => Err(Error::new(eyre!("unknown content type"), ErrorKind::Network).into()),
-        }
+        )
+        .await
     }
 }
 

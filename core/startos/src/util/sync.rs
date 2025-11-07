@@ -5,8 +5,8 @@ use std::sync::atomic::AtomicUsize;
 use std::sync::{Arc, Weak};
 use std::task::{Poll, Waker};
 
-use futures::stream::BoxStream;
 use futures::Stream;
+use futures::stream::BoxStream;
 
 use crate::prelude::*;
 
@@ -265,6 +265,9 @@ impl<T> Watch<T> {
             shared: self.shared.clone(),
             version: 0,
         }
+    }
+    pub fn watcher_count(&self) -> usize {
+        Arc::strong_count(&self.shared)
     }
     #[cfg_attr(feature = "unstable", inline(never))]
     pub fn poll_changed(&mut self, cx: &mut std::task::Context<'_>) -> Poll<()> {
