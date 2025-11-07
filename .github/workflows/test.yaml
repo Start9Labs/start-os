@@ -27,5 +27,8 @@ jobs:
         with:
           node-version: ${{ env.NODEJS_VERSION }}
 
+      - name: Setup Cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
       - name: Build And Run Tests
         run: make test
