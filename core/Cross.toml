@@ -1,16 +1,2 @@
-# Cross configuration for building the workflow runner for VM targets
-# Reference: https://github.com/cross-rs/cross
-# [build.env]
-# passthrough = [
-#     "BINDGEN_EXTRA_CLANG_ARGS",
-#     "BINDGEN_EXTRA_CLANG_ARGS=-I/usr/lib/llvm-13/lib/clang/13.0.0/include",
-# ]
-
-# [build]
-# pre-build = [
-#     "apt-get update && apt-get install --assume-yes protobuf-compiler libclang-dev clang build-essential",
-#     "cargo install --force --locked bindgen-cli",
-#     "dpkg --add-architecture $CROSS_DEB_ARCH",
-#     "update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++ 100",
-#     "update-alternatives --install /usr/bin/cc cc /usr/bin/clang 100",
-# ]
+[build]
+pre-build = ["apt-get update && apt-get install -y rsync"]
