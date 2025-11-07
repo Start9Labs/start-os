@@ -370,15 +370,3 @@ impl CallRemote<InstallContext> for CliContext {
         .await
     }
 }
-
-#[test]
-fn test() {
-    let ctx = CliContext::init(ClientConfig::default()).unwrap();
-    ctx.runtime().unwrap().block_on(async {
-        reqwest::Client::new()
-            .get("http://example.com")
-            .send()
-            .await
-            .unwrap();
-    });
-}
