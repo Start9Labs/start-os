@@ -869,6 +869,7 @@ pub async fn attach(
         pty_size: Option<TermSize>,
         image_id: ImageId,
         workdir: Option<String>,
+        user: Option<InternedString>,
         root_command: &RootCommand,
     ) -> Result<(), Error> {
         use axum::extract::ws::Message;
@@ -890,6 +891,10 @@ pub async fn attach(
                     .join(image_id)
                     .with_extension("env"),
             );
+
+        if let Some(user) = user {
+            cmd.arg("--user").arg(&*user);
+        }
 
         if let Some(workdir) = workdir {
             cmd.arg("--workdir").arg(workdir);
@@ -1052,6 +1057,7 @@ pub async fn attach(
                         pty_size,
                         image_id,
                         workdir,
+                        user,
                         &root_command,
                     )
                     .await
@@ -1069,6 +1075,45 @@ pub async fn attach(
         .await;
 
     Ok(guid)
+}
+
+#[derive(Deserialize, Serialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct ListSubcontainersParams {
+    pub id: PackageId,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct SubcontainerInfo {
+    pub name: InternedString,
+    pub image_id: ImageId,
+}
+
+pub async fn list_subcontainers(
+    ctx: RpcContext,
+    ListSubcontainersParams { id }: ListSubcontainersParams,
+) -> Result<BTreeMap<Guid, SubcontainerInfo>, Error> {
+    let service = ctx.services.get(&id).await;
+    let service_ref = service.as_ref().or_not_found(&id)?;
+    let container = &service_ref.seed.persistent_container;
+
+    let subcontainers = container.subcontainers.lock().await;
+
+    let result: BTreeMap<Guid, SubcontainerInfo> = subcontainers
+        .iter()
+        .map(|(guid, subcontainer)| {
+            (
+                guid.clone(),
+                SubcontainerInfo {
+                    name: subcontainer.name.clone(),
+                    image_id: subcontainer.image_id.clone(),
+                },
+            )
+        })
+        .collect();
+
+    Ok(result)
 }
 
 async fn get_passwd_command(etc_passwd_path: PathBuf, user: &str) -> RootCommand {

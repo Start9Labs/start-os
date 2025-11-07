@@ -150,31 +150,39 @@ impl ExecParams {
             cmd.env(k, v);
         }
 
-        if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
-            cmd.uid(uid);
-        } else if let Some(user) = user {
-            let passwd = std::fs::read_to_string("/etc/passwd")
-                .with_ctx(|_| (ErrorKind::Filesystem, "read /etc/passwd"));
-            if passwd.is_err() && user == "root" {
-                cmd.uid(0);
-                cmd.gid(0);
+        if let Some((uid, gid)) =
+            if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
+                Some((uid, uid))
+            } else if let Some(user) = user {
+                let passwd = std::fs::read_to_string("/etc/passwd")
+                    .with_ctx(|_| (ErrorKind::Filesystem, "read /etc/passwd"));
+                Some(if passwd.is_err() && user == "root" {
+                    (0, 0)
+                } else {
+                    let (uid, gid) = passwd?
+                        .lines()
+                        .find_map(|l| {
+                            let mut split = l.trim().split(":");
+                            if user != split.next()? {
+                                return None;
+                            }
+                            split.next(); // throw away x
+                            Some((split.next()?.parse().ok()?, split.next()?.parse().ok()?))
+                            // uid gid
+                        })
+                        .or_not_found(lazy_format!("{user} in /etc/passwd"))?;
+                    (uid, gid)
+                })
             } else {
-                let (uid, gid) = passwd?
-                    .lines()
-                    .find_map(|l| {
-                        let mut split = l.trim().split(":");
-                        if user != split.next()? {
-                            return None;
-                        }
-                        split.next(); // throw away x
-                        Some((split.next()?.parse().ok()?, split.next()?.parse().ok()?))
-                        // uid gid
-                    })
-                    .or_not_found(lazy_format!("{user} in /etc/passwd"))?;
-                cmd.uid(uid);
-                cmd.gid(gid);
+                None
             }
-        };
+        {
+            std::os::unix::fs::chown("/proc/self/fd/0", Some(uid), Some(gid)).log_err();
+            std::os::unix::fs::chown("/proc/self/fd/1", Some(uid), Some(gid)).log_err();
+            std::os::unix::fs::chown("/proc/self/fd/2", Some(uid), Some(gid)).log_err();
+            cmd.uid(uid);
+            cmd.gid(gid);
+        }
         if let Some(workdir) = workdir {
             cmd.current_dir(workdir);
         } else {
