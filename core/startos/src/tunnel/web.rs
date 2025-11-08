@@ -1,9 +1,8 @@
 use std::collections::VecDeque;
-use std::net::{IpAddr, Ipv6Addr, SocketAddr};
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
 use clap::Parser;
-use hickory_client::proto::rr::rdata::cert;
 use imbl_value::{InternedString, json};
 use itertools::Itertools;
 use openssl::pkey::{PKey, Private};
@@ -12,7 +11,6 @@ use rpc_toolkit::{
     Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async, from_fn_async_local,
 };
 use serde::{Deserialize, Serialize};
-use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::rustls::crypto::CryptoProvider;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
@@ -20,7 +18,8 @@ use tokio_rustls::rustls::server::ClientHello;
 use ts_rs::TS;
 
 use crate::context::CliContext;
-use crate::net::ssl::SANInfo;
+use crate::hostname::Hostname;
+use crate::net::ssl::{SANInfo, root_ca_start_time};
 use crate::net::tls::TlsHandler;
 use crate::net::web_server::Accept;
 use crate::prelude::*;
@@ -134,7 +133,7 @@ pub fn web_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "generate-certificate",
             from_fn_async(generate_certificate)
-                .with_about("Generate a self signed certificaet to use for the webserver")
+                .with_about("Generate a certificate to use for the webserver")
                 .with_call_remote::<CliContext>(),
         )
         .subcommand(
@@ -286,11 +285,21 @@ pub struct GenerateCertParams {
 pub async fn generate_certificate(
     ctx: TunnelContext,
     GenerateCertParams { subject }: GenerateCertParams,
-) -> Result<Pem<X509>, Error> {
+) -> Result<Pem<Vec<X509>>, Error> {
     let saninfo = SANInfo::new(&subject.into_iter().collect());
 
+    let root_key = crate::net::ssl::generate_key()?;
+    let root_cert = crate::net::ssl::make_root_cert(
+        &root_key,
+        &Hostname("start-tunnel".into()),
+        root_ca_start_time().await,
+    )?;
+    let int_key = crate::net::ssl::generate_key()?;
+    let int_cert = crate::net::ssl::make_int_cert((&root_key, &root_cert), &int_key)?;
+
     let key = crate::net::ssl::generate_key()?;
-    let cert = crate::net::ssl::make_self_signed((&key, &saninfo))?;
+    let cert = crate::net::ssl::make_leaf_cert((&int_key, &int_cert), (&key, &saninfo))?;
+    let chain = Pem(vec![cert, int_cert, root_cert]);
 
     ctx.db
         .mutate(|db| {
@@ -298,13 +307,13 @@ pub async fn generate_certificate(
                 .as_certificate_mut()
                 .ser(&Some(TunnelCertData {
                     key: Pem(key),
-                    cert: Pem(vec![cert.clone()]),
+                    cert: chain.clone(),
                 }))
         })
         .await
         .result?;
 
-    Ok(Pem(cert))
+    Ok(chain)
 }
 
 pub async fn get_certificate(ctx: TunnelContext) -> Result<Option<Pem<Vec<X509>>>, Error> {
@@ -501,8 +510,12 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                 let cert = from_value::<Pem<Vec<X509>>>(
                     ctx.call_remote::<TunnelContext>("web.get-certificate", json!({}))
                         .await?,
-                )?;
-                println!("📝 SSL Certificate:");
+                )?
+                .0
+                .pop()
+                .map(Pem)
+                .or_not_found("certificate in chain")?;
+                println!("📝 Root SSL Certificate:");
                 print!("{cert}");
 
                 println!(concat!(
@@ -594,7 +607,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                 impl std::fmt::Display for Choice {
                     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                         match self {
-                            Self::Generate => write!(f, "Generate a Self Signed Certificate"),
+                            Self::Generate => write!(f, "Generate an SSL certificate"),
                             Self::Provide => write!(f, "Provide your own certificate and key"),
                         }
                     }
@@ -602,7 +615,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                 let options = vec![Choice::Generate, Choice::Provide];
                 let choice = choose(
                     concat!(
-                        "Select whether to autogenerate a self-signed SSL certificate ",
+                        "Select whether to generate an SSL certificate ",
                         "or provide your own certificate and key:"
                     ),
                     &options,
