@@ -56,7 +56,7 @@ export function getIp({ clients, range }: MappedSubnet) {
   const net = IpNet.parse(range)
   const last = net.broadcast()
 
-  for (let ip = net.add(1); ip.cmp(last) === -1; ip.add(1)) {
+  for (let ip = net.add(1); ip.cmp(last) === -1; ip = ip.add(1)) {
     if (!clients[ip.address]) {
       return ip.address
     }

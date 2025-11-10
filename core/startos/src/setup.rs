@@ -499,7 +499,7 @@ async fn fresh_setup(
         ..
     }: SetupExecuteProgress,
 ) -> Result<(SetupResult, RpcContext), Error> {
-    let account = AccountInfo::new(start_os_password, root_ca_start_time().await?)?;
+    let account = AccountInfo::new(start_os_password, root_ca_start_time().await)?;
     let db = ctx.db().await?;
     let kiosk = Some(kiosk.unwrap_or(true)).filter(|_| &*PLATFORM != "raspberrypi");
     sync_kiosk(kiosk).await?;
