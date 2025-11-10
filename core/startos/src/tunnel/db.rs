@@ -69,13 +69,18 @@ pub fn db_api<C: Context>() -> ParentHandler<C> {
             "dump",
             from_fn_async(cli_dump)
                 .with_display_serializable()
+                .no_ts()
                 .with_about("Filter/query db to display tables and records"),
         )
         .subcommand(
             "dump",
             from_fn_async(dump)
                 .with_metadata("admin", Value::Bool(true))
-                .no_cli(),
+                .no_cli()
+                .custom_ts(
+                    DumpParams::inline(),
+                    format!("{{ id: number; value: unknown }}"),
+                ),
         )
         .subcommand(
             "subscribe",
@@ -87,6 +92,7 @@ pub fn db_api<C: Context>() -> ParentHandler<C> {
             "apply",
             from_fn_async(cli_apply)
                 .no_display()
+                .no_ts()
                 .with_about("Update a db record"),
         )
         .subcommand(

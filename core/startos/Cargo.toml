@@ -280,7 +280,7 @@ tracing-error = "0.2.0"
 tracing-futures = "0.2.5"
 tracing-journald = "0.3.0"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
-ts-rs = "9.0.1"
+ts-rs = { version = "9.0.1", features = ["chrono-impl"] }
 typed-builder = "0.21.0"
 unix-named-pipe = "0.2.0"
 url = { version = "2.4.1", features = ["serde"] }

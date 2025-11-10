@@ -12,7 +12,8 @@ use models::FromStrParser;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use rpc_toolkit::{
-    CliBindings, Context, HandlerArgs, HandlerArgsFor, HandlerFor, HandlerTypes, PrintCliResult,
+    CliBindings, Context, HandlerArgs, HandlerArgsFor, HandlerFor, HandlerTS, HandlerTypes,
+    PrintCliResult,
 };
 use serde::de::DeserializeOwned;
 use serde::ser::{SerializeMap, SerializeSeq};
@@ -451,6 +452,36 @@ impl<T: CommandFactory> CommandFactory for WithIoFormat<T> {
         }
     }
 }
+impl<T: TS> TS for WithIoFormat<T> {
+    type WithoutGenerics = T::WithoutGenerics;
+    fn decl() -> String {
+        T::decl()
+    }
+    fn decl_concrete() -> String {
+        T::decl_concrete()
+    }
+    fn name() -> String {
+        T::name()
+    }
+    fn inline() -> String {
+        T::inline()
+    }
+    fn inline_flattened() -> String {
+        T::inline_flattened()
+    }
+    fn visit_dependencies(v: &mut impl ts_rs::TypeVisitor)
+    where
+        Self: 'static,
+    {
+        T::visit_dependencies(v);
+    }
+    fn visit_generics(v: &mut impl ts_rs::TypeVisitor)
+    where
+        Self: 'static,
+    {
+        T::visit_generics(v);
+    }
+}
 
 pub trait HandlerExtSerde<C: Context>: HandlerFor<C> {
     fn with_display_serializable(self) -> DisplaySerializable<Self>;
@@ -468,6 +499,11 @@ impl<T: HandlerTypes> HandlerTypes for DisplaySerializable<T> {
     type InheritedParams = T::InheritedParams;
     type Ok = T::Ok;
     type Err = T::Err;
+}
+impl<T: HandlerTS> HandlerTS for DisplaySerializable<T> {
+    fn type_info(&self) -> Option<String> {
+        self.0.type_info()
+    }
 }
 impl<T: HandlerFor<C>, C: Context> HandlerFor<C> for DisplaySerializable<T> {
     fn handle_sync(
@@ -891,6 +927,48 @@ where
     }
 }
 
+impl<T: TS, Container> TS for Reversible<T, Container>
+where
+    for<'a> &'a Container: IntoDoubleEndedIterator<&'a T>,
+    Container: TS,
+{
+    type WithoutGenerics = Reversible<T, Container>;
+
+    fn decl() -> String {
+        Container::decl()
+    }
+
+    fn decl_concrete() -> String {
+        Container::decl_concrete()
+    }
+
+    fn name() -> String {
+        Container::name()
+    }
+
+    fn inline() -> String {
+        Container::inline()
+    }
+
+    fn inline_flattened() -> String {
+        Container::inline_flattened()
+    }
+
+    fn visit_dependencies(v: &mut impl ts_rs::TypeVisitor)
+    where
+        Self: 'static,
+    {
+        Container::visit_dependencies(v);
+    }
+
+    fn visit_generics(v: &mut impl ts_rs::TypeVisitor)
+    where
+        Self: 'static,
+    {
+        Container::visit_generics(v);
+    }
+}
+
 pub struct KeyVal<K, V> {
     pub key: K,
     pub value: V,
@@ -927,6 +1005,47 @@ impl<'de, K: Deserialize<'de>, V: Deserialize<'de>> Deserialize<'de> for KeyVal<
             }
         }
         deserializer.deserialize_map(Visitor(PhantomData))
+    }
+}
+impl<K: TS, V: TS> TS for KeyVal<K, V> {
+    type WithoutGenerics = KeyVal<ts_rs::Dummy, ts_rs::Dummy>;
+    fn decl() -> String {
+        format!("type {}<K, V> = {{ [T in K]: V }}", Self::name())
+    }
+    fn decl_concrete() -> String {
+        format!(
+            "type {} = {{ [T in {}]: {} }}",
+            Self::name(),
+            K::name(),
+            V::name()
+        )
+    }
+    fn name() -> String {
+        "KeyVal".into()
+    }
+    fn inline() -> String {
+        format!("{{ [T in {}]: {} }}", K::inline(), V::inline())
+    }
+    fn inline_flattened() -> String {
+        Self::inline()
+    }
+    fn visit_dependencies(v: &mut impl ts_rs::TypeVisitor)
+    where
+        Self: 'static,
+    {
+        v.visit::<K>();
+        K::visit_dependencies(v);
+        v.visit::<V>();
+        V::visit_dependencies(v);
+    }
+    fn visit_generics(v: &mut impl ts_rs::TypeVisitor)
+    where
+        Self: 'static,
+    {
+        v.visit::<K>();
+        K::visit_generics(v);
+        v.visit::<V>();
+        V::visit_generics(v);
     }
 }
 

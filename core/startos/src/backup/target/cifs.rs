@@ -36,7 +36,7 @@ impl Map for CifsTargets {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CifsBackupTarget {
     hostname: String,

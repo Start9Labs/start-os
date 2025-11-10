@@ -3,8 +3,9 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, TS)]
 pub struct EqSet<T: Eq>(Vec<T>);
 impl<T: Eq> Default for EqSet<T> {
     fn default() -> Self {

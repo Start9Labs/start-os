@@ -60,13 +60,14 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
             "get-pubkey",
             from_fn_async(get_pubkey)
                 .with_metadata("authenticated", Value::Bool(false))
-                .no_cli(),
+                .no_cli()
+                .custom_ts("{}".to_string(), "unknown".to_string()),
         )
         .subcommand("exit", from_fn_async(exit).no_cli())
-        .subcommand("logs", crate::system::logs::<SetupContext>())
+        .subcommand("logs", crate::system::logs::<SetupContext>().no_ts())
         .subcommand(
             "logs",
-            from_fn_async(crate::logs::cli_logs::<SetupContext, Empty>).no_display(),
+            from_fn_async(crate::logs::cli_logs::<SetupContext, Empty>).no_display().no_ts(),
         )
         .subcommand("restart", from_fn_async(restart).no_cli())
 }
@@ -499,7 +500,7 @@ async fn fresh_setup(
         ..
     }: SetupExecuteProgress,
 ) -> Result<(SetupResult, RpcContext), Error> {
-    let account = AccountInfo::new(start_os_password, root_ca_start_time().await?)?;
+    let account = AccountInfo::new(start_os_password, root_ca_start_time().await)?;
     let db = ctx.db().await?;
     let kiosk = Some(kiosk.unwrap_or(true)).filter(|_| &*PLATFORM != "raspberrypi");
     sync_kiosk(kiosk).await?;

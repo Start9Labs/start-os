@@ -16,7 +16,7 @@ use crate::net::tor::OnionAddress;
 use crate::prelude::*;
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "kebab-case")]
 #[serde(rename_all_fields = "camelCase")]
 #[serde(tag = "kind")]
@@ -235,7 +235,7 @@ pub fn address_api<C: Context, Kind: HostApiKind>()
         )
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 pub struct AddPublicDomainParams {
     pub fqdn: InternedString,
     #[arg(long)]
@@ -282,7 +282,7 @@ pub async fn add_public_domain<Kind: HostApiKind>(
     .with_kind(ErrorKind::Unknown)?
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 pub struct RemoveDomainParams {
     pub fqdn: InternedString,
 }
@@ -305,7 +305,7 @@ pub async fn remove_public_domain<Kind: HostApiKind>(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 pub struct AddPrivateDomainParams {
     pub fqdn: InternedString,
 }
@@ -347,7 +347,7 @@ pub async fn remove_private_domain<Kind: HostApiKind>(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 pub struct OnionParams {
     pub onion: String,
 }

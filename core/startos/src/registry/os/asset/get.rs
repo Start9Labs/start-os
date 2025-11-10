@@ -30,6 +30,7 @@ pub fn get_api<C: Context>() -> ParentHandler<C> {
             "iso",
             from_fn_async(cli_get_os_asset)
                 .no_display()
+                .no_ts()
                 .with_about("Download iso"),
         )
         .subcommand("img", from_fn_async(get_img).no_cli())
@@ -37,6 +38,7 @@ pub fn get_api<C: Context>() -> ParentHandler<C> {
             "img",
             from_fn_async(cli_get_os_asset)
                 .no_display()
+                .no_ts()
                 .with_about("Download img"),
         )
         .subcommand("squashfs", from_fn_async(get_squashfs).no_cli())
@@ -44,6 +46,7 @@ pub fn get_api<C: Context>() -> ParentHandler<C> {
             "squashfs",
             from_fn_async(cli_get_os_asset)
                 .no_display()
+                .no_ts()
                 .with_about("Download squashfs"),
         )
 }

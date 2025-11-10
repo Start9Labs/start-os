@@ -240,7 +240,7 @@ pub async fn list_keys(ctx: TunnelContext) -> Result<HashMap<AnyVerifyingKey, Si
     ctx.db.peek().await.into_auth_pubkeys().de()
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
 pub struct SetPasswordParams {
     pub password: String,
 }

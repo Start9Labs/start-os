@@ -134,7 +134,6 @@ impl VHostController {
     pub fn dump_table(
         &self,
     ) -> BTreeMap<JsonKey<u16>, BTreeMap<JsonKey<Option<InternedString>>, EqSet<String>>> {
-        let ip_info = self.interfaces.watcher.ip_info();
         self.servers.peek(|s| {
             s.iter()
                 .map(|(k, v)| {

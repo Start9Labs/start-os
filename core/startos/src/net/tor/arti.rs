@@ -357,7 +357,7 @@ pub fn display_services(
     Ok(())
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "kebab-case")]
 pub enum OnionServiceState {
     Shutdown,
@@ -383,7 +383,7 @@ impl From<ArtiOnionServiceState> for OnionServiceState {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct OnionServiceInfo {
     pub state: OnionServiceState,

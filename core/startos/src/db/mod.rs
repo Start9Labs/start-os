@@ -1,7 +1,6 @@
 pub mod model;
 pub mod prelude;
 
-use std::panic::UnwindSafe;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -56,9 +55,18 @@ pub fn db<C: Context>() -> ParentHandler<C> {
             "dump",
             from_fn_async(cli_dump)
                 .with_display_serializable()
+                .no_ts()
                 .with_about("Filter/query db to display tables and records"),
         )
-        .subcommand("dump", from_fn_async(dump).no_cli())
+        .subcommand(
+            "dump",
+            from_fn_async(dump)
+                .custom_ts(
+                    DumpParams::inline(),
+                    format!("{{ id: number; value: unknown }}"),
+                )
+                .no_cli(),
+        )
         .subcommand(
             "subscribe",
             from_fn_async(subscribe)
@@ -73,6 +81,7 @@ pub fn db<C: Context>() -> ParentHandler<C> {
             "apply",
             from_fn_async(cli_apply)
                 .no_display()
+                .no_ts()
                 .with_about("Update a db record"),
         )
         .subcommand("apply", from_fn_async(apply).no_cli())

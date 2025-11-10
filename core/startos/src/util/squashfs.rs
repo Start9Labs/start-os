@@ -349,22 +349,23 @@ impl<W: AsyncWrite + AsyncSeek> AsyncWrite for MetadataBlocksWriter<W> {
                         *this.size_addr = Some(pos);
                         None
                     };
-                    this.output.unwritten_mut()[..2]
-                        .copy_from_slice(&u16::to_le_bytes(size)[..]);
+                    this.output.unwritten_mut()[..2].copy_from_slice(&u16::to_le_bytes(size)[..]);
                     this.output.advance(2);
-                    *this.write_state = WriteState::WritingOutput(Box::new(if let Some(end) = done {
-                        WriteState::SeekingToEnd(end)
-                    } else {
-                        WriteState::EncodingInput
-                    }));
+                    *this.write_state =
+                        WriteState::WritingOutput(Box::new(if let Some(end) = done {
+                            WriteState::SeekingToEnd(end)
+                        } else {
+                            WriteState::EncodingInput
+                        }));
                 }
 
                 WriteState::WritingOutput(next) => {
                     if this.output.written().len() > *this.output_flushed {
-                        let n = ready!(this
-                            .writer
-                            .as_mut()
-                            .poll_write(cx, &this.output.written()[*this.output_flushed..]))?;
+                        let n = ready!(
+                            this.writer
+                                .as_mut()
+                                .poll_write(cx, &this.output.written()[*this.output_flushed..])
+                        )?;
                         *this.output_flushed += n;
                     } else {
                         this.output.reset();
@@ -375,10 +376,7 @@ impl<W: AsyncWrite + AsyncSeek> AsyncWrite for MetadataBlocksWriter<W> {
 
                 WriteState::EncodingInput => {
                     let encoder = this.zstd.get_or_insert_with(|| ZstdEncoder::new(22));
-                    encoder.encode(
-                        &mut PartialBuffer::new(this.input.written()),
-                        this.output,
-                    )?;
+                    encoder.encode(&mut PartialBuffer::new(this.input.written()), this.output)?;
                     let compressed = if !encoder.finish(this.output)? {
                         std::mem::swap(this.output, this.input);
                         false
@@ -387,12 +385,11 @@ impl<W: AsyncWrite + AsyncSeek> AsyncWrite for MetadataBlocksWriter<W> {
                     };
                     *this.zstd = None;
                     this.input.reset();
-                    *this.write_state = WriteState::WritingOutput(Box::new(
-                        WriteState::WritingSizeHeader(
+                    *this.write_state =
+                        WriteState::WritingOutput(Box::new(WriteState::WritingSizeHeader(
                             this.output.written().len() as u16
                                 | if compressed { 0 } else { 0x8000 },
-                        ),
-                    ));
+                        )));
                 }
 
                 WriteState::SeekingToEnd(end_addr) => {
@@ -441,10 +438,12 @@ pub struct MetadataBlocksReader<R> {
     #[pin]
     reader: R,
     size_buf: PartialBuffer<[u8; 2]>,
-    compressed: PartialBuffer<[u8; 8192]>,
+    compressed: [u8; 8192],
     compressed_size: usize,
+    compressed_pos: usize,
     is_compressed: bool,
-    output: PartialBuffer<[u8; 8192]>,
+    output: [u8; 8192],
+    output_size: usize,
     output_pos: usize,
     zstd: Option<ZstdDecoder>,
     state: ReadState,
@@ -464,10 +463,12 @@ impl<R> MetadataBlocksReader<R> {
         Self {
             reader,
             size_buf: PartialBuffer::new([0; 2]),
-            compressed: PartialBuffer::new([0; 8192]),
+            compressed: [0; 8192],
             compressed_size: 0,
+            compressed_pos: 0,
             is_compressed: false,
-            output: PartialBuffer::new([0; 8192]),
+            output: [0; 8192],
+            output_size: 0,
             output_pos: 0,
             zstd: None,
             state: ReadState::ReadingSize,
@@ -515,14 +516,16 @@ impl<R: Read> Read for MetadataBlocksReader<R> {
                         ));
                     }
 
-                    self.compressed.reset();
+                    self.compressed_pos = 0;
                     self.size_buf.reset();
                     self.state = ReadState::ReadingData;
                     continue;
                 }
 
                 ReadState::ReadingData => {
-                    let n = self.reader.read(self.compressed.unwritten_mut())?;
+                    let n = self
+                        .reader
+                        .read(&mut self.compressed[self.compressed_pos..self.compressed_size])?;
                     if n == 0 {
                         return Err(std::io::Error::new(
                             std::io::ErrorKind::UnexpectedEof,
@@ -530,59 +533,67 @@ impl<R: Read> Read for MetadataBlocksReader<R> {
                         ));
                     }
 
-                    self.compressed.advance(n);
+                    self.compressed_pos += n;
 
-                    if !self.compressed.unwritten().is_empty() {
+                    if self.compressed_pos < self.compressed_size {
                         continue;
                     }
 
                     self.output_pos = 0;
-                    self.output.reset();
+                    self.output_size = 0;
                     if self.is_compressed {
                         self.zstd = Some(ZstdDecoder::new());
                         self.state = ReadState::Decompressing;
                     } else {
-                        self.output
-                            .copy_unwritten_from(&mut PartialBuffer::new(self.compressed.written()));
+                        // For uncompressed blocks, copy directly to output
+                        self.output[..self.compressed_size]
+                            .copy_from_slice(&self.compressed[..self.compressed_size]);
+                        self.output_size = self.compressed_size;
                         self.state = ReadState::Outputting;
                     }
                     continue;
                 }
 
                 ReadState::Decompressing => {
-                    if self.output.unwritten().is_empty() {
+                    let mut output = PartialBuffer::new(&mut self.output);
+                    output.advance(self.output_size);
+
+                    if output.unwritten().is_empty() {
                         self.state = ReadState::Outputting;
                         continue;
                     }
 
-                    let mut input = PartialBuffer::new(self.compressed.written());
+                    let mut input = PartialBuffer::new(&self.compressed[..self.compressed_size]);
                     let decoder = self.zstd.as_mut().unwrap();
 
-                    if decoder.decode(&mut input, &mut self.output)? {
+                    if decoder.decode(&mut input, &mut output)? {
                         self.zstd = None;
+                    }
+                    self.output_size = output.written().len();
+
+                    if self.output_size > self.output_pos {
                         self.state = ReadState::Outputting;
                     }
                     continue;
                 }
 
                 ReadState::Outputting => {
-                    let available = self.output.written().len() - self.output_pos;
+                    let available = self.output_size - self.output_pos;
                     if available == 0 {
                         if self.zstd.is_none() {
                             self.state = ReadState::ReadingSize;
                             continue;
                         } else {
-                            self.output.reset();
                             self.output_pos = 0;
+                            self.output_size = 0;
                             self.state = ReadState::Decompressing;
                             continue;
                         }
                     }
 
                     let to_copy = available.min(buf.len());
-                    buf[..to_copy].copy_from_slice(
-                        &self.output.written()[self.output_pos..self.output_pos + to_copy],
-                    );
+                    buf[..to_copy]
+                        .copy_from_slice(&self.output[self.output_pos..self.output_pos + to_copy]);
                     self.output_pos += to_copy;
                     return Ok(to_copy);
                 }
@@ -629,26 +640,30 @@ impl<R: AsyncRead> AsyncRead for MetadataBlocksReader<R> {
                         continue;
                     }
 
-                    let size_header = u16::from_le_bytes(*this.size_buf.written());
+                    let size_header = u16::from_le_bytes([
+                        this.size_buf.written()[0],
+                        this.size_buf.written()[1],
+                    ]);
                     *this.is_compressed = (size_header & 0x8000) == 0;
-                    let size = (size_header & 0x7FFF) as usize;
+                    *this.compressed_size = (size_header & 0x7FFF) as usize;
 
-                    if size == 0 || size > 8192 {
+                    if *this.compressed_size == 0 || *this.compressed_size > 8192 {
                         return Poll::Ready(Err(std::io::Error::new(
                             std::io::ErrorKind::InvalidData,
-                            format!("Invalid metadata block size: {}", size),
+                            format!("Invalid metadata block size: {}", *this.compressed_size),
                         )));
                     }
 
-                    this.compressed.reset();
-                    this.compressed.reserve(size);
+                    *this.compressed_pos = 0;
                     this.size_buf.reset();
                     *this.state = ReadState::ReadingData;
                     continue;
                 }
 
                 ReadState::ReadingData => {
-                    let mut read_buf = tokio::io::ReadBuf::new(this.compressed.unwritten_mut());
+                    let mut read_buf = tokio::io::ReadBuf::new(
+                        &mut this.compressed[*this.compressed_pos..*this.compressed_size],
+                    );
                     let before = read_buf.filled().len();
                     ready!(this.reader.as_mut().poll_read(cx, &mut read_buf))?;
                     let n = read_buf.filled().len() - before;
@@ -660,59 +675,66 @@ impl<R: AsyncRead> AsyncRead for MetadataBlocksReader<R> {
                         )));
                     }
 
-                    this.compressed.advance(n);
+                    *this.compressed_pos += n;
 
-                    if !this.compressed.unwritten().is_empty() {
+                    if *this.compressed_pos < *this.compressed_size {
                         continue;
                     }
 
                     *this.output_pos = 0;
-                    this.output.reset();
+                    *this.output_size = 0;
                     if *this.is_compressed {
                         *this.zstd = Some(ZstdDecoder::new());
                         *this.state = ReadState::Decompressing;
                     } else {
-                        this.output
-                            .copy_unwritten_from(&mut PartialBuffer::new(this.compressed.written()));
+                        // For uncompressed blocks, copy directly to output
+                        this.output[..*this.compressed_size]
+                            .copy_from_slice(&this.compressed[..*this.compressed_size]);
+                        *this.output_size = *this.compressed_size;
                         *this.state = ReadState::Outputting;
                     }
                     continue;
                 }
 
                 ReadState::Decompressing => {
-                    if this.output.unwritten().is_empty() {
+                    let mut output = PartialBuffer::new(this.output);
+                    output.advance(*this.output_size);
+
+                    if output.unwritten().is_empty() {
                         *this.state = ReadState::Outputting;
                         continue;
                     }
 
-                    let mut input = PartialBuffer::new(this.compressed.written());
+                    let mut input = PartialBuffer::new(&this.compressed[..*this.compressed_size]);
                     let decoder = this.zstd.as_mut().unwrap();
 
-                    if decoder.decode(&mut input, this.output)? {
+                    if decoder.decode(&mut input, &mut output)? {
                         *this.zstd = None;
+                    }
+                    *this.output_size = output.written().len();
+
+                    if *this.output_size > *this.output_pos {
                         *this.state = ReadState::Outputting;
                     }
                     continue;
                 }
 
                 ReadState::Outputting => {
-                    let available = this.output.written().len() - *this.output_pos;
+                    let available = *this.output_size - *this.output_pos;
                     if available == 0 {
                         if this.zstd.is_none() {
                             *this.state = ReadState::ReadingSize;
                             continue;
                         } else {
-                            this.output.reset();
                             *this.output_pos = 0;
+                            *this.output_size = 0;
                             *this.state = ReadState::Decompressing;
                             continue;
                         }
                     }
 
                     let to_copy = available.min(buf.remaining());
-                    buf.put_slice(
-                        &this.output.written()[*this.output_pos..*this.output_pos + to_copy],
-                    );
+                    buf.put_slice(&this.output[*this.output_pos..*this.output_pos + to_copy]);
                     *this.output_pos += to_copy;
                     return Poll::Ready(Ok(()));
                 }

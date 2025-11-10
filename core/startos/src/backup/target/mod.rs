@@ -34,11 +34,11 @@ use crate::util::serde::{
 
 pub mod cifs;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(tag = "type")]
 #[serde(rename_all = "camelCase")]
+#[serde(rename_all_fields = "camelCase")]
 pub enum BackupTarget {
-    #[serde(rename_all = "camelCase")]
     Disk {
         vendor: Option<String>,
         model: Option<String>,
@@ -210,19 +210,21 @@ pub async fn list(ctx: RpcContext) -> Result<BTreeMap<BackupTargetId, BackupTarg
         .collect())
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct BackupInfo {
+    #[ts(type = "string")]
     pub version: Version,
     pub timestamp: Option<DateTime<Utc>>,
     pub package_backups: BTreeMap<PackageId, PackageBackupInfo>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageBackupInfo {
     pub title: InternedString,
     pub version: VersionString,
+    #[ts(type = "string")]
     pub os_version: Version,
     pub timestamp: DateTime<Utc>,
 }

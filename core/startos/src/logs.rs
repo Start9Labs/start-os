@@ -24,6 +24,7 @@ use tokio::process::{Child, Command};
 use tokio_stream::wrappers::LinesStream;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::error::ResultExt;
@@ -109,21 +110,21 @@ async fn ws_handler(
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LogResponse {
     pub entries: Reversible<LogEntry>,
     start_cursor: Option<String>,
     end_cursor: Option<String>,
 }
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LogFollowResponse {
     start_cursor: Option<String>,
     guid: Guid,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LogEntry {
     timestamp: DateTime<Utc>,
@@ -142,7 +143,7 @@ impl std::fmt::Display for LogEntry {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, TS)]
 pub struct JournalctlEntry {
     #[serde(rename = "__REALTIME_TIMESTAMP")]
     pub timestamp: String,
@@ -228,14 +229,15 @@ pub enum LogSource {
 
 pub const SYSTEM_UNIT: &str = "startd";
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct PackageIdParams {
     id: PackageId,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, TS)]
+#[ts(type = "number | string")]
 pub enum BootIdentifier {
     Index(i32),
     Id(String),
@@ -320,10 +322,10 @@ impl From<BootIdentifier> for String {
     }
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-pub struct LogsParams<Extra: FromArgMatches + Args = Empty> {
+pub struct LogsParams<Extra: FromArgMatches + Args + TS = Empty> {
     #[command(flatten)]
     #[serde(flatten)]
     extra: Extra,
@@ -354,7 +356,7 @@ pub struct CliLogsParams<Extra: FromArgMatches + Args = Empty> {
 #[allow(private_bounds)]
 pub fn logs<
     C: Context + AsRef<RpcContinuations>,
-    Extra: FromArgMatches + Serialize + DeserializeOwned + Args + Send + Sync + 'static,
+    Extra: FromArgMatches + Serialize + DeserializeOwned + Args + TS + Send + Sync + 'static,
 >(
     source: impl for<'a> LogSourceFn<'a, C, Extra>,
 ) -> ParentHandler<C, LogsParams<Extra>> {
@@ -379,7 +381,7 @@ pub async fn cli_logs<RemoteContext, Extra>(
 ) -> Result<(), RpcError>
 where
     CliContext: CallRemote<RemoteContext>,
-    Extra: FromArgMatches + Args + Serialize + Send + Sync,
+    Extra: FromArgMatches + Args + TS + Serialize + Send + Sync,
 {
     let method = parent_method
         .into_iter()
@@ -434,7 +436,7 @@ fn logs_nofollow<C, Extra>(
 ) -> impl HandlerFor<C, Params = LogsParams<Extra>, InheritedParams = Empty, Ok = LogResponse, Err = Error>
 where
     C: Context,
-    Extra: FromArgMatches + Args + Send + Sync + 'static,
+    Extra: FromArgMatches + Args + TS + Send + Sync + 'static,
 {
     from_fn_async(
         move |HandlerArgs {
@@ -466,7 +468,7 @@ where
 
 fn logs_follow<
     C: Context + AsRef<RpcContinuations>,
-    Extra: FromArgMatches + Args + Send + Sync + 'static,
+    Extra: FromArgMatches + Args + TS + Send + Sync + 'static,
 >(
     f: impl for<'a> LogSourceFn<'a, C, Extra>,
 ) -> impl HandlerFor<

@@ -388,7 +388,7 @@ impl Map for Notifications {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, HasModel)]
+#[derive(Debug, Serialize, Deserialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct Notification {
@@ -403,7 +403,7 @@ pub struct Notification {
     pub seen: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct NotificationWithId {
     id: u32,

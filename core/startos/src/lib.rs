@@ -277,7 +277,7 @@ pub fn server<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "logs",
-            from_fn_async(logs::cli_logs::<RpcContext, Empty>).no_display().with_about("Display OS logs"),
+            from_fn_async(logs::cli_logs::<RpcContext, Empty>).no_display().no_ts().with_about("Display OS logs"),
         )
         .subcommand(
             "kernel-logs",
@@ -285,7 +285,7 @@ pub fn server<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "kernel-logs",
-            from_fn_async(logs::cli_logs::<RpcContext, Empty>).no_display().with_about("Display Kernel logs"),
+            from_fn_async(logs::cli_logs::<RpcContext, Empty>).no_display().no_ts().with_about("Display Kernel logs"),
         )
         .subcommand(
             "metrics",
@@ -297,7 +297,7 @@ pub fn server<C: Context>() -> ParentHandler<C> {
                         .with_call_remote::<CliContext>()
                 )
                 .subcommand(
-                    "follow", 
+                    "follow",
                     from_fn_async(system::metrics_follow)
                         .no_cli()
                 )
@@ -394,6 +394,7 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             "install",
             from_fn_async_local(install::cli_install)
                 .no_display()
+                .no_ts()
                 .with_about("Install a package from a marketplace or via sideloading"),
         )
         .subcommand(
@@ -497,7 +498,6 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                 .with_about("List information related to the lxc containers i.e. CPU, Memory, Disk")
                 .with_call_remote::<CliContext>(),
         )
-        .subcommand("logs", logs::package_logs())
         .subcommand(
             "logs",
             logs::package_logs().with_about("Display package logs"),
@@ -506,6 +506,7 @@ pub fn package<C: Context>() -> ParentHandler<C> {
             "logs",
             from_fn_async(logs::cli_logs::<RpcContext, logs::PackageIdParams>)
                 .no_display()
+                .no_ts()
                 .with_about("Display package logs"),
         )
         .subcommand(
@@ -520,7 +521,16 @@ pub fn package<C: Context>() -> ParentHandler<C> {
                 .with_about("Execute commands within a service container")
                 .no_cli(),
         )
-        .subcommand("attach", from_fn_async(service::cli_attach).no_display())
+        .subcommand(
+            "attach",
+            from_fn_async(service::cli_attach).no_display().no_ts(),
+        )
+        .subcommand(
+            "list-subcontainers",
+            from_fn_async(service::list_subcontainers)
+                .with_about("List all subcontainers for a package")
+                .no_cli(),
+        )
         .subcommand(
             "host",
             net::host::host_api::<C>().with_about("Manage network hosts for a package"),

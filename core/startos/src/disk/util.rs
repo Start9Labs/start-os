@@ -13,6 +13,7 @@ use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tracing::instrument;
+use ts_rs::TS;
 
 use super::mount::filesystem::ReadOnly;
 use super::mount::filesystem::block_dev::BlockDev;
@@ -24,14 +25,14 @@ use crate::util::Invoke;
 use crate::util::serde::IoFormat;
 use crate::{Error, ResultExt as _};
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, TS)]
+#[serde(rename_all = "kebab-case")]
 pub enum PartitionTable {
     Mbr,
     Gpt,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct DiskInfo {
     pub logicalname: PathBuf,
@@ -43,7 +44,7 @@ pub struct DiskInfo {
     pub guid: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PartitionInfo {
     pub logicalname: PathBuf,
@@ -54,10 +55,11 @@ pub struct PartitionInfo {
     pub guid: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct StartOsRecoveryInfo {
     pub hostname: Hostname,
+    #[ts(type = "string")]
     pub version: exver::Version,
     pub timestamp: DateTime<Utc>,
     pub password_hash: Option<String>,

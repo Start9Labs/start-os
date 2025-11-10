@@ -240,12 +240,16 @@ impl CertPair {
     }
 }
 
-pub async fn root_ca_start_time() -> Result<SystemTime, Error> {
-    Ok(if check_time_is_synchronized().await? {
+pub async fn root_ca_start_time() -> SystemTime {
+    if check_time_is_synchronized()
+        .await
+        .log_err()
+        .unwrap_or(false)
+    {
         SystemTime::now()
     } else {
         *SOURCE_DATE
-    })
+    }
 }
 
 const EC_CURVE_NAME: nid::Nid = nid::Nid::X9_62_PRIME256V1;

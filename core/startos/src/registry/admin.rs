@@ -32,6 +32,7 @@ pub fn admin_api<C: Context>() -> ParentHandler<C> {
             "add",
             from_fn_async(cli_add_admin)
                 .no_display()
+                .no_ts()
                 .with_about("Add admin signer"),
         )
         .subcommand(
@@ -72,7 +73,7 @@ fn signers_api<C: Context>() -> ParentHandler<C> {
         )
         .subcommand(
             "add",
-            from_fn_async(cli_add_signer).with_about("Add signer"),
+            from_fn_async(cli_add_signer).no_ts().with_about("Add signer"),
         )
         .subcommand(
             "edit",

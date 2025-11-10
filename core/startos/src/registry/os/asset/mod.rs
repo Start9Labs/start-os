@@ -11,6 +11,7 @@ pub fn asset_api<C: Context>() -> ParentHandler<C> {
             "add",
             from_fn_async(add::cli_add_asset)
                 .no_display()
+                .no_ts()
                 .with_about("Add asset to registry"),
         )
         .subcommand("remove", add::remove_api::<C>())
@@ -19,6 +20,7 @@ pub fn asset_api<C: Context>() -> ParentHandler<C> {
             "sign",
             from_fn_async(sign::cli_sign_asset)
                 .no_display()
+                .no_ts()
                 .with_about("Sign file and add to registry index"),
         )
         // TODO: remove signature api

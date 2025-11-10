@@ -343,22 +343,23 @@ pub async fn remove(ctx: RpcContext, SsidParams { ssid }: SsidParams) -> Result<
         .result?;
     Ok(())
 }
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct WifiListInfo {
     ssids: HashMap<Ssid, SignalStrength>,
     connected: Option<Ssid>,
+    #[ts(type = "sttring | null")]
     country: Option<CountryCode>,
     ethernet: bool,
     available_wifi: Vec<WifiListOut>,
 }
-#[derive(serde::Serialize, serde::Deserialize, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct WifiListInfoLow {
     strength: SignalStrength,
     security: Vec<String>,
 }
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct WifiListOut {
     ssid: Ssid,
@@ -589,7 +590,7 @@ pub struct NetworkId(String);
 
 /// Ssid are the names of the wifis, usually human readable.
 #[derive(
-    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize, TS,
 )]
 pub struct Ssid(String);
 
@@ -606,6 +607,7 @@ pub struct Ssid(String);
     Hash,
     serde::Serialize,
     serde::Deserialize,
+    TS,
 )]
 pub struct SignalStrength(u8);
 

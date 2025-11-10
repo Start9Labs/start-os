@@ -25,11 +25,13 @@ pub fn s9pk() -> ParentHandler<CliContext> {
             "pack",
             from_fn_async(super::v2::pack::pack)
                 .no_display()
+                .no_ts()
                 .with_about("Package s9pk input files into valid s9pk"),
         )
         .subcommand(
             "list-ingredients",
             from_fn_async(super::v2::pack::list_ingredients)
+                .no_ts()
                 .with_custom_display_fn(|_, ingredients| {
                     ingredients
                         .into_iter()
@@ -49,16 +51,17 @@ pub fn s9pk() -> ParentHandler<CliContext> {
         )
         .subcommand(
             "edit",
-            edit().with_about("Commands to add an image to an s9pk or edit the manifest"),
+            edit().no_ts().with_about("Commands to add an image to an s9pk or edit the manifest"),
         )
         .subcommand(
             "inspect",
-            inspect().with_about("Commands to display file paths, file contents, or manifest"),
+            inspect().no_ts().with_about("Commands to display file paths, file contents, or manifest"),
         )
         .subcommand(
             "convert",
             from_fn_async(convert)
                 .no_display()
+                .no_ts()
                 .with_about("Convert s9pk from v1 to v2"),
         )
 }

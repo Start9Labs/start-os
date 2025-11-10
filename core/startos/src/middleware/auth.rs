@@ -24,6 +24,7 @@ use sha2::Sha256;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
 use tokio::sync::Mutex;
+use ts_rs::TS;
 
 use crate::auth::{Sessions, check_password, write_shadow};
 use crate::context::RpcContext;
@@ -89,7 +90,7 @@ impl AuthContext for RpcContext {
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LoginRes {
     pub session: InternedString,
@@ -100,7 +101,7 @@ pub trait AsLogoutSessionId {
 }
 
 /// Will need to know when we have logged out from a route
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, TS)]
 pub struct HasLoggedOutSessions(());
 
 impl HasLoggedOutSessions {

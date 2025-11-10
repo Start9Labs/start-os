@@ -2,6 +2,7 @@ use std::path::Path;
 
 use color_eyre::eyre::eyre;
 use tokio::process::Command;
+use ts_rs::TS;
 
 use crate::Error;
 use crate::disk::fsck::btrfs::{btrfs_check_readonly, btrfs_check_repair};
@@ -11,7 +12,7 @@ use crate::util::Invoke;
 pub mod btrfs;
 pub mod ext4;
 
-#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, TS)]
 #[must_use]
 pub struct RequiresReboot(pub bool);
 impl std::ops::BitOrAssign for RequiresReboot {

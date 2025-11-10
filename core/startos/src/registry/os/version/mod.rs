@@ -46,6 +46,10 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
             "get",
             from_fn_async(get_version)
                 .with_metadata("get_device_info", Value::Bool(true))
+                .custom_ts(
+                    GetOsVersionParams::inline(),
+                    BTreeMap::<String, OsVersionInfo>::inline(),
+                )
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| {
                     display_version_info(handle.params, result)

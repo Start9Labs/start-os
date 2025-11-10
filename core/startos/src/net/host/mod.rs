@@ -164,12 +164,12 @@ impl Model<Host> {
     }
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 pub struct RequiresPackageId {
     package: PackageId,
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 pub struct RequiresHostId {
     host: HostId,
 }

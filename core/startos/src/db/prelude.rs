@@ -10,6 +10,7 @@ use patch_db::value::InternedString;
 pub use patch_db::{HasModel, MutateResult, PatchDb};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::prelude::*;
 
@@ -477,6 +478,24 @@ impl<'de, T: DeserializeOwned> Deserialize<'de> for JsonKey<T> {
         Ok(Self(
             serde_json::from_str(&string).map_err(D::Error::custom)?,
         ))
+    }
+}
+impl<T> TS for JsonKey<T> {
+    type WithoutGenerics = JsonKey<ts_rs::Dummy>;
+    fn decl() -> String {
+        format!("type {} = string", Self::name())
+    }
+    fn decl_concrete() -> String {
+        Self::decl()
+    }
+    fn name() -> String {
+        "JsonKey".into()
+    }
+    fn inline() -> String {
+        "string".into()
+    }
+    fn inline_flattened() -> String {
+        Self::inline()
     }
 }
 

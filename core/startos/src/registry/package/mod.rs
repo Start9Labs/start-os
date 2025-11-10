@@ -29,6 +29,7 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
             "add",
             from_fn_async(add::cli_add_package)
                 .no_display()
+                .no_ts()
                 .with_about("Add package to registry index"),
         )
         .subcommand(

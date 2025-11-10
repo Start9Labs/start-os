@@ -186,7 +186,7 @@ pub async fn governor(
     Ok(GovernorInfo { current, available })
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, TS)]
 pub struct TimeInfo {
     now: String,
     uptime: u64,
@@ -319,8 +319,8 @@ pub fn kiosk<C: Context>() -> ParentHandler<C> {
         )
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct MetricLeaf<T> {
+#[derive(Serialize, Deserialize, TS)]
+pub struct MetricLeaf<T: TS> {
     value: T,
     unit: Option<String>,
 }

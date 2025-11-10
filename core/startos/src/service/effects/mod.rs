@@ -96,16 +96,23 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
             ParentHandler::<C>::new()
                 .subcommand(
                     "launch",
-                    from_fn_blocking(subcontainer::launch).no_display(),
+                    from_fn_blocking(subcontainer::launch).no_display().no_ts(),
                 )
                 .subcommand(
                     "launch-init",
-                    from_fn_blocking(subcontainer::launch_init).no_display(),
+                    from_fn_blocking(subcontainer::launch_init)
+                        .no_display()
+                        .no_ts(),
                 )
-                .subcommand("exec", from_fn_blocking(subcontainer::exec).no_display())
+                .subcommand(
+                    "exec",
+                    from_fn_blocking(subcontainer::exec).no_display().no_ts(),
+                )
                 .subcommand(
                     "exec-command",
-                    from_fn_blocking(subcontainer::exec_command).no_display(),
+                    from_fn_blocking(subcontainer::exec_command)
+                        .no_display()
+                        .no_ts(),
                 )
                 .subcommand(
                     "create-fs",

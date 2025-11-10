@@ -59,7 +59,7 @@ impl ValueParserFactory for SshPubKey {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SshKeyResponse {
     pub alg: String,

@@ -209,7 +209,7 @@ where
     })
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, TS)]
 pub struct ClientConfig {
     client_config: WgConfig,
     client_addr: Ipv4Addr,

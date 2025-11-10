@@ -149,14 +149,6 @@ where
                 .no_display()
                 .with_about("Reset password"),
         )
-        .subcommand(
-            "get-pubkey",
-            from_fn_async(get_pubkey)
-                .with_metadata("authenticated", Value::Bool(false))
-                .no_display()
-                .with_about("Get public key derived from server private key")
-                .with_call_remote::<CliContext>(),
-        )
 }
 
 #[test]
@@ -395,7 +387,7 @@ pub async fn list<C: AuthContext>(
     })
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
 struct KillSessionId(InternedString);
 
 impl KillSessionId {

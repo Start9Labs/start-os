@@ -32,6 +32,7 @@ use rpc_toolkit::{
 use serde::{Deserialize, Serialize};
 use tokio::net::{TcpListener, UdpSocket};
 use tracing::instrument;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
@@ -99,7 +100,7 @@ pub fn dns_api<C: Context>() -> ParentHandler<C> {
         )
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 pub struct QueryDnsParams {
     pub fqdn: InternedString,
 }
@@ -138,7 +139,7 @@ pub fn query_dns<C: Context>(
         .map_err(Error::from)
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 pub struct SetStaticDnsParams {
     pub servers: Option<Vec<String>>,
 }

@@ -11,7 +11,6 @@ use crate::context::CliContext;
 use crate::middleware::cors::Cors;
 use crate::middleware::signature::SignatureAuth;
 use crate::net::static_server::{bad_request, not_found, server_error};
-use crate::net::web_server::{Accept, WebServer};
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfoMiddleware;

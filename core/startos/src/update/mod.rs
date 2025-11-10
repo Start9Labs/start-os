@@ -217,7 +217,7 @@ pub async fn cli_update_system(
 }
 
 /// What is the status of the updates?
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, TS)]
 #[serde(rename_all = "camelCase")]
 pub enum UpdateResult {
     NoUpdates,

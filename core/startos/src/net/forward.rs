@@ -13,6 +13,7 @@ use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use tokio::sync::mpsc;
+use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::NetworkInterfaceInfo;
@@ -448,10 +449,10 @@ fn err_has_exited<T>(_: T) -> Error {
     )
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
 pub struct ForwardTable(pub BTreeMap<u16, ForwardTarget>);
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
 pub struct ForwardTarget {
     pub target: SocketAddrV4,
     pub filter: String,

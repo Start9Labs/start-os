@@ -5,6 +5,7 @@ use imbl_value::InternedString;
 use ipnet::Ipv4Net;
 use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::prelude::*;
@@ -54,9 +55,10 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
         )
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SubnetParams {
+    #[ts(type = "string")]
     subnet: Ipv4Net,
 }
 

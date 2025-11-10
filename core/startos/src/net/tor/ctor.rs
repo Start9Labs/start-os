@@ -45,7 +45,8 @@ const TOR_CONTROL: SocketAddr =
     SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 1, 1), 9051));
 const TOR_SOCKS: SocketAddr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 1, 1), 9050));
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, TS)]
+#[ts(type = "string")]
 pub struct OnionAddress(OnionAddressV3);
 impl std::fmt::Display for OnionAddress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -255,6 +256,7 @@ pub fn tor_api<C: Context>() -> ParentHandler<C> {
             "logs",
             from_fn_async(crate::logs::cli_logs::<RpcContext, Empty>)
                 .no_display()
+                .no_ts()
                 .with_about("Display Tor logs"),
         )
         .subcommand(
@@ -312,7 +314,7 @@ pub async fn generate_key(ctx: RpcContext) -> Result<OnionAddress, Error> {
         .result
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 pub struct AddKeyParams {
     pub key: Base64<[u8; 64]>,
 }

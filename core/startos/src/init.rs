@@ -425,6 +425,7 @@ pub fn init_api<C: Context>() -> ParentHandler<C> {
             "logs",
             from_fn_async(crate::logs::cli_logs::<InitContext, Empty>)
                 .no_display()
+                .no_ts()
                 .with_about("Display OS logs"),
         )
         .subcommand(
@@ -435,6 +436,7 @@ pub fn init_api<C: Context>() -> ParentHandler<C> {
             "kernel-logs",
             from_fn_async(crate::logs::cli_logs::<InitContext, Empty>)
                 .no_display()
+                .no_ts()
                 .with_about("Display kernel logs"),
         )
         .subcommand("subscribe", from_fn_async(init_progress).no_cli())

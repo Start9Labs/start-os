@@ -51,6 +51,7 @@ pub fn gateway_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "list",
             from_fn_async(list_interfaces)
+                .custom_ts("{}".into(), BTreeMap::<GatewayId, NetworkInterfaceInfo>::inline())
                 .with_display_serializable()
                 .with_custom_display_fn(|HandlerArgs { params, .. }, res| {
                     use prettytable::*;

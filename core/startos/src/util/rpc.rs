@@ -3,6 +3,7 @@ use std::path::Path;
 use clap::Parser;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
+use ts_rs::TS;
 
 use crate::CAP_10_MiB;
 use crate::context::CliContext;
@@ -21,7 +22,7 @@ pub fn util<C: Context>() -> ParentHandler<C> {
     )
 }
 
-#[derive(Debug, Deserialize, Serialize, Parser)]
+#[derive(Debug, Deserialize, Serialize, Parser, TS)]
 pub struct B3sumParams {
     #[arg(long = "no-mmap", action = clap::ArgAction::SetFalse)]
     allow_mmap: bool,
