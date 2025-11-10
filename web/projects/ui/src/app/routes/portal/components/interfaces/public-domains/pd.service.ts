@@ -228,24 +228,27 @@ export class PublicDomainService {
   private gatewayAndAuthoritySpec() {
     const data = this.data()!
 
+    const gateways = data.gateways.filter(
+      ({ ipInfo: { deviceType } }) =>
+        deviceType !== 'loopback' && deviceType !== 'bridge',
+    )
+
     return {
       gateway: ISB.Value.dynamicSelect(() => ({
         name: this.i18n.transform('Gateway'),
         description: this.i18n.transform(
           'Select a gateway to use for this domain.',
         ),
-        values: data.gateways.reduce<Record<string, string>>(
+        values: gateways.reduce<Record<string, string>>(
           (obj, gateway) => ({
             ...obj,
-            [gateway.id]: gateway.name || gateway.ipInfo!.name,
+            [gateway.id]: gateway.name || gateway.ipInfo.name,
           }),
           {},
         ),
         default: '',
-        disabled: data.gateways
-          .filter(
-            g => !g.ipInfo!.wanIp || utils.CGNAT.contains(g.ipInfo!.wanIp),
-          )
+        disabled: gateways
+          .filter(g => !g.ipInfo.wanIp || utils.CGNAT.contains(g.ipInfo.wanIp))
           .map(g => g.id),
       })),
       authority: ISB.Value.select({
