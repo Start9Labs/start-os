@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 inpt = "0.1.5"
-fd-lock-rs = "0.1.4"
+fd-lock-rs = { workspace = true }
 bumpalo = "3.17"
 typed-arena = "2.0.2"
 uciedit_macros = { workspace = true }

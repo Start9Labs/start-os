@@ -4,9 +4,9 @@ use chrono::{offset::Utc, DateTime};
 use clap::Parser;
 use rpc_toolkit::{from_fn, Context, ParentHandler};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::path::PathBuf;
-use uciedit::{parse_config, Line};
+use std::collections::{BTreeMap, HashMap};
+use std::io::{BufWriter, Seek as _, Write as _};
+use uciedit::{parse_config, Arena, Line, LineComment, Token};
 
 pub fn uci<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -23,7 +23,7 @@ pub struct Section {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct File {
+pub struct UciFile {
     pub sections: Vec<Section>,
     pub modified: Option<DateTime<Utc>>,
 }
@@ -33,12 +33,12 @@ pub struct FilesGet {
     name: String,
 }
 
-pub fn get<C: Context>(_ctx: C, FilesGet { name }: FilesGet) -> Result<File, Error> {
+pub fn get<C: Context>(_ctx: C, FilesGet { name }: FilesGet) -> Result<UciFile, Error> {
     let path = format!("./etc/config/{name}");
     let mut sections = Vec::new();
     let modified = std::fs::metadata(&path)
         .and_then(|m| m.modified())
-        .map(|d| d.into())
+        .map(DateTime::<Utc>::from)
         .ok();
     parse_config(path, |mut cfg| {
         while cfg.step() {
@@ -69,14 +69,93 @@ pub fn get<C: Context>(_ctx: C, FilesGet { name }: FilesGet) -> Result<File, Err
         }
         Ok::<_, Error>(())
     })?;
-    Ok(File { sections, modified })
+    Ok(UciFile { sections, modified })
 }
 
-type Files = HashMap<String, File>;
+type Files = BTreeMap<String, UciFile>;
 
 pub fn set<C: Context>(
     _ctx: C,
     DeserializeStdin(files): DeserializeStdin<Files>,
 ) -> Result<(), Error> {
-    todo!()
+    use fd_lock_rs::{FdLock, LockType};
+
+    // Lock all the files at once.
+    // We do it in lexicographic order so that deadlocks are impossible.
+    let files = files
+        .into_iter()
+        .map(|(name, section)| {
+            let path = format!("./etc/config/{name}");
+            let file = std::fs::File::options()
+                .create(true)
+                .write(true)
+                .truncate(false)
+                .open(&path)?;
+            let locked = FdLock::lock(file, LockType::Exclusive, true)?;
+            Ok::<_, Error>((name, section, locked))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+
+    // Check all the modified times.
+    for (name, tosave, saved) in &files {
+        match (
+            saved
+                .metadata()
+                .and_then(|m| m.modified())
+                .map(DateTime::<Utc>::from),
+            tosave.modified,
+        ) {
+            (Ok(saved_time), Some(tosave_time)) if saved_time > tosave_time => {
+                return Err(ErrorKind::UciSetConflict { name: name.clone() }.into());
+            }
+            _ => (),
+        }
+    }
+
+    // Actually write the sections.
+    let arena = Arena::new();
+    for (_, tosave, mut saved) in files {
+        // Only truncating now that we've checked the modified times.
+        saved.set_len(0)?;
+        saved.seek(std::io::SeekFrom::Start(0))?;
+        let mut writer = BufWriter::new(&mut *saved);
+        for section in tosave.sections {
+            write!(
+                &mut writer,
+                "{}",
+                Line::Section {
+                    ty: Token::from_string(section.ty, &arena),
+                    name: section.name.map(|s| Token::from_string(s, &arena)),
+                    comment: LineComment::None,
+                }
+            )?;
+            for (option, value) in section.options.into_iter() {
+                write!(
+                    &mut writer,
+                    "{}",
+                    Line::Option {
+                        option: Token::from_string(option, &arena),
+                        value: Token::from_string(value, &arena),
+                        comment: LineComment::None,
+                    }
+                )?;
+            }
+            for (list, items) in section.lists.into_iter() {
+                for item in items {
+                    write!(
+                        &mut writer,
+                        "{}",
+                        Line::List {
+                            list: Token::from_str(&list, &arena),
+                            item: Token::from_string(item, &arena),
+                            comment: LineComment::None,
+                        }
+                    )?;
+                }
+            }
+            write!(&mut writer, "{}", Line::Empty)?;
+        }
+    }
+
+    Ok(())
 }

@@ -1963,6 +1963,7 @@ dependencies = [
  "chrono",
  "clap",
  "color-eyre",
+ "fd-lock-rs",
  "futures",
  "imbl-value",
  "macaddr",
