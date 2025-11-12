@@ -30,7 +30,7 @@ pub struct Ethernet<Id: Ord = ProfileId> {
 pub fn ethernet<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("get", from_fn(get::<C>).with_display_serializable())
-        .subcommand("update", from_fn(update::<C>).with_display_serializable())
+        .subcommand("set", from_fn(set::<C>).with_display_serializable())
 }
 
 pub fn get<C: Context>(ctx: C) -> Result<Ethernet, Error> {
@@ -110,7 +110,7 @@ pub fn get<C: Context>(ctx: C) -> Result<Ethernet, Error> {
     })
 }
 
-pub fn update<C: Context>(
+pub fn set<C: Context>(
     _ctx: C,
     DeserializeStdin(ethernet): DeserializeStdin<Ethernet<ProfileIdOpt>>,
 ) -> Result<(), Error> {

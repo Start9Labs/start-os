@@ -404,6 +404,23 @@ impl<'a> Sections<'a> {
         Ok(())
     }
 
+    pub fn lines(&self) -> &[Line<'a>] {
+        if !self.started {
+            panic!("call step at least once");
+        }
+
+        let mut end_index = self.index + 1;
+        while let Some(line) = self.lines.get(end_index) {
+            match line {
+                Line::Section { .. } => break,
+                _ => {
+                    end_index += 1;
+                }
+            }
+        }
+        &self.lines[self.index..end_index]
+    }
+
     pub fn restart(&mut self) {
         self.index = 0;
         self.started = false;
@@ -525,6 +542,10 @@ impl<'a> SectionsMut<'_, 'a> {
         }
     }
 
+    pub fn insert(&mut self, lines: impl IntoIterator<Item = Line<'a>>) {
+        self.lines.splice(self.index..self.index, lines);
+    }
+
     pub fn remove(&mut self) {
         self.set_retain(false);
     }
@@ -539,6 +560,12 @@ impl<'a> SectionsMut<'_, 'a> {
     pub fn restart(&mut self) {
         // make sure flagged sections are removed
         while self.step() {}
+        self.index = 0;
+        self.section_start = None;
+    }
+
+    pub fn clear(&mut self) {
+        self.lines.clear();
         self.index = 0;
         self.section_start = None;
     }
@@ -841,6 +868,10 @@ pub enum Token<'a> {
 }
 
 impl<'a> Token<'a> {
+    pub fn unquoted_string(self) -> String {
+        self.as_str().into_owned()
+    }
+
     pub fn as_str(self) -> Cow<'a, str> {
         // TODO: inpt doesn't currently do unescaping
         match self {

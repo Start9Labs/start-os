@@ -30,7 +30,7 @@ pub struct Wifi<Id: Ord = ProfileId> {
 pub fn wifi<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("get", from_fn(get::<C>).with_display_serializable())
-        .subcommand("update", from_fn(update::<C>).with_display_serializable())
+        .subcommand("set", from_fn(set::<C>).with_display_serializable())
 }
 
 fn find_relevant(cfg: &mut Sections) -> Result<Vec<(String, WifiInterface, WifiDevice)>, Error> {
@@ -240,7 +240,7 @@ fn update_inner(wifi: &Wifi, lookup: &profiles::Lookup) -> Result<(), Error> {
     })
 }
 
-pub fn update<C: Context>(
+pub fn set<C: Context>(
     _ctx: C,
     DeserializeStdin(wifi): DeserializeStdin<Wifi<ProfileIdOpt>>,
 ) -> Result<(), Error> {

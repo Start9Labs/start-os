@@ -1,6 +1,7 @@
 pub mod error;
 pub mod ethernet;
 pub mod profiles;
+pub mod uci;
 pub mod utils;
 pub mod wifi;
 
@@ -22,6 +23,7 @@ pub fn main_api<C: Context>() -> ParentHandler<C> {
         .subcommand("profiles", profiles::profiles::<C>())
         .subcommand("ethernet", ethernet::ethernet::<C>())
         .subcommand("wifi", wifi::wifi::<C>())
+        .subcommand("uci", uci::uci::<C>())
 }
 
 pub fn init_logging(name: &str) -> DefaultGuard {

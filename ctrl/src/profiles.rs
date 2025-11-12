@@ -51,10 +51,10 @@ pub struct Profile<Id: Ord = ProfileId> {
 pub fn profiles<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("get", from_fn(get::<C>).with_display_serializable())
+        .subcommand("set", from_fn(set::<C>).with_display_serializable())
         .subcommand("delete", from_fn(delete::<C>).no_display())
         .subcommand("list", from_fn(list_rpc::<C>).with_display_serializable())
         .subcommand("create", from_fn(create::<C>).with_display_serializable())
-        .subcommand("update", from_fn(update::<C>).with_display_serializable())
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -252,7 +252,7 @@ pub fn reload_system() -> Result<(), Error> {
     Ok(())
 }
 
-pub fn update<C: Context>(
+pub fn set<C: Context>(
     _ctx: C,
     DeserializeStdin(profile): DeserializeStdin<Profile<ProfileIdOpt>>,
 ) -> Result<ProfileId, Error> {
