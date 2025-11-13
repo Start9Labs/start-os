@@ -1,7 +1,10 @@
+use crate::Error;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
 use imbl_value::{imbl::OrdMap, Value};
 use rpc_toolkit::{CliBindings, Context, HandlerArgsFor, HandlerFor, HandlerTypes, PrintCliResult};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::io::Write as _;
+use std::process::Command;
 use std::{any::type_name, collections::VecDeque, io::stdout};
 
 pub trait HandlerExtSerde<C: Context>: HandlerFor<C> {
@@ -238,4 +241,40 @@ impl<T> CommandFactory for DeserializeStdin<T> {
     fn command_for_update() -> clap::Command {
         Self::command()
     }
+}
+
+/// Opens the given data in $EDITOR, allowing interactive editing.
+/// Returns the modified data after the editor closes.
+pub fn edit_in_editor<T>(data: &T) -> Result<T, Error>
+where
+    T: Serialize + DeserializeOwned,
+{
+    // Create a temporary file with .json extension
+    let mut temp_file = tempfile::Builder::new().suffix(".json").tempfile()?;
+
+    // Write current data as pretty JSON to temp file
+    serde_json::to_writer_pretty(&mut temp_file, data)
+        .map_err(|e| Error::other(format!("Failed to write JSON: {}", e)))?;
+    temp_file.flush()?;
+
+    // Get the editor from environment, fallback to vi
+    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
+
+    // Get the path before launching editor (it will be cleaned up when temp_file is dropped)
+    let temp_path = temp_file.path().to_owned();
+
+    // Launch editor and wait for it to exit
+    let status = Command::new(&editor).arg(&temp_path).status()?;
+
+    // Check if editor exited successfully
+    if !status.success() {
+        return Err(Error::other("Editor exited with non-zero status"));
+    }
+
+    // Read the modified content from disk (editor modified it via a different file handle)
+    let content = std::fs::read_to_string(&temp_path)?;
+
+    // Deserialize the modified data
+    serde_json::from_str(&content)
+        .map_err(|e| Error::other(format!("Failed to parse JSON: {}", e)))
 }

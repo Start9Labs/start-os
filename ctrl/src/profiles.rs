@@ -48,13 +48,14 @@ pub struct Profile<Id: Ord = ProfileId> {
     pub access_to_new_profiles: bool, // TODO
 }
 
-pub fn profiles<C: Context>() -> ParentHandler<C> {
+pub fn profiles<C: Context + Clone>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("get", from_fn(get::<C>).with_display_serializable())
         .subcommand("set", from_fn(set::<C>).with_display_serializable())
         .subcommand("delete", from_fn(delete::<C>).no_display())
         .subcommand("list", from_fn(list_rpc::<C>).with_display_serializable())
         .subcommand("create", from_fn(create::<C>).with_display_serializable())
+        .subcommand("edit", from_fn(edit::<C>).with_display_serializable())
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -725,5 +726,49 @@ impl Lookup {
                     .collect()
             })
             .get(fullname)
+    }
+}
+
+#[derive(Debug, Parser, Serialize, Deserialize)]
+pub struct EditArgs {
+    #[clap(flatten)]
+    pub get: ProfileIdOpt,
+    #[clap(long)]
+    pub create: bool,
+}
+
+pub fn edit<C: Context + Clone>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> {
+    if args.create {
+        // Create mode: start with a template profile
+        let template = Profile {
+            id: args.get.clone(),
+            gateway_ip: std::net::Ipv4Addr::new(10, 0, 0, 1),
+            lan_access: LanAccess::SameProfile,
+            wan_access: WanAccess::None,
+            access_to_new_profiles: false,
+        };
+        let modified_profile: Profile<ProfileIdOpt> = crate::utils::edit_in_editor(&template)?;
+        create(ctx, DeserializeStdin(modified_profile))
+    } else {
+        // Edit mode: get existing profile, edit, then set
+        let current_profile = get(ctx.clone(), args.get)?;
+        let modified_profile: Profile = crate::utils::edit_in_editor(&current_profile)?;
+
+        // Convert from Profile<ProfileId> to Profile<ProfileIdOpt> for set
+        let modified_profile_opt = Profile {
+            id: modified_profile.id.into(),
+            gateway_ip: modified_profile.gateway_ip,
+            lan_access: match modified_profile.lan_access {
+                LanAccess::All => LanAccess::All,
+                LanAccess::SameProfile => LanAccess::SameProfile,
+                LanAccess::OtherProfiles(set) => {
+                    LanAccess::OtherProfiles(set.into_iter().map(Into::into).collect())
+                }
+            },
+            wan_access: modified_profile.wan_access,
+            access_to_new_profiles: modified_profile.access_to_new_profiles,
+        };
+
+        set(ctx, DeserializeStdin(modified_profile_opt))
     }
 }

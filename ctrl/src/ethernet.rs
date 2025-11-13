@@ -27,10 +27,11 @@ pub struct Ethernet<Id: Ord = ProfileId> {
     pub ports: BTreeMap<String, Port<Id>>,
 }
 
-pub fn ethernet<C: Context>() -> ParentHandler<C> {
+pub fn ethernet<C: Context + Clone>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("get", from_fn(get::<C>).with_display_serializable())
         .subcommand("set", from_fn(set::<C>).with_display_serializable())
+        .subcommand("edit", from_fn(edit::<C>).with_display_serializable())
 }
 
 pub fn get<C: Context>(ctx: C) -> Result<Ethernet, Error> {
@@ -276,4 +277,29 @@ pub fn set<C: Context>(
         .spawn()?
         .wait();
     Ok(())
+}
+
+pub fn edit<C: Context + Clone>(ctx: C) -> Result<(), Error> {
+    let current_ethernet = get(ctx.clone())?;
+    let modified_ethernet: Ethernet = crate::utils::edit_in_editor(&current_ethernet)?;
+
+    // Convert from Ethernet<ProfileId> to Ethernet<ProfileIdOpt> for set
+    let modified_ethernet_opt = Ethernet {
+        wan_ipv6: modified_ethernet.wan_ipv6,
+        wan_port: modified_ethernet.wan_port,
+        ports: modified_ethernet
+            .ports
+            .into_iter()
+            .map(|(k, v)| {
+                (
+                    k,
+                    Port {
+                        profile: v.profile.map(Into::into),
+                    },
+                )
+            })
+            .collect(),
+    };
+
+    set(ctx, DeserializeStdin(modified_ethernet_opt))
 }

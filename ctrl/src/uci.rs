@@ -8,10 +8,11 @@ use std::collections::{BTreeMap, HashMap};
 use std::io::{BufWriter, Seek as _, Write as _};
 use uciedit::{parse_config, Arena, Line, LineComment, Token};
 
-pub fn uci<C: Context>() -> ParentHandler<C> {
+pub fn uci<C: Context + Clone>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("get", from_fn(get::<C>).with_display_serializable())
         .subcommand("set", from_fn(set::<C>).with_display_serializable())
+        .subcommand("edit", from_fn(edit::<C>).with_display_serializable())
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -158,4 +159,16 @@ pub fn set<C: Context>(
     }
 
     Ok(())
+}
+
+pub fn edit<C: Context + Clone>(ctx: C, args: FilesGet) -> Result<(), Error> {
+    let name = args.name.clone();
+    let current_file = get(ctx.clone(), args)?;
+    let modified_file = crate::utils::edit_in_editor(&current_file)?;
+
+    // Wrap the single file in a BTreeMap for set
+    let mut files = BTreeMap::new();
+    files.insert(name, modified_file);
+
+    set(ctx, DeserializeStdin(files))
 }
