@@ -59,7 +59,9 @@ export class AppComponent {
             await this.api.reboot()
             this.dialogs
               .open(
-                'Please wait 1-2 minutes, then refresh this page to access the StartOS setup wizard.',
+                window.location.host === 'localhost'
+                  ? 'Please wait 1-2 minutes for your server to restart'
+                  : 'Please wait 1-2 minutes, then refresh this page to access the StartOS setup wizard.',
                 {
                   label: 'Rebooting',
                   size: 's',

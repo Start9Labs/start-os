@@ -223,7 +223,7 @@ regex = "1.10.2"
 reqwest = { version = "0.12.4", features = ["json", "socks", "stream"] }
 reqwest_cookie_store = "0.8.0"
 rpassword = "7.2.0"
-rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "master" }
+rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", rev = "068db90" }
 rust-argon2 = "2.0.0"
 safelog = { version = "0.4.8", git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit", optional = true }
 semver = { version = "1.0.20", features = ["serde"] }
