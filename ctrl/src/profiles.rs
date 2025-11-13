@@ -1,4 +1,4 @@
-use crate::ethernet::DEFAULT_LAN_BRIDGE;
+use crate::ethernet::{self, DEFAULT_LAN_BRIDGE};
 use crate::utils::DeserializeStdin;
 use crate::CtrlContext;
 use crate::{utils::HandlerExtSerde, Error, ErrorKind};
@@ -11,6 +11,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::Read;
 use std::net::Ipv4Addr;
 use std::process::{Command, Stdio};
+use uciedit::openwrt::NetworkVlanPortTagging::PRIMARY;
 use uciedit::openwrt::{
     DeviceType, Dhcp, FirewallForwarding, FirewallRule, FirewallTarget, FirewallZone,
     InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface,
@@ -47,6 +48,7 @@ pub struct Profile<Id: Ord = ProfileId> {
     pub lan_access: LanAccess<Id>,    // TODO
     pub wan_access: WanAccess,        // TODO
     pub access_to_new_profiles: bool, // TODO
+    pub owns_lan: bool,
 }
 
 pub fn profiles<C: CtrlContext>() -> ParentHandler<C> {
@@ -138,6 +140,7 @@ pub fn get<C: CtrlContext>(ctx: C, query: ProfileIdOpt) -> Result<Profile, Error
     })?;
     let mut wip_profile = Profile {
         id: id.clone(),
+        owns_lan: id.interface == "lan",
         gateway_ip: Ipv4Addr::new(0, 0, 0, 0),
         lan_access: LanAccess::SameProfile,
         wan_access: WanAccess::None,
@@ -290,6 +293,7 @@ pub fn set<C: CtrlContext>(
         },
         wan_access: profile.wan_access,
         access_to_new_profiles: profile.access_to_new_profiles,
+        owns_lan: profile.owns_lan,
     };
     let mut all_interfaces = BTreeSet::<String>::new();
     rewrite_config(ctx.uci_path("network"), |mut cfg| {
@@ -364,13 +368,35 @@ pub fn create<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(profile): DeserializeStdin<Profile<ProfileIdOpt>>,
 ) -> Result<ProfileId, Error> {
-    let interface = allocate_interface_name(
-        profile
-            .id
-            .interface
-            .as_deref()
-            .or(profile.id.fullname.as_deref()),
-    )?;
+    let mut ports = Vec::new();
+    let interface = if profile.owns_lan {
+        allocate_interface_name(
+            profile
+                .id
+                .interface
+                .as_deref()
+                .or(profile.id.fullname.as_deref()),
+        )?
+    } else {
+        if Lookup::parse(ctx.clone())?.lan_owner.is_some() {
+            return Err(ErrorKind::LanOwnerExists.into());
+        }
+        let ethernet = ethernet::get(ctx.clone())?;
+        // by default connect the profile to all ethernet ports
+        ports.extend(
+            ethernet
+                .ports
+                .iter()
+                .filter(|(id, port)| {
+                    Some(id.as_str()) != ethernet.wan_port.as_deref() && port.profile.is_none()
+                })
+                .map(|(id, _)| uciedit::openwrt::NetworkVlanPort {
+                    port: id.clone(),
+                    tagging: Some(PRIMARY),
+                }),
+        );
+        "lan".into()
+    };
     let fullname = profile
         .id
         .fullname
@@ -385,7 +411,7 @@ pub fn create<C: CtrlContext>(
             match &*cfg.ty() {
                 NetworkInterface::TY => {
                     let Some(name) = cfg.name() else { continue };
-                    if name == interface {
+                    if name == interface && !profile.owns_lan {
                         return Err(ErrorKind::InterfaceNameConflict {
                             name: interface.clone(),
                         }
@@ -426,20 +452,37 @@ pub fn create<C: CtrlContext>(
                 .find(|t| !existing_tags.contains(t))
                 .expect("we somehow exausted all vlan tags, that should be impossible"),
         };
-        cfg.push(
-            &NetworkInterface {
-                device: format!("{found_bridge}.{vlan_tag}"),
-                proto: InterfaceProto::STATIC,
-                ipaddr: Some(profile.gateway_ip),
-                netmask: Some(Ipv4Addr::new(255, 255, 255, 0)),
-            },
-            Some(&interface),
-        )?;
+        if profile.owns_lan {
+            let mut found_lan_interface = false;
+            while cfg.step() {
+                if let Ok(mut iface) = cfg.get::<NetworkInterface>() {
+                    if cfg.name().as_deref() != Some("lan") {
+                        continue;
+                    }
+                    found_lan_interface = true;
+                    iface.device = format!("{found_bridge}.{vlan_tag}");
+                    cfg.set(&iface)?;
+                }
+            }
+            if !found_lan_interface {
+                return Err(ErrorKind::MissingLanInterface.into());
+            }
+        } else {
+            cfg.push(
+                &NetworkInterface {
+                    device: format!("{found_bridge}.{vlan_tag}"),
+                    proto: InterfaceProto::STATIC,
+                    ipaddr: Some(profile.gateway_ip),
+                    netmask: Some(Ipv4Addr::new(255, 255, 255, 0)),
+                },
+                Some(&interface),
+            )?;
+        }
         cfg.push(
             &NetworkBridgeVlan {
                 device: found_bridge,
                 vlan: vlan_tag,
-                ports: Vec::new(),
+                ports,
             },
             None,
         )?;
@@ -484,6 +527,7 @@ pub fn create<C: CtrlContext>(
         },
         wan_access: profile.wan_access,
         access_to_new_profiles: profile.access_to_new_profiles,
+        owns_lan: profile.owns_lan,
     };
     rewrite_firewall(&ctx, &profile, &all_interfaces, &wants_access, true)?;
     rewrite_dhcp(&ctx, &profile)?;
@@ -641,7 +685,7 @@ fn rewrite_firewall(
 }
 
 pub fn rewrite_dhcp(ctx: &impl CtrlContext, profile: &Profile) -> Result<(), Error> {
-    rewrite_config(ctx.uci_path("firewall"), |mut cfg| {
+    rewrite_config(ctx.uci_path("dhcp"), |mut cfg| {
         let mut found_dhcp = false;
         while cfg.step() {
             let Ok(dhcp) = cfg.get::<Dhcp>() else {
@@ -703,6 +747,7 @@ pub fn allocate_interface_name(hint: Option<&str>) -> Result<String, Error> {
 
 pub struct Lookup {
     list: Vec<ProfileId>,
+    lan_owner: Option<ProfileId>,
     from_vlan: OnceCell<HashMap<u16, ProfileId>>,
     from_interface: OnceCell<HashMap<String, ProfileId>>,
     from_fullname: OnceCell<HashMap<String, ProfileId>>,
@@ -710,8 +755,11 @@ pub struct Lookup {
 
 impl Lookup {
     pub fn parse<C: CtrlContext>(ctx: C) -> Result<Self, Error> {
+        let list = list(ctx)?;
+        let system = list.iter().find(|p| p.interface == "lan").cloned();
         Ok(Self {
-            list: list(ctx)?,
+            list,
+            lan_owner: system,
             from_vlan: OnceCell::new(),
             from_interface: OnceCell::new(),
             from_fullname: OnceCell::new(),
@@ -792,13 +840,13 @@ pub struct EditArgs {
 
 pub fn edit<C: CtrlContext>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> {
     if args.create {
-        // Create mode: start with a template profile
         let template = Profile {
             id: args.get.clone(),
-            gateway_ip: std::net::Ipv4Addr::new(10, 0, 0, 1),
-            lan_access: LanAccess::SameProfile,
-            wan_access: WanAccess::None,
-            access_to_new_profiles: false,
+            gateway_ip: std::net::Ipv4Addr::new(192, 168, 1, 1),
+            lan_access: LanAccess::All,
+            wan_access: WanAccess::All,
+            access_to_new_profiles: true,
+            owns_lan: list(ctx.clone())?.is_empty(),
         };
         let modified_profile: Profile<ProfileIdOpt> = crate::utils::edit_in_editor(&template)?;
         create(ctx, DeserializeStdin(modified_profile))
@@ -817,6 +865,7 @@ pub fn edit<C: CtrlContext>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> 
             },
             wan_access: current_profile.wan_access,
             access_to_new_profiles: current_profile.access_to_new_profiles,
+            owns_lan: current_profile.owns_lan,
         };
         let modified_profile = crate::utils::edit_in_editor(&current_profile)?;
         set(ctx, DeserializeStdin(modified_profile))

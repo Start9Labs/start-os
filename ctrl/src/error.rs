@@ -37,6 +37,8 @@ pub enum ErrorKind {
     UciEdit(#[from] uciedit::Error),
     #[error("interface name {name:?} conflicts")]
     InterfaceNameConflict { name: String },
+    #[error("an existing profile already owns lan")]
+    LanOwnerExists,
     #[error("could not find profile identified by {id:?}")]
     MissingProfile { id: ProfileIdOpt },
     #[error("corrupted profile with {id:?}")]
@@ -51,8 +53,10 @@ pub enum ErrorKind {
     DuplicateVlanTag { tag: u16 },
     #[error("no lan bridge device found")]
     MissingLanBridge,
-    #[error("no lan wan interface found")]
+    #[error("no wan interface found")]
     MissingWanInterface,
+    #[error("no lan interface found")]
+    MissingLanInterface,
     #[error("no firewall zone for interface {interface}")]
     MissingFirewallZone { interface: String },
     #[error("the wan port {port} can not have a profile")]
