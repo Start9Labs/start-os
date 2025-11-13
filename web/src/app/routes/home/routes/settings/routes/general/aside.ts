@@ -11,10 +11,7 @@ import { TuiAccordion } from '@taiga-ui/experimental'
         Choose from dark or light theme, or keep your system settings applied to
         the UI.
         <h3>Timezone</h3>
-        Configure the router’s timezone based on your location. Schedules,
-        activity, and logs will be based on this setting.
-        <h3>Week Start Day</h3>
-        Configure what day of the week to start schedules.
+        Configure the router’s timezone based on your location.
         <h3>Language</h3>
         Configure the preferred language for the user interface of the router.
         This setting affects the language displayed for all menus, options, and

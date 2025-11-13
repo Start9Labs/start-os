@@ -1,5 +1,4 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { TuiAccordion } from '@taiga-ui/experimental'
 
 @Component({
   selector: 'devices-aside',
@@ -9,10 +8,8 @@ import { TuiAccordion } from '@taiga-ui/experimental'
     <h3>Connection</h3>
     Indicates how the device is connected to the network (e.g., Ethernet, Wi-Fi,
     VPN).
-    <h3>Permissions</h3>
-    Displays the access permissions set for the device. Manages and controls
-    what the device can access on the network via a security profile or
-    schedule.
+    <h3>Security Profile</h3>
+    Displays the security access and permissions for a device.
     <h3>MAC</h3>
     The Media Access Control (MAC) address is a unique identifier assigned to
     the network interface of the device. It is how devices are identified on the
