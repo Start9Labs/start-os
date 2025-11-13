@@ -1,23 +1,40 @@
 use std::net::Ipv4Addr;
 
-use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn, from_fn_async, from_fn_blocking};
+use rpc_toolkit::{from_fn, from_fn_async, from_fn_blocking, Context, HandlerExt, ParentHandler};
+use ts_rs::TS;
 
 use crate::prelude::*;
 use crate::service::cli::ContainerCliContext;
 use crate::service::effects::context::EffectContext;
-use crate::{HOST_IP, echo};
+use crate::{echo, HOST_IP};
 
 mod action;
 pub mod callbacks;
 pub mod context;
 mod control;
-mod dependency;
+pub mod dependency;
 mod health;
 mod net;
 mod prelude;
 mod subcontainer;
 mod system;
 mod version;
+
+#[test]
+fn export_bindings_service_effects_api() {
+    use rpc_toolkit::HandlerTS;
+
+    std::fs::create_dir_all("./bindings").unwrap();
+    std::fs::write(
+        "./bindings/service-effects-api.ts",
+        format!(
+            "export type ServiceEffectsApi = {}",
+            handler::<EffectContext>().type_info().unwrap()
+        )
+        .as_bytes(),
+    )
+    .unwrap();
+}
 
 pub fn handler<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -117,6 +134,10 @@ pub fn handler<C: Context>() -> ParentHandler<C> {
                 .subcommand(
                     "create-fs",
                     from_fn_async(subcontainer::create_subcontainer_fs)
+                        .custom_ts(
+                            subcontainer::CreateSubcontainerFsParams::inline_flattened(),
+                            "[string, string]".into(),
+                        )
                         .with_custom_display_fn(|_, (path, _)| Ok(println!("{}", path.display())))
                         .with_call_remote::<ContainerCliContext>(),
                 )

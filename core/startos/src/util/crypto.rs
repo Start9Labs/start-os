@@ -57,7 +57,6 @@ pub fn decrypt_slice(input: impl AsRef<[u8]>, password: impl AsRef<[u8]>) -> Vec
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
-#[ts(export)]
 pub struct EncryptedWire {
     #[ts(type = "any")]
     encrypted: Value,

@@ -5,7 +5,7 @@ use color_eyre::eyre::eyre;
 use exver::{Version, VersionRange};
 use imbl_value::InternedString;
 pub use models::PackageId;
-use models::{ImageId, VolumeId, mime};
+use models::{mime, ImageId, VolumeId};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use url::Url;
@@ -16,9 +16,14 @@ use crate::s9pk::git_hash::GitHash;
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;
 use crate::s9pk::merkle_archive::expected::{Expected, Filter};
 use crate::s9pk::v2::pack::ImageConfig;
-use crate::util::VersionString;
 use crate::util::serde::Regex;
+use crate::util::VersionString;
 use crate::version::{Current, VersionT};
+
+#[test]
+fn export_bindings_manifest() {
+    Manifest::export_all_to("./bindings/manifest").unwrap();
+}
 
 fn current_version() -> Version {
     Current::default().semver()
@@ -27,7 +32,6 @@ fn current_version() -> Version {
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct Manifest {
     pub id: PackageId,
     #[ts(type = "string")]
@@ -167,7 +171,6 @@ impl Manifest {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct HardwareRequirements {
     #[serde(default)]
     pub device: Vec<DeviceFilter>,
@@ -179,7 +182,6 @@ pub struct HardwareRequirements {
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct DeviceFilter {
     #[ts(type = "\"processor\" | \"display\"")]
     pub class: InternedString,
@@ -189,7 +191,6 @@ pub struct DeviceFilter {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
 pub struct Description {
     pub short: String,
     pub long: String,
@@ -214,7 +215,6 @@ impl Description {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct Alerts {
     pub install: Option<String>,
     pub uninstall: Option<String>,

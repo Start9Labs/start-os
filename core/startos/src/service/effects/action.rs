@@ -1,9 +1,9 @@
 use std::collections::BTreeSet;
 
 use models::{ActionId, PackageId, ReplayId};
-use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 
-use crate::action::{ActionInput, ActionResult, display_action_result};
+use crate::action::{display_action_result, ActionInput, ActionResult};
 use crate::db::model::package::{
     ActionMetadata, Task, TaskCondition, TaskEntry, TaskSeverity, TaskTrigger,
 };
@@ -44,7 +44,6 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportActionParams {
     id: ActionId,
@@ -77,7 +76,6 @@ pub async fn export_action(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct ClearActionsParams {
     #[arg(long)]
@@ -110,7 +108,6 @@ async fn clear_actions(
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct GetActionInputParams {
     #[serde(default)]
     #[ts(skip)]
@@ -148,7 +145,6 @@ async fn get_action_input(
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct RunActionParams {
     #[serde(default)]
     #[ts(skip)]
@@ -157,8 +153,8 @@ pub struct RunActionParams {
     #[ts(optional)]
     package_id: Option<PackageId>,
     action_id: ActionId,
-    #[ts(type = "any")]
-    input: Value,
+    #[ts(optional, type = "unknown")]
+    input: Option<Value>,
 }
 async fn run_action(
     context: EffectContext,
@@ -170,6 +166,8 @@ async fn run_action(
     }: RunActionParams,
 ) -> Result<Option<ActionResult>, Error> {
     let context = context.deref()?;
+
+    let input = input.unwrap_or_default();
 
     let package_id = package_id.as_ref().unwrap_or(&context.seed.id);
 
@@ -195,7 +193,6 @@ async fn run_action(
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct CreateTaskParams {
     #[serde(default)]
     #[ts(skip)]
@@ -283,7 +280,6 @@ async fn create_task(
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
 #[ts(type = "{ only: string[] } | { except: string[] }")]
-#[ts(export)]
 pub struct ClearTasksParams {
     #[arg(long, conflicts_with = "except")]
     pub only: Option<Vec<ReplayId>>,

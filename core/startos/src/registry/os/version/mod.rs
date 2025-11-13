@@ -47,8 +47,8 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
             from_fn_async(get_version)
                 .with_metadata("get_device_info", Value::Bool(true))
                 .custom_ts(
-                    GetOsVersionParams::inline(),
-                    BTreeMap::<String, OsVersionInfo>::inline(),
+                    GetOsVersionParams::inline_flattened(),
+                    BTreeMap::<String, OsVersionInfo>::inline_flattened(),
                 )
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| {
@@ -62,7 +62,6 @@ pub fn version_api<C: Context>() -> ParentHandler<C> {
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct AddVersionParams {
     #[ts(type = "string")]
     pub version: Version,
@@ -110,7 +109,6 @@ pub async fn add_version(
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct RemoveVersionParams {
     #[ts(type = "string")]
     pub version: Version,
@@ -135,7 +133,6 @@ pub async fn remove_version(
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct GetOsVersionParams {
     #[ts(type = "string | null")]
     #[arg(long = "src")]

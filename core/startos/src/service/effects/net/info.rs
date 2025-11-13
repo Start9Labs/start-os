@@ -8,7 +8,6 @@ use crate::service::rpc::CallbackId;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct GetContainerIpParams {
     #[ts(optional)]
     package_id: Option<PackageId>,

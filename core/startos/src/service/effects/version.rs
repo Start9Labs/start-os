@@ -7,7 +7,6 @@ use crate::volume::PKG_VOLUME_DIR;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct SetDataVersionParams {
     #[ts(type = "string")]
     version: Option<String>,

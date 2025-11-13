@@ -3,30 +3,30 @@ use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
 use clap::Parser;
-use imbl_value::{InternedString, json};
+use imbl_value::{json, InternedString};
 use itertools::Itertools;
 use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use rpc_toolkit::{
-    Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async, from_fn_async_local,
+    from_fn_async, from_fn_async_local, Context, Empty, HandlerArgs, HandlerExt, ParentHandler,
 };
 use serde::{Deserialize, Serialize};
-use tokio_rustls::rustls::ServerConfig;
 use tokio_rustls::rustls::crypto::CryptoProvider;
 use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tokio_rustls::rustls::server::ClientHello;
+use tokio_rustls::rustls::ServerConfig;
 use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::hostname::Hostname;
-use crate::net::ssl::{SANInfo, root_ca_start_time};
+use crate::net::ssl::{root_ca_start_time, SANInfo};
 use crate::net::tls::TlsHandler;
 use crate::net::web_server::Accept;
 use crate::prelude::*;
 use crate::tunnel::auth::SetPasswordParams;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::db::TunnelDatabase;
-use crate::util::serde::{HandlerExtSerde, Pem, display_serializable};
+use crate::util::serde::{display_serializable, HandlerExtSerde, Pem};
 use crate::util::tui::{choose, choose_custom_display, parse_as, prompt, prompt_multiline};
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
@@ -255,7 +255,11 @@ pub async fn import_certificate_cli(
 
                 chain.push(cert.0);
 
-                if is_root { Ok(Some(())) } else { Ok(None) }
+                if is_root {
+                    Ok(Some(()))
+                } else {
+                    Ok(None)
+                }
             } else {
                 Ok(None)
             }
@@ -276,7 +280,7 @@ pub async fn import_certificate_cli(
     Ok(())
 }
 
-#[derive(Debug, Deserialize, Serialize, Parser)]
+#[derive(Debug, Deserialize, Serialize, Parser, TS)]
 pub struct GenerateCertParams {
     #[arg(help = "Subject Alternative Name(s)")]
     pub subject: Vec<InternedString>,
@@ -327,7 +331,7 @@ pub async fn get_certificate(ctx: TunnelContext) -> Result<Option<Pem<Vec<X509>>
         .transpose()
 }
 
-#[derive(Debug, Deserialize, Serialize, Parser)]
+#[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SetListenParams {
     pub listen: SocketAddr,

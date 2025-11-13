@@ -62,7 +62,7 @@ pub fn db<C: Context>() -> ParentHandler<C> {
             "dump",
             from_fn_async(dump)
                 .custom_ts(
-                    DumpParams::inline(),
+                    DumpParams::inline_flattened(),
                     format!("{{ id: number; value: unknown }}"),
                 )
                 .no_cli(),

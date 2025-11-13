@@ -4,7 +4,7 @@ use clap::{CommandFactory, FromArgMatches, Parser};
 pub use models::ActionId;
 use models::{PackageId, ReplayId};
 use qrcode::QrCode;
-use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
@@ -14,8 +14,21 @@ use crate::db::model::package::TaskSeverity;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
 use crate::util::serde::{
-    HandlerExtSerde, StdinDeserializable, WithIoFormat, display_serializable,
+    display_serializable, HandlerExtSerde, StdinDeserializable, WithIoFormat,
 };
+
+#[test]
+fn export_bindings_action() {
+    use crate::db::model::package::{ActionMetadata, Task};
+
+    const OUT_DIR: &str = "./bindings/action";
+
+    ActionId::export_all_to(OUT_DIR).unwrap();
+    ActionInput::export_all_to(OUT_DIR).unwrap();
+    ActionResult::export_all_to(OUT_DIR).unwrap();
+    ActionMetadata::export_all_to(OUT_DIR).unwrap();
+    Task::export_all_to(OUT_DIR).unwrap();
+}
 
 pub fn action_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -49,7 +62,6 @@ pub fn action_api<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct ActionInput {
     #[serde(default)]
@@ -86,7 +98,6 @@ pub async fn get_action_input(
 
 #[derive(Debug, Serialize, Deserialize, TS)]
 #[serde(tag = "version")]
-#[ts(export)]
 pub enum ActionResult {
     #[serde(rename = "0")]
     V0(ActionResultV0),

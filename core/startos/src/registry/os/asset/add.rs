@@ -75,7 +75,6 @@ pub fn remove_api<C: Context>() -> ParentHandler<C> {
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct AddAssetParams {
     #[ts(type = "string")]
     pub version: Version,
@@ -283,7 +282,6 @@ pub async fn cli_add_asset(
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct RemoveAssetParams {
     #[ts(type = "string")]
     pub version: Version,

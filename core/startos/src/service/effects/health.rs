@@ -6,7 +6,6 @@ use crate::status::health_check::NamedHealthCheckResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct SetHealth {
     id: HealthCheckId,
     #[serde(flatten)]

@@ -8,7 +8,7 @@ use color_eyre::eyre::eyre;
 use futures::{FutureExt, TryStreamExt};
 use imbl::vector;
 use imbl_value::InternedString;
-use rpc_toolkit::{Context, Empty, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler, UnknownTS};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use tokio::process::Command;
 use tokio::sync::broadcast::Receiver;
@@ -21,12 +21,12 @@ use crate::logs::{LogSource, LogsParams, SYSTEM_UNIT};
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::shutdown::Shutdown;
-use crate::util::Invoke;
-use crate::util::cpupower::{Governor, get_available_governors, set_governor};
+use crate::util::cpupower::{get_available_governors, set_governor, Governor};
 use crate::util::io::open_file;
 use crate::util::net::WebSocketExt;
-use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 use crate::util::sync::Watch;
+use crate::util::Invoke;
 use crate::{MAIN_DATA, PACKAGE_DATA};
 
 pub fn experimental<C: Context>() -> ParentHandler<C> {
@@ -116,7 +116,7 @@ pub async fn zram(ctx: RpcContext, ZramParams { enable }: ZramParams) -> Result<
     Ok(())
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, TS)]
 pub struct GovernorInfo {
     current: Option<Governor>,
     available: BTreeSet<Governor>,
@@ -242,11 +242,12 @@ pub async fn time(ctx: RpcContext, _: Empty) -> Result<TimeInfo, Error> {
     })
 }
 
-pub fn logs<C: Context + AsRef<RpcContinuations>>() -> ParentHandler<C, LogsParams> {
+pub fn logs<C: Context + AsRef<RpcContinuations>>() -> UnknownTS<ParentHandler<C, LogsParams>> {
     crate::logs::logs(|_: &C, _| async { Ok(LogSource::Unit(SYSTEM_UNIT)) })
 }
 
-pub fn kernel_logs<C: Context + AsRef<RpcContinuations>>() -> ParentHandler<C, LogsParams> {
+pub fn kernel_logs<C: Context + AsRef<RpcContinuations>>() -> UnknownTS<ParentHandler<C, LogsParams>>
+{
     crate::logs::logs(|_: &C, _| async { Ok(LogSource::Kernel) })
 }
 
@@ -470,7 +471,6 @@ pub struct MetricsDisk {
 
 #[derive(Deserialize, Serialize, Clone, Debug, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct Metrics {
     general: MetricsGeneral,
     memory: MetricsMemory,
@@ -961,7 +961,6 @@ async fn get_disk_info() -> Result<MetricsDisk, Error> {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct SmtpValue {
     #[arg(long)]
@@ -1007,7 +1006,6 @@ pub async fn clear_system_smtp(ctx: RpcContext) -> Result<(), Error> {
     Ok(())
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Parser, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct TestSmtpParams {
     #[arg(long)]

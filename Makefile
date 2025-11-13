@@ -283,10 +283,7 @@ sdk/base/lib/osBindings/index.ts: $(shell if [ "$(REBUILD_TYPES)" -ne 0 ]; then 
 	touch sdk/base/lib/osBindings/index.ts
 
 core/startos/bindings/index.ts: $(call ls-files, core) $(ENVIRONMENT_FILE)
-	rm -rf core/startos/bindings
 	./core/build-ts.sh
-	ls core/startos/bindings/*.ts | sed 's/core\/startos\/bindings\/\([^.]*\)\.ts/export { \1 } from ".\/\1";/g' | grep -v '"./index"' | tee core/startos/bindings/index.ts
-	npm --prefix sdk exec -- prettier --config ./sdk/base/package.json -w ./core/startos/bindings/*.ts
 	touch core/startos/bindings/index.ts
 
 sdk/dist/package.json sdk/baseDist/package.json: $(call ls-files, sdk) sdk/base/lib/osBindings/index.ts

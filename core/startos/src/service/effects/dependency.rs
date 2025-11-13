@@ -22,7 +22,6 @@ use crate::status::health_check::NamedHealthCheckResult;
 use crate::volume::data_dir;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct MountTarget {
     package_id: PackageId,
@@ -32,7 +31,6 @@ pub struct MountTarget {
     filetype: FileType,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct MountParams {
     location: PathBuf,
@@ -98,7 +96,6 @@ pub async fn get_installed_packages(context: EffectContext) -> Result<BTreeSet<P
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum DependencyKind {
     Exists,
     Running,
@@ -106,7 +103,6 @@ pub enum DependencyKind {
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase", tag = "kind")]
 #[serde(rename_all_fields = "camelCase")]
-#[ts(export)]
 pub enum DependencyRequirement {
     Running {
         id: PackageId,
@@ -170,7 +166,6 @@ impl ValueParserFactory for DependencyRequirement {
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "camelCase")]
-#[ts(export)]
 pub struct SetDependenciesParams {
     dependencies: Vec<DependencyRequirement>,
 }
@@ -271,14 +266,12 @@ pub async fn get_dependencies(context: EffectContext) -> Result<Vec<DependencyRe
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct CheckDependenciesParam {
     #[ts(optional)]
     package_ids: Option<Vec<PackageId>>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct CheckDependenciesResult {
     package_id: PackageId,
     #[ts(type = "string | null")]

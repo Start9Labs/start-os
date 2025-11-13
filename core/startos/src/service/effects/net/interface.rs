@@ -9,7 +9,6 @@ use crate::service::effects::prelude::*;
 use crate::service::rpc::CallbackId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportServiceInterfaceParams {
     id: ServiceInterfaceId,
@@ -83,7 +82,6 @@ pub async fn export_service_interface(
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct GetServiceInterfaceParams {
     #[ts(optional)]
     package_id: Option<PackageId>,
@@ -124,7 +122,6 @@ pub async fn get_service_interface(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct ListServiceInterfacesParams {
     #[ts(optional)]
@@ -167,7 +164,6 @@ pub async fn list_service_interfaces(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct ClearServiceInterfacesParams {
     pub except: Vec<ServiceInterfaceId>,

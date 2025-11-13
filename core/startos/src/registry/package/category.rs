@@ -61,7 +61,6 @@ pub fn category_api<C: Context>() -> ParentHandler<C> {
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct AddCategoryParams {
     #[ts(type = "string")]
     pub id: InternedString,
@@ -87,7 +86,6 @@ pub async fn add_category(
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct RemoveCategoryParams {
     #[ts(type = "string")]
     pub id: InternedString,
@@ -112,7 +110,6 @@ pub async fn remove_category(
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct AddPackageToCategoryParams {
     #[ts(type = "string")]
     pub id: InternedString,
@@ -141,7 +138,6 @@ pub async fn add_package(
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct RemovePackageFromCategoryParams {
     #[ts(type = "string")]
     pub id: InternedString,

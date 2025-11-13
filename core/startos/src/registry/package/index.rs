@@ -23,7 +23,6 @@ use crate::sign::{AnySignature, AnyVerifyingKey};
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct PackageIndex {
     pub categories: BTreeMap<InternedString, Category>,
     pub packages: BTreeMap<PackageId, PackageInfo>,
@@ -32,7 +31,6 @@ pub struct PackageIndex {
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct PackageInfo {
     pub authorized: BTreeSet<Guid>,
     pub versions: BTreeMap<VersionString, PackageVersionInfo>,
@@ -43,7 +41,6 @@ pub struct PackageInfo {
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct Category {
     pub name: String,
 }
@@ -51,7 +48,6 @@ pub struct Category {
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct DependencyMetadata {
     #[ts(type = "string | null")]
     pub title: Option<InternedString>,
@@ -63,7 +59,6 @@ pub struct DependencyMetadata {
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct PackageVersionInfo {
     #[ts(type = "string")]
     pub title: InternedString,

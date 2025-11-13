@@ -8,7 +8,7 @@ use const_format::formatcp;
 use josekit::jwk::Jwk;
 use patch_db::json_ptr::ROOT;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{Context, Empty, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
@@ -24,24 +24,24 @@ use crate::context::rpc::InitRpcContextPhases;
 use crate::context::setup::SetupResult;
 use crate::context::{RpcContext, SetupContext};
 use crate::db::model::Database;
-use crate::disk::REPAIR_DISK_PATH;
 use crate::disk::fsck::RepairStrategy;
 use crate::disk::main::DEFAULT_PASSWORD;
-use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::filesystem::cifs::Cifs;
+use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
-use crate::disk::util::{DiskInfo, StartOsRecoveryInfo, pvscan, recovery_info};
-use crate::init::{InitPhases, InitResult, init};
+use crate::disk::util::{pvscan, recovery_info, DiskInfo, StartOsRecoveryInfo};
+use crate::disk::REPAIR_DISK_PATH;
+use crate::init::{init, InitPhases, InitResult};
 use crate::net::ssl::root_ca_start_time;
 use crate::prelude::*;
 use crate::progress::{FullProgress, PhaseProgressTrackerHandle, ProgressUnits};
 use crate::rpc_continuations::Guid;
 use crate::shutdown::Shutdown;
 use crate::system::sync_kiosk;
-use crate::util::Invoke;
 use crate::util::crypto::EncryptedWire;
-use crate::util::io::{Counter, create_file, dir_copy, dir_size};
-use crate::{DATA_DIR, Error, ErrorKind, MAIN_DATA, PACKAGE_DATA, PLATFORM, ResultExt};
+use crate::util::io::{create_file, dir_copy, dir_size, Counter};
+use crate::util::Invoke;
+use crate::{Error, ErrorKind, ResultExt, DATA_DIR, MAIN_DATA, PACKAGE_DATA, PLATFORM};
 
 pub fn setup<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -67,7 +67,9 @@ pub fn setup<C: Context>() -> ParentHandler<C> {
         .subcommand("logs", crate::system::logs::<SetupContext>().no_ts())
         .subcommand(
             "logs",
-            from_fn_async(crate::logs::cli_logs::<SetupContext, Empty>).no_display().no_ts(),
+            from_fn_async(crate::logs::cli_logs::<SetupContext, Empty>)
+                .no_display()
+                .no_ts(),
         )
         .subcommand("restart", from_fn_async(restart).no_cli())
 }
@@ -125,7 +127,6 @@ async fn setup_init(
 
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct AttachParams {
     #[serde(rename = "startOsPassword")]
     password: Option<EncryptedWire>,
@@ -204,7 +205,6 @@ pub async fn attach(
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 #[serde(tag = "status")]
 pub enum SetupStatusRes {
     Complete(SetupResult),
@@ -213,7 +213,6 @@ pub enum SetupStatusRes {
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct SetupProgress {
     pub progress: FullProgress,
     pub guid: Guid,
@@ -250,7 +249,6 @@ pub fn cifs<C: Context>() -> ParentHandler<C> {
 
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct VerifyCifsParams {
     hostname: String,
     path: PathBuf,
@@ -307,7 +305,6 @@ pub enum RecoverySource<Password> {
 
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct SetupExecuteParams {
     start_os_logicalname: PathBuf,
     start_os_password: EncryptedWire,

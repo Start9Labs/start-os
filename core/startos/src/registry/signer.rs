@@ -15,7 +15,6 @@ use crate::sign::{AnySignature, AnyVerifyingKey, SignatureScheme};
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct SignerInfo {
     pub name: String,
     pub contact: Vec<ContactInfo>,
@@ -24,7 +23,6 @@ pub struct SignerInfo {
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 // TODO: better types
 pub enum ContactInfo {
     Email(String),
@@ -61,7 +59,6 @@ impl ValueParserFactory for ContactInfo {
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum AcceptSigners {
     #[serde(skip)]
     Accepted,

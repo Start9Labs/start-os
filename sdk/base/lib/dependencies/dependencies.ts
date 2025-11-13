@@ -39,7 +39,10 @@ export async function checkDependencies<
   effects: Effects,
   packageIds?: DependencyId[],
 ): Promise<CheckDependencies<DependencyId>> {
-  let [dependencies, results] = await Promise.all([
+  let [dependencies, results]: [
+    DependencyRequirement[],
+    CheckDependenciesResult[],
+  ] = await Promise.all([
     effects.getDependencies(),
     effects.checkDependencies({
       packageIds,

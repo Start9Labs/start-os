@@ -1,28 +1,14 @@
-import {
-  ActionId,
-  ActionInput,
-  ActionMetadata,
-  SetMainStatus,
-  DependencyRequirement,
-  CheckDependenciesResult,
-  SetHealth,
-  BindParams,
-  HostId,
-  NetInfo,
-  Host,
-  ExportServiceInterfaceParams,
-  ServiceInterface,
-  CreateTaskParams,
-  MainStatus,
-  MountParams,
-} from "./osBindings"
-import {
-  PackageId,
-  Dependencies,
-  ServiceInterfaceId,
-  SmtpValue,
-  ActionResult,
-} from "./types"
+import { ServiceEffectsApi } from "./osBindings/service-effects-api"
+import { RpcParamType, RpcReturnType } from "./osBindings/api-helpers"
+
+type Expand<T> = { [K in keyof T]: T[K] }
+type ReqTy<Method extends string> = RpcParamType<ServiceEffectsApi, Method>
+type ResTy<Method extends string> = Promise<
+  Expand<RpcReturnType<ServiceEffectsApi, Method>>
+>
+type FnTy<Method extends string> = keyof ReqTy<Method> extends never
+  ? () => ResTy<Method>
+  : (options: ReqTy<Method>) => ResTy<Method>
 
 /** Used to reach out from the pure js runtime */
 
@@ -39,131 +25,85 @@ export type Effects = {
   // action
   action: {
     /** Define an action that can be invoked by a user or service */
-    export(options: { id: ActionId; metadata: ActionMetadata }): Promise<null>
+    export: FnTy<"action.export">
     /** Remove all exported actions */
-    clear(options: { except: ActionId[] }): Promise<null>
-    getInput(options: {
-      packageId?: PackageId
-      actionId: ActionId
-    }): Promise<ActionInput | null>
-    run<Input extends Record<string, unknown>>(options: {
-      packageId?: PackageId
-      actionId: ActionId
-      input?: Input
-    }): Promise<ActionResult | null>
-    createTask(options: CreateTaskParams): Promise<null>
-    clearTasks(
-      options: { only: string[] } | { except: string[] },
-    ): Promise<null>
+    clear: FnTy<"action.clear">
+    getInput: FnTy<"action.get-input">
+    run: FnTy<"action.run">
+    createTask: FnTy<"action.create-task">
+    clearTasks: FnTy<"action.clear-tasks">
   }
 
   // control
   /** restart this service's main function */
-  restart(): Promise<null>
+  restart: FnTy<"restart">
   /** stop this service's main function */
-  shutdown(): Promise<null>
+  shutdown: FnTy<"shutdown">
   /** ask the host os what the service's current status is */
-  getStatus(options: {
-    packageId?: PackageId
-    callback?: () => void
-  }): Promise<MainStatus>
+  getStatus: FnTy<"get-status">
   /** indicate to the host os what runstate the service is in */
-  setMainStatus(options: SetMainStatus): Promise<null>
+  setMainStatus: FnTy<"set-main-status">
 
   // dependency
   /** Set the dependencies of what the service needs, usually run during the inputSpec action as a best practice */
-  setDependencies(options: { dependencies: Dependencies }): Promise<null>
+  setDependencies: FnTy<"set-dependencies">
   /** Get the list of the dependencies, both the dynamic set by the effect of setDependencies and the end result any required in the manifest  */
-  getDependencies(): Promise<DependencyRequirement[]>
+  getDependencies: FnTy<"get-dependencies">
   /** Test whether current dependency requirements are satisfied */
-  checkDependencies(options: {
-    packageIds?: PackageId[]
-  }): Promise<CheckDependenciesResult[]>
+  checkDependencies: FnTy<"check-dependencies">
   /** mount a volume of a dependency */
-  mount(options: MountParams): Promise<string>
+  mount: FnTy<"mount">
   /** Returns a list of the ids of all installed packages */
-  getInstalledPackages(): Promise<string[]>
+  getInstalledPackages: FnTy<"get-installed-packages">
 
   // health
   /** sets the result of a health check */
-  setHealth(o: SetHealth): Promise<null>
+  setHealth: FnTy<"set-health">
 
   // subcontainer
   subcontainer: {
     /** A low level api used by SubContainer */
-    createFs(options: {
-      imageId: string
-      name: string | null
-    }): Promise<[string, string]>
+    createFs: FnTy<"subcontainer.create-fs">
     /** A low level api used by SubContainer */
-    destroyFs(options: { guid: string }): Promise<null>
+    destroyFs: FnTy<"subcontainer.destroy-fs">
   }
 
   // net
   // bind
   /** Creates a host connected to the specified port with the provided options */
-  bind(options: BindParams): Promise<null>
+  bind: FnTy<"bind">
   /** Get the port address for a service */
-  getServicePortForward(options: {
-    packageId?: PackageId
-    hostId: HostId
-    internalPort: number
-  }): Promise<NetInfo>
+  getServicePortForward: FnTy<"get-service-port-forward">
   /** Removes all network bindings, called in the setupInputSpec */
-  clearBindings(options: {
-    except: { id: HostId; internalPort: number }[]
-  }): Promise<null>
+  clearBindings: FnTy<"clear-bindings">
   // host
   /** Returns information about the specified host, if it exists */
-  getHostInfo(options: {
-    packageId?: PackageId
-    hostId: HostId
-    callback?: () => void
-  }): Promise<Host | null>
+  getHostInfo: FnTy<"get-host-info">
   /** Returns the IP address of the container */
-  getContainerIp(options: {
-    packageId?: PackageId
-    callback?: () => void
-  }): Promise<string>
+  getContainerIp: FnTy<"get-container-ip">
   /** Returns the IP address of StartOS */
-  getOsIp(): Promise<string>
+  getOsIp: FnTy<"get-os-ip">
   // interface
   /** Creates an interface bound to a specific host and port to show to the user */
-  exportServiceInterface(options: ExportServiceInterfaceParams): Promise<null>
+  exportServiceInterface: FnTy<"export-service-interface">
   /** Returns an exported service interface */
-  getServiceInterface(options: {
-    packageId?: PackageId
-    serviceInterfaceId: ServiceInterfaceId
-    callback?: () => void
-  }): Promise<ServiceInterface | null>
+  getServiceInterface: FnTy<"get-service-interface">
   /** Returns all exported service interfaces for a package */
-  listServiceInterfaces(options: {
-    packageId?: PackageId
-    callback?: () => void
-  }): Promise<Record<ServiceInterfaceId, ServiceInterface>>
+  listServiceInterfaces: FnTy<"list-service-interfaces">
   /** Removes all service interfaces */
-  clearServiceInterfaces(options: {
-    except: ServiceInterfaceId[]
-  }): Promise<null>
+  clearServiceInterfaces: FnTy<"clear-service-interfaces">
   // ssl
   /** Returns a PEM encoded fullchain for the hostnames specified */
-  getSslCertificate: (options: {
-    hostnames: string[]
-    algorithm?: "ecdsa" | "ed25519"
-    callback?: () => void
-  }) => Promise<[string, string, string]>
+  getSslCertificate: FnTy<"get-ssl-certificate">
   /** Returns a PEM encoded private key corresponding to the certificate for the hostnames specified */
-  getSslKey: (options: {
-    hostnames: string[]
-    algorithm?: "ecdsa" | "ed25519"
-  }) => Promise<string>
+  getSslKey: FnTy<"get-ssl-key">
 
   /** sets the version that this service's data has been migrated to */
-  setDataVersion(options: { version: string | null }): Promise<null>
+  setDataVersion: FnTy<"set-data-version">
   /** returns the version that this service's data has been migrated to */
-  getDataVersion(): Promise<string | null>
+  getDataVersion: FnTy<"get-data-version">
 
   // system
   /** Returns globally configured SMTP settings, if they exist */
-  getSystemSmtp(options: { callback?: () => void }): Promise<SmtpValue | null>
+  getSystemSmtp: FnTy<"get-system-smtp">
 }

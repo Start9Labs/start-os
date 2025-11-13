@@ -79,8 +79,8 @@ pub use error::{Error, ErrorKind, ResultExt};
 use imbl_value::Value;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
-    CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler, from_fn, from_fn_async,
-    from_fn_async_local, from_fn_blocking,
+    from_fn, from_fn_async, from_fn_async_local, from_fn_blocking, CallRemoteHandler, Context,
+    Empty, HandlerExt, ParentHandler,
 };
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
@@ -90,12 +90,11 @@ use crate::disk::fsck::RequiresReboot;
 use crate::registry::context::{RegistryContext, RegistryUrlParams};
 use crate::system::kiosk;
 use crate::tunnel::context::TunnelUrlParams;
-use crate::util::serde::{HandlerExtSerde, WithIoFormat, display_serializable};
+use crate::util::serde::{display_serializable, HandlerExtSerde, WithIoFormat};
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct EchoParams {
     message: String,
 }
@@ -106,7 +105,6 @@ pub fn echo<C: Context>(_: C, EchoParams { message }: EchoParams) -> Result<Stri
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum ApiState {
     Error,
     Initializing,
@@ -116,6 +114,70 @@ impl std::fmt::Display for ApiState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Debug::fmt(&self, f)
     }
+}
+
+#[test]
+fn export_bindings_api_helper() {
+    std::fs::create_dir_all("./bindings").unwrap();
+    std::fs::write(
+        "./bindings/api-helpers.ts",
+        rpc_toolkit::type_helpers().as_bytes(),
+    )
+    .unwrap();
+}
+
+#[test]
+fn export_bindings_main_apis() {
+    use rpc_toolkit::HandlerTS;
+
+    use crate::context::{InstallContext, SetupContext};
+
+    std::fs::create_dir_all("./bindings").unwrap();
+    std::fs::write(
+        "./bindings/main-api.ts",
+        format!(
+            "export type MainApi = {}",
+            main_api::<RpcContext>().type_info().unwrap()
+        )
+        .as_bytes(),
+    )
+    .unwrap();
+    std::fs::write(
+        "./bindings/init-api.ts",
+        format!(
+            "export type InitApi = {}",
+            main_api::<InitContext>().type_info().unwrap()
+        )
+        .as_bytes(),
+    )
+    .unwrap();
+    std::fs::write(
+        "./bindings/diagnostic-api.ts",
+        format!(
+            "export type DiagnosticApi = {}",
+            main_api::<DiagnosticContext>().type_info().unwrap()
+        )
+        .as_bytes(),
+    )
+    .unwrap();
+    std::fs::write(
+        "./bindings/setup-api.ts",
+        format!(
+            "export type SetupApi = {}",
+            main_api::<SetupContext>().type_info().unwrap()
+        )
+        .as_bytes(),
+    )
+    .unwrap();
+    std::fs::write(
+        "./bindings/os-install-api.ts",
+        format!(
+            "export type OsInstallApi = {}",
+            main_api::<InstallContext>().type_info().unwrap()
+        )
+        .as_bytes(),
+    )
+    .unwrap();
 }
 
 pub fn main_api<C: Context>() -> ParentHandler<C> {

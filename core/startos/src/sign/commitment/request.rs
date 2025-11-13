@@ -20,7 +20,6 @@ use crate::util::serde::Base64;
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct RequestCommitment {
     #[ts(type = "number")]
     pub timestamp: i64,

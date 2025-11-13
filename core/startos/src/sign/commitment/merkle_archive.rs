@@ -14,7 +14,6 @@ use crate::util::serde::Base64;
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct MerkleArchiveCommitment {
     pub root_sighash: Base64<[u8; 32]>,
     #[ts(type = "number")]

@@ -9,10 +9,10 @@ use imbl::{HashMap, OrdMap};
 use imbl_value::InternedString;
 use itertools::Itertools;
 use models::GatewayId;
-use patch_db::Dump;
 use patch_db::json_ptr::{JsonPointer, ROOT};
+use patch_db::Dump;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
@@ -28,7 +28,7 @@ use crate::tunnel::context::TunnelContext;
 use crate::tunnel::web::WebserverInfo;
 use crate::tunnel::wg::WgServer;
 use crate::util::net::WebSocketExt;
-use crate::util::serde::{HandlerExtSerde, apply_expr};
+use crate::util::serde::{apply_expr, HandlerExtSerde};
 
 #[derive(Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
@@ -47,7 +47,7 @@ pub struct TunnelDatabase {
 
 #[test]
 fn export_bindings_tunnel_db() {
-    TunnelDatabase::export_all_to("bindings/tunnel").unwrap();
+    TunnelDatabase::export_all_to("bindings/database/tunnel").unwrap();
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, TS)]
@@ -78,7 +78,7 @@ pub fn db_api<C: Context>() -> ParentHandler<C> {
                 .with_metadata("admin", Value::Bool(true))
                 .no_cli()
                 .custom_ts(
-                    DumpParams::inline(),
+                    DumpParams::inline_flattened(),
                     format!("{{ id: number; value: unknown }}"),
                 ),
         )

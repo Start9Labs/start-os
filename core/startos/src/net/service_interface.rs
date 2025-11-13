@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[serde(rename_all_fields = "camelCase")]
 #[serde(tag = "kind")]
@@ -30,7 +29,6 @@ impl HostnameInfo {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct GatewayInfo {
     pub id: GatewayId,
@@ -39,7 +37,6 @@ pub struct GatewayInfo {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct OnionHostname {
     #[ts(type = "string")]
@@ -54,7 +51,6 @@ impl OnionHostname {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[serde(rename_all_fields = "camelCase")]
 #[serde(tag = "kind")]
@@ -96,7 +92,6 @@ impl IpHostname {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceInterface {
     pub id: ServiceInterfaceId,
@@ -109,7 +104,6 @@ pub struct ServiceInterface {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub enum ServiceInterfaceType {
     Ui,
@@ -118,7 +112,6 @@ pub enum ServiceInterfaceType {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct AddressInfo {
     pub username: Option<String>,

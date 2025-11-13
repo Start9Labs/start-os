@@ -8,7 +8,7 @@ use ts_rs::TS;
 use crate::{FromStrParser, Id};
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, TS)]
-#[ts(export, type = "string")]
+#[ts(type = "string")]
 pub struct ServiceInterfaceId(Id);
 impl From<Id> for ServiceInterfaceId {
     fn from(id: Id) -> Self {

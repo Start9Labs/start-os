@@ -23,7 +23,6 @@ use sync_dummy as sync;
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct DestroySubcontainerFsParams {
     guid: Guid,
 }
@@ -70,7 +69,6 @@ pub async fn destroy_subcontainer_fs(
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct CreateSubcontainerFsParams {
     image_id: ImageId,
     #[ts(type = "string | null")]

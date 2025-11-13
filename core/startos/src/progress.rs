@@ -196,7 +196,6 @@ impl std::ops::AddAssign<u64> for Progress {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
-#[ts(export)]
 pub struct NamedProgress {
     #[ts(type = "string")]
     pub name: InternedString,
@@ -204,7 +203,6 @@ pub struct NamedProgress {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
-#[ts(export)]
 pub struct FullProgress {
     pub overall: Progress,
     pub phases: Vec<NamedProgress>,

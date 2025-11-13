@@ -10,7 +10,6 @@ const KNOWN_CLASSES: &[&str] = &["processor", "display"];
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(tag = "class")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum LshwDevice {
     Processor(LshwProcessor),
     Display(LshwDisplay),

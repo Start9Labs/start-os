@@ -351,7 +351,6 @@ where
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum AlpnInfo {
     Reflect,
     Specified(Vec<MaybeUtf8String>),

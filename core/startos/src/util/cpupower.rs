@@ -17,7 +17,6 @@ pub const GOVERNOR_HEIRARCHY: &[Governor] = &[
 #[derive(
     Debug, Clone, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize, TS,
 )]
-#[ts(export, type = "string")]
 pub struct Governor(Cow<'static, str>);
 impl std::str::FromStr for Governor {
     type Err = std::convert::Infallible;

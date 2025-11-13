@@ -25,7 +25,6 @@ pub mod binding;
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct Host {
     pub bindings: BTreeMap<u16, BindInfo>,
     #[ts(type = "string[]")]
@@ -74,7 +73,6 @@ impl Host {
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct Hosts(pub BTreeMap<HostId, Host>);
 
 impl Map for Hosts {

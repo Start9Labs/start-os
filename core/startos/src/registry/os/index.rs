@@ -14,7 +14,6 @@ use crate::sign::commitment::blake3::Blake3Commitment;
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct OsIndex {
     pub versions: OsVersionInfoMap,
 }
@@ -37,7 +36,6 @@ impl Map for OsVersionInfoMap {
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct OsVersionInfo {
     pub headline: String,
     pub release_notes: String,

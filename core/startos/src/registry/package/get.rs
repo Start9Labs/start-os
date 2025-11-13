@@ -19,7 +19,6 @@ use crate::util::serde::{WithIoFormat, display_serializable};
     Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS, ValueEnum,
 )]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum PackageDetailLevel {
     None,
     Short,
@@ -33,7 +32,6 @@ impl Default for PackageDetailLevel {
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct PackageInfoShort {
     pub release_notes: String,
 }
@@ -41,7 +39,6 @@ pub struct PackageInfoShort {
 #[derive(Debug, Deserialize, Serialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-#[ts(export)]
 pub struct GetPackageParams {
     pub id: Option<PackageId>,
     #[ts(type = "string | null")]
@@ -60,7 +57,6 @@ pub struct GetPackageParams {
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct GetPackageResponse {
     #[ts(type = "string[]")]
     pub categories: BTreeSet<InternedString>,
@@ -103,7 +99,6 @@ impl GetPackageResponse {
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct GetPackageResponseFull {
     #[ts(type = "string[]")]
     pub categories: BTreeSet<InternedString>,

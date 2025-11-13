@@ -14,7 +14,6 @@ use crate::util::serde::Pem;
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, TS, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum Algorithm {
     Ecdsa,
     Ed25519,
@@ -22,7 +21,6 @@ pub enum Algorithm {
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct GetSslCertificateParams {
     #[ts(type = "string[]")]
     hostnames: BTreeSet<InternedString>,
@@ -144,7 +142,6 @@ pub async fn get_ssl_certificate(
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct GetSslKeyParams {
     #[ts(type = "string[]")]
     hostnames: BTreeSet<InternedString>,

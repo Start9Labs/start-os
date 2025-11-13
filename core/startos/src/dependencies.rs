@@ -6,13 +6,23 @@ use models::PackageId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use crate::Error;
 use crate::prelude::*;
 use crate::util::PathOrUrl;
+use crate::Error;
+
+#[test]
+fn export_bindings_dependencies() {
+    use crate::service::effects::dependency::{CheckDependenciesResult, DependencyRequirement};
+
+    const OUT_DIR: &str = "./bindings/dependencies";
+
+    PackageId::export_all_to(OUT_DIR).unwrap();
+    DependencyRequirement::export_all_to(OUT_DIR).unwrap();
+    CheckDependenciesResult::export_all_to(OUT_DIR).unwrap();
+}
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct Dependencies(pub BTreeMap<PackageId, DepInfo>);
 impl Map for Dependencies {
     type Key = PackageId;
@@ -37,7 +47,7 @@ pub struct DepInfo {
 impl TS for DepInfo {
     type WithoutGenerics = Self;
     fn decl() -> String {
-        format!("type {} = {}", Self::name(), Self::inline())
+        format!("type {} = {}", Self::name(), Self::inline_flattened())
     }
     fn decl_concrete() -> String {
         Self::decl()
@@ -64,7 +74,6 @@ impl TS for DepInfo {
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum MetadataSrc {
     Metadata(Metadata),
     S9pk(Option<PathOrUrl>), // backwards compatibility
@@ -72,7 +81,6 @@ pub enum MetadataSrc {
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct Metadata {
     pub title: InternedString,
     pub icon: PathOrUrl,

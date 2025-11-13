@@ -20,7 +20,6 @@ use crate::status::MainStatus;
 use crate::util::serde::{Pem, is_partial_of};
 
 #[derive(Debug, Default, Deserialize, Serialize, TS)]
-#[ts(export)]
 pub struct AllPackageData(pub BTreeMap<PackageId, PackageDataEntry>);
 impl Map for AllPackageData {
     type Key = PackageId;
@@ -43,7 +42,6 @@ pub enum ManifestPreference {
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "state")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub enum PackageState {
     Installing(InstallingState),
     Restoring(InstallingState),
@@ -277,7 +275,6 @@ impl Model<PackageState> {
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct InstallingState {
     pub installing_info: InstallingInfo,
 }
@@ -285,7 +282,6 @@ pub struct InstallingState {
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct UpdatingState {
     pub manifest: Manifest,
     pub s9pk: PathBuf,
@@ -295,7 +291,6 @@ pub struct UpdatingState {
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct InstalledState {
     pub manifest: Manifest,
 }
@@ -303,13 +298,11 @@ pub struct InstalledState {
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct InstallingInfo {
     pub new_manifest: Manifest,
     pub progress: FullProgress,
 }
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "kebab-case")]
 pub enum AllowedStatuses {
     OnlyRunning,
@@ -344,7 +337,6 @@ pub struct ActionMetadata {
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "kebab-case")]
 #[serde(rename_all_fields = "camelCase")]
 pub enum ActionVisibility {
@@ -361,7 +353,6 @@ impl Default for ActionVisibility {
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct PackageDataEntry {
     pub state_info: PackageState,
     pub s9pk: PathBuf,
@@ -388,7 +379,6 @@ impl AsRef<PackageDataEntry> for PackageDataEntry {
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize, TS)]
-#[ts(export)]
 pub struct CurrentDependencies(pub BTreeMap<PackageId, CurrentDependencyInfo>);
 impl CurrentDependencies {
     pub fn map(
@@ -440,7 +430,6 @@ pub enum CurrentDependencyKind {
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS, HasModel)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 #[model = "Model<Self>"]
 pub struct TaskEntry {
     pub task: Task,
@@ -449,7 +438,6 @@ pub struct TaskEntry {
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS, HasModel)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 #[model = "Model<Self>"]
 pub struct Task {
     pub package_id: PackageId,
@@ -466,7 +454,6 @@ pub struct Task {
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "kebab-case")]
-#[ts(export)]
 pub enum TaskSeverity {
     Optional,
     Important,
@@ -480,7 +467,6 @@ impl Default for TaskSeverity {
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct TaskTrigger {
     #[serde(default)]
     pub once: bool,
@@ -489,7 +475,6 @@ pub struct TaskTrigger {
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "kebab-case")]
-#[ts(export)]
 pub enum TaskCondition {
     InputNotMatches,
 }

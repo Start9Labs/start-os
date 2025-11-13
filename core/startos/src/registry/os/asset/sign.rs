@@ -49,7 +49,6 @@ pub fn sign_api<C: Context>() -> ParentHandler<C> {
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct SignAssetParams {
     #[ts(type = "string")]
     version: Version,

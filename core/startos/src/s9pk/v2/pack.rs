@@ -248,7 +248,6 @@ impl PackParams {
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct ImageConfig {
     pub source: ImageSource,
     #[ts(type = "string[]")]
@@ -336,7 +335,6 @@ impl clap::FromArgMatches for ImageConfig {
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[serde(untagged)]
-#[ts(export)]
 pub enum BuildArg {
     String(String),
     EnvVar { env: String },
@@ -344,7 +342,6 @@ pub enum BuildArg {
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum ImageSource {
     Packed,
     #[serde(rename_all = "camelCase")]
@@ -626,7 +623,6 @@ fn tar2sqfs(dest: impl AsRef<Path>) -> Result<Command, Error> {
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct ImageMetadata {
     pub workdir: PathBuf,
     #[ts(type = "string")]

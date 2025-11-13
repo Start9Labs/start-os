@@ -31,7 +31,7 @@ pub fn db_api<C: Context>() -> ParentHandler<C> {
                 .with_metadata("admin", Value::Bool(true))
                 .no_cli()
                 .custom_ts(
-                    DumpParams::inline(),
+                    DumpParams::inline_flattened(),
                     format!("{{ id: number; value: unknown }}"),
                 ),
         )

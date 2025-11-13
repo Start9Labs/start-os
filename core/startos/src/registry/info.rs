@@ -47,7 +47,6 @@ pub fn info_api<C: Context>() -> ParentHandler<C, WithIoFormat<Empty>> {
 
 #[derive(Debug, Default, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct RegistryInfo {
     pub name: Option<String>,
     pub icon: Option<DataUrl<'static>>,
@@ -66,7 +65,6 @@ pub async fn get_info(ctx: RegistryContext) -> Result<RegistryInfo, Error> {
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct SetNameParams {
     pub name: String,
 }
@@ -83,7 +81,6 @@ pub async fn set_name(
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct SetIconParams {
     pub icon: DataUrl<'static>,
 }
@@ -101,7 +98,6 @@ pub async fn set_icon(
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct CliSetIconParams {
     pub icon: PathBuf,
 }

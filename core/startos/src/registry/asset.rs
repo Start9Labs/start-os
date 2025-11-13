@@ -22,7 +22,6 @@ use crate::upload::UploadingFile;
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct RegistryAsset<Commitment> {
     #[ts(type = "string")]
     pub published_at: DateTime<Utc>,

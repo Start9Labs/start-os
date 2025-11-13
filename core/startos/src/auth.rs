@@ -70,7 +70,6 @@ pub async fn write_shadow(password: &str) -> Result<(), Error> {
 
 #[derive(Clone, Serialize, Deserialize, TS)]
 #[serde(untagged)]
-#[ts(export)]
 pub enum PasswordType {
     EncryptedWire(EncryptedWire),
     String(String),
@@ -208,7 +207,6 @@ pub fn check_password(hash: &str, password: &str) -> Result<(), Error> {
 
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct LoginParams {
     password: String,
     #[ts(skip)]
@@ -286,7 +284,6 @@ pub async fn logout<C: AuthContext>(
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct Session {
     #[ts(type = "string")]
     pub logged_in: DateTime<Utc>,
@@ -297,7 +294,6 @@ pub struct Session {
 
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct SessionList {
     #[ts(type = "string | null")]
     current: Option<InternedString>,

@@ -9,7 +9,6 @@ use cookie::{Cookie, Expiration, SameSite};
 use http::HeaderMap;
 use imbl::OrdMap;
 use imbl_value::InternedString;
-use include_dir::Dir;
 use models::GatewayId;
 use patch_db::PatchDb;
 use rpc_toolkit::yajrc::RpcError;
@@ -34,7 +33,7 @@ use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::tunnel::TUNNEL_DEFAULT_LISTEN;
 use crate::tunnel::api::tunnel_api;
 use crate::tunnel::db::TunnelDatabase;
-use crate::tunnel::wg::WIREGUARD_INTERFACE_NAME;
+use crate::tunnel::wg::{WIREGUARD_INTERFACE_NAME, WgSubnetConfig};
 use crate::util::Invoke;
 use crate::util::collections::OrdMapIterMut;
 use crate::util::io::read_file_to_string;
@@ -101,7 +100,17 @@ impl TunnelContext {
         let db_path = datadir.join("tunnel.db");
         let db = TypedPatchDb::<TunnelDatabase>::load_or_init(
             PatchDb::open(&db_path).await?,
-            || async { Ok(Default::default()) },
+            || async {
+                let mut db = TunnelDatabase::default();
+                db.wg.subnets.0.insert(
+                    "10.59.0.1/24".parse()?,
+                    WgSubnetConfig {
+                        name: "Default Subnet".into(),
+                        ..Default::default()
+                    },
+                );
+                Ok(db)
+            },
         )
         .await?;
         let listen = config.tunnel_listen.unwrap_or(TUNNEL_DEFAULT_LISTEN);

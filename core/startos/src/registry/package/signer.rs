@@ -45,7 +45,6 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct PackageSignerParams {
     pub id: PackageId,
     pub signer: Guid,
@@ -107,7 +106,6 @@ pub async fn remove_package_signer(
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct ListPackageSignersParams {
     pub id: PackageId,
 }

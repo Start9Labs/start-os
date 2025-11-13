@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
-    CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler, from_fn, from_fn_async,
+    from_fn, from_fn_async, CallRemoteHandler, Context, Empty, HandlerExt, ParentHandler,
 };
 
 use crate::context::{CliContext, DiagnosticContext, RpcContext};
@@ -17,6 +17,7 @@ pub fn diagnostic<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "error",
             from_fn(error)
+                .unknown_ts() // TODO: TS
                 .with_about("Display diagnostic error")
                 .with_call_remote::<CliContext>(),
         )

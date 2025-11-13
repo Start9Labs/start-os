@@ -16,12 +16,12 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::account::AccountInfo;
-use crate::db::DbAccessByKey;
-use crate::db::model::Database;
 use crate::db::model::package::AllPackageData;
+use crate::db::model::Database;
+use crate::db::DbAccessByKey;
 use crate::net::acme::AcmeProvider;
-use crate::net::host::Host;
 use crate::net::host::binding::{AddSslOptions, BindInfo, BindOptions, NetInfo};
+use crate::net::host::Host;
 use crate::net::utils::ipv6_is_local;
 use crate::net::vhost::AlpnInfo;
 use crate::prelude::*;
@@ -33,10 +33,14 @@ use crate::util::serde::MaybeUtf8String;
 use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
 
+#[test]
+fn export_bindings_database() {
+    Public::export_all_to("./bindings/database/startos").unwrap();
+}
+
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct Public {
     pub server_info: ServerInfo,
     pub package_data: AllPackageData,
@@ -152,7 +156,6 @@ fn get_platform() -> InternedString {
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct ServerInfo {
     #[serde(default = "get_arch")]
     #[ts(type = "string")]
@@ -194,7 +197,6 @@ pub struct ServerInfo {
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct NetworkInfo {
     pub wifi: WifiInfo,
     pub host: Host,
@@ -210,7 +212,6 @@ pub struct NetworkInfo {
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct DnsSettings {
     #[ts(type = "string[]")]
     pub dhcp_servers: VecDeque<SocketAddr>,
@@ -221,7 +222,6 @@ pub struct DnsSettings {
 #[derive(Clone, Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct NetworkInterfaceInfo {
     pub name: Option<InternedString>,
     pub public: Option<bool>,
@@ -269,7 +269,6 @@ impl NetworkInterfaceInfo {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize, TS, HasModel)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct IpInfo {
@@ -289,7 +288,6 @@ pub struct IpInfo {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "kebab-case")]
 pub enum NetworkInterfaceType {
     Ethernet,
@@ -302,7 +300,6 @@ pub enum NetworkInterfaceType {
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct AcmeSettings {
     pub contact: Vec<String>,
 }
@@ -323,14 +320,12 @@ impl DbAccessByKey<AcmeSettings> for Database {
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct DomainSettings {
     pub gateway: GatewayId,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct BackupProgress {
     pub complete: bool,
 }
@@ -338,7 +333,6 @@ pub struct BackupProgress {
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct ServerStatus {
     pub backup_progress: Option<BTreeMap<PackageId, BackupProgress>>,
     pub updated: bool,
@@ -352,7 +346,6 @@ pub struct ServerStatus {
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct WifiInfo {
     pub enabled: bool,
     pub interface: Option<String>,
@@ -364,7 +357,6 @@ pub struct WifiInfo {
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct ServerSpecs {
     pub cpu: String,
     pub disk: String,

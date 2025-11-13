@@ -112,7 +112,6 @@ impl std::fmt::Display for MinMax {
 
 #[derive(Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct InstallParams {
     #[ts(type = "string")]
     registry: Url,
@@ -354,7 +353,6 @@ impl FromArgMatches for CliInstallParams {
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]
-#[ts(export)]
 pub struct InstalledVersionParams {
     id: PackageId,
 }

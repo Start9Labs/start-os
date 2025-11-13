@@ -40,7 +40,6 @@ lazy_static::lazy_static! {
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct SetupResult {
     pub tor_addresses: Vec<String>,
     #[ts(type = "string")]

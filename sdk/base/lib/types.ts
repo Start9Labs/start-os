@@ -1,18 +1,20 @@
 export * as inputSpecTypes from "./actions/input/inputSpecTypes"
 
-import {
-  DependencyRequirement,
-  NamedHealthCheckResult,
-  Manifest,
-  ServiceInterface,
-  ActionId,
-} from "./osBindings"
-import { Affine, StringObject, ToKebab } from "./util"
+import { StringObject, ToKebab } from "./util"
 import { Action, Actions } from "./actions/setupActions"
 import { Effects } from "./Effects"
 import { ExtendedVersion, VersionRange } from "./exver"
 export { Effects }
+import * as bindings from "./osBindings"
 export * from "./osBindings"
+export * from "./osBindings/action"
+export * from "./osBindings/manifest"
+export {
+  CheckDependenciesResult,
+  NamedHealthCheckResult,
+  HealthCheckId,
+  DependencyRequirement,
+} from "./osBindings/dependencies"
 export { SDKManifest } from "./types/ManifestTypes"
 export {
   RequiredDependenciesOf as RequiredDependencies,
@@ -65,9 +67,11 @@ export namespace ExpectedExports {
     target: ExtendedVersion | VersionRange | null
   }) => Promise<unknown>
 
-  export type manifest = Manifest
+  export type manifest = bindings.manifest.Manifest
 
-  export type actions = Actions<Record<ActionId, Action<ActionId, any>>>
+  export type actions = Actions<
+    Record<bindings.action.ActionId, Action<bindings.action.ActionId, any>>
+  >
 }
 export type ABI = {
   createBackup: ExpectedExports.createBackup
@@ -90,7 +94,8 @@ export type Daemon = {
   [DaemonProof]: never
 }
 
-export type HealthStatus = NamedHealthCheckResult["result"]
+export type HealthStatus =
+  bindings.dependencies.NamedHealthCheckResult["result"]
 export type SmtpValue = {
   server: string
   port: number
@@ -119,10 +124,6 @@ export type DaemonReturned = {
 export declare const hostName: unique symbol
 // asdflkjadsf.onion | 1.2.3.4
 export type Hostname = string & { [hostName]: never }
-
-export type ServiceInterfaceId = string
-
-export { ServiceInterface }
 
 export type EffectMethod<T extends StringObject = Effects> = {
   [K in keyof T]-?: K extends string
@@ -178,7 +179,7 @@ export type KnownError =
       errorCode: [number, string] | readonly [number, string]
     }
 
-export type Dependencies = Array<DependencyRequirement>
+export type Dependencies = Array<bindings.dependencies.DependencyRequirement>
 
 export type DeepPartial<T> = T extends [infer A, ...infer Rest]
   ? [DeepPartial<A>, ...DeepPartial<Rest>]

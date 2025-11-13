@@ -7,7 +7,6 @@ use crate::service::rpc::CallbackId;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct GetHostInfoParams {
     host_id: HostId,
     #[ts(optional)]

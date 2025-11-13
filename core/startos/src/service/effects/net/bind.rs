@@ -5,7 +5,6 @@ use crate::service::effects::prelude::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct BindParams {
     id: HostId,
     internal_port: u16,
@@ -30,7 +29,6 @@ pub async fn bind(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct ClearBindingsParams {
     #[serde(default)]
@@ -52,7 +50,6 @@ pub async fn clear_bindings(
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct GetServicePortForwardParams {
     #[ts(optional)]

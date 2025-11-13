@@ -15,7 +15,7 @@ use imbl::OrdMap;
 use imbl_value::InternedString;
 use lazy_static::lazy_static;
 use regex::Regex;
-use rpc_toolkit::{Context, Empty, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerExt, ParentHandler, UnknownTS};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
 use tokio::process::Command;
@@ -27,16 +27,16 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::logs::{LogSource, LogsParams, journalctl};
+use crate::logs::{journalctl, LogSource, LogsParams};
 use crate::prelude::*;
-use crate::util::Invoke;
 use crate::util::collections::ordmap_retain;
-use crate::util::io::{ReadWriter, write_file_atomic};
+use crate::util::io::{write_file_atomic, ReadWriter};
 use crate::util::serde::{
-    BASE64, Base64, HandlerExtSerde, WithIoFormat, deserialize_from_str, display_serializable,
-    serialize_display,
+    deserialize_from_str, display_serializable, serialize_display, Base64, HandlerExtSerde,
+    WithIoFormat, BASE64,
 };
 use crate::util::sync::Watch;
+use crate::util::Invoke;
 
 pub const SYSTEMD_UNIT: &str = "tor@default";
 const STARTING_HEALTH_TIMEOUT: u64 = 120; // 2min
@@ -388,7 +388,7 @@ pub async fn list_services(ctx: RpcContext, _: Empty) -> Result<Vec<OnionAddress
     ctx.net_controller.tor.list_services().await
 }
 
-pub fn logs() -> ParentHandler<RpcContext, LogsParams> {
+pub fn logs() -> UnknownTS<ParentHandler<RpcContext, LogsParams>> {
     crate::logs::logs::<RpcContext, Empty>(|_: &RpcContext, _| async {
         Ok(LogSource::Unit(SYSTEMD_UNIT))
     })

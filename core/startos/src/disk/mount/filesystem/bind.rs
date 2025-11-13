@@ -12,7 +12,6 @@ use crate::prelude::*;
 use crate::util::io::create_file;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "kebab-case")]
 pub enum FileType {
     File,

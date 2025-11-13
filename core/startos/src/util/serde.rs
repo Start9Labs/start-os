@@ -13,7 +13,7 @@ use openssl::pkey::{PKey, Private};
 use openssl::x509::X509;
 use rpc_toolkit::{
     CliBindings, Context, HandlerArgs, HandlerArgsFor, HandlerFor, HandlerTS, HandlerTypes,
-    PrintCliResult,
+    LeafHandler, PrintCliResult,
 };
 use serde::de::DeserializeOwned;
 use serde::ser::{SerializeMap, SerializeSeq};
@@ -500,6 +500,7 @@ impl<T: HandlerTypes> HandlerTypes for DisplaySerializable<T> {
     type Ok = T::Ok;
     type Err = T::Err;
 }
+impl<T: LeafHandler> LeafHandler for DisplaySerializable<T> {}
 impl<T: HandlerTS> HandlerTS for DisplaySerializable<T> {
     fn type_info(&self) -> Option<String> {
         self.0.type_info()
@@ -663,7 +664,7 @@ where
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, TS)]
-#[ts(export, type = "string")]
+#[ts(type = "string")]
 pub struct Duration(std::time::Duration);
 impl Deref for Duration {
     type Target = std::time::Duration;
@@ -1027,7 +1028,11 @@ impl<K: TS, V: TS> TS for KeyVal<K, V> {
         format!("{{ [T in {}]: {} }}", K::inline(), V::inline())
     }
     fn inline_flattened() -> String {
-        Self::inline()
+        format!(
+            "{{ [T in {}]: {} }}",
+            K::inline_flattened(),
+            V::inline_flattened()
+        )
     }
     fn visit_dependencies(v: &mut impl ts_rs::TypeVisitor)
     where
@@ -1467,7 +1472,6 @@ impl<T: PemEncoding> ValueParserFactory for Pem<T> {
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, TS)]
-#[ts(export, type = "string | number[]")]
 pub struct MaybeUtf8String(pub Vec<u8>);
 impl std::fmt::Debug for MaybeUtf8String {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

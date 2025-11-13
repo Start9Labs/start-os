@@ -42,7 +42,6 @@ impl RegistryDatabase {}
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct FullIndex {
     pub name: Option<String>,
     pub icon: Option<DataUrl<'static>>,

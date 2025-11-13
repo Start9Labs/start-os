@@ -32,7 +32,6 @@ pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
-#[ts(export)]
 pub struct AddTunnelParams {
     name: InternedString,
     config: String,
@@ -104,7 +103,6 @@ pub async fn add_tunnel(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
-#[ts(export)]
 pub struct RemoveTunnelParams {
     id: GatewayId,
 }

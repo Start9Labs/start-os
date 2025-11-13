@@ -3,7 +3,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use clap::Parser;
 use imbl_value::InternedString;
 use ipnet::Ipv4Net;
-use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{from_fn_async, Context, Empty, HandlerArgs, HandlerExt, ParentHandler};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -11,7 +11,23 @@ use crate::context::CliContext;
 use crate::prelude::*;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::wg::{WgConfig, WgSubnetClients, WgSubnetConfig};
-use crate::util::serde::{HandlerExtSerde, display_serializable};
+use crate::util::serde::{display_serializable, HandlerExtSerde};
+
+#[test]
+fn export_bindings_tunnel_api() {
+    use rpc_toolkit::HandlerTS;
+
+    std::fs::create_dir_all("./bindings").unwrap();
+    std::fs::write(
+        "./bindings/tunnel-api.ts",
+        format!(
+            "export type TunnelApi = {}",
+            tunnel_api::<TunnelContext>().type_info().unwrap()
+        )
+        .as_bytes(),
+    )
+    .unwrap();
+}
 
 pub fn tunnel_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -134,7 +150,7 @@ pub fn device_api<C: Context>() -> ParentHandler<C> {
         )
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AddSubnetParams {
     name: InternedString,
@@ -188,9 +204,10 @@ pub async fn remove_subnet(
     server.sync().await
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AddDeviceParams {
+    #[ts(type = "string")]
     subnet: Ipv4Net,
     name: InternedString,
     ip: Option<Ipv4Addr>,
@@ -249,9 +266,10 @@ pub async fn add_device(
     server.sync().await
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveDeviceParams {
+    #[ts(type = "string")]
     subnet: Ipv4Net,
     ip: Ipv4Addr,
 }
@@ -277,9 +295,10 @@ pub async fn remove_device(
     server.sync().await
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ListDevicesParams {
+    #[ts(type = "string")]
     subnet: Ipv4Net,
 }
 
@@ -297,13 +316,15 @@ pub async fn list_devices(
         .de()
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ShowConfigParams {
+    #[ts(type = "string")]
     subnet: Ipv4Net,
     ip: Ipv4Addr,
     wan_addr: Option<IpAddr>,
     #[serde(rename = "__ConnectInfo_local_addr")]
+    #[ts(skip)]
     #[arg(skip)]
     local_addr: Option<SocketAddr>,
 }
@@ -361,7 +382,7 @@ pub async fn show_config(
         .to_string())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AddPortForwardParams {
     source: SocketAddrV4,
@@ -385,7 +406,7 @@ pub async fn add_forward(
     Ok(())
 }
 
-#[derive(Deserialize, Serialize, Parser)]
+#[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RemovePortForwardParams {
     source: SocketAddrV4,

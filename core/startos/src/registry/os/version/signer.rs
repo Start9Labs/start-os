@@ -45,7 +45,6 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct VersionSignerParams {
     #[ts(type = "string")]
     pub version: Version,
@@ -108,7 +107,6 @@ pub async fn remove_version_signer(
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct ListVersionSignersParams {
     #[ts(type = "string")]
     pub version: Version,

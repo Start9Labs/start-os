@@ -119,7 +119,7 @@ impl SignatureScheme for AnyScheme {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, TS)]
-#[ts(export, type = "string")]
+#[ts(type = "string")]
 #[non_exhaustive]
 pub enum AnySigningKey {
     Ed25519(<Ed25519 as SignatureScheme>::SigningKey),
@@ -191,7 +191,7 @@ impl Serialize for AnySigningKey {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, TS)]
-#[ts(export, type = "string")]
+#[ts(type = "string")]
 #[non_exhaustive]
 pub enum AnyVerifyingKey {
     Ed25519(<Ed25519 as SignatureScheme>::VerifyingKey),
@@ -278,7 +278,7 @@ impl digest::Update for AnyDigest {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, TS)]
-#[ts(export, type = "string")]
+#[ts(type = "string")]
 pub enum AnySignature {
     Ed25519(<Ed25519 as SignatureScheme>::Signature),
 }

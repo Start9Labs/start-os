@@ -53,7 +53,6 @@ pub fn get_api<C: Context>() -> ParentHandler<C> {
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct GetOsAssetParams {
     #[ts(type = "string")]
     pub version: Version,

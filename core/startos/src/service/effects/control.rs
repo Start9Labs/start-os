@@ -35,7 +35,6 @@ pub async fn shutdown(context: EffectContext, EventId { event_id }: EventId) -> 
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct GetStatusParams {
     #[ts(optional)]
     pub package_id: Option<PackageId>,
@@ -76,7 +75,6 @@ pub async fn get_status(
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub enum SetMainStatusStatus {
     Running,
     Stopped,
@@ -100,7 +98,6 @@ impl ValueParserFactory for SetMainStatusStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct SetMainStatus {
     status: SetMainStatusStatus,
 }

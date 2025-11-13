@@ -19,7 +19,6 @@ use crate::prelude::*;
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct BindId {
     pub id: HostId,
@@ -46,7 +45,6 @@ impl FromStr for BindId {
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct BindInfo {
     pub enabled: bool,
     pub options: BindOptions,
@@ -55,7 +53,6 @@ pub struct BindInfo {
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct NetInfo {
     #[ts(as = "BTreeSet::<GatewayId>")]
     #[serde(default)]
@@ -145,7 +142,6 @@ impl InterfaceFilter for NetInfo {
 }
 
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize, TS)]
-#[ts(export)]
 #[serde(rename_all = "camelCase")]
 pub struct Security {
     pub ssl: bool,
@@ -153,7 +149,6 @@ pub struct Security {
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct BindOptions {
     pub preferred_external_port: u16,
     pub add_ssl: Option<AddSslOptions>,
@@ -162,7 +157,6 @@ pub struct BindOptions {
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct AddSslOptions {
     pub preferred_external_port: u16,
     // #[serde(default)]
@@ -234,7 +228,6 @@ pub async fn list_bindings<Kind: HostApiKind>(
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct BindingGatewaySetEnabledParams {
     internal_port: u16,
     gateway: GatewayId,

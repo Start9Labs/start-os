@@ -15,7 +15,8 @@ use itertools::Itertools;
 use models::{FromStrParser, PackageId};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
-    CallRemote, Context, Empty, HandlerArgs, HandlerExt, HandlerFor, ParentHandler, from_fn_async,
+    from_fn_async, CallRemote, Context, Empty, HandlerArgs, HandlerExt, HandlerFor, LeafHandler,
+    ParentHandler, UnknownTS,
 };
 use serde::de::{self, DeserializeOwned};
 use serde::{Deserialize, Serialize};
@@ -31,9 +32,9 @@ use crate::error::ResultExt;
 use crate::lxc::ContainerId;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
-use crate::util::Invoke;
 use crate::util::net::WebSocketExt;
 use crate::util::serde::Reversible;
+use crate::util::Invoke;
 
 #[pin_project::pin_project]
 pub struct LogStream {
@@ -322,10 +323,10 @@ impl From<BootIdentifier> for String {
     }
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
-pub struct LogsParams<Extra: FromArgMatches + Args + TS = Empty> {
+pub struct LogsParams<Extra: FromArgMatches + Args = Empty> {
     #[command(flatten)]
     #[serde(flatten)]
     extra: Extra,
@@ -339,6 +340,11 @@ pub struct LogsParams<Extra: FromArgMatches + Args + TS = Empty> {
     #[arg(short = 'B', long = "before", conflicts_with = "follow")]
     #[serde(default)]
     before: bool,
+}
+impl<Extra: FromArgMatches + Args + TS> LogsParams<Extra> {
+    pub fn inline_ty() -> String {
+        format!("{} & {{ limit: number | null; cursor: string | null; boot: string | number | null; before: boolean }}", Extra::inline_flattened())
+    }
 }
 
 #[derive(Deserialize, Serialize, Parser)]
@@ -359,15 +365,27 @@ pub fn logs<
     Extra: FromArgMatches + Serialize + DeserializeOwned + Args + TS + Send + Sync + 'static,
 >(
     source: impl for<'a> LogSourceFn<'a, C, Extra>,
-) -> ParentHandler<C, LogsParams<Extra>> {
+) -> UnknownTS<ParentHandler<C, LogsParams<Extra>>> {
     ParentHandler::new()
-        .root_handler(logs_nofollow::<C, Extra>(source.clone()).no_cli())
+        .root_handler(
+            logs_nofollow::<C, Extra>(source.clone())
+                .no_cli()
+                .custom_ts(
+                    LogsParams::<Extra>::inline_ty(),
+                    LogResponse::inline_flattened(),
+                ),
+        )
         .subcommand(
             "follow",
             logs_follow::<C, Extra>(source)
                 .with_inherited(|params, _| params)
-                .no_cli(),
+                .no_cli()
+                .custom_ts(
+                    LogsParams::<Extra>::inline_ty(),
+                    LogFollowResponse::inline_flattened(),
+                ),
         )
+        .unknown_ts()
 }
 
 pub async fn cli_logs<RemoteContext, Extra>(
@@ -433,7 +451,13 @@ where
 
 fn logs_nofollow<C, Extra>(
     f: impl for<'a> LogSourceFn<'a, C, Extra>,
-) -> impl HandlerFor<C, Params = LogsParams<Extra>, InheritedParams = Empty, Ok = LogResponse, Err = Error>
+) -> impl HandlerFor<
+    C,
+    Params = LogsParams<Extra>,
+    InheritedParams = Empty,
+    Ok = LogResponse,
+    Err = Error,
+> + LeafHandler
 where
     C: Context,
     Extra: FromArgMatches + Args + TS + Send + Sync + 'static,
@@ -477,7 +501,7 @@ fn logs_follow<
     InheritedParams = LogsParams<Extra>,
     Ok = LogFollowResponse,
     Err = Error,
-> {
+> + LeafHandler {
     from_fn_async(
         move |HandlerArgs {
                   context,
@@ -519,7 +543,7 @@ async fn get_package_id(
     Ok(LogSource::Container(container_id))
 }
 
-pub fn package_logs() -> ParentHandler<RpcContext, LogsParams<PackageIdParams>> {
+pub fn package_logs() -> UnknownTS<ParentHandler<RpcContext, LogsParams<PackageIdParams>>> {
     logs::<RpcContext, PackageIdParams>(get_package_id)
 }
 

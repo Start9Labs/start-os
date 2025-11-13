@@ -26,7 +26,6 @@ use crate::util::io::TrackingIO;
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct AddPackageParams {
     #[ts(type = "string")]
     pub url: Url,
@@ -163,7 +162,6 @@ pub async fn cli_add_package(
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
-#[ts(export)]
 pub struct RemovePackageParams {
     pub id: PackageId,
     pub version: VersionString,

@@ -293,7 +293,6 @@ impl CallbackHandlers {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS, Parser)]
 #[ts(type = "{ only: number[] } | { except: number[] }")]
-#[ts(export)]
 pub struct ClearCallbacksParams {
     #[arg(long, conflicts_with = "except")]
     pub only: Option<Vec<CallbackId>>,
