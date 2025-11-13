@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { TuiAccordion } from '@taiga-ui/experimental'
 
 @Component({
-  selector: 'wan-aside',
+  selector: 'ipv4-aside',
   template: `
     <tui-accordion size="m">
       <button tuiAccordion appearance="">IP Address</button>
@@ -84,4 +84,4 @@ import { TuiAccordion } from '@taiga-ui/experimental'
   imports: [TuiAccordion],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class WanAside {}
+export class IPv4Aside {}

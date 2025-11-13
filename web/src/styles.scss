@@ -96,7 +96,6 @@ header[tuiHeader] {
 
   label:has(input[type='checkbox'], input[type='radio']) {
     cursor: pointer;
-    align-self: center;
     align-items: center;
   }
 

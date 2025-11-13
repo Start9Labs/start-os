@@ -13,7 +13,7 @@ import { ToCamelPipe } from 'src/app/pipes/to-camel.pipe'
 @Component({
   template: `
     <header tuiHeader>
-      <hgroup tuiTitle><h2>Internet (WAN)</h2></hgroup>
+      <hgroup tuiTitle><h2>Network (LAN)</h2></hgroup>
     </header>
     <tui-tabs>
       @for (tab of tabs; track $index) {
@@ -35,14 +35,14 @@ import { ToCamelPipe } from 'src/app/pipes/to-camel.pipe'
     ToCamelPipe,
   ],
 })
-class Wan {
-  protected readonly tabs = ['IPv4', 'IPv6', 'MAC Address', 'Dynamic DNS']
+class Lan {
+  protected readonly tabs = ['IPv4', 'IPv6']
 }
 
 export default [
   {
     path: '',
-    component: Wan,
+    component: Lan,
     children: [
       {
         path: 'ipv4',
@@ -51,14 +51,6 @@ export default [
       {
         path: 'ipv6',
         loadComponent: () => import('./routes/ipv6'),
-      },
-      {
-        path: 'mac-address',
-        loadComponent: () => import('./routes/mac'),
-      },
-      {
-        path: 'dynamic-dns',
-        loadComponent: () => import('./routes/dns'),
       },
       {
         path: '**',

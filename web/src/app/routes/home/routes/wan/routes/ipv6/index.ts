@@ -1,18 +1,26 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { NonNullableFormBuilder } from '@angular/forms'
+import { TuiButton } from '@taiga-ui/core'
 import { TuiCard } from '@taiga-ui/layout'
+import { Help } from 'src/app/directives/help.directive'
 
+import { IPv6Aside } from './aside'
 import { Ipv6Dns } from './dns'
 import { Ipv6Ip } from './ip'
 import { Ipv6Summary } from './summary'
 
 @Component({
   template: `
+    <ipv6-aside *help />
     <article ipv6Summary tuiCardLarge="compact"></article>
     <ipv6-ip />
     <ipv6-dns />
+    <footer class="g-footer">
+      <button tuiButton appearance="flat">Cancel</button>
+      <button tuiButton>Save</button>
+    </footer>
   `,
-  imports: [TuiCard, Ipv6Summary, Ipv6Ip, Ipv6Dns],
+  imports: [TuiCard, TuiButton, Ipv6Summary, Ipv6Ip, Ipv6Dns, IPv6Aside, Help],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Ipv6 {
