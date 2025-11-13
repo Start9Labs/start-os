@@ -293,14 +293,7 @@ pub async fn set_password_cli(
     Ok(())
 }
 
-pub async fn reset_password(
-    HandlerArgs {
-        context,
-        parent_method,
-        method,
-        ..
-    }: HandlerArgs<CliContext>,
-) -> Result<(), Error> {
+pub async fn reset_password(ctx: CliContext) -> Result<(), Error> {
     println!("Generating a random password...");
     let params = SetPasswordParams {
         password: base32::encode(
@@ -309,11 +302,7 @@ pub async fn reset_password(
         ),
     };
 
-    context
-        .call_remote::<TunnelContext>(
-            &parent_method.iter().chain(method.iter()).join("."),
-            to_value(&params)?,
-        )
+    ctx.call_remote::<TunnelContext>("auth.set-password", to_value(&params)?)
         .await?;
 
     println!("Your new password is:");
