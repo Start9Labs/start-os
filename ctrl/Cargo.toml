@@ -27,3 +27,4 @@ rand = "0.9.1"
 once_cell = "1.21.3"
 chrono = { version = "0.4.42", features = ["serde", "std"] }
 fd-lock-rs = { workspace = true }
+tempfile = "3.14.0"

@@ -18,7 +18,7 @@ impl Context for CliContext {}
 pub struct ServerContext;
 impl Context for ServerContext {}
 
-pub fn main_api<C: Context>() -> ParentHandler<C> {
+pub fn main_api<C: Context + Clone>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("profiles", profiles::profiles::<C>())
         .subcommand("ethernet", ethernet::ethernet::<C>())

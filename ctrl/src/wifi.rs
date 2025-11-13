@@ -4,6 +4,7 @@ use crate::{utils::HandlerExtSerde, Error, ErrorKind};
 use rpc_toolkit::{from_fn, Context, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap};
+use std::io::Write as _;
 use std::process::Command;
 use uciedit::openwrt::{
     WifiChannel, WifiDevice, WifiDynamicVlan, WifiInterface, WifiMode, WifiStation, WifiVlan,
@@ -27,10 +28,11 @@ pub struct Wifi<Id: Ord = ProfileId> {
     pub passwords: BTreeSet<Password<Id>>,
 }
 
-pub fn wifi<C: Context>() -> ParentHandler<C> {
+pub fn wifi<C: Context + Clone>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("get", from_fn(get::<C>).with_display_serializable())
         .subcommand("set", from_fn(set::<C>).with_display_serializable())
+        .subcommand("edit", from_fn(edit::<C>).with_display_serializable())
 }
 
 fn find_relevant(cfg: &mut Sections) -> Result<Vec<(String, WifiInterface, WifiDevice)>, Error> {
@@ -280,4 +282,41 @@ pub fn set<C: Context>(
     }
     let _ = Command::new("wifi").arg("reload").spawn()?.wait();
     Ok(())
+}
+
+pub fn edit<C: Context + Clone>(ctx: C) -> Result<(), Error> {
+    // Get current configuration
+    let current_wifi = get(ctx.clone())?;
+
+    // Create a temporary file with .json extension
+    let mut temp_file = tempfile::Builder::new().suffix(".json").tempfile()?;
+
+    // Write current config as pretty JSON to temp file
+    serde_json::to_writer_pretty(&mut temp_file, &current_wifi)
+        .map_err(|e| Error::other(format!("Failed to write JSON: {}", e)))?;
+    temp_file.flush()?;
+
+    // Get the editor from environment, fallback to vi
+    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
+
+    // Get the path before launching editor (it will be cleaned up when temp_file is dropped)
+    let temp_path = temp_file.path().to_owned();
+
+    // Launch editor and wait for it to exit
+    let status = Command::new(&editor).arg(&temp_path).status()?;
+
+    // Check if editor exited successfully
+    if !status.success() {
+        return Err(Error::other("Editor exited with non-zero status"));
+    }
+
+    // Read the modified content from disk (editor modified it via a different file handle)
+    let content = std::fs::read_to_string(&temp_path)?;
+
+    // Deserialize the modified config
+    let modified_wifi: Wifi<ProfileIdOpt> = serde_json::from_str(&content)
+        .map_err(|e| Error::other(format!("Failed to parse JSON: {}", e)))?;
+
+    // Apply the changes by calling set
+    set(ctx, DeserializeStdin(modified_wifi))
 }
