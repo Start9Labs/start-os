@@ -1,4 +1,5 @@
 use crate::utils::DeserializeStdin;
+use crate::CtrlContext;
 use crate::{utils::HandlerExtSerde, Error, ErrorKind};
 use chrono::{offset::Utc, DateTime};
 use clap::Parser;
@@ -8,7 +9,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::io::{BufWriter, Seek as _, Write as _};
 use uciedit::{parse_config, Arena, Line, LineComment, Token};
 
-pub fn uci<C: Context + Clone>() -> ParentHandler<C> {
+pub fn uci<C: CtrlContext>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("get", from_fn(get::<C>).with_display_serializable())
         .subcommand("set", from_fn(set::<C>).with_display_serializable())
@@ -34,8 +35,8 @@ pub struct FilesGet {
     name: String,
 }
 
-pub fn get<C: Context>(_ctx: C, FilesGet { name }: FilesGet) -> Result<UciFile, Error> {
-    let path = format!("./etc/config/{name}");
+pub fn get<C: CtrlContext>(ctx: C, FilesGet { name }: FilesGet) -> Result<UciFile, Error> {
+    let path = ctx.uci_path(&name);
     let mut sections = Vec::new();
     let modified = std::fs::metadata(&path)
         .and_then(|m| m.modified())
@@ -75,8 +76,8 @@ pub fn get<C: Context>(_ctx: C, FilesGet { name }: FilesGet) -> Result<UciFile, 
 
 type Files = BTreeMap<String, UciFile>;
 
-pub fn set<C: Context>(
-    _ctx: C,
+pub fn set<C: CtrlContext>(
+    ctx: C,
     DeserializeStdin(files): DeserializeStdin<Files>,
 ) -> Result<(), Error> {
     use fd_lock_rs::{FdLock, LockType};
@@ -86,7 +87,7 @@ pub fn set<C: Context>(
     let files = files
         .into_iter()
         .map(|(name, section)| {
-            let path = format!("./etc/config/{name}");
+            let path = ctx.uci_path(&name);
             let file = std::fs::File::options()
                 .create(true)
                 .write(true)
@@ -161,7 +162,7 @@ pub fn set<C: Context>(
     Ok(())
 }
 
-pub fn edit<C: Context + Clone>(ctx: C, args: FilesGet) -> Result<(), Error> {
+pub fn edit<C: CtrlContext>(ctx: C, args: FilesGet) -> Result<(), Error> {
     let name = args.name.clone();
     let current_file = get(ctx.clone(), args)?;
     let modified_file = crate::utils::edit_in_editor(&current_file)?;

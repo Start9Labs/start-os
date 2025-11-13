@@ -6,7 +6,6 @@ use startwrt_ctrl::{init_logging, main_api, ServerContext};
 use std::future::ready;
 use std::net::SocketAddr;
 use std::time::Duration;
-use tokio::signal::unix::signal;
 use tracing::instrument;
 
 #[instrument(skip_all)]

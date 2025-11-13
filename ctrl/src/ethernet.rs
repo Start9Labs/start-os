@@ -1,6 +1,8 @@
 use crate::profiles::{self, ProfileId, ProfileIdOpt};
 use crate::utils::DeserializeStdin;
-use crate::{utils::HandlerExtSerde, Error, ErrorKind};
+use crate::utils::HandlerExtSerde;
+use crate::CtrlContext;
+use crate::{Error, ErrorKind};
 use rpc_toolkit::{from_fn, Context, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -27,16 +29,16 @@ pub struct Ethernet<Id: Ord = ProfileId> {
     pub ports: BTreeMap<String, Port<Id>>,
 }
 
-pub fn ethernet<C: Context + Clone>() -> ParentHandler<C> {
+pub fn ethernet<C: CtrlContext + Clone>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("get", from_fn(get::<C>).with_display_serializable())
         .subcommand("set", from_fn(set::<C>).with_display_serializable())
         .subcommand("edit", from_fn(edit::<C>).with_display_serializable())
 }
 
-pub fn get<C: Context>(ctx: C) -> Result<Ethernet, Error> {
-    let lookup = profiles::Lookup::parse()?;
-    parse_config("./etc/config/network", |mut cfg| {
+pub fn get<C: CtrlContext>(ctx: C) -> Result<Ethernet, Error> {
+    let lookup = profiles::Lookup::parse(ctx.clone())?;
+    parse_config(ctx.uci_path("network"), |mut cfg| {
         // TODO: avoid duplicating this "find the bridge" logic so much
         let mut found_bridge = None;
         cfg.each(|_, dev: NetworkDevice| {
@@ -111,11 +113,11 @@ pub fn get<C: Context>(ctx: C) -> Result<Ethernet, Error> {
     })
 }
 
-pub fn set<C: Context>(
-    _ctx: C,
+pub fn set<C: CtrlContext>(
+    ctx: C,
     DeserializeStdin(ethernet): DeserializeStdin<Ethernet<ProfileIdOpt>>,
 ) -> Result<(), Error> {
-    let lookup = profiles::Lookup::parse()?;
+    let lookup = profiles::Lookup::parse(ctx.clone())?;
     let ethernet = Ethernet::<ProfileId> {
         wan_ipv6: ethernet.wan_ipv6,
         wan_port: ethernet.wan_port,
@@ -136,7 +138,7 @@ pub fn set<C: Context>(
             .collect::<Result<_, Error>>()?,
     };
 
-    rewrite_config("./etc/config/network", |mut cfg| {
+    rewrite_config(ctx.uci_path("network"), |mut cfg| {
         // TODO: avoid duplicating this "find the bridge" logic so much
         let mut found_bridge = None;
         cfg.readonly().each(|_, dev: NetworkDevice| {
@@ -279,7 +281,7 @@ pub fn set<C: Context>(
     Ok(())
 }
 
-pub fn edit<C: Context + Clone>(ctx: C) -> Result<(), Error> {
+pub fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
     let current_ethernet = get(ctx.clone())?;
     let modified_ethernet: Ethernet = crate::utils::edit_in_editor(&current_ethernet)?;
 

@@ -8,17 +8,35 @@ pub mod wifi;
 use clap::Parser;
 pub use error::{Error, ErrorKind};
 use rpc_toolkit::{Context, ParentHandler};
+use std::path::PathBuf;
 use tracing::subscriber::DefaultGuard;
 
+pub trait CtrlContext: Context + Clone {
+    fn uci_path(&self, name: &str) -> PathBuf;
+}
+
 #[derive(Clone, Parser)]
-pub struct CliContext;
+pub struct CliContext {
+    #[clap(long, default_value = "/etc/config")]
+    pub config_root: PathBuf,
+}
 impl Context for CliContext {}
+impl CtrlContext for CliContext {
+    fn uci_path(&self, name: &str) -> PathBuf {
+        self.config_root.join(name)
+    }
+}
 
 #[derive(Clone)]
 pub struct ServerContext;
 impl Context for ServerContext {}
+impl CtrlContext for ServerContext {
+    fn uci_path(&self, name: &str) -> PathBuf {
+        format!("/etc/config/{name}").into()
+    }
+}
 
-pub fn main_api<C: Context + Clone>() -> ParentHandler<C> {
+pub fn main_api<C: CtrlContext + Clone>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("profiles", profiles::profiles::<C>())
         .subcommand("ethernet", ethernet::ethernet::<C>())

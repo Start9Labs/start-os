@@ -1,7 +1,7 @@
 use crate::profiles::{self, ProfileId, ProfileIdOpt};
-use crate::utils::DeserializeStdin;
-use crate::{utils::HandlerExtSerde, Error, ErrorKind};
-use rpc_toolkit::{from_fn, Context, ParentHandler};
+use crate::utils::{DeserializeStdin, HandlerExtSerde as _};
+use crate::{CtrlContext, Error, ErrorKind};
+use rpc_toolkit::{from_fn, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap};
 use std::process::Command;
@@ -27,7 +27,7 @@ pub struct Wifi<Id: Ord = ProfileId> {
     pub passwords: BTreeSet<Password<Id>>,
 }
 
-pub fn wifi<C: Context + Clone>() -> ParentHandler<C> {
+pub fn wifi<C: CtrlContext + Clone>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("get", from_fn(get::<C>).with_display_serializable())
         .subcommand("set", from_fn(set::<C>).with_display_serializable())
@@ -66,9 +66,9 @@ fn find_relevant(cfg: &mut Sections) -> Result<Vec<(String, WifiInterface, WifiD
     return Ok(relevant_interfaces);
 }
 
-pub fn get<C: Context>(_ctx: C) -> Result<Wifi, Error> {
-    let lookup = profiles::Lookup::parse()?;
-    parse_config("./etc/config/wireless", |mut ctx| {
+pub fn get<C: CtrlContext>(ctx: C) -> Result<Wifi, Error> {
+    let lookup = profiles::Lookup::parse(ctx.clone())?;
+    parse_config(ctx.uci_path("wireless"), |mut ctx| {
         let relevant_interfaces = find_relevant(&mut ctx)?;
         let Some(first_interface) = relevant_interfaces.first() else {
             return Err(ErrorKind::CorruptedWifi.into());
@@ -112,11 +112,15 @@ pub fn get<C: Context>(_ctx: C) -> Result<Wifi, Error> {
     })
 }
 
-fn update_inner(wifi: &Wifi, lookup: &profiles::Lookup) -> Result<(), Error> {
+fn update_inner(
+    ctx: &impl CtrlContext,
+    wifi: &Wifi,
+    lookup: &profiles::Lookup,
+) -> Result<(), Error> {
     let mut pending_bands = wifi.bands.clone();
     let mut remaining_admin_passwords = wifi.passwords.iter().filter(|p| p.profile.is_none());
     let first_admin_password = remaining_admin_passwords.next();
-    rewrite_config("./etc/config/wireless", |mut ctx| {
+    rewrite_config(ctx.uci_path("wireless"), |mut ctx| {
         let mut relevant_interfaces = find_relevant(&mut ctx.readonly())?;
         let Some((first_interface_name, first_interface, first_device)) =
             relevant_interfaces.first().cloned()
@@ -241,11 +245,11 @@ fn update_inner(wifi: &Wifi, lookup: &profiles::Lookup) -> Result<(), Error> {
     })
 }
 
-pub fn set<C: Context>(
-    _ctx: C,
+pub fn set<C: CtrlContext>(
+    ctx: C,
     DeserializeStdin(wifi): DeserializeStdin<Wifi<ProfileIdOpt>>,
 ) -> Result<(), Error> {
-    let lookup = profiles::Lookup::parse()?;
+    let lookup = profiles::Lookup::parse(ctx.clone())?;
     let wifi = Wifi {
         ssid: wifi.ssid,
         bands: wifi.bands,
@@ -265,16 +269,16 @@ pub fn set<C: Context>(
             })
             .collect::<Result<_, Error>>()?,
     };
-    let res = update_inner(&wifi, &lookup);
+    let res = update_inner(&ctx, &wifi, &lookup);
     match res {
         Err(Error {
             kind: ErrorKind::CorruptedWifi,
             ..
         }) => {
             // try recreating the config from scratch
-            let _ = std::fs::remove_file("./etc/config/wireless");
+            let _ = std::fs::remove_file(ctx.uci_path("wireless"));
             let _ = Command::new("wifi").arg("config").spawn()?.wait();
-            update_inner(&wifi, &lookup)?
+            update_inner(&ctx, &wifi, &lookup)?
         }
         Err(err) => return Err(err),
         Ok(()) => (),
@@ -283,7 +287,7 @@ pub fn set<C: Context>(
     Ok(())
 }
 
-pub fn edit<C: Context + Clone>(ctx: C) -> Result<(), Error> {
+pub fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
     let current_wifi = get(ctx.clone())?;
     let modified_wifi: Wifi = crate::utils::edit_in_editor(&current_wifi)?;
 

@@ -1,5 +1,6 @@
 use crate::ethernet::DEFAULT_LAN_BRIDGE;
 use crate::utils::DeserializeStdin;
+use crate::CtrlContext;
 use crate::{utils::HandlerExtSerde, Error, ErrorKind};
 use clap::Parser;
 use color_eyre::eyre::{eyre, OptionExt};
@@ -48,12 +49,12 @@ pub struct Profile<Id: Ord = ProfileId> {
     pub access_to_new_profiles: bool, // TODO
 }
 
-pub fn profiles<C: Context + Clone>() -> ParentHandler<C> {
+pub fn profiles<C: CtrlContext>() -> ParentHandler<C> {
     ParentHandler::new()
         .subcommand("get", from_fn(get::<C>).with_display_serializable())
         .subcommand("set", from_fn(set::<C>).with_display_serializable())
         .subcommand("delete", from_fn(delete::<C>).no_display())
-        .subcommand("list", from_fn(list_rpc::<C>).with_display_serializable())
+        .subcommand("list", from_fn(list::<C>).with_display_serializable())
         .subcommand("create", from_fn(create::<C>).with_display_serializable())
         .subcommand("edit", from_fn(edit::<C>).with_display_serializable())
 }
@@ -123,11 +124,11 @@ impl UciProfile {
     }
 }
 
-pub fn get<C: Context>(_ctx: C, query: ProfileIdOpt) -> Result<Profile, Error> {
-    let lookup = Lookup::parse()?;
+pub fn get<C: CtrlContext>(ctx: C, query: ProfileIdOpt) -> Result<Profile, Error> {
+    let lookup = Lookup::parse(ctx.clone())?;
     let id = lookup.resolve(&query)?;
     let mut uciprofile = None;
-    parse_config("./etc/config/startwrt", |mut cfg| {
+    parse_config(ctx.uci_path("startwrt"), |mut cfg| {
         cfg.each(|_, profile: UciProfile| {
             if &profile.id() == id {
                 uciprofile = Some(profile);
@@ -145,7 +146,7 @@ pub fn get<C: Context>(_ctx: C, query: ProfileIdOpt) -> Result<Profile, Error> {
             None => false,
         },
     };
-    parse_config("./etc/config/network", |mut cfg| {
+    parse_config(ctx.uci_path("network"), |mut cfg| {
         while cfg.step() {
             if let Ok(iface) = cfg.get::<NetworkInterface>() {
                 let Some(name) = cfg.name() else { continue };
@@ -164,7 +165,7 @@ pub fn get<C: Context>(_ctx: C, query: ProfileIdOpt) -> Result<Profile, Error> {
         }
         Err(ErrorKind::CorruptedProfile { id: query.clone() }.into())
     })?;
-    parse_config("./etc/config/firewall", |mut cfg| {
+    parse_config(ctx.uci_path("firewall"), |mut cfg| {
         let mut this_zone_name = format!("vlan_{}", id.interface);
         cfg.each(|_, zone: FirewallZone| {
             for zone_interface in zone.network {
@@ -208,14 +209,14 @@ pub fn get<C: Context>(_ctx: C, query: ProfileIdOpt) -> Result<Profile, Error> {
     Ok(wip_profile)
 }
 
-pub fn delete<C: Context>(_ctx: C, id: ProfileIdOpt) -> Result<(), Error> {
+pub fn delete<C: CtrlContext>(ctx: C, id: ProfileIdOpt) -> Result<(), Error> {
     todo!();
     reload_system()?;
     Ok(())
 }
 
-pub fn list() -> Result<Vec<ProfileId>, Error> {
-    parse_config("./etc/config/startwrt", |mut cfg| {
+pub fn list<C: CtrlContext>(ctx: C) -> Result<Vec<ProfileId>, Error> {
+    parse_config(ctx.uci_path("startwrt"), |mut cfg| {
         let mut found = Vec::new();
         while cfg.step() {
             let Ok(UciProfile {
@@ -237,10 +238,6 @@ pub fn list() -> Result<Vec<ProfileId>, Error> {
     })
 }
 
-pub fn list_rpc<C: Context>(_ctx: C) -> Result<Vec<ProfileId>, Error> {
-    list()
-}
-
 pub fn reload_system() -> Result<(), Error> {
     let _ = Command::new("/etc/init.d/network")
         .arg("reload")
@@ -253,11 +250,11 @@ pub fn reload_system() -> Result<(), Error> {
     Ok(())
 }
 
-pub fn set<C: Context>(
-    _ctx: C,
+pub fn set<C: CtrlContext>(
+    ctx: C,
     DeserializeStdin(profile): DeserializeStdin<Profile<ProfileIdOpt>>,
 ) -> Result<ProfileId, Error> {
-    rewrite_config("./etc/config/startwrt", |mut cfg| {
+    rewrite_config(ctx.uci_path("startwrt"), |mut cfg| {
         while cfg.step() {
             if let Some(mut existing_profile) = cfg.get_typed::<UciProfile>()? {
                 if let Some(given_fullname) = &profile.id.fullname {
@@ -278,7 +275,7 @@ pub fn set<C: Context>(
         Ok::<_, Error>(())
     })?;
     // only do lookup after potentially handling renames
-    let lookup = Lookup::parse()?;
+    let lookup = Lookup::parse(ctx.clone())?;
     let profile = Profile {
         id: lookup.resolve(&profile.id)?.clone(),
         gateway_ip: profile.gateway_ip,
@@ -295,7 +292,7 @@ pub fn set<C: Context>(
         access_to_new_profiles: profile.access_to_new_profiles,
     };
     let mut all_interfaces = BTreeSet::<String>::new();
-    rewrite_config("./etc/config/network", |mut cfg| {
+    rewrite_config(ctx.uci_path("network"), |mut cfg| {
         let mut found_bridge = None;
         let mut found_vlan = false;
         let mut found_interface = false;
@@ -357,13 +354,13 @@ pub fn set<C: Context>(
         }
         Ok::<_, Error>(())
     })?;
-    rewrite_firewall(&profile, &all_interfaces, &[], false)?;
+    rewrite_firewall(&ctx, &profile, &all_interfaces, &[], false)?;
     reload_system()?;
     Ok(profile.id)
 }
 
-pub fn create<C: Context>(
-    _ctx: C,
+pub fn create<C: CtrlContext>(
+    ctx: C,
     DeserializeStdin(profile): DeserializeStdin<Profile<ProfileIdOpt>>,
 ) -> Result<ProfileId, Error> {
     let interface = allocate_interface_name(
@@ -380,7 +377,7 @@ pub fn create<C: Context>(
         .unwrap_or_else(|| "Untitled".into());
     let mut all_interfaces = BTreeSet::<String>::new();
     // FIXME: feature to stage both config rewrites until we are sure about them
-    let vlan_tag = rewrite_config("./etc/config/network", |mut cfg| {
+    let vlan_tag = rewrite_config(ctx.uci_path("network"), |mut cfg| {
         let mut existing_tags = BTreeSet::new();
         let mut found_bridge = None;
         while cfg.step() {
@@ -448,7 +445,7 @@ pub fn create<C: Context>(
         Ok::<_, Error>(vlan_tag)
     })?;
     let mut wants_access = Vec::new();
-    rewrite_config("./etc/config/startwrt", |mut cfg| {
+    rewrite_config(ctx.uci_path("startwrt"), |mut cfg| {
         while cfg.step() {
             if let Some(other_profile) = cfg.get_typed::<UciProfile>()? {
                 if other_profile.access_to_new_profiles {
@@ -467,7 +464,7 @@ pub fn create<C: Context>(
         )?;
         Ok::<_, Error>(())
     })?;
-    let lookup = Lookup::parse()?; // only lookup after pushing, in case there is a self-reference
+    let lookup = Lookup::parse(ctx.clone())?; // only lookup after pushing, in case there is a self-reference
     let profile = Profile {
         id: ProfileId {
             fullname,
@@ -487,18 +484,19 @@ pub fn create<C: Context>(
         wan_access: profile.wan_access,
         access_to_new_profiles: profile.access_to_new_profiles,
     };
-    rewrite_firewall(&profile, &all_interfaces, &wants_access, true)?;
+    rewrite_firewall(&ctx, &profile, &all_interfaces, &wants_access, true)?;
     reload_system()?;
     Ok(profile.id)
 }
 
 fn rewrite_firewall(
+    ctx: &impl CtrlContext,
     profile: &Profile,
     all_interfaces: &BTreeSet<String>,
     wants_access: &[ProfileId],
     remake_zone: bool,
 ) -> Result<(), Error> {
-    rewrite_config("./etc/config/firewall", |mut cfg| {
+    rewrite_config(ctx.uci_path("firewall"), |mut cfg| {
         let mut found_wan = false;
         let mut this_zone_name = format!("vlan_{}", profile.id.interface);
         let mut all_zones = BTreeMap::new();
@@ -656,9 +654,9 @@ pub struct Lookup {
 }
 
 impl Lookup {
-    pub fn parse() -> Result<Self, Error> {
+    pub fn parse<C: CtrlContext>(ctx: C) -> Result<Self, Error> {
         Ok(Self {
-            list: list()?,
+            list: list(ctx)?,
             from_vlan: OnceCell::new(),
             from_interface: OnceCell::new(),
             from_fullname: OnceCell::new(),
@@ -737,7 +735,7 @@ pub struct EditArgs {
     pub create: bool,
 }
 
-pub fn edit<C: Context + Clone>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> {
+pub fn edit<C: CtrlContext>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> {
     if args.create {
         // Create mode: start with a template profile
         let template = Profile {
