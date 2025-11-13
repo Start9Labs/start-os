@@ -1,5 +1,6 @@
 use crate::Error;
 use clap::{ArgMatches, CommandFactory, FromArgMatches};
+use color_eyre::eyre::Context as _;
 use imbl_value::{imbl::OrdMap, Value};
 use rpc_toolkit::{CliBindings, Context, HandlerArgsFor, HandlerFor, HandlerTypes, PrintCliResult};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -259,13 +260,16 @@ where
     temp_file.flush()?;
 
     // Get the editor from environment, fallback to vi
-    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vi".to_string());
+    let editor = std::env::var("EDITOR").unwrap_or_else(|_| "vim".to_string());
 
     // Get the path before launching editor (it will be cleaned up when temp_file is dropped)
     let temp_path = temp_file.path().to_owned();
 
     // Launch editor and wait for it to exit
-    let status = Command::new(&editor).arg(&temp_path).status()?;
+    let status = Command::new(&editor)
+        .arg(&temp_path)
+        .status()
+        .context(format!("starting editor {editor}"))?;
 
     // Check if editor exited successfully
     if !status.success() {

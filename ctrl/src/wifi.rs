@@ -1,6 +1,7 @@
 use crate::profiles::{self, ProfileId, ProfileIdOpt};
 use crate::utils::{DeserializeStdin, HandlerExtSerde as _};
 use crate::{CtrlContext, Error, ErrorKind};
+use color_eyre::eyre::Context;
 use rpc_toolkit::{from_fn, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashMap};
@@ -277,27 +278,32 @@ pub fn set<C: CtrlContext>(
         }) => {
             // try recreating the config from scratch
             let _ = std::fs::remove_file(ctx.uci_path("wireless"));
-            let _ = Command::new("wifi").arg("config").spawn()?.wait();
+            let _ = Command::new("wifi")
+                .arg("config")
+                .spawn()
+                .context("executing `wifi config`")?
+                .wait();
             update_inner(&ctx, &wifi, &lookup)?
         }
         Err(err) => return Err(err),
         Ok(()) => (),
     }
-    let _ = Command::new("wifi").arg("reload").spawn()?.wait();
+    let _ = Command::new("wifi")
+        .arg("reload")
+        .spawn()
+        .context("executing `wifi reload`")?
+        .wait();
     Ok(())
 }
 
 pub fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
     let current_wifi = get(ctx.clone())?;
-    let modified_wifi: Wifi = crate::utils::edit_in_editor(&current_wifi)?;
-
-    // Convert from Wifi<ProfileId> to Wifi<ProfileIdOpt> for set
-    let modified_wifi_opt = Wifi {
-        ssid: modified_wifi.ssid,
-        bands: modified_wifi.bands,
-        enabled: modified_wifi.enabled,
-        broadcast: modified_wifi.broadcast,
-        passwords: modified_wifi
+    let current_wifi = Wifi {
+        ssid: current_wifi.ssid,
+        bands: current_wifi.bands,
+        enabled: current_wifi.enabled,
+        broadcast: current_wifi.broadcast,
+        passwords: current_wifi
             .passwords
             .into_iter()
             .map(|pass| Password {
@@ -306,6 +312,6 @@ pub fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
             })
             .collect(),
     };
-
-    set(ctx, DeserializeStdin(modified_wifi_opt))
+    let modified_wifi = crate::utils::edit_in_editor(&current_wifi)?;
+    set(ctx, DeserializeStdin(modified_wifi))
 }

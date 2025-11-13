@@ -283,13 +283,10 @@ pub fn set<C: CtrlContext>(
 
 pub fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
     let current_ethernet = get(ctx.clone())?;
-    let modified_ethernet: Ethernet = crate::utils::edit_in_editor(&current_ethernet)?;
-
-    // Convert from Ethernet<ProfileId> to Ethernet<ProfileIdOpt> for set
-    let modified_ethernet_opt = Ethernet {
-        wan_ipv6: modified_ethernet.wan_ipv6,
-        wan_port: modified_ethernet.wan_port,
-        ports: modified_ethernet
+    let current_ethernet = Ethernet {
+        wan_ipv6: current_ethernet.wan_ipv6,
+        wan_port: current_ethernet.wan_port,
+        ports: current_ethernet
             .ports
             .into_iter()
             .map(|(k, v)| {
@@ -302,6 +299,6 @@ pub fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {
             })
             .collect(),
     };
-
-    set(ctx, DeserializeStdin(modified_ethernet_opt))
+    let modified_ethernet = crate::utils::edit_in_editor(&current_ethernet)?;
+    set(ctx, DeserializeStdin(modified_ethernet))
 }

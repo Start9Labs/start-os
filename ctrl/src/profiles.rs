@@ -12,8 +12,8 @@ use std::io::Read;
 use std::net::Ipv4Addr;
 use std::process::{Command, Stdio};
 use uciedit::openwrt::{
-    DeviceType, FirewallForwarding, FirewallTarget, FirewallZone, InterfaceProto,
-    NetworkBridgeVlan, NetworkDevice, NetworkInterface,
+    DeviceType, Dhcp, FirewallForwarding, FirewallRule, FirewallTarget, FirewallZone,
+    InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface,
 };
 use uciedit::UciSection;
 use uciedit::{parse_config, rewrite_config};
@@ -355,6 +355,7 @@ pub fn set<C: CtrlContext>(
         Ok::<_, Error>(())
     })?;
     rewrite_firewall(&ctx, &profile, &all_interfaces, &[], false)?;
+    rewrite_dhcp(&ctx, &profile)?;
     reload_system()?;
     Ok(profile.id)
 }
@@ -485,6 +486,7 @@ pub fn create<C: CtrlContext>(
         access_to_new_profiles: profile.access_to_new_profiles,
     };
     rewrite_firewall(&ctx, &profile, &all_interfaces, &wants_access, true)?;
+    rewrite_dhcp(&ctx, &profile)?;
     reload_system()?;
     Ok(profile.id)
 }
@@ -521,6 +523,20 @@ fn rewrite_firewall(
                 }
             }
         }
+        let mut found_dhcp_dns_rule = false;
+        while cfg.step() {
+            let Ok(rule) = cfg.get::<FirewallRule>() else {
+                continue;
+            };
+            if rule.src == this_zone_name && rule.name.contains("DHCP") && rule.name.contains("DNS")
+            {
+                if remake_zone {
+                    cfg.remove();
+                } else {
+                    found_dhcp_dns_rule = true;
+                }
+            }
+        }
         cfg.restart();
         while cfg.step() {
             let Ok(fwd) = cfg.get::<FirewallForwarding>() else {
@@ -541,6 +557,19 @@ fn rewrite_firewall(
                     output: FirewallTarget::ACCEPT,
                     forward: FirewallTarget::ACCEPT,
                     network: vec![profile.id.interface.clone()],
+                },
+                None,
+            )?;
+        }
+        if !found_dhcp_dns_rule {
+            cfg.push(
+                &FirewallRule {
+                    name: format!("Allow-DHCP-DNS-{}", profile.id.fullname.replace(" ", "-")),
+                    src: this_zone_name.clone(),
+                    dest_port: Some("53 67 68".into()),
+                    proto: vec!["tcp".into(), "udp".into(), "icmp".into()],
+                    target: FirewallTarget::ACCEPT,
+                    ..Default::default()
                 },
                 None,
             )?;
@@ -608,6 +637,32 @@ fn rewrite_firewall(
             WanAccess::None => (),
         }
         Ok(())
+    })
+}
+
+pub fn rewrite_dhcp(ctx: &impl CtrlContext, profile: &Profile) -> Result<(), Error> {
+    rewrite_config(ctx.uci_path("firewall"), |mut cfg| {
+        let mut found_dhcp = false;
+        while cfg.step() {
+            let Ok(dhcp) = cfg.get::<Dhcp>() else {
+                continue;
+            };
+            if dhcp.interface == profile.id.interface {
+                found_dhcp = true;
+            }
+        }
+        if !found_dhcp {
+            cfg.push(
+                &Dhcp {
+                    interface: profile.id.interface.clone(),
+                    start: 100, // default in the openwrt docs
+                    limit: 150,
+                    leasetime: "12h".into(),
+                },
+                Some(&profile.id.interface),
+            )?;
+        }
+        Ok::<_, Error>(())
     })
 }
 
@@ -750,23 +805,20 @@ pub fn edit<C: CtrlContext>(ctx: C, args: EditArgs) -> Result<ProfileId, Error> 
     } else {
         // Edit mode: get existing profile, edit, then set
         let current_profile = get(ctx.clone(), args.get)?;
-        let modified_profile: Profile = crate::utils::edit_in_editor(&current_profile)?;
-
-        // Convert from Profile<ProfileId> to Profile<ProfileIdOpt> for set
-        let modified_profile_opt = Profile {
-            id: modified_profile.id.into(),
-            gateway_ip: modified_profile.gateway_ip,
-            lan_access: match modified_profile.lan_access {
+        let current_profile = Profile {
+            id: current_profile.id.into(),
+            gateway_ip: current_profile.gateway_ip,
+            lan_access: match current_profile.lan_access {
                 LanAccess::All => LanAccess::All,
                 LanAccess::SameProfile => LanAccess::SameProfile,
                 LanAccess::OtherProfiles(set) => {
                     LanAccess::OtherProfiles(set.into_iter().map(Into::into).collect())
                 }
             },
-            wan_access: modified_profile.wan_access,
-            access_to_new_profiles: modified_profile.access_to_new_profiles,
+            wan_access: current_profile.wan_access,
+            access_to_new_profiles: current_profile.access_to_new_profiles,
         };
-
-        set(ctx, DeserializeStdin(modified_profile_opt))
+        let modified_profile = crate::utils::edit_in_editor(&current_profile)?;
+        set(ctx, DeserializeStdin(modified_profile))
     }
 }

@@ -23,7 +23,7 @@ pub struct FirewallZone {
     pub network: Vec<String>,
 }
 
-#[derive(Debug, UciSection)]
+#[derive(Debug, UciSection, Default)]
 #[uci(ty = "rule")]
 pub struct FirewallRule {
     /*
@@ -43,10 +43,10 @@ pub struct FirewallRule {
     pub src_ip: Option<String>,
     pub src_mac: Option<String>,
     pub src_port: Option<String>,
-    pub dest: String,
+    pub dest: Option<String>,
     pub dest_ip: Option<String>,
     pub dest_port: Option<String>,
-    pub proto: Option<String>,
+    pub proto: Vec<String>,
     pub target: FirewallTarget,
 }
 
@@ -218,4 +218,13 @@ pub struct WifiStation {
     pub key: String,
     pub vid: Option<u16>,
     pub iface: Option<String>,
+}
+
+#[derive(Debug, UciSection)]
+#[uci(ty = "dhcp")]
+pub struct Dhcp {
+    pub interface: String,
+    pub start: u32,
+    pub limit: u32,
+    pub leasetime: String,
 }

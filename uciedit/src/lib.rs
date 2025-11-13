@@ -893,7 +893,9 @@ impl<'a> Token<'a> {
     }
 
     pub fn from_string(s: String, arena: &'a Arena) -> Self {
-        if s.contains(|c: char| !(c.is_alphanumeric() || ['_', '-', '.'].contains(&c))) {
+        if s.is_empty()
+            || s.contains(|c: char| !(c.is_alphanumeric() || ['_', '-', '.'].contains(&c)))
+        {
             let q = arena.alloc(format!("{:?}", s));
             Token::Q(Quoted {
                 inner: &q[1..q.len() - 1],
