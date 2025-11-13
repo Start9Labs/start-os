@@ -1,13 +1,21 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
-import { TuiAppearance, TuiTextfield, TuiTitle } from '@taiga-ui/core'
+import {
+  TuiAppearance,
+  TuiButton,
+  TuiTextfield,
+  TuiTitle,
+} from '@taiga-ui/core'
 import { TuiRadio } from '@taiga-ui/kit'
 import { TuiCard, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { Help } from 'src/app/directives/help.directive'
 
+import { MacAside } from './aside'
 import { MacSummary } from './summary'
 
 @Component({
   template: `
+    <mac-aside *help />
     <article macSummary tuiCardLarge="compact"></article>
     <form
       tuiForm
@@ -41,6 +49,10 @@ import { MacSummary } from './summary'
         </tui-textfield>
       </section>
     </form>
+    <footer class="g-footer">
+      <button tuiButton appearance="flat">Cancel</button>
+      <button tuiButton>Save</button>
+    </footer>
   `,
   styles: `
     [tuiLabel] {
@@ -56,7 +68,10 @@ import { MacSummary } from './summary'
     TuiTextfield,
     TuiCard,
     TuiRadio,
+    TuiButton,
     MacSummary,
+    MacAside,
+    Help,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

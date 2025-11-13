@@ -28,19 +28,14 @@ export const MENU = {
       link: 'forwarding',
     },
   ],
-  Permissions: [
+  'Security Profiles': [
     {
       name: 'Profiles',
       icon: '@tui.scroll-text',
       link: 'profiles',
     },
-    {
-      name: 'Schedules',
-      icon: '@tui.clock',
-      link: 'schedules',
-    },
   ],
-  ['Points of entry']: [
+  'Points of entry': [
     {
       name: 'Ethernet',
       icon: '@tui.ethernet-port',
