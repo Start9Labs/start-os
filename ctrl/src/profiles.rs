@@ -370,14 +370,6 @@ pub fn create<C: CtrlContext>(
 ) -> Result<ProfileId, Error> {
     let mut ports = Vec::new();
     let interface = if profile.owns_lan {
-        allocate_interface_name(
-            profile
-                .id
-                .interface
-                .as_deref()
-                .or(profile.id.fullname.as_deref()),
-        )?
-    } else {
         if Lookup::parse(ctx.clone())?.lan_owner.is_some() {
             return Err(ErrorKind::LanOwnerExists.into());
         }
@@ -396,6 +388,14 @@ pub fn create<C: CtrlContext>(
                 }),
         );
         "lan".into()
+    } else {
+        allocate_interface_name(
+            profile
+                .id
+                .interface
+                .as_deref()
+                .or(profile.id.fullname.as_deref()),
+        )?
     };
     let fullname = profile
         .id
@@ -454,6 +454,7 @@ pub fn create<C: CtrlContext>(
         };
         if profile.owns_lan {
             let mut found_lan_interface = false;
+            cfg.restart();
             while cfg.step() {
                 if let Ok(mut iface) = cfg.get::<NetworkInterface>() {
                     if cfg.name().as_deref() != Some("lan") {
