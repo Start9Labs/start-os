@@ -29,10 +29,16 @@ Use it for private, remote access, to self-hosted services running on a personal
 1.  Install StartTunnel:
 
 ```sh
-TMP_DIR=$(mktemp -d) && (cd $TMP_DIR && wget https://github.com/Start9Labs/start-os/releases/download/v0.4.0-alpha.12/start-tunnel-0.4.0-alpha.12-68f401b_$(uname -m).deb && apt-get install -y ./start-tunnel-0.4.0-alpha.12-68f401b_$(uname -m).deb) && rm -rf $TMP_DIR && systemctl start start-tunneld && echo "Installation Succeeded"
+TMP_DIR=$(mktemp -d) && (cd $TMP_DIR && wget https://github.com/Start9Labs/start-os/releases/download/v0.4.0-alpha.12/start-tunnel-0.4.0-alpha.12-unknown.dev_$(uname -m).deb && apt-get install -y ./start-tunnel-0.4.0-alpha.12-unknown~dev_$(uname -m).deb) && rm -rf $TMP_DIR && systemctl start start-tunneld && echo "Installation Succeeded"
 ```
 
 5. [Initialize the web interface](#web-interface) (recommended)
+
+## Updating
+
+```sh
+TMP_DIR=$(mktemp -d) && (cd $TMP_DIR && wget https://github.com/Start9Labs/start-os/releases/download/v0.4.0-alpha.12/start-tunnel-0.4.0-alpha.12-unknown.dev_$(uname -m).deb && apt-get install --reinstall -y ./start-tunnel-0.4.0-alpha.12-unknown~dev_$(uname -m).deb) && rm -rf $TMP_DIR && systemctl daemon-reload && systemctl restart start-tunneld && echo "Update Succeeded"
+```
 
 ## CLI
 
