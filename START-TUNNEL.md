@@ -19,7 +19,7 @@ Use it for private remote access to self-hosted services running on a personal s
 1.  Rent a low cost VPS. For most use cases, the cheapest option should be enough.
 
     - It must have a dedicated public IP address.
-    - For CPU, memory (RAM), and storage (disk), choose the minimum spec.
+    - For compute (CPU), memory (RAM), and storage (disk), choose the minimum spec.
     - For transfer (bandwidth), it depends on (1) your use case and (2) your home Internet's _upload_ speed. Even if you intend to serve large files or stream content from your server, there is no reason to pay for speeds that exceed your home Internet's upload speed.
 
 1.  Provision the VPS with the latest version of Debian.
