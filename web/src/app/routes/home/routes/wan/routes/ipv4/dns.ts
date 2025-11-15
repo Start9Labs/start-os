@@ -34,7 +34,7 @@ import Ipv4 from '.'
         }
       </header>
       <section>
-        @for (mode of ['ISP', 'TLS', 'Custom']; track $index) {
+        @for (mode of ['isp', 'tls', 'custom']; track $index) {
           <label tuiLabel>
             <input
               type="radio"
@@ -42,7 +42,7 @@ import Ipv4 from '.'
               formControlName="mode"
               [value]="mode"
             />
-            {{ labels[mode] }}
+            {{ parent.labels[mode] }}{{ $index ? '' : ' (Default)' }}
           </label>
         }
       </section>
@@ -114,9 +114,4 @@ import Ipv4 from '.'
 })
 export class Ipv4Dns {
   protected readonly parent = inject(Ipv4)
-  protected readonly labels: Record<string, string> = {
-    ISP: 'Get from ISP (Default)',
-    TLS: 'DNS over TLS',
-    Custom: 'Custom',
-  }
 }

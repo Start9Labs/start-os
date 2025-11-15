@@ -19,7 +19,7 @@ import Ipv4 from '.'
     >
       <header tuiHeader><h2 tuiTitle>IP Address</h2></header>
       <section>
-        @for (mode of ['DHCP', 'Static', 'PPPoE']; track $index) {
+        @for (mode of ['dhcp', 'static', 'pppoe']; track $index) {
           <label tuiLabel>
             <input
               type="radio"
@@ -27,7 +27,7 @@ import Ipv4 from '.'
               formControlName="mode"
               [value]="mode"
             />
-            {{ mode }}{{ $index ? '' : ' (Default)' }}
+            {{ parent.labels[mode] }}{{ $index ? '' : ' (Default)' }}
           </label>
         }
       </section>
@@ -39,7 +39,7 @@ import Ipv4 from '.'
             track $index
           ) {
             <tui-textfield>
-              <label tuiLabel>{{ labels[control.key] }}</label>
+              <label tuiLabel>{{ parent.labels[control.key] }}</label>
               <input tuiTextfield [formControlName]="control.key" />
             </tui-textfield>
           }
@@ -53,7 +53,7 @@ import Ipv4 from '.'
           ) {
             <div>
               <tui-textfield>
-                <label tuiLabel>{{ labels[control.key] }}</label>
+                <label tuiLabel>{{ parent.labels[control.key] }}</label>
                 <input
                   tuiTextfield
                   [formControlName]="control.key"
@@ -89,15 +89,4 @@ import Ipv4 from '.'
 export class Ipv4Ip {
   protected readonly parent = inject(Ipv4)
   protected readonly asIs = () => 0
-  protected readonly labels: Record<string, string> = {
-    dhcp: 'DHCP (Default)',
-    static: 'Static',
-    pppoe: 'PPPoE',
-    wan: 'WAN IP Address',
-    prefix: 'Subnet Prefix',
-    mask: 'Subnet Mask',
-    gateway: 'Gateway IP Address',
-    password: 'Password*',
-    vlan: 'VLAN ID',
-  }
 }

@@ -15,7 +15,9 @@ import Ipv4 from '.'
     <section>
       <label appSummary>
         IP Address Strategy
-        <span tuiSubtitle>{{ parent.form.value.ip?.mode }}</span>
+        <span tuiSubtitle>
+          {{ parent.labels[parent.form.value.ip?.mode || ''] }}
+        </span>
       </label>
       <label [appSummary]="parent.form.value.ip?.[parent.ip]?.wan">
         WAN IP Address
@@ -34,7 +36,9 @@ import Ipv4 from '.'
       </label>
       <label appSummary>
         DNS Strategy
-        <span tuiSubtitle>{{ parent.form.value.dns?.mode }}</span>
+        <span tuiSubtitle>
+          {{ parent.labels[parent.form.value.dns?.mode || ''] }}
+        </span>
       </label>
       <label appSummary>
         DNS Proxy

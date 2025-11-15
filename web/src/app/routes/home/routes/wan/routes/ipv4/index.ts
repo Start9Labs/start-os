@@ -22,6 +22,9 @@ import {
   UciFile,
 } from 'src/app/services/api/types'
 
+type IpMode = 'dhcp' | 'static' | 'pppoe'
+type DnsMode = 'isp' | 'tls' | 'custom'
+
 type WanIpv4 = {
   network: UciFile<NetworkInterfaceSection>
   dhcp: UciFile<DnsmasqSection>
@@ -74,11 +77,28 @@ export default class Ipv4 {
   private readonly builder = inject(NonNullableFormBuilder)
   private readonly api = inject(ApiService)
 
-  private data: WanIpv4 = {} as WanIpv4
+  private data = {} as WanIpv4
 
   readonly loading = signal(true)
   readonly error = signal('')
   readonly saving = signal(false)
+
+  readonly labels: Record<string, string> = {
+    // ipv4
+    dhcp: 'DHCP',
+    static: 'Static',
+    pppoe: 'PPPoE',
+    wan: 'WAN IP Address',
+    prefix: 'Subnet Prefix',
+    mask: 'Subnet Mask',
+    gateway: 'Gateway IP Address',
+    password: 'Password*',
+    vlan: 'VLAN ID',
+    // dns
+    isp: 'Get from ISP',
+    tls: 'DNS over TLS',
+    custom: 'Custom',
+  }
 
   async ngOnInit() {
     try {
@@ -94,7 +114,7 @@ export default class Ipv4 {
 
   public readonly form = this.builder.group({
     ip: this.builder.group({
-      mode: '',
+      mode: '' as IpMode,
       dhcp: this.builder.group({
         wan: '',
         prefix: '',
@@ -114,7 +134,7 @@ export default class Ipv4 {
       }),
     }),
     dns: this.builder.group({
-      mode: '',
+      mode: '' as DnsMode,
       isp: this.builder.group({
         server: '',
       }),
@@ -133,17 +153,11 @@ export default class Ipv4 {
   })
 
   public get ip() {
-    return this.form.controls.ip.controls.mode.value.toLowerCase() as
-      | 'dhcp'
-      | 'static'
-      | 'pppoe'
+    return this.form.controls.ip.controls.mode.value
   }
 
   public get dns() {
-    return this.form.controls.dns.controls.mode.value.toLowerCase() as
-      | 'isp'
-      | 'tls'
-      | 'custom'
+    return this.form.controls.dns.controls.mode.value
   }
 
   async onSave() {
@@ -165,7 +179,7 @@ export default class Ipv4 {
     }
 
     // Update WAN interface based on selected mode
-    if (ip.mode === 'DHCP') {
+    if (ip.mode === 'dhcp') {
       wanSection.options = {
         ...wanSection.options,
         proto: 'dhcp',
@@ -208,13 +222,13 @@ export default class Ipv4 {
     }
 
     // Handle DNS mode
-    if (dns.mode === 'ISP') {
+    if (dns.mode === 'isp') {
       // Clear custom DNS servers
       dnsmasqSection.lists.server = []
 
       // Disable https-dns-proxy
       data['https-dns-proxy'].sections = []
-    } else if (dns.mode === 'TLS') {
+    } else if (dns.mode === 'tls') {
       // Clear custom DNS servers
       dnsmasqSection.lists.server = []
 
@@ -290,22 +304,23 @@ export default class Ipv4 {
 
     const { network, dhcp, 'https-dns-proxy': httpsDnsProxy } = this.data
 
+    // @TODO Aiden can there be multiple wan?
     const wanInterface = network.sections.find(
       s => s.type === 'interface' && s.name === 'wan',
     )
 
     if (!wanInterface) {
+      // @TODO Aiden what should we do in this scenario?
       throw new Error('No WAN')
     }
 
-    const proto = wanInterface.options.proto
+    const mode = wanInterface.options.proto
 
     this.form.patchValue({
       ip: {
-        mode:
-          proto === 'dhcp' ? 'DHCP' : proto === 'static' ? 'static' : 'pppoe',
+        mode,
         dhcp:
-          proto === 'dhcp'
+          mode === 'dhcp'
             ? {
                 wan: wanInterface.options.ipaddr || '',
                 prefix: this.calculatePrefix(wanInterface.options.netmask),
@@ -314,7 +329,7 @@ export default class Ipv4 {
               }
             : undefined,
         static:
-          proto === 'static'
+          mode === 'static'
             ? {
                 wan: wanInterface.options.ipaddr || '',
                 prefix: this.calculatePrefix(wanInterface.options.netmask),
@@ -323,7 +338,7 @@ export default class Ipv4 {
               }
             : undefined,
         pppoe:
-          proto === 'pppoe'
+          mode === 'pppoe'
             ? {
                 wan: wanInterface.options.username || '',
                 password: wanInterface.options.password || '',
@@ -345,7 +360,7 @@ export default class Ipv4 {
     if (hasHttpsProxy && httpsProxy) {
       this.form.patchValue({
         dns: {
-          mode: 'TLS',
+          mode: 'tls',
           tls: {
             server: this.mapResolverUrlToFriendlyName(
               httpsProxy.options.resolver_url || '',
@@ -371,7 +386,7 @@ export default class Ipv4 {
       // Using ISP DNS (no custom servers configured)
       this.form.patchValue({
         dns: {
-          mode: 'ISP',
+          mode: 'isp',
         },
       })
     }
