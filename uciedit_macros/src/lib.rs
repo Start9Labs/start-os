@@ -229,6 +229,10 @@ fn write_body(fields: &[UciField], _struc: Ident, ty: String, crat: Path) -> Tok
     let list_arm = fields.iter().map(UciField::write_list_arm);
     let chain = chained_write_iters(fields);
     quote! {
+        while matches!(lines.get(index), Some(#crat::Line::Comment { .. } | #crat::Line::Empty)) {
+            index += 1;
+        }
+
         let Some(#crat::Line::Section { ty, .. }) = lines.get(index) else {
             return Err(#crat::Error::ExpectedSection { src: index.into() })
         };

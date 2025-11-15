@@ -1,4 +1,5 @@
 use super::*; // Access items from lib.rs
+use inpt::split::SingleQuoted;
 use uciedit_macros::TypedSection; // Import the derive macro
 
 // Helper to normalize whitespace for comparisons
@@ -41,7 +42,7 @@ fn test_read_section() {
     };
     let arena = Arena::new();
     let parsed: Bar = Config::parse_str(&arena, original).unwrap().sections[0]
-        .read()
+        .get()
         .unwrap();
 
     println!(
@@ -75,18 +76,20 @@ config bar appended
 
     let arena = Arena::new();
     let mut config = Config::parse_str(&arena, original).unwrap();
-    config.append(
-        &Bar {
-            always: 0,
-            yes: Some(1),
-            no: None,
-            many: vec![2, 3, 4],
-            num_default: 0,
-            opt_str_default_val: Some("default_val".to_string()),
-            vec_str_default_val: vec!["a".to_string(), "b".to_string()],
-        },
-        Some("appended"),
-    );
+    config
+        .append(
+            &Bar {
+                always: 0,
+                yes: Some(1),
+                no: None,
+                many: vec![2, 3, 4],
+                num_default: 0,
+                opt_str_default_val: Some("default_val".to_string()),
+                vec_str_default_val: vec!["a".to_string(), "b".to_string()],
+            },
+            Some("appended"),
+        )
+        .unwrap();
     let edited = config.dump_str();
 
     println!(
@@ -159,13 +162,14 @@ config other
     let mut config = Config::parse_str(&arena, original).unwrap();
     for s in &mut config.sections {
         if s.ty() == "bar" {
-            s.write(&EditBar {
+            s.set(&EditBar {
                 always: 0,
                 yes: Some(1),
                 no: None,
                 many: vec![2, 3, 4],
                 few: vec![5],
-            });
+            })
+            .unwrap();
         }
     }
     let edited = config.dump_str();
@@ -207,8 +211,6 @@ config retain
     option foo bar
     # comment 1
 
-
-
 # section 4
 config retain
     option foo bar
@@ -217,13 +219,10 @@ config retain
 config retain
 ";
 
-    let edited = rewrite_config_string(original.to_string(), |mut ctx| {
-        while ctx.step() {
-            ctx.set_retain(ctx.ty() == "retain");
-        }
-        Ok::<_, Error>(())
-    })
-    .unwrap();
+    let arena = Arena::new();
+    let mut config = Config::parse_str(&arena, original).unwrap();
+    config.sections.retain(|s| s.ty() == "retain");
+    let edited = config.dump_str();
 
     println!(
         "===Original===\n{original}\n===Edited===\n{edited}\n===Expected===\n{expected}\n====="
@@ -312,19 +311,17 @@ fn test_uci_section_rename_and_type_override() {
         val: true,
     };
 
-    let parsed: RenamedTypeSection = parse_config_string(original, |mut ctx| {
-        assert!(ctx.step());
-        assert_eq!(ctx.ty(), "custom_type");
-        assert_eq!(ctx.name().unwrap(), "my_section");
-        ctx.get()
-    })
-    .unwrap();
+    let arena = Arena::new();
+    let config = Config::parse_str(&arena, original).unwrap();
+    assert_eq!(config.sections[0].ty(), "custom_type");
+    assert_eq!(config.sections[0].name().unwrap(), "my_section");
+    let parsed: RenamedTypeSection = config.sections[0].get().unwrap();
     assert_eq!(parsed, expected_obj);
 
-    let written = rewrite_config_string("".to_string(), |mut ctx| {
-        ctx.push(&expected_obj, Some("my_section"))
-    })
-    .unwrap();
+    let arena2 = Arena::new();
+    let mut config2 = Config::parse_str(&arena2, "").unwrap();
+    config2.append(&expected_obj, Some("my_section")).unwrap();
+    let written = config2.dump_str();
     let expected_written = r"config custom_type my_section
     option old_name test_value
     option val 1
@@ -347,11 +344,12 @@ struct DefaultDemo {
 #[test]
 fn test_uci_section_defaults() {
     let original_empty_section = "config defaultdemo 'test'";
-    let parsed: DefaultDemo = parse_config_string(original_empty_section, |mut ctx| {
-        assert!(ctx.step());
-        ctx.get()
-    })
-    .unwrap();
+    let arena = Arena::new();
+    let parsed: DefaultDemo = Config::parse_str(&arena, original_empty_section)
+        .unwrap()
+        .sections[0]
+        .get()
+        .unwrap();
 
     assert_eq!(parsed.my_int, 0);
     assert_eq!(parsed.my_opt_int, None);
@@ -363,11 +361,12 @@ fn test_uci_section_defaults() {
     option my_int 5
     list my_vec_int 1
 ";
-    let parsed_partial: DefaultDemo = parse_config_string(original_partial, |mut ctx| {
-        assert!(ctx.step());
-        ctx.get()
-    })
-    .unwrap();
+    let arena2 = Arena::new();
+    let parsed_partial: DefaultDemo = Config::parse_str(&arena2, original_partial)
+        .unwrap()
+        .sections[0]
+        .get()
+        .unwrap();
     assert_eq!(parsed_partial.my_int, 5);
     assert_eq!(parsed_partial.my_opt_int, None);
     assert_eq!(parsed_partial.my_vec_int, vec![1]);
@@ -393,16 +392,18 @@ fn test_uci_section_bool_field() {
     list bits yes
     list bits on
 ";
-    let parsed: BoolFieldTest = parse_config_string(original, |mut ctx| {
-        assert!(ctx.step());
-        ctx.get()
-    })
-    .unwrap();
+    let arena = Arena::new();
+    let parsed: BoolFieldTest = Config::parse_str(&arena, original).unwrap().sections[0]
+        .get()
+        .unwrap();
     assert!(parsed.is_enabled);
     assert!(!parsed.is_active);
     assert_eq!(parsed.is_present, Some(true));
 
-    let written = rewrite_config_string("".to_string(), |mut ctx| ctx.push(&parsed, None)).unwrap();
+    let arena2 = Arena::new();
+    let mut config2 = Config::parse_str(&arena2, "").unwrap();
+    config2.append(&parsed, None).unwrap();
+    let written = config2.dump_str();
     let expected_written = r"config boolfieldtest
     option is_enabled 1
     option is_active 0
@@ -422,10 +423,9 @@ struct RequiredField {
 #[test]
 fn test_uci_section_missing_required_field() {
     let original = "config requiredfield 'test'"; // must_exist is missing
-    let result: Result<RequiredField, Error> = parse_config_string(original, |mut ctx| {
-        assert!(ctx.step());
-        ctx.get()
-    });
+    let arena = Arena::new();
+    let config = Config::parse_str(&arena, original).unwrap();
+    let result: Result<RequiredField, Error> = config.sections[0].get();
     assert!(matches!(
         result,
         Err(Error::MissingOption { missing, .. }) if missing == "must_exist"
@@ -438,8 +438,10 @@ fn test_sections_mut_push_to_empty_config() {
     option always 1
     option num_default 0
 ";
-    let edited = rewrite_config_string("".to_string(), |mut ctx| {
-        ctx.push(
+    let arena = Arena::new();
+    let mut config = Config::parse_str(&arena, "").unwrap();
+    config
+        .append(
             &Bar {
                 always: 1,
                 yes: None,
@@ -451,8 +453,8 @@ fn test_sections_mut_push_to_empty_config() {
             },
             None,
         )
-    })
-    .unwrap();
+        .unwrap();
+    let edited = config.dump_str();
     assert_eq!(normalize(edited), normalize(expected.to_string()));
 }
 
@@ -466,13 +468,12 @@ fn test_sections_mut_set_non_matching_type() {
     let original = r"config bar 'mybar'
     option always 123
 ";
-    let result = rewrite_config_string(original.to_string(), |mut ctx| {
-        assert!(ctx.step()); // Step to the 'bar' section
-        assert_eq!(ctx.ty(), "bar");
-        // Try to set it with a struct of a different TypedSection type
-        ctx.set(&AnotherType {
-            value: "test".to_string(),
-        })
+    let arena = Arena::new();
+    let mut config = Config::parse_str(&arena, original).unwrap();
+    assert_eq!(config.sections[0].ty(), "bar");
+    // Try to set it with a struct of a different TypedSection type
+    let result = config.sections[0].set(&AnotherType {
+        value: "test".to_string(),
     });
 
     assert!(matches!(
@@ -485,13 +486,13 @@ fn test_sections_mut_set_non_matching_type() {
 #[test]
 fn test_parse_empty_config() {
     let original = "";
-    let result: Result<(), Error> = parse_config_string(original, |mut ctx| {
-        assert!(!ctx.step()); // No sections
-        Ok(())
-    });
-    assert!(result.is_ok());
+    let arena = Arena::new();
+    let config = Config::parse_str(&arena, original).unwrap();
+    assert!(config.sections.is_empty()); // No sections
 
-    let edited = rewrite_config_string(original.to_string(), |_ctx| Ok::<_, Error>(())).unwrap();
+    let arena2 = Arena::new();
+    let config2 = Config::parse_str(&arena2, original).unwrap();
+    let edited = config2.dump_str();
     assert_eq!(edited, "");
 }
 
@@ -501,13 +502,13 @@ fn test_parse_config_with_only_comments_and_empty_lines() {
 
 # Another comment
 ";
-    let result: Result<(), Error> = parse_config_string(original, |mut ctx| {
-        assert!(!ctx.step()); // No sections
-        Ok(())
-    });
-    assert!(result.is_ok());
+    let arena = Arena::new();
+    let config = Config::parse_str(&arena, original).unwrap();
+    assert!(config.sections.is_empty()); // No sections
 
-    let edited = rewrite_config_string(original.to_string(), |_ctx| Ok::<_, Error>(())).unwrap();
+    let arena2 = Arena::new();
+    let config2 = Config::parse_str(&arena2, original).unwrap();
+    let edited = config2.dump_str();
     assert_eq!(normalize(edited), normalize(original.to_string()));
 }
 
@@ -541,11 +542,11 @@ fn test_round_trip_complex_config() {
         with_quotes: "\"custom\"".to_string(),
     };
 
-    let original_config_str = rewrite_config_string("".to_string(), |mut ctx| {
-        ctx.push(&section1, Some("first"))?;
-        ctx.push(&section2, Some("second"))
-    })
-    .unwrap();
+    let arena = Arena::new();
+    let mut config = Config::parse_str(&arena, "").unwrap();
+    config.append(&section1, Some("first")).unwrap();
+    config.append(&section2, Some("second")).unwrap();
+    let original_config_str = config.dump_str();
 
     let expected_written_config = r#"config complexsection first
     option name "Section One"
@@ -566,16 +567,11 @@ config complexsection second
         original_config_str, expected_written_config
     );
 
-    let (parsed_s1, parsed_s2): (ComplexSection, ComplexSection) =
-        parse_config_string(&original_config_str, |mut ctx| {
-            assert!(ctx.step());
-            let s1 = ctx.get::<ComplexSection>()?;
-            assert!(ctx.step());
-            let s2 = ctx.get::<ComplexSection>()?;
-            assert!(!ctx.step());
-            Ok::<_, Error>((s1, s2))
-        })
-        .unwrap();
+    let arena2 = Arena::new();
+    let config2 = Config::parse_str(&arena2, &original_config_str).unwrap();
+    assert_eq!(config2.sections.len(), 2);
+    let parsed_s1: ComplexSection = config2.sections[0].get().unwrap();
+    let parsed_s2: ComplexSection = config2.sections[1].get().unwrap();
 
     assert_eq!(parsed_s1, section1);
     assert_eq!(parsed_s2, section2);
@@ -603,53 +599,41 @@ config item three
 config item three
 ";
 
-    let edited = rewrite_config_string(original.to_string(), |mut ctx| {
-        assert!(ctx.step()); // on 'one'
-        assert!(ctx.step()); // on 'two'
-        ctx.remove(); // Should remove 'two'
-
-        ctx.restart(); // This should process pending removals (none here as step wasn't called after remove)
-
-        // After reset, iterate again to ensure 'two' is not there
-        let mut names = Vec::new();
-        while ctx.step() {
-            names.push(ctx.name().unwrap().to_string());
-        }
-        assert_eq!(
-            names,
-            vec!["one", "three"],
-            "Only 'one' and 'three' should remain"
-        );
-        Ok::<_, Error>(())
-    })
-    .unwrap();
+    let arena = Arena::new();
+    let mut config = Config::parse_str(&arena, original).unwrap();
+    // Remove 'two' (index 1)
+    config.sections.remove(1);
+    let names: Vec<_> = config
+        .sections
+        .iter()
+        .map(|s| s.name().unwrap().to_string())
+        .collect();
+    assert_eq!(
+        names,
+        vec!["one", "three"],
+        "Only 'one' and 'three' should remain"
+    );
+    let edited = config.dump_str();
     assert_eq!(
         normalize(edited),
         normalize(expected_after_removal_in_reset.to_string())
     );
 
-    let edited_for_removal = rewrite_config_string(original.to_string(), |mut ctx| {
-        assert!(ctx.step()); // on 'one'
-        ctx.remove(); // Mark 'one' for removal
-
-        // Crucially, step again to process the removal of 'one'
-        assert!(ctx.step()); // on 'two', 'one' is now gone from lines
-
-        // Now reset. 'one' is already removed. 'two' and 'three' should remain.
-        ctx.restart();
-
-        let mut names = Vec::new();
-        while ctx.step() {
-            names.push(ctx.name().unwrap().to_string());
-        }
-        assert_eq!(
-            names,
-            vec!["two", "three"],
-            "Only 'two' and 'three' should remain"
-        );
-        Ok::<_, Error>(())
-    })
-    .unwrap();
+    let arena2 = Arena::new();
+    let mut config2 = Config::parse_str(&arena2, original).unwrap();
+    // Remove 'one' (index 0)
+    config2.sections.remove(0);
+    let names2: Vec<_> = config2
+        .sections
+        .iter()
+        .map(|s| s.name().unwrap().to_string())
+        .collect();
+    assert_eq!(
+        names2,
+        vec!["two", "three"],
+        "Only 'two' and 'three' should remain"
+    );
+    let edited_for_removal = config2.dump_str();
     assert_eq!(
         normalize(edited_for_removal),
         normalize(expected_after_removal_then_reset.to_string())

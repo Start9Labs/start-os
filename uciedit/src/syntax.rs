@@ -134,7 +134,9 @@ impl<'a> Config<'a> {
     }
 
     pub fn dump_io(&self, mut writer: impl io::Write) -> Result<(), Error> {
+        let mut empty = true;
         for line in &self.prefix {
+            empty = false;
             write!(&mut writer, "{}", line).map_err(|cause| Error::Io {
                 cause,
                 src: Source::Unknown,
@@ -142,6 +144,10 @@ impl<'a> Config<'a> {
         }
         for section in &self.sections {
             for line in &section.lines {
+                if empty & matches!(line, Line::Empty) {
+                    continue;
+                }
+                empty = false;
                 write!(&mut writer, "{}", line).map_err(|cause| Error::Io {
                     cause,
                     src: Source::Unknown,
@@ -152,13 +158,19 @@ impl<'a> Config<'a> {
     }
 
     pub fn dump_str(&self) -> String {
+        let mut empty = true;
         let mut string = String::new();
         use std::fmt::Write;
         for line in &self.prefix {
+            empty = false;
             let _ = write!(&mut string, "{}", line);
         }
         for section in &self.sections {
             for line in &section.lines {
+                if empty & matches!(line, Line::Empty) {
+                    continue;
+                }
+                empty = false;
                 let _ = write!(&mut string, "{}", line);
             }
         }
