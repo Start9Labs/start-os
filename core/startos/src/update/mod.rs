@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::env::consts::ARCH;
 use std::path::Path;
 use std::time::Duration;
 
@@ -20,12 +19,6 @@ use ts_rs::TS;
 
 use crate::PLATFORM;
 use crate::context::{CliContext, RpcContext};
-use crate::disk::mount::filesystem::MountType;
-use crate::disk::mount::filesystem::bind::Bind;
-use crate::disk::mount::filesystem::block_dev::BlockDev;
-use crate::disk::mount::filesystem::efivarfs::EfiVarFs;
-use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
-use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
 use crate::notifications::{NotificationLevel, notify};
 use crate::prelude::*;
 use crate::progress::{
@@ -276,7 +269,6 @@ async fn maybe_do_update(
     download_phase.set_total(asset.commitment.size);
     download_phase.set_units(Some(ProgressUnits::Bytes));
     let reverify_phase = progress.add_phase("Reverifying File".into(), Some(10));
-    let sync_boot_phase = progress.add_phase("Syncing Boot Files".into(), Some(1));
     let finalize_phase = progress.add_phase("Finalizing Update".into(), Some(1));
 
     let start_progress = progress.snapshot();
@@ -332,7 +324,6 @@ async fn maybe_do_update(
                 prune_phase,
                 download_phase,
                 reverify_phase,
-                sync_boot_phase,
                 finalize_phase,
             },
         )
@@ -389,7 +380,6 @@ struct UpdateProgressHandles {
     prune_phase: PhaseProgressTrackerHandle,
     download_phase: PhaseProgressTrackerHandle,
     reverify_phase: PhaseProgressTrackerHandle,
-    sync_boot_phase: PhaseProgressTrackerHandle,
     finalize_phase: PhaseProgressTrackerHandle,
 }
 
@@ -402,7 +392,6 @@ async fn do_update(
         mut prune_phase,
         mut download_phase,
         mut reverify_phase,
-        mut sync_boot_phase,
         mut finalize_phase,
     }: UpdateProgressHandles,
 ) -> Result<(), Error> {
@@ -437,7 +426,7 @@ async fn do_update(
     dst.save().await.with_kind(ErrorKind::Filesystem)?;
     reverify_phase.complete();
 
-    sync_boot_phase.start();
+    finalize_phase.start();
     Command::new("unsquashfs")
         .arg("-n")
         .arg("-f")
@@ -452,18 +441,9 @@ async fn do_update(
 
     Command::new("/usr/lib/startos/scripts/upgrade")
         .env("CHECKSUM", &checksum)
+        .arg(&path)
         .invoke(ErrorKind::Grub)
         .await?;
-    sync_boot_phase.complete();
-
-    finalize_phase.start();
-    Command::new("ln")
-        .arg("-rsf")
-        .arg(&path)
-        .arg("/media/startos/config/current.rootfs")
-        .invoke(crate::ErrorKind::Filesystem)
-        .await?;
-    Command::new("sync").invoke(ErrorKind::Filesystem).await?;
     finalize_phase.complete();
 
     progress.complete();
