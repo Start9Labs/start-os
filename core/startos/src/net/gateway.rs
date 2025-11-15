@@ -438,60 +438,54 @@ async fn watcher(
             loop {
                 until
                     .run(async {
-                        loop {
-                            let devices = netman_proxy.all_devices().await?;
-                            if devices.is_empty() {
-                                tracing::warn!(
-                                    "NetworkManager returned no devices. Trying again..."
-                                );
-                                tokio::time::sleep(Duration::from_secs(1)).await;
+                        let devices = netman_proxy.all_devices().await?;
+                        ensure_code!(
+                            !devices.is_empty(),
+                            ErrorKind::Network,
+                            "NetworkManager returned no devices. Trying again..."
+                        );
+                        let mut ifaces = BTreeSet::new();
+                        let mut jobs = Vec::new();
+                        for device in devices {
+                            use futures::future::Either;
+
+                            let device_proxy =
+                                device::DeviceProxy::new(&connection, device.clone()).await?;
+                            let iface = InternedString::intern(device_proxy.ip_interface().await?);
+                            if iface.is_empty() {
                                 continue;
                             }
-                            let mut ifaces = BTreeSet::new();
-                            let mut jobs = Vec::new();
-                            for device in devices {
-                                use futures::future::Either;
-
-                                let device_proxy =
-                                    device::DeviceProxy::new(&connection, device.clone()).await?;
-                                let iface =
-                                    InternedString::intern(device_proxy.ip_interface().await?);
-                                if iface.is_empty() {
-                                    continue;
-                                }
-                                let iface: GatewayId = iface.into();
-                                if watch_activation.peek(|a| a.contains_key(&iface)) {
-                                    jobs.push(Either::Left(watch_activated(
-                                        &connection,
-                                        device_proxy.clone(),
-                                        iface.clone(),
-                                        &watch_activation,
-                                    )));
-                                }
-
-                                jobs.push(Either::Right(watch_ip(
+                            let iface: GatewayId = iface.into();
+                            if watch_activation.peek(|a| a.contains_key(&iface)) {
+                                jobs.push(Either::Left(watch_activated(
                                     &connection,
                                     device_proxy.clone(),
                                     iface.clone(),
-                                    &watch_ip_info,
+                                    &watch_activation,
                                 )));
-                                ifaces.insert(iface);
                             }
 
-                            watch_ip_info.send_if_modified(|m| {
-                                let mut changed = false;
-                                for (iface, info) in OrdMapIterMut::from(m) {
-                                    if !ifaces.contains(iface) {
-                                        info.ip_info = None;
-                                        changed = true;
-                                    }
-                                }
-                                changed
-                            });
-                            futures::future::try_join_all(jobs).await?;
-
-                            break;
+                            jobs.push(Either::Right(watch_ip(
+                                &connection,
+                                device_proxy.clone(),
+                                iface.clone(),
+                                &watch_ip_info,
+                            )));
+                            ifaces.insert(iface);
                         }
+
+                        watch_ip_info.send_if_modified(|m| {
+                            let mut changed = false;
+                            for (iface, info) in OrdMapIterMut::from(m) {
+                                if !ifaces.contains(iface) {
+                                    info.ip_info = None;
+                                    changed = true;
+                                }
+                            }
+                            changed
+                        });
+                        futures::future::try_join_all(jobs).await?;
+
                         Ok::<_, Error>(())
                     })
                     .await?;
