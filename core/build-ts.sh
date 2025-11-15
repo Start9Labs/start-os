@@ -10,6 +10,11 @@ shopt -s expand_aliases
 PROFILE=${PROFILE:-release}
 if [ "${PROFILE}" = "release" ]; then
 	BUILD_FLAGS="--release"
+else
+  if [ "$PROFILE" != "debug"]; then
+    >&2 echo "Unknonw profile $PROFILE: falling back to debug..."
+    PROFILE=debug
+  fi
 fi
 
 if [ -z "$ARCH" ]; then

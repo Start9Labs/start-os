@@ -10,6 +10,11 @@ shopt -s expand_aliases
 PROFILE=${PROFILE:-release}
 if [ "${PROFILE}" = "release" ]; then
 	BUILD_FLAGS="--release"
+else
+  if [ "$PROFILE" != "debug"]; then
+    >&2 echo "Unknonw profile $PROFILE: falling back to debug..."
+    PROFILE=debug
+  fi
 fi
 
 if [ -z "${ARCH:-}" ]; then
@@ -61,6 +66,6 @@ fi
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
 rust-zig-builder cargo zigbuild --manifest-path=./core/Cargo.toml $BUILD_FLAGS --no-default-features --features $FEATURE_ARGS --locked --bin start-cli --target=$TARGET
-if [ "$(ls -nd "core/target/$TARGET/release/start-cli" | awk '{ print $3 }')" != "$UID" ]; then
+if [ "$(ls -nd "core/target/$TARGET/$PROFILE/start-cli" | awk '{ print $3 }')" != "$UID" ]; then
   rust-zig-builder sh -c "cd core && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
 fi
