@@ -1,11 +1,10 @@
 use std::pin::Pin;
+use std::sync::Weak;
 use std::task::{Context, Poll};
 
-use axum::middleware::FromFn;
 use futures::future::{BoxFuture, FusedFuture, abortable, pending};
 use futures::stream::{AbortHandle, Abortable, BoxStream};
 use futures::{Future, FutureExt, Stream, StreamExt};
-use rpc_toolkit::from_fn_blocking;
 use tokio::sync::watch;
 use tokio::task::LocalSet;
 
@@ -200,4 +199,27 @@ async fn test_cancellable() {
     tokio::spawn(cancellable);
     handle.cancel_and_wait().await;
     assert!(weak.strong_count() == 0);
+}
+
+#[pin_project::pin_project]
+pub struct WeakFuture<Fut> {
+    rc: Weak<()>,
+    #[pin]
+    fut: Fut,
+}
+impl<Fut> WeakFuture<Fut> {
+    pub fn new(rc: Weak<()>, fut: Fut) -> Self {
+        Self { rc, fut }
+    }
+}
+impl<Fut: Future> Future for WeakFuture<Fut> {
+    type Output = Option<Fut::Output>;
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let this = self.project();
+        if this.rc.strong_count() > 0 {
+            this.fut.poll(cx).map(Some)
+        } else {
+            Poll::Ready(None)
+        }
+    }
 }

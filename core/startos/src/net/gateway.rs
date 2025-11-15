@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::fmt;
 use std::future::Future;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV6};
 use std::sync::{Arc, Weak};
@@ -1551,6 +1552,14 @@ pub struct NetworkInterfaceListenerAcceptMetadata<B: Bind> {
     pub inner: <B::Accept as Accept>::Metadata,
     pub info: GatewayInfo,
 }
+impl<B: Bind> fmt::Debug for NetworkInterfaceListenerAcceptMetadata<B> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("NetworkInterfaceListenerAcceptMetadata")
+            .field("inner", &self.inner)
+            .field("info", &self.info)
+            .finish()
+    }
+}
 impl<B: Bind> Clone for NetworkInterfaceListenerAcceptMetadata<B>
 where
     <B::Accept as Accept>::Metadata: Clone,
@@ -1626,4 +1635,40 @@ where
     pub fn bind_upgradable(listener: SelfContainedNetworkInterfaceListener<B>) -> Self {
         Self::new(Some(Either::Left(listener)))
     }
+}
+
+#[test]
+fn test_filter() {
+    use crate::net::host::binding::NetInfo;
+    let wg1 = "wg1".parse::<GatewayId>().unwrap();
+    assert!(!InterfaceFilter::filter(
+        &AndFilter(
+            NetInfo {
+                private_disabled: [wg1.clone()].into_iter().collect(),
+                public_enabled: Default::default(),
+                assigned_port: None,
+                assigned_ssl_port: None,
+            },
+            AndFilter(IdFilter(wg1.clone()), PublicFilter { public: false }),
+        )
+        .into_dyn(),
+        &wg1,
+        &NetworkInterfaceInfo {
+            name: None,
+            public: None,
+            secure: None,
+            ip_info: Some(Arc::new(IpInfo {
+                name: "".into(),
+                scope_id: 3,
+                device_type: Some(NetworkInterfaceType::Wireguard),
+                subnets: ["10.59.0.2/24".parse::<IpNet>().unwrap()]
+                    .into_iter()
+                    .collect(),
+                lan_ip: Default::default(),
+                wan_ip: None,
+                ntp_servers: Default::default(),
+                dns_servers: Default::default(),
+            })),
+        },
+    ));
 }

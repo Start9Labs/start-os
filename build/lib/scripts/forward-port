@@ -5,34 +5,25 @@ if [ -z "$sip" ] || [ -z "$dip" ] || [ -z "$sport" ] || [ -z "$dport" ]; then
     exit 1
 fi
 
-# Helper function to check if a rule exists
-nat_rule_exists() {
+rule_exists() {
     iptables -t nat -C "$@" 2>/dev/null
 }
 
-# Helper function to add or delete a rule idempotently
-# Usage: apply_rule [add|del] <iptables args...>
-apply_nat_rule() {
-    local action="$1"
-    shift
-
-    if [ "$action" = "add" ]; then
-        # Only add if rule doesn't exist
-        if ! rule_exists "$@"; then
-            iptables -t nat -A "$@"
-        fi
-    elif [ "$action" = "del" ]; then
+apply_rule() {
+    if [ "$UNDO" = "1" ]; then
         if rule_exists "$@"; then
             iptables -t nat -D "$@"
+        fi
+    else
+        if ! rule_exists "$@"; then
+            iptables -t nat -A "$@"
         fi
     fi
 }
 
-if [ "$UNDO" = 1 ]; then
-    action="del"
-else
-    action="add"
-fi
+apply_rule PREROUTING -p tcp -d $sip --dport $sport -j DNAT --to-destination $dip:$dport
+apply_rule OUTPUT -p tcp -d $sip --dport $sport -j DNAT --to-destination $dip:$dport
 
-apply_nat_rule "$action" PREROUTING -p tcp -d $sip --dport $sport -j DNAT --to-destination $dip:$dport
-apply_nat_rule "$action" OUTPUT -p tcp -d $sip --dport $sport -j DNAT --to-destination $dip:$dport
+if [ "$UNDO" = 1 ]; then
+    conntrack -D -p tcp -d $sip --dport $sport
+fi

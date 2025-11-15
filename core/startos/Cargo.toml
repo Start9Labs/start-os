@@ -93,7 +93,6 @@ async-compression = { version = "0.4.32", features = [
 ] }
 async-stream = "0.3.5"
 async-trait = "0.1.74"
-aws-lc-sys = { version = "0.32", features = ["bindgen"] }
 axum = { version = "0.8.4", features = ["ws"] }
 backtrace-on-stack-overflow = { version = "0.3.0", optional = true }
 barrage = "0.2.3"
@@ -252,7 +251,7 @@ termion = "4.0.5"
 textwrap = "0.16.1"
 thiserror = "2.0.12"
 tokio = { version = "1.38.1", features = ["full"] }
-tokio-rustls = "0.26.0"
+tokio-rustls = "0.26.4"
 tokio-stream = { version = "0.1.14", features = ["io-util", "net", "sync"] }
 tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git" }
 tokio-tungstenite = { version = "0.26.2", features = ["native-tls", "url"] }

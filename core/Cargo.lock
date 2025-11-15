@@ -7916,7 +7916,6 @@ dependencies = [
  "async-compression",
  "async-stream",
  "async-trait",
- "aws-lc-sys",
  "axum 0.8.6",
  "backtrace-on-stack-overflow",
  "barrage",

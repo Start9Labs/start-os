@@ -353,6 +353,7 @@ pub async fn show_config(
     Ok(client
         .client_config(
             ip,
+            subnet,
             wg.as_key().de()?.verifying_key(),
             (wan_addr, wg.as_port().de()?).into(),
         )
