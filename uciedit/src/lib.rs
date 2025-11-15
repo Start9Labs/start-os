@@ -2,12 +2,13 @@ extern crate self as uciedit;
 
 use chrono::DateTime;
 use chrono::Utc;
-pub use inpt::inpt;
 use serde::Serializer;
+use std::collections::BTreeMap;
 use std::fmt;
 use std::fs;
 use std::io;
 use std::io::Seek as _;
+use std::ops;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::Utf8Error;
@@ -249,6 +250,31 @@ impl LockedConfigWriter {
     }
 }
 
+#[derive(Clone, Default)]
+pub struct Configs<'a> {
+    map: BTreeMap<String, Config<'a>>,
+}
+
+impl<'a> ops::Index<&str> for Configs<'a> {
+    type Output = Config<'a>;
+
+    fn index(&self, index: &str) -> &Self::Output {
+        match self.map.get(index) {
+            Some(cfg) => cfg,
+            None => panic!("did not parse config {index}"),
+        }
+    }
+}
+
+impl<'a> ops::IndexMut<&str> for Configs<'a> {
+    fn index_mut(&mut self, index: &str) -> &mut Self::Output {
+        match self.map.get_mut(index) {
+            Some(cfg) => cfg,
+            None => panic!("did not parse config {index}"),
+        }
+    }
+}
+
 pub fn parse_all<'a>(
     root: impl AsRef<Path>,
     arena: &'a Arena,
@@ -256,14 +282,18 @@ pub fn parse_all<'a>(
 ) -> Result<Configs<'a>, Error> {
     const MAX_RETRIES: usize = 4;
 
-    let mut configs = Configs::new();
+    let mut configs = Configs {
+        map: BTreeMap::new(),
+    };
     'retry: for _ in 0..MAX_RETRIES {
-        configs.clear();
+        configs.map.clear();
         let expected: DateTime<Utc> = std::time::SystemTime::now().into();
         for &name in names {
-            configs.insert(name.into(), Config::parse(arena, root.as_ref().join(name))?);
+            configs
+                .map
+                .insert(name.into(), Config::parse(arena, root.as_ref().join(name))?);
         }
-        for config in configs.values() {
+        for config in configs.map.values() {
             if let Some(found) = config.modified {
                 if found > expected {
                     // file was updated after we started reading, retry!
@@ -280,6 +310,7 @@ pub fn dump_all(root: impl AsRef<Path>, configs: Configs) -> Result<(), Error> {
     // Lock all the files at once.
     // We do it in lexicographic order so that deadlocks are impossible.
     let mut files = configs
+        .map
         .into_iter()
         .map(|(name, section)| {
             let path = root.as_ref().join(&name);

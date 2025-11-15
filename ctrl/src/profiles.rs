@@ -16,7 +16,7 @@ use uciedit::openwrt::{
     DeviceType, Dhcp, FirewallForwarding, FirewallRule, FirewallTarget, FirewallZone,
     InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface,
 };
-use uciedit::UciSection;
+use uciedit::TypedSection;
 use uciedit::{parse_config, rewrite_config};
 
 pub const DEFAULT_WAN_ZONE: &str = "wan";

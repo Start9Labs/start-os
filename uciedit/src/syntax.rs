@@ -1,17 +1,15 @@
-use crate::{Error, ResultExt as _, Source};
+use crate::{Error, ResultExt as _, Source, TypedSection};
 use chrono::{DateTime, Utc};
 use inpt::split::{unescape, Quoted, SingleQuoted, Spaced};
 use inpt::{inpt, inpt_step, Inpt, InptStep};
 use std::borrow::Cow;
-use std::collections::BTreeMap;
 use std::path::Path;
 use std::str::FromStr;
 use std::{fmt, fs, io};
 
 pub type Arena = typed_arena::Arena<String>;
 
-pub type Configs<'a> = BTreeMap<String, Config<'a>>;
-
+#[derive(Clone)]
 pub struct Config<'a> {
     pub arena: &'a Arena,
     pub prefix: Vec<Line<'a>>,
@@ -20,6 +18,41 @@ pub struct Config<'a> {
 }
 
 impl<'a> Config<'a> {
+    pub fn append<T: TypedSection<'a>>(
+        &mut self,
+        section: &T,
+        name: Option<&str>,
+    ) -> Result<(), Error> {
+        let name = name.map(|n| self.arena.alloc(n.to_string()).as_str());
+        let section = T::append(section, self.arena, name)?;
+        self.sections.push(section);
+        Ok(())
+    }
+
+    pub fn each<T: TypedSection<'a>, E>(
+        &self,
+        mut each: impl FnMut(Option<&str>, T),
+    ) -> Result<(), Error> {
+        for s in &self.sections {
+            if T::is_type(&s.ty()) {
+                each(s.name().as_deref(), T::read(s)?);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn try_each<T: TypedSection<'a>, E: From<Error>>(
+        &self,
+        mut each: impl FnMut(Option<&str>, T) -> Result<(), E>,
+    ) -> Result<(), E> {
+        for s in &self.sections {
+            if T::is_type(&s.ty()) {
+                each(s.name().as_deref(), T::read(s)?)?;
+            }
+        }
+        Ok(())
+    }
+
     pub fn parse(arena: &'a Arena, path: impl AsRef<Path>) -> Result<Self, Error> {
         let path = path.as_ref();
         let mut modified = std::fs::metadata(path)
@@ -133,6 +166,7 @@ impl<'a> Config<'a> {
     }
 }
 
+#[derive(Clone)]
 pub struct Section<'a> {
     pub arena: &'a Arena,
     pub lines: Vec<Line<'a>>,
@@ -169,6 +203,22 @@ impl<'a> Section<'a> {
             }
         }
         panic!("section missing header")
+    }
+
+    pub fn get_typed<T: TypedSection<'a>>(&self) -> Result<Option<T>, Error> {
+        if T::is_type(&self.ty()) {
+            Ok(Some(T::read(self)?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn get<T: TypedSection<'a>>(&self) -> Result<T, Error> {
+        T::read(self)
+    }
+
+    pub fn set<T: TypedSection<'a>>(&mut self, section: &T) -> Result<(), Error> {
+        T::write(section, self)
     }
 }
 

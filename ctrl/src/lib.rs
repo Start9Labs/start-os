@@ -12,7 +12,11 @@ use std::path::PathBuf;
 use tracing::subscriber::DefaultGuard;
 
 pub trait CtrlContext: Context + Clone {
-    fn uci_path(&self, name: &str) -> PathBuf;
+    fn uci_root(&self) -> PathBuf;
+
+    fn uci_path(&self, name: &str) -> PathBuf {
+        self.uci_root().join(name)
+    }
 }
 
 #[derive(Clone, Parser)]
@@ -22,8 +26,8 @@ pub struct CliContext {
 }
 impl Context for CliContext {}
 impl CtrlContext for CliContext {
-    fn uci_path(&self, name: &str) -> PathBuf {
-        self.config_root.join(name)
+    fn uci_root(&self) -> PathBuf {
+        self.config_root.clone()
     }
 }
 
@@ -31,8 +35,8 @@ impl CtrlContext for CliContext {
 pub struct ServerContext;
 impl Context for ServerContext {}
 impl CtrlContext for ServerContext {
-    fn uci_path(&self, name: &str) -> PathBuf {
-        format!("/etc/config/{name}").into()
+    fn uci_root(&self) -> PathBuf {
+        "/etc/config/".into()
     }
 }
 

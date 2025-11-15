@@ -39,12 +39,10 @@ fn test_read_section() {
         opt_str_default_val: Some("default_val".to_string()),
         vec_str_default_val: vec!["a".to_string(), "b".to_string()],
     };
-
-    let parsed: Bar = parse_config_string(original, |mut ctx| {
-        assert!(ctx.step());
-        ctx.get()
-    })
-    .unwrap();
+    let arena = Arena::new();
+    let parsed: Bar = Config::parse_str(&arena, original).unwrap().sections[0]
+        .read()
+        .unwrap();
 
     println!(
         "===Original===\n{original}\n===Parsed===\n{parsed:#?}\n===Expected===\n{expected:#?}\n====="
@@ -75,21 +73,21 @@ config bar appended
     list vec_str_default_val b
 ";
 
-    let edited = rewrite_config_string(original.to_string(), |mut ctx| {
-        ctx.push(
-            &Bar {
-                always: 0,
-                yes: Some(1),
-                no: None,
-                many: vec![2, 3, 4],
-                num_default: 0,
-                opt_str_default_val: Some("default_val".to_string()),
-                vec_str_default_val: vec!["a".to_string(), "b".to_string()],
-            },
-            Some("appended"),
-        )
-    })
-    .unwrap();
+    let arena = Arena::new();
+    let mut config = Config::parse_str(&arena, original).unwrap();
+    config.append(
+        &Bar {
+            always: 0,
+            yes: Some(1),
+            no: None,
+            many: vec![2, 3, 4],
+            num_default: 0,
+            opt_str_default_val: Some("default_val".to_string()),
+            vec_str_default_val: vec!["a".to_string(), "b".to_string()],
+        },
+        Some("appended"),
+    );
+    let edited = config.dump_str();
 
     println!(
         "===Original===\n{original}\n===Edited===\n{edited}\n===Expected===\n{expected}\n====="
@@ -157,24 +155,20 @@ config other
     option something here
 ";
 
-    let edited = rewrite_config_string(original.to_string(), |mut ctx| {
-        while ctx.step() {
-            if ctx.ty() == "bar" {
-                // Only edit sections of type "bar"
-                ctx.set(&EditBar {
-                    always: 0,
-                    yes: Some(1),
-                    no: None,
-                    many: vec![2, 3, 4],
-                    few: vec![5],
-                })
-                .unwrap();
-            }
+    let arena = Arena::new();
+    let mut config = Config::parse_str(&arena, original).unwrap();
+    for s in &mut config.sections {
+        if s.ty() == "bar" {
+            s.write(&EditBar {
+                always: 0,
+                yes: Some(1),
+                no: None,
+                many: vec![2, 3, 4],
+                few: vec![5],
+            });
         }
-        Ok::<_, Error>(())
-    })
-    .unwrap();
-
+    }
+    let edited = config.dump_str();
     println!(
         "===Original===\n{original}\n===Edited===\n{edited}\n===Expected===\n{expected}\n====="
     );
