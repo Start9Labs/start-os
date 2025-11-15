@@ -1,10 +1,18 @@
 # StartTunnel
 
-A self-hosted Wiregaurd VPN optimized for creating VLANs and reverse tunneling to personal servers.
+A self-hosted WireGuard VPN optimized for creating VLANs and reverse tunneling to personal servers.
 
-You can think of StartTunnel as "virtual router in the cloud"
+You can think of StartTunnel as "virtual router in the cloud".
 
-Use it for private, remote access, to self-hosted services running on a personal server, or to expose self-hosted services to the public Internet without revealing the host server's IP address.
+Use it for private remote access to self-hosted services running on a personal server, or to expose self-hosted services to the public Internet without revealing the host server's IP address.
+
+## Features
+
+- **Create Subnets**: Each subnet creates a private, virtual local area network (VLAN), similar to the LAN created by a home router.
+
+- **Add Devices**: When you add a device (server, phone, laptop) to a subnet, it receives a LAN IP address on that subnet as well as a unique WireGuard config that must be copied, downloaded, or scanned into the device.
+
+- **Forward Ports**: Forwarding a port creates a "reverse tunnel", exposing a specific port on a specific device to the public Internet.
 
 ## Features
 
@@ -19,7 +27,7 @@ Use it for private, remote access, to self-hosted services running on a personal
 1.  Rent a low cost VPS. For most use cases, the cheapest option should be enough.
 
     - It must have a dedicated public IP address.
-    - For (CPU), memory (RAM), and storage (disk), choose the minimum spec.
+    - For compute (CPU), memory (RAM), and storage (disk), choose the minimum spec.
     - For transfer (bandwidth), it depends on (1) your use case and (2) your home Internet's _upload_ speed. Even if you intend to serve large files or stream content from your server, there is no reason to pay for speeds that exceed your home Internet's upload speed.
 
 1.  Provision the VPS with the latest version of Debian.
@@ -29,10 +37,16 @@ Use it for private, remote access, to self-hosted services running on a personal
 1.  Install StartTunnel:
 
 ```sh
-TMP_DIR=$(mktemp -d) && (cd $TMP_DIR && wget https://github.com/Start9Labs/start-os/releases/download/v0.4.0-alpha.12/start-tunnel-0.4.0-alpha.12-68f401b_$(uname -m).deb && apt-get install -y ./start-tunnel-0.4.0-alpha.12-68f401b_$(uname -m).deb) && rm -rf $TMP_DIR && systemctl start start-tunneld && echo "Installation Succeeded"
+TMP_DIR=$(mktemp -d) && (cd $TMP_DIR && wget https://github.com/Start9Labs/start-os/releases/download/v0.4.0-alpha.12/start-tunnel-0.4.0-alpha.12-unknown.dev_$(uname -m).deb && apt-get install -y ./start-tunnel-0.4.0-alpha.12-unknown.dev_$(uname -m).deb) && rm -rf $TMP_DIR && systemctl start start-tunneld && echo "Installation Succeeded"
 ```
 
 5. [Initialize the web interface](#web-interface) (recommended)
+
+## Updating
+
+```sh
+TMP_DIR=$(mktemp -d) && (cd $TMP_DIR && wget https://github.com/Start9Labs/start-os/releases/download/v0.4.0-alpha.12/start-tunnel-0.4.0-alpha.12-unknown.dev_$(uname -m).deb && apt-get install --reinstall -y ./start-tunnel-0.4.0-alpha.12-unknown.dev_$(uname -m).deb) && rm -rf $TMP_DIR && systemctl daemon-reload && systemctl restart start-tunneld && echo "Update Succeeded"
+```
 
 ## CLI
 
