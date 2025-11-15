@@ -356,7 +356,10 @@ pub async fn execute<C: Context>(
     let mut install = Command::new("chroot");
     install.arg(overlay.path()).arg("grub-install");
     if tokio::fs::metadata("/sys/firmware/efi").await.is_err() {
-        install.arg("--target=i386-pc");
+        match ARCH {
+            "x86_64" => install.arg("--target=i386-pc"),
+            _ => &mut install,
+        };
     } else {
         match ARCH {
             "x86_64" => install.arg("--target=x86_64-efi"),

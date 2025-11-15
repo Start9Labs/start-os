@@ -2,6 +2,8 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
+source ./builder-alias.sh
+
 set -ea
 shopt -s expand_aliases
 
@@ -33,4 +35,7 @@ fi
 
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-cross build --manifest-path=./core/Cargo.toml $BUILD_FLAGS --no-default-features --features cli-tunnel,tunnel,$FEATURES --locked --bin tunnelbox --target=$RUST_ARCH-unknown-linux-musl
+rust-zig-builder cargo zigbuild --manifest-path=./core/Cargo.toml $BUILD_FLAGS --no-default-features --features cli-tunnel,tunnel,$FEATURES --locked --bin tunnelbox --target=$RUST_ARCH-unknown-linux-musl
+if [ "$(ls -nd "core/target/$RUST_ARCH-unknown-linux-musl/release/tunnelbox" | awk '{ print $3 }')" != "$UID" ]; then
+  rust-zig-builder sh -c "chown -R $UID:$UID core/target && chown -R $UID:$UID /root/.cargo"
+fi

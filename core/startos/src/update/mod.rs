@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::env::consts::ARCH;
 use std::path::Path;
 use std::time::Duration;
 
@@ -497,6 +498,12 @@ async fn do_update(
         } else {
             None
         };
+
+        Command::new("chroot")
+            .arg(root_guard.path())
+            .arg("grub-install")
+            .invoke(crate::ErrorKind::Grub)
+            .await?;
 
         Command::new("chroot")
             .arg(root_guard.path())

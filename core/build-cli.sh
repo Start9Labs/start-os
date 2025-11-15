@@ -61,3 +61,6 @@ fi
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
 rust-zig-builder cargo zigbuild --manifest-path=./core/Cargo.toml $BUILD_FLAGS --no-default-features --features $FEATURE_ARGS --locked --bin start-cli --target=$TARGET
+if [ "$(ls -nd "core/target/$TARGET/release/start-cli" | awk '{ print $3 }')" != "$UID" ]; then
+  rust-zig-builder sh -c "cd core && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
+fi
