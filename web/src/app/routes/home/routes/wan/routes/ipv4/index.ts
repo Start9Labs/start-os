@@ -12,9 +12,21 @@ import { IPv4Aside } from './aside'
 import { Ipv4Dns } from './dns'
 import { Ipv4Ip } from './ip'
 import { Ipv4Summary } from './summary'
-import { ApiService, WanIpv4 } from 'src/app/services/api/api.service'
+import { ApiService } from 'src/app/services/api/api.service'
 import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
 import { TuiButtonLoading } from '@taiga-ui/kit'
+import {
+  DnsmasqSection,
+  HttpsDnsProxySection,
+  NetworkInterfaceSection,
+  UciFile,
+} from 'src/app/services/api/types'
+
+type WanIpv4 = {
+  network: UciFile<NetworkInterfaceSection>
+  dhcp: UciFile<DnsmasqSection>
+  'https-dns-proxy': UciFile<HttpsDnsProxySection>
+}
 
 @Component({
   template: `
@@ -201,7 +213,7 @@ export default class Ipv4 {
       dnsmasqSection.lists.server = []
 
       // Disable https-dns-proxy
-      data.httpsDnsProxy.sections = []
+      data['https-dns-proxy'].sections = []
     } else if (dns.mode === 'TLS') {
       // Clear custom DNS servers
       dnsmasqSection.lists.server = []
@@ -210,7 +222,7 @@ export default class Ipv4 {
       const resolverUrl = this.mapFriendlyNameToResolverUrl(dns.tls.server)
       const bootstrapDns = this.getBootstrapDnsForResolver(dns.tls.server)
 
-      data.httpsDnsProxy.sections = [
+      data['https-dns-proxy'].sections = [
         {
           type: 'https-dns-proxy',
           name: null,
@@ -225,7 +237,7 @@ export default class Ipv4 {
       ]
     } else if (dns.mode === 'custom') {
       // Disable https-dns-proxy
-      data.httpsDnsProxy.sections = []
+      data['https-dns-proxy'].sections = []
 
       // Set custom DNS servers
       const servers: string[] = []
@@ -242,7 +254,26 @@ export default class Ipv4 {
     this.saving.set(true)
 
     try {
-      await this.api.setWanIpv4(data)
+      await this.api.setUci(data)
+
+      await this.api.exec({
+        command: '/etc/init.d/network',
+        args: ['restart'],
+        timeout: 30000,
+      })
+
+      await this.api.exec({
+        command: '/etc/init.d/dnsmasq',
+        args: ['restart'],
+        timeout: 10000,
+      })
+
+      await this.api.exec({
+        command: '/etc/init.d/https-dns-proxy',
+        args: ['restart'],
+        timeout: 10000,
+      })
+
       this.form.markAsPristine()
       this.data = data
     } catch (e) {
@@ -253,9 +284,11 @@ export default class Ipv4 {
   }
 
   private async loadWanSettings() {
-    this.data = await this.api.getWanIpv4()
+    this.data = await this.api.getUci<WanIpv4>({
+      names: ['network', 'dhcp', 'https-dns-proxy'],
+    })
 
-    const { network, dhcp, httpsDnsProxy } = this.data
+    const { network, dhcp, 'https-dns-proxy': httpsDnsProxy } = this.data
 
     const wanInterface = network.sections.find(
       s => s.type === 'interface' && s.name === 'wan',

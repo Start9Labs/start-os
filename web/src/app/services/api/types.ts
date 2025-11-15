@@ -1,5 +1,3 @@
-export type UciSectionType = 'interface' | 'dnsmasq' | 'https-dns-proxy'
-
 export type UciSection =
   | NetworkInterfaceSection
   | DnsmasqSection
@@ -17,18 +15,16 @@ export type NetworkInterfaceSection = {
     password?: string
     device?: string
     ifname?: string
-    [key: string]: string | undefined
   }
-  lists: Record<string, string[]>
+  lists: {}
 }
 
 export type DnsmasqSection = {
   type: 'dnsmasq'
   name: string | null
-  options: Record<string, string>
+  options: {}
   lists: {
     server?: string[]
-    [key: string]: string[] | undefined
   }
 }
 
@@ -40,9 +36,8 @@ export type HttpsDnsProxySection = {
     resolver_url?: string
     listen_addr?: string
     listen_port?: string
-    [key: string]: string | undefined
   }
-  lists: Record<string, string[]>
+  lists: {}
 }
 
 export type UciFile<T extends UciSection> = {
