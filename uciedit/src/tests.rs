@@ -1,12 +1,12 @@
 use super::*; // Access items from lib.rs
-use uciedit_macros::UciSection; // Import the derive macro
+use uciedit_macros::TypedSection; // Import the derive macro
 
 // Helper to normalize whitespace for comparisons
 fn normalize(s: String) -> String {
     s.replace("\t", "    ")
 }
 
-#[derive(UciSection, PartialEq, Eq, Debug, Default)]
+#[derive(TypedSection, PartialEq, Eq, Debug, Default)]
 struct Bar {
     always: i32,
     yes: Option<i32>,
@@ -97,7 +97,7 @@ config bar appended
     assert_eq!(normalize(edited), normalize(expected.to_string()));
 }
 
-#[derive(UciSection, PartialEq, Eq, Debug)]
+#[derive(TypedSection, PartialEq, Eq, Debug)]
 #[uci(ty = "bar")]
 struct EditBar {
     always: i32,
@@ -298,7 +298,7 @@ fn test_token_functionality() {
     ));
 }
 
-#[derive(UciSection, PartialEq, Eq, Debug)]
+#[derive(TypedSection, PartialEq, Eq, Debug)]
 #[uci(ty = "custom_type")]
 struct RenamedTypeSection {
     #[uci(rename = "old_name")]
@@ -338,7 +338,7 @@ fn test_uci_section_rename_and_type_override() {
     assert_eq!(normalize(written), normalize(expected_written.to_string()));
 }
 
-#[derive(UciSection, PartialEq, Eq, Debug)]
+#[derive(TypedSection, PartialEq, Eq, Debug)]
 struct DefaultDemo {
     #[uci(default)]
     my_int: i32, // uses i32::default()
@@ -381,7 +381,7 @@ fn test_uci_section_defaults() {
     assert_eq!(parsed_partial.my_default_vec, vec![10, 20]);
 }
 
-#[derive(UciSection, PartialEq, Eq, Debug)]
+#[derive(TypedSection, PartialEq, Eq, Debug)]
 struct BoolFieldTest {
     is_enabled: bool,
     is_active: bool,
@@ -420,7 +420,7 @@ fn test_uci_section_bool_field() {
     assert_eq!(normalize(written), normalize(expected_written.to_string()));
 }
 
-#[derive(UciSection, Debug)]
+#[derive(TypedSection, Debug)]
 struct RequiredField {
     must_exist: String,
 }
@@ -462,7 +462,7 @@ fn test_sections_mut_push_to_empty_config() {
     assert_eq!(normalize(edited), normalize(expected.to_string()));
 }
 
-#[derive(UciSection, Debug, PartialEq)]
+#[derive(TypedSection, Debug, PartialEq)]
 struct AnotherType {
     value: String,
 }
@@ -475,7 +475,7 @@ fn test_sections_mut_set_non_matching_type() {
     let result = rewrite_config_string(original.to_string(), |mut ctx| {
         assert!(ctx.step()); // Step to the 'bar' section
         assert_eq!(ctx.ty(), "bar");
-        // Try to set it with a struct of a different UciSection type
+        // Try to set it with a struct of a different TypedSection type
         ctx.set(&AnotherType {
             value: "test".to_string(),
         })
@@ -519,7 +519,7 @@ fn test_parse_config_with_only_comments_and_empty_lines() {
 
 #[test]
 fn test_round_trip_complex_config() {
-    #[derive(UciSection, PartialEq, Eq, Debug, Default)]
+    #[derive(TypedSection, PartialEq, Eq, Debug, Default)]
     struct ComplexSection {
         name: String,
         value: Option<i32>,

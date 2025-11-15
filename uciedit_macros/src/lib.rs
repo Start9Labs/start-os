@@ -7,7 +7,7 @@ use syn::{
 
 #[derive(FromDeriveInput, Default)]
 #[darling(default, attributes(uci))]
-struct UciSectionOpts {
+struct TypedSectionOpts {
     ty: Option<String>,
 }
 
@@ -119,7 +119,7 @@ impl UciField {
             (None, Optional | List, _) => quote! { #field: #placehold, },
             (None, Single, true) => quote! { #field: #placehold.unwrap_or_default(), },
             (None, Single, false) => {
-                quote! { #field: #placehold.ok_or(#crat::Error::MissingOption { src: start_index.into(), missing: #name.into() })?, }
+                quote! { #field: #placehold.ok_or(#crat::Error::MissingOption { src: 0.into(), missing: #name.into() })?, }
             }
         }
     }
@@ -272,20 +272,12 @@ fn write_body(fields: &[UciField], _struc: Ident, ty: String, crat: Path) -> Tok
     }
 }
 
-fn append_body(fields: &[UciField], _struc: Ident, ty: String, crat: Path) -> TokenStream {
+fn append_body(fields: &[UciField], _struc: Ident, _ty: String, _crat: Path) -> TokenStream {
     let decl = fields.iter().map(UciField::write_decl);
     let chain = chained_write_iters(fields);
     quote! {
         #(#decl)*
-
-        if !matches!(lines.last(), None | Some(#crat::Line::Empty)) {
-            lines.push(#crat::Line::Empty);
-        }
-
-        lines.push(#crat::Line::section_from(#ty, name, arena));
         lines.extend(#chain);
-
-        Ok(())
     }
 }
 
@@ -323,10 +315,10 @@ fn is_primative(ty: &Type, ident: &str) -> bool {
     false
 }
 
-#[proc_macro_derive(UciSection, attributes(uci))]
+#[proc_macro_derive(TypedSection, attributes(uci))]
 pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    let opts = UciSectionOpts::from_derive_input(&input).expect("Wrong options");
+    let opts = TypedSectionOpts::from_derive_input(&input).expect("Wrong options");
 
     let crat: Path = parse_quote! { ::uciedit };
     let struc = input.ident;
@@ -389,38 +381,41 @@ pub fn derive(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
             pub const TY: &'static str = #ty;
         }
 
-        impl #impl_generics #crat::UciSection<'a> for #struc #type_generics #where_clause {
+        impl #impl_generics #crat::TypedSection<'a> for #struc #type_generics #where_clause {
             fn is_type(ty: &str) -> bool {
                 ty == #ty
             }
 
             fn read(
-                lines: &#crat::Lines<'a>,
-                arena: &'a #crat::Arena,
-                mut index: usize,
+                section: &#crat::Section<'a>,
             ) -> Result<Self, #crat::Error> {
-                let start_index = index;
+                let mut index = 0;
+                let arena = section.arena;
+                let lines = &section.lines;
                 #read_body
             }
 
             #[allow(unused_mut)]
             fn write(
                 &self,
-                lines: &mut #crat::Lines<'a>,
-                arena: &'a #crat::Arena,
-                mut index: usize,
+                section: &mut #crat::Section<'a>,
             ) -> Result<(), #crat::Error> {
+                let mut index = 0;
+                let arena = section.arena;
+                let lines = &mut section.lines;
                 #write_body
             }
 
             #[allow(unused_mut)]
             fn append(
                 &self,
-                lines: &mut #crat::Lines<'a>,
                 arena: &'a #crat::Arena,
                 name: Option<&'a str>,
-            ) -> Result<(), #crat::Error> {
+            ) -> Result<#crat::Section<'a>, #crat::Error> {
+                let mut section = #crat::Section::new(arena, #ty, name);
+                let lines = &mut section.lines;
                 #append_body
+                Ok(section)
             }
         }
 

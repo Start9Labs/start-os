@@ -2368,6 +2368,7 @@ name = "uciedit"
 version = "0.1.0"
 dependencies = [
  "bumpalo",
+ "chrono",
  "fd-lock-rs",
  "inpt",
  "serde",
