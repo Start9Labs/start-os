@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { Router, RouterLink, RouterLinkActive } from '@angular/router'
 import { TuiButton, TuiScrollbar } from '@taiga-ui/core'
 import { MENU } from 'src/app/routes/home/components/menu'
+import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
 import { SidebarService } from 'src/app/services/sidebar.service'
 
@@ -119,13 +120,23 @@ import { SidebarService } from 'src/app/services/sidebar.service'
 export class Nav {
   private readonly service = inject(AuthService)
   private readonly router = inject(Router)
+  protected readonly api = inject(ApiService)
 
   protected readonly sidebars = inject(SidebarService)
   protected readonly routes = MENU
 
-  protected logout(): void {
-    this.service.authenticated.set(false)
-    this.router.navigate(['.'])
+  protected async logout() {
+    // @TODO show loading
+    try {
+      await this.api.logout()
+      this.service.authenticated.set(false)
+      this.router.navigate(['.'])
+    } catch (e: any) {
+      console.error(e)
+      // @TODO show error
+    } finally {
+      // @TODO hide loading
+    }
   }
 
   protected asIs(): number {

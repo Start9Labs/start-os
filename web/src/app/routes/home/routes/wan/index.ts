@@ -58,7 +58,7 @@ export default [
       },
       {
         path: 'dynamic-dns',
-        loadComponent: () => import('./routes/dns'),
+        loadComponent: () => import('./routes/ddns'),
       },
       {
         path: '**',

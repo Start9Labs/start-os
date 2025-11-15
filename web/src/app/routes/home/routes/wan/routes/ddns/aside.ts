@@ -1,8 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
-import { TuiAccordion } from '@taiga-ui/experimental'
 
 @Component({
-  selector: 'dns-aside',
+  selector: 'ddns-aside',
   template: `
     <h3>Strategy</h3>
     Dynamic DNS (DDNS) allows you to map a dynamic IP address to a domain name.
@@ -14,4 +13,4 @@ import { TuiAccordion } from '@taiga-ui/experimental'
   host: { class: 'g-aside' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DnsAside {}
+export class DdnsAside {}

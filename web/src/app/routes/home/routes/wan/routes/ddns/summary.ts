@@ -5,10 +5,10 @@ import { TuiBadge, TuiStatus } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { Summary, SummaryItem } from 'src/app/components/summary'
 
-import Dns from '.'
+import Ddns from '.'
 
 @Component({
-  selector: '[dnsSummary]',
+  selector: '[ddnsSummary]',
   template: `
     @if (parent.form.valueChanges | async) {}
     <header tuiHeader><h2 tuiTitle>Summary</h2></header>
@@ -36,6 +36,6 @@ import Dns from '.'
   imports: [AsyncPipe, TuiHeader, TuiBadge, TuiStatus, TuiTitle, SummaryItem],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class DnsSummary {
-  protected readonly parent = inject(Dns)
+export class DdnsSummary {
+  protected readonly parent = inject(Ddns)
 }

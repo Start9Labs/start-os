@@ -7,6 +7,8 @@ import {
 import { FormsModule } from '@angular/forms'
 import { Router } from '@angular/router'
 import { TuiButton, TuiError, TuiTextfield } from '@taiga-ui/core'
+import { TuiButtonLoading } from '@taiga-ui/kit'
+import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
 
 @Component({
@@ -18,9 +20,18 @@ import { AuthService } from 'src/app/services/auth.service'
           tuiTextfield
           type="password"
           placeholder="Enter password"
-          [invalid]="error()"
+          [ngModelOptions]="{ standalone: true }"
+          [(ngModel)]="password"
+          (ngModelChange)="error.set(false)"
+          [disabled]="loading()"
         />
-        <button tuiIconButton appearance="action" iconStart="@tui.log-in">
+        <button
+          tuiIconButton
+          appearance="action"
+          iconStart="@tui.log-in"
+          [disabled]="!password.length"
+          [loading]="loading()"
+        >
           Login
         </button>
       </tui-textfield>
@@ -55,16 +66,28 @@ import { AuthService } from 'src/app/services/auth.service'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, TuiTextfield, FormsModule, TuiError],
+  imports: [TuiButton, TuiTextfield, FormsModule, TuiError, TuiButtonLoading],
 })
 export default class Login {
-  private readonly service = inject(AuthService)
+  private readonly auth = inject(AuthService)
   private readonly router = inject(Router)
+  private readonly api = inject(ApiService)
 
   protected readonly error = signal(false)
+  protected readonly loading = signal(false)
 
-  protected login(): void {
-    this.service.authenticated.set(true)
-    this.router.navigate(['.'])
+  password = ''
+
+  protected async login() {
+    this.loading.set(true)
+    try {
+      await this.api.login({ password: this.password })
+      this.auth.authenticated.set(true)
+      this.router.navigate(['.'])
+    } catch (e) {
+      this.error.set(true)
+    } finally {
+      this.loading.set(false)
+    }
   }
 }

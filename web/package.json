@@ -33,6 +33,7 @@
     "@angular/build": "^20.3.1",
     "@angular/cli": "^20.3.1",
     "@angular/compiler-cli": "^20.3.0",
+    "@types/node": "^24.10.1",
     "husky": "^4.3.8",
     "less-loader": "^12.3.0",
     "lint-staged": "^16.1.6",

@@ -27,6 +27,18 @@ import {
 import { tuiFormOptionsProvider } from '@taiga-ui/layout'
 
 import { routes } from './app.routes'
+import {
+  provideHttpClient,
+  withFetch,
+  withInterceptorsFromDi,
+} from '@angular/common/http'
+import { ApiService } from './services/api/api.service'
+import { MockApiService } from './services/api/mock-api.service'
+import { LiveApiService } from './services/api/live-api.service'
+import { RELATIVE_URL } from './services/http.service'
+import { WorkspaceConfig } from './utils/workspace-config'
+
+const { useMocks, api } = require('../../config.json') as WorkspaceConfig
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -44,6 +56,15 @@ export const appConfig: ApplicationConfig = {
     tuiFormOptionsProvider({ size: 'm' }),
     tuiDropdownOptionsProvider({ appearance: 'start-9' }),
     tuiDialogOptionsProvider({ appearance: 'start-9 taiga' }),
+    {
+      provide: ApiService,
+      useClass: useMocks ? MockApiService : LiveApiService,
+    },
+    {
+      provide: RELATIVE_URL,
+      useValue: `/${api.url}/${api.version}`,
+    },
+    provideHttpClient(withInterceptorsFromDi(), withFetch()),
     // TODO: Remove in Taiga UI 5
     provideAppInitializer(() => {
       const doc = inject(DOCUMENT)

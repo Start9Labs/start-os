@@ -15,13 +15,13 @@ import {
 import { TuiCard, TuiForm, TuiHeader } from '@taiga-ui/layout'
 import { Help } from 'src/app/directives/help.directive'
 
-import { DnsAside } from './aside'
-import { DnsSummary } from './summary'
+import { DdnsAside } from './aside'
+import { DdnsSummary } from './summary'
 
 @Component({
   template: `
-    <dns-aside *help />
-    <article dnsSummary tuiCardLarge="compact"></article>
+    <ddns-aside *help />
+    <article ddnsSummary tuiCardLarge="compact"></article>
     <form
       tuiForm
       tuiCardLarge="compact"
@@ -34,7 +34,7 @@ import { DnsSummary } from './summary'
         <aside tuiAccessories>
           <label tuiLabel>
             <input type="checkbox" tuiSwitch formControlName="dynamic" />
-            Use DNScrypt Proxy
+            Enable
           </label>
         </aside>
       </header>
@@ -70,13 +70,13 @@ import { DnsSummary } from './summary'
     TuiSelect,
     TuiDataListWrapper,
     TuiButton,
-    DnsSummary,
-    DnsAside,
+    DdnsSummary,
+    DdnsAside,
     Help,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export default class Dns {
+export default class Ddns {
   public readonly form = inject(NonNullableFormBuilder).group({
     dynamic: true,
     provider: 'Start9',

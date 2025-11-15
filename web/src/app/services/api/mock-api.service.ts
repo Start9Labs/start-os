@@ -1,15 +1,5 @@
 import { inject, Injectable } from '@angular/core'
-import {
-  ApiService,
-  ExecReq,
-  ExecRes,
-  GetFileReq,
-  GetFileRes,
-  GetUciReq,
-  GetUciRes,
-  LoginReq,
-  SetUciReq,
-} from './api.service'
+import { ApiService, LoginReq, WanIpv4 } from './api.service'
 import { pauseFor } from '../../utils/pauseFor'
 import { AuthService } from '../auth.service'
 
@@ -33,47 +23,49 @@ export class MockApiService extends ApiService {
     return null
   }
 
-  // exec
-  async exec(params: ExecReq): Promise<ExecRes> {
+  async getWanIpv4(): Promise<WanIpv4> {
     await pauseFor(1000)
     return {
-      stdout: 'Success',
-      stderr: '',
-      exitCode: 0,
+      network: {
+        sections: [
+          {
+            type: 'interface',
+            name: 'wan',
+            options: {
+              proto: 'dhcp',
+              ipaddr: '100.65.227.234',
+              netmask: '255.255.255.252',
+              gateway: '100.65.227.233',
+              device: 'eth0.2',
+            },
+            lists: {},
+          },
+        ],
+        modified: '2025-11-15T10:30:00Z',
+      },
+
+      dhcp: {
+        sections: [
+          {
+            type: 'dnsmasq',
+            name: 'cfg01411c',
+            options: {},
+            lists: {
+              server: [], // Empty means using ISP DNS
+            },
+          },
+        ],
+        modified: '2025-11-15T10:30:00Z',
+      },
+
+      httpsDnsProxy: {
+        sections: [], // Empty means not using DNS over TLS
+        modified: '2025-11-15T10:30:00Z',
+      },
     }
   }
 
-  // file
-  async getFile(params: GetFileReq): Promise<GetFileRes> {
-    await pauseFor(1000)
-    return {
-      contents: 'file contents',
-      modified: new Date().toISOString(),
-    }
-  }
-
-  async setFile(params: GetFileRes): Promise<null> {
-    await pauseFor(1000)
-    return null
-  }
-
-  // uci
-  async getUci(params: GetUciReq): Promise<GetUciRes> {
-    await pauseFor(1000)
-    return {
-      sections: [
-        {
-          type: 'rule',
-          name: null,
-          options: {},
-          lists: {},
-        },
-      ],
-      modified: new Date().toISOString(),
-    }
-  }
-
-  async setUci(params: SetUciReq): Promise<null> {
+  async setWanIpv4(params: WanIpv4): Promise<null> {
     await pauseFor(1000)
     return null
   }

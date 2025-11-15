@@ -12,7 +12,7 @@ export const RELATIVE_URL = new InjectionToken<string>(
   providedIn: 'root',
 })
 export class HttpService {
-  private readonly url = inject(DOCUMENT).location.origin + '/rpc/v1'
+  private readonly url = inject(DOCUMENT).location.origin + RELATIVE_URL
   private readonly http = inject(HttpClient)
 
   async request<T>(options: HttpOptions): Promise<HttpResponse<T>> {
