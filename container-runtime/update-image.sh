@@ -9,7 +9,7 @@ if [ "$ARCH" = "riscv64" ]; then
   RUST_ARCH="riscv64gc"
 fi
 
-if mountpoint -q tmp/combined; then sudo umount -R tmp/combined; fi
+if mountpoint -q tmp/combined; then sudo umount -l tmp/combined; fi
 if mountpoint -q tmp/lower; then sudo umount tmp/lower; fi
 sudo rm -rf tmp
 mkdir -p tmp/lower tmp/upper tmp/work tmp/combined

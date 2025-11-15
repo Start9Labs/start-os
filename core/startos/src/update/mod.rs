@@ -417,9 +417,7 @@ async fn do_update(
     prune_phase.complete();
 
     download_phase.start();
-    let path = Path::new("/media/startos/images")
-        .join(hex::encode(&asset.commitment.hash[..16]))
-        .with_extension("rootfs");
+    let path = Path::new("/media/startos/images/next.squashfs");
     let mut dst = AtomicFile::new(&path, None::<&Path>)
         .await
         .with_kind(ErrorKind::Filesystem)?;
@@ -446,81 +444,16 @@ async fn do_update(
         .arg("-d")
         .arg("/")
         .arg(&path)
-        .arg("boot")
+        .arg("/usr/lib/startos/scripts/upgrade")
         .invoke(crate::ErrorKind::Filesystem)
         .await?;
-    if &*PLATFORM != "raspberrypi" {
-        let mountpoint = "/media/startos/next";
-        let root_guard = OverlayGuard::mount(
-            TmpMountGuard::mount(&BlockDev::new(&path), MountType::ReadOnly).await?,
-            mountpoint,
-        )
-        .await?;
-        let startos = MountGuard::mount(
-            &Bind::new("/media/startos/root"),
-            root_guard.path().join("media/startos/root"),
-            MountType::ReadOnly,
-        )
-        .await?;
-        let boot_guard = MountGuard::mount(
-            &Bind::new("/boot"),
-            root_guard.path().join("boot"),
-            MountType::ReadWrite,
-        )
-        .await?;
-        let dev = MountGuard::mount(
-            &Bind::new("/dev"),
-            root_guard.path().join("dev"),
-            MountType::ReadWrite,
-        )
-        .await?;
-        let proc = MountGuard::mount(
-            &Bind::new("/proc"),
-            root_guard.path().join("proc"),
-            MountType::ReadWrite,
-        )
-        .await?;
-        let sys = MountGuard::mount(
-            &Bind::new("/sys"),
-            root_guard.path().join("sys"),
-            MountType::ReadWrite,
-        )
-        .await?;
-        let efivarfs = if tokio::fs::metadata("/sys/firmware/efi").await.is_ok() {
-            Some(
-                MountGuard::mount(
-                    &EfiVarFs,
-                    root_guard.path().join("sys/firmware/efi/efivars"),
-                    MountType::ReadWrite,
-                )
-                .await?,
-            )
-        } else {
-            None
-        };
 
-        Command::new("chroot")
-            .arg(root_guard.path())
-            .arg("grub-install")
-            .invoke(crate::ErrorKind::Grub)
-            .await?;
+    let checksum = hex::encode(&asset.commitment.hash[..16]);
 
-        Command::new("chroot")
-            .arg(root_guard.path())
-            .arg("update-grub2")
-            .invoke(ErrorKind::Grub)
-            .await?;
-
-        if let Some(efivarfs) = efivarfs {
-            efivarfs.unmount(false).await?;
-        }
-        sys.unmount(false).await?;
-        proc.unmount(false).await?;
-        dev.unmount(false).await?;
-        boot_guard.unmount(false).await?;
-        startos.unmount(false).await?;
-        root_guard.unmount(false).await?;
-    }
+    Command::new("/usr/lib/startos/scripts/upgrade")
+        .env("CHECKSUM", &checksum)
+        .invoke(ErrorKind::Grub)
+        .await?;
     sync_boot_phase.complete();
 
     finalize_phase.start();

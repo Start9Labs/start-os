@@ -889,7 +889,8 @@ async fn torctl(
                 }
             }
         }
-        Err(Error::new(eyre!("Log stream terminated"), ErrorKind::Tor))
+        // Err(Error::new(eyre!("Log stream terminated"), ErrorKind::Tor))
+        Ok(())
     };
     let health_checker = async {
         let mut last_success = Instant::now();

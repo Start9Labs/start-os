@@ -7,6 +7,11 @@ BASEDIR="$(pwd -P)"
 
 SUITE=trixie
 
+USE_TTY=
+if tty -s; then
+  USE_TTY="-it"
+fi
+
 dockerfile_hash=$(sha256sum ${BASEDIR}/image-recipe/Dockerfile | head -c 7)
 
 docker_img_name="startos_build:${SUITE}-${dockerfile_hash}"

@@ -375,7 +375,7 @@ pub async fn execute<C: Context>(
 
     Command::new("chroot")
         .arg(overlay.path())
-        .arg("update-grub2")
+        .arg("update-grub")
         .invoke(crate::ErrorKind::Grub)
         .await?;
     dev.unmount(false).await?;

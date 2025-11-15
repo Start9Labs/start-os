@@ -1,6 +1,5 @@
 - grub-common
 - grub-efi
-- grub2-common
 + parted
 + raspberrypi-net-mods
 + raspberrypi-sys-mods
