@@ -4,7 +4,7 @@ use crate::CtrlContext;
 use crate::{utils::HandlerExtSerde, Error, ErrorKind};
 use clap::Parser;
 use color_eyre::eyre::{eyre, OptionExt};
-use rpc_toolkit::{from_fn, Context, HandlerExt as _, ParentHandler};
+use rpc_toolkit::{from_fn, HandlerExt as _, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::cell::OnceCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -16,7 +16,7 @@ use uciedit::openwrt::{
     DeviceType, Dhcp, FirewallForwarding, FirewallRule, FirewallTarget, FirewallZone,
     InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface,
 };
-use uciedit::{parse_all, Arena, Config, TypedSection};
+use uciedit::{dump_all, parse_all, Arena, Configs, TypedSection};
 
 pub const DEFAULT_WAN_ZONE: &str = "wan";
 pub const INTERFACE_NAME_LIMIT: usize = 5;
@@ -31,7 +31,7 @@ pub enum LanAccess<Id: Ord> {
     OtherProfiles(BTreeSet<Id>),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum WanAccess {
     #[serde(rename = "ALL")]
     All,
@@ -126,10 +126,18 @@ impl UciProfile {
 }
 
 pub fn get<C: CtrlContext>(ctx: C, query: ProfileIdOpt) -> Result<Profile, Error> {
-    let lookup = Lookup::parse(ctx.clone())?;
-    let id = lookup.resolve(&query)?;
     let arena = Arena::new();
     let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt", "network", "firewall"])?;
+    get_config(ctx, &cfgs, query)
+}
+
+fn get_config(
+    ctx: impl CtrlContext,
+    cfgs: &Configs,
+    query: ProfileIdOpt,
+) -> Result<Profile, Error> {
+    let lookup = Lookup::parse(ctx.clone(), cfgs)?;
+    let id = lookup.resolve(&query)?;
     let mut uciprofile = None;
     cfgs["startwrt"].each::<UciProfile, Error>(|_, profile| {
         if &profile.id() == id {
@@ -168,10 +176,8 @@ pub fn get<C: CtrlContext>(ctx: C, query: ProfileIdOpt) -> Result<Profile, Error
     if !found {
         return Err(ErrorKind::CorruptedProfile { id: query.clone() }.into());
     }
-    let arena3 = Arena::new();
-    let config3 = Config::parse(&arena3, ctx.uci_path("firewall"))?;
     let mut this_zone_name = format!("vlan_{}", id.interface);
-    config3.each::<FirewallZone, Error>(|_, zone| {
+    cfgs["firewall"].each::<FirewallZone, Error>(|_, zone| {
         for zone_interface in zone.network {
             if id.interface == zone_interface {
                 this_zone_name = zone.name.clone();
@@ -179,7 +185,7 @@ pub fn get<C: CtrlContext>(ctx: C, query: ProfileIdOpt) -> Result<Profile, Error
         }
     })?;
     let mut forwarding = BTreeSet::new();
-    config3.each::<FirewallForwarding, Error>(|_, FirewallForwarding { src, dest }| {
+    cfgs["firewall"].each::<FirewallForwarding, Error>(|_, FirewallForwarding { src, dest }| {
         if src == this_zone_name && src != dest {
             forwarding.insert(dest);
         }
@@ -190,7 +196,7 @@ pub fn get<C: CtrlContext>(ctx: C, query: ProfileIdOpt) -> Result<Profile, Error
         wip_profile.wan_access = WanAccess::None;
     }
     let mut other_profiles = BTreeSet::new();
-    config3.each::<FirewallZone, Error>(|_, FirewallZone { name, network, .. }| {
+    cfgs["firewall"].each::<FirewallZone, Error>(|_, FirewallZone { name, network, .. }| {
         if forwarding.contains(&name) {
             for other_interface in network {
                 if let Some(other) = lookup.from_interface(&other_interface) {
@@ -219,9 +225,13 @@ pub fn delete<C: CtrlContext>(ctx: C, id: ProfileIdOpt) -> Result<(), Error> {
 
 pub fn list<C: CtrlContext>(ctx: C) -> Result<Vec<ProfileId>, Error> {
     let arena = Arena::new();
-    let config = Config::parse(&arena, ctx.uci_path("startwrt"))?;
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["startwrt"])?;
+    list_config(ctx, &cfgs)
+}
+
+fn list_config(_ctx: impl CtrlContext, cfgs: &Configs) -> Result<Vec<ProfileId>, Error> {
     let mut found = Vec::new();
-    for section in &config.sections {
+    for section in &cfgs["startwrt"].sections {
         let Ok(UciProfile {
             fullname,
             interface,
@@ -256,9 +266,35 @@ pub fn set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(profile): DeserializeStdin<Profile<ProfileIdOpt>>,
 ) -> Result<ProfileId, Error> {
-    let arena = Arena::new();
-    let mut config = Config::parse(&arena, ctx.uci_path("startwrt"))?;
-    for section in &mut config.sections {
+    let mut retries = 4;
+    loop {
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )?;
+        let out = set_config(ctx.clone(), &mut cfgs, &profile)?;
+        match dump_all(ctx.uci_root(), cfgs) {
+            Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
+                retries -= 1;
+                continue;
+            }
+            Err(err) => return Err(err.into()),
+            Ok(()) => {
+                reload_system()?;
+                return Ok(out);
+            }
+        }
+    }
+}
+
+fn set_config<C: CtrlContext>(
+    ctx: C,
+    cfgs: &mut Configs,
+    profile: &Profile<ProfileIdOpt>,
+) -> Result<ProfileId, Error> {
+    for section in &mut cfgs["startwrt"].sections {
         if let Some(mut existing_profile) = section.get_typed::<UciProfile>()? {
             if let Some(given_fullname) = &profile.id.fullname {
                 if &existing_profile.fullname != given_fullname
@@ -275,13 +311,12 @@ pub fn set<C: CtrlContext>(
             }
         }
     }
-    config.dump(ctx.uci_path("startwrt"))?;
     // only do lookup after potentially handling renames
-    let lookup = Lookup::parse(ctx.clone())?;
+    let lookup = Lookup::parse(ctx.clone(), &cfgs)?;
     let profile = Profile {
         id: lookup.resolve(&profile.id)?.clone(),
         gateway_ip: profile.gateway_ip,
-        lan_access: match profile.lan_access {
+        lan_access: match &profile.lan_access {
             LanAccess::All => LanAccess::All,
             LanAccess::SameProfile => LanAccess::SameProfile,
             LanAccess::OtherProfiles(set) => LanAccess::OtherProfiles(
@@ -290,17 +325,15 @@ pub fn set<C: CtrlContext>(
                     .collect::<Result<_, _>>()?,
             ),
         },
-        wan_access: profile.wan_access,
+        wan_access: profile.wan_access.clone(),
         access_to_new_profiles: profile.access_to_new_profiles,
         owns_lan: profile.owns_lan,
     };
     let mut all_interfaces = BTreeSet::<String>::new();
-    let arena2 = Arena::new();
-    let mut config2 = Config::parse(&arena2, ctx.uci_path("network"))?;
     let mut found_bridge = None;
     let mut found_vlan = false;
     let mut found_interface = false;
-    for section in &mut config2.sections {
+    for section in &mut cfgs["network"].sections {
         if let Some(mut iface) = section.get_typed::<NetworkInterface>()? {
             let Some(name) = section.name() else { continue };
             if iface.proto == InterfaceProto::STATIC {
@@ -335,7 +368,7 @@ pub fn set<C: CtrlContext>(
     }
     if !found_interface {
         let found_bridge = found_bridge.clone().ok_or(ErrorKind::MissingLanBridge)?;
-        config2.append(
+        cfgs["network"].append(
             &NetworkInterface {
                 device: format!("{}.{}", found_bridge, profile.id.vlan_tag),
                 proto: InterfaceProto::STATIC,
@@ -347,7 +380,7 @@ pub fn set<C: CtrlContext>(
     }
     if !found_vlan {
         let found_bridge = found_bridge.ok_or(ErrorKind::MissingLanBridge)?;
-        config2.append(
+        cfgs["network"].append(
             &NetworkBridgeVlan {
                 device: found_bridge,
                 vlan: profile.id.vlan_tag,
@@ -356,10 +389,8 @@ pub fn set<C: CtrlContext>(
             None,
         )?;
     }
-    config2.dump(ctx.uci_path("network"))?;
-    rewrite_firewall(&ctx, &profile, &all_interfaces, &[], false)?;
-    rewrite_dhcp(&ctx, &profile)?;
-    reload_system()?;
+    rewrite_firewall(&ctx, cfgs, &profile, &all_interfaces, &[], false)?;
+    rewrite_dhcp(&ctx, cfgs, &profile)?;
     Ok(profile.id)
 }
 
@@ -367,9 +398,37 @@ pub fn create<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(profile): DeserializeStdin<Profile<ProfileIdOpt>>,
 ) -> Result<ProfileId, Error> {
+    let mut retries = 4;
+    loop {
+        let arena = Arena::new();
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["startwrt", "network", "firewall", "dhcp"],
+        )?;
+        let out = create_config(ctx.clone(), &mut cfgs, &profile)?;
+        match dump_all(ctx.uci_root(), cfgs) {
+            Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
+                retries -= 1;
+                continue;
+            }
+            Err(err) => return Err(err.into()),
+            Ok(()) => {
+                reload_system()?;
+                return Ok(out);
+            }
+        }
+    }
+}
+
+fn create_config(
+    ctx: impl CtrlContext,
+    cfgs: &mut Configs,
+    profile: &Profile<ProfileIdOpt>,
+) -> Result<ProfileId, Error> {
     let mut ports = Vec::new();
     let interface = if profile.owns_lan {
-        if Lookup::parse(ctx.clone())?.lan_owner.is_some() {
+        if Lookup::parse(ctx.clone(), &cfgs)?.lan_owner.is_some() {
             return Err(ErrorKind::LanOwnerExists.into());
         }
         let ethernet = ethernet::get(ctx.clone())?;
@@ -402,12 +461,9 @@ pub fn create<C: CtrlContext>(
         .clone()
         .unwrap_or_else(|| "Untitled".into());
     let mut all_interfaces = BTreeSet::<String>::new();
-    // FIXME: feature to stage both config rewrites until we are sure about them
-    let arena3 = Arena::new();
-    let mut config3 = Config::parse(&arena3, ctx.uci_path("network"))?;
     let mut existing_tags = BTreeSet::new();
     let mut found_bridge = None;
-    for section in &config3.sections {
+    for section in &cfgs["network"].sections {
         match &*section.ty() {
             NetworkInterface::TY => {
                 let Some(name) = section.name() else { continue };
@@ -454,7 +510,7 @@ pub fn create<C: CtrlContext>(
     };
     if profile.owns_lan {
         let mut found_lan_interface = false;
-        for section in &mut config3.sections {
+        for section in &mut cfgs["network"].sections {
             if let Ok(mut iface) = section.get::<NetworkInterface>() {
                 if section.name().as_deref() != Some("lan") {
                     continue;
@@ -468,7 +524,7 @@ pub fn create<C: CtrlContext>(
             return Err(ErrorKind::MissingLanInterface.into());
         }
     } else {
-        config3.append(
+        cfgs["network"].append(
             &NetworkInterface {
                 device: format!("{found_bridge}.{vlan_tag}"),
                 proto: InterfaceProto::STATIC,
@@ -478,7 +534,7 @@ pub fn create<C: CtrlContext>(
             Some(&interface),
         )?;
     }
-    config3.append(
+    cfgs["network"].append(
         &NetworkBridgeVlan {
             device: found_bridge,
             vlan: vlan_tag,
@@ -486,18 +542,15 @@ pub fn create<C: CtrlContext>(
         },
         None,
     )?;
-    config3.dump(ctx.uci_path("network"))?;
     let mut wants_access = Vec::new();
-    let arena4 = Arena::new();
-    let mut config4 = Config::parse(&arena4, ctx.uci_path("startwrt"))?;
-    for section in &config4.sections {
+    for section in &cfgs["startwrt"].sections {
         if let Some(other_profile) = section.get_typed::<UciProfile>()? {
             if other_profile.access_to_new_profiles {
                 wants_access.push(other_profile.id());
             }
         }
     }
-    config4.append(
+    cfgs["startwrt"].append(
         &UciProfile {
             fullname: fullname.clone(),
             interface: interface.clone(),
@@ -506,8 +559,7 @@ pub fn create<C: CtrlContext>(
         },
         Some(&interface),
     )?;
-    config4.dump(ctx.uci_path("startwrt"))?;
-    let lookup = Lookup::parse(ctx.clone())?; // only lookup after pushing, in case there is a self-reference
+    let lookup = Lookup::parse(ctx.clone(), &cfgs)?; // only lookup after pushing, in case there is a self-reference
     let profile = Profile {
         id: ProfileId {
             fullname,
@@ -515,7 +567,7 @@ pub fn create<C: CtrlContext>(
             vlan_tag,
         },
         gateway_ip: profile.gateway_ip,
-        lan_access: match profile.lan_access {
+        lan_access: match &profile.lan_access {
             LanAccess::All => LanAccess::All,
             LanAccess::SameProfile => LanAccess::SameProfile,
             LanAccess::OtherProfiles(set) => LanAccess::OtherProfiles(
@@ -524,29 +576,27 @@ pub fn create<C: CtrlContext>(
                     .collect::<Result<_, _>>()?,
             ),
         },
-        wan_access: profile.wan_access,
+        wan_access: profile.wan_access.clone(),
         access_to_new_profiles: profile.access_to_new_profiles,
         owns_lan: profile.owns_lan,
     };
-    rewrite_firewall(&ctx, &profile, &all_interfaces, &wants_access, true)?;
-    rewrite_dhcp(&ctx, &profile)?;
-    reload_system()?;
+    rewrite_firewall(&ctx, cfgs, &profile, &all_interfaces, &wants_access, true)?;
+    rewrite_dhcp(&ctx, cfgs, &profile)?;
     Ok(profile.id)
 }
 
 fn rewrite_firewall(
-    ctx: &impl CtrlContext,
+    _ctx: &impl CtrlContext,
+    cfgs: &mut Configs,
     profile: &Profile,
     all_interfaces: &BTreeSet<String>,
     wants_access: &[ProfileId],
     remake_zone: bool,
 ) -> Result<(), Error> {
-    let arena = Arena::new();
-    let mut config = Config::parse(&arena, ctx.uci_path("firewall"))?;
     let mut found_wan = false;
     let mut this_zone_name = format!("vlan_{}", profile.id.interface);
     let mut all_zones = BTreeMap::new();
-    for section in &config.sections {
+    for section in &cfgs["firewall"].sections {
         let Ok(zone) = section.get::<FirewallZone>() else {
             continue;
         };
@@ -566,7 +616,7 @@ fn rewrite_firewall(
         }
     }
     let mut found_dhcp_dns_rule = false;
-    for section in &config.sections {
+    for section in &cfgs["firewall"].sections {
         let Ok(rule) = section.get::<FirewallRule>() else {
             continue;
         };
@@ -578,7 +628,7 @@ fn rewrite_firewall(
         }
     }
 
-    for section in &config.sections {
+    for section in &cfgs["firewall"].sections {
         let Ok(fwd) = section.get::<FirewallForwarding>() else {
             continue;
         };
@@ -588,7 +638,7 @@ fn rewrite_firewall(
         return Err(ErrorKind::MissingWanInterface.into());
     }
     if remake_zone {
-        config.append(
+        cfgs["firewall"].append(
             &FirewallZone {
                 name: this_zone_name.clone(),
                 input: FirewallTarget::ACCEPT,
@@ -600,7 +650,7 @@ fn rewrite_firewall(
         )?;
     }
     if !found_dhcp_dns_rule {
-        config.append(
+        cfgs["firewall"].append(
             &FirewallRule {
                 name: format!("Allow-DHCP-DNS-{}", profile.id.fullname.replace(" ", "-")),
                 src: this_zone_name.clone(),
@@ -616,7 +666,7 @@ fn rewrite_firewall(
         LanAccess::All => {
             for other_zone in all_zones.values() {
                 if other_zone != &this_zone_name {
-                    config.append(
+                    cfgs["firewall"].append(
                         &FirewallForwarding {
                             src: this_zone_name.clone(),
                             dest: other_zone.clone(),
@@ -630,7 +680,7 @@ fn rewrite_firewall(
         LanAccess::OtherProfiles(profile_ids) => {
             for other_profile in profile_ids {
                 match all_zones.get(&other_profile.interface) {
-                    Some(other_zone) => config.append(
+                    Some(other_zone) => cfgs["firewall"].append(
                         &FirewallForwarding {
                             src: this_zone_name.clone(),
                             dest: other_zone.clone(),
@@ -649,7 +699,7 @@ fn rewrite_firewall(
     }
     for other_profile in wants_access {
         match all_zones.get(&other_profile.interface) {
-            Some(other_zone) => config.append(
+            Some(other_zone) => cfgs["firewall"].append(
                 &FirewallForwarding {
                     src: other_zone.clone(),
                     dest: this_zone_name.clone(),
@@ -665,7 +715,7 @@ fn rewrite_firewall(
         }
     }
     match &profile.wan_access {
-        WanAccess::All => config.append(
+        WanAccess::All => cfgs["firewall"].append(
             &FirewallForwarding {
                 src: this_zone_name.clone(),
                 dest: DEFAULT_WAN_ZONE.into(),
@@ -675,14 +725,16 @@ fn rewrite_firewall(
         WanAccess::None => (),
     }
     // TODO: Handle section removals properly with retain()
-    Ok(config.dump(ctx.uci_path("firewall"))?)
+    Ok(())
 }
 
-pub fn rewrite_dhcp(ctx: &impl CtrlContext, profile: &Profile) -> Result<(), Error> {
-    let arena = Arena::new();
-    let mut config = Config::parse(&arena, ctx.uci_path("dhcp"))?;
+pub fn rewrite_dhcp(
+    _ctx: &impl CtrlContext,
+    cfgs: &mut Configs,
+    profile: &Profile,
+) -> Result<(), Error> {
     let mut found_dhcp = false;
-    for section in &config.sections {
+    for section in &cfgs["dhcp"].sections {
         let Ok(dhcp) = section.get::<Dhcp>() else {
             continue;
         };
@@ -691,7 +743,7 @@ pub fn rewrite_dhcp(ctx: &impl CtrlContext, profile: &Profile) -> Result<(), Err
         }
     }
     if !found_dhcp {
-        config.append(
+        cfgs["dhcp"].append(
             &Dhcp {
                 interface: profile.id.interface.clone(),
                 start: 100, // default in the openwrt docs
@@ -701,7 +753,7 @@ pub fn rewrite_dhcp(ctx: &impl CtrlContext, profile: &Profile) -> Result<(), Err
             Some(&profile.id.interface),
         )?;
     }
-    Ok(config.dump(ctx.uci_path("dhcp"))?)
+    Ok(())
 }
 
 pub fn allocate_interface_name(hint: Option<&str>) -> Result<String, Error> {
@@ -748,8 +800,8 @@ pub struct Lookup {
 }
 
 impl Lookup {
-    pub fn parse<C: CtrlContext>(ctx: C) -> Result<Self, Error> {
-        let list = list(ctx)?;
+    pub fn parse<C: CtrlContext>(ctx: C, cfgs: &Configs) -> Result<Self, Error> {
+        let list = list_config(ctx, cfgs)?;
         let system = list.iter().find(|p| p.interface == "lan").cloned();
         Ok(Self {
             list,
