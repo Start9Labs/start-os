@@ -3458,7 +3458,7 @@ dependencies = [
  "lazy_async_pool",
  "models",
  "pin-project",
- "rpc-toolkit",
+ "rpc-toolkit 0.3.2 (git+https://github.com/Start9Labs/rpc-toolkit.git?branch=master)",
  "serde",
  "serde_json",
  "tokio",
@@ -4835,7 +4835,7 @@ dependencies = [
  "rand 0.9.2",
  "regex",
  "reqwest",
- "rpc-toolkit",
+ "rpc-toolkit 0.3.2 (git+https://github.com/Start9Labs/rpc-toolkit.git?branch=master)",
  "rustls 0.23.35",
  "serde",
  "serde_json",
@@ -6745,6 +6745,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "rpc-toolkit"
+version = "0.3.2"
+source = "git+https://github.com/Start9Labs/rpc-toolkit.git?rev=068db90#068db905ee38a7da97cc4a43b806409204e73723"
+dependencies = [
+ "async-stream",
+ "async-trait",
+ "axum 0.8.6",
+ "clap",
+ "futures",
+ "http",
+ "http-body-util",
+ "imbl-value 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "itertools 0.14.0",
+ "lazy_format",
+ "lazy_static",
+ "openssl",
+ "pin-project",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-stream",
+ "url",
+ "yajrc",
+]
+
+[[package]]
 name = "rsa"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7880,7 +7908,7 @@ dependencies = [
 
 [[package]]
 name = "start-os"
-version = "0.4.0-alpha.12"
+version = "0.4.0-alpha.13"
 dependencies = [
  "aes 0.7.5",
  "arti-client",
@@ -7888,7 +7916,6 @@ dependencies = [
  "async-compression",
  "async-stream",
  "async-trait",
- "aws-lc-sys",
  "axum 0.8.6",
  "backtrace-on-stack-overflow",
  "barrage",
@@ -7981,7 +8008,7 @@ dependencies = [
  "reqwest",
  "reqwest_cookie_store",
  "rpassword",
- "rpc-toolkit",
+ "rpc-toolkit 0.3.2 (git+https://github.com/Start9Labs/rpc-toolkit.git?rev=068db90)",
  "rust-argon2",
  "safelog",
  "semver",

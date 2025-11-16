@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::{Arc, Weak};
 use std::task::{Poll, ready};
@@ -41,6 +42,7 @@ use crate::net::tls::{
 use crate::net::web_server::{Accept, AcceptStream, ExtractVisitor, TcpMetadata, extract};
 use crate::prelude::*;
 use crate::util::collections::EqSet;
+use crate::util::future::WeakFuture;
 use crate::util::serde::{HandlerExtSerde, MaybeUtf8String, display_serializable};
 use crate::util::sync::{SyncMutex, Watch};
 
@@ -134,7 +136,6 @@ impl VHostController {
     pub fn dump_table(
         &self,
     ) -> BTreeMap<JsonKey<u16>, BTreeMap<JsonKey<Option<InternedString>>, EqSet<String>>> {
-        let ip_info = self.interfaces.watcher.ip_info();
         self.servers.peek(|s| {
             s.iter()
                 .map(|(k, v)| {
@@ -187,7 +188,7 @@ pub trait VHostTarget<A: Accept>: std::fmt::Debug + Eq {
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
     ) -> impl Future<Output = Option<(ServerConfig, Self::PreprocessRes)>> + Send + 'a;
-    fn handle_stream(&self, stream: AcceptStream, prev: Self::PreprocessRes);
+    fn handle_stream(&self, stream: AcceptStream, prev: Self::PreprocessRes, rc: Weak<()>);
 }
 
 pub trait DynVHostTargetT<A: Accept>: std::fmt::Debug + Any {
@@ -199,7 +200,7 @@ pub trait DynVHostTargetT<A: Accept>: std::fmt::Debug + Any {
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
     ) -> BoxFuture<'a, Option<(ServerConfig, Box<dyn Any + Send>)>>;
-    fn handle_stream(&self, stream: AcceptStream, prev: Box<dyn Any + Send>);
+    fn handle_stream(&self, stream: AcceptStream, prev: Box<dyn Any + Send>, rc: Weak<()>);
     fn eq(&self, other: &dyn DynVHostTargetT<A>) -> bool;
 }
 impl<A: Accept, T: VHostTarget<A> + 'static> DynVHostTargetT<A> for T {
@@ -219,9 +220,9 @@ impl<A: Accept, T: VHostTarget<A> + 'static> DynVHostTargetT<A> for T {
             .map(|o| o.map(|(cfg, res)| (cfg, Box::new(res) as Box<dyn Any + Send>)))
             .boxed()
     }
-    fn handle_stream(&self, stream: AcceptStream, prev: Box<dyn Any + Send>) {
+    fn handle_stream(&self, stream: AcceptStream, prev: Box<dyn Any + Send>, rc: Weak<()>) {
         if let Ok(prev) = prev.downcast() {
-            VHostTarget::handle_stream(self, stream, *prev);
+            VHostTarget::handle_stream(self, stream, *prev, rc);
         }
     }
     fn eq(&self, other: &dyn DynVHostTargetT<A>) -> bool {
@@ -251,21 +252,27 @@ impl<A: Accept + 'static> PartialEq for DynVHostTarget<A> {
     }
 }
 impl<A: Accept + 'static> Eq for DynVHostTarget<A> {}
-struct Preprocessed<A: Accept>(DynVHostTarget<A>, Box<dyn Any + Send>);
+struct Preprocessed<A: Accept>(DynVHostTarget<A>, Weak<()>, Box<dyn Any + Send>);
+impl<A: Accept> fmt::Debug for Preprocessed<A> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        (self.0).0.fmt(f)
+    }
+}
 impl<A: Accept + 'static> DynVHostTarget<A> {
     async fn into_preprocessed(
         self,
+        rc: Weak<()>,
         prev: ServerConfig,
         hello: &ClientHello<'_>,
         metadata: &<A as Accept>::Metadata,
     ) -> Option<(ServerConfig, Preprocessed<A>)> {
         let (cfg, res) = self.0.preprocess(prev, hello, metadata).await?;
-        Some((cfg, Preprocessed(self, res)))
+        Some((cfg, Preprocessed(self, rc, res)))
     }
 }
 impl<A: Accept + 'static> Preprocessed<A> {
     fn finish(self, stream: AcceptStream) {
-        (self.0).0.handle_stream(stream, self.1);
+        (self.0).0.handle_stream(stream, self.2, self.1);
     }
 }
 
@@ -279,6 +286,7 @@ pub struct ProxyTarget {
 impl PartialEq for ProxyTarget {
     fn eq(&self, other: &Self) -> bool {
         self.filter == other.filter
+            && self.acme == other.acme
             && self.addr == other.addr
             && self.connect_ssl.as_ref().map(Arc::as_ptr)
                 == other.connect_ssl.as_ref().map(Arc::as_ptr)
@@ -294,6 +302,9 @@ where
     type PreprocessRes = AcceptStream;
     fn filter(&self, metadata: &<A as Accept>::Metadata) -> bool {
         let info = extract::<GatewayInfo, _>(metadata);
+        if info.is_none() {
+            tracing::warn!("No GatewayInfo on metadata");
+        }
         info.as_ref()
             .map_or(true, |i| self.filter.filter(&i.id, &i.info))
     }
@@ -304,7 +315,7 @@ where
         &'a self,
         mut prev: ServerConfig,
         hello: &'a ClientHello<'a>,
-        metadata: &'a <A as Accept>::Metadata,
+        _: &'a <A as Accept>::Metadata,
     ) -> Option<(ServerConfig, Self::PreprocessRes)> {
         let tcp_stream = TcpStream::connect(self.addr)
             .await
@@ -345,8 +356,10 @@ where
         }
         Some((prev, Box::pin(tcp_stream)))
     }
-    fn handle_stream(&self, mut stream: AcceptStream, mut prev: Self::PreprocessRes) {
-        tokio::spawn(async move { tokio::io::copy_bidirectional(&mut stream, &mut prev).await });
+    fn handle_stream(&self, mut stream: AcceptStream, mut prev: Self::PreprocessRes, rc: Weak<()>) {
+        tokio::spawn(async move {
+            WeakFuture::new(rc, tokio::io::copy_bidirectional(&mut stream, &mut prev)).await
+        });
     }
 }
 
@@ -436,16 +449,16 @@ where
             return Some(prev);
         }
 
-        let target = self.0.peek(|m| {
+        let (target, rc) = self.0.peek(|m| {
             m.get(&hello.server_name().map(InternedString::from))
                 .into_iter()
                 .flatten()
                 .filter(|(_, rc)| rc.strong_count() > 0)
                 .find(|(t, _)| t.0.filter(metadata))
-                .map(|(e, _)| e.clone())
+                .map(|(t, rc)| (t.clone(), rc.clone()))
         })?;
 
-        let (prev, store) = target.into_preprocessed(prev, hello, metadata).await?;
+        let (prev, store) = target.into_preprocessed(rc, prev, hello, metadata).await?;
 
         self.1 = Some(store);
 
@@ -479,6 +492,14 @@ where
 struct VHostListenerMetadata<A: Accept> {
     inner: TlsMetadata<A::Metadata>,
     preprocessed: Preprocessed<A>,
+}
+impl<A: Accept> fmt::Debug for VHostListenerMetadata<A> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("VHostListenerMetadata")
+            .field("inner", &self.inner)
+            .field("preprocessed", &self.preprocessed)
+            .finish()
+    }
 }
 impl<M, A> Accept for VHostListener<M, A>
 where
@@ -637,6 +658,7 @@ impl<A: Accept> VHostServer<A> {
                 changed = true;
                 Arc::new(())
             };
+            targets.retain(|_, rc| rc.strong_count() > 0);
             targets.insert(target, Arc::downgrade(&rc));
             writable.insert(hostname, targets);
             res = Ok(rc);

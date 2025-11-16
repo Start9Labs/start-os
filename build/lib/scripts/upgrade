@@ -1,0 +1,82 @@
+#!/bin/bash
+
+set -e
+
+SOURCE_DIR="$(dirname $(realpath "${BASH_SOURCE[0]}"))"
+
+if [ "$UID" -ne 0 ]; then
+    >&2 echo 'Must be run as root'
+    exit 1
+fi
+
+if ! [ -f "$1" ]; then
+    >&2 echo "usage: $0 <SQUASHFS>"
+    exit 1
+fi
+
+echo 'Upgrading...'
+
+hash=$(b3sum $1 | head -c 32)
+if [ -n "$2" ] && [ "$hash" != "$CHECKSUM" ]; then
+    >&2 echo 'Checksum mismatch'
+    exit 2
+fi
+
+unsquashfs -f -d / $1 boot
+
+umount -R /media/startos/next 2> /dev/null || true
+umount /media/startos/upper 2> /dev/null || true
+umount /media/startos/lower 2> /dev/null || true
+
+mkdir -p /media/startos/upper
+mount -t tmpfs tmpfs /media/startos/upper
+mkdir -p /media/startos/lower /media/startos/upper/data /media/startos/upper/work /media/startos/next
+mount $1 /media/startos/lower
+mount -t overlay \
+      -olowerdir=/media/startos/lower,upperdir=/media/startos/upper/data,workdir=/media/startos/upper/work \
+	    overlay /media/startos/next
+
+mkdir -p /media/startos/next/run
+mkdir -p /media/startos/next/dev
+mkdir -p /media/startos/next/sys
+mkdir -p /media/startos/next/proc
+mkdir -p /media/startos/next/boot
+mkdir -p /media/startos/next/media/startos/root
+mount --bind /run /media/startos/next/run
+mount --bind /tmp /media/startos/next/tmp
+mount --bind /dev /media/startos/next/dev
+mount --bind /sys /media/startos/next/sys
+mount --bind /proc /media/startos/next/proc
+mount --bind /boot /media/startos/next/boot
+mount --bind /media/startos/root /media/startos/next/media/startos/root
+
+if mountpoint /boot/efi 2> /dev/null; then
+    mkdir -p /media/startos/next/boot/efi
+    mount --bind /boot/efi /media/startos/next/boot/efi
+fi
+
+if mountpoint /sys/firmware/efi/efivars 2> /dev/null; then
+    mount --bind /sys/firmware/efi/efivars /media/startos/next/sys/firmware/efi/efivars
+fi
+
+chroot /media/startos/next bash -e << "EOF"
+
+if dpkg -s grub-common 2>&1 > /dev/null; then
+    grub-install /dev/$(eval $(lsblk -o MOUNTPOINT,PKNAME -P | grep 'MOUNTPOINT="/media/startos/root"') && echo $PKNAME)
+    update-grub
+fi
+
+EOF
+
+sync
+
+umount -R /media/startos/next
+umount /media/startos/upper
+umount /media/startos/lower
+
+mv $1 /media/startos/images/${hash}.rootfs
+ln -rsf /media/startos/images/${hash}.rootfs /media/startos/config/current.rootfs
+
+sync
+
+echo 'System upgrade complete. Reboot to apply changes...'

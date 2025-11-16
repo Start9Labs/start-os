@@ -7,6 +7,6 @@ PrivateKey = {privkey}
 [Peer]
 PublicKey = {server_pubkey}
 PresharedKey = {psk}
-AllowedIPs = 0.0.0.0/0,::/0
+AllowedIPs = {subnet}
 Endpoint = {server_addr}
 PersistentKeepalive = 25

@@ -170,12 +170,14 @@ impl WgConfig {
     pub fn client_config(
         self,
         addr: Ipv4Addr,
+        subnet: Ipv4Net,
         server_pubkey: Base64<PublicKey>,
         server_addr: SocketAddr,
     ) -> ClientConfig {
         ClientConfig {
             client_config: self,
             client_addr: addr,
+            subnet,
             server_pubkey,
             server_addr,
         }
@@ -213,6 +215,7 @@ where
 pub struct ClientConfig {
     client_config: WgConfig,
     client_addr: Ipv4Addr,
+    subnet: Ipv4Net,
     #[serde(deserialize_with = "deserialize_verifying_key")]
     server_pubkey: Base64<PublicKey>,
     server_addr: SocketAddr,
@@ -226,6 +229,7 @@ impl std::fmt::Display for ClientConfig {
             privkey = self.client_config.key.to_padded_string(),
             psk = self.client_config.psk.to_padded_string(),
             addr = self.client_addr,
+            subnet = self.subnet,
             server_pubkey = self.server_pubkey.to_padded_string(),
             server_addr = self.server_addr,
         )

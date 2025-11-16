@@ -2,12 +2,19 @@
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
+source ./builder-alias.sh
+
 set -ea
 shopt -s expand_aliases
 
 PROFILE=${PROFILE:-release}
 if [ "${PROFILE}" = "release" ]; then
 	BUILD_FLAGS="--release"
+else
+  if [ "$PROFILE" != "debug"]; then
+    >&2 echo "Unknonw profile $PROFILE: falling back to debug..."
+    PROFILE=debug
+  fi
 fi
 
 if [ -z "$ARCH" ]; then
@@ -31,4 +38,7 @@ if [[ "${ENVIRONMENT}" =~ (^|-)console($|-) ]]; then
 fi
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-cross test --manifest-path=./core/Cargo.toml $BUILD_FLAGS --no-default-features --features test,$FEATURES --locked 'export_bindings_'
+rust-zig-builder cargo test --manifest-path=./core/Cargo.toml $BUILD_FLAGS --no-default-features --features test,$FEATURES --locked 'export_bindings_'
+if [ "$(ls -nd "core/startos/bindings" | awk '{ print $3 }')" != "$UID" ]; then
+  rust-zig-builder sh -c "chown -R $UID:$UID core/target && chown -R $UID:$UID core/startos/bindings && chown -R $UID:$UID /root/.cargo"
+fi

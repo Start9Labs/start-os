@@ -280,6 +280,9 @@ pub async fn list(os: &OsPartitionInfo) -> Result<Vec<DiskInfo>, Error> {
     .try_fold(
         BTreeMap::<PathBuf, DiskIndex>::new(),
         |mut disks, dir_entry| async move {
+            if dir_entry.file_type().await?.is_dir() {
+                return Ok(disks);
+            }
             if let Some(disk_path) = dir_entry.path().file_name().and_then(|s| s.to_str()) {
                 let (disk_path, part_path) = if let Some(end) = PARTITION_REGEX.find(disk_path) {
                     (

@@ -26,6 +26,7 @@ use crate::context::{CliContext, RpcContext};
 use crate::db::model::Database;
 use crate::db::model::public::AcmeSettings;
 use crate::db::{DbAccess, DbAccessByKey, DbAccessMut};
+use crate::net::ssl::should_use_cert;
 use crate::net::tls::{SingleCertResolver, TlsHandler};
 use crate::net::web_server::Accept;
 use crate::prelude::*;
@@ -63,20 +64,27 @@ where
                 .and_then(|p| p.as_idx(JsonKey::new_ref(san_info)))
             {
                 let cert = cert.de().log_err()?;
-                return Some(
-                    CertifiedKey::from_der(
-                        cert.fullchain
-                            .into_iter()
-                            .map(|c| Ok(CertificateDer::from(c.to_der()?)))
-                            .collect::<Result<_, Error>>()
-                            .log_err()?,
-                        PrivateKeyDer::from(PrivatePkcs8KeyDer::from(
-                            cert.key.0.private_key_to_pkcs8().log_err()?,
-                        )),
-                        &*self.crypto_provider,
-                    )
-                    .log_err()?,
-                );
+                if cert
+                    .fullchain
+                    .get(0)
+                    .and_then(|c| should_use_cert(&c.0).log_err())
+                    .unwrap_or(false)
+                {
+                    return Some(
+                        CertifiedKey::from_der(
+                            cert.fullchain
+                                .into_iter()
+                                .map(|c| Ok(CertificateDer::from(c.to_der()?)))
+                                .collect::<Result<_, Error>>()
+                                .log_err()?,
+                            PrivateKeyDer::from(PrivatePkcs8KeyDer::from(
+                                cert.key.0.private_key_to_pkcs8().log_err()?,
+                            )),
+                            &*self.crypto_provider,
+                        )
+                        .log_err()?,
+                    );
+                }
             }
 
             if !self.in_progress.send_if_modified(|x| {
@@ -307,6 +315,16 @@ where
             return Ok(None);
         };
         let cert = cert.de()?;
+        if !cert
+            .fullchain
+            .get(0)
+            .map(|c| should_use_cert(&c.0))
+            .transpose()
+            .map_err(Error::from)?
+            .unwrap_or(false)
+        {
+            return Ok(None);
+        }
         Ok(Some((
             String::from_utf8(
                 cert.key

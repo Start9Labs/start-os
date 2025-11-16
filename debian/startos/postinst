@@ -122,7 +122,6 @@ ln -sf /usr/lib/startos/scripts/wireguard-vps-proxy-setup /usr/bin/wireguard-vps
 
 echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-startos.conf
 
-locale-gen en_US.UTF-8
 dpkg-reconfigure --frontend noninteractive locales
 
 if ! getent group | grep '^startos:'; then

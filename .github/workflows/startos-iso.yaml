@@ -102,12 +102,6 @@ jobs:
             core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
-      - name: Use Beta Toolchain
-        run: rustup default beta
-
-      - name: Setup Cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
-
       - name: Make
         run: make ARCH=${{ matrix.arch }} compiled-${{ matrix.arch }}.tar
         env:

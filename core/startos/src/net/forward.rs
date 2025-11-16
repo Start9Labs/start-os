@@ -437,7 +437,8 @@ impl InterfaceForwardState {
         for mut entry in self.state.iter_mut() {
             entry.gc(ip_info, &self.port_forward).await?;
         }
-        Ok(())
+
+        self.port_forward.gc().await
     }
 }
 
@@ -537,7 +538,6 @@ impl InterfacePortForwardController {
                     _ = ip_info.changed() => {
                         interfaces = ip_info.read();
                         state.sync(&interfaces).await.log_err();
-                        state.port_forward.gc().await.log_err();
                     }
                 }
             }

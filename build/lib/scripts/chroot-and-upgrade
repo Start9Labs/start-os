@@ -10,24 +10,24 @@ fi
 POSITIONAL_ARGS=()
 
 while [[ $# -gt 0 ]]; do
-  case $1 in
-    --no-sync)
-      NO_SYNC=1
-      shift
-      ;;
-    --create)
-      ONLY_CREATE=1
-      shift
-      ;;
-    -*|--*)
-      echo "Unknown option $1"
-      exit 1
-      ;;
-    *)
-      POSITIONAL_ARGS+=("$1") # save positional arg
-      shift # past argument
-      ;;
-  esac
+    case $1 in
+      --no-sync)
+          NO_SYNC=1
+          shift
+          ;;
+      --create)
+          ONLY_CREATE=1
+          shift
+          ;;
+      -*|--*)
+          echo "Unknown option $1"
+          exit 1
+          ;;
+      *)
+          POSITIONAL_ARGS+=("$1") # save positional arg
+          shift # past argument
+          ;;
+    esac
 done
 
 set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
@@ -35,7 +35,7 @@ set -- "${POSITIONAL_ARGS[@]}" # restore positional parameters
 if [ -z "$NO_SYNC" ]; then
     echo 'Syncing...'
     umount -R /media/startos/next 2> /dev/null
-    umount -R /media/startos/upper 2> /dev/null
+    umount /media/startos/upper 2> /dev/null
     rm -rf /media/startos/upper /media/startos/next
     mkdir /media/startos/upper
     mount -t tmpfs tmpfs /media/startos/upper
@@ -43,8 +43,6 @@ if [ -z "$NO_SYNC" ]; then
     mount -t overlay \
 		  -olowerdir=/media/startos/current,upperdir=/media/startos/upper/data,workdir=/media/startos/upper/work \
 		  overlay /media/startos/next
-    mkdir -p /media/startos/next/media/startos/root
-    mount --bind /media/startos/root /media/startos/next/media/startos/root
 fi
 
 if [ -n "$ONLY_CREATE" ]; then
@@ -56,12 +54,18 @@ mkdir -p /media/startos/next/dev
 mkdir -p /media/startos/next/sys
 mkdir -p /media/startos/next/proc
 mkdir -p /media/startos/next/boot
+mkdir -p /media/startos/next/media/startos/root
 mount --bind /run /media/startos/next/run
 mount --bind /tmp /media/startos/next/tmp
 mount --bind /dev /media/startos/next/dev
 mount --bind /sys /media/startos/next/sys
 mount --bind /proc /media/startos/next/proc
 mount --bind /boot /media/startos/next/boot
+mount --bind /media/startos/root /media/startos/next/media/startos/root
+
+if mountpoint /sys/firmware/efi/efivars 2> /dev/null; then
+  mount --bind /sys/firmware/efi/efivars /media/startos/next/sys/firmware/efi/efivars
+fi
 
 if [ -z "$*" ]; then
     chroot /media/startos/next
@@ -69,6 +73,10 @@ if [ -z "$*" ]; then
 else
     chroot /media/startos/next "$SHELL" -c "$*"
     CHROOT_RES=$?
+fi
+
+if mountpoint /media/startos/next/sys/firmware/efi/efivars 2> /dev/null; then
+  umount /media/startos/next/sys/firmware/efi/efivars 
 fi
 
 umount /media/startos/next/run
@@ -87,11 +95,12 @@ if [ "$CHROOT_RES" -eq 0 ]; then
 
     echo 'Upgrading...'
 
+    rm -f /media/startos/images/next.squashfs
     if ! time mksquashfs /media/startos/next /media/startos/images/next.squashfs -b 4096 -comp gzip; then
-      umount -R /media/startos/next
-      umount -R /media/startos/upper
-      rm -rf /media/startos/upper /media/startos/next
-      exit 1
+        umount -l /media/startos/next
+        umount -l /media/startos/upper
+        rm -rf /media/startos/upper /media/startos/next
+        exit 1
     fi
     hash=$(b3sum /media/startos/images/next.squashfs | head -c 32)
     mv /media/startos/images/next.squashfs /media/startos/images/${hash}.rootfs
@@ -103,5 +112,5 @@ if [ "$CHROOT_RES" -eq 0 ]; then
 fi
 
 umount -R /media/startos/next
-umount -R /media/startos/upper
+umount /media/startos/upper
 rm -rf /media/startos/upper /media/startos/next

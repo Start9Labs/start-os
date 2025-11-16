@@ -22,7 +22,7 @@ use crate::tunnel::tunnel_router;
 use crate::tunnel::web::TunnelCertHandler;
 use crate::util::logger::LOGGER;
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum WebserverListener {
     Http,
     Https(SocketAddr),

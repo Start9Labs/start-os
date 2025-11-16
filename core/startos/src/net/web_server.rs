@@ -1,3 +1,4 @@
+use core::fmt;
 use std::any::Any;
 use std::collections::BTreeMap;
 use std::future::Future;
@@ -68,7 +69,7 @@ pub fn extract<
     metadata: &M,
 ) -> Option<T> {
     let mut visitor = ExtractVisitor(None);
-    visitor.visit(metadata);
+    metadata.visit(&mut visitor);
     visitor.0
 }
 
@@ -84,7 +85,7 @@ impl<V: MetadataVisitor> Visit<V> for TcpMetadata {
 }
 
 pub trait Accept {
-    type Metadata;
+    type Metadata: fmt::Debug;
     fn poll_accept(
         &mut self,
         cx: &mut std::task::Context<'_>,
@@ -144,7 +145,7 @@ where
     }
 }
 
-#[derive(Clone, VisitFields)]
+#[derive(Debug, Clone, VisitFields)]
 pub struct MapListenerMetadata<K, M> {
     pub inner: M,
     pub key: K,
@@ -162,7 +163,7 @@ where
 
 impl<K, A> Accept for BTreeMap<K, A>
 where
-    K: Clone,
+    K: Clone + fmt::Debug,
     A: Accept,
 {
     type Metadata = MapListenerMetadata<K, A::Metadata>;
@@ -218,40 +219,38 @@ trait DynAcceptT: Send + Sync {
     fn poll_accept(
         &mut self,
         cx: &mut std::task::Context<'_>,
-    ) -> Poll<
-        Result<
-            (
-                Box<dyn for<'a> Visit<ExtensionVisitor<'a>> + Send + Sync>,
-                AcceptStream,
-            ),
-            Error,
-        >,
-    >;
+    ) -> Poll<Result<(DynMetadata, AcceptStream), Error>>;
 }
 impl<A> DynAcceptT for A
 where
     A: Accept + Send + Sync,
-    for<'a> <A as Accept>::Metadata: Visit<ExtensionVisitor<'a>> + Send + Sync + 'static,
+    <A as Accept>::Metadata: DynMetadataT + 'static,
 {
     fn poll_accept(
         &mut self,
         cx: &mut std::task::Context<'_>,
-    ) -> Poll<
-        Result<
-            (
-                Box<dyn for<'a> Visit<ExtensionVisitor<'a>> + Send + Sync>,
-                AcceptStream,
-            ),
-            Error,
-        >,
-    > {
+    ) -> Poll<Result<(DynMetadata, AcceptStream), Error>> {
         let (metadata, stream) = ready!(Accept::poll_accept(self, cx)?);
-        Poll::Ready(Ok((Box::new(metadata), stream)))
+        Poll::Ready(Ok((DynMetadata(Box::new(metadata)), stream)))
     }
 }
 pub struct DynAccept(Box<dyn DynAcceptT>);
+trait DynMetadataT: for<'a> Visit<ExtensionVisitor<'a>> + fmt::Debug + Send + Sync {}
+impl<T> DynMetadataT for T where for<'a> T: Visit<ExtensionVisitor<'a>> + fmt::Debug + Send + Sync {}
+
+#[derive(Debug)]
+pub struct DynMetadata(Box<dyn DynMetadataT>);
+impl<'a> Visit<ExtensionVisitor<'a>> for DynMetadata {
+    fn visit(
+        &self,
+        visitor: &mut ExtensionVisitor<'a>,
+    ) -> <ExtensionVisitor<'a> as Visitor>::Result {
+        self.0.visit(visitor)
+    }
+}
+
 impl Accept for DynAccept {
-    type Metadata = Box<dyn for<'a> Visit<ExtensionVisitor<'a>> + Send + Sync>;
+    type Metadata = DynMetadata;
     fn poll_accept(
         &mut self,
         cx: &mut std::task::Context<'_>,
@@ -325,7 +324,7 @@ impl Acceptor<Vec<DynAccept>> {
 }
 impl<K> Acceptor<BTreeMap<K, TcpListener>>
 where
-    K: Ord + Clone + Send + Sync + 'static,
+    K: Ord + Clone + fmt::Debug + Send + Sync + 'static,
 {
     pub async fn bind_map(
         listen: impl IntoIterator<Item = (K, SocketAddr)>,
@@ -347,7 +346,7 @@ where
 }
 impl<K> Acceptor<BTreeMap<K, DynAccept>>
 where
-    K: Ord + Clone + Send + Sync + 'static,
+    K: Ord + Clone + fmt::Debug + Send + Sync + 'static,
 {
     pub async fn bind_map_dyn(
         listen: impl IntoIterator<Item = (K, SocketAddr)>,

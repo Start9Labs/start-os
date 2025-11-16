@@ -1,5 +1,6 @@
 use std::any::Any;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::fmt;
 use std::future::Future;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV6};
 use std::sync::{Arc, Weak};
@@ -130,7 +131,6 @@ async fn list_interfaces(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
-#[ts(export)]
 struct NetworkInterfaceSetPublicParams {
     gateway: GatewayId,
     public: Option<bool>,
@@ -147,7 +147,6 @@ async fn set_public(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
-#[ts(export)]
 struct UnsetPublicParams {
     gateway: GatewayId,
 }
@@ -163,7 +162,6 @@ async fn unset_public(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
-#[ts(export)]
 struct ForgetGatewayParams {
     gateway: GatewayId,
 }
@@ -176,7 +174,6 @@ async fn forget_iface(
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Parser, TS)]
-#[ts(export)]
 struct RenameGatewayParams {
     id: GatewayId,
     name: InternedString,
@@ -404,6 +401,12 @@ async fn watcher(
 ) {
     loop {
         let res: Result<(), Error> = async {
+            Command::new("systemctl")
+                .arg("start")
+                .arg("NetworkManager")
+                .invoke(ErrorKind::Network)
+                .await?;
+
             let connection = Connection::system().await?;
 
             let netman_proxy = NetworkManagerProxy::new(&connection).await?;
@@ -436,6 +439,11 @@ async fn watcher(
                 until
                     .run(async {
                         let devices = netman_proxy.all_devices().await?;
+                        ensure_code!(
+                            !devices.is_empty(),
+                            ErrorKind::Network,
+                            "NetworkManager returned no devices. Trying again..."
+                        );
                         let mut ifaces = BTreeSet::new();
                         let mut jobs = Vec::new();
                         for device in devices {
@@ -1538,6 +1546,14 @@ pub struct NetworkInterfaceListenerAcceptMetadata<B: Bind> {
     pub inner: <B::Accept as Accept>::Metadata,
     pub info: GatewayInfo,
 }
+impl<B: Bind> fmt::Debug for NetworkInterfaceListenerAcceptMetadata<B> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("NetworkInterfaceListenerAcceptMetadata")
+            .field("inner", &self.inner)
+            .field("info", &self.info)
+            .finish()
+    }
+}
 impl<B: Bind> Clone for NetworkInterfaceListenerAcceptMetadata<B>
 where
     <B::Accept as Accept>::Metadata: Clone,
@@ -1613,4 +1629,40 @@ where
     pub fn bind_upgradable(listener: SelfContainedNetworkInterfaceListener<B>) -> Self {
         Self::new(Some(Either::Left(listener)))
     }
+}
+
+#[test]
+fn test_filter() {
+    use crate::net::host::binding::NetInfo;
+    let wg1 = "wg1".parse::<GatewayId>().unwrap();
+    assert!(!InterfaceFilter::filter(
+        &AndFilter(
+            NetInfo {
+                private_disabled: [wg1.clone()].into_iter().collect(),
+                public_enabled: Default::default(),
+                assigned_port: None,
+                assigned_ssl_port: None,
+            },
+            AndFilter(IdFilter(wg1.clone()), PublicFilter { public: false }),
+        )
+        .into_dyn(),
+        &wg1,
+        &NetworkInterfaceInfo {
+            name: None,
+            public: None,
+            secure: None,
+            ip_info: Some(Arc::new(IpInfo {
+                name: "".into(),
+                scope_id: 3,
+                device_type: Some(NetworkInterfaceType::Wireguard),
+                subnets: ["10.59.0.2/24".parse::<IpNet>().unwrap()]
+                    .into_iter()
+                    .collect(),
+                lan_ip: Default::default(),
+                wan_ip: None,
+                ntp_servers: Default::default(),
+                dns_servers: Default::default(),
+            })),
+        },
+    ));
 }

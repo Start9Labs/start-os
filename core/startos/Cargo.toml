@@ -15,7 +15,7 @@ license = "MIT"
 name = "start-os"
 readme = "README.md"
 repository = "https://github.com/Start9Labs/start-os"
-version = "0.4.0-alpha.12" # VERSION_BUMP
+version = "0.4.0-alpha.13" # VERSION_BUMP
 
 [lib]
 name = "startos"
@@ -93,7 +93,6 @@ async-compression = { version = "0.4.32", features = [
 ] }
 async-stream = "0.3.5"
 async-trait = "0.1.74"
-aws-lc-sys = { version = "0.32", features = ["bindgen"] }
 axum = { version = "0.8.4", features = ["ws"] }
 backtrace-on-stack-overflow = { version = "0.3.0", optional = true }
 barrage = "0.2.3"
@@ -223,7 +222,7 @@ regex = "1.10.2"
 reqwest = { version = "0.12.4", features = ["json", "socks", "stream"] }
 reqwest_cookie_store = "0.8.0"
 rpassword = "7.2.0"
-rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", branch = "master" }
+rpc-toolkit = { git = "https://github.com/Start9Labs/rpc-toolkit.git", rev = "068db90" }
 rust-argon2 = "2.0.0"
 safelog = { version = "0.4.8", git = "https://github.com/Start9Labs/arti.git", branch = "patch/disable-exit", optional = true }
 semver = { version = "1.0.20", features = ["serde"] }
@@ -252,7 +251,7 @@ termion = "4.0.5"
 textwrap = "0.16.1"
 thiserror = "2.0.12"
 tokio = { version = "1.38.1", features = ["full"] }
-tokio-rustls = "0.26.0"
+tokio-rustls = "0.26.4"
 tokio-stream = { version = "0.1.14", features = ["io-util", "net", "sync"] }
 tokio-tar = { git = "https://github.com/dr-bonez/tokio-tar.git" }
 tokio-tungstenite = { version = "0.26.2", features = ["native-tls", "url"] }

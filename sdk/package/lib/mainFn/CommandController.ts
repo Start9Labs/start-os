@@ -77,10 +77,14 @@ export class CommandController<
         if (exec.runAsInit) {
           childProcess = await subcontainer!.launch(commands, {
             env: exec.env,
+            user: exec.user,
+            cwd: exec.cwd,
           })
         } else {
           childProcess = await subcontainer!.spawn(commands, {
             env: exec.env,
+            user: exec.user,
+            cwd: exec.cwd,
             stdio: exec.onStdout || exec.onStderr ? "pipe" : "inherit",
           })
         }

@@ -19,7 +19,7 @@ use openssl::x509::extension::{
     AuthorityKeyIdentifier, BasicConstraints, KeyUsage, SubjectAlternativeName,
     SubjectKeyIdentifier,
 };
-use openssl::x509::{X509, X509Builder, X509NameBuilder};
+use openssl::x509::{X509, X509Builder, X509NameBuilder, X509Ref};
 use openssl::*;
 use patch_db::HasModel;
 use serde::{Deserialize, Serialize};
@@ -46,6 +46,17 @@ pub fn gen_nistp256() -> Result<PKey<Private>, ErrorStack> {
     PKey::from_ec_key(EcKey::generate(&*EcGroup::from_curve_name(
         Nid::X9_62_PRIME256V1,
     )?)?)
+}
+
+pub fn should_use_cert(cert: &X509Ref) -> Result<bool, ErrorStack> {
+    Ok(cert
+        .not_before()
+        .compare(Asn1Time::days_from_now(0)?.as_ref())?
+        == Ordering::Less
+        && cert
+            .not_after()
+            .compare(Asn1Time::days_from_now(30)?.as_ref())?
+            == Ordering::Greater)
 }
 
 #[derive(Debug, Deserialize, Serialize, HasModel)]
@@ -83,30 +94,8 @@ impl Model<CertStore> {
             .map(|m| m.de())
             .transpose()?
         {
-            if cert_data
-                .certs
-                .ed25519
-                .not_before()
-                .compare(Asn1Time::days_from_now(0)?.as_ref())?
-                == Ordering::Less
-                && cert_data
-                    .certs
-                    .ed25519
-                    .not_after()
-                    .compare(Asn1Time::days_from_now(30)?.as_ref())?
-                    == Ordering::Greater
-                && cert_data
-                    .certs
-                    .nistp256
-                    .not_before()
-                    .compare(Asn1Time::days_from_now(0)?.as_ref())?
-                    == Ordering::Less
-                && cert_data
-                    .certs
-                    .nistp256
-                    .not_after()
-                    .compare(Asn1Time::days_from_now(30)?.as_ref())?
-                    == Ordering::Greater
+            if should_use_cert(&cert_data.certs.ed25519)?
+                && should_use_cert(&cert_data.certs.nistp256)?
             {
                 return Ok(FullchainCertData {
                     root: self.as_root_cert().de()?.0,
