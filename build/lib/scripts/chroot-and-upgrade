@@ -95,6 +95,7 @@ if [ "$CHROOT_RES" -eq 0 ]; then
 
     echo 'Upgrading...'
 
+    rm -f /media/startos/images/next.squashfs
     if ! time mksquashfs /media/startos/next /media/startos/images/next.squashfs -b 4096 -comp gzip; then
         umount -l /media/startos/next
         umount -l /media/startos/upper
