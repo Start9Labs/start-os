@@ -7,7 +7,7 @@ use rpc_toolkit::{from_fn, Context, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::io::{BufWriter, Seek as _, Write as _};
-use uciedit::{parse_config, Arena, Line, LineComment, Token};
+use uciedit::{Arena, Config, Line, LineComment, Token};
 
 pub fn uci<C: CtrlContext>() -> ParentHandler<C> {
     ParentHandler::new()

@@ -11,7 +11,7 @@ use uciedit::openwrt::{
     DeviceType, InterfaceProto, NetworkBridgeVlan, NetworkDevice, NetworkInterface,
     NetworkVlanPortTagging,
 };
-use uciedit::{parse_config, rewrite_config};
+use uciedit::{Arena, Config};
 
 pub const DEFAULT_LAN_BRIDGE: &str = "br-lan";
 pub const DEFAULT_WAN_INTERFACE: &str = "wan";
