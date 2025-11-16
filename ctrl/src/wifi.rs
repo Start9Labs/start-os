@@ -68,63 +68,67 @@ fn find_relevant(cfgs: &Configs) -> Result<Vec<(String, WifiInterface, WifiDevic
 }
 
 pub fn get<C: CtrlContext>(ctx: C) -> Result<Wifi, Error> {
-    let lookup = profiles::Lookup::parse(ctx.clone())?;
-    parse_config(ctx.uci_path("wireless"), |mut ctx| {
-        let relevant_interfaces = find_relevant(&mut ctx)?;
-        let Some(first_interface) = relevant_interfaces.first() else {
-            return Err(ErrorKind::CorruptedWifi.into());
-        };
-        let mut passwords = BTreeSet::new();
-        ctx.each(|_, station: WifiStation| {
-            if let Some(iface) = &station.iface {
-                if !relevant_interfaces.iter().any(|(n, _, _)| n == iface) {
-                    return;
-                }
+    let arena = Arena::new();
+    let cfgs = parse_all(ctx.uci_root(), &arena, &["wireless", "startwrt", "network", "firewall"])?;
+    get_config(ctx, &cfgs)
+}
+
+fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Wifi, Error> {
+    let lookup = profiles::Lookup::parse(ctx.clone(), cfgs)?;
+    let relevant_interfaces = find_relevant(cfgs)?;
+    let Some(first_interface) = relevant_interfaces.first() else {
+        return Err(ErrorKind::CorruptedWifi.into());
+    };
+    let mut passwords = BTreeSet::new();
+    cfgs["wireless"].try_each(|_, station: WifiStation| {
+        if let Some(iface) = &station.iface {
+            if !relevant_interfaces.iter().any(|(n, _, _)| n == iface) {
+                return Ok(());
             }
-            let profile = station.vid.and_then(|vid| lookup.from_vlan(vid)).cloned();
-            passwords.insert(Password {
-                profile,
-                password: station.key,
-            });
-        })?;
-        for (_, iface, _) in &relevant_interfaces {
-            if iface.dynamic_vlan == WifiDynamicVlan::REQUIRED {
-                continue;
-            }
-            let Some(key) = &iface.key else { continue };
-            passwords.insert(Password {
-                profile: None,
-                password: key.clone(),
-            });
         }
-        Ok(Wifi {
-            ssid: first_interface.1.ssid.clone(),
-            bands: relevant_interfaces
-                .iter()
-                .filter(|(_, _, d)| !d.disabled)
-                .map(|(_, _, dev)| dev.band.clone())
-                .collect(),
-            enabled: relevant_interfaces.iter().any(|(_, _, d)| !d.disabled),
-            broadcast: relevant_interfaces
-                .iter()
-                .any(|(_, i, d)| !d.disabled && !i.hidden),
-            passwords,
-        })
+        let profile = station.vid.and_then(|vid| lookup.from_vlan(vid)).cloned();
+        passwords.insert(Password {
+            profile,
+            password: station.key,
+        });
+        Ok::<_, Error>(())
+    })?;
+    for (_, iface, _) in &relevant_interfaces {
+        if iface.dynamic_vlan == WifiDynamicVlan::REQUIRED {
+            continue;
+        }
+        let Some(key) = &iface.key else { continue };
+        passwords.insert(Password {
+            profile: None,
+            password: key.clone(),
+        });
+    }
+    Ok(Wifi {
+        ssid: first_interface.1.ssid.clone(),
+        bands: relevant_interfaces
+            .iter()
+            .filter(|(_, _, d)| !d.disabled)
+            .map(|(_, _, dev)| dev.band.clone())
+            .collect(),
+        enabled: relevant_interfaces.iter().any(|(_, _, d)| !d.disabled),
+        broadcast: relevant_interfaces
+            .iter()
+            .any(|(_, i, d)| !d.disabled && !i.hidden),
+        passwords,
     })
 }
 
-fn update_inner(
-    ctx: &impl CtrlContext,
+fn update_config(
+    _ctx: &impl CtrlContext,
+    cfgs: &mut Configs,
     wifi: &Wifi,
-    lookup: &profiles::Lookup,
+    _lookup: &profiles::Lookup,
 ) -> Result<(), Error> {
     let mut pending_bands = wifi.bands.clone();
     let mut remaining_admin_passwords = wifi.passwords.iter().filter(|p| p.profile.is_none());
     let first_admin_password = remaining_admin_passwords.next();
-    let arena = Arena::new();
-    let mut cfgs = parse_all(ctx.uci_root(), &arena, &["wireless"])?;
 
-    let mut relevant_interfaces = find_relevant(&cfgs)?;
+    let mut relevant_interfaces = find_relevant(cfgs)?;
     let Some((first_interface_name, first_interface, first_device)) =
         relevant_interfaces.first().cloned()
     else {
@@ -246,57 +250,71 @@ fn update_inner(
         }
     }
 
-    Ok(dump_all(ctx.uci_root(), cfgs)?)
+    Ok(())
 }
 
 pub fn set<C: CtrlContext>(
     ctx: C,
     DeserializeStdin(wifi): DeserializeStdin<Wifi<ProfileIdOpt>>,
 ) -> Result<(), Error> {
-    let lookup = profiles::Lookup::parse(ctx.clone())?;
-    let wifi = Wifi {
-        ssid: wifi.ssid,
-        bands: wifi.bands,
-        enabled: wifi.enabled,
-        broadcast: wifi.broadcast,
-        passwords: wifi
-            .passwords
-            .into_iter()
-            .map(|pass| {
-                Ok(Password {
-                    profile: match pass.profile {
-                        Some(p) => Some(lookup.resolve(&p)?.clone()),
-                        None => None,
-                    },
-                    password: pass.password,
+    let mut retries = 4;
+    loop {
+        let arena = Arena::new();
+        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["wireless", "startwrt", "network", "firewall"])?;
+        let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs)?;
+        let wifi = Wifi {
+            ssid: wifi.ssid.clone(),
+            bands: wifi.bands.clone(),
+            enabled: wifi.enabled,
+            broadcast: wifi.broadcast,
+            passwords: wifi
+                .passwords
+                .iter()
+                .map(|pass| {
+                    Ok(Password {
+                        profile: match &pass.profile {
+                            Some(p) => Some(lookup.resolve(p)?.clone()),
+                            None => None,
+                        },
+                        password: pass.password.clone(),
+                    })
                 })
-            })
-            .collect::<Result<_, Error>>()?,
-    };
-    let res = update_inner(&ctx, &wifi, &lookup);
-    match res {
-        Err(Error {
-            kind: ErrorKind::CorruptedWifi,
-            ..
-        }) => {
-            // try recreating the config from scratch
-            let _ = std::fs::remove_file(ctx.uci_path("wireless"));
-            let _ = Command::new("wifi")
-                .arg("config")
-                .spawn()
-                .context("executing `wifi config`")?
-                .wait();
-            update_inner(&ctx, &wifi, &lookup)?
+                .collect::<Result<_, Error>>()?,
+        };
+        let res = update_config(&ctx, &mut cfgs, &wifi, &lookup);
+        match res {
+            Err(Error {
+                kind: ErrorKind::CorruptedWifi,
+                ..
+            }) => {
+                // try recreating the config from scratch
+                let _ = std::fs::remove_file(ctx.uci_path("wireless"));
+                let _ = Command::new("wifi")
+                    .arg("config")
+                    .spawn()
+                    .context("executing `wifi config`")?
+                    .wait();
+                continue;
+            }
+            Err(err) => return Err(err),
+            Ok(()) => (),
         }
-        Err(err) => return Err(err),
-        Ok(()) => (),
+        match dump_all(ctx.uci_root(), cfgs) {
+            Err(uciedit::Error::Conflict { .. }) if retries > 0 => {
+                retries -= 1;
+                continue;
+            }
+            Err(err) => return Err(err.into()),
+            Ok(()) => {
+                let _ = Command::new("wifi")
+                    .arg("reload")
+                    .spawn()
+                    .context("executing `wifi reload`")?
+                    .wait();
+                return Ok(());
+            }
+        }
     }
-    let _ = Command::new("wifi")
-        .arg("reload")
-        .spawn()
-        .context("executing `wifi reload`")?
-        .wait();
-    Ok(())
 }
 
 pub fn edit<C: CtrlContext + Clone>(ctx: C) -> Result<(), Error> {

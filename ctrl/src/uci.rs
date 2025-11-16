@@ -42,35 +42,34 @@ pub fn get<C: CtrlContext>(ctx: C, FilesGet { name }: FilesGet) -> Result<UciFil
         .and_then(|m| m.modified())
         .map(DateTime::<Utc>::from)
         .ok();
-    parse_config(path, |mut cfg| {
-        while cfg.step() {
-            let ty = cfg.ty().into_owned();
-            let name = cfg.name().map(|n| n.into_owned());
-            let mut options = HashMap::new();
-            let mut lists = HashMap::<_, Vec<_>>::new();
-            for line in cfg.lines() {
-                match line {
-                    Line::Option { option, value, .. } => {
-                        options.insert(option.unquoted_string(), value.unquoted_string());
-                    }
-                    Line::List { list, item, .. } => {
-                        lists
-                            .entry(list.unquoted_string())
-                            .or_default()
-                            .push(item.unquoted_string());
-                    }
-                    _ => (),
+    let arena = Arena::new();
+    let config = Config::parse(&arena, path)?;
+    for section in &config.sections {
+        let ty = section.ty().into_owned();
+        let name = section.name().map(|n| n.into_owned());
+        let mut options = HashMap::new();
+        let mut lists = HashMap::<_, Vec<_>>::new();
+        for line in &section.lines {
+            match line {
+                Line::Option { option, value, .. } => {
+                    options.insert(option.unquoted_string(), value.unquoted_string());
                 }
+                Line::List { list, item, .. } => {
+                    lists
+                        .entry(list.unquoted_string())
+                        .or_default()
+                        .push(item.unquoted_string());
+                }
+                _ => (),
             }
-            sections.push(Section {
-                ty,
-                name,
-                options,
-                lists,
-            })
         }
-        Ok::<_, Error>(())
-    })?;
+        sections.push(Section {
+            ty,
+            name,
+            options,
+            lists,
+        })
+    }
     Ok(UciFile { sections, modified })
 }
 
