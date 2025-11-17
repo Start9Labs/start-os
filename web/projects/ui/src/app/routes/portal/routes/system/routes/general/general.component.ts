@@ -4,7 +4,6 @@ import {
   Component,
   inject,
   INJECTOR,
-  DOCUMENT,
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { FormsModule } from '@angular/forms'
@@ -242,7 +241,6 @@ export default class SystemGeneralComponent {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)
   private readonly isTor = inject(ConfigService).isTor()
-  private readonly document = inject(DOCUMENT)
   private readonly dialog = inject(DialogService)
   private readonly i18n = inject(i18nPipe)
   private readonly injector = inject(INJECTOR)
