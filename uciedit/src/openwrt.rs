@@ -1,7 +1,7 @@
 use std::{fmt, net::Ipv4Addr};
 
 use inpt::Inpt;
-use uciedit_macros::UciSection;
+use uciedit_macros::TypedSection;
 
 #[derive(strum::EnumString, strum::Display, Default, PartialEq, Eq, Debug)]
 pub enum FirewallTarget {
@@ -13,7 +13,7 @@ pub enum FirewallTarget {
     NOTRACK,
 }
 
-#[derive(Debug, UciSection, Default)]
+#[derive(Debug, TypedSection, Default)]
 #[uci(ty = "zone")]
 pub struct FirewallZone {
     pub name: String,
@@ -23,7 +23,7 @@ pub struct FirewallZone {
     pub network: Vec<String>,
 }
 
-#[derive(Debug, UciSection, Default)]
+#[derive(Debug, TypedSection, Default)]
 #[uci(ty = "rule")]
 pub struct FirewallRule {
     /*
@@ -50,7 +50,7 @@ pub struct FirewallRule {
     pub target: FirewallTarget,
 }
 
-#[derive(Debug, UciSection)]
+#[derive(Debug, TypedSection)]
 #[uci(ty = "forwarding")]
 pub struct FirewallForwarding {
     pub src: String,
@@ -67,7 +67,7 @@ pub enum InterfaceProto {
     DHCPV6,
 }
 
-#[derive(Debug, UciSection)]
+#[derive(Debug, TypedSection)]
 #[uci(ty = "interface")]
 pub struct NetworkInterface {
     pub device: String,
@@ -83,7 +83,7 @@ pub enum DeviceType {
     BRIDGE,
 }
 
-#[derive(Debug, UciSection)]
+#[derive(Debug, TypedSection)]
 #[uci(ty = "device")]
 pub struct NetworkDevice {
     pub name: String,
@@ -120,7 +120,7 @@ pub enum NetworkVlanPortTagging {
     TAGGED,
 }
 
-#[derive(Debug, UciSection)]
+#[derive(Debug, TypedSection)]
 #[uci(ty = "bridge-vlan")]
 pub struct NetworkBridgeVlan {
     pub device: String,
@@ -174,7 +174,7 @@ impl fmt::Display for WifiChannel {
     }
 }
 
-#[derive(Clone, Debug, UciSection)]
+#[derive(Clone, Debug, TypedSection)]
 #[uci(ty = "wifi-device")]
 pub struct WifiDevice {
     #[uci(rename = "type")]
@@ -187,7 +187,7 @@ pub struct WifiDevice {
     pub channel: WifiChannel,
 }
 
-#[derive(Clone, Debug, UciSection)]
+#[derive(Clone, Debug, TypedSection)]
 #[uci(ty = "wifi-iface")]
 pub struct WifiInterface {
     pub device: String,
@@ -203,7 +203,7 @@ pub struct WifiInterface {
     pub dynamic_vlan: WifiDynamicVlan,
 }
 
-#[derive(Debug, UciSection)]
+#[derive(Debug, TypedSection)]
 #[uci(ty = "wifi-vlan")]
 pub struct WifiVlan {
     pub name: String,
@@ -212,7 +212,7 @@ pub struct WifiVlan {
     pub iface: Option<String>,
 }
 
-#[derive(Debug, UciSection)]
+#[derive(Debug, TypedSection)]
 #[uci(ty = "wifi-station")]
 pub struct WifiStation {
     pub key: String,
@@ -220,7 +220,7 @@ pub struct WifiStation {
     pub iface: Option<String>,
 }
 
-#[derive(Debug, UciSection)]
+#[derive(Debug, TypedSection)]
 #[uci(ty = "dhcp")]
 pub struct Dhcp {
     pub interface: String,

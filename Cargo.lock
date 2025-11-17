@@ -1963,7 +1963,6 @@ dependencies = [
  "chrono",
  "clap",
  "color-eyre",
- "fd-lock-rs",
  "futures",
  "imbl-value",
  "macaddr",
@@ -2368,6 +2367,7 @@ name = "uciedit"
 version = "0.1.0"
 dependencies = [
  "bumpalo",
+ "chrono",
  "fd-lock-rs",
  "inpt",
  "serde",

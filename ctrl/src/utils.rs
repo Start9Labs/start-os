@@ -5,7 +5,6 @@ use imbl_value::{imbl::OrdMap, Value};
 use rpc_toolkit::{CliBindings, Context, HandlerArgsFor, HandlerFor, HandlerTypes, PrintCliResult};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::io::Write as _;
-use std::path::PathBuf;
 use std::process::Command;
 use std::{any::type_name, collections::VecDeque, io::stdout};
 
