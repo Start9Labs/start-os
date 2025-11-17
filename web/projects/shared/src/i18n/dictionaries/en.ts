@@ -483,7 +483,7 @@ export const ENGLISH = {
   'Kiosk Mode is unavailable on this device': 512,
   'Enable': 513,
   'Disable': 514,
-  'You are currently using a kiosk. Disabling Kiosk Mode will result in the kiosk disconnecting.': 515,
+  'This change will take effect after the next boot': 515,
   'Recommended': 516, // as in, we recommend this
   'Are you sure you want to dismiss this task?': 517,
   'Dismiss': 518, // as in, dismiss or delete a task

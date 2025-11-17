@@ -151,7 +151,7 @@ import { SystemWipeComponent } from './wipe.component'
           </span>
         </span>
         @if (server.kiosk !== null) {
-          <button tuiButton appearance="primary" (click)="tryToggleKiosk()">
+          <button tuiButton appearance="primary" (click)="toggleKiosk()">
             {{ server.kiosk ? ('Disable' | i18n) : ('Enable' | i18n) }}
           </button>
         }
@@ -326,28 +326,6 @@ export default class SystemGeneralComponent {
       .subscribe(() => this.resetTor(this.wipe))
   }
 
-  async tryToggleKiosk() {
-    if (
-      this.server()?.kiosk &&
-      ['localhost', '127.0.0.1'].includes(this.document.location.hostname)
-    ) {
-      return this.dialog
-        .openConfirm({
-          label: 'Warning',
-          data: {
-            content:
-              'You are currently using a kiosk. Disabling Kiosk Mode will result in the kiosk disconnecting.',
-            yes: 'Disable',
-            no: 'Cancel',
-          },
-        })
-        .pipe(filter(Boolean))
-        .subscribe(async () => this.toggleKiosk())
-    }
-
-    this.toggleKiosk()
-  }
-
   async onRepair() {
     this.dialog
       .openConfirm({
@@ -370,7 +348,7 @@ export default class SystemGeneralComponent {
       })
   }
 
-  private async toggleKiosk() {
+  async toggleKiosk() {
     const kiosk = this.server()?.kiosk
 
     const loader = this.loader
@@ -379,6 +357,11 @@ export default class SystemGeneralComponent {
 
     try {
       await this.api.toggleKiosk(!kiosk)
+      this.dialog
+        .openAlert('This change will take effect after the next boot', {
+          label: 'Restart to apply',
+        })
+        .subscribe()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {
