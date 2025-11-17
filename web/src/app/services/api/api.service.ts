@@ -13,7 +13,7 @@ export abstract class ApiService {
   abstract getUci<T extends Record<string, UciFile<any>>>(
     params: GetUciReq,
   ): Promise<T>
-  abstract setUci(params: SetUciReq): Promise<null>
+  abstract setUci<T extends string[]>(params: SetUciReq): Promise<SetUciRes<T>>
 }
 
 export type LoginReq = { password: string }
@@ -48,3 +48,7 @@ export type GetUciReq = {
 export type GetUciRes<T> = T
 
 export type SetUciReq = Record<string, UciFile<any>>
+
+export type SetUciRes<T extends string[]> = {
+  [K in T[number]]: string
+}

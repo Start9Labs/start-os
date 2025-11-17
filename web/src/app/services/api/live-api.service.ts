@@ -8,6 +8,7 @@ import {
   GetUciReq,
   LoginReq,
   SetUciReq,
+  SetUciRes,
 } from './api.service'
 import { RpcService } from '../rpc.service'
 import { UciFile } from './types'
@@ -48,7 +49,7 @@ export class LiveApiService extends ApiService {
     return this.rpc.request({ method: 'uci.get', params })
   }
 
-  async setUci(params: SetUciReq): Promise<null> {
+  async setUci<T extends string[]>(params: SetUciReq): Promise<SetUciRes<T>> {
     return this.rpc.request({ method: 'uci.set', params })
   }
 }

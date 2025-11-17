@@ -9,6 +9,7 @@ import {
   GetUciReq,
   LoginReq,
   SetUciReq,
+  SetUciRes,
 } from './api.service'
 import { UciFile, UciSection } from './types'
 
@@ -71,10 +72,18 @@ export class MockApiService extends ApiService {
     )
   }
 
-  async setUci(params: SetUciReq): Promise<null> {
+  async setUci<T extends string[]>(params: SetUciReq): Promise<SetUciRes<T>> {
     await pauseFor(1000)
 
-    return null
+    const isoString = new Date().toISOString()
+
+    return Object.keys(params).reduce(
+      (obj, name) => ({
+        ...obj,
+        [name]: isoString,
+      }),
+      {} as SetUciRes<T>,
+    )
   }
 }
 

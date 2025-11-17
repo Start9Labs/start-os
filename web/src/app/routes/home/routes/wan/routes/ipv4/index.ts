@@ -268,7 +268,11 @@ export default class Ipv4 {
     this.saving.set(true)
 
     try {
-      await this.api.setUci(data)
+      const {
+        network,
+        dhcp,
+        'https-dns-proxy': dnsTls,
+      } = await this.api.setUci<(keyof typeof data)[]>(data)
 
       await this.api.exec({
         command: '/etc/init.d/network',
@@ -289,6 +293,11 @@ export default class Ipv4 {
       })
 
       this.form.markAsPristine()
+
+      data.network.modified = network
+      data.dhcp.modified = dhcp
+      data['https-dns-proxy'].modified = dnsTls
+
       this.data = data
     } catch (e) {
       console.error(e)
@@ -302,7 +311,7 @@ export default class Ipv4 {
       names: ['network', 'dhcp', 'https-dns-proxy'],
     })
 
-    const { network, dhcp, 'https-dns-proxy': httpsDnsProxy } = this.data
+    const { network, dhcp, 'https-dns-proxy': dnsTls } = this.data
 
     // @TODO Aiden can there be multiple wan?
     const wanInterface = network.sections.find(
@@ -354,16 +363,15 @@ export default class Ipv4 {
     const dnsServers = dnsmasqSection?.lists.server || []
 
     // Check if using https-dns-proxy (DNS over TLS)
-    const hasHttpsProxy = httpsDnsProxy.sections.length > 0
-    const httpsProxy = httpsDnsProxy.sections[0]
+    const firstDnsTls = dnsTls.sections[0]
 
-    if (hasHttpsProxy && httpsProxy) {
+    if (firstDnsTls) {
       this.form.patchValue({
         dns: {
           mode: 'tls',
           tls: {
             server: this.mapResolverUrlToFriendlyName(
-              httpsProxy.options.resolver_url || '',
+              firstDnsTls.options.resolver_url || '',
             ),
           },
         },
