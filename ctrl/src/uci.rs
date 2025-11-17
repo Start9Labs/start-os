@@ -110,8 +110,11 @@ pub fn set<C: CtrlContext>(
             .unwrap_or_else(|_| uciedit::Config::new(&arena));
         cfg.sections.clear();
         for input_section in input.sections {
-            let mut section =
-                uciedit::Section::new(&arena, &input_section.ty, input_section.name.as_deref());
+            let mut section = uciedit::Section::new(
+                &arena,
+                arena.alloc(input_section.ty),
+                input_section.name.map(|n| arena.alloc(n).as_str()),
+            );
             for (option, value) in input_section.options {
                 section.lines.push(uciedit::Line::Option {
                     option: Token::from_string(option, &arena),
@@ -129,6 +132,7 @@ pub fn set<C: CtrlContext>(
                     })
                 }
             }
+            cfg.sections.push(section);
         }
         result = result.and(file.dump(&cfg));
         if let Ok(modified) = file.get_modified() {

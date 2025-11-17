@@ -190,15 +190,18 @@ fn chained_write_iters(fields: &[UciField]) -> Option<TokenStream> {
     chained
 }
 
-fn read_body(fields: &[UciField], struc: Ident, _ty: String, crat: Path) -> TokenStream {
+fn read_body(fields: &[UciField], struc: Ident, ty: String, crat: Path) -> TokenStream {
     let decl = fields.iter().map(UciField::read_decl);
     let option_arm = fields.iter().map(UciField::read_option_arm);
     let list_arm = fields.iter().map(UciField::read_list_arm);
     let init = fields.iter().map(UciField::read_init);
     quote! {
-        let Some(#crat::Line::Section { .. }) = lines.get(index) else {
+        let Some(#crat::Line::Section { ty, .. }) = lines.get(index) else {
             return Err(#crat::Error::ExpectedSection { src: index.into() })
         };
+        if ty.as_str() != #ty {
+            return Err(#crat::Error::ExpectedSectionType { src: index.into(), expected: (#ty).into(), found: ty.as_str().into(), })
+        }
         #(#decl)*
 
         loop {
