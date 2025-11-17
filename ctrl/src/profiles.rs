@@ -219,7 +219,9 @@ fn get_config(
 
 pub fn delete<C: CtrlContext>(ctx: C, id: ProfileIdOpt) -> Result<(), Error> {
     todo!();
-    reload_system()?;
+    if ctx.effectful() {
+        reload_system()?;
+    }
     Ok(())
 }
 
@@ -282,7 +284,9 @@ pub fn set<C: CtrlContext>(
             }
             Err(err) => return Err(err.into()),
             Ok(()) => {
-                reload_system()?;
+                if ctx.effectful() {
+                    reload_system()?;
+                }
                 return Ok(out);
             }
         }
@@ -414,7 +418,9 @@ pub fn create<C: CtrlContext>(
             }
             Err(err) => return Err(err.into()),
             Ok(()) => {
-                reload_system()?;
+                if ctx.effectful() {
+                    reload_system()?;
+                }
                 return Ok(out);
             }
         }
@@ -428,7 +434,7 @@ fn create_config(
 ) -> Result<ProfileId, Error> {
     let mut ports = Vec::new();
     let interface = if profile.owns_lan {
-        if Lookup::parse(ctx.clone(), &cfgs)?.lan_owner.is_some() {
+        if Lookup::parse(ctx.clone(), cfgs)?.lan_owner.is_some() {
             return Err(ErrorKind::LanOwnerExists.into());
         }
         let ethernet = ethernet::get(ctx.clone())?;
@@ -448,6 +454,7 @@ fn create_config(
         "lan".into()
     } else {
         allocate_interface_name(
+            &ctx,
             profile
                 .id
                 .interface
@@ -593,17 +600,19 @@ fn rewrite_firewall(
     wants_access: &[ProfileId],
     remake_zone: bool,
 ) -> Result<(), Error> {
+    // Make sure the required zones exist
     let mut found_wan = false;
     let mut this_zone_name = format!("vlan_{}", profile.id.interface);
     let mut all_zones = BTreeMap::new();
-    for section in &cfgs["firewall"].sections {
+    let mut existing_zone_index = None;
+    for (index, section) in cfgs["firewall"].sections.iter().enumerate() {
         let Ok(zone) = section.get::<FirewallZone>() else {
             continue;
         };
         if zone.name == DEFAULT_WAN_ZONE {
             found_wan = true;
         } else if zone.name == this_zone_name {
-            if remake_zone {}
+            existing_zone_index = Some(index);
         } else {
             for zone_interface in zone.network {
                 if profile.id.interface == zone_interface {
@@ -615,29 +624,14 @@ fn rewrite_firewall(
             }
         }
     }
-    let mut found_dhcp_dns_rule = false;
-    for section in &cfgs["firewall"].sections {
-        let Ok(rule) = section.get::<FirewallRule>() else {
-            continue;
-        };
-        if rule.src == this_zone_name && rule.name.contains("DHCP") && rule.name.contains("DNS") {
-            if remake_zone {
-            } else {
-                found_dhcp_dns_rule = true;
-            }
-        }
-    }
-
-    for section in &cfgs["firewall"].sections {
-        let Ok(fwd) = section.get::<FirewallForwarding>() else {
-            continue;
-        };
-        if fwd.src == this_zone_name {}
-    }
     if !found_wan {
         return Err(ErrorKind::MissingWanInterface.into());
     }
-    if remake_zone {
+    if remake_zone || existing_zone_index.is_none() {
+        if let Some(index) = existing_zone_index {
+            let removed = cfgs["firewall"].sections.remove(index);
+            assert!(removed.ty() == FirewallZone::TY);
+        }
         cfgs["firewall"].append(
             &FirewallZone {
                 name: this_zone_name.clone(),
@@ -649,6 +643,22 @@ fn rewrite_firewall(
             None,
         )?;
     }
+
+    // Setup forwarding for DNS and DHCP
+    let mut found_dhcp_dns_rule = false;
+    cfgs["firewall"].sections.retain(|section| {
+        let Ok(rule) = section.get::<FirewallRule>() else {
+            return true;
+        };
+        if rule.src == this_zone_name && rule.name.contains("DHCP") && rule.name.contains("DNS") {
+            if remake_zone {
+                return false;
+            } else {
+                found_dhcp_dns_rule = true;
+            }
+        }
+        true
+    });
     if !found_dhcp_dns_rule {
         cfgs["firewall"].append(
             &FirewallRule {
@@ -662,6 +672,14 @@ fn rewrite_firewall(
             None,
         )?;
     }
+
+    // Setup forwarding for lan access
+    cfgs["firewall"].sections.retain(|section| {
+        let Ok(fwd) = section.get::<FirewallForwarding>() else {
+            return true;
+        };
+        fwd.src != this_zone_name
+    });
     match &profile.lan_access {
         LanAccess::All => {
             for other_zone in all_zones.values() {
@@ -714,6 +732,8 @@ fn rewrite_firewall(
             }
         }
     }
+
+    // Setup forwarding for wan access
     match &profile.wan_access {
         WanAccess::All => cfgs["firewall"].append(
             &FirewallForwarding {
@@ -724,7 +744,7 @@ fn rewrite_firewall(
         )?,
         WanAccess::None => (),
     }
-    // TODO: Handle section removals properly with retain()
+
     Ok(())
 }
 
@@ -756,7 +776,10 @@ pub fn rewrite_dhcp(
     Ok(())
 }
 
-pub fn allocate_interface_name(hint: Option<&str>) -> Result<String, Error> {
+pub fn allocate_interface_name(
+    ctx: &impl CtrlContext,
+    hint: Option<&str>,
+) -> Result<String, Error> {
     fn random() -> String {
         String::from_iter([(); INTERFACE_NAME_LIMIT].map(|_| rand::random_range('a'..='z')))
     }
@@ -771,6 +794,9 @@ pub fn allocate_interface_name(hint: Option<&str>) -> Result<String, Error> {
         }
         None => random(),
     };
+    if !ctx.effectful() {
+        return Ok(name);
+    }
     for _ in 0..100 {
         let ip = Command::new("ip")
             .arg("link")

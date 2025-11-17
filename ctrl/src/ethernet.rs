@@ -153,10 +153,12 @@ pub fn set<C: CtrlContext>(
             }
             Err(err) => return Err(err.into()),
             Ok(()) => {
-                let _ = Command::new("/etc/init.d/network")
-                    .arg("reload")
-                    .spawn()?
-                    .wait();
+                if ctx.effectful() {
+                    let _ = Command::new("/etc/init.d/network")
+                        .arg("reload")
+                        .spawn()?
+                        .wait();
+                }
                 return Ok(());
             }
         }
@@ -215,6 +217,7 @@ fn set_config(
         true
     });
 
+    // Update WAN interfaces, if they exist
     for section in &mut cfgs["network"].sections {
         if let Some(dev) = section.get_typed::<NetworkDevice>()? {
             if dev.ty == Some(DeviceType::BRIDGE) && dev.name == bridge.name {
@@ -248,7 +251,7 @@ fn set_config(
 
     // Remove WAN interfaces that are no longer needed
     cfgs["network"].sections.retain(|section| {
-        if let Some(iface) = section.get::<NetworkInterface>().ok() {
+        if let Ok(iface) = section.get::<NetworkInterface>() {
             if iface.proto == InterfaceProto::DHCP
                 && section.name().as_deref() == Some(DEFAULT_WAN_INTERFACE)
                 && ethernet.wan_port.is_none()
@@ -265,6 +268,7 @@ fn set_config(
         true
     });
 
+    // Add WAN interfaces if still needed
     if let Some(wan_port) = &ethernet.wan_port {
         if pending_ipv4 {
             cfgs["network"].append(
@@ -289,6 +293,7 @@ fn set_config(
             )?;
         }
     }
+
     if pending_bridge {
         cfgs["network"].append(&bridge, None)?;
     }

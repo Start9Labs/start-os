@@ -69,7 +69,11 @@ fn find_relevant(cfgs: &Configs) -> Result<Vec<(String, WifiInterface, WifiDevic
 
 pub fn get<C: CtrlContext>(ctx: C) -> Result<Wifi, Error> {
     let arena = Arena::new();
-    let cfgs = parse_all(ctx.uci_root(), &arena, &["wireless", "startwrt", "network", "firewall"])?;
+    let cfgs = parse_all(
+        ctx.uci_root(),
+        &arena,
+        &["wireless", "startwrt", "network", "firewall"],
+    )?;
     get_config(ctx, &cfgs)
 }
 
@@ -118,7 +122,7 @@ fn get_config(ctx: impl CtrlContext, cfgs: &Configs) -> Result<Wifi, Error> {
     })
 }
 
-fn update_config(
+fn set_config(
     _ctx: &impl CtrlContext,
     cfgs: &mut Configs,
     wifi: &Wifi,
@@ -194,7 +198,7 @@ fn update_config(
     }
 
     cfgs["wireless"].sections.retain(|s| {
-        if let Some(station) = s.get::<WifiStation>().ok() {
+        if let Ok(station) = s.get::<WifiStation>() {
             if let Some(iface) = &station.iface {
                 if !relevant_interfaces.iter().any(|(n, _, _)| n == iface) {
                     return true;
@@ -202,7 +206,7 @@ fn update_config(
             }
             return false;
         }
-        if let Some(vlan) = s.get::<WifiVlan>().ok() {
+        if let Ok(vlan) = s.get::<WifiVlan>() {
             if let Some(iface) = &vlan.iface {
                 if !relevant_interfaces.iter().any(|(n, _, _)| n == iface) {
                     return true;
@@ -260,7 +264,11 @@ pub fn set<C: CtrlContext>(
     let mut retries = 4;
     loop {
         let arena = Arena::new();
-        let mut cfgs = parse_all(ctx.uci_root(), &arena, &["wireless", "startwrt", "network", "firewall"])?;
+        let mut cfgs = parse_all(
+            ctx.uci_root(),
+            &arena,
+            &["wireless", "startwrt", "network", "firewall"],
+        )?;
         let lookup = profiles::Lookup::parse(ctx.clone(), &cfgs)?;
         let wifi = Wifi {
             ssid: wifi.ssid.clone(),
@@ -281,14 +289,14 @@ pub fn set<C: CtrlContext>(
                 })
                 .collect::<Result<_, Error>>()?,
         };
-        let res = update_config(&ctx, &mut cfgs, &wifi, &lookup);
+        let res = set_config(&ctx, &mut cfgs, &wifi, &lookup);
         match res {
             Err(Error {
                 kind: ErrorKind::CorruptedWifi,
                 ..
-            }) => {
+            }) if ctx.effectful() => {
                 // try recreating the config from scratch
-                let _ = std::fs::remove_file(ctx.uci_path("wireless"));
+                let _ = std::fs::remove_file(ctx.uci_root().join("wireless"));
                 let _ = Command::new("wifi")
                     .arg("config")
                     .spawn()
@@ -306,11 +314,13 @@ pub fn set<C: CtrlContext>(
             }
             Err(err) => return Err(err.into()),
             Ok(()) => {
-                let _ = Command::new("wifi")
-                    .arg("reload")
-                    .spawn()
-                    .context("executing `wifi reload`")?
-                    .wait();
+                if ctx.effectful() {
+                    let _ = Command::new("wifi")
+                        .arg("reload")
+                        .spawn()
+                        .context("executing `wifi reload`")?
+                        .wait();
+                }
                 return Ok(());
             }
         }
