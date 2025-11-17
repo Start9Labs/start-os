@@ -18,6 +18,15 @@ pub struct Config<'a> {
 }
 
 impl<'a> Config<'a> {
+    pub fn new(arena: &'a Arena) -> Self {
+        Config {
+            arena,
+            prefix: Vec::new(),
+            sections: Vec::new(),
+            modified: None,
+        }
+    }
+
     pub fn append<T: TypedSection<'a>>(
         &mut self,
         section: &T,
@@ -78,6 +87,18 @@ impl<'a> Config<'a> {
         Ok(config)
     }
 
+    pub fn parse_io(arena: &'a Arena, mut reader: impl io::Read) -> Result<Self, Error> {
+        let mut text = String::new();
+        reader
+            .read_to_string(&mut text)
+            .map_err(|cause| Error::Io {
+                cause,
+                src: Source::Unknown,
+            })?;
+        let text = arena.alloc(text);
+        Self::parse_str(arena, text)
+    }
+
     pub fn parse_str(arena: &'a Arena, text: &'a str) -> Result<Self, Error> {
         // now break the file into sections
         let mut sections = vec![Section {
@@ -126,11 +147,11 @@ impl<'a> Config<'a> {
     }
 
     pub fn dump(&self, path: impl AsRef<Path>) -> Result<(), Error> {
-        let mut w = super::LockedConfigWriter::start(path.as_ref().to_path_buf())?;
+        let mut w = super::LockedConfig::open(path.as_ref().to_path_buf())?;
         if let Some(expected) = self.modified {
             w.check_modified(expected)?;
         }
-        w.finish(self)
+        w.dump(self)
     }
 
     pub fn dump_io(&self, mut writer: impl io::Write) -> Result<(), Error> {

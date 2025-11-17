@@ -1,13 +1,12 @@
 use crate::utils::DeserializeStdin;
 use crate::CtrlContext;
-use crate::{utils::HandlerExtSerde, Error, ErrorKind};
+use crate::{utils::HandlerExtSerde, Error};
 use chrono::{offset::Utc, DateTime};
 use clap::Parser;
-use rpc_toolkit::{from_fn, Context, ParentHandler};
+use rpc_toolkit::{from_fn, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
-use std::io::{BufWriter, Seek as _, Write as _};
-use uciedit::{Arena, Config, Line, LineComment, Token};
+use uciedit::{parse_all, Arena, Line, LockedConfig, Token};
 
 pub fn uci<C: CtrlContext>() -> ParentHandler<C> {
     ParentHandler::new()
@@ -30,145 +29,122 @@ pub struct UciFile {
     pub modified: Option<DateTime<Utc>>,
 }
 
+type UciFiles = BTreeMap<String, UciFile>;
+
 #[derive(Parser, Serialize, Deserialize)]
-pub struct FilesGet {
-    name: String,
+pub struct GetArgs {
+    names: Vec<String>,
 }
 
-pub fn get<C: CtrlContext>(ctx: C, FilesGet { name }: FilesGet) -> Result<UciFile, Error> {
-    let path = ctx.uci_path(&name);
-    let mut sections = Vec::new();
-    let modified = std::fs::metadata(&path)
-        .and_then(|m| m.modified())
-        .map(DateTime::<Utc>::from)
-        .ok();
+pub fn get<C: CtrlContext>(ctx: C, GetArgs { names }: GetArgs) -> Result<UciFiles, Error> {
     let arena = Arena::new();
-    let config = Config::parse(&arena, path)?;
-    for section in &config.sections {
-        let ty = section.ty().into_owned();
-        let name = section.name().map(|n| n.into_owned());
-        let mut options = HashMap::new();
-        let mut lists = HashMap::<_, Vec<_>>::new();
-        for line in &section.lines {
-            match line {
-                Line::Option { option, value, .. } => {
-                    options.insert(option.unquoted_string(), value.unquoted_string());
+    let cfgs = parse_all(ctx.uci_root(), &arena, &names)?;
+    let mut files = UciFiles::new();
+    for (name, cfg) in cfgs.iter() {
+        let mut sections = Vec::new();
+        for section in &cfg.sections {
+            let ty = section.ty().into_owned();
+            let name = section.name().map(|n| n.into_owned());
+            let mut options = HashMap::new();
+            let mut lists = HashMap::<_, Vec<_>>::new();
+            for line in &section.lines {
+                match line {
+                    Line::Option { option, value, .. } => {
+                        options.insert(option.unquoted_string(), value.unquoted_string());
+                    }
+                    Line::List { list, item, .. } => {
+                        lists
+                            .entry(list.unquoted_string())
+                            .or_default()
+                            .push(item.unquoted_string());
+                    }
+                    _ => (),
                 }
-                Line::List { list, item, .. } => {
-                    lists
-                        .entry(list.unquoted_string())
-                        .or_default()
-                        .push(item.unquoted_string());
-                }
-                _ => (),
             }
+            sections.push(Section {
+                ty,
+                name,
+                options,
+                lists,
+            })
         }
-        sections.push(Section {
-            ty,
-            name,
-            options,
-            lists,
-        })
+        files.insert(
+            name.into(),
+            UciFile {
+                sections,
+                modified: cfg.modified,
+            },
+        );
     }
-    Ok(UciFile { sections, modified })
+    Ok(files)
 }
-
-type Files = BTreeMap<String, UciFile>;
 
 pub fn set<C: CtrlContext>(
     ctx: C,
-    DeserializeStdin(files): DeserializeStdin<Files>,
-) -> Result<(), Error> {
-    use fd_lock_rs::{FdLock, LockType};
-
+    DeserializeStdin(files): DeserializeStdin<UciFiles>,
+) -> Result<BTreeMap<String, DateTime<Utc>>, Error> {
     // Lock all the files at once.
     // We do it in lexicographic order so that deadlocks are impossible.
-    let files = files
+    let mut files = files
         .into_iter()
-        .map(|(name, section)| {
-            let path = ctx.uci_path(&name);
-            let file = std::fs::File::options()
-                .create(true)
-                .write(true)
-                .truncate(false)
-                .open(&path)?;
-            let locked = FdLock::lock(file, LockType::Exclusive, true)?;
-            Ok::<_, Error>((name, section, locked))
+        .map(|(name, input)| {
+            let path = ctx.uci_root().join(&name);
+            Ok::<_, Error>((name, input, LockedConfig::open(path)?))
         })
         .collect::<Result<Vec<_>, _>>()?;
 
     // Check all the modified times.
-    for (name, tosave, saved) in &files {
-        match (
-            saved
-                .metadata()
-                .and_then(|m| m.modified())
-                .map(DateTime::<Utc>::from),
-            tosave.modified,
-        ) {
-            (Ok(saved_time), Some(tosave_time)) if saved_time > tosave_time => {
-                return Err(ErrorKind::UciSetConflict { name: name.clone() }.into());
-            }
-            _ => (),
+    for (_, input, file) in &mut files {
+        if let Some(expected) = input.modified {
+            file.check_modified(expected)?;
         }
     }
 
     // Actually write the sections.
-    let arena = Arena::new();
-    for (_, tosave, mut saved) in files {
-        // Only truncating now that we've checked the modified times.
-        saved.set_len(0)?;
-        saved.seek(std::io::SeekFrom::Start(0))?;
-        let mut writer = BufWriter::new(&mut *saved);
-        for section in tosave.sections {
-            write!(
-                &mut writer,
-                "{}",
-                Line::Section {
-                    ty: Token::from_string(section.ty, &arena),
-                    name: section.name.map(|s| Token::from_string(s, &arena)),
-                    comment: LineComment::None,
-                }
-            )?;
-            for (option, value) in section.options.into_iter() {
-                write!(
-                    &mut writer,
-                    "{}",
-                    Line::Option {
-                        option: Token::from_string(option, &arena),
-                        value: Token::from_string(value, &arena),
-                        comment: LineComment::None,
-                    }
-                )?;
+    let mut output = BTreeMap::new();
+    let mut result = Ok(());
+    for (name, input, mut file) in files {
+        let arena = Arena::new();
+        let mut cfg = file
+            .parse(&arena)
+            .unwrap_or_else(|_| uciedit::Config::new(&arena));
+        cfg.sections.clear();
+        for input_section in input.sections {
+            let mut section =
+                uciedit::Section::new(&arena, &input_section.ty, input_section.name.as_deref());
+            for (option, value) in input_section.options {
+                section.lines.push(uciedit::Line::Option {
+                    option: Token::from_string(option, &arena),
+                    value: Token::from_string(value, &arena),
+                    comment: uciedit::LineComment::None,
+                })
             }
-            for (list, items) in section.lists.into_iter() {
+            for (list, items) in input_section.lists {
+                let list = Token::from_string(list, &arena);
                 for item in items {
-                    write!(
-                        &mut writer,
-                        "{}",
-                        Line::List {
-                            list: Token::from_str(&list, &arena),
-                            item: Token::from_string(item, &arena),
-                            comment: LineComment::None,
-                        }
-                    )?;
+                    section.lines.push(uciedit::Line::List {
+                        list,
+                        item: Token::from_string(item, &arena),
+                        comment: uciedit::LineComment::None,
+                    })
                 }
             }
-            write!(&mut writer, "{}", Line::Empty)?;
+        }
+        result = result.and(file.dump(&cfg));
+        if let Ok(modified) = file.get_modified() {
+            output.insert(name, modified);
         }
     }
 
-    Ok(())
+    result?;
+    Ok(output)
 }
 
-pub fn edit<C: CtrlContext>(ctx: C, args: FilesGet) -> Result<(), Error> {
-    let name = args.name.clone();
-    let current_file = get(ctx.clone(), args)?;
-    let modified_file = crate::utils::edit_in_editor(&current_file)?;
-
-    // Wrap the single file in a BTreeMap for set
-    let mut files = BTreeMap::new();
-    files.insert(name, modified_file);
-
-    set(ctx, DeserializeStdin(files))
+pub fn edit<C: CtrlContext>(
+    ctx: C,
+    args: GetArgs,
+) -> Result<BTreeMap<String, DateTime<Utc>>, Error> {
+    let current_files = get(ctx.clone(), args)?;
+    let modified_files = crate::utils::edit_in_editor(&current_files)?;
+    set(ctx, DeserializeStdin(modified_files))
 }

@@ -3,11 +3,13 @@ extern crate self as uciedit;
 use chrono::DateTime;
 use chrono::Utc;
 use serde::Serializer;
+use std::borrow::Borrow;
 use std::collections::BTreeMap;
 use std::fmt;
 use std::fs;
 use std::io;
 use std::io::Seek as _;
+use std::io::Write;
 use std::ops;
 use std::path::Path;
 use std::path::PathBuf;
@@ -191,13 +193,13 @@ impl Error {
     }
 }
 
-pub struct LockedConfigWriter {
+pub struct LockedConfig {
     path: PathBuf,
     locked: fd_lock_rs::FdLock<fs::File>,
 }
 
-impl LockedConfigWriter {
-    pub fn start(path: PathBuf) -> Result<Self, Error> {
+impl LockedConfig {
+    pub fn open(path: PathBuf) -> Result<Self, Error> {
         use fd_lock_rs::{FdLock, LockType};
         let file = std::fs::File::options()
             .create(true)
@@ -213,16 +215,11 @@ impl LockedConfigWriter {
                 cause,
                 src: Source::Path(path.clone()),
             })?;
-        Ok(LockedConfigWriter { path, locked })
+        Ok(LockedConfig { path, locked })
     }
 
     pub fn check_modified(&mut self, expected: DateTime<Utc>) -> Result<(), Error> {
-        let found = self
-            .locked
-            .metadata()
-            .and_then(|m| m.modified())
-            .map(DateTime::<Utc>::from)
-            .ok();
+        let found = self.get_modified().ok();
         if found.is_some_and(|found| found > expected) {
             Err(Error::Conflict {
                 src: Source::Path(self.path.clone()),
@@ -232,7 +229,29 @@ impl LockedConfigWriter {
         }
     }
 
-    pub fn finish(&mut self, config: &Config) -> Result<(), Error> {
+    pub fn get_modified(&mut self) -> Result<DateTime<Utc>, Error> {
+        self.locked
+            .metadata()
+            .and_then(|m| m.modified())
+            .map(DateTime::<Utc>::from)
+            .map_err(|cause| Error::Io {
+                cause,
+                src: Source::Path(self.path.clone()),
+            })
+    }
+
+    pub fn parse<'a>(&mut self, arena: &'a Arena) -> Result<Config<'a>, Error> {
+        let locked = &mut *self.locked;
+        locked
+            .seek(std::io::SeekFrom::Start(0))
+            .map_err(|cause| Error::Io {
+                cause,
+                src: Source::Path(self.path.clone()),
+            })?;
+        Config::parse_io(arena, locked)
+    }
+
+    pub fn dump(&mut self, config: &Config) -> Result<(), Error> {
         let locked = &mut *self.locked;
         locked.set_len(0).map_err(|cause| Error::Io {
             cause,
@@ -245,14 +264,25 @@ impl LockedConfigWriter {
                 src: Source::Path(self.path.clone()),
             })?;
         config
-            .dump_io(io::BufWriter::new(locked))
-            .with_path(&self.path)
+            .dump_io(io::BufWriter::new(&mut *locked))
+            .with_path(&self.path)?;
+        locked.flush().map_err(|cause| Error::Io {
+            cause,
+            src: Source::Path(self.path.clone()),
+        })?;
+        Ok(())
     }
 }
 
 #[derive(Clone, Default)]
 pub struct Configs<'a> {
     map: BTreeMap<String, Config<'a>>,
+}
+
+impl<'a> Configs<'a> {
+    pub fn iter(&self) -> impl Iterator<Item = (&str, &Config<'a>)> {
+        self.map.iter().map(|(k, v)| (k.as_str(), v))
+    }
 }
 
 impl<'a> ops::Index<&str> for Configs<'a> {
@@ -278,7 +308,7 @@ impl<'a> ops::IndexMut<&str> for Configs<'a> {
 pub fn parse_all<'a>(
     root: impl AsRef<Path>,
     arena: &'a Arena,
-    names: &[&str],
+    names: &[impl Borrow<str>],
 ) -> Result<Configs<'a>, Error> {
     const MAX_RETRIES: usize = 4;
 
@@ -288,7 +318,8 @@ pub fn parse_all<'a>(
     'retry: for _ in 0..MAX_RETRIES {
         configs.map.clear();
         let expected: DateTime<Utc> = std::time::SystemTime::now().into();
-        for &name in names {
+        for name in names {
+            let name = name.borrow();
             configs
                 .map
                 .insert(name.into(), Config::parse(arena, root.as_ref().join(name))?);
@@ -314,21 +345,21 @@ pub fn dump_all(root: impl AsRef<Path>, configs: Configs) -> Result<(), Error> {
         .into_iter()
         .map(|(name, section)| {
             let path = root.as_ref().join(&name);
-            Ok::<_, Error>((name, section, LockedConfigWriter::start(path)?))
+            Ok::<_, Error>((name, section, LockedConfig::open(path)?))
         })
         .collect::<Result<Vec<_>, _>>()?;
 
     // Check all the modified times.
-    for (_, tosave, saved) in &mut files {
-        if let Some(expected) = tosave.modified {
-            saved.check_modified(expected)?;
+    for (_, input, file) in &mut files {
+        if let Some(expected) = input.modified {
+            file.check_modified(expected)?;
         }
     }
 
     // Actually write the sections.
     let mut result = Ok(());
     for (_, tosave, mut saved) in files {
-        result = result.and(saved.finish(&tosave));
+        result = result.and(saved.dump(&tosave));
     }
 
     result

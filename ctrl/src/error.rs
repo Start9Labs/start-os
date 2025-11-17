@@ -26,14 +26,6 @@ pub enum ErrorKind {
         std::io::Error,
     ),
     #[error(transparent)]
-    FdLock(
-        #[serde(serialize_with = "serialize_std_err")]
-        #[from]
-        fd_lock_rs::Error,
-    ),
-    #[error("uci file {name} was modified more recently")]
-    UciSetConflict { name: String },
-    #[error(transparent)]
     UciEdit(#[from] uciedit::Error),
     #[error("interface name {name:?} conflicts")]
     InterfaceNameConflict { name: String },

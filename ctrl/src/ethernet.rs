@@ -3,7 +3,7 @@ use crate::utils::DeserializeStdin;
 use crate::utils::HandlerExtSerde;
 use crate::CtrlContext;
 use crate::{Error, ErrorKind};
-use rpc_toolkit::{from_fn, Context, ParentHandler};
+use rpc_toolkit::{from_fn, ParentHandler};
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::process::Command;
