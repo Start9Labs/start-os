@@ -106,7 +106,9 @@ pub struct ExecParams {
     #[arg(long)]
     pty_size: Option<TermSize>,
     #[arg(short, long)]
-    env: Option<PathBuf>,
+    env: Vec<String>,
+    #[arg(long)]
+    env_file: Option<PathBuf>,
     #[arg(short, long)]
     workdir: Option<PathBuf>,
     #[arg(short, long)]
@@ -119,6 +121,7 @@ impl ExecParams {
     fn exec(&self) -> Result<(), Error> {
         let ExecParams {
             env,
+            env_file,
             workdir,
             user,
             chroot,
@@ -131,14 +134,15 @@ impl ExecParams {
                 ErrorKind::InvalidRequest,
             ));
         };
-        let env_string = if let Some(env) = &env {
-            std::fs::read_to_string(env)
+        let env_string = if let Some(env_file) = &env_file {
+            std::fs::read_to_string(env_file)
                 .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("read {env:?}")))?
         } else {
             Default::default()
         };
         let env = env_string
             .lines()
+            .chain(env.iter().map(|l| l.as_str()))
             .map(|l| l.trim())
             .filter_map(|l| l.split_once("="))
             .collect::<BTreeMap<_, _>>();
@@ -199,6 +203,7 @@ pub fn launch(
         force_stderr_tty,
         pty_size,
         env,
+        env_file,
         workdir,
         user,
         chroot,
@@ -294,8 +299,11 @@ pub fn launch(
         let (pty, pts) = pty_process::open().with_kind(ErrorKind::Filesystem)?;
         let mut cmd = pty_process::Command::new("/usr/bin/start-container");
         cmd = cmd.arg("subcontainer").arg("launch-init");
-        if let Some(env) = env {
-            cmd = cmd.arg("--env").arg(env);
+        for env in env {
+            cmd = cmd.arg("-e").arg(env)
+        }
+        if let Some(env_file) = env_file {
+            cmd = cmd.arg("--env-file").arg(env_file);
         }
         if let Some(workdir) = workdir {
             cmd = cmd.arg("--workdir").arg(workdir);
@@ -349,8 +357,11 @@ pub fn launch(
     } else {
         let mut cmd = StdCommand::new("/usr/bin/start-container");
         cmd.arg("subcontainer").arg("launch-init");
-        if let Some(env) = env {
-            cmd.arg("--env").arg(env);
+        for env in env {
+            cmd.arg("-e").arg(env);
+        }
+        if let Some(env_file) = env_file {
+            cmd.arg("--env-file").arg(env_file);
         }
         if let Some(workdir) = workdir {
             cmd.arg("--workdir").arg(workdir);
@@ -441,6 +452,7 @@ pub fn exec(
         force_stderr_tty,
         pty_size,
         env,
+        env_file,
         workdir,
         user,
         chroot,
@@ -544,8 +556,11 @@ pub fn exec(
         let (pty, pts) = pty_process::open().with_kind(ErrorKind::Filesystem)?;
         let mut cmd = pty_process::Command::new("/usr/bin/start-container");
         cmd = cmd.arg("subcontainer").arg("exec-command");
-        if let Some(env) = env {
-            cmd = cmd.arg("--env").arg(env);
+        for env in env {
+            cmd = cmd.arg("-e").arg(env);
+        }
+        if let Some(env_file) = env_file {
+            cmd = cmd.arg("--env-file").arg(env_file);
         }
         if let Some(workdir) = workdir {
             cmd = cmd.arg("--workdir").arg(workdir);
@@ -599,8 +614,11 @@ pub fn exec(
     } else {
         let mut cmd = StdCommand::new("/usr/bin/start-container");
         cmd.arg("subcontainer").arg("exec-command");
-        if let Some(env) = env {
-            cmd.arg("--env").arg(env);
+        for env in env {
+            cmd.arg("-e").arg(env);
+        }
+        if let Some(env_file) = env_file {
+            cmd.arg("--env-file").arg(env_file);
         }
         if let Some(workdir) = workdir {
             cmd.arg("--workdir").arg(workdir);

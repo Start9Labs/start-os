@@ -3,7 +3,7 @@ use imbl::HashMap;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use patch_db::HasModel;
-use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
@@ -113,27 +113,12 @@ impl AuthContext for TunnelContext {
 #[derive(Clone, Debug, Deserialize, Serialize, HasModel, TS, Parser)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
-#[ts(export)]
 pub struct SignerInfo {
     pub name: InternedString,
 }
 
 pub fn auth_api<C: Context>() -> ParentHandler<C> {
-    ParentHandler::new()
-        .subcommand(
-            "login",
-            from_fn_async(crate::auth::login_impl::<TunnelContext>)
-                .with_metadata("login", Value::Bool(true))
-                .no_cli(),
-        )
-        .subcommand(
-            "logout",
-            from_fn_async(crate::auth::logout::<TunnelContext>)
-                .with_metadata("get_session", Value::Bool(true))
-                .no_display()
-                .with_about("Log out of current auth session")
-                .with_call_remote::<CliContext>(),
-        )
+    crate::auth::auth::<C, TunnelContext>()
         .subcommand("set-password", from_fn_async(set_password_rpc).no_cli())
         .subcommand(
             "set-password",
@@ -173,19 +158,15 @@ pub fn auth_api<C: Context>() -> ParentHandler<C> {
                         .with_display_serializable()
                         .with_custom_display_fn(|HandlerArgs { params, .. }, res| {
                             use prettytable::*;
-
                             if let Some(format) = params.format {
                                 return display_serializable(format, res);
                             }
-
                             let mut table = Table::new();
                             table.add_row(row![bc => "NAME", "KEY"]);
                             for (key, info) in res {
                                 table.add_row(row![info.name, key]);
                             }
-
                             table.print_tty(false)?;
-
                             Ok(())
                         })
                         .with_about("List authorized keys")
@@ -194,7 +175,7 @@ pub fn auth_api<C: Context>() -> ParentHandler<C> {
         )
 }
 
-#[derive(Debug, Deserialize, Serialize, Parser)]
+#[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AddKeyParams {
     pub name: InternedString,
@@ -216,7 +197,7 @@ pub async fn add_key(
         .result
 }
 
-#[derive(Debug, Deserialize, Serialize, Parser)]
+#[derive(Debug, Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct RemoveKeyParams {
     pub key: AnyVerifyingKey,
@@ -240,7 +221,7 @@ pub async fn list_keys(ctx: TunnelContext) -> Result<HashMap<AnyVerifyingKey, Si
     ctx.db.peek().await.into_auth_pubkeys().de()
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, TS)]
 pub struct SetPasswordParams {
     pub password: String,
 }
@@ -293,7 +274,14 @@ pub async fn set_password_cli(
     Ok(())
 }
 
-pub async fn reset_password(ctx: CliContext) -> Result<(), Error> {
+pub async fn reset_password(
+    HandlerArgs {
+        context,
+        parent_method,
+        method,
+        ..
+    }: HandlerArgs<CliContext>,
+) -> Result<(), Error> {
     println!("Generating a random password...");
     let params = SetPasswordParams {
         password: base32::encode(
@@ -302,7 +290,11 @@ pub async fn reset_password(ctx: CliContext) -> Result<(), Error> {
         ),
     };
 
-    ctx.call_remote::<TunnelContext>("auth.set-password", to_value(&params)?)
+    context
+        .call_remote::<TunnelContext>(
+            &parent_method.iter().chain(method.iter()).join("."),
+            to_value(&params)?,
+        )
         .await?;
 
     println!("Your new password is:");
