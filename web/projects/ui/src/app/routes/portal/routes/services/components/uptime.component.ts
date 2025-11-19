@@ -66,7 +66,8 @@ import { distinctUntilChanged } from 'rxjs/operators'
         color: var(--tui-text-primary);
       }
 
-      :host-context(table) {
+      :host-context(table),
+      :host-context(service-status) {
         padding: 0;
 
         header {

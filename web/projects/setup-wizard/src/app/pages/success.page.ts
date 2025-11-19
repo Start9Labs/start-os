@@ -7,7 +7,7 @@ import {
   DOCUMENT,
 } from '@angular/core'
 import { DownloadHTMLService, ErrorService } from '@start9labs/shared'
-import { TuiButton, TuiIcon, TuiSurface } from '@taiga-ui/core'
+import { TuiButton, TuiIcon, TuiLoader, TuiSurface } from '@taiga-ui/core'
 import { TuiCardLarge } from '@taiga-ui/layout'
 import { DocumentationComponent } from 'src/app/components/documentation.component'
 import { MatrixComponent } from 'src/app/components/matrix.component'
@@ -31,10 +31,16 @@ import { StateService } from 'src/app/services/state.service'
           <h3>You can now safely unplug your old StartOS data drive</h3>
         }
 
+        <h3>
+          http://start.local was for setup purposes only. It will no longer
+          work.
+        </h3>
+
         <button tuiCardLarge tuiSurface="floating" (click)="download()">
           <strong class="caps">Download address info</strong>
           <span>
-            start.local was for setup purposes only. It will no longer work.
+            For future reference, this file contains your server's permanent
+            local address, as well as its Root Certificate Authority (Root CA).
           </span>
           <strong class="caps">
             Download
@@ -48,17 +54,18 @@ import { StateService } from 'src/app/services/state.service'
           target="_blank"
           [attr.href]="disableLogin ? null : lanAddress"
         >
-          <strong class="caps">Trust your Root CA</strong>
           <span>
             In the new tab, follow instructions to trust your server's Root CA
             and log in.
           </span>
           <strong class="caps">
-            Open
+            Open Local Address
             <tui-icon icon="@tui.external-link" />
           </strong>
         </a>
         <app-documentation hidden [lanAddress]="lanAddress" />
+      } @else {
+        <tui-loader />
       }
     </section>
   `,
@@ -97,6 +104,10 @@ import { StateService } from 'src/app/services/state.service'
       opacity: var(--tui-disabled-opacity);
       pointer-events: none;
     }
+
+    h3 {
+      text-align: left;
+    }
   `,
   imports: [
     TuiCardLarge,
@@ -105,6 +116,7 @@ import { StateService } from 'src/app/services/state.service'
     TuiSurface,
     MatrixComponent,
     DocumentationComponent,
+    TuiLoader,
   ],
 })
 export default class SuccessPage implements AfterViewInit {
@@ -117,7 +129,6 @@ export default class SuccessPage implements AfterViewInit {
 
   readonly stateService = inject(StateService)
 
-  torAddresses?: string[]
   lanAddress?: string
   cert?: string
   disableLogin = this.stateService.setupType === 'fresh'
@@ -127,10 +138,8 @@ export default class SuccessPage implements AfterViewInit {
   }
 
   download() {
-    const torElem = this.document.getElementById('tor-addr')
     const lanElem = this.document.getElementById('lan-addr')
 
-    if (torElem) torElem.innerHTML = this.torAddresses?.join('\n') || ''
     if (lanElem) lanElem.innerHTML = this.lanAddress || ''
 
     this.document
@@ -155,9 +164,6 @@ export default class SuccessPage implements AfterViewInit {
     try {
       const ret = await this.api.complete()
       if (!this.stateService.kiosk) {
-        this.torAddresses = ret.torAddresses.map(a =>
-          a.replace(/^https:/, 'http:'),
-        )
         this.lanAddress = ret.lanAddress.replace(/^https:/, 'http:')
         this.cert = ret.rootCa
 

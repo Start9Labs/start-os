@@ -484,7 +484,7 @@ export default {
   512: 'Der Kiosk-Modus ist auf diesem Gerät nicht verfügbar',
   513: 'Aktivieren',
   514: 'Deaktivieren',
-  515: 'Du verwendest derzeit einen Kiosk. Wenn du den Kiosk-Modus deaktivierst, wird die Verbindung zum Kiosk getrennt.',
+  515: 'Diese Änderung wird nach dem nächsten Neustart wirksam',
   516: 'Empfohlen',
   517: 'Möchten Sie diese Aufgabe wirklich verwerfen?',
   518: 'Verwerfen',

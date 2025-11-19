@@ -484,7 +484,7 @@ export default {
   512: 'Tryb kiosku jest niedostępny na tym urządzeniu',
   513: 'Włącz',
   514: 'Wyłącz',
-  515: 'Obecnie używasz kiosku. Wyłączenie trybu kiosku spowoduje jego rozłączenie.',
+  515: 'Ta zmiana zacznie obowiązywać po następnym uruchomieniu',
   516: 'Zalecane',
   517: 'Czy na pewno chcesz odrzucić to zadanie?',
   518: 'Odrzuć',
