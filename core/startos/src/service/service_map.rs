@@ -117,6 +117,8 @@ impl ServiceMap {
         match Service::load(ctx, id, disposition).await {
             Ok(s) => *service = s.into(),
             Err(e) => {
+                tracing::error!("Error loading service: {e}");
+                tracing::debug!("{e:?}");
                 let e = ErrorData::from(e);
                 ctx.db
                     .mutate(|db| {

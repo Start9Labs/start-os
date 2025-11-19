@@ -158,6 +158,8 @@ export class RpcListener {
 
     this.unixSocketServer.listen(SOCKET_PATH)
 
+    console.log("Listening on %s", SOCKET_PATH)
+
     this.unixSocketServer.on("connection", (s) => {
       let id: IdType = null
       const captureId = <X>(x: X) => {

@@ -366,6 +366,7 @@ impl LxcContainer {
             }
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
+        tracing::info!("Connected to socket in {:?}", started.elapsed());
         Ok(UnixRpcClient::new(sock_path))
     }
 }
