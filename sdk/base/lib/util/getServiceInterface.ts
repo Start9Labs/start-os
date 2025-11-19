@@ -3,7 +3,7 @@ import { knownProtocols } from "../interfaces/Host"
 import { AddressInfo, Host, Hostname, HostnameInfo } from "../types"
 import { Effects } from "../Effects"
 import { DropGenerator, DropPromise } from "./Drop"
-import { IPV6_LINK_LOCAL } from "./ip"
+import { IpAddress, IPV6_LINK_LOCAL } from "./ip"
 
 export type UrlString = string
 export type HostId = string
@@ -17,7 +17,15 @@ export const getHostname = (url: string): Hostname | null => {
   return last
 }
 
-type FilterKinds = "onion" | "local" | "domain" | "ip" | "ipv4" | "ipv6"
+type FilterKinds =
+  | "onion"
+  | "local"
+  | "domain"
+  | "ip"
+  | "ipv4"
+  | "ipv6"
+  | "localhost"
+  | "link-local"
 export type Filter = {
   visibility?: "public" | "private"
   kind?: FilterKinds | FilterKinds[]
@@ -71,6 +79,12 @@ type FilterReturnTy<F extends Filter> = F extends {
           ? HostnameInfo
           : Exclude<HostnameInfo, FilterReturnTy<E>>
         : HostnameInfo
+
+const defaultFilter = {
+  exclude: {
+    kind: ["localhost", "link-local"] as ("localhost" | "link-local")[],
+  },
+}
 
 type Formats = "hostname-info" | "urlstring" | "url"
 type FormatReturnTy<
@@ -215,7 +229,13 @@ function filterRec(
             h.kind === "ip" &&
             h.hostname.kind === "domain") ||
           (kind.has("ipv4") && h.kind === "ip" && h.hostname.kind === "ipv4") ||
-          (kind.has("ipv6") && h.kind === "ip" && h.hostname.kind === "ipv6")),
+          (kind.has("ipv6") && h.kind === "ip" && h.hostname.kind === "ipv6") ||
+          (kind.has("localhost") &&
+            ["localhost", "127.0.0.1", "[::1]"].includes(h.hostname.value)) ||
+          (kind.has("link-local") &&
+            h.kind === "ip" &&
+            h.hostname.kind === "ipv6" &&
+            IPV6_LINK_LOCAL.contains(IpAddress.parse(h.hostname.value)))),
     )
   }
 
@@ -239,7 +259,10 @@ export const filledAddress = (
     ...addressInfo,
     hostnames,
     toUrls,
-    filter: <F extends Filter, Format extends Formats = "urlstring">(
+    filter: <
+      F extends Filter = typeof defaultFilter,
+      Format extends Formats = "urlstring",
+    >(
       filter: F,
       format?: Format,
     ) => {
