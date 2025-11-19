@@ -18,7 +18,9 @@ export class AppComponent {
 
   async ngOnInit() {
     try {
-      this.stateService.kiosk = false
+      this.stateService.kiosk = ['localhost', '127.0.0.1'].includes(
+        this.document.location.hostname,
+      )
 
       const inProgress = await this.api.getStatus()
 
