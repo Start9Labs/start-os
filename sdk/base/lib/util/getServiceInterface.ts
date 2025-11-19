@@ -106,8 +106,11 @@ export type Filled = {
     sslUrl: UrlString | null
   }
 
-  filter: <F extends Filter, Format extends Formats = "urlstring">(
-    filter: F,
+  filter: <
+    F extends Filter = typeof defaultFilter,
+    Format extends Formats = "urlstring",
+  >(
+    filter?: F,
     format?: Format,
   ) => FormatReturnTy<F, Format>[]
 
@@ -263,10 +266,10 @@ export const filledAddress = (
       F extends Filter = typeof defaultFilter,
       Format extends Formats = "urlstring",
     >(
-      filter: F,
+      filter?: F,
       format?: Format,
     ) => {
-      const filtered = filterRec(hostnames, filter, false)
+      const filtered = filterRec(hostnames, filter ?? defaultFilter, false)
       let res: FormatReturnTy<F, Format>[] = filtered as any
       if (format === "hostname-info") return res
       const urls = filtered.flatMap(toUrlArray)
