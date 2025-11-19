@@ -132,6 +132,10 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
       > * {
         grid-column: span 1;
       }
+
+      service-uptime {
+        display: none;
+      }
     }
   `,
   host: { class: 'g-subpage' },
