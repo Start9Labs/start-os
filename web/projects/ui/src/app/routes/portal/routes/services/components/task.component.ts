@@ -79,6 +79,10 @@ import { getManifest } from 'src/app/utils/get-package-data'
       overflow: hidden;
     }
 
+    td:not(:last-child) {
+      padding-inline-end: 1.5rem;
+    }
+
     td:last-child {
       white-space: nowrap;
       text-align: right;

@@ -1,16 +1,20 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  viewChild,
+} from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
 import { verify } from '@start9labs/argon2'
 import {
-  DialogService,
   ErrorService,
   i18nKey,
   i18nPipe,
   LoadingService,
 } from '@start9labs/shared'
 import { ISB } from '@start9labs/start-sdk'
-import { TuiButton, TuiTitle } from '@taiga-ui/core'
+import { TuiAlertService, TuiButton, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { from } from 'rxjs'
@@ -70,13 +74,14 @@ import { getServerInfo } from 'src/app/utils/get-server-info'
   ],
 })
 export default class SystemPasswordComponent {
-  private readonly dialog = inject(DialogService)
+  private readonly alerts = inject(TuiAlertService)
   private readonly loader = inject(LoadingService)
   private readonly errorService = inject(ErrorService)
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   private readonly api = inject(ApiService)
   private readonly i18n = inject(i18nPipe)
 
+  readonly form = viewChild(FormComponent)
   readonly spec = toSignal(from(configBuilderToSpec(this.passwordSpec())))
   readonly buttons = [
     {
@@ -119,7 +124,12 @@ export default class SystemPasswordComponent {
 
     try {
       await this.api.resetPassword({ oldPassword, newPassword })
-      this.dialog.openAlert('Password changed').subscribe()
+      this.form()?.form.reset()
+      this.alerts
+        .open(this.i18n.transform('Password changed'), {
+          appearance: 'positive',
+        })
+        .subscribe()
     } catch (e: any) {
       this.errorService.handleError(e)
     } finally {

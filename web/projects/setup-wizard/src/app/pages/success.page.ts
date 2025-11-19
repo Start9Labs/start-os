@@ -7,7 +7,7 @@ import {
   DOCUMENT,
 } from '@angular/core'
 import { DownloadHTMLService, ErrorService } from '@start9labs/shared'
-import { TuiButton, TuiIcon, TuiSurface } from '@taiga-ui/core'
+import { TuiButton, TuiIcon, TuiLoader, TuiSurface } from '@taiga-ui/core'
 import { TuiCardLarge } from '@taiga-ui/layout'
 import { DocumentationComponent } from 'src/app/components/documentation.component'
 import { MatrixComponent } from 'src/app/components/matrix.component'
@@ -64,6 +64,8 @@ import { StateService } from 'src/app/services/state.service'
           </strong>
         </a>
         <app-documentation hidden [lanAddress]="lanAddress" />
+      } @else {
+        <tui-loader />
       }
     </section>
   `,
@@ -114,6 +116,7 @@ import { StateService } from 'src/app/services/state.service'
     TuiSurface,
     MatrixComponent,
     DocumentationComponent,
+    TuiLoader,
   ],
 })
 export default class SuccessPage implements AfterViewInit {
