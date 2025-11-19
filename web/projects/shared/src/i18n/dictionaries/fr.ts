@@ -484,7 +484,7 @@ export default {
   512: 'Le mode kiosque n’est pas disponible sur cet appareil',
   513: 'Activer',
   514: 'Désactiver',
-  515: 'Ce changement prendra effet après le prochain démarrage',
+  515: 'Ce changement va prendre effet après le prochain démarrage',
   516: 'Recommandé',
   517: 'Êtes-vous sûr de vouloir ignorer cette tâche ?',
   518: 'Ignorer',
