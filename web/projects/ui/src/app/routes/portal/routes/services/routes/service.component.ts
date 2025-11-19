@@ -39,11 +39,7 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
       } @else if (installing()) {
         <service-install-progress [pkg]="pkg" />
       } @else if (installed()) {
-        <service-status
-          [connected]="!!connected()"
-          [installingInfo]="pkg.stateInfo.installingInfo"
-          [status]="status()"
-        >
+        <service-status [connected]="!!connected()" [pkg]="pkg">
           @if (connected()) {
             <service-controls [pkg]="pkg" [status]="status()" />
           }
@@ -51,10 +47,8 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
 
         @if (status() !== 'backingUp') {
           <service-health-checks [checks]="health()" />
-          <service-uptime
-            class="g-card"
-            [started]="$any(pkg.status)?.started"
-          />
+          <service-uptime class="g-card" [started]="$any(pkg.status).started" />
+          <service-interfaces [pkg]="pkg" [disabled]="status() !== 'running'" />
 
           @if (errors() | async; as errors) {
             <service-dependencies
@@ -63,7 +57,6 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
               [errors]="errors"
             />
           }
-          <service-interfaces [pkg]="pkg" [disabled]="status() !== 'running'" />
 
           <service-tasks
             #tasks="elementRef"
@@ -91,7 +84,7 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
           </button>
         }
       } @else if (removing()) {
-        <service-status [connected]="!!connected()" [status]="status()" />
+        <service-status [connected]="!!connected()" [pkg]="pkg" />
       }
     }
   `,
@@ -138,6 +131,10 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
 
       > * {
         grid-column: span 1;
+      }
+
+      service-uptime {
+        display: none;
       }
     }
   `,

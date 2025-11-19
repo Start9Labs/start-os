@@ -39,7 +39,9 @@ import { DocsLinkDirective } from '@start9labs/shared'
         "
           >
             <div>
-              <h3 style="color: #f8546a; font-weight: bold">Important!</h3>
+              <h2 style="font-variant-caps: all-small-caps">
+                Root Certificate Authority
+              </h2>
               <p>
                 Download your server's Root CA and
                 <a
@@ -47,7 +49,7 @@ import { DocsLinkDirective } from '@start9labs/shared'
                   path="/user-manual/trust-ca.html"
                   style="color: #6866cc; font-weight: bold; text-decoration: none"
                 >
-                  follow the instructions
+                  follow instructions
                 </a>
                 to establish a secure connection with your server.
               </p>
@@ -84,48 +86,21 @@ import { DocsLinkDirective } from '@start9labs/shared'
         "
           >
             <h2 style="font-variant-caps: all-small-caps">
-              Access from home (LAN)
+              Permanent Local Address
             </h2>
             <p>
-              Visit the address below when you are connected to the same WiFi or
-              Local Area Network (LAN) as your server.
+              You must be connected to the same Local Area Network (LAN) as your
+              server to access this address.
             </p>
             <p
               style="
-            padding: 16px;
+            padding: 16px 0;
             font-weight: bold;
             font-size: 1.1rem;
             overflow: auto;
           "
             >
               <code id="lan-addr"></code>
-            </p>
-
-            <h2 style="font-variant-caps: all-small-caps">
-              Access on the go (Tor)
-            </h2>
-            <p>Visit the address below when you are away from home.</p>
-            <p>
-              <span style="font-weight: bold">Note:</span>
-              This address will only work from a Tor-enabled browser.
-              <a
-                docsLink
-                path="/user-manual/connecting-remotely/tor.html"
-                style="color: #6866cc; font-weight: bold; text-decoration: none"
-              >
-                Follow the instructions
-              </a>
-              to get setup.
-            </p>
-            <p
-              style="
-            padding: 16px;
-            font-weight: bold;
-            font-size: 1.1rem;
-            overflow: auto;
-          "
-            >
-              <code id="tor-addr"></code>
             </p>
           </section>
         </div>

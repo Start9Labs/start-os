@@ -1,17 +1,17 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  inject,
-  Input,
+  computed,
+  input,
 } from '@angular/core'
-import { i18nKey, i18nPipe } from '@start9labs/shared'
-import { T } from '@start9labs/start-sdk'
+import { i18nPipe } from '@start9labs/shared'
 import { TuiLoader } from '@taiga-ui/core'
+import { ServiceUptimeComponent } from 'src/app/routes/portal/routes/services/components/uptime.component'
 import { getProgressText } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
-import { InstallingInfo } from 'src/app/services/patch-db/data-model'
+import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import {
+  getInstalledPrimaryStatus,
   PrimaryRendering,
-  PrimaryStatus,
 } from 'src/app/services/pkg-status-rendering.service'
 
 @Component({
@@ -19,22 +19,26 @@ import {
   template: `
     <header>{{ 'Status' | i18n }}</header>
     <div>
-      @if (installingInfo) {
+      @if (info()) {
         <h3>
           <tui-loader size="s" [inheritColor]="true" />
           {{ 'Installing' | i18n }}
           <span class="loading-dots"></span>
-          {{ getText(installingInfo.progress.overall) | i18n }}
+          {{ info() | i18n }}
         </h3>
       } @else {
-        <h3 [class]="class">
-          {{ text | i18n }}
-          @if (text === 'Task Required') {
+        <h3 [class]="class()">
+          {{ text() || 'Unknown' | i18n }}
+          @if (text() === 'Task Required') {
             <small>{{ 'See below' | i18n }}</small>
           }
 
-          @if (rendering?.showDots) {
+          @if (rendering().showDots) {
             <span class="loading-dots"></span>
+          }
+
+          @if ($any(pkg().status)?.started; as started) {
+            <service-uptime [started]="started" />
           }
         </h3>
       }
@@ -76,6 +80,12 @@ import {
       margin: 0 0.25rem -0.125rem 0;
     }
 
+    service-uptime {
+      display: none;
+      width: fit-content;
+      margin: 0.5rem 0.125rem;
+    }
+
     :host-context(tui-root._mobile) {
       :host {
         min-height: 0;
@@ -94,32 +104,33 @@ import {
       small {
         text-align: left;
       }
+
+      service-uptime {
+        display: flex;
+      }
     }
   `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiLoader, i18nPipe],
+  imports: [TuiLoader, i18nPipe, ServiceUptimeComponent],
 })
 export class ServiceStatusComponent {
-  @Input({ required: true })
-  status?: PrimaryStatus
+  readonly pkg = input.required<PackageDataEntry>()
+  readonly connected = input(false)
 
-  @Input()
-  installingInfo?: InstallingInfo
+  protected readonly status = computed((pkg = this.pkg()) =>
+    pkg?.stateInfo.state === 'installed'
+      ? getInstalledPrimaryStatus(pkg)
+      : pkg?.stateInfo.state,
+  )
 
-  @Input()
-  connected = false
+  protected readonly rendering = computed(() => PrimaryRendering[this.status()])
+  protected readonly text = computed(
+    () => this.connected() && this.rendering().display,
+  )
 
-  private readonly i18n = inject(i18nPipe)
-
-  get text(): i18nKey {
-    return this.connected ? this.rendering?.display || 'Unknown' : 'Unknown'
-  }
-
-  get class(): string | null {
-    if (!this.connected) return null
-
-    switch (this.rendering?.color) {
+  protected readonly class = computed(() => {
+    switch (this.connected() && this.rendering().color) {
       case 'danger':
         return 'g-negative'
       case 'warning':
@@ -131,13 +142,10 @@ export class ServiceStatusComponent {
       default:
         return null
     }
-  }
+  })
 
-  get rendering() {
-    return this.status && PrimaryRendering[this.status]
-  }
-
-  getText(progress: T.Progress): i18nKey {
-    return getProgressText(progress)
-  }
+  protected readonly info = computed(
+    (progress = this.pkg().stateInfo.installingInfo?.progress.overall) =>
+      progress ? getProgressText(progress) : '',
+  )
 }

@@ -484,7 +484,7 @@ export default {
   512: 'El modo quiosco no está disponible en este dispositivo',
   513: 'Activar',
   514: 'Desactivar',
-  515: 'Actualmente estás utilizando un quiosco. Desactivar el modo quiosco provocará su desconexión.',
+  515: 'Este cambio tendrá efecto después del próximo inicio',
   516: 'Recomendado',
   517: '¿Estás seguro de que deseas descartar esta tarea?',
   518: 'Descartar',
