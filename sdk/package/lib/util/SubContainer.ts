@@ -410,12 +410,17 @@ export class SubContainerOwned<
       workdir = options.cwd
       delete options.cwd
     }
+    if (options?.env) {
+      for (let [k, v] of Object.entries(options.env)) {
+        extra.push(`--env=${k}=${v}`)
+      }
+    }
     const child = cp.spawn(
       "start-container",
       [
         "subcontainer",
         "exec",
-        `--env=/media/startos/images/${this.imageId}.env`,
+        `--env-file=/media/startos/images/${this.imageId}.env`,
         `--user=${user}`,
         `--workdir=${workdir}`,
         ...extra,
@@ -530,6 +535,11 @@ export class SubContainerOwned<
       workdir = options.cwd
       delete options.cwd
     }
+    if (options?.env) {
+      for (let [k, v] of Object.entries(options.env)) {
+        extra.push(`--env=${k}=${v}`)
+      }
+    }
     await this.killLeader()
     this.leaderExited = false
     this.leader = cp.spawn(
@@ -537,7 +547,7 @@ export class SubContainerOwned<
       [
         "subcontainer",
         "launch",
-        `--env=/media/startos/images/${this.imageId}.env`,
+        `--env-file=/media/startos/images/${this.imageId}.env`,
         `--user=${user}`,
         `--workdir=${workdir}`,
         ...extra,
@@ -574,12 +584,17 @@ export class SubContainerOwned<
       workdir = options.cwd
       delete options.cwd
     }
+    if (options?.env) {
+      for (let [k, v] of Object.entries(options.env)) {
+        extra.push(`--env=${k}=${v}`)
+      }
+    }
     return cp.spawn(
       "start-container",
       [
         "subcontainer",
         "exec",
-        `--env=/media/startos/images/${this.imageId}.env`,
+        `--env-file=/media/startos/images/${this.imageId}.env`,
         `--user=${user}`,
         `--workdir=${workdir}`,
         ...extra,

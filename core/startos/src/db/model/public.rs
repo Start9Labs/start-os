@@ -260,11 +260,7 @@ impl NetworkInterfaceInfo {
     }
 
     pub fn secure(&self) -> bool {
-        self.secure.unwrap_or_else(|| {
-            self.ip_info.as_ref().map_or(false, |ip_info| {
-                ip_info.device_type == Some(NetworkInterfaceType::Wireguard)
-            }) && !self.public()
-        })
+        self.secure.unwrap_or(false)
     }
 }
 

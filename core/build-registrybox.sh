@@ -12,7 +12,7 @@ if [ "${PROFILE}" = "release" ]; then
 	BUILD_FLAGS="--release"
 else
   if [ "$PROFILE" != "debug"]; then
-    >&2 echo "Unknonw profile $PROFILE: falling back to debug..."
+    >&2 echo "Unknown profile $PROFILE: falling back to debug..."
     PROFILE=debug
   fi
 fi
