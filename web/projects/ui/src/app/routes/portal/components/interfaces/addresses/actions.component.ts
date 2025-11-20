@@ -17,6 +17,7 @@ import {
   tuiButtonOptionsProvider,
   TuiDataList,
   TuiDropdown,
+  TuiIcon,
   TuiTextfield,
 } from '@taiga-ui/core'
 import { PolymorpheusComponent } from '@taiga-ui/polymorpheus'
@@ -27,13 +28,9 @@ import { InterfaceComponent } from '../interface.component'
   selector: 'td[actions]',
   template: `
     <div class="desktop">
-      <button
-        tuiIconButton
-        appearance="flat-grayscale"
-        iconStart="@tui.info"
-        (click)="viewDetails()"
-      >
+      <button tuiIconButton appearance="flat-grayscale" (click)="viewDetails()">
         {{ 'Address details' | i18n }}
+        <tui-icon class="info" icon="@tui.info" background="@tui.info-filled" />
       </button>
       @if (interface.value()?.type === 'ui') {
         <a
@@ -113,6 +110,19 @@ import { InterfaceComponent } from '../interface.component'
       white-space: nowrap;
     }
 
+    :host-context(.uncommon-hidden) .desktop {
+      height: 0;
+      visibility: hidden;
+    }
+
+    .info {
+      background: var(--tui-status-info);
+
+      &::after {
+        mask-size: 1.5rem;
+      }
+    }
+
     .mobile {
       display: none;
     }
@@ -127,7 +137,14 @@ import { InterfaceComponent } from '../interface.component'
       }
     }
   `,
-  imports: [TuiButton, TuiDropdown, TuiDataList, i18nPipe, TuiTextfield],
+  imports: [
+    TuiButton,
+    TuiDropdown,
+    TuiDataList,
+    i18nPipe,
+    TuiTextfield,
+    TuiIcon,
+  ],
   providers: [tuiButtonOptionsProvider({ appearance: 'icon' })],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

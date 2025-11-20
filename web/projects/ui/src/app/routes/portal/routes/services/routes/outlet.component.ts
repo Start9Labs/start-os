@@ -47,7 +47,9 @@ const INACTIVE: PrimaryStatus[] = [
       </div>
       <aside class="g-aside">
         <header tuiCell routerLink="./">
-          <tui-avatar><img alt="" [src]="service()?.icon" /></tui-avatar>
+          <tui-avatar appearance="action-grayscale">
+            <img alt="" [src]="service()?.icon" />
+          </tui-avatar>
           <span tuiTitle>
             <strong tuiFade>{{ manifest()?.title }}</strong>
             <span tuiSubtitle>{{ manifest()?.version }}</span>

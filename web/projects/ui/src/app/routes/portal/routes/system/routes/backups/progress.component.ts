@@ -18,7 +18,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     @for (pkg of pkgs() | keyvalue; track $index) {
       @if (backupProgress()?.[pkg.key]; as progress) {
         <div tuiCell>
-          <tui-avatar>
+          <tui-avatar appearance="action-grayscale">
             <img alt="" [src]="pkg.value.icon" />
           </tui-avatar>
           <span tuiTitle>
