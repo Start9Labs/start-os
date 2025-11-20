@@ -69,6 +69,11 @@ jobs:
           }}
     runs-on: ${{ fromJson('["ubuntu-latest", "buildjet-32vcpu-ubuntu-2204"]')[github.event.inputs.runner == 'fast'] }}
     steps:
+      - name: Cleaning up unnecessary files
+        run: |
+          sudo apt-get remove --purge -y google-chrome-stable firefox mono-devel
+          sudo apt-get autoremove -y
+          sudo apt-get clean
       - run: |
           sudo mount -t tmpfs tmpfs .
         if: ${{ github.event.inputs.runner == 'fast' }}
