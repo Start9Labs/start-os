@@ -67,7 +67,7 @@ jobs:
               "ALL": ["x86_64", "aarch64"]
             }')[github.event.inputs.platform || 'ALL']
           }}
-    runs-on: ${{ fromJson('["ubuntu-22.04", "buildjet-32vcpu-ubuntu-2204"]')[github.event.inputs.runner == 'fast'] }}
+    runs-on: ${{ fromJson('["ubuntu-latest", "buildjet-32vcpu-ubuntu-2204"]')[github.event.inputs.runner == 'fast'] }}
     steps:
       - run: |
           sudo mount -t tmpfs tmpfs .
@@ -134,7 +134,7 @@ jobs:
       ${{
         fromJson(
           format(
-            '["ubuntu-22.04", "{0}"]',
+            '["ubuntu-latest", "{0}"]',
             fromJson('{
               "x86_64": "buildjet-8vcpu-ubuntu-2204",
               "x86_64-nonfree": "buildjet-8vcpu-ubuntu-2204",
@@ -267,7 +267,7 @@ jobs:
   index:
     if: ${{ github.event.inputs.deploy != '' && github.event.inputs.deploy != 'NONE' }}
     needs: [image]
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
       - run: >-
           curl "https://${{
