@@ -41,7 +41,7 @@ env:
 
 jobs:
   compile:
-    name: Compile Base Binaries
+    name: Build Debian Package
     strategy:
       fail-fast: true
       matrix:
@@ -97,4 +97,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: start-tunnel_${{ matrix.arch }}.deb
-          path: start-tunnel-*_${{ matrix.arch }}.deb
+          path: results/start-tunnel-*_${{ matrix.arch }}.deb
