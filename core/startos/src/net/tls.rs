@@ -217,10 +217,15 @@ where
                                 .write_all(&buffered)
                                 .await
                                 .with_kind(ErrorKind::Network)?;
-                            return Ok(Some((
-                                metadata,
-                                Box::pin(mid.into_stream(Arc::new(cfg)).await?) as AcceptStream,
-                            )));
+                            let stream = match mid.into_stream(Arc::new(cfg)).await {
+                                Ok(stream) => Box::pin(stream) as AcceptStream,
+                                Err(e) => {
+                                    tracing::trace!("Error completing TLS handshake: {e}");
+                                    tracing::trace!("{e:?}");
+                                    return Ok(None);
+                                }
+                            };
+                            return Ok(Some((metadata, stream)));
                         }
 
                         Ok(None)
