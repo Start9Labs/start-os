@@ -39,6 +39,23 @@ pub struct AddTunnelParams {
     public: bool,
 }
 
+fn sanitize_config(config: &str) -> String {
+    let mut res = String::with_capacity(config.len());
+    for line in config.lines() {
+        if line
+            .trim()
+            .strip_prefix("AllowedIPs")
+            .map_or(false, |l| l.trim().starts_with("="))
+        {
+            res.push_str("AllowedIPs = 0.0.0.0/0, ::/0");
+        } else {
+            res.push_str(line);
+        }
+        res.push('\n');
+    }
+    res
+}
+
 pub async fn add_tunnel(
     ctx: RpcContext,
     AddTunnelParams {
@@ -86,7 +103,7 @@ pub async fn add_tunnel(
 
     let tmpdir = TmpDir::new().await?;
     let conf = tmpdir.join(&iface).with_extension("conf");
-    write_file_atomic(&conf, &config).await?;
+    write_file_atomic(&conf, &sanitize_config(&config)).await?;
     Command::new("nmcli")
         .arg("connection")
         .arg("import")
