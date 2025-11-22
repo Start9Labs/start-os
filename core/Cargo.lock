@@ -7908,7 +7908,7 @@ dependencies = [
 
 [[package]]
 name = "start-os"
-version = "0.4.0-alpha.13"
+version = "0.4.0-alpha.14"
 dependencies = [
  "aes 0.7.5",
  "arti-client",

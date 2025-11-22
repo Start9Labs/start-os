@@ -885,7 +885,7 @@ pub async fn attach(
             .arg("start-container")
             .arg("subcontainer")
             .arg("exec")
-            .arg("--env")
+            .arg("--env-file")
             .arg(
                 Path::new("/media/startos/images")
                     .join(image_id)

@@ -4,7 +4,7 @@ use exver::{PreReleaseSegment, VersionRange};
 use imbl_value::InternedString;
 
 use super::v0_3_5::V0_3_0_COMPAT;
-use super::{VersionT, v0_4_0_alpha_11};
+use super::{v0_4_0_alpha_11, VersionT};
 use crate::net::tor::TorSecretKey;
 use crate::prelude::*;
 
@@ -75,7 +75,10 @@ impl VersionT for Version {
         }
         fix_host(&mut db["public"]["serverInfo"]["network"]["host"])?;
 
-        db["private"]["keyStore"]["localCerts"] = db["private"]["keyStore"]["local_certs"].clone();
+        if db["private"]["keyStore"]["localCerts"].is_null() {
+            db["private"]["keyStore"]["localCerts"] =
+                db["private"]["keyStore"]["local_certs"].clone();
+        }
 
         Ok(Value::Null)
     }

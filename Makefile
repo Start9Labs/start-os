@@ -40,7 +40,6 @@ STARTOS_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_
 	fi')
 REGISTRY_TARGETS := core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox core/startos/start-registryd.service
 TUNNEL_TARGETS := core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/tunnelbox core/startos/start-tunneld.service
-REBUILD_TYPES = 1
 
 ifeq ($(REMOTE),)
 	mkdir = mkdir -p $1
@@ -63,7 +62,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs wormhole wormhole-deb test test-core test-sdk test-container-runtime registry install-registry tunnel install-tunnel
+.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs wormhole wormhole-deb test test-core test-sdk test-container-runtime registry install-registry tunnel install-tunnel ts-bindings
 
 all: $(STARTOS_TARGETS)
 
@@ -277,10 +276,9 @@ container-runtime/node_modules/.package-lock.json: container-runtime/package-loc
 	npm --prefix container-runtime ci
 	touch container-runtime/node_modules/.package-lock.json
 
-sdk/base/lib/osBindings/index.ts: $(shell if [ "$(REBUILD_TYPES)" -ne 0 ]; then echo core/startos/bindings/index.ts; fi)
+ts-bindings: core/startos/bindings/index.ts
 	mkdir -p sdk/base/lib/osBindings
 	rsync -ac --delete core/startos/bindings/ sdk/base/lib/osBindings/
-	touch sdk/base/lib/osBindings/index.ts
 
 core/startos/bindings/index.ts: $(call ls-files, core) $(ENVIRONMENT_FILE)
 	rm -rf core/startos/bindings

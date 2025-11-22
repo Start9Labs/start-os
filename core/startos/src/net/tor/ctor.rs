@@ -649,16 +649,6 @@ async fn torctl(
             .invoke(ErrorKind::Tor)
             .await?;
 
-        let logs = journalctl(
-            LogSource::Unit(SYSTEMD_UNIT),
-            Some(0),
-            None,
-            Some("0"),
-            false,
-            true,
-        )
-        .await?;
-
         let mut tcp_stream = None;
         for _ in 0..60 {
             if let Ok(conn) = TcpStream::connect(tor_control).await {
@@ -720,7 +710,7 @@ async fn torctl(
                 ErrorKind::Tor,
             ));
         }
-        Ok((connection, logs))
+        Ok(connection)
     };
     let pre_handler = async {
         while let Some(command) = recv.recv().await {
@@ -745,7 +735,7 @@ async fn torctl(
         Ok(())
     };
 
-    let (mut connection, mut logs) = tokio::select! {
+    let mut connection = tokio::select! {
         res = bootstrap => res?,
         res = pre_handler => return res,
     };
@@ -851,46 +841,59 @@ async fn torctl(
         Ok(())
     };
     let log_parser = async {
-        while let Some(log) = logs.try_next().await? {
-            for (regex, severity) in &*LOG_REGEXES {
-                if regex.is_match(&log.message) {
-                    let (check, wipe_state) = match severity {
-                        ErrorLogSeverity::Fatal { wipe_state } => (false, *wipe_state),
-                        ErrorLogSeverity::Unknown { wipe_state } => (true, *wipe_state),
-                    };
-                    let addr = hck_key.public().get_onion_address().to_string();
-                    if !check
-                        || TcpStream::connect(tor_socks)
-                            .map_err(|e| Error::new(e, ErrorKind::Tor))
-                            .and_then(|mut tor_socks| async move {
-                                tokio::time::timeout(
-                                    Duration::from_secs(30),
-                                    socks5_impl::client::connect(&mut tor_socks, (addr, 80), None)
-                                        .map_err(|e| Error::new(e, ErrorKind::Tor)),
-                                )
+        loop {
+            let mut logs = journalctl(
+                LogSource::Unit(SYSTEMD_UNIT),
+                Some(0),
+                None,
+                Some("0"),
+                false,
+                true,
+            )
+            .await?;
+            while let Some(log) = logs.try_next().await? {
+                for (regex, severity) in &*LOG_REGEXES {
+                    if regex.is_match(&log.message) {
+                        let (check, wipe_state) = match severity {
+                            ErrorLogSeverity::Fatal { wipe_state } => (false, *wipe_state),
+                            ErrorLogSeverity::Unknown { wipe_state } => (true, *wipe_state),
+                        };
+                        let addr = hck_key.public().get_onion_address().to_string();
+                        if !check
+                            || TcpStream::connect(tor_socks)
                                 .map_err(|e| Error::new(e, ErrorKind::Tor))
-                                .await?
-                            })
-                            .await
-                            .with_ctx(|_| (ErrorKind::Tor, "Tor is confirmed to be down"))
-                            .log_err()
-                            .is_some()
-                    {
-                        if wipe_state {
-                            Command::new("systemctl")
-                                .arg("stop")
-                                .arg("tor")
-                                .invoke(ErrorKind::Tor)
-                                .await?;
-                            tokio::fs::remove_dir_all("/var/lib/tor").await?;
+                                .and_then(|mut tor_socks| async move {
+                                    tokio::time::timeout(
+                                        Duration::from_secs(30),
+                                        socks5_impl::client::connect(
+                                            &mut tor_socks,
+                                            (addr, 80),
+                                            None,
+                                        )
+                                        .map_err(|e| Error::new(e, ErrorKind::Tor)),
+                                    )
+                                    .map_err(|e| Error::new(e, ErrorKind::Tor))
+                                    .await?
+                                })
+                                .await
+                                .with_ctx(|_| (ErrorKind::Tor, "Tor is confirmed to be down"))
+                                .log_err()
+                                .is_some()
+                        {
+                            if wipe_state {
+                                Command::new("systemctl")
+                                    .arg("stop")
+                                    .arg("tor")
+                                    .invoke(ErrorKind::Tor)
+                                    .await?;
+                                tokio::fs::remove_dir_all("/var/lib/tor").await?;
+                            }
+                            return Err(Error::new(eyre!("{}", log.message), ErrorKind::Tor));
                         }
-                        return Err(Error::new(eyre!("{}", log.message), ErrorKind::Tor));
                     }
                 }
             }
         }
-        // Err(Error::new(eyre!("Log stream terminated"), ErrorKind::Tor))
-        Ok(())
     };
     let health_checker = async {
         let mut last_success = Instant::now();
@@ -960,20 +963,23 @@ impl TorControl {
             _thread: tokio::spawn(async move {
                 let wipe_state = AtomicBool::new(false);
                 let mut health_timeout = Duration::from_secs(STARTING_HEALTH_TIMEOUT);
-                while let Err(e) = torctl(
-                    tor_control,
-                    tor_socks,
-                    &mut recv,
-                    &mut thread_services,
-                    &wipe_state,
-                    &mut health_timeout,
-                )
-                .await
-                {
-                    tracing::error!("{e}: Restarting tor");
-                    tracing::debug!("{e:?}");
+                loop {
+                    if let Err(e) = torctl(
+                        tor_control,
+                        tor_socks,
+                        &mut recv,
+                        &mut thread_services,
+                        &wipe_state,
+                        &mut health_timeout,
+                    )
+                    .await
+                    {
+                        tracing::error!("TorControl : {e}");
+                        tracing::debug!("{e:?}");
+                    }
+                    tracing::info!("Restarting Tor");
+                    tokio::time::sleep(Duration::from_secs(1)).await;
                 }
-                tracing::info!("TorControl is shut down.")
             })
             .into(),
             send,

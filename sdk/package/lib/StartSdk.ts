@@ -61,7 +61,7 @@ import {
 } from "../../base/lib/inits"
 import { DropGenerator } from "../../base/lib/util/Drop"
 
-export const OSVersion = testTypeVersion("0.4.0-alpha.13")
+export const OSVersion = testTypeVersion("0.4.0-alpha.14")
 
 // prettier-ignore
 type AnyNeverCond<T extends any[], Then, Else> = 

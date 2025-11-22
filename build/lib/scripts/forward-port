@@ -25,5 +25,5 @@ apply_rule PREROUTING -p tcp -d $sip --dport $sport -j DNAT --to-destination $di
 apply_rule OUTPUT -p tcp -d $sip --dport $sport -j DNAT --to-destination $dip:$dport
 
 if [ "$UNDO" = 1 ]; then
-    conntrack -D -p tcp -d $sip --dport $sport
+    conntrack -D -p tcp -d $sip --dport $sport || true # conntrack returns exit 1 if no connections are active
 fi
