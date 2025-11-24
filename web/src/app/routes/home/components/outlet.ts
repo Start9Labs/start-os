@@ -46,6 +46,7 @@ import { SidebarService } from 'src/app/services/sidebar.service'
 
       ::ng-deep > .t-content {
         height: 100%;
+        width: auto;
       }
     }
 
