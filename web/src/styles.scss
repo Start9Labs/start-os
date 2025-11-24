@@ -46,6 +46,9 @@ li {
 }
 
 header[tuiHeader] {
+  position: sticky;
+  left: 1.5rem;
+  max-width: calc(100vw - 3rem);
   margin-block-end: 1rem;
 }
 
@@ -125,20 +128,18 @@ header[tuiHeader] {
   background: var(--tui-background-neutral-1);
   box-shadow: inset 0 0 0 1px var(--tui-background-neutral-1);
 
-  thead tr {
-    position: sticky;
-    top: 0;
-    background: var(--tui-background-neutral-1);
-    backdrop-filter: blur(5rem);
-    border-radius: var(--tui-radius-s) var(--tui-radius-s) 0 0;
-    z-index: 1;
-    background: rgb(255 255 255 / 80%);
-    box-shadow:
-      inset 1px 0 var(--tui-background-neutral-1),
-      inset -1px 0 var(--tui-background-neutral-1);
+  caption {
+    text-align: start;
+    font: var(--tui-font-text-l);
+    font-weight: bold;
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.5rem 0.5rem 0 0;
+    box-shadow: inset 0 1px var(--tui-border-normal);
+  }
 
-    [tuiTheme='dark'] & {
-      background: rgb(255 255 255 / 10%);
+  thead:first-child {
+    tr {
+      border-radius: var(--tui-radius-s) var(--tui-radius-s) 0 0;
     }
 
     th:first-child {
@@ -147,6 +148,22 @@ header[tuiHeader] {
 
     th:last-child {
       border-radius: 0 var(--tui-radius-s) 0 0;
+    }
+  }
+
+  thead tr {
+    position: sticky;
+    top: 0;
+    background: var(--tui-background-neutral-1);
+    backdrop-filter: blur(5rem);
+    z-index: 1;
+    background: rgb(255 255 255 / 80%);
+    box-shadow:
+      inset 1px 0 var(--tui-background-neutral-1),
+      inset -1px 0 var(--tui-background-neutral-1);
+
+    [tuiTheme='dark'] & {
+      background: rgb(255 255 255 / 10%);
     }
   }
 

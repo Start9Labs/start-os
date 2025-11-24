@@ -19,6 +19,10 @@ export default [
         loadChildren: () => import('./routes/lan'),
       },
       {
+        path: 'devices',
+        loadChildren: () => import('./routes/devices'),
+      },
+      {
         path: 'settings',
         loadChildren: () => import('./routes/settings'),
       },
