@@ -37,13 +37,7 @@ import { Device } from './index'
             </a>
           </td>
           <td tuiTd>
-            @if (item.permission) {
-              <div tuiChip size="xs" iconStart="@tui.scroll">
-                {{ item.permission }}
-              </div>
-            } @else {
-              -
-            }
+            {{ item.permission || '-' }}
           </td>
           <td tuiTd>{{ item.mac }}</td>
           <td tuiTd>

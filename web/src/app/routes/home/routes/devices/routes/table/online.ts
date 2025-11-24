@@ -38,9 +38,7 @@ import { Device } from './index'
             </div>
           </td>
           <td tuiTd>
-            <div tuiChip size="xs" iconStart="@tui.clock">
-              {{ item.permission }}
-            </div>
+            {{ item.permission }}
           </td>
           <td tuiTd>{{ item.mac }}</td>
           <td tuiTd>
