@@ -21,7 +21,10 @@ import { MarketplacePkg } from '../../types'
             [queryParams]="{ id: pkg.id, flavor: pkg.flavor }"
             queryParamsHandling="merge"
           >
-            <tui-avatar [src]="pkg.icon | trustUrl" />
+            <tui-avatar
+              appearance="action-grayscale"
+              [src]="pkg.icon | trustUrl"
+            />
             <span tuiTitle>
               {{ pkg.title }}
               <span tuiSubtitle>{{ pkg.version }}</span>

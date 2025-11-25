@@ -45,7 +45,9 @@ import UpdatesComponent from './updates.component'
     <tr (click)="expanded.set(!expanded())">
       <td>
         <div [style.gap.rem]="0.75" [style.padding-inline-end.rem]="1">
-          <tui-avatar size="s"><img alt="" [src]="item().icon" /></tui-avatar>
+          <tui-avatar appearance="action-grayscale" size="s">
+            <img alt="" [src]="item().icon" />
+          </tui-avatar>
           <span tuiTitle [style.margin]="'-0.125rem 0 0'">
             <b tuiFade>{{ item().title }}</b>
             <span tuiSubtitle tuiFade class="mobile">

@@ -10,7 +10,12 @@ import { MarketplacePkgBase } from '../../../types'
   selector: 'marketplace-dep-item',
   template: `
     <div class="outer-container">
-      <tui-avatar class="dep-img" size="l" [src]="getImage(dep.key)" />
+      <tui-avatar
+        appearance="action-grayscale"
+        class="dep-img"
+        size="l"
+        [src]="getImage(dep.key)"
+      />
       <div>
         <tui-line-clamp [linesLimit]="2" [content]="titleContent" />
         <ng-template #titleContent>
