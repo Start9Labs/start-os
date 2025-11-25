@@ -69,7 +69,7 @@ interface UpdatesData {
           [class.g-secondary]="current()?.url !== registry.url"
           (click)="current.set(registry)"
         >
-          <tui-avatar>
+          <tui-avatar appearance="action-grayscale">
             <store-icon [url]="registry.url" />
           </tui-avatar>
           <span tuiTitle>

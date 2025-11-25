@@ -40,7 +40,9 @@ import { HintPipe } from '../pipes/hint.pipe'
           [(ngModel)]="selected"
         />
       }
-      <tui-data-list-wrapper *tuiTextfieldDropdown new [items]="items" />
+      @if (!mobile) {
+        <tui-data-list-wrapper *tuiTextfieldDropdown new [items]="items" />
+      }
       @if (spec | hint; as hint) {
         <tui-icon [tuiTooltip]="hint" />
       }

@@ -13,6 +13,8 @@ import { i18nKey, i18nPipe } from '@start9labs/shared'
       </tr>
     </thead>
     <tbody><ng-content /></tbody>
+    <ng-content select="tbody" />
+    <ng-content select="caption" />
   `,
   styles: `
     :host:has(app-placeholder) thead {

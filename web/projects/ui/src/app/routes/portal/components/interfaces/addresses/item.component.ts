@@ -8,27 +8,31 @@ import { TuiBadge } from '@taiga-ui/kit'
   selector: 'tr[address]',
   template: `
     @if (address(); as address) {
-      <td>{{ address.type }}</td>
       <td>
-        @if (address.access === 'public') {
-          <tui-badge size="s" appearance="primary-success">
-            {{ 'public' | i18n }}
-          </tui-badge>
-        } @else if (address.access === 'private') {
-          <tui-badge size="s" appearance="primary-destructive">
-            {{ 'private' | i18n }}
-          </tui-badge>
-        } @else {
-          -
-        }
+        <div class="wrapper">{{ address.type }}</div>
+      </td>
+      <td>
+        <div class="wrapper">
+          @if (address.access === 'public') {
+            <tui-badge size="s" appearance="primary-success">
+              {{ 'public' | i18n }}
+            </tui-badge>
+          } @else if (address.access === 'private') {
+            <tui-badge size="s" appearance="primary-destructive">
+              {{ 'private' | i18n }}
+            </tui-badge>
+          } @else {
+            -
+          }
+        </div>
       </td>
       <td [style.order]="-1">
-        <div [title]="address.gatewayName">
+        <div class="wrapper" [title]="address.gatewayName">
           {{ address.gatewayName || '-' }}
         </div>
       </td>
       <td>
-        <div [title]="address.url">{{ address.url }}</div>
+        <div class="wrapper" [title]="address.url">{{ address.url }}</div>
       </td>
       <td
         actions
@@ -45,6 +49,18 @@ import { TuiBadge } from '@taiga-ui/kit'
 
       td:last-child {
         padding-inline-start: 0;
+      }
+    }
+
+    :host-context(.uncommon-hidden) {
+      .wrapper {
+        height: 0;
+        visibility: hidden;
+      }
+
+      td {
+        padding-block: 0;
+        border: hidden;
       }
     }
 
