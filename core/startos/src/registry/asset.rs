@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
@@ -84,6 +85,26 @@ impl RegistryAsset<MerkleArchiveCommitment> {
         )
         .await
     }
+    pub async fn download_to(
+        &self,
+        path: impl AsRef<Path>,
+        client: Client,
+        progress: PhaseProgressTrackerHandle,
+    ) -> Result<
+        (
+            S9pk<Section<Arc<BufferedHttpSource>>>,
+            Arc<BufferedHttpSource>,
+        ),
+        Error,
+    > {
+        let source = Arc::new(
+            BufferedHttpSource::with_path(path, client, self.url.clone(), progress).await?,
+        );
+        Ok((
+            S9pk::deserialize(&source, Some(&self.commitment)).await?,
+            source,
+        ))
+    }
 }
 
 pub struct BufferedHttpSource {
@@ -91,6 +112,19 @@ pub struct BufferedHttpSource {
     file: UploadingFile,
 }
 impl BufferedHttpSource {
+    pub async fn with_path(
+        path: impl AsRef<Path>,
+        client: Client,
+        url: Url,
+        progress: PhaseProgressTrackerHandle,
+    ) -> Result<Self, Error> {
+        let (mut handle, file) = UploadingFile::with_path(path, progress).await?;
+        let response = client.get(url).send().await?;
+        Ok(Self {
+            _download: tokio::spawn(async move { handle.download(response).await }).into(),
+            file,
+        })
+    }
     pub async fn new(
         client: Client,
         url: Url,
@@ -102,6 +136,9 @@ impl BufferedHttpSource {
             _download: tokio::spawn(async move { handle.download(response).await }).into(),
             file,
         })
+    }
+    pub async fn wait_for_buffered(&self) -> Result<(), Error> {
+        self.file.wait_for_complete().await
     }
 }
 impl ArchiveSource for BufferedHttpSource {

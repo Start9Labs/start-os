@@ -205,6 +205,7 @@ fi
 useradd --shell /bin/bash -G startos -m start9
 echo start9:embassy | chpasswd
 usermod -aG sudo start9
+usermod -aG systemd-journal start9
 
 echo "start9 ALL=(ALL:ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/010_start9-nopasswd"
 

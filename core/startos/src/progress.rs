@@ -353,7 +353,7 @@ impl FullProgressTracker {
         }
     }
     pub fn progress_bar_task(&self, name: &str) -> NonDetachingJoinHandle<()> {
-        let mut stream = self.stream(None);
+        let mut stream = self.stream(Some(Duration::from_millis(200)));
         let mut bar = PhasedProgressBar::new(name);
         tokio::spawn(async move {
             while let Some(progress) = stream.next().await {

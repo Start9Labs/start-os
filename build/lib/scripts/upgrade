@@ -61,7 +61,7 @@ fi
 
 chroot /media/startos/next bash -e << "EOF"
 
-if dpkg -s grub-common 2>&1 > /dev/null; then
+if [ -f /boot/grub/grub.cfg ]; then
     grub-install /dev/$(eval $(lsblk -o MOUNTPOINT,PKNAME -P | grep 'MOUNTPOINT="/media/startos/root"') && echo $PKNAME)
     update-grub
 fi
@@ -70,7 +70,7 @@ EOF
 
 sync
 
-umount -R /media/startos/next
+umount -Rl /media/startos/next
 umount /media/startos/upper
 umount /media/startos/lower
 
