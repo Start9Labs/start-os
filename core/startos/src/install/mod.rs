@@ -29,6 +29,7 @@ use crate::registry::context::{RegistryContext, RegistryUrlParams};
 use crate::registry::package::get::GetPackageResponse;
 use crate::rpc_continuations::{Guid, RpcContinuation};
 use crate::s9pk::manifest::PackageId;
+use crate::s9pk::v2::SIG_CONTEXT;
 use crate::upload::upload;
 use crate::util::Never;
 use crate::util::io::open_file;
@@ -153,6 +154,8 @@ pub async fn install(
             )
         })?
         .s9pk;
+
+    asset.validate(SIG_CONTEXT, asset.all_signers())?;
 
     let progress_tracker = FullProgressTracker::new();
     let download_progress = progress_tracker.add_phase("Downloading".into(), Some(100));

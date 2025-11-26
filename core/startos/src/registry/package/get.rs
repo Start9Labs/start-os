@@ -1,19 +1,27 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::{Path, PathBuf};
 
 use clap::{Parser, ValueEnum};
 use exver::{ExtendedVersion, VersionRange};
-use imbl_value::InternedString;
+use helpers::to_tmp_path;
+use imbl_value::{InternedString, json};
 use itertools::Itertools;
 use models::PackageId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::context::CliContext;
 use crate::prelude::*;
+use crate::progress::{FullProgressTracker, ProgressUnits};
 use crate::registry::context::RegistryContext;
 use crate::registry::device_info::DeviceInfo;
 use crate::registry::package::index::{PackageIndex, PackageVersionInfo};
+use crate::s9pk::merkle_archive::source::ArchiveSource;
+use crate::s9pk::v2::SIG_CONTEXT;
 use crate::util::VersionString;
+use crate::util::io::TrackingIO;
 use crate::util::serde::{WithIoFormat, display_serializable};
+use crate::util::tui::choose;
 
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS, ValueEnum,
@@ -352,8 +360,7 @@ pub fn display_package_info(
     info: Value,
 ) -> Result<(), Error> {
     if let Some(format) = params.format {
-        display_serializable(format, info);
-        return Ok(());
+        return display_serializable(format, info);
     }
 
     if let Some(_) = params.rest.id {
@@ -385,5 +392,92 @@ pub fn display_package_info(
             }
         }
     }
+    Ok(())
+}
+
+#[derive(Debug, Deserialize, Serialize, TS, Parser)]
+#[serde(rename_all = "camelCase")]
+pub struct CliDownloadParams {
+    pub id: PackageId,
+    #[arg(long, short = 'v')]
+    #[ts(type = "string | null")]
+    pub target_version: Option<VersionRange>,
+    #[arg(short, long)]
+    pub dest: Option<PathBuf>,
+}
+
+pub async fn cli_download(
+    ctx: CliContext,
+    CliDownloadParams {
+        ref id,
+        target_version,
+        dest,
+    }: CliDownloadParams,
+) -> Result<(), Error> {
+    let progress_tracker = FullProgressTracker::new();
+    let mut fetching_progress = progress_tracker.add_phase("Fetching".into(), Some(1));
+    let download_progress = progress_tracker.add_phase("Downloading".into(), Some(100));
+    let mut verify_progress = progress_tracker.add_phase("Verifying".into(), Some(10));
+
+    let progress = progress_tracker.progress_bar_task("Downloading S9PK...");
+
+    fetching_progress.start();
+    let mut res: GetPackageResponse = from_value(
+        ctx.call_remote::<RegistryContext>(
+            "package.get",
+            json!({
+                "id": &id,
+                "targetVersion": &target_version,
+            }),
+        )
+        .await?,
+    )?;
+    let PackageVersionInfo { s9pk, .. } = match res.best.len() {
+        0 => {
+            return Err(Error::new(
+                eyre!(
+                    "Could not find a version of {id} that satisfies {}",
+                    target_version.unwrap_or(VersionRange::Any)
+                ),
+                ErrorKind::NotFound,
+            ));
+        }
+        1 => res.best.pop_first().unwrap().1,
+        _ => {
+            let choices = res.best.keys().cloned().collect::<Vec<_>>();
+            let version = choose(
+                &format!("Multiple flavors of {id} available. Choose a version to download:"),
+                &choices,
+            )
+            .await?;
+            res.best.remove(version).unwrap()
+        }
+    };
+    s9pk.validate(SIG_CONTEXT, s9pk.all_signers())?;
+    fetching_progress.complete();
+
+    let dest = dest.unwrap_or_else(|| Path::new(".").join(id).with_extension("s9pk"));
+    let dest_tmp = to_tmp_path(&dest).with_kind(ErrorKind::Filesystem)?;
+    let (mut parsed, source) = s9pk
+        .download_to(&dest_tmp, ctx.client.clone(), download_progress)
+        .await?;
+    if let Some(size) = source.size().await {
+        verify_progress.set_total(size);
+    }
+    verify_progress.set_units(Some(ProgressUnits::Bytes));
+    let mut progress_sink = verify_progress.writer(tokio::io::sink());
+    parsed
+        .serialize(&mut TrackingIO::new(0, &mut progress_sink), true)
+        .await?;
+    progress_sink.into_inner().1.complete();
+
+    source.wait_for_buffered().await?;
+    tokio::fs::rename(dest_tmp, dest).await?;
+
+    progress_tracker.complete();
+    progress.await.unwrap();
+
+    println!("Download Complete");
+
     Ok(())
 }

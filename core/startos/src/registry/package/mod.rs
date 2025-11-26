@@ -1,4 +1,4 @@
-use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async, from_fn_async_local};
 
 use crate::context::CliContext;
 use crate::prelude::*;
@@ -53,6 +53,12 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
                 })
                 .with_about("List installation candidate package(s)")
                 .with_call_remote::<CliContext>(),
+        )
+        .subcommand(
+            "download",
+            from_fn_async_local(get::cli_download)
+                .no_display()
+                .with_about("Download an s9pk"),
         )
         .subcommand(
             "category",

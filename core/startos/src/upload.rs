@@ -1,4 +1,5 @@
 use std::io::SeekFrom;
+use std::path::Path;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
@@ -56,6 +57,7 @@ struct Progress {
     tracker: PhaseProgressTrackerHandle,
     expected_size: Option<u64>,
     written: u64,
+    complete: bool,
     error: Option<Error>,
 }
 impl Progress {
@@ -111,9 +113,7 @@ impl Progress {
     }
     async fn ready(watch: &mut watch::Receiver<Self>) -> Result<(), Error> {
         match &*watch
-            .wait_for(|progress| {
-                progress.error.is_some() || Some(progress.written) == progress.expected_size
-            })
+            .wait_for(|progress| progress.error.is_some() || progress.complete)
             .await
             .map_err(|_| {
                 Error::new(
@@ -126,8 +126,9 @@ impl Progress {
         }
     }
     fn complete(&mut self) -> bool {
+        let mut changed = !self.complete;
         self.tracker.complete();
-        match self {
+        changed |= match self {
             Self {
                 expected_size: Some(size),
                 written,
@@ -165,18 +166,21 @@ impl Progress {
                 true
             }
             _ => false,
-        }
+        };
+        self.complete = true;
+        changed
     }
 }
 
 #[derive(Clone)]
 pub struct UploadingFile {
-    tmp_dir: Arc<TmpDir>,
+    tmp_dir: Option<Arc<TmpDir>>,
     file: MultiCursorFile,
     progress: watch::Receiver<Progress>,
 }
 impl UploadingFile {
-    pub async fn new(
+    pub async fn with_path(
+        path: impl AsRef<Path>,
         mut progress: PhaseProgressTrackerHandle,
     ) -> Result<(UploadHandle, Self), Error> {
         progress.set_units(Some(ProgressUnits::Bytes));
@@ -185,25 +189,35 @@ impl UploadingFile {
             expected_size: None,
             written: 0,
             error: None,
+            complete: false,
         });
-        let tmp_dir = Arc::new(TmpDir::new().await?);
-        let file = create_file(tmp_dir.join("upload.tmp")).await?;
+        let file = create_file(path).await?;
         let uploading = Self {
-            tmp_dir: tmp_dir.clone(),
+            tmp_dir: None,
             file: MultiCursorFile::open(&file).await?,
             progress: progress.1,
         };
         Ok((
             UploadHandle {
-                tmp_dir,
+                tmp_dir: None,
                 file,
                 progress: progress.0,
             },
             uploading,
         ))
     }
+    pub async fn new(progress: PhaseProgressTrackerHandle) -> Result<(UploadHandle, Self), Error> {
+        let tmp_dir = Arc::new(TmpDir::new().await?);
+        let (mut handle, mut file) = Self::with_path(tmp_dir.join("upload.tmp"), progress).await?;
+        handle.tmp_dir = Some(tmp_dir.clone());
+        file.tmp_dir = Some(tmp_dir);
+        Ok((handle, file))
+    }
+    pub async fn wait_for_complete(&self) -> Result<(), Error> {
+        Progress::ready(&mut self.progress.clone()).await
+    }
     pub async fn delete(self) -> Result<(), Error> {
-        if let Ok(tmp_dir) = Arc::try_unwrap(self.tmp_dir) {
+        if let Some(Ok(tmp_dir)) = self.tmp_dir.map(Arc::try_unwrap) {
             tmp_dir.delete().await?;
         }
         Ok(())
@@ -234,7 +248,7 @@ impl ArchiveSource for UploadingFile {
 
 #[pin_project::pin_project(project = UploadingFileReaderProjection)]
 pub struct UploadingFileReader {
-    tmp_dir: Arc<TmpDir>,
+    tmp_dir: Option<Arc<TmpDir>>,
     position: u64,
     to_seek: Option<SeekFrom>,
     #[pin]
@@ -330,7 +344,7 @@ impl AsyncSeek for UploadingFileReader {
 
 #[pin_project::pin_project(PinnedDrop)]
 pub struct UploadHandle {
-    tmp_dir: Arc<TmpDir>,
+    tmp_dir: Option<Arc<TmpDir>>,
     #[pin]
     file: File,
     progress: watch::Sender<Progress>,
@@ -376,6 +390,9 @@ impl UploadHandle {
                 self.progress.send_if_modified(|p| p.handle_error(&e));
                 break;
             }
+        }
+        if let Err(e) = self.file.sync_all().await {
+            self.progress.send_if_modified(|p| p.handle_error(&e));
         }
     }
 }
