@@ -73,9 +73,7 @@ export default class ServiceActionsRoute {
       .pipe(
         filter(pkg => pkg.stateInfo.state === 'installed'),
         map(pkg => {
-          const specialGroup = Object.values(pkg.actions).some(
-            pkg => !!pkg.group,
-          )
+          const specialGroup = Object.values(pkg.actions).some(a => !!a.group)
             ? 'Other'
             : 'General'
           return {
@@ -90,9 +88,15 @@ export default class ServiceActionsRoute {
                 group: action.group || specialGroup,
               }))
               .sort((a, b) => {
-                if (a.group === specialGroup) return 1
-                if (b.group === specialGroup) return -1
-                return a.group.localeCompare(b.group) // Optional: sort others alphabetically
+                if (a.group === specialGroup && b.group !== specialGroup)
+                  return 1
+                if (b.group === specialGroup && a.group !== specialGroup)
+                  return -1
+
+                const groupCompare = a.group.localeCompare(b.group) // sort groups lexicographically
+                if (groupCompare !== 0) return groupCompare
+
+                return a.id.localeCompare(b.id) // sort actions within groups lexicographically
               })
               .reduce<
                 Record<

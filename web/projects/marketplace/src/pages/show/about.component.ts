@@ -70,6 +70,7 @@ import { MarketplaceItemComponent } from './item.component'
 
     <div class="background-border box-shadow-lg shadow-color-light">
       <div class="box-container">
+        <h2 class="additional-detail-title">{{ 'Description' | i18n }}</h2>
         <p [innerHTML]="pkg().description.long"></p>
       </div>
     </div>
