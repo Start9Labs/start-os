@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::SocketAddrV4;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -43,6 +43,27 @@ pub struct TunnelDatabase {
     pub gateways: OrdMap<GatewayId, NetworkInterfaceInfo>,
     pub wg: WgServer,
     pub port_forwards: PortForwards,
+}
+
+impl Model<TunnelDatabase> {
+    pub fn gc_forwards(&mut self) -> Result<BTreeSet<SocketAddrV4>, Error> {
+        let mut keep_sources = BTreeSet::new();
+        let mut keep_targets = BTreeSet::new();
+        for (_, cfg) in self.as_wg().as_subnets().as_entries()? {
+            keep_targets.extend(cfg.as_clients().keys()?);
+        }
+        self.as_port_forwards_mut().mutate(|pf| {
+            Ok(pf.0.retain(|k, v| {
+                if keep_targets.contains(v.ip()) {
+                    keep_sources.insert(*k);
+                    true
+                } else {
+                    false
+                }
+            }))
+        })?;
+        Ok(keep_sources)
+    }
 }
 
 #[test]

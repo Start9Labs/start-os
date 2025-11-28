@@ -109,9 +109,11 @@ export class DropPromise<T> implements Promise<T> {
   }
 }
 
-export class DropGenerator<T = unknown, TReturn = any, TNext = unknown>
-  implements AsyncGenerator<T, TReturn, TNext>
-{
+export class DropGenerator<
+  T = unknown,
+  TReturn = any,
+  TNext = unknown,
+> implements AsyncGenerator<T, TReturn, TNext> {
   private static dropFns: { [id: number]: () => void } = {}
   private static registry = new FinalizationRegistry((id: number) => {
     const drop = DropGenerator.dropFns[id]

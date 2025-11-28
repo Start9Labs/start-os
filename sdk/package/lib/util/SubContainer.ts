@@ -137,9 +137,9 @@ export interface SubContainer<
  * Want to limit what we can do in a container, so we want to launch a container with a specific image and the mounts.
  */
 export class SubContainerOwned<
-    Manifest extends T.SDKManifest,
-    Effects extends T.Effects = T.Effects,
-  >
+  Manifest extends T.SDKManifest,
+  Effects extends T.Effects = T.Effects,
+>
   extends Drop
   implements SubContainer<Manifest, Effects>
 {
@@ -615,9 +615,9 @@ export class SubContainerOwned<
 }
 
 export class SubContainerRc<
-    Manifest extends T.SDKManifest,
-    Effects extends T.Effects = T.Effects,
-  >
+  Manifest extends T.SDKManifest,
+  Effects extends T.Effects = T.Effects,
+>
   extends Drop
   implements SubContainer<Manifest, Effects>
 {

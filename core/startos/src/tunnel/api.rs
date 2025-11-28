@@ -175,15 +175,16 @@ pub async fn remove_subnet(
     _: Empty,
     SubnetParams { subnet }: SubnetParams,
 ) -> Result<(), Error> {
-    let server = ctx
+    let (server, keep) = ctx
         .db
         .mutate(|db| {
             db.as_wg_mut().as_subnets_mut().remove(&subnet)?;
-            db.as_wg().de()
+            Ok((db.as_wg().de()?, db.gc_forwards()?))
         })
         .await
         .result?;
-    server.sync().await
+    server.sync().await?;
+    ctx.gc_forwards(&keep).await
 }
 
 #[derive(Deserialize, Serialize, Parser)]
@@ -258,7 +259,7 @@ pub async fn remove_device(
     ctx: TunnelContext,
     RemoveDeviceParams { subnet, ip }: RemoveDeviceParams,
 ) -> Result<(), Error> {
-    let server = ctx
+    let (server, keep) = ctx
         .db
         .mutate(|db| {
             db.as_wg_mut()
@@ -268,11 +269,12 @@ pub async fn remove_device(
                 .as_clients_mut()
                 .remove(&ip)?
                 .or_not_found(&ip)?;
-            db.as_wg().de()
+            Ok((db.as_wg().de()?, db.gc_forwards()?))
         })
         .await
         .result?;
-    server.sync().await
+    server.sync().await?;
+    ctx.gc_forwards(&keep).await
 }
 
 #[derive(Deserialize, Serialize, Parser)]
@@ -377,7 +379,20 @@ pub async fn add_forward(
     });
 
     ctx.db
-        .mutate(|db| db.as_port_forwards_mut().insert(&source, &target))
+        .mutate(|db| {
+            db.as_port_forwards_mut()
+                .insert(&source, &target)
+                .and_then(|replaced| {
+                    if replaced.is_some() {
+                        Err(Error::new(
+                            eyre!("Port forward from {source} already exists"),
+                            ErrorKind::InvalidRequest,
+                        ))
+                    } else {
+                        Ok(())
+                    }
+                })
+        })
         .await
         .result?;
 
