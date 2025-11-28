@@ -163,8 +163,8 @@ export class StartSdk<Manifest extends T.SDKManifest> {
           effects.action.clearTasks({ only: replayIds }),
       },
       checkDependencies: checkDependencies as <
-        DependencyId extends keyof Manifest["dependencies"] &
-          PackageId = keyof Manifest["dependencies"] & PackageId,
+        DependencyId extends keyof Manifest["dependencies"] & PackageId =
+          keyof Manifest["dependencies"] & PackageId,
       >(
         effects: Effects,
         packageIds?: DependencyId[],
