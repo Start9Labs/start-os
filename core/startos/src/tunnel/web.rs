@@ -77,17 +77,18 @@ where
             .log_err()?;
         let cert_key = cert_info.key.0.private_key_to_pkcs8().log_err()?;
 
-        Some(
-            ServerConfig::builder_with_provider(self.crypto_provider.clone())
-                .with_safe_default_protocol_versions()
-                .log_err()?
-                .with_no_client_auth()
-                .with_single_cert(
-                    cert_chain,
-                    PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(cert_key)),
-                )
-                .log_err()?,
-        )
+        let mut cfg = ServerConfig::builder_with_provider(self.crypto_provider.clone())
+            .with_safe_default_protocol_versions()
+            .log_err()?
+            .with_no_client_auth()
+            .with_single_cert(
+                cert_chain,
+                PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(cert_key)),
+            )
+            .log_err()?;
+        cfg.alpn_protocols
+            .extend([b"http/1.1".into(), b"h2".into()]);
+        Some(cfg)
     }
 }
 

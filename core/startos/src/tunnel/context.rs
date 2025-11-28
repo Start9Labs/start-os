@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
@@ -9,7 +9,6 @@ use cookie::{Cookie, Expiration, SameSite};
 use http::HeaderMap;
 use imbl::OrdMap;
 use imbl_value::InternedString;
-use include_dir::Dir;
 use models::GatewayId;
 use patch_db::PatchDb;
 use rpc_toolkit::yajrc::RpcError;
@@ -191,6 +190,12 @@ impl TunnelContext {
             active_forwards: SyncMutex::new(active_forwards),
             shutdown,
         })))
+    }
+
+    pub async fn gc_forwards(&self, keep: &BTreeSet<SocketAddrV4>) -> Result<(), Error> {
+        self.active_forwards
+            .mutate(|pf| pf.retain(|k, _| keep.contains(k)));
+        self.forward.gc().await
     }
 }
 impl AsRef<RpcContinuations> for TunnelContext {
