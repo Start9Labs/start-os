@@ -17,10 +17,6 @@ import { UciFile, UciSection } from './types'
   providedIn: 'root',
 })
 export class MockApiService extends ApiService {
-  constructor() {
-    super()
-  }
-
   async login(params: LoginReq): Promise<null> {
     await pauseFor(1000)
 

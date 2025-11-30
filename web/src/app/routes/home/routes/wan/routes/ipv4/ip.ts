@@ -1,22 +1,18 @@
 import { KeyValuePipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ReactiveFormsModule } from '@angular/forms'
-import { TuiAppearance, TuiError, TuiTextfield, TuiTitle } from '@taiga-ui/core'
+import { TuiError, TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import { TuiRadio } from '@taiga-ui/kit'
-import { TuiCard, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { TuiHeader } from '@taiga-ui/layout'
+import { Form } from 'src/app/directives/form.directive'
 
 import Ipv4 from '.'
+import { LABELS } from './utils'
 
 @Component({
-  selector: 'ipv4-ip',
+  selector: 'form[ipv4Ip]',
   template: `
-    <form
-      tuiForm
-      tuiCardLarge="compact"
-      tuiAppearance="neutral"
-      class="g-form"
-      [formGroup]="parent.form.controls.ip"
-    >
+    <ng-container [formGroup]="parent.form.controls.ip">
       <header tuiHeader><h2 tuiTitle>IP Address</h2></header>
       <section>
         @for (mode of ['dhcp', 'static', 'pppoe']; track $index) {
@@ -27,7 +23,7 @@ import Ipv4 from '.'
               formControlName="mode"
               [value]="mode"
             />
-            {{ parent.labels[mode] }}{{ $index ? '' : ' (Default)' }}
+            {{ labels[mode] }}{{ $index ? '' : ' (Default)' }}
           </label>
         }
       </section>
@@ -39,7 +35,7 @@ import Ipv4 from '.'
             track $index
           ) {
             <tui-textfield>
-              <label tuiLabel>{{ parent.labels[control.key] }}</label>
+              <label tuiLabel>{{ labels[control.key] }}</label>
               <input tuiTextfield [formControlName]="control.key" />
             </tui-textfield>
           }
@@ -47,13 +43,13 @@ import Ipv4 from '.'
       } @else {
         <section [formGroupName]="parent.ip">
           @for (
-            control of parent.form.controls.ip.controls[parent.ip].controls
+            control of parent.form.controls.ip.controls[parent.ip]?.controls
               | keyvalue: asIs;
             track control
           ) {
             <div>
               <tui-textfield>
-                <label tuiLabel>{{ parent.labels[control.key] }}</label>
+                <label tuiLabel>{{ labels[control.key] }}</label>
                 <input
                   tuiTextfield
                   [formControlName]="control.key"
@@ -70,23 +66,22 @@ import Ipv4 from '.'
           }
         </section>
       }
-    </form>
+    </ng-container>
   `,
+  hostDirectives: [Form],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
     KeyValuePipe,
-    TuiForm,
-    TuiAppearance,
     TuiHeader,
     TuiTitle,
     TuiTextfield,
     TuiRadio,
-    TuiCard,
     TuiError,
   ],
 })
 export class Ipv4Ip {
   protected readonly parent = inject(Ipv4)
+  protected readonly labels = LABELS
   protected readonly asIs = () => 0
 }

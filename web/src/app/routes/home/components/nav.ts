@@ -1,7 +1,8 @@
 import { KeyValuePipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { Router, RouterLink, RouterLinkActive } from '@angular/router'
-import { TuiButton, TuiScrollbar } from '@taiga-ui/core'
+import { TuiAlertService, TuiButton, TuiScrollbar } from '@taiga-ui/core'
+import { TuiNotificationMiddleService } from '@taiga-ui/kit'
 import { MENU } from 'src/app/routes/home/components/menu'
 import { ApiService } from 'src/app/services/api/api.service'
 import { AuthService } from 'src/app/services/auth.service'
@@ -120,22 +121,24 @@ import { SidebarService } from 'src/app/services/sidebar.service'
 export class Nav {
   private readonly service = inject(AuthService)
   private readonly router = inject(Router)
-  protected readonly api = inject(ApiService)
+  private readonly api = inject(ApiService)
+  private readonly alerts = inject(TuiAlertService)
+  private readonly loading = inject(TuiNotificationMiddleService)
 
   protected readonly sidebars = inject(SidebarService)
   protected readonly routes = MENU
 
   protected async logout() {
-    // @TODO show loading
+    const loading = this.loading.open('').subscribe()
     try {
       await this.api.logout()
       this.service.authenticated.set(false)
       this.router.navigate(['.'])
     } catch (e: any) {
       console.error(e)
-      // @TODO show error
+      this.alerts.open(e, { appearance: 'negative' }).subscribe()
     } finally {
-      // @TODO hide loading
+      loading.unsubscribe()
     }
   }
 

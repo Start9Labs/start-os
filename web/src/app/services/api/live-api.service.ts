@@ -19,10 +19,6 @@ import { UciFile } from './types'
 export class LiveApiService extends ApiService {
   private readonly rpc = inject(RpcService)
 
-  constructor() {
-    super()
-  }
-
   async login(params: LoginReq): Promise<null> {
     return this.rpc.request({ method: 'auth.login', params })
   }
