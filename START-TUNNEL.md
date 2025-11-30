@@ -14,14 +14,6 @@ Use it for private remote access to self-hosted services running on a personal s
 
 - **Forward Ports**: Forwarding a port creates a "reverse tunnel", exposing a specific port on a specific device to the public Internet.
 
-## Features
-
-- **Create Subnets**: Each subnet creates a private, virtual local area network (VLAN), similar to the LAN created by a home router.
-
-- **Add Devices**: When you add a device (server, phone, laptop) to a subnet, it receives a LAN IP address on that subnet as well as a unique Wireguard config that must be copied, downloaded, or scanned into the device.
-
-- **Forward Ports**: Forwarding a port creates a "reverse tunnel", exposing a specific port on a specific device to the public Internet.
-
 ## Installation
 
 1.  Rent a low cost VPS. For most use cases, the cheapest option should be enough.
