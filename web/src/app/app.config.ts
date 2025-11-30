@@ -11,6 +11,7 @@ import {
 import { provideAnimations } from '@angular/platform-browser/animations'
 import { provideRouter, withRouterConfig } from '@angular/router'
 import {
+  TUI_APPEARANCE_OPTIONS,
   TUI_DARK_MODE,
   tuiButtonOptionsProvider,
   tuiDropdownOptionsProvider,
@@ -56,6 +57,10 @@ export const appConfig: ApplicationConfig = {
     tuiFormOptionsProvider({ size: 'm' }),
     tuiDropdownOptionsProvider({ appearance: 'start-9' }),
     tuiDialogOptionsProvider({ appearance: 'start-9 taiga' }),
+    {
+      provide: TUI_APPEARANCE_OPTIONS,
+      useValue: { appearance: 'neutral' },
+    },
     {
       provide: ApiService,
       useClass: useMocks ? MockApiService : LiveApiService,

@@ -76,11 +76,7 @@ export interface RPCErrorRes extends RPCBase {
 export interface RPCErrorDetails {
   code: number
   message: string
-  data?:
-    | {
-        details: string
-      }
-    | string
+  data?: { details: string } | string
 }
 
 export type RPCResponse<T> = RPCSuccessRes<T> | RPCErrorRes

@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   inject,
+  linkedSignal,
   signal,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
@@ -20,24 +21,21 @@ import { AuthService } from 'src/app/services/auth.service'
           tuiTextfield
           type="password"
           placeholder="Enter password"
+          [disabled]="loading()"
           [ngModelOptions]="{ standalone: true }"
           [(ngModel)]="password"
-          (ngModelChange)="error.set(false)"
-          [disabled]="loading()"
         />
         <button
           tuiIconButton
           appearance="action"
           iconStart="@tui.log-in"
-          [disabled]="!password.length"
+          [disabled]="!password().length"
           [loading]="loading()"
         >
           Login
         </button>
       </tui-textfield>
-      @if (error()) {
-        <tui-error error="Password is invalid" />
-      }
+      <tui-error [error]="error() ? 'Password is invalid' : null" />
     </form>
   `,
   styles: `
@@ -73,15 +71,16 @@ export default class Login {
   private readonly router = inject(Router)
   private readonly api = inject(ApiService)
 
-  protected readonly error = signal(false)
+  protected readonly password = signal('')
   protected readonly loading = signal(false)
-
-  password = ''
+  protected readonly error = linkedSignal<boolean>(
+    () => !!this.password() && false,
+  )
 
   protected async login() {
     this.loading.set(true)
     try {
-      await this.api.login({ password: this.password })
+      await this.api.login({ password: this.password() })
       this.auth.authenticated.set(true)
       this.router.navigate(['.'])
     } catch (e) {

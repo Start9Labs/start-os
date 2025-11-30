@@ -3,9 +3,11 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { TuiTitle } from '@taiga-ui/core'
 import { TuiBadge, TuiStatus } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
-import { Summary, SummaryItem } from 'src/app/components/summary'
+import { SummaryItem } from 'src/app/components/summary'
+import { Form } from 'src/app/directives/form.directive'
 
 import Ipv4 from '.'
+import { LABELS } from './utils'
 
 @Component({
   selector: '[ipv4Summary]',
@@ -15,9 +17,7 @@ import Ipv4 from '.'
     <section>
       <label appSummary>
         IP Address Strategy
-        <span tuiSubtitle>
-          {{ parent.labels[parent.form.value.ip?.mode || ''] }}
-        </span>
+        <span tuiSubtitle>{{ labels[parent.form.value.ip?.mode || ''] }}</span>
       </label>
       <label [appSummary]="parent.form.value.ip?.[parent.ip]?.wan">
         WAN IP Address
@@ -36,9 +36,7 @@ import Ipv4 from '.'
       </label>
       <label appSummary>
         DNS Strategy
-        <span tuiSubtitle>
-          {{ parent.labels[parent.form.value.dns?.mode || ''] }}
-        </span>
+        <span tuiSubtitle>{{ labels[parent.form.value.dns?.mode || ''] }}</span>
       </label>
       <label appSummary>
         DNS Proxy
@@ -52,10 +50,12 @@ import Ipv4 from '.'
       </label>
     </section>
   `,
-  hostDirectives: [Summary],
+  host: { '[style.background]': '"var(--tui-status-info-pale)"' },
+  hostDirectives: [Form],
   imports: [AsyncPipe, TuiHeader, TuiTitle, TuiBadge, TuiStatus, SummaryItem],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Ipv4Summary {
   protected readonly parent = inject(Ipv4)
+  protected readonly labels = LABELS
 }

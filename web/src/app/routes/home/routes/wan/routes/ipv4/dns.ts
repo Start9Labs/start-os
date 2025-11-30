@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { ReactiveFormsModule } from '@angular/forms'
-import { TuiAppearance, TuiTextfield, TuiTitle } from '@taiga-ui/core'
+import { TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import {
   TuiChevron,
   TuiDataListWrapper,
@@ -8,20 +8,18 @@ import {
   TuiSelect,
   TuiSwitch,
 } from '@taiga-ui/kit'
-import { TuiCard, TuiForm, TuiHeader } from '@taiga-ui/layout'
+import { TuiHeader } from '@taiga-ui/layout'
+import { Form } from 'src/app/directives/form.directive'
 
 import Ipv4 from '.'
+import { LABELS } from './utils'
 
 @Component({
-  selector: 'ipv4-dns',
+  selector: 'form[ipv4Dns]',
   template: `
-    <form
-      tuiForm
-      tuiCardLarge="compact"
-      tuiAppearance="neutral"
-      class="g-form"
-      [formGroup]="parent.form.controls.dns"
-    >
+    <!-- TODO: Replace with provider here and in all similar forms when fixed: -->
+    <!-- https://github.com/angular/angular/issues/65724 -->
+    <ng-container [formGroup]="parent.form.controls.dns">
       <header tuiHeader>
         <h2 tuiTitle>DNS Server</h2>
         @if (parent.dns !== 'tls') {
@@ -42,7 +40,7 @@ import Ipv4 from '.'
               formControlName="mode"
               [value]="mode"
             />
-            {{ parent.labels[mode] }}{{ $index ? '' : ' (Default)' }}
+            {{ labels[mode] }}{{ $index ? '' : ' (Default)' }}
           </label>
         }
       </section>
@@ -94,18 +92,16 @@ import Ipv4 from '.'
           </tui-textfield>
         </section>
       }
-    </form>
+    </ng-container>
   `,
+  hostDirectives: [Form],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
-    TuiForm,
-    TuiAppearance,
     TuiHeader,
     TuiTitle,
     TuiTextfield,
     TuiRadio,
-    TuiCard,
     TuiDataListWrapper,
     TuiSelect,
     TuiChevron,
@@ -114,4 +110,5 @@ import Ipv4 from '.'
 })
 export class Ipv4Dns {
   protected readonly parent = inject(Ipv4)
+  protected readonly labels = LABELS
 }
