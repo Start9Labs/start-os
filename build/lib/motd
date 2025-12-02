@@ -22,7 +22,7 @@ parse_essential_db_info() {
             RAM_GB="unknown"
         fi
 
-        RUNNING_SERVICES=$(jq -r '[.value.packageData[] | select(.status.main == "running")] | length' "$DB_DUMP" 2>/dev/null)
+        RUNNING_SERVICES=$(jq -r '[.value.packageData[] | select(.statusInfo.started != null)] | length' "$DB_DUMP" 2>/dev/null)
         TOTAL_SERVICES=$(jq -r '.value.packageData | length' "$DB_DUMP" 2>/dev/null)
 
         rm -f "$DB_DUMP"

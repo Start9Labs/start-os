@@ -71,6 +71,8 @@ impl Actor for ServiceActor {
                                     SYNC_RETRY_COOLDOWN_SECONDS,
                                 ))
                                 .await;
+                            } else {
+                                futures::future::pending().await
                             }
                         }
                         _ => futures::future::pending().await,

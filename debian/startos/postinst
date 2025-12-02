@@ -55,8 +55,7 @@ StartOS v${VERSION}
 EOF
 
 # change timezone
-rm -f /etc/localtime
-ln -s /usr/share/zoneinfo/Etc/UTC /etc/localtime
+ln -sf /usr/share/zoneinfo/Etc/UTC /etc/localtime
 
 rm /etc/resolv.conf
 echo "nameserver 127.0.0.1" > /etc/resolv.conf
@@ -121,8 +120,6 @@ ln -sf /usr/lib/startos/scripts/gather-debug-info /usr/bin/gather-debug-info
 ln -sf /usr/lib/startos/scripts/wireguard-vps-proxy-setup /usr/bin/wireguard-vps-proxy-setup
 
 echo "fs.inotify.max_user_watches=1048576" > /etc/sysctl.d/97-startos.conf
-
-dpkg-reconfigure --frontend noninteractive locales
 
 if ! getent group | grep '^startos:'; then
     groupadd startos

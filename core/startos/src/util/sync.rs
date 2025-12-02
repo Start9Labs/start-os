@@ -28,6 +28,7 @@ fn annotate_lock<F, T>(f: F, id: usize, write: bool) -> T
 where
     F: FnOnce() -> T,
 {
+    use std::collections::BTreeMap;
     std::thread_local! {
         static LOCK_CTX: std::cell::RefCell<BTreeMap<usize, Result<(), usize>>> = std::cell::RefCell::new(BTreeMap::new());
     }
