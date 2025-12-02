@@ -101,6 +101,7 @@ jobs:
 
   create-image:
     name: Create Docker Image
+    needs: [compile]
     strategy:
       fail-fast: true
       matrix:
