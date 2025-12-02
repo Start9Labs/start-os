@@ -1,10 +1,5 @@
 import { AsyncPipe } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  Signal,
-} from '@angular/core'
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
@@ -20,10 +15,10 @@ import {
 import {
   TuiButton,
   TuiDialogContext,
-  TuiDialogService,
   TuiError,
   TuiTextfield,
 } from '@taiga-ui/core'
+import { TuiDialogService } from '@taiga-ui/experimental'
 import {
   TuiChevron,
   TuiDataListWrapper,
@@ -35,14 +30,14 @@ import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { ApiService } from 'src/app/services/api/api.service'
 
+import { DEVICES_CONFIG } from './config'
 import {
-  getIp,
   DeviceData,
+  getIp,
+  ipInSubnetValidator,
   MappedSubnet,
   subnetValidator,
-  ipInSubnetValidator,
 } from './utils'
-import { DEVICES_CONFIG } from './config'
 
 @Component({
   template: `
