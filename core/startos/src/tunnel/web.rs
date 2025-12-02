@@ -466,7 +466,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
 
                 println!("✅ Success! ✅");
                 println!(
-                    "The webserver is running. Below is your URL{} and SSL certificate.",
+                    "The webserver is running. Below is your URL{} and Root Certificate Authority (Root CA).",
                     if password.is_some() {
                         ", password,"
                     } else {
@@ -496,7 +496,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                     println!("{password}");
                     println!();
                     println!(concat!(
-                        "If you lose or forget your password, you can reset it using the command: ",
+                        "If you lose or forget your password, you can reset it using the following command: ",
                         "start-tunnel auth reset-password"
                     ));
                 } else {
@@ -516,12 +516,22 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                 .pop()
                 .map(Pem)
                 .or_not_found("certificate in chain")?;
-                println!("📝 Root SSL Certificate:");
+                println!("📝 Root CA:");
                 print!("{cert}");
 
                 println!(concat!(
-                    "If you haven't already, ",
-                    "trust the certificate in your system keychain and/or browser."
+                    "To trust your StartTunnel Root CA (above):\n",
+                    "  1. Copy the Root CA ",
+                    "(starting with -----BEGIN CERTIFICATE----- and ending with -----END CERTIFICATE-----).\n",
+                    "  2. Open a text editor: \n",
+                    "    - Linux: gedit, nano, or any editor\n",
+                    "    - Mac: TextEdit\n",
+                    "    - Windows: Notepad\n",
+                    "  3. Paste the contents of your Root CA.\n",
+                    "  4. Save the file with a `.crt` extension ",
+                    "(e.g. `start-tunnel.crt`) (make sure it saves as plain text, not rich text).\n",
+                    "  5. Follow instructions to trust you StartTunnel Root CA: ",
+                    "https://staging.docs.start9.com/user-manual/trust-ca.html#2-trust-your-servers-root-ca."
                 ));
 
                 return Ok(());
@@ -551,22 +561,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                     )
                     .await?
                 } else {
-                    *choose_custom_display("Listen Address:", &suggested_addrs, |a| match a {
-                        a if a.is_loopback() => {
-                            format!("{a} (Loopback Address: only use if planning to proxy traffic)")
-                        }
-                        IpAddr::V4(a) if a.is_private() => {
-                            format!("{a} (Private Address: only available from Local Area Network)")
-                        }
-                        IpAddr::V6(a) if a.is_unicast_link_local() => {
-                            format!(
-                                "[{a}] (Private Address: only available from Local Area Network)"
-                            )
-                        }
-                        IpAddr::V6(a) => format!("[{a}]"),
-                        a => a.to_string(),
-                    })
-                    .await?
+                    *choose("Listen Address:", &suggested_addrs).await?
                 };
 
                 println!(concat!(
@@ -594,8 +589,8 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                 impl std::fmt::Display for Choice {
                     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                         match self {
-                            Self::Generate => write!(f, "Generate an SSL certificate"),
-                            Self::Provide => write!(f, "Provide your own certificate and key"),
+                            Self::Generate => write!(f, "Generate"),
+                            Self::Provide => write!(f, "Provide"),
                         }
                     }
                 }
@@ -603,7 +598,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                 let choice = choose(
                     concat!(
                         "Select whether to generate an SSL certificate ",
-                        "or provide your own certificate and key:"
+                        "or provide your own certificate (and key):"
                     ),
                     &options,
                 )

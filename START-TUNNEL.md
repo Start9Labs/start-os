@@ -26,18 +26,18 @@ Use it for private remote access to self-hosted services running on a personal s
 
 1.  Access the VPS via SSH.
 
-1.  Install StartTunnel:
+1.  Run the StartTunnel install script:
 
-```sh
-TMP_DIR=$(mktemp -d) && (cd $TMP_DIR && wget https://github.com/Start9Labs/start-os/releases/download/v0.4.0-alpha.15/start-tunnel-0.4.0-alpha.15-a53b15f.dev_$(uname -m).deb && apt-get install -y ./start-tunnel-0.4.0-alpha.15-a53b15f.dev_$(uname -m).deb) && rm -rf $TMP_DIR && systemctl start start-tunneld && echo "Installation Succeeded"
-```
+        curl -fsSL https://start9labs.github.io/start-tunnel | sh
 
-5. [Initialize the web interface](#web-interface) (recommended)
+1.  [Initialize the web interface](#web-interface) (recommended)
 
 ## Updating
 
+Simply re-run the install command:
+
 ```sh
-TMP_DIR=$(mktemp -d) && (cd $TMP_DIR && wget https://github.com/Start9Labs/start-os/releases/download/v0.4.0-alpha.15/start-tunnel-0.4.0-alpha.15-a53b15f.dev_$(uname -m).deb && apt-get install --reinstall -y ./start-tunnel-0.4.0-alpha.15-a53b15f.dev_$(uname -m).deb) && rm -rf $TMP_DIR && systemctl daemon-reload && systemctl restart start-tunneld && echo "Update Succeeded"
+curl -fsSL https://start9labs.github.io/start-tunnel | sh
 ```
 
 ## CLI
@@ -84,7 +84,7 @@ Enable the web interface (recommended in most cases) to access your StartTunnel 
 
 3. Paste the contents of your Root CA.
 
-4. Save the file as `ca.crt` or `ca.pem` (make sure it saves as plain text, not rich text).
+4. Save the file with a `.crt` extension (e.g. `start-tunnel.crt`) (make sure it saves as plain text, not rich text).
 
 5. Trust the Root CA on your client device(s):
 
