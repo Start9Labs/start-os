@@ -19,6 +19,7 @@ import { ServiceTasksComponent } from 'src/app/routes/portal/routes/services/com
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
+import { getInstalledBaseStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getManifest } from 'src/app/utils/get-package-data'
 
 @Component({
@@ -161,7 +162,7 @@ export class ServiceTaskComponent {
         pkgInfo: {
           id: this.task().packageId,
           title,
-          mainStatus: pkg.status.main,
+          status: getInstalledBaseStatus(pkg.statusInfo),
           icon: pkg.icon,
         },
         actionInfo: { id: this.task().actionId, metadata },

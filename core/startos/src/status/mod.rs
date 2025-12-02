@@ -11,7 +11,7 @@ use crate::status::health_check::NamedHealthCheckResult;
 
 pub mod health_check;
 
-#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
+#[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct StatusInfo {
@@ -44,6 +44,11 @@ pub enum DesiredStatus {
     Restarting,
     Running,
     BackingUp { on_complete: StartStop },
+}
+impl Default for DesiredStatus {
+    fn default() -> Self {
+        Self::Stopped
+    }
 }
 impl DesiredStatus {
     pub fn running(&self) -> bool {

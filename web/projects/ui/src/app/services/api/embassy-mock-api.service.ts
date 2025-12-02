@@ -762,12 +762,12 @@ export class MockApiService extends ApiService {
     setTimeout(async () => {
       for (let i = 0; i < ids.length; i++) {
         const id = ids[i]
-        const appPath = `/packageData/${id}/status/main/`
-        const appPatch: ReplaceOperation<T.MainStatus['main']>[] = [
+        const appPath = `/packageData/${id}/statusInfo/desired/main`
+        const appPatch: ReplaceOperation<T.DesiredStatus['main']>[] = [
           {
             op: PatchOp.REPLACE,
             path: appPath,
-            value: 'backingUp',
+            value: 'backing-up',
           },
         ]
         this.mockRevision(appPatch)
@@ -1073,17 +1073,18 @@ export class MockApiService extends ApiService {
   }
 
   async startPackage(params: RR.StartPackageReq): Promise<RR.StartPackageRes> {
-    const path = `/packageData/${params.id}/status`
+    const path = `/packageData/${params.id}/statusInfo`
 
     await pauseFor(2000)
 
     setTimeout(async () => {
-      const patch2: ReplaceOperation<T.MainStatus & { main: 'running' }>[] = [
+      const patch2: ReplaceOperation<T.StatusInfo>[] = [
         {
           op: PatchOp.REPLACE,
           path,
           value: {
-            main: 'running',
+            error: null,
+            desired: { main: 'running' },
             started: new Date().toISOString(),
             health: {
               'ephemeral-health-check': {
@@ -1118,14 +1119,14 @@ export class MockApiService extends ApiService {
       this.mockRevision(patch2)
     }, 2000)
 
-    const originalPatch: ReplaceOperation<
-      T.MainStatus & { main: 'starting' }
-    >[] = [
+    const originalPatch: ReplaceOperation<T.StatusInfo>[] = [
       {
         op: PatchOp.REPLACE,
         path,
         value: {
-          main: 'starting',
+          desired: { main: 'running' },
+          started: null,
+          error: null,
           health: {},
         },
       },
@@ -1140,15 +1141,16 @@ export class MockApiService extends ApiService {
     params: RR.RestartPackageReq,
   ): Promise<RR.RestartPackageRes> {
     await pauseFor(2000)
-    const path = `/packageData/${params.id}/status`
+    const path = `/packageData/${params.id}/statusInfo`
 
     setTimeout(async () => {
-      const patch2: ReplaceOperation<T.MainStatus & { main: 'running' }>[] = [
+      const patch2: ReplaceOperation<T.StatusInfo>[] = [
         {
           op: PatchOp.REPLACE,
           path,
           value: {
-            main: 'running',
+            desired: { main: 'running' },
+            error: null,
             started: new Date().toISOString(),
             health: {
               'ephemeral-health-check': {
@@ -1183,12 +1185,15 @@ export class MockApiService extends ApiService {
       this.mockRevision(patch2)
     }, this.revertTime)
 
-    const patch: ReplaceOperation<T.MainStatus & { main: 'restarting' }>[] = [
+    const patch: ReplaceOperation<T.StatusInfo>[] = [
       {
         op: PatchOp.REPLACE,
         path,
         value: {
-          main: 'restarting',
+          desired: { main: 'restarting' },
+          started: null,
+          error: null,
+          health: {},
         },
       },
     ]
@@ -1200,24 +1205,34 @@ export class MockApiService extends ApiService {
 
   async stopPackage(params: RR.StopPackageReq): Promise<RR.StopPackageRes> {
     await pauseFor(2000)
-    const path = `/packageData/${params.id}/status`
+    const path = `/packageData/${params.id}/statusInfo`
 
     setTimeout(() => {
-      const patch2: ReplaceOperation<T.MainStatus & { main: 'stopped' }>[] = [
+      const patch2: ReplaceOperation<T.StatusInfo>[] = [
         {
           op: PatchOp.REPLACE,
           path: path,
-          value: { main: 'stopped' },
+          value: {
+            desired: { main: 'stopped' },
+            error: null,
+            health: {},
+            started: null,
+          },
         },
       ]
       this.mockRevision(patch2)
     }, this.revertTime)
 
-    const patch: ReplaceOperation<T.MainStatus & { main: 'stopping' }>[] = [
+    const patch: ReplaceOperation<T.StatusInfo>[] = [
       {
         op: PatchOp.REPLACE,
         path: path,
-        value: { main: 'stopping' },
+        value: {
+          desired: { main: 'stopped' },
+          error: null,
+          health: {},
+          started: new Date().toISOString(),
+        },
       },
     ]
 

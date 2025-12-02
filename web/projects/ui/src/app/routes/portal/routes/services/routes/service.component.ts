@@ -34,7 +34,7 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
 @Component({
   template: `
     @if (pkg(); as pkg) {
-      @if (pkg.status.main === 'error') {
+      @if (pkg.statusInfo.error) {
         <service-error [pkg]="pkg" />
       } @else if (installing()) {
         <service-install-progress [pkg]="pkg" />
@@ -45,9 +45,9 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
           }
         </service-status>
 
-        @if (status() !== 'backingUp') {
+        @if (status() !== 'backing-up') {
           <service-health-checks [checks]="health()" />
-          <service-uptime class="g-card" [started]="$any(pkg.status).started" />
+          <service-uptime class="g-card" [started]="pkg.statusInfo.started" />
           <service-interfaces [pkg]="pkg" [disabled]="status() !== 'running'" />
 
           @if (errors() | async; as errors) {
@@ -179,7 +179,7 @@ export class ServiceRoute {
   protected readonly pkg = computed(() => this.services()[this.id() || ''])
 
   protected readonly health = computed((pkg = this.pkg()) =>
-    pkg ? toHealthCheck(pkg.status) : [],
+    pkg ? toHealthCheck(pkg.statusInfo) : [],
   )
 
   protected readonly status = computed((pkg = this.pkg()) =>
@@ -202,8 +202,10 @@ export class ServiceRoute {
   )
 }
 
-function toHealthCheck(status: T.MainStatus): T.NamedHealthCheckResult[] {
-  return status.main !== 'running' || isEmptyObject(status.health)
+function toHealthCheck(statusInfo: T.StatusInfo): T.NamedHealthCheckResult[] {
+  return statusInfo.desired.main !== 'running' ||
+    !statusInfo.started ||
+    isEmptyObject(statusInfo.health)
     ? []
-    : Object.values(status.health).filter(h => !!h)
+    : Object.values(statusInfo.health).filter(h => !!h)
 }

@@ -22,6 +22,7 @@ import {
   InterfaceService,
 } from '../../../components/interfaces/interface.service'
 import { GatewayService } from 'src/app/services/gateway.service'
+import { getInstalledBaseStatus } from 'src/app/services/pkg-status-rendering.service'
 
 @Component({
   template: `
@@ -101,7 +102,8 @@ export default class ServiceInterfaceRoute {
   readonly pkg = toSignal(this.patch.watch$('packageData', this.pkgId))
 
   readonly isRunning = computed(() => {
-    return this.pkg()?.status.main === 'running'
+    const pkg = this.pkg()
+    return pkg ? getInstalledBaseStatus(pkg.statusInfo) === 'running' : false
   })
 
   readonly serviceInterface = computed(() => {

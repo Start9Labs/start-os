@@ -11,6 +11,7 @@ import deepEqual from 'fast-deep-equal'
 import { Observable } from 'rxjs'
 import { isInstalled } from 'src/app/utils/get-package-data'
 import { T } from '@start9labs/start-sdk'
+import { getInstalledBaseStatus } from './pkg-status-rendering.service'
 
 export type AllDependencyErrors = Record<string, PkgDependencyErrors>
 export type PkgDependencyErrors = Record<string, DependencyError | null>
@@ -153,7 +154,7 @@ export class DepErrorService {
       }
     }
 
-    const depStatus = dep.status.main
+    const depStatus = getInstalledBaseStatus(dep.statusInfo)
 
     // not running
     if (depStatus !== 'running' && depStatus !== 'starting') {
@@ -165,7 +166,7 @@ export class DepErrorService {
     // health check failure
     if (depStatus === 'running' && currentDep?.kind === 'running') {
       for (let id of currentDep.healthChecks) {
-        const check = dep.status.health[id]
+        const check = dep.statusInfo.health[id]
         if (check && check?.result !== 'success') {
           return {
             type: 'healthChecksFailed',

@@ -1921,8 +1921,9 @@ export namespace Mock {
     s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
     icon: '/assets/img/service-icons/bitcoin-core.svg',
     lastBackup: null,
-    status: {
-      main: 'running',
+    statusInfo: {
+      error: null,
+      desired: { main: 'running' },
       started: new Date().toISOString(),
       health: {},
     },
@@ -2201,8 +2202,11 @@ export namespace Mock {
     s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
     icon: '/assets/img/service-icons/btc-rpc-proxy.png',
     lastBackup: null,
-    status: {
-      main: 'stopped',
+    statusInfo: {
+      desired: { main: 'stopped' },
+      started: null,
+      health: {},
+      error: null,
     },
     actions: {},
     serviceInterfaces: {
@@ -2246,8 +2250,11 @@ export namespace Mock {
     s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
     icon: '/assets/img/service-icons/lnd.png',
     lastBackup: null,
-    status: {
-      main: 'stopped',
+    statusInfo: {
+      desired: { main: 'stopped' },
+      error: null,
+      health: {},
+      started: null,
     },
     actions: {
       config: {
