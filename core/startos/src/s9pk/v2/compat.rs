@@ -8,7 +8,7 @@ use models::{ImageId, VolumeId};
 use tokio::io::{AsyncRead, AsyncSeek, AsyncWriteExt};
 use tokio::process::Command;
 
-use crate::dependencies::{DepInfo, Dependencies, MetadataSrc};
+use crate::dependencies::{DepInfo, Dependencies};
 use crate::prelude::*;
 use crate::s9pk::manifest::{DeviceFilter, Manifest};
 use crate::s9pk::merkle_archive::directory_contents::DirectoryContents;

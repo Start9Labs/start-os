@@ -13,8 +13,8 @@ import {
   ExportServiceInterfaceParams,
   ServiceInterface,
   CreateTaskParams,
-  MainStatus,
   MountParams,
+  StatusInfo,
 } from "./osBindings"
 import {
   PackageId,
@@ -66,7 +66,7 @@ export type Effects = {
   getStatus(options: {
     packageId?: PackageId
     callback?: () => void
-  }): Promise<MainStatus>
+  }): Promise<StatusInfo>
   /** indicate to the host os what runstate the service is in */
   setMainStatus(options: SetMainStatus): Promise<null>
 

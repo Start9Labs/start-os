@@ -73,11 +73,6 @@ macro_rules! else_empty_dir {
     }};
 }
 
-const EMBEDDED_UI_ROOT: Dir<'_> = else_empty_dir!(
-    feature = "startd" =>
-    include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static")
-);
-
 pub trait UiContext: Context + AsRef<RpcContinuations> + Clone + Sized {
     const UI_DIR: &'static Dir<'static>;
     fn api() -> ParentHandler<Self>;

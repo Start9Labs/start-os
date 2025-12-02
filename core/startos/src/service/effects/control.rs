@@ -1,12 +1,13 @@
 use std::str::FromStr;
 
+use chrono::Utc;
 use clap::builder::ValueParserFactory;
 use models::{FromStrParser, PackageId};
 
 use crate::service::RebuildParams;
 use crate::service::effects::prelude::*;
 use crate::service::rpc::CallbackId;
-use crate::status::MainStatus;
+use crate::status::{DesiredStatus, StatusInfo};
 
 pub async fn rebuild(context: EffectContext) -> Result<(), Error> {
     let seed = context.deref()?.seed.clone();
@@ -21,15 +22,44 @@ pub async fn rebuild(context: EffectContext) -> Result<(), Error> {
     Ok(())
 }
 
-pub async fn restart(context: EffectContext, EventId { event_id }: EventId) -> Result<(), Error> {
+pub async fn restart(context: EffectContext) -> Result<(), Error> {
     let context = context.deref()?;
-    context.restart(event_id, false).await?;
+    let id = &context.seed.id;
+    context
+        .seed
+        .ctx
+        .db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(id)
+                .or_not_found(id)?
+                .as_status_info_mut()
+                .as_desired_mut()
+                .map_mutate(|s| Ok(s.restart()))
+        })
+        .await
+        .result?;
     Ok(())
 }
 
-pub async fn shutdown(context: EffectContext, EventId { event_id }: EventId) -> Result<(), Error> {
+pub async fn shutdown(context: EffectContext) -> Result<(), Error> {
     let context = context.deref()?;
-    context.stop(event_id, false).await?;
+    let id = &context.seed.id;
+    context
+        .seed
+        .ctx
+        .db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(id)
+                .or_not_found(id)?
+                .as_status_info_mut()
+                .stop()
+        })
+        .await
+        .result?;
     Ok(())
 }
 
@@ -50,7 +80,7 @@ pub async fn get_status(
         package_id,
         callback,
     }: GetStatusParams,
-) -> Result<MainStatus, Error> {
+) -> Result<StatusInfo, Error> {
     let context = context.deref()?;
     let id = package_id.unwrap_or_else(|| context.seed.id.clone());
     let db = context.seed.ctx.db.peek().await;
@@ -68,13 +98,13 @@ pub async fn get_status(
         .as_package_data()
         .as_idx(&id)
         .or_not_found(&id)?
-        .as_status()
+        .as_status_info()
         .de()?;
 
     Ok(status)
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
 pub enum SetMainStatusStatus {
@@ -109,9 +139,34 @@ pub async fn set_main_status(
     SetMainStatus { status }: SetMainStatus,
 ) -> Result<(), Error> {
     let context = context.deref()?;
-    match status {
-        SetMainStatusStatus::Running => context.seed.started(),
-        SetMainStatusStatus::Stopped => context.seed.stopped(),
-    }
+    let id = &context.seed.id;
+    context
+        .seed
+        .ctx
+        .db
+        .mutate(|db| {
+            let s = db
+                .as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(id)
+                .or_not_found(id)?
+                .as_status_info_mut();
+            let prev = s.as_started_mut().replace(&match status {
+                SetMainStatusStatus::Running => Some(Utc::now()),
+                SetMainStatusStatus::Stopped => None,
+            })?;
+            if prev.is_none() && status == SetMainStatusStatus::Running {
+                s.as_desired_mut().map_mutate(|s| {
+                    Ok(match s {
+                        DesiredStatus::Restarting => DesiredStatus::Running,
+                        x => x,
+                    })
+                })?;
+            }
+
+            Ok(())
+        })
+        .await
+        .result?;
     Ok(())
 }

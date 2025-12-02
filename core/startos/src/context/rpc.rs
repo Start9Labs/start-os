@@ -45,6 +45,7 @@ use crate::service::ServiceMap;
 use crate::service::action::update_tasks;
 use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::shutdown::Shutdown;
+use crate::status::DesiredStatus;
 use crate::util::io::delete_file;
 use crate::util::lshw::LshwDevice;
 use crate::util::sync::{SyncMutex, SyncRwLock, Watch};
@@ -416,46 +417,34 @@ impl RpcContext {
                 }
             }
         }
-        for id in
-            self.db
-                .mutate::<Vec<PackageId>>(|db| {
-                    for (package_id, action_input) in &action_input {
-                        for (action_id, input) in action_input {
-                            for (_, pde) in
-                                db.as_public_mut().as_package_data_mut().as_entries_mut()?
-                            {
-                                pde.as_tasks_mut().mutate(|tasks| {
-                                    Ok(update_tasks(tasks, package_id, action_id, input, false))
-                                })?;
-                            }
+
+        self.db
+            .mutate(|db| {
+                for (package_id, action_input) in &action_input {
+                    for (action_id, input) in action_input {
+                        for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
+                            pde.as_tasks_mut().mutate(|tasks| {
+                                Ok(update_tasks(tasks, package_id, action_id, input, false))
+                            })?;
                         }
                     }
-                    db.as_public()
-                        .as_package_data()
-                        .as_entries()?
+                }
+                for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
+                    if pde
+                        .as_tasks()
+                        .de()?
                         .into_iter()
-                        .filter_map(|(id, pkg)| {
-                            (|| {
-                                if pkg.as_tasks().de()?.into_iter().any(|(_, t)| {
-                                    t.active && t.task.severity == TaskSeverity::Critical
-                                }) {
-                                    Ok(Some(id))
-                                } else {
-                                    Ok(None)
-                                }
-                            })()
-                            .transpose()
-                        })
-                        .collect()
-                })
-                .await
-                .result?
-        {
-            let svc = self.services.get(&id).await;
-            if let Some(svc) = &*svc {
-                svc.stop(procedure_id.clone(), false).await?;
-            }
-        }
+                        .any(|(_, t)| t.active && t.task.severity == TaskSeverity::Critical)
+                    {
+                        pde.as_status_info_mut()
+                            .as_desired_mut()
+                            .ser(&DesiredStatus::Stopped)?;
+                    }
+                }
+                Ok(())
+            })
+            .await
+            .result?;
         check_tasks.complete();
 
         Ok(())

@@ -258,7 +258,7 @@ mod test {
     #[derive(Clone)]
     struct CActor;
     impl Actor for CActor {
-        fn init(&mut self, jobs: &BackgroundJobQueue) {}
+        fn init(&mut self, _: &BackgroundJobQueue) {}
     }
     struct Pending;
     impl Handler<Pending> for CActor {

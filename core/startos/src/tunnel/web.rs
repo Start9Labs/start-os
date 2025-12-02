@@ -534,28 +534,14 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                         .await?,
                 )?;
 
-                suggested_addrs.sort_by_cached_key(|a| match a {
-                    IpAddr::V4(a) => {
-                        if a.is_loopback() {
-                            3
-                        } else if a.is_private() {
-                            2
-                        } else {
-                            0
-                        }
-                    }
-                    IpAddr::V6(a) => {
-                        if a.is_loopback() {
-                            5
-                        } else if a.is_unicast_link_local() {
-                            4
-                        } else {
-                            1
-                        }
-                    }
+                suggested_addrs.retain(|ip| match ip {
+                    IpAddr::V4(a) => !a.is_loopback() && !a.is_private(),
+                    IpAddr::V6(a) => !a.is_loopback() && !a.is_unicast_link_local(),
                 });
 
-                let ip = if suggested_addrs.is_empty() {
+                let ip = if suggested_addrs.len() == 1 {
+                    suggested_addrs[0]
+                } else if suggested_addrs.is_empty() {
                     prompt("Listen Address: ", parse_as::<IpAddr>("IP Address"), None).await?
                 } else if suggested_addrs.len() > 16 {
                     prompt(
@@ -631,34 +617,34 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                         )?
                         .filter(|a| !a.ip().is_unspecified());
 
-                        let default_prompt = if let Some(listen) = listen {
-                            format!("Subject Alternative Name(s) [{}]: ", listen.ip())
+                        let san_info = if let Some(listen) = listen {
+                            vec![InternedString::from_display(&listen.ip())]
                         } else {
-                            "Subject Alternative Name(s): ".to_string()
+                            println!(
+                                "List all IP addresses and domains for which to sign the certificate, separated by commas."
+                            );
+                            prompt(
+                                "Subject Alternative Name(s): ",
+                                |s| {
+                                    s.split(",")
+                                        .map(|s| {
+                                            let s = s.trim();
+                                            if let Ok(ip) = s.parse::<IpAddr>() {
+                                                Ok(InternedString::from_display(&ip))
+                                            } else if is_valid_domain(s) {
+                                                Ok(s.into())
+                                            } else {
+                                                Err(format!(
+                                                    "{s} is not a valid ip address or domain"
+                                                ))
+                                            }
+                                        })
+                                        .collect()
+                                },
+                                listen.map(|l| vec![InternedString::from_display(&l.ip())]),
+                            )
+                            .await?
                         };
-
-                        println!(
-                            "List all IP addresses and domains for which to sign the certificate, separated by commas."
-                        );
-                        let san_info = prompt(
-                            &default_prompt,
-                            |s| {
-                                s.split(",")
-                                    .map(|s| {
-                                        let s = s.trim();
-                                        if let Ok(ip) = s.parse::<IpAddr>() {
-                                            Ok(InternedString::from_display(&ip))
-                                        } else if is_valid_domain(s) {
-                                            Ok(s.into())
-                                        } else {
-                                            Err(format!("{s} is not a valid ip address or domain"))
-                                        }
-                                    })
-                                    .collect()
-                            },
-                            listen.map(|l| vec![InternedString::from_display(&l.ip())]),
-                        )
-                        .await?;
 
                         ctx.call_remote::<TunnelContext>(
                             "web.generate-certificate",

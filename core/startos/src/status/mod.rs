@@ -1,65 +1,61 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
-use imbl::OrdMap;
+use models::{ErrorData, HealthCheckId};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-use self::health_check::HealthCheckId;
 use crate::prelude::*;
 use crate::service::start_stop::StartStop;
 use crate::status::health_check::NamedHealthCheckResult;
 
 pub mod health_check;
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TS)]
-#[serde(tag = "main")]
+#[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
+#[model = "Model<Self>"]
+pub struct StatusInfo {
+    pub health: BTreeMap<HealthCheckId, NamedHealthCheckResult>,
+    pub error: Option<ErrorData>,
+    #[ts(type = "string | null")]
+    pub started: Option<DateTime<Utc>>,
+    pub desired: DesiredStatus,
+}
+impl StatusInfo {
+    pub fn stop(&mut self) {
+        self.desired = self.desired.stop();
+        self.health.clear();
+    }
+}
+impl Model<StatusInfo> {
+    pub fn stop(&mut self) -> Result<(), Error> {
+        self.as_desired_mut().map_mutate(|s| Ok(s.stop()))?;
+        self.as_health_mut().ser(&Default::default())?;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, TS)]
+#[serde(tag = "main")]
+#[serde(rename_all = "kebab-case")]
 #[serde(rename_all_fields = "camelCase")]
-pub enum MainStatus {
-    Error {
-        on_rebuild: StartStop,
-        message: String,
-        debug: Option<String>,
-    },
+pub enum DesiredStatus {
     Stopped,
     Restarting,
-    Stopping,
-    Starting {
-        #[ts(as = "BTreeMap<HealthCheckId, NamedHealthCheckResult>")]
-        health: OrdMap<HealthCheckId, NamedHealthCheckResult>,
-    },
-    Running {
-        #[ts(type = "string")]
-        started: DateTime<Utc>,
-        #[ts(as = "BTreeMap<HealthCheckId, NamedHealthCheckResult>")]
-        health: OrdMap<HealthCheckId, NamedHealthCheckResult>,
-    },
-    BackingUp {
-        on_complete: StartStop,
-    },
+    Running,
+    BackingUp { on_complete: StartStop },
 }
-impl MainStatus {
+impl DesiredStatus {
     pub fn running(&self) -> bool {
         match self {
-            MainStatus::Starting { .. }
-            | MainStatus::Running { .. }
-            | MainStatus::Restarting
-            | MainStatus::BackingUp {
+            Self::Running
+            | Self::Restarting
+            | Self::BackingUp {
                 on_complete: StartStop::Start,
-            }
-            | MainStatus::Error {
-                on_rebuild: StartStop::Start,
-                ..
             } => true,
-            MainStatus::Stopped
-            | MainStatus::Stopping { .. }
-            | MainStatus::BackingUp {
+            Self::Stopped
+            | Self::BackingUp {
                 on_complete: StartStop::Stop,
-            }
-            | MainStatus::Error {
-                on_rebuild: StartStop::Stop,
-                ..
             } => false,
         }
     }
@@ -71,37 +67,35 @@ impl MainStatus {
         }
     }
 
-    pub fn major_changes(&self, other: &Self) -> bool {
-        match (self, other) {
-            (MainStatus::Running { .. }, MainStatus::Running { .. }) => false,
-            (MainStatus::Starting { .. }, MainStatus::Starting { .. }) => false,
-            (MainStatus::Stopping, MainStatus::Stopping) => false,
-            (MainStatus::Stopped, MainStatus::Stopped) => false,
-            (MainStatus::Restarting, MainStatus::Restarting) => false,
-            (MainStatus::BackingUp { .. }, MainStatus::BackingUp { .. }) => false,
-            (MainStatus::Error { .. }, MainStatus::Error { .. }) => false,
-            _ => true,
-        }
-    }
-
     pub fn backing_up(&self) -> Self {
-        MainStatus::BackingUp {
-            on_complete: if self.running() {
-                StartStop::Start
-            } else {
-                StartStop::Stop
-            },
+        Self::BackingUp {
+            on_complete: self.run_state(),
         }
     }
 
-    pub fn health(&self) -> Option<&OrdMap<HealthCheckId, NamedHealthCheckResult>> {
+    pub fn stop(&self) -> Self {
         match self {
-            MainStatus::Running { health, .. } | MainStatus::Starting { health } => Some(health),
-            MainStatus::BackingUp { .. }
-            | MainStatus::Stopped
-            | MainStatus::Stopping { .. }
-            | MainStatus::Restarting
-            | MainStatus::Error { .. } => None,
+            Self::BackingUp { .. } => Self::BackingUp {
+                on_complete: StartStop::Stop,
+            },
+            _ => Self::Stopped,
+        }
+    }
+
+    pub fn start(&self) -> Self {
+        match self {
+            Self::BackingUp { .. } => Self::BackingUp {
+                on_complete: StartStop::Start,
+            },
+            Self::Stopped => Self::Running,
+            x => *x,
+        }
+    }
+
+    pub fn restart(&self) -> Self {
+        match self {
+            Self::Running => Self::Restarting,
+            x => *x, // no-op: restart is meaningless in any other state
         }
     }
 }

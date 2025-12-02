@@ -1,7 +1,6 @@
 pub mod model;
 pub mod prelude;
 
-use std::panic::UnwindSafe;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;

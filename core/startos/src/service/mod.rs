@@ -9,33 +9,31 @@ use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use axum::extract::ws::{Utf8Bytes, WebSocket};
-use chrono::{DateTime, Utc};
 use clap::Parser;
 use futures::future::BoxFuture;
 use futures::stream::FusedStream;
 use futures::{FutureExt, SinkExt, StreamExt, TryStreamExt};
-use helpers::NonDetachingJoinHandle;
+use helpers::{AtomicFile, NonDetachingJoinHandle};
 use imbl_value::{InternedString, json};
 use itertools::Itertools;
 use models::{ActionId, HostId, ImageId, PackageId};
 use nix::sys::signal::Signal;
 use persistent_container::{PersistentContainer, Subcontainer};
-use rpc_toolkit::{HandlerArgs, HandlerFor};
+use rpc_toolkit::HandlerArgs;
+use rpc_toolkit::yajrc::RpcError;
 use serde::{Deserialize, Serialize};
 use service_actor::ServiceActor;
-use start_stop::StartStop;
 use termion::raw::IntoRawMode;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::process::Command;
-use tokio::sync::Notify;
 use tokio_tungstenite::tungstenite::protocol::frame::coding::CloseCode;
 use ts_rs::TS;
 use url::Url;
 
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::package::{
-    InstalledState, ManifestPreference, PackageDataEntry, PackageState, PackageStateMatchModelRef,
-    TaskSeverity, UpdatingState,
+    InstalledState, ManifestPreference, PackageState, PackageStateMatchModelRef, TaskSeverity,
+    UpdatingState,
 };
 use crate::disk::mount::filesystem::ReadOnly;
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard};
@@ -49,15 +47,15 @@ use crate::service::service_map::InstallProgressHandles;
 use crate::service::uninstall::cleanup;
 use crate::util::Never;
 use crate::util::actor::concurrent::ConcurrentActor;
-use crate::util::io::{AsyncReadStream, TermSize, create_file, delete_file};
+use crate::util::io::{AsyncReadStream, TermSize, delete_file};
 use crate::util::net::WebSocketExt;
 use crate::util::serde::Pem;
+use crate::util::sync::SyncMutex;
 use crate::volume::data_dir;
 use crate::{CAP_1_KiB, DATA_DIR};
 
 pub mod action;
 pub mod cli;
-mod control;
 pub mod effects;
 pub mod persistent_container;
 mod rpc;
@@ -66,7 +64,6 @@ pub mod service_map;
 pub mod start_stop;
 mod transition;
 pub mod uninstall;
-mod util;
 
 pub use service_map::ServiceMap;
 
@@ -222,24 +219,17 @@ impl Service {
     async fn new(
         ctx: RpcContext,
         s9pk: S9pk,
-        start: StartStop,
         procedure_id: Guid,
         init_kind: Option<InitKind>,
         recovery_source: Option<impl GenericMountGuard>,
     ) -> Result<ServiceRef, Error> {
         let id = s9pk.as_manifest().id.clone();
-        let persistent_container = PersistentContainer::new(
-            &ctx, s9pk,
-            start,
-            // desired_state.subscribe(),
-            // temp_desired_state.subscribe(),
-        )
-        .await?;
+        let persistent_container = PersistentContainer::new(&ctx, s9pk).await?;
         let seed = Arc::new(ServiceActorSeed {
             id,
             persistent_container,
             ctx,
-            synchronized: Arc::new(Notify::new()),
+            backup: SyncMutex::new(None),
         });
         let service: ServiceRef = Self {
             actor: ConcurrentActor::new(ServiceActor(seed.clone())),
@@ -279,19 +269,14 @@ impl Service {
     ) -> Result<Option<ServiceRef>, Error> {
         let handle_installed = {
             let ctx = ctx.clone();
-            move |s9pk: S9pk, i: Model<PackageDataEntry>| async move {
+            move |s9pk: S9pk| async move {
                 for volume_id in &s9pk.as_manifest().volumes {
                     let path = data_dir(DATA_DIR, &s9pk.as_manifest().id, volume_id);
                     if tokio::fs::metadata(&path).await.is_err() {
                         tokio::fs::create_dir_all(&path).await?;
                     }
                 }
-                let start_stop = if i.as_status().de()?.running() {
-                    StartStop::Start
-                } else {
-                    StartStop::Stop
-                };
-                Self::new(ctx, s9pk, start_stop, Guid::new(), None, None::<MountGuard>)
+                Self::new(ctx, s9pk, Guid::new(), None, None::<MountGuard>)
                     .await
                     .map(Some)
             }
@@ -319,7 +304,7 @@ impl Service {
                             s9pk,
                             &s9pk_path,
                             &None,
-                            None,
+                            InitKind::Install,
                             None::<Never>,
                             None,
                         )
@@ -353,7 +338,7 @@ impl Service {
                             s9pk,
                             &s9pk_path,
                             &None,
-                            Some(entry.as_status().de()?.run_state()),
+                            InitKind::Update,
                             None::<Never>,
                             None,
                         )
@@ -388,7 +373,7 @@ impl Service {
                         }
                     })
                     .await.result?;
-                handle_installed(s9pk, entry).await
+                handle_installed(s9pk).await
             }
             PackageStateMatchModelRef::Removing(_) | PackageStateMatchModelRef::Restoring(_) => {
                 if let Ok(s9pk) = S9pk::open(s9pk_path, Some(id)).await.map_err(|e| {
@@ -396,11 +381,7 @@ impl Service {
                     tracing::debug!("{e:?}")
                 }) {
                     let err_state = |e: Error| async move {
-                        let state = crate::status::MainStatus::Error {
-                            on_rebuild: StartStop::Stop,
-                            message: e.to_string(),
-                            debug: Some(format!("{e:?}")),
-                        };
+                        let e = e.into();
                         ctx.db
                             .mutate(move |db| {
                                 if let Some(pde) =
@@ -413,22 +394,14 @@ impl Service {
                                                 .clone(),
                                         }))
                                     })?;
-                                    pde.as_status_mut().ser(&state)?;
+                                    pde.as_status_info_mut().as_error_mut().ser(&Some(e))?;
                                 }
                                 Ok(())
                             })
                             .await
                             .result
                     };
-                    match Self::new(
-                        ctx.clone(),
-                        s9pk,
-                        StartStop::Stop,
-                        Guid::new(),
-                        None,
-                        None::<MountGuard>,
-                    )
-                    .await
+                    match Self::new(ctx.clone(), s9pk, Guid::new(), None, None::<MountGuard>).await
                     {
                         Ok(service) => match async {
                             service
@@ -463,7 +436,7 @@ impl Service {
                 Ok(None)
             }
             PackageStateMatchModelRef::Installed(_) => {
-                handle_installed(S9pk::open(s9pk_path, Some(id)).await?, entry).await
+                handle_installed(S9pk::open(s9pk_path, Some(id)).await?).await
             }
             PackageStateMatchModelRef::Error(e) => Err(Error::new(
                 eyre!("Failed to parse PackageDataEntry, found {e:?}"),
@@ -478,7 +451,7 @@ impl Service {
         s9pk: S9pk,
         s9pk_path: &PathBuf,
         registry: &Option<Url>,
-        prev_state: Option<StartStop>,
+        kind: InitKind,
         recovery_source: Option<impl GenericMountGuard>,
         progress: Option<InstallProgressHandles>,
     ) -> Result<ServiceRef, Error> {
@@ -489,15 +462,8 @@ impl Service {
         let service = Self::new(
             ctx.clone(),
             s9pk,
-            StartStop::Stop,
             procedure_id.clone(),
-            Some(if recovery_source.is_some() {
-                InitKind::Restore
-            } else if prev_state.is_some() {
-                InitKind::Update
-            } else {
-                InitKind::Install
-            }),
+            Some(kind),
             recovery_source,
         )
         .await?;
@@ -550,8 +516,7 @@ impl Service {
                 }
             }
         }
-        let has_critical = ctx
-            .db
+        ctx.db
             .mutate(|db| {
                 for (action_id, input) in &action_input {
                     for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
@@ -566,13 +531,15 @@ impl Service {
                     .as_idx_mut(&manifest.id)
                     .or_not_found(&manifest.id)?;
                 let actions = entry.as_actions().keys()?;
-                let has_critical = entry.as_tasks_mut().mutate(|t| {
+                if entry.as_tasks_mut().mutate(|t| {
                     t.retain(|_, v| {
                         v.task.package_id != manifest.id || actions.contains(&v.task.action_id)
                     });
                     Ok(t.iter()
                         .any(|(_, t)| t.active && t.task.severity == TaskSeverity::Critical))
-                })?;
+                })? {
+                    entry.as_status_info_mut().stop()?;
+                }
                 entry
                     .as_state_info_mut()
                     .ser(&PackageState::Installed(InstalledState { manifest }))?;
@@ -581,14 +548,10 @@ impl Service {
                 entry.as_icon_mut().ser(&icon)?;
                 entry.as_registry_mut().ser(registry)?;
 
-                Ok(has_critical)
+                Ok(())
             })
             .await
             .result?;
-
-        if prev_state == Some(StartStop::Start) && !has_critical {
-            service.start(procedure_id).await?;
-        }
 
         Ok(service)
     }
@@ -596,23 +559,31 @@ impl Service {
     #[instrument(skip_all)]
     pub async fn backup(&self, guard: impl GenericMountGuard) -> Result<(), Error> {
         let id = &self.seed.id;
-        let mut file = create_file(guard.path().join(id).with_extension("s9pk")).await?;
+        let mut file = AtomicFile::new(guard.path().join(id).with_extension("s9pk"), None::<&str>)
+            .await
+            .with_kind(ErrorKind::Filesystem)?;
         self.seed
             .persistent_container
             .s9pk
             .clone()
-            .serialize(&mut file, true)
+            .serialize(&mut *file, true)
             .await?;
-        drop(file);
-        self.actor
-            .send(
-                Guid::new(),
-                transition::backup::Backup {
-                    path: guard.path().join("data"),
-                },
-            )
-            .await??
-            .await?;
+        file.save().await.with_kind(ErrorKind::Filesystem)?;
+        // TODO: reverify?
+        self.seed
+            .ctx
+            .db
+            .mutate(|db| {
+                db.as_public_mut()
+                    .as_package_data_mut()
+                    .as_idx_mut(id)
+                    .or_not_found(id)?
+                    .as_status_info_mut()
+                    .as_desired_mut()
+                    .map_mutate(|s| Ok(s.backing_up()))
+            })
+            .await
+            .result?;
         Ok(())
     }
 
@@ -661,41 +632,12 @@ impl Service {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct RunningStatus {
-    started: DateTime<Utc>,
-}
-
 struct ServiceActorSeed {
     ctx: RpcContext,
     id: PackageId,
     /// Needed to interact with the container for the service
     persistent_container: PersistentContainer,
-    /// This is notified every time the background job created in ServiceActor::init responds to a change
-    synchronized: Arc<Notify>,
-}
-
-impl ServiceActorSeed {
-    /// Used to indicate that we have finished the task of starting the service
-    pub fn started(&self) {
-        self.persistent_container.state.send_modify(|state| {
-            state.running_status =
-                Some(
-                    state
-                        .running_status
-                        .take()
-                        .unwrap_or_else(|| RunningStatus {
-                            started: Utc::now(),
-                        }),
-                );
-        });
-    }
-    /// Used to indicate that we have finished the task of stopping the service
-    pub fn stopped(&self) {
-        self.persistent_container.state.send_modify(|state| {
-            state.running_status = None;
-        });
-    }
+    backup: SyncMutex<Option<BoxFuture<'static, Result<(), RpcError>>>>,
 }
 
 #[derive(Deserialize, Serialize, Parser, TS)]

@@ -1039,6 +1039,7 @@ pub async fn test_smtp(
     use lettre::{AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 
     AsyncSmtpTransport::<Tokio1Executor>::relay(&server)?
+        .port(port)
         .credentials(Credentials::new(login, password))
         .build()
         .send(

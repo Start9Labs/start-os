@@ -376,7 +376,7 @@ impl Default for AlpnInfo {
     }
 }
 
-type Mapping<A: Accept> = BTreeMap<Option<InternedString>, InOMap<DynVHostTarget<A>, Weak<()>>>;
+type Mapping<A> = BTreeMap<Option<InternedString>, InOMap<DynVHostTarget<A>, Weak<()>>>;
 
 pub struct GetVHostAcmeProvider<A: Accept + 'static>(pub Watch<Mapping<A>>);
 impl<A: Accept + 'static> Clone for GetVHostAcmeProvider<A> {
