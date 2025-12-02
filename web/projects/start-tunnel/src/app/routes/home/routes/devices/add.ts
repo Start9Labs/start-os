@@ -20,6 +20,7 @@ import {
 import {
   TuiButton,
   TuiDialogContext,
+  TuiDialogService,
   TuiError,
   TuiTextfield,
 } from '@taiga-ui/core'
@@ -41,6 +42,7 @@ import {
   subnetValidator,
   ipInSubnetValidator,
 } from './utils'
+import { DEVICES_CONFIG } from './config'
 
 @Component({
   template: `
@@ -118,6 +120,7 @@ export class DevicesAdd {
   private readonly loading = inject(LoadingService)
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
+  private readonly dialogs = inject(TuiDialogService)
 
   protected readonly mobile = inject(TUI_IS_MOBILE)
   protected readonly context =
@@ -167,9 +170,18 @@ export class DevicesAdd {
     const data = { ip, name, subnet: subnet?.range || '' }
 
     try {
-      this.context.data.device
-        ? await this.api.editDevice(data)
-        : await this.api.addDevice(data)
+      if (this.context.data.device) {
+        await this.api.editDevice(data)
+      } else {
+        await this.api.addDevice(data)
+
+        const config = await this.api.showDeviceConfig({
+          subnet: data.subnet,
+          ip,
+        })
+
+        this.dialogs.open(DEVICES_CONFIG, { data: config }).subscribe()
+      }
     } catch (e: any) {
       console.error(e)
       this.errorService.handleError(e)

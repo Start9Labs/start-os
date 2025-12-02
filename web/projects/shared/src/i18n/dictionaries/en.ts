@@ -534,6 +534,7 @@ export const ENGLISH = {
   'Select a Certificate Authority to issue SSL/TLS certificates for this domain': 569,
   'Other': 570, // as in, a list option to indicate none of the options listed
   'A name to easily identify the gateway': 571,
+  "Not good for public access, since the certificate is signed by your Server's Root CA": 572,
   'File': 574, // as in, a computer file
   'StartTunnel Config File': 575,
   'Copy/Paste': 576,
@@ -547,7 +548,7 @@ export const ENGLISH = {
   'Connections can be slow or unreliable at times': 584,
   'Public if you share the address publicly, otherwise private': 585,
   'Requires using a Tor-enabled device or browser': 586,
-  'Only useful for clients that require SSL': 587,
+  'Not recommended in most cases. Only needed for apps that enforce HTTPS': 587,
   'Ideal for anonymous, censorship-resistant hosting and remote access': 588,
   'Ideal for local access': 589,
   'Requires being connected to the same Local Area Network (LAN) as your server, either physically or via VPN': 590,
@@ -560,11 +561,11 @@ export const ENGLISH = {
   'that resolves to': 597, // this is a partial sentence. It is preceded by "requires a DNS record for [domain] "
   'Not recommended for VPN access. VPNs do not support ".local" domains without advanced configuration': 598,
   'Can be used for clearnet access': 599,
-  'Not recommended in most cases. Public domains are preferred': 600,
+  'Not recommended in most cases. Using a public domain is more common and preferred': 600,
   'Local': 601, // as in, not remote
   'Can be used for local access': 602,
   'Ideal for public access via the Internet': 603,
-  'Can be used for personal access via the public Internet. VPN is more private and secure': 604,
+  'Can be used for personal access via the public Internet, but a VPN is more private and secure': 604,
   'when using IP addresses and ports is undesirable': 605, // this is a partial sentence. It is preceded by "Good for connections "
   'Host': 606, // as in, a network host
   'Value': 607, // as in, the value in a column of a table
