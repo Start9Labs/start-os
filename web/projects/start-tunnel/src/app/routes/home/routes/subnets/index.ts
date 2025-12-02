@@ -67,6 +67,8 @@ import { SUBNETS_ADD } from './add'
               </button>
             </td>
           </tr>
+        } @empty {
+          <div class="placeholder">No subnets</div>
         }
       </tbody>
     </table>
