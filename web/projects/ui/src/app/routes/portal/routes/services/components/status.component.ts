@@ -37,7 +37,7 @@ import {
             <span class="loading-dots"></span>
           }
 
-          @if ($any(pkg().status)?.started; as started) {
+          @if (pkg().statusInfo.started; as started) {
             <service-uptime [started]="started" />
           }
         </h3>

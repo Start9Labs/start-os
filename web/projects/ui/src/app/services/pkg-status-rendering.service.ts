@@ -23,7 +23,7 @@ export function renderPkgStatus(pkg: PackageDataEntry): PackageStatus {
 
 export function getInstalledPrimaryStatus({
   tasks,
-  status,
+  statusInfo,
 }: T.PackageDataEntry): PrimaryStatus {
   if (
     Object.values(tasks).some(t => t.active && t.task.severity === 'critical')
@@ -32,14 +32,20 @@ export function getInstalledPrimaryStatus({
   }
 
   if (
-    Object.values(status.main === 'running' && status.health)
-      .filter(h => !!h)
-      .some(h => h.result === 'starting')
+    statusInfo.desired === 'running' &&
+    (!statusInfo.started ||
+      Object.values(statusInfo.health)
+        .filter(h => !!h)
+        .some(h => h.result === 'starting'))
   ) {
     return 'starting'
   }
 
-  return status.main
+  if (statusInfo.desired === 'stopped' && statusInfo.started) {
+    return 'stopping'
+  }
+
+  return statusInfo.desired
 }
 
 function getHealthStatus(status: T.MainStatus): T.HealthStatus | null {
