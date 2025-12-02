@@ -13,7 +13,7 @@ export function renderPkgStatus(pkg: PackageDataEntry): PackageStatus {
 
   if (pkg.stateInfo.state === 'installed') {
     primary = getInstalledPrimaryStatus(pkg)
-    health = getHealthStatus(pkg.status)
+    health = getHealthStatus(pkg.statusInfo)
   } else {
     primary = pkg.stateInfo.state
   }
@@ -21,33 +21,43 @@ export function renderPkgStatus(pkg: PackageDataEntry): PackageStatus {
   return { primary, health }
 }
 
-export function getInstalledPrimaryStatus({
-  tasks,
-  status,
-}: T.PackageDataEntry): PrimaryStatus {
+export function getInstalledBaseStatus(statusInfo: T.StatusInfo): BaseStatus {
   if (
-    Object.values(tasks).some(t => t.active && t.task.severity === 'critical')
-  ) {
-    return 'taskRequired'
-  }
-
-  if (
-    Object.values(status.main === 'running' && status.health)
-      .filter(h => !!h)
-      .some(h => h.result === 'starting')
+    statusInfo.desired.main === 'running' &&
+    (!statusInfo.started ||
+      Object.values(statusInfo.health)
+        .filter(h => !!h)
+        .some(h => h.result === 'starting'))
   ) {
     return 'starting'
   }
 
-  return status.main
+  if (statusInfo.desired.main === 'stopped' && statusInfo.started) {
+    return 'stopping'
+  }
+
+  return statusInfo.desired.main
 }
 
-function getHealthStatus(status: T.MainStatus): T.HealthStatus | null {
-  if (status.main !== 'running' || !status.main) {
+export function getInstalledPrimaryStatus({
+  tasks,
+  statusInfo,
+}: T.PackageDataEntry): PrimaryStatus {
+  if (
+    Object.values(tasks).some(t => t.active && t.task.severity === 'critical')
+  ) {
+    return 'task-required'
+  }
+
+  return getInstalledBaseStatus(statusInfo)
+}
+
+function getHealthStatus(statusInfo: T.StatusInfo): T.HealthStatus | null {
+  if (statusInfo.desired.main !== 'running') {
     return null
   }
 
-  const values = Object.values(status.health).filter(h => !!h)
+  const values = Object.values(statusInfo.health).filter(h => !!h)
 
   if (values.some(h => h.result === 'failure')) {
     return 'failure'
@@ -70,7 +80,7 @@ export interface StatusRendering {
   showDots?: boolean
 }
 
-export type PrimaryStatus =
+export type BaseStatus =
   | 'installing'
   | 'updating'
   | 'removing'
@@ -80,9 +90,10 @@ export type PrimaryStatus =
   | 'stopping'
   | 'restarting'
   | 'stopped'
-  | 'backingUp'
-  | 'taskRequired'
+  | 'backing-up'
   | 'error'
+
+export type PrimaryStatus = BaseStatus | 'task-required'
 
 export type DependencyStatus = 'warning' | 'satisfied'
 
@@ -122,7 +133,7 @@ export const PrimaryRendering: Record<PrimaryStatus, StatusRendering> = {
     color: 'dark-shade',
     showDots: false,
   },
-  backingUp: {
+  'backing-up': {
     display: 'Backing Up',
     color: 'primary',
     showDots: true,
@@ -137,7 +148,7 @@ export const PrimaryRendering: Record<PrimaryStatus, StatusRendering> = {
     color: 'success',
     showDots: false,
   },
-  taskRequired: {
+  'task-required': {
     display: 'Task Required',
     color: 'warning',
     showDots: false,

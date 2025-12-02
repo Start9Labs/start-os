@@ -19,7 +19,6 @@ import { PatchDB } from 'patch-db-client'
 import { filter, map } from 'rxjs'
 import { ApiService } from 'src/app/services/api/api.service'
 import { TunnelData } from 'src/app/services/patch-db/data-model'
-
 import { DEVICES_ADD } from './add'
 import { DEVICES_CONFIG } from './config'
 import { MappedDevice, MappedSubnet } from './utils'
@@ -84,6 +83,8 @@ import { MappedDevice, MappedSubnet } from './utils'
               </button>
             </td>
           </tr>
+        } @empty {
+          <div class="placeholder">No devices</div>
         }
       </tbody>
     </table>

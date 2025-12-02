@@ -34,9 +34,7 @@ use crate::service::effects::handler;
 use crate::service::rpc::{
     CallbackHandle, CallbackId, CallbackParams, ExitParams, InitKind, InitParams,
 };
-use crate::service::start_stop::StartStop;
-use crate::service::transition::{TransitionKind, TransitionState};
-use crate::service::{RunningStatus, Service, rpc};
+use crate::service::{Service, rpc};
 use crate::util::Invoke;
 use crate::util::io::create_file;
 use crate::util::rpc_client::UnixRpcClient;
@@ -49,41 +47,15 @@ const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 pub struct ServiceState {
     // indicates whether the service container runtime has been initialized yet
     pub(super) rt_initialized: bool,
-    // This contains the start time and health check information for when the service is running. Note: Will be overwritting to the db,
-    pub(super) running_status: Option<RunningStatus>,
     // This tracks references to callbacks registered by the running service:
     pub(super) callbacks: BTreeSet<Arc<CallbackId>>,
-    /// Setting this value causes the service actor to try to bring the service to the specified state. This is done in the background job created in ServiceActor::init
-    pub(super) desired_state: StartStop,
-    /// Override the current desired state for the service during a transition (this is protected by a guard that sets this value to null on drop)
-    pub(super) temp_desired_state: Option<StartStop>,
-    /// This represents a currently running task that affects the service's shown state, such as BackingUp or Restarting.
-    pub(super) transition_state: Option<TransitionState>,
-}
-
-#[derive(Debug)]
-pub struct ServiceStateKinds {
-    pub transition_state: Option<TransitionKind>,
-    pub running_status: Option<RunningStatus>,
-    pub desired_state: StartStop,
 }
 
 impl ServiceState {
-    pub fn new(desired_state: StartStop) -> Self {
+    pub fn new() -> Self {
         Self {
             rt_initialized: false,
-            running_status: Default::default(),
             callbacks: Default::default(),
-            temp_desired_state: Default::default(),
-            transition_state: Default::default(),
-            desired_state,
-        }
-    }
-    pub fn kinds(&self) -> ServiceStateKinds {
-        ServiceStateKinds {
-            transition_state: self.transition_state.as_ref().map(|x| x.kind()),
-            desired_state: self.temp_desired_state.unwrap_or(self.desired_state),
-            running_status: self.running_status.clone(),
         }
     }
 }
@@ -117,7 +89,7 @@ pub struct PersistentContainer {
 
 impl PersistentContainer {
     #[instrument(skip_all)]
-    pub async fn new(ctx: &RpcContext, s9pk: S9pk, start: StartStop) -> Result<Self, Error> {
+    pub async fn new(ctx: &RpcContext, s9pk: S9pk) -> Result<Self, Error> {
         let lxc_container = ctx
             .lxc_manager
             .create(
@@ -305,7 +277,7 @@ impl PersistentContainer {
             assets,
             images,
             subcontainers: Arc::new(Mutex::new(BTreeMap::new())),
-            state: Arc::new(watch::channel(ServiceState::new(start)).0),
+            state: Arc::new(watch::channel(ServiceState::new()).0),
             net_service,
             destroyed: false,
         })

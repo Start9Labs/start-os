@@ -25,7 +25,7 @@ const INACTIVE: PrimaryStatus[] = [
   'updating',
   'removing',
   'restoring',
-  'backingUp',
+  'backing-up',
 ]
 
 @Component({

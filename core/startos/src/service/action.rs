@@ -130,11 +130,11 @@ impl Handler<RunAction> for ServiceActor {
             ref action_id,
             input,
         }: RunAction,
-        jobs: &BackgroundJobQueue,
+        _: &BackgroundJobQueue,
     ) -> Self::Response {
         let container = &self.0.persistent_container;
         let package_id = &self.0.id;
-        let action = self
+        let pde = self
             .0
             .ctx
             .db
@@ -143,9 +143,10 @@ impl Handler<RunAction> for ServiceActor {
             .into_public()
             .into_package_data()
             .into_idx(package_id)
-            .or_not_found(package_id)?
-            .into_actions()
-            .into_idx(action_id)
+            .or_not_found(package_id)?;
+        let action = pde
+            .as_actions()
+            .as_idx(action_id)
             .or_not_found(lazy_format!("{package_id} action {action_id}"))?
             .de()?;
         if matches!(&action.visibility, ActionVisibility::Disabled(_)) {
@@ -154,7 +155,7 @@ impl Handler<RunAction> for ServiceActor {
                 ErrorKind::Action,
             ));
         }
-        let running = container.state.borrow().running_status.as_ref().is_some();
+        let running = pde.as_status_info().as_started().transpose_ref().is_some();
         if match action.allowed_statuses {
             AllowedStatuses::OnlyRunning => !running,
             AllowedStatuses::OnlyStopped => running,
@@ -177,44 +178,21 @@ impl Handler<RunAction> for ServiceActor {
             .await
             .with_kind(ErrorKind::Action)?;
         let package_id = package_id.clone();
-        for to_stop in self
-            .0
+        self.0
             .ctx
             .db
             .mutate(|db| {
-                let mut to_stop = Vec::new();
-                for (id, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
+                for (_, pde) in db.as_public_mut().as_package_data_mut().as_entries_mut()? {
                     if pde.as_tasks_mut().mutate(|tasks| {
                         Ok(update_tasks(tasks, &package_id, action_id, &input, true))
                     })? {
-                        to_stop.push(id)
+                        pde.as_status_info_mut().stop()?;
                     }
                 }
-                Ok(to_stop)
+                Ok(())
             })
             .await
-            .result?
-        {
-            if to_stop == package_id {
-                <Self as Handler<super::control::Stop>>::handle(
-                    self,
-                    id.clone(),
-                    super::control::Stop { wait: false },
-                    jobs,
-                )
-                .await;
-            } else {
-                self.0
-                    .ctx
-                    .services
-                    .get(&to_stop)
-                    .await
-                    .as_ref()
-                    .or_not_found(&to_stop)?
-                    .stop(id.clone(), false)
-                    .await?;
-            }
-        }
+            .result?;
         Ok(result)
     }
 }

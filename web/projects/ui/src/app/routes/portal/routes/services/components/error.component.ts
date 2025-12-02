@@ -15,7 +15,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
   selector: 'service-error',
   template: `
     <header>{{ 'Service Launch Error' | i18n }}</header>
-    <p class="error-message">{{ error?.message }}</p>
+    <p class="error-message">{{ error?.details }}</p>
     <p>{{ error?.debug }}</p>
     <h4>
       {{ 'Actions' | i18n }}
@@ -95,7 +95,7 @@ export class ServiceErrorComponent {
   overflow = false
 
   get error() {
-    return this.pkg.status.main === 'error' ? this.pkg.status : null
+    return this.pkg.statusInfo.error
   }
 
   rebuild() {
@@ -108,7 +108,7 @@ export class ServiceErrorComponent {
 
   show() {
     this.dialog
-      .openAlert(this.error?.message as i18nKey, { label: 'Service error' })
+      .openAlert(this.error?.details as i18nKey, { label: 'Service error' })
       .subscribe()
   }
 }

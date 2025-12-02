@@ -34,7 +34,7 @@ import { StatusComponent } from './status.component'
     ></td>
     <td [style.grid-area]="'2 / 2'">{{ manifest.version }}</td>
     <td class="uptime">
-      @if ($any(pkg.status)?.started; as started) {
+      @if (pkg.statusInfo.started; as started) {
         <span>{{ 'Uptime' | i18n }}:</span>
         <service-uptime [started]="started" />
       } @else {

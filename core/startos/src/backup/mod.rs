@@ -1,15 +1,12 @@
 use std::collections::BTreeMap;
 
-use chrono::{DateTime, Utc};
-use models::{HostId, PackageId};
-use reqwest::Url;
+use models::PackageId;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 
 use crate::context::CliContext;
 #[allow(unused_imports)]
 use crate::prelude::*;
-use crate::util::serde::{Base32, Base64};
 
 pub mod backup_bulk;
 pub mod os;
@@ -57,14 +54,4 @@ pub fn package_backup<C: Context>() -> ParentHandler<C> {
             .with_about("Restore package(s) from backup")
             .with_call_remote::<CliContext>(),
     )
-}
-
-#[derive(Deserialize, Serialize)]
-struct BackupMetadata {
-    pub timestamp: DateTime<Utc>,
-    #[serde(default)]
-    pub network_keys: BTreeMap<HostId, Base64<[u8; 32]>>,
-    #[serde(default)]
-    pub tor_keys: BTreeMap<HostId, Base32<[u8; 64]>>, // DEPRECATED
-    pub registry: Option<Url>,
 }

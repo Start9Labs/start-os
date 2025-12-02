@@ -16,6 +16,10 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StandardActionsService } from 'src/app/services/standard-actions.service'
 import { getManifest } from 'src/app/utils/get-package-data'
 import { ServiceActionComponent } from '../components/action.component'
+import {
+  BaseStatus,
+  getInstalledBaseStatus,
+} from 'src/app/services/pkg-status-rendering.service'
 
 @Component({
   template: `
@@ -27,7 +31,7 @@ import { ServiceActionComponent } from '../components/action.component'
             <button
               tuiCell
               [action]="a"
-              (click)="handle(pkg.mainStatus, pkg.icon, pkg.manifest, a)"
+              (click)="handle(pkg.status, pkg.icon, pkg.manifest, a)"
             ></button>
           }
         </section>
@@ -77,7 +81,7 @@ export default class ServiceActionsRoute {
             ? 'Other'
             : 'General'
           return {
-            mainStatus: pkg.status.main,
+            status: getInstalledBaseStatus(pkg.statusInfo),
             icon: pkg.icon,
             manifest: getManifest(pkg),
             actions: Object.entries(pkg.actions)
@@ -131,13 +135,13 @@ export default class ServiceActionsRoute {
   }
 
   handle(
-    mainStatus: T.MainStatus['main'],
+    status: BaseStatus,
     icon: string,
     { id, title }: T.Manifest,
     action: T.ActionMetadata & { id: string },
   ) {
     this.actions.present({
-      pkgInfo: { id, title, icon, mainStatus },
+      pkgInfo: { id, title, icon, status },
       actionInfo: { id: action.id, metadata: action },
     })
   }

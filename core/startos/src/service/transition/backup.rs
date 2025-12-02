@@ -1,21 +1,65 @@
 use std::path::PathBuf;
-use std::sync::Arc;
 
-use futures::FutureExt;
 use futures::future::BoxFuture;
+use futures::{FutureExt, TryFutureExt};
 use models::ProcedureName;
+use rpc_toolkit::yajrc::RpcError;
 
-use super::TempDesiredRestore;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
-use crate::service::ServiceActor;
 use crate::service::action::GetActionInput;
-use crate::service::transition::{TransitionKind, TransitionState};
+use crate::service::start_stop::StartStop;
+use crate::service::transition::{Transition, TransitionKind};
+use crate::service::{ServiceActor, ServiceActorSeed};
+use crate::status::DesiredStatus;
 use crate::util::actor::background::BackgroundJobQueue;
 use crate::util::actor::{ConflictBuilder, Handler};
-use crate::util::future::RemoteCancellable;
 use crate::util::serde::NoOutput;
+
+impl ServiceActorSeed {
+    pub fn backup(&self) -> Transition<'_> {
+        Transition {
+            kind: TransitionKind::BackingUp,
+            future: async {
+                let res = if let Some(fut) = self.backup.replace(None) {
+                    fut.await.map_err(Error::from)
+                } else {
+                    Err(Error::new(
+                        eyre!("No backup to resume"),
+                        ErrorKind::Cancelled,
+                    ))
+                };
+                let id = &self.id;
+                self.ctx
+                    .db
+                    .mutate(|db| {
+                        db.as_public_mut()
+                            .as_package_data_mut()
+                            .as_idx_mut(id)
+                            .or_not_found(id)?
+                            .as_status_info_mut()
+                            .as_desired_mut()
+                            .map_mutate(|s| {
+                                Ok(match s {
+                                    DesiredStatus::BackingUp {
+                                        on_complete: StartStop::Start,
+                                    } => DesiredStatus::Running,
+                                    DesiredStatus::BackingUp {
+                                        on_complete: StartStop::Stop,
+                                    } => DesiredStatus::Stopped,
+                                    x => x,
+                                })
+                            })
+                    })
+                    .await
+                    .result?;
+                res
+            }
+            .boxed(),
+        }
+    }
+}
 
 pub(in crate::service) struct Backup {
     pub path: PathBuf,
@@ -28,63 +72,31 @@ impl Handler<Backup> for ServiceActor {
     async fn handle(
         &mut self,
         id: Guid,
-        backup: Backup,
-        jobs: &BackgroundJobQueue,
+        Backup { path }: Backup,
+        _: &BackgroundJobQueue,
     ) -> Self::Response {
-        // So Need a handle to just a single field in the state
-        let temp: TempDesiredRestore = TempDesiredRestore::new(&self.0.persistent_container.state);
-        let mut current = self.0.persistent_container.state.subscribe();
-        let path = backup.path.clone();
         let seed = self.0.clone();
 
-        let transition = RemoteCancellable::new(async move {
-            temp.stop();
-            current
-                .wait_for(|s| s.running_status.is_none())
-                .await
-                .with_kind(ErrorKind::Unknown)?;
+        let transition = async move {
+            async {
+                let backup_guard = seed
+                    .persistent_container
+                    .mount_backup(path, ReadWrite)
+                    .await?;
+                seed.persistent_container
+                    .execute::<NoOutput>(id, ProcedureName::CreateBackup, Value::Null, None)
+                    .await?;
+                backup_guard.unmount(true).await?;
 
-            let backup_guard = seed
-                .persistent_container
-                .mount_backup(path, ReadWrite)
-                .await?;
-            seed.persistent_container
-                .execute::<NoOutput>(id, ProcedureName::CreateBackup, Value::Null, None)
-                .await?;
-            backup_guard.unmount(true).await?;
-
-            if temp.restore().is_start() {
-                current
-                    .wait_for(|s| s.running_status.is_some())
-                    .await
-                    .with_kind(ErrorKind::Unknown)?;
+                Ok::<_, Error>(())
             }
-            drop(temp);
-            Ok::<_, Arc<Error>>(())
-        });
-        let cancel_handle = transition.cancellation_handle();
-        let transition = transition.shared();
-        let job_transition = transition.clone();
-        jobs.add_job(job_transition.map(|_| ()));
-
-        let mut old = None;
-        self.0.persistent_container.state.send_modify(|s| {
-            old = std::mem::replace(
-                &mut s.transition_state,
-                Some(TransitionState {
-                    kind: TransitionKind::BackingUp,
-                    cancel_handle,
-                }),
-            )
-        });
-        if let Some(t) = old {
-            t.abort().await;
+            .await
+            .map_err(RpcError::from)
         }
-        Ok(transition
-            .map(|r| {
-                r.ok_or_else(|| Error::new(eyre!("Backup canceled"), ErrorKind::Cancelled))?
-                    .map_err(|e| e.clone_output())
-            })
-            .boxed())
+        .shared();
+
+        self.0.backup.replace(Some(transition.clone().boxed()));
+
+        Ok(transition.map_err(Error::from).boxed())
     }
 }

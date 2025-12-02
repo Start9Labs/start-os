@@ -1,5 +1,4 @@
 use clap::Parser;
-use color_eyre::eyre::eyre;
 use models::PackageId;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
@@ -8,7 +7,6 @@ use ts_rs::TS;
 use crate::Error;
 use crate::context::RpcContext;
 use crate::prelude::*;
-use crate::rpc_continuations::Guid;
 
 #[derive(Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]
@@ -19,37 +17,51 @@ pub struct ControlParams {
 
 #[instrument(skip_all)]
 pub async fn start(ctx: RpcContext, ControlParams { id }: ControlParams) -> Result<(), Error> {
-    ctx.services
-        .get(&id)
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&id)
+                .or_not_found(&id)?
+                .as_status_info_mut()
+                .as_desired_mut()
+                .map_mutate(|s| Ok(s.start()))
+        })
         .await
-        .as_ref()
-        .or_not_found(lazy_format!("Manager for {id}"))?
-        .start(Guid::new())
-        .await?;
+        .result?;
 
     Ok(())
 }
 
 pub async fn stop(ctx: RpcContext, ControlParams { id }: ControlParams) -> Result<(), Error> {
-    ctx.services
-        .get(&id)
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&id)
+                .or_not_found(&id)?
+                .as_status_info_mut()
+                .stop()
+        })
         .await
-        .as_ref()
-        .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
-        .stop(Guid::new(), true)
-        .await?;
+        .result?;
 
     Ok(())
 }
 
 pub async fn restart(ctx: RpcContext, ControlParams { id }: ControlParams) -> Result<(), Error> {
-    ctx.services
-        .get(&id)
+    ctx.db
+        .mutate(|db| {
+            db.as_public_mut()
+                .as_package_data_mut()
+                .as_idx_mut(&id)
+                .or_not_found(&id)?
+                .as_status_info_mut()
+                .as_desired_mut()
+                .map_mutate(|s| Ok(s.restart()))
+        })
         .await
-        .as_ref()
-        .ok_or_else(|| Error::new(eyre!("Manager not found"), crate::ErrorKind::InvalidRequest))?
-        .restart(Guid::new(), false)
-        .await?;
+        .result?;
 
     Ok(())
 }

@@ -55,6 +55,8 @@ import { MappedDevice, MappedForward } from './utils'
               </button>
             </td>
           </tr>
+        } @empty {
+          <div class="placeholder">No port forwards</div>
         }
       </tbody>
     </table>

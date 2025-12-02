@@ -55,7 +55,7 @@ pub trait FileSource: Send + Sync + Sized + 'static {
         fn to_vec(
             src: &impl FileSource,
             verify: Option<(Hash, u64)>,
-        ) -> BoxFuture<Result<Vec<u8>, Error>> {
+        ) -> BoxFuture<'_, Result<Vec<u8>, Error>> {
             async move {
                 let mut vec = Vec::with_capacity(if let Some((_, size)) = &verify {
                     *size

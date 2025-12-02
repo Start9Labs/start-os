@@ -27,6 +27,7 @@ import { TaskInfoComponent } from 'src/app/routes/portal/modals/config-dep.compo
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
+import { BaseStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getAllPackages, getManifest } from 'src/app/utils/get-package-data'
 
 export type PackageActionData = {
@@ -34,7 +35,7 @@ export type PackageActionData = {
     id: string
     title: string
     icon: string
-    mainStatus: T.MainStatus['main']
+    status: BaseStatus
   }
   actionInfo: {
     id: string

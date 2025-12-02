@@ -28,7 +28,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
                 <tui-icon icon="@tui.check" class="g-positive" />
                 {{ 'complete' | i18n }}
               } @else {
-                @if ((pkg.key | tuiMapper: toStatus | async) === 'backingUp') {
+                @if ((pkg.key | tuiMapper: toStatus | async) === 'backing-up') {
                   <tui-loader size="s" />
                   {{ 'backing up' | i18n }}
                 } @else {
@@ -65,5 +65,5 @@ export class BackupProgressComponent {
   )
 
   readonly toStatus = (pkgId: string) =>
-    this.patch.watch$('packageData', pkgId, 'status', 'main')
+    this.patch.watch$('packageData', pkgId, 'statusInfo', 'desired', 'main')
 }

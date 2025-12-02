@@ -80,6 +80,12 @@ tui-dialog[new][data-appearance~='start-9'] {
   }
 }
 
+.placeholder {
+  padding: 1rem;
+  font: var(--tui-font-text-l);
+  color: var(--tui-text-tertiary);
+}
+
 qr-code {
   display: flex;
   justify-content: center;

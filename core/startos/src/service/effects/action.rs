@@ -261,19 +261,20 @@ async fn create_task(
         },
         None => true,
     };
-    if active && task.severity == TaskSeverity::Critical {
-        context.stop(procedure_id, false).await?;
-    }
     context
         .seed
         .ctx
         .db
         .mutate(|db| {
-            db.as_public_mut()
+            let pde = db
+                .as_public_mut()
                 .as_package_data_mut()
                 .as_idx_mut(src_id)
-                .or_not_found(src_id)?
-                .as_tasks_mut()
+                .or_not_found(src_id)?;
+            if active && task.severity == TaskSeverity::Critical {
+                pde.as_status_info_mut().stop()?;
+            }
+            pde.as_tasks_mut()
                 .insert(&replay_id, &TaskEntry { active, task })
         })
         .await

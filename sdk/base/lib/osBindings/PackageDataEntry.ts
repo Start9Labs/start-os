@@ -4,17 +4,17 @@ import type { ActionMetadata } from "./ActionMetadata"
 import type { CurrentDependencies } from "./CurrentDependencies"
 import type { DataUrl } from "./DataUrl"
 import type { Hosts } from "./Hosts"
-import type { MainStatus } from "./MainStatus"
 import type { PackageState } from "./PackageState"
 import type { ReplayId } from "./ReplayId"
 import type { ServiceInterface } from "./ServiceInterface"
 import type { ServiceInterfaceId } from "./ServiceInterfaceId"
+import type { StatusInfo } from "./StatusInfo"
 import type { TaskEntry } from "./TaskEntry"
 
 export type PackageDataEntry = {
   stateInfo: PackageState
   s9pk: string
-  status: MainStatus
+  statusInfo: StatusInfo
   registry: string | null
   developerKey: string
   icon: DataUrl

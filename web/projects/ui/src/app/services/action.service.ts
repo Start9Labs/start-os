@@ -26,7 +26,7 @@ const allowedStatuses = {
     'restoring',
     'stopping',
     'starting',
-    'backingUp',
+    'backing-up',
   ]),
 }
 
@@ -45,9 +45,7 @@ export class ActionService {
     const { pkgInfo, actionInfo } = data
 
     if (
-      allowedStatuses[actionInfo.metadata.allowedStatuses].has(
-        pkgInfo.mainStatus,
-      )
+      allowedStatuses[actionInfo.metadata.allowedStatuses].has(pkgInfo.status)
     ) {
       if (actionInfo.metadata.hasInput) {
         this.formDialog.open<PackageActionData>(ActionInputModal, {

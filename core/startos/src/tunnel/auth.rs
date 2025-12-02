@@ -3,7 +3,7 @@ use imbl::HashMap;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use patch_db::HasModel;
-use rpc_toolkit::{Context, Empty, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
+use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 

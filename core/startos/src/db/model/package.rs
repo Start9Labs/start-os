@@ -16,7 +16,7 @@ use crate::net::service_interface::ServiceInterface;
 use crate::prelude::*;
 use crate::progress::FullProgress;
 use crate::s9pk::manifest::Manifest;
-use crate::status::MainStatus;
+use crate::status::StatusInfo;
 use crate::util::serde::{Pem, is_partial_of};
 
 #[derive(Debug, Default, Deserialize, Serialize, TS)]
@@ -365,7 +365,7 @@ impl Default for ActionVisibility {
 pub struct PackageDataEntry {
     pub state_info: PackageState,
     pub s9pk: PathBuf,
-    pub status: MainStatus,
+    pub status_info: StatusInfo,
     #[ts(type = "string | null")]
     pub registry: Option<Url>,
     #[ts(type = "string")]

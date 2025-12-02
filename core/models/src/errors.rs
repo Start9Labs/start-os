@@ -11,6 +11,7 @@ use rpc_toolkit::yajrc::{
 };
 use serde::{Deserialize, Serialize};
 use tokio::task::JoinHandle;
+use ts_rs::TS;
 
 use crate::InvalidId;
 
@@ -407,7 +408,7 @@ impl From<patch_db::value::Error> for Error {
     }
 }
 
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Deserialize, Serialize, TS)]
 pub struct ErrorData {
     pub details: String,
     pub debug: String,

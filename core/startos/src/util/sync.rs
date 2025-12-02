@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::VecDeque;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::sync::atomic::AtomicUsize;
@@ -28,6 +28,7 @@ fn annotate_lock<F, T>(f: F, id: usize, write: bool) -> T
 where
     F: FnOnce() -> T,
 {
+    use std::collections::BTreeMap;
     std::thread_local! {
         static LOCK_CTX: std::cell::RefCell<BTreeMap<usize, Result<(), usize>>> = std::cell::RefCell::new(BTreeMap::new());
     }

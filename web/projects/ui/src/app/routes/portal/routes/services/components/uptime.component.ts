@@ -114,11 +114,10 @@ import { distinctUntilChanged } from 'rxjs/operators'
 })
 export class ServiceUptimeComponent {
   protected readonly uptime$ = timer(0, 1000).pipe(
-    map(() =>
-      this.started()
-        ? Math.max(Date.now() - new Date(this.started()).getTime(), 0)
-        : 0,
-    ),
+    map(() => {
+      const started = this.started()
+      return started ? Math.max(Date.now() - new Date(started).getTime(), 0) : 0
+    }),
     distinctUntilChanged(),
     map(delta => ({
       seconds: Math.floor(delta / 1000) % 60,
@@ -128,5 +127,5 @@ export class ServiceUptimeComponent {
     })),
   )
 
-  readonly started = input('')
+  readonly started = input<string | null>(null)
 }

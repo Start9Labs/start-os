@@ -232,8 +232,11 @@ export const mockPatchData: DataModel = {
       s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
       icon: '/assets/img/service-icons/bitcoin-core.svg',
       lastBackup: new Date(new Date().valueOf() - 604800001).toISOString(),
-      status: {
-        main: 'stopped',
+      statusInfo: {
+        desired: { main: 'stopped' },
+        error: null,
+        health: {},
+        started: null,
       },
       // status: {
       //   main: 'error',
@@ -518,8 +521,11 @@ export const mockPatchData: DataModel = {
       s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
       icon: '/assets/img/service-icons/lnd.png',
       lastBackup: null,
-      status: {
-        main: 'stopped',
+      statusInfo: {
+        desired: { main: 'stopped' },
+        error: null,
+        health: {},
+        started: null,
       },
       actions: {
         config: {

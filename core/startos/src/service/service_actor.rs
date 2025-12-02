@@ -1,17 +1,14 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use futures::FutureExt;
-use futures::future::{BoxFuture, Either};
 use imbl::vector;
+use patch_db::TypedDbWatch;
 
 use super::ServiceActorSeed;
-use super::start_stop::StartStop;
 use crate::prelude::*;
 use crate::service::SYNC_RETRY_COOLDOWN_SECONDS;
-use crate::service::persistent_container::ServiceStateKinds;
-use crate::service::transition::TransitionKind;
-use crate::status::MainStatus;
+use crate::service::transition::{Transition, TransitionKind};
+use crate::status::{DesiredStatus, StatusInfo};
 use crate::util::actor::Actor;
 use crate::util::actor::background::BackgroundJobQueue;
 
@@ -21,159 +18,123 @@ pub(super) struct ServiceActor(pub(super) Arc<ServiceActorSeed>);
 impl Actor for ServiceActor {
     fn init(&mut self, jobs: &BackgroundJobQueue) {
         let seed = self.0.clone();
-        let mut current = seed.persistent_container.state.subscribe();
+        let mut state = seed.persistent_container.state.subscribe();
+        let initialized = async move { state.wait_for(|s| s.rt_initialized).await.map(|_| ()) };
+
         jobs.add_job(async move {
-            let _ = current.wait_for(|s| s.rt_initialized).await;
-            let mut start_stop_task: Option<Either<_, _>> = None;
+            if initialized.await.is_err() {
+                return;
+            }
+            let mut watch = seed
+                .ctx
+                .db
+                .watch(
+                    format!("/public/packageData/{}/statusInfo", seed.id)
+                        .parse()
+                        .unwrap(),
+                ) // TODO: typed pointers
+                .await
+                .typed::<StatusInfo>();
+            let mut transition: Option<Transition> = None;
 
             loop {
-                let wait = match service_actor_loop(&current, &seed, &mut start_stop_task).await {
-                    Ok(()) => Either::Right(current.changed().then(|res| async move {
-                        match res {
-                            Ok(()) => (),
-                            Err(_) => futures::future::pending().await,
-                        }
-                    })),
-                    Err(e) => {
+                let res = service_actor_loop(&mut watch, &seed, &mut transition).await;
+                let wait = async {
+                    if let Err(e) = async {
+                        res?;
+                        watch.changed().await?;
+                        Ok::<_, Error>(())
+                    }
+                    .await
+                    {
                         tracing::error!("error synchronizing state of service: {e}");
                         tracing::debug!("{e:?}");
-
-                        seed.synchronized.notify_waiters();
-
                         tracing::error!("Retrying in {}s...", SYNC_RETRY_COOLDOWN_SECONDS);
-                        Either::Left(tokio::time::sleep(Duration::from_secs(
-                            SYNC_RETRY_COOLDOWN_SECONDS,
-                        )))
+                        tokio::time::timeout(
+                            Duration::from_secs(SYNC_RETRY_COOLDOWN_SECONDS),
+                            async {
+                                watch.changed().await.log_err();
+                            },
+                        )
+                        .await
+                        .ok();
                     }
                 };
                 tokio::pin!(wait);
-                let start_stop_handler = async {
-                    match &mut start_stop_task {
-                        Some(task) => {
-                            let err = task.await.log_err().is_none(); // TODO: ideally this error should be sent to service logs
-                            start_stop_task.take();
+                let transition_handler = async {
+                    match &mut transition {
+                        Some(Transition { future, .. }) => {
+                            let err = future.await.log_err().is_none(); // TODO: ideally this error should be sent to service logs
+                            transition.take();
                             if err {
                                 tokio::time::sleep(Duration::from_secs(
                                     SYNC_RETRY_COOLDOWN_SECONDS,
                                 ))
                                 .await;
+                            } else {
+                                futures::future::pending().await
                             }
                         }
                         _ => futures::future::pending().await,
                     }
                 };
-                tokio::pin!(start_stop_handler);
-                futures::future::select(wait, start_stop_handler).await;
+                tokio::pin!(transition_handler);
+                futures::future::select(wait, transition_handler).await;
             }
         });
     }
 }
 
 async fn service_actor_loop<'a>(
-    current: &tokio::sync::watch::Receiver<super::persistent_container::ServiceState>,
+    watch: &mut TypedDbWatch<StatusInfo>,
     seed: &'a Arc<ServiceActorSeed>,
-    start_stop_task: &mut Option<
-        Either<BoxFuture<'a, Result<(), Error>>, BoxFuture<'a, Result<(), Error>>>,
-    >,
+    transition: &mut Option<Transition<'a>>,
 ) -> Result<(), Error> {
     let id = &seed.id;
-    let kinds = current.borrow().kinds();
+    let status_model = watch.peek_and_mark_seen()?;
+    let status = status_model.de()?;
 
-    let major_changes_state = seed
-        .ctx
-        .db
-        .mutate(|d| {
-            if let Some(i) = d.as_public_mut().as_package_data_mut().as_idx_mut(&id) {
-                let previous = i.as_status().de()?;
-                let main_status = match &kinds {
-                    ServiceStateKinds {
-                        transition_state: Some(TransitionKind::Restarting),
-                        ..
-                    } => MainStatus::Restarting,
-                    ServiceStateKinds {
-                        transition_state: Some(TransitionKind::BackingUp),
-                        ..
-                    } => previous.backing_up(),
-                    ServiceStateKinds {
-                        running_status: Some(status),
-                        desired_state: StartStop::Start,
-                        ..
-                    } => MainStatus::Running {
-                        started: status.started,
-                        health: previous.health().cloned().unwrap_or_default(),
-                    },
-                    ServiceStateKinds {
-                        running_status: None,
-                        desired_state: StartStop::Start,
-                        ..
-                    } => MainStatus::Starting {
-                        health: previous.health().cloned().unwrap_or_default(),
-                    },
-                    ServiceStateKinds {
-                        running_status: Some(_),
-                        desired_state: StartStop::Stop,
-                        ..
-                    } => MainStatus::Stopping,
-                    ServiceStateKinds {
-                        running_status: None,
-                        desired_state: StartStop::Stop,
-                        ..
-                    } => MainStatus::Stopped,
-                };
-                i.as_status_mut().ser(&main_status)?;
-                return Ok(previous
-                    .major_changes(&main_status)
-                    .then_some((previous, main_status)));
-            }
-            Ok(None)
-        })
-        .await
-        .result?;
-
-    if let Some((previous, new_state)) = major_changes_state {
-        if let Some(callbacks) = seed.ctx.callbacks.get_status(id) {
-            callbacks
-                .call(vector![to_value(&previous)?, to_value(&new_state)?])
-                .await?;
-        }
+    if let Some(callbacks) = seed.ctx.callbacks.get_status(id) {
+        callbacks
+            .call(vector![patch_db::ModelExt::into_value(status_model)])
+            .await?;
     }
-    seed.synchronized.notify_waiters();
 
-    match kinds {
-        ServiceStateKinds {
-            running_status: None,
-            desired_state: StartStop::Start,
+    match status {
+        StatusInfo {
+            desired: DesiredStatus::Running | DesiredStatus::Restarting,
+            started: None,
             ..
         } => {
-            let task = start_stop_task
+            let task = transition
                 .take()
-                .filter(|task| matches!(task, Either::Right(_)));
-            *start_stop_task = Some(
-                task.unwrap_or_else(|| Either::Right(seed.persistent_container.start().boxed())),
-            );
+                .filter(|task| task.kind == TransitionKind::Starting);
+            *transition = task.or_else(|| Some(seed.start()));
         }
-        ServiceStateKinds {
-            running_status: Some(_),
-            desired_state: StartStop::Stop,
+        StatusInfo {
+            desired:
+                DesiredStatus::Stopped | DesiredStatus::Restarting | DesiredStatus::BackingUp { .. },
+            started: Some(_),
             ..
         } => {
-            let task = start_stop_task
+            let task = transition
                 .take()
-                .filter(|task| matches!(task, Either::Left(_)));
-            *start_stop_task = Some(task.unwrap_or_else(|| {
-                Either::Left(
-                    async {
-                        seed.persistent_container.stop().await?;
-                        seed.persistent_container
-                            .state
-                            .send_if_modified(|s| s.running_status.take().is_some());
-                        Ok::<_, Error>(())
-                    }
-                    .boxed(),
-                )
-            }));
+                .filter(|task| task.kind == TransitionKind::Stopping);
+            *transition = task.or_else(|| Some(seed.stop()));
         }
-        _ => (),
+        StatusInfo {
+            desired: DesiredStatus::BackingUp { .. },
+            started: None,
+            ..
+        } => {
+            let task = transition
+                .take()
+                .filter(|task| task.kind == TransitionKind::BackingUp);
+            *transition = task.or_else(|| Some(seed.backup()));
+        }
+        _ => {
+            *transition = None;
+        }
     };
     Ok(())
 }

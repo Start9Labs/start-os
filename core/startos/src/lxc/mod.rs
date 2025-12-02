@@ -5,11 +5,11 @@ use std::sync::{Arc, Weak};
 use std::time::Duration;
 
 use clap::builder::ValueParserFactory;
-use futures::{AsyncWriteExt, StreamExt};
-use imbl_value::{InOMap, InternedString};
+use futures::StreamExt;
+use imbl_value::InternedString;
 use models::{FromStrParser, InvalidId, PackageId};
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{GenericRpcMethod, RpcRequest, RpcResponse};
+use rpc_toolkit::{RpcRequest, RpcResponse};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
@@ -17,7 +17,7 @@ use tokio::sync::Mutex;
 use tokio::time::Instant;
 use ts_rs::TS;
 
-use crate::context::{CliContext, RpcContext};
+use crate::context::RpcContext;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
 use crate::disk::mount::filesystem::idmapped::IdMapped;

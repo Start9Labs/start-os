@@ -23,7 +23,6 @@ use hickory_server::proto::rr::{Name, Record, RecordType};
 use hickory_server::server::{Request, RequestHandler, ResponseHandler, ResponseInfo};
 use imbl::OrdMap;
 use imbl_value::InternedString;
-use itertools::Itertools;
 use models::{GatewayId, OptionExt, PackageId};
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{

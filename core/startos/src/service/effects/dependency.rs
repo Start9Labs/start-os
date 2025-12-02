@@ -4,7 +4,6 @@ use std::str::FromStr;
 
 use clap::builder::ValueParserFactory;
 use exver::VersionRange;
-use imbl::OrdMap;
 use imbl_value::InternedString;
 use models::{FromStrParser, HealthCheckId, PackageId, ReplayId, VersionString, VolumeId};
 
@@ -96,13 +95,6 @@ pub async fn get_installed_packages(context: EffectContext) -> Result<BTreeSet<P
         .keys()
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, TS)]
-#[serde(rename_all = "camelCase")]
-#[ts(export)]
-pub enum DependencyKind {
-    Exists,
-    Running,
-}
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase", tag = "kind")]
 #[serde(rename_all_fields = "camelCase")]
@@ -287,8 +279,7 @@ pub struct CheckDependenciesResult {
     satisfies: BTreeSet<VersionString>,
     is_running: bool,
     tasks: BTreeMap<ReplayId, TaskEntry>,
-    #[ts(as = "BTreeMap::<HealthCheckId, NamedHealthCheckResult>")]
-    health_checks: OrdMap<HealthCheckId, NamedHealthCheckResult>,
+    health_checks: BTreeMap<HealthCheckId, NamedHealthCheckResult>,
 }
 pub async fn check_dependencies(
     context: EffectContext,
@@ -336,14 +327,12 @@ pub async fn check_dependencies(
         let installed_version = manifest.as_version().de()?.into_version();
         let satisfies = manifest.as_satisfies().de()?;
         let installed_version = Some(installed_version.clone().into());
-        let is_installed = true;
-        let status = package.as_status().de()?;
-        let is_running = if is_installed {
-            status.running()
-        } else {
-            false
-        };
-        let health_checks = status.health().cloned().unwrap_or_default();
+        let is_running = package
+            .as_status_info()
+            .as_started()
+            .transpose_ref()
+            .is_some();
+        let health_checks = package.as_status_info().as_health().de()?;
         let tasks = tasks
             .iter()
             .filter(|(_, v)| v.task.package_id == package_id)

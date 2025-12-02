@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -27,11 +28,10 @@ use crate::progress::{FullProgressTracker, PhaseProgressTrackerHandle, ProgressT
 use crate::s9pk::S9pk;
 use crate::s9pk::manifest::PackageId;
 use crate::s9pk::merkle_archive::source::FileSource;
-use crate::service::rpc::ExitParams;
-use crate::service::start_stop::StartStop;
+use crate::service::rpc::{ExitParams, InitKind};
 use crate::service::{LoadDisposition, Service, ServiceRef};
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
-use crate::status::MainStatus;
+use crate::status::{DesiredStatus, StatusInfo};
 use crate::util::serde::{Base32, Pem};
 use crate::util::sync::SyncMutex;
 
@@ -123,17 +123,7 @@ impl ServiceMap {
                 ctx.db
                     .mutate(|db| {
                         if let Some(pde) = db.as_public_mut().as_package_data_mut().as_idx_mut(id) {
-                            pde.as_status_mut().map_mutate(|s| {
-                                Ok(MainStatus::Error {
-                                    on_rebuild: if s.running() {
-                                        StartStop::Start
-                                    } else {
-                                        StartStop::Stop
-                                    },
-                                    message: e.details,
-                                    debug: Some(e.debug),
-                                })
-                            })?;
+                            pde.as_status_info_mut().as_error_mut().ser(&Some(e))?;
                         }
                         Ok(())
                     })
@@ -242,7 +232,12 @@ impl ServiceMap {
                                             PackageState::Installing(installing)
                                         },
                                         s9pk: installed_path,
-                                        status: MainStatus::Stopped,
+                                        status_info: StatusInfo {
+                                            error: None,
+                                            health: BTreeMap::new(),
+                                            started: None,
+                                            desired: DesiredStatus::Stopped,
+                                        },
                                         registry,
                                         developer_key: Pem::new(developer_key),
                                         icon,
@@ -333,15 +328,9 @@ impl ServiceMap {
                                 next_can_migrate_from.clone(),
                             ))
                         };
-                        let run_state = service
-                            .seed
-                            .persistent_container
-                            .state
-                            .borrow()
-                            .desired_state;
                         let cleanup = service.uninstall(uninit, false, false).await?;
                         progress.complete();
-                        Some((run_state, cleanup))
+                        Some(cleanup)
                     } else {
                         None
                     };
@@ -350,7 +339,13 @@ impl ServiceMap {
                         s9pk,
                         &installed_path,
                         &registry,
-                        prev.as_ref().map(|(s, _)| *s),
+                        if recovery_source.is_some() {
+                            InitKind::Restore
+                        } else if prev.is_some() {
+                            InitKind::Update
+                        } else {
+                            InitKind::Install
+                        },
                         recovery_source,
                         Some(InstallProgressHandles {
                             finalization_progress,
@@ -360,7 +355,7 @@ impl ServiceMap {
                     .await?;
                     *service = Some(new_service.into());
 
-                    if let Some((_, cleanup)) = prev {
+                    if let Some(cleanup) = prev {
                         cleanup.await?;
                     }
 

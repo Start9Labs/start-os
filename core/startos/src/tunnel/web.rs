@@ -466,7 +466,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
 
                 println!("✅ Success! ✅");
                 println!(
-                    "The webserver is running. Below is your URL{} and SSL certificate.",
+                    "The webserver is running. Below is your URL{} and Root Certificate Authority (Root CA).",
                     if password.is_some() {
                         ", password,"
                     } else {
@@ -496,7 +496,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                     println!("{password}");
                     println!();
                     println!(concat!(
-                        "If you lose or forget your password, you can reset it using the command: ",
+                        "If you lose or forget your password, you can reset it using the following command: ",
                         "start-tunnel auth reset-password"
                     ));
                 } else {
@@ -516,12 +516,22 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                 .pop()
                 .map(Pem)
                 .or_not_found("certificate in chain")?;
-                println!("📝 Root SSL Certificate:");
+                println!("📝 Root CA:");
                 print!("{cert}");
 
                 println!(concat!(
-                    "If you haven't already, ",
-                    "trust the certificate in your system keychain and/or browser."
+                    "To trust your StartTunnel Root CA (above):\n",
+                    "  1. Copy the Root CA ",
+                    "(starting with -----BEGIN CERTIFICATE----- and ending with -----END CERTIFICATE-----).\n",
+                    "  2. Open a text editor: \n",
+                    "    - Linux: gedit, nano, or any editor\n",
+                    "    - Mac: TextEdit\n",
+                    "    - Windows: Notepad\n",
+                    "  3. Paste the contents of your Root CA.\n",
+                    "  4. Save the file with a `.crt` extension ",
+                    "(e.g. `start-tunnel.crt`) (make sure it saves as plain text, not rich text).\n",
+                    "  5. Follow instructions to trust you StartTunnel Root CA: ",
+                    "https://staging.docs.start9.com/user-manual/trust-ca.html#2-trust-your-servers-root-ca."
                 ));
 
                 return Ok(());
@@ -534,28 +544,14 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                         .await?,
                 )?;
 
-                suggested_addrs.sort_by_cached_key(|a| match a {
-                    IpAddr::V4(a) => {
-                        if a.is_loopback() {
-                            3
-                        } else if a.is_private() {
-                            2
-                        } else {
-                            0
-                        }
-                    }
-                    IpAddr::V6(a) => {
-                        if a.is_loopback() {
-                            5
-                        } else if a.is_unicast_link_local() {
-                            4
-                        } else {
-                            1
-                        }
-                    }
+                suggested_addrs.retain(|ip| match ip {
+                    IpAddr::V4(a) => !a.is_loopback() && !a.is_private(),
+                    IpAddr::V6(a) => !a.is_loopback() && !a.is_unicast_link_local(),
                 });
 
-                let ip = if suggested_addrs.is_empty() {
+                let ip = if suggested_addrs.len() == 1 {
+                    suggested_addrs[0]
+                } else if suggested_addrs.is_empty() {
                     prompt("Listen Address: ", parse_as::<IpAddr>("IP Address"), None).await?
                 } else if suggested_addrs.len() > 16 {
                     prompt(
@@ -565,22 +561,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                     )
                     .await?
                 } else {
-                    *choose_custom_display("Listen Address:", &suggested_addrs, |a| match a {
-                        a if a.is_loopback() => {
-                            format!("{a} (Loopback Address: only use if planning to proxy traffic)")
-                        }
-                        IpAddr::V4(a) if a.is_private() => {
-                            format!("{a} (Private Address: only available from Local Area Network)")
-                        }
-                        IpAddr::V6(a) if a.is_unicast_link_local() => {
-                            format!(
-                                "[{a}] (Private Address: only available from Local Area Network)"
-                            )
-                        }
-                        IpAddr::V6(a) => format!("[{a}]"),
-                        a => a.to_string(),
-                    })
-                    .await?
+                    *choose("Listen Address:", &suggested_addrs).await?
                 };
 
                 println!(concat!(
@@ -608,8 +589,8 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                 impl std::fmt::Display for Choice {
                     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                         match self {
-                            Self::Generate => write!(f, "Generate an SSL certificate"),
-                            Self::Provide => write!(f, "Provide your own certificate and key"),
+                            Self::Generate => write!(f, "Generate"),
+                            Self::Provide => write!(f, "Provide"),
                         }
                     }
                 }
@@ -617,7 +598,7 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                 let choice = choose(
                     concat!(
                         "Select whether to generate an SSL certificate ",
-                        "or provide your own certificate and key:"
+                        "or provide your own certificate (and key):"
                     ),
                     &options,
                 )
@@ -631,34 +612,34 @@ pub async fn init_web(ctx: CliContext) -> Result<(), Error> {
                         )?
                         .filter(|a| !a.ip().is_unspecified());
 
-                        let default_prompt = if let Some(listen) = listen {
-                            format!("Subject Alternative Name(s) [{}]: ", listen.ip())
+                        let san_info = if let Some(listen) = listen {
+                            vec![InternedString::from_display(&listen.ip())]
                         } else {
-                            "Subject Alternative Name(s): ".to_string()
+                            println!(
+                                "List all IP addresses and domains for which to sign the certificate, separated by commas."
+                            );
+                            prompt(
+                                "Subject Alternative Name(s): ",
+                                |s| {
+                                    s.split(",")
+                                        .map(|s| {
+                                            let s = s.trim();
+                                            if let Ok(ip) = s.parse::<IpAddr>() {
+                                                Ok(InternedString::from_display(&ip))
+                                            } else if is_valid_domain(s) {
+                                                Ok(s.into())
+                                            } else {
+                                                Err(format!(
+                                                    "{s} is not a valid ip address or domain"
+                                                ))
+                                            }
+                                        })
+                                        .collect()
+                                },
+                                listen.map(|l| vec![InternedString::from_display(&l.ip())]),
+                            )
+                            .await?
                         };
-
-                        println!(
-                            "List all IP addresses and domains for which to sign the certificate, separated by commas."
-                        );
-                        let san_info = prompt(
-                            &default_prompt,
-                            |s| {
-                                s.split(",")
-                                    .map(|s| {
-                                        let s = s.trim();
-                                        if let Ok(ip) = s.parse::<IpAddr>() {
-                                            Ok(InternedString::from_display(&ip))
-                                        } else if is_valid_domain(s) {
-                                            Ok(s.into())
-                                        } else {
-                                            Err(format!("{s} is not a valid ip address or domain"))
-                                        }
-                                    })
-                                    .collect()
-                            },
-                            listen.map(|l| vec![InternedString::from_display(&l.ip())]),
-                        )
-                        .await?;
 
                         ctx.call_remote::<TunnelContext>(
                             "web.generate-certificate",

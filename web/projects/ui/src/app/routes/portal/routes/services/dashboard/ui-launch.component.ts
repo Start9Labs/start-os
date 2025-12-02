@@ -11,6 +11,7 @@ import { tuiPure } from '@taiga-ui/cdk'
 import { TuiDataList, TuiDropdown, TuiButton } from '@taiga-ui/core'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { InterfaceService } from '../../../components/interfaces/interface.service'
+import { getInstalledPrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
 
 @Component({
   selector: 'app-ui-launch',
@@ -70,7 +71,7 @@ export class UILaunchComponent {
   }
 
   get isRunning(): boolean {
-    return this.pkg.status.main === 'running'
+    return getInstalledPrimaryStatus(this.pkg) === 'running'
   }
 
   @tuiPure

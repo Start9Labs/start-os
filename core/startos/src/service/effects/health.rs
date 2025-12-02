@@ -1,7 +1,6 @@
 use models::HealthCheckId;
 
 use crate::service::effects::prelude::*;
-use crate::status::MainStatus;
 use crate::status::health_check::NamedHealthCheckResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -28,16 +27,9 @@ pub async fn set_health(
                 .as_package_data_mut()
                 .as_idx_mut(package_id)
                 .or_not_found(package_id)?
-                .as_status_mut()
-                .mutate(|main| {
-                    match main {
-                        MainStatus::Running { health, .. } | MainStatus::Starting { health } => {
-                            health.insert(id, result);
-                        }
-                        _ => (),
-                    }
-                    Ok(())
-                })
+                .as_status_info_mut()
+                .as_health_mut()
+                .insert(&id, &result)
         })
         .await
         .result?;

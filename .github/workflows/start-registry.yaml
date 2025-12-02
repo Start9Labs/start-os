@@ -1,0 +1,100 @@
+name: Start-Registry
+
+on:
+  workflow_call:
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: Environment
+        options:
+          - NONE
+          - dev
+          - unstable
+          - dev-unstable
+      runner:
+        type: choice
+        description: Runner
+        options:
+          - standard
+          - fast
+      arch:
+        type: choice
+        description: Architecture
+        options:
+          - ALL
+          - x86_64
+          - aarch64
+          - riscv64
+  push:
+    branches:
+      - master
+      - next/*
+  pull_request:
+    branches:
+      - master
+      - next/*
+
+env:
+  NODEJS_VERSION: "24.11.0"
+  ENVIRONMENT: '${{ fromJson(format(''["{0}", ""]'', github.event.inputs.environment || ''dev''))[github.event.inputs.environment == ''NONE''] }}'
+
+jobs:
+  compile:
+    name: Build Debian Package
+    strategy:
+      fail-fast: true
+      matrix:
+        arch: >-
+          ${{
+            fromJson('{
+              "x86_64": ["x86_64"],
+              "aarch64": ["aarch64"],
+              "riscv64": ["riscv64"],
+              "ALL": ["x86_64", "aarch64", "riscv64"]
+            }')[github.event.inputs.platform || 'ALL']
+          }}
+    runs-on: ${{ fromJson('["ubuntu-latest", "buildjet-32vcpu-ubuntu-2204"]')[github.event.inputs.runner == 'fast'] }}
+    steps:
+      - name: Cleaning up unnecessary files
+        run: |
+          sudo apt-get remove --purge -y google-chrome-stable firefox mono-devel
+          sudo apt-get autoremove -y
+          sudo apt-get clean
+
+      - run: |
+          sudo mount -t tmpfs tmpfs .
+        if: ${{ github.event.inputs.runner == 'fast' }}
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODEJS_VERSION }}
+
+      - name: Set up docker QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Configure sccache
+        uses: actions/github-script@v7
+        with:
+          script: |
+            core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
+            core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
+
+      - name: Make
+        run: make registry-deb
+        env:
+          PLATFORM: ${{ matrix.arch }}
+          SCCACHE_GHA_ENABLED: on
+          SCCACHE_GHA_VERSION: 0
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: start-registry_${{ matrix.arch }}.deb
+          path: results/start-registry-*_${{ matrix.arch }}.deb
