@@ -172,7 +172,7 @@ jobs:
           echo "DOCKER_PLATFORM=$platform" >> "$GITHUB_ENV"
 
       - run: |
-          cat | docker buildx build --platform "$DOCKER_PLATFORM" --push -t ${{ steps.meta.outputs.tags }} -f - ./results << EOF
+          cat | docker buildx build --platform "$DOCKER_PLATFORM" --push -t ${{ steps.meta.outputs.tags }} -f - . << EOF
           FROM debian:trixie
 
           ADD *.deb
