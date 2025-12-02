@@ -27,6 +27,32 @@ import { LABELS } from './utils'
           </label>
         }
       </section>
+      @if (parent.ip === 'static') {
+        <section [formGroupName]="parent.ip">
+          @for (
+            control of parent.form.controls.ip.controls[parent.ip]?.controls
+              | keyvalue: asIs;
+            track control
+          ) {
+            <div>
+              <tui-textfield>
+                <label tuiLabel>{{ labels[control.key] }}</label>
+                <input
+                  tuiTextfield
+                  [formControlName]="control.key"
+                  [readOnly]="control.key === 'mask'"
+                />
+              </tui-textfield>
+              @if (control.key === 'gateway') {
+                <tui-error
+                  class="g-secondary"
+                  error="Only needed if behind NAT"
+                />
+              }
+            </div>
+          }
+        </section>
+      }
       @if (parent.ip === 'pppoe') {
         <section [formGroupName]="parent.ip">
           @for (
@@ -40,32 +66,7 @@ import { LABELS } from './utils'
             </tui-textfield>
           }
         </section>
-      } @else {
-        <section [formGroupName]="parent.ip">
-          @for (
-            control of parent.form.controls.ip.controls[parent.ip]?.controls
-              | keyvalue: asIs;
-            track control
-          ) {
-            <div>
-              <tui-textfield>
-                <label tuiLabel>{{ labels[control.key] }}</label>
-                <input
-                  tuiTextfield
-                  [formControlName]="control.key"
-                  [readOnly]="control.key === 'mask' || parent.ip === 'dhcp'"
-                />
-              </tui-textfield>
-              @if (control.key === 'gateway' && parent.ip === 'static') {
-                <tui-error
-                  class="g-secondary"
-                  error="Only needed if behind NAT"
-                />
-              }
-            </div>
-          }
-        </section>
-      }
+      } @else {}
     </ng-container>
   `,
   hostDirectives: [Form],
