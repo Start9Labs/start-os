@@ -354,7 +354,9 @@ export class InterfaceService {
       if (ssl) {
         type = `${type} (SSL)`
         bullets = [
-          this.i18n.transform('Only useful for clients that require SSL'),
+          this.i18n.transform(
+            'Not recommended in most cases. Only needed for apps that enforce HTTPS',
+          ),
           rootCaRequired,
           ...bullets,
         ]
@@ -409,13 +411,13 @@ export class InterfaceService {
           bullets = [
             this.i18n.transform('Can be used for clearnet access'),
             this.i18n.transform(
-              'Not recommended in most cases. Public domains are preferred',
+              'Not recommended in most cases. Using a public domain is more common and preferred',
             ),
             rootCaRequired,
           ]
           if (!info.gateway.public) {
             bullets.push(
-              `${portForwarding} "${gatewayName}": ${port} -> ${gateway?.subnets.find(s => s.isIpv4())?.address}:${port}`,
+              `${portForwarding} "${gatewayName}": ${port} -> ${port}`,
             )
           }
         } else {
@@ -452,7 +454,7 @@ export class InterfaceService {
 
           if (!info.gateway.public) {
             bullets.push(
-              `${portForwarding} "${gatewayName}": ${port} -> ${gateway?.subnets.find(s => s.isIpv4())?.address}:${port === 443 ? 5443 : port}`,
+              `${portForwarding} "${gatewayName}": ${port} -> ${port === 443 ? 5443 : port}`,
             )
           }
 
@@ -463,7 +465,10 @@ export class InterfaceService {
           } else {
             bullets = [
               this.i18n.transform(
-                'Can be used for personal access via the public Internet. VPN is more private and secure',
+                'Can be used for personal access via the public Internet, but a VPN is more private and secure',
+              ),
+              this.i18n.transform(
+                `Not good for public access, since the certificate is signed by your Server's Root CA`,
               ),
               rootCaRequired,
               ...bullets,

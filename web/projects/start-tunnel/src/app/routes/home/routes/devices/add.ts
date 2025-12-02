@@ -1,10 +1,5 @@
 import { AsyncPipe } from '@angular/common'
-import {
-  ChangeDetectionStrategy,
-  Component,
-  inject,
-  Signal,
-} from '@angular/core'
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import {
   NonNullableFormBuilder,
   ReactiveFormsModule,
@@ -23,6 +18,7 @@ import {
   TuiError,
   TuiTextfield,
 } from '@taiga-ui/core'
+import { TuiDialogService } from '@taiga-ui/experimental'
 import {
   TuiChevron,
   TuiDataListWrapper,
@@ -34,12 +30,13 @@ import { TuiForm } from '@taiga-ui/layout'
 import { injectContext, PolymorpheusComponent } from '@taiga-ui/polymorpheus'
 import { ApiService } from 'src/app/services/api/api.service'
 
+import { DEVICES_CONFIG } from './config'
 import {
-  getIp,
   DeviceData,
+  getIp,
+  ipInSubnetValidator,
   MappedSubnet,
   subnetValidator,
-  ipInSubnetValidator,
 } from './utils'
 
 @Component({
@@ -118,6 +115,7 @@ export class DevicesAdd {
   private readonly loading = inject(LoadingService)
   private readonly api = inject(ApiService)
   private readonly errorService = inject(ErrorService)
+  private readonly dialogs = inject(TuiDialogService)
 
   protected readonly mobile = inject(TUI_IS_MOBILE)
   protected readonly context =
@@ -167,9 +165,18 @@ export class DevicesAdd {
     const data = { ip, name, subnet: subnet?.range || '' }
 
     try {
-      this.context.data.device
-        ? await this.api.editDevice(data)
-        : await this.api.addDevice(data)
+      if (this.context.data.device) {
+        await this.api.editDevice(data)
+      } else {
+        await this.api.addDevice(data)
+
+        const config = await this.api.showDeviceConfig({
+          subnet: data.subnet,
+          ip,
+        })
+
+        this.dialogs.open(DEVICES_CONFIG, { data: config }).subscribe()
+      }
     } catch (e: any) {
       console.error(e)
       this.errorService.handleError(e)
