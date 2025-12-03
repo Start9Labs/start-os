@@ -102,6 +102,9 @@ jobs:
   create-image:
     name: Create Docker Image
     needs: [compile]
+    permissions:
+      contents: read
+      packages: write
     strategy:
       fail-fast: true
       matrix:
@@ -178,5 +181,11 @@ jobs:
           ADD *.deb .
 
           RUN apt install -y ./*.deb && rm *.deb
+
+          VOLUME /var/lib/startos
+
+          ENV RUST_LOG=startos=debug
+
+          ENTRYPOINT ["start-registryd"]
 
           EOF
