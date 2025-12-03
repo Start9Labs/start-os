@@ -157,6 +157,12 @@ impl ExecParams {
         if let Some((uid, gid)) =
             if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
                 Some((uid, uid))
+            } else if let Some((uid, gid)) = user
+                .as_deref()
+                .and_then(|u| u.split_once(":"))
+                .and_then(|(u, g)| Some((u.parse::<u32>().ok()?, g.parse::<u32>().ok()?)))
+            {
+                Some((uid, gid))
             } else if let Some(user) = user {
                 let passwd = std::fs::read_to_string("/etc/passwd")
                     .with_ctx(|_| (ErrorKind::Filesystem, "read /etc/passwd"));

@@ -21,7 +21,7 @@ export type System = {
   ): Promise<void>
 
   start(effects: T.Effects): Promise<void>
-  stop(): Promise<void>
+  stop(effects: T.Effects): Promise<void>
 
   createBackup(effects: T.Effects, timeoutMs: number | null): Promise<void>
   runAction(

@@ -99,14 +99,17 @@ impl<Fs: FileSystem> FileSystem for IdMapped<Fs> {
             .mount_options()
             .into_iter()
             .map(|a| Box::new(a) as Box<dyn Display>)
-            .chain(self.idmap.iter().map(|i| {
-                Box::new(lazy_format!(
-                    "X-mount.idmap=b:{}:{}:{}",
-                    i.from_id,
-                    i.to_id,
-                    i.range,
-                )) as Box<dyn Display>
-            }))
+            .chain(if self.idmap.is_empty() {
+                None
+            } else {
+                use std::fmt::Write;
+
+                let mut option = "X-mount.idmap=".to_owned();
+                for i in &self.idmap {
+                    write!(&mut option, "b:{}:{}:{} ", i.from_id, i.to_id, i.range).unwrap();
+                }
+                Some(Box::new(option) as Box<dyn Display>)
+            })
     }
     async fn source(&self) -> Result<Option<impl AsRef<Path>>, Error> {
         self.filesystem.source().await

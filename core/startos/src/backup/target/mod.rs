@@ -308,7 +308,7 @@ pub struct MountParams {
     target_id: BackupTargetId,
     #[arg(long)]
     server_id: Option<String>,
-    password: String,
+    password: String, // TODO: rpassword
     #[arg(long)]
     allow_partial: bool,
 }

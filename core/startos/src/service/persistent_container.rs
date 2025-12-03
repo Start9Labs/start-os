@@ -18,7 +18,7 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::disk::mount::filesystem::bind::Bind;
-use crate::disk::mount::filesystem::idmapped::IdMapped;
+use crate::disk::mount::filesystem::idmapped::{IdMap, IdMapped};
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::filesystem::{MountType, ReadOnly};
@@ -135,9 +135,11 @@ impl PersistentContainer {
             let mount = MountGuard::mount(
                 &IdMapped::new(
                     Bind::new(data_dir(DATA_DIR, &s9pk.as_manifest().id, volume)),
-                    0,
-                    100000,
-                    65536,
+                    vec![IdMap {
+                        from_id: 0,
+                        to_id: 100000,
+                        range: 65536,
+                    }],
                 ),
                 mountpoint,
                 MountType::ReadWrite,
@@ -155,7 +157,14 @@ impl PersistentContainer {
         {
             vec![
                 MountGuard::mount(
-                    &IdMapped::new(LoopDev::from(&**sqfs), 0, 100000, 65536),
+                    &IdMapped::new(
+                        LoopDev::from(&**sqfs),
+                        vec![IdMap {
+                            from_id: 0,
+                            to_id: 100000,
+                            range: 65536,
+                        }],
+                    ),
                     mountpoint,
                     MountType::ReadWrite,
                 )
@@ -179,7 +188,14 @@ impl PersistentContainer {
                 };
                 assets.push(
                     MountGuard::mount(
-                        &IdMapped::new(LoopDev::from(&**sqfs), 0, 100000, 65536),
+                        &IdMapped::new(
+                            LoopDev::from(&**sqfs),
+                            vec![IdMap {
+                                from_id: 0,
+                                to_id: 100000,
+                                range: 65536,
+                            }],
+                        ),
                         mountpoint,
                         MountType::ReadWrite,
                     )
@@ -228,7 +244,14 @@ impl PersistentContainer {
                 image.clone(),
                 Arc::new(
                     MountGuard::mount(
-                        &IdMapped::new(LoopDev::from(&**sqfs), 0, 100000, 65536),
+                        &IdMapped::new(
+                            LoopDev::from(&**sqfs),
+                            vec![IdMap {
+                                from_id: 0,
+                                to_id: 100000,
+                                range: 65536,
+                            }],
+                        ),
                         &mountpoint,
                         ReadOnly,
                     )
