@@ -175,7 +175,7 @@ jobs:
           cat | docker buildx build --platform "$DOCKER_PLATFORM" --push -t ${{ steps.meta.outputs.tags }} -f - . << EOF
           FROM debian:trixie
 
-          ADD *.deb
+          ADD *.deb .
 
           RUN apt install -y ./*.deb && rm *.deb
 
