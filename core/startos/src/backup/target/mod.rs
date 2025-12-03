@@ -301,7 +301,7 @@ lazy_static::lazy_static! {
         Mutex::new(BTreeMap::new());
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct MountParams {

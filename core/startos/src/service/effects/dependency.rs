@@ -13,7 +13,7 @@ use crate::db::model::package::{
     TaskEntry,
 };
 use crate::disk::mount::filesystem::bind::{Bind, FileType};
-use crate::disk::mount::filesystem::idmapped::IdMapped;
+use crate::disk::mount::filesystem::idmapped::{IdMap, IdMapped};
 use crate::disk::mount::filesystem::{FileSystem, MountType};
 use crate::disk::mount::util::{is_mountpoint, unmount};
 use crate::service::effects::prelude::*;
@@ -29,7 +29,10 @@ pub struct MountTarget {
     subpath: Option<PathBuf>,
     readonly: bool,
     filetype: FileType,
+    #[serde(default)]
+    idmap: Vec<IdMap>,
 }
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[ts(export)]
 #[serde(rename_all = "camelCase")]
@@ -48,6 +51,7 @@ pub async fn mount(
                 subpath,
                 readonly,
                 filetype,
+                idmap,
             },
     }: MountParams,
 ) -> Result<(), Error> {
@@ -68,16 +72,27 @@ pub async fn mount(
     if is_mountpoint(&mountpoint).await? {
         unmount(&mountpoint, true).await?;
     }
-    IdMapped::new(Bind::new(source).with_type(filetype), 0, 100000, 65536)
-        .mount(
-            mountpoint,
-            if readonly {
-                MountType::ReadOnly
-            } else {
-                MountType::ReadWrite
-            },
-        )
-        .await?;
+
+    IdMapped::new(
+        Bind::new(source).with_type(filetype),
+        IdMap::stack(
+            vec![IdMap {
+                from_id: 0,
+                to_id: 100000,
+                range: 65536,
+            }],
+            idmap,
+        ),
+    )
+    .mount(
+        mountpoint,
+        if readonly {
+            MountType::ReadOnly
+        } else {
+            MountType::ReadWrite
+        },
+    )
+    .await?;
 
     Ok(())
 }

@@ -53,10 +53,17 @@ async function bind(
   from: string,
   to: string,
   type: "file" | "directory" | "infer",
+  idmap: IdMap[],
 ) {
   await prepBind(from, to, type)
 
-  await execFile("mount", ["--bind", from, to])
+  const args = ["--bind"]
+
+  for (const i of idmap) {
+    args.push(`-oX-mount.idmap=b:${i.fromId}:${i.toId}:${i.range}`)
+  }
+
+  await execFile("mount", [...args, from, to])
 }
 
 export interface SubContainer<
@@ -137,9 +144,9 @@ export interface SubContainer<
  * Want to limit what we can do in a container, so we want to launch a container with a specific image and the mounts.
  */
 export class SubContainerOwned<
-  Manifest extends T.SDKManifest,
-  Effects extends T.Effects = T.Effects,
->
+    Manifest extends T.SDKManifest,
+    Effects extends T.Effects = T.Effects,
+  >
   extends Drop
   implements SubContainer<Manifest, Effects>
 {
@@ -306,7 +313,7 @@ export class SubContainerOwned<
           : "/"
         const from = `/media/startos/volumes/${options.volumeId}${subpath}`
 
-        await bind(from, path, mount.options.filetype)
+        await bind(from, path, options.filetype, options.idmap)
       } else if (options.type === "assets") {
         const subpath = options.subpath
           ? options.subpath.startsWith("/")
@@ -315,7 +322,7 @@ export class SubContainerOwned<
           : "/"
         const from = `/media/startos/assets/${subpath}`
 
-        await bind(from, path, mount.options.filetype)
+        await bind(from, path, options.filetype, options.idmap)
       } else if (options.type === "pointer") {
         await prepBind(null, path, options.filetype)
         await this.effects.mount({ location: path, target: options })
@@ -327,7 +334,7 @@ export class SubContainerOwned<
           : "/"
         const from = `/media/startos/backup${subpath}`
 
-        await bind(from, path, mount.options.filetype)
+        await bind(from, path, mount.options.filetype, options.idmap)
       } else {
         throw new Error(`unknown type ${(options as any).type}`)
       }
@@ -615,9 +622,9 @@ export class SubContainerOwned<
 }
 
 export class SubContainerRc<
-  Manifest extends T.SDKManifest,
-  Effects extends T.Effects = T.Effects,
->
+    Manifest extends T.SDKManifest,
+    Effects extends T.Effects = T.Effects,
+  >
   extends Drop
   implements SubContainer<Manifest, Effects>
 {
@@ -813,6 +820,8 @@ export type StdioOptions = {
   stdio?: cp.IOType
 }
 
+export type IdMap = { fromId: number; toId: number; range: number }
+
 export type MountOptions =
   | MountOptionsVolume
   | MountOptionsAssets
@@ -825,12 +834,14 @@ export type MountOptionsVolume = {
   subpath: string | null
   readonly: boolean
   filetype: "file" | "directory" | "infer"
+  idmap: IdMap[]
 }
 
 export type MountOptionsAssets = {
   type: "assets"
   subpath: string | null
   filetype: "file" | "directory" | "infer"
+  idmap: { fromId: number; toId: number; range: number }[]
 }
 
 export type MountOptionsPointer = {
@@ -840,12 +851,14 @@ export type MountOptionsPointer = {
   subpath: string | null
   readonly: boolean
   filetype: "file" | "directory" | "infer"
+  idmap: { fromId: number; toId: number; range: number }[]
 }
 
 export type MountOptionsBackup = {
   type: "backup"
   subpath: string | null
   filetype: "file" | "directory" | "infer"
+  idmap: { fromId: number; toId: number; range: number }[]
 }
 function wait(time: number) {
   return new Promise((resolve) => setTimeout(resolve, time))
