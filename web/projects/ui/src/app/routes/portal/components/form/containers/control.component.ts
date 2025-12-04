@@ -146,7 +146,10 @@ export class FormControlComponent<
   }
 }
 
-function getText({ patterns }: IST.ValueSpecText, pattern: unknown): string {
+function getText(
+  { patterns }: IST.ValueSpecText | IST.ValueSpecTextarea,
+  pattern: unknown,
+): string {
   return (
     patterns?.find(({ regex }) => String(regex) === pattern)?.description ||
     'Invalid format'
