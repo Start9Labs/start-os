@@ -752,6 +752,12 @@ async fn torctl(
         )
         .await?;
 
+    services.send_modify(|s| {
+        for (_, _, s) in s.values_mut() {
+            *s = Some(SyncState::Add);
+        }
+    });
+
     let handler = async {
         loop {
             let recv = recv.recv();

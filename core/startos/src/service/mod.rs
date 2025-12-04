@@ -73,11 +73,6 @@ pub const SYNC_RETRY_COOLDOWN_SECONDS: u64 = 10;
 
 pub type Task<'a> = BoxFuture<'a, Result<(), Error>>;
 
-/// TODO
-pub enum BackupReturn {
-    TODO,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LoadDisposition {
     Retry,

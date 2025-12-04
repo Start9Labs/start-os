@@ -429,8 +429,9 @@ impl Resolver {
             }
             if STARTOS.zone_of(name) || EMBASSY.zone_of(name) {
                 let Ok(pkg) = name
-                    .trim_to(2)
                     .iter()
+                    .rev()
+                    .skip(1)
                     .next()
                     .map(std::str::from_utf8)
                     .transpose()

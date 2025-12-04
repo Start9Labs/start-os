@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command as StdCommand, Stdio};
 use std::sync::Arc;
 
+use nix::errno::Errno;
 use nix::sched::CloneFlags;
 use nix::unistd::Pid;
 use signal_hook::consts::signal::*;
@@ -154,6 +155,12 @@ impl ExecParams {
             cmd.env(k, v);
         }
 
+        let passwd = std::fs::read_to_string("/etc/passwd")
+            .with_ctx(|_| (ErrorKind::Filesystem, "read /etc/passwd"))
+            .log_err()
+            .unwrap_or_default();
+        let mut home = None;
+
         if let Some((uid, gid)) =
             if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
                 Some((uid, uid))
@@ -164,35 +171,58 @@ impl ExecParams {
             {
                 Some((uid, gid))
             } else if let Some(user) = user {
-                let passwd = std::fs::read_to_string("/etc/passwd")
-                    .with_ctx(|_| (ErrorKind::Filesystem, "read /etc/passwd"));
-                Some(if passwd.is_err() && user == "root" {
-                    (0, 0)
-                } else {
-                    let (uid, gid) = passwd?
-                        .lines()
-                        .find_map(|l| {
-                            let mut split = l.trim().split(":");
-                            if user != split.next()? {
-                                return None;
-                            }
-                            split.next(); // throw away x
-                            Some((split.next()?.parse().ok()?, split.next()?.parse().ok()?))
-                            // uid gid
-                        })
-                        .or_not_found(lazy_format!("{user} in /etc/passwd"))?;
-                    (uid, gid)
-                })
+                Some(
+                    if let Some((uid, gid)) = passwd.lines().find_map(|l| {
+                        let l = l.trim();
+                        let mut split = l.split(":");
+                        if user != split.next()? {
+                            return None;
+                        }
+
+                        split.next(); // throw away x
+                        let uid = split.next()?.parse().ok()?;
+                        let gid = split.next()?.parse().ok()?;
+                        split.next(); // throw away group name
+
+                        home = split.next();
+
+                        Some((uid, gid))
+                        // uid gid
+                    }) {
+                        (uid, gid)
+                    } else if user == "root" {
+                        (0, 0)
+                    } else {
+                        None.or_not_found(lazy_format!("{user} in /etc/passwd"))?
+                    },
+                )
             } else {
                 None
             }
         {
+            if home.is_none() {
+                home = passwd.lines().find_map(|l| {
+                    let l = l.trim();
+                    let mut split = l.split(":");
+
+                    split.next(); // throw away user name
+                    split.next(); // throw away x
+                    if split.next()?.parse::<u32>().ok()? != uid {
+                        return None;
+                    }
+                    split.next(); // throw away gid
+                    split.next(); // throw away group name
+
+                    split.next()
+                })
+            };
             std::os::unix::fs::chown("/proc/self/fd/0", Some(uid), Some(gid)).log_err();
             std::os::unix::fs::chown("/proc/self/fd/1", Some(uid), Some(gid)).log_err();
             std::os::unix::fs::chown("/proc/self/fd/2", Some(uid), Some(gid)).log_err();
             cmd.uid(uid);
             cmd.gid(gid);
         }
+        cmd.env("HOME", home.unwrap_or("/"));
         if let Some(workdir) = workdir {
             cmd.current_dir(workdir);
         } else {
@@ -224,11 +254,14 @@ pub fn launch(
     std::thread::spawn(move || {
         if let Ok(pid) = recv_pid.blocking_recv() {
             for sig in sig.forever() {
-                nix::sys::signal::kill(
+                match nix::sys::signal::kill(
                     Pid::from_raw(pid),
                     Some(nix::sys::signal::Signal::try_from(sig).unwrap()),
-                )
-                .unwrap();
+                ) {
+                    Err(Errno::ESRCH) => Ok(()),
+                    a => a,
+                }
+                .unwrap()
             }
         }
     });

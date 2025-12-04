@@ -379,7 +379,7 @@ export class SystemForEmbassy implements System {
     this.currentRunning = await MainLoop.of(this, effects)
   }
   callCallback(_callback: number, _args: any[]): void {}
-  async stop(effects: Effects): Promise<void> {
+  async stop(): Promise<void> {
     const { currentRunning } = this
     this.currentRunning?.clean()
     delete this.currentRunning
@@ -388,7 +388,6 @@ export class SystemForEmbassy implements System {
         timeout: fromDuration(this.manifest.main["sigterm-timeout"] || "30s"),
       })
     }
-    await effects.setMainStatus({ status: "stopped" })
   }
 
   async packageInit(effects: Effects, timeoutMs: number | null): Promise<void> {
@@ -889,7 +888,6 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     timeoutMs: number | null,
   ): Promise<PropertiesReturn> {
-    // TODO BLU-J set the properties ever so often
     const setConfigValue = this.manifest.properties
     if (!setConfigValue) throw new Error("There is no properties")
     if (setConfigValue.type === "docker") {

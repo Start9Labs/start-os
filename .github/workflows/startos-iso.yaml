@@ -71,7 +71,21 @@ jobs:
     steps:
       - name: Cleaning up unnecessary files
         run: |
-          sudo apt-get remove --purge -y google-chrome-stable firefox mono-devel
+          sudo apt-get remove --purge -y mono-* \
+            ghc* cabal-install* \
+            dotnet* \
+            php* \
+            ruby* \
+            mysql-* \
+            postgresql-* \
+            azure-cli \
+            powershell \
+            google-cloud-sdk \
+            msodbcsql* mssql-tools* \
+            imagemagick* \
+            libgl1-mesa-dri \
+            google-chrome-stable \
+            firefox
           sudo apt-get autoremove -y
           sudo apt-get clean
       - run: |

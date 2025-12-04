@@ -32,7 +32,7 @@ export class SystemForStartOs implements System {
     target: ExtendedVersion | VersionRange | null,
     timeoutMs: number | null = null,
   ): Promise<void> {
-    await this.stop(effects)
+    await this.stop()
     return void (await this.abi.uninit({ effects, target }))
   }
 
@@ -92,13 +92,12 @@ export class SystemForStartOs implements System {
     }
   }
 
-  async stop(effects: Effects): Promise<void> {
+  async stop(): Promise<void> {
     if (this.runningMain) {
       try {
         await this.runningMain.stop()
       } finally {
         this.runningMain = undefined
-        await effects.setMainStatus({ status: "stopped" })
       }
     }
   }

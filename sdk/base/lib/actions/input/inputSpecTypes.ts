@@ -58,6 +58,7 @@ export type ValueSpecTextarea = {
   warning: string | null
 
   type: "textarea"
+  patterns: Pattern[]
   placeholder: string | null
   minLength: number | null
   maxLength: number | null

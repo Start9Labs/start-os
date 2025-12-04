@@ -416,8 +416,6 @@ impl ImageSource {
                         "--platform=linux/amd64".to_owned()
                     } else if arch == "aarch64" {
                         "--platform=linux/arm64".to_owned()
-                    } else if arch == "riscv64" {
-                        "--platform=linux/riscv64".to_owned()
                     } else {
                         format!("--platform=linux/{arch}")
                     };
@@ -480,8 +478,6 @@ impl ImageSource {
                         "--platform=linux/amd64".to_owned()
                     } else if arch == "aarch64" {
                         "--platform=linux/arm64".to_owned()
-                    } else if arch == "riscv64" {
-                        "--platform=linux/riscv64".to_owned()
                     } else {
                         format!("--platform=linux/{arch}")
                     };
@@ -492,6 +488,7 @@ impl ImageSource {
                         .arg("--format")
                         .arg("{{json .Config}}")
                         .arg(&tag);
+                    //TODO inspect wrong arch
                     let inspect_res = match inspect_cmd.invoke(ErrorKind::Docker).await {
                         Ok(a) => a,
                         Err(e)

@@ -148,7 +148,7 @@ impl VHostController {
                                         JsonKey::new(k.clone()),
                                         v.iter()
                                             .filter(|(_, v)| v.strong_count() > 0)
-                                            .map(|(k, _)| format!("{k:?}"))
+                                            .map(|(k, _)| format!("{k:#?}"))
                                             .collect(),
                                     )
                                 })
@@ -276,7 +276,7 @@ impl<A: Accept + 'static> Preprocessed<A> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ProxyTarget {
     pub filter: DynInterfaceFilter,
     pub acme: Option<AcmeProvider>,
@@ -293,6 +293,16 @@ impl PartialEq for ProxyTarget {
     }
 }
 impl Eq for ProxyTarget {}
+impl fmt::Debug for ProxyTarget {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ProxyTarget")
+            .field("filter", &self.filter)
+            .field("acme", &self.acme)
+            .field("addr", &self.addr)
+            .field("connect_ssl", &self.connect_ssl.as_ref().map(|_| ()))
+            .finish()
+    }
+}
 
 impl<A> VHostTarget<A> for ProxyTarget
 where

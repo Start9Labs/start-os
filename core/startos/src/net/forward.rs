@@ -474,7 +474,7 @@ impl From<&InterfaceForwardState> for ForwardTable {
                                 entry.external,
                                 ForwardTarget {
                                     target: *target,
-                                    filter: format!("{:?}", filter),
+                                    filter: format!("{:#?}", filter),
                                 },
                             )
                         })
