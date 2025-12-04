@@ -65,6 +65,7 @@ export type ValueSpecTextarea = {
   minRows: number
   maxRows: number
   required: boolean
+  default: string | null
   disabled: false | string
   immutable: boolean
 }
