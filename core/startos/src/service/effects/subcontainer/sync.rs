@@ -135,25 +135,8 @@ impl ExecParams {
                 ErrorKind::InvalidRequest,
             ));
         };
-        let env_string = if let Some(env_file) = &env_file {
-            std::fs::read_to_string(env_file)
-                .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("read {env:?}")))?
-        } else {
-            Default::default()
-        };
-        let env = env_string
-            .lines()
-            .chain(env.iter().map(|l| l.as_str()))
-            .map(|l| l.trim())
-            .filter_map(|l| l.split_once("="))
-            .collect::<BTreeMap<_, _>>();
-        std::os::unix::fs::chroot(chroot)
-            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("chroot {chroot:?}")))?;
+
         let mut cmd = StdCommand::new(command);
-        cmd.args(args);
-        for (k, v) in env {
-            cmd.env(k, v);
-        }
 
         let passwd = std::fs::read_to_string("/etc/passwd")
             .with_ctx(|_| (ErrorKind::Filesystem, "read /etc/passwd"))
@@ -221,8 +204,30 @@ impl ExecParams {
             std::os::unix::fs::chown("/proc/self/fd/2", Some(uid), Some(gid)).log_err();
             cmd.uid(uid);
             cmd.gid(gid);
+        } else {
+            home = Some("/root");
         }
         cmd.env("HOME", home.unwrap_or("/"));
+
+        let env_string = if let Some(env_file) = &env_file {
+            std::fs::read_to_string(env_file)
+                .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("read {env:?}")))?
+        } else {
+            Default::default()
+        };
+        let env = env_string
+            .lines()
+            .chain(env.iter().map(|l| l.as_str()))
+            .map(|l| l.trim())
+            .filter_map(|l| l.split_once("="))
+            .collect::<BTreeMap<_, _>>();
+        std::os::unix::fs::chroot(chroot)
+            .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("chroot {chroot:?}")))?;
+        cmd.args(args);
+        for (k, v) in env {
+            cmd.env(k, v);
+        }
+
         if let Some(workdir) = workdir {
             cmd.current_dir(workdir);
         } else {

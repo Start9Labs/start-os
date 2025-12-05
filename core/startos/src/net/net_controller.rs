@@ -503,6 +503,9 @@ impl NetServiceData {
                             private,
                         } = address
                         {
+                            if public.is_none() {
+                                private_dns.insert(address.clone());
+                            }
                             let private = private && !info.public();
                             let public =
                                 public.as_ref().map_or(false, |p| &p.gateway == gateway_id);
@@ -581,7 +584,6 @@ impl NetServiceData {
                     }
                 }
                 hostname_info.insert(*port, bind_hostname_info);
-                private_dns.append(&mut hostnames);
             }
         }
 

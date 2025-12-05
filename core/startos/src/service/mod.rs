@@ -219,6 +219,17 @@ impl Service {
         recovery_source: Option<impl GenericMountGuard>,
     ) -> Result<ServiceRef, Error> {
         let id = s9pk.as_manifest().id.clone();
+        ctx.db
+            .mutate(|db| {
+                db.as_public_mut()
+                    .as_package_data_mut()
+                    .as_idx_mut(&id)
+                    .or_not_found(&id)?
+                    .as_status_info_mut()
+                    .init()
+            })
+            .await
+            .result?;
         let persistent_container = PersistentContainer::new(&ctx, s9pk).await?;
         let seed = Arc::new(ServiceActorSeed {
             id,

@@ -408,9 +408,10 @@ impl Resolver {
             a => a,
         };
         self.resolve.peek(|r| {
-            if r.private_domains
-                .get(&*name.to_lowercase().to_utf8().trim_end_matches('.'))
-                .map_or(false, |d| d.strong_count() > 0)
+            if !src.is_loopback()
+                && r.private_domains
+                    .get(&*name.to_lowercase().to_utf8().trim_end_matches('.'))
+                    .map_or(false, |d| d.strong_count() > 0)
             {
                 if let Some(res) = self.net_iface.peek(|i| {
                     i.values()

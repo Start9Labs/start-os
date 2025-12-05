@@ -436,9 +436,7 @@ impl RpcContext {
                         .into_iter()
                         .any(|(_, t)| t.active && t.task.severity == TaskSeverity::Critical)
                     {
-                        pde.as_status_info_mut()
-                            .as_desired_mut()
-                            .ser(&DesiredStatus::Stopped)?;
+                        pde.as_status_info_mut().stop()?;
                     }
                 }
                 Ok(())

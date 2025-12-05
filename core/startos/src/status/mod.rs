@@ -33,6 +33,23 @@ impl Model<StatusInfo> {
         self.as_health_mut().ser(&Default::default())?;
         Ok(())
     }
+    pub fn init(&mut self) -> Result<(), Error> {
+        self.as_started_mut().ser(&None)?;
+        self.as_desired_mut().map_mutate(|s| {
+            Ok(match s {
+                DesiredStatus::BackingUp {
+                    on_complete: StartStop::Start,
+                } => DesiredStatus::Running,
+                DesiredStatus::BackingUp {
+                    on_complete: StartStop::Stop,
+                } => DesiredStatus::Stopped,
+                DesiredStatus::Restarting => DesiredStatus::Running,
+                x => x,
+            })
+        })?;
+
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, Serialize, PartialEq, Eq, TS)]

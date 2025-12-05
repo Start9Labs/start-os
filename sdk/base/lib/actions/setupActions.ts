@@ -45,10 +45,9 @@ export interface ActionInfo<
   readonly _INPUT: Type
 }
 
-export class Action<
-  Id extends T.ActionId,
-  Type extends Record<string, any>,
-> implements ActionInfo<Id, Type> {
+export class Action<Id extends T.ActionId, Type extends Record<string, any>>
+  implements ActionInfo<Id, Type>
+{
   readonly _INPUT: Type = null as any as Type
   private prevInputSpec: Record<
     string,
@@ -149,7 +148,8 @@ export class Action<
 
 export class Actions<
   AllActions extends Record<T.ActionId, Action<T.ActionId, any>>,
-> implements InitScript {
+> implements InitScript
+{
   private constructor(private readonly actions: AllActions) {}
   static of(): Actions<{}> {
     return new Actions({})
