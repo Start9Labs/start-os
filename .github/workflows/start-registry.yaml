@@ -180,7 +180,7 @@ jobs:
 
           ADD *.deb .
 
-          RUN apt install -y ./*.deb && rm *.deb
+          RUN apt-get install -y ./*.deb && rm *.deb
 
           VOLUME /var/lib/startos
 
