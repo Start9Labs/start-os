@@ -21,9 +21,9 @@ import { i18nPipe } from '@start9labs/shared'
 @Component({
   selector: '[notificationItem]',
   template: `
-    <td class="checkbox"><ng-content /></td>
-    <td class="date">
-      {{ notificationItem.createdAt | date: 'medium' }}
+    <td [style.padding-left.rem]="2.5">
+      <ng-content />
+      <div class="date">{{ notificationItem.createdAt | date: 'medium' }}</div>
     </td>
     <td class="title" [style.color]="color">
       <tui-icon [icon]="icon" [style.font-size.rem]="1" />
@@ -69,24 +69,11 @@ import { i18nPipe } from '@start9labs/shared'
     '[class._new]': '!notificationItem.seen',
   },
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
-
     :host {
-      grid-template-columns: 1fr;
-
       &._new td {
         font-weight: bold;
         color: var(--tui-text-primary);
-
-        &.checkbox {
-          box-shadow: inset 0.25rem 0 var(--tui-text-action);
-        }
       }
-    }
-
-    tui-icon {
-      vertical-align: text-top;
-      align-self: center;
     }
 
     button {
@@ -94,22 +81,20 @@ import { i18nPipe } from '@start9labs/shared'
     }
 
     td {
-      padding: 0.25rem;
-      vertical-align: top;
       color: var(--tui-text-secondary);
     }
 
-    .checkbox {
-      padding-top: 0.4rem;
-    }
-
     :host-context(tui-root._mobile) {
+      td {
+        width: 100%;
+
+        &:first-child {
+          padding: 0 !important;
+        }
+      }
+
       gap: 0.5rem;
       padding: 0.75rem 1rem !important;
-
-      .checkbox {
-        @include taiga.fullsize();
-      }
 
       .date {
         order: 1;
@@ -127,10 +112,6 @@ import { i18nPipe } from '@start9labs/shared'
       .service:not(:has(a)) {
         display: none;
       }
-    }
-
-    :host-context(tui-root._mobile table:has(:checked)) tui-icon {
-      opacity: 0;
     }
   `,
   imports: [CommonModule, RouterLink, TuiLineClamp, TuiLink, TuiIcon, i18nPipe],
