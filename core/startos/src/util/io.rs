@@ -1477,14 +1477,16 @@ impl<T: std::io::Read> std::io::Read for SharedIO<T> {
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct TermSize {
-    pub size: (u16, u16),
-    pub pixels: Option<(u16, u16)>,
+    pub rows: u16,
+    pub cols: u16,
+    pub pixels: Option<(u16, u16)>, // x, y
 }
 impl TermSize {
     pub fn get_current() -> Option<Self> {
-        if let Some(size) = termion::terminal_size().ok() {
+        if let Some((cols, rows)) = termion::terminal_size().log_err() {
             Some(Self {
-                size,
+                rows,
+                cols,
                 pixels: termion::terminal_size_pixels().ok(),
             })
         } else {
@@ -1497,9 +1499,8 @@ impl FromStr for TermSize {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         (|| {
             let mut split = s.split(":");
-            let row: u16 = split.next()?.parse().ok()?;
-            let col: u16 = split.next()?.parse().ok()?;
-            let size = (row, col);
+            let rows: u16 = split.next()?.parse().ok()?;
+            let cols: u16 = split.next()?.parse().ok()?;
             let pixels = if let Some(x) = split.next() {
                 let x: u16 = x.parse().ok()?;
                 let y: u16 = split.next()?.parse().ok()?;
@@ -1508,14 +1509,14 @@ impl FromStr for TermSize {
                 None
             };
 
-            Some(Self { size, pixels }).filter(|_| split.next().is_none())
+            Some(Self { rows, cols, pixels }).filter(|_| split.next().is_none())
         })()
         .ok_or_else(|| Error::new(eyre!("invalid pty size"), ErrorKind::ParseNumber))
     }
 }
 impl std::fmt::Display for TermSize {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}", self.size.0, self.size.1)?;
+        write!(f, "{}:{}", self.rows, self.cols)?;
         if let Some(pixels) = self.pixels {
             write!(f, ":{}:{}", pixels.0, pixels.1)?;
         }

@@ -366,9 +366,9 @@ pub fn launch(
         send_pid.send(child.id() as i32).unwrap_or_default();
         if let Some(pty_size) = pty_size {
             let size = if let Some((x, y)) = pty_size.pixels {
-                ::pty_process::Size::new_with_pixel(pty_size.size.0, pty_size.size.1, x, y)
+                ::pty_process::Size::new_with_pixel(pty_size.rows, pty_size.cols, x, y)
             } else {
-                ::pty_process::Size::new(pty_size.size.0, pty_size.size.1)
+                ::pty_process::Size::new(pty_size.rows, pty_size.cols)
             };
             pty.resize(size).with_kind(ErrorKind::Filesystem)?;
         }
@@ -623,9 +623,9 @@ pub fn exec(
         send_pid.send(child.id() as i32).unwrap_or_default();
         if let Some(pty_size) = pty_size {
             let size = if let Some((x, y)) = pty_size.pixels {
-                ::pty_process::Size::new_with_pixel(pty_size.size.0, pty_size.size.1, x, y)
+                ::pty_process::Size::new_with_pixel(pty_size.rows, pty_size.cols, x, y)
             } else {
-                ::pty_process::Size::new(pty_size.size.0, pty_size.size.1)
+                ::pty_process::Size::new(pty_size.rows, pty_size.cols)
             };
             pty.resize(size).with_kind(ErrorKind::Filesystem)?;
         }
