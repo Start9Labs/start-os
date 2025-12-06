@@ -1,87 +1,110 @@
-import { TuiLineClamp } from '@taiga-ui/kit'
 import { CommonModule } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
-  Input,
+  input,
 } from '@angular/core'
+import { toObservable, toSignal } from '@angular/core/rxjs-interop'
 import { RouterLink } from '@angular/router'
-import { T } from '@start9labs/start-sdk'
-import { tuiPure } from '@taiga-ui/cdk'
+import { i18nPipe } from '@start9labs/shared'
 import { TuiIcon, TuiLink } from '@taiga-ui/core'
+import { TuiAvatar, TuiLineClamp } from '@taiga-ui/kit'
 import { PatchDB } from 'patch-db-client'
-import { first, Observable } from 'rxjs'
+import { EMPTY, first, switchMap } from 'rxjs'
 import { ServerNotification } from 'src/app/services/api/api.types'
 import { NotificationService } from 'src/app/services/notification.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { toRouterLink } from 'src/app/utils/to-router-link'
-import { i18nPipe } from '@start9labs/shared'
 
 @Component({
   selector: '[notificationItem]',
   template: `
-    <td [style.padding-left.rem]="2.5">
-      <ng-content />
-      <div class="date">{{ notificationItem.createdAt | date: 'medium' }}</div>
-    </td>
-    <td class="title" [style.color]="color">
-      <tui-icon [icon]="icon" [style.font-size.rem]="1" />
-      {{ notificationItem.title }}
-    </td>
-    <td class="service">
-      @if (manifest$ | async; as manifest) {
-        <a tuiLink [routerLink]="getLink(manifest.id)">
-          {{ manifest.title }}
-        </a>
-      } @else if (notificationItem.packageId) {
-        {{ notificationItem.packageId }}
-      } @else {
-        -
-      }
-    </td>
-    <td class="content">
-      <tui-line-clamp
-        style="pointer-events: none"
-        [linesLimit]="4"
-        [lineHeight]="21"
-        [content]="notificationItem.message"
-        (overflownChange)="overflow = $event"
-      />
-      @if (overflow) {
-        <button tuiLink (click.stop)="onClick()">
-          {{ 'View full' | i18n }}
-        </button>
-      }
-      @if ([1, 2].includes(notificationItem.code)) {
-        <button tuiLink (click.stop)="onClick()">
-          {{
-            notificationItem.code === 1
-              ? ('View report' | i18n)
-              : ('View details' | i18n)
-          }}
-        </button>
-      }
-    </td>
+    @if (notificationItem(); as item) {
+      <td>
+        <ng-content />
+        {{ item.createdAt | date: 'medium' }}
+      </td>
+      <td class="title" [style.color]="color()" [style.white-space]="'nowrap'">
+        <tui-icon [icon]="icon()" [style.font-size.rem]="1" />
+        {{ item.title }}
+      </td>
+      <td class="service">
+        @if (pkg(); as pkg) {
+          @if (pkg.stateInfo.manifest; as manifest) {
+            <a
+              tuiAvatar
+              size="s"
+              [routerLink]="'/services/' + manifest.id"
+              [title]="manifest.title"
+            >
+              <img [src]="pkg.icon" [alt]="manifest.title" />
+            </a>
+          } @else {
+            {{ item.packageId || '-' }}
+          }
+        } @else {
+          -
+        }
+      </td>
+      <td class="content">
+        <tui-line-clamp
+          style="pointer-events: none"
+          [linesLimit]="4"
+          [lineHeight]="21"
+          [content]="item.message"
+          (overflownChange)="overflow = $event"
+        />
+        @if (overflow) {
+          <button tuiLink (click.stop)="onClick(item)">
+            {{ 'View full' | i18n }}
+          </button>
+        }
+        @if ([1, 2].includes(item.code)) {
+          <button tuiLink (click.stop)="onClick(item)">
+            {{
+              item?.code === 1
+                ? ('View report' | i18n)
+                : ('View details' | i18n)
+            }}
+          </button>
+        }
+      </td>
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
-    '[class._new]': '!notificationItem.seen',
+    '[class._new]': '!notificationItem()?.seen',
   },
   styles: `
-    :host {
-      &._new td {
-        font-weight: bold;
-        color: var(--tui-text-primary);
-      }
+    :host._new td {
+      font-weight: bold;
+      color: var(--tui-text-primary);
     }
 
-    button {
-      position: relative;
+    .service {
+      text-align: center;
+      grid-column: 2;
+      grid-row: 1 / 3;
+      place-content: center;
+    }
+
+    tui-icon {
+      vertical-align: sub;
     }
 
     td {
       color: var(--tui-text-secondary);
+      grid-column: 1;
+
+      &:first-child {
+        padding-inline-start: 2.5rem;
+        white-space: nowrap;
+      }
+
+      &:last-child {
+        grid-column: 1 / 3;
+      }
     }
 
     :host-context(tui-root._mobile) {
@@ -89,16 +112,11 @@ import { i18nPipe } from '@start9labs/shared'
         width: 100%;
 
         &:first-child {
-          padding: 0 !important;
+          padding: 0;
+          font: var(--tui-font-text-s);
+          color: var(--tui-text-secondary);
+          margin-block-end: -0.25rem;
         }
-      }
-
-      gap: 0.5rem;
-      padding: 0.75rem 1rem !important;
-
-      .date {
-        order: 1;
-        color: var(--tui-text-secondary);
       }
 
       .title {
@@ -106,55 +124,61 @@ import { i18nPipe } from '@start9labs/shared'
         font-size: 1.2em;
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.375rem;
       }
 
       .service:not(:has(a)) {
         display: none;
       }
+
+      :host-context(table:has(:checked)) tui-icon {
+        opacity: 0;
+      }
     }
   `,
-  imports: [CommonModule, RouterLink, TuiLineClamp, TuiLink, TuiIcon, i18nPipe],
+  imports: [
+    CommonModule,
+    RouterLink,
+    TuiLineClamp,
+    TuiLink,
+    TuiIcon,
+    i18nPipe,
+    TuiAvatar,
+  ],
 })
 export class NotificationItemComponent {
   private readonly patch = inject<PatchDB<DataModel>>(PatchDB)
   readonly service = inject(NotificationService)
 
-  @Input({ required: true }) notificationItem!: ServerNotification<number>
+  readonly notificationItem = input<ServerNotification<number>>()
+
+  readonly color = computed((item = this.notificationItem()) =>
+    item ? this.service.getColor(item) : '',
+  )
+
+  readonly icon = computed((item = this.notificationItem()) =>
+    item ? this.service.getIcon(item) : '',
+  )
+
+  readonly pkg = toSignal(
+    toObservable(this.notificationItem).pipe(
+      switchMap(item =>
+        item
+          ? this.patch.watch$('packageData', item.packageId || '').pipe(first())
+          : EMPTY,
+      ),
+    ),
+  )
 
   overflow = false
 
-  @tuiPure
-  get manifest$(): Observable<T.Manifest> {
-    return this.patch
-      .watch$(
-        'packageData',
-        this.notificationItem.packageId || '',
-        'stateInfo',
-        'manifest',
-      )
-      .pipe(first())
-  }
-
-  get color(): string {
-    return this.service.getColor(this.notificationItem)
-  }
-
-  get icon(): string {
-    return this.service.getIcon(this.notificationItem)
-  }
-
-  getLink(id: string) {
-    return toRouterLink(id)
-  }
-
-  onClick() {
+  onClick(item: ServerNotification<number>) {
     if (this.overflow) {
-      this.service.viewModal(this.notificationItem, true)
-      this.notificationItem.seen = true
-    } else if ([1, 2].includes(this.notificationItem.code)) {
-      this.service.viewModal(this.notificationItem)
-      this.notificationItem.seen = true
+      this.service.viewModal(item, true)
+      item.seen = true
+    } else if ([1, 2].includes(item.code)) {
+      this.service.viewModal(item)
+      item.seen = true
     }
   }
 }

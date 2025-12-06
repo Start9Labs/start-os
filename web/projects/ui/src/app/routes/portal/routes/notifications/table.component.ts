@@ -73,14 +73,15 @@ import { i18nPipe } from '@start9labs/shared'
 
     :host-context(tui-root._mobile) {
       tr {
-        grid-template-columns: 1fr 5rem;
+        grid-template-columns: 1fr 2rem;
         user-select: none;
+        gap: 0.5rem;
       }
 
       input {
         position: absolute;
-        top: 0.875rem;
-        left: 1rem;
+        top: 2.875rem;
+        left: 0;
         z-index: 1;
         pointer-events: none;
       }

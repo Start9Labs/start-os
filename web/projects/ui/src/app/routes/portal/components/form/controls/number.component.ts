@@ -21,14 +21,14 @@ import { HintPipe } from '../pipes/hint.pipe'
       }
       <input
         tuiInputNumber
-        [postfix]="spec.units ? ' ' + spec.units : ''"
+        [postfix]="postfix"
         [min]="spec.min"
         [max]="spec.max"
         [step]="spec.step || 0"
         [invalid]="control.invalid()"
         [disabled]="!!spec.disabled"
         [readOnly]="readOnly"
-        [placeholder]="spec.placeholder || ''"
+        [placeholder]="placeholder"
         [(ngModel)]="value"
         (blur)="control.onTouched()"
       />
@@ -50,5 +50,17 @@ import { HintPipe } from '../pipes/hint.pipe'
 export class FormNumberComponent extends Control<IST.ValueSpecNumber, number> {
   get precision(): number {
     return this.spec.integer ? 0 : Infinity
+  }
+
+  get postfix(): string {
+    return this.spec.units && (this.value !== null || !this.spec.placeholder)
+      ? ` ${this.spec.units}`
+      : ''
+  }
+
+  get placeholder(): string {
+    const units = this.spec.units ? ` (${this.spec.units})` : ''
+
+    return this.spec.placeholder ? this.spec.placeholder + units : ''
   }
 }
