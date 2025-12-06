@@ -1,7 +1,7 @@
 # StartTunnel config for {name}
 
 [Interface]
-Address = {addr}/24
+Address = {addr}
 PrivateKey = {privkey}
 
 [Peer]
