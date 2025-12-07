@@ -1598,6 +1598,8 @@ export namespace Mock {
             option1: 'option1',
             option2: 'option2',
             option3: 'option3',
+            option4:
+              'https://qwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnm12345.onion',
           },
           disabled: ['option2'],
         })),
@@ -1610,6 +1612,7 @@ export namespace Mock {
           default: 7,
           integer: false,
           units: 'BTC',
+          placeholder: 'Is it 237?',
           min: -100,
           max: 100,
         }),

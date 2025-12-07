@@ -26,9 +26,7 @@ import { NotificationsTableComponent } from './table.component'
 
 @Component({
   template: `
-    <ng-container *title>
-      {{ 'Notifications' | i18n }}
-    </ng-container>
+    <ng-container *title>{{ 'Notifications' | i18n }}</ng-container>
     <section class="g-card">
       <header>
         {{ 'Notifications' | i18n }}
