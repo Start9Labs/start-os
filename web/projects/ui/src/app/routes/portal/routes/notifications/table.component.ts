@@ -28,7 +28,7 @@ import { i18nPipe } from '@start9labs/shared'
         />
         {{ 'Date' | i18n }}
       </th>
-      @for (not of notifications(); track $index) {
+      @for (not of notifications(); track not) {
         <tr
           [notificationItem]="not"
           (longtap)="!selected().length && onToggle(not)"
@@ -49,12 +49,12 @@ import { i18nPipe } from '@start9labs/shared'
       } @empty {
         @if (notifications()) {
           <tr>
-            <td colspan="3">{{ 'No notifications' | i18n }}</td>
+            <td colspan="4">{{ 'No notifications' | i18n }}</td>
           </tr>
         } @else {
           @for (i of ['', '']; track $index) {
             <tr>
-              <td colspan="3">
+              <td colspan="4">
                 <div [tuiSkeleton]="true">{{ 'Loading' | i18n }}</div>
               </td>
             </tr>
@@ -71,13 +71,11 @@ import { i18nPipe } from '@start9labs/shared'
       transform: translateY(-50%);
     }
 
-    :host-context(tui-root._mobile) {
-      tr {
-        grid-template-columns: 1fr 2rem;
-        user-select: none;
-        gap: 0.5rem;
-      }
+    td:only-child {
+      text-align: center;
+    }
 
+    :host-context(tui-root._mobile) {
       input {
         position: absolute;
         top: 2.875rem;

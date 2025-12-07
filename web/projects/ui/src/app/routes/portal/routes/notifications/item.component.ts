@@ -23,10 +23,10 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     @if (notificationItem(); as item) {
       <td>
         <ng-content />
-        {{ item.createdAt | date: 'medium' }}
+        {{ item.createdAt | date: 'MMM d, y, h:mm a' }}
       </td>
-      <td class="title" [style.color]="color()" [style.white-space]="'nowrap'">
-        <tui-icon [icon]="icon()" [style.font-size.rem]="1" />
+      <td class="title" [style.color]="color()">
+        <tui-icon [icon]="icon()" />
         {{ item.title }}
       </td>
       <td class="service">
@@ -82,7 +82,12 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       color: var(--tui-text-primary);
     }
 
+    .title {
+      width: 13rem;
+    }
+
     .service {
+      width: 4.25rem;
       text-align: center;
       grid-column: 2;
       grid-row: 1 / 3;
@@ -90,6 +95,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     }
 
     tui-icon {
+      font-size: 1rem;
       vertical-align: sub;
     }
 
@@ -98,6 +104,7 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
       grid-column: 1;
 
       &:first-child {
+        width: 12rem;
         padding-inline-start: 2.5rem;
         white-space: nowrap;
       }
@@ -108,15 +115,17 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
     }
 
     :host-context(tui-root._mobile) {
-      td {
-        width: 100%;
+      :host {
+        grid-template-columns: 1fr 2rem;
+        user-select: none;
+        gap: 0.5rem;
+      }
 
-        &:first-child {
-          padding: 0;
-          font: var(--tui-font-text-s);
-          color: var(--tui-text-secondary);
-          margin-block-end: -0.25rem;
-        }
+      td:first-child {
+        padding: 0;
+        font: var(--tui-font-text-s);
+        color: var(--tui-text-secondary);
+        margin-block-end: -0.25rem;
       }
 
       .title {
@@ -127,8 +136,12 @@ import { DataModel } from 'src/app/services/patch-db/data-model'
         gap: 0.375rem;
       }
 
-      .service:not(:has(a)) {
-        display: none;
+      .service {
+        width: auto;
+
+        &:not(:has(a)) {
+          display: none;
+        }
       }
 
       :host-context(table:has(:checked)) tui-icon {
