@@ -28,6 +28,8 @@ pub struct MountTarget {
     volume_id: VolumeId,
     subpath: Option<PathBuf>,
     readonly: bool,
+    #[serde(skip_deserializing)]
+    #[ts(skip)]
     filetype: FileType,
     #[serde(default)]
     idmap: Vec<IdMap>,

@@ -324,7 +324,7 @@ export class SubContainerOwned<
 
         await bind(from, path, options.filetype, options.idmap)
       } else if (options.type === "pointer") {
-        await prepBind(null, path, options.filetype)
+        await prepBind(null, path, "directory")
         await this.effects.mount({ location: path, target: options })
       } else if (options.type === "backup") {
         const subpath = options.subpath
@@ -334,7 +334,7 @@ export class SubContainerOwned<
           : "/"
         const from = `/media/startos/backup${subpath}`
 
-        await bind(from, path, mount.options.filetype, options.idmap)
+        await bind(from, path, options.filetype, options.idmap)
       } else {
         throw new Error(`unknown type ${(options as any).type}`)
       }
@@ -850,7 +850,6 @@ export type MountOptionsPointer = {
   volumeId: string
   subpath: string | null
   readonly: boolean
-  filetype: "file" | "directory" | "infer"
   idmap: { fromId: number; toId: number; range: number }[]
 }
 
