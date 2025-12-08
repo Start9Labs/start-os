@@ -549,7 +549,7 @@ export default {
   584: 'Las conexiones pueden ser lentas o poco confiables a veces',
   585: 'Público si compartes la dirección públicamente, de lo contrario privado',
   586: 'Requiere un dispositivo o navegador habilitado para Tor',
-  587: 'No recomendado en la mayoría de los casos. Solo necesario para aplicaciones que imponen HTTPS',
+  587: 'Solo debería ser necesario para aplicaciones que imponen SSL',
   588: 'Ideal para alojamiento y acceso remoto anónimo y resistente a la censura',
   589: 'Ideal para acceso local',
   590: 'Requiere estar conectado a la misma red de área local (LAN) que tu servidor, ya sea físicamente o mediante VPN',

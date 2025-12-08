@@ -69,8 +69,6 @@ import { SSHKey } from 'src/app/services/api/api.types'
     </table>
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
-
     td {
       position: relative;
 

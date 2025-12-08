@@ -3,8 +3,14 @@ import { FormsModule } from '@angular/forms'
 import { invert } from '@start9labs/shared'
 import { IST } from '@start9labs/start-sdk'
 import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
-import { TuiIcon, TuiTextfield } from '@taiga-ui/core'
-import { TuiDataListWrapper, TuiSelect, TuiTooltip } from '@taiga-ui/kit'
+import { TuiDataList, TuiIcon, TuiTextfield } from '@taiga-ui/core'
+import {
+  TuiDataListWrapper,
+  TuiFluidTypography,
+  tuiFluidTypographyOptionsProvider,
+  TuiSelect,
+  TuiTooltip,
+} from '@taiga-ui/kit'
 
 import { Control } from './control'
 import { HintPipe } from '../pipes/hint.pipe'
@@ -41,18 +47,32 @@ import { HintPipe } from '../pipes/hint.pipe'
         />
       }
       @if (!mobile) {
-        <tui-data-list-wrapper *tuiTextfieldDropdown new [items]="items" />
+        <tui-data-list *tuiTextfieldDropdown>
+          @for (item of items; track $index) {
+            <button
+              tuiOption
+              new
+              tuiFluidTypography
+              [style.white-space]="'nowrap'"
+              [value]="item"
+            >
+              {{ item }}
+            </button>
+          }
+        </tui-data-list>
       }
       @if (spec | hint; as hint) {
         <tui-icon [tuiTooltip]="hint" />
       }
     </tui-textfield>
   `,
+  providers: [tuiFluidTypographyOptionsProvider({ max: 1 })],
   imports: [
     FormsModule,
     TuiTextfield,
     TuiSelect,
-    TuiDataListWrapper,
+    TuiDataList,
+    TuiFluidTypography,
     TuiIcon,
     TuiTooltip,
     HintPipe,
