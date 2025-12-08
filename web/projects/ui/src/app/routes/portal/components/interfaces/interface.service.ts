@@ -30,10 +30,7 @@ function filterTor(a: AddressWithInfo): a is TorAddress {
   return a.info.kind === 'onion'
 }
 function cmpTor(a: TorAddress, b: TorAddress): -1 | 0 | 1 {
-  for (let [x, y, sign] of [[a, b, 1] as const, [b, a, -1] as const]) {
-    if (y.url.startsWith('http:') && x.url.startsWith('https:')) return sign
-  }
-  return 0
+  return cmpWithRankedPredicates(a, b, [x => !x.showSsl])
 }
 
 type LanAddress = AddressWithInfo & { info: { kind: 'ip'; public: false } }
@@ -149,15 +146,11 @@ export class InterfaceService {
           res.push({ url, info, gateway, showSsl: false })
         }
         if (sslUrl) {
-          const secure =
-            host.bindings[serviceInterface.addressInfo.internalPort]?.options
-              .secure
-
           res.push({
             url: sslUrl,
             info,
             gateway,
-            showSsl: !!secure && !secure.ssl,
+            showSsl: !!url,
           })
         }
         return res
@@ -503,13 +496,11 @@ export class InterfaceService {
     }
 
     if (showSsl) {
-      bullets.unshift(
-        this.i18n.transform(
-          'Not recommended in most cases. Because this protocol is inherently secure, the SSL address is only useful for apps that enforce SSL',
-        ),
-      )
-
       type = `${type} (SSL)`
+
+      bullets.unshift(
+        this.i18n.transform('Should only needed for apps that enforce SSL'),
+      )
     }
 
     return {

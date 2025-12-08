@@ -549,7 +549,7 @@ export default {
   584: 'Połączenia mogą być czasami wolne lub niestabilne',
   585: 'Publiczne, jeśli udostępniasz adres publicznie, w przeciwnym razie prywatne',
   586: 'Wymaga urządzenia lub przeglądarki obsługującej Tor',
-  587: 'Niezalecane w większości przypadków. Protokół jest z natury bezpieczny, więc adres SSL jest potrzebny tylko dla aplikacji wymuszających SSL',
+  587: 'Powinno być wymagane tylko dla aplikacji wymuszających SSL',
   588: 'Idealne do anonimowego, odpornego na cenzurę hostingu i zdalnego dostępu',
   589: 'Idealne do dostępu lokalnego',
   590: 'Wymaga połączenia z tą samą siecią lokalną (LAN) co serwer, fizycznie lub przez VPN',
