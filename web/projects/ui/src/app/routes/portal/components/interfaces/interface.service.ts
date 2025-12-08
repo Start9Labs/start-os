@@ -7,9 +7,9 @@ import { i18nKey, i18nPipe } from '@start9labs/shared'
 
 type AddressWithInfo = {
   url: string
-  ssl: boolean
   info: T.HostnameInfo
   gateway?: GatewayPlus
+  showSsl: boolean
 }
 
 function cmpWithRankedPredicates<T extends AddressWithInfo>(
@@ -146,10 +146,19 @@ export class InterfaceService {
             : undefined
         const res = []
         if (url) {
-          res.push({ url, ssl: false, info, gateway })
+          res.push({ url, info, gateway, showSsl: false })
         }
         if (sslUrl) {
-          res.push({ url: sslUrl, ssl: true, info, gateway })
+          const secure =
+            host.bindings[serviceInterface.addressInfo.internalPort]?.options
+              .secure
+
+          res.push({
+            url: sslUrl,
+            info,
+            gateway,
+            showSsl: !!secure && !secure.ssl,
+          })
         }
         return res
       },
@@ -326,7 +335,7 @@ export class InterfaceService {
   }
 
   private toDisplayAddress(
-    { info, ssl, url, gateway }: AddressWithInfo,
+    { info, url, gateway, showSsl }: AddressWithInfo,
     publicDomains: Record<string, T.PublicDomainConfig>,
   ): DisplayAddress {
     let access: DisplayAddress['access']
@@ -351,15 +360,8 @@ export class InterfaceService {
         this.i18n.transform('Requires using a Tor-enabled device or browser'),
       ]
       // Tor (SSL)
-      if (ssl) {
-        type = `${type} (SSL)`
-        bullets = [
-          this.i18n.transform(
-            'Not recommended in most cases. Only needed for apps that enforce HTTPS',
-          ),
-          rootCaRequired,
-          ...bullets,
-        ]
+      if (showSsl) {
+        bullets = [rootCaRequired, ...bullets]
         // Tor (NON-SSL)
       } else {
         bullets.unshift(
@@ -498,6 +500,16 @@ export class InterfaceService {
           }
         }
       }
+    }
+
+    if (showSsl) {
+      bullets.unshift(
+        this.i18n.transform(
+          'Not recommended in most cases. Because this protocol is inherently secure, the SSL address is only useful for apps that enforce SSL',
+        ),
+      )
+
+      type = `${type} (SSL)`
     }
 
     return {
