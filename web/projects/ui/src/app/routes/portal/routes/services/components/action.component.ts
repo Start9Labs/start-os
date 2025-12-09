@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, Input } from '@angular/core'
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  input,
+} from '@angular/core'
 import { T } from '@start9labs/start-sdk'
 import { TuiTitle } from '@taiga-ui/core'
 
@@ -13,27 +18,25 @@ interface ActionItem {
   selector: '[action]',
   template: `
     <div tuiTitle>
-      <strong>{{ action.name }}</strong>
-      <div tuiSubtitle [innerHTML]="action.description"></div>
-      @if (disabled) {
-        <div tuiSubtitle class="g-warning">{{ disabled }}</div>
+      <strong>{{ action().name }}</strong>
+      <div tuiSubtitle [innerHTML]="action().description"></div>
+      @if (disabled()) {
+        <div tuiSubtitle class="g-warning">{{ disabled() }}</div>
       }
     </div>
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TuiTitle],
   host: {
-    '[disabled]': '!!disabled',
+    '[disabled]': '!!disabled() || inactive()',
   },
 })
 export class ServiceActionComponent {
-  @Input({ required: true })
-  action!: ActionItem
+  action = input.required<ActionItem>()
+  inactive = input.required<boolean>()
 
-  get disabled() {
-    return (
-      typeof this.action.visibility === 'object' &&
-      this.action.visibility.disabled
-    )
-  }
+  disabled = computed(
+    (action = this.action()) =>
+      typeof action.visibility === 'object' && action.visibility.disabled,
+  )
 }
