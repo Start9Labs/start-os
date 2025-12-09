@@ -72,11 +72,19 @@ export class FormControlComponent<
 
   onInput(value: V | null) {
     const previous = this.value()
+
+    let warning = this.spec.warning
+
     const immutable =
-      'immutable' in this.spec && this.spec.immutable
-        ? `<p>${this.i18n.transform('This value cannot be changed once set')}</p>`
-        : ''
-    const warning = this.spec.warning + immutable
+      'immutable' in this.spec &&
+      this.spec.immutable &&
+      `${this.i18n.transform('This value cannot be changed once set')}.`
+
+    if (immutable) {
+      warning = warning
+        ? `<ul><li>${warning}</li><li>${immutable}</li></ul>`
+        : immutable
+    }
 
     if (!this.warned && warning) {
       this.dialogs
