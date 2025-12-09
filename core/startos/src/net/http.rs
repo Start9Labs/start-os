@@ -1,7 +1,12 @@
-use axum::extract::Request;
-use hyper_util::rt::TokioIo;
+use std::net::IpAddr;
+use std::sync::Arc;
 
-use crate::net::static_server::server_error;
+use futures::future::Either;
+use http::HeaderValue;
+use hyper::service::service_fn;
+use hyper_util::rt::{TokioExecutor, TokioIo, TokioTimer};
+use tokio::sync::Mutex;
+
 use crate::prelude::*;
 use crate::util::io::ReadWriter;
 
@@ -56,32 +61,105 @@ pub async fn handle_http_on_https(stream: impl ReadWriter + Unpin + 'static) -> 
         .map_err(|e| Error::new(color_eyre::eyre::Report::msg(e), ErrorKind::Network))
 }
 
-pub async fn run_http_proxy_bidirectional<C, S>(client: C, server: S) -> Result<(), Error>
+pub async fn run_http_proxy<F, T>(
+    from: F,
+    to: T,
+    negotiated_alpn: Option<Vec<u8>>,
+    src_ip: Option<IpAddr>,
+) -> Result<(), Error>
 where
-    C: ReadWriter + Unpin + Send + 'static,
-    S: ReadWriter + Unpin + Send + 'static,
+    F: ReadWriter + Unpin + Send + 'static,
+    T: ReadWriter + Unpin + Send + 'static,
 {
-    let client_io = TokioIo::new(client);
-    let server_io = TokioIo::new(server);
+    if negotiated_alpn
+        .as_ref()
+        .map(|alpn| alpn.as_slice() == b"h2")
+        .unwrap_or(false)
+    {
+        run_http2_proxy(from, to, src_ip).await
+    } else {
+        run_http1_proxy(from, to, src_ip).await
+    }
+}
 
-    hyper_util::server::conn::auto::Builder::new(hyper_util::rt::TokioExecutor::new())
+pub async fn run_http2_proxy<F, T>(from: F, to: T, src_ip: Option<IpAddr>) -> Result<(), Error>
+where
+    F: ReadWriter + Unpin + Send + 'static,
+    T: ReadWriter + Unpin + Send + 'static,
+{
+    let (client, to) = hyper::client::conn::http2::Builder::new(TokioExecutor::new())
+        .timer(TokioTimer::new())
+        .handshake(TokioIo::new(to))
+        .await?;
+    let from = hyper::server::conn::http2::Builder::new(TokioExecutor::new())
+        .timer(TokioTimer::new())
+        .serve_connection(
+            TokioIo::new(from),
+            service_fn(|mut req| {
+                let mut client = client.clone();
+                async move {
+                    req.headers_mut()
+                        .insert("X-Forwarded-Proto", HeaderValue::from_static("https"));
+                    if let Some(src_ip) = src_ip
+                        .map(|s| s.to_string())
+                        .as_deref()
+                        .and_then(|s| HeaderValue::from_str(s).ok())
+                    {
+                        req.headers_mut().insert("X-Forwarded-For", src_ip);
+                    }
+
+                    client.send_request(req).await
+                }
+            }),
+        );
+    futures::future::try_select(from, to)
+        .await
+        .map_err(|e| match e {
+            Either::Left((e, _)) => e,
+            Either::Right((e, _)) => e,
+        })?;
+
+    Ok(())
+}
+
+pub async fn run_http1_proxy<F, T>(from: F, to: T, src_ip: Option<IpAddr>) -> Result<(), Error>
+where
+    F: ReadWriter + Unpin + Send + 'static,
+    T: ReadWriter + Unpin + Send + 'static,
+{
+    let (client, to) = hyper::client::conn::http1::Builder::new()
         .title_case_headers(true)
         .preserve_header_case(true)
-        .serve_connection_with_upgrades(
-            client_io,
-            hyper_util::service::TowerToHyperService::new(axum::Router::new().fallback(
-                axum::routing::method_routing::any(move |req: Request| async move {
-                    match async move { Err(eyre!("todo")) }.await {
-                        Ok(a) => a,
-                        Err(e) => {
-                            tracing::warn!("Error serving http proxy: {e}");
-                            tracing::error!("{e:?}");
-                            server_error(Error::new(e, ErrorKind::Network))
-                        }
+        .handshake(TokioIo::new(to))
+        .await?;
+    let client = Arc::new(Mutex::new(client));
+    let from = hyper::server::conn::http1::Builder::new()
+        .timer(TokioTimer::new())
+        .serve_connection(
+            TokioIo::new(from),
+            service_fn(|mut req| {
+                let client = client.clone();
+                async move {
+                    req.headers_mut()
+                        .insert("X-Forwarded-Proto", HeaderValue::from_static("https"));
+                    if let Some(src_ip) = src_ip
+                        .map(|s| s.to_string())
+                        .as_deref()
+                        .and_then(|s| HeaderValue::from_str(s).ok())
+                    {
+                        req.headers_mut().insert("X-Forwarded-For", src_ip);
                     }
-                }),
-            )),
-        )
+
+                    client.lock().await.send_request(req).await
+                }
+            }),
+        );
+    futures::future::try_select(from, to)
         .await
-        .map_err(|e| Error::new(color_eyre::eyre::Report::msg(e), ErrorKind::Network))
+        .map_err(|e| match e {
+            Either::Left((e, _)) => e,
+            Either::Right((e, _)) => e,
+        })?;
+
+    Ok(())
 }

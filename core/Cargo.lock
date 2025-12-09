@@ -3670,9 +3670,9 @@ dependencies = [
 
 [[package]]
 name = "hyper"
-version = "1.7.0"
+version = "1.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb3aa54a13a0dfe7fbe3a59e0c76093041720fdc77b110cc0fc260fafb4dc51e"
+checksum = "2ab2d4f250c3d7b1c9fcdff1cece94ea4e2dfbec68614f7b87cb205f24ca9d11"
 dependencies = [
  "atomic-waker",
  "bytes",
@@ -4824,6 +4824,7 @@ dependencies = [
  "ed25519-dalek 2.2.0",
  "exver",
  "gpt",
+ "hyper",
  "ipnet",
  "lazy_static",
  "lettre",

@@ -187,7 +187,9 @@ pub trait VHostTarget<A: Accept>: std::fmt::Debug + Eq {
         prev: ServerConfig,
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
-    ) -> impl Future<Output = Option<(ServerConfig, Self::PreprocessRes)>> + Send + 'a;
+    ) -> impl Future<Output = Option<(ServerConfig, Self::PreprocessRes)>> + Send + 'a
+    where
+        <A as Accept>::Metadata: Visit<ExtractVisitor<TcpMetadata>>;
     fn handle_stream(&self, stream: AcceptStream, prev: Self::PreprocessRes, rc: Weak<()>);
 }
 
@@ -199,7 +201,9 @@ pub trait DynVHostTargetT<A: Accept>: std::fmt::Debug + Any {
         prev: ServerConfig,
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
-    ) -> BoxFuture<'a, Option<(ServerConfig, Box<dyn Any + Send>)>>;
+    ) -> BoxFuture<'a, Option<(ServerConfig, Box<dyn Any + Send>)>>
+    where
+        <A as Accept>::Metadata: Visit<ExtractVisitor<TcpMetadata>>;
     fn handle_stream(&self, stream: AcceptStream, prev: Box<dyn Any + Send>, rc: Weak<()>);
     fn eq(&self, other: &dyn DynVHostTargetT<A>) -> bool;
 }
@@ -215,7 +219,10 @@ impl<A: Accept, T: VHostTarget<A> + 'static> DynVHostTargetT<A> for T {
         prev: ServerConfig,
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
-    ) -> BoxFuture<'a, Option<(ServerConfig, Box<dyn Any + Send>)>> {
+    ) -> BoxFuture<'a, Option<(ServerConfig, Box<dyn Any + Send>)>>
+    where
+        <A as Accept>::Metadata: Visit<ExtractVisitor<TcpMetadata>>,
+    {
         VHostTarget::preprocess(self, prev, hello, metadata)
             .map(|o| o.map(|(cfg, res)| (cfg, Box::new(res) as Box<dyn Any + Send>)))
             .boxed()
@@ -265,7 +272,10 @@ impl<A: Accept + 'static> DynVHostTarget<A> {
         prev: ServerConfig,
         hello: &ClientHello<'_>,
         metadata: &<A as Accept>::Metadata,
-    ) -> Option<(ServerConfig, Preprocessed<A>)> {
+    ) -> Option<(ServerConfig, Preprocessed<A>)>
+    where
+        <A as Accept>::Metadata: Visit<ExtractVisitor<TcpMetadata>>,
+    {
         let (cfg, res) = self.0.preprocess(prev, hello, metadata).await?;
         Some((cfg, Preprocessed(self, rc, res)))
     }
@@ -305,12 +315,18 @@ impl fmt::Debug for ProxyTarget {
     }
 }
 
+pub struct ProxyConnectionResult {
+    pub stream: AcceptStream,
+    pub negotiated_alpn: Option<Vec<u8>>,
+    pub src_ip: Option<IpAddr>,
+}
+
 impl<A> VHostTarget<A> for ProxyTarget
 where
     A: Accept + 'static,
     <A as Accept>::Metadata: Visit<ExtractVisitor<GatewayInfo>> + Clone + Send + Sync,
 {
-    type PreprocessRes = AcceptStream;
+    type PreprocessRes = ProxyConnectionResult;
     fn filter(&self, metadata: &<A as Accept>::Metadata) -> bool {
         let info = extract::<GatewayInfo, _>(metadata);
         if info.is_none() {
@@ -326,8 +342,11 @@ where
         &'a self,
         mut prev: ServerConfig,
         hello: &'a ClientHello<'a>,
-        _: &'a <A as Accept>::Metadata,
-    ) -> Option<(ServerConfig, Self::PreprocessRes)> {
+        metadata: &'a <A as Accept>::Metadata,
+    ) -> Option<(ServerConfig, Self::PreprocessRes)>
+    where
+        <A as Accept>::Metadata: Visit<ExtractVisitor<TcpMetadata>>,
+    {
         let tcp_stream = TcpStream::connect(self.addr)
             .await
             .with_ctx(|_| (ErrorKind::Network, self.addr))
@@ -341,18 +360,28 @@ where
                     .flatten()
                     .map(|x| x.to_vec())
                     .collect();
+                let mut negotiated_alpn = None;
                 let target_stream = TlsConnector::from(Arc::new(client_cfg))
                     .connect_with(
                         ServerName::IpAddress(self.addr.ip().into()),
                         tcp_stream,
                         |conn| {
-                            prev.alpn_protocols
-                                .extend(conn.alpn_protocol().into_iter().map(|p| p.to_vec()))
+                            if let Some(alpn) = conn.alpn_protocol() {
+                                negotiated_alpn = Some(alpn.to_vec());
+                                prev.alpn_protocols.push(alpn.to_vec());
+                            }
                         },
                     )
                     .await
                     .log_err()?;
-                return Some((prev, Box::pin(target_stream)));
+                return Some((
+                    prev,
+                    ProxyConnectionResult {
+                        stream: Box::pin(target_stream),
+                        negotiated_alpn,
+                        src_ip: extract::<TcpMetadata, _>(metadata).map(|m| m.peer_addr.ip()),
+                    },
+                ));
             }
             Err(AlpnInfo::Reflect) => {
                 for alpn in hello.alpn().into_iter().flatten() {
@@ -365,18 +394,30 @@ where
                 }
             }
         }
-        Some((prev, Box::pin(tcp_stream)))
+        Some((
+            prev,
+            ProxyConnectionResult {
+                stream: Box::pin(tcp_stream),
+                negotiated_alpn: None,
+                src_ip: extract::<TcpMetadata, _>(metadata).map(|m| m.peer_addr.ip()),
+            },
+        ))
     }
-    fn handle_stream(&self, mut stream: AcceptStream, mut prev: Self::PreprocessRes, rc: Weak<()>) {
+    fn handle_stream(&self, mut stream: AcceptStream, prev: Self::PreprocessRes, rc: Weak<()>) {
         let add_x_forwarded_headers = self.add_x_forwarded_headers;
         tokio::spawn(async move {
             WeakFuture::new(rc, async move {
+                let ProxyConnectionResult {
+                    stream: mut upstream,
+                    negotiated_alpn,
+                    src_ip,
+                } = prev;
                 if add_x_forwarded_headers {
-                    crate::net::http::run_http_proxy_bidirectional(prev, stream)
+                    crate::net::http::run_http_proxy(upstream, stream, negotiated_alpn, src_ip)
                         .await
                         .ok();
                 } else {
-                    tokio::io::copy_bidirectional(&mut stream, &mut prev)
+                    tokio::io::copy_bidirectional(&mut stream, &mut upstream)
                         .await
                         .ok();
                 }
@@ -452,7 +493,8 @@ impl<A: Accept + 'static> Clone for VHostConnector<A> {
 impl<A> WrapTlsHandler<A> for VHostConnector<A>
 where
     A: Accept + 'static,
-    <A as Accept>::Metadata: Visit<ExtractVisitor<GatewayInfo>> + Send + Sync,
+    <A as Accept>::Metadata:
+        Visit<ExtractVisitor<GatewayInfo>> + Visit<ExtractVisitor<TcpMetadata>> + Send + Sync,
 {
     async fn wrap<'a>(
         &'a mut self,
