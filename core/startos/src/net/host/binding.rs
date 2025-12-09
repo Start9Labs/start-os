@@ -165,8 +165,8 @@ pub struct BindOptions {
 #[ts(export)]
 pub struct AddSslOptions {
     pub preferred_external_port: u16,
-    // #[serde(default)]
-    // pub add_x_forwarded_headers: bool, // TODO
+    #[serde(default)]
+    pub add_x_forwarded_headers: bool, // TODO
     pub alpn: Option<AlpnInfo>,
 }
 

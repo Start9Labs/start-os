@@ -281,6 +281,7 @@ pub struct ProxyTarget {
     pub filter: DynInterfaceFilter,
     pub acme: Option<AcmeProvider>,
     pub addr: SocketAddr,
+    pub add_x_forwarded_headers: bool,
     pub connect_ssl: Result<Arc<ClientConfig>, AlpnInfo>, // Ok: yes, connect using ssl, pass through alpn; Err: connect tcp, use provided strategy for alpn
 }
 impl PartialEq for ProxyTarget {
@@ -367,8 +368,16 @@ where
         Some((prev, Box::pin(tcp_stream)))
     }
     fn handle_stream(&self, mut stream: AcceptStream, mut prev: Self::PreprocessRes, rc: Weak<()>) {
+        let add_x_forwarded_headers = self.add_x_forwarded_headers;
         tokio::spawn(async move {
-            WeakFuture::new(rc, tokio::io::copy_bidirectional(&mut stream, &mut prev)).await
+            WeakFuture::new(rc, async move {
+                if add_x_forwarded_headers {
+                    todo!("run http proxy")
+                } else {
+                    tokio::io::copy_bidirectional(&mut stream, &mut prev).await
+                }
+            })
+            .await
         });
     }
 }

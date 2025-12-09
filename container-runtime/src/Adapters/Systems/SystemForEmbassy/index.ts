@@ -1042,7 +1042,7 @@ export class SystemForEmbassy implements System {
         volumeId: "embassy",
         subpath: null,
         readonly: true,
-        filetype: "directory",
+        idmap: [],
       },
     })
     configFile
@@ -1190,7 +1190,7 @@ async function updateConfig(
             volumeId: "embassy",
             subpath: null,
             readonly: true,
-            filetype: "directory",
+            idmap: [],
           },
         })
         const remoteConfig = configFile

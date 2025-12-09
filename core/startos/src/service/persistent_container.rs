@@ -437,24 +437,6 @@ impl PersistentContainer {
         self.destroyed = true;
         Some(async move {
             let mut errs = ErrorCollection::new();
-            if error {
-                if let Some(lxc_container) = &lxc_container {
-                    if let Some(logs) = errs.handle(
-                        crate::logs::fetch_logs(
-                            crate::logs::LogSource::Container(lxc_container.guid.deref().clone()),
-                            Some(50),
-                            None,
-                            None,
-                            false,
-                        )
-                        .await,
-                    ) {
-                        for log in logs.entries.iter() {
-                            eprintln!("{log}");
-                        }
-                    }
-                }
-            }
             if let Some((hdl, shutdown)) = rpc_server {
                 errs.handle(
                     rpc_client

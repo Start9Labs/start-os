@@ -543,7 +543,9 @@ export class SubContainerOwned<
       delete options.cwd
     }
     if (options?.env) {
-      for (let [k, v] of Object.entries(options.env)) {
+      for (let [k, v] of Object.entries(options.env).filter(
+        ([_, v]) => v != undefined,
+      )) {
         extra.push(`--env=${k}=${v}`)
       }
     }
@@ -592,7 +594,9 @@ export class SubContainerOwned<
       delete options.cwd
     }
     if (options?.env) {
-      for (let [k, v] of Object.entries(options.env)) {
+      for (let [k, v] of Object.entries(options.env).filter(
+        ([_, v]) => v != undefined,
+      )) {
         extra.push(`--env=${k}=${v}`)
       }
     }
@@ -805,7 +809,7 @@ export type CommandOptions = {
   /**
    * Environment variables to set for this command
    */
-  env?: { [variable: string]: string }
+  env?: { [variable in string]?: string }
   /**
    * the working directory to run this command in
    */

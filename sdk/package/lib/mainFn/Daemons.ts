@@ -55,7 +55,7 @@ export type ExecCommandOptions = {
   runAsInit?: boolean
   env?:
     | {
-        [variable: string]: string
+        [variable in string]?: string
       }
     | undefined
   cwd?: string | undefined

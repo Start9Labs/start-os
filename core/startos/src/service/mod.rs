@@ -538,8 +538,16 @@ impl Service {
                     .or_not_found(&manifest.id)?;
                 let actions = entry.as_actions().keys()?;
                 if entry.as_tasks_mut().mutate(|t| {
-                    t.retain(|_, v| {
-                        v.task.package_id != manifest.id || actions.contains(&v.task.action_id)
+                    t.retain(|id, v| {
+                        v.task.package_id != manifest.id
+                            || if actions.contains(&v.task.action_id) {
+                                true
+                            } else {
+                                tracing::warn!(
+                                    "Deleting task {id} because action no longer exists"
+                                );
+                                false
+                            }
                     });
                     Ok(t.iter()
                         .any(|(_, t)| t.active && t.task.severity == TaskSeverity::Critical))

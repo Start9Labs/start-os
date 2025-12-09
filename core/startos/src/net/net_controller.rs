@@ -283,6 +283,7 @@ impl NetServiceData {
                                 filter: bind.net.clone().into_dyn(),
                                 acme: None,
                                 addr,
+                                add_x_forwarded_headers: ssl.add_x_forwarded_headers,
                                 connect_ssl: connect_ssl
                                     .clone()
                                     .map(|_| ctrl.tls_client_config.clone()),
