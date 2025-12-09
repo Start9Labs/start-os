@@ -27,6 +27,7 @@ const allowedStatuses = {
     'stopping',
     'starting',
     'backing-up',
+    'task-required',
   ]),
 }
 
