@@ -15,9 +15,10 @@ use tokio_rustls::rustls::sign::CertifiedKey;
 use tokio_rustls::rustls::{ClientConfig, RootCertStore, ServerConfig};
 use visit_rs::{Visit, VisitFields};
 
+use crate::net::http::handle_http_on_https;
 use crate::net::web_server::{Accept, AcceptStream, MetadataVisitor};
 use crate::prelude::*;
-use crate::util::io::{BackTrackingIO, ReadWriter};
+use crate::util::io::BackTrackingIO;
 use crate::util::serde::MaybeUtf8String;
 use crate::util::sync::SyncMutex;
 
@@ -249,57 +250,6 @@ where
             }
         })
     }
-}
-
-async fn handle_http_on_https(stream: impl ReadWriter + Unpin + 'static) -> Result<(), Error> {
-    use axum::body::Body;
-    use axum::extract::Request;
-    use axum::response::Response;
-    use http::Uri;
-
-    use crate::net::static_server::server_error;
-
-    hyper_util::server::conn::auto::Builder::new(hyper_util::rt::TokioExecutor::new())
-        .serve_connection(
-            hyper_util::rt::TokioIo::new(stream),
-            hyper_util::service::TowerToHyperService::new(axum::Router::new().fallback(
-                axum::routing::method_routing::any(move |req: Request| async move {
-                    match async move {
-                        let host = req
-                            .headers()
-                            .get(http::header::HOST)
-                            .and_then(|host| host.to_str().ok());
-                        if let Some(host) = host {
-                            let uri = Uri::from_parts({
-                                let mut parts = req.uri().to_owned().into_parts();
-                                parts.scheme = Some("https".parse()?);
-                                parts.authority = Some(host.parse()?);
-                                parts
-                            })?;
-                            Response::builder()
-                                .status(http::StatusCode::TEMPORARY_REDIRECT)
-                                .header(http::header::LOCATION, uri.to_string())
-                                .body(Body::default())
-                        } else {
-                            Response::builder()
-                                .status(http::StatusCode::BAD_REQUEST)
-                                .body(Body::from("Host header required"))
-                        }
-                    }
-                    .await
-                    {
-                        Ok(a) => a,
-                        Err(e) => {
-                            tracing::warn!("Error redirecting http request on ssl port: {e}");
-                            tracing::error!("{e:?}");
-                            server_error(Error::new(e, ErrorKind::Network))
-                        }
-                    }
-                }),
-            )),
-        )
-        .await
-        .map_err(|e| Error::new(color_eyre::eyre::Report::msg(e), ErrorKind::Network))
 }
 
 pub fn client_config<'a, I: IntoIterator<Item = &'a X509Ref>>(

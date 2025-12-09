@@ -372,9 +372,13 @@ where
         tokio::spawn(async move {
             WeakFuture::new(rc, async move {
                 if add_x_forwarded_headers {
-                    todo!("run http proxy")
+                    crate::net::http::run_http_proxy_bidirectional(prev, stream)
+                        .await
+                        .ok();
                 } else {
-                    tokio::io::copy_bidirectional(&mut stream, &mut prev).await
+                    tokio::io::copy_bidirectional(&mut stream, &mut prev)
+                        .await
+                        .ok();
                 }
             })
             .await
