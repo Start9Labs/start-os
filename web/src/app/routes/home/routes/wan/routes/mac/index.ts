@@ -1,14 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
-import {
-  TuiAppearance,
-  TuiButton,
-  TuiTextfield,
-  TuiTitle,
-} from '@taiga-ui/core'
+import { TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import { TuiRadio } from '@taiga-ui/kit'
-import { TuiCard, TuiForm, TuiHeader } from '@taiga-ui/layout'
-import { Help } from 'src/app/directives/help.directive'
+import { TuiHeader } from '@taiga-ui/layout'
+import { Footer } from 'src/app/components/footer'
+import { Form } from 'src/app/directives/form'
+import { Help } from 'src/app/directives/help'
 
 import { MacAside } from './aside'
 import { MacSummary } from './summary'
@@ -16,15 +13,10 @@ import { MacSummary } from './summary'
 @Component({
   template: `
     <mac-aside *help />
-    <article macSummary tuiCardLarge="compact"></article>
-    <form
-      tuiForm
-      tuiCardLarge="compact"
-      tuiAppearance="neutral"
-      class="g-form"
-      [formGroup]="form"
-    >
-      <header tuiHeader><h2 tuiTitle>Strategy</h2></header>
+    <header tuiHeader="h6"><h2 tuiTitle>Summary</h2></header>
+    <article macSummary [formLoading]="false"></article>
+    <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
+    <form [formGroup]="form" [formLoading]="false" [style.gap.rem]="1">
       <section>
         @for (value of ['router', 'custom']; track $index) {
           <label tuiLabel>
@@ -48,30 +40,26 @@ import { MacSummary } from './summary'
           />
         </tui-textfield>
       </section>
+      <footer appFooter></footer>
     </form>
-    <footer class="g-footer">
-      <button tuiButton appearance="flat">Cancel</button>
-      <button tuiButton>Save</button>
-    </footer>
   `,
   styles: `
     [tuiLabel] {
       text-transform: capitalize;
     }
   `,
+  host: { class: 'g-page' },
   imports: [
     ReactiveFormsModule,
-    TuiForm,
-    TuiAppearance,
     TuiHeader,
     TuiTitle,
     TuiTextfield,
-    TuiCard,
     TuiRadio,
-    TuiButton,
+    Form,
+    Footer,
+    Help,
     MacSummary,
     MacAside,
-    Help,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { TuiTitle } from '@taiga-ui/core'
 import { TuiBadge, TuiStatus } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
-import { Summary, SummaryItem } from 'src/app/components/summary'
+import { Summary } from 'src/app/components/summary'
 
 import Ipv6 from '.'
 
@@ -13,7 +13,7 @@ import Ipv6 from '.'
     @if (parent.form.valueChanges | async) {}
     <header tuiHeader><h2 tuiTitle>Summary</h2></header>
     <section>
-      <label appSummary>
+      <div appSummary>
         IPv6 Address Strategy
         <span tuiSubtitle [style.gap.rem]="0.375">
           @if (parent.form.value.slaac) {
@@ -23,16 +23,16 @@ import Ipv6 from '.'
             <span tuiBadge tuiStatus appearance="positive">DHCPv6</span>
           }
         </span>
-      </label>
-      <label [appSummary]="parent.form.value.ip">IPv6 Address</label>
-      <label appSummary>
+      </div>
+      <div [appSummary]="parent.form.value.ip">IPv6 Address</div>
+      <div appSummary>
         IPv6 Prefix Length
         <span tuiSubtitle>/{{ parent.form.value.prefix }}</span>
-      </label>
+      </div>
     </section>
   `,
-  hostDirectives: [Summary],
-  imports: [AsyncPipe, TuiHeader, TuiTitle, TuiBadge, TuiStatus, SummaryItem],
+  host: { '[style.background]': '"var(--tui-status-info-pale)"' },
+  imports: [AsyncPipe, TuiHeader, TuiTitle, TuiBadge, TuiStatus, Summary],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Ipv6Summary {

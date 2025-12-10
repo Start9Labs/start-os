@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { TuiIcon, TuiLink, TuiTitle } from '@taiga-ui/core'
 import { TuiAvatar, TuiAvatarLabeled, TuiBadge, TuiStatus } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
-import { Summary, SummaryItem } from 'src/app/components/summary'
+import { Summary } from 'src/app/components/summary'
 import OutboundVPN from 'src/app/routes/home/routes/outbound/routes/vpn/index'
 
 @Component({
@@ -64,14 +64,14 @@ import OutboundVPN from 'src/app/routes/home/routes/outbound/routes/vpn/index'
       margin: 0;
     }
   `,
-  hostDirectives: [Summary],
+  host: { '[style.background]': '"var(--tui-status-info-pale)"' },
   imports: [
     AsyncPipe,
     TuiHeader,
     TuiTitle,
     TuiBadge,
     TuiStatus,
-    SummaryItem,
+    Summary,
     TuiLink,
     TuiAvatarLabeled,
     TuiAvatar,

@@ -20,7 +20,8 @@ import {
 import { TuiAccordion } from '@taiga-ui/experimental'
 import { TuiChevron, TuiDataListWrapper, TuiSelect } from '@taiga-ui/kit'
 import { TuiCard, TuiForm, TuiHeader } from '@taiga-ui/layout'
-import { Help } from 'src/app/directives/help.directive'
+import { Form } from 'src/app/directives/form'
+import { Help } from 'src/app/directives/help'
 
 import { GeneralAside } from './aside'
 import { GeneralSummary } from './summary'
@@ -39,7 +40,7 @@ import { GeneralSummary } from './summary'
         </aside>
       </header>
     </section>
-    <article generalSummary tuiCardLarge="compact"></article>
+    <article generalSummary [formLoading]="false"></article>
     <form
       tuiForm
       tuiCardLarge="compact"
@@ -139,6 +140,7 @@ import { GeneralSummary } from './summary'
       box-shadow: none;
     }
   `,
+  host: { class: 'g-page' },
   providers: [
     tuiTextfieldOptionsProvider({ cleaner: signal(false) }),
     tuiButtonOptionsProvider({ appearance: 'outline' }),
@@ -148,6 +150,7 @@ import { GeneralSummary } from './summary'
     TuiCard,
     GeneralSummary,
     GeneralAside,
+    Form,
     Help,
     TuiHeader,
     TuiTitle,

@@ -15,7 +15,8 @@ import {
 } from '@taiga-ui/core'
 import { tuiInputNumberOptionsProvider, TuiSwitch } from '@taiga-ui/kit'
 import { TuiCard, TuiForm, TuiHeader } from '@taiga-ui/layout'
-import { Help } from 'src/app/directives/help.directive'
+import { Form } from 'src/app/directives/form'
+import { Help } from 'src/app/directives/help'
 
 import { IPv4Aside } from './aside'
 import { Ipv4Dhcp } from './dhcp'
@@ -25,7 +26,7 @@ import { Ipv4Summary } from './summary'
 @Component({
   template: `
     <ipv4-aside *help />
-    <article ipv4Summary tuiCardLarge="compact"></article>
+    <article ipv4Summary [formLoading]="false"></article>
     <ipv4-dhcp />
     <ipv4-ip />
     <label
@@ -47,6 +48,7 @@ import { Ipv4Summary } from './summary'
       <button tuiButton>Save</button>
     </footer>
   `,
+  host: { class: 'g-page' },
   providers: [
     tuiTextfieldOptionsProvider({ cleaner: signal(false) }),
     tuiNumberFormatProvider({ precision: 0 }),
@@ -64,6 +66,7 @@ import { Ipv4Summary } from './summary'
     TuiHeader,
     TuiTitle,
     ReactiveFormsModule,
+    Form,
     Help,
     Ipv4Summary,
     IPv4Aside,

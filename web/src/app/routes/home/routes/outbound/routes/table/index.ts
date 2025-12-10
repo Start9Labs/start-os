@@ -11,7 +11,7 @@ import { TuiDialogService } from '@taiga-ui/experimental'
 import { TUI_CONFIRM } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
 import { filter } from 'rxjs'
-import { Help } from 'src/app/directives/help.directive'
+import { Help } from 'src/app/directives/help'
 import { ADD } from 'src/app/routes/home/routes/outbound/dialog'
 
 import { OutboundAside } from './aside'

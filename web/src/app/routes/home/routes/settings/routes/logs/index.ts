@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { TuiButton } from '@taiga-ui/core'
-import { Help } from 'src/app/directives/help.directive'
+import { Help } from 'src/app/directives/help'
 
 import { LogsAside } from './aside'
 
@@ -36,6 +36,7 @@ import { LogsAside } from './aside'
       margin-inline-end: auto;
     }
   `,
+  host: { class: 'g-page' },
   imports: [LogsAside, Help, TuiButton],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

@@ -3,14 +3,14 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { TuiButton, TuiTitle } from '@taiga-ui/core'
 import { TuiBadge, TuiStatus } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
-import { Summary, SummaryItem } from 'src/app/components/summary'
+import { Summary } from 'src/app/components/summary'
 
 @Component({
   selector: '[securitySummary]',
   template: `
     <header tuiHeader><h2 tuiTitle>Summary</h2></header>
     <section>
-      <label appSummary>
+      <div appSummary>
         Password
         <span tuiSubtitle>
           {{ '*'.repeat(this.password.length) }}
@@ -23,18 +23,18 @@ import { Summary, SummaryItem } from 'src/app/components/summary'
             Copy
           </button>
         </span>
-      </label>
-      <label appSummary>
+      </div>
+      <div appSummary>
         SSH
         <span tuiSubtitle>
           <span tuiBadge tuiStatus appearance="positive">Active</span>
         </span>
-      </label>
+      </div>
     </section>
   `,
-  hostDirectives: [Summary],
+  host: { '[style.background]': '"var(--tui-status-info-pale)"' },
   imports: [
-    SummaryItem,
+    Summary,
     TuiHeader,
     TuiTitle,
     TuiBadge,

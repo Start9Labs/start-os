@@ -10,7 +10,8 @@ import {
 } from '@taiga-ui/core'
 import { TuiSwitch } from '@taiga-ui/kit'
 import { TuiCardLarge, TuiForm, TuiHeader } from '@taiga-ui/layout'
-import { Help } from 'src/app/directives/help.directive'
+import { Form } from 'src/app/directives/form'
+import { Help } from 'src/app/directives/help'
 
 import { DeviceAside } from './aside'
 import { DeviceSummary } from './summary'
@@ -33,7 +34,7 @@ import { DeviceSummary } from './summary'
         </h2>
       </hgroup>
     </header>
-    <article deviceSummary tuiCardLarge="compact"></article>
+    <article deviceSummary [formLoading]="false"></article>
     <form
       tuiCardLarge="compact"
       tuiAppearance="neutral"
@@ -110,6 +111,7 @@ import { DeviceSummary } from './summary'
     TuiTextfield,
     TuiSwitch,
     TuiButton,
+    Form,
     Help,
     DeviceAside,
     DeviceSummary,

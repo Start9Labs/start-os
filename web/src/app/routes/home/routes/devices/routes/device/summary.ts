@@ -4,7 +4,7 @@ import { TUI_ALWAYS_DASHED, TuiAxes, TuiBarChart } from '@taiga-ui/addon-charts'
 import { TuiButton, TuiHint, TuiIcon, TuiTitle } from '@taiga-ui/core'
 import { TuiChevron } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
-import { Summary, SummaryItem } from 'src/app/components/summary'
+import { Summary } from 'src/app/components/summary'
 
 import DevicesDevice from '.'
 
@@ -19,25 +19,25 @@ import DevicesDevice from '.'
       </aside>
     </header>
     <section>
-      <label appSummary>
+      <div appSummary>
         Name
         <span tuiSubtitle>{{ parent.form.value.name }}</span>
-      </label>
-      <label appSummary>
+      </div>
+      <div appSummary>
         Permissions
         <span tuiSubtitle>
           <tui-icon icon="@tui.scroll" />
           Admin
         </span>
-      </label>
-      <label appSummary>
+      </div>
+      <div appSummary>
         Connection
         <span tuiSubtitle>
           <tui-icon icon="@tui.wifi" />
           Child
         </span>
-      </label>
-      <label appSummary>
+      </div>
+      <div appSummary>
         Speed
         <span tuiSubtitle>
           <tui-icon icon="@tui.arrow-up" />
@@ -49,7 +49,7 @@ import DevicesDevice from '.'
           237
           <small>MB/S</small>
         </span>
-      </label>
+      </div>
       <div appSummary>
         <header>
           Data Usage
@@ -123,7 +123,7 @@ import DevicesDevice from '.'
       }
     }
   `,
-  hostDirectives: [Summary],
+  host: { '[style.background]': '"var(--tui-status-info-pale)"' },
   imports: [
     AsyncPipe,
     TuiHeader,
@@ -134,7 +134,7 @@ import DevicesDevice from '.'
     TuiChevron,
     TuiBarChart,
     TuiHint,
-    SummaryItem,
+    Summary,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

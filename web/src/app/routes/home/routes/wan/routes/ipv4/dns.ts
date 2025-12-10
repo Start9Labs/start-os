@@ -9,78 +9,65 @@ import {
   TuiSwitch,
 } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
-import { Form } from 'src/app/directives/form.directive'
+import { FORM, FormSection } from 'src/app/directives/form'
 
 import Ipv4 from '.'
 import { LABELS } from './utils'
 
 @Component({
-  selector: 'form[ipv4Dns]',
+  selector: 'ipv4-dns',
   template: `
-    <!-- TODO: Replace with provider here and in all similar forms when fixed: -->
-    <!-- https://github.com/angular/angular/issues/65724 -->
-    <ng-container [formGroup]="parent.form.controls.dns">
-      <header tuiHeader>
-        <h2 tuiTitle>DNS Server</h2>
-        @if (parent.dns !== 'tls') {
-          <aside tuiAccessories>
-            <label tuiLabel>
-              <input type="checkbox" tuiSwitch formControlName="proxy" />
-              Use DNScrypt Proxy
-            </label>
-          </aside>
-        }
-      </header>
+    <header tuiHeader="body-l"><h2 tuiTitle>DNS Server</h2></header>
+    <section>
+      @for (mode of ['isp', 'tls', 'custom']; track $index) {
+        <label tuiLabel>
+          <input type="radio" tuiRadio formControlName="mode" [value]="mode" />
+          {{ labels[mode] }}{{ $index ? '' : ' (Default)' }}
+        </label>
+      }
+    </section>
+    @if (parent.dns === 'tls') {
       <section>
-        @for (mode of ['isp', 'tls', 'custom']; track $index) {
-          <label tuiLabel>
-            <input
-              type="radio"
-              tuiRadio
-              formControlName="mode"
-              [value]="mode"
-            />
-            {{ labels[mode] }}{{ $index ? '' : ' (Default)' }}
-          </label>
-        }
+        <tui-textfield tuiChevron [tuiTextfieldCleaner]="false">
+          <label tuiLabel>DNS Server*</label>
+          <input tuiSelect formControlName="server" />
+          <tui-data-list-wrapper
+            *tuiTextfieldDropdown
+            new
+            [items]="['Cloudflare (1.1.1.1)', 'something.else']"
+          />
+        </tui-textfield>
       </section>
-      @if (parent.dns === 'tls') {
-        <section [formGroupName]="parent.dns">
-          <tui-textfield tuiChevron [tuiTextfieldCleaner]="false">
-            <label tuiLabel>DNS Server*</label>
-            <input tuiSelect formControlName="server" />
-            <tui-data-list-wrapper
-              *tuiTextfieldDropdown
-              new
-              [items]="['Cloudflare (1.1.1.1)', 'something.else']"
-            />
-          </tui-textfield>
-        </section>
-      }
-      @if (parent.dns === 'custom') {
-        <section [formGroupName]="parent.dns">
-          <tui-textfield>
-            <label tuiLabel>Priority 1*</label>
-            <input tuiTextfield formControlName="1" />
-          </tui-textfield>
-          <label tuiLabel>
-            <input type="checkbox" tuiSwitch formControlName="tls1" />
-            TLS
-          </label>
-        </section>
-        <section [formGroupName]="parent.dns">
-          <tui-textfield>
-            <label tuiLabel>Priority 2</label>
-            <input tuiTextfield formControlName="2" />
-          </tui-textfield>
-          <label tuiLabel>
-            <input type="checkbox" tuiSwitch formControlName="tls2" />
-            TLS
-          </label>
-        </section>
-      }
-      @if (parent.dns !== 'tls' && parent.form.controls.dns.value.proxy) {
-        <section [formGroupName]="parent.dns">
+    }
+    @if (parent.dns === 'custom') {
+      <section>
+        <tui-textfield>
+          <label tuiLabel>Priority 1*</label>
+          <input tuiTextfield formControlName="1" />
+        </tui-textfield>
+        <label tuiLabel>
+          <input type="checkbox" tuiSwitch formControlName="tls1" />
+          TLS
+        </label>
+      </section>
+      <section>
+        <tui-textfield>
+          <label tuiLabel>Priority 2</label>
+          <input tuiTextfield formControlName="2" />
+        </tui-textfield>
+        <label tuiLabel>
+          <input type="checkbox" tuiSwitch formControlName="tls2" />
+          TLS
+        </label>
+      </section>
+    }
+    @if (parent.dns !== 'tls') {
+      <label tuiLabel>
+        <input type="checkbox" tuiSwitch formControlName="proxy" />
+        Use DNScrypt Proxy
+      </label>
+      @if (parent.form.controls.dns.value.proxy) {
+        <section>
           <tui-textfield tuiChevron [tuiTextfieldCleaner]="false">
             <label tuiLabel>Proxy Server*</label>
             <input tuiSelect formControlName="server" />
@@ -92,9 +79,10 @@ import { LABELS } from './utils'
           </tui-textfield>
         </section>
       }
-    </ng-container>
+    }
   `,
-  hostDirectives: [Form],
+  viewProviders: [FORM],
+  hostDirectives: [FormSection],
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ReactiveFormsModule,
