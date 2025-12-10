@@ -3,5 +3,6 @@ import type { AlpnInfo } from "./AlpnInfo"
 
 export type AddSslOptions = {
   preferredExternalPort: number
+  addXForwardedHeaders: boolean
   alpn: AlpnInfo | null
 }

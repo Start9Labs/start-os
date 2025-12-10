@@ -67,8 +67,8 @@ impl Public {
                                         preferred_external_port: 443,
                                         add_x_forwarded_headers: false,
                                         alpn: Some(AlpnInfo::Specified(vec![
-                                            MaybeUtf8String("http/1.1".into()),
                                             MaybeUtf8String("h2".into()),
+                                            MaybeUtf8String("http/1.1".into()),
                                         ])),
                                     }),
                                     secure: None,

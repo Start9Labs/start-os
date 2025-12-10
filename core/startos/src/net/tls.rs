@@ -36,7 +36,7 @@ impl<V: MetadataVisitor<Result = ()>, M: Visit<V>> Visit<V> for TlsMetadata<M> {
 #[derive(Debug, Clone)]
 pub struct TlsHandshakeInfo {
     pub sni: Option<InternedString>,
-    pub alpn: Vec<MaybeUtf8String>,
+    pub alpn: Option<MaybeUtf8String>,
 }
 impl<V: MetadataVisitor> Visit<V> for TlsHandshakeInfo {
     fn visit(&self, visitor: &mut V) -> <V as visit_rs::Visitor>::Result {
@@ -201,32 +201,33 @@ where
                             };
                         let hello = mid.client_hello();
                         if let Some(cfg) = tls_handler.get_config(&hello, &metadata).await {
-                            let metadata = TlsMetadata {
-                                inner: metadata,
-                                tls_info: TlsHandshakeInfo {
-                                    sni: hello.server_name().map(InternedString::intern),
-                                    alpn: hello
-                                        .alpn()
-                                        .into_iter()
-                                        .flatten()
-                                        .map(|a| MaybeUtf8String(a.to_vec()))
-                                        .collect(),
-                                },
-                            };
                             let buffered = mid.io.stop_buffering();
                             mid.io
                                 .write_all(&buffered)
                                 .await
                                 .with_kind(ErrorKind::Network)?;
-                            let stream = match mid.into_stream(Arc::new(cfg)).await {
-                                Ok(stream) => Box::pin(stream) as AcceptStream,
+                            return Ok(match mid.into_stream(Arc::new(cfg)).await {
+                                Ok(stream) => {
+                                    let s = stream.get_ref().1;
+                                    Some((
+                                        TlsMetadata {
+                                            inner: metadata,
+                                            tls_info: TlsHandshakeInfo {
+                                                sni: s.server_name().map(InternedString::intern),
+                                                alpn: s
+                                                    .alpn_protocol()
+                                                    .map(|a| MaybeUtf8String(a.to_vec())),
+                                            },
+                                        },
+                                        Box::pin(stream) as AcceptStream,
+                                    ))
+                                }
                                 Err(e) => {
                                     tracing::trace!("Error completing TLS handshake: {e}");
                                     tracing::trace!("{e:?}");
-                                    return Ok(None);
+                                    None
                                 }
-                            };
-                            return Ok(Some((metadata, stream)));
+                            });
                         }
 
                         Ok(None)

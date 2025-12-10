@@ -58,6 +58,9 @@ impl FromStr for OnionAddress {
         Ok(Self(
             s.strip_suffix(".onion")
                 .unwrap_or(s)
+                .rsplit(".")
+                .next()
+                .unwrap_or(s)
                 .parse::<OnionAddressV3>()
                 .with_kind(ErrorKind::Tor)?,
         ))

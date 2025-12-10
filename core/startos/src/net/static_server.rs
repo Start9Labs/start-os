@@ -208,7 +208,7 @@ pub fn rpc_router<C: Context + Clone + AsRef<RpcContinuations>>(
         .route("/rpc/{*path}", any(server))
         .route(
             "/ws/rpc/{guid}",
-            get({
+            any({
                 let ctx = ctx.clone();
                 move |x::Path(guid): x::Path<Guid>,
                       ws: axum::extract::ws::WebSocketUpgrade| async move {

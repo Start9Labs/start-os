@@ -1,6 +1,7 @@
 use std::net::IpAddr;
 use std::sync::Arc;
 
+use futures::FutureExt;
 use futures::future::Either;
 use http::HeaderValue;
 use hyper::service::service_fn;
@@ -9,6 +10,7 @@ use tokio::sync::Mutex;
 
 use crate::prelude::*;
 use crate::util::io::ReadWriter;
+use crate::util::serde::MaybeUtf8String;
 
 pub async fn handle_http_on_https(stream: impl ReadWriter + Unpin + 'static) -> Result<(), Error> {
     use axum::body::Body;
@@ -64,16 +66,16 @@ pub async fn handle_http_on_https(stream: impl ReadWriter + Unpin + 'static) -> 
 pub async fn run_http_proxy<F, T>(
     from: F,
     to: T,
-    negotiated_alpn: Option<Vec<u8>>,
+    alpn: Option<MaybeUtf8String>,
     src_ip: Option<IpAddr>,
 ) -> Result<(), Error>
 where
     F: ReadWriter + Unpin + Send + 'static,
     T: ReadWriter + Unpin + Send + 'static,
 {
-    if negotiated_alpn
+    if alpn
         .as_ref()
-        .map(|alpn| alpn.as_slice() == b"h2")
+        .map(|alpn| alpn.0.as_slice() == b"h2")
         .unwrap_or(false)
     {
         run_http2_proxy(from, to, src_ip).await
@@ -93,6 +95,7 @@ where
         .await?;
     let from = hyper::server::conn::http2::Builder::new(TokioExecutor::new())
         .timer(TokioTimer::new())
+        .enable_connect_protocol()
         .serve_connection(
             TokioIo::new(from),
             service_fn(|mut req| {
@@ -108,16 +111,36 @@ where
                         req.headers_mut().insert("X-Forwarded-For", src_ip);
                     }
 
-                    client.send_request(req).await
+                    let upgrade = if req.method() == http::method::Method::CONNECT
+                        && req.extensions().get::<hyper::ext::Protocol>().is_some()
+                    {
+                        Some(hyper::upgrade::on(&mut req))
+                    } else {
+                        None
+                    };
+
+                    let mut res = client.send_request(req).await?;
+
+                    if let Some(from) = upgrade {
+                        let to = hyper::upgrade::on(&mut res);
+                        tokio::task::spawn(async move {
+                            if let Some((from, to)) = futures::future::try_join(from, to).await.ok()
+                            {
+                                tokio::io::copy_bidirectional(
+                                    &mut TokioIo::new(from),
+                                    &mut TokioIo::new(to),
+                                )
+                                .await
+                                .ok();
+                            }
+                        });
+                    }
+
+                    Ok::<_, hyper::Error>(res)
                 }
             }),
         );
-    futures::future::try_select(from, to)
-        .await
-        .map_err(|e| match e {
-            Either::Left((e, _)) => e,
-            Either::Right((e, _)) => e,
-        })?;
+    futures::future::try_join(from.boxed(), to.boxed()).await?;
 
     Ok(())
 }
@@ -150,16 +173,54 @@ where
                         req.headers_mut().insert("X-Forwarded-For", src_ip);
                     }
 
-                    client.lock().await.send_request(req).await
+                    let upgrade =
+                        if req
+                            .headers()
+                            .get(http::header::CONNECTION)
+                            .map_or(false, |h| {
+                                h.to_str()
+                                    .unwrap_or_default()
+                                    .split(",")
+                                    .any(|s| s.trim().eq_ignore_ascii_case("upgrade"))
+                            })
+                        {
+                            Some(hyper::upgrade::on(&mut req))
+                        } else {
+                            None
+                        };
+
+                    let mut res = client.lock().await.send_request(req).await?;
+
+                    if let Some(from) = upgrade {
+                        let kind = res
+                            .headers()
+                            .get(http::header::UPGRADE)
+                            .map(|h| h.to_owned());
+                        let to = hyper::upgrade::on(&mut res);
+                        tokio::task::spawn(async move {
+                            if let Some((from, to)) = futures::future::try_join(from, to).await.ok()
+                            {
+                                if kind.map_or(false, |k| k == "HTTP/2.0") {
+                                    run_http2_proxy(TokioIo::new(from), TokioIo::new(to), src_ip)
+                                        .await
+                                        .ok();
+                                } else {
+                                    tokio::io::copy_bidirectional(
+                                        &mut TokioIo::new(from),
+                                        &mut TokioIo::new(to),
+                                    )
+                                    .await
+                                    .ok();
+                                }
+                            }
+                        });
+                    }
+
+                    Ok::<_, hyper::Error>(res)
                 }
             }),
         );
-    futures::future::try_select(from, to)
-        .await
-        .map_err(|e| match e {
-            Either::Left((e, _)) => e,
-            Either::Right((e, _)) => e,
-        })?;
+    futures::future::try_join(from.with_upgrades().boxed(), to.with_upgrades().boxed()).await?;
 
     Ok(())
 }

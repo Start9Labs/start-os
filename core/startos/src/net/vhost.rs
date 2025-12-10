@@ -187,10 +187,14 @@ pub trait VHostTarget<A: Accept>: std::fmt::Debug + Eq {
         prev: ServerConfig,
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
-    ) -> impl Future<Output = Option<(ServerConfig, Self::PreprocessRes)>> + Send + 'a
-    where
-        <A as Accept>::Metadata: Visit<ExtractVisitor<TcpMetadata>>;
-    fn handle_stream(&self, stream: AcceptStream, prev: Self::PreprocessRes, rc: Weak<()>);
+    ) -> impl Future<Output = Option<(ServerConfig, Self::PreprocessRes)>> + Send + 'a;
+    fn handle_stream(
+        &self,
+        stream: AcceptStream,
+        metadata: TlsMetadata<<A as Accept>::Metadata>,
+        prev: Self::PreprocessRes,
+        rc: Weak<()>,
+    );
 }
 
 pub trait DynVHostTargetT<A: Accept>: std::fmt::Debug + Any {
@@ -204,7 +208,13 @@ pub trait DynVHostTargetT<A: Accept>: std::fmt::Debug + Any {
     ) -> BoxFuture<'a, Option<(ServerConfig, Box<dyn Any + Send>)>>
     where
         <A as Accept>::Metadata: Visit<ExtractVisitor<TcpMetadata>>;
-    fn handle_stream(&self, stream: AcceptStream, prev: Box<dyn Any + Send>, rc: Weak<()>);
+    fn handle_stream(
+        &self,
+        stream: AcceptStream,
+        metadata: TlsMetadata<<A as Accept>::Metadata>,
+        prev: Box<dyn Any + Send>,
+        rc: Weak<()>,
+    );
     fn eq(&self, other: &dyn DynVHostTargetT<A>) -> bool;
 }
 impl<A: Accept, T: VHostTarget<A> + 'static> DynVHostTargetT<A> for T {
@@ -219,17 +229,20 @@ impl<A: Accept, T: VHostTarget<A> + 'static> DynVHostTargetT<A> for T {
         prev: ServerConfig,
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
-    ) -> BoxFuture<'a, Option<(ServerConfig, Box<dyn Any + Send>)>>
-    where
-        <A as Accept>::Metadata: Visit<ExtractVisitor<TcpMetadata>>,
-    {
+    ) -> BoxFuture<'a, Option<(ServerConfig, Box<dyn Any + Send>)>> {
         VHostTarget::preprocess(self, prev, hello, metadata)
             .map(|o| o.map(|(cfg, res)| (cfg, Box::new(res) as Box<dyn Any + Send>)))
             .boxed()
     }
-    fn handle_stream(&self, stream: AcceptStream, prev: Box<dyn Any + Send>, rc: Weak<()>) {
+    fn handle_stream(
+        &self,
+        stream: AcceptStream,
+        metadata: TlsMetadata<<A as Accept>::Metadata>,
+        prev: Box<dyn Any + Send>,
+        rc: Weak<()>,
+    ) {
         if let Ok(prev) = prev.downcast() {
-            VHostTarget::handle_stream(self, stream, *prev, rc);
+            VHostTarget::handle_stream(self, stream, metadata, *prev, rc);
         }
     }
     fn eq(&self, other: &dyn DynVHostTargetT<A>) -> bool {
@@ -281,8 +294,8 @@ impl<A: Accept + 'static> DynVHostTarget<A> {
     }
 }
 impl<A: Accept + 'static> Preprocessed<A> {
-    fn finish(self, stream: AcceptStream) {
-        (self.0).0.handle_stream(stream, self.2, self.1);
+    fn finish(self, stream: AcceptStream, metadata: TlsMetadata<<A as Accept>::Metadata>) {
+        (self.0).0.handle_stream(stream, metadata, self.2, self.1);
     }
 }
 
@@ -310,23 +323,22 @@ impl fmt::Debug for ProxyTarget {
             .field("filter", &self.filter)
             .field("acme", &self.acme)
             .field("addr", &self.addr)
+            .field("add_x_forwarded_headers", &self.add_x_forwarded_headers)
             .field("connect_ssl", &self.connect_ssl.as_ref().map(|_| ()))
             .finish()
     }
 }
 
-pub struct ProxyConnectionResult {
-    pub stream: AcceptStream,
-    pub negotiated_alpn: Option<Vec<u8>>,
-    pub src_ip: Option<IpAddr>,
-}
-
 impl<A> VHostTarget<A> for ProxyTarget
 where
     A: Accept + 'static,
-    <A as Accept>::Metadata: Visit<ExtractVisitor<GatewayInfo>> + Clone + Send + Sync,
+    <A as Accept>::Metadata: Visit<ExtractVisitor<GatewayInfo>>
+        + Visit<ExtractVisitor<TcpMetadata>>
+        + Clone
+        + Send
+        + Sync,
 {
-    type PreprocessRes = ProxyConnectionResult;
+    type PreprocessRes = AcceptStream;
     fn filter(&self, metadata: &<A as Accept>::Metadata) -> bool {
         let info = extract::<GatewayInfo, _>(metadata);
         if info.is_none() {
@@ -342,11 +354,8 @@ where
         &'a self,
         mut prev: ServerConfig,
         hello: &'a ClientHello<'a>,
-        metadata: &'a <A as Accept>::Metadata,
-    ) -> Option<(ServerConfig, Self::PreprocessRes)>
-    where
-        <A as Accept>::Metadata: Visit<ExtractVisitor<TcpMetadata>>,
-    {
+        _: &'a <A as Accept>::Metadata,
+    ) -> Option<(ServerConfig, Self::PreprocessRes)> {
         let tcp_stream = TcpStream::connect(self.addr)
             .await
             .with_ctx(|_| (ErrorKind::Network, self.addr))
@@ -360,28 +369,18 @@ where
                     .flatten()
                     .map(|x| x.to_vec())
                     .collect();
-                let mut negotiated_alpn = None;
                 let target_stream = TlsConnector::from(Arc::new(client_cfg))
                     .connect_with(
                         ServerName::IpAddress(self.addr.ip().into()),
                         tcp_stream,
                         |conn| {
-                            if let Some(alpn) = conn.alpn_protocol() {
-                                negotiated_alpn = Some(alpn.to_vec());
-                                prev.alpn_protocols.push(alpn.to_vec());
-                            }
+                            prev.alpn_protocols
+                                .extend(conn.alpn_protocol().into_iter().map(|p| p.to_vec()))
                         },
                     )
                     .await
                     .log_err()?;
-                return Some((
-                    prev,
-                    ProxyConnectionResult {
-                        stream: Box::pin(target_stream),
-                        negotiated_alpn,
-                        src_ip: extract::<TcpMetadata, _>(metadata).map(|m| m.peer_addr.ip()),
-                    },
-                ));
+                return Some((prev, Box::pin(target_stream)));
             }
             Err(AlpnInfo::Reflect) => {
                 for alpn in hello.alpn().into_iter().flatten() {
@@ -394,30 +393,29 @@ where
                 }
             }
         }
-        Some((
-            prev,
-            ProxyConnectionResult {
-                stream: Box::pin(tcp_stream),
-                negotiated_alpn: None,
-                src_ip: extract::<TcpMetadata, _>(metadata).map(|m| m.peer_addr.ip()),
-            },
-        ))
+        Some((prev, Box::pin(tcp_stream)))
     }
-    fn handle_stream(&self, mut stream: AcceptStream, prev: Self::PreprocessRes, rc: Weak<()>) {
+    fn handle_stream(
+        &self,
+        mut stream: AcceptStream,
+        metadata: TlsMetadata<<A as Accept>::Metadata>,
+        mut prev: Self::PreprocessRes,
+        rc: Weak<()>,
+    ) {
         let add_x_forwarded_headers = self.add_x_forwarded_headers;
         tokio::spawn(async move {
             WeakFuture::new(rc, async move {
-                let ProxyConnectionResult {
-                    stream: mut upstream,
-                    negotiated_alpn,
-                    src_ip,
-                } = prev;
                 if add_x_forwarded_headers {
-                    crate::net::http::run_http_proxy(upstream, stream, negotiated_alpn, src_ip)
-                        .await
-                        .ok();
+                    crate::net::http::run_http_proxy(
+                        stream,
+                        prev,
+                        metadata.tls_info.alpn,
+                        extract::<TcpMetadata, _>(&metadata.inner).map(|m| m.peer_addr.ip()),
+                    )
+                    .await
+                    .ok();
                 } else {
-                    tokio::io::copy_bidirectional(&mut stream, &mut upstream)
+                    tokio::io::copy_bidirectional(&mut stream, &mut prev)
                         .await
                         .ok();
                 }
@@ -624,7 +622,7 @@ where
     async fn handle_next(&mut self) -> Result<(), Error> {
         let (metadata, stream) = futures::future::poll_fn(|cx| self.poll_accept(cx)).await?;
 
-        metadata.preprocessed.finish(stream);
+        metadata.preprocessed.finish(stream, metadata.inner);
 
         Ok(())
     }
@@ -699,8 +697,8 @@ impl<A: Accept> VHostServer<A> {
                 ));
                 loop {
                     if let Err(e) = listener.handle_next().await {
-                        tracing::error!("VHostServer: failed to accept connection: {e}");
-                        tracing::debug!("{e:?}");
+                        tracing::trace!("VHostServer: failed to accept connection: {e}");
+                        tracing::trace!("{e:?}");
                     }
                 }
             })
