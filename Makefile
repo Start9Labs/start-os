@@ -113,7 +113,7 @@ test-container-runtime: container-runtime/node_modules/.package-lock.json $(call
 	cd container-runtime && npm test
 
 cli:
-	./core/install-cli.sh
+	./core/build-cli.sh --install
 
 registry: core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox
 

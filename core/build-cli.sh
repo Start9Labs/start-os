@@ -5,6 +5,21 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 source ./builder-alias.sh
 
 set -ea
+
+INSTALL=false
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --install)
+      INSTALL=true
+      shift
+      ;;
+    *)
+      >&2 echo "Unknown option: $1"
+      exit 1
+      ;;
+  esac
+done
+
 shopt -s expand_aliases
 
 PROFILE=${PROFILE:-release}
@@ -68,4 +83,8 @@ echo "RUSTFLAGS=\"$RUSTFLAGS\""
 rust-zig-builder cargo zigbuild --manifest-path=./core/Cargo.toml $BUILD_FLAGS --no-default-features --features $FEATURE_ARGS --locked --bin start-cli --target=$TARGET
 if [ "$(ls -nd "core/target/$TARGET/$PROFILE/start-cli" | awk '{ print $3 }')" != "$UID" ]; then
   rust-zig-builder sh -c "cd core && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
+fi
+
+if [ "$INSTALL" = "true" ]; then
+  cp "core/target/$TARGET/$PROFILE/start-cli" ~/.cargo/bin/start-cli
 fi
