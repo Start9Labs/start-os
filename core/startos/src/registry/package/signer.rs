@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use clap::Parser;
+use exver::VersionRange;
 use models::PackageId;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
@@ -8,7 +9,7 @@ use ts_rs::TS;
 
 use crate::context::CliContext;
 use crate::prelude::*;
-use crate::registry::admin::display_signers;
+use crate::registry::admin::display_package_signers;
 use crate::registry::context::RegistryContext;
 use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::Guid;
@@ -36,7 +37,9 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
             "list",
             from_fn_async(list_package_signers)
                 .with_display_serializable()
-                .with_custom_display_fn(|handle, result| display_signers(handle.params, result))
+                .with_custom_display_fn(|handle, result| {
+                    display_package_signers(handle.params, result)
+                })
                 .with_about("List package signers and related signer info")
                 .with_call_remote::<CliContext>(),
         )
@@ -46,14 +49,21 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
 #[command(rename_all = "kebab-case")]
 #[serde(rename_all = "camelCase")]
 #[ts(export)]
-pub struct PackageSignerParams {
+pub struct AddPackageSignerParams {
     pub id: PackageId,
     pub signer: Guid,
+    #[arg(long)]
+    #[ts(type = "string | null")]
+    pub versions: Option<VersionRange>,
 }
 
 pub async fn add_package_signer(
     ctx: RegistryContext,
-    PackageSignerParams { id, signer }: PackageSignerParams,
+    AddPackageSignerParams {
+        id,
+        signer,
+        versions,
+    }: AddPackageSignerParams,
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
@@ -69,7 +79,7 @@ pub async fn add_package_signer(
                 .as_idx_mut(&id)
                 .or_not_found(&id)?
                 .as_authorized_mut()
-                .mutate(|s| Ok(s.insert(signer)))?;
+                .insert(&signer, &versions.unwrap_or_default())?;
 
             Ok(())
         })
@@ -77,20 +87,30 @@ pub async fn add_package_signer(
         .result
 }
 
+#[derive(Debug, Deserialize, Serialize, Parser, TS)]
+#[command(rename_all = "kebab-case")]
+#[serde(rename_all = "camelCase")]
+#[ts(export)]
+pub struct RemovePackageSignerParams {
+    pub id: PackageId,
+    pub signer: Guid,
+}
+
 pub async fn remove_package_signer(
     ctx: RegistryContext,
-    PackageSignerParams { id, signer }: PackageSignerParams,
+    RemovePackageSignerParams { id, signer }: RemovePackageSignerParams,
 ) -> Result<(), Error> {
     ctx.db
         .mutate(|db| {
-            if !db
+            if db
                 .as_index_mut()
                 .as_package_mut()
                 .as_packages_mut()
                 .as_idx_mut(&id)
                 .or_not_found(&id)?
                 .as_authorized_mut()
-                .mutate(|s| Ok(s.remove(&signer)))?
+                .remove(&signer)?
+                .is_some()
             {
                 return Err(Error::new(
                     eyre!("signer {signer} is not authorized to sign for {id}"),
@@ -115,7 +135,7 @@ pub struct ListPackageSignersParams {
 pub async fn list_package_signers(
     ctx: RegistryContext,
     ListPackageSignersParams { id }: ListPackageSignersParams,
-) -> Result<BTreeMap<Guid, SignerInfo>, Error> {
+) -> Result<BTreeMap<Guid, (SignerInfo, VersionRange)>, Error> {
     let db = ctx.db.peek().await;
     db.as_index()
         .as_package()
@@ -125,11 +145,11 @@ pub async fn list_package_signers(
         .as_authorized()
         .de()?
         .into_iter()
-        .filter_map(|guid| {
+        .filter_map(|(guid, versions)| {
             db.as_index()
                 .as_signers()
                 .as_idx(&guid)
-                .map(|s| s.de().map(|s| (guid, s)))
+                .map(|s| s.de().map(|s| (guid, (s, versions))))
         })
         .collect()
 }

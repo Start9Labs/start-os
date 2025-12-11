@@ -75,7 +75,8 @@ pub async fn add_package(
                     .or_not_found(&manifest.id)?
                     .as_authorized()
                     .de()?
-                    .contains(&uploader_guid)
+                    .get(&uploader_guid)
+                    .map_or(false, |v| manifest.version.satisfies(v))
             {
                 let package = db
                     .as_index_mut()
@@ -197,7 +198,8 @@ pub async fn remove_package(
                     .or_not_found(&id)?
                     .as_authorized()
                     .de()?
-                    .contains(&signer_guid)
+                    .get(&signer_guid)
+                    .map_or(false, |v| version.satisfies(v))
             {
                 if let Some(package) = db
                     .as_index_mut()
