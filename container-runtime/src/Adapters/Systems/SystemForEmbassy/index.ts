@@ -1241,11 +1241,11 @@ async function updateConfig(
             : catchFn(
                 () =>
                   (specValue.target === "lan-address"
-                    ? filled.addressInfo!.localHostnames[0] ||
-                      filled.addressInfo!.onionHostnames[0]
-                    : filled.addressInfo!.onionHostnames[0] ||
-                      filled.addressInfo!.localHostnames[0]
-                  ).hostname.value,
+                    ? filled.addressInfo!.filter({ kind: "mdns" }) ||
+                      filled.addressInfo!.onion
+                    : filled.addressInfo!.onion ||
+                      filled.addressInfo!.filter({ kind: "mdns" })
+                  ).hostnames[0].hostname.value,
               ) || ""
         mutConfigValue[key] = url
       }
