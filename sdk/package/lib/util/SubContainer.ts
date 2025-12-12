@@ -59,8 +59,10 @@ async function bind(
 
   const args = ["--bind"]
 
-  for (const i of idmap) {
-    args.push(`-oX-mount.idmap=b:${i.fromId}:${i.toId}:${i.range}`)
+  if (idmap.length) {
+    args.push(
+      `-oX-mount.idmap=${idmap.map((i) => `b:${i.fromId}:${i.toId}:${i.range}`).join(" ")}`,
+    )
   }
 
   await execFile("mount", [...args, from, to])
@@ -729,7 +731,9 @@ export class SubContainerRc<
           if (rcs < 0) console.error(new Error("UNREACHABLE: rcs < 0").stack)
         }
       }
-      await this.destroying
+      if (this.destroying) {
+        await this.destroying
+      }
       this.destroyed = true
       this.destroying = null
       return null

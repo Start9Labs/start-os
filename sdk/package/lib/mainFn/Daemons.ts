@@ -413,7 +413,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
 
   async term() {
     for (let result of await Promise.allSettled(
-      this.healthDaemons.map((x) => x.term()),
+      this.healthDaemons.map((x) => x.term({ destroySubcontainer: true })),
     )) {
       if (result.status === "rejected") {
         console.error(result.reason)

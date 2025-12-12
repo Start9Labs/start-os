@@ -54,6 +54,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   async term(termOptions?: {
     signal?: NodeJS.Signals | undefined
     timeout?: number | undefined
+    destroySubcontainer?: boolean
   }) {
     this.healthWatchers = []
     this.running = false
@@ -87,7 +88,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
       this.started = performance.now()
     } else {
       console.debug(`Stopping ${this.id}...`)
-      ;(await this.daemon)?.stop()
+      ;(await this.daemon)?.term()
       this.turnOffHealthCheck()
 
       this.setHealth({ result: "starting", message: null })
