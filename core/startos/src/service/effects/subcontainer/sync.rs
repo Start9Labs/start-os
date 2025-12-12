@@ -138,7 +138,7 @@ impl ExecParams {
 
         let mut cmd = StdCommand::new(command);
 
-        let passwd = std::fs::read_to_string("/etc/passwd")
+        let passwd = std::fs::read_to_string(chroot.join("etc/passwd"))
             .with_ctx(|_| (ErrorKind::Filesystem, "read /etc/passwd"))
             .log_err()
             .unwrap_or_default();
