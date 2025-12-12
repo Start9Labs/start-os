@@ -68,7 +68,7 @@ if [ ! -f GIT_HASH.txt ] && command -v git >/dev/null 2>&1; then
 fi
 
 FEATURES="$(echo "${ENVIRONMENT:-}" | sed 's/-/,/g')"
-FEATURE_ARGS="cli"
+FEATURE_ARGS="cli,docker"
 if [ -n "$FEATURES" ]; then
   FEATURE_ARGS="$FEATURE_ARGS,$FEATURES"
 fi

@@ -26,15 +26,15 @@ fi
 
 QEMU=
 if [ "$ARCH" != "$(uname -m)" ]; then
-    QEMU=/usr/bin/qemu-${ARCH}-static
-    if ! which qemu-$ARCH-static > /dev/null; then
-        >&2 echo qemu-user-static is required for cross-platform builds
+    QEMU=/usr/bin/qemu-${ARCH}
+    if ! which qemu-$ARCH > /dev/null; then
+        >&2 echo qemu-user is required for cross-platform builds
         sudo umount tmp/combined
         sudo umount tmp/lower
         sudo rm -rf tmp
         exit 1
     fi
-    sudo cp $(which qemu-$ARCH-static) tmp/combined${QEMU}
+    sudo cp $(which qemu-$ARCH) tmp/combined${QEMU}
 fi
 
 sudo mkdir -p tmp/combined/usr/lib/startos/
