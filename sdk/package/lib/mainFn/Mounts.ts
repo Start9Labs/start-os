@@ -14,23 +14,23 @@ type SharedOptions = {
    * defaults to "directory"
    * */
   type?: "file" | "directory" | "infer"
-  /**
-   * Whether to map uids/gids for the mount
-   *
-   * https://www.kernel.org/doc/html/latest/filesystems/idmappings.html
-   */
-  idmap?: {
-    /** The (starting) id of the data on the filesystem (u) */
-    fromId: number
-    /** The (starting) id of the data in the mount point (k) */
-    toId: number
-    /**
-     * Optional: the number of incremental ids to map (r)
-     *
-     * defaults to 1
-     * */
-    range?: number
-  }[]
+  // /**
+  //  * Whether to map uids/gids for the mount
+  //  *
+  //  * https://www.kernel.org/doc/html/latest/filesystems/idmappings.html
+  //  */
+  // idmap?: {
+  //   /** The (starting) id of the data on the filesystem (u) */
+  //   fromId: number
+  //   /** The (starting) id of the data in the mount point (k) */
+  //   toId: number
+  //   /**
+  //    * Optional: the number of incremental ids to map (r)
+  //    *
+  //    * defaults to 1
+  //    * */
+  //   range?: number
+  // }[]
 }
 
 type VolumeOpts<Manifest extends T.SDKManifest> = {
@@ -131,7 +131,7 @@ export class Mounts<
             subpath: v.subpath,
             readonly: v.readonly,
             filetype: v.type ?? "directory",
-            idmap: (v.idmap ?? []).map((i) => ({ range: 1, ...i })),
+            idmap: [],
           },
         })),
       )
@@ -142,7 +142,7 @@ export class Mounts<
             type: "assets",
             subpath: a.subpath,
             filetype: a.type ?? "directory",
-            idmap: (a.idmap ?? []).map((i) => ({ range: 1, ...i })),
+            idmap: [],
           },
         })),
       )
@@ -156,7 +156,7 @@ export class Mounts<
             subpath: d.subpath,
             readonly: d.readonly,
             filetype: d.type ?? "directory",
-            idmap: (d.idmap ?? []).map((i) => ({ range: 1, ...i })),
+            idmap: [],
           },
         })),
       )

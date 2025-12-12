@@ -32,9 +32,6 @@ impl IdMap {
 
         for mut b in b {
             for a in &a {
-                if a.from_id <= b.from_id && a.from_id + a.range > b.from_id {
-                    b.from_id += a.to_id;
-                }
                 if a.from_id <= b.to_id && a.from_id + a.range > b.to_id {
                     b.to_id += a.to_id;
                 }
