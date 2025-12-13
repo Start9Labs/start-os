@@ -27,7 +27,7 @@ WEB_START_TUNNEL_SRC := $(call ls-files, web/projects/start-tunnel)
 PATCH_DB_CLIENT_SRC := $(shell git ls-files --recurse-submodules patch-db/client)
 GZIP_BIN := $(shell which pigz || which gzip)
 TAR_BIN := $(shell which gtar || which tar)
-COMPILED_TARGETS := core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox core/target/$(RUST_ARCH)-unknown-linux-musl/release/containerbox container-runtime/rootfs.$(ARCH).squashfs
+COMPILED_TARGETS := core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox core/target/$(RUST_ARCH)-unknown-linux-musl/release/start-container container-runtime/rootfs.$(ARCH).squashfs
 STARTOS_TARGETS := $(STARTD_SRC) $(ENVIRONMENT_FILE) $(GIT_HASH_FILE) $(VERSION_FILE) $(COMPILED_TARGETS) cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/startos-backup-fs $(PLATFORM_FILE) \
 	$(shell if [ "$(PLATFORM)" = "raspberrypi" ]; then \
 		echo cargo-deps/aarch64-unknown-linux-musl/release/pi-beep; \
@@ -300,7 +300,7 @@ container-runtime/dist/node_modules/.package-lock.json container-runtime/dist/pa
 	./container-runtime/install-dist-deps.sh
 	touch container-runtime/dist/node_modules/.package-lock.json
 
-container-runtime/rootfs.$(ARCH).squashfs: container-runtime/debian.$(ARCH).squashfs container-runtime/container-runtime.service container-runtime/update-image.sh container-runtime/deb-install.sh container-runtime/dist/index.js container-runtime/dist/node_modules/.package-lock.json core/target/$(RUST_ARCH)-unknown-linux-musl/release/containerbox
+container-runtime/rootfs.$(ARCH).squashfs: container-runtime/debian.$(ARCH).squashfs container-runtime/container-runtime.service container-runtime/update-image.sh container-runtime/deb-install.sh container-runtime/dist/index.js container-runtime/dist/node_modules/.package-lock.json core/target/$(RUST_ARCH)-unknown-linux-musl/release/start-container
 	ARCH=$(ARCH) REQUIRES=linux ./build/os-compat/run-compat.sh ./container-runtime/update-image.sh
 
 build/lib/depends build/lib/conflicts: $(ENVIRONMENT_FILE) $(PLATFORM_FILE) $(shell ls build/dpkg-deps/*)
@@ -313,9 +313,9 @@ core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox: $(CORE_SRC) $(C
 	ARCH=$(ARCH) PROFILE=$(PROFILE) ./core/build-startbox.sh
 	touch core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/startbox
 
-core/target/$(RUST_ARCH)-unknown-linux-musl/release/containerbox: $(CORE_SRC) $(ENVIRONMENT_FILE)
-	ARCH=$(ARCH) ./core/build-containerbox.sh
-	touch core/target/$(RUST_ARCH)-unknown-linux-musl/release/containerbox
+core/target/$(RUST_ARCH)-unknown-linux-musl/release/start-container: $(CORE_SRC) $(ENVIRONMENT_FILE)
+	ARCH=$(ARCH) ./core/build-start-container.sh
+	touch core/target/$(RUST_ARCH)-unknown-linux-musl/release/start-container
 
 web/package-lock.json: web/package.json sdk/baseDist/package.json
 	npm --prefix web i

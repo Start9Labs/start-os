@@ -119,18 +119,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    strategy:
-      fail-fast: true
-      matrix:
-        arch: >-
-          ${{
-            fromJson('{
-              "x86_64": ["x86_64"],
-              "aarch64": ["aarch64"],
-              "riscv64": ["riscv64"],
-              "ALL": ["x86_64", "aarch64", "riscv64"]
-            }')[github.event.inputs.platform || 'ALL']
-          }}
     runs-on: ${{ fromJson('["ubuntu-latest", "buildjet-32vcpu-ubuntu-2204"]')[github.event.inputs.runner == 'fast'] }}
     steps:
       - name: Cleaning up unnecessary files
@@ -167,26 +155,36 @@ jobs:
       - name: Download debian package
         uses: actions/download-artifact@v4
         with:
-          name: start-registry_${{ matrix.arch }}.deb
+          pattern: start-registry_*.deb
 
       - name: Map matrix.arch to docker platform
         run: |
-          case "${{ matrix.arch }}" in
-            x86_64)
-              platform="linux/amd64"
-              ;;
-            aarch64)
-              platform="linux/arm64"
-              ;;
-            riscv64)
-              platform="linux/riscv64"
-              ;;
-            *)
-              echo "Unknown matrix.arch: ${{ matrix.arch }}" >&2
-              exit 1
-              ;;
-          esac
-          echo "DOCKER_PLATFORM=$platform" >> "$GITHUB_ENV"
+          platforms=""
+          for deb in *.deb; do
+            filename=$(basename "$deb" .deb)
+            arch="${filename#*_}"
+            case "$arch" in
+              x86_64)
+                platform="linux/amd64"
+                ;;
+              aarch64)
+                platform="linux/arm64"
+                ;;
+              riscv64)
+                platform="linux/riscv64"
+                ;;
+              *)
+                echo "Unknown architecture: $arch" >&2
+                exit 1
+                ;;
+            esac
+            if [ -z "$platforms" ]; then
+              platforms="$platform"
+            else
+              platforms="$platforms,$platform"
+            fi
+          done
+          echo "DOCKER_PLATFORM=$platforms" >> "$GITHUB_ENV"
 
       - run: |
           cat | docker buildx build --platform "$DOCKER_PLATFORM" --push -t ${{ steps.meta.outputs.tags }} -f - . << EOF

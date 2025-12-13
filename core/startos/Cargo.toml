@@ -23,23 +23,23 @@ path = "src/lib.rs"
 
 [[bin]]
 name = "startbox"
-path = "src/main.rs"
+path = "src/main/startbox.rs"
 
 [[bin]]
 name = "start-cli"
-path = "src/main.rs"
+path = "src/main/start-cli.rs"
 
 [[bin]]
-name = "containerbox"
-path = "src/main.rs"
+name = "start-container"
+path = "src/main/start-container.rs"
 
 [[bin]]
 name = "registrybox"
-path = "src/main.rs"
+path = "src/main/registrybox.rs"
 
 [[bin]]
 name = "tunnelbox"
-path = "src/main.rs"
+path = "src/main/tunnelbox.rs"
 
 [features]
 arti = [
@@ -54,19 +54,12 @@ arti = [
   "tor-proto",
   "tor-rtcompat",
 ]
-cli = ["cli-registry", "cli-startd", "cli-tunnel"]
-cli-container = ["procfs", "pty-process"]
-cli-registry = []
-cli-startd = []
-cli-tunnel = []
 console = ["console-subscriber", "tokio/tracing"]
-default = ["cli", "cli-container", "registry", "startd", "tunnel"]
+default = ["ui", "procfs", "pty-process"]
 dev = ["backtrace-on-stack-overflow"]
 docker = []
-registry = []
-startd = ["procfs", "pty-process"]
 test = []
-tunnel = []
+ui = []
 unstable = ["backtrace-on-stack-overflow"]
 
 [dependencies]

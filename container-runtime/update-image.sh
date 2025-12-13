@@ -44,7 +44,7 @@ sudo cp container-runtime.service tmp/combined/lib/systemd/system/container-runt
 sudo chown 0:0 tmp/combined/lib/systemd/system/container-runtime.service
 sudo cp container-runtime-failure.service tmp/combined/lib/systemd/system/container-runtime-failure.service
 sudo chown 0:0 tmp/combined/lib/systemd/system/container-runtime-failure.service
-sudo cp ../core/target/${RUST_ARCH}-unknown-linux-musl/release/containerbox tmp/combined/usr/bin/start-container
+sudo cp ../core/target/${RUST_ARCH}-unknown-linux-musl/release/start-container tmp/combined/usr/bin/start-container
 echo -e '#!/bin/bash\nexec start-container "$@"' | sudo tee tmp/combined/usr/bin/start-cli # TODO: remove
 sudo chmod +x tmp/combined/usr/bin/start-cli
 sudo chown 0:0 tmp/combined/usr/bin/start-container

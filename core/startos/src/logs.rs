@@ -28,7 +28,6 @@ use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
 use crate::error::ResultExt;
-use crate::lxc::ContainerId;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::util::Invoke;
@@ -500,7 +499,7 @@ fn logs_follow<
 }
 
 async fn get_package_id(
-    ctx: &RpcContext,
+    _: &RpcContext,
     PackageIdParams { id }: PackageIdParams,
 ) -> Result<LogSource, Error> {
     Ok(LogSource::Package(id))

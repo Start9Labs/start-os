@@ -61,18 +61,7 @@ if [ -z "${TARGET:-}" ]; then
 fi
 
 cd ..
-
-# Ensure GIT_HASH.txt exists if not created by higher-level build steps
-if [ ! -f GIT_HASH.txt ] && command -v git >/dev/null 2>&1; then
-  git rev-parse HEAD > GIT_HASH.txt || true
-fi
-
 FEATURES="$(echo "${ENVIRONMENT:-}" | sed 's/-/,/g')"
-FEATURE_ARGS="cli,docker"
-if [ -n "$FEATURES" ]; then
-  FEATURE_ARGS="$FEATURE_ARGS,$FEATURES"
-fi
-
 RUSTFLAGS=""
 if [[ "${ENVIRONMENT:-}" =~ (^|-)console($|-) ]]; then
   RUSTFLAGS="--cfg tokio_unstable"
@@ -80,9 +69,9 @@ fi
 
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-zig-builder cargo zigbuild --manifest-path=./core/Cargo.toml $BUILD_FLAGS --no-default-features --features $FEATURE_ARGS --locked --bin start-cli --target=$TARGET
+rust-zig-builder cargo zigbuild --manifest-path=./core/Cargo.toml $BUILD_FLAGS --features=docker,$FEATURES --locked --bin start-cli --target=$TARGET
 if [ "$(ls -nd "core/target/$TARGET/$PROFILE/start-cli" | awk '{ print $3 }')" != "$UID" ]; then
-  rust-zig-builder sh -c "cd core && chown -R $UID:$UID target && chown -R $UID:$UID /root/.cargo"
+  rust-zig-builder sh -c "cd core && chown -R $UID:$UID target && chown -R $UID:$UID  /usr/local/cargo"
 fi
 
 if [ "$INSTALL" = "true" ]; then

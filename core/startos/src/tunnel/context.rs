@@ -323,7 +323,7 @@ impl CallRemote<TunnelContext, TunnelUrlParams> for RpcContext {
 
 impl UiContext for TunnelContext {
     const UI_DIR: &'static include_dir::Dir<'static> = &else_empty_dir!(
-        feature = "tunnel" =>
+        feature = "ui" =>
         include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/start-tunnel")
     );
     fn api() -> ParentHandler<Self> {

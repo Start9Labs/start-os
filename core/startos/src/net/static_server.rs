@@ -84,7 +84,7 @@ pub trait UiContext: Context + AsRef<RpcContinuations> + Clone + Sized {
 
 impl UiContext for RpcContext {
     const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
-        feature = "startd" =>
+        feature = "ui" =>
         include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/ui")
     );
     fn api() -> ParentHandler<Self> {
@@ -150,7 +150,7 @@ impl UiContext for RpcContext {
 
 impl UiContext for InitContext {
     const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
-        feature = "startd" =>
+        feature = "ui" =>
         include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/ui")
     );
     fn api() -> ParentHandler<Self> {
@@ -163,7 +163,7 @@ impl UiContext for InitContext {
 
 impl UiContext for DiagnosticContext {
     const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
-        feature = "startd" =>
+        feature = "ui" =>
         include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/ui")
     );
     fn api() -> ParentHandler<Self> {
@@ -176,7 +176,7 @@ impl UiContext for DiagnosticContext {
 
 impl UiContext for SetupContext {
     const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
-        feature = "startd" =>
+        feature = "ui" =>
         include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/setup-wizard")
     );
     fn api() -> ParentHandler<Self> {
@@ -189,7 +189,7 @@ impl UiContext for SetupContext {
 
 impl UiContext for InstallContext {
     const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
-        feature = "startd" =>
+        feature = "ui" =>
         include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/install-wizard")
     );
     fn api() -> ParentHandler<Self> {

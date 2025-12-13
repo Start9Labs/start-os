@@ -2,7 +2,6 @@ use std::net::IpAddr;
 use std::sync::Arc;
 
 use futures::FutureExt;
-use futures::future::Either;
 use http::HeaderValue;
 use hyper::service::service_fn;
 use hyper_util::rt::{TokioExecutor, TokioIo, TokioTimer};

@@ -125,7 +125,7 @@ impl Public {
             },
             package_data: AllPackageData::default(),
             ui: {
-                #[cfg(feature = "startd")]
+                #[cfg(feature = "ui")]
                 {
                     serde_json::from_str(include_str!(concat!(
                         env!("CARGO_MANIFEST_DIR"),
@@ -133,7 +133,7 @@ impl Public {
                     )))
                     .with_kind(ErrorKind::Deserialization)?
                 }
-                #[cfg(not(feature = "startd"))]
+                #[cfg(not(feature = "ui"))]
                 {
                     Value::Null
                 }

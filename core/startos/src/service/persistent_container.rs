@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::ops::Deref;
 use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
@@ -419,7 +418,6 @@ impl PersistentContainer {
     #[instrument(skip_all)]
     fn destroy(
         &mut self,
-        error: bool,
         uninit: Option<ExitParams>,
     ) -> Option<impl Future<Output = Result<(), Error>> + 'static> {
         if self.destroyed {
@@ -471,7 +469,7 @@ impl PersistentContainer {
 
     #[instrument(skip_all)]
     pub async fn exit(mut self, uninit: Option<ExitParams>) -> Result<(), Error> {
-        if let Some(destroy) = self.destroy(false, uninit) {
+        if let Some(destroy) = self.destroy(uninit) {
             destroy.await?;
         }
         tracing::info!("Service for {} exited", self.s9pk.as_manifest().id);
@@ -589,7 +587,7 @@ impl PersistentContainer {
 
 impl Drop for PersistentContainer {
     fn drop(&mut self) {
-        if let Some(destroy) = self.destroy(true, None) {
+        if let Some(destroy) = self.destroy(None) {
             tokio::spawn(async move { destroy.await.log_err() });
         }
     }
