@@ -1,4 +1,4 @@
-name: Start-Tunnel
+name: start-cli
 
 on:
   workflow_call:
