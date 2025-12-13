@@ -304,7 +304,7 @@ container-runtime/dist/node_modules/.package-lock.json container-runtime/dist/pa
 	touch container-runtime/dist/node_modules/.package-lock.json
 
 container-runtime/rootfs.$(ARCH).squashfs: container-runtime/debian.$(ARCH).squashfs container-runtime/container-runtime.service container-runtime/update-image.sh container-runtime/deb-install.sh container-runtime/dist/index.js container-runtime/dist/node_modules/.package-lock.json core/target/$(RUST_ARCH)-unknown-linux-musl/release/start-container
-	ARCH=$(ARCH) REQUIRES=linux ./build/os-compat/run-compat.sh ./container-runtime/update-image.sh
+	ARCH=$(ARCH) REQUIRES=qemu ./build/os-compat/run-compat.sh ./container-runtime/update-image.sh
 
 build/lib/depends build/lib/conflicts: $(ENVIRONMENT_FILE) $(PLATFORM_FILE) $(shell ls build/dpkg-deps/*)
 	PLATFORM=$(PLATFORM) ARCH=$(ARCH) build/dpkg-deps/generate.sh
