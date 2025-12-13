@@ -2,13 +2,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, SocketAddr, SocketAddrV4};
 use std::ops::Deref;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use clap::Parser;
 use cookie::{Cookie, Expiration, SameSite};
 use http::HeaderMap;
 use imbl::OrdMap;
 use imbl_value::InternedString;
+use include_dir::Dir;
 use models::GatewayId;
 use patch_db::PatchDb;
 use rpc_toolkit::yajrc::RpcError;
@@ -23,11 +24,10 @@ use crate::auth::Sessions;
 use crate::context::config::ContextConfig;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
-use crate::else_empty_dir;
 use crate::middleware::auth::{Auth, AuthContext};
 use crate::middleware::cors::Cors;
 use crate::net::forward::PortForwardController;
-use crate::net::static_server::UiContext;
+use crate::net::static_server::{EMPTY_DIR, UiContext};
 use crate::prelude::*;
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
 use crate::tunnel::TUNNEL_DEFAULT_LISTEN;
@@ -321,11 +321,12 @@ impl CallRemote<TunnelContext, TunnelUrlParams> for RpcContext {
     }
 }
 
+pub static TUNNEL_UI_CELL: OnceLock<Dir<'static>> = OnceLock::new();
+
 impl UiContext for TunnelContext {
-    const UI_DIR: &'static include_dir::Dir<'static> = &else_empty_dir!(
-        feature = "ui" =>
-        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/start-tunnel")
-    );
+    fn ui_dir() -> &'static Dir<'static> {
+        TUNNEL_UI_CELL.get().unwrap_or(&EMPTY_DIR)
+    }
     fn api() -> ParentHandler<Self> {
         tracing::info!("loading tunnel api...");
         tunnel_api()

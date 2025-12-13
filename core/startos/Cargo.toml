@@ -55,11 +55,10 @@ arti = [
   "tor-rtcompat",
 ]
 console = ["console-subscriber", "tokio/tracing"]
-default = ["ui", "procfs", "pty-process"]
+default = ["procfs", "pty-process"]
 dev = ["backtrace-on-stack-overflow"]
 docker = []
 test = []
-ui = []
 unstable = ["backtrace-on-stack-overflow"]
 
 [dependencies]
