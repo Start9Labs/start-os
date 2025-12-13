@@ -54,8 +54,8 @@ jobs:
               "x86_64-apple": ["x86_64-apple-darwin"],
               "aarch64": ["aarch64-unknown-linux-musl"],
               "x86_64-apple": ["aarch64-apple-darwin"],
-              "riscv64": ["riscv64-unknown-linux-musl"],
-              "ALL": ["x86_64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-unknown-linux-musl", "aarch64-apple-darwin", "riscv64-unknown-linux-musl"]
+              "riscv64": ["riscv64gc-unknown-linux-musl"],
+              "ALL": ["x86_64-unknown-linux-musl", "x86_64-apple-darwin", "aarch64-unknown-linux-musl", "aarch64-apple-darwin", "riscv64gc-unknown-linux-musl"]
             }')[github.event.inputs.platform || 'ALL']
           }}
     runs-on: ${{ fromJson('["ubuntu-latest", "buildjet-32vcpu-ubuntu-2204"]')[github.event.inputs.runner == 'fast'] }}
