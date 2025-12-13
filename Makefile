@@ -62,7 +62,7 @@ endif
 
 .DELETE_ON_ERROR:
 
-.PHONY: all metadata install clean format cli uis ui reflash deb $(IMAGE_TYPE) squashfs wormhole wormhole-deb test test-core test-sdk test-container-runtime registry install-registry tunnel install-tunnel ts-bindings
+.PHONY: all metadata install clean format install-cli cli uis ui reflash deb $(IMAGE_TYPE) squashfs wormhole wormhole-deb test test-core test-sdk test-container-runtime registry install-registry tunnel install-tunnel ts-bindings
 
 all: $(STARTOS_TARGETS)
 
@@ -112,8 +112,11 @@ test-sdk: $(call ls-files, sdk) sdk/base/lib/osBindings/index.ts
 test-container-runtime: container-runtime/node_modules/.package-lock.json $(call ls-files, container-runtime/src) container-runtime/package.json container-runtime/tsconfig.json 
 	cd container-runtime && npm test
 
-cli:
+install-cli: $(GIT_HASH_FILE)
 	./core/build-cli.sh --install
+
+cli: $(GIT_HASH_FILE)
+	./core/build-cli.sh
 
 registry: core/target/$(RUST_ARCH)-unknown-linux-musl/$(PROFILE)/registrybox
 

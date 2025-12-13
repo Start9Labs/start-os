@@ -106,7 +106,7 @@ jobs:
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
       - name: Make
-        run: TARGET=${{ matrix.triple }} ./core/build-cli.sh
+        run: TARGET=${{ matrix.triple }} make cli
         env:
           PLATFORM: ${{ matrix.arch }}
           SCCACHE_GHA_ENABLED: on
