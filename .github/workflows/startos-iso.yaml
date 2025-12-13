@@ -88,6 +88,12 @@ jobs:
             firefox
           sudo apt-get autoremove -y
           sudo apt-get clean
+          sudo rm -rf /usr/lib/jvm               # All JDKs
+          sudo rm -rf /usr/local/.ghcup          # Haskell toolchain
+          sudo rm -rf /usr/local/lib/android     # Android SDK/NDK, emulator
+          sudo rm -rf /usr/share/dotnet          # .NET SDKs
+          sudo rm -rf /usr/share/swift           # Swift toolchain (if present)
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"    # Pre-cached tool cache (Go, Node, etc.)
       - run: |
           sudo mount -t tmpfs tmpfs .
         if: ${{ github.event.inputs.runner == 'fast' }}
