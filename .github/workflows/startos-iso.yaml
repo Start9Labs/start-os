@@ -71,9 +71,12 @@ jobs:
     steps:
       - name: Cleaning up unnecessary files
         run: |
-          sudo apt-get remove --purge -y google-chrome-stable firefox mono-devel
+          sudo apt-get remove --purge -y azure-cli google-cloud-sdk google-chrome-stable firefox powershell mono-devel
           sudo apt-get autoremove -y
           sudo apt-get clean
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/dotnet/
+          sudo rm -rf /opt/hostedtoolcache*
       - run: |
           sudo mount -t tmpfs tmpfs .
         if: ${{ github.event.inputs.runner == 'fast' }}
@@ -165,7 +168,13 @@ jobs:
         }}
     steps:
       - name: Free space
-        run: rm -rf /opt/hostedtoolcache*
+        run: |
+          sudo apt-get remove --purge -y azure-cli google-cloud-sdk google-chrome-stable firefox powershell mono-devel
+          sudo apt-get autoremove -y
+          sudo apt-get clean
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /usr/share/dotnet/
+          sudo rm -rf /opt/hostedtoolcache*
         if: ${{ github.event.inputs.runner != 'fast' }}
 
       - uses: actions/checkout@v4
