@@ -1,4 +1,3 @@
-import { AsyncPipe } from '@angular/common'
 import {
   ChangeDetectionStrategy,
   Component,
@@ -14,7 +13,6 @@ import { ConnectionService } from 'src/app/services/connection.service'
 import { PkgDependencyErrors } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { getManifest } from 'src/app/utils/get-package-data'
-import { ControlsComponent } from './controls.component'
 import { StatusComponent } from './status.component'
 
 @Component({
@@ -40,14 +38,6 @@ import { StatusComponent } from './status.component'
       } @else {
         -
       }
-    </td>
-    <td [style.grid-area]="'2 / 3'" [style.text-align]="'center'">
-      <fieldset
-        appControls
-        [disabled]="!installed || !(connected$ | async)"
-        [pkg]="pkg"
-        (click.stop)="(0)"
-      ></fieldset>
     </td>
   `,
   styles: `
@@ -133,14 +123,7 @@ import { StatusComponent } from './status.component'
   `,
   hostDirectives: [RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [
-    RouterLink,
-    AsyncPipe,
-    StatusComponent,
-    ControlsComponent,
-    ServiceUptimeComponent,
-    i18nPipe,
-  ],
+  imports: [RouterLink, StatusComponent, ServiceUptimeComponent, i18nPipe],
 })
 export class ServiceComponent implements OnChanges {
   private readonly link = inject(RouterLink)

@@ -31,8 +31,6 @@ import { PlaceholderComponent } from '../../../components/placeholder.component'
             tabindex="-1"
             serviceInterface
             [info]="info"
-            [pkg]="pkg()"
-            [disabled]="disabled()"
             [routerLink]="info.routerLink"
           >
             <a [routerLink]="info.routerLink">
@@ -64,7 +62,6 @@ import { PlaceholderComponent } from '../../../components/placeholder.component'
 })
 export class ServiceInterfacesComponent {
   readonly pkg = input.required<PackageDataEntry>()
-  readonly disabled = input(false)
 
   readonly interfaces = computed(({ serviceInterfaces } = this.pkg()) =>
     Object.entries(serviceInterfaces)

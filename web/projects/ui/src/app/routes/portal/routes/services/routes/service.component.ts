@@ -48,7 +48,7 @@ import { ServiceUptimeComponent } from '../components/uptime.component'
         @if (status() !== 'backing-up') {
           <service-health-checks [checks]="health()" />
           <service-uptime class="g-card" [started]="pkg.statusInfo.started" />
-          <service-interfaces [pkg]="pkg" [disabled]="status() !== 'running'" />
+          <service-interfaces [pkg]="pkg" />
 
           @if (errors() | async; as errors) {
             <service-dependencies

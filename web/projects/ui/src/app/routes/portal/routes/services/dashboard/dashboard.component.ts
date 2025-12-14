@@ -44,7 +44,6 @@ import { ServiceComponent } from './service.component'
               >
                 {{ 'Uptime' | i18n }}
               </th>
-              <th [style.width.rem]="8" [style.text-indent.rem]="1.5"></th>
             </tr>
           </thead>
           <tbody>
