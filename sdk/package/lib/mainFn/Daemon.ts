@@ -50,9 +50,6 @@ export class Daemon<
           exec,
         )
       const res = new Daemon(subc, startCommand)
-      effects.onLeaveContext(() => {
-        res.stop().catch((e) => console.error(asError(e)))
-      })
       return res
     }
   }
