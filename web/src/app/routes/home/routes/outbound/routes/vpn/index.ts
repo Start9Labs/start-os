@@ -27,7 +27,8 @@ import {
   TuiTooltip,
 } from '@taiga-ui/kit'
 import { TuiCard, TuiForm, TuiHeader } from '@taiga-ui/layout'
-import { Help } from 'src/app/directives/help.directive'
+import { Form } from 'src/app/directives/form'
+import { Help } from 'src/app/directives/help'
 
 import { VPNAside } from './aside'
 import { VPNSummary } from './summary'
@@ -50,7 +51,7 @@ import { VPNSummary } from './summary'
         </h2>
       </hgroup>
     </header>
-    <article vpnSummary tuiCardLarge="compact"></article>
+    <article vpnSummary [formLoading]="false"></article>
     <form
       tuiCardLarge="compact"
       tuiAppearance="neutral"
@@ -124,6 +125,7 @@ import { VPNSummary } from './summary'
     TuiIcon,
     TuiTooltip,
     TuiButton,
+    Form,
     Help,
     VPNAside,
     VPNSummary,

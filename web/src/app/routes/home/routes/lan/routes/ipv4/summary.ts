@@ -3,7 +3,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { TuiTitle } from '@taiga-ui/core'
 import { TuiBadge, TuiStatus } from '@taiga-ui/kit'
 import { TuiHeader } from '@taiga-ui/layout'
-import { Summary, SummaryItem } from 'src/app/components/summary'
+import { Summary } from 'src/app/components/summary'
 
 import Ipv4 from '.'
 
@@ -13,18 +13,18 @@ import Ipv4 from '.'
     @if (parent.form.valueChanges | async) {}
     <header tuiHeader><h2 tuiTitle>Summary</h2></header>
     <section>
-      <label appSummary>
+      <div appSummary>
         DHCP Strategy
         <span tuiSubtitle>{{ parent.form.value.dhcp?.mode }}</span>
-      </label>
-      <label
+      </div>
+      <div
         [appSummary]="
           parent.form.value.ip?.range + '.168.0.' + parent.form.value.ip?.router
         "
       >
         Router's IP Address
-      </label>
-      <label appSummary>
+      </div>
+      <div appSummary>
         DMZ
         <span tuiSubtitle>
           @if (parent.form.value.dmz) {
@@ -33,7 +33,7 @@ import Ipv4 from '.'
             <span tuiBadge tuiStatus appearance="neutral">Disabled</span>
           }
         </span>
-      </label>
+      </div>
     </section>
   `,
   styles: `
@@ -41,8 +41,8 @@ import Ipv4 from '.'
       text-transform: capitalize;
     }
   `,
-  hostDirectives: [Summary],
-  imports: [AsyncPipe, TuiHeader, TuiTitle, TuiBadge, TuiStatus, SummaryItem],
+  host: { '[style.background]': '"var(--tui-status-info-pale)"' },
+  imports: [AsyncPipe, TuiHeader, TuiTitle, TuiBadge, TuiStatus, Summary],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Ipv4Summary {

@@ -49,7 +49,17 @@ header[tuiHeader] {
   position: sticky;
   left: 1.5rem;
   max-width: calc(100vw - 3rem);
-  margin-block-end: 1rem;
+
+  + tui-tabs {
+    margin-block-start: 1rem;
+  }
+}
+
+.g-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 2rem 0;
 }
 
 .g-primary {
@@ -73,7 +83,9 @@ header[tuiHeader] {
 }
 
 .g-form {
-  margin: 1rem 0;
+  &:is(form[data-size='m']) {
+    gap: 2rem;
+  }
 
   section {
     display: flex;
@@ -102,8 +114,25 @@ header[tuiHeader] {
     align-items: center;
   }
 
-  [tuiHeader] [tuiAccessories] [tuiLabel] {
-    font: var(--tui-font-text-s);
+  [tuiHeader] {
+    left: unset;
+  }
+
+  [tuiCardLarge][data-space] {
+    background: none;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  .g-footer {
+    position: absolute;
+    inset: 100% 0 auto;
+    margin-top: 1rem;
+  }
+
+  [tuiLabel] input[type='checkbox'][data-size='s'],
+  [tuiLabel] input[type='radio'][data-size='s'] {
+    margin-top: 0;
   }
 }
 

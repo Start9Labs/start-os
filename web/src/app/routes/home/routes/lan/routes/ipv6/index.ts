@@ -10,7 +10,8 @@ import {
 } from '@taiga-ui/core'
 import { TuiInputNumber, TuiSwitch } from '@taiga-ui/kit'
 import { TuiCard, TuiForm, TuiHeader } from '@taiga-ui/layout'
-import { Help } from 'src/app/directives/help.directive'
+import { Form } from 'src/app/directives/form'
+import { Help } from 'src/app/directives/help'
 
 import { IPv6Aside } from './aside'
 import { Ipv6Summary } from './summary'
@@ -18,7 +19,7 @@ import { Ipv6Summary } from './summary'
 @Component({
   template: `
     <ipv6-aside *help />
-    <article ipv6Summary tuiCardLarge="compact"></article>
+    <article ipv6Summary [formLoading]="false"></article>
     <form
       tuiForm
       tuiCardLarge="compact"
@@ -72,6 +73,7 @@ import { Ipv6Summary } from './summary'
       <button tuiButton>Save</button>
     </footer>
   `,
+  host: { class: 'g-page' },
   imports: [
     TuiCard,
     TuiButton,
@@ -84,6 +86,7 @@ import { Ipv6Summary } from './summary'
     TuiNumberFormat,
     TuiSwitch,
     ReactiveFormsModule,
+    Form,
     Help,
     Ipv6Summary,
     IPv6Aside,

@@ -8,7 +8,7 @@ import { FormsModule } from '@angular/forms'
 import { TuiTable } from '@taiga-ui/addon-table'
 import { TuiTextfield, TuiTitle } from '@taiga-ui/core'
 import { TuiHeader } from '@taiga-ui/layout'
-import { Help } from 'src/app/directives/help.directive'
+import { Help } from 'src/app/directives/help'
 
 import { DevicesAside } from './aside'
 import { DevicesBlocked } from './blocked'

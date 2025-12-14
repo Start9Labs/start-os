@@ -1,61 +1,51 @@
-import { AsyncPipe } from '@angular/common'
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { TuiTitle } from '@taiga-ui/core'
+import { ChangeDetectionStrategy, Component, computed } from '@angular/core'
 import { TuiBadge, TuiStatus } from '@taiga-ui/kit'
-import { TuiHeader } from '@taiga-ui/layout'
-import { SummaryItem } from 'src/app/components/summary'
-import { Form } from 'src/app/directives/form.directive'
+import { Summary } from 'src/app/components/summary'
+import { injectFormService } from 'src/app/services/form.service'
 
-import Ipv4 from '.'
+import { WanIpv4Form } from './types'
 import { LABELS } from './utils'
 
 @Component({
   selector: '[ipv4Summary]',
   template: `
-    @if (parent.form.valueChanges | async) {}
-    <header tuiHeader><h2 tuiTitle>Summary</h2></header>
     <section>
-      <label appSummary>
+      <div appSummary>
         IP Address Strategy
-        <span tuiSubtitle>{{ labels[parent.form.value.ip?.mode || ''] }}</span>
-      </label>
-      <label [appSummary]="parent.form.value.ip?.[parent.ip]?.wan">
-        WAN IP Address
-      </label>
-      <label appSummary>
+        <span tuiSubtitle>{{ labels[ip()] }}</span>
+      </div>
+      <div [appSummary]="service.data()?.ip?.wan">WAN IP Address</div>
+      <div appSummary>
         Subnet Prefix
-        <span tuiSubtitle>
-          {{ $any(parent.form.value.ip)?.[parent.ip]?.prefix || '-' }}
-        </span>
-      </label>
-      <label [appSummary]="$any(parent.form.value.ip)?.[parent.ip]?.mask">
-        Subnet Mask
-      </label>
-      <label [appSummary]="$any(parent.form.value.ip)?.[parent.ip]?.gateway">
-        Gateway IP Address
-      </label>
-      <label appSummary>
+        <span tuiSubtitle>{{ service.data()?.ip?.prefix || '-' }}</span>
+      </div>
+      <div [appSummary]="service.data()?.ip?.mask">Subnet Mask</div>
+      <div [appSummary]="service.data()?.ip?.gateway">Gateway IP Address</div>
+      <div appSummary>
         DNS Strategy
-        <span tuiSubtitle>{{ labels[parent.form.value.dns?.mode || ''] }}</span>
-      </label>
-      <label appSummary>
+        <span tuiSubtitle>{{ labels[dns()] }}</span>
+      </div>
+      <div appSummary>
         DNS Proxy
         <span tuiSubtitle>
-          @if (parent.form.value.dns?.proxy) {
+          @if (service.data()?.dns?.proxy) {
             <span tuiBadge tuiStatus appearance="positive">Enabled</span>
           } @else {
             <span tuiBadge tuiStatus appearance="neutral">Disabled</span>
           }
         </span>
-      </label>
+      </div>
     </section>
   `,
   host: { '[style.background]': '"var(--tui-status-info-pale)"' },
-  hostDirectives: [Form],
-  imports: [AsyncPipe, TuiHeader, TuiTitle, TuiBadge, TuiStatus, SummaryItem],
+  imports: [TuiBadge, TuiStatus, Summary],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class Ipv4Summary {
-  protected readonly parent = inject(Ipv4)
+  protected readonly service = injectFormService<WanIpv4Form>()
   protected readonly labels = LABELS
+  protected readonly ip = computed(() => this.service.data()?.ip.mode || 'dhcp')
+  protected readonly dns = computed(
+    () => this.service.data()?.dns.mode || 'isp',
+  )
 }

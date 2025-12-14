@@ -2,7 +2,6 @@ import { CdkCopyToClipboard } from '@angular/cdk/clipboard'
 import {
   ChangeDetectionStrategy,
   Component,
-  Directive,
   input,
   ViewEncapsulation,
 } from '@angular/core'
@@ -14,7 +13,6 @@ import {
   TuiTitle,
 } from '@taiga-ui/core'
 import { tuiBadgeOptionsProvider } from '@taiga-ui/kit'
-import { TuiForm } from '@taiga-ui/layout'
 
 @Component({
   selector: '[appSummary]',
@@ -69,17 +67,8 @@ import { TuiForm } from '@taiga-ui/layout'
   encapsulation: ViewEncapsulation.None,
   imports: [TuiButton, CdkCopyToClipboard],
 })
-export class SummaryItem {
+export class Summary {
   public readonly appSummary = input('', {
     transform: (value?: string) => value || '',
   })
 }
-
-@Directive({
-  host: {
-    class: 'g-form',
-    '[style.background]': '"var(--tui-status-info-pale)"',
-  },
-  hostDirectives: [TuiForm],
-})
-export class Summary {}

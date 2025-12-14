@@ -1,8 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { NonNullableFormBuilder } from '@angular/forms'
-import { TuiButton } from '@taiga-ui/core'
-import { TuiCard } from '@taiga-ui/layout'
-import { Help } from 'src/app/directives/help.directive'
+import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
+import { TuiTitle } from '@taiga-ui/core'
+import { TuiHeader } from '@taiga-ui/layout'
+import { Footer } from 'src/app/components/footer'
+import { Form } from 'src/app/directives/form'
+import { Help } from 'src/app/directives/help'
 
 import { IPv6Aside } from './aside'
 import { Ipv6Dns } from './dns'
@@ -12,15 +14,28 @@ import { Ipv6Summary } from './summary'
 @Component({
   template: `
     <ipv6-aside *help />
-    <article ipv6Summary tuiCardLarge="compact"></article>
-    <ipv6-ip />
-    <ipv6-dns />
-    <footer class="g-footer">
-      <button tuiButton appearance="flat">Cancel</button>
-      <button tuiButton>Save</button>
-    </footer>
+    <header tuiHeader="h6"><h2 tuiTitle>Summary</h2></header>
+    <article ipv6Summary [formLoading]="false"></article>
+    <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
+    <form [formGroup]="form" [formLoading]="false">
+      <ipv6-ip formGroupName="ip" />
+      <ipv6-dns formGroupName="dns" />
+      <footer appFooter></footer>
+    </form>
   `,
-  imports: [TuiCard, TuiButton, Ipv6Summary, Ipv6Ip, Ipv6Dns, IPv6Aside, Help],
+  host: { class: 'g-page' },
+  imports: [
+    ReactiveFormsModule,
+    TuiHeader,
+    TuiTitle,
+    Footer,
+    Form,
+    Help,
+    Ipv6Summary,
+    Ipv6Ip,
+    Ipv6Dns,
+    IPv6Aside,
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class Ipv6 {

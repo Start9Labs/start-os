@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
 import { TuiButton } from '@taiga-ui/core'
 import { TuiCard } from '@taiga-ui/layout'
-import { Help } from 'src/app/directives/help.directive'
+import { Help } from 'src/app/directives/help'
 
 import { SecurityAccess } from './access'
 import { SecurityActivity } from './activity'
@@ -24,6 +24,7 @@ import { SecuritySummary } from './summary'
       <button tuiButton appearance="primary">Save</button>
     </footer>
   `,
+  host: { class: 'g-page' },
   imports: [
     ReactiveFormsModule,
     TuiCard,

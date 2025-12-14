@@ -1,104 +1,95 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  effect,
   inject,
-  OnInit,
-  signal,
 } from '@angular/core'
-import { NonNullableFormBuilder } from '@angular/forms'
-import { TuiAnimated, tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
-import { TuiButton } from '@taiga-ui/core'
-import { Help } from 'src/app/directives/help.directive'
+import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms'
+import { tuiMarkControlAsTouchedAndValidate } from '@taiga-ui/cdk'
+import { TuiTitle } from '@taiga-ui/core'
+import { TuiHeader } from '@taiga-ui/layout'
+import { Footer } from 'src/app/components/footer'
+import { Form } from 'src/app/directives/form'
+import { Help } from 'src/app/directives/help'
+import {
+  injectFormService,
+  provideFormService,
+} from 'src/app/services/form.service'
 
 import { IPv4Aside } from './aside'
 import { Ipv4Dns } from './dns'
 import { Ipv4Ip } from './ip'
 import { Ipv4Service } from './service'
 import { Ipv4Summary } from './summary'
-import { DnsMode, IpMode } from './types'
+import { WanIpv4Form } from './types'
 
 @Component({
   template: `
     <ipv4-aside *help />
-    <article ipv4Summary [formLoading]="loading()"></article>
-    <form ipv4Ip [formLoading]="loading()"></form>
-    <form ipv4Dns [formLoading]="loading()"></form>
-    @if (!loading()) {
-      <footer tuiAnimated class="g-footer">
-        <button
-          tuiButton
-          appearance="flat"
-          [disabled]="form.pristine"
-          (click)="onReset()"
-        >
-          Cancel
-        </button>
-        <button
-          tuiButton
-          [disabled]="form.pristine || form.invalid"
-          (click)="onSave()"
-        >
-          Save
-        </button>
-      </footer>
-    }
+    <header tuiHeader="h6"><h2 tuiTitle>Summary</h2></header>
+    <article ipv4Summary [formLoading]="!service.data()"></article>
+    <header tuiHeader="h6"><h2 tuiTitle>Settings</h2></header>
+    <form
+      [formGroup]="form"
+      [formLoading]="!service.data()"
+      (reset.prevent)="form.reset(service.data())"
+      (ngSubmit)="onSave()"
+    >
+      <ipv4-ip formGroupName="ip" />
+      <ipv4-dns formGroupName="dns" />
+      @if (service.data()) {
+        <footer appFooter></footer>
+      }
+    </form>
   `,
   imports: [
-    TuiButton,
-    TuiAnimated,
+    ReactiveFormsModule,
+    TuiHeader,
+    TuiTitle,
+    Footer,
+    Form,
     Help,
     Ipv4Summary,
     Ipv4Ip,
     Ipv4Dns,
     IPv4Aside,
   ],
-  providers: [Ipv4Service],
+  host: { class: 'g-page' },
+  providers: [provideFormService(Ipv4Service)],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export default class Ipv4 implements OnInit {
-  private readonly builder = inject(NonNullableFormBuilder)
-  private readonly service = inject(Ipv4Service)
+export default class Ipv4 {
+  protected readonly builder = inject(NonNullableFormBuilder)
+  protected readonly service = injectFormService<WanIpv4Form>()
 
-  readonly loading = signal(true)
   readonly form = this.builder.group({
     ip: this.builder.group({
-      mode: 'dhcp' as IpMode,
-      dhcp: this.builder.group({
-        wan: '',
-        prefix: '',
-        mask: '',
-        gateway: '',
-      }),
-      static: this.builder.group({
-        wan: '',
-        prefix: '',
-        mask: '',
-        gateway: '',
-      }),
-      pppoe: this.builder.group({
-        wan: '',
-        password: '',
-        vlan: '',
-      }),
+      mode: 'dhcp' as WanIpv4Form['ip']['mode'],
+      wan: '',
+      prefix: '',
+      mask: '',
+      gateway: '',
+      password: '',
+      vlan: '',
     }),
     dns: this.builder.group({
-      mode: 'isp' as DnsMode,
-      isp: this.builder.group({
-        server: '',
-      }),
-      tls: this.builder.group({
-        server: '',
-      }),
-      custom: this.builder.group({
-        server: '',
-        1: '',
-        2: '',
-        tls1: false,
-        tls2: false,
-      }),
+      mode: 'isp' as WanIpv4Form['dns']['mode'],
+      server: '',
+      1: '',
+      2: '',
+      tls1: false,
+      tls2: false,
       proxy: false,
     }),
   })
+
+  constructor() {
+    effect(() => {
+      if (this.service.data() && this.form.pristine) {
+        this.form.reset(this.service.data())
+      }
+    })
+  }
 
   public get ip() {
     return this.form.controls.ip.controls.mode.value
@@ -108,20 +99,11 @@ export default class Ipv4 implements OnInit {
     return this.form.controls.dns.controls.mode.value
   }
 
-  async ngOnInit() {
-    this.form.reset(await this.service.load())
-    this.loading.set(false)
-  }
-
   async onSave() {
     if (this.form.invalid) {
       tuiMarkControlAsTouchedAndValidate(this.form)
     } else if (await this.service.save(this.form.getRawValue())) {
       this.form.markAsPristine()
     }
-  }
-
-  onReset(): void {
-    this.form.reset(this.service.reset())
   }
 }

@@ -1,8 +1,6 @@
 import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { TuiTitle } from '@taiga-ui/core'
-import { TuiHeader } from '@taiga-ui/layout'
-import { Summary, SummaryItem } from 'src/app/components/summary'
+import { Summary } from 'src/app/components/summary'
 
 import Mac from '.'
 
@@ -10,17 +8,16 @@ import Mac from '.'
   selector: '[macSummary]',
   template: `
     @if (parent.form.valueChanges | async) {}
-    <header tuiHeader><h2 tuiTitle>Summary</h2></header>
     <section>
-      <label appSummary>
+      <div appSummary>
         Strategy
         <span tuiSubtitle>{{ parent.form.value.strategy }}</span>
-      </label>
-      <label [appSummary]="parent.form.value.mac">MAC Address</label>
+      </div>
+      <div [appSummary]="parent.form.value.mac">MAC Address</div>
     </section>
   `,
-  hostDirectives: [Summary],
-  imports: [AsyncPipe, TuiHeader, TuiTitle, SummaryItem],
+  host: { '[style.background]': '"var(--tui-status-info-pale)"' },
+  imports: [AsyncPipe, Summary],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class MacSummary {

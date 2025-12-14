@@ -1,9 +1,7 @@
 import { AsyncPipe } from '@angular/common'
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core'
-import { TuiTitle } from '@taiga-ui/core'
 import { TuiBadge, TuiStatus } from '@taiga-ui/kit'
-import { TuiHeader } from '@taiga-ui/layout'
-import { Summary, SummaryItem } from 'src/app/components/summary'
+import { Summary } from 'src/app/components/summary'
 
 import Ddns from '.'
 
@@ -11,9 +9,8 @@ import Ddns from '.'
   selector: '[ddnsSummary]',
   template: `
     @if (parent.form.valueChanges | async) {}
-    <header tuiHeader><h2 tuiTitle>Summary</h2></header>
     <section>
-      <label appSummary>
+      <div appSummary>
         Status
         <span tuiSubtitle>
           @if (parent.form.value.dynamic) {
@@ -22,18 +19,18 @@ import Ddns from '.'
             <span tuiBadge tuiStatus appearance="neutral">Disabled</span>
           }
         </span>
-      </label>
+      </div>
       @if (parent.form.value.dynamic) {
-        <label appSummary>
+        <div appSummary>
           Provider
           <span tuiSubtitle>{{ parent.form.value.provider }}</span>
-        </label>
-        <label appSummary="agf5d.start9.me">Hostname</label>
+        </div>
+        <div appSummary="agf5d.start9.me">Hostname</div>
       }
     </section>
   `,
-  hostDirectives: [Summary],
-  imports: [AsyncPipe, TuiHeader, TuiBadge, TuiStatus, TuiTitle, SummaryItem],
+  host: { '[style.background]': '"var(--tui-status-info-pale)"' },
+  imports: [AsyncPipe, TuiBadge, TuiStatus, Summary],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DdnsSummary {
