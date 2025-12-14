@@ -35,7 +35,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   private readyPromise: Promise<void>
   constructor(
     private readonly daemon: Promise<Daemon<Manifest>> | null,
-    private readonly dependencies: HealthDaemon<Manifest>[],
+    readonly dependencies: HealthDaemon<Manifest>[],
     readonly id: string,
     readonly ready: Ready | typeof EXIT_SUCCESS,
     readonly effects: Effects,
