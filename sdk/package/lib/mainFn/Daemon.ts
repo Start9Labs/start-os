@@ -117,11 +117,12 @@ export class Daemon<
     this.shouldBeRunning = false
     this.exitedSuccess = false
     if (this.commandController) {
-      await this.commandController
-        .term({ ...termOptions })
-        .catch((e) => console.error(asError(e)))
+      const controller = this.commandController
       this.commandController = null
       this.onExitFns = []
+      await controller
+        .term({ ...termOptions })
+        .catch((e) => console.error(asError(e)))
       await this.subcontainer?.destroy()
     }
   }
