@@ -426,13 +426,10 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   }
 
   async build() {
-    this.effects.onLeaveContext(() => {
-      this.term().catch((e) => console.error(asError(e)))
-    })
     for (const daemon of this.healthDaemons) {
       await daemon.init()
     }
-    this.started?.(() => this.term())
+    this.started?.(() => Promise.resolve())
     return this
   }
 }
