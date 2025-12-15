@@ -50,12 +50,12 @@ import { getManifest } from 'src/app/utils/get-package-data'
     <td class="g-secondary" [style.grid-row]="3">
       {{ task().reason || ('No reason provided' | i18n) }}
     </td>
-    <td [style.grid-area]="'2 / 2 / 4'">
+    <td>
       @if (task().severity !== 'critical') {
         <button
           tuiIconButton
           iconStart="@tui.trash"
-          appearance="flat-grayscale"
+          appearance="primary-destructive"
           [disabled]="!pkg()"
           (click)="dismiss()"
         >
@@ -65,7 +65,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
       <button
         tuiIconButton
         iconStart="@tui.play"
-        appearance="flat-grayscale"
+        appearance="primary-success"
         [disabled]="!pkg()"
         (click)="handle()"
       >
@@ -87,7 +87,8 @@ import { getManifest } from 'src/app/utils/get-package-data'
     td:last-child {
       white-space: nowrap;
       text-align: right;
-      justify-content: end;
+      display: flex;
+      gap: 8px;
     }
 
     span {

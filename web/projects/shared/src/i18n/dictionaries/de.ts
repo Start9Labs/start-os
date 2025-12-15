@@ -549,7 +549,7 @@ export default {
   584: 'Verbindungen können manchmal langsam oder unzuverlässig sein',
   585: 'Öffentlich, wenn Sie die Adresse öffentlich teilen, andernfalls privat',
   586: 'Erfordert ein Tor-fähiges Gerät oder einen Browser',
-  587: 'In den meisten Fällen nicht empfohlen. Nur erforderlich für Apps, die HTTPS erzwingen',
+  587: 'Sollte nur für Apps benötigt werden, die SSL erzwingen',
   588: 'Ideal für anonyme, zensurresistente Bereitstellung und Fernzugriff',
   589: 'Ideal für lokalen Zugriff',
   590: 'Erfordert die Verbindung mit demselben lokalen Netzwerk (LAN) wie Ihr Server, entweder physisch oder über VPN',
@@ -589,4 +589,5 @@ export default {
   624: 'Versionen',
   625: 'Eine andere Version auswählen',
   626: 'Hochladen',
+  627: 'UI öffnen',
 } satisfies i18n

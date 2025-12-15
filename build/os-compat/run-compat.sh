@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$FORCE_COMPAT" = 1 ] || ( [ "$REQUIRES" = "linux" ] && [ "$(uname -s)" != "Linux" ] ) || ( [ "$REQUIRES" = "debian" ] && ! which dpkg > /dev/null ); then
+if [ "$FORCE_COMPAT" = 1 ] || ( [ "$REQUIRES" = "linux" ] && [ "$(uname -s)" != "Linux" ] ) || ( [ "$REQUIRES" = "debian" ] && ! which dpkg > /dev/null ) || ( [ "$REQUIRES" = "qemu" ] && ! which qemu-$ARCH > /dev/null ); then
     project_pwd="$(cd "$(dirname "${BASH_SOURCE[0]}")"/../.. && pwd)/"
     pwd="$(pwd)/"
     if ! [[ "$pwd" = "$project_pwd"* ]]; then
@@ -20,7 +20,7 @@ if [ "$FORCE_COMPAT" = 1 ] || ( [ "$REQUIRES" = "linux" ] && [ "$(uname -s)" != 
     while ! docker exec os-compat systemctl is-active --quiet multi-user.target 2> /dev/null; do sleep .5; done
     docker exec -eARCH -eENVIRONMENT -ePLATFORM -eGIT_BRANCH_AS_HASH -ePROJECT -eDEPENDS -eCONFLICTS $USE_TTY -w "/root/start-os${rel_pwd}" os-compat $@
     code=$?
-    docker stop os-compat
+    docker stop os-compat > /dev/null
     exit $code
 else 
     exec $@

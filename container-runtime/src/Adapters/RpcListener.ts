@@ -146,6 +146,7 @@ const handleRpc = (id: IdType, result: Promise<RpcResult>) =>
 
 const hasId = object({ id: idType }).test
 export class RpcListener {
+  shouldExit = false
   unixSocketServer = net.createServer(async (server) => {})
   private _system: System | undefined
   private callbacks: CallbackHolder | undefined
@@ -210,6 +211,11 @@ export class RpcListener {
                   .catch(mapError)
                   .then(logData("response"))
                   .then(writeDataToSocket)
+                  .then((_) => {
+                    if (this.shouldExit) {
+                      process.exit(0)
+                    }
+                  })
                   .catch((e) => {
                     console.error(`Major error in socket handling: ${e}`)
                     console.debug(`Data in: ${a.toString()}`)
@@ -310,6 +316,7 @@ export class RpcListener {
                 }),
                 target,
               )
+              this.shouldExit = true
             }
           })().then((result) => ({ result })),
         )

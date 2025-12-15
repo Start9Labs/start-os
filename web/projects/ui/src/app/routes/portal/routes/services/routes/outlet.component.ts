@@ -13,20 +13,8 @@ import { TuiCell } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
 import { distinctUntilChanged, filter, map, switchMap, tap } from 'rxjs'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import {
-  PrimaryStatus,
-  renderPkgStatus,
-} from 'src/app/services/pkg-status-rendering.service'
 import { TitleDirective } from 'src/app/services/title.service'
 import { getManifest } from 'src/app/utils/get-package-data'
-
-const INACTIVE: PrimaryStatus[] = [
-  'installing',
-  'updating',
-  'removing',
-  'restoring',
-  'backing-up',
-]
 
 @Component({
   template: `
@@ -55,7 +43,7 @@ const INACTIVE: PrimaryStatus[] = [
             <span tuiSubtitle>{{ manifest()?.version }}</span>
           </span>
         </header>
-        <nav [attr.inert]="isInactive() ? '' : null">
+        <nav>
           @for (item of nav; track $index) {
             @if (item.title === 'Documentation') {
               <a
@@ -139,10 +127,6 @@ const INACTIVE: PrimaryStatus[] = [
 
     .title::before {
       mask: linear-gradient(to bottom right, black, transparent);
-    }
-
-    nav[inert] a:not(:first-child) {
-      opacity: var(--tui-disabled-opacity);
     }
 
     a a {
@@ -246,10 +230,5 @@ export class ServiceOutletComponent {
 
   protected readonly manifest = computed(
     (pkg = this.service()) => pkg && getManifest(pkg),
-  )
-
-  protected readonly isInactive = computed(
-    (pkg = this.service()) =>
-      !pkg || INACTIVE.includes(renderPkgStatus(pkg).primary),
   )
 }

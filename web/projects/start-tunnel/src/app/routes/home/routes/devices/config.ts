@@ -68,7 +68,9 @@ import { QrCodeComponent } from 'ng-qrcode'
 export class DevicesConfig {
   protected readonly config =
     injectContext<TuiDialogContext<void, string>>().data
-  protected readonly href = `data:text/plain;charset=utf-8,${encodeURIComponent(this.config)}`
+  protected readonly href = URL.createObjectURL(
+    new Blob([this.config], { type: 'application/octet-stream' }),
+  )
 }
 
 export const DEVICES_CONFIG = new PolymorpheusComponent(DevicesConfig)

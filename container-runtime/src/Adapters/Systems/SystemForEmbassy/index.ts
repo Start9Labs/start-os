@@ -456,6 +456,7 @@ export class SystemForEmbassy implements System {
           addSsl = {
             preferredExternalPort: lanPortNum,
             alpn: { specified: [] },
+            addXForwardedHeaders: false,
           }
         }
         return [
@@ -888,7 +889,6 @@ export class SystemForEmbassy implements System {
     effects: Effects,
     timeoutMs: number | null,
   ): Promise<PropertiesReturn> {
-    // TODO BLU-J set the properties ever so often
     const setConfigValue = this.manifest.properties
     if (!setConfigValue) throw new Error("There is no properties")
     if (setConfigValue.type === "docker") {
@@ -1043,7 +1043,7 @@ export class SystemForEmbassy implements System {
         volumeId: "embassy",
         subpath: null,
         readonly: true,
-        filetype: "directory",
+        idmap: [],
       },
     })
     configFile
@@ -1191,7 +1191,7 @@ async function updateConfig(
             volumeId: "embassy",
             subpath: null,
             readonly: true,
-            filetype: "directory",
+            idmap: [],
           },
         })
         const remoteConfig = configFile
@@ -1241,11 +1241,11 @@ async function updateConfig(
             : catchFn(
                 () =>
                   (specValue.target === "lan-address"
-                    ? filled.addressInfo!.localHostnames[0] ||
-                      filled.addressInfo!.onionHostnames[0]
-                    : filled.addressInfo!.onionHostnames[0] ||
-                      filled.addressInfo!.localHostnames[0]
-                  ).hostname.value,
+                    ? filled.addressInfo!.filter({ kind: "mdns" }) ||
+                      filled.addressInfo!.onion
+                    : filled.addressInfo!.onion ||
+                      filled.addressInfo!.filter({ kind: "mdns" })
+                  ).hostnames[0].hostname.value,
               ) || ""
         mutConfigValue[key] = url
       }

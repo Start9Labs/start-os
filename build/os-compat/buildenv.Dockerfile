@@ -1,4 +1,4 @@
-FROM debian:bookworm
+FROM debian:forky
 
 RUN apt-get update && \
     apt-get install -y \
@@ -25,7 +25,8 @@ RUN apt-get update && \
     systemd-container \
     systemd-sysv \
     dbus \
-    dbus-user-session
+    dbus-user-session \
+    nodejs
 
 RUN systemctl mask \
     systemd-firstboot.service \
@@ -37,17 +38,6 @@ RUN git config --global --add safe.directory /root/start-os
 
 RUN mkdir -p /etc/debspawn && \
     echo "AllowUnsafePermissions=true" > /etc/debspawn/global.toml
-
-ENV NVM_DIR=~/.nvm
-ENV NODE_VERSION=22
-RUN mkdir -p $NVM_DIR && \
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash && \
-    . $NVM_DIR/nvm.sh \
-    nvm install $NODE_VERSION && \
-    nvm use $NODE_VERSION && \
-    nvm alias default $NODE_VERSION && \
-    ln -s $(which node) /usr/bin/node && \
-    ln -s $(which npm) /usr/bin/npm
 
 RUN mkdir -p /root/start-os
 WORKDIR /root/start-os

@@ -86,6 +86,8 @@ if [ "${IB_TARGET_PLATFORM}" = "raspberrypi" ]; then
 	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours "rpi-v8 rpi-2712" )
 elif [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	PLATFORM_CONFIG_EXTRAS+=( --linux-flavours rockchip64 )
+elif [ "${IB_TARGET_ARCH}" = "riscv64" ]; then
+	PLATFORM_CONFIG_EXTRAS+=( --uefi-secure-boot=disable )
 fi
 
 
@@ -172,6 +174,12 @@ if [ "${IB_TARGET_PLATFORM}" = "rockchip64" ]; then
 	echo "deb https://apt.armbian.com/ ${IB_SUITE} main" > config/archives/armbian.list
 fi
 
+cat > config/archives/backports.pref <<- EOF
+Package: linux-image-*
+Pin: release n=${IB_SUITE}-backports
+Pin-Priority: 500
+EOF
+
 # Dependencies
 
 ## Firmware
@@ -186,7 +194,7 @@ set -e
 
 cp /etc/resolv.conf /etc/resolv.conf.bak
 
-if [ "${IB_SUITE}" = trixie ] && [ "${IB_PLATFORM}" != riscv64 ]; then
+if [ "${IB_SUITE}" = trixie ] && [ "${IB_TARGET_ARCH}" != riscv64 ]; then
 	echo 'deb https://deb.debian.org/debian/ bookworm main' > /etc/apt/sources.list.d/bookworm.list
 	apt-get update
 	apt-get install -y postgresql-15
@@ -221,7 +229,13 @@ EOF
 
 SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date '+%s')}"
 
-lb bootstrap
+if lb bootstrap; then
+	true
+else
+	EXIT=$?
+	cat ./chroot/debootstrap/debootstrap.log
+	exit $EXIT
+fi
 lb chroot
 lb installer
 lb binary_chroot

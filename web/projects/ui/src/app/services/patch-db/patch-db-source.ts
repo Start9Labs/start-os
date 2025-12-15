@@ -1,6 +1,6 @@
 import { inject, Injectable, InjectionToken } from '@angular/core'
 import { Dump, Revision, Update } from 'patch-db-client'
-import { BehaviorSubject, EMPTY, Observable } from 'rxjs'
+import { BehaviorSubject, EMPTY, Observable, throwError, timer } from 'rxjs'
 import {
   bufferTime,
   catchError,
@@ -40,7 +40,7 @@ export class PatchDbSource extends Observable<Update<DataModel>[]> {
       ),
     ),
     catchError((_, original$) => {
-      this.state.retrigger()
+      this.state.retrigger(false, 2000)
 
       return this.state.pipe(
         skip(1), // skipping previous value stored due to shareReplay

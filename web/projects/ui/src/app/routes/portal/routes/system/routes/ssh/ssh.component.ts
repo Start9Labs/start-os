@@ -14,7 +14,7 @@ import {
   LoadingService,
 } from '@start9labs/shared'
 import { ISB } from '@start9labs/start-sdk'
-import { TuiButton } from '@taiga-ui/core'
+import { TuiButton, TuiHint } from '@taiga-ui/core'
 import { filter, from, merge, Subject } from 'rxjs'
 import { FormComponent } from 'src/app/routes/portal/components/form.component'
 import { SSHKey } from 'src/app/services/api/api.types'
@@ -90,6 +90,7 @@ import { SSHTableComponent } from './table.component'
     TitleDirective,
     i18nPipe,
     DocsLinkDirective,
+    TuiHint,
   ],
 })
 export default class SystemSSHComponent {

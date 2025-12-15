@@ -10,20 +10,30 @@ import { getPkgId, i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
 import { TuiCell } from '@taiga-ui/layout'
 import { PatchDB } from 'patch-db-client'
-import { filter, map } from 'rxjs'
+import { map } from 'rxjs'
 import { ActionService } from 'src/app/services/action.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 import { StandardActionsService } from 'src/app/services/standard-actions.service'
 import { getManifest } from 'src/app/utils/get-package-data'
 import { ServiceActionComponent } from '../components/action.component'
 import {
-  BaseStatus,
-  getInstalledBaseStatus,
+  PrimaryStatus,
+  renderPkgStatus,
 } from 'src/app/services/pkg-status-rendering.service'
+
+const INACTIVE: PrimaryStatus[] = [
+  'installing',
+  'updating',
+  'removing',
+  'restoring',
+  'backing-up',
+]
 
 @Component({
   template: `
     @if (package(); as pkg) {
+      @let inactive = isInactive();
+
       @for (group of pkg.actions | keyvalue; track $index) {
         <section class="g-card">
           <header>{{ group.key }}</header>
@@ -31,6 +41,7 @@ import {
             <button
               tuiCell
               [action]="a"
+              [inactive]="inactive"
               (click)="handle(pkg.status, pkg.icon, pkg.manifest, a)"
             ></button>
           }
@@ -42,11 +53,13 @@ import {
         <button
           tuiCell
           [action]="rebuild"
+          [inactive]="inactive"
           (click)="service.rebuild(pkg.manifest.id)"
         ></button>
         <button
           tuiCell
           [action]="uninstall"
+          [inactive]="inactive"
           (click)="service.uninstall(pkg.manifest)"
         ></button>
       </section>
@@ -75,13 +88,12 @@ export default class ServiceActionsRoute {
     inject<PatchDB<DataModel>>(PatchDB)
       .watch$('packageData', getPkgId())
       .pipe(
-        filter(pkg => pkg.stateInfo.state === 'installed'),
         map(pkg => {
           const specialGroup = Object.values(pkg.actions).some(a => !!a.group)
             ? 'Other'
             : 'General'
           return {
-            status: getInstalledBaseStatus(pkg.statusInfo),
+            status: renderPkgStatus(pkg).primary,
             icon: pkg.icon,
             manifest: getManifest(pkg),
             actions: Object.entries(pkg.actions)
@@ -135,7 +147,7 @@ export default class ServiceActionsRoute {
   }
 
   handle(
-    status: BaseStatus,
+    status: PrimaryStatus,
     icon: string,
     { id, title }: T.Manifest,
     action: T.ActionMetadata & { id: string },
@@ -145,4 +157,8 @@ export default class ServiceActionsRoute {
       actionInfo: { id: action.id, metadata: action },
     })
   }
+
+  protected readonly isInactive = computed(
+    (pkg = this.package()) => !pkg || INACTIVE.includes(pkg.status),
+  )
 }

@@ -93,8 +93,12 @@ export class FormService {
         }
         return this.formBuilder.control(value, stringValidators(spec))
       case 'textarea':
-        value = currentValue || null
-        return this.formBuilder.control(value, textareaValidators(spec))
+        if (currentValue !== undefined) {
+          value = currentValue
+        } else {
+          value = spec.default || null
+        }
+        return this.formBuilder.control(value, stringValidators(spec))
       case 'number':
         if (currentValue !== undefined) {
           value = currentValue
@@ -156,7 +160,7 @@ export class FormService {
 // }
 
 function stringValidators(
-  spec: IST.ValueSpecText | IST.ListValueSpecText,
+  spec: IST.ValueSpecText | IST.ValueSpecTextarea | IST.ListValueSpecText,
 ): ValidatorFn[] {
   const validators: ValidatorFn[] = []
 
@@ -169,18 +173,6 @@ function stringValidators(
   if (spec.patterns.length) {
     spec.patterns.forEach(p => validators.push(Validators.pattern(p.regex)))
   }
-
-  return validators
-}
-
-function textareaValidators(spec: IST.ValueSpecTextarea): ValidatorFn[] {
-  const validators: ValidatorFn[] = []
-
-  if (spec.required) {
-    validators.push(Validators.required)
-  }
-
-  validators.push(textLengthInRange(spec.minLength, spec.maxLength))
 
   return validators
 }

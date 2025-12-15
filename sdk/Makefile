@@ -56,7 +56,7 @@ check:
 	npm run check
 
 fmt: package/node_modules base/node_modules
-	npx prettier . "**/*.ts" --write
+	npx --prefix base prettier "**/*.ts" --write
 
 package/package-lock.json: package/package.json
 	cd package && npm i

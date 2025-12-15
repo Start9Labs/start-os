@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use chrono::{DateTime, Utc};
 use exver::{Version, VersionRange};
@@ -32,6 +32,8 @@ use crate::util::lshw::LshwDevice;
 use crate::util::serde::MaybeUtf8String;
 use crate::version::{Current, VersionT};
 use crate::{ARCH, PLATFORM};
+
+pub static DB_UI_SEED_CELL: OnceLock<&'static str> = OnceLock::new();
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
@@ -65,9 +67,10 @@ impl Public {
                                     preferred_external_port: 80,
                                     add_ssl: Some(AddSslOptions {
                                         preferred_external_port: 443,
+                                        add_x_forwarded_headers: false,
                                         alpn: Some(AlpnInfo::Specified(vec![
-                                            MaybeUtf8String("http/1.1".into()),
                                             MaybeUtf8String("h2".into()),
+                                            MaybeUtf8String("http/1.1".into()),
                                         ])),
                                     }),
                                     secure: None,
@@ -123,20 +126,8 @@ impl Public {
                 kiosk,
             },
             package_data: AllPackageData::default(),
-            ui: {
-                #[cfg(feature = "startd")]
-                {
-                    serde_json::from_str(include_str!(concat!(
-                        env!("CARGO_MANIFEST_DIR"),
-                        "/../../web/patchdb-ui-seed.json"
-                    )))
-                    .with_kind(ErrorKind::Deserialization)?
-                }
-                #[cfg(not(feature = "startd"))]
-                {
-                    Value::Null
-                }
-            },
+            ui: serde_json::from_str(*DB_UI_SEED_CELL.get().unwrap_or(&"null"))
+                .with_kind(ErrorKind::Deserialization)?,
         })
     }
 }

@@ -1089,7 +1089,7 @@ export class MockApiService extends ApiService {
             health: {
               'ephemeral-health-check': {
                 name: 'Ephemeral Health Check',
-                result: 'starting',
+                result: 'success',
                 message: null,
               },
               'unnecessary-health-check': {

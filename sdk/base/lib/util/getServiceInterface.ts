@@ -19,7 +19,7 @@ export const getHostname = (url: string): Hostname | null => {
 
 type FilterKinds =
   | "onion"
-  | "local"
+  | "mdns"
   | "domain"
   | "ip"
   | "ipv4"
@@ -42,10 +42,10 @@ type VisibilityFilter<V extends "public" | "private"> = V extends "public"
     : never
 type KindFilter<K extends FilterKinds> = K extends "onion"
   ? (HostnameInfo & { kind: "onion" }) | KindFilter<Exclude<K, "onion">>
-  : K extends "local"
+  : K extends "mdns"
     ?
         | (HostnameInfo & { kind: "ip"; hostname: { kind: "local" } })
-        | KindFilter<Exclude<K, "local">>
+        | KindFilter<Exclude<K, "mdns">>
     : K extends "domain"
       ?
           | (HostnameInfo & { kind: "ip"; hostname: { kind: "domain" } })
@@ -80,11 +80,17 @@ type FilterReturnTy<F extends Filter> = F extends {
           : Exclude<HostnameInfo, FilterReturnTy<E>>
         : HostnameInfo
 
-const defaultFilter = {
+const nonLocalFilter = {
   exclude: {
     kind: ["localhost", "link-local"] as ("localhost" | "link-local")[],
   },
-}
+} as const
+const publicFilter = {
+  visibility: "public",
+} as const
+const onionFilter = {
+  kind: "onion",
+} as const
 
 type Formats = "hostname-info" | "urlstring" | "url"
 type FormatReturnTy<
@@ -98,7 +104,7 @@ type FormatReturnTy<
       ? UrlString | FormatReturnTy<F, Exclude<Format, "urlstring">>
       : never
 
-export type Filled = {
+export type Filled<F extends Filter = {}> = {
   hostnames: HostnameInfo[]
 
   toUrls: (h: HostnameInfo) => {
@@ -106,30 +112,17 @@ export type Filled = {
     sslUrl: UrlString | null
   }
 
-  filter: <
-    F extends Filter = typeof defaultFilter,
-    Format extends Formats = "urlstring",
-  >(
-    filter?: F,
+  format: <Format extends Formats = "urlstring">(
     format?: Format,
-  ) => FormatReturnTy<F, Format>[]
+  ) => FormatReturnTy<{}, Format>[]
 
-  publicHostnames: HostnameInfo[]
-  onionHostnames: HostnameInfo[]
-  localHostnames: HostnameInfo[]
-  ipHostnames: HostnameInfo[]
-  ipv4Hostnames: HostnameInfo[]
-  ipv6Hostnames: HostnameInfo[]
-  nonIpHostnames: HostnameInfo[]
+  filter: <NewFilter extends Filter>(
+    filter: NewFilter,
+  ) => Filled<NewFilter & Filter>
 
-  urls: UrlString[]
-  publicUrls: UrlString[]
-  onionUrls: UrlString[]
-  localUrls: UrlString[]
-  ipUrls: UrlString[]
-  ipv4Urls: UrlString[]
-  ipv6Urls: UrlString[]
-  nonIpUrls: UrlString[]
+  nonLocal: Filled<typeof nonLocalFilter & Filter>
+  public: Filled<typeof publicFilter & Filter>
+  onion: Filled<typeof onionFilter & Filter>
 }
 export type FilledAddressInfo = AddressInfo & Filled
 export type ServiceInterfaceFilled = {
@@ -225,7 +218,7 @@ function filterRec(
       (h) =>
         invert !==
         ((kind.has("onion") && h.kind === "onion") ||
-          (kind.has("local") &&
+          (kind.has("mdns") &&
             h.kind === "ip" &&
             h.hostname.kind === "local") ||
           (kind.has("domain") &&
@@ -258,86 +251,45 @@ export const filledAddress = (
   }
   const hostnames = host.hostnameInfo[addressInfo.internalPort] ?? []
 
-  return {
-    ...addressInfo,
-    hostnames,
-    toUrls,
-    filter: <
-      F extends Filter = typeof defaultFilter,
-      Format extends Formats = "urlstring",
-    >(
-      filter?: F,
-      format?: Format,
-    ) => {
-      const filtered = filterRec(hostnames, filter ?? defaultFilter, false)
-      let res: FormatReturnTy<F, Format>[] = filtered as any
-      if (format === "hostname-info") return res
-      const urls = filtered.flatMap(toUrlArray)
-      if (format === "url") res = urls.map((u) => new URL(u)) as any
-      else res = urls as any
-      return res
-    },
-    get publicHostnames() {
-      return hostnames.filter((h) => h.kind === "onion" || h.public)
-    },
-    get onionHostnames() {
-      return hostnames.filter((h) => h.kind === "onion")
-    },
-    get localHostnames() {
-      return hostnames.filter(
-        (h) => h.kind === "ip" && h.hostname.kind === "local",
-      )
-    },
-    get ipHostnames() {
-      return hostnames.filter(
-        (h) =>
-          h.kind === "ip" &&
-          (h.hostname.kind === "ipv4" || h.hostname.kind === "ipv6"),
-      )
-    },
-    get ipv4Hostnames() {
-      return hostnames.filter(
-        (h) => h.kind === "ip" && h.hostname.kind === "ipv4",
-      )
-    },
-    get ipv6Hostnames() {
-      return hostnames.filter(
-        (h) => h.kind === "ip" && h.hostname.kind === "ipv6",
-      )
-    },
-    get nonIpHostnames() {
-      return hostnames.filter(
-        (h) =>
-          h.kind === "ip" &&
-          h.hostname.kind !== "ipv4" &&
-          h.hostname.kind !== "ipv6",
-      )
-    },
-    get urls() {
-      return this.hostnames.flatMap(toUrlArray)
-    },
-    get publicUrls() {
-      return this.publicHostnames.flatMap(toUrlArray)
-    },
-    get onionUrls() {
-      return this.onionHostnames.flatMap(toUrlArray)
-    },
-    get localUrls() {
-      return this.localHostnames.flatMap(toUrlArray)
-    },
-    get ipUrls() {
-      return this.ipHostnames.flatMap(toUrlArray)
-    },
-    get ipv4Urls() {
-      return this.ipv4Hostnames.flatMap(toUrlArray)
-    },
-    get ipv6Urls() {
-      return this.ipv6Hostnames.flatMap(toUrlArray)
-    },
-    get nonIpUrls() {
-      return this.nonIpHostnames.flatMap(toUrlArray)
-    },
+  function filledAddressFromHostnames<F extends Filter>(
+    hostnames: HostnameInfo[],
+  ): Filled<F> & AddressInfo {
+    return {
+      ...addressInfo,
+      hostnames,
+      toUrls,
+      format: <Format extends Formats = "urlstring">(format?: Format) => {
+        let res: FormatReturnTy<{}, Format>[] = hostnames as any
+        if (format === "hostname-info") return res
+        const urls = hostnames.flatMap(toUrlArray)
+        if (format === "url") res = urls.map((u) => new URL(u)) as any
+        else res = urls as any
+        return res
+      },
+      filter: <NewFilter extends Filter>(filter: NewFilter) => {
+        return filledAddressFromHostnames<NewFilter & F>(
+          filterRec(hostnames, filter, false),
+        )
+      },
+      get nonLocal(): Filled<typeof nonLocalFilter & F> {
+        return filledAddressFromHostnames<typeof nonLocalFilter & F>(
+          filterRec(hostnames, nonLocalFilter, false),
+        )
+      },
+      get public(): Filled<typeof publicFilter & F> {
+        return filledAddressFromHostnames<typeof publicFilter & F>(
+          filterRec(hostnames, publicFilter, false),
+        )
+      },
+      get onion(): Filled<typeof onionFilter & F> {
+        return filledAddressFromHostnames<typeof onionFilter & F>(
+          filterRec(hostnames, onionFilter, false),
+        )
+      },
+    }
   }
+
+  return filledAddressFromHostnames<{}>(hostnames)
 }
 
 const makeInterfaceFilled = async ({

@@ -58,6 +58,9 @@ impl FromStr for OnionAddress {
         Ok(Self(
             s.strip_suffix(".onion")
                 .unwrap_or(s)
+                .rsplit(".")
+                .next()
+                .unwrap_or(s)
                 .parse::<OnionAddressV3>()
                 .with_kind(ErrorKind::Tor)?,
         ))
@@ -751,6 +754,12 @@ async fn torctl(
             &mut [(80, SocketAddr::from(([127, 0, 0, 1], 80)))].iter(),
         )
         .await?;
+
+    services.send_modify(|s| {
+        for (_, _, s) in s.values_mut() {
+            *s = Some(SyncState::Add);
+        }
+    });
 
     let handler = async {
         loop {

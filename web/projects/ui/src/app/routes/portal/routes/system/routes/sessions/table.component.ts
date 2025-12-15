@@ -85,8 +85,6 @@ import { i18nPipe } from '@start9labs/shared'
     </table>
   `,
   styles: `
-    @use '@taiga-ui/core/styles/taiga-ui-local' as taiga;
-
     td {
       position: relative;
       width: 25%;

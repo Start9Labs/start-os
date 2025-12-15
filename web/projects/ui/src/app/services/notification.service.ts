@@ -6,12 +6,9 @@ import {
   MARKDOWN,
 } from '@start9labs/shared'
 import { PatchDB } from 'patch-db-client'
-import { firstValueFrom, merge, of, shareReplay, Subject } from 'rxjs'
+import { merge, of, shareReplay, Subject } from 'rxjs'
 import { REPORT } from 'src/app/components/backup-report.component'
-import {
-  ServerNotification,
-  ServerNotifications,
-} from 'src/app/services/api/api.types'
+import { ServerNotification } from 'src/app/services/api/api.types'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
 
@@ -28,39 +25,11 @@ export class NotificationService {
     this.localUnreadCount$,
   ).pipe(shareReplay(1))
 
-  async markSeen(notifications: ServerNotifications) {
-    const ids = notifications.filter(n => !n.seen).map(n => n.id)
-
-    this.updateCount(-ids.length)
-
-    this.api
-      .markSeenNotifications({ ids })
-      .catch(e => this.errorService.handleError(e))
-  }
-
   async markSeenAll(latestId: number) {
     this.localUnreadCount$.next(0)
 
     this.api
       .markSeenAllNotifications({ before: latestId })
-      .catch(e => this.errorService.handleError(e))
-  }
-
-  async markUnseen(notifications: ServerNotifications) {
-    const ids = notifications.filter(n => n.seen).map(n => n.id)
-
-    this.updateCount(ids.length)
-
-    this.api
-      .markUnseenNotifications({ ids })
-      .catch(e => this.errorService.handleError(e))
-  }
-
-  async remove(notifications: ServerNotifications): Promise<void> {
-    this.updateCount(-notifications.filter(n => !n.seen).length)
-
-    this.api
-      .deleteNotifications({ ids: notifications.map(n => n.id) })
       .catch(e => this.errorService.handleError(e))
   }
 
@@ -95,7 +64,6 @@ export class NotificationService {
 
   viewModal(notification: ServerNotification<number>, full = false) {
     const { data, createdAt, code, title, message } = notification
-    this.markSeen([notification])
 
     if (code === 1) {
       // Backup Report
@@ -115,11 +83,5 @@ export class NotificationService {
         })
         .subscribe()
     }
-  }
-
-  private async updateCount(toAdjust: number) {
-    const currentCount = await firstValueFrom(this.unreadCount$)
-
-    this.localUnreadCount$.next(Math.max(currentCount + toAdjust, 0))
   }
 }

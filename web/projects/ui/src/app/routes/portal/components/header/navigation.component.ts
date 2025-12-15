@@ -22,7 +22,7 @@ import { getMenu } from 'src/app/utils/system-utilities'
         class="link"
         routerLinkActive="link_active"
         tuiHintDirection="bottom"
-        [tuiHintShowDelay]="250"
+        [tuiHintShowDelay]="128"
         [routerLink]="['/', item.routerLink]"
         [class.link_system]="item.routerLink === 'system'"
         [tuiHint]="rla.isActive ? '' : (item.name | i18n)"

@@ -40,7 +40,7 @@ fi
 
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-zig-builder cargo zigbuild --manifest-path=./core/Cargo.toml $BUILD_FLAGS --no-default-features --features cli-container,$FEATURES --locked --bin containerbox --target=$RUST_ARCH-unknown-linux-musl
-if [ "$(ls -nd "core/target/$RUST_ARCH-unknown-linux-musl/$PROFILE/containerbox" | awk '{ print $3 }')" != "$UID" ]; then
-  rust-zig-builder sh -c "chown -R $UID:$UID core/target && chown -R $UID:$UID /root/.cargo"
+rust-zig-builder cargo zigbuild --manifest-path=./core/Cargo.toml $BUILD_FLAGS --features=$FEATURES --locked --bin start-container --target=$RUST_ARCH-unknown-linux-musl
+if [ "$(ls -nd "core/target/$RUST_ARCH-unknown-linux-musl/$PROFILE/start-container" | awk '{ print $3 }')" != "$UID" ]; then
+  rust-zig-builder sh -c "chown -R $UID:$UID core/target && chown -R $UID:$UID /usr/local/cargo"
 fi

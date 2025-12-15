@@ -190,27 +190,6 @@ impl PortForwardController {
                     .arg("net.ipv4.ip_forward=1")
                     .invoke(ErrorKind::Network)
                     .await?;
-                if Command::new("iptables")
-                    .arg("-t")
-                    .arg("nat")
-                    .arg("-C")
-                    .arg("POSTROUTING")
-                    .arg("-j")
-                    .arg("MASQUERADE")
-                    .invoke(ErrorKind::Network)
-                    .await
-                    .is_err()
-                {
-                    Command::new("iptables")
-                        .arg("-t")
-                        .arg("nat")
-                        .arg("-A")
-                        .arg("POSTROUTING")
-                        .arg("-j")
-                        .arg("MASQUERADE")
-                        .invoke(ErrorKind::Network)
-                        .await?;
-                }
                 Ok::<_, Error>(())
             }
             .await
@@ -474,7 +453,7 @@ impl From<&InterfaceForwardState> for ForwardTable {
                                 entry.external,
                                 ForwardTarget {
                                     target: *target,
-                                    filter: format!("{:?}", filter),
+                                    filter: format!("{:#?}", filter),
                                 },
                             )
                         })

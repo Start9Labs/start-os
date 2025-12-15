@@ -301,14 +301,14 @@ lazy_static::lazy_static! {
         Mutex::new(BTreeMap::new());
 }
 
-#[derive(Deserialize, Serialize, Parser, TS)]
+#[derive(Deserialize, Serialize, Parser)]
 #[serde(rename_all = "camelCase")]
 #[command(rename_all = "kebab-case")]
 pub struct MountParams {
     target_id: BackupTargetId,
     #[arg(long)]
     server_id: Option<String>,
-    password: String,
+    password: String, // TODO: rpassword
     #[arg(long)]
     allow_partial: bool,
 }

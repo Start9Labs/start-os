@@ -22,7 +22,6 @@ import { PlaceholderComponent } from '../../../components/placeholder.component'
           <th tuiTh>{{ 'Name' | i18n }}</th>
           <th tuiTh>{{ 'Type' | i18n }}</th>
           <th tuiTh>{{ 'Description' | i18n }}</th>
-          <th tuiTh></th>
         </tr>
       </thead>
       <tbody>
@@ -31,8 +30,6 @@ import { PlaceholderComponent } from '../../../components/placeholder.component'
             tabindex="-1"
             serviceInterface
             [info]="info"
-            [pkg]="pkg()"
-            [disabled]="disabled()"
             [routerLink]="info.routerLink"
           >
             <a [routerLink]="info.routerLink">
@@ -64,16 +61,13 @@ import { PlaceholderComponent } from '../../../components/placeholder.component'
 })
 export class ServiceInterfacesComponent {
   readonly pkg = input.required<PackageDataEntry>()
-  readonly disabled = input(false)
 
   readonly interfaces = computed(({ serviceInterfaces } = this.pkg()) =>
     Object.entries(serviceInterfaces)
       .sort((a, b) => tuiDefaultSort(a[1], b[1]))
-      .map(([id, value]) => {
-        return {
-          ...value,
-          routerLink: `./interface/${id}`,
-        }
-      }),
+      .map(([id, value]) => ({
+        ...value,
+        routerLink: `./interface/${id}`,
+      })),
   )
 }

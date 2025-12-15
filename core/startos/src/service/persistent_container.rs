@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::ops::Deref;
 use std::path::Path;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
@@ -18,7 +17,7 @@ use tracing::instrument;
 
 use crate::context::RpcContext;
 use crate::disk::mount::filesystem::bind::Bind;
-use crate::disk::mount::filesystem::idmapped::IdMapped;
+use crate::disk::mount::filesystem::idmapped::{IdMap, IdMapped};
 use crate::disk::mount::filesystem::loop_dev::LoopDev;
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::filesystem::{MountType, ReadOnly};
@@ -135,9 +134,11 @@ impl PersistentContainer {
             let mount = MountGuard::mount(
                 &IdMapped::new(
                     Bind::new(data_dir(DATA_DIR, &s9pk.as_manifest().id, volume)),
-                    0,
-                    100000,
-                    65536,
+                    vec![IdMap {
+                        from_id: 0,
+                        to_id: 100000,
+                        range: 65536,
+                    }],
                 ),
                 mountpoint,
                 MountType::ReadWrite,
@@ -155,7 +156,14 @@ impl PersistentContainer {
         {
             vec![
                 MountGuard::mount(
-                    &IdMapped::new(LoopDev::from(&**sqfs), 0, 100000, 65536),
+                    &IdMapped::new(
+                        LoopDev::from(&**sqfs),
+                        vec![IdMap {
+                            from_id: 0,
+                            to_id: 100000,
+                            range: 65536,
+                        }],
+                    ),
                     mountpoint,
                     MountType::ReadWrite,
                 )
@@ -179,7 +187,14 @@ impl PersistentContainer {
                 };
                 assets.push(
                     MountGuard::mount(
-                        &IdMapped::new(LoopDev::from(&**sqfs), 0, 100000, 65536),
+                        &IdMapped::new(
+                            LoopDev::from(&**sqfs),
+                            vec![IdMap {
+                                from_id: 0,
+                                to_id: 100000,
+                                range: 65536,
+                            }],
+                        ),
                         mountpoint,
                         MountType::ReadWrite,
                     )
@@ -228,7 +243,14 @@ impl PersistentContainer {
                 image.clone(),
                 Arc::new(
                     MountGuard::mount(
-                        &IdMapped::new(LoopDev::from(&**sqfs), 0, 100000, 65536),
+                        &IdMapped::new(
+                            LoopDev::from(&**sqfs),
+                            vec![IdMap {
+                                from_id: 0,
+                                to_id: 100000,
+                                range: 65536,
+                            }],
+                        ),
                         &mountpoint,
                         ReadOnly,
                     )
@@ -396,7 +418,6 @@ impl PersistentContainer {
     #[instrument(skip_all)]
     fn destroy(
         &mut self,
-        error: bool,
         uninit: Option<ExitParams>,
     ) -> Option<impl Future<Output = Result<(), Error>> + 'static> {
         if self.destroyed {
@@ -414,24 +435,6 @@ impl PersistentContainer {
         self.destroyed = true;
         Some(async move {
             let mut errs = ErrorCollection::new();
-            if error {
-                if let Some(lxc_container) = &lxc_container {
-                    if let Some(logs) = errs.handle(
-                        crate::logs::fetch_logs(
-                            crate::logs::LogSource::Container(lxc_container.guid.deref().clone()),
-                            Some(50),
-                            None,
-                            None,
-                            false,
-                        )
-                        .await,
-                    ) {
-                        for log in logs.entries.iter() {
-                            eprintln!("{log}");
-                        }
-                    }
-                }
-            }
             if let Some((hdl, shutdown)) = rpc_server {
                 errs.handle(
                     rpc_client
@@ -466,7 +469,7 @@ impl PersistentContainer {
 
     #[instrument(skip_all)]
     pub async fn exit(mut self, uninit: Option<ExitParams>) -> Result<(), Error> {
-        if let Some(destroy) = self.destroy(false, uninit) {
+        if let Some(destroy) = self.destroy(uninit) {
             destroy.await?;
         }
         tracing::info!("Service for {} exited", self.s9pk.as_manifest().id);
@@ -584,7 +587,7 @@ impl PersistentContainer {
 
 impl Drop for PersistentContainer {
     fn drop(&mut self) {
-        if let Some(destroy) = self.destroy(true, None) {
+        if let Some(destroy) = self.destroy(None) {
             tokio::spawn(async move { destroy.await.log_err() });
         }
     }

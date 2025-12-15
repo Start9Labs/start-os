@@ -120,6 +120,7 @@ export class MainLoop {
             ? {
                 preferredExternalPort: lanConf.external,
                 alpn: { specified: ["http/1.1"] },
+                addXForwardedHeaders: false,
               }
             : null,
         })
@@ -133,7 +134,7 @@ export class MainLoop {
     delete this.mainEvent
     delete this.healthLoops
     await main?.daemon
-      .stop()
+      .term()
       .catch((e: unknown) => console.error(`Main loop error`, utils.asError(e)))
     this.effects.setMainStatus({ status: "stopped" })
     if (healthLoops) healthLoops.forEach((x) => clearInterval(x.interval))

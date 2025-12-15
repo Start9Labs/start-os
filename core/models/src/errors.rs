@@ -395,6 +395,11 @@ impl From<lettre::address::AddressError> for Error {
         Error::new(e, ErrorKind::Smtp)
     }
 }
+impl From<hyper::Error> for Error {
+    fn from(e: hyper::Error) -> Self {
+        Error::new(e, ErrorKind::Network)
+    }
+}
 impl From<patch_db::value::Error> for Error {
     fn from(value: patch_db::value::Error) -> Self {
         match value.kind {

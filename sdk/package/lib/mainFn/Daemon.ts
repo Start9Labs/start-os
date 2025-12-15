@@ -51,7 +51,9 @@ export class Daemon<
         )
       const res = new Daemon(subc, startCommand)
       effects.onLeaveContext(() => {
-        res.stop().catch((e) => console.error(asError(e)))
+        res
+          .term({ destroySubcontainer: true })
+          .catch((e) => console.error(asError(e)))
       })
       return res
     }
@@ -72,7 +74,7 @@ export class Daemon<
           this.commandController = await this.startCommand()
           if (!this.shouldBeRunning) {
             // handles race condition if stopped while starting
-            await this.stop()
+            await this.term()
             break
           }
           const success = await this.commandController.wait().then(
@@ -107,12 +109,7 @@ export class Daemon<
   async term(termOptions?: {
     signal?: NodeJS.Signals | undefined
     timeout?: number | undefined
-  }) {
-    return this.stop(termOptions)
-  }
-  async stop(termOptions?: {
-    signal?: NodeJS.Signals | undefined
-    timeout?: number | undefined
+    destroySubcontainer?: boolean
   }) {
     this.shouldBeRunning = false
     this.exitedSuccess = false
@@ -122,7 +119,9 @@ export class Daemon<
         .catch((e) => console.error(asError(e)))
       this.commandController = null
       this.onExitFns = []
-      await this.subcontainer?.destroy()
+      if (termOptions?.destroySubcontainer) {
+        await this.subcontainer?.destroy()
+      }
     }
   }
   subcontainerRc(): SubContainerRc<Manifest> | null {
@@ -132,6 +131,6 @@ export class Daemon<
     this.onExitFns.push(fn)
   }
   onDrop(): void {
-    this.stop().catch((e) => console.error(asError(e)))
+    this.term().catch((e) => console.error(asError(e)))
   }
 }

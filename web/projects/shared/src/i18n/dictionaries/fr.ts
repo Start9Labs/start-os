@@ -549,7 +549,7 @@ export default {
   584: 'Les connexions peuvent parfois être lentes ou peu fiables',
   585: 'Public si vous partagez l’adresse publiquement, sinon privé',
   586: 'Nécessite un appareil ou un navigateur compatible Tor',
-  587: 'Non recommandé dans la plupart des cas. Nécessaire uniquement pour les applications qui imposent HTTPS',
+  587: 'Ne devrait être nécessaire que pour les applications qui imposent SSL',
   588: 'Idéal pour l’hébergement et l’accès à distance anonymes et résistants à la censure',
   589: 'Idéal pour un accès local',
   590: 'Nécessite d’être connecté au même réseau local (LAN) que votre serveur, soit physiquement, soit via VPN',
@@ -589,4 +589,5 @@ export default {
   624: 'Versions',
   625: 'Sélectionner une autre version',
   626: 'Téléverser',
+  627: 'Ouvrir UI',
 } satisfies i18n

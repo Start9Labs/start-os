@@ -40,7 +40,7 @@ fi
 
 echo "FEATURES=\"$FEATURES\""
 echo "RUSTFLAGS=\"$RUSTFLAGS\""
-rust-zig-builder cargo zigbuild --manifest-path=./core/Cargo.toml $BUILD_FLAGS --no-default-features --features cli-registry,registry,$FEATURES --locked --bin registrybox --target=$RUST_ARCH-unknown-linux-musl
+rust-zig-builder cargo zigbuild --manifest-path=./core/Cargo.toml $BUILD_FLAGS --features=$FEATURES --locked --bin registrybox --target=$RUST_ARCH-unknown-linux-musl
 if [ "$(ls -nd "core/target/$RUST_ARCH-unknown-linux-musl/$PROFILE/registrybox" | awk '{ print $3 }')" != "$UID" ]; then
-  rust-zig-builder sh -c "chown -R $UID:$UID core/target && chown -R $UID:$UID /root/.cargo"
+  rust-zig-builder sh -c "chown -R $UID:$UID core/target && chown -R $UID:$UID  /usr/local/cargo"
 fi

@@ -2,7 +2,7 @@ use std::cmp::min;
 use std::future::Future;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::UNIX_EPOCH;
 
 use async_compression::tokio::bufread::GzipEncoder;
@@ -59,22 +59,8 @@ const PROXY_STRIP_HEADERS: &[&str] = &["cookie", "host", "origin", "referer", "u
 
 pub const EMPTY_DIR: Dir<'_> = Dir::new("", &[]);
 
-#[macro_export]
-macro_rules! else_empty_dir {
-    ($cfg:meta => $dir:expr) => {{
-        #[cfg(all($cfg, not(feature = "test")))]
-        {
-            $dir
-        }
-        #[cfg(not(all($cfg, not(feature = "test"))))]
-        {
-            crate::net::static_server::EMPTY_DIR
-        }
-    }};
-}
-
 pub trait UiContext: Context + AsRef<RpcContinuations> + Clone + Sized {
-    const UI_DIR: &'static Dir<'static>;
+    fn ui_dir() -> &'static Dir<'static>;
     fn api() -> ParentHandler<Self>;
     fn middleware(server: Server<Self>) -> HttpServer<Self>;
     fn extend_router(self, router: Router) -> Router {
@@ -82,11 +68,12 @@ pub trait UiContext: Context + AsRef<RpcContinuations> + Clone + Sized {
     }
 }
 
+pub static UI_CELL: OnceLock<Dir<'static>> = OnceLock::new();
+
 impl UiContext for RpcContext {
-    const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
-        feature = "startd" =>
-        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/ui")
-    );
+    fn ui_dir() -> &'static Dir<'static> {
+        UI_CELL.get().unwrap_or(&EMPTY_DIR)
+    }
     fn api() -> ParentHandler<Self> {
         main_api()
     }
@@ -149,10 +136,9 @@ impl UiContext for RpcContext {
 }
 
 impl UiContext for InitContext {
-    const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
-        feature = "startd" =>
-        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/ui")
-    );
+    fn ui_dir() -> &'static Dir<'static> {
+        UI_CELL.get().unwrap_or(&EMPTY_DIR)
+    }
     fn api() -> ParentHandler<Self> {
         main_api()
     }
@@ -162,10 +148,9 @@ impl UiContext for InitContext {
 }
 
 impl UiContext for DiagnosticContext {
-    const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
-        feature = "startd" =>
-        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/ui")
-    );
+    fn ui_dir() -> &'static Dir<'static> {
+        UI_CELL.get().unwrap_or(&EMPTY_DIR)
+    }
     fn api() -> ParentHandler<Self> {
         main_api()
     }
@@ -173,12 +158,13 @@ impl UiContext for DiagnosticContext {
         server.middleware(Cors::new())
     }
 }
+
+pub static SETUP_WIZARD_CELL: OnceLock<Dir<'static>> = OnceLock::new();
 
 impl UiContext for SetupContext {
-    const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
-        feature = "startd" =>
-        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/setup-wizard")
-    );
+    fn ui_dir() -> &'static Dir<'static> {
+        SETUP_WIZARD_CELL.get().unwrap_or(&EMPTY_DIR)
+    }
     fn api() -> ParentHandler<Self> {
         main_api()
     }
@@ -187,11 +173,12 @@ impl UiContext for SetupContext {
     }
 }
 
+pub static INSTALL_WIZARD_CELL: OnceLock<Dir<'static>> = OnceLock::new();
+
 impl UiContext for InstallContext {
-    const UI_DIR: &'static Dir<'static> = &else_empty_dir!(
-        feature = "startd" =>
-        include_dir::include_dir!("$CARGO_MANIFEST_DIR/../../web/dist/static/install-wizard")
-    );
+    fn ui_dir() -> &'static Dir<'static> {
+        INSTALL_WIZARD_CELL.get().unwrap_or(&EMPTY_DIR)
+    }
     fn api() -> ParentHandler<Self> {
         main_api()
     }
@@ -208,7 +195,7 @@ pub fn rpc_router<C: Context + Clone + AsRef<RpcContinuations>>(
         .route("/rpc/{*path}", any(server))
         .route(
             "/ws/rpc/{guid}",
-            get({
+            any({
                 let ctx = ctx.clone();
                 move |x::Path(guid): x::Path<Guid>,
                       ws: axum::extract::ws::WebSocketUpgrade| async move {
@@ -243,12 +230,12 @@ fn serve_ui<C: UiContext>(req: Request) -> Result<Response, Error> {
                 .strip_prefix('/')
                 .unwrap_or(request_parts.uri.path());
 
-            let file = C::UI_DIR
+            let file = C::ui_dir()
                 .get_file(uri_path)
-                .or_else(|| C::UI_DIR.get_file("index.html"));
+                .or_else(|| C::ui_dir().get_file("index.html"));
 
             if let Some(file) = file {
-                FileData::from_embedded(&request_parts, file, C::UI_DIR)?
+                FileData::from_embedded(&request_parts, file, C::ui_dir())?
                     .into_response(&request_parts)
             } else {
                 Ok(not_found())

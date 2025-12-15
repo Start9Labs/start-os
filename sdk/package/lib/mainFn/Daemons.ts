@@ -55,7 +55,7 @@ export type ExecCommandOptions = {
   runAsInit?: boolean
   env?:
     | {
-        [variable: string]: string
+        [variable in string]?: string
       }
     | undefined
   cwd?: string | undefined
@@ -412,16 +412,12 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   }
 
   async term() {
-    try {
-      for (let result of await Promise.allSettled(
-        this.healthDaemons.map((x) => x.term()),
-      )) {
-        if (result.status === "rejected") {
-          console.error(result.reason)
-        }
+    for (let result of await Promise.allSettled(
+      this.healthDaemons.map((x) => x.term({ destroySubcontainer: true })),
+    )) {
+      if (result.status === "rejected") {
+        console.error(result.reason)
       }
-    } finally {
-      this.effects.setMainStatus({ status: "stopped" })
     }
   }
 

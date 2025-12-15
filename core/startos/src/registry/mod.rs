@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use axum::Router;
 use futures::future::ready;
+use imbl_value::InternedString;
 use models::DataUrl;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, Server, from_fn_async};
 use serde::{Deserialize, Serialize};
@@ -26,6 +27,7 @@ pub mod context;
 pub mod db;
 pub mod device_info;
 pub mod info;
+mod migrations;
 pub mod os;
 pub mod package;
 pub mod signer;
@@ -34,10 +36,23 @@ pub mod signer;
 #[serde(rename_all = "camelCase")]
 #[model = "Model<Self>"]
 pub struct RegistryDatabase {
+    #[serde(default)]
+    pub migrations: BTreeSet<InternedString>,
     pub admins: BTreeSet<Guid>,
     pub index: FullIndex,
 }
-impl RegistryDatabase {}
+
+impl RegistryDatabase {
+    pub fn init() -> Self {
+        Self {
+            migrations: migrations::MIGRATIONS
+                .iter()
+                .map(|m| m.name().into())
+                .collect(),
+            ..Default::default()
+        }
+    }
+}
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]
