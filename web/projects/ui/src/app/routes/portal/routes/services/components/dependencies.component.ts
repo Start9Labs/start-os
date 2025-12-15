@@ -118,7 +118,7 @@ export class ServiceDependenciesComponent {
   getHealthCheckName(id: string) {
     const depError = this.errors()[id]
     return depError?.type === 'healthChecksFailed'
-      ? depError.check.name
+      ? depError.check?.name
       : undefined
   }
 }

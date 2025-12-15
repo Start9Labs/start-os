@@ -112,10 +112,10 @@ tui-hint[data-appearance='onDark'] {
 
 tui-dropdown[data-appearance='start-os'][data-appearance='start-os'] {
   border: 0;
-  backdrop-filter: blur(0.25rem);
+  backdrop-filter: brightness(5) blur(0.25rem);
   background-color: color-mix(
     in hsl,
-    var(--tui-background-elevation-3) 75%,
+    var(--tui-background-elevation-3) 85%,
     transparent
   );
   background-image:

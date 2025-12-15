@@ -152,6 +152,7 @@ export class ActionInputModal {
     }),
   ).pipe(
     map(res => {
+      console.warn('MAP', res)
       const originalValue = res.value || {}
       this.eventId = res.eventId
 
@@ -170,6 +171,7 @@ export class ActionInputModal {
       }
     }),
     catchError(e => {
+      console.error('catchError', e)
       this.error = String(getErrorMessage(e))
       return EMPTY
     }),
