@@ -24,6 +24,7 @@ export class Daemon<
   private commandController: CommandController<Manifest, C> | null = null
   private shouldBeRunning = false
   protected exitedSuccess = false
+  private exiting: Promise<void> | null = null
   private onExitFns: ((success: boolean) => void)[] = []
   protected constructor(
     private subcontainer: C,
@@ -50,6 +51,9 @@ export class Daemon<
           exec,
         )
       const res = new Daemon(subc, startCommand)
+      effects.onLeaveContext(() => {
+        res.term({ destroySubcontainer: true }).catch((e) => console.error(e))
+      })
       return res
     }
   }
@@ -69,7 +73,7 @@ export class Daemon<
           this.commandController = await this.startCommand()
           if (!this.shouldBeRunning) {
             // handles race condition if stopped while starting
-            await this.stop()
+            await this.term()
             break
           }
           const success = await this.commandController.wait().then(
@@ -104,23 +108,20 @@ export class Daemon<
   async term(termOptions?: {
     signal?: NodeJS.Signals | undefined
     timeout?: number | undefined
-  }) {
-    return this.stop(termOptions)
-  }
-  async stop(termOptions?: {
-    signal?: NodeJS.Signals | undefined
-    timeout?: number | undefined
+    destroySubcontainer?: boolean
   }) {
     this.shouldBeRunning = false
     this.exitedSuccess = false
     if (this.commandController) {
-      const controller = this.commandController
+      this.exiting = this.commandController.term({ ...termOptions })
       this.commandController = null
       this.onExitFns = []
-      await controller
-        .term({ ...termOptions })
-        .catch((e) => console.error(asError(e)))
-      await this.subcontainer?.destroy()
+    }
+    if (this.exiting) {
+      await this.exiting.catch(console.error)
+      if (termOptions?.destroySubcontainer) {
+        await this.subcontainer?.destroy()
+      }
     }
   }
   subcontainerRc(): SubContainerRc<Manifest> | null {
@@ -130,6 +131,6 @@ export class Daemon<
     this.onExitFns.push(fn)
   }
   onDrop(): void {
-    this.stop().catch((e) => console.error(asError(e)))
+    this.term().catch((e) => console.error(asError(e)))
   }
 }

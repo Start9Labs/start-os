@@ -68,7 +68,7 @@ export class PublicDomainService {
         required: true,
         default: null,
         patterns: [utils.Patterns.domain],
-      }),
+      }).map(f => f.toLocaleLowerCase()),
       ...this.gatewayAndAuthoritySpec(),
     })
 

@@ -93,7 +93,9 @@ export class StateService extends Observable<RR.ServerState | null> {
     super(subscriber => this.stream$.subscribe(subscriber))
 
     // Retrigger on offline
-    this.network$.pipe(filter(v => !v)).subscribe(() => this.retrigger())
+    this.network$
+      .pipe(filter(v => !v))
+      .subscribe(() => this.retrigger(false, 2000))
 
     // Show toasts
     this.trigger$
@@ -109,8 +111,8 @@ export class StateService extends Observable<RR.ServerState | null> {
       .subscribe()
   }
 
-  retrigger(gracefully = false) {
-    this.trigger$.next(gracefully)
+  retrigger(gracefully: boolean, delay: number) {
+    setTimeout(() => this.trigger$.next(gracefully), delay)
   }
 
   private handleState(state: RR.ServerState): void {

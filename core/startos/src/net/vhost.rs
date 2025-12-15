@@ -148,7 +148,7 @@ impl VHostController {
                                         JsonKey::new(k.clone()),
                                         v.iter()
                                             .filter(|(_, v)| v.strong_count() > 0)
-                                            .map(|(k, _)| format!("{k:?}"))
+                                            .map(|(k, _)| format!("{k:#?}"))
                                             .collect(),
                                     )
                                 })
@@ -188,7 +188,13 @@ pub trait VHostTarget<A: Accept>: std::fmt::Debug + Eq {
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
     ) -> impl Future<Output = Option<(ServerConfig, Self::PreprocessRes)>> + Send + 'a;
-    fn handle_stream(&self, stream: AcceptStream, prev: Self::PreprocessRes, rc: Weak<()>);
+    fn handle_stream(
+        &self,
+        stream: AcceptStream,
+        metadata: TlsMetadata<<A as Accept>::Metadata>,
+        prev: Self::PreprocessRes,
+        rc: Weak<()>,
+    );
 }
 
 pub trait DynVHostTargetT<A: Accept>: std::fmt::Debug + Any {
@@ -199,8 +205,16 @@ pub trait DynVHostTargetT<A: Accept>: std::fmt::Debug + Any {
         prev: ServerConfig,
         hello: &'a ClientHello<'a>,
         metadata: &'a <A as Accept>::Metadata,
-    ) -> BoxFuture<'a, Option<(ServerConfig, Box<dyn Any + Send>)>>;
-    fn handle_stream(&self, stream: AcceptStream, prev: Box<dyn Any + Send>, rc: Weak<()>);
+    ) -> BoxFuture<'a, Option<(ServerConfig, Box<dyn Any + Send>)>>
+    where
+        <A as Accept>::Metadata: Visit<ExtractVisitor<TcpMetadata>>;
+    fn handle_stream(
+        &self,
+        stream: AcceptStream,
+        metadata: TlsMetadata<<A as Accept>::Metadata>,
+        prev: Box<dyn Any + Send>,
+        rc: Weak<()>,
+    );
     fn eq(&self, other: &dyn DynVHostTargetT<A>) -> bool;
 }
 impl<A: Accept, T: VHostTarget<A> + 'static> DynVHostTargetT<A> for T {
@@ -220,9 +234,15 @@ impl<A: Accept, T: VHostTarget<A> + 'static> DynVHostTargetT<A> for T {
             .map(|o| o.map(|(cfg, res)| (cfg, Box::new(res) as Box<dyn Any + Send>)))
             .boxed()
     }
-    fn handle_stream(&self, stream: AcceptStream, prev: Box<dyn Any + Send>, rc: Weak<()>) {
+    fn handle_stream(
+        &self,
+        stream: AcceptStream,
+        metadata: TlsMetadata<<A as Accept>::Metadata>,
+        prev: Box<dyn Any + Send>,
+        rc: Weak<()>,
+    ) {
         if let Ok(prev) = prev.downcast() {
-            VHostTarget::handle_stream(self, stream, *prev, rc);
+            VHostTarget::handle_stream(self, stream, metadata, *prev, rc);
         }
     }
     fn eq(&self, other: &dyn DynVHostTargetT<A>) -> bool {
@@ -265,22 +285,26 @@ impl<A: Accept + 'static> DynVHostTarget<A> {
         prev: ServerConfig,
         hello: &ClientHello<'_>,
         metadata: &<A as Accept>::Metadata,
-    ) -> Option<(ServerConfig, Preprocessed<A>)> {
+    ) -> Option<(ServerConfig, Preprocessed<A>)>
+    where
+        <A as Accept>::Metadata: Visit<ExtractVisitor<TcpMetadata>>,
+    {
         let (cfg, res) = self.0.preprocess(prev, hello, metadata).await?;
         Some((cfg, Preprocessed(self, rc, res)))
     }
 }
 impl<A: Accept + 'static> Preprocessed<A> {
-    fn finish(self, stream: AcceptStream) {
-        (self.0).0.handle_stream(stream, self.2, self.1);
+    fn finish(self, stream: AcceptStream, metadata: TlsMetadata<<A as Accept>::Metadata>) {
+        (self.0).0.handle_stream(stream, metadata, self.2, self.1);
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ProxyTarget {
     pub filter: DynInterfaceFilter,
     pub acme: Option<AcmeProvider>,
     pub addr: SocketAddr,
+    pub add_x_forwarded_headers: bool,
     pub connect_ssl: Result<Arc<ClientConfig>, AlpnInfo>, // Ok: yes, connect using ssl, pass through alpn; Err: connect tcp, use provided strategy for alpn
 }
 impl PartialEq for ProxyTarget {
@@ -293,11 +317,26 @@ impl PartialEq for ProxyTarget {
     }
 }
 impl Eq for ProxyTarget {}
+impl fmt::Debug for ProxyTarget {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ProxyTarget")
+            .field("filter", &self.filter)
+            .field("acme", &self.acme)
+            .field("addr", &self.addr)
+            .field("add_x_forwarded_headers", &self.add_x_forwarded_headers)
+            .field("connect_ssl", &self.connect_ssl.as_ref().map(|_| ()))
+            .finish()
+    }
+}
 
 impl<A> VHostTarget<A> for ProxyTarget
 where
     A: Accept + 'static,
-    <A as Accept>::Metadata: Visit<ExtractVisitor<GatewayInfo>> + Clone + Send + Sync,
+    <A as Accept>::Metadata: Visit<ExtractVisitor<GatewayInfo>>
+        + Visit<ExtractVisitor<TcpMetadata>>
+        + Clone
+        + Send
+        + Sync,
 {
     type PreprocessRes = AcceptStream;
     fn filter(&self, metadata: &<A as Accept>::Metadata) -> bool {
@@ -356,9 +395,32 @@ where
         }
         Some((prev, Box::pin(tcp_stream)))
     }
-    fn handle_stream(&self, mut stream: AcceptStream, mut prev: Self::PreprocessRes, rc: Weak<()>) {
+    fn handle_stream(
+        &self,
+        mut stream: AcceptStream,
+        metadata: TlsMetadata<<A as Accept>::Metadata>,
+        mut prev: Self::PreprocessRes,
+        rc: Weak<()>,
+    ) {
+        let add_x_forwarded_headers = self.add_x_forwarded_headers;
         tokio::spawn(async move {
-            WeakFuture::new(rc, tokio::io::copy_bidirectional(&mut stream, &mut prev)).await
+            WeakFuture::new(rc, async move {
+                if add_x_forwarded_headers {
+                    crate::net::http::run_http_proxy(
+                        stream,
+                        prev,
+                        metadata.tls_info.alpn,
+                        extract::<TcpMetadata, _>(&metadata.inner).map(|m| m.peer_addr.ip()),
+                    )
+                    .await
+                    .ok();
+                } else {
+                    tokio::io::copy_bidirectional(&mut stream, &mut prev)
+                        .await
+                        .ok();
+                }
+            })
+            .await
         });
     }
 }
@@ -429,7 +491,8 @@ impl<A: Accept + 'static> Clone for VHostConnector<A> {
 impl<A> WrapTlsHandler<A> for VHostConnector<A>
 where
     A: Accept + 'static,
-    <A as Accept>::Metadata: Visit<ExtractVisitor<GatewayInfo>> + Send + Sync,
+    <A as Accept>::Metadata:
+        Visit<ExtractVisitor<GatewayInfo>> + Visit<ExtractVisitor<TcpMetadata>> + Send + Sync,
 {
     async fn wrap<'a>(
         &'a mut self,
@@ -559,7 +622,7 @@ where
     async fn handle_next(&mut self) -> Result<(), Error> {
         let (metadata, stream) = futures::future::poll_fn(|cx| self.poll_accept(cx)).await?;
 
-        metadata.preprocessed.finish(stream);
+        metadata.preprocessed.finish(stream, metadata.inner);
 
         Ok(())
     }
@@ -634,8 +697,8 @@ impl<A: Accept> VHostServer<A> {
                 ));
                 loop {
                     if let Err(e) = listener.handle_next().await {
-                        tracing::error!("VHostServer: failed to accept connection: {e}");
-                        tracing::debug!("{e:?}");
+                        tracing::trace!("VHostServer: failed to accept connection: {e}");
+                        tracing::trace!("{e:?}");
                     }
                 }
             })

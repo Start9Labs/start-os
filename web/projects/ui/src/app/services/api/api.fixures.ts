@@ -1395,6 +1395,7 @@ export namespace Mock {
           name: 'Color',
           required: false,
           default: null,
+          immutable: true,
         }),
         datetime: ISB.Value.datetime({
           name: 'Datetime',
@@ -1481,6 +1482,7 @@ export namespace Mock {
           description:
             '<ul><li>determines whether your node is running on testnet or mainnet</li></ul><script src="fake"></script>',
           warning: 'Chain will have to resync!',
+          immutable: true,
         }),
         'object-list': ISB.Value.list(
           ISB.List.obj(
@@ -1598,6 +1600,8 @@ export namespace Mock {
             option1: 'option1',
             option2: 'option2',
             option3: 'option3',
+            option4:
+              'https://qwertyuiopasdfghjklzxcvbnmqwertyuiopasdfghjklzxcvbnm12345.onion',
           },
           disabled: ['option2'],
         })),
@@ -1610,6 +1614,7 @@ export namespace Mock {
           default: 7,
           integer: false,
           units: 'BTC',
+          placeholder: 'Is it 237?',
           min: -100,
           max: 100,
         }),

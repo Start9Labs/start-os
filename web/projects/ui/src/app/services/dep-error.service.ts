@@ -44,7 +44,7 @@ export interface DependencyErrorTaskRequired {
 
 export type DependencyErrorHealthChecksFailed = {
   type: 'healthChecksFailed'
-  check: T.NamedHealthCheckResult
+  check?: T.NamedHealthCheckResult
 }
 
 export type DependencyErrorTransitive = {
@@ -164,10 +164,10 @@ export class DepErrorService {
     }
 
     // health check failure
-    if (depStatus === 'running' && currentDep?.kind === 'running') {
+    if (currentDep?.kind === 'running') {
       for (let id of currentDep.healthChecks) {
         const check = dep.statusInfo.health[id]
-        if (check && check?.result !== 'success') {
+        if (check?.result !== 'success') {
           return {
             type: 'healthChecksFailed',
             check,

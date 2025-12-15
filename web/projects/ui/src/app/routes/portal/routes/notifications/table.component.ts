@@ -1,89 +1,85 @@
-import { TUI_IS_MOBILE } from '@taiga-ui/cdk'
 import { TuiCheckbox, TuiSkeleton } from '@taiga-ui/kit'
 import {
   ChangeDetectionStrategy,
   Component,
-  inject,
-  Input,
+  computed,
+  input,
   OnChanges,
   signal,
 } from '@angular/core'
 import { FormsModule } from '@angular/forms'
-import {
-  ServerNotification,
-  ServerNotifications,
-} from 'src/app/services/api/api.types'
+import { ServerNotification } from 'src/app/services/api/api.types'
+import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { NotificationItemComponent } from './item.component'
 import { i18nPipe } from '@start9labs/shared'
 
 @Component({
-  selector: 'table[notifications]',
+  selector: '[notifications]',
   template: `
-    <thead>
-      <tr>
-        <th [style.width.rem]="1.5">
+    <table [appTable]="['Title', 'Service', 'Message']">
+      <th [style.text-indent.rem]="1.75">
+        <input
+          tuiCheckbox
+          size="s"
+          type="checkbox"
+          [disabled]="!notifications()"
+          [ngModel]="all()"
+          (ngModelChange)="selected.set(($event && notifications()) || [])"
+        />
+        {{ 'Date' | i18n }}
+      </th>
+      @for (not of notifications(); track not) {
+        <tr
+          [notificationItem]="not"
+          (longtap)="!selected().length && onToggle(not)"
+          (click)="
+            selected().length &&
+              $any($event.target).closest('tui-root._mobile') &&
+              onToggle(not)
+          "
+        >
           <input
             tuiCheckbox
             size="s"
             type="checkbox"
-            [style.display]="'block'"
-            [disabled]="!notifications?.length"
-            [ngModel]="all"
-            (ngModelChange)="onAll($event)"
+            [ngModel]="selected().includes(not)"
+            (ngModelChange)="onToggle(not)"
           />
-        </th>
-        <th [style.min-width.rem]="12">{{ 'Date' | i18n }}</th>
-        <th [style.min-width.rem]="14">{{ 'Title' | i18n }}</th>
-        <th [style.min-width.rem]="8">{{ 'Service' | i18n }}</th>
-        <th>{{ 'Message' | i18n }}</th>
-      </tr>
-    </thead>
-    <tbody>
-      @if (notifications) {
-        @for (notification of notifications; track $index) {
-          <tr
-            [notificationItem]="notification"
-            (longtap)="!selected().length && onToggle(notification)"
-            (click.capture)="
-              selected().length &&
-                $any($event.target).closest('tui-root._mobile') &&
-                onToggle(notification, $event)
-            "
-          >
-            <input
-              tuiCheckbox
-              size="s"
-              type="checkbox"
-              [style.display]="'block'"
-              [ngModel]="selected().includes(notification)"
-              (ngModelChange)="onToggle(notification)"
-              (click.stop)="(0)"
-            />
-          </tr>
-        } @empty {
+        </tr>
+      } @empty {
+        @if (notifications()) {
           <tr>
-            <td colspan="5">{{ 'No notifications' | i18n }}</td>
+            <td colspan="4">{{ 'No notifications' | i18n }}</td>
           </tr>
-        }
-      } @else {
-        @for (row of ['', '']; track $index) {
-          <tr>
-            <td colspan="5">
-              <div [tuiSkeleton]="true">{{ 'Loading' | i18n }}</div>
-            </td>
-          </tr>
+        } @else {
+          @for (i of ['', '']; track $index) {
+            <tr>
+              <td colspan="4">
+                <div [tuiSkeleton]="true">{{ 'Loading' | i18n }}</div>
+              </td>
+            </tr>
+          }
         }
       }
-    </tbody>
+    </table>
   `,
   styles: `
-    :host-context(tui-root._mobile) {
-      margin: 0 -1rem;
+    input {
+      position: absolute;
+      top: 50%;
+      left: 0.75rem;
+      transform: translateY(-50%);
+    }
 
+    td:only-child {
+      text-align: center;
+    }
+
+    :host-context(tui-root._mobile) {
       input {
         position: absolute;
-        top: 0.875rem;
-        left: 1rem;
+        top: 2.875rem;
+        left: 0;
         z-index: 1;
         pointer-events: none;
       }
@@ -100,40 +96,30 @@ import { i18nPipe } from '@start9labs/shared'
     NotificationItemComponent,
     TuiSkeleton,
     i18nPipe,
+    TableComponent,
   ],
 })
-export class NotificationsTableComponent implements OnChanges {
-  @Input() notifications?: ServerNotifications
+export class NotificationsTableComponent<T extends ServerNotification<number>>
+  implements OnChanges
+{
+  readonly notifications = input<readonly T[] | null>(null)
 
-  get all(): boolean | null {
-    if (!this.notifications?.length || !this.selected().length) {
-      return false
-    }
-
-    if (this.notifications?.length === this.selected().length) {
-      return true
-    }
-
-    return null
-  }
-
-  readonly selected = signal<ServerNotifications>([])
+  readonly selected = signal<readonly T[]>([])
+  readonly all = computed(
+    () =>
+      !!this.selected()?.length &&
+      (this.selected().length === this.notifications()?.length || null),
+  )
 
   ngOnChanges() {
     this.selected.set([])
   }
 
-  onAll(selected: boolean) {
-    this.selected.set((selected && this.notifications) || [])
-  }
-
-  onToggle(notification: ServerNotification<number>, event?: Event) {
-    event?.stopPropagation()
-
-    if (this.selected().some(s => s.id === notification.id)) {
-      this.selected.update(value => value.filter(s => s.id !== notification.id))
+  onToggle(notification: T) {
+    if (this.selected().includes(notification)) {
+      this.selected.update(selected => selected.filter(s => s !== notification))
     } else {
-      this.selected.update(value => [...value, notification])
+      this.selected.update(selected => [...selected, notification])
     }
   }
 }

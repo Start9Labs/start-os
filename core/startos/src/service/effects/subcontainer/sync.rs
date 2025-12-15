@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command as StdCommand, Stdio};
 use std::sync::Arc;
 
+use nix::errno::Errno;
 use nix::sched::CloneFlags;
 use nix::unistd::Pid;
 use signal_hook::consts::signal::*;
@@ -134,6 +135,80 @@ impl ExecParams {
                 ErrorKind::InvalidRequest,
             ));
         };
+
+        let mut cmd = StdCommand::new(command);
+
+        let passwd = std::fs::read_to_string(chroot.join("etc/passwd"))
+            .with_ctx(|_| (ErrorKind::Filesystem, "read /etc/passwd"))
+            .log_err()
+            .unwrap_or_default();
+        let mut home = None;
+
+        if let Some((uid, gid)) =
+            if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
+                Some((uid, uid))
+            } else if let Some((uid, gid)) = user
+                .as_deref()
+                .and_then(|u| u.split_once(":"))
+                .and_then(|(u, g)| Some((u.parse::<u32>().ok()?, g.parse::<u32>().ok()?)))
+            {
+                Some((uid, gid))
+            } else if let Some(user) = user {
+                Some(
+                    if let Some((uid, gid)) = passwd.lines().find_map(|l| {
+                        let l = l.trim();
+                        let mut split = l.split(":");
+                        if user != split.next()? {
+                            return None;
+                        }
+
+                        split.next(); // throw away x
+                        let uid = split.next()?.parse().ok()?;
+                        let gid = split.next()?.parse().ok()?;
+                        split.next(); // throw away group name
+
+                        home = split.next();
+
+                        Some((uid, gid))
+                        // uid gid
+                    }) {
+                        (uid, gid)
+                    } else if user == "root" {
+                        (0, 0)
+                    } else {
+                        None.or_not_found(lazy_format!("{user} in /etc/passwd"))?
+                    },
+                )
+            } else {
+                None
+            }
+        {
+            if home.is_none() {
+                home = passwd.lines().find_map(|l| {
+                    let l = l.trim();
+                    let mut split = l.split(":");
+
+                    split.next(); // throw away user name
+                    split.next(); // throw away x
+                    if split.next()?.parse::<u32>().ok()? != uid {
+                        return None;
+                    }
+                    split.next(); // throw away gid
+                    split.next(); // throw away group name
+
+                    split.next()
+                })
+            };
+            std::os::unix::fs::chown("/proc/self/fd/0", Some(uid), Some(gid)).log_err();
+            std::os::unix::fs::chown("/proc/self/fd/1", Some(uid), Some(gid)).log_err();
+            std::os::unix::fs::chown("/proc/self/fd/2", Some(uid), Some(gid)).log_err();
+            cmd.uid(uid);
+            cmd.gid(gid);
+        } else {
+            home = Some("/root");
+        }
+        cmd.env("HOME", home.unwrap_or("/"));
+
         let env_string = if let Some(env_file) = &env_file {
             std::fs::read_to_string(env_file)
                 .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("read {env:?}")))?
@@ -148,45 +223,11 @@ impl ExecParams {
             .collect::<BTreeMap<_, _>>();
         std::os::unix::fs::chroot(chroot)
             .with_ctx(|_| (ErrorKind::Filesystem, lazy_format!("chroot {chroot:?}")))?;
-        let mut cmd = StdCommand::new(command);
         cmd.args(args);
         for (k, v) in env {
             cmd.env(k, v);
         }
 
-        if let Some((uid, gid)) =
-            if let Some(uid) = user.as_deref().and_then(|u| u.parse::<u32>().ok()) {
-                Some((uid, uid))
-            } else if let Some(user) = user {
-                let passwd = std::fs::read_to_string("/etc/passwd")
-                    .with_ctx(|_| (ErrorKind::Filesystem, "read /etc/passwd"));
-                Some(if passwd.is_err() && user == "root" {
-                    (0, 0)
-                } else {
-                    let (uid, gid) = passwd?
-                        .lines()
-                        .find_map(|l| {
-                            let mut split = l.trim().split(":");
-                            if user != split.next()? {
-                                return None;
-                            }
-                            split.next(); // throw away x
-                            Some((split.next()?.parse().ok()?, split.next()?.parse().ok()?))
-                            // uid gid
-                        })
-                        .or_not_found(lazy_format!("{user} in /etc/passwd"))?;
-                    (uid, gid)
-                })
-            } else {
-                None
-            }
-        {
-            std::os::unix::fs::chown("/proc/self/fd/0", Some(uid), Some(gid)).log_err();
-            std::os::unix::fs::chown("/proc/self/fd/1", Some(uid), Some(gid)).log_err();
-            std::os::unix::fs::chown("/proc/self/fd/2", Some(uid), Some(gid)).log_err();
-            cmd.uid(uid);
-            cmd.gid(gid);
-        }
         if let Some(workdir) = workdir {
             cmd.current_dir(workdir);
         } else {
@@ -218,11 +259,14 @@ pub fn launch(
     std::thread::spawn(move || {
         if let Ok(pid) = recv_pid.blocking_recv() {
             for sig in sig.forever() {
-                nix::sys::signal::kill(
+                match nix::sys::signal::kill(
                     Pid::from_raw(pid),
                     Some(nix::sys::signal::Signal::try_from(sig).unwrap()),
-                )
-                .unwrap();
+                ) {
+                    Err(Errno::ESRCH) => Ok(()),
+                    a => a,
+                }
+                .unwrap()
             }
         }
     });
@@ -322,9 +366,9 @@ pub fn launch(
         send_pid.send(child.id() as i32).unwrap_or_default();
         if let Some(pty_size) = pty_size {
             let size = if let Some((x, y)) = pty_size.pixels {
-                ::pty_process::Size::new_with_pixel(pty_size.size.0, pty_size.size.1, x, y)
+                ::pty_process::Size::new_with_pixel(pty_size.rows, pty_size.cols, x, y)
             } else {
-                ::pty_process::Size::new(pty_size.size.0, pty_size.size.1)
+                ::pty_process::Size::new(pty_size.rows, pty_size.cols)
             };
             pty.resize(size).with_kind(ErrorKind::Filesystem)?;
         }
@@ -579,9 +623,9 @@ pub fn exec(
         send_pid.send(child.id() as i32).unwrap_or_default();
         if let Some(pty_size) = pty_size {
             let size = if let Some((x, y)) = pty_size.pixels {
-                ::pty_process::Size::new_with_pixel(pty_size.size.0, pty_size.size.1, x, y)
+                ::pty_process::Size::new_with_pixel(pty_size.rows, pty_size.cols, x, y)
             } else {
-                ::pty_process::Size::new(pty_size.size.0, pty_size.size.1)
+                ::pty_process::Size::new(pty_size.rows, pty_size.cols)
             };
             pty.resize(size).with_kind(ErrorKind::Filesystem)?;
         }

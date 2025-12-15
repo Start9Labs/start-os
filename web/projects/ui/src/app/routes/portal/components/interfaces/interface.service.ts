@@ -7,9 +7,9 @@ import { i18nKey, i18nPipe } from '@start9labs/shared'
 
 type AddressWithInfo = {
   url: string
-  ssl: boolean
   info: T.HostnameInfo
   gateway?: GatewayPlus
+  showSsl: boolean
 }
 
 function cmpWithRankedPredicates<T extends AddressWithInfo>(
@@ -30,10 +30,7 @@ function filterTor(a: AddressWithInfo): a is TorAddress {
   return a.info.kind === 'onion'
 }
 function cmpTor(a: TorAddress, b: TorAddress): -1 | 0 | 1 {
-  for (let [x, y, sign] of [[a, b, 1] as const, [b, a, -1] as const]) {
-    if (y.url.startsWith('http:') && x.url.startsWith('https:')) return sign
-  }
-  return 0
+  return cmpWithRankedPredicates(a, b, [x => !x.showSsl])
 }
 
 type LanAddress = AddressWithInfo & { info: { kind: 'ip'; public: false } }
@@ -146,10 +143,15 @@ export class InterfaceService {
             : undefined
         const res = []
         if (url) {
-          res.push({ url, ssl: false, info, gateway })
+          res.push({ url, info, gateway, showSsl: false })
         }
         if (sslUrl) {
-          res.push({ url: sslUrl, ssl: true, info, gateway })
+          res.push({
+            url: sslUrl,
+            info,
+            gateway,
+            showSsl: !!url,
+          })
         }
         return res
       },
@@ -326,7 +328,7 @@ export class InterfaceService {
   }
 
   private toDisplayAddress(
-    { info, ssl, url, gateway }: AddressWithInfo,
+    { info, url, gateway, showSsl }: AddressWithInfo,
     publicDomains: Record<string, T.PublicDomainConfig>,
   ): DisplayAddress {
     let access: DisplayAddress['access']
@@ -351,15 +353,8 @@ export class InterfaceService {
         this.i18n.transform('Requires using a Tor-enabled device or browser'),
       ]
       // Tor (SSL)
-      if (ssl) {
-        type = `${type} (SSL)`
-        bullets = [
-          this.i18n.transform(
-            'Not recommended in most cases. Only needed for apps that enforce HTTPS',
-          ),
-          rootCaRequired,
-          ...bullets,
-        ]
+      if (showSsl) {
+        bullets = [rootCaRequired, ...bullets]
         // Tor (NON-SSL)
       } else {
         bullets.unshift(
@@ -498,6 +493,14 @@ export class InterfaceService {
           }
         }
       }
+    }
+
+    if (showSsl) {
+      type = `${type} (SSL)`
+
+      bullets.unshift(
+        this.i18n.transform('Should only needed for apps that enforce SSL'),
+      )
     }
 
     return {

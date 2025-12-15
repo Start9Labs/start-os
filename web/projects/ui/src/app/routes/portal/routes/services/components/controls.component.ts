@@ -3,17 +3,21 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  DOCUMENT,
   inject,
   input,
 } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
-import { TuiButton } from '@taiga-ui/core'
+import { T } from '@start9labs/start-sdk'
+import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
+import { TuiChevron } from '@taiga-ui/kit'
 import { map } from 'rxjs'
 import { ControlsService } from 'src/app/services/controls.service'
 import { DepErrorService } from 'src/app/services/dep-error.service'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import { PrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getManifest } from 'src/app/utils/get-package-data'
+import { InterfaceService } from '../../../components/interfaces/interface.service'
 
 @Component({
   selector: 'service-controls',
@@ -27,16 +31,55 @@ import { getManifest } from 'src/app/utils/get-package-data'
       >
         {{ 'Stop' | i18n }}
       </button>
-    }
 
-    @if (status() === 'running') {
-      <button
-        tuiButton
-        iconStart="@tui.rotate-cw"
-        (click)="controls.restart(manifest())"
-      >
-        {{ 'Restart' | i18n }}
-      </button>
+      @if (status() === 'running') {
+        <button
+          tuiButton
+          iconStart="@tui.rotate-cw"
+          (click)="controls.restart(manifest())"
+        >
+          {{ 'Restart' | i18n }}
+        </button>
+
+        @if (interfaces().length > 1) {
+          <button
+            tuiButton
+            appearance="primary-grayscale"
+            iconStart="@tui.external-link"
+            tuiChevron
+            tuiDropdownOpen
+            tuiDropdownLimitWidth="fixed"
+            [tuiDropdown]="content"
+          >
+            {{ 'Open UI' | i18n }}
+          </button>
+          <ng-template #content>
+            <tui-data-list>
+              @for (i of interfaces(); track $index) {
+                <a
+                  tuiOption
+                  new
+                  target="_blank"
+                  rel="noreferrer"
+                  iconEnd="@tui.external-link"
+                  [attr.href]="getHref(i)"
+                >
+                  {{ i.name }}
+                </a>
+              }
+            </tui-data-list>
+          </ng-template>
+        } @else if (interfaces()[0]) {
+          <button
+            tuiButton
+            appearance="primary-grayscale"
+            iconStart="@tui.external-link"
+            (click)="openUI(interfaces()[0]!)"
+          >
+            {{ 'Open UI' | i18n }}
+          </button>
+        }
+      }
     }
 
     @if (status() === 'stopped') {
@@ -82,10 +125,19 @@ import { getManifest } from 'src/app/utils/get-package-data'
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiButton, i18nPipe, AsyncPipe],
+  imports: [
+    TuiButton,
+    i18nPipe,
+    AsyncPipe,
+    TuiDataList,
+    TuiDropdown,
+    TuiChevron,
+  ],
 })
 export class ServiceControlsComponent {
   private readonly errors = inject(DepErrorService)
+  private readonly interfaceService = inject(InterfaceService)
+  private readonly document = inject(DOCUMENT)
 
   readonly pkg = input.required<PackageDataEntry>()
   readonly status = input<PrimaryStatus>()
@@ -101,4 +153,23 @@ export class ServiceControlsComponent {
       ),
     ),
   )
+
+  readonly interfaces = computed(() =>
+    Object.values(this.pkg().serviceInterfaces).filter(
+      i =>
+        i.type === 'ui' &&
+        (i.addressInfo.scheme === 'http' ||
+          i.addressInfo.sslScheme === 'https'),
+    ),
+  )
+
+  getHref(ui: T.ServiceInterface): string {
+    const host = this.pkg().hosts[ui.addressInfo.hostId]
+    if (!host) return ''
+    return this.interfaceService.launchableAddress(ui, host)
+  }
+
+  openUI(ui: T.ServiceInterface) {
+    this.document.defaultView?.open(this.getHref(ui), '_blank', 'noreferrer')
+  }
 }

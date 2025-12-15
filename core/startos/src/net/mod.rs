@@ -5,6 +5,7 @@ pub mod dns;
 pub mod forward;
 pub mod gateway;
 pub mod host;
+pub mod http;
 pub mod keys;
 pub mod mdns;
 pub mod net_controller;

@@ -20,7 +20,7 @@ use ts_rs::TS;
 use crate::context::RpcContext;
 use crate::disk::mount::filesystem::bind::Bind;
 use crate::disk::mount::filesystem::block_dev::BlockDev;
-use crate::disk::mount::filesystem::idmapped::IdMapped;
+use crate::disk::mount::filesystem::idmapped::{IdMap, IdMapped};
 use crate::disk::mount::filesystem::overlayfs::OverlayGuard;
 use crate::disk::mount::filesystem::{MountType, ReadOnly, ReadWrite};
 use crate::disk::mount::guard::{GenericMountGuard, MountGuard, TmpMountGuard};
@@ -185,9 +185,11 @@ impl LxcContainer {
             TmpMountGuard::mount(
                 &IdMapped::new(
                     BlockDev::new("/usr/lib/startos/container-runtime/rootfs.squashfs"),
-                    0,
-                    100000,
-                    65536,
+                    vec![IdMap {
+                        from_id: 0,
+                        to_id: 100000,
+                        range: 65536,
+                    }],
                 ),
                 ReadOnly,
             )

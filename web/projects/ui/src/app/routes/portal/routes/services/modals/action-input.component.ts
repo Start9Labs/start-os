@@ -27,7 +27,7 @@ import { TaskInfoComponent } from 'src/app/routes/portal/modals/config-dep.compo
 import { ActionService } from 'src/app/services/action.service'
 import { ApiService } from 'src/app/services/api/embassy-api.service'
 import { DataModel } from 'src/app/services/patch-db/data-model'
-import { BaseStatus } from 'src/app/services/pkg-status-rendering.service'
+import { PrimaryStatus } from 'src/app/services/pkg-status-rendering.service'
 import { getAllPackages, getManifest } from 'src/app/utils/get-package-data'
 
 export type PackageActionData = {
@@ -35,7 +35,7 @@ export type PackageActionData = {
     id: string
     title: string
     icon: string
-    status: BaseStatus
+    status: PrimaryStatus
   }
   actionInfo: {
     id: string
@@ -152,6 +152,7 @@ export class ActionInputModal {
     }),
   ).pipe(
     map(res => {
+      console.warn('MAP', res)
       const originalValue = res.value || {}
       this.eventId = res.eventId
 
@@ -170,6 +171,7 @@ export class ActionInputModal {
       }
     }),
     catchError(e => {
+      console.error('catchError', e)
       this.error = String(getErrorMessage(e))
       return EMPTY
     }),

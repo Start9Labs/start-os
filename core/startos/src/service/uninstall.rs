@@ -3,6 +3,7 @@ use std::path::Path;
 use models::PackageId;
 
 use crate::context::RpcContext;
+use crate::db::model::package::{InstalledState, InstallingInfo, InstallingState, PackageState};
 use crate::prelude::*;
 use crate::volume::PKG_VOLUME_DIR;
 use crate::{DATA_DIR, PACKAGE_DATA};
@@ -43,18 +44,37 @@ pub async fn cleanup(ctx: &RpcContext, id: &PackageId, soft: bool) -> Result<(),
             .await
             .result?
         {
-            let state = pde.state_info.expect_removing()?;
+            let manifest = match pde.state_info {
+                PackageState::Installing(InstallingState {
+                    installing_info:
+                        InstallingInfo {
+                            new_manifest: manifest,
+                            ..
+                        },
+                })
+                | PackageState::Restoring(InstallingState {
+                    installing_info:
+                        InstallingInfo {
+                            new_manifest: manifest,
+                            ..
+                        },
+                })
+                | PackageState::Removing(InstalledState { manifest }) => manifest,
+                s => {
+                    return Err(Error::new(
+                        eyre!("Invalid package state for cleanup: {s:?}"),
+                        ErrorKind::InvalidRequest,
+                    ));
+                }
+            };
             if !soft {
-                let path = Path::new(DATA_DIR)
-                    .join(PKG_VOLUME_DIR)
-                    .join(&state.manifest.id);
+                let path = Path::new(DATA_DIR).join(PKG_VOLUME_DIR).join(&manifest.id);
                 if tokio::fs::metadata(&path).await.is_ok() {
                     tokio::fs::remove_dir_all(&path).await?;
                 }
-                let logs_dir = Path::new(PACKAGE_DATA)
-                    .join("logs")
-                    .join(&state.manifest.id);
+                let logs_dir = Path::new(PACKAGE_DATA).join("logs").join(&manifest.id);
                 if tokio::fs::metadata(&logs_dir).await.is_ok() {
+                    #[cfg(not(feature = "dev"))]
                     tokio::fs::remove_dir_all(&logs_dir).await?;
                 }
             }

@@ -11,14 +11,14 @@ use crate::service::effects::prelude::*;
 use crate::service::persistent_container::Subcontainer;
 use crate::util::Invoke;
 
-#[cfg(any(feature = "cli-container", feature = "startd"))]
+#[cfg(all(feature = "pty-process", feature = "procfs"))]
 mod sync;
 
-#[cfg(not(any(feature = "cli-container", feature = "startd")))]
+#[cfg(not(all(feature = "pty-process", feature = "procfs")))]
 mod sync_dummy;
 
 pub use sync::*;
-#[cfg(not(any(feature = "cli-container", feature = "startd")))]
+#[cfg(not(all(feature = "pty-process", feature = "procfs")))]
 use sync_dummy as sync;
 
 #[derive(Debug, Deserialize, Serialize, Parser, TS)]
@@ -41,7 +41,7 @@ pub async fn destroy_subcontainer_fs(
         .await
         .remove(&guid)
     {
-        #[cfg(feature = "startd")]
+        #[cfg(all(feature = "pty-process", feature = "procfs"))]
         if tokio::fs::metadata(overlay.overlay.path().join("proc/1"))
             .await
             .is_ok()

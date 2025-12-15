@@ -548,7 +548,7 @@ export const ENGLISH = {
   'Connections can be slow or unreliable at times': 584,
   'Public if you share the address publicly, otherwise private': 585,
   'Requires using a Tor-enabled device or browser': 586,
-  'Not recommended in most cases. Only needed for apps that enforce HTTPS': 587,
+  'Should only needed for apps that enforce SSL': 587,
   'Ideal for anonymous, censorship-resistant hosting and remote access': 588,
   'Ideal for local access': 589,
   'Requires being connected to the same Local Area Network (LAN) as your server, either physically or via VPN': 590,
@@ -588,4 +588,5 @@ export const ENGLISH = {
   'Versions': 624,
   'Select another version': 625,
   'Upload': 626, // as in, upload a file
+  'Open UI': 627, // as in, upload a file
 } as const

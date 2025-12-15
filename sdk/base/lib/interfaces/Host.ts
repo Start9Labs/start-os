@@ -137,7 +137,7 @@ export class MultiHost {
     const sslProto = this.getSslProto(options)
     const addSsl = sslProto
       ? {
-          // addXForwardedHeaders: null,
+          addXForwardedHeaders: false,
           preferredExternalPort: knownProtocols[sslProto].defaultPort,
           scheme: sslProto,
           alpn: "alpn" in protoInfo ? protoInfo.alpn : null,
@@ -145,7 +145,7 @@ export class MultiHost {
         }
       : options.addSsl
         ? {
-            // addXForwardedHeaders: null,
+            addXForwardedHeaders: false,
             preferredExternalPort: 443,
             scheme: sslProto,
             alpn: null,

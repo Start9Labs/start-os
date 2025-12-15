@@ -27,7 +27,7 @@ use crate::tunnel::auth::SetPasswordParams;
 use crate::tunnel::context::TunnelContext;
 use crate::tunnel::db::TunnelDatabase;
 use crate::util::serde::{HandlerExtSerde, Pem, display_serializable};
-use crate::util::tui::{choose, choose_custom_display, parse_as, prompt, prompt_multiline};
+use crate::util::tui::{choose, parse_as, prompt, prompt_multiline};
 
 #[derive(Debug, Default, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]

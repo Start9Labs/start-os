@@ -54,6 +54,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   async term(termOptions?: {
     signal?: NodeJS.Signals | undefined
     timeout?: number | undefined
+    destroySubcontainer?: boolean
   }) {
     this.healthWatchers = []
     this.running = false
@@ -87,7 +88,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
       this.started = performance.now()
     } else {
       console.debug(`Stopping ${this.id}...`)
-      ;(await this.daemon)?.stop()
+      ;(await this.daemon)?.term()
       this.turnOffHealthCheck()
 
       this.setHealth({ result: "starting", message: null })
@@ -143,7 +144,6 @@ export class HealthDaemon<Manifest extends SDKManifest> {
         const response: HealthCheckResult = await Promise.resolve(
           this.ready.fn(),
         ).catch((err) => {
-          console.error(asError(err))
           return {
             result: "failure",
             message: "message" in err ? err.message : String(err),
@@ -188,6 +188,9 @@ export class HealthDaemon<Manifest extends SDKManifest> {
       performance.now() - this.started <= (this.ready.gracePeriod ?? 10_000)
     )
       result = "starting"
+    if (result === "failure") {
+      console.error(`Health Check ${this.id} failed:`, health.message)
+    }
     await this.effects.setHealth({
       ...health,
       id: this.id,

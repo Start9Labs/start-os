@@ -408,9 +408,10 @@ impl Resolver {
             a => a,
         };
         self.resolve.peek(|r| {
-            if r.private_domains
-                .get(&*name.to_lowercase().to_utf8().trim_end_matches('.'))
-                .map_or(false, |d| d.strong_count() > 0)
+            if !src.is_loopback()
+                && r.private_domains
+                    .get(&*name.to_lowercase().to_utf8().trim_end_matches('.'))
+                    .map_or(false, |d| d.strong_count() > 0)
             {
                 if let Some(res) = self.net_iface.peek(|i| {
                     i.values()
@@ -429,8 +430,9 @@ impl Resolver {
             }
             if STARTOS.zone_of(name) || EMBASSY.zone_of(name) {
                 let Ok(pkg) = name
-                    .trim_to(2)
                     .iter()
+                    .rev()
+                    .skip(1)
                     .next()
                     .map(std::str::from_utf8)
                     .transpose()

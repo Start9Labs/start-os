@@ -55,7 +55,7 @@ export type ExecCommandOptions = {
   runAsInit?: boolean
   env?:
     | {
-        [variable: string]: string
+        [variable in string]?: string
       }
     | undefined
   cwd?: string | undefined
@@ -412,43 +412,39 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
   }
 
   async term() {
-    try {
-      const remaining = new Set(this.healthDaemons)
+    const remaining = new Set(this.healthDaemons)
 
-      while (remaining.size > 0) {
-        // Find daemons with no remaining dependents
-        const canShutdown = [...remaining].filter(
-          (daemon) =>
-            ![...remaining].some((other) =>
-              other.dependencies.some((dep) => dep.id === daemon.id),
-            ),
+    while (remaining.size > 0) {
+      // Find daemons with no remaining dependents
+      const canShutdown = [...remaining].filter(
+        (daemon) =>
+          ![...remaining].some((other) =>
+            other.dependencies.some((dep) => dep.id === daemon.id),
+          ),
+      )
+
+      if (canShutdown.length === 0) {
+        // Dependency cycle that should not happen, just shutdown remaining daemons
+        console.warn(
+          "Dependency cycle detected, shutting down remaining daemons",
         )
-
-        if (canShutdown.length === 0) {
-          // Dependency cycle that should not happen, just shutdown remaining daemons
-          console.warn(
-            "Dependency cycle detected, shutting down remaining daemons",
-          )
-          canShutdown.push(...[...remaining].reverse())
-        }
-
-        // remove from remaining set
-        canShutdown.forEach((daemon) => remaining.delete(daemon))
-
-        // Shutdown daemons with no remaining dependents concurrently
-        await Promise.allSettled(
-          canShutdown.map(async (daemon) => {
-            try {
-              console.debug(`Terminating daemon ${daemon.id}`)
-              await daemon.term()
-            } catch (e) {
-              console.error(e)
-            }
-          }),
-        )
+        canShutdown.push(...[...remaining].reverse())
       }
-    } finally {
-      this.effects.setMainStatus({ status: "stopped" })
+
+      // remove from remaining set
+      canShutdown.forEach((daemon) => remaining.delete(daemon))
+
+      // Shutdown daemons with no remaining dependents concurrently
+      await Promise.allSettled(
+        canShutdown.map(async (daemon) => {
+          try {
+            console.debug(`Terminating daemon ${daemon.id}`)
+            await daemon.term({ destroySubcontainer: true })
+          } catch (e) {
+            console.error(e)
+          }
+        }),
+      )
     }
   }
 

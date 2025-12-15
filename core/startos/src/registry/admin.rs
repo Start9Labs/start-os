@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use clap::Parser;
+use exver::VersionRange;
 use itertools::Itertools;
 use rpc_toolkit::{Context, HandlerArgs, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
@@ -156,6 +157,37 @@ pub fn display_signers<T>(
             &info.name,
             &info.contact.into_iter().join("\n"),
             &info.keys.into_iter().join("\n"),
+        ]);
+    }
+    table.print_tty(false)?;
+    Ok(())
+}
+
+pub fn display_package_signers<T>(
+    params: WithIoFormat<T>,
+    signers: BTreeMap<Guid, (SignerInfo, VersionRange)>,
+) -> Result<(), Error> {
+    use prettytable::*;
+
+    if let Some(format) = params.format {
+        return display_serializable(format, signers);
+    }
+
+    let mut table = Table::new();
+    table.add_row(row![bc =>
+        "ID",
+        "NAME",
+        "CONTACT",
+        "KEYS",
+        "AUTHORIZED VERSIONS"
+    ]);
+    for (id, (info, versions)) in signers {
+        table.add_row(row![
+            id.as_ref(),
+            &info.name,
+            &info.contact.into_iter().join("\n"),
+            &info.keys.into_iter().join("\n"),
+            &versions.to_string()
         ]);
     }
     table.print_tty(false)?;

@@ -36,7 +36,26 @@ impl ServiceActorSeed {
     pub fn stop(&self) -> Transition<'_> {
         Transition {
             kind: TransitionKind::Stopping,
-            future: self.persistent_container.stop().boxed(),
+            future: async {
+                self.persistent_container.stop().await?;
+                let id = &self.id;
+                self.ctx
+                    .db
+                    .mutate(|db| {
+                        db.as_public_mut()
+                            .as_package_data_mut()
+                            .as_idx_mut(id)
+                            .or_not_found(id)?
+                            .as_status_info_mut()
+                            .as_started_mut()
+                            .ser(&None)
+                    })
+                    .await
+                    .result?;
+
+                Ok(())
+            }
+            .boxed(),
         }
     }
 }

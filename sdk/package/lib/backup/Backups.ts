@@ -208,13 +208,20 @@ async function runRsync(rsyncOptions: {
     const lines = String(data).replace("\r", "\n").split("\n")
     for (const line of lines) {
       const parsed = /$([0-9.]+)%/.exec(line)?.[1]
-      if (!parsed) continue
+      if (!parsed) {
+        console.log(parsed)
+        continue
+      }
       percentage = Number.parseFloat(parsed)
     }
   })
 
-  spawned.stderr.on("data", (data: unknown) => {
-    console.error(`Backups.runAsync`, asError(data))
+  let stderr = ""
+
+  spawned.stderr.on("data", (data: string | Buffer) => {
+    const errString = data.toString("utf-8")
+    stderr += errString
+    console.error(`Backups.runAsync`, asError(errString))
   })
 
   const id = async () => {
@@ -229,7 +236,7 @@ async function runRsync(rsyncOptions: {
       if (code === 0) {
         resolve(null)
       } else {
-        reject(new Error(`rsync exited with code ${code}`))
+        reject(new Error(`rsync exited with code ${code}\n${stderr}`))
       }
     })
   })

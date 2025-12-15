@@ -24,6 +24,7 @@ use crate::middleware::signature::SignatureAuthContext;
 use crate::prelude::*;
 use crate::registry::RegistryDatabase;
 use crate::registry::device_info::{DEVICE_INFO_HEADER, DeviceInfo};
+use crate::registry::migrations::run_migrations;
 use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::RpcContinuations;
 use crate::sign::AnyVerifyingKey;
@@ -98,9 +99,10 @@ impl RegistryContext {
         let db_path = datadir.join("registry.db");
         let db = TypedPatchDb::<RegistryDatabase>::load_or_init(
             PatchDb::open(&db_path).await?,
-            || async { Ok(Default::default()) },
+            || async { Ok(RegistryDatabase::init()) },
         )
         .await?;
+        db.mutate(|db| run_migrations(db)).await.result?;
         let tor_proxy_url = config
             .tor_proxy
             .clone()

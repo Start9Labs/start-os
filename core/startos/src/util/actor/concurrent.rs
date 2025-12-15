@@ -92,7 +92,6 @@ impl<A: Actor + Clone> Future for ConcurrentRunner<A> {
                 #[allow(clippy::let_underscore_future)]
                 let (_, _, f, reply, _) = this.handlers.swap_remove(idx);
                 reply.send(res).ok();
-                // TODO: replace with Vec::extract_if once stable
                 if this.shutdown.is_some() {
                     let mut i = 0;
                     while i < this.waiting.len() {

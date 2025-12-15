@@ -19,6 +19,11 @@ pub enum FileType {
     Directory,
     Infer,
 }
+impl Default for FileType {
+    fn default() -> Self {
+        FileType::Directory
+    }
+}
 
 pub struct Bind<Src: AsRef<Path>> {
     src: Src,

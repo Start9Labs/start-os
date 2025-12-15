@@ -7,6 +7,12 @@ const getDependencies: AllGetDependencies = {
   system: getSystem,
 }
 
+for (let s of ["SIGTERM", "SIGINT", "SIGHUP"]) {
+  process.on(s, (s) => {
+    console.log(`Caught ${s}`)
+  })
+}
+
 new RpcListener(getDependencies)
 
 /**

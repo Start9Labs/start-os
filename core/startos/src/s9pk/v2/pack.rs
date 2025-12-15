@@ -151,6 +151,8 @@ pub struct PackParams {
     pub assets: Option<PathBuf>,
     #[arg(long, conflicts_with = "assets")]
     pub no_assets: bool,
+    #[arg(long, help = "Architecture Mask")]
+    pub arch: Vec<InternedString>,
 }
 impl PackParams {
     fn path(&self) -> &Path {
@@ -416,8 +418,6 @@ impl ImageSource {
                         "--platform=linux/amd64".to_owned()
                     } else if arch == "aarch64" {
                         "--platform=linux/arm64".to_owned()
-                    } else if arch == "riscv64" {
-                        "--platform=linux/riscv64".to_owned()
                     } else {
                         format!("--platform=linux/{arch}")
                     };
@@ -480,43 +480,29 @@ impl ImageSource {
                         "--platform=linux/amd64".to_owned()
                     } else if arch == "aarch64" {
                         "--platform=linux/arm64".to_owned()
-                    } else if arch == "riscv64" {
-                        "--platform=linux/riscv64".to_owned()
                     } else {
                         format!("--platform=linux/{arch}")
                     };
-                    let mut inspect_cmd = Command::new(CONTAINER_TOOL);
-                    inspect_cmd
-                        .arg("image")
-                        .arg("inspect")
-                        .arg("--format")
-                        .arg("{{json .Config}}")
-                        .arg(&tag);
-                    let inspect_res = match inspect_cmd.invoke(ErrorKind::Docker).await {
-                        Ok(a) => a,
-                        Err(e)
-                            if {
-                                let msg = e.source.to_string();
-                                #[cfg(feature = "docker")]
-                                let matches = msg.contains("No such image:");
-                                #[cfg(not(feature = "docker"))]
-                                let matches = msg.contains(": image not known");
-                                matches
-                            } =>
-                        {
-                            Command::new(CONTAINER_TOOL)
-                                .arg("pull")
-                                .arg(&docker_platform)
-                                .arg(tag)
-                                .capture(false)
-                                .invoke(ErrorKind::Docker)
-                                .await?;
-                            inspect_cmd.invoke(ErrorKind::Docker).await?
-                        }
-                        Err(e) => return Err(e),
-                    };
-                    let config = serde_json::from_slice::<DockerImageConfig>(&inspect_res)
-                        .with_kind(ErrorKind::Deserialization)?;
+                    let container = String::from_utf8(
+                        Command::new(CONTAINER_TOOL)
+                            .arg("create")
+                            .arg(&docker_platform)
+                            .arg(&tag)
+                            .invoke(ErrorKind::Docker)
+                            .await?,
+                    )?;
+                    let container = container.trim();
+                    let config = serde_json::from_slice::<DockerImageConfig>(
+                        &Command::new(CONTAINER_TOOL)
+                            .arg("container")
+                            .arg("inspect")
+                            .arg("--format")
+                            .arg("{{json .Config}}")
+                            .arg(container)
+                            .invoke(ErrorKind::Docker)
+                            .await?,
+                    )
+                    .with_kind(ErrorKind::Deserialization)?;
                     let base_path = Path::new("images").join(arch).join(image_id);
                     into.insert_path(
                         base_path.with_extension("json"),
@@ -558,25 +544,17 @@ impl ImageSource {
                     let dest = tmp_dir
                         .join(Guid::new().as_ref())
                         .with_extension("squashfs");
-                    let container = String::from_utf8(
-                        Command::new(CONTAINER_TOOL)
-                            .arg("create")
-                            .arg(&docker_platform)
-                            .arg("--entrypoint=/bin/sh")
-                            .arg(&tag)
-                            .invoke(ErrorKind::Docker)
-                            .await?,
-                    )?;
+
                     Command::new(CONTAINER_TOOL)
                         .arg("export")
-                        .arg(container.trim())
+                        .arg(container)
                         .pipe(&mut tar2sqfs(&dest)?)
                         .capture(false)
                         .invoke(ErrorKind::Docker)
                         .await?;
                     Command::new(CONTAINER_TOOL)
                         .arg("rm")
-                        .arg(container.trim())
+                        .arg(container)
                         .invoke(ErrorKind::Docker)
                         .await?;
                     into.insert_path(
@@ -686,7 +664,24 @@ pub async fn pack(ctx: CliContext, params: PackParams) -> Result<(), Error> {
     )
     .await?;
 
-    s9pk.as_manifest_mut().git_hash = Some(GitHash::from_path(params.path()).await?);
+    let manifest = s9pk.as_manifest_mut();
+    manifest.git_hash = Some(GitHash::from_path(params.path()).await?);
+    if !params.arch.is_empty() {
+        let arches = match manifest.hardware_requirements.arch.take() {
+            Some(a) => params
+                .arch
+                .iter()
+                .filter(|x| a.contains(*x))
+                .cloned()
+                .collect(),
+            None => params.arch.iter().cloned().collect(),
+        };
+        manifest
+            .images
+            .values_mut()
+            .for_each(|c| c.arch = c.arch.intersection(&arches).cloned().collect());
+        manifest.hardware_requirements.arch = Some(arches);
+    }
 
     if !params.no_assets {
         let assets_dir = params.assets();

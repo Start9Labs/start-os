@@ -298,6 +298,20 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
     required: Required
     minLength?: number | null
     maxLength?: number | null
+    /**
+     * @description A list of regular expressions to which the text must conform to pass validation. A human readable description is provided in case the validation fails.
+     * @default []
+     * @example
+     * ```
+      [
+        {
+          regex: "[a-z]",
+          description: "May only contain lower case letters from the English alphabet."
+        }
+      ]
+     * ```
+     */
+    patterns?: Pattern[]
     /** Defaults to 3 */
     minRows?: number
     /** Maximum number of rows before scroll appears. Defaults to 6 */
@@ -316,6 +330,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
         warning: null,
         minLength: null,
         maxLength: null,
+        patterns: [],
         minRows: 3,
         maxRows: 6,
         placeholder: null,
@@ -336,6 +351,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
       required: Required
       minLength?: number | null
       maxLength?: number | null
+      patterns?: Pattern[]
       minRows?: number
       maxRows?: number
       placeholder?: string | null
@@ -351,6 +367,7 @@ export class Value<Type extends StaticValidatedAs, StaticValidatedAs = Type> {
             warning: null,
             minLength: null,
             maxLength: null,
+            patterns: [],
             minRows: 3,
             maxRows: 6,
             placeholder: null,

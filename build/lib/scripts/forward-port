@@ -22,7 +22,11 @@ apply_rule() {
 }
 
 apply_rule PREROUTING -p tcp -d $sip --dport $sport -j DNAT --to-destination $dip:$dport
+apply_rule PREROUTING -p udp -d $sip --dport $sport -j DNAT --to-destination $dip:$dport
 apply_rule OUTPUT -p tcp -d $sip --dport $sport -j DNAT --to-destination $dip:$dport
+apply_rule OUTPUT -p udp -d $sip --dport $sport -j DNAT --to-destination $dip:$dport
+apply_rule POSTROUTING -p tcp -d $dip --dport $dport -j MASQUERADE
+apply_rule POSTROUTING -p udp -d $dip --dport $dport -j MASQUERADE
 
 if [ "$UNDO" = 1 ]; then
     conntrack -D -p tcp -d $sip --dport $sport || true # conntrack returns exit 1 if no connections are active

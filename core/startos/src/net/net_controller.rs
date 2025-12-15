@@ -133,9 +133,10 @@ impl NetController {
                     preferred_external_port: 80,
                     add_ssl: Some(AddSslOptions {
                         preferred_external_port: 443,
+                        add_x_forwarded_headers: false,
                         alpn: Some(AlpnInfo::Specified(vec![
-                            MaybeUtf8String("http/1.1".into()),
                             MaybeUtf8String("h2".into()),
+                            MaybeUtf8String("http/1.1".into()),
                         ])),
                     }),
                     secure: None,
@@ -283,6 +284,7 @@ impl NetServiceData {
                                 filter: bind.net.clone().into_dyn(),
                                 acme: None,
                                 addr,
+                                add_x_forwarded_headers: ssl.add_x_forwarded_headers,
                                 connect_ssl: connect_ssl
                                     .clone()
                                     .map(|_| ctrl.tls_client_config.clone()),
@@ -306,6 +308,7 @@ impl NetServiceData {
                                             .into_dyn(),
                                             acme: None,
                                             addr,
+                                            add_x_forwarded_headers: ssl.add_x_forwarded_headers,
                                             connect_ssl: connect_ssl
                                                 .clone()
                                                 .map(|_| ctrl.tls_client_config.clone()),
@@ -335,6 +338,8 @@ impl NetServiceData {
                                                     .into_dyn(),
                                                     acme: public.acme.clone(),
                                                     addr,
+                                                    add_x_forwarded_headers: ssl
+                                                        .add_x_forwarded_headers,
                                                     connect_ssl: connect_ssl
                                                         .clone()
                                                         .map(|_| ctrl.tls_client_config.clone()),
@@ -362,6 +367,8 @@ impl NetServiceData {
                                                     .into_dyn(),
                                                     acme: public.acme.clone(),
                                                     addr,
+                                                    add_x_forwarded_headers: ssl
+                                                        .add_x_forwarded_headers,
                                                     connect_ssl: connect_ssl
                                                         .clone()
                                                         .map(|_| ctrl.tls_client_config.clone()),
@@ -378,6 +385,8 @@ impl NetServiceData {
                                                     .into_dyn(),
                                                     acme: None,
                                                     addr,
+                                                    add_x_forwarded_headers: ssl
+                                                        .add_x_forwarded_headers,
                                                     connect_ssl: connect_ssl
                                                         .clone()
                                                         .map(|_| ctrl.tls_client_config.clone()),
@@ -405,6 +414,8 @@ impl NetServiceData {
                                                     .into_dyn(),
                                                     acme: public.acme.clone(),
                                                     addr,
+                                                    add_x_forwarded_headers: ssl
+                                                        .add_x_forwarded_headers,
                                                     connect_ssl: connect_ssl
                                                         .clone()
                                                         .map(|_| ctrl.tls_client_config.clone()),
@@ -421,6 +432,8 @@ impl NetServiceData {
                                                     .into_dyn(),
                                                     acme: None,
                                                     addr,
+                                                    add_x_forwarded_headers: ssl
+                                                        .add_x_forwarded_headers,
                                                     connect_ssl: connect_ssl
                                                         .clone()
                                                         .map(|_| ctrl.tls_client_config.clone()),
@@ -503,6 +516,9 @@ impl NetServiceData {
                             private,
                         } = address
                         {
+                            if public.is_none() {
+                                private_dns.insert(address.clone());
+                            }
                             let private = private && !info.public();
                             let public =
                                 public.as_ref().map_or(false, |p| &p.gateway == gateway_id);
@@ -581,7 +597,6 @@ impl NetServiceData {
                     }
                 }
                 hostname_info.insert(*port, bind_hostname_info);
-                private_dns.append(&mut hostnames);
             }
         }
 

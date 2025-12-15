@@ -1,5 +1,6 @@
 use std::convert::Infallible;
 use std::ops::{Deref, DerefMut};
+use std::path::Path;
 use std::process::Stdio;
 use std::str::FromStr;
 use std::time::{Duration, UNIX_EPOCH};
@@ -27,7 +28,6 @@ use tracing::instrument;
 
 use crate::context::{CliContext, RpcContext};
 use crate::error::ResultExt;
-use crate::lxc::ContainerId;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
 use crate::util::Invoke;
@@ -223,7 +223,7 @@ fn deserialize_log_message<'de, D: serde::de::Deserializer<'de>>(
 pub enum LogSource {
     Kernel,
     Unit(&'static str),
-    Container(ContainerId),
+    Package(PackageId),
 }
 
 pub const SYSTEM_UNIT: &str = "startd";
@@ -499,22 +499,10 @@ fn logs_follow<
 }
 
 async fn get_package_id(
-    ctx: &RpcContext,
+    _: &RpcContext,
     PackageIdParams { id }: PackageIdParams,
 ) -> Result<LogSource, Error> {
-    let container_id = ctx
-        .services
-        .get(&id)
-        .await
-        .as_ref()
-        .map(|x| x.container_id())
-        .ok_or_else(|| {
-            Error::new(
-                eyre!("No service found with id: {}", id),
-                ErrorKind::NotFound,
-            )
-        })??;
-    Ok(LogSource::Container(container_id))
+    Ok(LogSource::Package(id))
 }
 
 pub fn package_logs() -> ParentHandler<RpcContext, LogsParams<PackageIdParams>> {
@@ -596,16 +584,8 @@ pub async fn journalctl(
 }
 
 fn gen_journalctl_command(id: &LogSource) -> Command {
-    let mut cmd = match id {
-        LogSource::Container(container_id) => {
-            let mut cmd = Command::new("lxc-attach");
-            cmd.arg(format!("{}", container_id))
-                .arg("--")
-                .arg("journalctl");
-            cmd
-        }
-        _ => Command::new("journalctl"),
-    };
+    let mut cmd = Command::new("journalctl");
+
     cmd.kill_on_drop(true);
 
     cmd.arg("--output=json");
@@ -618,8 +598,11 @@ fn gen_journalctl_command(id: &LogSource) -> Command {
             cmd.arg("-u");
             cmd.arg(id);
         }
-        LogSource::Container(_container_id) => {
-            cmd.arg("-u").arg("container-runtime.service");
+        LogSource::Package(id) => {
+            cmd.arg("-u")
+                .arg("container-runtime.service")
+                .arg("-D")
+                .arg(Path::new("/media/startos/data/package-data/logs").join(id));
         }
     };
     cmd

@@ -34,7 +34,8 @@ pub struct PackageIndex {
 #[model = "Model<Self>"]
 #[ts(export)]
 pub struct PackageInfo {
-    pub authorized: BTreeSet<Guid>,
+    #[ts(as = "BTreeMap::<Guid, String>")]
+    pub authorized: BTreeMap<Guid, VersionRange>,
     pub versions: BTreeMap<VersionString, PackageVersionInfo>,
     #[ts(type = "string[]")]
     pub categories: BTreeSet<InternedString>,

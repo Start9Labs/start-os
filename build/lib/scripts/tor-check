@@ -1,36 +1,64 @@
 #!/bin/bash
 
-fail=$(printf " [\033[31m fail \033[0m]")
-pass=$(printf " [\033[32m pass \033[0m]")
+# --- Config ---
+# Colors (using printf to ensure compatibility)
+GRAY=$(printf '\033[90m')
+GREEN=$(printf '\033[32m')
+RED=$(printf '\033[31m')
+NC=$(printf '\033[0m') # No Color
 
+# Proxies to test
+proxies=(
+    "Host Tor|127.0.1.1:9050"
+    "Startd Tor|10.0.3.1:9050"
+)
+
+# Default URLs
 onion_list=(
+    "The Tor Project|http://2gzyxa5ihm7nsggfxnu52rck2vv4rvmdlkiu3zzui5du4xyclen53wid.onion"
     "Start9|http://privacy34kn4ez3y3nijweec6w4g54i3g54sdv7r5mr6soma3w4begyd.onion"
     "Mempool|http://mempoolhqx4isw62xs7abwphsq7ldayuidyx2v2oethdhhj6mlo2r6ad.onion"
     "DuckDuckGo|https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion"
     "Brave Search|https://search.brave4u7jddbv7cyviptqjc7jusxh72uik7zt6adtckl5f4nwy2v72qd.onion"
 )
 
-# Check if ~/.startos/tor-check.list exists and read its contents if available
-if [ -f ~/.startos/tor-check.list ]; then
-    while IFS= read -r line; do
-        # Check if the line starts with a #
-        if [[ ! "$line" =~ ^# ]]; then
-            onion_list+=("$line")
+# Load custom list
+[ -f ~/.startos/tor-check.list ] && readarray -t custom_list < <(grep -v '^#' ~/.startos/tor-check.list) && onion_list+=("${custom_list[@]}")
+
+# --- Functions ---
+print_line() { printf "${GRAY}────────────────────────────────────────${NC}\n"; }
+
+# --- Main ---
+echo "Testing Onion Connections..."
+
+for proxy_info in "${proxies[@]}"; do
+    proxy_name="${proxy_info%%|*}"
+    proxy_addr="${proxy_info#*|}"
+    
+    print_line
+    printf "${GRAY}Proxy: %s (%s)${NC}\n" "$proxy_name" "$proxy_addr"
+    
+    for data in "${onion_list[@]}"; do
+        name="${data%%|*}"
+        url="${data#*|}"
+        
+        # Capture verbose output + http code.
+        # --no-progress-meter: Suppresses the "0 0 0" stats but keeps -v output
+        output=$(curl -v --no-progress-meter --max-time 15 --socks5-hostname "$proxy_addr" "$url" 2>&1)
+        exit_code=$?
+        
+        if [ $exit_code -eq 0 ]; then
+            printf "  ${GREEN}[pass]${NC} %s (%s)\n" "$name" "$url"
+        else
+            printf "  ${RED}[fail]${NC} %s (%s)\n" "$name" "$url"
+            printf "         ${RED}↳ Curl Error %s${NC}\n" "$exit_code"
+            
+            # Print the last 4 lines of verbose log to show the specific handshake error
+            # We look for lines starting with '*' or '>' or '<' to filter out junk if any remains
+            echo "$output" | tail -n 4 | sed "s/^/         ${GRAY}/"
         fi
-    done < ~/.startos/tor-check.list
-fi
-
-echo "Testing connection to Onion Pages ..."
-
-for data in "${onion_list[@]}"; do
-    name="${data%%|*}"
-    url="${data#*|}"
-    if curl --socks5-hostname localhost:9050 "$url" > /dev/null 2>&1; then
-        echo " ${pass}: $name ($url) "
-    else
-        echo " ${fail}: $name ($url) "
-    fi
+    done
 done
-
-echo
-echo "Done."
+print_line
+# Reset color just in case
+printf "${NC}"

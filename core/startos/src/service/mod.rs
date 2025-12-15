@@ -73,11 +73,6 @@ pub const SYNC_RETRY_COOLDOWN_SECONDS: u64 = 10;
 
 pub type Task<'a> = BoxFuture<'a, Result<(), Error>>;
 
-/// TODO
-pub enum BackupReturn {
-    TODO,
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LoadDisposition {
     Retry,
@@ -224,6 +219,17 @@ impl Service {
         recovery_source: Option<impl GenericMountGuard>,
     ) -> Result<ServiceRef, Error> {
         let id = s9pk.as_manifest().id.clone();
+        ctx.db
+            .mutate(|db| {
+                db.as_public_mut()
+                    .as_package_data_mut()
+                    .as_idx_mut(&id)
+                    .or_not_found(&id)?
+                    .as_status_info_mut()
+                    .init()
+            })
+            .await
+            .result?;
         let persistent_container = PersistentContainer::new(&ctx, s9pk).await?;
         let seed = Arc::new(ServiceActorSeed {
             id,
@@ -532,8 +538,16 @@ impl Service {
                     .or_not_found(&manifest.id)?;
                 let actions = entry.as_actions().keys()?;
                 if entry.as_tasks_mut().mutate(|t| {
-                    t.retain(|_, v| {
-                        v.task.package_id != manifest.id || actions.contains(&v.task.action_id)
+                    t.retain(|id, v| {
+                        v.task.package_id != manifest.id
+                            || if actions.contains(&v.task.action_id) {
+                                true
+                            } else {
+                                tracing::warn!(
+                                    "Deleting task {id} because action no longer exists"
+                                );
+                                false
+                            }
                     });
                     Ok(t.iter()
                         .any(|(_, t)| t.active && t.task.severity == TaskSeverity::Critical))
@@ -570,6 +584,15 @@ impl Service {
             .await?;
         file.save().await.with_kind(ErrorKind::Filesystem)?;
         // TODO: reverify?
+        let backup = self
+            .actor
+            .send(
+                Guid::new(),
+                transition::backup::Backup {
+                    path: guard.path().to_owned(),
+                },
+            )
+            .await??;
         self.seed
             .ctx
             .db
@@ -584,7 +607,8 @@ impl Service {
             })
             .await
             .result?;
-        Ok(())
+
+        backup.await
     }
 
     pub fn container_id(&self) -> Result<ContainerId, Error> {

@@ -38,20 +38,14 @@ export default class InitializingPage {
           .openWebsocket$<T.FullProgress>(guid, {
             closeObserver: {
               next: () => {
-                this.state.retrigger(true)
+                this.state.retrigger(true, 250)
               },
             },
           })
           .pipe(startWith(progress)),
       ),
       map(formatProgress),
-      tap(({ total }) => {
-        if (total === 1) {
-          this.state.retrigger(true)
-        }
-      }),
       catchError((_, caught$) => {
-        this.state.retrigger(true)
         return timer(500).pipe(switchMap(() => caught$))
       }),
     ),

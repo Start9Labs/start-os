@@ -1,91 +1,85 @@
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 use std::ffi::OsString;
 use std::path::Path;
 
-#[cfg(feature = "cli-container")]
 pub mod container_cli;
 pub mod deprecated;
-#[cfg(any(feature = "registry", feature = "cli-registry"))]
 pub mod registry;
-#[cfg(feature = "cli")]
 pub mod start_cli;
-#[cfg(feature = "startd")]
 pub mod start_init;
-#[cfg(feature = "startd")]
 pub mod startd;
-#[cfg(any(feature = "tunnel", feature = "cli-tunnel"))]
 pub mod tunnel;
 
-fn select_executable(name: &str) -> Option<fn(VecDeque<OsString>)> {
-    match name {
-        #[cfg(feature = "startd")]
-        "startd" => Some(startd::main),
-        #[cfg(feature = "startd")]
-        "embassyd" => Some(|_| deprecated::renamed("embassyd", "startd")),
-        #[cfg(feature = "startd")]
-        "embassy-init" => Some(|_| deprecated::removed("embassy-init")),
-
-        #[cfg(feature = "cli-startd")]
-        "start-cli" => Some(start_cli::main),
-        #[cfg(feature = "cli-startd")]
-        "embassy-cli" => Some(|_| deprecated::renamed("embassy-cli", "start-cli")),
-        #[cfg(feature = "cli-startd")]
-        "embassy-sdk" => Some(|_| deprecated::removed("embassy-sdk")),
-
-        #[cfg(feature = "cli-container")]
-        "start-container" => Some(container_cli::main),
-
-        #[cfg(feature = "registry")]
-        "start-registryd" => Some(registry::main),
-        #[cfg(feature = "cli-registry")]
-        "start-registry" => Some(registry::cli),
-
-        #[cfg(feature = "tunnel")]
-        "start-tunneld" => Some(tunnel::main),
-        #[cfg(feature = "cli-tunnel")]
-        "start-tunnel" => Some(tunnel::cli),
-
-        "contents" => Some(|_| {
-            #[cfg(feature = "startd")]
-            println!("startd");
-            #[cfg(feature = "cli-startd")]
-            println!("start-cli");
-            #[cfg(feature = "cli-container")]
-            println!("start-container");
-            #[cfg(feature = "registry")]
-            println!("start-registryd");
-            #[cfg(feature = "cli-registry")]
-            println!("start-registry");
-            #[cfg(feature = "tunnel")]
-            println!("start-tunneld");
-            #[cfg(feature = "cli-tunnel")]
-            println!("start-tunnel");
-        }),
-        _ => None,
+#[derive(Default)]
+pub struct MultiExecutable(BTreeMap<&'static str, fn(VecDeque<OsString>)>);
+impl MultiExecutable {
+    pub fn enable_startd(&mut self) -> &mut Self {
+        self.0.insert("startd", startd::main);
+        self.0
+            .insert("embassyd", |_| deprecated::renamed("embassyd", "startd"));
+        self.0
+            .insert("embassy-init", |_| deprecated::removed("embassy-init"));
+        self
     }
-}
+    pub fn enable_start_cli(&mut self) -> &mut Self {
+        self.0.insert("start-cli", start_cli::main);
+        self.0.insert("embassy-cli", |_| {
+            deprecated::renamed("embassy-cli", "start-cli")
+        });
+        self.0
+            .insert("embassy-sdk", |_| deprecated::removed("embassy-sdk"));
+        self
+    }
+    pub fn enable_start_container(&mut self) -> &mut Self {
+        self.0.insert("start-container", container_cli::main);
+        self
+    }
+    pub fn enable_start_registryd(&mut self) -> &mut Self {
+        self.0.insert("start-registryd", registry::main);
+        self
+    }
+    pub fn enable_start_registry(&mut self) -> &mut Self {
+        self.0.insert("start-registry", registry::cli);
+        self
+    }
+    pub fn enable_start_tunneld(&mut self) -> &mut Self {
+        self.0.insert("start-tunneld", tunnel::main);
+        self
+    }
+    pub fn enable_start_tunnel(&mut self) -> &mut Self {
+        self.0.insert("start-tunnel", tunnel::cli);
+        self
+    }
 
-pub fn startbox() {
-    let mut args = std::env::args_os().collect::<VecDeque<_>>();
-    for _ in 0..2 {
-        if let Some(s) = args.pop_front() {
-            if let Some(x) = Path::new(&*s)
-                .file_name()
-                .and_then(|s| s.to_str())
-                .and_then(|s| select_executable(&s))
-            {
-                args.push_front(s);
-                return x(args);
+    fn select_executable(&self, name: &str) -> Option<fn(VecDeque<OsString>)> {
+        self.0.get(&name).copied()
+    }
+
+    pub fn execute(&self) {
+        let mut args = std::env::args_os().collect::<VecDeque<_>>();
+        for _ in 0..2 {
+            if let Some(s) = args.pop_front() {
+                if let Some(name) = Path::new(&*s).file_name().and_then(|s| s.to_str()) {
+                    if name == "--contents" {
+                        for name in self.0.keys() {
+                            println!("{name}");
+                        }
+                    }
+                    if let Some(x) = self.select_executable(&name) {
+                        args.push_front(s);
+                        return x(args);
+                    }
+                }
             }
         }
+        let args = std::env::args().collect::<VecDeque<_>>();
+        eprintln!(
+            "unknown executable: {}",
+            args.get(1)
+                .or_else(|| args.get(0))
+                .map(|s| s.as_str())
+                .unwrap_or("N/A")
+        );
+        std::process::exit(1);
     }
-    let args = std::env::args().collect::<VecDeque<_>>();
-    eprintln!(
-        "unknown executable: {}",
-        args.get(1)
-            .or_else(|| args.get(0))
-            .map(|s| s.as_str())
-            .unwrap_or("N/A")
-    );
-    std::process::exit(1);
 }
