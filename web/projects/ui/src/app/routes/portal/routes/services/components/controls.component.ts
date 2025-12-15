@@ -9,13 +9,8 @@ import {
 } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
 import { T } from '@start9labs/start-sdk'
-import {
-  TuiButton,
-  TuiDataList,
-  TuiDropdown,
-  TuiIcon,
-  TuiOptionNew,
-} from '@taiga-ui/core'
+import { TuiButton, TuiDataList, TuiDropdown } from '@taiga-ui/core'
+import { TuiChevron } from '@taiga-ui/kit'
 import { map } from 'rxjs'
 import { ControlsService } from 'src/app/services/controls.service'
 import { DepErrorService } from 'src/app/services/dep-error.service'
@@ -51,7 +46,9 @@ import { InterfaceService } from '../../../components/interfaces/interface.servi
             tuiButton
             appearance="primary-grayscale"
             iconStart="@tui.external-link"
+            tuiChevron
             tuiDropdownOpen
+            tuiDropdownLimitWidth="fixed"
             [tuiDropdown]="content"
           >
             {{ 'Open UI' | i18n }}
@@ -64,20 +61,20 @@ import { InterfaceService } from '../../../components/interfaces/interface.servi
                   new
                   target="_blank"
                   rel="noreferrer"
+                  iconEnd="@tui.external-link"
                   [attr.href]="getHref(i)"
                 >
                   {{ i.name }}
-                  <tui-icon icon="@tui.external-link" />
                 </a>
               }
             </tui-data-list>
           </ng-template>
-        } @else if (interfaces()[0]; as i) {
+        } @else if (interfaces()[0]) {
           <button
             tuiButton
             appearance="primary-grayscale"
             iconStart="@tui.external-link"
-            (click)="openUI(i)"
+            (click)="openUI(interfaces()[0]!)"
           >
             {{ 'Open UI' | i18n }}
           </button>
@@ -134,8 +131,7 @@ import { InterfaceService } from '../../../components/interfaces/interface.servi
     AsyncPipe,
     TuiDataList,
     TuiDropdown,
-    TuiIcon,
-    TuiOptionNew,
+    TuiChevron,
   ],
 })
 export class ServiceControlsComponent {

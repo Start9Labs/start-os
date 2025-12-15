@@ -588,4 +588,5 @@ export const ENGLISH = {
   'Versions': 624,
   'Select another version': 625,
   'Upload': 626, // as in, upload a file
+  'Open UI': 627, // as in, upload a file
 } as const

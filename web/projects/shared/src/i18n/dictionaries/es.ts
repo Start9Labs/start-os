@@ -589,4 +589,5 @@ export default {
   624: 'Versiones',
   625: 'Seleccionar otra versión',
   626: 'Subir',
+  627: 'Abrir UI',
 } satisfies i18n

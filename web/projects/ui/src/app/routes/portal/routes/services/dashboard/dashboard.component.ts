@@ -81,6 +81,11 @@ import { ServiceComponent } from './service.component'
       font-size: 1rem;
     }
 
+    table {
+      max-width: 60rem;
+      margin: 0 auto;
+    }
+
     :host-context(tui-root._mobile) {
       padding: 0;
     }
