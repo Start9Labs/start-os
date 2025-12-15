@@ -1,12 +1,12 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
-  Input,
+  input,
 } from '@angular/core'
 import { i18nKey, i18nPipe } from '@start9labs/shared'
-import { tuiPure } from '@taiga-ui/cdk'
-import { TuiIcon } from '@taiga-ui/core'
+import { TuiIcon, TuiLoader } from '@taiga-ui/core'
 import { getProgressText } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import {
@@ -17,13 +17,15 @@ import {
 @Component({
   selector: 'td[appStatus]',
   template: `
-    @if (!healthy) {
+    @if (error()) {
       <tui-icon icon="@tui.triangle-alert" class="g-warning" />
+    } @else if (loading()) {
+      <tui-loader size="m" />
     }
 
-    <b [style.color]="color">{{ status | i18n }}</b>
+    <b [style.color]="color()">{{ statusText() | i18n }}</b>
 
-    @if (showDots) {
+    @if (showDots()) {
       <span class="loading-dots g-info"></span>
     }
   `,
@@ -41,56 +43,50 @@ import {
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiIcon, i18nPipe],
+  imports: [TuiIcon, i18nPipe, TuiLoader],
 })
 export class StatusComponent {
-  @Input()
-  pkg!: PackageDataEntry
-
-  @Input()
-  hasDepErrors = false
+  readonly pkg = input.required<PackageDataEntry>()
+  readonly hasDepErrors = input<boolean>(false)
 
   private readonly i18n = inject(i18nPipe)
 
-  get healthy(): boolean {
-    const { primary, health } = this.getStatus(this.pkg)
-    return (
-      !this.hasDepErrors &&
-      primary !== 'task-required' &&
-      primary !== 'error' &&
-      health !== 'failure'
-    )
-  }
+  readonly status = computed((pkg = this.pkg()) => renderPkgStatus(pkg))
 
-  @tuiPure
-  getStatus(pkg: PackageDataEntry) {
-    return renderPkgStatus(pkg)
-  }
+  readonly statusText = computed(
+    (pkg = this.pkg(), { primary } = this.status()) =>
+      pkg.stateInfo.installingInfo
+        ? (`${this.i18n.transform('Installing')}... ${this.i18n.transform(getProgressText(pkg.stateInfo.installingInfo.progress.overall))}` as i18nKey)
+        : PrimaryRendering[primary].display,
+  )
 
-  get status(): i18nKey {
-    if (this.pkg.stateInfo.installingInfo) {
-      return `${this.i18n.transform('Installing')}... ${this.i18n.transform(getProgressText(this.pkg.stateInfo.installingInfo.progress.overall))}` as i18nKey
-    }
+  readonly error = computed(
+    ({ primary, health } = this.status()) =>
+      this.hasDepErrors() ||
+      primary === 'task-required' ||
+      primary === 'error' ||
+      health === 'failure',
+  )
 
-    return PrimaryRendering[this.getStatus(this.pkg).primary].display
-  }
+  readonly loading = computed(
+    ({ primary, health } = this.status()) =>
+      primary === 'running' && health === 'loading',
+  )
 
-  get showDots() {
-    switch (this.getStatus(this.pkg).primary) {
-      case 'updating':
-      case 'stopping':
-      case 'starting':
-      case 'backing-up':
-      case 'restarting':
-      case 'removing':
-        return true
-      default:
-        return false
-    }
-  }
+  readonly showDots = computed(({ primary } = this.status()) =>
+    [
+      'starting',
+      'stopping',
+      'restarting',
+      'installing',
+      'updating',
+      'backing-up',
+      'removing',
+    ].includes(primary),
+  )
 
-  get color(): string {
-    switch (this.getStatus(this.pkg).primary) {
+  readonly color = computed(({ primary } = this.status()) => {
+    switch (primary) {
       case 'running':
         return 'var(--tui-status-positive)'
       case 'task-required':
@@ -106,9 +102,8 @@ export class StatusComponent {
       case 'removing':
       case 'restoring':
         return 'var(--tui-status-info)'
-      // stopped
-      default:
+      case 'stopped':
         return 'var(--tui-text-secondary)'
     }
-  }
+  })
 }
