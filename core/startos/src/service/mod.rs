@@ -584,6 +584,15 @@ impl Service {
             .await?;
         file.save().await.with_kind(ErrorKind::Filesystem)?;
         // TODO: reverify?
+        let backup = self
+            .actor
+            .send(
+                Guid::new(),
+                transition::backup::Backup {
+                    path: guard.path().to_owned(),
+                },
+            )
+            .await??;
         self.seed
             .ctx
             .db
@@ -598,7 +607,8 @@ impl Service {
             })
             .await
             .result?;
-        Ok(())
+
+        backup.await
     }
 
     pub fn container_id(&self) -> Result<ContainerId, Error> {
