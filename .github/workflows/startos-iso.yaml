@@ -177,7 +177,7 @@ jobs:
               "aarch64": "ubuntu-24.04-arm",
               "aarch64-nonfree": "ubuntu-24.04-arm",
               "raspberrypi": "ubuntu-24.04-arm",
-              "riscv64": "ubuntu-latest",
+              "riscv64": "ubuntu-24.04-arm",
             }')[matrix.platform],
             fromJson('{
               "x86_64": "buildjet-8vcpu-ubuntu-2204",
