@@ -160,7 +160,7 @@ jobs:
               format(
                 '[
                   ["{0}"],
-                  ["x86_64", "x86_64-nonfree", "aarch64", "aarch64-nonfree", "raspberrypi"]
+                  ["x86_64", "x86_64-nonfree", "aarch64", "aarch64-nonfree", "riscv64", "raspberrypi"]
                 ]',
                 github.event.inputs.platform || 'ALL'
               )
