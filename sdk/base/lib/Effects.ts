@@ -67,7 +67,7 @@ export type Effects = {
     packageId?: PackageId
     callback?: () => void
   }): Promise<StatusInfo>
-  /** indicate to the host os what runstate the service is in */
+  /** DEPRECATED: indicate to the host os what runstate the service is in */
   setMainStatus(options: SetMainStatus): Promise<null>
 
   // dependency

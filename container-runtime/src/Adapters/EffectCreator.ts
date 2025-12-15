@@ -289,6 +289,7 @@ export function makeEffects(context: EffectContext): Effects {
     getStatus(...[o]: Parameters<T.Effects["getStatus"]>) {
       return rpcRound("get-status", o) as ReturnType<T.Effects["getStatus"]>
     },
+    /// DEPRECATED
     setMainStatus(o: { status: "running" | "stopped" }): Promise<null> {
       return rpcRound("set-main-status", o) as ReturnType<
         T.Effects["setHealth"]

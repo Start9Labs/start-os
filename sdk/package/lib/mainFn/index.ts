@@ -15,10 +15,7 @@ export const DEFAULT_SIGTERM_TIMEOUT = 60_000
  * @returns
  */
 export const setupMain = <Manifest extends T.SDKManifest>(
-  fn: (o: {
-    effects: T.Effects
-    started(onTerm: () => PromiseLike<void>): PromiseLike<null>
-  }) => Promise<Daemons<Manifest, any>>,
+  fn: (o: { effects: T.Effects }) => Promise<Daemons<Manifest, any>>,
 ): T.ExpectedExports.main => {
   return async (options) => {
     const result = await fn(options)

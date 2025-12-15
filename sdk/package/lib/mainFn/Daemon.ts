@@ -37,7 +37,7 @@ export class Daemon<
     return this.oneshot
   }
   static of<Manifest extends T.SDKManifest>() {
-    return async <C extends SubContainer<Manifest> | null>(
+    return <C extends SubContainer<Manifest> | null>(
       effects: T.Effects,
       subcontainer: C,
       exec: DaemonCommandType<Manifest, C>,
@@ -122,10 +122,16 @@ export class Daemon<
       if (termOptions?.destroySubcontainer) {
         await this.subcontainer?.destroy()
       }
+      this.exiting = null
     }
   }
   subcontainerRc(): SubContainerRc<Manifest> | null {
     return this.subcontainer?.rc() ?? null
+  }
+  sharesSubcontainerWith(
+    other: Daemon<Manifest, SubContainer<Manifest> | null>,
+  ): boolean {
+    return this.subcontainer?.guid === other.subcontainer?.guid
   }
   onExit(fn: (success: boolean) => void) {
     this.onExitFns.push(fn)

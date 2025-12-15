@@ -28,9 +28,22 @@ impl StatusInfo {
     }
 }
 impl Model<StatusInfo> {
+    pub fn start(&mut self) -> Result<(), Error> {
+        self.as_desired_mut().map_mutate(|s| Ok(s.start()))?;
+        Ok(())
+    }
+    pub fn started(&mut self) -> Result<(), Error> {
+        self.as_started_mut()
+            .map_mutate(|s| Ok(Some(s.unwrap_or_else(|| Utc::now()))))?;
+        Ok(())
+    }
     pub fn stop(&mut self) -> Result<(), Error> {
         self.as_desired_mut().map_mutate(|s| Ok(s.stop()))?;
         self.as_health_mut().ser(&Default::default())?;
+        Ok(())
+    }
+    pub fn stopped(&mut self) -> Result<(), Error> {
+        self.as_started_mut().ser(&None)?;
         Ok(())
     }
     pub fn init(&mut self) -> Result<(), Error> {

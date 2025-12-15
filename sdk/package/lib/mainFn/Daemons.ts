@@ -161,9 +161,6 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
 {
   private constructor(
     readonly effects: T.Effects,
-    readonly started:
-      | ((onTerm: () => PromiseLike<void>) => PromiseLike<null>)
-      | null,
     readonly ids: Ids[],
     readonly healthDaemons: HealthDaemon<Manifest>[],
   ) {}
@@ -180,26 +177,13 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
    * @param started
    * @returns
    */
-  static of<Manifest extends T.SDKManifest>(options: {
-    effects: T.Effects
-    /**
-     * A closure to run once the system is launched. If you are in main, provide the `started` argument you receive from the function arguments
-     */
-    started: ((onTerm: () => PromiseLike<void>) => PromiseLike<null>) | null
-  }) {
-    return new Daemons<Manifest, never>(
-      options.effects,
-      options.started,
-      [],
-      [],
-    )
+  static of<Manifest extends T.SDKManifest>(options: { effects: T.Effects }) {
+    return new Daemons<Manifest, never>(options.effects, [], [])
   }
 
   private addDaemonImpl<Id extends string>(
     id: Id,
-    daemon: Promise<
-      Daemon<Manifest, SubContainer<Manifest, T.Effects> | null>
-    > | null,
+    daemon: Daemon<Manifest, SubContainer<Manifest, T.Effects> | null> | null,
     requires: Ids[],
     ready: Ready | typeof EXIT_SUCCESS,
   ) {
@@ -215,12 +199,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     )
     const ids = [...this.ids, id] as (Ids | Id)[]
     const healthDaemons = [...this.healthDaemons, healthDaemon]
-    return new Daemons<Manifest, Ids | Id>(
-      this.effects,
-      this.started,
-      ids,
-      healthDaemons,
-    )
+    return new Daemons<Manifest, Ids | Id>(this.effects, ids, healthDaemons)
   }
 
   /**
@@ -256,7 +235,7 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       if (!options) return prev
       const daemon =
         "daemon" in options
-          ? Promise.resolve(options.daemon)
+          ? options.daemon
           : Daemon.of<Manifest>()<C>(
               this.effects,
               options.subcontainer,
@@ -397,12 +376,10 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
       "EXIT_SUCCESS",
       this.effects,
     )
-    const daemons = await new Daemons<Manifest, Ids>(
-      this.effects,
-      this.started,
-      this.ids,
-      [...this.healthDaemons, healthDaemon],
-    ).build()
+    const daemons = await new Daemons<Manifest, Ids>(this.effects, this.ids, [
+      ...this.healthDaemons,
+      healthDaemon,
+    ]).build()
     try {
       await res
     } finally {
@@ -439,7 +416,12 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
         canShutdown.map(async (daemon) => {
           try {
             console.debug(`Terminating daemon ${daemon.id}`)
-            await daemon.term({ destroySubcontainer: true })
+            const destroySubcontainer = daemon.daemon
+              ? ![...remaining].some((d) =>
+                  d.daemon?.sharesSubcontainerWith(daemon.daemon!),
+                )
+              : false
+            await daemon.term({ destroySubcontainer })
           } catch (e) {
             console.error(e)
           }
@@ -452,7 +434,6 @@ export class Daemons<Manifest extends T.SDKManifest, Ids extends string>
     for (const daemon of this.healthDaemons) {
       await daemon.init()
     }
-    this.started?.(() => Promise.resolve())
     return this
   }
 }

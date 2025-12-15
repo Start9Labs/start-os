@@ -34,7 +34,7 @@ export class HealthDaemon<Manifest extends SDKManifest> {
   private resolvedReady: boolean = false
   private readyPromise: Promise<void>
   constructor(
-    private readonly daemon: Promise<Daemon<Manifest>> | null,
+    readonly daemon: Daemon<Manifest> | null,
     readonly dependencies: HealthDaemon<Manifest>[],
     readonly id: string,
     readonly ready: Ready | typeof EXIT_SUCCESS,
@@ -60,11 +60,9 @@ export class HealthDaemon<Manifest extends SDKManifest> {
     this.running = false
     this.healthCheckCleanup?.()
 
-    await this.daemon?.then((d) =>
-      d.term({
-        ...termOptions,
-      }),
-    )
+    await this.daemon?.term({
+      ...termOptions,
+    })
   }
 
   /** Want to add another notifier that the health might have changed */

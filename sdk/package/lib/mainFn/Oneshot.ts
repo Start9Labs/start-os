@@ -15,7 +15,7 @@ export class Oneshot<
   C extends SubContainer<Manifest> | null = SubContainer<Manifest> | null,
 > extends Daemon<Manifest, C> {
   static of<Manifest extends T.SDKManifest>() {
-    return async <C extends SubContainer<Manifest> | null>(
+    return <C extends SubContainer<Manifest> | null>(
       effects: T.Effects,
       subcontainer: C,
       exec: DaemonCommandType<Manifest, C>,
