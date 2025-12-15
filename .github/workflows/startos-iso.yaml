@@ -67,25 +67,36 @@ jobs:
               "ALL": ["x86_64", "aarch64", "riscv64"]
             }')[github.event.inputs.platform || 'ALL']
           }}
-    runs-on: ${{ fromJson('["ubuntu-latest", "buildjet-32vcpu-ubuntu-2204"]')[github.event.inputs.runner == 'fast'] }}
+    runs-on: >-
+      ${{
+        fromJson(
+          format(
+            '["{0}", "{1}"]',
+            fromJson('{
+              "x86_64": "ubuntu-latest",
+              "aarch64": "ubuntu-24.04-arm",
+              "riscv64": "ubuntu-latest"
+            }')[matrix.arch],
+            fromJson('{
+              "x86_64": "buildjet-32vcpu-ubuntu-2204",
+              "aarch64": "buildjet-32vcpu-ubuntu-2204-arm",
+              "riscv64": "buildjet-32vcpu-ubuntu-2204"
+            }')[matrix.arch]
+          )
+        )[github.event.inputs.runner == 'fast']
+      }}
     steps:
       - name: Cleaning up unnecessary files
         run: |
-          sudo apt-get remove --purge -y mono-* \
-            ghc* cabal-install* \
-            dotnet* \
-            php* \
-            ruby* \
-            mysql-* \
-            postgresql-* \
-            azure-cli \
-            powershell \
-            google-cloud-sdk \
-            msodbcsql* mssql-tools* \
-            imagemagick* \
-            libgl1-mesa-dri \
-            google-chrome-stable \
-            firefox
+          sudo apt-get remove --purge -y azure-cli || true
+          sudo apt-get remove --purge -y firefox || true
+          sudo apt-get remove --purge -y ghc-* || true
+          sudo apt-get remove --purge -y google-cloud-sdk || true
+          sudo apt-get remove --purge -y google-chrome-stable || true
+          sudo apt-get remove --purge -y powershell || true
+          sudo apt-get remove --purge -y php* || true
+          sudo apt-get remove --purge -y ruby* || true
+          sudo apt-get remove --purge -y mono-* || true
           sudo apt-get autoremove -y
           sudo apt-get clean
           sudo rm -rf /usr/lib/jvm               # All JDKs
@@ -159,7 +170,15 @@ jobs:
       ${{
         fromJson(
           format(
-            '["ubuntu-latest", "{0}"]',
+            '["{0}", "{1}"]',
+            fromJson('{
+              "x86_64": "ubuntu-latest",
+              "x86_64-nonfree": "ubuntu-latest",
+              "aarch64": "ubuntu-24.04-arm",
+              "aarch64-nonfree": "ubuntu-24.04-arm",
+              "raspberrypi": "ubuntu-24.04-arm",
+              "riscv64": "ubuntu-latest",
+            }')[matrix.platform],
             fromJson('{
               "x86_64": "buildjet-8vcpu-ubuntu-2204",
               "x86_64-nonfree": "buildjet-8vcpu-ubuntu-2204",
@@ -185,7 +204,24 @@ jobs:
         }}
     steps:
       - name: Free space
-        run: rm -rf /opt/hostedtoolcache*
+        run: |
+          sudo apt-get remove --purge -y azure-cli || true
+          sudo apt-get remove --purge -y firefox || true
+          sudo apt-get remove --purge -y ghc-* || true
+          sudo apt-get remove --purge -y google-cloud-sdk || true
+          sudo apt-get remove --purge -y google-chrome-stable || true
+          sudo apt-get remove --purge -y powershell || true
+          sudo apt-get remove --purge -y php* || true
+          sudo apt-get remove --purge -y ruby* || true
+          sudo apt-get remove --purge -y mono-* || true
+          sudo apt-get autoremove -y
+          sudo apt-get clean
+          sudo rm -rf /usr/lib/jvm               # All JDKs
+          sudo rm -rf /usr/local/.ghcup          # Haskell toolchain
+          sudo rm -rf /usr/local/lib/android     # Android SDK/NDK, emulator
+          sudo rm -rf /usr/share/dotnet          # .NET SDKs
+          sudo rm -rf /usr/share/swift           # Swift toolchain (if present)
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"    # Pre-cached tool cache (Go, Node, etc.)
         if: ${{ github.event.inputs.runner != 'fast' }}
 
       - uses: actions/checkout@v4
