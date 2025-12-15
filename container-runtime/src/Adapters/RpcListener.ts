@@ -292,10 +292,13 @@ export class RpcListener {
         )
       })
       .when(stopType, async ({ id }) => {
-        this.callbacks?.removeChild("main")
         return handleRpc(
           id,
-          this.system.stop().then((result) => ({ result })),
+          this.system.stop().then((result) => {
+            this.callbacks?.removeChild("main")
+
+            return { result }
+          }),
         )
       })
       .when(exitType, async ({ id, params }) => {

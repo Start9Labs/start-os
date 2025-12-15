@@ -44,10 +44,7 @@ export namespace ExpectedExports {
    * This is the entrypoint for the main container. Used to start up something like the service that the
    * package represents, like running a bitcoind in a bitcoind-wrapper.
    */
-  export type main = (options: {
-    effects: Effects
-    started(onTerm: () => PromiseLike<void>): PromiseLike<null>
-  }) => Promise<DaemonBuildable>
+  export type main = (options: { effects: Effects }) => Promise<DaemonBuildable>
 
   /**
    * Every time a service launches (both on startup, and on install) this function is called before packageInit

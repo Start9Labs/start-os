@@ -29,7 +29,25 @@ impl ServiceActorSeed {
     pub fn start(&self) -> Transition<'_> {
         Transition {
             kind: TransitionKind::Starting,
-            future: self.persistent_container.start().boxed(),
+            future: async {
+                self.persistent_container.start().await?;
+                let id = &self.id;
+                self.ctx
+                    .db
+                    .mutate(|db| {
+                        db.as_public_mut()
+                            .as_package_data_mut()
+                            .as_idx_mut(id)
+                            .or_not_found(id)?
+                            .as_status_info_mut()
+                            .started()
+                    })
+                    .await
+                    .result?;
+
+                Ok(())
+            }
+            .boxed(),
         }
     }
 
@@ -47,8 +65,7 @@ impl ServiceActorSeed {
                             .as_idx_mut(id)
                             .or_not_found(id)?
                             .as_status_info_mut()
-                            .as_started_mut()
-                            .ser(&None)
+                            .stopped()
                     })
                     .await
                     .result?;

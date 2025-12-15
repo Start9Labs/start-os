@@ -24,6 +24,7 @@ export class Daemon<
   private commandController: CommandController<Manifest, C> | null = null
   private shouldBeRunning = false
   protected exitedSuccess = false
+  private exiting: Promise<void> | null = null
   private onExitFns: ((success: boolean) => void)[] = []
   protected constructor(
     private subcontainer: C,
@@ -36,7 +37,7 @@ export class Daemon<
     return this.oneshot
   }
   static of<Manifest extends T.SDKManifest>() {
-    return async <C extends SubContainer<Manifest> | null>(
+    return <C extends SubContainer<Manifest> | null>(
       effects: T.Effects,
       subcontainer: C,
       exec: DaemonCommandType<Manifest, C>,
@@ -51,9 +52,7 @@ export class Daemon<
         )
       const res = new Daemon(subc, startCommand)
       effects.onLeaveContext(() => {
-        res
-          .term({ destroySubcontainer: true })
-          .catch((e) => console.error(asError(e)))
+        res.term({ destroySubcontainer: true }).catch((e) => console.error(e))
       })
       return res
     }
@@ -114,18 +113,25 @@ export class Daemon<
     this.shouldBeRunning = false
     this.exitedSuccess = false
     if (this.commandController) {
-      await this.commandController
-        .term({ ...termOptions })
-        .catch((e) => console.error(asError(e)))
+      this.exiting = this.commandController.term({ ...termOptions })
       this.commandController = null
       this.onExitFns = []
+    }
+    if (this.exiting) {
+      await this.exiting.catch(console.error)
       if (termOptions?.destroySubcontainer) {
         await this.subcontainer?.destroy()
       }
+      this.exiting = null
     }
   }
   subcontainerRc(): SubContainerRc<Manifest> | null {
     return this.subcontainer?.rc() ?? null
+  }
+  sharesSubcontainerWith(
+    other: Daemon<Manifest, SubContainer<Manifest> | null>,
+  ): boolean {
+    return this.subcontainer?.guid === other.subcontainer?.guid
   }
   onExit(fn: (success: boolean) => void) {
     this.onExitFns.push(fn)

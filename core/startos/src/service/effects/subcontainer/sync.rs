@@ -53,16 +53,22 @@ pub fn kill_init(procfs: &Path, chroot: &Path) -> Result<(), Error> {
                     )
                 })?;
                 if pids.0.len() == 2 && pids.0[1] == 1 {
-                    nix::sys::signal::kill(Pid::from_raw(pid), nix::sys::signal::SIGKILL)
-                        .with_ctx(|_| {
-                            (
-                                ErrorKind::Filesystem,
-                                lazy_format!(
-                                    "kill pid {} (determined to be pid 1 in subcontainer)",
-                                    pid
-                                ),
-                            )
-                        })?;
+                    match nix::sys::signal::kill(
+                        Pid::from_raw(pid),
+                        Some(nix::sys::signal::SIGKILL),
+                    ) {
+                        Err(Errno::ESRCH) => Ok(()),
+                        a => a,
+                    }
+                    .with_ctx(|_| {
+                        (
+                            ErrorKind::Filesystem,
+                            lazy_format!(
+                                "kill pid {} (determined to be pid 1 in subcontainer)",
+                                pid
+                            ),
+                        )
+                    })?;
                 }
             }
         }
@@ -510,10 +516,13 @@ pub fn exec(
     std::thread::spawn(move || {
         if let Ok(pid) = recv_pid.blocking_recv() {
             for sig in sig.forever() {
-                nix::sys::signal::kill(
+                match nix::sys::signal::kill(
                     Pid::from_raw(pid),
                     Some(nix::sys::signal::Signal::try_from(sig).unwrap()),
-                )
+                ) {
+                    Err(Errno::ESRCH) => Ok(()),
+                    a => a,
+                }
                 .unwrap();
             }
         }

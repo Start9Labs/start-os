@@ -634,10 +634,7 @@ export class StartSdk<Manifest extends T.SDKManifest> {
        */
       setupInterfaces: setupServiceInterfaces,
       setupMain: (
-        fn: (o: {
-          effects: Effects
-          started(onTerm: () => PromiseLike<void>): PromiseLike<null>
-        }) => Promise<Daemons<Manifest, any>>,
+        fn: (o: { effects: Effects }) => Promise<Daemons<Manifest, any>>,
       ) => setupMain<Manifest>(fn),
       trigger: {
         defaultTrigger,
@@ -690,13 +687,8 @@ export class StartSdk<Manifest extends T.SDKManifest> {
         },
       },
       Daemons: {
-        of(
-          effects: Effects,
-          started:
-            | ((onTerm: () => PromiseLike<void>) => PromiseLike<null>)
-            | null,
-        ) {
-          return Daemons.of<Manifest>({ effects, started })
+        of(effects: Effects) {
+          return Daemons.of<Manifest>({ effects })
         },
       },
       SubContainer: {

@@ -70,20 +70,13 @@ export class SystemForStartOs implements System {
       this.starting = true
       effects.constRetry = utils.once(() => effects.restart())
       let mainOnTerm: () => Promise<void> | undefined
-      const started = async (onTerm: () => Promise<void>) => {
-        await effects.setMainStatus({ status: "running" })
-        mainOnTerm = onTerm
-        return null
-      }
       const daemons = await (
         await this.abi.main({
           effects,
-          started,
         })
       ).build()
       this.runningMain = {
         stop: async () => {
-          if (mainOnTerm) await mainOnTerm()
           await daemons.term()
         },
       }
