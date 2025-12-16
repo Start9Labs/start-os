@@ -6,15 +6,10 @@ import {
 } from '@angular/core'
 import { toSignal } from '@angular/core/rxjs-interop'
 import { i18nPipe } from '@start9labs/shared'
-import { TuiTable } from '@taiga-ui/addon-table'
 import { PatchDB } from 'patch-db-client'
 import { map, shareReplay } from 'rxjs'
-import {
-  DataModel,
-  PackageDataEntry,
-} from 'src/app/services/patch-db/data-model'
+import { DataModel } from 'src/app/services/patch-db/data-model'
 import { TitleDirective } from 'src/app/services/title.service'
-import { getManifest } from 'src/app/utils/get-package-data'
 import { ServicesTableComponent } from './table.component'
 
 @Component({
@@ -39,13 +34,16 @@ import { ServicesTableComponent } from './table.component'
         display: none;
       }
 
-      section {
-        padding-block: 0;
+      .g-card {
+        padding: 0;
+        margin-top: -0.75rem;
+        background: none;
+        box-shadow: none;
       }
     }
   `,
   host: { class: 'g-page' },
-  imports: [TuiTable, TitleDirective, i18nPipe, ServicesTableComponent],
+  imports: [TitleDirective, i18nPipe, ServicesTableComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export default class DashboardComponent {

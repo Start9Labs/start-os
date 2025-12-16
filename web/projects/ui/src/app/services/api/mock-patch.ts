@@ -222,6 +222,167 @@ export const mockPatchData: DataModel = {
     kiosk: true,
   },
   packageData: {
+    lnd: {
+      stateInfo: {
+        state: 'installed',
+        manifest: {
+          ...Mock.MockManifestLnd,
+          version: '0.11.0:0.0.1',
+        },
+      },
+      s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
+      icon: '/assets/img/service-icons/lnd.png',
+      lastBackup: null,
+      statusInfo: {
+        desired: { main: 'stopped' },
+        error: null,
+        health: {},
+        started: null,
+      },
+      actions: {
+        config: {
+          name: 'Config',
+          description: 'LND needs configuration before starting',
+          warning: null,
+          visibility: 'enabled',
+          allowedStatuses: 'any',
+          hasInput: true,
+          group: null,
+        },
+        connect: {
+          name: 'Connect',
+          description: 'View LND connection details',
+          warning: null,
+          visibility: 'enabled',
+          allowedStatuses: 'any',
+          hasInput: true,
+          group: 'Connecting',
+        },
+      },
+      serviceInterfaces: {
+        grpc: {
+          id: 'grpc',
+          masked: false,
+          name: 'GRPC',
+          description:
+            'Used by dependent services and client wallets for connecting to your node',
+          type: 'api',
+          addressInfo: {
+            username: null,
+            hostId: 'qrstuv',
+            internalPort: 10009,
+            scheme: null,
+            sslScheme: 'grpc',
+            suffix: '',
+          },
+        },
+        lndconnect: {
+          id: 'lndconnect',
+          masked: true,
+          name: 'LND Connect',
+          description:
+            'Used by client wallets adhering to LND Connect protocol to connect to your node',
+          type: 'api',
+          addressInfo: {
+            username: null,
+            hostId: 'qrstuv',
+            internalPort: 10009,
+            scheme: null,
+            sslScheme: 'lndconnect',
+            suffix: 'cert=askjdfbjadnaskjnd&macaroon=ksjbdfnhjasbndjksand',
+          },
+        },
+        p2p: {
+          id: 'p2p',
+          masked: false,
+          name: 'P2P',
+          description:
+            'Used for connecting to other nodes on the Bitcoin network',
+          type: 'p2p',
+          addressInfo: {
+            username: null,
+            hostId: 'rstuvw',
+            internalPort: 8333,
+            scheme: 'bitcoin',
+            sslScheme: null,
+            suffix: '',
+          },
+        },
+      },
+      currentDependencies: {
+        bitcoind: {
+          title: Mock.BitcoinDep.title,
+          icon: Mock.BitcoinDep.icon,
+          kind: 'running',
+          versionRange: '>=26.0.0',
+          healthChecks: [],
+        },
+        'btc-rpc-proxy': {
+          title: Mock.ProxyDep.title,
+          icon: Mock.ProxyDep.icon,
+          kind: 'running',
+          versionRange: '>2.0.0',
+          healthChecks: [],
+        },
+      },
+      hosts: {},
+      storeExposedDependents: [],
+      registry: 'https://registry.start9.com/',
+      developerKey: 'developer-key',
+      tasks: {
+        config: {
+          active: true,
+          task: {
+            packageId: 'lnd',
+            actionId: 'config',
+            severity: 'critical',
+            reason: 'LND needs configuration before starting',
+          },
+        },
+        connect: {
+          active: true,
+          task: {
+            packageId: 'lnd',
+            actionId: 'connect',
+            severity: 'important',
+            reason: 'View LND connection details',
+          },
+        },
+        'bitcoind/config': {
+          active: true,
+          task: {
+            packageId: 'bitcoind',
+            actionId: 'config',
+            severity: 'critical',
+            reason: 'LND likes BTC a certain way',
+            input: {
+              kind: 'partial',
+              value: {
+                color: '#ffffff',
+                testnet: false,
+              },
+            },
+          },
+        },
+        'bitcoind/rpc': {
+          active: true,
+          task: {
+            packageId: 'bitcoind',
+            actionId: 'rpc',
+            severity: 'important',
+            reason: `LND want's its own RPC credentials`,
+            input: {
+              kind: 'partial',
+              value: {
+                rpcsettings: {
+                  rpcuser: 'lnd',
+                },
+              },
+            },
+          },
+        },
+      },
+    },
     bitcoind: {
       stateInfo: {
         state: 'installed',
@@ -508,167 +669,6 @@ export const mockPatchData: DataModel = {
             reason: 'Check out all the info about your Bitcoin node',
           },
           active: true,
-        },
-      },
-    },
-    lnd: {
-      stateInfo: {
-        state: 'installed',
-        manifest: {
-          ...Mock.MockManifestLnd,
-          version: '0.11.0:0.0.1',
-        },
-      },
-      s9pk: '/media/startos/data/package-data/archive/installed/asdfasdf.s9pk',
-      icon: '/assets/img/service-icons/lnd.png',
-      lastBackup: null,
-      statusInfo: {
-        desired: { main: 'stopped' },
-        error: null,
-        health: {},
-        started: null,
-      },
-      actions: {
-        config: {
-          name: 'Config',
-          description: 'LND needs configuration before starting',
-          warning: null,
-          visibility: 'enabled',
-          allowedStatuses: 'any',
-          hasInput: true,
-          group: null,
-        },
-        connect: {
-          name: 'Connect',
-          description: 'View LND connection details',
-          warning: null,
-          visibility: 'enabled',
-          allowedStatuses: 'any',
-          hasInput: true,
-          group: 'Connecting',
-        },
-      },
-      serviceInterfaces: {
-        grpc: {
-          id: 'grpc',
-          masked: false,
-          name: 'GRPC',
-          description:
-            'Used by dependent services and client wallets for connecting to your node',
-          type: 'api',
-          addressInfo: {
-            username: null,
-            hostId: 'qrstuv',
-            internalPort: 10009,
-            scheme: null,
-            sslScheme: 'grpc',
-            suffix: '',
-          },
-        },
-        lndconnect: {
-          id: 'lndconnect',
-          masked: true,
-          name: 'LND Connect',
-          description:
-            'Used by client wallets adhering to LND Connect protocol to connect to your node',
-          type: 'api',
-          addressInfo: {
-            username: null,
-            hostId: 'qrstuv',
-            internalPort: 10009,
-            scheme: null,
-            sslScheme: 'lndconnect',
-            suffix: 'cert=askjdfbjadnaskjnd&macaroon=ksjbdfnhjasbndjksand',
-          },
-        },
-        p2p: {
-          id: 'p2p',
-          masked: false,
-          name: 'P2P',
-          description:
-            'Used for connecting to other nodes on the Bitcoin network',
-          type: 'p2p',
-          addressInfo: {
-            username: null,
-            hostId: 'rstuvw',
-            internalPort: 8333,
-            scheme: 'bitcoin',
-            sslScheme: null,
-            suffix: '',
-          },
-        },
-      },
-      currentDependencies: {
-        bitcoind: {
-          title: Mock.BitcoinDep.title,
-          icon: Mock.BitcoinDep.icon,
-          kind: 'running',
-          versionRange: '>=26.0.0',
-          healthChecks: [],
-        },
-        'btc-rpc-proxy': {
-          title: Mock.ProxyDep.title,
-          icon: Mock.ProxyDep.icon,
-          kind: 'running',
-          versionRange: '>2.0.0',
-          healthChecks: [],
-        },
-      },
-      hosts: {},
-      storeExposedDependents: [],
-      registry: 'https://registry.start9.com/',
-      developerKey: 'developer-key',
-      tasks: {
-        config: {
-          active: true,
-          task: {
-            packageId: 'lnd',
-            actionId: 'config',
-            severity: 'critical',
-            reason: 'LND needs configuration before starting',
-          },
-        },
-        connect: {
-          active: true,
-          task: {
-            packageId: 'lnd',
-            actionId: 'connect',
-            severity: 'important',
-            reason: 'View LND connection details',
-          },
-        },
-        'bitcoind/config': {
-          active: true,
-          task: {
-            packageId: 'bitcoind',
-            actionId: 'config',
-            severity: 'critical',
-            reason: 'LND likes BTC a certain way',
-            input: {
-              kind: 'partial',
-              value: {
-                color: '#ffffff',
-                testnet: false,
-              },
-            },
-          },
-        },
-        'bitcoind/rpc': {
-          active: true,
-          task: {
-            packageId: 'bitcoind',
-            actionId: 'rpc',
-            severity: 'important',
-            reason: `LND want's its own RPC credentials`,
-            input: {
-              kind: 'partial',
-              value: {
-                rpcsettings: {
-                  rpcuser: 'lnd',
-                },
-              },
-            },
-          },
         },
       },
     },

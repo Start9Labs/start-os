@@ -42,7 +42,6 @@ import { StatusComponent } from './status.component'
 
     :host {
       @include taiga.transition(background);
-      clip-path: inset(0 round 0.5rem);
       cursor: pointer;
 
       &:hover {
@@ -73,9 +72,13 @@ import { StatusComponent } from './status.component'
     :host-context(tui-root._mobile) {
       position: relative;
       display: grid;
-      grid-template: 1.25rem 1.5rem 1.5rem/4rem 1fr;
+      grid-template: 1.25rem 2rem 1.5rem/4rem 1fr;
       align-items: center;
       padding: 1rem;
+
+      &:hover {
+        background: none;
+      }
 
       img {
         height: 3rem;
