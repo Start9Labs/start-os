@@ -88,6 +88,8 @@ export default {
   88: 'Akcje',
   89: 'niezalecane',
   90: 'Główny certyfikat CA zaufany!',
+  91: 'Zainstalowane usługi',
+  92: 'Diagnostyka demona Tor na tym serwerze',
   96: 'Dodaj domenę publiczną',
   97: 'Usuwanie',
   100: 'Niezapisane zmiany',

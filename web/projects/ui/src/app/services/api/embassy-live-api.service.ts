@@ -206,6 +206,10 @@ export class LiveApiService extends ApiService {
     return this.rpcRequest({ method: 'server.logs', params })
   }
 
+  async getTorLogs(params: RR.GetServerLogsReq): Promise<RR.GetServerLogsRes> {
+    return this.rpcRequest({ method: 'net.tor.logs', params })
+  }
+
   async getKernelLogs(
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes> {
@@ -216,6 +220,12 @@ export class LiveApiService extends ApiService {
     params: RR.FollowServerLogsReq,
   ): Promise<RR.FollowServerLogsRes> {
     return this.rpcRequest({ method: 'server.logs.follow', params })
+  }
+
+  async followTorLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes> {
+    return this.rpcRequest({ method: 'net.tor.logs.follow', params })
   }
 
   async followKernelLogs(

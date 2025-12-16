@@ -73,14 +73,14 @@ export namespace RR {
     uptime: number // seconds
   }
 
-  export type GetServerLogsReq = FetchLogsReq // server.logs & server.kernel-logs
+  export type GetServerLogsReq = FetchLogsReq // server.logs & server.kernel-logs & net.tor.logs
   export type GetServerLogsRes = FetchLogsRes
 
   export type FollowServerLogsReq = {
     limit?: number // (optional) default is 50. Ignored if cursor provided
     boot?: number | string | null // (optional) number is offset (0: current, -1 prev, +1 first), string is a specific boot id, null is all. Default is undefined
     cursor?: string // the last known log. Websocket will return all logs since this log
-  } // server.logs.follow & server.kernel-logs.follow
+  } // server.logs.follow & server.kernel-logs.follow & net.tor.follow-logs
   export type FollowServerLogsRes = {
     startCursor: string
     guid: string

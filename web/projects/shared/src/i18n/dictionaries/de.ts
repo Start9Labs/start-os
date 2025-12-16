@@ -88,6 +88,8 @@ export default {
   88: 'Aktionen',
   89: 'nicht empfohlen',
   90: 'Root-CA ist vertrauenswürdig!',
+  91: 'Installierte Dienste',
+  92: 'Diagnosen für den Tor-Daemon auf diesem Server',
   96: 'Öffentliche Domain hinzufügen',
   97: 'Wird entfernt',
   100: 'Nicht gespeicherte Änderungen',

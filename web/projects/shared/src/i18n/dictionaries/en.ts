@@ -87,6 +87,8 @@ export const ENGLISH = {
   'Actions': 88, // as in, actions available to the user
   'not recommended': 89,
   'Root CA Trusted!': 90,
+  'Installed services': 91, // as in, software services installed on this computer
+  'Diagnostics for the Tor daemon on this server': 92,
   'Add public domain': 96,
   'Removing': 97,
   'Unsaved changes': 100,

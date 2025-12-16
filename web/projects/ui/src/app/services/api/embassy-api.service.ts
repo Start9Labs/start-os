@@ -86,11 +86,17 @@ export abstract class ApiService {
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes>
 
+  abstract getTorLogs(params: RR.GetServerLogsReq): Promise<RR.GetServerLogsRes>
+
   abstract getKernelLogs(
     params: RR.GetServerLogsReq,
   ): Promise<RR.GetServerLogsRes>
 
   abstract followServerLogs(
+    params: RR.FollowServerLogsReq,
+  ): Promise<RR.FollowServerLogsRes>
+
+  abstract followTorLogs(
     params: RR.FollowServerLogsReq,
   ): Promise<RR.FollowServerLogsRes>
 

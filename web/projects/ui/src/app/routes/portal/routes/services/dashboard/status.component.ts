@@ -15,7 +15,7 @@ import {
 } from 'src/app/services/pkg-status-rendering.service'
 
 @Component({
-  selector: 'td[appStatus]',
+  selector: 'app-status',
   template: `
     @if (error()) {
       <tui-icon icon="@tui.triangle-alert" class="g-warning" />
@@ -34,7 +34,6 @@ import {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-      height: 3rem;
       white-space: nowrap;
     }
 

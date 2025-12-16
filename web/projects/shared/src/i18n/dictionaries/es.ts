@@ -88,6 +88,8 @@ export default {
   88: 'Acciones',
   89: 'no recomendado',
   90: '¡CA raíz confiable!',
+  91: 'Servicios instalados',
+  92: 'Diagnósticos para el demonio Tor en este servidor',
   96: 'Agregar dominio público',
   97: 'Eliminando',
   100: 'Cambios no guardados',
