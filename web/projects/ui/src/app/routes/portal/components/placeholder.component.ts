@@ -3,7 +3,12 @@ import { TuiIcon } from '@taiga-ui/core'
 
 @Component({
   selector: 'app-placeholder',
-  template: '<tui-icon [icon]="icon()" /><ng-content/>',
+  template: `
+    @if (icon(); as icon) {
+      <tui-icon [icon]="icon" />
+    }
+    <ng-content />
+  `,
   styles: `
     :host {
       display: flex;
@@ -26,5 +31,5 @@ import { TuiIcon } from '@taiga-ui/core'
   imports: [TuiIcon],
 })
 export class PlaceholderComponent {
-  readonly icon = input.required<string>()
+  readonly icon = input<string>()
 }

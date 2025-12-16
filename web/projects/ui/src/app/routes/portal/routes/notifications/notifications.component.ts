@@ -49,16 +49,6 @@ import { NotificationsTableComponent } from './table.component'
     :host {
       padding: 1rem;
     }
-
-    :host-context(tui-root._mobile) {
-      header {
-        display: none;
-      }
-
-      section {
-        padding-block: 0;
-      }
-    }
   `,
   host: { class: 'g-page' },
   changeDetection: ChangeDetectionStrategy.OnPush,

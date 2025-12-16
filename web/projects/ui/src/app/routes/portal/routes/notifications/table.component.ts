@@ -12,6 +12,7 @@ import { ServerNotification } from 'src/app/services/api/api.types'
 import { TableComponent } from 'src/app/routes/portal/components/table.component'
 import { NotificationItemComponent } from './item.component'
 import { i18nPipe } from '@start9labs/shared'
+import { PlaceholderComponent } from '../../components/placeholder.component'
 
 @Component({
   selector: '[notifications]',
@@ -48,9 +49,9 @@ import { i18nPipe } from '@start9labs/shared'
         </tr>
       } @empty {
         @if (notifications()) {
-          <tr>
-            <td colspan="4">{{ 'No notifications' | i18n }}</td>
-          </tr>
+          <app-placeholder icon="@tui.bell">
+            {{ 'No notifications' | i18n }}
+          </app-placeholder>
         } @else {
           @for (i of ['', '']; track $index) {
             <tr>
@@ -69,10 +70,6 @@ import { i18nPipe } from '@start9labs/shared'
       top: 50%;
       left: 0.75rem;
       transform: translateY(-50%);
-    }
-
-    td:only-child {
-      text-align: center;
     }
 
     :host-context(tui-root._mobile) {
@@ -97,6 +94,7 @@ import { i18nPipe } from '@start9labs/shared'
     TuiSkeleton,
     i18nPipe,
     TableComponent,
+    PlaceholderComponent,
   ],
 })
 export class NotificationsTableComponent<T extends ServerNotification<number>>

@@ -15,12 +15,12 @@ import {
 } from 'src/app/services/pkg-status-rendering.service'
 
 @Component({
-  selector: 'td[appStatus]',
+  selector: 'app-status',
   template: `
     @if (error()) {
       <tui-icon icon="@tui.triangle-alert" class="g-warning" />
     } @else if (loading()) {
-      <tui-loader size="m" />
+      <tui-loader size="s" />
     }
 
     <b [style.color]="color()">{{ statusText() | i18n }}</b>
@@ -33,13 +33,14 @@ import {
     :host {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      height: 3rem;
+      gap: 0.25rem;
       white-space: nowrap;
     }
 
     :host-context(tui-root._mobile) {
-      height: auto;
+      tui-icon {
+        font-size: 1rem;
+      }
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

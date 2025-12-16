@@ -18,18 +18,15 @@ import { StatusComponent } from './status.component'
 @Component({
   selector: 'tr[appService]',
   template: `
-    <td [style.grid-area]="'1 / 1 / 4'">
+    <td [style.width.rem]="3" [style.grid-area]="'1 / 1 / 4'">
       <img alt="logo" [src]="pkg.icon" />
     </td>
     <td class="title">
       <a [routerLink]="routerLink">{{ manifest.title }}</a>
     </td>
-    <td
-      appStatus
-      [pkg]="pkg"
-      [hasDepErrors]="hasError(depErrors)"
-      [style.grid-area]="'3 / 2'"
-    ></td>
+    <td [style.grid-area]="'3 / 2'">
+      <app-status [pkg]="pkg" [hasDepErrors]="hasError(depErrors)" />
+    </td>
     <td class="version">{{ manifest.version }}</td>
     <td class="uptime">
       @if (pkg.statusInfo.started; as started) {
@@ -45,7 +42,6 @@ import { StatusComponent } from './status.component'
 
     :host {
       @include taiga.transition(background);
-      clip-path: inset(0 round 0.5rem);
       cursor: pointer;
 
       &:hover {
@@ -76,9 +72,13 @@ import { StatusComponent } from './status.component'
     :host-context(tui-root._mobile) {
       position: relative;
       display: grid;
-      grid-template: 1.25rem 1.5rem 1.5rem/4rem 1fr;
+      grid-template: 1.25rem 2rem 1.5rem/4rem 1fr;
       align-items: center;
       padding: 1rem;
+
+      &:hover {
+        background: none;
+      }
 
       img {
         height: 3rem;

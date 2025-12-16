@@ -88,6 +88,8 @@ export default {
   88: 'Actions',
   89: 'non recommandé',
   90: 'Certificat racine approuvé !',
+  91: 'Services installés',
+  92: 'Diagnostics pour le service Tor sur ce serveur',
   96: 'Ajouter un domaine public',
   97: 'Suppression',
   100: 'Modifications non enregistrées',

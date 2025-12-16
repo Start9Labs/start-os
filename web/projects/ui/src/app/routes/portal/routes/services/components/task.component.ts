@@ -86,7 +86,7 @@ import { getManifest } from 'src/app/utils/get-package-data'
 
     td:last-child {
       white-space: nowrap;
-      text-align: right;
+      justify-content: end;
       display: flex;
       gap: 8px;
     }

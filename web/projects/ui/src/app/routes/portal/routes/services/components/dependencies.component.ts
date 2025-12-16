@@ -18,7 +18,6 @@ import { ToManifestPipe } from '../../../pipes/to-manifest'
     @let services = this.services();
 
     @for (d of pkg().currentDependencies | keyvalue; track $index) {
-      <!-- @TODO Alex Marketplace should use "search" query param to prefill search bar -->
       <a
         tuiCell
         [routerLink]="services[d.key] ? ['..', d.key] : ['/marketplace']"

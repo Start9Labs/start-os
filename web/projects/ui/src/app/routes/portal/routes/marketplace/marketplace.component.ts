@@ -167,6 +167,9 @@ export default class MarketplaceComponent {
       takeUntilDestroyed(),
       tap(params => {
         const registry = params.get('registry')
+
+        this.categoryService.setQuery(params.get('search') || '')
+
         if (!registry) {
           this.router.navigate([], {
             queryParams: {
