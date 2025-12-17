@@ -374,14 +374,14 @@ uis: $(WEB_UIS)
 # this is a convenience step to build the UI
 ui: web/dist/raw/ui
 
-cargo-deps/aarch64-unknown-linux-musl/release/pi-beep:
+cargo-deps/aarch64-unknown-linux-musl/release/pi-beep: ./build-cargo-dep.sh
 	ARCH=aarch64 ./build-cargo-dep.sh pi-beep
 
-cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/tokio-console:
+cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/tokio-console: ./build-cargo-dep.sh
 	ARCH=$(ARCH) PREINSTALL="apk add musl-dev pkgconfig" ./build-cargo-dep.sh tokio-console
 
-cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/startos-backup-fs:
+cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/startos-backup-fs: ./build-cargo-dep.sh
 	ARCH=$(ARCH) PREINSTALL="apk add fuse3 fuse3-dev fuse3-static musl-dev pkgconfig" ./build-cargo-dep.sh --git https://github.com/Start9Labs/start-fs.git startos-backup-fs
 
-cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/flamegraph:
+cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/flamegraph: ./build-cargo-dep.sh
 	ARCH=$(ARCH) PREINSTALL="apk add musl-dev pkgconfig" ./build-cargo-dep.sh flamegraph
