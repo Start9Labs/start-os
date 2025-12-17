@@ -298,7 +298,8 @@ impl Service {
             return Ok(None);
         };
         let s9pk_path = entry.as_s9pk().de()?;
-        match entry.as_state_info().as_match() {
+        let state = entry.as_state_info().as_match();
+        match state {
             PackageStateMatchModelRef::Installing(_) => {
                 if disposition == LoadDisposition::Retry {
                     if let Ok(s9pk) = S9pk::open(&s9pk_path, Some(id)).await.map_err(|e| {
@@ -432,11 +433,10 @@ impl Service {
                     }
                 }
 
-                if disposition == LoadDisposition::Retry {
-                    ctx.db
-                        .mutate(|v| v.as_public_mut().as_package_data_mut().remove(id))
-                        .await
-                        .result?;
+                if disposition == LoadDisposition::Retry
+                    || matches!(state, PackageStateMatchModelRef::Restoring(_))
+                {
+                    cleanup(ctx, id, false).await?;
                 }
 
                 Ok(None)
@@ -493,11 +493,16 @@ impl Service {
                     .as_entries()?
                     .into_iter()
                     .map(|(_, r)| {
-                        Ok::<_, Error>(if r.as_task().as_package_id().de()? == manifest.id {
-                            Some(r.as_task().as_action_id().de()?)
-                        } else {
-                            None
-                        })
+                        let t = r.as_task();
+                        Ok::<_, Error>(
+                            if t.as_package_id().de()? == manifest.id
+                                && t.as_input().transpose_ref().is_some()
+                            {
+                                Some(t.as_action_id().de()?)
+                            } else {
+                                None
+                            },
+                        )
                     })
                     .filter_map_ok(|a| a))
             })
@@ -515,7 +520,9 @@ impl Service {
             {
                 if let Some(input) = service
                     .get_action_input(procedure_id.clone(), action_id.clone())
-                    .await?
+                    .await
+                    .log_err()
+                    .flatten()
                     .and_then(|i| i.value)
                 {
                     action_input.insert(action_id, input);
@@ -589,7 +596,7 @@ impl Service {
             .send(
                 Guid::new(),
                 transition::backup::Backup {
-                    path: guard.path().to_owned(),
+                    path: guard.path().join("data"),
                 },
             )
             .await??;

@@ -378,10 +378,13 @@ cargo-deps/aarch64-unknown-linux-musl/release/pi-beep: ./build-cargo-dep.sh
 	ARCH=aarch64 ./build-cargo-dep.sh pi-beep
 
 cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/tokio-console: ./build-cargo-dep.sh
-	ARCH=$(ARCH) PREINSTALL="apk add musl-dev pkgconfig" ./build-cargo-dep.sh tokio-console
+	ARCH=$(ARCH) ./build-cargo-dep.sh tokio-console
+	touch $@
 
 cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/startos-backup-fs: ./build-cargo-dep.sh
-	ARCH=$(ARCH) PREINSTALL="apk add fuse3 fuse3-dev fuse3-static musl-dev pkgconfig" ./build-cargo-dep.sh --git https://github.com/Start9Labs/start-fs.git startos-backup-fs
+	ARCH=$(ARCH) ./build-cargo-dep.sh --git https://github.com/Start9Labs/start-fs.git startos-backup-fs
+	touch $@
 
 cargo-deps/$(RUST_ARCH)-unknown-linux-musl/release/flamegraph: ./build-cargo-dep.sh
-	ARCH=$(ARCH) PREINSTALL="apk add musl-dev pkgconfig" ./build-cargo-dep.sh flamegraph
+	ARCH=$(ARCH) ./build-cargo-dep.sh flamegraph
+	touch $@

@@ -389,12 +389,19 @@ impl RpcContext {
             .as_entries()?
             .into_iter()
             .map(|(_, pde)| {
-                Ok(pde.as_tasks().as_entries()?.into_iter().map(|(_, r)| {
-                    Ok::<_, Error>((
-                        r.as_task().as_package_id().de()?,
-                        r.as_task().as_action_id().de()?,
-                    ))
-                }))
+                Ok(pde
+                    .as_tasks()
+                    .as_entries()?
+                    .into_iter()
+                    .map(|(_, r)| {
+                        let t = r.as_task();
+                        Ok::<_, Error>(if t.as_input().transpose_ref().is_some() {
+                            Some((t.as_package_id().de()?, t.as_action_id().de()?))
+                        } else {
+                            None
+                        })
+                    })
+                    .filter_map_ok(|a| a))
             })
             .flatten_ok()
             .map(|a| a.and_then(|a| a))

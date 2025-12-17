@@ -35,6 +35,12 @@ impl Model<StatusInfo> {
     pub fn started(&mut self) -> Result<(), Error> {
         self.as_started_mut()
             .map_mutate(|s| Ok(Some(s.unwrap_or_else(|| Utc::now()))))?;
+        self.as_desired_mut().map_mutate(|s| {
+            Ok(match s {
+                DesiredStatus::Restarting => DesiredStatus::Running,
+                a => a,
+            })
+        })?;
         Ok(())
     }
     pub fn stop(&mut self) -> Result<(), Error> {
