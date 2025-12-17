@@ -296,7 +296,7 @@ function peg$parse(input, options) {
   var peg$source = options.grammarSource;
 
 // @ts-ignore
-  var peg$startRuleFunctions = { VersionRange: peg$parseVersionRange, Or: peg$parseOr, And: peg$parseAnd, VersionRangeAtom: peg$parseVersionRangeAtom, Parens: peg$parseParens, Anchor: peg$parseAnchor, VersionSpec: peg$parseVersionSpec, FlavorAtom: peg$parseFlavorAtom, Not: peg$parseNot, Any: peg$parseAny, None: peg$parseNone, CmpOp: peg$parseCmpOp, ExtendedVersion: peg$parseExtendedVersion, EmverVersionRange: peg$parseEmverVersionRange, EmverVersionRangeAtom: peg$parseEmverVersionRangeAtom, EmverParens: peg$parseEmverParens, EmverAnchor: peg$parseEmverAnchor, EmverNot: peg$parseEmverNot, Emver: peg$parseEmver, Flavor: peg$parseFlavor, Lowercase: peg$parseLowercase, String: peg$parseString, Version: peg$parseVersion, PreRelease: peg$parsePreRelease, PreReleaseSegment: peg$parsePreReleaseSegment, VersionNumber: peg$parseVersionNumber, Digit: peg$parseDigit, _: peg$parse_ };
+  var peg$startRuleFunctions = { VersionRange: peg$parseVersionRange, Or: peg$parseOr, And: peg$parseAnd, VersionRangeAtom: peg$parseVersionRangeAtom, Parens: peg$parseParens, Anchor: peg$parseAnchor, VersionSpec: peg$parseVersionSpec, FlavorAtom: peg$parseFlavorAtom, Not: peg$parseNot, Any: peg$parseAny, None: peg$parseNone, CmpOp: peg$parseCmpOp, ExtendedVersion: peg$parseExtendedVersion, EmverVersionRange: peg$parseEmverVersionRange, EmverVersionRangeAtom: peg$parseEmverVersionRangeAtom, EmverParens: peg$parseEmverParens, EmverAnchor: peg$parseEmverAnchor, EmverNot: peg$parseEmverNot, Emver: peg$parseEmver, Flavor: peg$parseFlavor, FlavorString: peg$parseFlavorString, String: peg$parseString, Version: peg$parseVersion, PreRelease: peg$parsePreRelease, PreReleaseSegment: peg$parsePreReleaseSegment, VersionNumber: peg$parseVersionNumber, Digit: peg$parseDigit, _: peg$parse_ };
 // @ts-ignore
   var peg$startRuleFunction = peg$parseVersionRange;
 
@@ -1161,20 +1161,11 @@ peg$parseFlavorAtom() {
 // @ts-ignore
     if (s1 !== peg$FAILED) {
 // @ts-ignore
-      s2 = peg$parseLowercase();
+      s2 = peg$parseFlavorString();
 // @ts-ignore
-      if (s2 !== peg$FAILED) {
+      peg$savedPos = s0;
 // @ts-ignore
-        peg$savedPos = s0;
-// @ts-ignore
-        s0 = peg$f3(s2);
-// @ts-ignore
-      } else {
-// @ts-ignore
-        peg$currPos = s0;
-// @ts-ignore
-        s0 = peg$FAILED;
-      }
+      s0 = peg$f3(s2);
 // @ts-ignore
     } else {
 // @ts-ignore
@@ -2092,35 +2083,26 @@ peg$parseFlavor() {
 // @ts-ignore
     if (s1 !== peg$FAILED) {
 // @ts-ignore
-      s2 = peg$parseLowercase();
+      s2 = peg$parseFlavorString();
 // @ts-ignore
-      if (s2 !== peg$FAILED) {
+      if (input.charCodeAt(peg$currPos) === 58) {
 // @ts-ignore
-        if (input.charCodeAt(peg$currPos) === 58) {
+        s3 = peg$c4;
 // @ts-ignore
-          s3 = peg$c4;
+        peg$currPos++;
 // @ts-ignore
-          peg$currPos++;
+      } else {
 // @ts-ignore
-        } else {
+        s3 = peg$FAILED;
 // @ts-ignore
-          s3 = peg$FAILED;
+        if (peg$silentFails === 0) { peg$fail(peg$e4); }
+      }
 // @ts-ignore
-          if (peg$silentFails === 0) { peg$fail(peg$e4); }
-        }
+      if (s3 !== peg$FAILED) {
 // @ts-ignore
-        if (s3 !== peg$FAILED) {
+        peg$savedPos = s0;
 // @ts-ignore
-          peg$savedPos = s0;
-// @ts-ignore
-          s0 = peg$f21(s2);
-// @ts-ignore
-        } else {
-// @ts-ignore
-          peg$currPos = s0;
-// @ts-ignore
-          s0 = peg$FAILED;
-        }
+        s0 = peg$f21(s2);
 // @ts-ignore
       } else {
 // @ts-ignore
@@ -2142,7 +2124,7 @@ peg$parseFlavor() {
 
 // @ts-ignore
   function // @ts-ignore
-peg$parseLowercase() {
+peg$parseFlavorString() {
 // @ts-ignore
     var s0, s1, s2;
 
@@ -2164,37 +2146,27 @@ peg$parseLowercase() {
       if (peg$silentFails === 0) { peg$fail(peg$e17); }
     }
 // @ts-ignore
-    if (s2 !== peg$FAILED) {
+    while (s2 !== peg$FAILED) {
 // @ts-ignore
-      while (s2 !== peg$FAILED) {
+      s1.push(s2);
 // @ts-ignore
-        s1.push(s2);
+      if (peg$r0.test(input.charAt(peg$currPos))) {
 // @ts-ignore
-        if (peg$r0.test(input.charAt(peg$currPos))) {
+        s2 = input.charAt(peg$currPos);
 // @ts-ignore
-          s2 = input.charAt(peg$currPos);
+        peg$currPos++;
 // @ts-ignore
-          peg$currPos++;
+      } else {
 // @ts-ignore
-        } else {
+        s2 = peg$FAILED;
 // @ts-ignore
-          s2 = peg$FAILED;
-// @ts-ignore
-          if (peg$silentFails === 0) { peg$fail(peg$e17); }
-        }
+        if (peg$silentFails === 0) { peg$fail(peg$e17); }
       }
-// @ts-ignore
-    } else {
-// @ts-ignore
-      s1 = peg$FAILED;
     }
 // @ts-ignore
-    if (s1 !== peg$FAILED) {
+    peg$savedPos = s0;
 // @ts-ignore
-      peg$savedPos = s0;
-// @ts-ignore
-      s1 = peg$f22();
-    }
+    s1 = peg$f22();
 // @ts-ignore
     s0 = s1;
 
@@ -2822,7 +2794,7 @@ peggyParser.SyntaxError.prototype.name = "PeggySyntaxError";
 
 export interface ParseOptions {
   filename?: string;
-  startRule?: "VersionRange" | "Or" | "And" | "VersionRangeAtom" | "Parens" | "Anchor" | "VersionSpec" | "FlavorAtom" | "Not" | "Any" | "None" | "CmpOp" | "ExtendedVersion" | "EmverVersionRange" | "EmverVersionRangeAtom" | "EmverParens" | "EmverAnchor" | "EmverNot" | "Emver" | "Flavor" | "Lowercase" | "String" | "Version" | "PreRelease" | "PreReleaseSegment" | "VersionNumber" | "Digit" | "_";
+  startRule?: "VersionRange" | "Or" | "And" | "VersionRangeAtom" | "Parens" | "Anchor" | "VersionSpec" | "FlavorAtom" | "Not" | "Any" | "None" | "CmpOp" | "ExtendedVersion" | "EmverVersionRange" | "EmverVersionRangeAtom" | "EmverParens" | "EmverAnchor" | "EmverNot" | "Emver" | "Flavor" | "FlavorString" | "String" | "Version" | "PreRelease" | "PreReleaseSegment" | "VersionNumber" | "Digit" | "_";
   tracer?: any;
   [key: string]: any;
 }
@@ -2850,7 +2822,7 @@ export type ParseFunction = <Options extends ParseOptions>(
     StartRule extends "EmverNot" ? EmverNot :
     StartRule extends "Emver" ? Emver :
     StartRule extends "Flavor" ? Flavor :
-    StartRule extends "Lowercase" ? Lowercase_1 :
+    StartRule extends "FlavorString" ? FlavorString :
     StartRule extends "String" ? String_1 :
     StartRule extends "Version" ? Version :
     StartRule extends "PreRelease" ? PreRelease :
@@ -2884,7 +2856,7 @@ export type VersionSpec = {
   upstream: Version;
   downstream: any;
 };
-export type FlavorAtom = { type: "Flavor"; flavor: Lowercase_1 };
+export type FlavorAtom = { type: "Flavor"; flavor: FlavorString };
 export type Not = { type: "Not"; value: VersionRangeAtom };
 export type Any = { type: "Any" };
 export type None = { type: "None" };
@@ -2916,8 +2888,8 @@ export type Emver = {
   upstream: { number: [Digit, Digit, Digit]; prerelease: [] };
   downstream: { number: [0 | NonNullable<Digit | null>]; prerelease: [] };
 };
-export type Flavor = Lowercase_1;
-export type Lowercase_1 = string;
+export type Flavor = FlavorString;
+export type FlavorString = string;
 export type String_1 = string;
 export type Version = {
   number: VersionNumber;

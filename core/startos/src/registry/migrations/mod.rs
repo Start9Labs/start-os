@@ -13,8 +13,9 @@ pub trait RegistryMigration {
 pub const MIGRATIONS: &[&dyn RegistryMigration] =
     &[&m_00_package_signer_scope::PackageSignerScopeMigration];
 
+#[instrument(skip_all)]
 pub fn run_migrations(db: &mut Model<RegistryDatabase>) -> Result<(), Error> {
-    let mut migrations = db.as_migrations().de()?;
+    let mut migrations = db.as_migrations().de().unwrap_or_default();
     for migration in MIGRATIONS {
         if !migrations.contains(migration.name()) {
             migration.action(ModelExt::as_value_mut(db))?;

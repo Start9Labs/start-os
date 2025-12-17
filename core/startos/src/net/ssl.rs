@@ -478,7 +478,7 @@ pub fn make_leaf_cert(
 
     // Google Apple and Mozilla reject certificate horizons longer than 398 days
     // https://techbeacon.com/security/google-apple-mozilla-enforce-1-year-max-security-certifications
-    let expiration = Asn1Time::days_from_now(397)?;
+    let expiration = Asn1Time::days_from_now(365)?;
     builder.set_not_after(&expiration)?;
 
     builder.set_serial_number(&*rand_serial()?)?;

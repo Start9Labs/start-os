@@ -873,7 +873,7 @@ export class ExtendedVersion {
   static parse(extendedVersion: string): ExtendedVersion {
     const parsed = P.parse(extendedVersion, { startRule: "ExtendedVersion" })
     return new ExtendedVersion(
-      parsed.flavor,
+      parsed.flavor || null,
       new Version(parsed.upstream.number, parsed.upstream.prerelease),
       new Version(parsed.downstream.number, parsed.downstream.prerelease),
     )
@@ -883,7 +883,7 @@ export class ExtendedVersion {
     try {
       const parsed = P.parse(extendedVersion, { startRule: "Emver" })
       return new ExtendedVersion(
-        parsed.flavor,
+        parsed.flavor || null,
         new Version(parsed.upstream.number, parsed.upstream.prerelease),
         new Version(parsed.downstream.number, parsed.downstream.prerelease),
       )

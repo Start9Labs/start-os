@@ -35,7 +35,7 @@ pub struct CliContextSeed {
     pub base_url: Url,
     pub rpc_url: Url,
     pub registry_url: Option<Url>,
-    pub registry_hostname: Option<InternedString>,
+    pub registry_hostname: Vec<InternedString>,
     pub registry_listen: Option<SocketAddr>,
     pub tunnel_addr: Option<SocketAddr>,
     pub tunnel_listen: Option<SocketAddr>,
@@ -126,7 +126,7 @@ impl CliContext {
                     Ok::<_, Error>(registry)
                 })
                 .transpose()?,
-            registry_hostname: config.registry_hostname,
+            registry_hostname: config.registry_hostname.unwrap_or_default(),
             registry_listen: config.registry_listen,
             tunnel_addr: config.tunnel,
             tunnel_listen: config.tunnel_listen,

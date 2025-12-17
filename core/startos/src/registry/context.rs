@@ -8,6 +8,7 @@ use clap::Parser;
 use http::HeaderMap;
 use imbl_value::InternedString;
 use patch_db::PatchDb;
+use patch_db::json_ptr::ROOT;
 use reqwest::{Client, Proxy};
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty, RpcRequest};
@@ -97,12 +98,12 @@ impl RegistryContext {
             tokio::fs::create_dir_all(&datadir).await?;
         }
         let db_path = datadir.join("registry.db");
-        let db = TypedPatchDb::<RegistryDatabase>::load_or_init(
-            PatchDb::open(&db_path).await?,
-            || async { Ok(RegistryDatabase::init()) },
-        )
-        .await?;
+        let db = TypedPatchDb::<RegistryDatabase>::load_unchecked(PatchDb::open(&db_path).await?);
+        if db.dump(&ROOT).await.value.is_null() {
+            db.put(&ROOT, &RegistryDatabase::init()).await?;
+        }
         db.mutate(|db| run_migrations(db)).await.result?;
+
         let tor_proxy_url = config
             .tor_proxy
             .clone()
@@ -170,7 +171,7 @@ impl CallRemote<RegistryContext> for CliContext {
     ) -> Result<Value, RpcError> {
         let url = if let Some(url) = self.registry_url.clone() {
             url
-        } else if self.registry_hostname.is_some() {
+        } else if !self.registry_hostname.is_empty() {
             let mut url: Url = format!(
                 "http://{}",
                 self.registry_listen.unwrap_or(DEFAULT_REGISTRY_LISTEN)
@@ -191,7 +192,8 @@ impl CallRemote<RegistryContext> for CliContext {
         method = method.strip_prefix("registry.").unwrap_or(method);
         let sig_context = self
             .registry_hostname
-            .clone()
+            .get(0)
+            .cloned()
             .or_else(|| url.host().as_ref().map(InternedString::from_display));
 
         crate::middleware::signature::call_remote(

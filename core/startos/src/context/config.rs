@@ -65,7 +65,7 @@ pub struct ClientConfig {
     #[arg(short = 'r', long)]
     pub registry: Option<Url>,
     #[arg(long)]
-    pub registry_hostname: Option<InternedString>,
+    pub registry_hostname: Option<Vec<InternedString>>,
     #[arg(skip)]
     pub registry_listen: Option<SocketAddr>,
     #[arg(short = 't', long)]

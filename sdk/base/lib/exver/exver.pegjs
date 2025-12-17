@@ -26,7 +26,7 @@ VersionSpec
   = flavor:Flavor? upstream:Version downstream:( ":" Version )? { return { flavor: flavor || null, upstream, downstream: downstream ? downstream[1] : { number: [0], prerelease: [] } } }
 
 FlavorAtom
-  = "#" flavor:Lowercase { return { type: "Flavor", flavor: flavor } }
+  = "#" flavor:FlavorString { return { type: "Flavor", flavor: flavor } }
 
 Not = "!" _ value:VersionRangeAtom { return { type: "Not", value: value }}
 
@@ -83,10 +83,10 @@ Emver
   }
 
 Flavor
-  = "#" flavor:Lowercase ":" { return flavor }
+  = "#" flavor:FlavorString ":" { return flavor }
 
-Lowercase
-  = [a-z]+ { return text() }
+FlavorString
+  = [a-z]* { return text() }
 
 String
   = [a-zA-Z]+ { return text(); }
