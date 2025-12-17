@@ -10,6 +10,7 @@ use http::HeaderMap;
 use imbl::OrdMap;
 use imbl_value::InternedString;
 use include_dir::Dir;
+use ipnet::Ipv4Net;
 use models::GatewayId;
 use patch_db::PatchDb;
 use rpc_toolkit::yajrc::RpcError;
@@ -103,7 +104,7 @@ impl TunnelContext {
             || async {
                 let mut db = TunnelDatabase::default();
                 db.wg.subnets.0.insert(
-                    "10.59.0.1/24".parse()?,
+                    Ipv4Net::new_assert([10, 59, rand::random(), 1].into(), 24),
                     WgSubnetConfig {
                         name: "Default Subnet".into(),
                         ..Default::default()
