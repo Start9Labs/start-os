@@ -1,7 +1,6 @@
-use crate::{HostId, PackageId};
-
 use crate::net::host::binding::{BindId, BindOptions, NetInfo};
 use crate::service::effects::prelude::*;
+use crate::{HostId, PackageId};
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]

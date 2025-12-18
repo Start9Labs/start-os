@@ -68,7 +68,10 @@ export class SystemForStartOs implements System {
     try {
       if (this.runningMain || this.starting) return
       this.starting = true
-      effects.constRetry = utils.once(() => effects.restart())
+      effects.constRetry = utils.once(() => {
+        console.debug(".const() triggered")
+        effects.restart()
+      })
       let mainOnTerm: () => Promise<void> | undefined
       const daemons = await (
         await this.abi.main({

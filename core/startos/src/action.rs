@@ -1,14 +1,13 @@
 use std::fmt;
 
 use clap::{CommandFactory, FromArgMatches, Parser};
-pub use crate::ActionId;
-use crate::{PackageId, ReplayId};
 use qrcode::QrCode;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
 
+pub use crate::ActionId;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::package::TaskSeverity;
 use crate::prelude::*;
@@ -16,6 +15,7 @@ use crate::rpc_continuations::Guid;
 use crate::util::serde::{
     HandlerExtSerde, StdinDeserializable, WithIoFormat, display_serializable,
 };
+use crate::{PackageId, ReplayId};
 
 pub fn action_api<C: Context>() -> ParentHandler<C> {
     ParentHandler::new()

@@ -1,4 +1,6 @@
 import { Effects } from "../Effects"
+import { PackageId } from "../osBindings"
+import { deepEqual } from "./deepEqual"
 import { DropGenerator, DropPromise } from "./Drop"
 import {
   ServiceInterfaceFilled,
@@ -41,28 +43,28 @@ const makeManyInterfaceFilled = async ({
   return serviceInterfacesFilled
 }
 
-export class GetServiceInterfaces {
+export class GetServiceInterfaces<Mapped = ServiceInterfaceFilled[]> {
   constructor(
     readonly effects: Effects,
     readonly opts: { packageId?: string },
+    readonly map: (interfaces: ServiceInterfaceFilled[]) => Mapped,
+    readonly eq: (a: Mapped, b: Mapped) => boolean,
   ) {}
 
   /**
    * Returns the service interfaces for the package. Reruns the context from which it has been called if the underlying value changes
    */
   async const() {
-    const { packageId } = this.opts
-    const callback =
-      this.effects.constRetry &&
-      (() => this.effects.constRetry && this.effects.constRetry())
-    const interfaceFilled: ServiceInterfaceFilled[] =
-      await makeManyInterfaceFilled({
-        effects: this.effects,
-        packageId,
-        callback,
+    let abort = new AbortController()
+    const watch = this.watch(abort.signal)
+    const res = await watch.next()
+    if (this.effects.constRetry) {
+      watch.next().then(() => {
+        abort.abort()
+        this.effects.constRetry && this.effects.constRetry()
       })
-
-    return interfaceFilled
+    }
+    return res.value
   }
   /**
    * Returns the service interfaces for the package. Does nothing if the value changes
@@ -75,10 +77,11 @@ export class GetServiceInterfaces {
         packageId,
       })
 
-    return interfaceFilled
+    return this.map(interfaceFilled)
   }
 
   private async *watchGen(abort?: AbortSignal) {
+    let prev = null as { value: Mapped } | null
     const { packageId } = this.opts
     const resolveCell = { resolve: () => {} }
     this.effects.onLeaveContext(() => {
@@ -91,11 +94,16 @@ export class GetServiceInterfaces {
         callback = resolve
         resolveCell.resolve = resolve
       })
-      yield await makeManyInterfaceFilled({
-        effects: this.effects,
-        packageId,
-        callback,
-      })
+      const next = this.map(
+        await makeManyInterfaceFilled({
+          effects: this.effects,
+          packageId,
+          callback,
+        }),
+      )
+      if (!prev || !this.eq(prev.value, next)) {
+        yield next
+      }
       await waitForNext
     }
   }
@@ -103,9 +111,7 @@ export class GetServiceInterfaces {
   /**
    * Watches the service interfaces for the package. Returns an async iterator that yields whenever the value changes
    */
-  watch(
-    abort?: AbortSignal,
-  ): AsyncGenerator<ServiceInterfaceFilled[], void, unknown> {
+  watch(abort?: AbortSignal): AsyncGenerator<Mapped, void, unknown> {
     const ctrl = new AbortController()
     abort?.addEventListener("abort", () => ctrl.abort())
     return DropGenerator.of(this.watchGen(ctrl.signal), () => ctrl.abort())
@@ -116,7 +122,7 @@ export class GetServiceInterfaces {
    */
   onChange(
     callback: (
-      value: ServiceInterfaceFilled[] | null,
+      value: Mapped | null,
       error?: Error,
     ) => { cancel: boolean } | Promise<{ cancel: boolean }>,
   ) {
@@ -149,9 +155,7 @@ export class GetServiceInterfaces {
   /**
    * Watches the service interfaces for the package. Returns when the predicate is true
    */
-  waitFor(
-    pred: (value: ServiceInterfaceFilled[] | null) => boolean,
-  ): Promise<ServiceInterfaceFilled[] | null> {
+  waitFor(pred: (value: Mapped) => boolean): Promise<Mapped> {
     const ctrl = new AbortController()
     return DropPromise.of(
       Promise.resolve().then(async () => {
@@ -160,15 +164,52 @@ export class GetServiceInterfaces {
             return next
           }
         }
-        return null
+        throw new Error("context left before predicate passed")
       }),
       () => ctrl.abort(),
     )
   }
 }
+
+export function getOwnServiceInterfaces(effects: Effects): GetServiceInterfaces
+export function getOwnServiceInterfaces<Mapped>(
+  effects: Effects,
+  map: (interfaces: ServiceInterfaceFilled[]) => Mapped,
+  eq?: (a: Mapped, b: Mapped) => boolean,
+): GetServiceInterfaces<Mapped>
+export function getOwnServiceInterfaces<Mapped>(
+  effects: Effects,
+  map?: (interfaces: ServiceInterfaceFilled[]) => Mapped,
+  eq?: (a: Mapped, b: Mapped) => boolean,
+): GetServiceInterfaces<Mapped> {
+  return new GetServiceInterfaces(
+    effects,
+    {},
+    map ?? ((a) => a as Mapped),
+    eq ?? ((a, b) => deepEqual(a, b)),
+  )
+}
+
 export function getServiceInterfaces(
   effects: Effects,
-  opts: { packageId?: string },
-) {
-  return new GetServiceInterfaces(effects, opts)
+  opts: { packageId: PackageId },
+): GetServiceInterfaces
+export function getServiceInterfaces<Mapped>(
+  effects: Effects,
+  opts: { packageId: PackageId },
+  map: (interfaces: ServiceInterfaceFilled[]) => Mapped,
+  eq?: (a: Mapped, b: Mapped) => boolean,
+): GetServiceInterfaces<Mapped>
+export function getServiceInterfaces<Mapped>(
+  effects: Effects,
+  opts: { packageId: PackageId },
+  map?: (interfaces: ServiceInterfaceFilled[]) => Mapped,
+  eq?: (a: Mapped, b: Mapped) => boolean,
+): GetServiceInterfaces<Mapped> {
+  return new GetServiceInterfaces(
+    effects,
+    opts,
+    map ?? ((a) => a as Mapped),
+    eq ?? ((a, b) => deepEqual(a, b)),
+  )
 }

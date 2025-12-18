@@ -5,11 +5,8 @@ use std::time::Duration;
 
 use futures::Future;
 use futures::future::ready;
-use crate::util::future::NonDetachingJoinHandle;
 use imbl::{Vector, vector};
 use imbl_value::InternedString;
-use crate::service::ProcedureName;
-use crate::{ImageId, VolumeId};
 use rpc_toolkit::{Empty, Server, ShutdownHandle};
 use serde::de::DeserializeOwned;
 use tokio::process::Command;
@@ -34,12 +31,13 @@ use crate::service::effects::handler;
 use crate::service::rpc::{
     CallbackHandle, CallbackId, CallbackParams, ExitParams, InitKind, InitParams,
 };
-use crate::service::{Service, rpc};
+use crate::service::{ProcedureName, Service, rpc};
 use crate::util::Invoke;
+use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::create_file;
 use crate::util::rpc_client::UnixRpcClient;
 use crate::volume::data_dir;
-use crate::{ARCH, DATA_DIR, PACKAGE_DATA};
+use crate::{ARCH, DATA_DIR, ImageId, PACKAGE_DATA, VolumeId};
 
 const RPC_CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 

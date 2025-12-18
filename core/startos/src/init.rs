@@ -20,7 +20,7 @@ use crate::db::model::Database;
 use crate::db::model::public::ServerStatus;
 use crate::developer::OS_DEVELOPER_KEY_PATH;
 use crate::hostname::Hostname;
-use crate::middleware::auth::AuthContext;
+use crate::middleware::auth::local::LocalAuthContext;
 use crate::net::gateway::UpgradableListener;
 use crate::net::net_controller::{NetController, NetService};
 use crate::net::socks::DEFAULT_SOCKS_LISTEN;

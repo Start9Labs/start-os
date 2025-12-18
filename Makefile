@@ -161,7 +161,7 @@ results/$(REGISTRY_BASENAME).deb: dpkg-build.sh $(call ls-files,debian/start-reg
 
 tunnel-deb: results/$(TUNNEL_BASENAME).deb
 
-results/$(TUNNEL_BASENAME).deb: dpkg-build.sh $(call ls-files,debian/start-tunnel) $(TUNNEL_TARGETS)
+results/$(TUNNEL_BASENAME).deb: dpkg-build.sh $(call ls-files,debian/start-tunnel) $(TUNNEL_TARGETS) build/lib/scripts/forward-port
 	PROJECT=start-tunnel PLATFORM=$(ARCH) REQUIRES=debian DEPENDS=wireguard-tools,iptables,conntrack ./build/os-compat/run-compat.sh ./dpkg-build.sh
 
 $(IMAGE_TYPE): results/$(BASENAME).$(IMAGE_TYPE)

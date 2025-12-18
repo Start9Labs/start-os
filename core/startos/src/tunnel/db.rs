@@ -8,7 +8,6 @@ use clap::Parser;
 use imbl::{HashMap, OrdMap};
 use imbl_value::InternedString;
 use itertools::Itertools;
-use crate::GatewayId;
 use patch_db::Dump;
 use patch_db::json_ptr::{JsonPointer, ROOT};
 use rpc_toolkit::yajrc::RpcError;
@@ -17,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use ts_rs::TS;
 
+use crate::GatewayId;
 use crate::auth::Sessions;
 use crate::context::CliContext;
 use crate::db::model::public::NetworkInterfaceInfo;

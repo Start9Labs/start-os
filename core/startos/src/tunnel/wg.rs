@@ -228,10 +228,7 @@ impl std::fmt::Display for ClientConfig {
             name = self.client_config.name,
             privkey = self.client_config.key.to_padded_string(),
             psk = self.client_config.psk.to_padded_string(),
-            addr = Ipv4Net::new_assert(
-                self.client_addr,
-                self.subnet.prefix_len()
-            ),
+            addr = Ipv4Net::new_assert(self.client_addr, self.subnet.prefix_len()),
             subnet = self.subnet.trunc(),
             server_pubkey = self.server_pubkey.to_padded_string(),
             server_addr = self.server_addr,

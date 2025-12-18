@@ -11,7 +11,6 @@ use base64::Engine;
 use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::{FutureExt, StreamExt};
-use crate::util::future::NonDetachingJoinHandle;
 use imbl_value::InternedString;
 use itertools::Itertools;
 use rpc_toolkit::{Context, Empty, HandlerExt, ParentHandler, from_fn_async};
@@ -31,7 +30,7 @@ use ts_rs::TS;
 use crate::context::{CliContext, RpcContext};
 use crate::prelude::*;
 use crate::util::actor::background::BackgroundJobQueue;
-use crate::util::future::Until;
+use crate::util::future::{NonDetachingJoinHandle, Until};
 use crate::util::io::ReadWriter;
 use crate::util::serde::{
     BASE64, Base64, HandlerExtSerde, WithIoFormat, deserialize_from_str, display_serializable,

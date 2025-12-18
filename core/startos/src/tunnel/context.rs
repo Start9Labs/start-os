@@ -11,23 +11,23 @@ use imbl::OrdMap;
 use imbl_value::InternedString;
 use include_dir::Dir;
 use ipnet::Ipv4Net;
-use crate::GatewayId;
 use patch_db::PatchDb;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{CallRemote, Context, Empty, ParentHandler};
 use serde::{Deserialize, Serialize};
-use tokio::process::Command;
 use tokio::sync::broadcast::Sender;
 use tracing::instrument;
 use url::Url;
 
+use crate::GatewayId;
 use crate::auth::Sessions;
 use crate::context::config::ContextConfig;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
-use crate::middleware::auth::{Auth, AuthContext};
+use crate::middleware::auth::Auth;
+use crate::middleware::auth::local::LocalAuthContext;
 use crate::middleware::cors::Cors;
-use crate::net::forward::PortForwardController;
+use crate::net::forward::{PortForwardController, add_iptables_rule};
 use crate::net::static_server::{EMPTY_DIR, UiContext};
 use crate::prelude::*;
 use crate::rpc_continuations::{OpenAuthedContinuations, RpcContinuations};
@@ -35,7 +35,6 @@ use crate::tunnel::TUNNEL_DEFAULT_LISTEN;
 use crate::tunnel::api::tunnel_api;
 use crate::tunnel::db::TunnelDatabase;
 use crate::tunnel::wg::{WIREGUARD_INTERFACE_NAME, WgSubnetConfig};
-use crate::util::Invoke;
 use crate::util::collections::OrdMapIterMut;
 use crate::util::io::read_file_to_string;
 use crate::util::sync::{SyncMutex, Watch};
@@ -134,12 +133,25 @@ impl TunnelContext {
             .result?;
         let net_iface = Watch::new(net_iface);
         let forward = PortForwardController::new();
+        add_iptables_rule(
+            false,
+            false,
+            &[
+                "FORWARD",
+                "-i",
+                WIREGUARD_INTERFACE_NAME,
+                "-m",
+                "state",
+                "--state",
+                "NEW",
+                "-j",
+                "ACCEPT",
+            ],
+        )
+        .await?;
 
-        Command::new("sysctl")
-            .arg("-w")
-            .arg("net.ipv4.ip_forward=1")
-            .invoke(ErrorKind::Network)
-            .await?;
+        let peek = db.peek().await;
+        peek.as_wg().de()?.sync().await?;
 
         for iface in net_iface.peek(|i| {
             i.iter()
@@ -153,37 +165,24 @@ impl TunnelContext {
                 .cloned()
                 .collect::<Vec<_>>()
         }) {
-            if Command::new("iptables")
-                .arg("-t")
-                .arg("nat")
-                .arg("-C")
-                .arg("POSTROUTING")
-                .arg("-o")
-                .arg(iface.as_str())
-                .arg("-j")
-                .arg("MASQUERADE")
-                .invoke(ErrorKind::Network)
-                .await
-                .is_err()
-            {
-                tracing::info!("Adding masquerade rule for interface {}", iface);
-                Command::new("iptables")
-                    .arg("-t")
-                    .arg("nat")
-                    .arg("-A")
-                    .arg("POSTROUTING")
-                    .arg("-o")
-                    .arg(iface.as_str())
-                    .arg("-j")
-                    .arg("MASQUERADE")
-                    .invoke(ErrorKind::Network)
-                    .await
-                    .log_err();
+            for subnet in peek.as_wg().as_subnets().keys()? {
+                add_iptables_rule(
+                    true,
+                    false,
+                    &[
+                        "POSTROUTING",
+                        "-s",
+                        &subnet.trunc().to_string(),
+                        "-o",
+                        iface.as_str(),
+                        "-j",
+                        "MASQUERADE",
+                    ],
+                )
+                .await?;
             }
         }
 
-        let peek = db.peek().await;
-        peek.as_wg().de()?.sync().await?;
         let mut active_forwards = BTreeMap::new();
         for (from, to) in peek.as_port_forwards().de()?.0 {
             active_forwards.insert(from, forward.add_forward(from, to).await?);
@@ -281,7 +280,7 @@ impl CallRemote<TunnelContext> for CliContext {
 
         method = method.strip_prefix("tunnel.").unwrap_or(method);
 
-        crate::middleware::signature::call_remote(
+        crate::middleware::auth::signature::call_remote(
             self,
             url,
             HeaderMap::new(),
@@ -310,7 +309,7 @@ impl CallRemote<TunnelContext, TunnelUrlParams> for RpcContext {
 
         let sig_ctx = url.host_str().map(InternedString::from_display);
 
-        crate::middleware::signature::call_remote(
+        crate::middleware::auth::signature::call_remote(
             self,
             url,
             HeaderMap::new(),
@@ -333,6 +332,11 @@ impl UiContext for TunnelContext {
         tunnel_api()
     }
     fn middleware(server: rpc_toolkit::Server<Self>) -> rpc_toolkit::HttpServer<Self> {
-        server.middleware(Cors::new()).middleware(Auth::new())
+        server.middleware(Cors::new()).middleware(
+            Auth::new()
+                .with_local_auth()
+                .with_signature_auth()
+                .with_session_auth(),
+        )
     }
 }

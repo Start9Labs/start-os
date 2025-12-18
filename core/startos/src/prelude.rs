@@ -1,4 +1,5 @@
 pub use color_eyre::eyre::eyre;
+pub use imbl_value::InternedString;
 pub use lazy_format::lazy_format;
 pub use tracing::instrument;
 

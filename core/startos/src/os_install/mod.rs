@@ -2,13 +2,11 @@ use std::path::{Path, PathBuf};
 
 use clap::Parser;
 use color_eyre::eyre::eyre;
-use crate::Error;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
 
-use crate::ARCH;
 use crate::context::config::ServerConfig;
 use crate::context::{CliContext, InstallContext};
 use crate::disk::OsPartitionInfo;
@@ -25,6 +23,7 @@ use crate::s9pk::merkle_archive::source::multi_cursor_file::MultiCursorFile;
 use crate::util::Invoke;
 use crate::util::io::{TmpDir, delete_file, open_file};
 use crate::util::serde::IoFormat;
+use crate::{ARCH, Error};
 
 mod gpt;
 mod mbr;

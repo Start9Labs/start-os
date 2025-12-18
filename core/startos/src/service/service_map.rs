@@ -8,9 +8,7 @@ use exver::VersionRange;
 use futures::future::{BoxFuture, Fuse};
 use futures::stream::FuturesUnordered;
 use futures::{Future, FutureExt, StreamExt, TryFutureExt};
-use crate::util::future::NonDetachingJoinHandle;
 use imbl::OrdMap;
-use crate::error::ErrorData;
 use tokio::sync::{OwnedRwLockReadGuard, OwnedRwLockWriteGuard, RwLock, oneshot};
 use tracing::instrument;
 use url::Url;
@@ -21,6 +19,7 @@ use crate::db::model::package::{
     InstallingInfo, InstallingState, PackageDataEntry, PackageState, UpdatingState,
 };
 use crate::disk::mount::guard::GenericMountGuard;
+use crate::error::ErrorData;
 use crate::install::PKG_ARCHIVE_DIR;
 use crate::notifications::{NotificationLevel, notify};
 use crate::prelude::*;
@@ -32,6 +31,7 @@ use crate::service::rpc::{ExitParams, InitKind};
 use crate::service::{LoadDisposition, Service, ServiceRef};
 use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::status::{DesiredStatus, StatusInfo};
+use crate::util::future::NonDetachingJoinHandle;
 use crate::util::serde::{Base32, Pem};
 use crate::util::sync::SyncMutex;
 
@@ -115,7 +115,18 @@ impl ServiceMap {
             shutdown_err = service.shutdown(None).await;
         }
         match Service::load(ctx, id, disposition).await {
-            Ok(s) => *service = s.into(),
+            Ok(s) => {
+                ctx.db
+                    .mutate(|db| {
+                        if let Some(pde) = db.as_public_mut().as_package_data_mut().as_idx_mut(id) {
+                            pde.as_status_info_mut().as_error_mut().ser(&None)?;
+                        }
+                        Ok(())
+                    })
+                    .await
+                    .result?;
+                *service = s.into();
+            }
             Err(e) => {
                 tracing::error!("Error loading service: {e}");
                 tracing::debug!("{e:?}");

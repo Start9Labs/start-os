@@ -8,11 +8,11 @@ use futures::stream::BoxStream;
 use futures::{StreamExt, TryStreamExt};
 use imbl_value::InternedString;
 use ipnet::{IpNet, Ipv4Net, Ipv6Net};
-use crate::GatewayId;
 use nix::net::if_::if_nametoindex;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::process::Command;
 
+use crate::GatewayId;
 use crate::db::model::public::{IpInfo, NetworkInterfaceType};
 use crate::prelude::*;
 use crate::util::Invoke;

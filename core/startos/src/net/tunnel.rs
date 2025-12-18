@@ -1,12 +1,12 @@
 use clap::Parser;
 use imbl_value::InternedString;
-use crate::GatewayId;
 use patch_db::json_ptr::JsonPointer;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use tokio::process::Command;
 use ts_rs::TS;
 
+use crate::GatewayId;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
 use crate::net::host::all_hosts;

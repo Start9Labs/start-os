@@ -2,11 +2,11 @@ use std::collections::BTreeMap;
 
 use clap::Parser;
 use imbl_value::InternedString;
-use crate::PackageId;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::PackageId;
 use crate::context::CliContext;
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
@@ -50,6 +50,7 @@ pub fn category_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "list",
             from_fn_async(list_categories)
+                .with_metadata("authenticated", Value::Bool(false))
                 .with_display_serializable()
                 .with_custom_display_fn(|params, categories| {
                     display_categories(params.params, categories)

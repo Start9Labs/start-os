@@ -9,7 +9,6 @@ use imbl_value::InternedString;
 use ipnet::IpNet;
 use isocountry::CountryCode;
 use itertools::Itertools;
-use crate::{GatewayId, PackageId};
 use openssl::hash::MessageDigest;
 use patch_db::{HasModel, Value};
 use serde::{Deserialize, Serialize};
@@ -31,7 +30,7 @@ use crate::util::cpupower::Governor;
 use crate::util::lshw::LshwDevice;
 use crate::util::serde::MaybeUtf8String;
 use crate::version::{Current, VersionT};
-use crate::{ARCH, PLATFORM};
+use crate::{ARCH, GatewayId, PLATFORM, PackageId};
 
 pub static DB_UI_SEED_CELL: OnceLock<&'static str> = OnceLock::new();
 

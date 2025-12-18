@@ -6,19 +6,17 @@ use color_eyre::eyre::eyre;
 use imbl::{OrdMap, vector};
 use imbl_value::InternedString;
 use ipnet::IpNet;
-use crate::{GatewayId, HostId, OptionExt, PackageId};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tokio_rustls::rustls::ClientConfig as TlsClientConfig;
 use tracing::instrument;
 
-use crate::HOST_IP;
 use crate::db::model::Database;
 use crate::db::model::public::NetworkInterfaceType;
 use crate::error::ErrorCollection;
 use crate::hostname::Hostname;
 use crate::net::dns::DnsController;
-use crate::net::forward::{InterfacePortForwardController, START9_BRIDGE_IFACE};
+use crate::net::forward::{InterfacePortForwardController, START9_BRIDGE_IFACE, add_iptables_rule};
 use crate::net::gateway::{
     AndFilter, DynInterfaceFilter, IdFilter, InterfaceFilter, NetworkInterfaceController, OrFilter,
     PublicFilter, SecureFilter, TypeFilter,
@@ -34,6 +32,7 @@ use crate::net::vhost::{AlpnInfo, DynVHostTarget, ProxyTarget, VHostController};
 use crate::prelude::*;
 use crate::service::effects::callbacks::ServiceCallbacks;
 use crate::util::serde::MaybeUtf8String;
+use crate::{GatewayId, HOST_IP, HostId, OptionExt, PackageId};
 
 pub struct NetController {
     pub(crate) db: TypedPatchDb<Database>,
@@ -70,6 +69,22 @@ impl NetController {
                 .de()?
                 .0],
         )?);
+        add_iptables_rule(
+            false,
+            false,
+            &[
+                "FORWARD",
+                "-i",
+                START9_BRIDGE_IFACE,
+                "-m",
+                "state",
+                "--state",
+                "NEW",
+                "-j",
+                "ACCEPT",
+            ],
+        )
+        .await?;
         Ok(Self {
             db: db.clone(),
             tor,

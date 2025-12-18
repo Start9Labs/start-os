@@ -9,8 +9,10 @@ use ts_rs::TS;
 
 use crate::auth::{Sessions, check_password};
 use crate::context::CliContext;
-use crate::middleware::auth::AuthContext;
-use crate::middleware::signature::SignatureAuthContext;
+use crate::middleware::auth::DbContext;
+use crate::middleware::auth::local::LocalAuthContext;
+use crate::middleware::auth::session::SessionAuthContext;
+use crate::middleware::auth::signature::SignatureAuthContext;
 use crate::prelude::*;
 use crate::rpc_continuations::OpenAuthedContinuations;
 use crate::sign::AnyVerifyingKey;
@@ -19,13 +21,15 @@ use crate::tunnel::db::TunnelDatabase;
 use crate::util::serde::{HandlerExtSerde, display_serializable};
 use crate::util::sync::SyncMutex;
 
-impl SignatureAuthContext for TunnelContext {
+impl DbContext for TunnelContext {
     type Database = TunnelDatabase;
-    type AdditionalMetadata = ();
-    type CheckPubkeyRes = ();
     fn db(&self) -> &TypedPatchDb<Self::Database> {
         &self.db
     }
+}
+impl SignatureAuthContext for TunnelContext {
+    type AdditionalMetadata = ();
+    type CheckPubkeyRes = ();
     async fn sig_context(
         &self,
     ) -> impl IntoIterator<Item = Result<impl AsRef<str> + Send, Error>> + Send {
@@ -93,9 +97,11 @@ impl SignatureAuthContext for TunnelContext {
         Ok(())
     }
 }
-impl AuthContext for TunnelContext {
-    const LOCAL_AUTH_COOKIE_PATH: &str = "/run/start-tunnel/rpc.authcookie";
+impl LocalAuthContext for TunnelContext {
+    const LOCAL_AUTH_COOKIE_PATH: &str = "/run/startos/tunnel.authcookie";
     const LOCAL_AUTH_COOKIE_OWNERSHIP: &str = "root:root";
+}
+impl SessionAuthContext for TunnelContext {
     fn access_sessions(db: &mut Model<Self::Database>) -> &mut Model<crate::auth::Sessions> {
         db.as_sessions_mut()
     }

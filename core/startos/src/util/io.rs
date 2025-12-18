@@ -16,7 +16,6 @@ use clap::builder::ValueParserFactory;
 use futures::future::{BoxFuture, Fuse};
 use futures::{FutureExt, Stream, TryStreamExt};
 use inotify::{EventMask, EventStream, Inotify, WatchMask};
-use crate::util::FromStrParser;
 use nix::unistd::{Gid, Uid};
 use serde::{Deserialize, Serialize};
 use tokio::fs::{File, OpenOptions};
@@ -30,6 +29,7 @@ use tokio::time::{Instant, Sleep};
 use ts_rs::TS;
 
 use crate::prelude::*;
+use crate::util::FromStrParser;
 use crate::util::future::NonDetachingJoinHandle;
 use crate::util::sync::SyncMutex;
 

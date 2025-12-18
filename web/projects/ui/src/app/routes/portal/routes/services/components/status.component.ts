@@ -5,9 +5,7 @@ import {
   input,
 } from '@angular/core'
 import { i18nPipe } from '@start9labs/shared'
-import { TuiLoader } from '@taiga-ui/core'
 import { ServiceUptimeComponent } from 'src/app/routes/portal/routes/services/components/uptime.component'
-import { getProgressText } from 'src/app/routes/portal/routes/services/pipes/install-progress.pipe'
 import { PackageDataEntry } from 'src/app/services/patch-db/data-model'
 import {
   getInstalledPrimaryStatus,
@@ -19,29 +17,20 @@ import {
   template: `
     <header>{{ 'Status' | i18n }}</header>
     <div>
-      @if (info()) {
-        <h3>
-          <tui-loader size="s" [inheritColor]="true" />
-          {{ 'Installing' | i18n }}
+      <h3 [class]="class()">
+        {{ text() || 'Unknown' | i18n }}
+        @if (text() === 'Task Required') {
+          <small>{{ 'See below' | i18n }}</small>
+        }
+
+        @if (rendering().showDots) {
           <span class="loading-dots"></span>
-          {{ info() | i18n }}
-        </h3>
-      } @else {
-        <h3 [class]="class()">
-          {{ text() || 'Unknown' | i18n }}
-          @if (text() === 'Task Required') {
-            <small>{{ 'See below' | i18n }}</small>
-          }
+        }
 
-          @if (rendering().showDots) {
-            <span class="loading-dots"></span>
-          }
-
-          @if (pkg().statusInfo.started; as started) {
-            <service-uptime [started]="started" />
-          }
-        </h3>
-      }
+        @if (pkg().statusInfo.started; as started) {
+          <service-uptime [started]="started" />
+        }
+      </h3>
       <ng-content />
     </div>
   `,
@@ -112,7 +101,7 @@ import {
   `,
   host: { class: 'g-card' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TuiLoader, i18nPipe, ServiceUptimeComponent],
+  imports: [i18nPipe, ServiceUptimeComponent],
 })
 export class ServiceStatusComponent {
   readonly pkg = input.required<PackageDataEntry>()
@@ -143,9 +132,4 @@ export class ServiceStatusComponent {
         return null
     }
   })
-
-  protected readonly info = computed(
-    (progress = this.pkg().stateInfo.installingInfo?.progress.overall) =>
-      progress ? getProgressText(progress) : '',
-  )
 }

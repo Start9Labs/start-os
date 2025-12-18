@@ -2,7 +2,6 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::util::future::NonDetachingJoinHandle;
 use socks5_impl::protocol::{Address, Reply};
 use socks5_impl::server::auth::NoAuth;
 use socks5_impl::server::{AuthAdaptor, ClientConnection, Server};
@@ -12,6 +11,7 @@ use crate::HOST_IP;
 use crate::net::tor::TorController;
 use crate::prelude::*;
 use crate::util::actor::background::BackgroundJobQueue;
+use crate::util::future::NonDetachingJoinHandle;
 
 pub const DEFAULT_SOCKS_LISTEN: SocketAddr = SocketAddr::V4(SocketAddrV4::new(
     Ipv4Addr::new(HOST_IP[0], HOST_IP[1], HOST_IP[2], HOST_IP[3]),

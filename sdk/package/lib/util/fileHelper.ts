@@ -4,37 +4,10 @@ import * as TOML from "@iarna/toml"
 import * as INI from "ini"
 import * as T from "../../../base/lib/types"
 import * as fs from "node:fs/promises"
-import { asError } from "../../../base/lib/util"
+import { asError, deepEqual } from "../../../base/lib/util"
 import { DropGenerator, DropPromise } from "../../../base/lib/util/Drop"
 
 const previousPath = /(.+?)\/([^/]*)$/
-
-const deepEq = (left: unknown, right: unknown) => {
-  if (left === right) return true
-  if (Array.isArray(left) && Array.isArray(right)) {
-    if (left.length === right.length) {
-      for (const idx in left) {
-        if (!deepEq(left[idx], right[idx])) return false
-      }
-      return true
-    }
-  } else if (
-    typeof left === "object" &&
-    typeof right === "object" &&
-    left &&
-    right
-  ) {
-    const keys = new Set<keyof typeof left | keyof typeof right>([
-      ...(Object.keys(left) as (keyof typeof left)[]),
-      ...(Object.keys(right) as (keyof typeof right)[]),
-    ])
-    for (let key of keys) {
-      if (!deepEq(left[key], right[key])) return false
-    }
-    return true
-  }
-  return false
-}
 
 const exists = (path: string) =>
   fs.access(path).then(
@@ -374,7 +347,7 @@ export class FileHelper<A> {
     eq?: (left: any, right: any) => boolean,
   ): ReadType<any> {
     map = map ?? ((a: A) => a)
-    eq = eq ?? deepEq
+    eq = eq ?? deepEqual
     return {
       once: () => this.readOnce(map),
       const: (effects: T.Effects) => this.readConst(effects, map, eq),

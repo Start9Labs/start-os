@@ -13,8 +13,6 @@ use color_eyre::eyre::eyre;
 use futures::stream::BoxStream;
 use futures::{Future, FutureExt, Stream, StreamExt, TryStreamExt};
 use itertools::Itertools;
-use crate::util::FromStrParser;
-use crate::PackageId;
 use rpc_toolkit::yajrc::RpcError;
 use rpc_toolkit::{
     CallRemote, Context, Empty, HandlerArgs, HandlerExt, HandlerFor, ParentHandler, from_fn_async,
@@ -27,13 +25,14 @@ use tokio_stream::wrappers::LinesStream;
 use tokio_tungstenite::tungstenite::Message;
 use tracing::instrument;
 
+use crate::PackageId;
 use crate::context::{CliContext, RpcContext};
 use crate::error::ResultExt;
 use crate::prelude::*;
 use crate::rpc_continuations::{Guid, RpcContinuation, RpcContinuations};
-use crate::util::Invoke;
 use crate::util::net::WebSocketExt;
 use crate::util::serde::Reversible;
+use crate::util::{FromStrParser, Invoke};
 
 #[pin_project::pin_project]
 pub struct LogStream {

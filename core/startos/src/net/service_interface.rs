@@ -1,9 +1,10 @@
 use std::net::{Ipv4Addr, Ipv6Addr};
 
 use imbl_value::InternedString;
-use crate::{GatewayId, HostId, ServiceInterfaceId};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
+
+use crate::{GatewayId, HostId, ServiceInterfaceId};
 
 #[derive(Clone, Debug, Deserialize, Serialize, TS)]
 #[ts(export)]

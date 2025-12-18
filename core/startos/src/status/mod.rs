@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
 use chrono::{DateTime, Utc};
-use crate::error::ErrorData;
-use crate::HealthCheckId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::HealthCheckId;
+use crate::error::ErrorData;
 use crate::prelude::*;
 use crate::service::start_stop::StartStop;
 use crate::status::health_check::NamedHealthCheckResult;

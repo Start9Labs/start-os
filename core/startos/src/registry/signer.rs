@@ -3,7 +3,6 @@ use std::str::FromStr;
 
 use clap::builder::ValueParserFactory;
 use itertools::Itertools;
-use crate::util::FromStrParser;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 use url::Url;
@@ -11,6 +10,7 @@ use url::Url;
 use crate::prelude::*;
 use crate::sign::commitment::Digestable;
 use crate::sign::{AnySignature, AnyVerifyingKey, SignatureScheme};
+use crate::util::FromStrParser;
 
 #[derive(Debug, Deserialize, Serialize, HasModel, TS)]
 #[serde(rename_all = "camelCase")]

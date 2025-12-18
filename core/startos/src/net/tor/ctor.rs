@@ -10,7 +10,6 @@ use clap::Parser;
 use color_eyre::eyre::eyre;
 use futures::future::BoxFuture;
 use futures::{FutureExt, TryFutureExt, TryStreamExt};
-use crate::util::future::NonDetachingJoinHandle;
 use imbl::OrdMap;
 use imbl_value::InternedString;
 use lazy_static::lazy_static;
@@ -31,6 +30,7 @@ use crate::logs::{LogSource, LogsParams, journalctl};
 use crate::prelude::*;
 use crate::util::Invoke;
 use crate::util::collections::ordmap_retain;
+use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::{ReadWriter, write_file_atomic};
 use crate::util::serde::{
     BASE64, Base64, HandlerExtSerde, WithIoFormat, deserialize_from_str, display_serializable,

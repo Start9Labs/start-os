@@ -8,7 +8,6 @@ use clap::Parser;
 use clap::builder::ValueParserFactory;
 use digest::generic_array::GenericArray;
 use digest::{Digest, OutputSizeUser};
-use crate::util::FromStrParser;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use tokio::process::Command;
@@ -16,7 +15,7 @@ use ts_rs::TS;
 
 use super::FileSystem;
 use crate::prelude::*;
-use crate::util::Invoke;
+use crate::util::{FromStrParser, Invoke};
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, Parser, TS)]
 #[serde(rename_all = "camelCase")]

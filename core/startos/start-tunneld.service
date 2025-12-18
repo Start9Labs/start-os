@@ -3,7 +3,7 @@ Description=StartTunnel
 
 [Service]
 Type=simple
-Environment=RUST_LOG=startos=debug,patch_db=warn,models=debug
+Environment=RUST_LOG=startos=debug,patch_db=warn
 ExecStart=/usr/bin/start-tunneld
 Restart=always
 RestartSec=3

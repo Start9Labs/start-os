@@ -2,13 +2,13 @@ use std::str::FromStr;
 
 use chrono::Utc;
 use clap::builder::ValueParserFactory;
-use crate::util::FromStrParser;
-use crate::PackageId;
 
+use crate::PackageId;
 use crate::service::RebuildParams;
 use crate::service::effects::prelude::*;
 use crate::service::rpc::CallbackId;
 use crate::status::{DesiredStatus, StatusInfo};
+use crate::util::FromStrParser;
 
 pub async fn rebuild(context: EffectContext) -> Result<(), Error> {
     let seed = context.deref()?.seed.clone();

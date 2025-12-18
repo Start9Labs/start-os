@@ -1,5 +1,4 @@
 use crate::HealthCheckId;
-
 use crate::service::effects::prelude::*;
 use crate::status::health_check::NamedHealthCheckResult;
 

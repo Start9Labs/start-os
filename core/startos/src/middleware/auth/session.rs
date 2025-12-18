@@ -1,32 +1,23 @@
 use std::borrow::Borrow;
 use std::collections::BTreeSet;
-use std::future::Future;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use axum::extract::Request;
 use axum::response::Response;
-use base64::Engine;
 use basic_cookies::Cookie;
 use chrono::Utc;
-use color_eyre::eyre::eyre;
-use digest::Digest;
 use http::HeaderValue;
 use http::header::{COOKIE, USER_AGENT};
-use imbl_value::{InternedString, json};
-use rand::random;
 use rpc_toolkit::yajrc::INTERNAL_ERROR;
 use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};
 use serde::{Deserialize, Serialize};
-use sha2::Sha256;
-use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
-use tokio::sync::Mutex;
+use sha2::{Digest, Sha256};
 
 use crate::auth::{Sessions, check_password, write_shadow};
 use crate::context::RpcContext;
-use crate::middleware::signature::{SignatureAuth, SignatureAuthContext};
+use crate::middleware::auth::DbContext;
 use crate::prelude::*;
 use crate::rpc_continuations::OpenAuthedContinuations;
 use crate::util::Invoke;
@@ -34,24 +25,7 @@ use crate::util::io::{create_file_mod, read_file_to_string};
 use crate::util::serde::{BASE64, const_true};
 use crate::util::sync::SyncMutex;
 
-pub trait AuthContext: SignatureAuthContext {
-    const LOCAL_AUTH_COOKIE_PATH: &str;
-    const LOCAL_AUTH_COOKIE_OWNERSHIP: &str;
-    fn init_auth_cookie() -> impl Future<Output = Result<(), Error>> + Send {
-        async {
-            let mut file = create_file_mod(Self::LOCAL_AUTH_COOKIE_PATH, 0o640).await?;
-            file.write_all(BASE64.encode(random::<[u8; 32]>()).as_bytes())
-                .await?;
-            file.sync_all().await?;
-            drop(file);
-            Command::new("chown")
-                .arg(Self::LOCAL_AUTH_COOKIE_OWNERSHIP)
-                .arg(Self::LOCAL_AUTH_COOKIE_PATH)
-                .invoke(crate::ErrorKind::Filesystem)
-                .await?;
-            Ok(())
-        }
-    }
+pub trait SessionAuthContext: DbContext {
     fn ephemeral_sessions(&self) -> &SyncMutex<Sessions>;
     fn open_authed_continuations(&self) -> &OpenAuthedContinuations<Option<InternedString>>;
     fn access_sessions(db: &mut Model<Self::Database>) -> &mut Model<Sessions>;
@@ -62,9 +36,7 @@ pub trait AuthContext: SignatureAuthContext {
     }
 }
 
-impl AuthContext for RpcContext {
-    const LOCAL_AUTH_COOKIE_PATH: &str = "/run/startos/rpc.authcookie";
-    const LOCAL_AUTH_COOKIE_OWNERSHIP: &str = "root:startos";
+impl SessionAuthContext for RpcContext {
     fn ephemeral_sessions(&self) -> &SyncMutex<Sessions> {
         &self.ephemeral_sessions
     }
@@ -103,7 +75,7 @@ pub trait AsLogoutSessionId {
 pub struct HasLoggedOutSessions(());
 
 impl HasLoggedOutSessions {
-    pub async fn new<C: AuthContext>(
+    pub async fn new<C: SessionAuthContext>(
         sessions: impl IntoIterator<Item = impl AsLogoutSessionId>,
         ctx: &C,
     ) -> Result<Self, Error> {
@@ -131,90 +103,6 @@ impl HasLoggedOutSessions {
             .await
             .result?;
         Ok(HasLoggedOutSessions(()))
-    }
-}
-
-/// Used when we need to know that we have logged in with a valid user
-#[derive(Clone)]
-pub struct HasValidSession(SessionType);
-
-#[derive(Clone)]
-enum SessionType {
-    Local,
-    Session(HashSessionToken),
-}
-
-impl HasValidSession {
-    pub async fn from_header<C: AuthContext>(
-        header: Option<&HeaderValue>,
-        ctx: &C,
-    ) -> Result<Self, Error> {
-        if let Some(cookie_header) = header {
-            let cookies = Cookie::parse(
-                cookie_header
-                    .to_str()
-                    .with_kind(crate::ErrorKind::Authorization)?,
-            )
-            .with_kind(crate::ErrorKind::Authorization)?;
-            if let Some(cookie) = cookies.iter().find(|c| c.get_name() == "local") {
-                if let Ok(s) = Self::from_local::<C>(cookie).await {
-                    return Ok(s);
-                }
-            }
-            if let Some(cookie) = cookies.iter().find(|c| c.get_name() == "session") {
-                if let Ok(s) = Self::from_session(HashSessionToken::from_cookie(cookie), ctx).await
-                {
-                    return Ok(s);
-                }
-            }
-        }
-        Err(Error::new(
-            eyre!("UNAUTHORIZED"),
-            crate::ErrorKind::Authorization,
-        ))
-    }
-
-    pub async fn from_session<C: AuthContext>(
-        session_token: HashSessionToken,
-        ctx: &C,
-    ) -> Result<Self, Error> {
-        let session_hash = session_token.hashed();
-        if !ctx.ephemeral_sessions().mutate(|s| {
-            if let Some(session) = s.0.get_mut(session_hash) {
-                session.last_active = Utc::now();
-                true
-            } else {
-                false
-            }
-        }) {
-            ctx.db()
-                .mutate(|db| {
-                    C::access_sessions(db)
-                        .as_idx_mut(session_hash)
-                        .ok_or_else(|| {
-                            Error::new(eyre!("UNAUTHORIZED"), crate::ErrorKind::Authorization)
-                        })?
-                        .mutate(|s| {
-                            s.last_active = Utc::now();
-                            Ok(())
-                        })
-                })
-                .await
-                .result?;
-        }
-        Ok(Self(SessionType::Session(session_token)))
-    }
-
-    pub async fn from_local<C: AuthContext>(local: &Cookie<'_>) -> Result<Self, Error> {
-        let token = read_file_to_string(C::LOCAL_AUTH_COOKIE_PATH).await?;
-        if local.get_value() == &*token {
-            Ok(Self(SessionType::Local))
-        } else {
-            Err(Error::new(
-                eyre!("UNAUTHORIZED"),
-                crate::ErrorKind::Authorization,
-            ))
-        }
     }
 }
 
@@ -312,51 +200,97 @@ impl Borrow<str> for HashSessionToken {
     }
 }
 
+pub struct ValidSessionToken(pub HashSessionToken);
+impl ValidSessionToken {
+    pub async fn from_header<C: SessionAuthContext>(
+        header: Option<&HeaderValue>,
+        ctx: &C,
+    ) -> Result<Self, Error> {
+        if let Some(cookie_header) = header {
+            let cookies = Cookie::parse(
+                cookie_header
+                    .to_str()
+                    .with_kind(crate::ErrorKind::Authorization)?,
+            )
+            .with_kind(crate::ErrorKind::Authorization)?;
+            if let Some(cookie) = cookies.iter().find(|c| c.get_name() == "session") {
+                if let Ok(s) = Self::from_session(HashSessionToken::from_cookie(cookie), ctx).await
+                {
+                    return Ok(s);
+                }
+            }
+        }
+        Err(Error::new(
+            eyre!("UNAUTHORIZED"),
+            crate::ErrorKind::Authorization,
+        ))
+    }
+
+    pub async fn from_session<C: SessionAuthContext>(
+        session_token: HashSessionToken,
+        ctx: &C,
+    ) -> Result<Self, Error> {
+        let session_hash = session_token.hashed();
+        if !ctx.ephemeral_sessions().mutate(|s| {
+            if let Some(session) = s.0.get_mut(session_hash) {
+                session.last_active = Utc::now();
+                true
+            } else {
+                false
+            }
+        }) {
+            ctx.db()
+                .mutate(|db| {
+                    C::access_sessions(db)
+                        .as_idx_mut(session_hash)
+                        .ok_or_else(|| {
+                            Error::new(eyre!("UNAUTHORIZED"), crate::ErrorKind::Authorization)
+                        })?
+                        .mutate(|s| {
+                            s.last_active = Utc::now();
+                            Ok(())
+                        })
+                })
+                .await
+                .result?;
+        }
+        Ok(Self(session_token))
+    }
+}
+
 #[derive(Deserialize)]
 pub struct Metadata {
-    #[serde(default = "const_true")]
-    authenticated: bool,
     #[serde(default)]
     login: bool,
     #[serde(default)]
     get_session: bool,
-    #[serde(default)]
-    get_signer: bool,
 }
 
 #[derive(Clone)]
-pub struct Auth {
-    rate_limiter: Arc<Mutex<(usize, Instant)>>,
-    cookie: Option<HeaderValue>,
+pub struct SessionAuth {
+    rate_limiter: Arc<SyncMutex<(usize, Instant)>>,
     is_login: bool,
+    cookie: Option<HeaderValue>,
     set_cookie: Option<HeaderValue>,
     user_agent: Option<HeaderValue>,
-    signature_auth: SignatureAuth,
 }
-impl Auth {
+impl SessionAuth {
     pub fn new() -> Self {
         Self {
-            rate_limiter: Arc::new(Mutex::new((0, Instant::now()))),
-            cookie: None,
+            rate_limiter: Arc::new(SyncMutex::new((0, Instant::now()))),
             is_login: false,
+            cookie: None,
             set_cookie: None,
             user_agent: None,
-            signature_auth: SignatureAuth::new(),
         }
     }
 }
-impl<C: AuthContext> Middleware<C> for Auth {
+
+impl<C: SessionAuthContext> Middleware<C> for SessionAuth {
     type Metadata = Metadata;
-    async fn process_http_request(
-        &mut self,
-        context: &C,
-        request: &mut Request,
-    ) -> Result<(), Response> {
-        self.cookie = request.headers_mut().remove(COOKIE);
-        self.user_agent = request.headers_mut().remove(USER_AGENT);
-        self.signature_auth
-            .process_http_request(context, request)
-            .await?;
+    async fn process_http_request(&mut self, _: &C, request: &mut Request) -> Result<(), Response> {
+        self.cookie = request.headers().get(COOKIE).cloned();
+        self.user_agent = request.headers().get(USER_AGENT).cloned();
         Ok(())
     }
     async fn process_rpc_request(
@@ -368,56 +302,37 @@ impl<C: AuthContext> Middleware<C> for Auth {
         async {
             if metadata.login {
                 self.is_login = true;
-                let guard = self.rate_limiter.lock().await;
-                if guard.1.elapsed() < Duration::from_secs(20) && guard.0 >= 3 {
-                    return Err(Error::new(
-                        eyre!("Please limit login attempts to 3 per 20 seconds."),
-                        crate::ErrorKind::RateLimited,
-                    ));
-                }
+                self.rate_limiter.mutate(|(count, time)| {
+                    if time.elapsed() < Duration::from_secs(20) && *count >= 3 {
+                        Err(Error::new(
+                            eyre!("Please limit login attempts to 3 per 20 seconds."),
+                            crate::ErrorKind::RateLimited,
+                        ))
+                    } else {
+                        *count += 1;
+                        *time = Instant::now();
+                        Ok(())
+                    }
+                })?;
                 if let Some(user_agent) = self.user_agent.as_ref().and_then(|h| h.to_str().ok()) {
                     request.params["__Auth_userAgent"] =
                         Value::String(Arc::new(user_agent.to_owned()))
-                    // TODO: will this panic?
                 }
-            } else if metadata.authenticated {
-                if self
-                    .signature_auth
-                    .process_rpc_request(
-                        context,
-                        from_value(json!({
-                            "get_signer": metadata.get_signer
-                        }))?,
-                        request,
-                    )
-                    .await
-                    .is_err()
-                {
-                    match HasValidSession::from_header(self.cookie.as_ref(), context).await? {
-                        HasValidSession(SessionType::Session(s)) if metadata.get_session => {
-                            request.params["__Auth_session"] =
-                                Value::String(Arc::new(s.hashed().deref().to_owned()));
-                        }
-                        _ => (),
-                    }
+            } else {
+                let ValidSessionToken(s) =
+                    ValidSessionToken::from_header(self.cookie.as_ref(), context).await?;
+                if metadata.get_session {
+                    request.params["__Auth_session"] =
+                        Value::String(Arc::new(s.hashed().deref().to_owned()));
                 }
             }
-            Ok(())
+            Ok::<_, Error>(())
         }
         .await
         .map_err(|e| RpcResponse::from_result(Err(e)))
     }
     async fn process_rpc_response(&mut self, _: &C, response: &mut RpcResponse) {
         if self.is_login {
-            let mut guard = self.rate_limiter.lock().await;
-            if guard.1.elapsed() < Duration::from_secs(20) {
-                if response.result.is_err() {
-                    guard.0 += 1;
-                }
-            } else {
-                guard.0 = 0;
-            }
-            guard.1 = Instant::now();
             if response.result.is_ok() {
                 let res = std::mem::replace(&mut response.result, Err(INTERNAL_ERROR));
                 response.result = async {

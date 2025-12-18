@@ -3,7 +3,6 @@ use std::path::Path;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
-use crate::util::future::NonDetachingJoinHandle;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tokio::io::AsyncWrite;
@@ -20,6 +19,7 @@ use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::sign::commitment::{Commitment, Digestable};
 use crate::sign::{AnySignature, AnyVerifyingKey};
 use crate::upload::UploadingFile;
+use crate::util::future::NonDetachingJoinHandle;
 
 #[derive(Debug, Deserialize, Serialize, TS)]
 #[serde(rename_all = "camelCase")]

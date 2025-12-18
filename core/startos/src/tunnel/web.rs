@@ -289,16 +289,16 @@ pub async fn generate_certificate(
 ) -> Result<Pem<Vec<X509>>, Error> {
     let saninfo = SANInfo::new(&subject.into_iter().collect());
 
-    let root_key = crate::net::ssl::generate_key()?;
+    let root_key = crate::net::ssl::gen_nistp256()?;
     let root_cert = crate::net::ssl::make_root_cert(
         &root_key,
         &Hostname("start-tunnel".into()),
         root_ca_start_time().await,
     )?;
-    let int_key = crate::net::ssl::generate_key()?;
+    let int_key = crate::net::ssl::gen_nistp256()?;
     let int_cert = crate::net::ssl::make_int_cert((&root_key, &root_cert), &int_key)?;
 
-    let key = crate::net::ssl::generate_key()?;
+    let key = crate::net::ssl::gen_nistp256()?;
     let cert = crate::net::ssl::make_leaf_cert((&int_key, &int_cert), (&key, &saninfo))?;
     let chain = Pem(vec![cert, int_cert, root_cert]);
 

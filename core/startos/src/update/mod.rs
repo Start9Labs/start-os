@@ -6,7 +6,6 @@ use clap::{ArgAction, Parser};
 use color_eyre::eyre::{Result, eyre};
 use exver::{Version, VersionRange};
 use futures::TryStreamExt;
-use crate::util::future::NonDetachingJoinHandle;
 use imbl_value::json;
 use itertools::Itertools;
 use patch_db::json_ptr::JsonPointer;
@@ -36,6 +35,7 @@ use crate::sound::{
     CIRCLE_OF_5THS_SHORT, UPDATE_FAILED_1, UPDATE_FAILED_2, UPDATE_FAILED_3, UPDATE_FAILED_4,
 };
 use crate::util::Invoke;
+use crate::util::future::NonDetachingJoinHandle;
 use crate::util::io::AtomicFile;
 use crate::util::net::WebSocketExt;
 

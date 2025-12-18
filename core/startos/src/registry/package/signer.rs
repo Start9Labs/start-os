@@ -2,11 +2,11 @@ use std::collections::BTreeMap;
 
 use clap::Parser;
 use exver::VersionRange;
-use crate::PackageId;
 use rpc_toolkit::{Context, HandlerExt, ParentHandler, from_fn_async};
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+use crate::PackageId;
 use crate::context::CliContext;
 use crate::prelude::*;
 use crate::registry::admin::display_package_signers;
@@ -36,6 +36,7 @@ pub fn signer_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "list",
             from_fn_async(list_package_signers)
+                .with_metadata("authenticated", Value::Bool(false))
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| {
                     display_package_signers(handle.params, result)

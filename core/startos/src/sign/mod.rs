@@ -4,7 +4,6 @@ use std::str::FromStr;
 use ::ed25519::pkcs8::BitStringRef;
 use clap::builder::ValueParserFactory;
 use der::referenced::OwnedToRef;
-use crate::util::FromStrParser;
 use pkcs8::der::AnyRef;
 use pkcs8::{PrivateKeyInfo, SubjectPublicKeyInfo};
 use serde::{Deserialize, Serialize};
@@ -14,6 +13,7 @@ use ts_rs::TS;
 use crate::prelude::*;
 use crate::sign::commitment::Digestable;
 use crate::sign::ed25519::Ed25519;
+use crate::util::FromStrParser;
 use crate::util::serde::{deserialize_from_str, serialize_display};
 
 pub mod commitment;

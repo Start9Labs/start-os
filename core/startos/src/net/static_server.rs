@@ -22,7 +22,6 @@ use http::request::Parts as RequestParts;
 use http::{HeaderValue, Method, StatusCode};
 use imbl_value::InternedString;
 use include_dir::Dir;
-use crate::PackageId;
 use new_mime_guess::MimeGuess;
 use openssl::hash::MessageDigest;
 use openssl::x509::X509;
@@ -33,8 +32,8 @@ use url::Url;
 
 use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
 use crate::hostname::Hostname;
-use crate::main_api;
-use crate::middleware::auth::{Auth, HasValidSession};
+use crate::middleware::auth::Auth;
+use crate::middleware::auth::session::ValidSessionToken;
 use crate::middleware::cors::Cors;
 use crate::middleware::db::SyncDb;
 use crate::net::gateway::GatewayInfo;
@@ -49,6 +48,7 @@ use crate::sign::commitment::merkle_archive::MerkleArchiveCommitment;
 use crate::util::io::open_file;
 use crate::util::net::SyncBody;
 use crate::util::serde::BASE64;
+use crate::{PackageId, main_api};
 
 const NOT_FOUND: &[u8] = b"Not Found";
 const METHOD_NOT_ALLOWED: &[u8] = b"Method Not Allowed";
@@ -80,7 +80,12 @@ impl UiContext for RpcContext {
     fn middleware(server: Server<Self>) -> HttpServer<Self> {
         server
             .middleware(Cors::new())
-            .middleware(Auth::new())
+            .middleware(
+                Auth::new()
+                    .with_local_auth()
+                    .with_signature_auth()
+                    .with_session_auth(),
+            )
             .middleware(SyncDb::new())
     }
     fn extend_router(self, router: Router) -> Router {
@@ -405,8 +410,9 @@ async fn if_authorized<
     f: F,
 ) -> Result<Response, Error> {
     if let Err(e) =
-        HasValidSession::from_header(request.headers().get(http::header::COOKIE), ctx).await
+        ValidSessionToken::from_header(request.headers().get(http::header::COOKIE), ctx).await
     {
+        // TODO: other auth methods
         Ok(unauthorized(e, request.uri().path()))
     } else {
         f(request).await

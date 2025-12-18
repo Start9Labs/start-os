@@ -132,9 +132,7 @@ async fn service_actor_loop<'a>(
                 .filter(|task| task.kind == TransitionKind::BackingUp);
             *transition = task.or_else(|| Some(seed.backup()));
         }
-        _ => {
-            *transition = None;
-        }
+        _ => (),
     };
     Ok(())
 }
