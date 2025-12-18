@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use clap::Parser;
+use cookie::{Cookie, Expiration, SameSite};
 use http::HeaderMap;
 use imbl_value::InternedString;
 use patch_db::PatchDb;
@@ -21,7 +22,9 @@ use url::Url;
 
 use crate::context::config::{CONFIG_PATH, ContextConfig};
 use crate::context::{CliContext, RpcContext};
-use crate::middleware::signature::SignatureAuthContext;
+use crate::middleware::auth::DbContext;
+use crate::middleware::auth::local::LocalAuthContext;
+use crate::middleware::auth::signature::SignatureAuthContext;
 use crate::prelude::*;
 use crate::registry::RegistryDatabase;
 use crate::registry::device_info::{DEVICE_INFO_HEADER, DeviceInfo};
@@ -29,7 +32,7 @@ use crate::registry::migrations::run_migrations;
 use crate::registry::signer::SignerInfo;
 use crate::rpc_continuations::RpcContinuations;
 use crate::sign::AnyVerifyingKey;
-use crate::util::io::append_file;
+use crate::util::io::{append_file, read_file_to_string};
 
 const DEFAULT_REGISTRY_LISTEN: SocketAddr =
     SocketAddr::new(std::net::IpAddr::V4(Ipv4Addr::LOCALHOST), 5959);
@@ -104,6 +107,8 @@ impl RegistryContext {
         }
         db.mutate(|db| run_migrations(db)).await.result?;
 
+        Self::init_auth_cookie().await?;
+
         let tor_proxy_url = config
             .tor_proxy
             .clone()
@@ -169,9 +174,26 @@ impl CallRemote<RegistryContext> for CliContext {
         params: Value,
         _: Empty,
     ) -> Result<Value, RpcError> {
+        let mut has_cookie = false;
+        if let Ok(local) = read_file_to_string(RegistryContext::LOCAL_AUTH_COOKIE_PATH).await {
+            self.cookie_store
+                .lock()
+                .unwrap()
+                .insert_raw(
+                    &Cookie::build(("local", local))
+                        .domain("localhost")
+                        .expires(Expiration::Session)
+                        .same_site(SameSite::Strict)
+                        .build(),
+                    &"http://localhost".parse()?,
+                )
+                .with_kind(crate::ErrorKind::Network)?;
+            has_cookie = true;
+        }
+
         let url = if let Some(url) = self.registry_url.clone() {
             url
-        } else if !self.registry_hostname.is_empty() {
+        } else if has_cookie || !self.registry_hostname.is_empty() {
             let mut url: Url = format!(
                 "http://{}",
                 self.registry_listen.unwrap_or(DEFAULT_REGISTRY_LISTEN)
@@ -196,7 +218,7 @@ impl CallRemote<RegistryContext> for CliContext {
             .cloned()
             .or_else(|| url.host().as_ref().map(InternedString::from_display));
 
-        crate::middleware::signature::call_remote(
+        crate::middleware::auth::signature::call_remote(
             self,
             url,
             HeaderMap::new(),
@@ -230,7 +252,7 @@ impl CallRemote<RegistryContext, RegistryUrlParams> for RpcContext {
         method = method.strip_prefix("registry.").unwrap_or(method);
         let sig_context = registry.host_str().map(InternedString::from);
 
-        crate::middleware::signature::call_remote(
+        crate::middleware::auth::signature::call_remote(
             self,
             registry,
             headers,
@@ -257,13 +279,19 @@ pub struct AdminLogRecord {
     pub key: AnyVerifyingKey,
 }
 
-impl SignatureAuthContext for RegistryContext {
+impl DbContext for RegistryContext {
     type Database = RegistryDatabase;
-    type AdditionalMetadata = RegistryAuthMetadata;
-    type CheckPubkeyRes = Option<(AnyVerifyingKey, SignerInfo)>;
     fn db(&self) -> &TypedPatchDb<Self::Database> {
         &self.db
     }
+}
+impl LocalAuthContext for RegistryContext {
+    const LOCAL_AUTH_COOKIE_PATH: &str = "/run/startos/registry.authcookie";
+    const LOCAL_AUTH_COOKIE_OWNERSHIP: &str = "root:root";
+}
+impl SignatureAuthContext for RegistryContext {
+    type AdditionalMetadata = RegistryAuthMetadata;
+    type CheckPubkeyRes = Option<(AnyVerifyingKey, SignerInfo)>;
     async fn sig_context(
         &self,
     ) -> impl IntoIterator<Item = Result<impl AsRef<str> + Send, Error>> + Send {

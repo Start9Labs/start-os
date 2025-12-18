@@ -8,14 +8,14 @@ use axum::extract::Request;
 use http::{HeaderMap, HeaderValue};
 use reqwest::Client;
 use rpc_toolkit::yajrc::RpcError;
-use rpc_toolkit::{Context, Middleware, RpcRequest, RpcResponse};
+use rpc_toolkit::{Middleware, RpcRequest, RpcResponse};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use tokio::sync::Mutex;
 use url::Url;
 
 use crate::context::{CliContext, RpcContext};
-use crate::db::model::Database;
+use crate::middleware::auth::DbContext;
 use crate::prelude::*;
 use crate::sign::commitment::Commitment;
 use crate::sign::commitment::request::RequestCommitment;
@@ -25,11 +25,9 @@ use crate::util::serde::Base64;
 
 pub const AUTH_SIG_HEADER: &str = "X-StartOS-Auth-Sig";
 
-pub trait SignatureAuthContext: Context {
-    type Database: HasModel<Model = Model<Self::Database>> + Send + Sync;
+pub trait SignatureAuthContext: DbContext {
     type AdditionalMetadata: DeserializeOwned + Send;
     type CheckPubkeyRes: Send;
-    fn db(&self) -> &TypedPatchDb<Self::Database>;
     fn sig_context(
         &self,
     ) -> impl Future<Output = impl IntoIterator<Item = Result<impl AsRef<str> + Send, Error>> + Send>
@@ -47,12 +45,8 @@ pub trait SignatureAuthContext: Context {
 }
 
 impl SignatureAuthContext for RpcContext {
-    type Database = Database;
     type AdditionalMetadata = ();
     type CheckPubkeyRes = ();
-    fn db(&self) -> &TypedPatchDb<Self::Database> {
-        &self.db
-    }
     async fn sig_context(
         &self,
     ) -> impl IntoIterator<Item = Result<impl AsRef<str> + Send, Error>> + Send {
@@ -96,7 +90,7 @@ impl SignatureAuthContext for RpcContext {
         }
 
         Err(Error::new(
-            eyre!("Developer Key is not authorized"),
+            eyre!("Key is not authorized"),
             ErrorKind::IncorrectPassword,
         ))
     }

@@ -24,7 +24,7 @@ use super::setup::CURRENT_SECRET;
 use crate::context::config::{ClientConfig, local_config_path};
 use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
 use crate::developer::{OS_DEVELOPER_KEY_PATH, default_developer_key_path};
-use crate::middleware::auth::AuthContext;
+use crate::middleware::auth::local::LocalAuthContext;
 use crate::prelude::*;
 use crate::rpc_continuations::Guid;
 use crate::util::io::read_file_to_string;
@@ -307,7 +307,7 @@ impl CallRemote<RpcContext> for CliContext {
                 )
                 .with_kind(crate::ErrorKind::Network)?;
         }
-        crate::middleware::signature::call_remote(
+        crate::middleware::auth::signature::call_remote(
             self,
             self.rpc_url.clone(),
             HeaderMap::new(),
@@ -320,7 +320,7 @@ impl CallRemote<RpcContext> for CliContext {
 }
 impl CallRemote<DiagnosticContext> for CliContext {
     async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
-        crate::middleware::signature::call_remote(
+        crate::middleware::auth::signature::call_remote(
             self,
             self.rpc_url.clone(),
             HeaderMap::new(),
@@ -333,7 +333,7 @@ impl CallRemote<DiagnosticContext> for CliContext {
 }
 impl CallRemote<InitContext> for CliContext {
     async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
-        crate::middleware::signature::call_remote(
+        crate::middleware::auth::signature::call_remote(
             self,
             self.rpc_url.clone(),
             HeaderMap::new(),
@@ -346,7 +346,7 @@ impl CallRemote<InitContext> for CliContext {
 }
 impl CallRemote<SetupContext> for CliContext {
     async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
-        crate::middleware::signature::call_remote(
+        crate::middleware::auth::signature::call_remote(
             self,
             self.rpc_url.clone(),
             HeaderMap::new(),
@@ -359,7 +359,7 @@ impl CallRemote<SetupContext> for CliContext {
 }
 impl CallRemote<InstallContext> for CliContext {
     async fn call_remote(&self, method: &str, params: Value, _: Empty) -> Result<Value, RpcError> {
-        crate::middleware::signature::call_remote(
+        crate::middleware::auth::signature::call_remote(
             self,
             self.rpc_url.clone(),
             HeaderMap::new(),

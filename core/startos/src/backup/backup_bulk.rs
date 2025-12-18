@@ -22,7 +22,7 @@ use crate::db::model::{Database, DatabaseModel};
 use crate::disk::mount::backup::BackupMountGuard;
 use crate::disk::mount::filesystem::ReadWrite;
 use crate::disk::mount::guard::{GenericMountGuard, TmpMountGuard};
-use crate::middleware::auth::AuthContext;
+use crate::middleware::auth::session::SessionAuthContext;
 use crate::notifications::{NotificationLevel, notify};
 use crate::prelude::*;
 use crate::util::io::{AtomicFile, dir_copy};

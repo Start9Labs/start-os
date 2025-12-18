@@ -46,6 +46,7 @@ pub fn package_api<C: Context>() -> ParentHandler<C> {
         .subcommand(
             "get",
             from_fn_async(get::get_package)
+                .with_metadata("authenticated", Value::Bool(false))
                 .with_metadata("get_device_info", Value::Bool(true))
                 .with_display_serializable()
                 .with_custom_display_fn(|handle, result| {

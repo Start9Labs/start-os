@@ -24,7 +24,8 @@ use crate::auth::Sessions;
 use crate::context::config::ContextConfig;
 use crate::context::{CliContext, RpcContext};
 use crate::db::model::public::{NetworkInterfaceInfo, NetworkInterfaceType};
-use crate::middleware::auth::{Auth, AuthContext};
+use crate::middleware::auth::Auth;
+use crate::middleware::auth::local::LocalAuthContext;
 use crate::middleware::cors::Cors;
 use crate::net::forward::{PortForwardController, add_iptables_rule};
 use crate::net::static_server::{EMPTY_DIR, UiContext};
@@ -279,7 +280,7 @@ impl CallRemote<TunnelContext> for CliContext {
 
         method = method.strip_prefix("tunnel.").unwrap_or(method);
 
-        crate::middleware::signature::call_remote(
+        crate::middleware::auth::signature::call_remote(
             self,
             url,
             HeaderMap::new(),
@@ -308,7 +309,7 @@ impl CallRemote<TunnelContext, TunnelUrlParams> for RpcContext {
 
         let sig_ctx = url.host_str().map(InternedString::from_display);
 
-        crate::middleware::signature::call_remote(
+        crate::middleware::auth::signature::call_remote(
             self,
             url,
             HeaderMap::new(),
@@ -331,6 +332,11 @@ impl UiContext for TunnelContext {
         tunnel_api()
     }
     fn middleware(server: rpc_toolkit::Server<Self>) -> rpc_toolkit::HttpServer<Self> {
-        server.middleware(Cors::new()).middleware(Auth::new())
+        server.middleware(Cors::new()).middleware(
+            Auth::new()
+                .with_local_auth()
+                .with_signature_auth()
+                .with_session_auth(),
+        )
     }
 }

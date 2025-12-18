@@ -32,7 +32,8 @@ use url::Url;
 
 use crate::context::{DiagnosticContext, InitContext, InstallContext, RpcContext, SetupContext};
 use crate::hostname::Hostname;
-use crate::middleware::auth::{Auth, HasValidSession};
+use crate::middleware::auth::Auth;
+use crate::middleware::auth::session::ValidSessionToken;
 use crate::middleware::cors::Cors;
 use crate::middleware::db::SyncDb;
 use crate::net::gateway::GatewayInfo;
@@ -79,7 +80,12 @@ impl UiContext for RpcContext {
     fn middleware(server: Server<Self>) -> HttpServer<Self> {
         server
             .middleware(Cors::new())
-            .middleware(Auth::new())
+            .middleware(
+                Auth::new()
+                    .with_local_auth()
+                    .with_signature_auth()
+                    .with_session_auth(),
+            )
             .middleware(SyncDb::new())
     }
     fn extend_router(self, router: Router) -> Router {
@@ -404,8 +410,9 @@ async fn if_authorized<
     f: F,
 ) -> Result<Response, Error> {
     if let Err(e) =
-        HasValidSession::from_header(request.headers().get(http::header::COOKIE), ctx).await
+        ValidSessionToken::from_header(request.headers().get(http::header::COOKIE), ctx).await
     {
+        // TODO: other auth methods
         Ok(unauthorized(e, request.uri().path()))
     } else {
         f(request).await

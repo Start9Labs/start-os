@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use crate::context::CliContext;
+use crate::middleware::auth::Auth;
 use crate::middleware::cors::Cors;
-use crate::middleware::signature::SignatureAuth;
 use crate::net::static_server::{bad_request, not_found, server_error};
 use crate::prelude::*;
 use crate::registry::context::RegistryContext;
@@ -108,7 +108,7 @@ pub fn registry_router(ctx: RegistryContext) -> Router {
             any(
                 Server::new(move || ready(Ok(ctx.clone())), registry_api())
                     .middleware(Cors::new())
-                    .middleware(SignatureAuth::new())
+                    .middleware(Auth::new().with_local_auth().with_signature_auth())
                     .middleware(DeviceInfoMiddleware::new()),
             )
         })

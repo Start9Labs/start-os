@@ -14,8 +14,8 @@ use tracing::instrument;
 use ts_rs::TS;
 
 use crate::context::{CliContext, RpcContext};
-use crate::middleware::auth::{
-    AsLogoutSessionId, AuthContext, HasLoggedOutSessions, HashSessionToken, LoginRes,
+use crate::middleware::auth::session::{
+    AsLogoutSessionId, HasLoggedOutSessions, HashSessionToken, LoginRes, SessionAuthContext,
 };
 use crate::prelude::*;
 use crate::util::crypto::EncryptedWire;
@@ -110,7 +110,7 @@ impl std::str::FromStr for PasswordType {
         })
     }
 }
-pub fn auth<C: Context, AC: AuthContext>() -> ParentHandler<C>
+pub fn auth<C: Context, AC: SessionAuthContext>() -> ParentHandler<C>
 where
     CliContext: CallRemote<AC>,
 {
@@ -173,7 +173,7 @@ fn gen_pwd() {
 }
 
 #[instrument(skip_all)]
-async fn cli_login<C: AuthContext>(
+async fn cli_login<C: SessionAuthContext>(
     HandlerArgs {
         context: ctx,
         parent_method,
@@ -227,7 +227,7 @@ pub struct LoginParams {
 }
 
 #[instrument(skip_all)]
-pub async fn login_impl<C: AuthContext>(
+pub async fn login_impl<C: SessionAuthContext>(
     ctx: C,
     LoginParams {
         password,
@@ -283,7 +283,7 @@ pub struct LogoutParams {
     session: InternedString,
 }
 
-pub async fn logout<C: AuthContext>(
+pub async fn logout<C: SessionAuthContext>(
     ctx: C,
     LogoutParams { session }: LogoutParams,
 ) -> Result<Option<HasLoggedOutSessions>, Error> {
@@ -312,7 +312,7 @@ pub struct SessionList {
     sessions: Sessions,
 }
 
-pub fn session<C: Context, AC: AuthContext>() -> ParentHandler<C>
+pub fn session<C: Context, AC: SessionAuthContext>() -> ParentHandler<C>
 where
     CliContext: CallRemote<AC>,
 {
@@ -379,7 +379,7 @@ pub struct ListParams {
 
 // #[command(display(display_sessions))]
 #[instrument(skip_all)]
-pub async fn list<C: AuthContext>(
+pub async fn list<C: SessionAuthContext>(
     ctx: C,
     ListParams { session, .. }: ListParams,
 ) -> Result<SessionList, Error> {
@@ -418,7 +418,10 @@ pub struct KillParams {
 }
 
 #[instrument(skip_all)]
-pub async fn kill<C: AuthContext>(ctx: C, KillParams { ids }: KillParams) -> Result<(), Error> {
+pub async fn kill<C: SessionAuthContext>(
+    ctx: C,
+    KillParams { ids }: KillParams,
+) -> Result<(), Error> {
     HasLoggedOutSessions::new(ids.into_iter().map(KillSessionId::new), &ctx).await?;
     Ok(())
 }
